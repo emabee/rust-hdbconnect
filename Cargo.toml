@@ -1,0 +1,13 @@
+[package]
+name = "hdbconnect"
+version = "0.1.0"
+authors = ["emabee <meinolf.block@sap.com>"]
+
+[dependencies]
+byteorder = "*"
+flexi_logger = "0.3"
+log = "*"
+rustc-serialize = "*"
+time = "*"
+rust-crypto = "*"
+rand = "0.3.9"
