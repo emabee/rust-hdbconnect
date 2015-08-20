@@ -7,12 +7,12 @@ extern crate time;
 
 
 use flexi_logger::{init,LogConfig};
-use hdbconnect::sql::connection::*;
+use hdbconnect::connection::*;
 
 #[test]
 #[allow(unused_variables)]
 pub fn test_connect() {
-    init(LogConfig::new(), Some("hdbconnect::sql::protocol=debug".to_string())).unwrap();
+    init(LogConfig::new(), Some("hdbconnect::protocol=debug".to_string())).unwrap();
 
     trace!("Test starts now.");
     let start = time::now();

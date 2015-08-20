@@ -6,5 +6,5 @@ extern crate rustc_serialize;
 extern crate time;
 extern crate rand;
 
-
-pub mod sql;
+pub mod connection;
+mod protocol;

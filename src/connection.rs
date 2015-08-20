@@ -1,12 +1,12 @@
 use super::protocol::authentication::*;
-use super::protocol::dberr::*;
 use super::protocol::dbstream::{db_connect,DbStream};
 
 use std::ops::Add;
+use std::io::Result;
 
 /// static: Connect and login
 pub fn connect(host: &str, port: &str, username: &str, password: &str)
-               -> DbResult<Connection> {
+               -> Result<Connection> {
     trace!("Entering connect()");
     let mut conn = try!(Connection::new(host, port));
     trace!("Got connection {:?}",conn);
@@ -25,7 +25,7 @@ pub struct Connection {
 }
 
 impl Connection {
-    fn new(host: &str, port: &str) -> DbResult<Connection> {
+    fn new(host: &str, port: &str) -> Result<Connection> {
         trace!("Entering Connection::new()");
         let stream = try!(db_connect(&host, &port));
         Ok(Connection {
@@ -35,7 +35,7 @@ impl Connection {
         })
     }
 
-    fn login(&mut self, username: &str, password: &str) -> DbResult<()>{
+    fn login(&mut self, username: &str, password: &str) -> Result<()>{
         trace!("Entering login()");
         scram_sha256(&mut self.stream, username, password)
     }

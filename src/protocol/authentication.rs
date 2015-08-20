@@ -1,17 +1,34 @@
-use super::dberr::*;
 use super::lowlevel::argument::*;
 use super::lowlevel::message::*;
 use super::lowlevel::part::*;
 use super::lowlevel::segment::*;
 use super::dbstream::*;
 
-use log::LogLevel::Trace;
 use rand::{Rng,thread_rng};
+use std::io::{Error,ErrorKind,Result};
 
 /// authenticate with the scram_sha256 method
-pub fn scram_sha256(dbstream: &mut DbStream, username: &str, password: &str) -> DbResult<()> {
+pub fn scram_sha256(dbstream: &mut DbStream, username: &str, password: &str) -> Result<()> {
 
-    // Build the request: message_header + (segment_header + (part1+options) + (part2+authrequest)
+    let mut message = get_auth1_request(username);
+    trace!("Message: {:?}", message);
+
+    let response = try!(dbstream.send_and_receive(&mut message));
+
+    debug!("Got a message: {:?}", response);
+
+    // FIXME digest the response
+
+    // FIXME send client proof
+
+    // FIXME digest the response
+
+    Err(Error::new(ErrorKind::Other, "scram_sha256: remainder to be implemented"))  // FIXME
+}
+
+
+/// Build the request: message_header + (segment_header + (part1+options) + (part2+authrequest)
+fn get_auth1_request (username: &str) -> Message {
     let mut arg_v = Vec::<Option>::new();
     arg_v.push( Option {
         id: OptionId::Version,
@@ -54,34 +71,8 @@ pub fn scram_sha256(dbstream: &mut DbStream, username: &str, password: &str) -> 
     let (session_id, packet_seq_number) = (-1i64, 0i32);
     let mut message = Message::new(session_id, packet_seq_number);
     message.push(segment);
-
-    // Serialize the request
-    let mut request_buffer = Vec::<u8>::with_capacity(300);
-    let mut response_buffer = Vec::<u8>::with_capacity(300);
-
-    debug!("Message: {:?}", message);
-    message.encode(&mut request_buffer);
-    let mut i = 0;
-    if log_enabled!(Trace) {
-        for b in &request_buffer {
-            i+=1;
-            trace!("Request: {:3} = {:0>2x}",i, b);
-        }
-    }
-    //let received = try!(dbstream.send_and_receive(&request_buffer, &mut response_buffer));
-    // for i in 0..received {
-    //     info!("Response: {} = {:X} = {}",i,resp_buffer[i],resp_buffer[i]);
-    // }
-
-    // FIXME digest the response
-
-    // FIXME send client proof
-
-    // FIXME digest the response
-
-    Err(DbError::from_str("to be implemented"))  // FIXME
+    message
 }
-
 
 fn get_client_challenge() -> Vec<u8>{
     let mut rng = thread_rng();
@@ -93,11 +84,3 @@ fn get_client_challenge() -> Vec<u8>{
     }
     res
 }
-
-// fn get_client_challenge() -> Vec<u8>{
-//     let mut rng = thread_rng();
-//     let mut client_challenge: [u8;64] = [0;64];
-//     rng.fill_bytes(&mut client_challenge);
-//     let res = (*as_vec(&client_challenge)).clone();
-//     res
-// }
