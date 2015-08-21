@@ -1,5 +1,5 @@
 use super::bufread::*;
-use super::segment::*;
+use super::segment;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::io::{BufRead, Error, ErrorKind, Result, Write};
@@ -16,8 +16,17 @@ const MESSAGE_HEADER_SIZE: u32 = 32;
 pub struct Message {
     session_id: i64,
     packet_seq_number: i32,
-    segments: Vec<Segment>,
+    segments: Vec<segment::Segment>,
 }
+
+pub fn new(session_id: i64, packet_seq_number: i32) -> Message {
+    Message {
+        session_id: session_id,
+        packet_seq_number: packet_seq_number,
+        segments: Vec::<segment::Segment>::new(),
+    }
+}
+
 
 /// Serialize to byte stream
 impl Message {
@@ -28,7 +37,7 @@ impl Message {
         debug!("send_and_receive: request data successfully sent");
 
         let mut rdr = BufReader::new(stream);
-        Message::try_to_parse(&mut rdr)
+        try_to_parse(&mut rdr)
     }
 
 
@@ -60,15 +69,7 @@ impl Message {
         w.flush()
     }
 
-    pub fn new(session_id: i64, packet_seq_number: i32) -> Message {
-        Message {
-            session_id: session_id,
-            packet_seq_number: packet_seq_number,
-            segments: Vec::<Segment>::new(),
-        }
-    }
-
-    pub fn push(&mut self, segment: Segment){
+    pub fn push(&mut self, segment: segment::Segment){
         self.segments.push(segment);
     }
 
@@ -82,38 +83,40 @@ impl Message {
         len
     }
 
-    ///
-    fn try_to_parse(rdr: &mut BufReader<&mut TcpStream>) -> Result<Message> {
-        trace!("Entering Message::try_to_parse()");
+}
 
-        loop {
-            trace!("looping in Message::try_to_parse()");
-            match try_to_parse_msg_header(rdr) {
-                Ok(ParseResponse::MsgHdr(msg, varpart_size, remaining_bufsize, no_of_segs)) => {
-                    // FIXME parse segments
-                    return Ok(msg);
-                },
-                Ok(ParseResponse::Incomplete) => {
-                    trace!("get_init_response: got Incomplete from try_to_parse()");
-                },
-                Err(e) => return Err(Error::from(e)),
-            }
-            match rdr.read_into_buf() {
-                Ok(0) if rdr.get_buf().is_empty() => {
-                    return Err(Error::new(ErrorKind::Other, "Connection closed"));
-                },
-                Ok(0) => return Err(Error::new(ErrorKind::Other, "Response is bigger than expected")), // ???
-                Ok(_) => (),
-                Err(e) => return Err(Error::from(e))
-            }
+///
+fn try_to_parse(rdr: &mut BufReader<&mut TcpStream>) -> Result<Message> {
+    trace!("Entering try_to_parse()");
+
+    loop {
+        trace!("looping in try_to_parse()");
+        match try_to_parse_header(rdr) {
+            Ok(ParseResponse::MsgHdr(mut msg, varpart_size, remaining_bufsize, no_of_segs)) => {
+                for _ in 0..no_of_segs {
+                    msg.push(try!(segment::try_to_parse(rdr)));
+                }
+                return Ok(msg);
+            },
+            Ok(ParseResponse::Incomplete) => {
+                trace!("try_to_parse(): got Incomplete from try_to_parse_header()");
+            },
+            Err(e) => return Err(Error::from(e)),
+        }
+        match rdr.read_into_buf() {
+            Ok(0) if rdr.get_buf().is_empty() => {
+                return Err(Error::new(ErrorKind::Other, "Connection closed"));
+            },
+            Ok(0) => return Err(Error::new(ErrorKind::Other, "Response is bigger than expected")), // ???
+            Ok(_) => (),
+            Err(e) => return Err(Error::from(e))
         }
     }
 }
 
-
 ///
-fn try_to_parse_msg_header(rdr: &mut BufReader<&mut TcpStream>) -> Result<ParseResponse> {
-    trace!("Entering Message::try_to_parse_msg_header()");
+fn try_to_parse_header(rdr: &mut BufReader<&mut TcpStream>) -> Result<ParseResponse> {
+    trace!("Entering try_to_parse_header()");
 
     let l = rdr.get_buf().len();
     if  l >= (MESSAGE_HEADER_SIZE as usize) {
@@ -123,15 +126,15 @@ fn try_to_parse_msg_header(rdr: &mut BufReader<&mut TcpStream>) -> Result<ParseR
         let varpart_size = try!(rdr.read_u32::<LittleEndian>());        // UI4
         let remaining_bufsize = try!(rdr.read_u32::<LittleEndian>());   // UI4
         let no_of_segs = try!(rdr.read_i16::<LittleEndian>());          // I2
-        rdr.consume(MESSAGE_HEADER_SIZE as usize); // ignore the unused last 10 bytes (I1 + B[9])
-        debug!("try_to_parse_msg_header() returns Ok");
+        rdr.consume(MESSAGE_HEADER_SIZE as usize);                      // ignore the unused last 10 bytes (I1 + B[9])
+        debug!("try_to_parse_header() returns Ok");
         Ok(ParseResponse::MsgHdr(
-            Message::new(session_id,packet_seq_number),
+            new(session_id,packet_seq_number),
             varpart_size,
             remaining_bufsize,
             no_of_segs))
     } else {
-        trace!("try_to_parse_msg_header() got only {} bytes", l);
+        trace!("try_to_parse_header() got only {} bytes", l);
         Ok(ParseResponse::Incomplete)
     }
 }

@@ -1,7 +1,7 @@
-use super::lowlevel::argument::*;
-use super::lowlevel::message::*;
-use super::lowlevel::part::*;
-use super::lowlevel::segment::*;
+use super::lowlevel::argument::{self,Argument,HdbOption,HdbOptionId,AuthS,AuthMethod};
+use super::lowlevel::message;
+use super::lowlevel::part::{self,Part,PartKind};
+use super::lowlevel::segment;
 use super::dbstream::*;
 
 use rand::{Rng,thread_rng};
@@ -28,21 +28,21 @@ pub fn scram_sha256(dbstream: &mut DbStream, username: &str, password: &str) -> 
 
 
 /// Build the request: message_header + (segment_header + (part1+options) + (part2+authrequest)
-fn get_auth1_request (username: &str) -> Message {
-    let mut arg_v = Vec::<Option>::new();
-    arg_v.push( Option {
-        id: OptionId::Version,
+fn get_auth1_request (username: &str) -> message::Message {
+    let mut arg_v = Vec::<HdbOption>::new();
+    arg_v.push( HdbOption {
+        id: HdbOptionId::Version,
         value: b"1.50.00.000000".to_vec(),
     });
-    arg_v.push( Option {
-        id: OptionId::ClientType,
+    arg_v.push( HdbOption {
+        id: HdbOptionId::ClientType,
         value: b"JDBC".to_vec()
     });
-    arg_v.push( Option {
-        id: OptionId::ClientApplicationProgram,
+    arg_v.push( HdbOption {
+        id: HdbOptionId::ClientApplicationProgram,
         value: b"UNKNOWN".to_vec()
     });
-    let part1 = Part::new(PartKind::ClientContext, Argument::Options(arg_v));
+    let part1 = part::new(PartKind::ClientContext, Argument::HdbOptions(arg_v));
 
     let username = username.as_bytes();
     let mut auth_s = AuthS {
@@ -61,15 +61,15 @@ fn get_auth1_request (username: &str) -> Message {
         name: b"SCRAMMD5".to_vec(),
         client_challenge: get_client_challenge(),
     });
-    let part2 = Part::new(PartKind::Authentication, Argument::Auth(auth_s));
+    let part2 = part::new(PartKind::Authentication, Argument::Auth(auth_s));
 
 
-    let mut segment = Segment::new(SegmentKind::Request, MessageType::Authenticate) ;
+    let mut segment = segment::new(segment::Kind::Request, segment::Type::Authenticate) ;
     segment.push(part1);
     segment.push(part2);
 
     let (session_id, packet_seq_number) = (-1i64, 0i32);
-    let mut message = Message::new(session_id, packet_seq_number);
+    let mut message = message::new(session_id, packet_seq_number);
     message.push(segment);
     message
 }

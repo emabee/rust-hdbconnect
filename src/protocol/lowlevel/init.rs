@@ -74,23 +74,14 @@ impl InitResponse {
     fn try_to_parse(rdr: &mut BufReader<&mut TcpStream>) -> Result<InitParseResponse,BoError> {
         trace!("Entering InitResponse::try_to_parse()");
         match rdr.get_buf().len() {
-            8 => {
-                let mut major: i8;  //FIXME Use try!
-                let mut minor: i16;
-
-                match rdr.read_i8() {                     // I1    Major Product Version
-                    Ok(m) => {major = m},
-                    Err(e) => return Err(e),
-                }
-                match rdr.read_i16::<LittleEndian>() {    // I2    Minor Product Version
-                    Ok(m) => {minor = m},
-                    Err(e) => return Err(e),
-                }
-                // ignore the rest ?!
+            l if l>= 8 => {
+                let major: i8 = try!(rdr.read_i8());                    // I1    Major Product Version
+                let minor: i16 = try!(rdr.read_i16::<LittleEndian>());  // I2    Minor Product Version
+                // ignore the rest !?!
                 Ok(InitParseResponse::Ok(InitResponse{major: major,minor: minor}))
             },
             l => {
-                trace!("try_to_parse got {}", l);
+                trace!("try_to_parse() got {}", l);
                 Ok(InitParseResponse::Incomplete)
             },
         }

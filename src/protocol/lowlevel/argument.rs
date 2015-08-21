@@ -1,3 +1,5 @@
+use super::part::PartKind;
+
 use byteorder::{/*BigEndian, */LittleEndian, WriteBytesExt};
 use std::io::Result as IoResult;
 use std::io::Write;
@@ -6,16 +8,27 @@ use std::fmt::{Debug, Error, Formatter};
 
 const TYPE_CODE_STRING: i8 = 29;  // api/Communication/Protocol/Layout.hpp
 
+
+pub fn new(part_kind: PartKind) -> Argument {
+    match part_kind {
+        PartKind::ConnectOptions |
+        PartKind::CommitOptions |
+        PartKind::FetchOptions => {Argument::HdbOptions(Vec::<HdbOption>::new())},
+        PartKind::Authentication => {Argument::Auth(AuthS::new())},
+        _ => {panic!("deserialization of argument for PartKind {} is not yet implemented", part_kind.to_i8())}
+    }
+}
+
 #[derive(Debug)]
 pub enum Argument {
-    Options(Vec<Option>),
+    HdbOptions(Vec<HdbOption>),
     Auth(AuthS),
 }
 
 impl Argument {
     pub fn count(&self) -> i16 {
         match *self {
-            Argument::Options(ref opts) => opts.len() as i16,
+            Argument::HdbOptions(ref opts) => opts.len() as i16,
             Argument::Auth(_) => 1i16,
         }
     }
@@ -23,7 +36,7 @@ impl Argument {
     pub fn size(&self, with_padding: bool) -> u32 {
         let mut size = 0;
         match self {
-            &Argument::Options(ref opts) => {
+            &Argument::HdbOptions(ref opts) => {
                 for opt in opts {
                     size += 1 + 1 + 2 + opt.value.len() as u32;
                 }
@@ -46,7 +59,7 @@ impl Argument {
     /// Serialize to byte stream
     pub fn encode(&self, remaining_bufsize: u32, w: &mut Write) -> IoResult<u32> {
         match *self {
-            Argument::Options(ref opts) => {
+            Argument::HdbOptions(ref opts) => {
                 for ref opt in opts {
                     try!(w.write_i8(opt.id.getval()));                          // I1           OPTION KEY
                     // FIXME: support more than only strings
@@ -93,6 +106,12 @@ pub struct AuthS {
     pub user: Vec<u8>,
     pub methods: Vec<AuthMethod>,
 }
+impl AuthS {
+    fn new() -> AuthS {
+        AuthS {user: Vec::<u8>::new(), methods: Vec::<AuthMethod>::new()}
+    }
+}
+
 
 pub struct AuthMethod {
     pub name: Vec<u8>,
@@ -111,23 +130,23 @@ impl Debug for AuthMethod {
 }
 
 #[derive(Debug)]
-pub struct Option {
-    pub id: OptionId,
+pub struct HdbOption {
+    pub id: HdbOptionId,
     pub value: Vec<u8>,
 }
 
 #[derive(Debug)]
-pub enum OptionId {
+pub enum HdbOptionId {
     Version,
     ClientType,
     ClientApplicationProgram,
 }
-impl OptionId {
+impl HdbOptionId {
     fn getval(&self) -> i8 {
         match *self {
-            OptionId::Version => 1,
-            OptionId::ClientType => 2,
-            OptionId::ClientApplicationProgram => 3,
+            HdbOptionId::Version => 1,
+            HdbOptionId::ClientType => 2,
+            HdbOptionId::ClientApplicationProgram => 3,
         }
     }
 }
