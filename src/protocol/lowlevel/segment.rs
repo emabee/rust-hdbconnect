@@ -7,7 +7,7 @@ use std::net::TcpStream;
 
 
 
-const SEGMENT_HEADER_SIZE: u32 = 24;
+const SEGMENT_HEADER_SIZE: u32 = 24; // same for in and out
 
 #[allow(dead_code)]
 #[derive(Debug)]
@@ -60,7 +60,7 @@ impl Segment {
     }
 
     pub fn size(&self) -> u32 {
-        let mut len = 24;
+        let mut len = SEGMENT_HEADER_SIZE;
         for part in &self.parts {
             len += part.size(true);
         }
@@ -111,15 +111,16 @@ fn try_to_parse_header(rdr: &mut BufReader<&mut TcpStream>) -> Result<ParseRespo
         let no_of_parts = try!(rdr.read_i16::<LittleEndian>());                                 // I2
         let seg_no =  try!(rdr.read_i16::<LittleEndian>());                                     // I2
         let seg_kind = try!(Kind::from_i8(try!(rdr.read_i8())));                                // I1
-        try!(rdr.read_i8());                                                                    // I1 reserved2
+        rdr.consume(1usize);                                                                    // I1 reserved2
         let function_code = try!(FunctionCode::from_i16(try!(rdr.read_i16::<LittleEndian>()))); // I2
-        rdr.consume(SEGMENT_HEADER_SIZE as usize);                                              // B[8] reserved3
+        rdr.consume(8usize);                                                                    // B[8] reserved3
+        debug!("segment_header = {{ seg_size = {}, seg_offset = {}, \
+                no_of_parts = {}, seg_no = {}, seg_kind = {}, function_code = {} }}",
+                seg_size, seg_offset,
+                no_of_parts, seg_no, seg_kind.to_i8(), function_code.to_i16());
+
         let mut segment = new(seg_kind, Type::DummyForReply);
-
-        debug!("try_to_parse_header() found segment no {} of size {} with offset {}",seg_no,seg_size,seg_offset);
         segment.function_code = function_code;
-
-        debug!("try_to_parse_header() returns Ok");
         Ok(ParseResponse::SegmentHdr(segment, no_of_parts))
     } else {
         trace!("try_to_parse_header() got only {} bytes", l);
@@ -265,7 +266,7 @@ pub enum FunctionCode {
 #[allow(dead_code)]
 impl FunctionCode {
     fn to_i16(&self) -> i16 {match *self {
-        FunctionCode::INITIAL => {panic!("Attempt to serialize function code with value INITIAL")},
+        FunctionCode::INITIAL => 0,
         FunctionCode::Ddl => 1,
         FunctionCode::Insert => 2,
         FunctionCode::Update => 3,
@@ -291,6 +292,7 @@ impl FunctionCode {
     }}
 
     fn from_i16(val: i16) -> Result<FunctionCode> { match val {
+        0 => Ok(FunctionCode::INITIAL),
         1 => Ok(FunctionCode::Ddl),
         2 => Ok(FunctionCode::Insert),
         3 => Ok(FunctionCode::Update),

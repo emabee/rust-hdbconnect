@@ -1,19 +1,19 @@
-use super::lowlevel::argument::{self,Argument,HdbOption,HdbOptionId,AuthS,AuthMethod};
+use super::lowlevel::argument::Argument;
+use super::lowlevel::authfield::*;
+use super::lowlevel::hdboption::*;
 use super::lowlevel::message;
-use super::lowlevel::part::{self,Part,PartKind};
+use super::lowlevel::part;
+use super::lowlevel::partkind::*;
 use super::lowlevel::segment;
-use super::dbstream::*;
 
 use rand::{Rng,thread_rng};
 use std::io::{Error,ErrorKind,Result};
+use std::net::TcpStream;
 
 /// authenticate with the scram_sha256 method
-pub fn scram_sha256(dbstream: &mut DbStream, username: &str, password: &str) -> Result<()> {
+pub fn scram_sha256(tcp_stream: &mut TcpStream, username: &str, password: &str) -> Result<()> {
 
-    let mut message = get_auth1_request(username);
-    trace!("Message: {:?}", message);
-
-    let response = try!(dbstream.send_and_receive(&mut message));
+    let response = try!(auth1_request(username).send_and_receive(tcp_stream));
 
     debug!("Got a message: {:?}", response);
 
@@ -27,41 +27,35 @@ pub fn scram_sha256(dbstream: &mut DbStream, username: &str, password: &str) -> 
 }
 
 
-/// Build the request: message_header + (segment_header + (part1+options) + (part2+authrequest)
-fn get_auth1_request (username: &str) -> message::Message {
+/// Build the auth1-request: message_header + (segment_header + (part1+options) + (part2+authrequest)
+fn auth1_request (username: &str) -> message::Message {
     let mut arg_v = Vec::<HdbOption>::new();
     arg_v.push( HdbOption {
         id: HdbOptionId::Version,
-        value: b"1.50.00.000000".to_vec(),
+        value: HdbOptionValue::BSTRING(b"1.50.00.000000".to_vec()),
     });
     arg_v.push( HdbOption {
         id: HdbOptionId::ClientType,
-        value: b"JDBC".to_vec()
+        value: HdbOptionValue::BSTRING(b"JDBC".to_vec()),
     });
     arg_v.push( HdbOption {
         id: HdbOptionId::ClientApplicationProgram,
-        value: b"UNKNOWN".to_vec()
+        value: HdbOptionValue::BSTRING(b"UNKNOWN".to_vec()),
     });
-    let part1 = part::new(PartKind::ClientContext, Argument::HdbOptions(arg_v));
 
-    let username = username.as_bytes();
-    let mut auth_s = AuthS {
-        user: Vec::<u8>::with_capacity(username.len()),
-        methods: Vec::<AuthMethod>::new(),
-    };
-    for b in username{
-        auth_s.user.push(*b);
-    }
+    let mut part1 = part::new(PartKind::ClientContext);
+    part1.set_arg(Argument::HdbOptions(arg_v));
 
-    auth_s.methods.push( AuthMethod {
-        name: b"SCRAMSHA256".to_vec(),
-        client_challenge: get_client_challenge(),
-    });
-    auth_s.methods.push( AuthMethod {
-        name: b"SCRAMMD5".to_vec(),
-        client_challenge: get_client_challenge(),
-    });
-    let part2 = part::new(PartKind::Authentication, Argument::Auth(auth_s));
+
+    let mut auth_fields = Vec::<AuthField>::with_capacity(5);
+    auth_fields.push(AuthField {v: username.as_bytes().to_vec() });
+    auth_fields.push(AuthField {v: b"SCRAMSHA256".to_vec() });
+    auth_fields.push(AuthField {v: get_client_challenge() });
+    auth_fields.push(AuthField {v: b"SCRAMMD5".to_vec() });
+    auth_fields.push(AuthField {v: get_client_challenge() });
+
+    let mut part2 = part::new(PartKind::Authentication);
+    part2.set_arg(Argument::Auth(auth_fields));
 
 
     let mut segment = segment::new(segment::Kind::Request, segment::Type::Authenticate) ;
@@ -71,6 +65,7 @@ fn get_auth1_request (username: &str) -> message::Message {
     let (session_id, packet_seq_number) = (-1i64, 0i32);
     let mut message = message::new(session_id, packet_seq_number);
     message.push(segment);
+    trace!("Message: {:?}", message);
     message
 }
 

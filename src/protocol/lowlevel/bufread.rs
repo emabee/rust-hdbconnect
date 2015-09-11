@@ -40,7 +40,7 @@ impl<R: Read> BufReader<R> {
     #[inline]
     pub fn get_buf(&self) -> &[u8] {
         if self.pos < self.cap {
-            trace!("slicing {:?}", (self.pos, self.cap, self.buf.len()));
+            debug!("slicing {:?}", (self.pos, self.cap, self.buf.len()));
             &self.buf[self.pos..self.cap]
         } else {
             &[]
@@ -54,13 +54,14 @@ impl<R: Read> BufReader<R> {
     pub fn read_into_buf(&mut self) -> io::Result<usize> {
         self.maybe_reserve();
         let v = &mut self.buf;
-        trace!("read_into_buf pos={}, cap={}", self.cap, v.capacity());
+        debug!("read_into_buf pos={}, cap={}", self.cap, v.capacity());
         if self.cap < v.capacity() {
             let nread = try!(self.inner.read(&mut v[self.cap..]));
+            trace!("read_into_buf: read {} bytes: {:?}",nread,&v[self.cap..(self.cap + nread)]);
             self.cap += nread;
             Ok(nread)
         } else {
-            trace!("read_into_buf at full capacity");
+            debug!("read_into_buf at full capacity");
             Ok(0)
         }
     }
@@ -71,7 +72,7 @@ impl<R: Read> BufReader<R> {
         if self.cap == cap && cap < MAX_BUFFER_SIZE {
             self.buf.reserve(cmp::min(cap * 4, MAX_BUFFER_SIZE) - cap);
             let new = self.buf.capacity() - self.buf.len();
-            trace!("reserved {}", new);
+            debug!("reserved {}", new);
             unsafe { grow_zerofill(&mut self.buf, new) }
         }
     }

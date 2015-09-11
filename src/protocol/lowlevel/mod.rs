@@ -1,7 +1,10 @@
 pub mod argument;
+pub mod authfield;
 pub mod bufread;
 pub mod init;
+pub mod hdboption;
 pub mod message;
 pub mod part;
+pub mod partkind;
 pub mod segment;
-pub mod type_code;
+pub mod valtype;

@@ -1,40 +1,45 @@
 use super::protocol::authentication::*;
-use super::protocol::dbstream::{db_connect,DbStream};
 
-use std::ops::Add;
-use std::io::Result;
+use super::protocol::lowlevel::init;
+use super::protocol::lowlevel::message::*;
 
-/// static: Connect and login
+use std::io::{Error,Result};
+use std::net::TcpStream;
+use std::ops::{Add};
+
+/// static factory: does low-level connect and login
 pub fn connect(host: &str, port: &str, username: &str, password: &str)
                -> Result<Connection> {
     trace!("Entering connect()");
-    let mut conn = try!(Connection::new(host, port));
-    trace!("Got connection {:?}",conn);
+    let connect_string: &str = &(String::with_capacity(200).add(&host).add(":").add(&port));
+    let mut tcpstream = try!(TcpStream::connect(connect_string).map_err(|e|{Error::from(e)}));
+    trace!("tcpstream is open");
+
+    let (major,minor) = try!(init::send_and_receive(&mut tcpstream));
+    let mut conn = Connection {
+        host: String::new().add(host),
+        port: String::new().add(port),
+        stream: tcpstream,
+        major_product_version: major,
+        minor_product_version: minor,
+    };
+    trace!("successfully initialized connection {:?}",conn);
     try!(conn.login(username, password));
     debug!("successfully logged on with connection");
     Ok(conn)
 }
-
 
 /// Connection object
 #[derive(Debug)]
 pub struct Connection {
     pub host: String,
     pub port: String,
-    stream: DbStream,
+    stream: TcpStream,
+    pub major_product_version: i8,
+    pub minor_product_version: i16,
 }
 
 impl Connection {
-    fn new(host: &str, port: &str) -> Result<Connection> {
-        trace!("Entering Connection::new()");
-        let stream = try!(db_connect(&host, &port));
-        Ok(Connection {
-            stream: stream,
-        	host: String::new().add(host),
-        	port: String::new().add(port),
-        })
-    }
-
     fn login(&mut self, username: &str, password: &str) -> Result<()>{
         trace!("Entering login()");
         scram_sha256(&mut self.stream, username, password)

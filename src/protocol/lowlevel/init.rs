@@ -9,22 +9,21 @@ use std::net::TcpStream;
 use std::io::{BufRead,Error,ErrorKind};
 
 
-pub fn send_and_receive(stream: &mut TcpStream) -> IoResult<InitResponse> {
-    trace!("Entering DbStream::send_init_request()");
+pub fn send_and_receive(stream: &mut TcpStream) -> IoResult<(i8,i16)> {
+    trace!("Entering send_and_receive()");
     try!(InitRequest::serialize(stream));
-    debug!("send_init_request: request data successfully sent");
+    debug!("send_and_receive: request data successfully sent");
 
     let mut rdr = BufReader::new(stream);
     loop {
-        trace!("looping in get_init_response");
-        match InitResponse::try_to_parse(&mut rdr) {
+        trace!("looping in send_and_receive");
+        match try_to_parse(&mut rdr) {
             Ok(InitParseResponse::Ok(ir)) => {
-                rdr.consume(8);
-                debug!("get_init_response returns Ok");
+                debug!("send_and_receive returns Ok");
                 return Ok((ir));
             },
             Ok(InitParseResponse::Incomplete) => {
-                trace!("get_init_response: got Incomplete from try_to_parse()");
+                trace!("send_and_receive: got Incomplete from try_to_parse()");
             },
             Err(e) => return Err(Error::from(e)),
         }
@@ -44,7 +43,7 @@ struct InitRequest;
 impl InitRequest {
     fn serialize(w: &mut Write) -> IoResult<()> {
         trace!("Entering serialize_init_request()");
-        let mut b = Vec::<u8>::with_capacity(14);
+        let mut b = Vec::<u8>::with_capacity(14); // FIXME b appears to be unneccessary!
         try!(b.write_i32::<LittleEndian>(-1));  // I4    Filler xFFFFFFFF
         try!(b.write_i8(4));                    // I1    Major Product Version
         try!(b.write_i16::<LittleEndian>(20));  // I2    Minor Product Version
@@ -60,30 +59,23 @@ impl InitRequest {
     }
 }
 
-pub struct InitResponse{
-    pub major: i8,
-    pub minor: i16
-}
-
 enum InitParseResponse {
-    Ok(InitResponse),
+    Ok((i8,i16)),
     Incomplete,
 }
 
-impl InitResponse {
-    fn try_to_parse(rdr: &mut BufReader<&mut TcpStream>) -> Result<InitParseResponse,BoError> {
-        trace!("Entering InitResponse::try_to_parse()");
-        match rdr.get_buf().len() {
-            l if l>= 8 => {
-                let major: i8 = try!(rdr.read_i8());                    // I1    Major Product Version
-                let minor: i16 = try!(rdr.read_i16::<LittleEndian>());  // I2    Minor Product Version
-                // ignore the rest !?!
-                Ok(InitParseResponse::Ok(InitResponse{major: major,minor: minor}))
-            },
-            l => {
-                trace!("try_to_parse() got {}", l);
-                Ok(InitParseResponse::Incomplete)
-            },
-        }
+fn try_to_parse(rdr: &mut BufReader<&mut TcpStream>) -> Result<InitParseResponse,BoError> {
+    trace!("Entering InitResponse::try_to_parse()");
+    match rdr.get_buf().len() {
+        length if length >= 8 => {
+            let major: i8 = try!(rdr.read_i8());                    // I1    Major Product Version
+            let minor: i16 = try!(rdr.read_i16::<LittleEndian>());  // I2    Minor Product Version
+            rdr.consume(5);                                         // ignore the rest (04:01:00:00:00)?
+            Ok(InitParseResponse::Ok((major,minor)))
+        },
+        length => {
+            trace!("try_to_parse() got {}", length);
+            Ok(InitParseResponse::Incomplete)
+        },
     }
 }

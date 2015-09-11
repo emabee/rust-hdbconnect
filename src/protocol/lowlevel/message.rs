@@ -30,7 +30,7 @@ pub fn new(session_id: i64, packet_seq_number: i32) -> Message {
 
 /// Serialize to byte stream
 impl Message {
-    pub fn send(&mut self, stream: &mut TcpStream) -> Result<Message> {
+    pub fn send_and_receive(&mut self, stream: &mut TcpStream) -> Result<Message> {
         trace!("Entering DbStream::send_and_receive()");
 
         try!(self.serialize(stream));
@@ -82,7 +82,6 @@ impl Message {
         trace!("varpart_size = {}",len);
         len
     }
-
 }
 
 ///
@@ -96,6 +95,7 @@ fn try_to_parse(rdr: &mut BufReader<&mut TcpStream>) -> Result<Message> {
                 for _ in 0..no_of_segs {
                     msg.push(try!(segment::try_to_parse(rdr)));
                 }
+                trace!("try_to_parse(): varpart_size = {}, remaining_bufsize = {}", varpart_size, remaining_bufsize);
                 return Ok(msg);
             },
             Ok(ParseResponse::Incomplete) => {
@@ -126,8 +126,11 @@ fn try_to_parse_header(rdr: &mut BufReader<&mut TcpStream>) -> Result<ParseRespo
         let varpart_size = try!(rdr.read_u32::<LittleEndian>());        // UI4
         let remaining_bufsize = try!(rdr.read_u32::<LittleEndian>());   // UI4
         let no_of_segs = try!(rdr.read_i16::<LittleEndian>());          // I2
-        rdr.consume(MESSAGE_HEADER_SIZE as usize);                      // ignore the unused last 10 bytes (I1 + B[9])
-        debug!("try_to_parse_header() returns Ok");
+        rdr.consume(10usize);                                           // ignore the unused last 10 bytes (I1 + B[9])
+        debug!("message_header = {{ session_id = {}, packet_seq_number = {}, \
+                varpart_size = {}, remaining_bufsize = {}, no_of_segs = {} }}",
+                session_id, packet_seq_number,
+                varpart_size, remaining_bufsize, no_of_segs);
         Ok(ParseResponse::MsgHdr(
             new(session_id,packet_seq_number),
             varpart_size,
