@@ -1,10 +1,11 @@
+use super::argument;
 use super::bufread::*;
+use super::partkind::*;
 use super::segment;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::io::{BufRead, Error, ErrorKind, Result, Write};
 use std::net::TcpStream;
-
 
 const BUFFER_SIZE: u32 = 130000;
 const MESSAGE_HEADER_SIZE: u32 = 32;
@@ -14,9 +15,9 @@ const MESSAGE_HEADER_SIZE: u32 = 32;
 // Packets having the same sequence number belong to one request/response pair.
 #[derive(Debug)]
 pub struct Message {
-    session_id: i64,
-    packet_seq_number: i32,
-    segments: Vec<segment::Segment>,
+    pub session_id: i64,
+    pub packet_seq_number: i32,
+    pub segments: Vec<segment::Segment>,
 }
 
 pub fn new(session_id: i64, packet_seq_number: i32) -> Message {
@@ -37,7 +38,9 @@ impl Message {
         debug!("send_and_receive: request data successfully sent");
 
         let mut rdr = BufReader::new(stream);
-        try_to_parse(&mut rdr)
+        let msg = try!(try_to_parse(&mut rdr));
+        try!(msg.assert_no_error());
+        Ok(msg)
     }
 
 
@@ -48,29 +51,23 @@ impl Message {
         let total_size = MESSAGE_HEADER_SIZE + varpart_size;
         trace!("Writing Message with total size {}", total_size);
         let remaining_bufsize = BUFFER_SIZE - MESSAGE_HEADER_SIZE;
-        let mut b = Vec::<u8>::with_capacity(total_size as usize);
 
         // MESSAGE HEADER
-        try!(b.write_i64::<LittleEndian>(self.session_id));             // I8
-        try!(b.write_i32::<LittleEndian>(self.packet_seq_number));      // I4
-        try!(b.write_u32::<LittleEndian>(varpart_size));                // UI4
-        try!(b.write_u32::<LittleEndian>(remaining_bufsize));           // UI4
-        try!(b.write_i16::<LittleEndian>(self.segments.len() as i16));  // I2
-        try!(b.write_i8(0));                                            // I1    unused
-        for _ in 0..9 { try!(b.write_u8(0)); }                          // B[9]  unused
+        try!(w.write_i64::<LittleEndian>(self.session_id));             // I8
+        try!(w.write_i32::<LittleEndian>(self.packet_seq_number));      // I4
+        try!(w.write_u32::<LittleEndian>(varpart_size));                // UI4
+        try!(w.write_u32::<LittleEndian>(remaining_bufsize));           // UI4
+        try!(w.write_i16::<LittleEndian>(self.segments.len() as i16));  // I2
+        try!(w.write_i8(0));                                            // I1    unused
+        for _ in 0..9 { try!(w.write_u8(0)); }                          // B[9]  unused
 
         // SEGMENTS
         let mut osr = (0u32, 1i16, remaining_bufsize); // offset, segment_no, remaining_bufsize
         for ref segment in &self.segments {
-            osr = try!(segment.encode(osr.0, osr.1, osr.2, &mut b));
+            osr = try!(segment.encode(osr.0, osr.1, osr.2, w));
         }
 
-        try!(w.write(&b));
         w.flush()
-    }
-
-    pub fn push(&mut self, segment: segment::Segment){
-        self.segments.push(segment);
     }
 
     /// Length in bytes of the variable part of the message, i.e. total message without the header
@@ -81,6 +78,24 @@ impl Message {
         }
         trace!("varpart_size = {}",len);
         len
+    }
+
+    fn assert_no_error(&self) -> Result<()> {
+        for seg in &self.segments {
+            for part in &seg.parts {
+                match part.kind {
+                    PartKind::Error => {
+                        if let argument::Argument::Error(ref vec) = part.arg {
+                            let mut s = String::new();
+                            for hdberr in vec { s = format!("{} {:?}", s, hdberr); }   // FIXME improve formatting for multiple errors
+                            return Err(Error::new(ErrorKind::Other, s));
+                        }
+                    },
+                    _ => {}
+                }
+            }
+        }
+        Ok(())
     }
 }
 
@@ -93,7 +108,7 @@ fn try_to_parse(rdr: &mut BufReader<&mut TcpStream>) -> Result<Message> {
         match try_to_parse_header(rdr) {
             Ok(ParseResponse::MsgHdr(mut msg, varpart_size, remaining_bufsize, no_of_segs)) => {
                 for _ in 0..no_of_segs {
-                    msg.push(try!(segment::try_to_parse(rdr)));
+                    msg.segments.push(try!(segment::try_to_parse(rdr)));
                 }
                 trace!("try_to_parse(): varpart_size = {}, remaining_bufsize = {}", varpart_size, remaining_bufsize);
                 return Ok(msg);

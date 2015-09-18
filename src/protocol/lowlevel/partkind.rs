@@ -24,6 +24,7 @@ pub enum PartKind {
     Parameters,             // 32 // Parameter data
     Authentication,         // 33 // Authentication data
     SessionContext,         // 34 // Session context information
+    ClientID,               // 35 // Client ID  (see also PartKindEnum in api/Communication/Protocol/Layout.hpp)
     StatementContext,       // 39 // Statement visibility context
     PartitionInformation,   // 40 // Table partitioning information
     OutputParameters,       // 41 // Output parameter data
@@ -74,6 +75,7 @@ impl PartKind {
         PartKind::Parameters => 32,
         PartKind::Authentication => 33,
         PartKind::SessionContext => 34,
+        PartKind::ClientID => 35,
         PartKind::StatementContext => 39,
         PartKind::PartitionInformation => 40,
         PartKind::OutputParameters => 41,
@@ -123,6 +125,7 @@ impl PartKind {
         32 => Ok(PartKind::Parameters),
         33 => Ok(PartKind::Authentication),
         34 => Ok(PartKind::SessionContext),
+        35 => Ok(PartKind::ClientID),
         39 => Ok(PartKind::StatementContext),
         40 => Ok(PartKind::PartitionInformation),
         41 => Ok(PartKind::OutputParameters),

@@ -12,17 +12,17 @@ const SEGMENT_HEADER_SIZE: u32 = 24; // same for in and out
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct Segment {
-    seg_kind: Kind,
-    msg_type: Type,
-    commit: i8,
-    command_options: i8,
-    function_code: FunctionCode,  //only in Reply Segment Headers
-    parts: Vec<part::Part>,
+    pub kind: Kind,
+    pub msg_type: Type,
+    pub commit: i8,
+    pub command_options: i8,
+    pub function_code: FunctionCode,  //only in Reply Segment Headers
+    pub parts: Vec<part::Part>,
 }
 
 pub fn new(sk: Kind, mt: Type) -> Segment {
     Segment {
-        seg_kind: sk,
+        kind: sk,
         msg_type: mt,
         commit: 0,
         command_options: 0,
@@ -40,7 +40,7 @@ impl Segment {
         try!(w.write_i32::<LittleEndian>(offset as i32));               // I4    Offset within the message buffer
         try!(w.write_i16::<LittleEndian>(self.parts.len() as i16));     // I2    Number of contained parts
         try!(w.write_i16::<LittleEndian>(segment_no));                  // I2    Consecutive number, starting with 1
-        try!(w.write_i8(self.seg_kind.to_i8()));                        // I1    Segment kind
+        try!(w.write_i8(self.kind.to_i8()));                        // I1    Segment kind
         try!(w.write_i8(self.msg_type.to_i8()));                        // I1    Message type
         try!(w.write_i8(self.commit));                                  // I1    Whether the command is committed
         try!(w.write_i8(self.command_options));                         // I1    Bit set for options

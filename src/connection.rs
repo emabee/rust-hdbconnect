@@ -3,16 +3,16 @@ use super::protocol::authentication::*;
 use super::protocol::lowlevel::init;
 use super::protocol::lowlevel::message::*;
 
-use std::io::{Error,Result};
+use std::io;
 use std::net::TcpStream;
 use std::ops::{Add};
 
 /// static factory: does low-level connect and login
 pub fn connect(host: &str, port: &str, username: &str, password: &str)
-               -> Result<Connection> {
+               -> io::Result<Connection> {
     trace!("Entering connect()");
     let connect_string: &str = &(String::with_capacity(200).add(&host).add(":").add(&port));
-    let mut tcpstream = try!(TcpStream::connect(connect_string).map_err(|e|{Error::from(e)}));
+    let mut tcpstream = try!(TcpStream::connect(connect_string).map_err(|e|{io::Error::from(e)}));
     trace!("tcpstream is open");
 
     let (major,minor) = try!(init::send_and_receive(&mut tcpstream));
@@ -40,7 +40,7 @@ pub struct Connection {
 }
 
 impl Connection {
-    fn login(&mut self, username: &str, password: &str) -> Result<()>{
+    fn login(&mut self, username: &str, password: &str) -> io::Result<()>{
         trace!("Entering login()");
         scram_sha256(&mut self.stream, username, password)
     }

@@ -20,9 +20,9 @@ pub fn new(kind: PartKind) -> Part {
 
 #[derive(Debug)]
 pub struct Part {
-    kind: PartKind,
-    attributes: i8,
-    arg: argument::Argument,      // a.k.a. part data, or part buffer :-(
+    pub kind: PartKind,
+    pub attributes: i8,
+    pub arg: argument::Argument,      // a.k.a. part data, or part buffer :-(
 }
 
 impl Part {
@@ -62,6 +62,7 @@ pub fn try_to_parse(rdr: &mut BufReader<&mut TcpStream>) -> Result<Part> {
         match try_to_parse_header(rdr) {
             Ok(ParseResponse::PartHdr(mut part,no_of_args)) => {
                 part.arg = try!(argument::try_to_parse(no_of_args, part.kind, rdr));
+                trace!("Got arg of kind {:?}", part.arg);
                 return Ok(part);
             },
             Ok(ParseResponse::Incomplete) => {
