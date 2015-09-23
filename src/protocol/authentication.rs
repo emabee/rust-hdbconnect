@@ -65,7 +65,7 @@ fn build_auth1_request (chllng_sha256: &Vec<u8>, username: &str) -> message::Mes
     let mut part2 = part::new(PartKind::Authentication);
     part2.set_arg(Argument::Auth(auth_fields));
 
-    let mut segment = segment::new(segment::Kind::Request, segment::Type::Authenticate) ;
+    let mut segment = segment::new_request_seg(segment::MessageType::Authenticate,0,0);
     segment.push(part1);
     segment.push(part2);
 
@@ -77,7 +77,7 @@ fn build_auth1_request (chllng_sha256: &Vec<u8>, username: &str) -> message::Mes
 fn build_auth2_request (client_proof: &Vec<u8>, username: &str) -> message::Message {
     trace!("Entering auth2_request()");
     let mut message = message::new(0i64, 1i32);
-    let mut segment = segment::new(segment::Kind::Request, segment::Type::Connect) ;
+    let mut segment = segment::new_request_seg(segment::MessageType::Connect,0,0);
 
     let mut part1 = part::new(PartKind::Authentication);
     let mut auth_fields = Vec::<AuthField>::with_capacity(3);
@@ -138,7 +138,7 @@ fn get_server_challenge(response1: message::Message) -> Vec<u8> {
 
     let segment = response1.segments.get(0).unwrap();
     match (&segment.kind, &segment.function_code) {
-        (&segment::Kind::Reply, &segment::FunctionCode::INITIAL) => {},
+        (&segment::Kind::Reply, &segment::FunctionCode::Nil) => {},
         _ => {panic!("bad segment")}
     }
     assert!(segment.parts.len() == 1, "wrong count of parts");
@@ -164,7 +164,7 @@ fn evaluate_resp2(response2: message::Message) -> Result<(Vec<ConnectOption>,Vec
 
     let segment = response2.segments.get(0).unwrap();
     match (&segment.kind, &segment.function_code) {
-        (&segment::Kind::Reply, &segment::FunctionCode::INITIAL) => {},
+        (&segment::Kind::Reply, &segment::FunctionCode::Nil) => {},
         _ => {panic!("bad segment")}
     }
     assert!(segment.parts.len() >= 1, "no part found");

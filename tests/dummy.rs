@@ -8,16 +8,28 @@ extern crate time;
 
 use flexi_logger::LogConfig;
 use hdbconnect::connection;
+use std::error::Error;
+
 
 #[test]
-#[allow(unused_variables)]
-pub fn test_connect() {
+pub fn init(){
     flexi_logger::init(LogConfig::new(), Some("info".to_string())).unwrap();
+}
 
+#[test]
+pub fn test_connect() {
     trace!("Test starts now.");
     let start = time::now();
-    let connection = connection::connect("wdfd00245307a", "30415", "SYSTEM", "manager")
-                            .unwrap_or_else(|e|{panic!("connect failed with {}", e)});
+    connection::connect("wdfd00245307a", "30415", "SYSTEM", "manager").ok();
+    info!("Successful connect took {} µs.",(time::now() - start).num_microseconds().unwrap());
+}
 
-//    info!("Successful connect took {} µs.",(time::now() - start).num_microseconds().unwrap());
+#[test]
+pub fn test_wrong_password() {
+    trace!("Test starts now.");
+    let start = time::now();
+    let err = connection::connect("wdfd00245307a", "30415", "SYSTEM", "wrong_password").err().unwrap();
+    info!("Connect failed after {} µs with {}.",
+            (time::now() - start).num_microseconds().unwrap(),
+            err.description());
 }

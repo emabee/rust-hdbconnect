@@ -13,23 +13,35 @@ const SEGMENT_HEADER_SIZE: usize = 24; // same for in and out
 #[derive(Debug)]
 pub struct Segment {
     pub kind: Kind,
-    pub msg_type: Type,
-    pub commit: i8,
-    pub command_options: i8,
-    pub function_code: FunctionCode,  //only in Reply Segment Headers
+    pub msg_type: MessageType,              // only in requests
+    pub commit: i8,                         // only in requests
+    pub command_options: i8,                // only in requests
+    pub function_code: FunctionCode,        // only in replies
     pub parts: Vec<part::Part>,
 }
 
-pub fn new(sk: Kind, mt: Type) -> Segment {
+pub fn new_request_seg(mt: MessageType, commit:i8, co: i8) -> Segment  {
     Segment {
-        kind: sk,
+        kind: Kind::Request,
         msg_type: mt,
-        commit: 0,
-        command_options: 0,
-        function_code: FunctionCode::INITIAL,
+        commit: commit,
+        command_options: co,
+        function_code: FunctionCode::DummyForRequest,
         parts: Vec::<part::Part>::new(),
     }
 }
+
+fn new_reply_seg(fc: FunctionCode)  -> Segment {
+    Segment {
+        kind: Kind::Reply,
+        msg_type: MessageType::DummyForReply,
+        command_options: 0,
+        commit: 0,
+        function_code: fc,
+        parts: Vec::<part::Part>::new(),
+    }
+}
+
 
 impl Segment {
     // Serialize to byte stream
@@ -40,7 +52,7 @@ impl Segment {
         try!(w.write_i32::<LittleEndian>(offset as i32));               // I4    Offset within the message buffer
         try!(w.write_i16::<LittleEndian>(self.parts.len() as i16));     // I2    Number of contained parts
         try!(w.write_i16::<LittleEndian>(segment_no));                  // I2    Consecutive number, starting with 1
-        try!(w.write_i8(self.kind.to_i8()));                        // I1    Segment kind
+        try!(w.write_i8(self.kind.to_i8()));                            // I1    Segment kind
         try!(w.write_i8(self.msg_type.to_i8()));                        // I1    Message type
         try!(w.write_i8(self.commit));                                  // I1    Whether the command is committed
         try!(w.write_i8(self.command_options));                         // I1    Bit set for options
@@ -106,21 +118,29 @@ fn try_to_parse_header(rdr: &mut BufReader<&mut TcpStream>) -> Result<ParseRespo
     let l = rdr.get_buf().len();
     if  l >= (SEGMENT_HEADER_SIZE as usize) {
         // SEGMENT HEADER: 24 bytes
-        let seg_size = try!(rdr.read_i32::<LittleEndian>());                                    // I4 (BigEndian??)
-        let seg_offset = try!(rdr.read_i32::<LittleEndian>());                                  // I4 (BigEndian??)
-        let no_of_parts = try!(rdr.read_i16::<LittleEndian>());                                 // I2
-        let seg_no =  try!(rdr.read_i16::<LittleEndian>());                                     // I2
-        let seg_kind = try!(Kind::from_i8(try!(rdr.read_i8())));                                // I1
-        rdr.consume(1usize);                                                                    // I1 reserved2
-        let function_code = try!(FunctionCode::from_i16(try!(rdr.read_i16::<LittleEndian>()))); // I2
-        rdr.consume(8usize);                                                                    // B[8] reserved3
-        debug!("segment_header = {{ seg_size = {}, seg_offset = {}, \
-                no_of_parts = {}, seg_no = {}, seg_kind = {}, function_code = {} }}",
-                seg_size, seg_offset,
-                no_of_parts, seg_no, seg_kind.to_i8(), function_code.to_i16());
+        try!(rdr.read_i32::<LittleEndian>());                               // I4 seg_size (BigEndian??)
+        try!(rdr.read_i32::<LittleEndian>());                               // I4 seg_offset  (BigEndian??)
+        let no_of_parts = try!(rdr.read_i16::<LittleEndian>());             // I2
+        try!(rdr.read_i16::<LittleEndian>());                               // I2 seg_number
+        let seg_kind = try!(Kind::from_i8(try!(rdr.read_i8())));            // I1
+        let segment = match seg_kind {
+            Kind::Request => {
+                let mt = try!(MessageType::from_i8(try!(rdr.read_i8())));   // I1
+                let commit = try!(rdr.read_i8());                           // I1
+                let command_options = try!(rdr.read_i8());                  // I1
+                rdr.consume(8usize);                                        // B[8] reserved1
+                new_request_seg(mt, commit, command_options)
+            },
+            Kind::Reply | Kind::Error => {
+                rdr.consume(1usize);                                        // I1 reserved2
+                let fc = try!(FunctionCode::from_i16(
+                                try!(rdr.read_i16::<LittleEndian>())));     // I2
+                rdr.consume(8usize);                                        // B[8] reserved3
+                new_reply_seg(fc)
+            },
+        };
+        debug!("segment_header = {:?}", segment);                           // FIXME remove!?
 
-        let mut segment = new(seg_kind, Type::DummyForReply);
-        segment.function_code = function_code;
         Ok(ParseResponse::SegmentHdr(segment, no_of_parts))
     } else {
         trace!("try_to_parse_header() got only {} bytes", l);
@@ -138,28 +158,25 @@ enum ParseResponse {
 #[derive(Debug)]
 #[allow(dead_code)]
 pub enum Kind {
-    Nil,   //TODO Is this really needed?
     Request,
     Reply,
     // sp1sk_proccall,  see  api/Communication/Protocol/Layout.hpp
     // sp1sk_procreply,
-    ErrorReply,
+    Error,
     // sp1sk_last_segment_kind
 }
 #[allow(dead_code)]
 impl Kind {
     fn to_i8(&self) -> i8 {match *self {
-        Kind::Nil => 1,
         Kind::Request => 1,
         Kind::Reply => 2,
-        Kind::ErrorReply => 5,
+        Kind::Error => 5,
     }}
     fn from_i8(val: i8) -> Result<Kind> {match val {
-        0 => Ok(Kind::Nil),
         1 => Ok(Kind::Request),
         2 => Ok(Kind::Reply),
-        5 => Ok(Kind::ErrorReply),
-        _ => Err(Error::new(ErrorKind::Other,format!("Invalid value for Kind detected: {}",val))),
+        5 => Ok(Kind::Error),
+        _ => Err(Error::new(ErrorKind::Other,format!("Invalid value for segment::Kind detected: {}",val))),
     }}
 }
 
@@ -168,7 +185,7 @@ impl Kind {
 /// Defines the action requested from the database server
 #[derive(Debug)]
 #[allow(dead_code)]
-pub enum Type {
+pub enum MessageType {
     DummyForReply,      // (Used for reply segments)
     ExecuteDirect,      // Directly execute SQL statement
     Prepare,            // Prepare an SQL statement
@@ -200,36 +217,68 @@ pub enum Type {
 }
 
 #[allow(dead_code)]
-impl Type {
+impl MessageType {
     fn to_i8(&self) -> i8 {match *self {
-        Type::DummyForReply => panic!("it is illegal to serialize Type::DummyForReply"),
-        Type::ExecuteDirect => 2,
-        Type::Prepare => 3,
-        Type::Abapstream => 4,
-        Type::XaStart => 5,
-        Type::XaJoin => 6,
-        Type::Execute => 13,
-        Type::ReadLob => 16,
-        Type::WriteLob => 17,
-        Type::FindLob => 18,
-        Type::Ping => 25,
-        Type::Authenticate => 65,
-        Type::Connect => 66,
-        Type::Commit => 67,
-        Type::Rollback => 68,
-        Type::CloseResultSet => 69,
-        Type::DropStatementId => 70,
-        Type::FetchNext => 71,
-        Type::FetchAbsolute => 72,
-        Type::FetchRelative => 73,
-        Type::FetchFirst => 74,
-        Type::FetchLast => 75,
-        Type::Disconnect => 77,
-        Type::ExecuteItab => 78,
-        Type::FetchNextItab => 79,
-        Type::BatchPrepare => 81,
-        Type::InsertNextItab => 80,
-        Type::DbConnectInfo => 82,
+        MessageType::DummyForReply => 1, // for test purposes only
+        MessageType::ExecuteDirect => 2,
+        MessageType::Prepare => 3,
+        MessageType::Abapstream => 4,
+        MessageType::XaStart => 5,
+        MessageType::XaJoin => 6,
+        MessageType::Execute => 13,
+        MessageType::ReadLob => 16,
+        MessageType::WriteLob => 17,
+        MessageType::FindLob => 18,
+        MessageType::Ping => 25,
+        MessageType::Authenticate => 65,
+        MessageType::Connect => 66,
+        MessageType::Commit => 67,
+        MessageType::Rollback => 68,
+        MessageType::CloseResultSet => 69,
+        MessageType::DropStatementId => 70,
+        MessageType::FetchNext => 71,
+        MessageType::FetchAbsolute => 72,
+        MessageType::FetchRelative => 73,
+        MessageType::FetchFirst => 74,
+        MessageType::FetchLast => 75,
+        MessageType::Disconnect => 77,
+        MessageType::ExecuteItab => 78,
+        MessageType::FetchNextItab => 79,
+        MessageType::BatchPrepare => 81,
+        MessageType::InsertNextItab => 80,
+        MessageType::DbConnectInfo => 82,
+    }}
+
+    fn from_i8(val: i8) -> Result<MessageType> { match val {
+        1 => Ok(MessageType::DummyForReply), // for test purposes only
+        2 => Ok(MessageType::ExecuteDirect),
+        3 => Ok(MessageType::Prepare),
+        4 => Ok(MessageType::Abapstream),
+        5 => Ok(MessageType::XaStart),
+        6 => Ok(MessageType::XaJoin),
+        13 => Ok(MessageType::Execute),
+        16 => Ok(MessageType::ReadLob),
+        17 => Ok(MessageType::WriteLob),
+        18 => Ok(MessageType::FindLob),
+        25 => Ok(MessageType::Ping),
+        65 => Ok(MessageType::Authenticate),
+        66 => Ok(MessageType::Connect),
+        67 => Ok(MessageType::Commit),
+        68 => Ok(MessageType::Rollback),
+        69 => Ok(MessageType::CloseResultSet),
+        70 => Ok(MessageType::DropStatementId),
+        71 => Ok(MessageType::FetchNext),
+        72 => Ok(MessageType::FetchAbsolute),
+        73 => Ok(MessageType::FetchRelative),
+        74 => Ok(MessageType::FetchFirst),
+        75 => Ok(MessageType::FetchLast),
+        77 => Ok(MessageType::Disconnect),
+        78 => Ok(MessageType::ExecuteItab),
+        79 => Ok(MessageType::FetchNextItab),
+        81 => Ok(MessageType::BatchPrepare),
+        80 => Ok(MessageType::InsertNextItab),
+        82 => Ok(MessageType::DbConnectInfo),
+        _ => Err(Error::new(ErrorKind::Other,format!("Invalid value for MessageType detected: {}",val))),
     }}
 }
 
@@ -239,7 +288,8 @@ impl Type {
 #[derive(Debug)]
 #[allow(dead_code)]
 pub enum FunctionCode {
-    INITIAL,                    // Nil
+    DummyForRequest,            // only for test purposes
+    Nil,                        // Nil
     Ddl,						// DDL statement
     Insert,						// INSERT statement
     Update,						// UPDATE statement
@@ -266,7 +316,8 @@ pub enum FunctionCode {
 #[allow(dead_code)]
 impl FunctionCode {
     fn to_i16(&self) -> i16 {match *self {
-        FunctionCode::INITIAL => 0,
+        FunctionCode::DummyForRequest => -1,
+        FunctionCode::Nil => 0,
         FunctionCode::Ddl => 1,
         FunctionCode::Insert => 2,
         FunctionCode::Update => 3,
@@ -292,7 +343,8 @@ impl FunctionCode {
     }}
 
     fn from_i16(val: i16) -> Result<FunctionCode> { match val {
-        0 => Ok(FunctionCode::INITIAL),
+        -1 => Ok(FunctionCode::DummyForRequest),
+        0 => Ok(FunctionCode::Nil),
         1 => Ok(FunctionCode::Ddl),
         2 => Ok(FunctionCode::Insert),
         3 => Ok(FunctionCode::Update),
@@ -326,13 +378,4 @@ pub enum CommandOptions {
     HoldCursorsOverCommit = 3,  // Keeps result set created by this command over commit time
     ExecuteLocally = 4,         // Executes command only on local partitions of affected partitioned table
     ScrollInsensitive = 5,      // Marks result set created by this command as scroll insensitive
-}
-impl CommandOptions {
-    // fn getval(b: u8, type: CommandOptions) -> bool {
-    //     match type {
-    //         CommandOptions::HoldCursorsOverCommit => get_value_of_bit(3),
-    //         CommandOptions::ExecuteLocally => get_value_of_bit(4),
-    //         CommandOptions::ScrollInsensitive => get_value_of_bit(5),
-    //     }
-    // }
 }
