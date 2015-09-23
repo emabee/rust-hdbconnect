@@ -62,7 +62,7 @@ impl Message {
         for _ in 0..9 { try!(w.write_u8(0)); }                          // B[9]  unused
 
         // SEGMENTS
-        let mut osr = (0u32, 1i16, remaining_bufsize); // offset, segment_no, remaining_bufsize
+        let mut osr = (0i32, 1i16, remaining_bufsize); // offset, segment_no, remaining_bufsize
         for ref segment in &self.segments {
             osr = try!(segment.encode(osr.0, osr.1, osr.2, w));
         }

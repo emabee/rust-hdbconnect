@@ -9,4 +9,5 @@ pub mod message;
 pub mod part;
 pub mod partkind;
 pub mod segment;
+pub mod topology_attribute;
 pub mod typed_value;

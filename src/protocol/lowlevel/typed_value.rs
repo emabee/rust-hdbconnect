@@ -9,7 +9,7 @@ use std::net::TcpStream;
 
 #[allow(dead_code)]
 #[allow(non_camel_case_types)]
-#[derive(Debug)]
+#[derive(Clone,Debug)]
 pub enum TypedValue {               // Description, Support Level
     NULL, 						    // NULL value, -
     TINYINT(u8), 					// TINYINT, 1

@@ -22,8 +22,8 @@ impl HdbError {
         }
     }
 
-    pub fn size(&self) -> u32 {
-        4 + 4 + 4 + 1 + 5 + self.text.len() as u32
+    pub fn size(&self) -> usize {
+        4 + 4 + 4 + 1 + 5 + self.text.len() as usize
     }
 
     pub fn encode(&self, w: &mut Write) -> IoResult<()> {

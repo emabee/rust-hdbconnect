@@ -8,7 +8,7 @@ use std::io::{Error,ErrorKind,Result,Write};
 use std::net::TcpStream;
 
 
-const PART_HEADER_SIZE: u32 = 16;
+const PART_HEADER_SIZE: usize = 16;
 
 pub fn new(kind: PartKind) -> Part {
     Part{
@@ -36,13 +36,13 @@ impl Part {
         try!(w.write_i32::<LittleEndian>(self.arg.size(false) as i32)); // I4    Length of args in bytes
         try!(w.write_i32::<LittleEndian>(remaining_bufsize as i32));    // I4    Length in packet remaining without this part
 
-        remaining_bufsize -= PART_HEADER_SIZE;
+        remaining_bufsize -= PART_HEADER_SIZE as u32;
 
         remaining_bufsize = try!(self.arg.encode(remaining_bufsize, w));
         Ok(remaining_bufsize)
     }
 
-    pub fn size(&self, with_padding: bool) -> u32 {
+    pub fn size(&self, with_padding: bool) -> usize {
         let result = PART_HEADER_SIZE + self.arg.size(with_padding);
         trace!("Part_size = {}",result);
         result

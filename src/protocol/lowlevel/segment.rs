@@ -7,7 +7,7 @@ use std::net::TcpStream;
 
 
 
-const SEGMENT_HEADER_SIZE: u32 = 24; // same for in and out
+const SEGMENT_HEADER_SIZE: usize = 24; // same for in and out
 
 #[allow(dead_code)]
 #[derive(Debug)]
@@ -33,8 +33,8 @@ pub fn new(sk: Kind, mt: Type) -> Segment {
 
 impl Segment {
     // Serialize to byte stream
-    pub fn encode(&self, offset: u32, segment_no: i16, mut remaining_bufsize: u32, w: &mut Write)
-                          -> Result<(u32, i16, u32)> {
+    pub fn encode(&self, offset: i32, segment_no: i16, mut remaining_bufsize: u32, w: &mut Write)
+                          -> Result<(i32, i16, u32)> {
         // SEGMENT HEADER
         try!(w.write_i32::<LittleEndian>(self.size() as i32));          // I4    Length including the header
         try!(w.write_i32::<LittleEndian>(offset as i32));               // I4    Offset within the message buffer
@@ -46,20 +46,20 @@ impl Segment {
         try!(w.write_i8(self.command_options));                         // I1    Bit set for options
         for _ in 0..8 { try!(w.write_u8(0)); }                          // [B;8] Reserved, do not use
 
-        remaining_bufsize -= SEGMENT_HEADER_SIZE;
+        remaining_bufsize -= SEGMENT_HEADER_SIZE as u32;
         // PARTS
         for ref part in &self.parts {
             remaining_bufsize = try!(part.encode(remaining_bufsize, w));
         }
 
-        Ok((offset + self.size(), segment_no + 1, remaining_bufsize))
+        Ok((offset + self.size() as i32, segment_no + 1, remaining_bufsize))
     }
 
     pub fn push(&mut self, part: part::Part){
         self.parts.push(part);
     }
 
-    pub fn size(&self) -> u32 {
+    pub fn size(&self) -> usize {
         let mut len = SEGMENT_HEADER_SIZE;
         for part in &self.parts {
             len += part.size(true);

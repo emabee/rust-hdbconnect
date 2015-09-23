@@ -6,7 +6,7 @@ use std::io::Result as IoResult;
 use std::io::{Error,ErrorKind,Write};
 use std::net::TcpStream;
 
-#[derive(Debug)]
+#[derive(Clone,Debug)]
 pub struct ConnectOption {
     pub id: ConnectOptionId,
     pub value: TypedValue,
@@ -30,7 +30,7 @@ impl ConnectOption {
 
 
 #[allow(dead_code)]
-#[derive(Debug)]
+#[derive(Clone,Debug)]
 pub enum ConnectOptionId {
     ConnectionID,                         // 1 //
     CompleteArrayExecution,               // 2 // @deprecated Array execution semantics, always true.

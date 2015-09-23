@@ -1,7 +1,7 @@
 use super::bufread::*;
 
 use byteorder::Error as BoError;
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use byteorder::{BigEndian, LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::io::Write;
 use std::io::Result as IoResult;
 use std::net::TcpStream;
@@ -44,11 +44,11 @@ impl InitRequest {
     fn serialize(w: &mut Write) -> IoResult<()> {
         trace!("Entering serialize_init_request()");
         let mut b = Vec::<u8>::with_capacity(14); // FIXME b appears to be unneccessary!
-        try!(b.write_i32::<LittleEndian>(-1));  // I4    Filler xFFFFFFFF
+        try!(b.write_i32::<BigEndian>(-1));     // I4    Filler xFFFFFFFF
         try!(b.write_i8(4));                    // I1    Major Product Version
-        try!(b.write_i16::<LittleEndian>(20));  // I2    Minor Product Version
+        try!(b.write_i16::<BigEndian>(20));     // I2    Minor Product Version
         try!(b.write_i8(4));                    // I1    Major Protocol Version
-        try!(b.write_i16::<LittleEndian>(1));   // I2    Minor Protocol Version
+        try!(b.write_i16::<BigEndian>(1));      // I2    Minor Protocol Version
         try!(b.write_i8(0));                    // I1    Reserved
 
         try!(b.write_i8(1));                    // I1    Number of Options
