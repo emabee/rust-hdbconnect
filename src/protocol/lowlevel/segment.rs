@@ -1,11 +1,7 @@
-use super::bufread::*;
 use super::part;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::io::{BufRead, Error, ErrorKind, Result, Write};
-use std::net::TcpStream;
-
-
 
 const SEGMENT_HEADER_SIZE: usize = 24; // same for in and out
 
@@ -83,74 +79,36 @@ impl Segment {
 
 
 ///
-pub fn try_to_parse(rdr: &mut BufReader<&mut TcpStream>) -> Result<Segment> {
-    trace!("Entering try_to_parse()");
+pub fn parse(rdr: &mut BufRead) -> Result<Segment> {
+    trace!("Entering parse()");
 
-    loop {
-        trace!("looping in try_to_parse()");
-        match try_to_parse_header(rdr) {
-            Ok(ParseResponse::SegmentHdr(mut segment, no_of_parts)) => {
-                for _ in 0..no_of_parts {
-                    segment.push(try!(part::try_to_parse(rdr)));
-                }
-                return Ok(segment);
-            },
-            Ok(ParseResponse::Incomplete) => {
-                trace!("try_to_parse(): got Incomplete from try_to_parse_header()");
-            },
-            Err(e) => return Err(Error::from(e)),
-        }
-        match rdr.read_into_buf() {
-            Ok(0) if rdr.get_buf().is_empty() => {
-                return Err(Error::new(ErrorKind::Other, "Connection closed"));
-            },
-            Ok(0) => return Err(Error::new(ErrorKind::Other, "Response is bigger than expected")), // ???
-            Ok(_) => (),
-            Err(e) => return Err(Error::from(e))
-        }
+    try!(rdr.read_i32::<LittleEndian>());                               // I4 seg_size (BigEndian??)
+    try!(rdr.read_i32::<LittleEndian>());                               // I4 seg_offset  (BigEndian??)
+    let no_of_parts = try!(rdr.read_i16::<LittleEndian>());             // I2
+    try!(rdr.read_i16::<LittleEndian>());                               // I2 seg_number
+    let seg_kind = try!(Kind::from_i8(try!(rdr.read_i8())));            // I1
+    let mut segment = match seg_kind {
+        Kind::Request => {
+            let mt = try!(MessageType::from_i8(try!(rdr.read_i8())));   // I1
+            let commit = try!(rdr.read_i8());                           // I1
+            let command_options = try!(rdr.read_i8());                  // I1
+            rdr.consume(8usize);                                        // B[8] reserved1
+            new_request_seg(mt, commit, command_options)
+        },
+        Kind::Reply | Kind::Error => {
+            rdr.consume(1usize);                                        // I1 reserved2
+            let fc = try!(FunctionCode::from_i16(
+                            try!(rdr.read_i16::<LittleEndian>())));     // I2
+            rdr.consume(8usize);                                        // B[8] reserved3
+            new_reply_seg(fc)
+        },
+    };
+    debug!("segment_header = {:?}", segment);                           // FIXME remove!?
+
+    for _ in 0..no_of_parts {
+        segment.push(try!(part::parse(rdr)));
     }
-}
-
-///
-fn try_to_parse_header(rdr: &mut BufReader<&mut TcpStream>) -> Result<ParseResponse> {
-    trace!("Entering try_to_parse_header()");
-
-    let l = rdr.get_buf().len();
-    if  l >= (SEGMENT_HEADER_SIZE as usize) {
-        // SEGMENT HEADER: 24 bytes
-        try!(rdr.read_i32::<LittleEndian>());                               // I4 seg_size (BigEndian??)
-        try!(rdr.read_i32::<LittleEndian>());                               // I4 seg_offset  (BigEndian??)
-        let no_of_parts = try!(rdr.read_i16::<LittleEndian>());             // I2
-        try!(rdr.read_i16::<LittleEndian>());                               // I2 seg_number
-        let seg_kind = try!(Kind::from_i8(try!(rdr.read_i8())));            // I1
-        let segment = match seg_kind {
-            Kind::Request => {
-                let mt = try!(MessageType::from_i8(try!(rdr.read_i8())));   // I1
-                let commit = try!(rdr.read_i8());                           // I1
-                let command_options = try!(rdr.read_i8());                  // I1
-                rdr.consume(8usize);                                        // B[8] reserved1
-                new_request_seg(mt, commit, command_options)
-            },
-            Kind::Reply | Kind::Error => {
-                rdr.consume(1usize);                                        // I1 reserved2
-                let fc = try!(FunctionCode::from_i16(
-                                try!(rdr.read_i16::<LittleEndian>())));     // I2
-                rdr.consume(8usize);                                        // B[8] reserved3
-                new_reply_seg(fc)
-            },
-        };
-        debug!("segment_header = {:?}", segment);                           // FIXME remove!?
-
-        Ok(ParseResponse::SegmentHdr(segment, no_of_parts))
-    } else {
-        trace!("try_to_parse_header() got only {} bytes", l);
-        Ok(ParseResponse::Incomplete)
-    }
-}
-
-enum ParseResponse {
-    SegmentHdr(Segment,i16),
-    Incomplete,
+    Ok(segment)
 }
 
 

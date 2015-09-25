@@ -1,10 +1,7 @@
-use super::bufread::*;
-
 use byteorder::{LittleEndian,ReadBytesExt,WriteBytesExt};
 use std::io::Result as IoResult;
-use std::io::{Read,Write};
+use std::io::{BufRead,Read,Write};
 use std::iter::repeat;
-use std::net::TcpStream;
 
 #[derive(Debug)]
 pub struct AuthField {
@@ -30,8 +27,8 @@ impl AuthField {
         1 + self.v.len()
     }
 
-    pub fn try_to_parse(rdr: &mut BufReader<&mut TcpStream>) -> IoResult<AuthField> {
-        trace!("Entering try_to_parse()");
+    pub fn parse(rdr: &mut BufRead) -> IoResult<AuthField> {
+        trace!("Entering parse()");
         let mut len = try!(rdr.read_u8())  as usize;            // B1
         if len == 246 {
             len = try!(rdr.read_i16::<LittleEndian>()) as usize;// (B1+)I2
@@ -41,7 +38,7 @@ impl AuthField {
 
         let mut vec: Vec<u8> = repeat(0u8).take(len).collect();
         try!(rdr.read(&mut vec[..]));
-        trace!("Leaving try_to_parse()");
+        trace!("Leaving parse()");
         Ok(AuthField{v: vec})
     }
 }

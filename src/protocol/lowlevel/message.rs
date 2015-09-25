@@ -1,15 +1,10 @@
 use super::argument;
-use super::bufread::*;
 use super::partkind::*;
 use super::segment;
 
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use std::io::{BufRead, Error, ErrorKind, Result, Write};
+use byteorder::{LittleEndian,ReadBytesExt,WriteBytesExt};
+use std::io::{BufRead,BufReader,Error,ErrorKind,Result,Write};
 use std::net::TcpStream;
-
-const BUFFER_SIZE: u32 = 130000;
-const MESSAGE_HEADER_SIZE: u32 = 32;
-
 
 
 // Packets having the same sequence number belong to one request/response pair.
@@ -38,13 +33,16 @@ impl Message {
         debug!("send_and_receive: request data successfully sent");
 
         let mut rdr = BufReader::new(stream);
-        let msg = try!(try_to_parse(&mut rdr));
+        let msg = try!(parse(&mut rdr));
         try!(msg.assert_no_error());
         Ok(msg)
     }
 
 
     fn serialize(&self, w: &mut Write) -> Result<()> {
+        const BUFFER_SIZE: u32 = 130000;
+        const MESSAGE_HEADER_SIZE: u32 = 32;
+
         trace!("Entering Message::serialize()");
 
         let varpart_size = self.varpart_size();
@@ -100,64 +98,42 @@ impl Message {
 }
 
 ///
-fn try_to_parse(rdr: &mut BufReader<&mut TcpStream>) -> Result<Message> {
-    trace!("Entering try_to_parse()");
+fn parse(rdr: &mut BufRead) -> Result<Message> {
+    trace!("Entering parse()");
 
-    loop {
-        trace!("looping in try_to_parse()");
-        match try_to_parse_header(rdr) {
-            Ok(ParseResponse::MsgHdr(mut msg, varpart_size, remaining_bufsize, no_of_segs)) => {
-                for _ in 0..no_of_segs {
-                    msg.segments.push(try!(segment::try_to_parse(rdr)));
-                }
-                trace!("try_to_parse(): varpart_size = {}, remaining_bufsize = {}", varpart_size, remaining_bufsize);
-                return Ok(msg);
-            },
-            Ok(ParseResponse::Incomplete) => {
-                trace!("try_to_parse(): got Incomplete from try_to_parse_header()");
-            },
-            Err(e) => return Err(Error::from(e)),
-        }
-        match rdr.read_into_buf() {
-            Ok(0) if rdr.get_buf().is_empty() => {
-                return Err(Error::new(ErrorKind::Other, "Connection closed"));
-            },
-            Ok(0) => return Err(Error::new(ErrorKind::Other, "Response is bigger than expected")), // ???
-            Ok(_) => (),
-            Err(e) => return Err(Error::from(e))
-        }
-    }
+    // MESSAGE HEADER: 32 bytes
+    let session_id = try!(rdr.read_i64::<LittleEndian>());          // I8
+    let packet_seq_number = try!(rdr.read_i32::<LittleEndian>());   // I4
+    let varpart_size = try!(rdr.read_u32::<LittleEndian>());        // UI4  not needed?
+    let remaining_bufsize = try!(rdr.read_u32::<LittleEndian>());   // UI4  not needed?
+    let no_of_segs = try!(rdr.read_i16::<LittleEndian>());          // I2
+    rdr.consume(10usize);                                           // (I1 + B[9])
+    debug!("message_header = {{ session_id = {}, packet_seq_number = {}, \
+            varpart_size = {}, remaining_bufsize = {}, no_of_segs = {} }}",
+            session_id, packet_seq_number, varpart_size, remaining_bufsize, no_of_segs);
+
+    let mut msg = new(session_id,packet_seq_number);
+    for _ in 0..no_of_segs { msg.segments.push(try!(segment::parse(rdr))); }
+    Ok(msg)
 }
 
-///
-fn try_to_parse_header(rdr: &mut BufReader<&mut TcpStream>) -> Result<ParseResponse> {
-    trace!("Entering try_to_parse_header()");
 
-    let l = rdr.get_buf().len();
-    if  l >= (MESSAGE_HEADER_SIZE as usize) {
-        // MESSAGE HEADER: 32 bytes
-        let session_id = try!(rdr.read_i64::<LittleEndian>());          // I8
-        let packet_seq_number = try!(rdr.read_i32::<LittleEndian>());   // I4
-        let varpart_size = try!(rdr.read_u32::<LittleEndian>());        // UI4
-        let remaining_bufsize = try!(rdr.read_u32::<LittleEndian>());   // UI4
-        let no_of_segs = try!(rdr.read_i16::<LittleEndian>());          // I2
-        rdr.consume(10usize);                                           // ignore the unused last 10 bytes (I1 + B[9])
-        debug!("message_header = {{ session_id = {}, packet_seq_number = {}, \
-                varpart_size = {}, remaining_bufsize = {}, no_of_segs = {} }}",
-                session_id, packet_seq_number,
-                varpart_size, remaining_bufsize, no_of_segs);
-        Ok(ParseResponse::MsgHdr(
-            new(session_id,packet_seq_number),
-            varpart_size,
-            remaining_bufsize,
-            no_of_segs))
-    } else {
-        trace!("try_to_parse_header() got only {} bytes", l);
-        Ok(ParseResponse::Incomplete)
+
+#[cfg(test)]
+mod tests {
+    use super::parse;
+    use std::io::{BufReader,Cursor};
+
+    // run exclusively with
+    // cargo test protocol::lowlevel::message::tests::test_parse_from_bstring -- --nocapture
+    #[test]
+    fn test_parse_from_bstring() {
+        use flexi_logger;
+        flexi_logger::init( flexi_logger::LogConfig::new(), Some("info".to_string()))
+        .unwrap();
+
+        let bytes = b"\x5b\xd3\xf3\x17\x47\xa5\x04\x00\x02\x00\x00\x00\x58\x00\x00\x00\xb0\xfb\x01\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x58\x00\x00\x00\x00\x00\x00\x00\x01\x00\x01\x00\x01\x02\x01\x08\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x01\x00\x00\x00\x00\x00\x30\x00\x00\x00\x98\xfb\x01\x00\x53\x45\x4c\x45\x43\x54\x20\x56\x45\x52\x53\x49\x4f\x4e\x2c\x20\x43\x55\x52\x52\x45\x4e\x54\x5f\x55\x53\x45\x52\x20\x46\x52\x4f\x4d\x20\x53\x59\x53\x2e\x4d\x5f\x44\x41\x54\x41\x42\x41\x53\x45";
+        let mut reader = BufReader::new(Cursor::new(bytes.to_vec()));
+        info!("Got {:?}", parse(&mut reader).unwrap());
     }
-}
-
-enum ParseResponse {
-    MsgHdr(Message,u32,u32,i16),
-    Incomplete,
 }

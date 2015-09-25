@@ -1,10 +1,7 @@
-use super::bufread::*;
-
 use byteorder::{LittleEndian,ReadBytesExt,WriteBytesExt};
 use std::io::Result as IoResult;
-use std::io::{Error,ErrorKind,Read,Write};
+use std::io::{BufRead,Error,ErrorKind,Read,Write};
 use std::iter::repeat;
-use std::net::TcpStream;
 
 
 #[allow(dead_code)]
@@ -184,7 +181,7 @@ impl TypedValue {
      // TypedValue::SECONDTIME => 64,
     }}
 
-    pub fn try_to_parse(rdr: &mut BufReader<&mut TcpStream>) -> IoResult<TypedValue> {
+    pub fn parse(rdr: &mut BufRead) -> IoResult<TypedValue> {
         let value_type = try!(rdr.read_i8());           // I1
         parse_value(value_type, rdr)
     }
@@ -203,7 +200,7 @@ fn encode_bytes(v: &Vec<u8>, w: &mut Write) -> IoResult<()> {
 }
 
 
-fn parse_value(val: i8, rdr: &mut BufReader<&mut TcpStream>) -> IoResult<TypedValue> { match val {
+fn parse_value(val: i8, rdr: &mut BufRead) -> IoResult<TypedValue> { match val {
     0 => Ok(TypedValue::NULL) ,
     1 => Ok(TypedValue::TINYINT(   try!(rdr.read_u8()) )),
     2 => Ok(TypedValue::SMALLINT(  try!(rdr.read_i16::<LittleEndian>()) )),
@@ -245,7 +242,7 @@ fn parse_value(val: i8, rdr: &mut BufReader<&mut TcpStream>) -> IoResult<TypedVa
     _ => Err(Error::new(ErrorKind::Other,format!("parse_value() not implemented for type code {}",val))),
 }}
 
-fn parse_string(rdr: &mut BufReader<&mut TcpStream>) -> IoResult<String> {
+fn parse_string(rdr: &mut BufRead) -> IoResult<String> {
     let length = try!(rdr.read_i16::<LittleEndian>());                  // I2 (always)
     let mut buffer: Vec<u8> = repeat(0u8).take(length as usize).collect();
     try!(rdr.read(&mut buffer[..]));                                    // variable
@@ -253,16 +250,9 @@ fn parse_string(rdr: &mut BufReader<&mut TcpStream>) -> IoResult<String> {
                  .map_err(|_|{Error::new(ErrorKind::Other, "Invalid UTF-8 received for String-typed value")})))
 }
 
-fn parse_binary(rdr: &mut BufReader<&mut TcpStream>) -> IoResult<Vec<u8>> {
+fn parse_binary(rdr: &mut BufRead) -> IoResult<Vec<u8>> {
     let length = try!(rdr.read_i16::<LittleEndian>());                  // I2 (always)
     let mut vec: Vec<u8> = repeat(0u8).take(length as usize).collect();
     try!(rdr.read(&mut vec[..]));                                       // variable
     Ok(vec)
 }
-
-// impl fmt::Debug for TypedValue {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(),fmt::Error> {
-//         try!(write!(f, "{}", self.to_i8()));
-//         Ok(())
-//     }
-// }

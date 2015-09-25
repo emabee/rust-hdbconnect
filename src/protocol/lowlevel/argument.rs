@@ -1,5 +1,4 @@
 use super::authfield::*;
-use super::bufread::*;
 use super::clientcontext_option::*;
 use super::connect_option::*;
 use super::hdberror::*;
@@ -9,7 +8,6 @@ use super::topology_attribute::*;
 use byteorder::{LittleEndian,ReadBytesExt,WriteBytesExt};
 use std::io::Result as IoResult;
 use std::io::{BufRead,Write};
-use std::net::TcpStream;
 
 #[derive(Debug)]
 pub enum Argument {
@@ -17,6 +15,7 @@ pub enum Argument {
     Auth(Vec<AuthField>),
     CcOptions(Vec<CcOption>),
     ClientID(Vec<u8>),
+    Command(String),
     ConnectOptions(Vec<ConnectOption>),
     Error(Vec<HdbError>),
     TopologyInformation(Vec<TopologyAttr>),
@@ -27,6 +26,7 @@ impl Argument {
         Argument::Auth(_) => 1i16,
         Argument::CcOptions(ref opts) => opts.len() as i16,
         Argument::ClientID(_) => 1,
+        Argument::Command(_) => 1,
         Argument::ConnectOptions(ref opts) => opts.len() as i16,
         Argument::Error(ref vec) => vec.len() as i16,
         Argument::TopologyInformation(_) => 1i16,
@@ -39,6 +39,7 @@ impl Argument {
             &Argument::Auth(ref vec) => {size += 2; for ref field in vec { size += field.size(); } },
             &Argument::CcOptions(ref vec) => { for opt in vec { size += opt.size(); } },
             &Argument::ClientID(ref vec) => { size += 1 + vec.len(); },
+            &Argument::Command(ref s) => { size += string_to_cesu8(s).len(); },
             &Argument::ConnectOptions(ref vec) => { for opt in vec { size += opt.size(); }},
             &Argument::Error(ref vec) => { for hdberror in vec { size += hdberror.size(); }},
             &Argument::TopologyInformation(ref vec) => {size += 2; for ref attr in vec { size += attr.size(); } },
@@ -64,6 +65,10 @@ impl Argument {
             Argument::ClientID(ref vec) => {
                 try!(w.write_u8(b' '));  // strange!
                 for b in vec { try!(w.write_u8(*b)); }
+            },
+            Argument::Command(ref s) => {
+                let vec = string_to_cesu8(s);
+                for b in vec { try!(w.write_u8(b)); }
             },
             Argument::ConnectOptions(ref vec) => {
                 for ref opt in vec { try!(opt.encode(w)); }
@@ -93,8 +98,8 @@ fn padsize(size: usize) -> usize {
     }
 }
 
-pub fn try_to_parse(no_of_args: i32, kind: PartKind, rdr: &mut BufReader<&mut TcpStream>) -> IoResult<Argument> {
-    trace!("Entering try_to_parse(no_of_args={}, kind={:?})",no_of_args,kind);
+pub fn parse(no_of_args: i32, arg_size: i32, kind: PartKind, rdr: &mut BufRead) -> IoResult<Argument> {
+    trace!("Entering parse(no_of_args={}, kind={:?})",no_of_args,kind);
 
     let mut length = 0;
     let arg = match kind {
@@ -103,7 +108,7 @@ pub fn try_to_parse(no_of_args: i32, kind: PartKind, rdr: &mut BufReader<&mut Tc
             length = 2;
             let mut vec = Vec::<AuthField>::with_capacity(field_count);
             for _ in 0..field_count {
-                let field = try!(AuthField::try_to_parse(rdr));
+                let field = try!(AuthField::parse(rdr));
                 length += field.size();
                 vec.push(field);
             }
@@ -112,16 +117,21 @@ pub fn try_to_parse(no_of_args: i32, kind: PartKind, rdr: &mut BufReader<&mut Tc
         PartKind::ClientContext => {
             let mut vec = Vec::<CcOption>::new();
             for _ in 0..no_of_args {
-                let opt = try!(CcOption::try_to_parse(rdr));
+                let opt = try!(CcOption::parse(rdr));
                 length += opt.size();
                 vec.push(opt);
             }
             Argument::CcOptions(vec)
         },
+        PartKind::Command => {
+            let bytes = try!(read_bytes(arg_size as usize, rdr));
+            let s = cesu8_to_string(&bytes);
+            Argument::Command(s)
+        },
         PartKind::ConnectOptions => {
             let mut vec = Vec::<ConnectOption>::new();
             for _ in 0..no_of_args {
-                let opt = try!(ConnectOption::try_to_parse(rdr));
+                let opt = try!(ConnectOption::parse(rdr));
                 length += opt.size();
                 vec.push(opt);
             }
@@ -130,7 +140,7 @@ pub fn try_to_parse(no_of_args: i32, kind: PartKind, rdr: &mut BufReader<&mut Tc
         PartKind::Error => {
             let mut vec = Vec::<HdbError>::new();
             for _ in 0..no_of_args {
-                let hdberror = try!(HdbError::try_to_parse(rdr));
+                let hdberror = try!(HdbError::parse(rdr));
                 length += hdberror.size() as usize;
                 vec.push(hdberror);
             }
@@ -141,7 +151,7 @@ pub fn try_to_parse(no_of_args: i32, kind: PartKind, rdr: &mut BufReader<&mut Tc
             length = 2;
             let mut vec = Vec::<TopologyAttr>::with_capacity(field_count);
             for _ in 0..field_count {
-                let info = try!(TopologyAttr::try_to_parse(rdr));
+                let info = try!(TopologyAttr::parse(rdr));
                 length += info.size();
                 vec.push(info);
             }
@@ -153,4 +163,19 @@ pub fn try_to_parse(no_of_args: i32, kind: PartKind, rdr: &mut BufReader<&mut Tc
     };
     rdr.consume(padsize(length));                                               // padding
     Ok(arg)
+}
+
+fn read_bytes(len: usize, rdr: &mut BufRead) -> IoResult<Vec<u8>> {
+    use std::iter::repeat;
+    let mut vec: Vec<u8> = repeat(0u8).take(len).collect();
+    try!(rdr.read(&mut vec[..]));
+    Ok(vec)
+}
+
+fn string_to_cesu8(s: &String) -> Vec<u8> {
+    s.as_bytes().to_vec()                           // FIXME CESU-8!!
+}
+fn cesu8_to_string(v: &Vec<u8>) -> String {
+    let v2: Vec<u8> = v.clone();
+    String::from_utf8(v2).unwrap()                   // FIXME CESU-8!!
 }

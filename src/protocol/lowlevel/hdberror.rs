@@ -1,10 +1,7 @@
-use super::bufread::*;
-
 use byteorder::{LittleEndian,ReadBytesExt,WriteBytesExt};
 use std::fmt;
 use std::io::Result as IoResult;
-use std::io::{Read,Write};
-use std::net::TcpStream;
+use std::io::{BufRead,Read,Write};
 
 pub struct HdbError {
     code: i32,
@@ -36,7 +33,7 @@ impl HdbError {
         Ok(())
     }
 
-    pub fn try_to_parse(rdr: &mut BufReader<&mut TcpStream>) -> IoResult<HdbError> {
+    pub fn parse(rdr: &mut BufRead) -> IoResult<HdbError> {
         let code = try!(rdr.read_i32::<LittleEndian>());            // I4
         let position = try!(rdr.read_i32::<LittleEndian>());        // I4
         let text_length = try!(rdr.read_i32::<LittleEndian>());     // I4

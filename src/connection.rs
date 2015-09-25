@@ -27,8 +27,8 @@ pub fn connect(host: &str, port: &str, username: &str, password: &str)
     conn.add_connect_options(&mut connect_options);
     conn.add_topology_info(&mut topology_attributes);
     trace!("don't know what to do with the server proof: {:?}", server_proof);
-    info!("successfully logged on with user \"{}\" in  {} µs",
-            username, (time::now() - start).num_microseconds().unwrap());
+    info!("successfully logged on as user \"{}\" at {}:{} in  {} µs",
+            username, host, port, (time::now() - start).num_microseconds().unwrap());
     Ok(conn)
 }
 

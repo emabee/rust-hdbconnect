@@ -297,14 +297,14 @@ fn xor(a: &Vec<u8>, b: &Vec<u8>) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::calculate_client_proof;
-    use flexi_logger;
+//    use flexi_logger;
 
     // run exclusively with
     // cargo test protocol::authentication::tests::test_client_proof -- --nocapture
     #[test]
     fn test_client_proof() {
 
-        flexi_logger::init(flexi_logger::LogConfig::new(), Some("hdbconnect=warn".to_string())).unwrap();
+//        flexi_logger::init(flexi_logger::LogConfig::new(), Some("hdbconnect=warn".to_string())).unwrap();
 
         let client_challenge: Vec<u8> = b"\xb5\xab\x3a\x90\xc5\xad\xb8\x04\x15\x27\x37\x66\x54\xd7\x5c\x31\x94\xd8\x61\x50\x3f\xe0\x8d\xff\x8b\xea\xd5\x1b\xc3\x5a\x07\xcc\x63\xed\xbf\xa9\x5d\x03\x62\xf5\x6f\x1a\x48\x2e\x4c\x3f\xb8\x32\xe4\x1c\x89\x74\xf9\x02\xef\x87\x38\xcc\x74\xb6\xef\x99\x2e\x8e"
         .to_vec();

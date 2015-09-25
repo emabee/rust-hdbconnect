@@ -1,10 +1,8 @@
-use super::bufread::*;
 use super::typed_value::*;
 
 use byteorder::{ReadBytesExt,WriteBytesExt};
 use std::io::Result as IoResult;
-use std::io::{Error,ErrorKind,Write};
-use std::net::TcpStream;
+use std::io::{BufRead,Error,ErrorKind,Write};
 
 #[derive(Clone,Debug)]
 pub struct TopologyAttr {
@@ -21,9 +19,9 @@ impl TopologyAttr {
         1 + self.value.size()
     }
 
-    pub fn try_to_parse(rdr: &mut BufReader<&mut TcpStream>) -> IoResult<TopologyAttr> {
+    pub fn parse(rdr: &mut BufRead) -> IoResult<TopologyAttr> {
         let id = try!(TopologyAttrId::from_i8(try!(rdr.read_i8())));            // I1
-        let value = try!(TypedValue::try_to_parse(rdr));
+        let value = try!(TypedValue::parse(rdr));
         Ok(TopologyAttr{id: id, value: value})
     }
 }
