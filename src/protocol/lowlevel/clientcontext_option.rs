@@ -1,4 +1,4 @@
-use super::typed_value::*;
+use super::option_value::*;
 
 use byteorder::{ReadBytesExt,WriteBytesExt};
 use std::io::Result as IoResult;
@@ -7,7 +7,7 @@ use std::io::{BufRead,Error,ErrorKind,Write};
 #[derive(Debug)]
 pub struct CcOption {
     pub id: CcOptionId,
-    pub value: TypedValue,
+    pub value: OptionValue,
 }
 impl CcOption {
     pub fn encode (&self, w: &mut Write)  -> IoResult<()> {
@@ -21,7 +21,7 @@ impl CcOption {
 
     pub fn parse(rdr: &mut BufRead) -> IoResult<CcOption> {
         let option_id = try!(CcOptionId::from_i8(try!(rdr.read_i8())));     // I1
-        let value = try!(TypedValue::parse(rdr));
+        let value = try!(OptionValue::parse(rdr));
         Ok(CcOption{id: option_id, value: value})
     }
 }

@@ -52,7 +52,7 @@ impl Part {
 }
 
 ///
-pub fn parse(rdr: &mut BufRead) -> Result<Part> {
+pub fn parse(already_received_parts: &Vec<Part>, rdr: &mut BufRead) -> Result<Part> {
     trace!("Entering parse()");
 
     // PART HEADER: 16 bytes
@@ -68,7 +68,7 @@ pub fn parse(rdr: &mut BufRead) -> Result<Part> {
 
     let mut part = new(part_kind);
 
-    part.arg = try!(argument::parse( max(no_of_argsi16 as i32, no_of_argsi32), arg_size, part.kind, rdr));
+    part.arg = try!(argument::parse( max(no_of_argsi16 as i32, no_of_argsi32), arg_size, part.kind, already_received_parts, rdr));
     trace!("Got arg of kind {:?}", part.arg);
     Ok(part)
 }
@@ -82,4 +82,10 @@ pub enum PartAttributes {
     FirstPacket = 2,        // First part in a sequence of parts
     RowNotFound = 3,        // Empty part, caused by “row not found” error
     ResultSetClosed = 4,    // The result set that produced this part is closed
+}
+
+///
+pub fn get_first_part_of_kind(kind: PartKind, parts: &Vec<Part>) -> Option<usize> {
+    let code = kind.to_i8();
+    parts.iter().position(|p| p.kind.to_i8() == code)
 }

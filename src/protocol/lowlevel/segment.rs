@@ -103,14 +103,14 @@ pub fn parse(rdr: &mut BufRead) -> Result<Segment> {
             new_reply_seg(fc)
         },
     };
-    debug!("segment_header = {:?}", segment);                           // FIXME remove!?
+    debug!("segment_header = {:?}, no_of_parts = {}", segment, no_of_parts);
 
     for _ in 0..no_of_parts {
-        segment.push(try!(part::parse(rdr)));
+        let part = try!(part::parse(&segment.parts,rdr));
+        segment.push(part);
     }
     Ok(segment)
 }
-
 
 /// Specifies the layout of the remaining segment header structure
 #[derive(Debug)]
@@ -252,6 +252,7 @@ pub enum FunctionCode {
     Insert,						// INSERT statement
     Update,						// UPDATE statement
     Delete,						// DELETE statement
+    Select,			            // SELECT statement
     SelectForUpdate,			// SELECT … FOR UPDATE statement
     Explain,					// EXPLAIN statement
     DbProcedureCall,			// CALL statement
@@ -280,6 +281,7 @@ impl FunctionCode {
         FunctionCode::Insert => 2,
         FunctionCode::Update => 3,
         FunctionCode::Delete => 4,
+        FunctionCode::Select => 5,
         FunctionCode::SelectForUpdate => 6,
         FunctionCode::Explain => 7,
         FunctionCode::DbProcedureCall => 8,
@@ -307,6 +309,7 @@ impl FunctionCode {
         2 => Ok(FunctionCode::Insert),
         3 => Ok(FunctionCode::Update),
         4 => Ok(FunctionCode::Delete),
+        5 => Ok(FunctionCode::Select),
         6 => Ok(FunctionCode::SelectForUpdate),
         7 => Ok(FunctionCode::Explain),
         8 => Ok(FunctionCode::DbProcedureCall),

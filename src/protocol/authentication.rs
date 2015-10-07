@@ -3,11 +3,11 @@ use super::lowlevel::authfield::*;
 use super::lowlevel::clientcontext_option::*;
 use super::lowlevel::connect_option::*;
 use super::lowlevel::message;
+use super::lowlevel::option_value::*;
 use super::lowlevel::part;
 use super::lowlevel::partkind::*;
 use super::lowlevel::segment;
 use super::lowlevel::topology_attribute::*;
-use super::lowlevel::typed_value::*;
 
 use byteorder::{LittleEndian,ReadBytesExt,WriteBytesExt};
 use rand::{Rng,thread_rng};
@@ -43,15 +43,15 @@ fn build_auth1_request (chllng_sha256: &Vec<u8>, username: &str) -> message::Mes
     let mut cc_options = Vec::<CcOption>::new();
     cc_options.push( CcOption {
         id: CcOptionId::Version,
-        value: TypedValue::STRING("1.50.00.000000".to_string()),
+        value: OptionValue::STRING("1.50.00.000000".to_string()),
     });
     cc_options.push( CcOption {
         id: CcOptionId::ClientType,
-        value: TypedValue::STRING("JDBC".to_string()),
+        value: OptionValue::STRING("JDBC".to_string()),
     });
     cc_options.push( CcOption {
         id: CcOptionId::ClientApplicationProgram,
-        value: TypedValue::STRING("UNKNOWN".to_string()),
+        value: OptionValue::STRING("UNKNOWN".to_string()),
     });
 
     let mut part1 = part::new(PartKind::ClientContext);
@@ -93,15 +93,15 @@ fn build_auth2_request (client_proof: &Vec<u8>, username: &str) -> message::Mess
 
     let mut part3 = part::new(PartKind::ConnectOptions);
     let mut conn_opts = Vec::<ConnectOption>::new();
-    conn_opts.push( ConnectOption{id: ConnectOptionId::CompleteArrayExecution, value: TypedValue::BOOLEAN(true)});
-    conn_opts.push( ConnectOption{id: ConnectOptionId::DataFormatVersion2, value: TypedValue::INT(4)});
-    conn_opts.push( ConnectOption{id: ConnectOptionId::DataFormatVersion, value: TypedValue::INT(1)});
-    conn_opts.push( ConnectOption{id: ConnectOptionId::ClientLocale, value: TypedValue::STRING(get_locale())});
-    conn_opts.push( ConnectOption{id: ConnectOptionId::DistributionEnabled, value: TypedValue::BOOLEAN(true)});
-    conn_opts.push( ConnectOption{id: ConnectOptionId::ClientDistributionMode, value: TypedValue::INT(3)});
-    conn_opts.push( ConnectOption{id: ConnectOptionId::SelectForUpdateSupported, value: TypedValue::BOOLEAN(true)});
-    conn_opts.push( ConnectOption{id: ConnectOptionId::DistributionProtocolVersion, value: TypedValue::INT(1)});
-    conn_opts.push( ConnectOption{id: ConnectOptionId::RowSlotImageParameter, value: TypedValue::BOOLEAN(true)});
+    conn_opts.push( ConnectOption{id: ConnectOptionId::CompleteArrayExecution, value: OptionValue::BOOLEAN(true)});
+    conn_opts.push( ConnectOption{id: ConnectOptionId::DataFormatVersion2, value: OptionValue::INT(4)});
+    conn_opts.push( ConnectOption{id: ConnectOptionId::DataFormatVersion, value: OptionValue::INT(1)});
+    conn_opts.push( ConnectOption{id: ConnectOptionId::ClientLocale, value: OptionValue::STRING(get_locale())});
+    conn_opts.push( ConnectOption{id: ConnectOptionId::DistributionEnabled, value: OptionValue::BOOLEAN(true)});
+    conn_opts.push( ConnectOption{id: ConnectOptionId::ClientDistributionMode, value: OptionValue::INT(3)});
+    conn_opts.push( ConnectOption{id: ConnectOptionId::SelectForUpdateSupported, value: OptionValue::BOOLEAN(true)});
+    conn_opts.push( ConnectOption{id: ConnectOptionId::DistributionProtocolVersion, value: OptionValue::INT(1)});
+    conn_opts.push( ConnectOption{id: ConnectOptionId::RowSlotImageParameter, value: OptionValue::BOOLEAN(true)});
 
     part3.set_arg(Argument::ConnectOptions(conn_opts));
     segment.push(part3);
@@ -139,15 +139,13 @@ fn get_server_challenge(response1: message::Message) -> Vec<u8> {
     let segment = response1.segments.get(0).unwrap();
     match (&segment.kind, &segment.function_code) {
         (&segment::Kind::Reply, &segment::FunctionCode::Nil) => {},
-        _ => {panic!("bad segment")}
+        _ => {panic!("unexpected segment kind or function code")}
     }
-    assert!(segment.parts.len() == 1, "wrong count of parts");
 
-    let part = segment.parts.get(0).unwrap();
-    match part.kind {
-        PartKind::Authentication => {},
-        _ => {panic!("wrong part kind")}
-    }
+    let part = match part::get_first_part_of_kind(PartKind::Authentication, &segment.parts) {
+        Some(idx) => segment.parts.get(idx).unwrap(),
+        None => panic!("wrong part kind"),
+    };
 
     if let Argument::Auth(ref vec) = part.arg {
         let server_challenge = vec.get(1).unwrap().v.clone();

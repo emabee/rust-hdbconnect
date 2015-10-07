@@ -1,7 +1,8 @@
+use super::util;
+
 use byteorder::{LittleEndian,ReadBytesExt,WriteBytesExt};
 use std::io::Result as IoResult;
-use std::io::{BufRead,Read,Write};
-use std::iter::repeat;
+use std::io::{BufRead,Write};
 
 #[derive(Debug)]
 pub struct AuthField {
@@ -9,18 +10,19 @@ pub struct AuthField {
 }
 impl AuthField {
     pub fn encode (&self, w: &mut Write)  -> IoResult<()> {
-        let len = self.v.len();
-        if len < 245 {
-            try!(w.write_u8(len as u8));                        // B1           LENGTH OF VALUE
-        } else if len < i16::max_value() as usize {
-            try!(w.write_u8(246u8));                            // B1           246
-            try!(w.write_i16::<LittleEndian>(len as i16));      // I2           LENGTH OF VALUE
-        } else {
-            try!(w.write_u8(247u8));                            // B1           247
-            try!(w.write_i32::<LittleEndian>(len as i32));      // I4           LENGTH OF VALUE
+        match self.v.len() {
+            l if l <= 250usize => {
+                try!(w.write_u8(l as u8));                              // B1           LENGTH OF VALUE
+            },
+            l if l <= 65535usize => {
+                try!(w.write_u8(255));                                  // B1           247
+                try!(w.write_u16::<LittleEndian>(l as u16));            // U2           LENGTH OF VALUE
+            },
+            l => {
+                panic!("Value of AuthField is too big: {}",l);
+            },
         }
-        for b in &self.v {try!(w.write_u8(*b));}                // B variable   VALUE
-        Ok(())
+        util::encode_bytes(&self.v, w)                                  // B variable   VALUE BYTES
     }
 
     pub fn size(&self) -> usize {
@@ -28,17 +30,16 @@ impl AuthField {
     }
 
     pub fn parse(rdr: &mut BufRead) -> IoResult<AuthField> {
-        trace!("Entering parse()");
-        let mut len = try!(rdr.read_u8())  as usize;            // B1
-        if len == 246 {
-            len = try!(rdr.read_i16::<LittleEndian>()) as usize;// (B1+)I2
-        } else if len == 247 {
-            len = try!(rdr.read_i32::<LittleEndian>()) as usize;// (B1+)I4
+        let mut len = try!(rdr.read_u8())  as usize;                    // B1
+        match len {
+            255usize => {
+                len = try!(rdr.read_u16::<LittleEndian>()) as usize;    // (B1+)I2
+            },
+            251...255 => {
+                panic!("Unknown length indicator for AuthField: {}",len);
+            },
+            _ => {},
         }
-
-        let mut vec: Vec<u8> = repeat(0u8).take(len).collect();
-        try!(rdr.read(&mut vec[..]));
-        trace!("Leaving parse()");
-        Ok(AuthField{v: vec})
+        Ok(AuthField{v: try!(util::parse_bytes(len,rdr))})
     }
 }

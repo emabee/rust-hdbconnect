@@ -5,7 +5,7 @@ use std::io::{Error,ErrorKind,Result};
 #[allow(dead_code)]
 pub enum PartKind {
     Command,                // 3 // SQL Command Data
-    Resultset,              // 5 // Tabular result set data
+    ResultSet,              // 5 // Tabular result set data
     Error,                  // 6 // Error information
     Statementid,            // 10 // Prepared statement identifier
     Transactionid,          // 11 // Transaction identifier
@@ -33,7 +33,7 @@ pub enum PartKind {
     FetchOptions,           // 44 // Fetch options
     FetchSize,              // 45 // Number of rows to fetch
     ParameterMetadata,      // 47 // Parameter metadata (type and length information)
-    ResultsetMetadata,      // 48 // Result set metadata (type, length, and name information)
+    ResultSetMetadata,      // 48 // Result set metadata (type, length, and name information)
     FindLobRequest,         // 49 // Request data of FINDLOB message
     FindLobReply,           // 50 // Reply data of FINDLOB message
     ItabShm,                // 51 // Information on shared memory segment used for ITAB transfer
@@ -56,7 +56,7 @@ pub enum PartKind {
 impl PartKind {
     pub fn to_i8(&self) -> i8 {match *self {
         PartKind::Command => 3,
-        PartKind::Resultset => 5,
+        PartKind::ResultSet => 5,
         PartKind::Error => 6,
         PartKind::Statementid => 10,
         PartKind::Transactionid => 11,
@@ -84,7 +84,7 @@ impl PartKind {
         PartKind::FetchOptions => 44,
         PartKind::FetchSize => 45,
         PartKind::ParameterMetadata => 47,
-        PartKind::ResultsetMetadata => 48,
+        PartKind::ResultSetMetadata => 48,
         PartKind::FindLobRequest => 49,
         PartKind::FindLobReply => 50,
         PartKind::ItabShm => 51,
@@ -106,7 +106,7 @@ impl PartKind {
 
     pub fn from_i8(val: i8) -> Result<PartKind> { match val {
         3 => Ok(PartKind::Command),
-        5 => Ok(PartKind::Resultset),
+        5 => Ok(PartKind::ResultSet),
         6 => Ok(PartKind::Error),
         10 => Ok(PartKind::Statementid),
         11 => Ok(PartKind::Transactionid),
@@ -134,7 +134,7 @@ impl PartKind {
         44 => Ok(PartKind::FetchOptions),
         45 => Ok(PartKind::FetchSize),
         47 => Ok(PartKind::ParameterMetadata),
-        48 => Ok(PartKind::ResultsetMetadata),
+        48 => Ok(PartKind::ResultSetMetadata),
         49 => Ok(PartKind::FindLobRequest),
         50 => Ok(PartKind::FindLobReply),
         51 => Ok(PartKind::ItabShm),

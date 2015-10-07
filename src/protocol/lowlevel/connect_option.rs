@@ -1,4 +1,4 @@
-use super::typed_value::*;
+use super::option_value::*;
 
 use byteorder::{ReadBytesExt,WriteBytesExt};
 use std::io::Result as IoResult;
@@ -8,7 +8,7 @@ use std::io::{BufRead,Error,ErrorKind,Write};
 #[derive(Clone,Debug)]
 pub struct ConnectOption {
     pub id: ConnectOptionId,
-    pub value: TypedValue,
+    pub value: OptionValue,
 }
 impl ConnectOption {
     pub fn encode (&self, w: &mut Write)  -> IoResult<()> {
@@ -22,7 +22,7 @@ impl ConnectOption {
 
     pub fn parse(rdr: &mut BufRead) -> IoResult<ConnectOption> {
         let option_id = try!(ConnectOptionId::from_i8(try!(rdr.read_i8())));    // I1
-        let value = try!(TypedValue::parse(rdr));
+        let value = try!(OptionValue::parse(rdr));
         Ok(ConnectOption{id: option_id, value: value})
     }
 }
