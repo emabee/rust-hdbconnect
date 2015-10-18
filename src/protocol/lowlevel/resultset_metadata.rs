@@ -12,7 +12,7 @@ use vec_map::VecMap;
 #[derive(Clone,Debug)]
 pub struct ResultSetMetadata {
     pub fields: Vec<FieldMetadata>,
-    names: VecMap<String>
+    pub names: VecMap<String>,
 }
 impl ResultSetMetadata {
     pub fn parse(count: i32, arg_size:u32, rdr: &mut BufRead) -> IoResult<ResultSetMetadata> {
@@ -22,18 +22,18 @@ impl ResultSetMetadata {
         };
         trace!("Got count {}",count);
         for _ in 0..count {
-            let co = ColumnOption::from_u8(try!(rdr.read_u8()));                // U1 (documented as I1)
-            let vt = try!(rdr.read_u8());                                       // I1
-            let fr = try!(rdr.read_i16::<LittleEndian>());                      // I2
-            let pr = try!(rdr.read_i16::<LittleEndian>());                      // I2
-            try!(rdr.read_i16::<LittleEndian>());                               // I2
-            let tn = try!(rdr.read_u32::<LittleEndian>());                      // I4
+            let co = try!(rdr.read_u8());                   // U1 (documented as I1)
+            let vt = try!(rdr.read_u8());                   // I1
+            let fr = try!(rdr.read_i16::<LittleEndian>());  // I2
+            let pr = try!(rdr.read_i16::<LittleEndian>());  // I2
+            try!(rdr.read_i16::<LittleEndian>());           // I2
+            let tn = try!(rdr.read_u32::<LittleEndian>());  // I4
             rsm.add_to_names(tn);
-            let sn = try!(rdr.read_u32::<LittleEndian>());                      // I4
+            let sn = try!(rdr.read_u32::<LittleEndian>());  // I4
             rsm.add_to_names(sn);
-            let cn = try!(rdr.read_u32::<LittleEndian>());                      // I4
+            let cn = try!(rdr.read_u32::<LittleEndian>());  // I4
             rsm.add_to_names(cn);
-            let cdn = try!(rdr.read_u32::<LittleEndian>());                     // I4
+            let cdn = try!(rdr.read_u32::<LittleEndian>()); // I4
             rsm.add_to_names(cdn);
 
             let fm = FieldMetadata::new(co,vt,fr,pr,tn,sn,cn,cdn);
@@ -77,6 +77,17 @@ impl ResultSetMetadata {
         }
         size
     }
+
+    /// TODO is it OK that we ignore here the column_name?
+    /// FIXME for large result sets, this method will be called very often - is caching meaningful?
+    pub fn get_fieldname(&self, field_idx: usize) -> Option<&String> {
+        match self.fields.get(field_idx) {
+            Some(field_metadata) => {
+                self.names.get(&(field_metadata.column_displayname as usize))
+            },
+            None => None,
+        }
+    }
 }
 
 #[derive(Clone,Debug)]
@@ -91,9 +102,10 @@ pub struct FieldMetadata {
     pub column_displayname: u32,
 }
 impl FieldMetadata {
-    fn new(co: ColumnOption, vt: u8, fr: i16, pr: i16, tn: u32, sn: u32, cn: u32, cdn: u32,) -> FieldMetadata {
+    pub fn new(co: u8, vt: u8, fr: i16, pr: i16, tn: u32, sn: u32, cn: u32, cdn: u32,) -> FieldMetadata {
         FieldMetadata {
-            column_options: co, value_type: vt, fraction: fr, precision: pr, tablename: tn,
+            column_options: ColumnOption::from_u8(co),
+            value_type: vt, fraction: fr, precision: pr, tablename: tn,
             schemaname: sn, columnname: cn, column_displayname: cdn
         }
     }

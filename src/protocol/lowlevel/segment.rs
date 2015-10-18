@@ -9,20 +9,20 @@ const SEGMENT_HEADER_SIZE: usize = 24; // same for in and out
 #[derive(Debug)]
 pub struct Segment {
     pub kind: Kind,
-    pub msg_type: MessageType,              // only in requests
-    pub commit: i8,                         // only in requests
-    pub command_options: i8,                // only in requests
-    pub function_code: FunctionCode,        // only in replies
+    pub msg_type: Option<MessageType>,          // only in requests
+    pub auto_commit: Option<bool>,              // only in requests
+    pub command_options: Option<i8>,            // only in requests
+    pub function_code: Option<FunctionCode>,    // only in replies
     pub parts: Vec<part::Part>,
 }
 
-pub fn new_request_seg(mt: MessageType, commit:i8, co: i8) -> Segment  {
+pub fn new_request_seg(mt: MessageType, auto_commit: bool) -> Segment  {
     Segment {
         kind: Kind::Request,
-        msg_type: mt,
-        commit: commit,
-        command_options: co,
-        function_code: FunctionCode::DummyForRequest,
+        msg_type: Some(mt),
+        auto_commit: Some(auto_commit),
+        command_options: Some(0),             // seems to be a reasonable start - let's see if we need flexibility
+        function_code: None,
         parts: Vec::<part::Part>::new(),
     }
 }
@@ -30,10 +30,10 @@ pub fn new_request_seg(mt: MessageType, commit:i8, co: i8) -> Segment  {
 fn new_reply_seg(fc: FunctionCode)  -> Segment {
     Segment {
         kind: Kind::Reply,
-        msg_type: MessageType::DummyForReply,
-        command_options: 0,
-        commit: 0,
-        function_code: fc,
+        msg_type: None,
+        auto_commit: None,
+        command_options: None,
+        function_code: Some(fc),
         parts: Vec::<part::Part>::new(),
     }
 }
@@ -49,9 +49,9 @@ impl Segment {
         try!(w.write_i16::<LittleEndian>(self.parts.len() as i16));     // I2    Number of contained parts
         try!(w.write_i16::<LittleEndian>(segment_no));                  // I2    Consecutive number, starting with 1
         try!(w.write_i8(self.kind.to_i8()));                            // I1    Segment kind
-        try!(w.write_i8(self.msg_type.to_i8()));                        // I1    Message type
-        try!(w.write_i8(self.commit));                                  // I1    Whether the command is committed
-        try!(w.write_i8(self.command_options));                         // I1    Bit set for options
+        try!(w.write_i8(match &self.msg_type {&Some(ref mt) => mt.to_i8(), &None => 1}));   // I1    Message type
+        try!(w.write_i8(match &self.auto_commit {&Some(true) => 1, _ => 0}));               // I1    auto_commit on/off
+        try!(w.write_i8(match &self.command_options {&Some(co) => co, _ => 0}));            // I1    Bit set for options
         for _ in 0..8 { try!(w.write_u8(0)); }                          // [B;8] Reserved, do not use
 
         remaining_bufsize -= SEGMENT_HEADER_SIZE as u32;
@@ -90,10 +90,10 @@ pub fn parse(rdr: &mut BufRead) -> Result<Segment> {
     let mut segment = match seg_kind {
         Kind::Request => {
             let mt = try!(MessageType::from_i8(try!(rdr.read_i8())));   // I1
-            let commit = try!(rdr.read_i8());                           // I1
-            let command_options = try!(rdr.read_i8());                  // I1
+            let commit = try!(rdr.read_i8()) != 0_i8;                   // I1
+            try!(rdr.read_i8());                                        // I1 command_options
             rdr.consume(8usize);                                        // B[8] reserved1
-            new_request_seg(mt, commit, command_options)
+            new_request_seg(mt, commit)
         },
         Kind::Reply | Kind::Error => {
             rdr.consume(1usize);                                        // I1 reserved2
@@ -333,10 +333,10 @@ impl FunctionCode {
 }
 
 // enumeration of bit positions
-#[derive(Debug)]
-#[allow(dead_code)]
-pub enum CommandOptions {
-    HoldCursorsOverCommit = 3,  // Keeps result set created by this command over commit time
-    ExecuteLocally = 4,         // Executes command only on local partitions of affected partitioned table
-    ScrollInsensitive = 5,      // Marks result set created by this command as scroll insensitive
-}
+// #[derive(Debug)]
+// #[allow(dead_code)]
+// pub enum CommandOptions {
+//     HoldCursorsOverCommit = 3,  // Keeps result set created by this command over commit time
+//     ExecuteLocally = 4,         // Executes command only on local partitions of affected partitioned table
+//     ScrollInsensitive = 5,      // Marks result set created by this command as scroll insensitive
+// }

@@ -176,7 +176,7 @@ pub fn parse( no_of_args: i32,  arg_size: i32,  kind: PartKind,
         PartKind::ResultSet => {
             // We need the number of columns to parse the result set correctly
             // we retrieve this number from the already provided metadata
-            let mdpart = match part::get_first_part_of_kind(PartKind::ResultSetMetadata, &already_received_parts) {
+            let mdpart = match util::get_first_part_of_kind(PartKind::ResultSetMetadata, &already_received_parts) {
                 Some(idx) => already_received_parts.get(idx).unwrap(),
                 None => panic!("Can't read result set without metadata (1)"),
             };

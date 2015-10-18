@@ -8,11 +8,19 @@ use std::io::{BufRead,Result,Write};
 
 const PART_HEADER_SIZE: usize = 16;
 
-pub fn new(kind: PartKind) -> Part {
+pub fn new_header(kind: PartKind) -> Part {
     Part{
         kind: kind,
         attributes: 0,
         arg: argument::Argument::Nil,
+    }
+}
+
+pub fn new(kind: PartKind, attrs: i8, arg: argument::Argument) -> Part {
+    Part{
+        kind: kind,
+        attributes: attrs,
+        arg: arg,
     }
 }
 
@@ -45,10 +53,6 @@ impl Part {
         trace!("Part_size = {}",result);
         result
     }
-
-    pub fn set_arg(&mut self, arg: argument::Argument) {
-        self.arg = arg;
-    }
 }
 
 ///
@@ -66,7 +70,7 @@ pub fn parse(already_received_parts: &Vec<Part>, rdr: &mut BufRead) -> Result<Pa
     debug!("parse() found part with attributes {:o} of arg_size {} and remaining_packet_size {}",
             part_attributes, arg_size, remaining_packet_size);
 
-    let mut part = new(part_kind);
+    let mut part = new_header(part_kind);
 
     part.arg = try!(argument::parse( max(no_of_argsi16 as i32, no_of_argsi32), arg_size, part.kind, already_received_parts, rdr));
     trace!("Got arg of kind {:?}", part.arg);
@@ -82,10 +86,4 @@ pub enum PartAttributes {
     FirstPacket = 2,        // First part in a sequence of parts
     RowNotFound = 3,        // Empty part, caused by “row not found” error
     ResultSetClosed = 4,    // The result set that produced this part is closed
-}
-
-///
-pub fn get_first_part_of_kind(kind: PartKind, parts: &Vec<Part>) -> Option<usize> {
-    let code = kind.to_i8();
-    parts.iter().position(|p| p.kind.to_i8() == code)
 }

@@ -2,12 +2,13 @@ use super::lowlevel::argument::Argument;
 use super::lowlevel::authfield::*;
 use super::lowlevel::clientcontext_option::*;
 use super::lowlevel::connect_option::*;
-use super::lowlevel::message;
+use super::lowlevel::message::Message;
 use super::lowlevel::option_value::*;
 use super::lowlevel::part;
 use super::lowlevel::partkind::*;
 use super::lowlevel::segment;
 use super::lowlevel::topology_attribute::*;
+use super::lowlevel::util;
 
 use byteorder::{LittleEndian,ReadBytesExt,WriteBytesExt};
 use rand::{Rng,thread_rng};
@@ -23,7 +24,7 @@ use crypto::sha2::Sha256;
 
 /// authenticate with the scram_sha256 method
 pub fn authenticate_with_scram_sha256(tcp_stream: &mut TcpStream, username: &str, password: &str)
-    -> Result<(Vec<ConnectOption>,Vec<TopologyAttr>,Vec<u8>)> {
+    -> Result<(Vec<ConnectOption>,Vec<TopologyAttr>,i64)> {
     trace!("Entering scram_sha256()");
 
     let client_challenge = create_client_challenge();
@@ -36,9 +37,9 @@ pub fn authenticate_with_scram_sha256(tcp_stream: &mut TcpStream, username: &str
 
 /// Build the auth1-request: message_header + (segment_header + (part1+options) + (part2+authrequest)
 /// the md5 stuff seems obsolete!
-fn build_auth1_request (chllng_sha256: &Vec<u8>, username: &str) -> message::Message {
+fn build_auth1_request (chllng_sha256: &Vec<u8>, username: &str) -> Message {
     trace!("Entering auth1_request()");
-    let mut message = message::new(-1i64, 0i32);
+    let mut message = Message::new(-1i64, 0i32);
 
     let mut cc_options = Vec::<CcOption>::new();
     cc_options.push( CcOption {
@@ -54,18 +55,16 @@ fn build_auth1_request (chllng_sha256: &Vec<u8>, username: &str) -> message::Mes
         value: OptionValue::STRING("UNKNOWN".to_string()),
     });
 
-    let mut part1 = part::new(PartKind::ClientContext);
-    part1.set_arg(Argument::CcOptions(cc_options));
+    let part1 = part::new(PartKind::ClientContext, 0, Argument::CcOptions(cc_options));
 
     let mut auth_fields = Vec::<AuthField>::with_capacity(5);
     auth_fields.push(AuthField {v: username.as_bytes().to_vec() });
     auth_fields.push(AuthField {v: b"SCRAMSHA256".to_vec() });
     auth_fields.push(AuthField {v: chllng_sha256.clone() });
 
-    let mut part2 = part::new(PartKind::Authentication);
-    part2.set_arg(Argument::Auth(auth_fields));
+    let part2 = part::new(PartKind::Authentication, 0, Argument::Auth(auth_fields));
 
-    let mut segment = segment::new_request_seg(segment::MessageType::Authenticate,0,0);
+    let mut segment = segment::new_request_seg(segment::MessageType::Authenticate,true);
     segment.push(part1);
     segment.push(part2);
 
@@ -74,24 +73,18 @@ fn build_auth1_request (chllng_sha256: &Vec<u8>, username: &str) -> message::Mes
     message
 }
 
-fn build_auth2_request (client_proof: &Vec<u8>, username: &str) -> message::Message {
+fn build_auth2_request (client_proof: &Vec<u8>, username: &str) -> Message {
     trace!("Entering auth2_request()");
-    let mut message = message::new(0i64, 1i32);
-    let mut segment = segment::new_request_seg(segment::MessageType::Connect,0,0);
+    let mut message = Message::new(0i64, 1i32);
+    let mut segment = segment::new_request_seg(segment::MessageType::Connect, true);
 
-    let mut part1 = part::new(PartKind::Authentication);
     let mut auth_fields = Vec::<AuthField>::with_capacity(3);
     auth_fields.push(AuthField {v: username.as_bytes().to_vec() });
     auth_fields.push(AuthField {v: b"SCRAMSHA256".to_vec() });
     auth_fields.push(AuthField {v: client_proof.clone() });
-    part1.set_arg(Argument::Auth(auth_fields));
-    segment.push(part1);
+    segment.push(part::new(PartKind::Authentication, 0, Argument::Auth(auth_fields)));
+    segment.push(part::new(PartKind::ClientID, 0, Argument::ClientID(get_client_id())));
 
-    let mut part2 = part::new(PartKind::ClientID);
-    part2.set_arg(Argument::ClientID(get_client_id()));
-    segment.push(part2);
-
-    let mut part3 = part::new(PartKind::ConnectOptions);
     let mut conn_opts = Vec::<ConnectOption>::new();
     conn_opts.push( ConnectOption{id: ConnectOptionId::CompleteArrayExecution, value: OptionValue::BOOLEAN(true)});
     conn_opts.push( ConnectOption{id: ConnectOptionId::DataFormatVersion2, value: OptionValue::INT(4)});
@@ -102,9 +95,7 @@ fn build_auth2_request (client_proof: &Vec<u8>, username: &str) -> message::Mess
     conn_opts.push( ConnectOption{id: ConnectOptionId::SelectForUpdateSupported, value: OptionValue::BOOLEAN(true)});
     conn_opts.push( ConnectOption{id: ConnectOptionId::DistributionProtocolVersion, value: OptionValue::INT(1)});
     conn_opts.push( ConnectOption{id: ConnectOptionId::RowSlotImageParameter, value: OptionValue::BOOLEAN(true)});
-
-    part3.set_arg(Argument::ConnectOptions(conn_opts));
-    segment.push(part3);
+    segment.push(part::new(PartKind::ConnectOptions, 0, Argument::ConnectOptions(conn_opts)));
 
     message.segments.push(segment);
     trace!("Message: {:?}", message);
@@ -131,20 +122,20 @@ fn create_client_challenge() -> Vec<u8>{
     client_challenge.to_vec()
 }
 
-fn get_server_challenge(response1: message::Message) -> Vec<u8> {
+fn get_server_challenge(response1: Message) -> Vec<u8> {
     trace!("Entering get_server_challenge()");
     debug!("Trying to read server_challenge from {:?}", response1);
     assert!(response1.segments.len() == 1, "Wrong count of segments");
 
     let segment = response1.segments.get(0).unwrap();
     match (&segment.kind, &segment.function_code) {
-        (&segment::Kind::Reply, &segment::FunctionCode::Nil) => {},
-        _ => {panic!("unexpected segment kind or function code")}
+        (&segment::Kind::Reply, &Some(segment::FunctionCode::Nil)) => {},
+        _ => {panic!("unexpected segment kind {:?} or function code {:?} at 1", &segment.kind, &segment.function_code)}
     }
 
-    let part = match part::get_first_part_of_kind(PartKind::Authentication, &segment.parts) {
+    let part = match util::get_first_part_of_kind(PartKind::Authentication, &segment.parts) {
         Some(idx) => segment.parts.get(idx).unwrap(),
-        None => panic!("wrong part kind"),
+        None => panic!("no part of kind Authentication"),
     };
 
     if let Argument::Auth(ref vec) = part.arg {
@@ -156,14 +147,14 @@ fn get_server_challenge(response1: message::Message) -> Vec<u8> {
     }
 }
 
-fn evaluate_resp2(response2: message::Message) -> Result<(Vec<ConnectOption>,Vec<TopologyAttr>,Vec<u8>)> {
+fn evaluate_resp2(response2: Message) -> Result<(Vec<ConnectOption>,Vec<TopologyAttr>,i64)> {
     trace!("Entering evaluate_resp2()");
     assert!(response2.segments.len() == 1, "Wrong count of segments");
 
     let segment = response2.segments.get(0).unwrap();
     match (&segment.kind, &segment.function_code) {
-        (&segment::Kind::Reply, &segment::FunctionCode::Nil) => {},
-        _ => {panic!("bad segment")}
+        (&segment::Kind::Reply, &Some(segment::FunctionCode::Nil)) => {},
+        _ => {panic!("unexpected segment kind {:?} or function code {:?} at 2", &segment.kind, &segment.function_code)}
     }
     assert!(segment.parts.len() >= 1, "no part found");
 
@@ -181,12 +172,12 @@ fn evaluate_resp2(response2: message::Message) -> Result<(Vec<ConnectOption>,Vec
             },
             PartKind::ConnectOptions => {
                 if let Argument::ConnectOptions(ref vec) = part.arg {
-                    for e in vec { conn_opts.push((*e).clone()); }
+                    for e in vec { conn_opts.push((*e).clone()); } // FIXME avoid clone
                 }
             },
             PartKind::TopologyInformation => {
                 if let Argument::TopologyInformation(ref vec) = part.arg {
-                    for e in vec { topo_attrs.push((*e).clone()); }
+                    for e in vec { topo_attrs.push((*e).clone()); } // FIXME avoid clone
                 }
             },
             pk => {
@@ -194,7 +185,8 @@ fn evaluate_resp2(response2: message::Message) -> Result<(Vec<ConnectOption>,Vec
             }
         }
     }
-    Ok((conn_opts,topo_attrs,server_proof))
+    warn!("still don't know what to do with the server proof: {:?}", server_proof);
+    Ok((conn_opts,topo_attrs,response2.session_id))
 }
 
 fn calculate_client_proof(server_challenge: Vec<u8>, client_challenge: Vec<u8>, password: &str)
@@ -285,7 +277,7 @@ fn xor(a: &Vec<u8>, b: &Vec<u8>) -> Vec<u8> {
     assert!(a.len() == b.len(), "xor needs two equally long parameters");
 
     let mut bytes: Vec<u8> = repeat(0u8).take(a.len()).collect();
-    for i in (0..a.len()) {
+    for i in 0..a.len() {
         bytes[i] = a[i] ^ b[i];
     }
     bytes
