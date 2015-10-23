@@ -13,5 +13,5 @@ extern crate vec_map;
 
 pub use connection::*;
 
-mod connection;
+pub mod connection;
 pub mod protocol;

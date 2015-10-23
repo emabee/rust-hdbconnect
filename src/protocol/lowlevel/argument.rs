@@ -8,6 +8,7 @@ use super::resultset::*;
 use super::resultset_metadata::*;
 use super::statementcontext_option::*;
 use super::topology_attribute::*;
+use super::transactionflags::*;
 use super::util;
 
 use byteorder::{LittleEndian,ReadBytesExt,WriteBytesExt};
@@ -28,6 +29,7 @@ pub enum Argument {
     ResultSetMetadata(ResultSetMetadata),
     StatementContext(Vec<StatementContextOption>),
     TopologyInformation(Vec<TopologyAttr>),
+    TransactionFlags(Vec<TransactionFlag>),
 }
 
 impl Argument {
@@ -43,6 +45,7 @@ impl Argument {
         Argument::ResultSetMetadata(ref rsm) => rsm.count(),
         Argument::StatementContext(ref opts) => opts.len() as i16,
         Argument::TopologyInformation(_) => 1,
+        Argument::TransactionFlags(ref opts) => opts.len() as i16,
         Argument::Nil => panic!("count() called on Argument::Nil"),
     }}
 
@@ -60,6 +63,7 @@ impl Argument {
             &Argument::ResultSetMetadata(ref rsm) => {size += rsm.size();},
             &Argument::StatementContext(ref vec) => { for opt in vec { size += opt.size(); } },
             &Argument::TopologyInformation(ref vec) => {size += 2; for ref attr in vec { size += attr.size(); } },
+            &Argument::TransactionFlags(ref vec) => { for opt in vec { size += opt.size(); }},
             &Argument::Nil => panic!("size() called on Argument::Nil"),
         }
         if with_padding {
@@ -102,6 +106,9 @@ impl Argument {
             Argument::TopologyInformation(ref vec) => {
                 try!(w.write_i16::<LittleEndian>(vec.len() as i16));
                 for ref topo_attr in vec { try!(topo_attr.encode(w)); }
+            },
+            Argument::TransactionFlags(ref vec) => {
+                for ref opt in vec { try!(opt.encode(w)); }
             },
             Argument::Nil => {panic!("encode() called on Argument::Nil")},
         }
@@ -216,6 +223,16 @@ pub fn parse( no_of_args: i32,  arg_size: i32,  kind: PartKind,
                 vec.push(info);
             }
             (length, Argument::TopologyInformation(vec))
+        },
+        PartKind::TransactionFlags => {
+            let mut vec = Vec::<TransactionFlag>::new();
+            let mut length = 0usize;
+            for _ in 0..no_of_args {
+                let opt = try!(TransactionFlag::parse(rdr));
+                length += opt.size();
+                vec.push(opt);
+            }
+            (length, Argument::TransactionFlags(vec))
         },
         _ => {
             panic!("No handling implemented for received partkind value {}", kind.to_i8());

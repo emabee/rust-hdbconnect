@@ -6,6 +6,10 @@ use std::string::FromUtf8Error;
 
 use serde;
 
+pub fn rs_error(s: &String) -> RsError {
+    RsError::RsError(Code::Syntax(s.clone()))
+}
+
 /// This type represents all possible errors that can occur when deserializing a ResultSet
 #[derive(Debug)]
 pub enum RsError {

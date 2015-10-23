@@ -1,10 +1,11 @@
 use std::mem::swap;
 
 use serde;
-use super::rs_error::{RsError, Code, RsResult};
+use super::rs_error::{rs_error, RsError, Code, RsResult};
 
 use protocol::lowlevel::resultset::*;
 use protocol::lowlevel::typed_value::*;
+
 
 ///!  A result set is interpreted as a sequence of maps
 ///!  (each row is a map (field -> value), and we have many rows)
@@ -30,6 +31,7 @@ enum RdeState {
 }
 
 /// TODO try out using refs here, rather than direct values
+#[derive(Debug)]
 enum KVN {
     KEY(String),
     VALUE(TypedValue),
@@ -45,6 +47,7 @@ pub struct RsDeserializer {
     col_cnt: usize,
     col_idx: usize, // index of field that is to be read; initialize with 0
     next_thing: KVN,
+    f_state: bool,
 }
 
 impl RsDeserializer {
@@ -60,8 +63,156 @@ impl RsDeserializer {
             col_idx: 0,
             rs: rs,
             next_thing: KVN::NOTHING,
+            f_state: false,
         }
     }
+
+    /// for plain values call the respective visit method  (via handle_plain_value())
+    /// for option-valued types, call visit_none or visit_some; the latter delegates once more to the serializer,
+    /// which then has to call the respective visit method (via handle_plain_value())
+    fn handle_typed_value<V>(&mut self, value: &TypedValue, visitor: V) -> RsResult<V::Value>
+            where V: serde::de::Visitor,
+    {
+        trace!("handle_typed_value() typed_value = {:?}", value);
+        if value.type_id() < 128 {
+            self.handle_plain_value(value, visitor)
+        } else {
+            self.handle_option(value, visitor)
+        }
+    }
+
+
+    fn handle_option<V>(&mut self, value: &TypedValue, mut visitor: V) -> RsResult<V::Value>
+            where V: serde::de::Visitor,
+    {
+        trace!("handle_option() typed_value = {:?}", value);
+        match value {
+            &TypedValue::N_TINYINT(o)  => match o {
+                Some(_)     => {self.f_state = true; visitor.visit_some(self)}
+                None        => visitor.visit_none()
+            },
+            &TypedValue::N_SMALLINT(o)  => match o {
+                Some(_)     => {self.f_state = true; visitor.visit_some(self)}
+                None        => visitor.visit_none()
+            },
+            &TypedValue::N_INT(o)  => match o {
+                Some(_)     => {self.f_state = true; visitor.visit_some(self)}
+                None        => visitor.visit_none()
+            },
+            &TypedValue::N_BIGINT(o)  => match o {
+                Some(_)     => {self.f_state = true; visitor.visit_some(self)}
+                None        => visitor.visit_none()
+            },
+            &TypedValue::N_REAL(o)  => match o {
+                Some(_)     => {self.f_state = true; visitor.visit_some(self)}
+                None        => visitor.visit_none()
+            },
+            &TypedValue::N_DOUBLE(o)  => match o {
+                Some(_)     => {self.f_state = true; visitor.visit_some(self)}
+                None        => visitor.visit_none()
+            },
+            &TypedValue::N_CHAR(ref o)  => match o {
+                &Some(_)    => {self.f_state = true; visitor.visit_some(self)}
+                &None       => visitor.visit_none()
+            },
+            &TypedValue::N_VARCHAR(ref o)  => match o {
+                &Some(_)     => {self.f_state = true; visitor.visit_some(self)}
+                &None        => visitor.visit_none()
+            },
+            &TypedValue::N_NCHAR(ref o)  => match o {
+                &Some(_)     => {self.f_state = true; visitor.visit_some(self)}
+                &None        => visitor.visit_none()
+            },
+            &TypedValue::N_NVARCHAR(ref o)  => match o {
+                &Some(_)     => {self.f_state = true; visitor.visit_some(self)}
+                &None        => visitor.visit_none()
+            },
+            &TypedValue::N_STRING(ref o)  => match o {
+                &Some(_)     => {self.f_state = true; visitor.visit_some(self)}
+                &None        => visitor.visit_none()
+            },
+            &TypedValue::N_NSTRING(ref o)  => match o {
+                &Some(_)     => {self.f_state = true; visitor.visit_some(self)}
+                &None        => visitor.visit_none()
+            },
+            &TypedValue::N_TEXT(ref o)  => match o {
+                &Some(_)     => {self.f_state = true; visitor.visit_some(self)}
+                &None        => visitor.visit_none()
+            },
+            &TypedValue::N_SHORTTEXT(ref o)  => match o {
+                &Some(_)     => {self.f_state = true; visitor.visit_some(self)}
+                &None        => visitor.visit_none()
+            },
+            &TypedValue::N_BINARY(ref o)  => match o {
+                &Some(_)     => {self.f_state = true; visitor.visit_some(self)}
+                &None        => visitor.visit_none()
+            },
+            &TypedValue::N_VARBINARY(ref o)  => match o {
+                &Some(_)     => {self.f_state = true; visitor.visit_some(self)}
+                &None        => visitor.visit_none()
+            },
+            &TypedValue::N_BSTRING(ref o)  => match o {
+                &Some(_)     => {self.f_state = true; visitor.visit_some(self)}
+                &None        => visitor.visit_none()
+            },
+            &TypedValue::N_BOOLEAN(o)  => match o {
+                Some(_)     => {self.f_state = true; visitor.visit_some(self)}
+                None        => visitor.visit_none()
+            },
+            _ => Err(rs_error(&format!("handle_option() not implemented for {:?}", value))),
+        }
+    }
+
+    fn handle_plain_value<V>(&self, value: &TypedValue, mut visitor: V) -> RsResult<V::Value>
+            where V: serde::de::Visitor,
+    {
+        trace!("handle_plain_value() typed_value = {:?}", value);
+        match *value {
+            TypedValue::TINYINT(u)          => visitor.visit_u8(u),
+            TypedValue::SMALLINT(i)         => visitor.visit_i16(i),
+            TypedValue::INT(i)              => visitor.visit_i32(i),
+            TypedValue::BIGINT(i)           => visitor.visit_i64(i),
+            TypedValue::REAL(f)             => visitor.visit_f32(f),
+            TypedValue::DOUBLE(f)           => visitor.visit_f64(f),
+            TypedValue::CHAR(ref s)
+            | TypedValue::VARCHAR(ref s)
+            | TypedValue::NCHAR(ref s)
+            | TypedValue::NVARCHAR(ref s)
+            | TypedValue::STRING(ref s)
+            | TypedValue::NSTRING(ref s)
+            | TypedValue::TEXT(ref s)
+            | TypedValue::SHORTTEXT(ref s)  => visitor.visit_string(s.clone()),
+            TypedValue::BINARY(ref v)
+            | TypedValue::VARBINARY(ref v)
+            | TypedValue::BSTRING(ref v)    => visitor.visit_bytes(v),
+            TypedValue::BOOLEAN(b)          => visitor.visit_bool(b),
+
+            TypedValue::N_TINYINT(o)        => match o {Some(u) => visitor.visit_u8(u), None => Err(bang(value))},
+            TypedValue::N_SMALLINT(o)       => match o {Some(i) => visitor.visit_i16(i), None => Err(bang(value))},
+            TypedValue::N_INT(o)            => match o {Some(i) => visitor.visit_i32(i), None => Err(bang(value))},
+            TypedValue::N_BIGINT(o)         => match o {Some(i) => visitor.visit_i64(i), None => Err(bang(value))},
+            TypedValue::N_REAL(o)           => match o {Some(f) => visitor.visit_f32(f), None => Err(bang(value))},
+            TypedValue::N_DOUBLE(o)         => match o {Some(f) => visitor.visit_f64(f), None => Err(bang(value))},
+            TypedValue::N_BOOLEAN(o)        => match o {Some(b) => visitor.visit_bool(b), None => Err(bang(value))},
+            TypedValue::N_CHAR(ref o)
+            | TypedValue::N_VARCHAR(ref o)
+            | TypedValue::N_NCHAR(ref o)
+            | TypedValue::N_NVARCHAR(ref o)
+            | TypedValue::N_STRING(ref o)
+            | TypedValue::N_NSTRING(ref o)
+            | TypedValue::N_SHORTTEXT(ref o)
+            | TypedValue::N_TEXT(ref o)     => match o {&Some(ref s) => visitor.visit_string(s.clone()), &None => Err(bang(value))},
+            TypedValue::N_BINARY(ref o)
+            | TypedValue::N_VARBINARY(ref o)
+            | TypedValue::N_BSTRING(ref o)  => match o {&Some(ref v) => visitor.visit_bytes(&v), &None => Err(bang(value))},
+            _ => Err(rs_error(&format!("invalid call to handle_plain_value(), value = {:?}", value)))
+        }
+    }
+}
+
+
+fn bang(value: &TypedValue) -> RsError {
+    rs_error(&format!("Found null in non-null column of type code {}", value.type_id()))
 }
 
 impl serde::de::Deserializer for RsDeserializer {
@@ -72,115 +223,51 @@ impl serde::de::Deserializer for RsDeserializer {
         where V: serde::de::Visitor,
     {
         trace!("RsDeserializer::visit()");
-        match self.r_state {
-            RdeState::INITIAL => {
-                self.r_state = RdeState::RUNNING;
-                visitor.visit_seq(RowVisitor::new(self))
+        match self.f_state {
+            true => {
+                trace!("RsDeserializer::visit(): f_state is true");
+                self.f_state = false;
+                let typed_value = &self.rs.rows.get(self.row_idx).unwrap().values.get(self.col_idx).unwrap();
+                trace!("RsDeserializer::visit(): typed_value is {:?}",typed_value);
+                self.handle_plain_value(typed_value, visitor)
             },
-            RdeState::RUNNING => {
-                match self.c_state {
+            false => {
+                match self.r_state {
                     RdeState::INITIAL => {
-                        self.c_state = RdeState::RUNNING;
-                        visitor.visit_map(FieldVisitor::new(self))
+                        trace!("RsDeserializer::visit(): r_state is INITIAL");
+                        self.r_state = RdeState::RUNNING;
+                        visitor.visit_seq(RowVisitor::new(self))
                     },
                     RdeState::RUNNING => {
-                        let mut next_thing = KVN::NOTHING;
-                        swap(&mut next_thing, &mut (self.next_thing));
-                        match next_thing {
-                            KVN::KEY(s) => visitor.visit_string(s),
-                            KVN::VALUE(v) => h_visit_value(v,visitor),
-                            KVN::NOTHING => Err(RsError::RsError(Code::KvnNothing)),
+                        match self.c_state {
+                            RdeState::INITIAL => {
+                                trace!("RsDeserializer::visit(): c_state is INITIAL");
+                                self.c_state = RdeState::RUNNING;
+                                visitor.visit_map(FieldVisitor::new(self))
+                            },
+                            RdeState::RUNNING => {
+                                trace!("RsDeserializer::visit(): c_state is RUNNING, next_thing is {:?}", self.next_thing);
+                                let mut next_thing = KVN::NOTHING;
+                                swap(&mut next_thing, &mut (self.next_thing));
+                                match next_thing {
+                                    KVN::KEY(s) => visitor.visit_string(s),
+                                    KVN::VALUE(val) => self.handle_typed_value(&val,visitor),
+                                    KVN::NOTHING => Err(RsError::RsError(Code::KvnNothing)),
+                                }
+                            },
+                            RdeState::DONE => {
+                                trace!("RsDeserializer::visit(): c_state is DONE");
+                                Err(RsError::RsError(Code::NoMoreRows))
+                            },
                         }
                     },
                     RdeState::DONE => {
+                        trace!("RsDeserializer::visit(): r_state is DONE");
                         Err(RsError::RsError(Code::NoMoreRows))
                     },
                 }
             },
-            RdeState::DONE => {
-                Err(RsError::RsError(Code::NoMoreRows))
-            },
         }
-    }
-}
-
-fn h_visit_value<V>(value: TypedValue, mut visitor: V) -> RsResult<V::Value>
-        where V: serde::de::Visitor,
-{
-    match value {
-        TypedValue::NULL => visitor.visit_none(),
-        TypedValue::TINYINT(o) => match o {
-            Some(i) => visitor.visit_u8(i),
-            None => visitor.visit_none()
-        },
-        TypedValue::SMALLINT(o) => match o {
-            Some(i) => visitor.visit_i16(i),
-            None => visitor.visit_none()
-        },
-        TypedValue::INT(o) => match o {
-            Some(i) => visitor.visit_i32(i),
-            None => visitor.visit_none()
-        },
-        TypedValue::BIGINT(o) => match o {
-            Some(i) => visitor.visit_i64(i),
-            None => visitor.visit_none()
-        },
-        TypedValue::REAL(o) => match o {
-            Some(i) => visitor.visit_f32(i),
-            None => visitor.visit_none()
-        },
-        TypedValue::DOUBLE(o) => match o {
-            Some(i) => visitor.visit_f64(i),
-            None => visitor.visit_none()
-        },
-        TypedValue::CHAR(ref o) => match o {
-            &Some(ref s) => visitor.visit_string(s.clone()),
-            &None => visitor.visit_none()
-        },
-        TypedValue::VARCHAR(ref o) => match o {
-            &Some(ref s) => visitor.visit_string(s.clone()),
-            &None => visitor.visit_none()
-        },
-        TypedValue::NCHAR(ref o) => match o {
-            &Some(ref s) => visitor.visit_string(s.clone()),
-            &None => visitor.visit_none()
-        },
-        TypedValue::NVARCHAR(ref o) => match o {
-            &Some(ref s) => visitor.visit_string(s.clone()),
-            &None => visitor.visit_none()
-        },
-        TypedValue::BINARY(ref o) => match o {
-            &Some(ref v) => visitor.visit_bytes(v),
-            &None => visitor.visit_none()
-        },
-        TypedValue::VARBINARY(ref o) => match o {
-            &Some(ref v) => visitor.visit_bytes(v),
-            &None => visitor.visit_none()
-        },
-        TypedValue::BOOLEAN(o) => match o {
-            Some(i) => visitor.visit_bool(i),
-            None => visitor.visit_none()
-        },
-        TypedValue::STRING(ref o) => match o {
-            &Some(ref s) => visitor.visit_string(s.clone()),
-            &None => visitor.visit_none()
-        },
-        TypedValue::NSTRING(ref o) => match o {
-            &Some(ref s) => visitor.visit_string(s.clone()),
-            &None => visitor.visit_none()
-        },
-        TypedValue::BSTRING(ref o) => match o {
-            &Some(ref v) => visitor.visit_bytes(v),
-            &None => visitor.visit_none()
-        },
-        TypedValue::TEXT(ref o) => match o {
-            &Some(ref s) => visitor.visit_string(s.clone()),
-            &None => visitor.visit_none()
-        },
-        TypedValue::SHORTTEXT(ref o) => match o {
-            &Some(ref s) => visitor.visit_string(s.clone()),
-            &None => visitor.visit_none()
-        },
     }
 }
 
@@ -244,35 +331,35 @@ impl<'a> serde::de::MapVisitor for FieldVisitor<'a> {
     fn visit_key<K>(&mut self) -> RsResult<Option<K>>
         where K: serde::de::Deserialize,
     {
-        trace!("FieldVisitor::visit_key()");
+        trace!("FieldVisitor::visit_key() for col {}", self.de.col_idx);
         match self.de.col_idx {
             i if i < self.de.col_cnt => {
                 let field_name = self.de.rs.get_fieldname(i).unwrap().clone();
+                trace!("FieldVisitor::visit_key() fieldname = {}", field_name);
                 self.de.next_thing = KVN::KEY( field_name.to_string() );
                 Ok(Some(try!(serde::de::Deserialize::deserialize(self.de))))
             },
-            _  => {
-                self.de.row_idx += 1;
-                Ok(None)
-            },
+            _  => Ok(None),
         }
     }
 
     fn visit_value<V>(&mut self) -> RsResult<V>
         where V: serde::de::Deserialize,
     {
-        trace!("FieldVisitor::visit_value()");
+        trace!("FieldVisitor::visit_value() for col {}", self.de.col_idx);
         match self.de.col_idx {
             i if i < self.de.col_cnt => {
-                self.de.col_idx += 1;
                 let value = match self.de.rs.get_value(self.de.row_idx,i) {
                     Some(value) => value.clone(),
                     None => {
                         return Err(RsError::RsError(Code::NoValueForRowColumn(self.de.row_idx,i)));
                     },
                 };
+                trace!("FieldVisitor::visit_value() value {:?}", value);
                 self.de.next_thing = KVN::VALUE( value );
-                Ok(try!(serde::de::Deserialize::deserialize(self.de)))
+                let tmp = try!(serde::de::Deserialize::deserialize(self.de));
+                self.de.col_idx += 1;
+                Ok(tmp)
             },
             _    => { Err(RsError::RsError(Code::NoMoreCols)) },
         }
@@ -282,10 +369,18 @@ impl<'a> serde::de::MapVisitor for FieldVisitor<'a> {
         trace!("FieldVisitor::end()");
         match self.de.col_idx {
             i if i < self.de.col_cnt => { Err(RsError::RsError(Code::TrailingCols)) },
-            _ => { Ok(()) },
+            _ => {
+                trace!("FieldVisitor::end() switching to next row");
+                self.de.row_idx += 1;
+                self.de.col_idx = 0;
+                self.de.c_state = RdeState::INITIAL;
+
+                Ok(())
+            },
         }
     }
 }
+
 
 #[cfg(test)]
 mod tests {
@@ -306,7 +401,7 @@ mod tests {
 
     // cargo test protocol::lowlevel::resultset::deserialize::tests::test_from_resultset -- --nocapture
     #[test]
-    fn test_from_resultset(){
+    fn test_from_resultset() {
         use flexi_logger;
         flexi_logger::init( flexi_logger::LogConfig::new(), Some("info".to_string())).unwrap();
 
@@ -326,12 +421,8 @@ mod tests {
             fields: Vec::<FieldMetadata>::new(),
             names: VecMap::<String>::new(),
         };
-        rsm.fields.push(FieldMetadata::new(
-            2, 9_u8, 0_i16, 32_i16, 0_u32, NIL, 12_u32, 12_u32
-        ));
-        rsm.fields.push(FieldMetadata::new(
-            1, 11_u8, 0_i16, 256_i16, NIL, NIL, NIL, 20_u32
-        ));
+        rsm.fields.push( FieldMetadata::new( 2,  9_u8, 0_i16,  32_i16, 0_u32, NIL, 12_u32, 12_u32 ).unwrap() );
+        rsm.fields.push( FieldMetadata::new( 1, 11_u8, 0_i16, 256_i16,   NIL, NIL,    NIL, 20_u32 ).unwrap() );
 
         rsm.names.insert( 0_usize,"M_DATABASE_".to_string());
         rsm.names.insert(12_usize,"VERSION".to_string());
@@ -339,8 +430,8 @@ mod tests {
 
         let mut resultset = ResultSet {rows: Vec::<Row>::new(), metadata: rsm};
         resultset.rows.push(Row{values: vec!(
-            TypedValue::VARCHAR(Some("1.50.000.01.1437580131".to_string())),
-            TypedValue::NVARCHAR(Some("SYSTEM".to_string()))
+            TypedValue::VARCHAR("1.50.000.01.1437580131".to_string()),
+            TypedValue::NVARCHAR("SYSTEM".to_string())
         )});
         resultset
     }

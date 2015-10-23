@@ -13,5 +13,6 @@ pub mod resultset_metadata;
 pub mod segment;
 pub mod statementcontext_option;
 pub mod topology_attribute;
+pub mod transactionflags;
 pub mod typed_value;
 pub mod util;

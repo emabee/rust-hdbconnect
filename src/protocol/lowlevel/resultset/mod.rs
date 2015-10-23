@@ -33,9 +33,11 @@ impl ResultSet {
         for r in 0..count {
             let mut row = Row{values: Vec::<TypedValue>::new()};
             for c in 0..no_of_cols {
-                let typecode = rsm.fields.get(c as usize).unwrap().value_type;
-                trace!("Parsing row {}, column {}, typecode {}.",r,c,typecode);
-                let value = try!(TypedValue::parse_value(typecode,rdr));
+                let metadata = rsm.fields.get(c as usize).unwrap();
+                let typecode = metadata.value_type;
+                let nullable = metadata.column_option.is_nullable();
+                trace!("Parsing row {}, column {}, typecode {}, nullable {}", r, c, typecode, nullable);
+                let value = try!(TypedValue::parse(typecode, nullable, rdr));
                 trace!("Found value {:?}", value);
                 row.values.push(value);
             }

@@ -1,8 +1,7 @@
 use super::util;
 
 use byteorder::{LittleEndian,ReadBytesExt};
-use std::io::Result as IoResult;
-use std::io::BufRead;
+use std::io;
 use std::u32;
 use vec_map::VecMap;
 
@@ -15,7 +14,7 @@ pub struct ResultSetMetadata {
     pub names: VecMap<String>,
 }
 impl ResultSetMetadata {
-    pub fn parse(count: i32, arg_size:u32, rdr: &mut BufRead) -> IoResult<ResultSetMetadata> {
+    pub fn parse(count: i32, arg_size:u32, rdr: &mut io::BufRead) -> io::Result<ResultSetMetadata> {
         let mut rsm = ResultSetMetadata {
             fields: Vec::<FieldMetadata>::new(),
             names: VecMap::<String>::new(),
@@ -36,7 +35,7 @@ impl ResultSetMetadata {
             let cdn = try!(rdr.read_u32::<LittleEndian>()); // I4
             rsm.add_to_names(cdn);
 
-            let fm = FieldMetadata::new(co,vt,fr,pr,tn,sn,cn,cdn);
+            let fm = try!(FieldMetadata::new(co,vt,fr,pr,tn,sn,cn,cdn));
             rsm.fields.push(fm);
         }
         trace!("Read ResultSetMetadata phase 1: {:?}",rsm);
@@ -92,7 +91,7 @@ impl ResultSetMetadata {
 
 #[derive(Clone,Debug)]
 pub struct FieldMetadata {
-    pub column_options: ColumnOption,
+    pub column_option: ColumnOption,
     pub value_type: u8,
     pub fraction: i16,
     pub precision: i16,
@@ -102,29 +101,34 @@ pub struct FieldMetadata {
     pub column_displayname: u32,
 }
 impl FieldMetadata {
-    pub fn new(co: u8, vt: u8, fr: i16, pr: i16, tn: u32, sn: u32, cn: u32, cdn: u32,) -> FieldMetadata {
-        FieldMetadata {
-            column_options: ColumnOption::from_u8(co),
+    pub fn new(co: u8, vt: u8, fr: i16, pr: i16, tn: u32, sn: u32, cn: u32, cdn: u32,) -> io::Result<FieldMetadata>
+    {
+        Ok(FieldMetadata {
+            column_option: try!(ColumnOption::from_u8(co)),
             value_type: vt, fraction: fr, precision: pr, tablename: tn,
             schemaname: sn, columnname: cn, column_displayname: cdn
-        }
+        })
     }
 }
 
 #[derive(Clone,Debug)]
-pub struct ColumnOption {
-    co: u8
+pub enum ColumnOption {
+    Nullable,
+    NotNull,
 }
 impl ColumnOption {
-    #[allow(dead_code)]
-    fn is_mandatory(&self) -> bool {
-        (self.co & 0b1000_0000) != 0
+    pub fn is_nullable(&self) -> bool {
+        match *self {
+            ColumnOption::Nullable => true,
+            ColumnOption::NotNull => false,
+        }
     }
-    #[allow(dead_code)]
-    fn is_optional(&self) -> bool {
-        (self.co & 0b0100_0000) != 0
-    }
-    fn from_u8(val: u8) -> ColumnOption {
-        ColumnOption{co: val}
+
+    fn from_u8(val: u8) -> io::Result<ColumnOption> {
+        match val {
+            1 => Ok(ColumnOption::NotNull),
+            2 => Ok(ColumnOption::Nullable),
+            _ => Err(util::io_error(&format!("ColumnOption::from_u8() not implemented for value {}",val))),
+        }
     }
 }
