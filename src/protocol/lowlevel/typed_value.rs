@@ -76,7 +76,6 @@ pub enum TypedValue {               // Description, Support Level
 //  N_SECONDTIME = 64, 				// TIME data type, 3
 }
 
-#[allow(dead_code)]
 impl TypedValue {
     pub fn encode(&self, w: &mut io::Write) -> io::Result<()> {
         try!(w.write_u8(self.type_id()));                   // I1
@@ -433,12 +432,10 @@ const LENGTH_INDICATOR_2BYTE:u8 = 246;
 const LENGTH_INDICATOR_4BYTE:u8 = 247;
 const LENGTH_INDICATOR_NULL:u8  = 255;
 
-#[allow(dead_code)]
 fn encode_length_and_string(s: &String, w: &mut io::Write) -> io::Result<()> {
     encode_length_and_bytes(&util::string_to_cesu8(s), w)
 }
 
-#[allow(dead_code)]
 fn encode_length_and_bytes(v: &Vec<u8>, w: &mut io::Write) -> io::Result<()> {
     match v.len() {
         l if l <= MAX_1_BYTE_LENGTH as usize => {

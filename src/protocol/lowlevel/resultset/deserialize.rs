@@ -384,9 +384,11 @@ impl<'a> serde::de::MapVisitor for FieldVisitor<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::super::*;
-    use super::super::super::resultset_metadata::*;
-    use super::super::super::typed_value::*;
+    use super::super::{ResultSet,Row};
+    use super::super::super::part_attributes::PartAttributes;
+    use super::super::super::resultset_metadata::{FieldMetadata,ResultSetMetadata};
+    use super::super::super::statement_context::StatementContext;
+    use super::super::super::typed_value::TypedValue;
 
     use std::io;
     use vec_map::VecMap;
@@ -428,7 +430,7 @@ mod tests {
         rsm.names.insert(12_usize,"VERSION".to_string());
         rsm.names.insert(20_usize,"CURRENT_USER".to_string());
 
-        let mut resultset = ResultSet {rows: Vec::<Row>::new(), metadata: rsm};
+        let mut resultset = ResultSet::new(PartAttributes::new(0), 0_u64, StatementContext::new(), rsm);
         resultset.rows.push(Row{values: vec!(
             TypedValue::VARCHAR("1.50.000.01.1437580131".to_string()),
             TypedValue::NVARCHAR("SYSTEM".to_string())

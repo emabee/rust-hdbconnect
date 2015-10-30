@@ -1,5 +1,7 @@
 use super::argument;
-use super::partkind::*;
+use super::partkind::PartKind;
+use super::part_attributes::PartAttributes;
+use super::resultset::ResultSet;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::cmp::max;
@@ -8,35 +10,25 @@ use std::io::{BufRead,Result,Write};
 
 const PART_HEADER_SIZE: usize = 16;
 
-pub fn new_header(kind: PartKind) -> Part {
-    Part{
-        kind: kind,
-        attributes: 0,
-        arg: argument::Argument::Nil,
-    }
-}
-
-pub fn new(kind: PartKind, attrs: i8, arg: argument::Argument) -> Part {
-    Part{
-        kind: kind,
-        attributes: attrs,
-        arg: arg,
-    }
-}
-
 #[derive(Debug)]
 pub struct Part {
     pub kind: PartKind,
-    pub attributes: i8,
     pub arg: argument::Argument,      // a.k.a. part data, or part buffer :-(
 }
 
 impl Part {
+    pub fn new(kind: PartKind, arg: argument::Argument) -> Part {
+        Part{
+            kind: kind,
+            arg: arg,
+        }
+    }
+
     /// Serialize to byte stream
     pub fn encode(&self, mut remaining_bufsize: u32, w: &mut Write) -> Result<u32> {
         // PART HEADER 16 bytes
         try!(w.write_i8(self.kind.to_i8()));                            // I1    Nature of part data
-        try!(w.write_i8(self.attributes));                              // I1    Attributes of part
+        try!(w.write_u8(0));                                            // U1    (documented as I1) Attributes of part
         try!(w.write_i16::<LittleEndian>(self.arg.count()));            // I2    Number of elements in arg
         try!(w.write_i32::<LittleEndian>(0));                           // I4    Number of elements in arg (where used)
         try!(w.write_i32::<LittleEndian>(self.arg.size(false) as i32)); // I4    Length of args in bytes
@@ -56,34 +48,19 @@ impl Part {
 }
 
 ///
-pub fn parse(already_received_parts: &Vec<Part>, rdr: &mut BufRead) -> Result<Part> {
+pub fn parse(already_received_parts: &mut Vec<Part>, o_rs: &mut Option<&mut ResultSet>, rdr: &mut BufRead) -> Result<Part> {
     trace!("Entering parse()");
 
     // PART HEADER: 16 bytes
-    let part_kind = try!(PartKind::from_i8(try!(rdr.read_i8())));       // I1
-    let part_attributes = try!(rdr.read_i8());                          // I1
+    let kind = try!(PartKind::from_i8( try!(rdr.read_i8()) ));          // I1
+    let attributes = PartAttributes::new( try!(rdr.read_u8()) );        // U1    (documented as I1)
     let no_of_argsi16 = try!(rdr.read_i16::<LittleEndian>());           // I2
-    let no_of_argsi32 =  try!(rdr.read_i32::<LittleEndian>());          // I4
+    let no_of_argsi32 = try!(rdr.read_i32::<LittleEndian>());           // I4
     let arg_size = try!(rdr.read_i32::<LittleEndian>());                // I4
-    let remaining_packet_size = try!(rdr.read_i32::<LittleEndian>());   // I4
+    try!(rdr.read_i32::<LittleEndian>());                               // I4    remaining_packet_size
 
-    debug!("parse() found part with attributes {:o} of arg_size {} and remaining_packet_size {}",
-            part_attributes, arg_size, remaining_packet_size);
+    let no_of_args =  max(no_of_argsi16 as i32, no_of_argsi32);
+    debug!("parse() found part of kind {:?} with attributes {:?}({:b}) and no_of_args {}", kind, attributes, attributes, no_of_args);
 
-    let mut part = new_header(part_kind);
-
-    part.arg = try!(argument::parse( max(no_of_argsi16 as i32, no_of_argsi32), arg_size, part.kind, already_received_parts, rdr));
-    trace!("Got arg of kind {:?}", part.arg);
-    Ok(part)
-}
-
-
-// enum of bit positions
-#[allow(dead_code)]
-pub enum PartAttributes {
-    LastPacket = 0,         // Last part in a sequence of parts (FETCH, array command EXECUTE)
-    NextPacket = 1,         // Part in a sequence of parts
-    FirstPacket = 2,        // First part in a sequence of parts
-    RowNotFound = 3,        // Empty part, caused by “row not found” error
-    ResultSetClosed = 4,    // The result set that produced this part is closed
+    Ok(Part::new(kind, try!(argument::parse(kind, attributes, no_of_args, arg_size, already_received_parts, o_rs, rdr)) ))
 }

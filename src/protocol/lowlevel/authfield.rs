@@ -1,15 +1,14 @@
 use super::util;
 
 use byteorder::{LittleEndian,ReadBytesExt,WriteBytesExt};
-use std::io::Result as IoResult;
-use std::io::{BufRead,Write};
+use std::io;
 
 #[derive(Debug)]
 pub struct AuthField {
     pub v: Vec<u8>,
 }
 impl AuthField {
-    pub fn encode (&self, w: &mut Write)  -> IoResult<()> {
+    pub fn encode (&self, w: &mut io::Write)  -> io::Result<()> {
         match self.v.len() {
             l if l <= 250usize => {
                 try!(w.write_u8(l as u8));                              // B1           LENGTH OF VALUE
@@ -29,7 +28,7 @@ impl AuthField {
         1 + self.v.len()
     }
 
-    pub fn parse(rdr: &mut BufRead) -> IoResult<AuthField> {
+    pub fn parse(rdr: &mut io::BufRead) -> io::Result<AuthField> {
         let mut len = try!(rdr.read_u8())  as usize;                    // B1
         match len {
             255usize => {

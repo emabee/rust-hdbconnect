@@ -2,7 +2,6 @@ use std::io::{Error,ErrorKind,Result};
 
 #[derive(Debug)]
 #[derive(Clone,Copy)]
-#[allow(dead_code)]
 pub enum PartKind {
     Command,                // 3 // SQL Command Data
     ResultSet,              // 5 // Tabular result set data
@@ -52,7 +51,6 @@ pub enum PartKind {
     ColDatapartMetadata,    // 66 // Reserved, do not use
     DbConnectInfo,          // 67 // Reserved, do not use
 }
-#[allow(dead_code)]
 impl PartKind {
     pub fn to_i8(&self) -> i8 {match *self {
         PartKind::Command => 3,

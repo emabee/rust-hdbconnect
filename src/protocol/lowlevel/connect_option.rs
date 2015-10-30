@@ -27,7 +27,6 @@ impl ConnectOption {
 }
 
 
-#[allow(dead_code)]
 #[derive(Clone,Debug)]
 pub enum ConnectOptionId {
     ConnectionID,                         // 1 //

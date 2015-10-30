@@ -3,8 +3,6 @@ use super::util;
 use byteorder::{LittleEndian,ReadBytesExt,WriteBytesExt};
 use std::io;
 
-
-#[allow(dead_code)]
 #[allow(non_camel_case_types)]
 #[derive(Clone,Debug)]
 pub enum OptionValue {
@@ -16,7 +14,6 @@ pub enum OptionValue {
     BSTRING(Vec<u8>),   	// Binary string
 }
 
-#[allow(dead_code)]
 impl OptionValue {
     pub fn encode(&self, w: &mut io::Write) -> io::Result<()> {
         try!(w.write_u8(self.type_id()));                   // I1

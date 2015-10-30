@@ -1,8 +1,8 @@
-use super::option_value::*;
+use super::option_value::OptionValue;
+use super::util;
 
 use byteorder::{ReadBytesExt,WriteBytesExt};
-use std::io::Result as IoResult;
-use std::io::{BufRead,Error,ErrorKind,Write};
+use std::io;
 
 #[derive(Debug)]
 pub struct CcOption {
@@ -10,7 +10,7 @@ pub struct CcOption {
     pub value: OptionValue,
 }
 impl CcOption {
-    pub fn encode (&self, w: &mut Write)  -> IoResult<()> {
+    pub fn encode (&self, w: &mut io::Write)  -> io::Result<()> {
         try!(w.write_i8(self.id.to_i8()));                                  // I1
         self.value.encode(w)
     }
@@ -19,7 +19,7 @@ impl CcOption {
         1 + self.value.size()
     }
 
-    pub fn parse(rdr: &mut BufRead) -> IoResult<CcOption> {
+    pub fn parse(rdr: &mut io::BufRead) -> io::Result<CcOption> {
         let option_id = try!(CcOptionId::from_i8(try!(rdr.read_i8())));     // I1
         let value = try!(OptionValue::parse(rdr));
         Ok(CcOption{id: option_id, value: value})
@@ -42,10 +42,10 @@ impl CcOptionId {
         }
     }
 
-    pub fn from_i8(val: i8) -> IoResult<CcOptionId> { match val {
+    pub fn from_i8(val: i8) -> io::Result<CcOptionId> { match val {
         1 => Ok(CcOptionId::Version),
         2 => Ok(CcOptionId::ClientType),
         3 => Ok(CcOptionId::ClientApplicationProgram),
-        _ => Err(Error::new(ErrorKind::Other,format!("Invalid value for CcOptionId detected: {}",val))),
+        _ => Err(util::io_error(&format!("Invalid value for CcOptionId detected: {}",val))),
     }}
 }

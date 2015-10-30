@@ -4,7 +4,7 @@ use super::lowlevel::clientcontext_option::*;
 use super::lowlevel::connect_option::*;
 use super::lowlevel::message::Message;
 use super::lowlevel::option_value::*;
-use super::lowlevel::part;
+use super::lowlevel::part::Part;
 use super::lowlevel::partkind::*;
 use super::lowlevel::segment;
 use super::lowlevel::topology_attribute::*;
@@ -28,10 +28,10 @@ pub fn authenticate_with_scram_sha256(tcp_stream: &mut TcpStream, username: &str
     trace!("Entering scram_sha256()");
 
     let client_challenge = create_client_challenge();
-    let response1 = try!(build_auth1_request(&client_challenge, username).send_and_receive(tcp_stream));
+    let response1 = try!(build_auth1_request(&client_challenge, username).send_and_receive(&mut None, tcp_stream));
     let server_challenge: Vec<u8> = get_server_challenge(response1);
     let client_proof = try!(calculate_client_proof(server_challenge, client_challenge, password));
-    let response2 = try!(build_auth2_request(&client_proof, username).send_and_receive(tcp_stream));
+    let response2 = try!(build_auth2_request(&client_proof, username).send_and_receive(&mut None, tcp_stream));
     evaluate_resp2(response2)
 }
 
@@ -55,14 +55,14 @@ fn build_auth1_request (chllng_sha256: &Vec<u8>, username: &str) -> Message {
         value: OptionValue::STRING("UNKNOWN".to_string()),
     });
 
-    let part1 = part::new(PartKind::ClientContext, 0, Argument::CcOptions(cc_options));
+    let part1 = Part::new(PartKind::ClientContext, Argument::CcOptions(cc_options));
 
     let mut auth_fields = Vec::<AuthField>::with_capacity(5);
     auth_fields.push(AuthField {v: username.as_bytes().to_vec() });
     auth_fields.push(AuthField {v: b"SCRAMSHA256".to_vec() });
     auth_fields.push(AuthField {v: chllng_sha256.clone() });
 
-    let part2 = part::new(PartKind::Authentication, 0, Argument::Auth(auth_fields));
+    let part2 = Part::new(PartKind::Authentication, Argument::Auth(auth_fields));
 
     let mut segment = segment::new_request_seg(segment::MessageType::Authenticate,true);
     segment.push(part1);
@@ -82,8 +82,8 @@ fn build_auth2_request (client_proof: &Vec<u8>, username: &str) -> Message {
     auth_fields.push(AuthField {v: username.as_bytes().to_vec() });
     auth_fields.push(AuthField {v: b"SCRAMSHA256".to_vec() });
     auth_fields.push(AuthField {v: client_proof.clone() });
-    segment.push(part::new(PartKind::Authentication, 0, Argument::Auth(auth_fields)));
-    segment.push(part::new(PartKind::ClientID, 0, Argument::ClientID(get_client_id())));
+    segment.push(Part::new(PartKind::Authentication, Argument::Auth(auth_fields)));
+    segment.push(Part::new(PartKind::ClientID, Argument::ClientID(get_client_id())));
 
     let mut conn_opts = Vec::<ConnectOption>::new();
     conn_opts.push( ConnectOption{id: ConnectOptionId::CompleteArrayExecution, value: OptionValue::BOOLEAN(true)});
@@ -95,7 +95,7 @@ fn build_auth2_request (client_proof: &Vec<u8>, username: &str) -> Message {
     conn_opts.push( ConnectOption{id: ConnectOptionId::SelectForUpdateSupported, value: OptionValue::BOOLEAN(true)});
     conn_opts.push( ConnectOption{id: ConnectOptionId::DistributionProtocolVersion, value: OptionValue::INT(1)});
     conn_opts.push( ConnectOption{id: ConnectOptionId::RowSlotImageParameter, value: OptionValue::BOOLEAN(true)});
-    segment.push(part::new(PartKind::ConnectOptions, 0, Argument::ConnectOptions(conn_opts)));
+    segment.push(Part::new(PartKind::ConnectOptions, Argument::ConnectOptions(conn_opts)));
 
     message.segments.push(segment);
     trace!("Message: {:?}", message);

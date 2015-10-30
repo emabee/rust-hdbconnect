@@ -1,4 +1,5 @@
-#![feature(custom_derive, plugin)]
+#![feature(custom_derive, plugin)]  // necessary for serde
+#![feature(associated_consts)]      // necessary for local consts
 #![plugin(serde_macros)]
 
 extern crate byteorder;

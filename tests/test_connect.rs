@@ -22,14 +22,14 @@ pub fn init() {
 // cargo test connect_successfully -- --nocapture
 #[test]
 pub fn connect_successfully() {
-    hdbconnect::connect("wdfd00245307a", "30415", "SYSTEM", "manager").ok();
+    hdbconnect::Connection::init("wdfd00245307a", "30415", "SYSTEM", "manager").ok();
 }
 
 #[test]
 pub fn connect_wrong_password() {
     let start = time::now();
     let (host, port, user, password) = ("wdfd00245307a", "30415", "SYSTEM", "wrong_password");
-    let err = hdbconnect::connect(host, port, user, password).err().unwrap();
+    let err = hdbconnect::Connection::init(host, port, user, password).err().unwrap();
     info!("connect as user \"{}\" failed at {}:{} after {} µs with {}.",
           user, host, port, (time::now() - start).num_microseconds().unwrap(), err.description() );
 }
@@ -38,8 +38,12 @@ pub fn connect_wrong_password() {
 #[test]
 pub fn connect_and_select() {
     use flexi_logger::LogConfig;
-//    flexi_logger::init(LogConfig::new(), Some("hdbconnect::protocol::lowlevel::resultset::deserialize=trace,info".to_string())).unwrap();
-    flexi_logger::init(LogConfig::new(), Some("info".to_string())).unwrap();
+    //          hdbconnect::protocol::lowlevel::resultset\
+    flexi_logger::init(LogConfig::new(),
+    Some("info,\
+          hdbconnect::protocol::lowlevel::message,\
+          hdbconnect::protocol::lowlevel::part=debug,\
+          ".to_string())).unwrap();
 
     match impl_connect_and_select() {
         Err(e) => {error!("connect_and_select() failed with {:?}",e); assert!(false)},
@@ -48,7 +52,7 @@ pub fn connect_and_select() {
 }
 
 fn impl_connect_and_select() -> Result<(), io::Error> {
-    let mut connection = try!(hdbconnect::connect("wdfd00245307a", "30415", "SYSTEM", "manager"));
+    let mut connection = try!(hdbconnect::Connection::init("wdfd00245307a", "30415", "SYSTEM", "manager"));
     try!(impl_select_version_and_user(&mut connection));
     try!(impl_select_active_objects(&mut connection));
     Ok(())
@@ -109,7 +113,7 @@ fn impl_select_active_objects(connection: &mut Connection) -> Result<(), io::Err
 // CDATA as \"cdata\", \
 // BDATA as \"bdata\", \
 // RELEASED_AT as \"released_at\" \
-    let stmt = "select top 3
+    let stmt = "select top 300
                 PACKAGE_ID as \"package_id\", \
                 OBJECT_NAME as \"object_name\", \
                 OBJECT_SUFFIX as \"object_suffix\", \
@@ -132,5 +136,6 @@ fn impl_select_active_objects(connection: &mut Connection) -> Result<(), io::Err
 
     let typed_result: Vec<ActiveObject> = try!(resultset.as_table());
     info!("Typed Result: {:?}", typed_result);
+    assert_eq!(typed_result.len(),300);
     Ok(())
 }

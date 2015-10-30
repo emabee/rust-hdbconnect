@@ -1,7 +1,6 @@
 use byteorder::{LittleEndian,ReadBytesExt,WriteBytesExt};
 use std::fmt;
-use std::io::Result as IoResult;
-use std::io::{BufRead,Read,Write};
+use std::io;
 
 pub struct HdbError {
     code: i32,
@@ -23,7 +22,7 @@ impl HdbError {
         4 + 4 + 4 + 1 + 5 + self.text.len() as usize
     }
 
-    pub fn encode(&self, w: &mut Write) -> IoResult<()> {
+    pub fn encode(&self, w: &mut io::Write) -> io::Result<()> {
         try!(w.write_i32::<LittleEndian>(self.code));
         try!(w.write_i32::<LittleEndian>(self.position));
         try!(w.write_i32::<LittleEndian>(self.text_length));
@@ -33,7 +32,7 @@ impl HdbError {
         Ok(())
     }
 
-    pub fn parse(rdr: &mut BufRead) -> IoResult<HdbError> {
+    pub fn parse(rdr: &mut io::BufRead) -> io::Result<HdbError> {
         let code = try!(rdr.read_i32::<LittleEndian>());            // I4
         let position = try!(rdr.read_i32::<LittleEndian>());        // I4
         let text_length = try!(rdr.read_i32::<LittleEndian>());     // I4

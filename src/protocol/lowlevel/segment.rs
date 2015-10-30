@@ -1,11 +1,11 @@
 use super::part;
+use super::resultset::ResultSet;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::io::{BufRead, Error, ErrorKind, Result, Write};
 
 const SEGMENT_HEADER_SIZE: usize = 24; // same for in and out
 
-#[allow(dead_code)]
 #[derive(Debug)]
 pub struct Segment {
     pub kind: Kind,
@@ -79,7 +79,7 @@ impl Segment {
 
 
 ///
-pub fn parse(rdr: &mut BufRead) -> Result<Segment> {
+pub fn parse(o_rs: &mut Option<&mut ResultSet>, rdr: &mut BufRead) -> Result<Segment> {
     trace!("Entering parse()");
 
     try!(rdr.read_i32::<LittleEndian>());                               // I4 seg_size (BigEndian??)
@@ -106,7 +106,7 @@ pub fn parse(rdr: &mut BufRead) -> Result<Segment> {
     debug!("segment_header = {:?}, no_of_parts = {}", segment, no_of_parts);
 
     for _ in 0..no_of_parts {
-        let part = try!(part::parse(&segment.parts,rdr));
+        let part = try!(part::parse(&mut (segment.parts), o_rs, rdr));
         segment.push(part);
     }
     Ok(segment)
@@ -114,7 +114,6 @@ pub fn parse(rdr: &mut BufRead) -> Result<Segment> {
 
 /// Specifies the layout of the remaining segment header structure
 #[derive(Debug)]
-#[allow(dead_code)]
 pub enum Kind {
     Request,
     Reply,
@@ -123,7 +122,6 @@ pub enum Kind {
     Error,
     // sp1sk_last_segment_kind
 }
-#[allow(dead_code)]
 impl Kind {
     fn to_i8(&self) -> i8 {match *self {
         Kind::Request => 1,
@@ -142,7 +140,6 @@ impl Kind {
 
 /// Defines the action requested from the database server
 #[derive(Debug)]
-#[allow(dead_code)]
 pub enum MessageType {
     DummyForReply,      // (Used for reply segments)
     ExecuteDirect,      // Directly execute SQL statement
@@ -174,7 +171,6 @@ pub enum MessageType {
     DbConnectInfo,      // Request/receive database connect information
 }
 
-#[allow(dead_code)]
 impl MessageType {
     fn to_i8(&self) -> i8 {match *self {
         MessageType::DummyForReply => 1, // for test purposes only
@@ -244,7 +240,6 @@ impl MessageType {
 
 /// Identifies the nature of the statement or functionality that has been prepared or executed
 #[derive(Debug)]
-#[allow(dead_code)]
 pub enum FunctionCode {
     DummyForRequest,            // only for test purposes
     Nil,                        // Nil
@@ -272,36 +267,7 @@ pub enum FunctionCode {
     XaStart,					// XA_START message
     XaJoin,					    // XA_JOIN message
 }
-#[allow(dead_code)]
 impl FunctionCode {
-    fn to_i16(&self) -> i16 {match *self {
-        FunctionCode::DummyForRequest => -1,
-        FunctionCode::Nil => 0,
-        FunctionCode::Ddl => 1,
-        FunctionCode::Insert => 2,
-        FunctionCode::Update => 3,
-        FunctionCode::Delete => 4,
-        FunctionCode::Select => 5,
-        FunctionCode::SelectForUpdate => 6,
-        FunctionCode::Explain => 7,
-        FunctionCode::DbProcedureCall => 8,
-        FunctionCode::DbProcedureCallWithResult => 9,
-        FunctionCode::Fetch => 10,
-        FunctionCode::Commit => 11,
-        FunctionCode::Rollback => 12,
-        FunctionCode::Savepoint => 13,
-        FunctionCode::Connect => 14,
-        FunctionCode::WriteLob => 15,
-        FunctionCode::ReadLob => 16,
-        FunctionCode::Ping => 17,
-        FunctionCode::Disconnect => 18,
-        FunctionCode::CloseCursor => 19,
-        FunctionCode::FindLob => 20,
-        FunctionCode::AbapStream => 21,
-        FunctionCode::XaStart => 22,
-        FunctionCode::XaJoin => 23,
-    }}
-
     fn from_i16(val: i16) -> Result<FunctionCode> { match val {
         -1 => Ok(FunctionCode::DummyForRequest),
         0 => Ok(FunctionCode::Nil),
@@ -331,12 +297,3 @@ impl FunctionCode {
         _ => Err(Error::new(ErrorKind::Other,format!("Invalid value for FunctionCode detected: {}",val))),
     }}
 }
-
-// enumeration of bit positions
-// #[derive(Debug)]
-// #[allow(dead_code)]
-// pub enum CommandOptions {
-//     HoldCursorsOverCommit = 3,  // Keeps result set created by this command over commit time
-//     ExecuteLocally = 4,         // Executes command only on local partitions of affected partitioned table
-//     ScrollInsensitive = 5,      // Marks result set created by this command as scroll insensitive
-// }

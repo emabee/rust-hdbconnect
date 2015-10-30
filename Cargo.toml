@@ -1,6 +1,6 @@
 [package]
 name = "hdbconnect"
-version = "0.0.3"
+version = "0.0.5"
 authors = ["emabee <meinolf.block@sap.com>"]
 
 [dependencies]
