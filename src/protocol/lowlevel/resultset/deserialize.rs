@@ -174,6 +174,8 @@ impl RsDeserializer {
             TypedValue::BIGINT(i)           => visitor.visit_i64(i),
             TypedValue::REAL(f)             => visitor.visit_f32(f),
             TypedValue::DOUBLE(f)           => visitor.visit_f64(f),
+            TypedValue::BOOLEAN(b)          => visitor.visit_bool(b),
+            TypedValue::LONGDATE(dt)        => visitor.visit_????(dt), // how to fix?
             TypedValue::CHAR(ref s)
             | TypedValue::VARCHAR(ref s)
             | TypedValue::NCHAR(ref s)
@@ -185,7 +187,6 @@ impl RsDeserializer {
             TypedValue::BINARY(ref v)
             | TypedValue::VARBINARY(ref v)
             | TypedValue::BSTRING(ref v)    => visitor.visit_bytes(v),
-            TypedValue::BOOLEAN(b)          => visitor.visit_bool(b),
 
             TypedValue::N_TINYINT(o)        => match o {Some(u) => visitor.visit_u8(u), None => Err(bang(value))},
             TypedValue::N_SMALLINT(o)       => match o {Some(i) => visitor.visit_i16(i), None => Err(bang(value))},
@@ -194,6 +195,7 @@ impl RsDeserializer {
             TypedValue::N_REAL(o)           => match o {Some(f) => visitor.visit_f32(f), None => Err(bang(value))},
             TypedValue::N_DOUBLE(o)         => match o {Some(f) => visitor.visit_f64(f), None => Err(bang(value))},
             TypedValue::N_BOOLEAN(o)        => match o {Some(b) => visitor.visit_bool(b), None => Err(bang(value))},
+            TypedValue::N_LONGDATE(dt)      => visitor.visit_????(dt), // how to fix?
             TypedValue::N_CHAR(ref o)
             | TypedValue::N_VARCHAR(ref o)
             | TypedValue::N_NCHAR(ref o)

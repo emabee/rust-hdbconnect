@@ -4,6 +4,7 @@ pub mod init;
 pub mod clientcontext_option;
 pub mod connect_option;
 pub mod hdberror;
+pub mod longdate;
 pub mod message;
 pub mod option_value;
 pub mod part;

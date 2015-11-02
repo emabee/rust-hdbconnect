@@ -6,10 +6,10 @@ use super::protocol::lowlevel::connect_option::*;
 use super::protocol::ResultSet;
 use super::protocol::lowlevel::topology_attribute::*;
 
+use chrono::Local;
 use std::io;
 use std::net::TcpStream;
 use std::ops::{Add};
-use time;
 
 
 /// Connection object
@@ -28,7 +28,7 @@ impl Connection {
     /// static factory: does low-level connect and login
     pub fn init(host: &str, port: &str, username: &str, password: &str) -> io::Result<Connection> {
         trace!("Entering connect()");
-        let start = time::now();
+        let start = Local::now();
         let connect_string: &str = &(String::with_capacity(200).add(&host).add(":").add(&port));
         let mut tcpstream = try!(TcpStream::connect(connect_string).map_err(|e|{io::Error::from(e)}));
         trace!("tcpstream is open");
@@ -38,7 +38,7 @@ impl Connection {
         let (connect_options, topology_attributes, session_id) =
             try!(authenticate_with_scram_sha256(&mut tcpstream, username, password));
         debug!("successfully logged on as user \"{}\" at {}:{} in  {} µs",
-                username, host, port, (time::now() - start).num_microseconds().unwrap());
+                username, host, port, (Local::now() - start).num_microseconds().unwrap());
         Ok( Connection::new(host, port, major, minor, session_id, tcpstream, connect_options, topology_attributes) )
     }
 

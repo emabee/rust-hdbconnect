@@ -1,11 +1,14 @@
+use super::longdate;
 use super::util;
 
 use byteorder::{LittleEndian,ReadBytesExt,WriteBytesExt};
+use chrono::{DateTime,UTC};
 use std::i16;
 use std::u32;
 use std::u64;
 use std::io::{self,Cursor,Read};
 use std::iter::repeat;
+
 
 #[allow(non_camel_case_types)]
 #[derive(Clone,Debug)]
@@ -38,7 +41,7 @@ pub enum TypedValue {               // Description, Support Level
 //  ABAPSTRUCT = 49, 				// ABAP structure procedure parameter, 1
     TEXT(String), 			        // TEXT data type, 3
     SHORTTEXT(String), 		        // SHORTTEXT data type, 3
-    LONGDATE(i64), 					// TIMESTAMP data type, 3
+    LONGDATE(DateTime<UTC>),        // TIMESTAMP data type, 3
 //  SECONDDATE = 62, 				// TIMESTAMP type with second precision, 3
 //  DAYDATE = 63, 					// DATE data type, 3
 //  SECONDTIME = 64, 				// TIME data type, 3
@@ -70,7 +73,7 @@ pub enum TypedValue {               // Description, Support Level
 //  N_ABAPSTRUCT = 49, 				// ABAP structure procedure parameter, 1
     N_TEXT(Option<String>), 		// TEXT data type, 3
     N_SHORTTEXT(Option<String>), 	// SHORTTEXT data type, 3
-    N_LONGDATE(Option<i64>),    	// TIMESTAMP data type, 3
+    N_LONGDATE(Option<DateTime<UTC>>),   // TIMESTAMP data type, 3
 //  N_SECONDDATE = 62, 				// TIMESTAMP type with second precision, 3
 //  N_DAYDATE = 63, 				// DATE data type, 3
 //  N_SECONDTIME = 64, 				// TIME data type, 3
@@ -88,7 +91,7 @@ impl TypedValue {
             TypedValue::REAL(f)             => try!(w.write_f32::<LittleEndian>(f)),
             TypedValue::DOUBLE(f)           => try!(w.write_f64::<LittleEndian>(f)),
             TypedValue::BOOLEAN(b)          => try!(w.write_u8(match b{true => 1, false => 0})),
-            TypedValue::LONGDATE(i)         => try!(w.write_i64::<LittleEndian>(i)),
+            TypedValue::LONGDATE(_)        => panic!("Not yet implemented"),
             TypedValue::CHAR(ref s) |
             TypedValue::VARCHAR(ref s) |
             TypedValue::NCHAR(ref s) |
@@ -111,7 +114,7 @@ impl TypedValue {
             TypedValue::N_REAL(o)           => if let Some(f) = o {try!(w.write_f32::<LittleEndian>(f))},
             TypedValue::N_DOUBLE(o)         => if let Some(f) = o {try!(w.write_f64::<LittleEndian>(f))},
             TypedValue::N_BOOLEAN(o)        => if let Some(b) = o {try!(w.write_u8(match b{true => 1, false => 0}))},
-            TypedValue::N_LONGDATE(o)       => if let Some(i) = o {try!(w.write_i64::<LittleEndian>(i))},
+            TypedValue::N_LONGDATE(_)       => panic!("Not yet implemented"),
             TypedValue::N_CHAR(ref o) |
             TypedValue::N_VARCHAR(ref o) |
             TypedValue::N_NCHAR(ref o) |
@@ -260,11 +263,6 @@ impl TypedValue {
     }}
 
     pub fn parse(typecode: u8, nullable: bool, rdr: &mut io::BufRead) -> io::Result<TypedValue> {
-        // let null_indicator = if typecode > 128 {
-        //     try!(rdr.read_u8())
-        // } else {
-        //     1
-        // };
         TypedValue::parse_value(typecode, nullable, rdr)
     }
 
@@ -305,7 +303,7 @@ impl TypedValue {
          // 49 => Ok(TypedValue::ABAPSTRUCT(
             51 => Ok(TypedValue::TEXT(       try!(parse_length_and_string(rdr)) )),
             52 => Ok(TypedValue::SHORTTEXT(  try!(parse_length_and_string(rdr)) )),
-            61 => Ok(TypedValue::LONGDATE(   { try!(ind_not_null(rdr)); try!(rdr.read_i64::<LittleEndian>()) }) ),
+            61 => Ok(TypedValue::LONGDATE(   try!(parse_longdate(rdr)) )),
          // 62 => Ok(TypedValue::SECONDDATE(
          // 63 => Ok(TypedValue::DAYDATE(
          // 64 => Ok(TypedValue::SECONDTIME(
@@ -354,10 +352,7 @@ impl TypedValue {
          // 177 => Ok(TypedValue::N_ABAPSTRUCT(
             179 => Ok(TypedValue::N_TEXT(       try!(parse_nullable_length_and_string(rdr)) )),
             180 => Ok(TypedValue::N_SHORTTEXT(  try!(parse_nullable_length_and_string(rdr)) )),
-            189 => Ok(TypedValue::N_LONGDATE(match try!(ind_null(rdr)) {
-                                true  => None,
-                                false => Some(try!(rdr.read_i64::<LittleEndian>()))
-                    })),
+            189 => Ok(TypedValue::N_LONGDATE(   try!(parse_nullable_longdate(rdr)) )),
          // 190 => Ok(TypedValue::N_SECONDDATE(
          // 191 => Ok(TypedValue::N_DAYDATE(
          // 192 => Ok(TypedValue::N_SECONDTIME(
@@ -490,5 +485,21 @@ fn parse_nullable_length_and_binary(rdr: &mut io::BufRead) -> io::Result<Option<
         LENGTH_INDICATOR_NULL   => return Ok(None),
         l => {panic!("Invalid value in length indicator: {}",l)},
     };
-    Ok(Some(try!(util::parse_bytes(len,rdr))))                                            // B variable
+    Ok(Some(try!(util::parse_bytes(len,rdr))))                                      // B variable
+}
+
+fn parse_longdate(rdr: &mut io::BufRead) -> io::Result<DateTime<UTC>> {
+    let i = try!(rdr.read_i64::<LittleEndian>());
+    match i {
+        3155380704000000001 => Err(util::io_error("Null value found for non-null longdate column")),
+        _ => Ok(longdate::datetime_from_i64(i))
+    }
+}
+
+fn parse_nullable_longdate(rdr: &mut io::BufRead) -> io::Result<Option<DateTime<UTC>>> {
+    let i = try!(rdr.read_i64::<LittleEndian>());
+    match i {
+        3155380704000000001 => Ok(None),
+        _ => Ok(Some(longdate::datetime_from_i64(i)))
+    }
 }

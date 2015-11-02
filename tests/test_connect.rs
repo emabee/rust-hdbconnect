@@ -1,14 +1,15 @@
 #![feature(custom_derive, plugin)]
 #![plugin(serde_macros)]
 
+extern crate chrono;
 #[macro_use]
 extern crate log;
 extern crate flexi_logger;
 extern crate hdbconnect;
 extern crate serde;
-extern crate time;
 extern crate vec_map;
 
+use chrono::Local;
 use std::error::Error;
 use std::io;
 use hdbconnect::connection::Connection;
@@ -27,11 +28,11 @@ pub fn connect_successfully() {
 
 #[test]
 pub fn connect_wrong_password() {
-    let start = time::now();
+    let start = Local::now();
     let (host, port, user, password) = ("wdfd00245307a", "30415", "SYSTEM", "wrong_password");
     let err = hdbconnect::Connection::init(host, port, user, password).err().unwrap();
     info!("connect as user \"{}\" failed at {}:{} after {} µs with {}.",
-          user, host, port, (time::now() - start).num_microseconds().unwrap(), err.description() );
+          user, host, port, (Local::now() - start).num_microseconds().unwrap(), err.description() );
 }
 
 // cargo test connect_and_select -- --nocapture
@@ -92,7 +93,7 @@ fn impl_select_active_objects(connection: &mut Connection) -> Result<(), io::Err
         object_name: String,
         object_suffix: String,
         version_id: i32,
-        // activated_at: String,
+        activated_at: String,
         activated_by: String,
         edit: i32,
         // cdata: String,
@@ -106,18 +107,17 @@ fn impl_select_active_objects(connection: &mut Connection) -> Result<(), io::Err
         du_version_patch: Option<String>,
         object_status: i32,
         change_number: Option<i32>,
-        // released_at: String,
+        released_at: String,
     }
 
-// ACTIVATED_AT as \"activated_at\", \
 // CDATA as \"cdata\", \
 // BDATA as \"bdata\", \
-// RELEASED_AT as \"released_at\" \
     let stmt = "select top 300
                 PACKAGE_ID as \"package_id\", \
                 OBJECT_NAME as \"object_name\", \
                 OBJECT_SUFFIX as \"object_suffix\", \
                 VERSION_ID as \"version_id\", \
+                ACTIVATED_AT as \"activated_at\", \
                 ACTIVATED_BY as \"activated_by\", \
                 EDIT as \"edit\", \
                 COMPRESSION_TYPE as \"compression_type\", \
@@ -128,7 +128,8 @@ fn impl_select_active_objects(connection: &mut Connection) -> Result<(), io::Err
                 DU_VERSION_SP as \"du_version_sp\", \
                 DU_VERSION_PATCH as \"du_version_patch\", \
                 OBJECT_STATUS as \"object_status\", \
-                CHANGE_NUMBER as \"change_number\" \
+                CHANGE_NUMBER as \"change_number\", \
+                RELEASED_AT as \"released_at\" \
                  from _SYS_REPO.ACTIVE_OBJECT".to_string();
 
     let resultset = try!(connection.execute_statement(stmt, true));
