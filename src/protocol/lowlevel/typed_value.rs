@@ -1,8 +1,7 @@
-use super::longdate;
+use super::longdate::LongDate;
 use super::util;
 
 use byteorder::{LittleEndian,ReadBytesExt,WriteBytesExt};
-use chrono::{DateTime,UTC};
 use std::i16;
 use std::u32;
 use std::u64;
@@ -41,7 +40,7 @@ pub enum TypedValue {               // Description, Support Level
 //  ABAPSTRUCT = 49, 				// ABAP structure procedure parameter, 1
     TEXT(String), 			        // TEXT data type, 3
     SHORTTEXT(String), 		        // SHORTTEXT data type, 3
-    LONGDATE(DateTime<UTC>),        // TIMESTAMP data type, 3
+    LONGDATE(LongDate),             // TIMESTAMP data type, 3
 //  SECONDDATE = 62, 				// TIMESTAMP type with second precision, 3
 //  DAYDATE = 63, 					// DATE data type, 3
 //  SECONDTIME = 64, 				// TIME data type, 3
@@ -73,7 +72,7 @@ pub enum TypedValue {               // Description, Support Level
 //  N_ABAPSTRUCT = 49, 				// ABAP structure procedure parameter, 1
     N_TEXT(Option<String>), 		// TEXT data type, 3
     N_SHORTTEXT(Option<String>), 	// SHORTTEXT data type, 3
-    N_LONGDATE(Option<DateTime<UTC>>),   // TIMESTAMP data type, 3
+    N_LONGDATE(Option<LongDate>),   // TIMESTAMP data type, 3
 //  N_SECONDDATE = 62, 				// TIMESTAMP type with second precision, 3
 //  N_DAYDATE = 63, 				// DATE data type, 3
 //  N_SECONDTIME = 64, 				// TIME data type, 3
@@ -174,7 +173,7 @@ impl TypedValue {
             TypedValue::N_REAL(o)           => match o {Some(_) => 4, None => 0},
             TypedValue::N_DOUBLE(o)         => match o {Some(_) => 8, None => 0},
             TypedValue::N_BOOLEAN(o)        => match o {Some(_) => 1, None => 0},
-            TypedValue::N_LONGDATE(o)       => match o {Some(_) => 8, None => 0},
+            TypedValue::N_LONGDATE(ref o)   => match o {&Some(_) => 8, &None => 0},
             TypedValue::N_CHAR(ref o) |
             TypedValue::N_VARCHAR(ref o) |
             TypedValue::N_NCHAR(ref o) |
@@ -488,18 +487,19 @@ fn parse_nullable_length_and_binary(rdr: &mut io::BufRead) -> io::Result<Option<
     Ok(Some(try!(util::parse_bytes(len,rdr))))                                      // B variable
 }
 
-fn parse_longdate(rdr: &mut io::BufRead) -> io::Result<DateTime<UTC>> {
+const LONGDATE_NULL_REPRESENTATION: i64 = 3_155_380_704_000_000_001_i64;
+fn parse_longdate(rdr: &mut io::BufRead) -> io::Result<LongDate> {
     let i = try!(rdr.read_i64::<LittleEndian>());
     match i {
-        3155380704000000001 => Err(util::io_error("Null value found for non-null longdate column")),
-        _ => Ok(longdate::datetime_from_i64(i))
+        LONGDATE_NULL_REPRESENTATION => Err(util::io_error("Null value found for non-null longdate column")),
+        _ => Ok(LongDate(i))
     }
 }
 
-fn parse_nullable_longdate(rdr: &mut io::BufRead) -> io::Result<Option<DateTime<UTC>>> {
+fn parse_nullable_longdate(rdr: &mut io::BufRead) -> io::Result<Option<LongDate>> {
     let i = try!(rdr.read_i64::<LittleEndian>());
     match i {
-        3155380704000000001 => Ok(None),
-        _ => Ok(Some(longdate::datetime_from_i64(i)))
+        LONGDATE_NULL_REPRESENTATION => Ok(None),
+        _ => Ok(Some(LongDate(i)))
     }
 }

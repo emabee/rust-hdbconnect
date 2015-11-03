@@ -28,7 +28,7 @@ impl Message {
     }
 
     pub fn send_and_receive(&mut self, o_rs: &mut Option<&mut ResultSet>, stream: &mut TcpStream) -> Result<Message> {
-        trace!("Entering DbStream::send_and_receive()");
+        trace!("Entering send_and_receive()");
 
         try!(self.serialize(stream));
         debug!("send_and_receive: request data successfully sent");
@@ -80,6 +80,8 @@ impl Message {
     }
 
     fn assert_no_error(&self) -> Result<()> {
+        assert!(self.segments.len() == 1, "Wrong count of segments");
+
         for seg in &self.segments {
             for part in &seg.parts {
                 debug!("Got part of kind {:?}",part.kind);

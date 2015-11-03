@@ -12,7 +12,9 @@ extern crate rand;
 extern crate serde;
 extern crate vec_map;
 
-pub use connection::*;
-
 pub mod connection;
 pub mod protocol;
+
+
+pub use connection::Connection;
+pub use protocol::lowlevel::longdate::LongDate;

@@ -12,7 +12,7 @@ pub fn send_and_receive(stream: &mut TcpStream) -> io::Result<(i8,i16)> {
 
 fn send(w: &mut io::Write) -> io::Result<()> {
     trace!("Entering send()");
-    let mut b = Vec::<u8>::with_capacity(14); // FIXME b appears to be unneccessary!
+    let mut b = Vec::<u8>::with_capacity(14);
     try!(b.write_i32::<BigEndian>(-1));     // I4    Filler xFFFFFFFF
     try!(b.write_i8(4));                    // I1    Major Product Version
     try!(b.write_i16::<BigEndian>(20));     // I2    Minor Product Version
@@ -25,7 +25,6 @@ fn send(w: &mut io::Write) -> io::Result<()> {
     try!(b.write_i8(1));                    // I1    value "LittleEndian" (Big endian would be 0)
     try!(w.write(&b));
     w.flush()
-    // debug!("serialize_request: request successfully sent");
 }
 
 fn receive(rdr: &mut io::BufRead) -> io::Result<(i8,i16)> {

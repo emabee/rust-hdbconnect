@@ -15,9 +15,6 @@ pub fn rs_error(s: &String) -> RsError {
 pub enum RsError {
     RsError(Code),
 
-    /// Some IO error occurred when serializing or deserializing a value.
-    IoError(io::Error),
-
     /// Some UTF8 error occurred while serializing or deserializing a value.
     FromUtf8Error(FromUtf8Error),
 }
@@ -75,14 +72,12 @@ impl error::Error for RsError {
     fn description(&self) -> &str {
         match *self {
             RsError::RsError(..) => "result evaluation error",
-            RsError::IoError(ref error) => error::Error::description(error),
             RsError::FromUtf8Error(ref error) => error.description(),
         }
     }
 
     fn cause(&self) -> Option<&error::Error> {
         match *self {
-            RsError::IoError(ref error) => Some(error),
             RsError::FromUtf8Error(ref error) => Some(error),
             _ => None,
         }
@@ -94,15 +89,8 @@ impl fmt::Display for RsError {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             RsError::RsError(ref code) => write!(fmt, "{:?} ", code),
-            RsError::IoError(ref error) => fmt::Display::fmt(error, fmt),
             RsError::FromUtf8Error(ref error) => fmt::Display::fmt(error, fmt),
         }
-    }
-}
-
-impl From<io::Error> for RsError {
-    fn from(error: io::Error) -> RsError {
-        RsError::IoError(error)
     }
 }
 

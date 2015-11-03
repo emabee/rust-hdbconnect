@@ -22,7 +22,7 @@ use std::io;
 pub struct ResultSet {
     pub attributes: PartAttributes,
     pub resultset_id: u64,
-    pub statement_contexts: Vec<StatementContext>,
+    statement_contexts: Vec<StatementContext>,
     pub metadata: ResultSetMetadata,
     pub rows: Vec<Row>,
 }
@@ -80,9 +80,27 @@ impl ResultSet {
             },
 
             &mut Some(ref mut rs) => {
-                // for follow-up fetches we expect to get the first resultset object as parameter and append the data there
-                // FIXME handle time-dings etc
-                // consume attributes, rows
+                // follow-up fetches append their data to the first resultset object
+                let scpart = match util::get_first_part_of_kind(PartKind::StatementContext, &parts) {
+                    Some(idx) => parts.remove(idx),
+                    None => return Err(util::io_error("No StatementContext found for ResultSet")),
+                };
+                let stmt_context = match scpart.arg {
+                    Argument::StatementContext(s) => s,
+                    _ => return Err(util::io_error("Inconstent StatementContext part found for ResultSet")),
+                };
+
+                match (&rs.statement_contexts.last().unwrap().statement_sequence_info,
+                       &stmt_context.statement_sequence_info) {
+                    (&Some(OptionValue::BSTRING(ref b1)), &Some(OptionValue::BSTRING(ref b2))) => {
+                        if b1 != b2 {
+                            return Err(util::io_error("statement_sequence_info of fetch does not match"));
+                        }
+                    },
+                    _ => return Err(util::io_error("invalid value type for statement_sequence_info")),
+                }
+
+                rs.statement_contexts.push(stmt_context);
                 try!(ResultSet::parse_rows(no_of_rows, &rs.metadata, &mut rs.rows, rdr));
                 rs.attributes = attributes;
                 Ok(None)
@@ -146,6 +164,7 @@ impl ResultSet {
         }
         Ok(())
     }
+
     fn fetch_next(&mut self, conn_state: &mut ConnectionState) -> io::Result<()> {
         trace!("plain_statement::fetch_next()");
         // build the request, provide StatementContext and resultset id, define FetchSize
@@ -159,36 +178,7 @@ impl ResultSet {
         message.segments.push(segment);
 
         // send it
-        let mut response = try!(message.send_and_receive(&mut Some(self), &mut (conn_state.stream)));
-
-        // validate segment
-        // FIXME move the next few lines into Message::send_and_receive(), let it return the single segment directly, improve error handling
-        assert!(response.segments.len() == 1, "Wrong count of segments");
-        let mut segment = response.segments.swap_remove(0);
-        // match (&segment.kind, &segment.function_code) {
-        //     (&segment::Kind::Reply, &Some(segment::FunctionCode::Select)) => {},
-        //     _ => return Err(util::io_error(&format!("fetch_next(): unexpected segment kind {:?} or function code {:?}",
-        //                                              &segment.kind, &segment.function_code))),
-        // }
-
-        // StatementContext must be equal to the given one
-        let part = match util::get_first_part_of_kind(PartKind::StatementContext, &segment.parts) {
-            Some(idx) => segment.parts.swap_remove(idx),
-            None => return Err(util::io_error("no part of kind StatementContext")),
-        };
-        match part.arg {
-            Argument::StatementContext(stmt_context) => {
-                match (&self.statement_contexts.last().unwrap().statement_sequence_info, stmt_context.statement_sequence_info) {
-                    (&Some(OptionValue::BSTRING(ref b1)), Some(OptionValue::BSTRING(ref b2))) => {
-                        if b1 != b2 {
-                            return Err(util::io_error("statement_sequence_info of fetch does not match"));
-                        }
-                    },
-                    _ => return Err(util::io_error("invalid value type for statement_sequence_info")),
-                }
-            },
-            _ => return Err(util::io_error("1 wrong Argument variant found in response from DB")),
-        }
+        try!(message.send_and_receive(&mut Some(self), &mut (conn_state.stream)));
         Ok(())
     }
 

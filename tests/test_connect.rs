@@ -12,7 +12,9 @@ extern crate vec_map;
 use chrono::Local;
 use std::error::Error;
 use std::io;
-use hdbconnect::connection::Connection;
+use hdbconnect::Connection;
+use hdbconnect::LongDate;
+
 
 #[test]
 pub fn init() {
@@ -42,7 +44,7 @@ pub fn connect_and_select() {
     //          hdbconnect::protocol::lowlevel::resultset\
     flexi_logger::init(LogConfig::new(),
     Some("info,\
-          hdbconnect::protocol::lowlevel::message,\
+          hdbconnect::protocol::lowlevel::resultset::deserialize=info,\
           hdbconnect::protocol::lowlevel::part=debug,\
           ".to_string())).unwrap();
 
@@ -91,9 +93,9 @@ fn impl_select_active_objects(connection: &mut Connection) -> Result<(), io::Err
     struct ActiveObject {
         package_id: String,
         object_name: String,
-        object_suffix: String,
+        object_suffix: i32, //String,
         version_id: i32,
-        activated_at: String,
+        activated_at: LongDate,
         activated_by: String,
         edit: i32,
         // cdata: String,
@@ -107,12 +109,13 @@ fn impl_select_active_objects(connection: &mut Connection) -> Result<(), io::Err
         du_version_patch: Option<String>,
         object_status: i32,
         change_number: Option<i32>,
-        released_at: String,
+        released_at: Option<LongDate>,
     }
 
 // CDATA as \"cdata\", \
 // BDATA as \"bdata\", \
-    let stmt = "select top 300
+    let top_n = 300_usize;
+    let stmt = format!("select top {}
                 PACKAGE_ID as \"package_id\", \
                 OBJECT_NAME as \"object_name\", \
                 OBJECT_SUFFIX as \"object_suffix\", \
@@ -130,13 +133,26 @@ fn impl_select_active_objects(connection: &mut Connection) -> Result<(), io::Err
                 OBJECT_STATUS as \"object_status\", \
                 CHANGE_NUMBER as \"change_number\", \
                 RELEASED_AT as \"released_at\" \
-                 from _SYS_REPO.ACTIVE_OBJECT".to_string();
+                 from _SYS_REPO.ACTIVE_OBJECT", top_n); //.to_string();
 
     let resultset = try!(connection.execute_statement(stmt, true));
-    info!("ResultSet: {:?}", resultset);
+    // info!("ResultSet: {:?}", resultset);
+
+    // for t in resultset.server_processing_times() {
+    //     info!("Server processing time: {} µs", t),
+    // }
 
     let typed_result: Vec<ActiveObject> = try!(resultset.as_table());
-    info!("Typed Result: {:?}", typed_result);
-    assert_eq!(typed_result.len(),300);
+    // info!("Typed Result: {:?}", typed_result);
+    assert_eq!(typed_result.len(),top_n);
+
+    let s = typed_result.get(0).unwrap().activated_at.datetime_utc().format("%Y-%m-%d %H:%M:%S").to_string();
+    info!("Activated_at: {}", s);
+
+
+//assert_eq!(dt.format("%Y-%m-%d %H:%M:%S").to_string(), "2014-11-28 12:00:09");
+
+
+
     Ok(())
 }

@@ -4,7 +4,8 @@ use serde;
 use super::rs_error::{rs_error, RsError, Code, RsResult};
 
 use protocol::lowlevel::resultset::*;
-use protocol::lowlevel::typed_value::*;
+use protocol::lowlevel::longdate::LongDate;
+use protocol::lowlevel::typed_value::TypedValue;
 
 
 ///!  A result set is interpreted as a sequence of maps
@@ -24,20 +25,21 @@ use protocol::lowlevel::typed_value::*;
 ///!        use Option<type> rather than plain type)
 
 /// State of the visitors
+#[derive(Debug)]
 enum RdeState {
     INITIAL,
     RUNNING,
     DONE
 }
 
-/// TODO try out using refs here, rather than direct values
 #[derive(Debug)]
 enum KVN {
-    KEY(String),
-    VALUE(TypedValue),
+    KEY(usize),
+    VALUE(usize),
     NOTHING
 }
 
+#[derive(Debug)]
 pub struct RsDeserializer {
     rs: ResultSet,
     r_state: RdeState, // State of the row handling
@@ -74,6 +76,7 @@ impl RsDeserializer {
             where V: serde::de::Visitor,
     {
         trace!("handle_typed_value() typed_value = {:?}", value);
+
         if value.type_id() < 128 {
             self.handle_plain_value(value, visitor)
         } else {
@@ -110,6 +113,10 @@ impl RsDeserializer {
             &TypedValue::N_DOUBLE(o)  => match o {
                 Some(_)     => {self.f_state = true; visitor.visit_some(self)}
                 None        => visitor.visit_none()
+            },
+            &TypedValue::N_LONGDATE(ref o)  => match o {
+                &Some(_)     => {self.f_state = true; visitor.visit_some(self)}
+                &None        => visitor.visit_none()
             },
             &TypedValue::N_CHAR(ref o)  => match o {
                 &Some(_)    => {self.f_state = true; visitor.visit_some(self)}
@@ -163,19 +170,20 @@ impl RsDeserializer {
         }
     }
 
-    fn handle_plain_value<V>(&self, value: &TypedValue, mut visitor: V) -> RsResult<V::Value>
+    fn handle_plain_value<V>(&mut self, value: &TypedValue, mut visitor: V) -> RsResult<V::Value>
             where V: serde::de::Visitor,
     {
         trace!("handle_plain_value() typed_value = {:?}", value);
         match *value {
-            TypedValue::TINYINT(u)          => visitor.visit_u8(u),
-            TypedValue::SMALLINT(i)         => visitor.visit_i16(i),
-            TypedValue::INT(i)              => visitor.visit_i32(i),
-            TypedValue::BIGINT(i)           => visitor.visit_i64(i),
-            TypedValue::REAL(f)             => visitor.visit_f32(f),
-            TypedValue::DOUBLE(f)           => visitor.visit_f64(f),
-            TypedValue::BOOLEAN(b)          => visitor.visit_bool(b),
-            TypedValue::LONGDATE(dt)        => visitor.visit_????(dt), // how to fix?
+            TypedValue::TINYINT(u)              => visitor.visit_u8(u),
+            TypedValue::SMALLINT(i)             => visitor.visit_i16(i),
+            TypedValue::INT(i)                  => visitor.visit_i32(i),
+            TypedValue::BIGINT(i)               => visitor.visit_i64(i),
+            TypedValue::REAL(f)                 => visitor.visit_f32(f),
+            TypedValue::DOUBLE(f)               => visitor.visit_f64(f),
+            TypedValue::BOOLEAN(b)              => visitor.visit_bool(b),
+            TypedValue::LONGDATE(LongDate(i))   => visitor.visit_i64(i),
+
             TypedValue::CHAR(ref s)
             | TypedValue::VARCHAR(ref s)
             | TypedValue::NCHAR(ref s)
@@ -183,7 +191,7 @@ impl RsDeserializer {
             | TypedValue::STRING(ref s)
             | TypedValue::NSTRING(ref s)
             | TypedValue::TEXT(ref s)
-            | TypedValue::SHORTTEXT(ref s)  => visitor.visit_string(s.clone()),
+            | TypedValue::SHORTTEXT(ref s)  => visitor.visit_string(s.clone()), // FIXME
             TypedValue::BINARY(ref v)
             | TypedValue::VARBINARY(ref v)
             | TypedValue::BSTRING(ref v)    => visitor.visit_bytes(v),
@@ -195,7 +203,10 @@ impl RsDeserializer {
             TypedValue::N_REAL(o)           => match o {Some(f) => visitor.visit_f32(f), None => Err(bang(value))},
             TypedValue::N_DOUBLE(o)         => match o {Some(f) => visitor.visit_f64(f), None => Err(bang(value))},
             TypedValue::N_BOOLEAN(o)        => match o {Some(b) => visitor.visit_bool(b), None => Err(bang(value))},
-            TypedValue::N_LONGDATE(dt)      => visitor.visit_????(dt), // how to fix?
+            // TypedValue::N_LONGDATE(ref o)       => match o {
+            //     &Some(LongDate(i)) => visitor.newtype_struct(),
+            //     &None => Err(bang(value))
+            // },
             TypedValue::N_CHAR(ref o)
             | TypedValue::N_VARCHAR(ref o)
             | TypedValue::N_NCHAR(ref o)
@@ -203,10 +214,16 @@ impl RsDeserializer {
             | TypedValue::N_STRING(ref o)
             | TypedValue::N_NSTRING(ref o)
             | TypedValue::N_SHORTTEXT(ref o)
-            | TypedValue::N_TEXT(ref o)     => match o {&Some(ref s) => visitor.visit_string(s.clone()), &None => Err(bang(value))},
+            | TypedValue::N_TEXT(ref o)     => match o {
+                &Some(ref s) => visitor.visit_string(s.clone()),
+                &None => Err(bang(value))
+            },
             TypedValue::N_BINARY(ref o)
             | TypedValue::N_VARBINARY(ref o)
-            | TypedValue::N_BSTRING(ref o)  => match o {&Some(ref v) => visitor.visit_bytes(&v), &None => Err(bang(value))},
+            | TypedValue::N_BSTRING(ref o)  => match o {
+                &Some(ref v) => visitor.visit_bytes(&v),
+                &None => Err(bang(value))
+            },
             _ => Err(rs_error(&format!("invalid call to handle_plain_value(), value = {:?}", value)))
         }
     }
@@ -229,9 +246,18 @@ impl serde::de::Deserializer for RsDeserializer {
             true => {
                 trace!("RsDeserializer::visit(): f_state is true");
                 self.f_state = false;
-                let typed_value = &self.rs.rows.get(self.row_idx).unwrap().values.get(self.col_idx).unwrap();
+                let typed_value = &self.rs.rows.get(self.row_idx).unwrap().values.get(self.col_idx).unwrap().clone(); // FIXME
                 trace!("RsDeserializer::visit(): typed_value is {:?}",typed_value);
-                self.handle_plain_value(typed_value, visitor)
+                match self.handle_plain_value(typed_value, visitor) {
+                    Ok(v) => {
+                        trace!("RsDeserializer::visit() was successful at {:?}", self);
+                        Ok(v)
+                    },
+                    Err(e) => {
+                        error!("RsDeserializer::visit() failed at {:?}", self);
+                        Err(e)
+                    }
+                }
             },
             false => {
                 match self.r_state {
@@ -252,8 +278,17 @@ impl serde::de::Deserializer for RsDeserializer {
                                 let mut next_thing = KVN::NOTHING;
                                 swap(&mut next_thing, &mut (self.next_thing));
                                 match next_thing {
-                                    KVN::KEY(s) => visitor.visit_string(s),
-                                    KVN::VALUE(val) => self.handle_typed_value(&val,visitor),
+                                    KVN::KEY(i) => {
+                                        visitor.visit_str((&self).rs.get_fieldname(i).unwrap())
+                                    },
+                                    KVN::VALUE(i) => {
+                                        let value = if let Some(value) = self.rs.get_value(self.row_idx,i) {
+                                            value.clone()  //FIXME
+                                        } else {
+                                            return Err(RsError::RsError(Code::NoValueForRowColumn(self.row_idx,i)));
+                                        };
+                                        self.handle_typed_value(&value,visitor)
+                                    },
                                     KVN::NOTHING => Err(RsError::RsError(Code::KvnNothing)),
                                 }
                             },
@@ -271,6 +306,16 @@ impl serde::de::Deserializer for RsDeserializer {
             },
         }
     }
+
+    fn visit_newtype_struct<V>(&mut self,
+                               _name: &'static str,
+                               mut visitor: V) -> Result<V::Value, Self::Error>
+        where V: serde::de::Visitor,
+    {
+        trace!("RsDeserializer::visit_newtype_struct() called with _name = {}", _name);
+        visitor.visit_newtype_struct(self)
+    }
+
 }
 
 
@@ -336,9 +381,7 @@ impl<'a> serde::de::MapVisitor for FieldVisitor<'a> {
         trace!("FieldVisitor::visit_key() for col {}", self.de.col_idx);
         match self.de.col_idx {
             i if i < self.de.col_cnt => {
-                let field_name = self.de.rs.get_fieldname(i).unwrap().clone();
-                trace!("FieldVisitor::visit_key() fieldname = {}", field_name);
-                self.de.next_thing = KVN::KEY( field_name.to_string() );
+                self.de.next_thing = KVN::KEY(i);
                 Ok(Some(try!(serde::de::Deserialize::deserialize(self.de))))
             },
             _  => Ok(None),
@@ -351,14 +394,7 @@ impl<'a> serde::de::MapVisitor for FieldVisitor<'a> {
         trace!("FieldVisitor::visit_value() for col {}", self.de.col_idx);
         match self.de.col_idx {
             i if i < self.de.col_cnt => {
-                let value = match self.de.rs.get_value(self.de.row_idx,i) {
-                    Some(value) => value.clone(),
-                    None => {
-                        return Err(RsError::RsError(Code::NoValueForRowColumn(self.de.row_idx,i)));
-                    },
-                };
-                trace!("FieldVisitor::visit_value() value {:?}", value);
-                self.de.next_thing = KVN::VALUE( value );
+                self.de.next_thing = KVN::VALUE( i );
                 let tmp = try!(serde::de::Deserialize::deserialize(self.de));
                 self.de.col_idx += 1;
                 Ok(tmp)
