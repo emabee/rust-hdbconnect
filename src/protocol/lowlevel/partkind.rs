@@ -1,4 +1,4 @@
-use std::io::{Error,ErrorKind,Result};
+use {DbcError,DbcResult};
 
 #[derive(Debug)]
 #[derive(Clone,Copy)]
@@ -102,7 +102,7 @@ impl PartKind {
         PartKind::DbConnectInfo => 67,
     }}
 
-    pub fn from_i8(val: i8) -> Result<PartKind> { match val {
+    pub fn from_i8(val: i8) -> DbcResult<PartKind> { match val {
         3 => Ok(PartKind::Command),
         5 => Ok(PartKind::ResultSet),
         6 => Ok(PartKind::Error),
@@ -150,6 +150,6 @@ impl PartKind {
         65 => Ok(PartKind::RowDatapartMetadata),
         66 => Ok(PartKind::ColDatapartMetadata),
         67 => Ok(PartKind::DbConnectInfo),
-        _ => Err(Error::new(ErrorKind::Other,format!("Invalid value for PartKind detected: {}",val))),
+        _ => Err(DbcError::ProtocolError(format!("Invalid value for PartKind detected: {}",val))),
     }}
 }

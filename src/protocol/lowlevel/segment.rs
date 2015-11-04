@@ -1,8 +1,9 @@
+use {DbcError,DbcResult};
 use super::part;
 use super::resultset::ResultSet;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use std::io::{BufRead, Error, ErrorKind, Result, Write};
+use std::io;
 
 const SEGMENT_HEADER_SIZE: usize = 24; // same for in and out
 
@@ -41,8 +42,9 @@ fn new_reply_seg(fc: FunctionCode)  -> Segment {
 
 impl Segment {
     // Serialize to byte stream
-    pub fn encode(&self, offset: i32, segment_no: i16, mut remaining_bufsize: u32, w: &mut Write)
-                          -> Result<(i32, i16, u32)> {
+    pub fn encode(&self, offset: i32, segment_no: i16, mut remaining_bufsize: u32, w: &mut io::Write)
+        -> DbcResult<(i32, i16, u32)>
+    {
         // SEGMENT HEADER
         try!(w.write_i32::<LittleEndian>(self.size() as i32));          // I4    Length including the header
         try!(w.write_i32::<LittleEndian>(offset as i32));               // I4    Offset within the message buffer
@@ -79,7 +81,7 @@ impl Segment {
 
 
 ///
-pub fn parse(o_rs: &mut Option<&mut ResultSet>, rdr: &mut BufRead) -> Result<Segment> {
+pub fn parse(o_rs: &mut Option<&mut ResultSet>, rdr: &mut io::BufRead) -> DbcResult<Segment> {
     trace!("Entering parse()");
 
     try!(rdr.read_i32::<LittleEndian>());                               // I4 seg_size (BigEndian??)
@@ -128,11 +130,11 @@ impl Kind {
         Kind::Reply => 2,
         Kind::Error => 5,
     }}
-    fn from_i8(val: i8) -> Result<Kind> {match val {
+    fn from_i8(val: i8) -> DbcResult<Kind> {match val {
         1 => Ok(Kind::Request),
         2 => Ok(Kind::Reply),
         5 => Ok(Kind::Error),
-        _ => Err(Error::new(ErrorKind::Other,format!("Invalid value for segment::Kind detected: {}",val))),
+        _ => Err(DbcError::ProtocolError(format!("Invalid value for segment::Kind::from_i8() detected: {}",val))),
     }}
 }
 
@@ -203,7 +205,7 @@ impl MessageType {
         MessageType::DbConnectInfo => 82,
     }}
 
-    fn from_i8(val: i8) -> Result<MessageType> { match val {
+    fn from_i8(val: i8) -> DbcResult<MessageType> { match val {
         1 => Ok(MessageType::DummyForReply), // for test purposes only
         2 => Ok(MessageType::ExecuteDirect),
         3 => Ok(MessageType::Prepare),
@@ -232,7 +234,7 @@ impl MessageType {
         81 => Ok(MessageType::BatchPrepare),
         80 => Ok(MessageType::InsertNextItab),
         82 => Ok(MessageType::DbConnectInfo),
-        _ => Err(Error::new(ErrorKind::Other,format!("Invalid value for MessageType detected: {}",val))),
+        _ => Err(DbcError::ProtocolError(format!("Invalid value for MessageType detected: {}",val))),
     }}
 }
 
@@ -268,7 +270,7 @@ pub enum FunctionCode {
     XaJoin,					    // XA_JOIN message
 }
 impl FunctionCode {
-    fn from_i16(val: i16) -> Result<FunctionCode> { match val {
+    fn from_i16(val: i16) -> DbcResult<FunctionCode> { match val {
         -1 => Ok(FunctionCode::DummyForRequest),
         0 => Ok(FunctionCode::Nil),
         1 => Ok(FunctionCode::Ddl),
@@ -294,6 +296,6 @@ impl FunctionCode {
         21 => Ok(FunctionCode::AbapStream),
         22 => Ok(FunctionCode::XaStart),
         23 => Ok(FunctionCode::XaJoin),
-        _ => Err(Error::new(ErrorKind::Other,format!("Invalid value for FunctionCode detected: {}",val))),
+        _ => Err(DbcError::ProtocolError(format!("Invalid value for FunctionCode detected: {}",val))),
     }}
 }

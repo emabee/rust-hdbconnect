@@ -1,4 +1,5 @@
-use super::partkind::*;
+use DbcResult;
+use super::partkind::PartKind;
 use super::part::Part;
 
 use byteorder::WriteBytesExt;
@@ -7,13 +8,13 @@ use std::iter::repeat;
 
 
 /// Write a byte vec to a Write impl
-pub fn encode_bytes(v: &[u8], w: &mut io::Write) -> io::Result<()> {
+pub fn encode_bytes(v: &[u8], w: &mut io::Write) -> DbcResult<()> {
     for b in v {try!(w.write_u8(*b));}
     Ok(())
 }
 
 /// Read n bytes from a BufRead, return as Vec<u8>
-pub fn parse_bytes(len: usize, rdr: &mut io::BufRead) -> io::Result<Vec<u8>> {
+pub fn parse_bytes(len: usize, rdr: &mut io::BufRead) -> DbcResult<Vec<u8>> {
     let mut vec: Vec<u8> = repeat(0u8).take(len).collect();
     try!(rdr.read(&mut vec[..]));
     Ok(vec)
@@ -24,8 +25,8 @@ pub fn string_to_cesu8(s: &String) -> Vec<u8> {
     to_cesu8(s).to_vec()
 }
 
-pub fn cesu8_to_string(v: &Vec<u8>) -> io::Result<String> {
-    let cow = try!(from_cesu8(v).map_err(|_|{io_error(&format!("Invalid CESU-8 received: {:?}",v))}));
+pub fn cesu8_to_string(v: &Vec<u8>) -> DbcResult<String> {
+    let cow = try!(from_cesu8(v));
     Ok(String::from(&*cow))
 }
 
@@ -48,10 +49,6 @@ pub fn get_first_part_of_kind(kind: PartKind, parts: &Vec<Part>) -> Option<usize
     parts.iter().position(|p| p.kind.to_i8() == code)
 }
 
-
-pub fn io_error(s: &str) -> io::Error {
-    io::Error::new(io::ErrorKind::Other, s)
-}
 
 // ===== Stolen from crate cesu8, because the original used unstable features
 // Copyright 2012-2014 The Rust Project Developers and Eric Kidd.  See the

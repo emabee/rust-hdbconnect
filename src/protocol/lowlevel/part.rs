@@ -1,3 +1,4 @@
+use DbcResult;
 use super::argument;
 use super::partkind::PartKind;
 use super::part_attributes::PartAttributes;
@@ -5,7 +6,7 @@ use super::resultset::ResultSet;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::cmp::max;
-use std::io::{BufRead,Result,Write};
+use std::io;
 
 
 const PART_HEADER_SIZE: usize = 16;
@@ -25,7 +26,7 @@ impl Part {
     }
 
     /// Serialize to byte stream
-    pub fn encode(&self, mut remaining_bufsize: u32, w: &mut Write) -> Result<u32> {
+    pub fn encode(&self, mut remaining_bufsize: u32, w: &mut io::Write) -> DbcResult<u32> {
         // PART HEADER 16 bytes
         try!(w.write_i8(self.kind.to_i8()));                            // I1    Nature of part data
         try!(w.write_u8(0));                                            // U1    (documented as I1) Attributes of part
@@ -48,7 +49,9 @@ impl Part {
 }
 
 ///
-pub fn parse(already_received_parts: &mut Vec<Part>, o_rs: &mut Option<&mut ResultSet>, rdr: &mut BufRead) -> Result<Part> {
+pub fn parse(already_received_parts: &mut Vec<Part>, o_rs: &mut Option<&mut ResultSet>, rdr: &mut io::BufRead)
+    -> DbcResult<Part>
+{
     trace!("Entering parse()");
 
     // PART HEADER: 16 bytes

@@ -2,12 +2,12 @@ use super::protocol::authentication::authenticate_with_scram_sha256;
 use super::protocol::plain_statement;
 
 use super::protocol::lowlevel::init;
-use super::protocol::lowlevel::connect_option::*;
+use super::protocol::lowlevel::connect_option::ConnectOption;
 use super::protocol::ResultSet;
-use super::protocol::lowlevel::topology_attribute::*;
+use super::protocol::lowlevel::topology_attribute::TopologyAttr;
+use DbcResult;
 
 use chrono::Local;
-use std::io;
 use std::net::TcpStream;
 use std::ops::{Add};
 
@@ -26,11 +26,11 @@ pub struct Connection {
 
 impl Connection {
     /// static factory: does low-level connect and login
-    pub fn init(host: &str, port: &str, username: &str, password: &str) -> io::Result<Connection> {
+    pub fn init(host: &str, port: &str, username: &str, password: &str) -> DbcResult<Connection> {
         trace!("Entering connect()");
         let start = Local::now();
         let connect_string: &str = &(String::with_capacity(200).add(&host).add(":").add(&port));
-        let mut tcpstream = try!(TcpStream::connect(connect_string).map_err(|e|{io::Error::from(e)}));
+        let mut tcpstream = try!(TcpStream::connect(connect_string));
         trace!("tcpstream is open");
 
         let (major,minor) = try!(init::send_and_receive(&mut tcpstream));
@@ -64,7 +64,7 @@ impl Connection {
         &(self.topology_attributes)
     }
 
-    pub fn execute_statement(&mut self, stmt: String, auto_commit: bool) -> io::Result<ResultSet> {
+    pub fn execute_statement(&mut self, stmt: String, auto_commit: bool) -> DbcResult<ResultSet> {
         plain_statement::execute(&mut self.state, stmt, auto_commit)
     }
 }

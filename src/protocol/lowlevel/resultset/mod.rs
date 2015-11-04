@@ -1,5 +1,6 @@
 mod deserialize;
-mod rs_error;
+
+use {DbcError,DbcResult};
 
 use super::argument::Argument;
 use super::message::Message;
@@ -41,7 +42,7 @@ impl ResultSet {
     }
     pub fn parse( no_of_rows: i32, attributes: PartAttributes,
                   parts: &mut Vec<Part>, o_rs: &mut Option<&mut ResultSet>, rdr: &mut io::BufRead )
-            -> io::Result<Option<ResultSet>> {
+            -> DbcResult<Option<ResultSet>> {
 
         match o_rs {
             &mut None => {
@@ -49,29 +50,29 @@ impl ResultSet {
                 // we expect to already have received a matching metadata part, a ResultSetId, and a StatementContext
                 let mdpart = match util::get_first_part_of_kind(PartKind::ResultSetMetadata, &parts) {
                     Some(idx) => parts.remove(idx),
-                    None => return Err(util::io_error("No metadata found for ResultSet")),
+                    None => return Err(DbcError::ProtocolError("No metadata found for ResultSet".to_string())),
                 };
                 let rs_metadata = match mdpart.arg {
                     Argument::ResultSetMetadata(r) => r,
-                    _ => return Err(util::io_error("Inconstent metadata part found for ResultSet")),
+                    _ => return Err(DbcError::ProtocolError("Inconsistent metadata part found for ResultSet".to_string())),
                 };
 
                 let ripart = match util::get_first_part_of_kind(PartKind::ResultSetId, &parts) {
                     Some(idx) => parts.remove(idx),
-                    None => return Err(util::io_error("No ResultSetId found for ResultSet")),
+                    None => return Err(DbcError::ProtocolError("No ResultSetId found for ResultSet".to_string())),
                 };
                 let rs_id = match ripart.arg {
                     Argument::ResultSetId(i) => i,
-                    _ => return Err(util::io_error("Inconstent ResultSetId part found for ResultSet")),
+                    _ => return Err(DbcError::ProtocolError("Inconstent ResultSetId part found for ResultSet".to_string())),
                 };
 
                 let scpart = match util::get_first_part_of_kind(PartKind::StatementContext, &parts) {
                     Some(idx) => parts.remove(idx),
-                    None => return Err(util::io_error("No StatementContext found for ResultSet")),
+                    None => return Err(DbcError::ProtocolError("No StatementContext found for ResultSet".to_string())),
                 };
                 let stmt_context = match scpart.arg {
                     Argument::StatementContext(s) => s,
-                    _ => return Err(util::io_error("Inconstent StatementContext part found for ResultSet")),
+                    _ => return Err(DbcError::ProtocolError("Inconstent StatementContext part found for ResultSet".to_string())),
                 };
 
                 let mut result = ResultSet::new(attributes, rs_id, stmt_context, rs_metadata);
@@ -83,21 +84,21 @@ impl ResultSet {
                 // follow-up fetches append their data to the first resultset object
                 let scpart = match util::get_first_part_of_kind(PartKind::StatementContext, &parts) {
                     Some(idx) => parts.remove(idx),
-                    None => return Err(util::io_error("No StatementContext found for ResultSet")),
+                    None => return Err(DbcError::ProtocolError("No StatementContext found for ResultSet".to_string())),
                 };
                 let stmt_context = match scpart.arg {
                     Argument::StatementContext(s) => s,
-                    _ => return Err(util::io_error("Inconstent StatementContext part found for ResultSet")),
+                    _ => return Err(DbcError::ProtocolError("Inconstent StatementContext part found for ResultSet".to_string())),
                 };
 
                 match (&rs.statement_contexts.last().unwrap().statement_sequence_info,
                        &stmt_context.statement_sequence_info) {
                     (&Some(OptionValue::BSTRING(ref b1)), &Some(OptionValue::BSTRING(ref b2))) => {
                         if b1 != b2 {
-                            return Err(util::io_error("statement_sequence_info of fetch does not match"));
+                            return Err(DbcError::ProtocolError("statement_sequence_info of fetch does not match".to_string()));
                         }
                     },
-                    _ => return Err(util::io_error("invalid value type for statement_sequence_info")),
+                    _ => return Err(DbcError::ProtocolError("invalid value type for statement_sequence_info".to_string())),
                 }
 
                 rs.statement_contexts.push(stmt_context);
@@ -110,7 +111,7 @@ impl ResultSet {
 
 
     fn parse_rows(no_of_rows: i32, rs_md: &ResultSetMetadata, rows: &mut Vec<Row>, rdr: &mut io::BufRead )
-      -> io::Result<()>
+      -> DbcResult<()>
     {
         let no_of_cols = rs_md.count();
         debug!("resultset::parse_rows() reading {} lines with {} columns", no_of_rows, no_of_cols);
@@ -149,23 +150,23 @@ impl ResultSet {
         self.metadata.fields.len()
     }
 
-    fn is_complete(&self) -> io::Result<bool> {
+    fn is_complete(&self) -> DbcResult<bool> {
         if (!self.attributes.is_last_packet())
            && (self.attributes.row_not_found() || self.attributes.is_resultset_closed()) {
-            Err(util::io_error("ResultSet incomplete, but already closed on server"))
+            Err(DbcError::ProtocolError("ResultSet incomplete, but already closed on server".to_string()))
         } else {
             Ok(self.attributes.is_last_packet())
         }
     }
 
-    pub fn fetch_all(&mut self, conn_state: &mut ConnectionState) -> io::Result<()> {
+    pub fn fetch_all(&mut self, conn_state: &mut ConnectionState) -> DbcResult<()> {
         while ! try!(self.is_complete()) {
             try!(self.fetch_next(conn_state));
         }
         Ok(())
     }
 
-    fn fetch_next(&mut self, conn_state: &mut ConnectionState) -> io::Result<()> {
+    fn fetch_next(&mut self, conn_state: &mut ConnectionState) -> DbcResult<()> {
         trace!("plain_statement::fetch_next()");
         // build the request, provide StatementContext and resultset id, define FetchSize
         let mut segment = segment::new_request_seg(segment::MessageType::FetchNext, true);
@@ -183,12 +184,12 @@ impl ResultSet {
     }
 
     /// Translates a generic result set into a given type
-    pub fn as_table<T>(self) -> io::Result<T>
+    pub fn as_table<T>(self) -> DbcResult<T>
       where T: serde::de::Deserialize
     {
         trace!("ResultSet::as_table()");
         let mut deserializer = self::deserialize::RsDeserializer::new(self);
-        serde::de::Deserialize::deserialize(&mut deserializer).map_err(|e|{io::Error::from(e)})
+        serde::de::Deserialize::deserialize(&mut deserializer)
     }
 }
 

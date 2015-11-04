@@ -1,15 +1,16 @@
-use super::authfield::*;
-use super::clientcontext_option::*;
-use super::connect_option::*;
-use super::hdberror::*;
+use DbcResult;
+use super::authfield::AuthField;
+use super::clientcontext_option::CcOption;
+use super::connect_option::ConnectOption;
+use super::hdberror::HdbError;
 use super::part::Part;
 use super::part_attributes::PartAttributes;
-use super::partkind::*;
-use super::resultset::*;
-use super::resultset_metadata::*;
-use super::statement_context::*;
-use super::topology_attribute::*;
-use super::transactionflags::*;
+use super::partkind::PartKind;
+use super::resultset::ResultSet;
+use super::resultset_metadata::ResultSetMetadata;
+use super::statement_context::StatementContext;
+use super::topology_attribute::TopologyAttr;
+use super::transactionflags::TransactionFlag;
 use super::util;
 
 use byteorder::{LittleEndian,ReadBytesExt,WriteBytesExt};
@@ -77,7 +78,7 @@ impl Argument {
     }
 
     /// Serialize to byte stream
-    pub fn encode(&self, remaining_bufsize: u32, w: &mut io::Write) -> io::Result<u32> {
+    pub fn encode(&self, remaining_bufsize: u32, w: &mut io::Write) -> DbcResult<u32> {
         match *self {
             Argument::Auth(ref vec) => {
                 try!(w.write_i16::<LittleEndian>(vec.len() as i16));
@@ -135,96 +136,87 @@ fn padsize(size: usize) -> usize {
 }
 
 pub fn parse( kind: PartKind, attributes: PartAttributes, no_of_args: i32,  arg_size: i32,
-              parts: &mut Vec<Part>, o_rs: &mut Option<&mut ResultSet>, rdr: &mut io::BufRead) -> io::Result<Argument> {
+              parts: &mut Vec<Part>, o_rs: &mut Option<&mut ResultSet>, rdr: &mut io::BufRead) -> DbcResult<Argument> {
     trace!("Entering parse(no_of_args={}, kind={:?})",no_of_args,kind);
 
-    let (length, arg) = match kind {
+    let arg = match kind {
         PartKind::Authentication => {
             let field_count = try!(rdr.read_i16::<LittleEndian>()) as usize;    // I2
-            let mut length = 2usize;
             let mut vec = Vec::<AuthField>::with_capacity(field_count);
             for _ in 0..field_count {
                 let field = try!(AuthField::parse(rdr));
-                length += field.size();
                 vec.push(field);
             }
-            (length, Argument::Auth(vec))
+            Argument::Auth(vec)
         },
         PartKind::ClientContext => {
             let mut vec = Vec::<CcOption>::new();
-            let mut length = 0usize;
             for _ in 0..no_of_args {
                 let opt = try!(CcOption::parse(rdr));
-                length += opt.size();
                 vec.push(opt);
             }
-            (length, Argument::CcOptions(vec))
+            Argument::CcOptions(vec)
         },
         PartKind::Command => {
             let bytes = try!(util::parse_bytes(arg_size as usize, rdr));
             let s = try!(util::cesu8_to_string(&bytes));
-            (arg_size as usize, Argument::Command(s))
+            Argument::Command(s)
         },
         PartKind::ConnectOptions => {
             let mut vec = Vec::<ConnectOption>::new();
-            let mut length = 0usize;
             for _ in 0..no_of_args {
                 let opt = try!(ConnectOption::parse(rdr));
-                length += opt.size();
                 vec.push(opt);
             }
-            (length, Argument::ConnectOptions(vec))
+            Argument::ConnectOptions(vec)
         },
         PartKind::Error => {
             let mut vec = Vec::<HdbError>::new();
-            let mut length = 0usize;
             for _ in 0..no_of_args {
-                let hdberror = try!(HdbError::parse(rdr));
-                length += hdberror.size() as usize;
+                let hdberror = try!(HdbError::parse(arg_size, rdr));
                 vec.push(hdberror);
             }
-            (length, Argument::Error(vec))
+            Argument::Error(vec)
         },
         PartKind::ResultSet => {
             let rs = try!(ResultSet::parse(no_of_args, attributes, parts, o_rs, rdr));
-            (arg_size as usize, Argument::ResultSet(rs))
+            Argument::ResultSet(rs)
         },
         PartKind::ResultSetId => {
-            (8, Argument::ResultSetId(try!(rdr.read_u64::<LittleEndian>())))
+            Argument::ResultSetId(try!(rdr.read_u64::<LittleEndian>()))
         },
         PartKind::ResultSetMetadata => {
             let rsm = try!(ResultSetMetadata::parse(no_of_args, arg_size as u32, rdr));
-            (arg_size as usize, Argument::ResultSetMetadata(rsm))
+            Argument::ResultSetMetadata(rsm)
         },
         PartKind::StatementContext => {
             let sc = try!(StatementContext::parse(no_of_args, rdr));
-            (sc.size(), Argument::StatementContext(sc))
+            Argument::StatementContext(sc)
         },
         PartKind::TopologyInformation => {
             let field_count = try!(rdr.read_i16::<LittleEndian>()) as usize;    // I2
-            let mut length = 2usize;
             let mut vec = Vec::<TopologyAttr>::with_capacity(field_count);
             for _ in 0..field_count {
                 let info = try!(TopologyAttr::parse(rdr));
-                length += info.size();
                 vec.push(info);
             }
-            (length, Argument::TopologyInformation(vec))
+            Argument::TopologyInformation(vec)
         },
         PartKind::TransactionFlags => {
             let mut vec = Vec::<TransactionFlag>::new();
-            let mut length = 0usize;
             for _ in 0..no_of_args {
                 let opt = try!(TransactionFlag::parse(rdr));
-                length += opt.size();
                 vec.push(opt);
             }
-            (length, Argument::TransactionFlags(vec))
+            Argument::TransactionFlags(vec)
         },
         _ => {
-            panic!("No handling implemented for received partkind value {}", kind.to_i8());
+            panic!("No handling implemented for received partkind value {}", kind.to_i8()); // FIXME panic
         }
     };
-    rdr.consume(padsize(length));                                               // padding
+
+    let pad = padsize(arg_size as usize);
+    trace!("Skipping over {} padding bytes", pad);
+    rdr.consume(pad);
     Ok(arg)
 }

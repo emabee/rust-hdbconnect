@@ -11,8 +11,8 @@ extern crate vec_map;
 
 use chrono::Local;
 use std::error::Error;
-use std::io;
 use hdbconnect::Connection;
+use hdbconnect::DbcResult;
 use hdbconnect::LongDate;
 
 
@@ -30,6 +30,9 @@ pub fn connect_successfully() {
 
 #[test]
 pub fn connect_wrong_password() {
+    use flexi_logger::LogConfig;
+    flexi_logger::init(LogConfig::new(),Some("warn".to_string())).unwrap();
+
     let start = Local::now();
     let (host, port, user, password) = ("wdfd00245307a", "30415", "SYSTEM", "wrong_password");
     let err = hdbconnect::Connection::init(host, port, user, password).err().unwrap();
@@ -42,10 +45,10 @@ pub fn connect_wrong_password() {
 pub fn connect_and_select() {
     use flexi_logger::LogConfig;
     //          hdbconnect::protocol::lowlevel::resultset\
+    // hdbconnect::protocol::lowlevel::resultset::deserialize=info,\
+    // hdbconnect::protocol::lowlevel::part=debug,\
     flexi_logger::init(LogConfig::new(),
-    Some("info,\
-          hdbconnect::protocol::lowlevel::resultset::deserialize=info,\
-          hdbconnect::protocol::lowlevel::part=debug,\
+    Some("error,\
           ".to_string())).unwrap();
 
     match impl_connect_and_select() {
@@ -54,14 +57,14 @@ pub fn connect_and_select() {
     }
 }
 
-fn impl_connect_and_select() -> Result<(), io::Error> {
+fn impl_connect_and_select() -> DbcResult<()> {
     let mut connection = try!(hdbconnect::Connection::init("wdfd00245307a", "30415", "SYSTEM", "manager"));
     try!(impl_select_version_and_user(&mut connection));
     try!(impl_select_active_objects(&mut connection));
     Ok(())
 }
 
-fn impl_select_version_and_user(connection: &mut Connection) -> Result<(), io::Error> {
+fn impl_select_version_and_user(connection: &mut Connection) -> DbcResult<()> {
     #[derive(Serialize, Deserialize, Debug)]
     struct VersionAndUser {
         version: Option<String>,
@@ -88,12 +91,12 @@ fn impl_select_version_and_user(connection: &mut Connection) -> Result<(), io::E
 }
 
 
-fn impl_select_active_objects(connection: &mut Connection) -> Result<(), io::Error> {
+fn impl_select_active_objects(connection: &mut Connection) -> DbcResult<()> {
     #[derive(Serialize, Deserialize, Debug)]
     struct ActiveObject {
         package_id: String,
         object_name: String,
-        object_suffix: i32, //String,
+        object_suffix: String,
         version_id: i32,
         activated_at: LongDate,
         activated_by: String,
@@ -133,7 +136,7 @@ fn impl_select_active_objects(connection: &mut Connection) -> Result<(), io::Err
                 OBJECT_STATUS as \"object_status\", \
                 CHANGE_NUMBER as \"change_number\", \
                 RELEASED_AT as \"released_at\" \
-                 from _SYS_REPO.ACTIVE_OBJECT", top_n); //.to_string();
+                 from _SYS_REPO.ACTIVE_OBJECT444", top_n); //.to_string();
 
     let resultset = try!(connection.execute_statement(stmt, true));
     // info!("ResultSet: {:?}", resultset);

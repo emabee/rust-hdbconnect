@@ -13,8 +13,10 @@ extern crate serde;
 extern crate vec_map;
 
 pub mod connection;
+pub mod dbc_error;
 pub mod protocol;
 
 
 pub use connection::Connection;
 pub use protocol::lowlevel::longdate::LongDate;
+pub use dbc_error::{DbcError,DbcResult};

@@ -1,3 +1,4 @@
+use {DbcError,DbcResult};
 use super::util;
 
 use byteorder::{LittleEndian,ReadBytesExt};
@@ -14,7 +15,7 @@ pub struct ResultSetMetadata {
     pub names: VecMap<String>,
 }
 impl ResultSetMetadata {
-    pub fn parse(count: i32, arg_size:u32, rdr: &mut io::BufRead) -> io::Result<ResultSetMetadata> {
+    pub fn parse(count: i32, arg_size:u32, rdr: &mut io::BufRead) -> DbcResult<ResultSetMetadata> {
         let mut rsm = ResultSetMetadata {
             fields: Vec::<FieldMetadata>::new(),
             names: VecMap::<String>::new(),
@@ -101,7 +102,7 @@ pub struct FieldMetadata {
     pub column_displayname: u32,
 }
 impl FieldMetadata {
-    pub fn new(co: u8, vt: u8, fr: i16, pr: i16, tn: u32, sn: u32, cn: u32, cdn: u32,) -> io::Result<FieldMetadata>
+    pub fn new(co: u8, vt: u8, fr: i16, pr: i16, tn: u32, sn: u32, cn: u32, cdn: u32,) -> DbcResult<FieldMetadata>
     {
         Ok(FieldMetadata {
             column_option: try!(ColumnOption::from_u8(co)),
@@ -124,11 +125,11 @@ impl ColumnOption {
         }
     }
 
-    fn from_u8(val: u8) -> io::Result<ColumnOption> {
+    fn from_u8(val: u8) -> DbcResult<ColumnOption> {
         match val {
             1 => Ok(ColumnOption::NotNull),
             2 => Ok(ColumnOption::Nullable),
-            _ => Err(util::io_error(&format!("ColumnOption::from_u8() not implemented for value {}",val))),
+            _ => Err(DbcError::ProtocolError(format!("ColumnOption::from_u8() not implemented for value {}",val))),
         }
     }
 }

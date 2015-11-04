@@ -1,5 +1,5 @@
-use super::option_value::*;
-use super::util;
+use {DbcError,DbcResult};
+use super::option_value::OptionValue;
 
 use byteorder::{ReadBytesExt,WriteBytesExt};
 use std::io;
@@ -10,7 +10,7 @@ pub struct TopologyAttr {
     pub value: OptionValue,
 }
 impl TopologyAttr {
-    pub fn encode (&self, w: &mut io::Write)  -> io::Result<()> {
+    pub fn encode (&self, w: &mut io::Write)  -> DbcResult<()> {
         try!(w.write_i8(self.id.to_i8()));                                      // I1
         self.value.encode(w)
     }
@@ -19,7 +19,7 @@ impl TopologyAttr {
         1 + self.value.size()
     }
 
-    pub fn parse(rdr: &mut io::BufRead) -> io::Result<TopologyAttr> {
+    pub fn parse(rdr: &mut io::BufRead) -> DbcResult<TopologyAttr> {
         let id = try!(TopologyAttrId::from_i8(try!(rdr.read_i8())));            // I1
         let value = try!(OptionValue::parse(rdr));
         Ok(TopologyAttr{id: id, value: value})
@@ -57,7 +57,7 @@ impl TopologyAttrId {
         }
     }
 
-    fn from_i8(val: i8) -> io::Result<TopologyAttrId> { match val {
+    fn from_i8(val: i8) -> DbcResult<TopologyAttrId> { match val {
         1 => Ok(TopologyAttrId::HostName),
         2 => Ok(TopologyAttrId::HostPortNumber),
         3 => Ok(TopologyAttrId::TenantName),
@@ -67,6 +67,6 @@ impl TopologyAttrId {
         7 => Ok(TopologyAttrId::IsCurrentSession),
         8 => Ok(TopologyAttrId::ServiceType),
         10 => Ok(TopologyAttrId::IsStandby),
-        _ => Err(util::io_error(&format!("Invalid value for TopologyAttrId detected: {}",val))),
+        _ => Err(DbcError::ProtocolError(format!("Invalid value for TopologyAttrId detected: {}",val))),
     }}
 }

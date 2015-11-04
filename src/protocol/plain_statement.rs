@@ -1,16 +1,16 @@
+use {DbcError,DbcResult};
 use super::super::connection::ConnectionState;
 use super::lowlevel::argument::Argument;
-use super::lowlevel::message::*;
+use super::lowlevel::message::Message;
 use super::lowlevel::part::Part;
-use super::lowlevel::partkind::*;
+use super::lowlevel::partkind::PartKind;
 use super::lowlevel::resultset::ResultSet;
 use super::lowlevel::segment;
 use super::lowlevel::util;
 
-use std::io;
 
 ///
-pub fn execute(conn_state: &mut ConnectionState, stmt: String, auto_commit: bool) -> io::Result<ResultSet> {
+pub fn execute(conn_state: &mut ConnectionState, stmt: String, auto_commit: bool) -> DbcResult<ResultSet> {
     trace!("plain_statement::execute()");
     // build the request
     let mut segment = segment::new_request_seg(segment::MessageType::ExecuteDirect, auto_commit);
@@ -26,13 +26,13 @@ pub fn execute(conn_state: &mut ConnectionState, stmt: String, auto_commit: bool
     let mut segment = response.segments.swap_remove(0);
     match (&segment.kind, &segment.function_code) {
         (&segment::Kind::Reply, &Some(segment::FunctionCode::Select)) => {},
-        _ => return Err(util::io_error(&format!("plain_statement: unexpected segment kind {:?} or function code {:?}",
+        _ => return Err(DbcError::ProtocolError(format!("plain_statement: unexpected segment kind {:?} or function code {:?}",
                                                  &segment.kind, &segment.function_code))),
     }
 
     let part = match util::get_first_part_of_kind(PartKind::ResultSet, &segment.parts) {
         Some(idx) => segment.parts.swap_remove(idx),
-        None => return Err(util::io_error("no part of kind ResultSet")),
+        None => return Err(DbcError::ProtocolError("no part of kind ResultSet".to_string())),
     };
 
     match part.arg {
@@ -40,6 +40,6 @@ pub fn execute(conn_state: &mut ConnectionState, stmt: String, auto_commit: bool
             try!(resultset.fetch_all(conn_state));
             Ok(resultset)
         },
-        _ => Err(util::io_error("unexpected error in plain_statement::execute()")),
+        _ => Err(DbcError::ProtocolError("unexpected error in plain_statement::execute()".to_string())),
     }
 }

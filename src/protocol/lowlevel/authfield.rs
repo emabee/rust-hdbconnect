@@ -1,3 +1,4 @@
+use DbcResult;
 use super::util;
 
 use byteorder::{LittleEndian,ReadBytesExt,WriteBytesExt};
@@ -8,7 +9,7 @@ pub struct AuthField {
     pub v: Vec<u8>,
 }
 impl AuthField {
-    pub fn encode (&self, w: &mut io::Write)  -> io::Result<()> {
+    pub fn encode (&self, w: &mut io::Write)  -> DbcResult<()> {
         match self.v.len() {
             l if l <= 250usize => {
                 try!(w.write_u8(l as u8));                              // B1           LENGTH OF VALUE
@@ -28,7 +29,7 @@ impl AuthField {
         1 + self.v.len()
     }
 
-    pub fn parse(rdr: &mut io::BufRead) -> io::Result<AuthField> {
+    pub fn parse(rdr: &mut io::BufRead) -> DbcResult<AuthField> {
         let mut len = try!(rdr.read_u8())  as usize;                    // B1
         match len {
             255usize => {

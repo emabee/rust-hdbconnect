@@ -1,9 +1,9 @@
 use std::mem::swap;
 
 use serde;
-use super::rs_error::{rs_error, RsError, Code, RsResult};
+use dbc_error::{DbcError, DCode, DbcResult};
 
-use protocol::lowlevel::resultset::*;
+use protocol::lowlevel::resultset::ResultSet;
 use protocol::lowlevel::longdate::LongDate;
 use protocol::lowlevel::typed_value::TypedValue;
 
@@ -72,7 +72,7 @@ impl RsDeserializer {
     /// for plain values call the respective visit method  (via handle_plain_value())
     /// for option-valued types, call visit_none or visit_some; the latter delegates once more to the serializer,
     /// which then has to call the respective visit method (via handle_plain_value())
-    fn handle_typed_value<V>(&mut self, value: &TypedValue, visitor: V) -> RsResult<V::Value>
+    fn handle_typed_value<V>(&mut self, value: &TypedValue, visitor: V) -> DbcResult<V::Value>
             where V: serde::de::Visitor,
     {
         trace!("handle_typed_value() typed_value = {:?}", value);
@@ -85,7 +85,7 @@ impl RsDeserializer {
     }
 
 
-    fn handle_option<V>(&mut self, value: &TypedValue, mut visitor: V) -> RsResult<V::Value>
+    fn handle_option<V>(&mut self, value: &TypedValue, mut visitor: V) -> DbcResult<V::Value>
             where V: serde::de::Visitor,
     {
         trace!("handle_option() typed_value = {:?}", value);
@@ -166,11 +166,11 @@ impl RsDeserializer {
                 Some(_)     => {self.f_state = true; visitor.visit_some(self)}
                 None        => visitor.visit_none()
             },
-            _ => Err(rs_error(&format!("handle_option() not implemented for {:?}", value))),
+            _ => Err(prog_error(format!("handle_option() not implemented for {:?}", value))),
         }
     }
 
-    fn handle_plain_value<V>(&mut self, value: &TypedValue, mut visitor: V) -> RsResult<V::Value>
+    fn handle_plain_value<V>(&mut self, value: &TypedValue, mut visitor: V) -> DbcResult<V::Value>
             where V: serde::de::Visitor,
     {
         trace!("handle_plain_value() typed_value = {:?}", value);
@@ -224,21 +224,21 @@ impl RsDeserializer {
                 &Some(ref v) => visitor.visit_bytes(&v),
                 &None => Err(bang(value))
             },
-            _ => Err(rs_error(&format!("invalid call to handle_plain_value(), value = {:?}", value)))
+            _ => Err(prog_error(format!("invalid call to handle_plain_value(), value = {:?}", value)))
         }
     }
 }
 
 
-fn bang(value: &TypedValue) -> RsError {
-    rs_error(&format!("Found null in non-null column of type code {}", value.type_id()))
+fn bang(value: &TypedValue) -> DbcError {
+    prog_error(format!("Found null in non-null column of type code {}", value.type_id()))
 }
 
 impl serde::de::Deserializer for RsDeserializer {
-    type Error = RsError;
+    type Error = DbcError;
 
     #[inline]
-    fn visit<V>(&mut self, mut visitor: V) -> RsResult<V::Value>
+    fn visit<V>(&mut self, mut visitor: V) -> DbcResult<V::Value>
         where V: serde::de::Visitor,
     {
         trace!("RsDeserializer::visit()");
@@ -285,22 +285,22 @@ impl serde::de::Deserializer for RsDeserializer {
                                         let value = if let Some(value) = self.rs.get_value(self.row_idx,i) {
                                             value.clone()  //FIXME
                                         } else {
-                                            return Err(RsError::RsError(Code::NoValueForRowColumn(self.row_idx,i)));
+                                            return Err(deser_error(DCode::NoValueForRowColumn(self.row_idx,i)));
                                         };
                                         self.handle_typed_value(&value,visitor)
                                     },
-                                    KVN::NOTHING => Err(RsError::RsError(Code::KvnNothing)),
+                                    KVN::NOTHING => Err(deser_error(DCode::KvnNothing)),
                                 }
                             },
                             RdeState::DONE => {
                                 trace!("RsDeserializer::visit(): c_state is DONE");
-                                Err(RsError::RsError(Code::NoMoreRows))
+                                Err(deser_error(DCode::NoMoreRows))
                             },
                         }
                     },
                     RdeState::DONE => {
                         trace!("RsDeserializer::visit(): r_state is DONE");
-                        Err(RsError::RsError(Code::NoMoreRows))
+                        Err(deser_error(DCode::NoMoreRows))
                     },
                 }
             },
@@ -333,9 +333,9 @@ impl<'a> RowVisitor<'a> {
 }
 
 impl<'a> serde::de::SeqVisitor for RowVisitor<'a> {
-    type Error = RsError;
+    type Error = DbcError;
 
-    fn visit<T>(&mut self) -> RsResult<Option<T>>
+    fn visit<T>(&mut self) -> DbcResult<Option<T>>
         where T: serde::de::Deserialize,
     {
         trace!("RowVisitor::visit() with row_idx = {}", self.de.row_idx);
@@ -351,10 +351,10 @@ impl<'a> serde::de::SeqVisitor for RowVisitor<'a> {
         }
     }
 
-    fn end(&mut self) -> RsResult<()> {
+    fn end(&mut self) -> DbcResult<()> {
         trace!("RowVisitor::end()");
         match self.de.row_idx {
-            i if i < self.de.row_cnt => { Err(RsError::RsError(Code::TrailingRows)) },
+            i if i < self.de.row_cnt => { Err(deser_error(DCode::TrailingRows)) },
             _ => { Ok(()) },
         }
     }
@@ -373,9 +373,9 @@ impl<'a> FieldVisitor<'a> {
 
 
 impl<'a> serde::de::MapVisitor for FieldVisitor<'a> {
-    type Error = RsError;
+    type Error = DbcError;
 
-    fn visit_key<K>(&mut self) -> RsResult<Option<K>>
+    fn visit_key<K>(&mut self) -> DbcResult<Option<K>>
         where K: serde::de::Deserialize,
     {
         trace!("FieldVisitor::visit_key() for col {}", self.de.col_idx);
@@ -388,7 +388,7 @@ impl<'a> serde::de::MapVisitor for FieldVisitor<'a> {
         }
     }
 
-    fn visit_value<V>(&mut self) -> RsResult<V>
+    fn visit_value<V>(&mut self) -> DbcResult<V>
         where V: serde::de::Deserialize,
     {
         trace!("FieldVisitor::visit_value() for col {}", self.de.col_idx);
@@ -399,14 +399,14 @@ impl<'a> serde::de::MapVisitor for FieldVisitor<'a> {
                 self.de.col_idx += 1;
                 Ok(tmp)
             },
-            _    => { Err(RsError::RsError(Code::NoMoreCols)) },
+            _    => { Err(deser_error(DCode::NoMoreCols)) },
         }
     }
 
-    fn end(&mut self) -> RsResult<()> {
+    fn end(&mut self) -> DbcResult<()> {
         trace!("FieldVisitor::end()");
         match self.de.col_idx {
-            i if i < self.de.col_cnt => { Err(RsError::RsError(Code::TrailingCols)) },
+            i if i < self.de.col_cnt => { Err(deser_error(DCode::TrailingCols)) },
             _ => {
                 trace!("FieldVisitor::end() switching to next row");
                 self.de.row_idx += 1;
@@ -419,6 +419,14 @@ impl<'a> serde::de::MapVisitor for FieldVisitor<'a> {
     }
 }
 
+fn prog_error(s: String) -> DbcError {
+    deser_error(DCode::ProgramError(s))
+}
+
+fn deser_error(code: DCode) -> DbcError {
+    DbcError::deserialization_error(code)
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -427,8 +435,8 @@ mod tests {
     use super::super::super::resultset_metadata::{FieldMetadata,ResultSetMetadata};
     use super::super::super::statement_context::StatementContext;
     use super::super::super::typed_value::TypedValue;
+    use super::super::super::super::super::dbc_error::DbcResult;
 
-    use std::io;
     use vec_map::VecMap;
 
     #[allow(non_snake_case)]
@@ -446,7 +454,7 @@ mod tests {
         flexi_logger::init( flexi_logger::LogConfig::new(), Some("info".to_string())).unwrap();
 
         let resultset = some_resultset();
-        let result: io::Result<Vec<VersionAndUser>> = resultset.as_table();
+        let result: DbcResult<Vec<VersionAndUser>> = resultset.as_table();
 
         match result {
             Ok(table_content) => info!("ResultSet successfully evaluated: {:?}", table_content),

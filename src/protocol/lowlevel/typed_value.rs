@@ -1,3 +1,4 @@
+use {DbcError,DbcResult};
 use super::longdate::LongDate;
 use super::util;
 
@@ -5,7 +6,7 @@ use byteorder::{LittleEndian,ReadBytesExt,WriteBytesExt};
 use std::i16;
 use std::u32;
 use std::u64;
-use std::io::{self,Cursor,Read};
+use std::io::{self,Read};
 use std::iter::repeat;
 
 
@@ -79,7 +80,7 @@ pub enum TypedValue {               // Description, Support Level
 }
 
 impl TypedValue {
-    pub fn encode(&self, w: &mut io::Write) -> io::Result<()> {
+    pub fn encode(&self, w: &mut io::Write) -> DbcResult<()> {
         try!(w.write_u8(self.type_id()));                   // I1
         match *self {                                       // variable
             TypedValue::NULL                => {},
@@ -261,7 +262,7 @@ impl TypedValue {
      // TypedValue::N_SECONDTIME(_)      => 64 + 128,
     }}
 
-    pub fn parse(typecode: u8, nullable: bool, rdr: &mut io::BufRead) -> io::Result<TypedValue> {
+    pub fn parse(typecode: u8, nullable: bool, rdr: &mut io::BufRead) -> DbcResult<TypedValue> {
         TypedValue::parse_value(typecode, nullable, rdr)
     }
 
@@ -270,7 +271,7 @@ impl TypedValue {
     // if it is true, we return types with typecode above 128, which use Option<type>,
     // if it is false, we return types with the original typecode, which use plain values
     fn parse_value(p_typecode: u8, nullable: bool, rdr: &mut io::BufRead)
-      -> io::Result<TypedValue>
+      -> DbcResult<TypedValue>
     {
         let typecode = p_typecode + match nullable {true => 128, false => 0};
         match typecode {
@@ -356,41 +357,41 @@ impl TypedValue {
          // 191 => Ok(TypedValue::N_DAYDATE(
          // 192 => Ok(TypedValue::N_SECONDTIME(
 
-            _   => Err(util::io_error(&format!("TypedValue::parse_value() not implemented for type code {}",typecode))),
+            _   => Err(DbcError::ProtocolError(format!("TypedValue::parse_value() not implemented for type code {}",typecode))),
         }
     }
 }
 
 // reads the nullindicator and returns Ok(true) if it has value 0 or Ok(false) otherwise
-fn ind_null(rdr: &mut io::BufRead) -> io::Result<bool> {
+fn ind_null(rdr: &mut io::BufRead) -> DbcResult<bool> {
     Ok( try!(rdr.read_u8()) == 0 )
 }
 
 // reads the nullindicator and throws an error if it has value 0
-fn ind_not_null(rdr: &mut io::BufRead) -> io::Result<()> {
+fn ind_not_null(rdr: &mut io::BufRead) -> DbcResult<()> {
     match try!(ind_null(rdr)) {
-        true => Err(util::io_error("null value returned for not-null column")),
+        true => Err(DbcError::ProtocolError("null value returned for not-null column".to_string())),
         false => Ok(())
     }
 }
 
 
-fn parse_real(rdr: &mut io::BufRead) -> io::Result<f32> {
+fn parse_real(rdr: &mut io::BufRead) -> DbcResult<f32> {
     let mut vec: Vec<u8> = repeat(0u8).take(4).collect();
     try!(rdr.read(&mut vec[..]));
 
-    let mut r = Cursor::new(&vec);
+    let mut r = io::Cursor::new(&vec);
     let tmp = try!(r.read_u32::<LittleEndian>());
     match tmp {
-        u32::MAX => Err(util::io_error("Unexpected NULL Value in parse_real()")),
+        u32::MAX => Err(DbcError::ProtocolError("Unexpected NULL Value in parse_real()".to_string())),
         _ => {r.set_position(0); Ok(try!(r.read_f32::<LittleEndian>()))},
     }
 }
 
-fn parse_nullable_real(rdr: &mut io::BufRead) -> io::Result<Option<f32>> {
+fn parse_nullable_real(rdr: &mut io::BufRead) -> DbcResult<Option<f32>> {
     let mut vec: Vec<u8> = repeat(0u8).take(4).collect();
     try!(rdr.read(&mut vec[..]));
-    let mut r = Cursor::new(&vec);
+    let mut r = io::Cursor::new(&vec);
     let tmp = try!(r.read_u32::<LittleEndian>());
     match tmp {
         u32::MAX => Ok(None),
@@ -398,21 +399,21 @@ fn parse_nullable_real(rdr: &mut io::BufRead) -> io::Result<Option<f32>> {
     }
 }
 
-fn parse_double(rdr: &mut io::BufRead) -> io::Result<f64> {
+fn parse_double(rdr: &mut io::BufRead) -> DbcResult<f64> {
     let mut vec: Vec<u8> = repeat(0u8).take(8).collect();
     try!(rdr.read(&mut vec[..]));
-    let mut r = Cursor::new(&vec);
+    let mut r = io::Cursor::new(&vec);
     let tmp = try!(r.read_u64::<LittleEndian>());
     match tmp {
-        u64::MAX => Err(util::io_error("Unexpected NULL Value in parse_double()")),
+        u64::MAX => Err(DbcError::ProtocolError("Unexpected NULL Value in parse_double()".to_string())),
         _ => {r.set_position(0); Ok(try!(r.read_f64::<LittleEndian>()))},
     }
 }
 
-fn parse_nullable_double(rdr: &mut io::BufRead) -> io::Result<Option<f64>> {
+fn parse_nullable_double(rdr: &mut io::BufRead) -> DbcResult<Option<f64>> {
     let mut vec: Vec<u8> = repeat(0u8).take(8).collect();
     try!(rdr.read(&mut vec[..]));
-    let mut r = Cursor::new(&vec);
+    let mut r = io::Cursor::new(&vec);
     let tmp = try!(r.read_u64::<LittleEndian>());
     match tmp {
         u64::MAX => Ok(None),
@@ -426,11 +427,11 @@ const LENGTH_INDICATOR_2BYTE:u8 = 246;
 const LENGTH_INDICATOR_4BYTE:u8 = 247;
 const LENGTH_INDICATOR_NULL:u8  = 255;
 
-fn encode_length_and_string(s: &String, w: &mut io::Write) -> io::Result<()> {
+fn encode_length_and_string(s: &String, w: &mut io::Write) -> DbcResult<()> {
     encode_length_and_bytes(&util::string_to_cesu8(s), w)
 }
 
-fn encode_length_and_bytes(v: &Vec<u8>, w: &mut io::Write) -> io::Result<()> {
+fn encode_length_and_bytes(v: &Vec<u8>, w: &mut io::Write) -> DbcResult<()> {
     match v.len() {
         l if l <= MAX_1_BYTE_LENGTH as usize => {
             try!(w.write_u8(l as u8));                      // B1           LENGTH OF VALUE
@@ -447,35 +448,35 @@ fn encode_length_and_bytes(v: &Vec<u8>, w: &mut io::Write) -> io::Result<()> {
     util::encode_bytes(v, w)                                // B variable   VALUE BYTES
 }
 
-fn parse_length_and_string(rdr: &mut io::BufRead) -> io::Result<String> {
+fn parse_length_and_string(rdr: &mut io::BufRead) -> DbcResult<String> {
     match util::cesu8_to_string(&try!(parse_length_and_binary(rdr))) {
         Ok(s) => Ok(s),
         Err(e) => {error!("cesu-8 problem occured in typed_value:parse_length_and_string()");Err(e)}
     }
 }
 
-fn parse_length_and_binary(rdr: &mut io::BufRead) -> io::Result<Vec<u8>> {
+fn parse_length_and_binary(rdr: &mut io::BufRead) -> DbcResult<Vec<u8>> {
     let l8 = try!(rdr.read_u8());                                                   // B1
     let len = match l8 {
         l if l <= MAX_1_BYTE_LENGTH => l8 as usize,
         LENGTH_INDICATOR_2BYTE  =>  try!(rdr.read_i16::<LittleEndian>()) as usize,  // I2
         LENGTH_INDICATOR_4BYTE  =>  try!(rdr.read_i32::<LittleEndian>()) as usize,  // I4
-        l => {panic!("Invalid value in length indicator: {}",l)},
+        l => {panic!("Invalid value in length indicator: {}",l)}, // FIXME panic
     };
     util::parse_bytes(len,rdr)                                                      // B variable
 }
 
-fn parse_nullable_length_and_string(rdr: &mut io::BufRead) -> io::Result<Option<String>> {
+fn parse_nullable_length_and_string(rdr: &mut io::BufRead) -> DbcResult<Option<String>> {
     match try!(parse_nullable_length_and_binary(rdr)) {
         Some(vec) => match util::cesu8_to_string(&vec) {
             Ok(s) => Ok(Some(s)),
-            Err(_) => Err(util::io_error("cesu-8 problem occured in typed_value:parse_length_and_string()")),
+            Err(_) => Err(DbcError::ProtocolError("cesu-8 problem occured in typed_value:parse_length_and_string()".to_string())),
         },
         None => Ok(None),
     }
 }
 
-fn parse_nullable_length_and_binary(rdr: &mut io::BufRead) -> io::Result<Option<Vec<u8>>> {
+fn parse_nullable_length_and_binary(rdr: &mut io::BufRead) -> DbcResult<Option<Vec<u8>>> {
     let l8 = try!(rdr.read_u8());                                                   // B1
     let len = match l8 {
         l if l <= MAX_1_BYTE_LENGTH => l8 as usize,
@@ -488,15 +489,15 @@ fn parse_nullable_length_and_binary(rdr: &mut io::BufRead) -> io::Result<Option<
 }
 
 const LONGDATE_NULL_REPRESENTATION: i64 = 3_155_380_704_000_000_001_i64;
-fn parse_longdate(rdr: &mut io::BufRead) -> io::Result<LongDate> {
+fn parse_longdate(rdr: &mut io::BufRead) -> DbcResult<LongDate> {
     let i = try!(rdr.read_i64::<LittleEndian>());
     match i {
-        LONGDATE_NULL_REPRESENTATION => Err(util::io_error("Null value found for non-null longdate column")),
+        LONGDATE_NULL_REPRESENTATION => Err(DbcError::ProtocolError("Null value found for non-null longdate column".to_string())),
         _ => Ok(LongDate(i))
     }
 }
 
-fn parse_nullable_longdate(rdr: &mut io::BufRead) -> io::Result<Option<LongDate>> {
+fn parse_nullable_longdate(rdr: &mut io::BufRead) -> DbcResult<Option<LongDate>> {
     let i = try!(rdr.read_i64::<LittleEndian>());
     match i {
         LONGDATE_NULL_REPRESENTATION => Ok(None),

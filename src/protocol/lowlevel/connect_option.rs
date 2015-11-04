@@ -1,5 +1,5 @@
-use super::option_value::*;
-use super::util;
+use {DbcError,DbcResult};
+use super::option_value::OptionValue;
 
 use byteorder::{ReadBytesExt,WriteBytesExt};
 use std::io;
@@ -10,7 +10,7 @@ pub struct ConnectOption {
     pub value: OptionValue,
 }
 impl ConnectOption {
-    pub fn encode (&self, w: &mut io::Write)  -> io::Result<()> {
+    pub fn encode (&self, w: &mut io::Write)  -> DbcResult<()> {
         try!(w.write_i8(self.id.to_i8()));                                      // I1
         self.value.encode(w)
     }
@@ -19,7 +19,7 @@ impl ConnectOption {
         1 + self.value.size()
     }
 
-    pub fn parse(rdr: &mut io::BufRead) -> io::Result<ConnectOption> {
+    pub fn parse(rdr: &mut io::BufRead) -> DbcResult<ConnectOption> {
         let option_id = try!(ConnectOptionId::from_i8(try!(rdr.read_i8())));    // I1
         let value = try!(OptionValue::parse(rdr));
         Ok(ConnectOption{id: option_id, value: value})
@@ -110,7 +110,7 @@ impl ConnectOptionId {
         }
     }
 
-    fn from_i8(val: i8) -> io::Result<ConnectOptionId> { match val {
+    fn from_i8(val: i8) -> DbcResult<ConnectOptionId> { match val {
         1 =>  Ok(ConnectOptionId::ConnectionID),
         2 =>  Ok(ConnectOptionId::CompleteArrayExecution),
         3 =>  Ok(ConnectOptionId::ClientLocale),
@@ -148,6 +148,6 @@ impl ConnectOptionId {
         35 =>  Ok(ConnectOptionId::UpdateTopologyAnwhere),
         36 =>  Ok(ConnectOptionId::EnableArrayType),
         37 =>  Ok(ConnectOptionId::ImplicitLobStreaming),
-        _ => Err(util::io_error(&format!("Invalid value for ConnectOptionId detected: {}",val))),
+        _ => Err(DbcError::ProtocolError(format!("Invalid value for ConnectOptionId detected: {}",val))),
     }}
 }

@@ -1,18 +1,20 @@
+use DbcResult;
+
 use super::lowlevel::argument::Argument;
-use super::lowlevel::authfield::*;
-use super::lowlevel::clientcontext_option::*;
-use super::lowlevel::connect_option::*;
+use super::lowlevel::authfield::AuthField;
+use super::lowlevel::clientcontext_option::{CcOption,CcOptionId};
+use super::lowlevel::connect_option::{ConnectOption,ConnectOptionId};
 use super::lowlevel::message::Message;
-use super::lowlevel::option_value::*;
+use super::lowlevel::option_value::OptionValue;
 use super::lowlevel::part::Part;
-use super::lowlevel::partkind::*;
+use super::lowlevel::partkind::PartKind;
 use super::lowlevel::segment;
-use super::lowlevel::topology_attribute::*;
+use super::lowlevel::topology_attribute::TopologyAttr;
 use super::lowlevel::util;
 
 use byteorder::{LittleEndian,ReadBytesExt,WriteBytesExt};
 use rand::{Rng,thread_rng};
-use std::io::{Cursor,Read,Result};
+use std::io::{self,Read};
 use std::net::TcpStream;
 
 use std::iter::repeat;
@@ -24,7 +26,7 @@ use crypto::sha2::Sha256;
 
 /// authenticate with the scram_sha256 method
 pub fn authenticate_with_scram_sha256(tcp_stream: &mut TcpStream, username: &str, password: &str)
-    -> Result<(Vec<ConnectOption>,Vec<TopologyAttr>,i64)> {
+    -> DbcResult<(Vec<ConnectOption>,Vec<TopologyAttr>,i64)> {
     trace!("Entering scram_sha256()");
 
     let client_challenge = create_client_challenge();
@@ -147,7 +149,7 @@ fn get_server_challenge(response1: Message) -> Vec<u8> {
     }
 }
 
-fn evaluate_resp2(response2: Message) -> Result<(Vec<ConnectOption>,Vec<TopologyAttr>,i64)> {
+fn evaluate_resp2(response2: Message) -> DbcResult<(Vec<ConnectOption>,Vec<TopologyAttr>,i64)> {
     trace!("Entering evaluate_resp2()");
     assert!(response2.segments.len() == 1, "Wrong count of segments");
 
@@ -190,12 +192,12 @@ fn evaluate_resp2(response2: Message) -> Result<(Vec<ConnectOption>,Vec<Topology
 }
 
 fn calculate_client_proof(server_challenge: Vec<u8>, client_challenge: Vec<u8>, password: &str)
-                    -> Result<Vec<u8>> {
+                    -> DbcResult<Vec<u8>> {
     let client_proof_size = 32usize;
     trace!("Entering calculate_client_proof()");
     let (salts,srv_key) = get_salt_and_key(server_challenge).unwrap();
     let buf = Vec::<u8>::with_capacity(2 + (client_proof_size+1)*salts.len());
-    let mut w = Cursor::new(buf);
+    let mut w = io::Cursor::new(buf);
     try!(w.write_u8(0u8));
     try!(w.write_u8(salts.len() as u8));
 
@@ -211,9 +213,9 @@ fn calculate_client_proof(server_challenge: Vec<u8>, client_challenge: Vec<u8>, 
 
 /// Server_challenge is structured itself into fieldcount and fields
 /// the last field is taken as key, all the previous fields are salt (usually 1)
-fn get_salt_and_key(server_challenge: Vec<u8>) -> Result<(Vec<Vec<u8>>,Vec<u8>)> {
+fn get_salt_and_key(server_challenge: Vec<u8>) -> DbcResult<(Vec<Vec<u8>>,Vec<u8>)> {
     trace!("Entering get_salt_and_key()");
-    let mut rdr = Cursor::new(server_challenge);
+    let mut rdr = io::Cursor::new(server_challenge);
     let fieldcount = rdr.read_i16::<LittleEndian>().unwrap();               // I2
     trace!("fieldcount = {}", fieldcount);
 
@@ -235,7 +237,7 @@ fn get_salt_and_key(server_challenge: Vec<u8>) -> Result<(Vec<Vec<u8>>,Vec<u8>)>
 }
 
 fn scramble(salt: &Vec<u8>, server_key: &Vec<u8>, client_key: &Vec<u8>, password: &str)
-            -> Result<Vec<u8>> {
+            -> DbcResult<Vec<u8>> {
     let length = salt.len() + server_key.len() + client_key.len();
     let mut msg = Vec::<u8>::with_capacity(length);
     for b in salt {msg.push(*b)}
