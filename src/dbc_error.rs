@@ -5,7 +5,6 @@ use std::error;
 use std::fmt;
 use std::io;
 use std::result;
-// use std::string::FromUtf8Error;
 
 use byteorder;
 use serde;
@@ -15,9 +14,6 @@ use serde;
 pub enum DbcError {
     /// Error occured in deserialization of data into an application-defined structure
     DeserializationError(DCode),
-
-    // /// Some UTF8 error occurred while serializing or deserializing a value.
-    // FromUtf8Error(FromUtf8Error),
 
     /// Some error occured while reading CESU-8.
     Cesu8Error(Cesu8DecodingError),
@@ -89,12 +85,6 @@ impl From<io::Error> for DbcError {
     }
 }
 
-// impl From<FromUtf8Error> for DbcError {
-//     fn from(error: FromUtf8Error) -> DbcError {
-//         DbcError::FromUtf8Error(error)
-//     }
-// }
-//
 impl From<Cesu8DecodingError> for DbcError {
     fn from(error: Cesu8DecodingError) -> DbcError {
         DbcError::Cesu8Error(error)
@@ -143,6 +133,9 @@ pub enum DCode {
     /// Struct is missing a field.
     MissingField(&'static str),
 
+    /// Unknown field in struct.
+    WrongValueType(String),
+
     ///
     NoMoreRows,
 
@@ -157,41 +150,36 @@ pub enum DCode {
 
     /// No value found
     NoValueForRowColumn(usize,usize),
-
-    ///
-    KvnNothing,
 }
 
 impl DCode {
     fn description(&self) -> &str {
         match *self {
-            DCode::ProgramError(_) => "Syntax error",
-            DCode::UnknownField(_) => "UnknownField",
-            DCode::MissingField(_) => "MissingField: {}",
-            DCode::TrailingRows => "TrailingRows",
-            DCode::NoMoreRows => "NoMoreRows",
-            DCode::TrailingCols => "TrailingCols",
-            DCode::NoMoreCols => "NoMoreCols",
-            DCode::NoValueForRowColumn(_,_) => "No value found for (row, column)",
-            DCode::KvnNothing => "Program error: got KVN::NOTHING",
+            DCode::ProgramError(_) => "error in the implementation of hdbconnect",
+            DCode::UnknownField(_) => "unknown field",
+            DCode::MissingField(_) => "missing field",
+            DCode::WrongValueType(_) => "value types do not match",
+            DCode::TrailingRows => "trailing rows",
+            DCode::NoMoreRows => "no more rows",
+            DCode::TrailingCols => "trailing columns",
+            DCode::NoMoreCols => "no more columns",
+            DCode::NoValueForRowColumn(_,_) => "vo value found for (row, column)",
         }
     }
 }
 
 impl fmt::Debug for DCode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use std::fmt::Debug;
-
         match *self {
-            DCode::ProgramError(ref s) => write!(f, "Syntax error: {}", s),
-            DCode::UnknownField(ref s) => write!(f, "UnknownField: {}", s),
-            DCode::MissingField(ref s) => write!(f, "MissingField: {}", s),
-            DCode::TrailingRows => "TrailingRows".fmt(f),
-            DCode::NoMoreRows => "NoMoreRows".fmt(f),
-            DCode::TrailingCols => "TrailingCols".fmt(f),
-            DCode::NoMoreCols => "NoMoreCols".fmt(f),
-            DCode::NoValueForRowColumn(r,c) => write!(f, "No value found for row {} and column {}",r,c),
-            DCode::KvnNothing => "Program error: got KVN::NOTHING".fmt(f),
+            DCode::ProgramError(ref s)
+            | DCode::UnknownField(ref s)
+            | DCode::WrongValueType(ref s) => write!(f, "{} {}", self.description(), s),
+            DCode::MissingField(ref s) => write!(f, "{} {}", self.description(), s),
+            DCode::TrailingRows
+            | DCode::NoMoreRows
+            | DCode::TrailingCols
+            | DCode::NoMoreCols => write!(f, "{}", self.description()),
+            DCode::NoValueForRowColumn(r,c) =>  write!(f, "{} = ({},{})", self.description(), r, c),
         }
     }
 }

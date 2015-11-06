@@ -48,20 +48,20 @@ pub fn connect_and_select() {
     // hdbconnect::protocol::lowlevel::resultset::deserialize=info,\
     // hdbconnect::protocol::lowlevel::part=debug,\
     flexi_logger::init(LogConfig::new(),
-    Some("error,\
-          ".to_string())).unwrap();
+    Some("info,\
+          hdbconnect::protocol::lowlevel::resultset=trace,\
+         ".to_string())).unwrap();
 
     match impl_connect_and_select() {
         Err(e) => {error!("connect_and_select() failed with {:?}",e); assert!(false)},
-        Ok(_) => {},
+        Ok(i) => {info!("connect_and_select() ended successful, read {} lines", i)},
     }
 }
 
-fn impl_connect_and_select() -> DbcResult<()> {
+fn impl_connect_and_select() -> DbcResult<usize> {
     let mut connection = try!(hdbconnect::Connection::init("wdfd00245307a", "30415", "SYSTEM", "manager"));
     try!(impl_select_version_and_user(&mut connection));
-    try!(impl_select_active_objects(&mut connection));
-    Ok(())
+    impl_select_active_objects(&mut connection)
 }
 
 fn impl_select_version_and_user(connection: &mut Connection) -> DbcResult<()> {
@@ -91,7 +91,7 @@ fn impl_select_version_and_user(connection: &mut Connection) -> DbcResult<()> {
 }
 
 
-fn impl_select_active_objects(connection: &mut Connection) -> DbcResult<()> {
+fn impl_select_active_objects(connection: &mut Connection) -> DbcResult<usize> {
     #[derive(Serialize, Deserialize, Debug)]
     struct ActiveObject {
         package_id: String,
@@ -100,7 +100,7 @@ fn impl_select_active_objects(connection: &mut Connection) -> DbcResult<()> {
         version_id: i32,
         activated_at: LongDate,
         activated_by: String,
-        edit: i32,
+        edit: u8,
         // cdata: String,
         // bdata: Vec<u8>,
         compression_type: Option<i32>,
@@ -110,7 +110,7 @@ fn impl_select_active_objects(connection: &mut Connection) -> DbcResult<()> {
         du_vendor: Option<String>,
         du_version_sp: Option<String>,
         du_version_patch: Option<String>,
-        object_status: i32,
+        object_status: u8,
         change_number: Option<i32>,
         released_at: Option<LongDate>,
     }
@@ -136,7 +136,7 @@ fn impl_select_active_objects(connection: &mut Connection) -> DbcResult<()> {
                 OBJECT_STATUS as \"object_status\", \
                 CHANGE_NUMBER as \"change_number\", \
                 RELEASED_AT as \"released_at\" \
-                 from _SYS_REPO.ACTIVE_OBJECT444", top_n); //.to_string();
+                 from _SYS_REPO.ACTIVE_OBJECT", top_n); //.to_string();
 
     let resultset = try!(connection.execute_statement(stmt, true));
     // info!("ResultSet: {:?}", resultset);
@@ -146,7 +146,7 @@ fn impl_select_active_objects(connection: &mut Connection) -> DbcResult<()> {
     // }
 
     let typed_result: Vec<ActiveObject> = try!(resultset.as_table());
-    // info!("Typed Result: {:?}", typed_result);
+    info!("Typed Result: {:?}", typed_result);
     assert_eq!(typed_result.len(),top_n);
 
     let s = typed_result.get(0).unwrap().activated_at.datetime_utc().format("%Y-%m-%d %H:%M:%S").to_string();
@@ -157,5 +157,5 @@ fn impl_select_active_objects(connection: &mut Connection) -> DbcResult<()> {
 
 
 
-    Ok(())
+    Ok(typed_result.len())
 }
