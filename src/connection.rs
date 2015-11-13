@@ -1,10 +1,9 @@
 use super::protocol::authentication::authenticate_with_scram_sha256;
-use super::protocol::plain_statement;
-
 use super::protocol::lowlevel::init;
 use super::protocol::lowlevel::connect_option::ConnectOption;
-use super::protocol::ResultSet;
 use super::protocol::lowlevel::topology_attribute::TopologyAttr;
+use super::protocol::plain_statement::{self,PlainStatementResult};
+
 use DbcResult;
 
 use chrono::Local;
@@ -64,7 +63,7 @@ impl Connection {
         &(self.topology_attributes)
     }
 
-    pub fn execute_statement(&mut self, stmt: String, auto_commit: bool) -> DbcResult<ResultSet> {
+    pub fn execute_statement(&mut self, stmt: String, auto_commit: bool) -> DbcResult<PlainStatementResult> {
         plain_statement::execute(&mut self.state, stmt, auto_commit)
     }
 }

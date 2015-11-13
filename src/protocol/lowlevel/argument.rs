@@ -8,6 +8,7 @@ use super::part_attributes::PartAttributes;
 use super::partkind::PartKind;
 use super::resultset::ResultSet;
 use super::resultset_metadata::ResultSetMetadata;
+use super::rows_affected::RowsAffected;
 use super::statement_context::StatementContext;
 use super::topology_attribute::TopologyAttr;
 use super::transactionflags::TransactionFlag;
@@ -29,6 +30,7 @@ pub enum Argument {
     ResultSet(Option<ResultSet>),
     ResultSetId(u64),
     ResultSetMetadata(ResultSetMetadata),
+    RowsAffected(Vec<RowsAffected>),
     StatementContext(StatementContext),
     TopologyInformation(Vec<TopologyAttr>),
     TransactionFlags(Vec<TransactionFlag>),
@@ -49,7 +51,7 @@ impl Argument {
         Argument::StatementContext(ref sc) => sc.count(),
         Argument::TopologyInformation(_) => 1,
         Argument::TransactionFlags(ref opts) => opts.len() as i16,
-        Argument::Nil => panic!("count() called on Argument::Nil"),
+        ref a => panic!("count() called on {:?}", a),
     }}
 
     pub fn size(&self, with_padding: bool) -> usize {
@@ -68,7 +70,7 @@ impl Argument {
             &Argument::StatementContext(ref sc) => { size += sc.size(); },
             &Argument::TopologyInformation(ref vec) => {size += 2; for ref attr in vec { size += attr.size(); } },
             &Argument::TransactionFlags(ref vec) => { for opt in vec { size += opt.size(); }},
-            &Argument::Nil => panic!("size() called on Argument::Nil"),
+            ref a => panic!("size() called on {:?}", a),
         }
         if with_padding {
             size += padsize(size);
@@ -104,11 +106,9 @@ impl Argument {
             Argument::FetchSize(fs) => {
                 try!(w.write_u32::<LittleEndian>(fs));
             },
-            Argument::ResultSet(_) => { panic!("encode() called on Argument::ResultSet"); },
             Argument::ResultSetId(rs_id) => {
                 try!(w.write_u64::<LittleEndian>(rs_id));
             },
-            Argument::ResultSetMetadata(_) => { panic!("encode() called on Argument::ResultSetMetadata"); },
             Argument::StatementContext(ref sc) => { try!(sc.encode(w)); },
             Argument::TopologyInformation(ref vec) => {
                 try!(w.write_i16::<LittleEndian>(vec.len() as i16));
@@ -117,7 +117,7 @@ impl Argument {
             Argument::TransactionFlags(ref vec) => {
                 for ref opt in vec { try!(opt.encode(w)); }
             },
-            Argument::Nil => {panic!("encode() called on Argument::Nil")},
+            ref a => {panic!("encode() called on {:?}",a)},
         }
 
         let size = self.size(false);
@@ -189,6 +189,10 @@ pub fn parse( kind: PartKind, attributes: PartAttributes, no_of_args: i32,  arg_
             let rsm = try!(ResultSetMetadata::parse(no_of_args, arg_size as u32, rdr));
             Argument::ResultSetMetadata(rsm)
         },
+        PartKind::RowsAffected => {
+            let v = try!(RowsAffected::parse(no_of_args, rdr));
+            Argument::RowsAffected(v)
+        }
         PartKind::StatementContext => {
             let sc = try!(StatementContext::parse(no_of_args, rdr));
             Argument::StatementContext(sc)

@@ -15,7 +15,6 @@ use hdbconnect::Connection;
 use hdbconnect::DbcResult;
 use hdbconnect::LongDate;
 
-
 #[test]
 pub fn init() {
     use flexi_logger::LogConfig;
@@ -30,27 +29,26 @@ pub fn connect_successfully() {
 
 #[test]
 pub fn connect_wrong_password() {
-    use flexi_logger::LogConfig;
-    flexi_logger::init(LogConfig::new(),Some("warn".to_string())).unwrap();
+    // use flexi_logger::LogConfig;
+    // flexi_logger::init(LogConfig::new(),Some("warn".to_string())).unwrap();
 
     let start = Local::now();
     let (host, port, user, password) = ("wdfd00245307a", "30415", "SYSTEM", "wrong_password");
     let err = hdbconnect::Connection::init(host, port, user, password).err().unwrap();
-    info!("connect as user \"{}\" failed at {}:{} after {} µs with {}.",
+    info!("connect as user \"{}\" with wrong password failed at {}:{} after {} µs with {}.",
           user, host, port, (Local::now() - start).num_microseconds().unwrap(), err.description() );
 }
 
 // cargo test connect_and_select -- --nocapture
 #[test]
 pub fn connect_and_select() {
-    use flexi_logger::LogConfig;
-    //          hdbconnect::protocol::lowlevel::resultset\
-    // hdbconnect::protocol::lowlevel::resultset::deserialize=info,\
-    // hdbconnect::protocol::lowlevel::part=debug,\
-    flexi_logger::init(LogConfig::new(),
-    Some("info,\
-          hdbconnect::protocol::lowlevel::resultset=trace,\
-         ".to_string())).unwrap();
+    // use flexi_logger::LogConfig;
+    // // hdbconnect::protocol::lowlevel::resultset=trace,\
+    // // hdbconnect::protocol::lowlevel::resultset::deserialize=info,\
+    // // hdbconnect::protocol::lowlevel::part=debug,\
+    // flexi_logger::init(LogConfig::new(),
+    // Some("warn,\
+    //      ".to_string())).unwrap();
 
     match impl_connect_and_select() {
         Err(e) => {error!("connect_and_select() failed with {:?}",e); assert!(false)},
@@ -61,7 +59,7 @@ pub fn connect_and_select() {
 fn impl_connect_and_select() -> DbcResult<usize> {
     let mut connection = try!(hdbconnect::Connection::init("wdfd00245307a", "30415", "SYSTEM", "manager"));
     try!(impl_select_version_and_user(&mut connection));
-    impl_select_active_objects(&mut connection)
+    impl_select_many_active_objects(&mut connection)
 }
 
 fn impl_select_version_and_user(connection: &mut Connection) -> DbcResult<()> {
@@ -75,23 +73,18 @@ fn impl_select_version_and_user(connection: &mut Connection) -> DbcResult<()> {
                 FROM SYS.M_DATABASE".to_string();
 
     let typed_result: Vec<VersionAndUser>
-            = try!(try!(connection.execute_statement(stmt, true)).as_table());
-
+            = try!(try!(connection.execute_statement(stmt, true)).as_resultset().into_typed());
 
     assert_eq!(typed_result.len()>0, true);
     let ref s = typed_result.get(0).unwrap().current_user;
     assert_eq!(s, "SYSTEM");
 
-    info!("Typed Result: {:?}", typed_result);
+    debug!("Typed Result: {:?}", typed_result);
     Ok(())
-
-    // let r_as_row: VersionAndUser = try!(resultset.as_row());     // FIXME enable such calls!
-    // let r_as_field:                                              // FIXME enable such calls!
-
 }
 
 
-fn impl_select_active_objects(connection: &mut Connection) -> DbcResult<usize> {
+fn impl_select_many_active_objects(connection: &mut Connection) -> DbcResult<usize> {
     #[derive(Serialize, Deserialize, Debug)]
     struct ActiveObject {
         package_id: String,
@@ -136,26 +129,21 @@ fn impl_select_active_objects(connection: &mut Connection) -> DbcResult<usize> {
                 OBJECT_STATUS as \"object_status\", \
                 CHANGE_NUMBER as \"change_number\", \
                 RELEASED_AT as \"released_at\" \
-                 from _SYS_REPO.ACTIVE_OBJECT", top_n); //.to_string();
+                 from _SYS_REPO.ACTIVE_OBJECT", top_n);
 
-    let resultset = try!(connection.execute_statement(stmt, true));
-    // info!("ResultSet: {:?}", resultset);
+    let resultset = try!(connection.execute_statement(stmt, true)).as_resultset();
+    debug!("ResultSet: {:?}", resultset);
 
-    // for t in resultset.server_processing_times() {
-    //     info!("Server processing time: {} µs", t),
-    // }
+    for t in resultset.server_processing_times() {
+        debug!("Server processing time: {} µs", t);
+    }
 
-    let typed_result: Vec<ActiveObject> = try!(resultset.as_table());
-    info!("Typed Result: {:?}", typed_result);
+    let typed_result: Vec<ActiveObject> = try!(resultset.into_typed());
+    debug!("Typed Result: {:?}", typed_result);
     assert_eq!(typed_result.len(),top_n);
 
     let s = typed_result.get(0).unwrap().activated_at.datetime_utc().format("%Y-%m-%d %H:%M:%S").to_string();
-    info!("Activated_at: {}", s);
-
-
-//assert_eq!(dt.format("%Y-%m-%d %H:%M:%S").to_string(), "2014-11-28 12:00:09");
-
-
+    debug!("Activated_at: {}", s);
 
     Ok(typed_result.len())
 }

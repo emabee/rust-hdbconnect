@@ -12,6 +12,7 @@ pub mod part_attributes;
 pub mod partkind;
 pub mod resultset;
 pub mod resultset_metadata;
+pub mod rows_affected;
 pub mod segment;
 pub mod statement_context;
 pub mod topology_attribute;

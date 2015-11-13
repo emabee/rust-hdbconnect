@@ -1,4 +1,4 @@
-mod deserialize;
+pub mod deserialize;
 
 use {DbcError,DbcResult};
 
@@ -23,7 +23,7 @@ use std::io;
 pub struct ResultSet {
     pub attributes: PartAttributes,
     pub resultset_id: u64,
-    statement_contexts: Vec<StatementContext>,
+    pub statement_contexts: Vec<StatementContext>,
     pub metadata: ResultSetMetadata,
     pub rows: Vec<Row>,
 }
@@ -183,11 +183,34 @@ impl ResultSet {
         Ok(())
     }
 
+
+    // ///
+    pub fn server_processing_times(&self) -> Vec<i64> {
+        self.statement_contexts
+            .iter()
+            .filter(|s: &&StatementContext|{
+                if let Some(_) = s.server_processing_time {
+                    return true
+                } else {
+                    return false
+                }
+            })
+            .map(|s: &StatementContext|{
+                                 if let Some(OptionValue::BIGINT(ref i)) = (&s).server_processing_time.clone() {
+                                     i.clone()
+                                 } else {
+                                     0_i64
+                                 }
+            })
+            .collect()
+    }
+
+
     /// Translates a generic result set into a given type
-    pub fn as_table<T>(self) -> DbcResult<T>
+    pub fn into_typed<T>(self) -> DbcResult<T>
       where T: serde::de::Deserialize
     {
-        trace!("ResultSet::as_table()");
+        trace!("ResultSet::into_typed()");
         let mut deserializer = self::deserialize::RsDeserializer::new(self);
         serde::de::Deserialize::deserialize(&mut deserializer)
     }

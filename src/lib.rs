@@ -18,5 +18,6 @@ pub mod protocol;
 
 
 pub use connection::Connection;
+pub use protocol::plain_statement::PlainStatementResult;
 pub use protocol::lowlevel::longdate::LongDate;
 pub use dbc_error::{DbcError,DbcResult};
