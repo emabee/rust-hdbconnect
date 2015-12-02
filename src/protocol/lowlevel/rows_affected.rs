@@ -1,4 +1,4 @@
-use DbcResult;
+use super::PrtResult;
 
 use byteorder::{LittleEndian,ReadBytesExt};
 use std::io;
@@ -10,7 +10,7 @@ pub enum RowsAffected {
     ExecutionFailed, // -3
 }
 impl RowsAffected {
-    pub fn parse(count: i32, rdr: &mut io::BufRead) -> DbcResult<Vec<RowsAffected>> {
+    pub fn parse(count: i32, rdr: &mut io::BufRead) -> PrtResult<Vec<RowsAffected>> {
         let mut vec = Vec::<RowsAffected>::with_capacity(count as usize);
         for _ in 0..count {
             match try!(rdr.read_i32::<LittleEndian>()) {

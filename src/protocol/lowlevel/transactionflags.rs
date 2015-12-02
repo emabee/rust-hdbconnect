@@ -1,4 +1,4 @@
-use {DbcError,DbcResult};
+use super::{PrtError,PrtResult};
 use super::option_value::OptionValue;
 
 use byteorder::{ReadBytesExt,WriteBytesExt};
@@ -10,16 +10,16 @@ pub struct TransactionFlag {
     pub value: OptionValue,
 }
 impl TransactionFlag {
-    pub fn encode (&self, w: &mut io::Write)  -> DbcResult<()> {
+    pub fn serialize (&self, w: &mut io::Write)  -> PrtResult<()> {
         try!(w.write_i8(self.id.to_i8()));                                      // I1
-        self.value.encode(w)
+        self.value.serialize(w)
     }
 
     pub fn size(&self) -> usize {
         1 + self.value.size()
     }
 
-    pub fn parse(rdr: &mut io::BufRead) -> DbcResult<TransactionFlag> {
+    pub fn parse(rdr: &mut io::BufRead) -> PrtResult<TransactionFlag> {
         let option_id = try!(TransactionFlagId::from_i8(try!(rdr.read_i8())));    // I1
         let value = try!(OptionValue::parse(rdr));
         Ok(TransactionFlag{id: option_id, value: value})
@@ -50,7 +50,7 @@ impl TransactionFlagId {
         }
     }
 
-    fn from_i8(val: i8) -> DbcResult<TransactionFlagId> { match val {
+    fn from_i8(val: i8) -> PrtResult<TransactionFlagId> { match val {
         0 => Ok(TransactionFlagId::RolledBack),
         1 => Ok(TransactionFlagId::Committed),
         2 => Ok(TransactionFlagId::NewIsolationlevel),
@@ -58,6 +58,6 @@ impl TransactionFlagId {
         4 => Ok(TransactionFlagId::WritetransactionStarted),
         5 => Ok(TransactionFlagId::NoWritetransactionStarted),
         6 => Ok(TransactionFlagId::SessionclosingTransactionerror),
-        _ => Err(DbcError::ProtocolError(format!("Invalid value for TransactionFlag detected: {}",val))),
+        _ => Err(PrtError::ProtocolError(format!("Invalid value for TransactionFlag detected: {}",val))),
     }}
 }

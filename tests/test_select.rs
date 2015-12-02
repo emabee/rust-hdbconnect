@@ -25,7 +25,7 @@ pub fn select_variants() {
 
     // hdbconnect::protocol::lowlevel::resultset=trace,\
     // hdbconnect::protocol::lowlevel::part=debug,\
-    // hdbconnect::protocol::plain_statement=trace,\
+    // hdbconnect::protocol::callable_statement=trace,\
     flexi_logger::init(LogConfig::new(),
             Some("info,\
             hdbconnect::protocol::lowlevel::resultset::deserialize=info,\
@@ -38,7 +38,7 @@ pub fn select_variants() {
 }
 
 fn select_variants_impl() -> DbcResult<()> {
-    let mut connection = try!(hdbconnect::Connection::init("wdfd00245307a", "30415", "SYSTEM", "manager"));
+    let mut connection = try!(Connection::new("wdfd00245307a", "30415", "SYSTEM", "manager"));
 
     try!(deser_option_into_option(&mut connection));
     try!(deser_plain_into_plain(&mut connection));
@@ -47,12 +47,14 @@ fn select_variants_impl() -> DbcResult<()> {
     try!(deser_singleline_into_struct(&mut connection));
     try!(deser_singlevalue_into_plain(&mut connection));
     //FIXME deserialization of a single column into a Vec of field (error if rs has multiple cols)
+
+    info!("{} calls to DB were executed", connection.get_call_count());
     Ok(())
 }
 
 fn deser_option_into_option(connection: &mut Connection) -> DbcResult<()> {
     info!("deserialize Option values into Option values, test null and not-null values");
-    clean(connection, vec!("drop table TEST_OPT_OPT"));
+    clean(connection, vec!("drop table TEST_OPT_OPT")).unwrap();
     try!(prepare(connection, vec!(
         "create table TEST_OPT_OPT (F_S NVARCHAR(10), F_I INT, F_D LONGDATE)",
         "insert into TEST_OPT_OPT (F_S) values('hello')",
@@ -68,9 +70,8 @@ fn deser_option_into_option(connection: &mut Connection) -> DbcResult<()> {
         F_D: Option<LongDate>,
     }
 
-    let stmt = "select * from TEST_OPT_OPT".to_string();
-
-    let resultset = try!(connection.execute_statement(stmt, true)).as_resultset();
+    let callable_stmt = try!(connection.prepare_call(String::from("select * from TEST_OPT_OPT")));
+    let resultset = try!(callable_stmt.execute_rs(true));
     let typed_result: Vec<TestStruct> = try!(resultset.into_typed());
 
     debug!("Typed Result: {:?}", typed_result);
@@ -80,7 +81,7 @@ fn deser_option_into_option(connection: &mut Connection) -> DbcResult<()> {
 
 fn deser_plain_into_plain(connection: &mut Connection) -> DbcResult<()> {
     info!("deserialize plain values into plain values");
-    clean(connection, vec!("drop table TEST_PLAIN_PLAIN"));
+    clean(connection, vec!("drop table TEST_PLAIN_PLAIN")).unwrap();
     try!(prepare(connection, vec!(
         "create table TEST_PLAIN_PLAIN (F_S NVARCHAR(10) not null, F_I INT not null, F_D LONGDATE not null)",
         "insert into TEST_PLAIN_PLAIN values('hello', 17, '01.01.1900')",
@@ -96,9 +97,8 @@ fn deser_plain_into_plain(connection: &mut Connection) -> DbcResult<()> {
         F_D: LongDate,
     }
 
-    let stmt = "select * from TEST_PLAIN_PLAIN".to_string();
-
-    let resultset = try!(connection.execute_statement(stmt, true)).as_resultset();
+    let callable_stmt = try!(connection.prepare_call(String::from("select * from TEST_PLAIN_PLAIN")));
+    let resultset = try!(callable_stmt.execute_rs(true));
     debug!("ResultSet: {:?}", resultset);
 
     let typed_result: Vec<TestStruct> = try!(resultset.into_typed());
@@ -110,7 +110,7 @@ fn deser_plain_into_plain(connection: &mut Connection) -> DbcResult<()> {
 
 fn deser_plain_into_option(connection: &mut Connection) -> DbcResult<()> {
     info!("deserialize plain values into Option values");
-    clean(connection, vec!("drop table TEST_PLAIN_OPT"));
+    clean(connection, vec!("drop table TEST_PLAIN_OPT")).unwrap();
     try!(prepare(connection, vec!(
         "create table TEST_PLAIN_OPT (F_S NVARCHAR(10) not null, F_I INT not null, F_D LONGDATE not null)",
         "insert into TEST_PLAIN_OPT values('hello', 17, '01.01.1900')",
@@ -126,9 +126,8 @@ fn deser_plain_into_option(connection: &mut Connection) -> DbcResult<()> {
         F_D: Option<LongDate>,
     }
 
-    let stmt = "select * from TEST_PLAIN_OPT".to_string();
-
-    let resultset = try!(connection.execute_statement(stmt, true)).as_resultset();
+    let callable_stmt = try!(connection.prepare_call(String::from("select * from TEST_PLAIN_OPT")));
+    let resultset = try!(callable_stmt.execute_rs(true));
     debug!("ResultSet: {:?}", resultset);
 
     let typed_result: Vec<TestStruct> = try!(resultset.into_typed());
@@ -142,7 +141,7 @@ fn deser_plain_into_option(connection: &mut Connection) -> DbcResult<()> {
 #[allow(unreachable_code)]
 fn deser_option_into_plain(connection: &mut Connection) -> DbcResult<()> {
     info!("deserialize Option values into plain values, test not-null values; test that null values fail");
-    clean(connection, vec!("drop table TEST_OPT_PLAIN"));
+    clean(connection, vec!("drop table TEST_OPT_PLAIN")).unwrap();
     try!(prepare(connection, vec!(
         "create table TEST_OPT_PLAIN (F_S NVARCHAR(10), F_I INT, F_D LONGDATE)",
     )));
@@ -162,8 +161,8 @@ fn deser_option_into_plain(connection: &mut Connection) -> DbcResult<()> {
         "insert into TEST_OPT_PLAIN values('world', 19, '01.01.2100')",
     )));
 
-    let stmt = "select * from TEST_OPT_PLAIN".to_string();
-    let resultset = try!(connection.execute_statement(stmt, true)).as_resultset();
+    let callable_stmt = try!(connection.prepare_call(String::from("select * from TEST_OPT_PLAIN")));
+    let resultset = try!(callable_stmt.execute_rs(true));
     let typed_result: Vec<TestStruct> = try!(resultset.into_typed());
 
     debug!("Typed Result: {:?}", typed_result);
@@ -175,7 +174,8 @@ fn deser_option_into_plain(connection: &mut Connection) -> DbcResult<()> {
         "insert into TEST_OPT_PLAIN (F_I) values(17)",
     )));
     let stmt = "select * from TEST_OPT_PLAIN".to_string();
-    let resultset = try!(connection.execute_statement(stmt, true)).as_resultset();
+    let callable_stmt = try!(connection.prepare_call(stmt));
+    let resultset = try!(callable_stmt.execute_rs(true));
 
     let typed_result: Vec<TestStruct> = match resultset.into_typed() {
         Ok(tr) => {panic!("deserialization of null values to plain data fields did not fail");tr},
@@ -187,7 +187,7 @@ fn deser_option_into_plain(connection: &mut Connection) -> DbcResult<()> {
 #[allow(unreachable_code)]
 fn deser_singleline_into_struct(connection: &mut Connection) -> DbcResult<()> {
     info!("deserialize a single-line resultset into a struct; test that multi-line resultsets fail");
-    clean(connection, vec!("drop table TEST_SINGLE_LINE"));
+    clean(connection, vec!("drop table TEST_SINGLE_LINE")).unwrap();
     try!(prepare(connection, vec!(
         "create table TEST_SINGLE_LINE (O_S NVARCHAR(10), O_I INT, O_D LONGDATE)",
         "insert into TEST_SINGLE_LINE (O_S) values('hello')",
@@ -204,15 +204,16 @@ fn deser_singleline_into_struct(connection: &mut Connection) -> DbcResult<()> {
     }
 
     // first part: single line works
-    let stmt = "select * from TEST_SINGLE_LINE where O_S = 'hello'".to_string();
-    let resultset = try!(connection.execute_statement(stmt, true)).as_resultset();
+    let stmt = String::from("select * from TEST_SINGLE_LINE where O_S = 'hello'");
+    let callable_stmt = try!(connection.prepare_call(stmt));
+    let resultset = try!(callable_stmt.execute_rs(true));
     assert_eq!(resultset.rows.len(),1);
     let typed_result: TestStruct = try!(resultset.into_typed());
     debug!("Typed Result: {:?}", typed_result);
 
     // second part: multi-line fails
-    let stmt = "select * from TEST_SINGLE_LINE".to_string();
-    let resultset = try!(connection.execute_statement(stmt, true)).as_resultset();
+    let callable_stmt = try!(connection.prepare_call(String::from("select * from TEST_SINGLE_LINE")));
+    let resultset = try!(callable_stmt.execute_rs(true));
     assert_eq!(resultset.rows.len(),3);
     let typed_result: TestStruct = match resultset.into_typed() {
         Ok(tr) => {panic!("deserialization of a multiline resultset to a plain struct did not fail");tr},
@@ -225,7 +226,7 @@ fn deser_singleline_into_struct(connection: &mut Connection) -> DbcResult<()> {
 fn deser_singlevalue_into_plain(connection: &mut Connection) -> DbcResult<()> {
     info!("deserialize a single-value resultset into a plain field; \
            test that multi-line and/or multi-column resultsets fail");
-    clean(connection, vec!("drop table TEST_SINGLE_VALUE"));
+    clean(connection, vec!("drop table TEST_SINGLE_VALUE")).unwrap();
     try!(prepare(connection, vec!(
         "create table TEST_SINGLE_VALUE (O_S NVARCHAR(10), O_I INT, O_D LONGDATE)",
         "insert into TEST_SINGLE_VALUE (O_S) values('hello')",
@@ -234,14 +235,16 @@ fn deser_singlevalue_into_plain(connection: &mut Connection) -> DbcResult<()> {
     )));
 
     // first part: single value should work
-    let stmt = "select count(*) from TEST_SINGLE_VALUE".to_string();
-    let resultset = try!(connection.execute_statement(stmt, true)).as_resultset();
+    let stmt = String::from("select count(*) from TEST_SINGLE_VALUE");
+    let callable_stmt = try!(connection.prepare_call(stmt));
+    let resultset = try!(callable_stmt.execute_rs(true));
     let typed_result: i64 = try!(resultset.into_typed());
     debug!("Typed Result: {:?}", typed_result);
 
     // second part: multi col or multi rows should not work
-    let stmt = "select TOP 3 O_S, O_D from TEST_SINGLE_VALUE".to_string();
-    let resultset = try!(connection.execute_statement(stmt, true)).as_resultset();
+    let stmt = String::from("select TOP 3 O_S, O_D from TEST_SINGLE_VALUE");
+    let callable_stmt = try!(connection.prepare_call(stmt));
+    let resultset = try!(callable_stmt.execute_rs(true));
     let typed_result: i64 = match resultset.into_typed() {
         Ok(tr) => {
             error!("Typed Result: {:?}", tr);
@@ -252,17 +255,19 @@ fn deser_singlevalue_into_plain(connection: &mut Connection) -> DbcResult<()> {
     };
 }
 
-
-#[allow(unused_must_use)]
-fn clean(connection: &mut Connection, clean: Vec<&str>) {
+fn clean(connection: &mut Connection, clean: Vec<&str>) -> DbcResult<()> {
     for s in clean {
-        connection.execute_statement(s.to_string(), true);
+        match try!(connection.prepare_call(String::from(s))).execute(true) {
+            Ok(_) => {},
+            Err(_) => {},
+        }
     }
+    Ok(())
 }
 
 fn prepare(connection: &mut Connection, prep: Vec<&str>) -> DbcResult<()> {
     for s in prep {
-        try!(connection.execute_statement(s.to_string(), true));
+        try!(try!(connection.prepare_call(String::from(s))).execute(true));
     }
     Ok(())
 }

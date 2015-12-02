@@ -1,4 +1,4 @@
-use DbcResult;
+use super::PrtResult;
 use super::partkind::PartKind;
 use super::part::Part;
 
@@ -8,15 +8,18 @@ use std::iter::repeat;
 
 
 /// Write a byte vec to a Write impl
-pub fn encode_bytes(v: &[u8], w: &mut io::Write) -> DbcResult<()> {
+pub fn serialize_bytes(v: &[u8], w: &mut io::Write) -> PrtResult<()> {
     for b in v {try!(w.write_u8(*b));}
     Ok(())
 }
 
 /// Read n bytes from a BufRead, return as Vec<u8>
-pub fn parse_bytes(len: usize, rdr: &mut io::BufRead) -> DbcResult<Vec<u8>> {
+pub fn parse_bytes(len: usize, rdr: &mut io::BufRead) -> PrtResult<Vec<u8>> {
     let mut vec: Vec<u8> = repeat(0u8).take(len).collect();
-    try!(rdr.read(&mut vec[..]));
+    let mut read = 0;
+    while read < len {
+        read += try!(rdr.read(&mut vec[read..]));
+    }
     Ok(vec)
 }
 
@@ -25,7 +28,7 @@ pub fn string_to_cesu8(s: &String) -> Vec<u8> {
     to_cesu8(s).to_vec()
 }
 
-pub fn cesu8_to_string(v: &Vec<u8>) -> DbcResult<String> {
+pub fn cesu8_to_string(v: &Vec<u8>) -> PrtResult<String> {
     let cow = try!(from_cesu8(v));
     Ok(String::from(&*cow))
 }
@@ -217,8 +220,12 @@ pub fn from_cesu8(bytes: &[u8]) -> Result<Cow<str>, Cesu8DecodingError> {
             if decode_from_iter(&mut decoded, &mut bytes.iter()) {
                 // We can remove this assertion if we trust our decoder.
                 assert!(str::from_utf8(&decoded[..]).is_ok());
-                Ok(Cow::Owned(unsafe { String::from_utf8_unchecked(decoded) }))
+                Ok(Cow::Owned(unsafe {
+                    let s = String::from_utf8_unchecked(decoded);
+                    trace!("util::from_cesu8(): {}", s);                    
+                    s }))
             } else {
+                trace!("util::from_cesu8() failed for {:?}", bytes);
                 Err(Cesu8DecodingError)
             }
         }

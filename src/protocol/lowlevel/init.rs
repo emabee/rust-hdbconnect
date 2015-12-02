@@ -1,9 +1,9 @@
-use DbcResult;
+use super::PrtResult;
 use byteorder::{BigEndian,LittleEndian,ReadBytesExt,WriteBytesExt};
 use std::io;
 use std::net::TcpStream;
 
-pub fn send_and_receive(stream: &mut TcpStream) -> DbcResult<(i8,i16)> {
+pub fn send_and_receive(stream: &mut TcpStream) -> PrtResult<(i8,i16)> {
     trace!("Entering send_and_receive()");
     try!(send(stream));
 
@@ -11,7 +11,7 @@ pub fn send_and_receive(stream: &mut TcpStream) -> DbcResult<(i8,i16)> {
     receive(&mut rdr)
 }
 
-fn send(w: &mut io::Write) -> DbcResult<()> {
+fn send(w: &mut io::Write) -> PrtResult<()> {
     trace!("Entering send()");
     let mut b = Vec::<u8>::with_capacity(14);
     try!(b.write_i32::<BigEndian>(-1));     // I4    Filler xFFFFFFFF
@@ -29,7 +29,7 @@ fn send(w: &mut io::Write) -> DbcResult<()> {
     Ok(())
 }
 
-fn receive(rdr: &mut io::BufRead) -> DbcResult<(i8,i16)> {
+fn receive(rdr: &mut io::BufRead) -> PrtResult<(i8,i16)> {
     trace!("Entering receive()");
     let major: i8 = try!(rdr.read_i8());                    // I1    Major Product Version
     let minor: i16 = try!(rdr.read_i16::<LittleEndian>());  // I2    Minor Product Version

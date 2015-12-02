@@ -4,15 +4,13 @@
 
 //! Deserialize a ResultSet into a normal rust type.
 
-use dbc_error::{DbcError, DCode, DbcResult};
 use protocol::lowlevel::resultset::ResultSet;
-use protocol::lowlevel::longdate::LongDate;
+use types::longdate::LongDate;
 use protocol::lowlevel::typed_value::TypedValue;
+use super::deser_error::{DeserError,DeserResult};
 
 use serde;
 use std::mem::swap;
-
-
 
 
 /// Deserialize a ResultSet into a normal rust type.
@@ -38,7 +36,7 @@ use std::mem::swap;
 ///
 /// ```ignore
 ///         // Translates a generic result set into a given type
-///         pub fn into_typed<T>(self) -> DbcResult<T>
+///         pub fn into_typed<T>(self) -> DeserResult<T>
 ///           where T: serde::de::Deserialize
 ///         {
 ///             trace!("ResultSet::into_typed()");
@@ -128,69 +126,66 @@ impl RsDeserializer {
         }
     }
 
-    fn current_value_pop(&mut self) -> DbcResult<TypedValue> {
+    fn current_value_pop(&mut self) -> DeserResult<TypedValue> {
         try!(self.value_deserialization_allowed());
         match self.rs.rows.last_mut() {
-            None => Err(prog_error("no row found in resultset".to_string())),
+            None => Err(DeserError::ProgramError("no row found in resultset".to_string())),
             Some(row) => {
                 match row.values.pop() {
                     Some(tv) => Ok(tv),
-                    None => Err(prog_error("no column found in row".to_string())),
+                    None => Err(DeserError::ProgramError("no column found in row".to_string())),
                 }
             },
         }
     }
 
-    fn current_value_ref(&self) -> DbcResult<&TypedValue> {
+    fn current_value_ref(&self) -> DeserResult<&TypedValue> {
         try!(self.value_deserialization_allowed());
         match self.rs.rows.last() {
-            None => Err(prog_error("no row found in resultset".to_string())),
+            None => Err(DeserError::ProgramError("no row found in resultset".to_string())),
             Some(row) => {
                 match row.values.last() {
                     Some(tv) => Ok(tv),
-                    None => Err(prog_error("no column found in row".to_string())),
+                    None => Err(DeserError::ProgramError("no column found in row".to_string())),
                 }
             },
         }
     }
 
-    fn value_deserialization_allowed(&self) -> DbcResult<()> {
+    fn value_deserialization_allowed(&self) -> DeserResult<()> {
         match self.rows_treat {
-            MCD::Must => Err(deser_error(DCode::TrailingRows)),
-            _ => {
-                match self.cols_treat {
-                    MCD::Must => Err(deser_error(DCode::TrailingCols)),
+            MCD::Must => Err(DeserError::TrailingRows),
+            _ => match self.cols_treat {
+                    MCD::Must => Err(DeserError::TrailingCols),
                     _ => Ok(()),
-                }
             }
         }
     }
 
-    fn wrong_type(&self, tv: &TypedValue, ovt: &str)-> DbcError {
+    fn wrong_type(&self, tv: &TypedValue, ovt: &str)-> DeserError {
         let fieldname = self.rs.get_fieldname(self.rs.rows.last().unwrap().values.len()).unwrap();
-        let s = format!("The result value {:?} in column {} cannot be deserialized \
-                         into a field of type {}", tv, fieldname, ovt);
-        DbcError::DeserializationError(DCode::WrongValueType(s))
+        DeserError::WrongValueType(format!("The result value {:?} in column {} cannot be deserialized \
+                         into a field of type {}", tv, fieldname, ovt))
     }
 }
 
 
 impl serde::de::Deserializer for RsDeserializer {
-    type Error = DbcError;
+    type Error = DeserError;
 
     #[inline]
-    fn visit<V>(&mut self, mut visitor: V) -> DbcResult<V::Value>
+    fn visit<V>(&mut self, mut visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor,
     {
-        trace!("RsDeserializer::visit(): next_key is {:?}", self.next_key);
         let mut next_key = None;
         swap(&mut next_key, &mut (self.next_key));
         match next_key {
             Some(i) => {
+                trace!("RsDeserializer::visit(): next_key is column {:?} ({})", i, self.rs.get_fieldname(i).unwrap());
                 visitor.visit_str((&self).rs.get_fieldname(i).unwrap())
             },
             None => {
-                return Err(prog_error("DCode::NKNothing in RsDeserializer::visit()".to_string()));
+                return Err(DeserError::ProgramError("Nothing in RsDeserializer::visit()".to_string()));
             },
         }
     }
@@ -382,6 +377,10 @@ impl serde::de::Deserializer for RsDeserializer {
             | TypedValue::N_NSTRING(Some(s))
             | TypedValue::N_SHORTTEXT(Some(s))
             | TypedValue::N_TEXT(Some(s)) => visitor.visit_string(s),
+            TypedValue::CLOB(clob)
+            | TypedValue::NCLOB(clob)
+            | TypedValue::N_CLOB(Some(clob))
+            | TypedValue::N_NCLOB(Some(clob)) => visitor.visit_string(try!(clob.into_string())),
             value => return Err(self.wrong_type(&value, "String")),
         }
     }
@@ -475,7 +474,7 @@ impl serde::de::Deserializer for RsDeserializer {
             tv => {
                 let s = format!("the deserialization of the result value {:?}  \
                                  into an option field is not yet implemented", tv);
-                return Err(DbcError::DeserializationError(DCode::ProgramError(s)));
+                return Err(DeserError::ProgramError(s));
             }
         };
 
@@ -495,7 +494,7 @@ impl serde::de::Deserializer for RsDeserializer {
         trace!("RsDeserializer::visit_seq() called");
 
         match self.rows_treat {
-            MCD::Done => Err(prog_error("double-nesting (Vec<Vec<_>>) not possible".to_string())),
+            MCD::Done => Err(DeserError::ProgramError("double-nesting (Vec<Vec<_>>) not possible".to_string())),
             _ => {
                 self.rows_treat = MCD::Done;
                 visitor.visit_seq(RowVisitor::new(self))
@@ -511,7 +510,7 @@ impl serde::de::Deserializer for RsDeserializer {
     {
         trace!("RsDeserializer::visit_map() called!!");
         match self.cols_treat {
-            MCD::Done => Err(prog_error("double-nesting (struct in struct) not possible".to_string())),
+            MCD::Done => Err(DeserError::ProgramError("double-nesting (struct in struct) not possible".to_string())),
             _ => {
                 self.cols_treat = MCD::Done;
                 visitor.visit_map(FieldVisitor::new(self))
@@ -539,6 +538,16 @@ impl serde::de::Deserializer for RsDeserializer {
         where V: serde::de::Visitor
     {
         trace!("RsDeserializer::visit_newtype_struct() called with _name = {}", _name);
+        // FIXME BLOB handling
+        // trace!("RsDeserializer::visit_i64() called");
+        // match try!(self.current_value_pop()) {
+        //     TypedValue::BIGINT(i)
+        //     | TypedValue::LONGDATE(LongDate(i))
+        //     | TypedValue::N_BIGINT(Some(i))
+        //     | TypedValue::N_LONGDATE(Some(LongDate(i))) => visitor.visit_i64(i),
+        //     value => return Err(self.wrong_type(&value, "i64")),
+        // }
+
         visitor.visit_newtype_struct(self)
     }
 
@@ -567,7 +576,7 @@ impl serde::de::Deserializer for RsDeserializer {
     {
         trace!("RsDeserializer::visit_struct() called");
         match self.rows_treat {
-            MCD::Must => Err(deser_error(DCode::TrailingRows)),
+            MCD::Must => Err(DeserError::TrailingRows),
             _ => self.visit_map(visitor),
         }
     }
@@ -581,20 +590,6 @@ impl serde::de::Deserializer for RsDeserializer {
         trace!("RsDeserializer::visit_tuple() called");
         self.visit_seq(visitor)
     }
-
-    // /// This method hints that the `Deserialize` type is expecting an enum value. This allows
-    // /// deserializers that provide a custom enumeration serialization to properly deserialize the
-    // /// type.
-    // #[inline]
-    // fn visit_enum<V>(&mut self,
-    //                  _enum: &'static str,
-    //                  _variants: &'static [&'static str],
-    //                  _visitor: V) -> Result<V::Value, Self::Error>
-    //     where V: serde::de::EnumVisitor,
-    // {
-    //     trace!("RsDeserializer::visit_enum() called");
-    //     Err(DbcError::DeserializationError(DCode::ProgramError("expected an enum".to_string())))
-    // }
 
     /// This method hints that the `Deserialize` type is expecting a `Vec<u8>`. This allows
     /// deserializers that provide a custom byte vector serialization to properly deserialize the
@@ -622,9 +617,9 @@ impl<'a> RowVisitor<'a> {
 }
 
 impl<'a> serde::de::SeqVisitor for RowVisitor<'a> {
-    type Error = DbcError;
+    type Error = DeserError;
 
-    fn visit<T>(&mut self) -> DbcResult<Option<T>>
+    fn visit<T>(&mut self) -> DeserResult<Option<T>>
         where T: serde::de::Deserialize,
     {
         let len = self.de.rs.rows.len();
@@ -643,12 +638,12 @@ impl<'a> serde::de::SeqVisitor for RowVisitor<'a> {
         }
     }
 
-    fn end(&mut self) -> DbcResult<()> {
+    fn end(&mut self) -> DeserResult<()> {
         let len = self.de.rs.rows.len();
         trace!("RowVisitor::end()");
         match len {
             0 => { Ok(()) },
-            _ => { Err(deser_error(DCode::TrailingRows)) },
+            _ => { Err(DeserError::TrailingRows) },
         }
     }
 }
@@ -665,9 +660,9 @@ impl<'a> FieldVisitor<'a> {
 }
 
 impl<'a> serde::de::MapVisitor for FieldVisitor<'a> {
-    type Error = DbcError;
+    type Error = DeserError;
 
-    fn visit_key<K>(&mut self) -> DbcResult<Option<K>>
+    fn visit_key<K>(&mut self) -> DeserResult<Option<K>>
         where K: serde::de::Deserialize
     {
         match self.de.rs.rows.last_mut().unwrap().values.len() {
@@ -680,18 +675,18 @@ impl<'a> serde::de::MapVisitor for FieldVisitor<'a> {
                     Ok(res) => Ok(Some(res)),
                     Err(_) => {
                         let fname = self.de.rs.get_fieldname(idx).unwrap().to_string();
-                        Err(DbcError::DeserializationError(DCode::MissingField(fname)))
+                        Err(DeserError::MissingField(fname))
                     },
                 }
             },
         }
     }
 
-    fn visit_value<V>(&mut self) -> DbcResult<V>
+    fn visit_value<V>(&mut self) -> DeserResult<V>
         where V: serde::de::Deserialize,
     {
         match self.de.rs.rows.last().unwrap().values.len() {
-            0 => Err(deser_error(DCode::NoMoreCols)),
+            0 => Err(DeserError::ProgramError("no more value in FieldVisitor::visit_value()".to_string())),
             len => {
                 trace!("FieldVisitor::visit_value() for col {}", len-1);
                 let tmp = try!(serde::de::Deserialize::deserialize(self.de));
@@ -700,7 +695,7 @@ impl<'a> serde::de::MapVisitor for FieldVisitor<'a> {
         }
     }
 
-    fn end(&mut self) -> DbcResult<()> {
+    fn end(&mut self) -> DeserResult<()> {
         trace!("FieldVisitor::end()");
         match self.de.rs.rows.last().unwrap().values.len() {
             0 => {
@@ -712,82 +707,7 @@ impl<'a> serde::de::MapVisitor for FieldVisitor<'a> {
                 };
                 Ok(())
             },
-            _ => { Err(deser_error(DCode::TrailingCols)) },
+            _ => { Err(DeserError::TrailingCols) },
         }
-    }
-}
-
-fn prog_error(s: String) -> DbcError {
-    deser_error(DCode::ProgramError(s))
-}
-
-fn deser_error(code: DCode) -> DbcError {
-    DbcError::deserialization_error(code)
-}
-
-
-#[cfg(test)]
-mod tests {
-    use super::super::{ResultSet,Row};
-    use super::super::super::part_attributes::PartAttributes;
-    use super::super::super::resultset_metadata::{FieldMetadata,ResultSetMetadata};
-    use super::super::super::statement_context::StatementContext;
-    use super::super::super::typed_value::TypedValue;
-    use super::super::super::super::super::dbc_error::DbcResult;
-
-    use vec_map::VecMap;
-
-    #[allow(non_snake_case)]
-    #[derive(Debug, PartialEq, Serialize, Deserialize)]
-    pub struct VersionAndUser {
-//      VERSION is nullable
-        // VERSION: Option<String>, // works
-        VERSION: String,         // work as long as no nulls are coming
-
-//      CURRENT_USER is not-nullable
-        //CURRENT_USER: String,    // works
-        CURRENT_USER: Option<String> // works as well
-    }
-
-
-    // cargo test protocol::lowlevel::resultset::deserialize::tests::test_from_resultset -- --nocapture
-    #[test]
-    fn test_from_resultset() {
-        // use flexi_logger;
-        // flexi_logger::init(flexi_logger::LogConfig::new(),
-        //         Some("error,\
-        //               hdbconnect::protocol::lowlevel::resultset=trace,\
-        //               ".to_string())).unwrap();
-
-        let resultset = some_resultset();
-        let result: DbcResult<Vec<VersionAndUser>> = resultset.into_typed();
-        //  let result: DbcResult<VersionAndUser> = resultset.into_typed();
-
-        match result {
-            Ok(table_content) => info!("ResultSet successfully evaluated: {:?}", table_content),
-            Err(e) => {info!("Got an error: {:?}", e); assert!(false)}
-        }
-    }
-
-
-    fn some_resultset() -> ResultSet {
-        const NIL: u32 = 4294967295_u32;
-        let mut rsm = ResultSetMetadata {
-            fields: Vec::<FieldMetadata>::new(),
-            names: VecMap::<String>::new(),
-        };
-        rsm.fields.push( FieldMetadata::new( 2,  9_u8, 0_i16,  32_i16, 0_u32, NIL, 12_u32, 12_u32 ).unwrap() );
-        rsm.fields.push( FieldMetadata::new( 1, 11_u8, 0_i16, 256_i16,   NIL, NIL,    NIL, 20_u32 ).unwrap() );
-
-        rsm.names.insert( 0_usize,"M_DATABASE_".to_string());
-        rsm.names.insert(12_usize,"VERSION".to_string());
-        rsm.names.insert(20_usize,"CURRENT_USER".to_string());
-
-        let mut resultset = ResultSet::new(PartAttributes::new(0), 0_u64, StatementContext::new(), rsm);
-        resultset.rows.push(Row{values: vec!(
-            TypedValue::N_VARCHAR(Some("1.50.000.01.1437580131".to_string())),
-            TypedValue::NVARCHAR("SYSTEM".to_string())
-        )});
-        resultset
     }
 }

@@ -1,5 +1,6 @@
 #![feature(custom_derive, plugin)]  // necessary for serde
 #![feature(associated_consts)]      // necessary for local consts
+#![feature(read_exact)]             // additional io error kind
 #![plugin(serde_macros)]
 
 extern crate byteorder;
@@ -12,12 +13,17 @@ extern crate rand;
 extern crate serde;
 extern crate vec_map;
 
+
+pub mod callable_statement;
 pub mod connection;
 pub mod dbc_error;
+
 pub mod protocol;
+pub mod rs_serde;
+pub mod types;
 
 
 pub use connection::Connection;
-pub use protocol::plain_statement::PlainStatementResult;
-pub use protocol::lowlevel::longdate::LongDate;
+pub use callable_statement::CallableStatementResult;
+pub use types::longdate::LongDate;
 pub use dbc_error::{DbcError,DbcResult};

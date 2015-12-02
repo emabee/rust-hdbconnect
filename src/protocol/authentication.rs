@@ -1,8 +1,8 @@
-use DbcResult;
-
+use super::protocol_error::{PrtError,PrtResult};
 use super::lowlevel::argument::Argument;
 use super::lowlevel::authfield::AuthField;
 use super::lowlevel::clientcontext_option::{CcOption,CcOptionId};
+use super::lowlevel::conn_core::ConnRef;
 use super::lowlevel::connect_option::{ConnectOption,ConnectOptionId};
 use super::lowlevel::message::Message;
 use super::lowlevel::option_value::OptionValue;
@@ -15,7 +15,6 @@ use super::lowlevel::util;
 use byteorder::{LittleEndian,ReadBytesExt,WriteBytesExt};
 use rand::{Rng,thread_rng};
 use std::io::{self,Read};
-use std::net::TcpStream;
 
 use std::iter::repeat;
 use crypto::hmac::Hmac;
@@ -23,25 +22,25 @@ use crypto::mac::Mac;
 use crypto::digest::Digest;
 use crypto::sha2::Sha256;
 
+// FIXME we do too much clone/copy here - working with slices and references should be possible
 
 /// authenticate with the scram_sha256 method
-pub fn authenticate_with_scram_sha256(tcp_stream: &mut TcpStream, username: &str, password: &str)
-    -> DbcResult<(Vec<ConnectOption>,Vec<TopologyAttr>,i64)> {
-    trace!("Entering scram_sha256()");
+pub fn authenticate(conn_ref: &ConnRef, username: &str, password: &str)
+-> PrtResult<(Vec<ConnectOption>,Vec<TopologyAttr>)> {
+    trace!("Entering authenticate()");
 
     let client_challenge = create_client_challenge();
-    let response1 = try!(build_auth1_request(&client_challenge, username).send_and_receive(&mut None, tcp_stream));
-    let server_challenge: Vec<u8> = get_server_challenge(response1);
+    let response1 = try!(build_auth1_request(&client_challenge, username).send_and_receive(&mut None, conn_ref));
+    let server_challenge: Vec<u8> = try!(get_server_challenge(response1));
     let client_proof = try!(calculate_client_proof(server_challenge, client_challenge, password));
-    let response2 = try!(build_auth2_request(&client_proof, username).send_and_receive(&mut None, tcp_stream));
+    let response2 = try!(build_auth2_request(&client_proof, username).send_and_receive(&mut None, conn_ref));
+    conn_ref.borrow_mut().session_id = response2.session_id;
     evaluate_resp2(response2)
 }
 
 /// Build the auth1-request: message_header + (segment_header + (part1+options) + (part2+authrequest)
-/// the md5 stuff seems obsolete!
 fn build_auth1_request (chllng_sha256: &Vec<u8>, username: &str) -> Message {
     trace!("Entering auth1_request()");
-    let mut message = Message::new(-1i64, 0i32);
 
     let mut cc_options = Vec::<CcOption>::new();
     cc_options.push( CcOption {
@@ -59,17 +58,18 @@ fn build_auth1_request (chllng_sha256: &Vec<u8>, username: &str) -> Message {
 
     let part1 = Part::new(PartKind::ClientContext, Argument::CcOptions(cc_options));
 
-    let mut auth_fields = Vec::<AuthField>::with_capacity(5);
-    auth_fields.push(AuthField {v: username.as_bytes().to_vec() });
-    auth_fields.push(AuthField {v: b"SCRAMSHA256".to_vec() });
-    auth_fields.push(AuthField {v: chllng_sha256.clone() });
+    let mut auth_fields = Vec::<AuthField>::with_capacity(3);
+    auth_fields.push( AuthField(username.as_bytes().to_vec()) );
+    auth_fields.push( AuthField(b"SCRAMSHA256".to_vec()) );
+    auth_fields.push( AuthField(chllng_sha256.clone()) );
 
     let part2 = Part::new(PartKind::Authentication, Argument::Auth(auth_fields));
 
-    let mut segment = segment::new_request_seg(segment::MessageType::Authenticate,true);
+    let mut segment = segment::new_request_seg(segment::MessageType::Authenticate, true, 0);
     segment.push(part1);
     segment.push(part2);
 
+    let mut message = Message::new();
     message.segments.push(segment);
     trace!("Message: {:?}", message);
     message
@@ -77,13 +77,12 @@ fn build_auth1_request (chllng_sha256: &Vec<u8>, username: &str) -> Message {
 
 fn build_auth2_request (client_proof: &Vec<u8>, username: &str) -> Message {
     trace!("Entering auth2_request()");
-    let mut message = Message::new(0i64, 1i32);
-    let mut segment = segment::new_request_seg(segment::MessageType::Connect, true);
+    let mut segment = segment::new_request_seg(segment::MessageType::Connect, true, 0);
 
     let mut auth_fields = Vec::<AuthField>::with_capacity(3);
-    auth_fields.push(AuthField {v: username.as_bytes().to_vec() });
-    auth_fields.push(AuthField {v: b"SCRAMSHA256".to_vec() });
-    auth_fields.push(AuthField {v: client_proof.clone() });
+    auth_fields.push( AuthField(username.as_bytes().to_vec()) );
+    auth_fields.push( AuthField(b"SCRAMSHA256".to_vec()) );
+    auth_fields.push( AuthField(client_proof.clone()) );
     segment.push(Part::new(PartKind::Authentication, Argument::Auth(auth_fields)));
     segment.push(Part::new(PartKind::ClientID, Argument::ClientID(get_client_id())));
 
@@ -99,6 +98,7 @@ fn build_auth2_request (client_proof: &Vec<u8>, username: &str) -> Message {
     conn_opts.push( ConnectOption{id: ConnectOptionId::RowSlotImageParameter, value: OptionValue::BOOLEAN(true)});
     segment.push(Part::new(PartKind::ConnectOptions, Argument::ConnectOptions(conn_opts)));
 
+    let mut message = Message::new();
     message.segments.push(segment);
     trace!("Message: {:?}", message);
     message
@@ -124,39 +124,49 @@ fn create_client_challenge() -> Vec<u8>{
     client_challenge.to_vec()
 }
 
-fn get_server_challenge(response1: Message) -> Vec<u8> {
+fn get_server_challenge(mut response1: Message) -> PrtResult<Vec<u8>> {
     trace!("Entering get_server_challenge()");
     debug!("Trying to read server_challenge from {:?}", response1);
-    assert!(response1.segments.len() == 1, "Wrong count of segments");
+    if response1.segments.len() != 1 {
+        return Err(PrtError::ProtocolError("Wrong count of segments".to_string()));
+    }
 
-    let segment = response1.segments.get(0).unwrap();
+    let segment = response1.segments.remove(0);
     match (&segment.kind, &segment.function_code) {
         (&segment::Kind::Reply, &Some(segment::FunctionCode::Nil)) => {},
-        _ => {panic!("unexpected segment kind {:?} or function code {:?} at 1", &segment.kind, &segment.function_code)}
+        _ => {
+            return Err(PrtError::ProtocolError(
+                format!("unexpected segment {:?} or function code {:?} at 1", &segment.kind, &segment.function_code)
+            ));
+        },
     }
 
     let part = match util::get_first_part_of_kind(PartKind::Authentication, &segment.parts) {
         Some(idx) => segment.parts.get(idx).unwrap(),
-        None => panic!("no part of kind Authentication"),
+        None => return Err(PrtError::ProtocolError("no part of kind Authentication".to_string())),
     };
 
     if let Argument::Auth(ref vec) = part.arg {
-        let server_challenge = vec.get(1).unwrap().v.clone();
+        let server_challenge = vec.get(1).unwrap().0.clone();
         trace!("Leaving get_server_challenge() with {:?}",&server_challenge);
-        server_challenge
+        Ok(server_challenge)
     } else {
-        panic!("wrong Argument variant");
+        Err(PrtError::ProtocolError("wrong Argument variant".to_string()))
     }
 }
 
-fn evaluate_resp2(response2: Message) -> DbcResult<(Vec<ConnectOption>,Vec<TopologyAttr>,i64)> {
+fn evaluate_resp2(mut response2: Message) -> PrtResult<(Vec<ConnectOption>,Vec<TopologyAttr>)> {
     trace!("Entering evaluate_resp2()");
     assert!(response2.segments.len() == 1, "Wrong count of segments");
 
-    let segment = response2.segments.get(0).unwrap();
+    let segment = response2.segments.pop().unwrap();
     match (&segment.kind, &segment.function_code) {
         (&segment::Kind::Reply, &Some(segment::FunctionCode::Nil)) => {},
-        _ => {panic!("unexpected segment kind {:?} or function code {:?} at 2", &segment.kind, &segment.function_code)}
+        _ => {
+            return Err(PrtError::ProtocolError(
+                format!("unexpected segment {:?} or function code {:?} at 2", &segment.kind, &segment.function_code)
+            ));
+        }
     }
     assert!(segment.parts.len() >= 1, "no part found");
 
@@ -164,22 +174,21 @@ fn evaluate_resp2(response2: Message) -> DbcResult<(Vec<ConnectOption>,Vec<Topol
     let mut conn_opts = Vec::<ConnectOption>::new();
     let mut topo_attrs = Vec::<TopologyAttr>::new();
 
-    // FIXME rather than copying the args, we should consume the original values and hand them out
-    for ref part in &segment.parts {
+    for part in segment.parts {
         match part.kind {
             PartKind::Authentication => {
                 if let Argument::Auth(ref vec) = part.arg {
-                    for b in &(vec.get(0).unwrap()).v { server_proof.push(*b); }
+                    for b in &(vec.get(0).unwrap()).0 { server_proof.push(*b); }
                 }
             },
             PartKind::ConnectOptions => {
-                if let Argument::ConnectOptions(ref vec) = part.arg {
-                    for e in vec { conn_opts.push((*e).clone()); } // FIXME avoid clone
+                if let Argument::ConnectOptions(vec) = part.arg {
+                    for e in vec { conn_opts.push(e); }
                 }
             },
             PartKind::TopologyInformation => {
-                if let Argument::TopologyInformation(ref vec) = part.arg {
-                    for e in vec { topo_attrs.push((*e).clone()); } // FIXME avoid clone
+                if let Argument::TopologyInformation(vec) = part.arg {
+                    for e in vec { topo_attrs.push(e); }
                 }
             },
             pk => {
@@ -188,11 +197,11 @@ fn evaluate_resp2(response2: Message) -> DbcResult<(Vec<ConnectOption>,Vec<Topol
         }
     }
     warn!("still don't know what to do with the server proof: {:?}", server_proof);
-    Ok((conn_opts,topo_attrs,response2.session_id))
+    Ok((conn_opts,topo_attrs))
 }
 
 fn calculate_client_proof(server_challenge: Vec<u8>, client_challenge: Vec<u8>, password: &str)
-                    -> DbcResult<Vec<u8>> {
+-> PrtResult<Vec<u8>> {
     let client_proof_size = 32usize;
     trace!("Entering calculate_client_proof()");
     let (salts,srv_key) = get_salt_and_key(server_challenge).unwrap();
@@ -213,7 +222,7 @@ fn calculate_client_proof(server_challenge: Vec<u8>, client_challenge: Vec<u8>, 
 
 /// Server_challenge is structured itself into fieldcount and fields
 /// the last field is taken as key, all the previous fields are salt (usually 1)
-fn get_salt_and_key(server_challenge: Vec<u8>) -> DbcResult<(Vec<Vec<u8>>,Vec<u8>)> {
+fn get_salt_and_key(server_challenge: Vec<u8>) -> PrtResult<(Vec<Vec<u8>>,Vec<u8>)> {
     trace!("Entering get_salt_and_key()");
     let mut rdr = io::Cursor::new(server_challenge);
     let fieldcount = rdr.read_i16::<LittleEndian>().unwrap();               // I2
@@ -237,7 +246,7 @@ fn get_salt_and_key(server_challenge: Vec<u8>) -> DbcResult<(Vec<Vec<u8>>,Vec<u8
 }
 
 fn scramble(salt: &Vec<u8>, server_key: &Vec<u8>, client_key: &Vec<u8>, password: &str)
-            -> DbcResult<Vec<u8>> {
+            -> PrtResult<Vec<u8>> {
     let length = salt.len() + server_key.len() + client_key.len();
     let mut msg = Vec::<u8>::with_capacity(length);
     for b in salt {msg.push(*b)}

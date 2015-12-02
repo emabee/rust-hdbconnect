@@ -1,16 +1,15 @@
-use DbcResult;
+use super::{PrtError,PrtResult};
 use super::util;
 
 use byteorder::{LittleEndian,ReadBytesExt,WriteBytesExt};
 use std::io;
 
 #[derive(Debug)]
-pub struct AuthField {
-    pub v: Vec<u8>,
-}
+pub struct AuthField (pub Vec<u8>);
+
 impl AuthField {
-    pub fn encode (&self, w: &mut io::Write)  -> DbcResult<()> {
-        match self.v.len() {
+    pub fn serialize (&self, w: &mut io::Write)  -> PrtResult<()> {
+        match self.0.len() {
             l if l <= 250usize => {
                 try!(w.write_u8(l as u8));                              // B1           LENGTH OF VALUE
             },
@@ -19,27 +18,27 @@ impl AuthField {
                 try!(w.write_u16::<LittleEndian>(l as u16));            // U2           LENGTH OF VALUE
             },
             l => {
-                panic!("Value of AuthField is too big: {}",l);
+                return Err(PrtError::ProtocolError(format!("Value of AuthField is too big: {}",l)));
             },
         }
-        util::encode_bytes(&self.v, w)                                  // B variable   VALUE BYTES
+        util::serialize_bytes(&self.0, w)                              // B variable   VALUE BYTES
     }
 
     pub fn size(&self) -> usize {
-        1 + self.v.len()
+        1 + self.0.len()
     }
 
-    pub fn parse(rdr: &mut io::BufRead) -> DbcResult<AuthField> {
+    pub fn parse(rdr: &mut io::BufRead) -> PrtResult<AuthField> {
         let mut len = try!(rdr.read_u8())  as usize;                    // B1
         match len {
             255usize => {
                 len = try!(rdr.read_u16::<LittleEndian>()) as usize;    // (B1+)I2
             },
             251...255 => {
-                panic!("Unknown length indicator for AuthField: {}",len);
+                return Err(PrtError::ProtocolError(format!("Unknown length indicator for AuthField: {}",len)));
             },
             _ => {},
         }
-        Ok(AuthField{v: try!(util::parse_bytes(len,rdr))})
+        Ok(AuthField(try!(util::parse_bytes(len,rdr))))
     }
 }

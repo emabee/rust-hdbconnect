@@ -1,15 +1,15 @@
-use super::protocol::authentication::authenticate_with_scram_sha256;
 use super::protocol::lowlevel::init;
+use super::protocol::lowlevel::conn_core::{ConnectionCore, ConnRef};
 use super::protocol::lowlevel::connect_option::ConnectOption;
 use super::protocol::lowlevel::topology_attribute::TopologyAttr;
-use super::protocol::plain_statement::{self,PlainStatementResult};
 
+use super::protocol::authentication::authenticate;
+use super::callable_statement::CallableStatement;
 use DbcResult;
 
 use chrono::Local;
 use std::net::TcpStream;
 use std::ops::{Add};
-
 
 /// Connection object
 #[derive(Debug)]
@@ -18,44 +18,46 @@ pub struct Connection {
     pub port: String,
     pub major_product_version: i8,
     pub minor_product_version: i16,
-    state: ConnectionState,             //see below
+    core: ConnRef,
     connect_options: Vec<ConnectOption>,
     topology_attributes: Vec<TopologyAttr>,
 }
 
 impl Connection {
     /// static factory: does low-level connect and login
-    pub fn init(host: &str, port: &str, username: &str, password: &str) -> DbcResult<Connection> {
+    pub fn new(host: &str, port: &str, username: &str, password: &str) -> DbcResult<Connection> {
         trace!("Entering connect()");
         let start = Local::now();
-        let connect_string: &str = &(String::with_capacity(200).add(&host).add(":").add(&port));
-        let mut tcpstream = try!(TcpStream::connect(connect_string));
-        trace!("tcpstream is open");
 
-        let (major,minor) = try!(init::send_and_receive(&mut tcpstream));
+        let connect_string = String::with_capacity(200).add(host).add(":").add(port);
+        let mut tcp_stream = try!(TcpStream::connect(&connect_string as &str));
+        trace!("tcp_stream is open");
+
+        let (major,minor) = try!(init::send_and_receive(&mut tcp_stream));
         trace!("connection is initialized");
-        let (connect_options, topology_attributes, session_id) =
-            try!(authenticate_with_scram_sha256(&mut tcpstream, username, password));
-        debug!("successfully logged on as user \"{}\" at {}:{} in  {} µs",
-                username, host, port, (Local::now() - start).num_microseconds().unwrap());
-        Ok( Connection::new(host, port, major, minor, session_id, tcpstream, connect_options, topology_attributes) )
-    }
 
-    fn new( host: &str, port: &str, major: i8, minor: i16,
-            session_id: i64, stream: TcpStream,
-            connect_options: Vec<ConnectOption>, topology_attributes: Vec<TopologyAttr> )
-        -> Connection {
-        Connection {
-            host: String::new().add(host),
-            port: String::new().add(port),
+        let conn_ref = ConnectionCore::new_conn_ref(tcp_stream);
+        let (conn_opts, topology_attrs) = try!(authenticate(&conn_ref, username, password));
+        let delta = match (Local::now() - start).num_microseconds() {Some(m) => m, None => -1};
+        debug!("successfully logged on as user \"{}\" at {}:{} in  {} µs", username, host, port, delta);
+
+        Ok(Connection {
+            host: String::from(host),
+            port: String::from(port),
             major_product_version: major,
             minor_product_version: minor,
-            state: ConnectionState::new( session_id, stream),
-            connect_options: connect_options,
-            topology_attributes: topology_attributes
-        }
+            core: conn_ref,
+            connect_options: conn_opts,
+            topology_attributes: topology_attrs
+        })
     }
 
+    pub fn set_fetch_size(&mut self, fetch_size: u32) {
+        self.core.borrow_mut().set_fetch_size(fetch_size);
+    }
+    pub fn get_call_count(&self) -> i32 {
+        self.core.borrow().last_seq_number()
+    }
     pub fn get_connect_options(&self) -> &Vec<ConnectOption> {
         &(self.connect_options)
     }
@@ -63,25 +65,7 @@ impl Connection {
         &(self.topology_attributes)
     }
 
-    pub fn execute_statement(&mut self, stmt: String, auto_commit: bool) -> DbcResult<PlainStatementResult> {
-        plain_statement::execute(&mut self.state, stmt, auto_commit)
-    }
-}
-
-#[derive(Debug)]
-pub struct ConnectionState {
-    pub session_id: i64,
-    seq_number: i32,
-    pub stream: TcpStream,
-}
-
-impl ConnectionState {
-    pub fn new(session_id: i64, stream: TcpStream) -> ConnectionState{
-        ConnectionState{ session_id: session_id, seq_number: 0, stream: stream }
-    }
-
-    pub fn get_next_seq_number(&mut self) -> i32 {
-        self.seq_number += 1;
-        self.seq_number
+    pub fn prepare_call(&self, stmt: String) -> DbcResult<CallableStatement> {
+        CallableStatement::new(self.core.clone(), stmt)
     }
 }

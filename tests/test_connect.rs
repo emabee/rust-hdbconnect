@@ -24,7 +24,7 @@ pub fn init() {
 // cargo test connect_successfully -- --nocapture
 #[test]
 pub fn connect_successfully() {
-    hdbconnect::Connection::init("wdfd00245307a", "30415", "SYSTEM", "manager").ok();
+    hdbconnect::Connection::new("wdfd00245307a", "30415", "SYSTEM", "manager").ok();
 }
 
 #[test]
@@ -34,7 +34,7 @@ pub fn connect_wrong_password() {
 
     let start = Local::now();
     let (host, port, user, password) = ("wdfd00245307a", "30415", "SYSTEM", "wrong_password");
-    let err = hdbconnect::Connection::init(host, port, user, password).err().unwrap();
+    let err = hdbconnect::Connection::new(host, port, user, password).err().unwrap();
     info!("connect as user \"{}\" with wrong password failed at {}:{} after {} µs with {}.",
           user, host, port, (Local::now() - start).num_microseconds().unwrap(), err.description() );
 }
@@ -42,24 +42,31 @@ pub fn connect_wrong_password() {
 // cargo test connect_and_select -- --nocapture
 #[test]
 pub fn connect_and_select() {
-    // use flexi_logger::LogConfig;
-    // // hdbconnect::protocol::lowlevel::resultset=trace,\
-    // // hdbconnect::protocol::lowlevel::resultset::deserialize=info,\
-    // // hdbconnect::protocol::lowlevel::part=debug,\
-    // flexi_logger::init(LogConfig::new(),
-    // Some("warn,\
-    //      ".to_string())).unwrap();
+    use flexi_logger::{LogConfig,detailed_format};
+    // hdbconnect::protocol::lowlevel::resultset::deserialize=info,\
+    flexi_logger::init(LogConfig {
+            log_to_file: true,
+            format: detailed_format,
+            .. LogConfig::new() },
+            Some("trace,\
+            hdbconnect::protocol::lowlevel::typed_value=trace,\
+            hdbconnect::protocol::lowlevel::resultset=debug,\
+            ".to_string())).unwrap();
 
     match impl_connect_and_select() {
         Err(e) => {error!("connect_and_select() failed with {:?}",e); assert!(false)},
-        Ok(i) => {info!("connect_and_select() ended successful, read {} lines", i)},
+        Ok(()) => {info!("connect_and_select() ended successful")},
     }
 }
 
-fn impl_connect_and_select() -> DbcResult<usize> {
-    let mut connection = try!(hdbconnect::Connection::init("wdfd00245307a", "30415", "SYSTEM", "manager"));
-    try!(impl_select_version_and_user(&mut connection));
-    impl_select_many_active_objects(&mut connection)
+fn impl_connect_and_select() -> DbcResult<()> {
+    let mut connection = try!(hdbconnect::Connection::new("wdfd00245307a", "30415", "SYSTEM", "manager"));
+    connection.set_fetch_size(1024);
+    // try!(impl_select_version_and_user(&mut connection));
+    try!(impl_select_many_active_objects(&mut connection));
+    // try!(impl_select_blob(&mut connection));
+    info!("{} calls to DB were executed", connection.get_call_count());
+    Ok(())
 }
 
 fn impl_select_version_and_user(connection: &mut Connection) -> DbcResult<()> {
@@ -69,11 +76,10 @@ fn impl_select_version_and_user(connection: &mut Connection) -> DbcResult<()> {
         current_user: String,
     }
 
-    let stmt = "SELECT VERSION as \"version\", CURRENT_USER as \"current_user\" \
-                FROM SYS.M_DATABASE".to_string();
-
-    let typed_result: Vec<VersionAndUser>
-            = try!(try!(connection.execute_statement(stmt, true)).as_resultset().into_typed());
+    let stmt = String::from("SELECT VERSION as \"version\", CURRENT_USER as \"current_user\" FROM SYS.M_DATABASE");
+    let callable_stmt = try!(connection.prepare_call(stmt));
+    let resultset = try!(callable_stmt.execute_rs(true));
+    let typed_result: Vec<VersionAndUser> = try!(resultset.into_typed());
 
     assert_eq!(typed_result.len()>0, true);
     let ref s = typed_result.get(0).unwrap().current_user;
@@ -82,7 +88,6 @@ fn impl_select_version_and_user(connection: &mut Connection) -> DbcResult<()> {
     debug!("Typed Result: {:?}", typed_result);
     Ok(())
 }
-
 
 fn impl_select_many_active_objects(connection: &mut Connection) -> DbcResult<usize> {
     #[derive(Serialize, Deserialize, Debug)]
@@ -94,8 +99,8 @@ fn impl_select_many_active_objects(connection: &mut Connection) -> DbcResult<usi
         activated_at: LongDate,
         activated_by: String,
         edit: u8,
-        // cdata: String,
-        // bdata: Vec<u8>,
+        cdata: Option<String>,
+        bdata: Option<Vec<u8>>, //Binary,
         compression_type: Option<i32>,
         format_version: Option<String>,
         delivery_unit: Option<String>,
@@ -108,10 +113,9 @@ fn impl_select_many_active_objects(connection: &mut Connection) -> DbcResult<usi
         released_at: Option<LongDate>,
     }
 
-// CDATA as \"cdata\", \
-// BDATA as \"bdata\", \
-    let top_n = 300_usize;
-    let stmt = format!("select top {}
+
+    let top_n = 1_usize;
+    let stmt = format!("select top {} \
                 PACKAGE_ID as \"package_id\", \
                 OBJECT_NAME as \"object_name\", \
                 OBJECT_SUFFIX as \"object_suffix\", \
@@ -119,6 +123,8 @@ fn impl_select_many_active_objects(connection: &mut Connection) -> DbcResult<usi
                 ACTIVATED_AT as \"activated_at\", \
                 ACTIVATED_BY as \"activated_by\", \
                 EDIT as \"edit\", \
+                CDATA as \"cdata\", \
+                BDATA as \"bdata\", \
                 COMPRESSION_TYPE as \"compression_type\", \
                 FORMAT_VERSION as \"format_version\", \
                 DELIVERY_UNIT as \"delivery_unit\", \
@@ -131,7 +137,8 @@ fn impl_select_many_active_objects(connection: &mut Connection) -> DbcResult<usi
                 RELEASED_AT as \"released_at\" \
                  from _SYS_REPO.ACTIVE_OBJECT", top_n);
 
-    let resultset = try!(connection.execute_statement(stmt, true)).as_resultset();
+    let callable_stmt = try!(connection.prepare_call(stmt));
+    let resultset = try!(callable_stmt.execute_rs(true));
     debug!("ResultSet: {:?}", resultset);
 
     for t in resultset.server_processing_times() {
@@ -140,10 +147,45 @@ fn impl_select_many_active_objects(connection: &mut Connection) -> DbcResult<usi
 
     let typed_result: Vec<ActiveObject> = try!(resultset.into_typed());
     debug!("Typed Result: {:?}", typed_result);
-    assert_eq!(typed_result.len(),top_n);
-
-    let s = typed_result.get(0).unwrap().activated_at.datetime_utc().format("%Y-%m-%d %H:%M:%S").to_string();
-    debug!("Activated_at: {}", s);
+    // assert_eq!(typed_result.len(),top_n);
+    //
+    // let s = typed_result.get(0).unwrap().activated_at.datetime_utc().format("%Y-%m-%d %H:%M:%S").to_string();
+    // debug!("Activated_at: {}", s);
 
     Ok(typed_result.len())
 }
+
+
+// fn impl_select_blob(connection: &mut Connection) -> DbcResult<usize> {
+//     #[derive(Serialize, Deserialize, Debug)]
+//     struct ActiveObject {
+//         activated_by: String,
+//         cdata: Option<String>,
+//         delivery_unit: Option<String>,
+//     }
+//
+//
+//     let stmt = "\
+//         select top 1
+//         ACTIVATED_BY as \"activated_by\", \
+//         CDATA as \"cdata\", \
+//         DELIVERY_UNIT as \"delivery_unit\" \
+//         from _SYS_REPO.ACTIVE_OBJECT \
+//         where PACKAGE_ID='sap.ui5.1.resources.sap.fiori' \
+//         AND OBJECT_NAME='core' \
+//         AND OBJECT_SUFFIX='js' \
+//         order by LENGTH(CDATA) desc \
+//     ".to_string();
+//
+//     let callable_stmt = try!(connection.prepare_call(stmt));
+//     let resultset = try!(callable_stmt.execute_rs(false));
+//     debug!("ResultSet: {:?}", resultset);
+//
+//     for t in resultset.server_processing_times() {
+//         debug!("Server processing time: {} µs", t);
+//     }
+//
+//     let typed_result: Vec<ActiveObject> = try!(resultset.into_typed());
+//     debug!("Typed Result: {:?}", typed_result);
+//     Ok(typed_result.len())
+// }

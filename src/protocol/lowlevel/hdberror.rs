@@ -1,4 +1,4 @@
-use DbcResult;
+use super::PrtResult;
 use super::util;
 
 use byteorder::{LittleEndian,ReadBytesExt,WriteBytesExt};
@@ -10,11 +10,11 @@ pub struct HdbError {
     pub position: i32,
     pub text_length: i32,
     pub severity: i8,       // 0 = warning, 1 = error, 2 = fatal
-    pub sqlstate: [u8;5],
+    pub sqlstate: Vec<u8>,
     pub text: String,
 }
 impl HdbError {
-    pub fn new( code: i32, position: i32, text_length: i32, severity: i8, sqlstate: [u8;5], text: String)
+    pub fn new( code: i32, position: i32, text_length: i32, severity: i8, sqlstate: Vec<u8>, text: String)
             -> HdbError {
         HdbError { code: code, position: position, text_length: text_length,
             severity: severity, sqlstate: sqlstate, text: text
@@ -25,24 +25,23 @@ impl HdbError {
         4 + 4 + 4 + 1 + 5 + self.text.len()
     }
 
-    pub fn encode(&self, w: &mut io::Write) -> DbcResult<()> {
+    pub fn serialize(&self, w: &mut io::Write) -> PrtResult<()> {
         try!(w.write_i32::<LittleEndian>(self.code));
         try!(w.write_i32::<LittleEndian>(self.position));
         try!(w.write_i32::<LittleEndian>(self.text_length));
         try!(w.write_i8(self.severity));
         for b in self.sqlstate.iter() {try!(w.write_u8(*b))};
-        try!(util::encode_bytes(&util::string_to_cesu8(&(self.text)), w));
+        try!(util::serialize_bytes(&util::string_to_cesu8(&(self.text)), w));
         Ok(())
     }
 
-    pub fn parse(arg_size: i32, rdr: &mut io::BufRead) -> DbcResult<HdbError> {
-        let code = try!(rdr.read_i32::<LittleEndian>());            // I4
-        let position = try!(rdr.read_i32::<LittleEndian>());        // I4
-        let text_length = try!(rdr.read_i32::<LittleEndian>());     // I4
-        let severity = try!(rdr.read_i8());                         // I1
-        let mut sqlstate = [0u8;5];
-        try!(rdr.read(&mut sqlstate));                              // B5
-        let bytes = try!(util::parse_bytes(text_length as usize, rdr));
+    pub fn parse(arg_size: i32, rdr: &mut io::BufRead) -> PrtResult<HdbError> {
+        let code = try!(rdr.read_i32::<LittleEndian>());                // I4
+        let position = try!(rdr.read_i32::<LittleEndian>());            // I4
+        let text_length = try!(rdr.read_i32::<LittleEndian>());         // I4
+        let severity = try!(rdr.read_i8());                             // I1
+        let sqlstate = try!(util::parse_bytes(5_usize, rdr));           // B5
+        let bytes = try!(util::parse_bytes(text_length as usize, rdr)); // B[text_length]
         let text = try!(util::cesu8_to_string(&bytes));
         let pad = arg_size - 4 - 4 - 4 - 1 - 5 - text_length;
         trace!("Skipping over {} padding bytes", pad);

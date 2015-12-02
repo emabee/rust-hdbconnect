@@ -3,4 +3,4 @@ pub use self::lowlevel::resultset::ResultSet;
 
 pub mod authentication;
 pub mod lowlevel;
-pub mod plain_statement;
+pub mod protocol_error;

@@ -1,4 +1,4 @@
-use {DbcError,DbcResult};
+use super::{PrtError,PrtResult};
 use super::util;
 
 use byteorder::{LittleEndian,ReadBytesExt};
@@ -15,7 +15,7 @@ pub struct ResultSetMetadata {
     pub names: VecMap<String>,
 }
 impl ResultSetMetadata {
-    pub fn parse(count: i32, arg_size:u32, rdr: &mut io::BufRead) -> DbcResult<ResultSetMetadata> {
+    pub fn parse(count: i32, arg_size:u32, rdr: &mut io::BufRead) -> PrtResult<ResultSetMetadata> {
         let mut rsm = ResultSetMetadata {
             fields: Vec::<FieldMetadata>::new(),
             names: VecMap::<String>::new(),
@@ -45,7 +45,9 @@ impl ResultSetMetadata {
         let limit = arg_size - (count as u32) * 22;
         trace!("arg_size = {}, count = {}, limit = {} ", arg_size, count, limit);
         for _ in 0..rsm.names.len() {
-            if offset >= limit {panic!("Error in reading ResultSetMetadata")};
+            if offset >= limit {
+                return Err(PrtError::ProtocolError("Error in reading ResultSetMetadata".to_string()));
+            };
             let nl = try!(rdr.read_u8());                                       // UI1
             let buffer: Vec<u8> = try!(util::parse_bytes(nl as usize,rdr));     // variable
             let name = try!(util::cesu8_to_string(&buffer));
@@ -102,7 +104,7 @@ pub struct FieldMetadata {
     pub column_displayname: u32,
 }
 impl FieldMetadata {
-    pub fn new(co: u8, vt: u8, fr: i16, pr: i16, tn: u32, sn: u32, cn: u32, cdn: u32,) -> DbcResult<FieldMetadata>
+    pub fn new(co: u8, vt: u8, fr: i16, pr: i16, tn: u32, sn: u32, cn: u32, cdn: u32,) -> PrtResult<FieldMetadata>
     {
         Ok(FieldMetadata {
             column_option: try!(ColumnOption::from_u8(co)),
@@ -125,11 +127,11 @@ impl ColumnOption {
         }
     }
 
-    fn from_u8(val: u8) -> DbcResult<ColumnOption> {
+    fn from_u8(val: u8) -> PrtResult<ColumnOption> {
         match val {
             1 => Ok(ColumnOption::NotNull),
             2 => Ok(ColumnOption::Nullable),
-            _ => Err(DbcError::ProtocolError(format!("ColumnOption::from_u8() not implemented for value {}",val))),
+            _ => Err(PrtError::ProtocolError(format!("ColumnOption::from_u8() not implemented for value {}",val))),
         }
     }
 }

@@ -1,6 +1,7 @@
-use DbcResult;
+use super::{PrtError,PrtResult};
 use super::authfield::AuthField;
 use super::clientcontext_option::CcOption;
+use super::conn_core::ConnRef;
 use super::connect_option::ConnectOption;
 use super::hdberror::HdbError;
 use super::part::Part;
@@ -12,6 +13,7 @@ use super::rows_affected::RowsAffected;
 use super::statement_context::StatementContext;
 use super::topology_attribute::TopologyAttr;
 use super::transactionflags::TransactionFlag;
+use super::typed_value::ReadLobReply;
 use super::util;
 
 use byteorder::{LittleEndian,ReadBytesExt,WriteBytesExt};
@@ -27,6 +29,8 @@ pub enum Argument {
     ConnectOptions(Vec<ConnectOption>),
     Error(Vec<HdbError>),
     FetchSize(u32),
+    ReadLobRequest(u64,i64,i32),        // locator, offset, length
+    ReadLobReply(u64,bool,Vec<u8>),     // locator, is_last_data, data
     ResultSet(Option<ResultSet>),
     ResultSetId(u64),
     ResultSetMetadata(ResultSetMetadata),
@@ -37,7 +41,8 @@ pub enum Argument {
 }
 
 impl Argument {
-    pub fn count(&self) -> i16 { match *self {
+    // only called on output (serialize)
+    pub fn count(&self) -> PrtResult<i16> { Ok(match *self {
         Argument::Auth(_) => 1,
         Argument::CcOptions(ref opts) => opts.len() as i16,
         Argument::ClientID(_) => 1,
@@ -45,16 +50,17 @@ impl Argument {
         Argument::ConnectOptions(ref opts) => opts.len() as i16,
         Argument::Error(ref vec) => vec.len() as i16,
         Argument::FetchSize(_) => 1,
-        Argument::ResultSet(_) => 1,
+        Argument::ReadLobRequest(_,_,_) => 1,
         Argument::ResultSetId(_) => 1,
         Argument::ResultSetMetadata(ref rsm) => rsm.count(),
         Argument::StatementContext(ref sc) => sc.count(),
         Argument::TopologyInformation(_) => 1,
         Argument::TransactionFlags(ref opts) => opts.len() as i16,
-        ref a => panic!("count() called on {:?}", a),
-    }}
+        ref a => {return Err(PrtError::ProtocolError(format!("Argument::count() called on {:?}", a)));},
+    })}
 
-    pub fn size(&self, with_padding: bool) -> usize {
+    // only called on output (serialize)
+    pub fn size(&self, with_padding: bool) -> PrtResult<usize> {
         let mut size = 0usize;
         match self {
             &Argument::Auth(ref vec) => {size += 2; for ref field in vec { size += field.size(); } },
@@ -64,30 +70,31 @@ impl Argument {
             &Argument::ConnectOptions(ref vec) => { for opt in vec { size += opt.size(); }},
             &Argument::Error(ref vec) => { for hdberror in vec { size += hdberror.size(); }},
             &Argument::FetchSize(_) => {size += 4},
-            &Argument::ResultSet(ref o_rs) => {if let &Some(ref rs) = o_rs {size += rs.size()}},
+            &Argument::ReadLobRequest(_,_,_) => {size += 24},
+            &Argument::ResultSet(ref o_rs) => {if let &Some(ref rs) = o_rs {size += try!(rs.size())}},
             &Argument::ResultSetId(_) => {size += 8},
             &Argument::ResultSetMetadata(ref rsm) => {size += rsm.size();},
             &Argument::StatementContext(ref sc) => { size += sc.size(); },
             &Argument::TopologyInformation(ref vec) => {size += 2; for ref attr in vec { size += attr.size(); } },
             &Argument::TransactionFlags(ref vec) => { for opt in vec { size += opt.size(); }},
-            ref a => panic!("size() called on {:?}", a),
+            ref a => {return Err(PrtError::ProtocolError(format!("size() called on {:?}", a)));},
         }
         if with_padding {
             size += padsize(size);
         }
         trace!("Part_buffer_size = {}",size);
-        size
+        Ok(size)
     }
 
     /// Serialize to byte stream
-    pub fn encode(&self, remaining_bufsize: u32, w: &mut io::Write) -> DbcResult<u32> {
+    pub fn serialize(&self, remaining_bufsize: u32, w: &mut io::Write) -> PrtResult<u32> {
         match *self {
             Argument::Auth(ref vec) => {
                 try!(w.write_i16::<LittleEndian>(vec.len() as i16));
-                for ref field in vec { try!(field.encode(w)); }
+                for ref field in vec { try!(field.serialize(w)); }
             },
             Argument::CcOptions(ref vec) => {
-                for ref opt in vec { try!(opt.encode(w)); }
+                for ref opt in vec { try!(opt.serialize(w)); }
             },
             Argument::ClientID(ref vec) => {
                 try!(w.write_u8(b' '));  // strange!
@@ -98,29 +105,41 @@ impl Argument {
                 for b in vec { try!(w.write_u8(b)); }
             },
             Argument::ConnectOptions(ref vec) => {
-                for ref opt in vec { try!(opt.encode(w)); }
+                for ref opt in vec { try!(opt.serialize(w)); }
             },
             Argument::Error(ref vec) => {
-                for ref hdberror in vec { try!(hdberror.encode(w)); }
+                for ref hdberror in vec { try!(hdberror.serialize(w)); }
             },
             Argument::FetchSize(fs) => {
                 try!(w.write_u32::<LittleEndian>(fs));
             },
+            Argument::ReadLobRequest(ref locator_id, ref offset, ref length_to_read) => {
+                trace!(
+                    "argument::serialize() ReadLobRequest for locator_id {}, offset {}, length_to_read {}",
+                    locator_id, offset, length_to_read
+                );
+                try!(w.write_u64::<LittleEndian>(*locator_id));
+                try!(w.write_i64::<LittleEndian>(*offset));
+                try!(w.write_i32::<LittleEndian>(*length_to_read));
+                try!(w.write_u32::<LittleEndian>(0_u32)); // FILLER
+            },
             Argument::ResultSetId(rs_id) => {
                 try!(w.write_u64::<LittleEndian>(rs_id));
             },
-            Argument::StatementContext(ref sc) => { try!(sc.encode(w)); },
+            Argument::StatementContext(ref sc) => {
+                try!(sc.serialize(w));
+            },
             Argument::TopologyInformation(ref vec) => {
                 try!(w.write_i16::<LittleEndian>(vec.len() as i16));
-                for ref topo_attr in vec { try!(topo_attr.encode(w)); }
+                for ref topo_attr in vec { try!(topo_attr.serialize(w)); }
             },
             Argument::TransactionFlags(ref vec) => {
-                for ref opt in vec { try!(opt.encode(w)); }
+                for ref opt in vec { try!(opt.serialize(w)); }
             },
-            ref a => {panic!("encode() called on {:?}",a)},
+            ref a => {return Err(PrtError::ProtocolError(format!("serialize() called on {:?}", a)));},
         }
 
-        let size = self.size(false);
+        let size = try!(self.size(false));
         let padsize = padsize(size);
         for _ in 0..padsize { try!(w.write_u8(0)); }
 
@@ -135,8 +154,9 @@ fn padsize(size: usize) -> usize {
     }
 }
 
-pub fn parse( kind: PartKind, attributes: PartAttributes, no_of_args: i32,  arg_size: i32,
-              parts: &mut Vec<Part>, o_rs: &mut Option<&mut ResultSet>, rdr: &mut io::BufRead) -> DbcResult<Argument> {
+pub fn parse( kind: PartKind, attributes: PartAttributes, no_of_args: i32,  arg_size: i32, parts: &mut Vec<Part>,
+              conn_ref: &ConnRef, o_rs: &mut Option<&mut ResultSet>, rdr: &mut io::BufRead )
+-> PrtResult<Argument> {
     trace!("Entering parse(no_of_args={}, kind={:?})",no_of_args,kind);
 
     let arg = match kind {
@@ -178,8 +198,12 @@ pub fn parse( kind: PartKind, attributes: PartAttributes, no_of_args: i32,  arg_
             }
             Argument::Error(vec)
         },
+        PartKind::ReadLobReply => {
+            let (locator, is_last_data, data) = try!(ReadLobReply::parse(rdr));
+            Argument::ReadLobReply(locator, is_last_data, data)
+        },
         PartKind::ResultSet => {
-            let rs = try!(ResultSet::parse(no_of_args, attributes, parts, o_rs, rdr));
+            let rs = try!(ResultSet::parse(no_of_args, attributes, parts, conn_ref, o_rs, rdr));
             Argument::ResultSet(rs)
         },
         PartKind::ResultSetId => {
@@ -215,7 +239,8 @@ pub fn parse( kind: PartKind, attributes: PartAttributes, no_of_args: i32,  arg_
             Argument::TransactionFlags(vec)
         },
         _ => {
-            panic!("No handling implemented for received partkind value {}", kind.to_i8()); // FIXME panic
+            return Err(PrtError::ProtocolError(format!(
+                "No handling implemented for received partkind value {}", kind.to_i8())));
         }
     };
 

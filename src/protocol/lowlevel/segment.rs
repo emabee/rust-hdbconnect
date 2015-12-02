@@ -1,5 +1,6 @@
-use {DbcError,DbcResult};
-use super::part;
+use super::{PrtError,PrtResult};
+use super::conn_core::ConnRef;
+use super::part::Part;
 use super::resultset::ResultSet;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -12,19 +13,19 @@ pub struct Segment {
     pub kind: Kind,
     pub msg_type: Option<MessageType>,          // only in requests
     pub auto_commit: Option<bool>,              // only in requests
-    pub command_options: Option<i8>,            // only in requests
+    pub command_options: Option<u8>,            // only in requests
     pub function_code: Option<FunctionCode>,    // only in replies
-    pub parts: Vec<part::Part>,
+    pub parts: Vec<Part>,
 }
 
-pub fn new_request_seg(mt: MessageType, auto_commit: bool) -> Segment  {
+pub fn new_request_seg(mt: MessageType, auto_commit: bool, command_options: u8) -> Segment  {
     Segment {
         kind: Kind::Request,
         msg_type: Some(mt),
         auto_commit: Some(auto_commit),
-        command_options: Some(0),             // seems to be a reasonable start - let's see if we need flexibility
+        command_options: Some(command_options),
         function_code: None,
-        parts: Vec::<part::Part>::new(),
+        parts: Vec::<Part>::new(),
     }
 }
 
@@ -35,84 +36,84 @@ fn new_reply_seg(fc: FunctionCode)  -> Segment {
         auto_commit: None,
         command_options: None,
         function_code: Some(fc),
-        parts: Vec::<part::Part>::new(),
+        parts: Vec::<Part>::new(),
     }
 }
 
 
 impl Segment {
     // Serialize to byte stream
-    pub fn encode(&self, offset: i32, segment_no: i16, mut remaining_bufsize: u32, w: &mut io::Write)
-        -> DbcResult<(i32, i16, u32)>
-    {
+    pub fn serialize( &self, offset: i32, segment_no: i16, mut remaining_bufsize: u32, w: &mut io::Write)
+    -> PrtResult<(i32, i16, u32)> {
         // SEGMENT HEADER
-        try!(w.write_i32::<LittleEndian>(self.size() as i32));          // I4    Length including the header
+        let size = try!(self.size()) as i32;
+        try!(w.write_i32::<LittleEndian>(size));                        // I4    Length including the header
         try!(w.write_i32::<LittleEndian>(offset as i32));               // I4    Offset within the message buffer
         try!(w.write_i16::<LittleEndian>(self.parts.len() as i16));     // I2    Number of contained parts
         try!(w.write_i16::<LittleEndian>(segment_no));                  // I2    Consecutive number, starting with 1
         try!(w.write_i8(self.kind.to_i8()));                            // I1    Segment kind
-        try!(w.write_i8(match &self.msg_type {&Some(ref mt) => mt.to_i8(), &None => 1}));   // I1    Message type
-        try!(w.write_i8(match &self.auto_commit {&Some(true) => 1, _ => 0}));               // I1    auto_commit on/off
-        try!(w.write_i8(match &self.command_options {&Some(co) => co, _ => 0}));            // I1    Bit set for options
+        try!(w.write_i8(match self.msg_type {Some(ref mt) => mt.to_i8(), None => 1}));  // I1    Message type
+        try!(w.write_i8(match self.auto_commit {Some(true) => 1, _ => 0}));             // I1    auto_commit on/off
+        try!(w.write_u8(match self.command_options {Some(co) => co, _ => 0}));          // I1    Bit set for options
         for _ in 0..8 { try!(w.write_u8(0)); }                          // [B;8] Reserved, do not use
 
         remaining_bufsize -= SEGMENT_HEADER_SIZE as u32;
         // PARTS
         for ref part in &self.parts {
-            remaining_bufsize = try!(part.encode(remaining_bufsize, w));
+            remaining_bufsize = try!(part.serialize(remaining_bufsize, w));
         }
 
-        Ok((offset + self.size() as i32, segment_no + 1, remaining_bufsize))
+        Ok((offset + size, segment_no + 1, remaining_bufsize))
     }
 
-    pub fn push(&mut self, part: part::Part){
+    pub fn push(&mut self, part: Part){
         self.parts.push(part);
     }
 
-    pub fn size(&self) -> usize {
+    pub fn size(&self) -> PrtResult<usize> {
         let mut len = SEGMENT_HEADER_SIZE;
         for part in &self.parts {
-            len += part.size(true);
+            len += try!(part.size(true));
         }
         trace!("segment_size = {}",len);
-        len
+        Ok(len)
+    }
+
+    ///
+    pub fn parse(conn_ref: &ConnRef, o_rs: &mut Option<&mut ResultSet>, rdr: &mut io::BufRead)
+    -> PrtResult<Segment> {
+        trace!("Entering parse()");
+
+        try!(rdr.read_i32::<LittleEndian>());                               // I4 seg_size (BigEndian??)
+        try!(rdr.read_i32::<LittleEndian>());                               // I4 seg_offset  (BigEndian??)
+        let no_of_parts = try!(rdr.read_i16::<LittleEndian>());             // I2
+        try!(rdr.read_i16::<LittleEndian>());                               // I2 seg_number
+        let seg_kind = try!(Kind::from_i8(try!(rdr.read_i8())));            // I1
+        let mut segment = match seg_kind {
+            Kind::Request => {
+                let mt = try!(MessageType::from_i8(try!(rdr.read_i8())));   // I1
+                let commit = try!(rdr.read_i8()) != 0_i8;                   // I1
+                let command_options = try!(rdr.read_u8());                  // I1 command_options
+                rdr.consume(8_usize);                                       // B[8] reserved1
+                new_request_seg(mt, commit, command_options)
+            },
+            Kind::Reply | Kind::Error => {
+                rdr.consume(1_usize);                                       // I1 reserved2
+                let fc = try!(rdr.read_i16::<LittleEndian>());              // I2
+                rdr.consume(8_usize);                                       // B[8] reserved3
+                new_reply_seg(try!(FunctionCode::from_i16(fc)))
+            },
+        };
+        debug!("segment_header = {:?}, no_of_parts = {}", segment, no_of_parts);
+
+        for _ in 0..no_of_parts {
+            let part = try!(Part::parse(&mut (segment.parts), conn_ref, o_rs, rdr));
+            segment.push(part);
+        }
+        Ok(segment)
     }
 }
 
-
-///
-pub fn parse(o_rs: &mut Option<&mut ResultSet>, rdr: &mut io::BufRead) -> DbcResult<Segment> {
-    trace!("Entering parse()");
-
-    try!(rdr.read_i32::<LittleEndian>());                               // I4 seg_size (BigEndian??)
-    try!(rdr.read_i32::<LittleEndian>());                               // I4 seg_offset  (BigEndian??)
-    let no_of_parts = try!(rdr.read_i16::<LittleEndian>());             // I2
-    try!(rdr.read_i16::<LittleEndian>());                               // I2 seg_number
-    let seg_kind = try!(Kind::from_i8(try!(rdr.read_i8())));            // I1
-    let mut segment = match seg_kind {
-        Kind::Request => {
-            let mt = try!(MessageType::from_i8(try!(rdr.read_i8())));   // I1
-            let commit = try!(rdr.read_i8()) != 0_i8;                   // I1
-            try!(rdr.read_i8());                                        // I1 command_options
-            rdr.consume(8usize);                                        // B[8] reserved1
-            new_request_seg(mt, commit)
-        },
-        Kind::Reply | Kind::Error => {
-            rdr.consume(1usize);                                        // I1 reserved2
-            let fc = try!(FunctionCode::from_i16(
-                            try!(rdr.read_i16::<LittleEndian>())));     // I2
-            rdr.consume(8usize);                                        // B[8] reserved3
-            new_reply_seg(fc)
-        },
-    };
-    debug!("segment_header = {:?}, no_of_parts = {}", segment, no_of_parts);
-
-    for _ in 0..no_of_parts {
-        let part = try!(part::parse(&mut (segment.parts), o_rs, rdr));
-        segment.push(part);
-    }
-    Ok(segment)
-}
 
 /// Specifies the layout of the remaining segment header structure
 #[derive(Debug)]
@@ -130,11 +131,11 @@ impl Kind {
         Kind::Reply => 2,
         Kind::Error => 5,
     }}
-    fn from_i8(val: i8) -> DbcResult<Kind> {match val {
+    fn from_i8(val: i8) -> PrtResult<Kind> {match val {
         1 => Ok(Kind::Request),
         2 => Ok(Kind::Reply),
         5 => Ok(Kind::Error),
-        _ => Err(DbcError::ProtocolError(format!("Invalid value for segment::Kind::from_i8() detected: {}",val))),
+        _ => Err(PrtError::ProtocolError(format!("Invalid value for segment::Kind::from_i8() detected: {}",val))),
     }}
 }
 
@@ -205,7 +206,7 @@ impl MessageType {
         MessageType::DbConnectInfo => 82,
     }}
 
-    fn from_i8(val: i8) -> DbcResult<MessageType> { match val {
+    fn from_i8(val: i8) -> PrtResult<MessageType> { match val {
         1 => Ok(MessageType::DummyForReply), // for test purposes only
         2 => Ok(MessageType::ExecuteDirect),
         3 => Ok(MessageType::Prepare),
@@ -234,7 +235,7 @@ impl MessageType {
         81 => Ok(MessageType::BatchPrepare),
         80 => Ok(MessageType::InsertNextItab),
         82 => Ok(MessageType::DbConnectInfo),
-        _ => Err(DbcError::ProtocolError(format!("Invalid value for MessageType detected: {}",val))),
+        _ => Err(PrtError::ProtocolError(format!("Invalid value for MessageType detected: {}",val))),
     }}
 }
 
@@ -270,7 +271,7 @@ pub enum FunctionCode {
     XaJoin,					    // XA_JOIN message
 }
 impl FunctionCode {
-    fn from_i16(val: i16) -> DbcResult<FunctionCode> { match val {
+    fn from_i16(val: i16) -> PrtResult<FunctionCode> { match val {
         -1 => Ok(FunctionCode::DummyForRequest),
         0 => Ok(FunctionCode::Nil),
         1 => Ok(FunctionCode::Ddl),
@@ -296,6 +297,6 @@ impl FunctionCode {
         21 => Ok(FunctionCode::AbapStream),
         22 => Ok(FunctionCode::XaStart),
         23 => Ok(FunctionCode::XaJoin),
-        _ => Err(DbcError::ProtocolError(format!("Invalid value for FunctionCode detected: {}",val))),
+        _ => Err(PrtError::ProtocolError(format!("Invalid value for FunctionCode detected: {}",val))),
     }}
 }

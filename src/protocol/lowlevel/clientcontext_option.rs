@@ -1,4 +1,4 @@
-use {DbcError,DbcResult};
+use super::{PrtError,PrtResult};
 use super::option_value::OptionValue;
 
 use byteorder::{ReadBytesExt,WriteBytesExt};
@@ -10,16 +10,16 @@ pub struct CcOption {
     pub value: OptionValue,
 }
 impl CcOption {
-    pub fn encode (&self, w: &mut io::Write)  -> DbcResult<()> {
+    pub fn serialize (&self, w: &mut io::Write)  -> PrtResult<()> {
         try!(w.write_i8(self.id.to_i8()));                                  // I1
-        self.value.encode(w)
+        self.value.serialize(w)
     }
 
     pub fn size(&self) -> usize {
         1 + self.value.size()
     }
 
-    pub fn parse(rdr: &mut io::BufRead) -> DbcResult<CcOption> {
+    pub fn parse(rdr: &mut io::BufRead) -> PrtResult<CcOption> {
         let option_id = try!(CcOptionId::from_i8(try!(rdr.read_i8())));     // I1
         let value = try!(OptionValue::parse(rdr));
         Ok(CcOption{id: option_id, value: value})
@@ -42,10 +42,10 @@ impl CcOptionId {
         }
     }
 
-    pub fn from_i8(val: i8) -> DbcResult<CcOptionId> { match val {
+    pub fn from_i8(val: i8) -> PrtResult<CcOptionId> { match val {
         1 => Ok(CcOptionId::Version),
         2 => Ok(CcOptionId::ClientType),
         3 => Ok(CcOptionId::ClientApplicationProgram),
-        _ => Err(DbcError::ProtocolError(format!("Invalid value for CcOptionId detected: {}",val))),
+        _ => Err(PrtError::ProtocolError(format!("Invalid value for CcOptionId detected: {}",val))),
     }}
 }

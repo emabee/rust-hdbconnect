@@ -1,4 +1,4 @@
-use {DbcError,DbcResult};
+use super::{PrtError,PrtResult};
 use super::option_value::OptionValue;
 
 use byteorder::{ReadBytesExt,WriteBytesExt};
@@ -10,16 +10,16 @@ pub struct ConnectOption {
     pub value: OptionValue,
 }
 impl ConnectOption {
-    pub fn encode (&self, w: &mut io::Write)  -> DbcResult<()> {
+    pub fn serialize (&self, w: &mut io::Write)  -> PrtResult<()> {
         try!(w.write_i8(self.id.to_i8()));                                      // I1
-        self.value.encode(w)
+        self.value.serialize(w)
     }
 
     pub fn size(&self) -> usize {
         1 + self.value.size()
     }
 
-    pub fn parse(rdr: &mut io::BufRead) -> DbcResult<ConnectOption> {
+    pub fn parse(rdr: &mut io::BufRead) -> PrtResult<ConnectOption> {
         let option_id = try!(ConnectOptionId::from_i8(try!(rdr.read_i8())));    // I1
         let value = try!(OptionValue::parse(rdr));
         Ok(ConnectOption{id: option_id, value: value})
@@ -110,7 +110,7 @@ impl ConnectOptionId {
         }
     }
 
-    fn from_i8(val: i8) -> DbcResult<ConnectOptionId> { match val {
+    fn from_i8(val: i8) -> PrtResult<ConnectOptionId> { match val {
         1 =>  Ok(ConnectOptionId::ConnectionID),
         2 =>  Ok(ConnectOptionId::CompleteArrayExecution),
         3 =>  Ok(ConnectOptionId::ClientLocale),
@@ -148,6 +148,6 @@ impl ConnectOptionId {
         35 =>  Ok(ConnectOptionId::UpdateTopologyAnwhere),
         36 =>  Ok(ConnectOptionId::EnableArrayType),
         37 =>  Ok(ConnectOptionId::ImplicitLobStreaming),
-        _ => Err(DbcError::ProtocolError(format!("Invalid value for ConnectOptionId detected: {}",val))),
+        _ => Err(PrtError::ProtocolError(format!("Invalid value for ConnectOptionId detected: {}",val))),
     }}
 }

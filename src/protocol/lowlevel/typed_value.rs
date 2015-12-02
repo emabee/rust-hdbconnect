@@ -1,8 +1,11 @@
-use {DbcError,DbcResult};
-use super::longdate::LongDate;
+use super::{PrtError,PrtResult};
+use super::resultset::RsRef;
+use super::lob::{BLOB,CLOB};
+use types::longdate::LongDate;
 use super::util;
 
 use byteorder::{LittleEndian,ReadBytesExt,WriteBytesExt};
+use std::borrow::Cow;
 use std::i16;
 use std::u32;
 use std::u64;
@@ -27,9 +30,9 @@ pub enum TypedValue {               // Description, Support Level
     NVARCHAR(String),		        // NVARCHAR (Unicode character type), 1
     BINARY(Vec<u8>), 		        // BINARY, 1
     VARBINARY(Vec<u8>),		        // VARBINARY, 1
-    CLOB(String), 			        // Character Large Object, 1
-    NCLOB(String), 			        // Unicode Character Large Object, 1
-    BLOB(Vec<u8>), 			        // Binary Large Object, 1
+    CLOB(CLOB), 			        // Character Large Object, 1
+    NCLOB(CLOB), 			        // Unicode Character Large Object, 1
+    BLOB(BLOB), 			        // Binary Large Object, 1
     BOOLEAN(bool), 			        // Boolean
     STRING(String), 		        // Character string, 1
     NSTRING(String),		        // Unicode character string, 1
@@ -59,9 +62,9 @@ pub enum TypedValue {               // Description, Support Level
     N_NVARCHAR(Option<String>),		// NVARCHAR (Unicode character type), 1
     N_BINARY(Option<Vec<u8>>), 		// BINARY, 1
     N_VARBINARY(Option<Vec<u8>>),	// VARBINARY, 1
-    N_CLOB(Option<String>), 		// Character Large Object, 1
-    N_NCLOB(Option<String>), 		// Unicode Character Large Object, 1
-    N_BLOB(Option<Vec<u8>>), 		// Binary Large Object, 1
+    N_CLOB(Option<CLOB>), 		    // Character Large Object, 1
+    N_NCLOB(Option<CLOB>), 		    // Unicode Character Large Object, 1
+    N_BLOB(Option<BLOB>), 		    // Binary Large Object, 1
     N_BOOLEAN(Option<bool>), 		// Boolean
     N_STRING(Option<String>), 		// Character string, 1
     N_NSTRING(Option<String>),		// Unicode character string, 1
@@ -80,7 +83,10 @@ pub enum TypedValue {               // Description, Support Level
 }
 
 impl TypedValue {
-    pub fn encode(&self, w: &mut io::Write) -> DbcResult<()> {
+    pub fn serialize(&self, w: &mut io::Write) -> PrtResult<()> {
+        fn _serialize_not_implemented(type_id: u8) -> PrtError {
+            return PrtError::ProtocolError(format!("TypedValue::serialize() not implemented for type code {}", type_id));
+        }
         try!(w.write_u8(self.type_id()));                   // I1
         match *self {                                       // variable
             TypedValue::NULL                => {},
@@ -91,7 +97,10 @@ impl TypedValue {
             TypedValue::REAL(f)             => try!(w.write_f32::<LittleEndian>(f)),
             TypedValue::DOUBLE(f)           => try!(w.write_f64::<LittleEndian>(f)),
             TypedValue::BOOLEAN(b)          => try!(w.write_u8(match b{true => 1, false => 0})),
-            TypedValue::LONGDATE(_)        => panic!("Not yet implemented"),
+            TypedValue::LONGDATE(_)         => return Err(_serialize_not_implemented(self.type_id())),
+            TypedValue::CLOB(_)             => return Err(_serialize_not_implemented(self.type_id())),
+            TypedValue::NCLOB(_)            => return Err(_serialize_not_implemented(self.type_id())),
+            TypedValue::BLOB(_)             => return Err(_serialize_not_implemented(self.type_id())),
             TypedValue::CHAR(ref s) |
             TypedValue::VARCHAR(ref s) |
             TypedValue::NCHAR(ref s) |
@@ -99,13 +108,10 @@ impl TypedValue {
             TypedValue::STRING(ref s) |
             TypedValue::NSTRING(ref s) |
             TypedValue::TEXT(ref s) |
-            TypedValue::CLOB(ref s) |
-            TypedValue::NCLOB(ref s) |
-            TypedValue::SHORTTEXT(ref s)    => try!(encode_length_and_string(s,w)),
+            TypedValue::SHORTTEXT(ref s)    => try!(serialize_length_and_string(s,w)),
             TypedValue::BINARY(ref v) |
             TypedValue::VARBINARY(ref v) |
-            TypedValue::BLOB(ref v) |
-            TypedValue::BSTRING(ref v)      => try!(encode_length_and_bytes(v,w)),
+            TypedValue::BSTRING(ref v)      => try!(serialize_length_and_bytes(v,w)),
 
             TypedValue::N_TINYINT(o)        => if let Some(u) = o {try!(w.write_u8(u))},
             TypedValue::N_SMALLINT(o)       => if let Some(i) = o {try!(w.write_i16::<LittleEndian>(i))},
@@ -114,7 +120,10 @@ impl TypedValue {
             TypedValue::N_REAL(o)           => if let Some(f) = o {try!(w.write_f32::<LittleEndian>(f))},
             TypedValue::N_DOUBLE(o)         => if let Some(f) = o {try!(w.write_f64::<LittleEndian>(f))},
             TypedValue::N_BOOLEAN(o)        => if let Some(b) = o {try!(w.write_u8(match b{true => 1, false => 0}))},
-            TypedValue::N_LONGDATE(_)       => panic!("Not yet implemented"),
+            TypedValue::N_LONGDATE(_)       => return Err(_serialize_not_implemented(self.type_id())),
+            TypedValue::N_CLOB(_)           => return Err(_serialize_not_implemented(self.type_id())),
+            TypedValue::N_NCLOB(_)          => return Err(_serialize_not_implemented(self.type_id())),
+            TypedValue::N_BLOB(_)           => return Err(_serialize_not_implemented(self.type_id())),
             TypedValue::N_CHAR(ref o) |
             TypedValue::N_VARCHAR(ref o) |
             TypedValue::N_NCHAR(ref o) |
@@ -122,27 +131,28 @@ impl TypedValue {
             TypedValue::N_STRING(ref o) |
             TypedValue::N_NSTRING(ref o) |
             TypedValue::N_TEXT(ref o) |
-            TypedValue::N_CLOB(ref o) |
-            TypedValue::N_NCLOB(ref o) |
-            TypedValue::N_SHORTTEXT(ref o)  => if let &Some(ref s) = o {try!(encode_length_and_string(s,w))},
+            TypedValue::N_SHORTTEXT(ref o)  => if let &Some(ref s) = o {try!(serialize_length_and_string(s,w))},
             TypedValue::N_BINARY(ref o) |
             TypedValue::N_VARBINARY(ref o) |
-            TypedValue::N_BLOB(ref o) |
-            TypedValue::N_BSTRING(ref o)    => if let &Some(ref v) = o {try!(encode_length_and_bytes(v,w))},
+            TypedValue::N_BSTRING(ref o)    => if let &Some(ref v) = o {try!(serialize_length_and_bytes(v,w))},
         }
         Ok(())
     }
 
-    pub fn size(&self) -> usize {
-        fn l_hdblen(s: &String) -> usize {
+    // is used to calculate the argument size (in serialize)
+    pub fn size(&self) -> PrtResult<usize> {
+        fn _hdblen(s: &String) -> usize {
             match util::cesu8_length(s) {
                 clen if clen <= MAX_1_BYTE_LENGTH as usize    => 1 + 1 + clen,
                 clen if clen <= MAX_2_BYTE_LENGTH as usize    => 1 + 3 + clen,
                 clen                                          => 1 + 5 + clen,
             }
         }
+        fn _size_not_implemented(type_id: u8) -> PrtError {
+            return PrtError::ProtocolError(format!("TypedValue::size() not implemented for type code {}", type_id));
+        }
 
-        1 + match *self {
+        Ok(1 + match *self {
             TypedValue::NULL => 0,
             TypedValue::TINYINT(_)          => 1,
             TypedValue::SMALLINT(_)         => 2,
@@ -152,6 +162,12 @@ impl TypedValue {
             TypedValue::DOUBLE(_)           => 8,
             TypedValue::BOOLEAN(_)          => 1,
             TypedValue::LONGDATE(_)         => 8,
+            TypedValue::CLOB(_)             => {return Err(_size_not_implemented(self.type_id()));},
+            TypedValue::NCLOB(_)            => {return Err(_size_not_implemented(self.type_id()));},
+            TypedValue::BLOB(_)             => {return Err(_size_not_implemented(self.type_id()));},
+            TypedValue::N_CLOB(_)           => {return Err(_size_not_implemented(self.type_id()));},
+            TypedValue::N_NCLOB(_)          => {return Err(_size_not_implemented(self.type_id()));},
+            TypedValue::N_BLOB(_)           => {return Err(_size_not_implemented(self.type_id()));},
             TypedValue::CHAR(ref s) |
             TypedValue::VARCHAR(ref s) |
             TypedValue::NCHAR(ref s) |
@@ -159,12 +175,9 @@ impl TypedValue {
             TypedValue::STRING(ref s) |
             TypedValue::NSTRING(ref s) |
             TypedValue::TEXT(ref s) |
-            TypedValue::CLOB(ref s) |
-            TypedValue::NCLOB(ref s) |
-            TypedValue::SHORTTEXT(ref s)    => l_hdblen(s),
+            TypedValue::SHORTTEXT(ref s)    => _hdblen(s),
             TypedValue::BINARY(ref v) |
             TypedValue::VARBINARY(ref v) |
-            TypedValue::BLOB(ref v) |
             TypedValue::BSTRING(ref v)      => v.len() + 2,
 
             TypedValue::N_TINYINT(o)        => match o {Some(_) => 1, None => 0},
@@ -182,14 +195,11 @@ impl TypedValue {
             TypedValue::N_STRING(ref o) |
             TypedValue::N_NSTRING(ref o) |
             TypedValue::N_TEXT(ref o) |
-            TypedValue::N_CLOB(ref o) |
-            TypedValue::N_NCLOB(ref o) |
-            TypedValue::N_SHORTTEXT(ref o)  => match o {&Some(ref s) => l_hdblen(s), &None => 0},
+            TypedValue::N_SHORTTEXT(ref o)  => match o {&Some(ref s) => _hdblen(s), &None => 0},
             TypedValue::N_BINARY(ref o) |
             TypedValue::N_VARBINARY(ref o) |
-            TypedValue::N_BLOB(ref o) |
             TypedValue::N_BSTRING(ref o)    => match o {&Some(ref v) => v.len() + 2, &None => 0},
-        }
+        })
     }
 
     /// hdb protocol uses ids < 128 for non-null values, and ids > 128 for null values
@@ -262,17 +272,11 @@ impl TypedValue {
      // TypedValue::N_SECONDTIME(_)      => 64 + 128,
     }}
 
-    pub fn parse(typecode: u8, nullable: bool, rdr: &mut io::BufRead) -> DbcResult<TypedValue> {
-        TypedValue::parse_value(typecode, nullable, rdr)
-    }
-
-    /// here typecode is always < 127
-    // the flag nullable from the metadata governs our behavior:
-    // if it is true, we return types with typecode above 128, which use Option<type>,
-    // if it is false, we return types with the original typecode, which use plain values
-    fn parse_value(p_typecode: u8, nullable: bool, rdr: &mut io::BufRead)
-      -> DbcResult<TypedValue>
-    {
+    pub fn parse(p_typecode: u8, nullable: bool, rs_ref: &RsRef, rdr: &mut io::BufRead) -> PrtResult<TypedValue> {
+        // here p_typecode is always < 127
+        // the flag nullable from the metadata governs our behavior:
+        // if it is true, we return types with typecode above 128, which use Option<type>,
+        // if it is false, we return types with the original typecode, which use plain values
         let typecode = p_typecode + match nullable {true => 128, false => 0};
         match typecode {
             1  => Ok(TypedValue::TINYINT(    { try!(ind_not_null(rdr)); try!(rdr.read_u8()) }) ),
@@ -289,9 +293,9 @@ impl TypedValue {
             12 => Ok(TypedValue::BINARY(     try!(parse_length_and_binary(rdr)) )),
             13 => Ok(TypedValue::VARBINARY(  try!(parse_length_and_binary(rdr)) )),
          // 16 => Ok(TypedValue::TIMESTAMP(
-            25 => Ok(TypedValue::CLOB(       try!(parse_length_and_string(rdr)) )),
-            26 => Ok(TypedValue::NCLOB(      try!(parse_length_and_string(rdr)) )),
-            27 => Ok(TypedValue::BLOB(       try!(parse_length_and_binary(rdr)) )),
+            25 => Ok(TypedValue::CLOB(       try!(parse_clob(rs_ref, rdr)) )),
+            26 => Ok(TypedValue::NCLOB(      try!(parse_clob(rs_ref, rdr)) )),
+            27 => Ok(TypedValue::BLOB(       try!(parse_blob(rs_ref, rdr)) )),
             28 => Ok(TypedValue::BOOLEAN(    try!(rdr.read_u8()) > 0 )),
             29 => Ok(TypedValue::STRING(     try!(parse_length_and_string(rdr)) )),
             30 => Ok(TypedValue::NSTRING(    try!(parse_length_and_string(rdr)) )),
@@ -335,9 +339,9 @@ impl TypedValue {
             140 => Ok(TypedValue::N_BINARY(     try!(parse_nullable_length_and_binary(rdr)) )),
             141 => Ok(TypedValue::N_VARBINARY(  try!(parse_nullable_length_and_binary(rdr)) )),
          // 144 => Ok(TypedValue::N_TIMESTAMP(
-            153 => Ok(TypedValue::N_CLOB(       try!(parse_nullable_length_and_string(rdr)) )),
-            154 => Ok(TypedValue::N_NCLOB(      try!(parse_nullable_length_and_string(rdr)) )),
-            155 => Ok(TypedValue::N_BLOB(       try!(parse_nullable_length_and_binary(rdr)) )),
+            153 => Ok(TypedValue::N_CLOB(       try!(parse_nullable_clob(rs_ref, rdr)) )),
+            154 => Ok(TypedValue::N_NCLOB(      try!(parse_nullable_clob(rs_ref, rdr)) )),
+            155 => Ok(TypedValue::N_BLOB(       try!(parse_nullable_blob(rs_ref, rdr)) )),
             156 => Ok(TypedValue::N_BOOLEAN(match try!(ind_null(rdr)) {
                                 true  => None,
                                 false => Some(try!(rdr.read_u8()) > 0),
@@ -357,38 +361,38 @@ impl TypedValue {
          // 191 => Ok(TypedValue::N_DAYDATE(
          // 192 => Ok(TypedValue::N_SECONDTIME(
 
-            _   => Err(DbcError::ProtocolError(format!("TypedValue::parse_value() not implemented for type code {}",typecode))),
+            _   => Err(PrtError::ProtocolError(format!("TypedValue::parse_value() not implemented for type code {}",typecode))),
         }
     }
 }
 
 // reads the nullindicator and returns Ok(true) if it has value 0 or Ok(false) otherwise
-fn ind_null(rdr: &mut io::BufRead) -> DbcResult<bool> {
+fn ind_null(rdr: &mut io::BufRead) -> PrtResult<bool> {
     Ok( try!(rdr.read_u8()) == 0 )
 }
 
 // reads the nullindicator and throws an error if it has value 0
-fn ind_not_null(rdr: &mut io::BufRead) -> DbcResult<()> {
+fn ind_not_null(rdr: &mut io::BufRead) -> PrtResult<()> {
     match try!(ind_null(rdr)) {
-        true => Err(DbcError::ProtocolError("null value returned for not-null column".to_string())),
+        true => Err(PrtError::ProtocolError("null value returned for not-null column".to_string())),
         false => Ok(())
     }
 }
 
 
-fn parse_real(rdr: &mut io::BufRead) -> DbcResult<f32> {
+fn parse_real(rdr: &mut io::BufRead) -> PrtResult<f32> {
     let mut vec: Vec<u8> = repeat(0u8).take(4).collect();
     try!(rdr.read(&mut vec[..]));
 
     let mut r = io::Cursor::new(&vec);
     let tmp = try!(r.read_u32::<LittleEndian>());
     match tmp {
-        u32::MAX => Err(DbcError::ProtocolError("Unexpected NULL Value in parse_real()".to_string())),
+        u32::MAX => Err(PrtError::ProtocolError("Unexpected NULL Value in parse_real()".to_string())),
         _ => {r.set_position(0); Ok(try!(r.read_f32::<LittleEndian>()))},
     }
 }
 
-fn parse_nullable_real(rdr: &mut io::BufRead) -> DbcResult<Option<f32>> {
+fn parse_nullable_real(rdr: &mut io::BufRead) -> PrtResult<Option<f32>> {
     let mut vec: Vec<u8> = repeat(0u8).take(4).collect();
     try!(rdr.read(&mut vec[..]));
     let mut r = io::Cursor::new(&vec);
@@ -399,18 +403,18 @@ fn parse_nullable_real(rdr: &mut io::BufRead) -> DbcResult<Option<f32>> {
     }
 }
 
-fn parse_double(rdr: &mut io::BufRead) -> DbcResult<f64> {
+fn parse_double(rdr: &mut io::BufRead) -> PrtResult<f64> {
     let mut vec: Vec<u8> = repeat(0u8).take(8).collect();
     try!(rdr.read(&mut vec[..]));
     let mut r = io::Cursor::new(&vec);
     let tmp = try!(r.read_u64::<LittleEndian>());
     match tmp {
-        u64::MAX => Err(DbcError::ProtocolError("Unexpected NULL Value in parse_double()".to_string())),
+        u64::MAX => Err(PrtError::ProtocolError("Unexpected NULL Value in parse_double()".to_string())),
         _ => {r.set_position(0); Ok(try!(r.read_f64::<LittleEndian>()))},
     }
 }
 
-fn parse_nullable_double(rdr: &mut io::BufRead) -> DbcResult<Option<f64>> {
+fn parse_nullable_double(rdr: &mut io::BufRead) -> PrtResult<Option<f64>> {
     let mut vec: Vec<u8> = repeat(0u8).take(8).collect();
     try!(rdr.read(&mut vec[..]));
     let mut r = io::Cursor::new(&vec);
@@ -421,17 +425,19 @@ fn parse_nullable_double(rdr: &mut io::BufRead) -> DbcResult<Option<f64>> {
     }
 }
 
+
+//----- STRINGS and BINARIES ------------------------------------------------------------------------------------------
 const MAX_1_BYTE_LENGTH:u8      = 245;
 const MAX_2_BYTE_LENGTH:i16     = i16::MAX;
 const LENGTH_INDICATOR_2BYTE:u8 = 246;
 const LENGTH_INDICATOR_4BYTE:u8 = 247;
 const LENGTH_INDICATOR_NULL:u8  = 255;
 
-fn encode_length_and_string(s: &String, w: &mut io::Write) -> DbcResult<()> {
-    encode_length_and_bytes(&util::string_to_cesu8(s), w)
+fn serialize_length_and_string(s: &String, w: &mut io::Write) -> PrtResult<()> {
+    serialize_length_and_bytes(&util::string_to_cesu8(s), w)
 }
 
-fn encode_length_and_bytes(v: &Vec<u8>, w: &mut io::Write) -> DbcResult<()> {
+fn serialize_length_and_bytes(v: &Vec<u8>, w: &mut io::Write) -> PrtResult<()> {
     match v.len() {
         l if l <= MAX_1_BYTE_LENGTH as usize => {
             try!(w.write_u8(l as u8));                      // B1           LENGTH OF VALUE
@@ -445,62 +451,138 @@ fn encode_length_and_bytes(v: &Vec<u8>, w: &mut io::Write) -> DbcResult<()> {
             try!(w.write_i32::<LittleEndian>(l as i32));    // I4           LENGTH OF VALUE
         }
     }
-    util::encode_bytes(v, w)                                // B variable   VALUE BYTES
+    util::serialize_bytes(v, w)                                // B variable   VALUE BYTES
 }
 
-fn parse_length_and_string(rdr: &mut io::BufRead) -> DbcResult<String> {
+fn parse_length_and_string(rdr: &mut io::BufRead) -> PrtResult<String> {
     match util::cesu8_to_string(&try!(parse_length_and_binary(rdr))) {
         Ok(s) => Ok(s),
         Err(e) => {error!("cesu-8 problem occured in typed_value:parse_length_and_string()");Err(e)}
     }
 }
 
-fn parse_length_and_binary(rdr: &mut io::BufRead) -> DbcResult<Vec<u8>> {
+fn parse_length_and_binary(rdr: &mut io::BufRead) -> PrtResult<Vec<u8>> {
     let l8 = try!(rdr.read_u8());                                                   // B1
     let len = match l8 {
         l if l <= MAX_1_BYTE_LENGTH => l8 as usize,
         LENGTH_INDICATOR_2BYTE  =>  try!(rdr.read_i16::<LittleEndian>()) as usize,  // I2
         LENGTH_INDICATOR_4BYTE  =>  try!(rdr.read_i32::<LittleEndian>()) as usize,  // I4
-        l => {panic!("Invalid value in length indicator: {}",l)}, // FIXME panic
+        l => {return Err(PrtError::ProtocolError(format!("Invalid value in length indicator: {}", l)));},
     };
     util::parse_bytes(len,rdr)                                                      // B variable
 }
 
-fn parse_nullable_length_and_string(rdr: &mut io::BufRead) -> DbcResult<Option<String>> {
+fn parse_nullable_length_and_string(rdr: &mut io::BufRead) -> PrtResult<Option<String>> {
     match try!(parse_nullable_length_and_binary(rdr)) {
         Some(vec) => match util::cesu8_to_string(&vec) {
             Ok(s) => Ok(Some(s)),
-            Err(_) => Err(DbcError::ProtocolError("cesu-8 problem occured in typed_value:parse_length_and_string()".to_string())),
+            Err(_) => Err(PrtError::ProtocolError("cesu-8 problem occured in typed_value:parse_length_and_string()".to_string())),
         },
         None => Ok(None),
     }
 }
 
-fn parse_nullable_length_and_binary(rdr: &mut io::BufRead) -> DbcResult<Option<Vec<u8>>> {
+fn parse_nullable_length_and_binary(rdr: &mut io::BufRead) -> PrtResult<Option<Vec<u8>>> {
     let l8 = try!(rdr.read_u8());                                                   // B1
     let len = match l8 {
         l if l <= MAX_1_BYTE_LENGTH => l8 as usize,
         LENGTH_INDICATOR_2BYTE  => try!(rdr.read_i16::<LittleEndian>()) as usize,   // I2
         LENGTH_INDICATOR_4BYTE  => try!(rdr.read_i32::<LittleEndian>()) as usize,   // I4
         LENGTH_INDICATOR_NULL   => return Ok(None),
-        l => {panic!("Invalid value in length indicator: {}",l)},
+        l => {return Err(PrtError::ProtocolError(format!("Invalid value in length indicator: {}",l)))},
     };
     Ok(Some(try!(util::parse_bytes(len,rdr))))                                      // B variable
 }
 
+//-----  LongDates ----------------------------------------------------------------------------------------------
 const LONGDATE_NULL_REPRESENTATION: i64 = 3_155_380_704_000_000_001_i64;
-fn parse_longdate(rdr: &mut io::BufRead) -> DbcResult<LongDate> {
+fn parse_longdate(rdr: &mut io::BufRead) -> PrtResult<LongDate> {
     let i = try!(rdr.read_i64::<LittleEndian>());
     match i {
-        LONGDATE_NULL_REPRESENTATION => Err(DbcError::ProtocolError("Null value found for non-null longdate column".to_string())),
+        LONGDATE_NULL_REPRESENTATION => Err(PrtError::ProtocolError("Null value found for non-null longdate column".to_string())),
         _ => Ok(LongDate(i))
     }
 }
 
-fn parse_nullable_longdate(rdr: &mut io::BufRead) -> DbcResult<Option<LongDate>> {
+fn parse_nullable_longdate(rdr: &mut io::BufRead) -> PrtResult<Option<LongDate>> {
     let i = try!(rdr.read_i64::<LittleEndian>());
     match i {
         LONGDATE_NULL_REPRESENTATION => Ok(None),
         _ => Ok(Some(LongDate(i)))
+    }
+}
+
+//-----  LOBs ----------------------------------------------------------------------------------------------
+fn parse_blob(rs_ref: &RsRef, rdr: &mut io::BufRead) -> PrtResult<BLOB> {
+    match try!(parse_nullable_blob(rs_ref, rdr)) {
+        Some(blob) => Ok(blob),
+        None => Err(PrtError::ProtocolError("Null value found for non-null blob column".to_string()))
+    }
+}
+fn parse_nullable_blob(rs_ref: &RsRef, rdr: &mut io::BufRead) -> PrtResult<Option<BLOB>> {
+    let (is_null, is_last_data) = try!(parse_lob_1(rdr));
+    match is_null {
+        true => { return Ok(None); },
+        false => {
+            let (length_c, length_b, locator_id, data) = try!(parse_lob_2(rdr));
+            Ok(Some(BLOB::new(rs_ref, is_last_data, length_c, length_b, locator_id, data)))
+        }
+    }
+}
+
+fn parse_clob(rs_ref: &RsRef, rdr: &mut io::BufRead) -> PrtResult<CLOB> {
+    match try!(parse_nullable_clob(rs_ref, rdr)) {
+        Some(clob) => Ok(clob),
+        None => Err(PrtError::ProtocolError("Null value found for non-null clob column".to_string()))
+    }
+}
+fn parse_nullable_clob(rs_ref: &RsRef, rdr: &mut io::BufRead) -> PrtResult<Option<CLOB>> {
+    let (is_null, is_last_data) = try!(parse_lob_1(rdr));
+    match is_null {
+        true => { return Ok(None); },
+        false => {
+            let (length_c, length_b, locator_id, data) = try!(parse_lob_2(rdr));
+            let s = match try!(util::from_cesu8(&data)) {
+                Cow::Owned(s) => s,
+                Cow::Borrowed(s) => String::from(s)
+            };
+            Ok(Some(CLOB::new(rs_ref, is_last_data, length_c, length_b, locator_id, s)))
+        }
+    }
+}
+
+// see "Output BLOB/CLOB/NCLOB"
+fn parse_lob_1(rdr: &mut io::BufRead) -> PrtResult<(bool, bool)> {
+    rdr.consume(1);    //let data_type = try!(rdr.read_u8());               // I1  "type of data": unclear
+    let options = try!(rdr.read_u8());                                      // I1
+    let is_null = (options & 0b_1_u8) != 0;
+    // let is_data_included = (options & 0b_10_u8) != 0;
+    let is_last_data = (options & 0b_100_u8) != 0;
+    Ok((is_null, is_last_data))
+}
+fn parse_lob_2(rdr: &mut io::BufRead) -> PrtResult<(u64,u64,u64,Vec<u8>)> {
+    rdr.consume(2);                                                         // U2 (filler)
+    let length_c = try!(rdr.read_u64::<LittleEndian>());                    // I8
+    let length_b = try!(rdr.read_u64::<LittleEndian>());                    // I8
+    let locator_id = try!(rdr.read_u64::<LittleEndian>());                  // I8
+    let chunk_length = try!(rdr.read_i32::<LittleEndian>());                // I4
+    let data = try!(util::parse_bytes(chunk_length as usize,rdr));          // B[chunk_length]
+    trace!("Got LOB locator {}", locator_id);
+    Ok((length_c, length_b, locator_id, data))
+}
+
+
+pub struct ReadLobReply;
+impl ReadLobReply {
+    pub fn parse(rdr: &mut io::BufRead) -> PrtResult<(u64,bool,Vec<u8>)>{
+        let locator_id = try!(rdr.read_u64::<LittleEndian>());                  // I8
+        let options = try!(rdr.read_u8());                                      // I1
+        // let is_null = (options & 0b_1_u8) != 0;
+        // let is_data_included = (options & 0b_10_u8) != 0;
+        let is_last_data = (options & 0b_100_u8) != 0;
+        let chunk_length = try!(rdr.read_i32::<LittleEndian>());                // I4
+        rdr.consume(3);                                                         // B3 (filler)
+        let data = try!(util::parse_bytes(chunk_length as usize,rdr));          // B[chunk_length]
+        Ok((locator_id, is_last_data, data))
     }
 }

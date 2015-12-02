@@ -1,4 +1,4 @@
-use {DbcError,DbcResult};
+use super::{PrtError,PrtResult};
 use super::option_value::OptionValue;
 
 use byteorder::{ReadBytesExt,WriteBytesExt};
@@ -16,18 +16,18 @@ impl StatementContext {
         StatementContext { statement_sequence_info: None, server_processing_time: None, schema_name: None }
     }
 
-    pub fn encode (&self, w: &mut io::Write)  -> DbcResult<()> {
+    pub fn serialize (&self, w: &mut io::Write)  -> PrtResult<()> {
         if let Some(ref value) = self.statement_sequence_info {
             try!(w.write_i8(ScId::StatementSequenceInfo.to_i8()));              // I1
-            try!(value.encode(w));
+            try!(value.serialize(w));
         }
         if let Some(ref value) = self.server_processing_time {
             try!(w.write_i8(ScId::ServerProcessingTime.to_i8()));               // I1
-            try!(value.encode(w));
+            try!(value.serialize(w));
         }
         if let Some(ref value) = self.schema_name {
             try!(w.write_i8(ScId::SchemaName.to_i8()));                         // I1
-            try!(value.encode(w));
+            try!(value.serialize(w));
         }
         Ok(())
     }
@@ -48,7 +48,8 @@ impl StatementContext {
         count
     }
 
-    pub fn parse(count: i32, rdr: &mut io::BufRead) -> DbcResult<StatementContext> {
+    pub fn parse(count: i32, rdr: &mut io::BufRead) -> PrtResult<StatementContext> {
+        trace!("StatementContext::parse()");
         let mut sc = StatementContext::new();
         for _ in 0..count {
             let sc_id = try!(ScId::from_i8(try!(rdr.read_i8())));               // I1
@@ -59,6 +60,7 @@ impl StatementContext {
                 ScId::SchemaName => sc.schema_name = Some(value),
             }
         }
+        trace!("StatementContext::parse(): got {:?}",sc);
         Ok(sc)
     }
 }
@@ -79,10 +81,10 @@ impl ScId {
         }
     }
 
-    pub fn from_i8(val: i8) -> DbcResult<ScId> { match val {
+    pub fn from_i8(val: i8) -> PrtResult<ScId> { match val {
         1 => Ok(ScId::StatementSequenceInfo),
         2 => Ok(ScId::ServerProcessingTime),
         3 => Ok(ScId::SchemaName),
-        _ => Err(DbcError::ProtocolError(format!("Invalid value for ScId detected: {}",val))),
+        _ => Err(PrtError::ProtocolError(format!("Invalid value for ScId detected: {}",val))),
     }}
 }
