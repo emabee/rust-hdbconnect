@@ -546,6 +546,8 @@ fn parse_nullable_clob(rs_ref: &RsRef, rdr: &mut io::BufRead) -> PrtResult<Optio
                 Cow::Owned(s) => s,
                 Cow::Borrowed(s) => String::from(s)
             };
+            assert_eq!(data.len(), s.len());
+            trace!("parse_nullable_clob(): s: =============================\n{}\n===========================", s);
             Ok(Some(CLOB::new(rs_ref, is_last_data, length_c, length_b, locator_id, s)))
         }
     }

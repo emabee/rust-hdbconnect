@@ -494,7 +494,33 @@ impl serde::de::Deserializer for RsDeserializer {
         trace!("RsDeserializer::visit_seq() called");
 
         match self.rows_treat {
-            MCD::Done => Err(DeserError::ProgramError("double-nesting (Vec<Vec<_>>) not possible".to_string())),
+            MCD::Done => {
+                match try!(self.current_value_pop()) {
+                    TypedValue::BLOB(blob)
+                    | TypedValue::N_BLOB(Some(blob))
+                    => {
+                        match visitor.visit_bytes(&try!(blob.into_bytes())) {
+                            Ok(v) => Ok(v),
+                            Err(e) => {
+                                trace!("ERRRRRRRRR: {:?}",e);
+                                Err(e)
+                            }
+                        }
+                    },
+
+                    TypedValue::BINARY(v)
+                    | TypedValue::VARBINARY(v)
+                    | TypedValue::BSTRING(v)
+                    | TypedValue::N_BINARY(Some(v))
+                    | TypedValue::N_VARBINARY(Some(v))
+                    | TypedValue::N_BSTRING(Some(v))
+                    => visitor.visit_bytes(&v),
+
+                    value
+                    => return Err(self.wrong_type(&value, "seq")),
+                }
+                // Err(DeserError::ProgramError("double-nesting (Vec<Vec<_>>) not possible".to_string()))
+            },
             _ => {
                 self.rows_treat = MCD::Done;
                 visitor.visit_seq(RowVisitor::new(self))
@@ -508,7 +534,7 @@ impl serde::de::Deserializer for RsDeserializer {
     fn visit_map<V>(&mut self, mut visitor: V) -> Result<V::Value, Self::Error>
         where V: serde::de::Visitor,
     {
-        trace!("RsDeserializer::visit_map() called!!");
+        trace!("RsDeserializer::visit_map()");
         match self.cols_treat {
             MCD::Done => Err(DeserError::ProgramError("double-nesting (struct in struct) not possible".to_string())),
             _ => {
@@ -538,16 +564,6 @@ impl serde::de::Deserializer for RsDeserializer {
         where V: serde::de::Visitor
     {
         trace!("RsDeserializer::visit_newtype_struct() called with _name = {}", _name);
-        // FIXME BLOB handling
-        // trace!("RsDeserializer::visit_i64() called");
-        // match try!(self.current_value_pop()) {
-        //     TypedValue::BIGINT(i)
-        //     | TypedValue::LONGDATE(LongDate(i))
-        //     | TypedValue::N_BIGINT(Some(i))
-        //     | TypedValue::N_LONGDATE(Some(LongDate(i))) => visitor.visit_i64(i),
-        //     value => return Err(self.wrong_type(&value, "i64")),
-        // }
-
         visitor.visit_newtype_struct(self)
     }
 
@@ -705,6 +721,16 @@ impl<'a> serde::de::MapVisitor for FieldVisitor<'a> {
                     RsStruct::Matrix | RsStruct::SingleRow => MCD::Must,
                     RsStruct::SingleColumn | RsStruct::SingleValue => MCD::Can,
                 };
+                match self.de.rs.rows.last() {
+                    None => {},
+                    Some(next_row) => {
+                        trace!("Next row: {:?}, {:?}, {:?}",
+                            (*next_row).values.get(0).unwrap(),
+                            (*next_row).values.get(1).unwrap(),
+                            (*next_row).values.get(2).unwrap()
+                        );
+                    },
+                }
                 Ok(())
             },
             _ => { Err(DeserError::TrailingCols) },

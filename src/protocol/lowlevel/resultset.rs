@@ -1,17 +1,18 @@
 use DbcResult;
 use super::{PrtError,PrtResult,prot_err};
 use super::argument::Argument;
-use super::message::Message;
+use super::conn_core::ConnRef;
+use super::function_code::FunctionCode;
+use super::message::RequestMessage;
+use super::message_type::MessageType;
 use super::option_value::OptionValue;
 use super::part::Part;
 use super::partkind::PartKind;
 use super::part_attributes::PartAttributes;
 use super::resultset_metadata::ResultSetMetadata;
-use super::segment;
 use super::statement_context::StatementContext;
 use super::typed_value::TypedValue;
 use super::util;
-use super::conn_core::ConnRef;
 
 use rs_serde::deserialize::RsDeserializer;
 
@@ -44,6 +45,9 @@ impl ResultSetCore {
             resultset_id: rs_id,
             statement_contexts: vec![stmt_ctx],
         }))
+    }
+    pub fn latest_stmt_seq_info(&self) -> Option<OptionValue> {
+        self.statement_contexts.last().as_ref().unwrap().statement_sequence_info.clone()
     }
 }
 
@@ -120,8 +124,7 @@ impl ResultSet {
 
                 {
                     let mut rs_core = rs.core_ref.borrow_mut();
-                    match (&rs_core.statement_contexts.last().as_ref().unwrap().statement_sequence_info,
-                            &stmt_context.statement_sequence_info) {
+                    match (&rs_core.latest_stmt_seq_info(), &stmt_context.statement_sequence_info) {
                         (&Some(OptionValue::BSTRING(ref b1)), &Some(OptionValue::BSTRING(ref b2))) => {
                             if b1 != b2 {
                                 return Err(prot_err("statement_sequence_info of fetch does not match"));
@@ -204,26 +207,19 @@ impl ResultSet {
                 None => {return Err(prot_err("Fetch no more possible"));},
             };
             let fetch_size = { conn_ref.borrow().get_fetch_size() };
-            (
-                conn_ref,
-                rs_core.resultset_id,
-                rs_core.statement_contexts.last().as_ref().unwrap().statement_sequence_info.clone(),
-                fetch_size
-            )
+            (conn_ref, rs_core.resultset_id, rs_core.latest_stmt_seq_info(), fetch_size)
         };
 
         // build the request, provide StatementContext and resultset id, define FetchSize
         let command_options = 0; // FIXME not sure if this is OK
-        let mut segment = segment::new_request_seg(segment::MessageType::FetchNext, true, command_options);
+        let mut message = RequestMessage::new(0, MessageType::FetchNext, true, command_options);
         let mut stmt_ctx = StatementContext::new();
         stmt_ctx.statement_sequence_info = statement_sequence_info;
-        segment.push(Part::new(PartKind::StatementContext, Argument::StatementContext(stmt_ctx)));
-        segment.push(Part::new(PartKind::ResultSetId, Argument::ResultSetId(resultset_id)));
-        segment.push(Part::new(PartKind::FetchSize, Argument::FetchSize(fetch_size)));
-        let mut message = Message::new();
-        message.segments.push(segment);
+        message.push(Part::new(PartKind::StatementContext, Argument::StatementContext(stmt_ctx)));
+        message.push(Part::new(PartKind::ResultSetId, Argument::ResultSetId(resultset_id)));
+        message.push(Part::new(PartKind::FetchSize, Argument::FetchSize(fetch_size)));
 
-        try!(message.send_and_receive(&mut Some(self), &conn_ref));
+        try!(message.send_and_receive(&mut Some(self), &conn_ref, Some(FunctionCode::Fetch)));
         Ok(())
     }
 
