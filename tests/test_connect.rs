@@ -45,13 +45,13 @@ pub fn connect_wrong_password() {
 pub fn connect_and_select() {
     use flexi_logger::{LogConfig,detailed_format};
     // hdbconnect::protocol::lowlevel::resultset::deserialize=info,\
-            // hdbconnect::protocol::lowlevel::typed_value=trace,\
             // hdbconnect::protocol::lowlevel::resultset=debug,\
     flexi_logger::init(LogConfig {
             log_to_file: true,
             format: detailed_format,
             .. LogConfig::new() },
             Some("info,\
+            hdbconnect::protocol::lowlevel::message=debug,\
             ".to_string())).unwrap();
 
     match impl_connect_and_select() {
@@ -63,9 +63,8 @@ pub fn connect_and_select() {
 fn impl_connect_and_select() -> DbcResult<()> {
     let mut connection = try!(hdbconnect::Connection::new("wdfd00245307a", "30415", "SYSTEM", "manager"));
     connection.set_fetch_size(1024);
-    // try!(impl_select_version_and_user(&mut connection));
+    try!(impl_select_version_and_user(&mut connection));
     try!(impl_select_many_active_objects(&mut connection));
-    // try!(impl_select_blob(&mut connection));
     info!("{} calls to DB were executed", connection.get_call_count());
     Ok(())
 }
@@ -114,6 +113,7 @@ fn impl_select_many_active_objects(connection: &mut Connection) -> DbcResult<usi
         released_at: Option<LongDate>,
     }
 
+    let start = Local::now();
 
     let top_n = 300_usize;
     let stmt = format!("select top {} \
@@ -148,45 +148,13 @@ fn impl_select_many_active_objects(connection: &mut Connection) -> DbcResult<usi
 
     let typed_result: Vec<ActiveObject> = try!(resultset.into_typed());
     debug!("Typed Result: {:?}", typed_result);
-    // assert_eq!(typed_result.len(),top_n);
-    //
-    // let s = typed_result.get(0).unwrap().activated_at.datetime_utc().format("%Y-%m-%d %H:%M:%S").to_string();
-    // debug!("Activated_at: {}", s);
+    assert_eq!(typed_result.len(),top_n);
+
+
+    let s = typed_result.get(0).unwrap().activated_at.datetime_utc().format("%Y-%m-%d %H:%M:%S").to_string();
+    debug!("Activated_at: {}", s);
+    let delta = (Local::now() - start).num_milliseconds();
+    info!("impl_select_many_active_objects() took {} ms",delta);
 
     Ok(typed_result.len())
 }
-
-
-// fn impl_select_blob(connection: &mut Connection) -> DbcResult<usize> {
-//     #[derive(Serialize, Deserialize, Debug)]
-//     struct ActiveObject {
-//         activated_by: String,
-//         cdata: Option<String>,
-//         delivery_unit: Option<String>,
-//     }
-//
-//
-//     let stmt = "\
-//         select top 1
-//         ACTIVATED_BY as \"activated_by\", \
-//         CDATA as \"cdata\", \
-//         DELIVERY_UNIT as \"delivery_unit\" \
-//         from _SYS_REPO.ACTIVE_OBJECT \
-//         where PACKAGE_ID='sap.ui5.1.resources.sap.fiori' \
-//         AND OBJECT_NAME='core' \
-//         AND OBJECT_SUFFIX='js' \
-//         order by LENGTH(CDATA) desc \
-//     ".to_string();
-//
-//     let callable_stmt = try!(connection.prepare_call(stmt));
-//     let resultset = try!(callable_stmt.execute_rs(false));
-//     debug!("ResultSet: {:?}", resultset);
-//
-//     for t in resultset.server_processing_times() {
-//         debug!("Server processing time: {} µs", t);
-//     }
-//
-//     let typed_result: Vec<ActiveObject> = try!(resultset.into_typed());
-//     debug!("Typed Result: {:?}", typed_result);
-//     Ok(typed_result.len())
-// }

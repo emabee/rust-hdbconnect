@@ -217,15 +217,40 @@ pub fn from_cesu8(bytes: &[u8]) -> Result<Cow<str>, Cesu8DecodingError> {
         Ok(str) => Ok(Cow::Borrowed(str)),
         _ => {
             let mut decoded = Vec::with_capacity(bytes.len());
-            if decode_from_iter(&mut decoded, &mut bytes.iter()) {
+            let (success, _) = decode_from_iter(&mut decoded, &mut bytes.iter());
+            if success {
                 // We can remove this assertion if we trust our decoder.
                 assert!(str::from_utf8(&decoded[..]).is_ok());
                 Ok(Cow::Owned(unsafe {
-                    let s = String::from_utf8_unchecked(decoded);
-                    trace!("util::from_cesu8(): {}", s);                    
-                    s }))
+                        let s = String::from_utf8_unchecked(decoded);
+                        trace!("util::from_cesu8(): {}", s);
+                        (s)
+                    }))
             } else {
-                trace!("util::from_cesu8() failed for {:?}", bytes);
+                debug!("util::from_cesu8() failed for {:?}", bytes);
+                Err(Cesu8DecodingError)
+            }
+        }
+    }
+}
+
+pub fn from_cesu8_with_count(bytes: &[u8]) -> Result<(Cow<str>,u64), Cesu8DecodingError> {
+    match str::from_utf8(bytes) {
+        Ok(str) => Ok((Cow::Borrowed(str), str.chars().count() as u64)),
+        _ => {
+            let mut decoded = Vec::with_capacity(bytes.len());
+            let (success, count) = decode_from_iter(&mut decoded, &mut bytes.iter());
+            if success {
+                // We can remove this assertion if we trust our decoder.
+                assert!(str::from_utf8(&decoded[..]).is_ok());
+                Ok((
+                    Cow::Owned(unsafe {
+                        let s = String::from_utf8_unchecked(decoded);
+                        trace!("util::from_cesu8(): {}", s);
+                        (s)
+                    }), count))
+            } else {
+                debug!("util::from_cesu8() failed for {:?}", bytes);
                 Err(Cesu8DecodingError)
             }
         }
@@ -237,8 +262,7 @@ fn test_from_cesu8() {
     // The surrogate-encoded character below is from the ICU library's
     // icu/source/test/testdata/conversion.txt test case.
     let data = &[0x4D, 0xE6, 0x97, 0xA5, 0xED, 0xA0, 0x81, 0xED, 0xB0, 0x81];
-    assert_eq!(Cow::Borrowed("M日\u{10401}"),
-               from_cesu8(data).unwrap());
+    assert_eq!(Cow::Borrowed("M日\u{10401}"), from_cesu8(data).unwrap());
 
     // We used to have test data from the CESU-8 specification, but when we
     // worked it through manually, we got the wrong answer:
@@ -258,9 +282,10 @@ fn test_from_cesu8() {
 }
 
 // Our internal decoder, based on Rust's is_utf8 implementation.
-fn decode_from_iter(decoded: &mut Vec<u8>, iter: &mut slice::Iter<u8>) -> bool {
+fn decode_from_iter(decoded: &mut Vec<u8>, iter: &mut slice::Iter<u8>) -> (bool,u64) {
+    let mut count = 0;
     macro_rules! err {
-        () => { return false }
+        () => { return (false,count) }
     }
     macro_rules! next {
         () => {
@@ -285,9 +310,9 @@ fn decode_from_iter(decoded: &mut Vec<u8>, iter: &mut slice::Iter<u8>) -> bool {
             Some(&b) => b,
             // We're at the end of the iterator and a codepoint boundary at
             // the same time, so this string is valid.
-            None => return true
+            None => return (true,count)
         };
-
+        count += 1;
         if first < 127 {
             // Pass ASCII through directly.
             decoded.push(first);

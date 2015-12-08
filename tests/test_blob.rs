@@ -9,12 +9,12 @@ extern crate hdbconnect;
 extern crate serde;
 extern crate vec_map;
 
-use chrono::Local;
-use serde::bytes::ByteBuf;
-use std::error::Error;
 use hdbconnect::Connection;
 use hdbconnect::DbcResult;
 use hdbconnect::LongDate;
+
+use serde::bytes::ByteBuf;
+use std::error::Error;
 
 #[test]
 pub fn init() {
@@ -33,7 +33,7 @@ pub fn lob_1() {
             log_to_file: true,
             format: detailed_format,
             .. LogConfig::new() },
-            Some("info,\
+            Some("debug,\
             ".to_string())).unwrap();
 
     match impl_connect_and_select() {
@@ -75,9 +75,6 @@ fn impl_connect_and_select() -> DbcResult<()> {
         released_at: Option<LongDate>,
     }
 
-
-    let top_n = 300_usize;
-    // let stmt = format!("select top {} \
     let stmt = format!("select \
                 PACKAGE_ID as \"package_id\", \
                 OBJECT_NAME as \"object_name\", \
@@ -99,9 +96,9 @@ fn impl_connect_and_select() -> DbcResult<()> {
                 CHANGE_NUMBER as \"change_number\", \
                 RELEASED_AT as \"released_at\" \
                 from _SYS_REPO.ACTIVE_OBJECT \
-                where package_id = 'sap.hana.ide.editor.plugin.editors.hdbflowgraph.lib.jqgrid.i18n' \
-                and object_name = 'grid-locale-kr' \
-                and object_suffix = 'js' "); //, top_n);
+                where package_id = 'sap.hana.xs.dt.base.content.template' \
+                and object_name = 'hdbtable-columnstore' \
+                and object_suffix = 'template' ");
 
     let callable_stmt = try!(connection.prepare_call(stmt));
     let resultset = try!(callable_stmt.execute_rs(true));
@@ -113,45 +110,6 @@ fn impl_connect_and_select() -> DbcResult<()> {
 
     let typed_result: Vec<ActiveObject> = try!(resultset.into_typed());
     debug!("Typed Result: {:?}", typed_result);
-    // assert_eq!(typed_result.len(),top_n);
-    //
-    // let s = typed_result.get(0).unwrap().activated_at.datetime_utc().format("%Y-%m-%d %H:%M:%S").to_string();
-    // debug!("Activated_at: {}", s);
 
     Ok(typed_result.len())
 }
-
-
-// fn impl_select_blob(connection: &mut Connection) -> DbcResult<usize> {
-//     #[derive(Serialize, Deserialize, Debug)]
-//     struct ActiveObject {
-//         activated_by: String,
-//         cdata: Option<String>,
-//         delivery_unit: Option<String>,
-//     }
-//
-//
-//     let stmt = "\
-//         select top 1
-//         ACTIVATED_BY as \"activated_by\", \
-//         CDATA as \"cdata\", \
-//         DELIVERY_UNIT as \"delivery_unit\" \
-//         from _SYS_REPO.ACTIVE_OBJECT \
-//         where PACKAGE_ID='sap.ui5.1.resources.sap.fiori' \
-//         AND OBJECT_NAME='core' \
-//         AND OBJECT_SUFFIX='js' \
-//         order by LENGTH(CDATA) desc \
-//     ".to_string();
-//
-//     let callable_stmt = try!(connection.prepare_call(stmt));
-//     let resultset = try!(callable_stmt.execute_rs(false));
-//     debug!("ResultSet: {:?}", resultset);
-//
-//     for t in resultset.server_processing_times() {
-//         debug!("Server processing time: {} µs", t);
-//     }
-//
-//     let typed_result: Vec<ActiveObject> = try!(resultset.into_typed());
-//     debug!("Typed Result: {:?}", typed_result);
-//     Ok(typed_result.len())
-// }

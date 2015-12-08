@@ -185,7 +185,7 @@ impl ResultSet {
         let rs_core = self.core_ref.borrow();
         if (!rs_core.attributes.is_last_packet())
            && (rs_core.attributes.row_not_found() || rs_core.attributes.is_resultset_closed()) {
-            Err(PrtError::ProtocolError("ResultSet incomplete, but already closed on server".to_string()))
+            Err(PrtError::ProtocolError(String::from("ResultSet incomplete, but already closed on server")))
         } else {
             Ok(rs_core.attributes.is_last_packet())
         }

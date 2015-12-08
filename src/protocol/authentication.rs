@@ -1,4 +1,4 @@
-use super::protocol_error::{PrtError,PrtResult};
+use super::protocol_error::{PrtResult,prot_err};
 use super::lowlevel::argument::Argument;
 use super::lowlevel::authfield::AuthField;
 use super::lowlevel::clientcontext_option::{CcOption,CcOptionId};
@@ -51,15 +51,15 @@ fn build_auth1_request (chllng_sha256: &Vec<u8>, username: &str) -> RequestMessa
     let mut cc_options = Vec::<CcOption>::new();
     cc_options.push( CcOption {
         id: CcOptionId::Version,
-        value: OptionValue::STRING("1.50.00.000000".to_string()),
+        value: OptionValue::STRING(String::from("1.50.00.000000")),
     });
     cc_options.push( CcOption {
         id: CcOptionId::ClientType,
-        value: OptionValue::STRING("JDBC".to_string()),
+        value: OptionValue::STRING(String::from("JDBC")),
     });
     cc_options.push( CcOption {
         id: CcOptionId::ClientApplicationProgram,
-        value: OptionValue::STRING("UNKNOWN".to_string()),
+        value: OptionValue::STRING(String::from("UNKNOWN")),
     });
 
     let part1 = Part::new(PartKind::ClientContext, Argument::CcOptions(cc_options));
@@ -116,7 +116,7 @@ fn get_client_id() -> Vec<u8> {
 }
 
 fn get_locale() -> String {
-    "en_US".to_string()
+    String::from("en_US")
 }
 
 fn create_client_challenge() -> Vec<u8>{
@@ -130,7 +130,7 @@ fn get_server_challenge(response: ReplyMessage) -> PrtResult<Vec<u8>> {
     trace!("Entering get_server_challenge()");
     let part = match util::get_first_part_of_kind(PartKind::Authentication, &response.parts) {
         Some(idx) => response.parts.get(idx).unwrap(),
-        None => return Err(PrtError::ProtocolError("no part of kind Authentication".to_string())),
+        None => return Err(prot_err("no part of kind Authentication")),
     };
 
     if let Argument::Auth(ref vec) = part.arg {
@@ -138,7 +138,7 @@ fn get_server_challenge(response: ReplyMessage) -> PrtResult<Vec<u8>> {
         debug!("get_server_challenge(): returning {:?}",&server_challenge);
         Ok(server_challenge)
     } else {
-        Err(PrtError::ProtocolError("wrong Argument variant".to_string()))
+        Err(prot_err("wrong Argument variant"))
     }
 }
 

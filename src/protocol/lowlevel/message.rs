@@ -1,7 +1,7 @@
 //! Since there is obviously no usecase for multiple segments in one request, we model message and segment together.
 //! Instead we differentiate explicitly between request messages and reply messages.
 
-use super::{PrtError,PrtResult};
+use super::{PrtError,PrtResult,prot_err};
 use super::conn_core::ConnRef;
 use super::argument::Argument;
 use super::function_code::FunctionCode;
@@ -12,7 +12,8 @@ use super::resultset::ResultSet;
 use super::util;
 
 use byteorder::{LittleEndian,ReadBytesExt,WriteBytesExt};
-use std::io::{self,BufRead,Write};
+use chrono::Local;
+use std::io::{self,BufRead};
 
 const BUFFER_SIZE: u32 = 130000;
 const MESSAGE_HEADER_SIZE: u32 = 32;
@@ -45,13 +46,16 @@ impl RequestMessage {
                             expected_fc: Option<FunctionCode>)
     -> PrtResult<ReplyMessage> {
         trace!("RequestMessage::send_and_receive()");
+        let start = Local::now();
         try!(self.serialize(conn_ref));
-
-        debug!("RequestMessage::send_and_receive(): request data successfully sent");
+        let delta1 = (Local::now() - start).num_milliseconds();
 
         let mut response = try!(ReplyMessage::parse(o_rs, conn_ref));
         try!(response.assert_no_error());
         try!(response.assert_expected_fc(expected_fc));
+        let delta2 = (Local::now() - start).num_milliseconds();
+        debug!("RequestMessage::send_and_receive() took {total} ms (send: {send} ms)", send=delta1, total=delta2);
+
         Ok(response)
     }
 
@@ -69,7 +73,7 @@ impl RequestMessage {
         let mut cs = conn_ref_local.borrow_mut();
         let session_id = cs.session_id;
         let seq_number = cs.next_seq_number();
-        let w = &mut cs.stream;
+        let w = &mut io::BufWriter::new(&mut cs.stream);
         try!(w.write_i64::<LittleEndian>(session_id));                  // I8
         try!(w.write_i32::<LittleEndian>(seq_number));                  // I4
         try!(w.write_u32::<LittleEndian>(varpart_size));                // UI4
@@ -94,8 +98,6 @@ impl RequestMessage {
         for ref part in &self.parts {
             remaining_bufsize = try!(part.serialize(remaining_bufsize, w));
         }
-
-        try!(w.flush());
         Ok(())
     }
 
@@ -120,25 +122,23 @@ impl RequestMessage {
     }
 }
 
+///
 pub struct ReplyMessage {
     pub session_id: i64,
-    kind: Kind,
     pub function_code: FunctionCode,
     pub parts: Vec<Part>,
 }
 impl ReplyMessage {
-    fn new(session_id: i64, kind: Kind, function_code: FunctionCode) -> ReplyMessage {
+    fn new(session_id: i64, function_code: FunctionCode) -> ReplyMessage {
         ReplyMessage {
             session_id: session_id,
-            kind: kind,
             function_code: function_code,
             parts: Vec::<Part>::new(),
         }
     }
 
     ///
-    fn parse(o_rs: &mut Option<&mut ResultSet>, conn_ref: &ConnRef)
-    -> PrtResult<ReplyMessage> {
+    fn parse(o_rs: &mut Option<&mut ResultSet>, conn_ref: &ConnRef) -> PrtResult<ReplyMessage> {
         trace!("ReplyMessage::parse()");
         let stream = &mut (conn_ref.borrow_mut().stream);
         let mut rdr = io::BufReader::new(stream);
@@ -158,7 +158,7 @@ impl ReplyMessage {
         try!(rdr.read_i32::<LittleEndian>());                                       // I4 seg_offset (BigEndian??)
         let no_of_parts = try!(rdr.read_i16::<LittleEndian>());                     // I2
         try!(rdr.read_i16::<LittleEndian>());                                       // I2 seg_number
-        let kind = try!(Kind::from_i8(try!(rdr.read_i8())));                        // I1
+        try!(Kind::from_i8(try!(rdr.read_i8())));                                   // I1
         // match seg_kind {
             // Kind::Request => {
             //     let mt = try!(MessageType::from_i8(try!(rdr.read_i8())));        // I1
@@ -173,10 +173,10 @@ impl ReplyMessage {
         rdr.consume(8_usize);                                                       // B[8] reserved3
         //     },
         // };
-        debug!("message and segment header: \
+        trace!("message and segment header: \
                 {{ session_id = {}, packet_seq_number = {}, varpart_size = {}, remaining_bufsize = {}, no_of_parts = {} }}",
                 session_id, packet_seq_number, varpart_size, remaining_bufsize, no_of_parts);
-        let mut msg = ReplyMessage::new(session_id, kind, fc);
+        let mut msg = ReplyMessage::new(session_id, fc);
 
         for _ in 0..no_of_parts {
             let part = try!(Part::parse(&mut (msg.parts), conn_ref, o_rs, &mut rdr));
@@ -203,7 +203,7 @@ impl ReplyMessage {
             let errpart = self.parts.remove(idx);
             let vec = match errpart.arg {
                 Argument::Error(v) => v,
-                _ => return Err(PrtError::ProtocolError("Inconsistent error part found".to_string())),
+                _ => return Err(prot_err("Inconsistent error part found")),
             };
             let err = PrtError::DbMessage(vec);
             warn!("{}",err);
@@ -224,10 +224,6 @@ enum Kind {
     Error,    // sp1sk_proccall, sp1sk_procreply ,sp1sk_last_segment_kind see api/Communication/Protocol/Layout.hpp
 }
 impl Kind {
-    fn to_i8(&self) -> i8 {match *self {
-        Kind::Reply => 2,
-        Kind::Error => 5,
-    }}
     fn from_i8(val: i8) -> PrtResult<Kind> {match val {
         2 => Ok(Kind::Reply),
         5 => Ok(Kind::Error),

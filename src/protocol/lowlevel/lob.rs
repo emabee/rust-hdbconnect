@@ -1,4 +1,4 @@
-use super::{PrtError,PrtResult,prot_err};
+use super::{PrtResult,prot_err};
 use super::argument::Argument;
 use super::function_code::FunctionCode;
 use super::message::RequestMessage;
@@ -16,20 +16,18 @@ use std::cmp;
 pub struct BLOB {
     rs_ref: Option<RsRef>,
     is_data_complete: bool,
-    length_c: u64,
     length_b: u64,
     locator_id: u64,
     data: Vec<u8>,
 }
 impl BLOB {
-    pub fn new(rs_ref: &RsRef, is_data_complete: bool, length_c: u64, length_b: u64, locator_id: u64, data: Vec<u8>) -> BLOB {
+    pub fn new(rs_ref: &RsRef, is_data_complete: bool, length_b: u64, locator_id: u64, data: Vec<u8>) -> BLOB {
         trace!(
-            "Instantiate BLOB with length_c = {}, length_b = {}, is_data_complete = {}, data.length() = {}",
-            length_c, length_b, is_data_complete, data.len()
+            "Instantiate BLOB with length_b = {}, is_data_complete = {}, data.length() = {}",
+            length_b, is_data_complete, data.len()
         );
         BLOB {
             rs_ref: Some(rs_ref.clone()),
-            length_c: length_c,
             length_b: length_b,
             is_data_complete: is_data_complete,
             locator_id: locator_id,
@@ -44,7 +42,7 @@ impl BLOB {
 
     fn fetch_next_chunk(&mut self) -> PrtResult<()> {
         let (mut reply_data, reply_is_last_data)
-            = try!(fetch_a_lob_chunk(&self.rs_ref, self.locator_id, self.length_b, self.data.len()));
+            = try!(fetch_a_lob_chunk(&self.rs_ref, self.locator_id, self.length_b, self.data.len() as u64));
 
         self.data.append(&mut reply_data);
         self.is_data_complete = reply_is_last_data;
@@ -70,11 +68,12 @@ pub struct CLOB {
     is_data_complete: bool,
     length_c: u64,
     length_b: u64,
+    char_count: u64,
     locator_id: u64,
     data: String,
 }
 impl CLOB {
-    pub fn new(rs_ref: &RsRef, is_data_complete: bool, length_c: u64, length_b: u64, locator_id: u64, data: String)
+    pub fn new(rs_ref: &RsRef, is_data_complete: bool, length_c: u64, length_b: u64, char_count: u64, locator_id: u64, data: String)
     -> CLOB {
         trace!(
             "CLOB::new() with length_c = {}, length_b = {}, is_data_complete = {}, data.len() = {}",
@@ -87,6 +86,7 @@ impl CLOB {
             rs_ref: Some(rs_ref.clone()),
             length_c: length_c,
             length_b: length_b,
+            char_count: char_count,
             is_data_complete: is_data_complete,
             locator_id: locator_id,
             data: data,
@@ -95,15 +95,16 @@ impl CLOB {
 
     fn fetch_next_chunk(&mut self) -> PrtResult<()> {
         let (reply_data, reply_is_last_data)
-            = try!(fetch_a_lob_chunk(&self.rs_ref, self.locator_id, self.length_b, self.data.chars().count()));
+            = try!(fetch_a_lob_chunk(&self.rs_ref, self.locator_id, self.length_b, self.char_count));
 
-        let s = try!(util::from_cesu8(&reply_data));
+        let (s,char_count) = try!(util::from_cesu8_with_count(&reply_data));
         trace!("self.data: =============================\n{}\n===========================", self.data);
         trace!("new data: =============================\n{}\n===========================", s);
         match s {
             Cow::Owned(s) => self.data.push_str(&s),
             Cow::Borrowed(s) => self.data.push_str(s),
         }
+        self.char_count += char_count;
         self.is_data_complete = reply_is_last_data;
 
         assert_eq!(self.is_data_complete, self.length_b == self.data.len() as u64);
@@ -129,7 +130,7 @@ impl CLOB {
 }
 
 
-fn fetch_a_lob_chunk(rs_ref: &Option<RsRef>, locator_id: u64, length_b: u64, data_len: usize )
+fn fetch_a_lob_chunk(rs_ref: &Option<RsRef>, locator_id: u64, length_b: u64, data_len: u64 )
 -> PrtResult<(Vec<u8>,bool)> {
     // build the request, provide StatementContext and length_to_read
     let (conn_ref, statement_sequence_info, length_to_read) = { // scope the borrow
@@ -145,7 +146,7 @@ fn fetch_a_lob_chunk(rs_ref: &Option<RsRef>, locator_id: u64, length_b: u64, dat
                 };
                 let length_to_read = cmp::min(
                         conn_ref.borrow().get_lob_read_length() as u64,
-                        length_b - data_len as u64
+                        length_b - data_len
                 );
                 (conn_ref, rs_core.latest_stmt_seq_info(), length_to_read as i32)
             },
@@ -157,20 +158,20 @@ fn fetch_a_lob_chunk(rs_ref: &Option<RsRef>, locator_id: u64, length_b: u64, dat
     stmt_ctx.statement_sequence_info = statement_sequence_info;
     message.push(Part::new(PartKind::StatementContext, Argument::StatementContext(stmt_ctx)));
 
-    let offset = data_len as i64 + 1_i64;
+    let offset = data_len + 1;
     message.push(Part::new(PartKind::ReadLobRequest, Argument::ReadLobRequest(locator_id, offset, length_to_read)));
 
     let mut response = try!(message.send_and_receive(&mut None, &conn_ref, Some(FunctionCode::ReadLob)));
 
     let part = match util::get_first_part_of_kind(PartKind::ReadLobReply, &response.parts) {
         Some(idx) => response.parts.swap_remove(idx),
-        None => return Err(PrtError::ProtocolError("no part of kind ReadLobReply".to_string())),
+        None => return Err(prot_err("no part of kind ReadLobReply")),
     };
 
     if let Argument::ReadLobReply(reply_locator_id, reply_is_last_data, reply_data) = part.arg {
         if reply_locator_id != locator_id {
-            return Err(PrtError::ProtocolError("lob::fetch_a_lob_chunk(): locator ids do not match".to_string()));
+            return Err(prot_err("lob::fetch_a_lob_chunk(): locator ids do not match"));
         }
         Ok((reply_data, reply_is_last_data))
-    } else { Err(PrtError::ProtocolError("wrong Argument variant".to_string())) }
+    } else { Err(prot_err("wrong Argument variant")) }
 }

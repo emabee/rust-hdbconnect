@@ -28,6 +28,11 @@ impl Error for DeserError {
     }
 }
 
+pub fn prog_err(s: &str) -> DeserError {
+    DeserError::ProgramError(String::from(s))
+}
+
+
 impl From<PrtError> for DeserError {
     fn from(error: PrtError) -> DeserError {
         DeserError::FetchError(error)

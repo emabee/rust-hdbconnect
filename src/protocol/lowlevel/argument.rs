@@ -29,7 +29,7 @@ pub enum Argument {
     ConnectOptions(Vec<ConnectOption>),
     Error(Vec<HdbError>),
     FetchSize(u32),
-    ReadLobRequest(u64,i64,i32),        // locator, offset, length
+    ReadLobRequest(u64,u64,i32),        // locator, offset, length
     ReadLobReply(u64,bool,Vec<u8>),     // locator, is_last_data, data
     ResultSet(Option<ResultSet>),
     ResultSetId(u64),
@@ -119,7 +119,7 @@ impl Argument {
                     locator_id, offset, length_to_read
                 );
                 try!(w.write_u64::<LittleEndian>(*locator_id));
-                try!(w.write_i64::<LittleEndian>(*offset));
+                try!(w.write_u64::<LittleEndian>(*offset));
                 try!(w.write_i32::<LittleEndian>(*length_to_read));
                 try!(w.write_u32::<LittleEndian>(0_u32)); // FILLER
             },

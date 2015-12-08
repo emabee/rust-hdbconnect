@@ -40,27 +40,27 @@ impl CallableStatement {
             &FunctionCode::Select => {
                 let part = match util::get_first_part_of_kind(PartKind::ResultSet, &response.parts) {
                     Some(idx) => response.parts.swap_remove(idx),
-                    None => return Err(DbcError::EvaluationError("no part of kind ResultSet".to_string())),
+                    None => return Err(DbcError::EvaluationError(String::from("no part of kind ResultSet"))),
                 };
                 match part.arg {
                     Argument::ResultSet(Some(mut resultset)) => {
                         try!(resultset.fetch_all());  // FIXME fetching remaining data should be done more lazily
                         Ok(CallableStatementResult::ResultSet(resultset))
                     },
-                    _ => Err(DbcError::EvaluationError("unexpected error in CallableStatement::execute() 1".to_string())),
+                    _ => Err(DbcError::EvaluationError(String::from("unexpected error in CallableStatement::execute() 1"))),
                 }
             },
 
             &FunctionCode::Ddl | &FunctionCode::Insert => {
                 let part = match util::get_first_part_of_kind(PartKind::RowsAffected, &response.parts) {
                     Some(idx) => response.parts.remove(idx),
-                    None => return Err(DbcError::EvaluationError("no part of kind RowsAffected".to_string())),
+                    None => return Err(DbcError::EvaluationError(String::from("no part of kind RowsAffected"))),
                 };
                 match part.arg {
                     Argument::RowsAffected(vec) => {
                         Ok(CallableStatementResult::RowsAffected(vec))
                     },
-                    _ => Err(DbcError::EvaluationError("unexpected error in CallableStatement::execute() 2".to_string())),
+                    _ => Err(DbcError::EvaluationError(String::from("unexpected error in CallableStatement::execute() 2"))),
                 }
             },
 
@@ -85,7 +85,7 @@ impl CallableStatementResult {
     pub fn as_resultset(self) -> DbcResult<ResultSet> {
         match self {
             CallableStatementResult::RowsAffected(_) => {
-                Err(DbcError::EvaluationError("The statement returned a RowsAffected, not a ResultSet".to_string()))
+                Err(DbcError::EvaluationError(String::from("The statement returned a RowsAffected, not a ResultSet")))
             },
             CallableStatementResult::ResultSet(rs) => Ok(rs),
         }
@@ -94,7 +94,7 @@ impl CallableStatementResult {
         match self {
             CallableStatementResult::RowsAffected(v) => Ok(v),
             CallableStatementResult::ResultSet(_) => {
-                Err(DbcError::EvaluationError("The statement returned a ResultSet, not a RowsAffected".to_string()))
+                Err(DbcError::EvaluationError(String::from("The statement returned a ResultSet, not a RowsAffected")))
             },
         }
     }

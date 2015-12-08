@@ -1,4 +1,4 @@
-use super::{PrtError,PrtResult};
+use super::{PrtError,PrtResult,prot_err};
 use super::resultset::RsRef;
 use super::lob::{BLOB,CLOB};
 use types::longdate::LongDate;
@@ -374,7 +374,7 @@ fn ind_null(rdr: &mut io::BufRead) -> PrtResult<bool> {
 // reads the nullindicator and throws an error if it has value 0
 fn ind_not_null(rdr: &mut io::BufRead) -> PrtResult<()> {
     match try!(ind_null(rdr)) {
-        true => Err(PrtError::ProtocolError("null value returned for not-null column".to_string())),
+        true => Err(prot_err("null value returned for not-null column")),
         false => Ok(())
     }
 }
@@ -387,7 +387,7 @@ fn parse_real(rdr: &mut io::BufRead) -> PrtResult<f32> {
     let mut r = io::Cursor::new(&vec);
     let tmp = try!(r.read_u32::<LittleEndian>());
     match tmp {
-        u32::MAX => Err(PrtError::ProtocolError("Unexpected NULL Value in parse_real()".to_string())),
+        u32::MAX => Err(prot_err("Unexpected NULL Value in parse_real()")),
         _ => {r.set_position(0); Ok(try!(r.read_f32::<LittleEndian>()))},
     }
 }
@@ -409,7 +409,7 @@ fn parse_double(rdr: &mut io::BufRead) -> PrtResult<f64> {
     let mut r = io::Cursor::new(&vec);
     let tmp = try!(r.read_u64::<LittleEndian>());
     match tmp {
-        u64::MAX => Err(PrtError::ProtocolError("Unexpected NULL Value in parse_double()".to_string())),
+        u64::MAX => Err(prot_err("Unexpected NULL Value in parse_double()")),
         _ => {r.set_position(0); Ok(try!(r.read_f64::<LittleEndian>()))},
     }
 }
@@ -476,7 +476,7 @@ fn parse_nullable_length_and_string(rdr: &mut io::BufRead) -> PrtResult<Option<S
     match try!(parse_nullable_length_and_binary(rdr)) {
         Some(vec) => match util::cesu8_to_string(&vec) {
             Ok(s) => Ok(Some(s)),
-            Err(_) => Err(PrtError::ProtocolError("cesu-8 problem occured in typed_value:parse_length_and_string()".to_string())),
+            Err(_) => Err(prot_err("cesu-8 problem occured in typed_value:parse_length_and_string()")),
         },
         None => Ok(None),
     }
@@ -499,7 +499,7 @@ const LONGDATE_NULL_REPRESENTATION: i64 = 3_155_380_704_000_000_001_i64;
 fn parse_longdate(rdr: &mut io::BufRead) -> PrtResult<LongDate> {
     let i = try!(rdr.read_i64::<LittleEndian>());
     match i {
-        LONGDATE_NULL_REPRESENTATION => Err(PrtError::ProtocolError("Null value found for non-null longdate column".to_string())),
+        LONGDATE_NULL_REPRESENTATION => Err(prot_err("Null value found for non-null longdate column")),
         _ => Ok(LongDate(i))
     }
 }
@@ -516,7 +516,7 @@ fn parse_nullable_longdate(rdr: &mut io::BufRead) -> PrtResult<Option<LongDate>>
 fn parse_blob(rs_ref: &RsRef, rdr: &mut io::BufRead) -> PrtResult<BLOB> {
     match try!(parse_nullable_blob(rs_ref, rdr)) {
         Some(blob) => Ok(blob),
-        None => Err(PrtError::ProtocolError("Null value found for non-null blob column".to_string()))
+        None => Err(prot_err("Null value found for non-null blob column"))
     }
 }
 fn parse_nullable_blob(rs_ref: &RsRef, rdr: &mut io::BufRead) -> PrtResult<Option<BLOB>> {
@@ -524,8 +524,8 @@ fn parse_nullable_blob(rs_ref: &RsRef, rdr: &mut io::BufRead) -> PrtResult<Optio
     match is_null {
         true => { return Ok(None); },
         false => {
-            let (length_c, length_b, locator_id, data) = try!(parse_lob_2(rdr));
-            Ok(Some(BLOB::new(rs_ref, is_last_data, length_c, length_b, locator_id, data)))
+            let (_, length_b, locator_id, data) = try!(parse_lob_2(rdr));
+            Ok(Some(BLOB::new(rs_ref, is_last_data, length_b, locator_id, data)))
         }
     }
 }
@@ -533,7 +533,7 @@ fn parse_nullable_blob(rs_ref: &RsRef, rdr: &mut io::BufRead) -> PrtResult<Optio
 fn parse_clob(rs_ref: &RsRef, rdr: &mut io::BufRead) -> PrtResult<CLOB> {
     match try!(parse_nullable_clob(rs_ref, rdr)) {
         Some(clob) => Ok(clob),
-        None => Err(PrtError::ProtocolError("Null value found for non-null clob column".to_string()))
+        None => Err(prot_err("Null value found for non-null clob column"))
     }
 }
 fn parse_nullable_clob(rs_ref: &RsRef, rdr: &mut io::BufRead) -> PrtResult<Option<CLOB>> {
@@ -542,13 +542,14 @@ fn parse_nullable_clob(rs_ref: &RsRef, rdr: &mut io::BufRead) -> PrtResult<Optio
         true => { return Ok(None); },
         false => {
             let (length_c, length_b, locator_id, data) = try!(parse_lob_2(rdr));
-            let s = match try!(util::from_cesu8(&data)) {
+            let (s,char_count) = try!(util::from_cesu8_with_count(&data));
+            let s = match s {
                 Cow::Owned(s) => s,
                 Cow::Borrowed(s) => String::from(s)
             };
             assert_eq!(data.len(), s.len());
             trace!("parse_nullable_clob(): s: =============================\n{}\n===========================", s);
-            Ok(Some(CLOB::new(rs_ref, is_last_data, length_c, length_b, locator_id, s)))
+            Ok(Some(CLOB::new(rs_ref, is_last_data, length_c, length_b, char_count, locator_id, s)))
         }
     }
 }

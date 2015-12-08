@@ -7,11 +7,11 @@
 use protocol::lowlevel::resultset::ResultSet;
 use types::longdate::LongDate;
 use protocol::lowlevel::typed_value::TypedValue;
-use super::deser_error::{DeserError,DeserResult};
+use super::deser_error::{DeserError,DeserResult,prog_err};
 
 use serde;
-use std::mem::swap;
-
+use std::mem::{size_of,swap};
+use std::{u8,u16,u32,usize,i8,i16,i32,isize};
 
 /// Deserialize a ResultSet into a normal rust type.
 ///
@@ -129,11 +129,11 @@ impl RsDeserializer {
     fn current_value_pop(&mut self) -> DeserResult<TypedValue> {
         try!(self.value_deserialization_allowed());
         match self.rs.rows.last_mut() {
-            None => Err(DeserError::ProgramError("no row found in resultset".to_string())),
+            None => Err(prog_err("no row found in resultset")),
             Some(row) => {
                 match row.values.pop() {
                     Some(tv) => Ok(tv),
-                    None => Err(DeserError::ProgramError("no column found in row".to_string())),
+                    None => Err(prog_err("no column found in row")),
                 }
             },
         }
@@ -142,11 +142,11 @@ impl RsDeserializer {
     fn current_value_ref(&self) -> DeserResult<&TypedValue> {
         try!(self.value_deserialization_allowed());
         match self.rs.rows.last() {
-            None => Err(DeserError::ProgramError("no row found in resultset".to_string())),
+            None => Err(prog_err("no row found in resultset")),
             Some(row) => {
                 match row.values.last() {
                     Some(tv) => Ok(tv),
-                    None => Err(DeserError::ProgramError("no column found in row".to_string())),
+                    None => Err(prog_err("no column found in row")),
                 }
             },
         }
@@ -167,6 +167,14 @@ impl RsDeserializer {
         DeserError::WrongValueType(format!("The result value {:?} in column {} cannot be deserialized \
                          into a field of type {}", tv, fieldname, ovt))
     }
+
+    fn number_range(&self, value: &i64, ovt: &str)-> DeserError {
+        let fieldname = self.rs.get_fieldname(self.rs.rows.last().unwrap().values.len()).unwrap();
+        DeserError::WrongValueType(format!(
+            "Number range exceeded: The result value {:?} in column {} cannot be deserialized into a field of type {}",
+            value, fieldname, ovt
+        ))
+    }
 }
 
 
@@ -185,7 +193,7 @@ impl serde::de::Deserializer for RsDeserializer {
                 visitor.visit_str((&self).rs.get_fieldname(i).unwrap())
             },
             None => {
-                return Err(DeserError::ProgramError("Nothing in RsDeserializer::visit()".to_string()));
+                return Err(prog_err("Nothing in RsDeserializer::visit()"));
             },
         }
     }
@@ -203,14 +211,47 @@ impl serde::de::Deserializer for RsDeserializer {
         }
     }
 
-    // /// This method hints that the `Deserialize` type is expecting an `usize` value.
-    // #[inline]
-    // fn visit_usize<V>(&mut self, visitor: V) -> Result<V::Value, Self::Error>
-    //     where V: serde::de::Visitor,
-    // {
-    //     trace!("RsDeserializer::visit_usize() called");
-    //     self.visit(visitor)
-    // }
+    /// This method hints that the `Deserialize` type is expecting an `usize` value.
+    #[inline]
+    fn visit_usize<V>(&mut self, mut visitor: V) -> Result<V::Value, Self::Error>
+        where V: serde::de::Visitor,
+    {
+        trace!("RsDeserializer::visit_usize() called");
+        match try!(self.current_value_pop()) {
+            TypedValue::TINYINT(u) | TypedValue::N_TINYINT(Some(u))
+                => visitor.visit_usize(u as usize),
+
+            TypedValue::SMALLINT(i) | TypedValue::N_SMALLINT(Some(i))
+                => {
+                    if i >= 0 { visitor.visit_usize(i as usize) }
+                    else { Err(self.number_range(&(i as i64), "usize")) }
+                },
+
+            TypedValue::INT(i) | TypedValue::N_INT(Some(i))
+                => {
+                    if i >= 0 { visitor.visit_usize(i as usize) }
+                    else { Err(self.number_range(&(i as i64), "usize")) }
+                },
+
+            TypedValue::BIGINT(i) | TypedValue::N_BIGINT(Some(i))
+                => {
+                    if size_of::<usize>() == size_of::<u64>() {
+                        // usize is 8 bytes
+                        if i >= 0 { visitor.visit_usize(i as usize) }
+                        else { Err(self.number_range(&i, "usize")) }
+
+                    } else if size_of::<usize>() == size_of::<u32>() {
+                        // usize is 4 bytes
+                        if (i >= 0) && (i <= usize::MAX as i64) { visitor.visit_usize(i as usize) }
+                        else { Err(self.number_range(&i, "usize")) }
+                    }
+                    else { Err(self.number_range(&i, "usize - unexpected size of usize !!")) }
+                },
+
+            value
+                => Err(self.wrong_type(&value, "usize")),
+        }
+    }
 
     /// This method hints that the `Deserialize` type is expecting an `u8` value.
     #[inline]
@@ -219,56 +260,214 @@ impl serde::de::Deserializer for RsDeserializer {
     {
         trace!("RsDeserializer::visit_u8() called");
         match try!(self.current_value_pop()) {
-            TypedValue::TINYINT(u)
-            | TypedValue::N_TINYINT(Some(u)) => visitor.visit_u8(u),
-            value => return Err(self.wrong_type(&value, "u8")),
+            TypedValue::TINYINT(u) | TypedValue::N_TINYINT(Some(u))
+                => visitor.visit_u8(u),
+
+            TypedValue::SMALLINT(i) | TypedValue::N_SMALLINT(Some(i))
+                => {
+                    if (i >= 0) && (i <= u8::MAX as i16) { visitor.visit_u8(i as u8) }
+                    else { Err(self.number_range(&(i as i64), "u8")) }
+                },
+
+            TypedValue::INT(i) | TypedValue::N_INT(Some(i))
+                => {
+                    if (i >= 0) && (i <= u8::MAX as i32) { visitor.visit_u8(i as u8) }
+                    else { Err(self.number_range(&(i as i64), "u8")) }
+                },
+
+            TypedValue::BIGINT(i) | TypedValue::N_BIGINT(Some(i))
+                => {
+                    if (i >= 0) && (i <= u8::MAX as i64) { visitor.visit_u8(i as u8) }
+                    else { Err(self.number_range(&i, "u8")) }
+                },
+
+            value
+                => Err(self.wrong_type(&value, "u8")),
         }
     }
 
-    // /// This method hints that the `Deserialize` type is expecting an `u16` value.
-    // #[inline]
-    // fn visit_u16<V>(&mut self, visitor: V) -> Result<V::Value, Self::Error>
-    //     where V: serde::de::Visitor,
-    // {
-    //     trace!("RsDeserializer::visit_u16() called");
-    //     self.visit(visitor)
-    // }
+    /// This method hints that the `Deserialize` type is expecting an `u16` value.
+    #[inline]
+    fn visit_u16<V>(&mut self, mut visitor: V) -> Result<V::Value, Self::Error>
+        where V: serde::de::Visitor,
+    {
+        trace!("RsDeserializer::visit_u16() called");
+        match try!(self.current_value_pop()) {
+            TypedValue::TINYINT(u) | TypedValue::N_TINYINT(Some(u))
+                => visitor.visit_u16(u as u16),
+
+            TypedValue::SMALLINT(i) | TypedValue::N_SMALLINT(Some(i))
+                => {
+                    if i >= 0 { visitor.visit_u16(i as u16) }
+                    else { Err(self.number_range(&(i as i64), "u16")) }
+                },
+
+            TypedValue::INT(i) | TypedValue::N_INT(Some(i))
+                => {
+                    if (i >= 0) && (i <= u16::MAX as i32) { visitor.visit_u16(i as u16) }
+                    else { Err(self.number_range(&(i as i64), "u16")) }
+                },
+
+            TypedValue::BIGINT(i) | TypedValue::N_BIGINT(Some(i))
+                => {
+                    if (i >= 0) && (i <= u16::MAX as i64) { visitor.visit_u16(i as u16) }
+                    else { Err(self.number_range(&i, "u16")) }
+                },
+
+            value
+                => Err(self.wrong_type(&value, "u16")),
+        }
+    }
+
+    /// This method hints that the `Deserialize` type is expecting an `u32` value.
+    #[inline]
+    fn visit_u32<V>(&mut self, mut visitor: V) -> Result<V::Value, Self::Error>
+        where V: serde::de::Visitor,
+    {
+        trace!("RsDeserializer::visit_u32() called");
+        match try!(self.current_value_pop()) {
+            TypedValue::TINYINT(u) | TypedValue::N_TINYINT(Some(u))
+                => visitor.visit_u32(u as u32),
+
+            TypedValue::SMALLINT(i) | TypedValue::N_SMALLINT(Some(i))
+                => {
+                    if i >= 0 { visitor.visit_u32(i as u32) }
+                    else { Err(self.number_range(&(i as i64), "u32")) }
+                },
+
+            TypedValue::INT(i) | TypedValue::N_INT(Some(i))
+                => {
+                    if i >= 0 { visitor.visit_u32(i as u32) }
+                    else { Err(self.number_range(&(i as i64), "u32")) }
+                },
+
+            TypedValue::BIGINT(i) | TypedValue::N_BIGINT(Some(i))
+                => {
+                    if (i >= 0) && (i <= u32::MAX as i64) { visitor.visit_u32(i as u32) }
+                    else { Err(self.number_range(&i, "u32")) }
+                },
+
+            value
+                => Err(self.wrong_type(&value, "u32")),
+        }
+    }
+
+    /// This method hints that the `Deserialize` type is expecting an `u64` value.
+    #[inline]
+    fn visit_u64<V>(&mut self, mut visitor: V) -> Result<V::Value, Self::Error>
+        where V: serde::de::Visitor,
+    {
+        trace!("RsDeserializer::visit_u64() called");
+        match try!(self.current_value_pop()) {
+            TypedValue::TINYINT(u) | TypedValue::N_TINYINT(Some(u))
+                => visitor.visit_u64(u as u64),
+
+            TypedValue::SMALLINT(i) | TypedValue::N_SMALLINT(Some(i))
+                => {
+                    if i >= 0 { visitor.visit_u64(i as u64) }
+                    else { Err(self.number_range(&(i as i64), "u64")) }
+                },
+
+            TypedValue::INT(i) | TypedValue::N_INT(Some(i))
+                => {
+                    if i >= 0 { visitor.visit_u64(i as u64) }
+                    else { Err(self.number_range(&(i as i64), "u64")) }
+                },
+
+            TypedValue::BIGINT(i) | TypedValue::N_BIGINT(Some(i))
+                => {
+                    if i >= 0 { visitor.visit_u64(i as u64) }
+                    else { Err(self.number_range(&i, "u64")) }
+                },
+
+            value
+                => Err(self.wrong_type(&value, "u64")),
+        }
+    }
+
+
+
+    // TypedValue::INT(i) | TypedValue::N_INT(Some(i))
+    //     => {
+    //         if i.abs() <= u8::MAX as i32 { visitor.visit_u8(i as u8) }
+    //         else { Err(self.number_too_big(&(i as i64), "too big for u8")) }
+    //     },
     //
-    // /// This method hints that the `Deserialize` type is expecting an `u32` value.
-    // #[inline]
-    // fn visit_u32<V>(&mut self, visitor: V) -> Result<V::Value, Self::Error>
-    //     where V: serde::de::Visitor,
-    // {
-    //     trace!("RsDeserializer::visit_u32() called");
-    //     self.visit(visitor)
-    // }
-    //
-    // /// This method hints that the `Deserialize` type is expecting an `u64` value.
-    // #[inline]
-    // fn visit_u64<V>(&mut self, visitor: V) -> Result<V::Value, Self::Error>
-    //     where V: serde::de::Visitor,
-    // {
-    //     trace!("RsDeserializer::visit_u64() called");
-    //     self.visit(visitor)
-    // }
-    //
-    // /// This method hints that the `Deserialize` type is expecting an `isize` value.
-    // #[inline]
-    // fn visit_isize<V>(&mut self, visitor: V) -> Result<V::Value, Self::Error>
-    //     where V: serde::de::Visitor,
-    // {
-    //     trace!("RsDeserializer::visit_isize() called");
-    //     self.visit(visitor)
-    // }
-    //
-    // /// This method hints that the `Deserialize` type is expecting an `i8` value.
-    // #[inline]
-    // fn visit_i8<V>(&mut self, visitor: V) -> Result<V::Value, Self::Error>
-    //     where V: serde::de::Visitor,
-    // {
-    //     trace!("RsDeserializer::visit_i8() called");
-    //     self.visit(visitor)
-    // }
+
+    /// This method hints that the `Deserialize` type is expecting an `isize` value.
+    #[inline]
+    fn visit_isize<V>(&mut self, mut visitor: V) -> Result<V::Value, Self::Error>
+        where V: serde::de::Visitor,
+    {
+        trace!("RsDeserializer::visit_isize() called");
+        match try!(self.current_value_pop()) {
+            TypedValue::TINYINT(u) | TypedValue::N_TINYINT(Some(u))
+                => visitor.visit_isize(u as isize),
+
+            TypedValue::SMALLINT(i) | TypedValue::N_SMALLINT(Some(i))
+                => {
+                    visitor.visit_isize(i as isize)
+                },
+
+            TypedValue::INT(i) | TypedValue::N_INT(Some(i))
+                => {
+                    visitor.visit_isize(i as isize)
+                },
+
+            TypedValue::BIGINT(i) | TypedValue::N_BIGINT(Some(i))
+                => {
+                    if size_of::<isize>() == size_of::<i64>() {
+                        // isize is 8 bytes
+                        visitor.visit_isize(i as isize)
+
+                    } else if size_of::<isize>() == size_of::<i32>() {
+                        // isize is 4 bytes
+                        if (i >= isize::MIN as i64) && (i <= isize::MAX as i64) { visitor.visit_isize(i as isize) }
+                        else { Err(self.number_range(&i, "isize")) }
+                    }
+                    else { Err(self.number_range(&i, "isize - unexpected size of isize !!")) }
+                },
+
+            value
+                => Err(self.wrong_type(&value, "isize")),
+        }
+    }
+
+    /// This method hints that the `Deserialize` type is expecting an `i8` value.
+    #[inline]
+    fn visit_i8<V>(&mut self, mut visitor: V) -> Result<V::Value, Self::Error>
+        where V: serde::de::Visitor,
+    {
+        trace!("RsDeserializer::visit_i8() called");
+        match try!(self.current_value_pop()) {
+            TypedValue::TINYINT(u) | TypedValue::N_TINYINT(Some(u))
+                => {
+                    if u <= i8::MAX as u8 { visitor.visit_i8(u as i8) }
+                    else { Err(self.number_range(&(u as i64), "i8")) }
+                }
+
+            TypedValue::SMALLINT(i) | TypedValue::N_SMALLINT(Some(i))
+                => {
+                    if (i >= i8::MIN as i16) && (i <= i8::MAX as i16) { visitor.visit_i8(i as i8) }
+                    else { Err(self.number_range(&(i as i64), "i8")) }
+                },
+
+            TypedValue::INT(i) | TypedValue::N_INT(Some(i))
+                => {
+                    if (i >= i8::MIN as i32) && (i <= i8::MAX as i32) { visitor.visit_i8(i as i8) }
+                    else { Err(self.number_range(&(i as i64), "i8")) }
+                },
+
+            TypedValue::BIGINT(i) | TypedValue::N_BIGINT(Some(i))
+                => {
+                    if (i >= i8::MIN as i64) && (i <= i8::MAX as i64) { visitor.visit_i8(i as i8) }
+                    else { Err(self.number_range(&i, "i8")) }
+                },
+
+            value
+                => Err(self.wrong_type(&value, "i8")),
+        }
+    }
 
     /// This method hints that the `Deserialize` type is expecting an `i16` value.
     #[inline]
@@ -277,9 +476,26 @@ impl serde::de::Deserializer for RsDeserializer {
     {
         trace!("RsDeserializer::visit_i16() called");
         match try!(self.current_value_pop()) {
-            TypedValue::SMALLINT(i)
-            | TypedValue::N_SMALLINT(Some(i)) => visitor.visit_i16(i),
-            value => return Err(self.wrong_type(&value, "i16")),
+            TypedValue::TINYINT(u) | TypedValue::N_TINYINT(Some(u))
+                => visitor.visit_i16(u as i16),
+
+            TypedValue::SMALLINT(i) | TypedValue::N_SMALLINT(Some(i))
+                => visitor.visit_i16(i),
+
+            TypedValue::INT(i) | TypedValue::N_INT(Some(i))
+                => {
+                    if (i >= i16::MIN as i32) && (i <= i16::MAX as i32) { visitor.visit_i16(i as i16) }
+                    else { Err(self.number_range(&(i as i64), "i16")) }
+                },
+
+            TypedValue::BIGINT(i) | TypedValue::N_BIGINT(Some(i))
+                => {
+                    if (i >= i16::MIN as i64) && (i <= i16::MAX as i64) { visitor.visit_i16(i as i16) }
+                    else { Err(self.number_range(&i, "i16")) }
+                },
+
+            value
+                => Err(self.wrong_type(&value, "i16")),
         }
     }
 
@@ -290,9 +506,23 @@ impl serde::de::Deserializer for RsDeserializer {
     {
         trace!("RsDeserializer::visit_i32() called");
         match try!(self.current_value_pop()) {
-            TypedValue::INT(i)
-            | TypedValue::N_INT(Some(i)) => visitor.visit_i32(i),
-            value => return Err(self.wrong_type(&value, "i32")),
+            TypedValue::TINYINT(u) | TypedValue::N_TINYINT(Some(u))
+                => visitor.visit_i32(u as i32),
+
+            TypedValue::SMALLINT(i) | TypedValue::N_SMALLINT(Some(i))
+                => visitor.visit_i32(i as i32),
+
+            TypedValue::INT(i) | TypedValue::N_INT(Some(i))
+                => visitor.visit_i32(i),
+
+            TypedValue::BIGINT(i) | TypedValue::N_BIGINT(Some(i))
+                => {
+                    if (i >= i32::MIN as i64) && (i <= i32::MAX as i64) { visitor.visit_i32(i as i32) }
+                    else { Err(self.number_range(&i, "i32")) }
+                },
+
+            value
+                => Err(self.wrong_type(&value, "i32")),
         }
     }
 
@@ -303,10 +533,19 @@ impl serde::de::Deserializer for RsDeserializer {
     {
         trace!("RsDeserializer::visit_i64() called");
         match try!(self.current_value_pop()) {
-            TypedValue::BIGINT(i)
-            | TypedValue::LONGDATE(LongDate(i))
-            | TypedValue::N_BIGINT(Some(i))
-            | TypedValue::N_LONGDATE(Some(LongDate(i))) => visitor.visit_i64(i),
+            TypedValue::TINYINT(u) | TypedValue::N_TINYINT(Some(u))
+                => visitor.visit_i64(u as i64),
+
+            TypedValue::SMALLINT(i) | TypedValue::N_SMALLINT(Some(i))
+                => visitor.visit_i64(i as i64),
+
+            TypedValue::INT(i) | TypedValue::N_INT(Some(i))
+                => visitor.visit_i64(i as i64),
+
+            TypedValue::BIGINT(i) | TypedValue::N_BIGINT(Some(i))
+            | TypedValue::LONGDATE(LongDate(i)) | TypedValue::N_LONGDATE(Some(LongDate(i)))
+                => visitor.visit_i64(i),
+
             value => return Err(self.wrong_type(&value, "i64")),
         }
     }
@@ -519,7 +758,6 @@ impl serde::de::Deserializer for RsDeserializer {
                     value
                     => return Err(self.wrong_type(&value, "seq")),
                 }
-                // Err(DeserError::ProgramError("double-nesting (Vec<Vec<_>>) not possible".to_string()))
             },
             _ => {
                 self.rows_treat = MCD::Done;
@@ -536,7 +774,7 @@ impl serde::de::Deserializer for RsDeserializer {
     {
         trace!("RsDeserializer::visit_map()");
         match self.cols_treat {
-            MCD::Done => Err(DeserError::ProgramError("double-nesting (struct in struct) not possible".to_string())),
+            MCD::Done => Err(prog_err("double-nesting (struct in struct) not possible")),
             _ => {
                 self.cols_treat = MCD::Done;
                 visitor.visit_map(FieldVisitor::new(self))
@@ -690,8 +928,8 @@ impl<'a> serde::de::MapVisitor for FieldVisitor<'a> {
                 match serde::de::Deserialize::deserialize(self.de) {
                     Ok(res) => Ok(Some(res)),
                     Err(_) => {
-                        let fname = self.de.rs.get_fieldname(idx).unwrap().to_string();
-                        Err(DeserError::MissingField(fname))
+                        let fname = self.de.rs.get_fieldname(idx).unwrap();
+                        Err(DeserError::MissingField(fname.clone()))
                     },
                 }
             },
@@ -702,7 +940,7 @@ impl<'a> serde::de::MapVisitor for FieldVisitor<'a> {
         where V: serde::de::Deserialize,
     {
         match self.de.rs.rows.last().unwrap().values.len() {
-            0 => Err(DeserError::ProgramError("no more value in FieldVisitor::visit_value()".to_string())),
+            0 => Err(prog_err("no more value in FieldVisitor::visit_value()")),
             len => {
                 trace!("FieldVisitor::visit_value() for col {}", len-1);
                 let tmp = try!(serde::de::Deserialize::deserialize(self.de));

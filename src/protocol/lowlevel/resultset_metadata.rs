@@ -1,4 +1,4 @@
-use super::{PrtError,PrtResult};
+use super::{PrtError,PrtResult,prot_err};
 use super::util;
 
 use byteorder::{LittleEndian,ReadBytesExt};
@@ -46,7 +46,7 @@ impl ResultSetMetadata {
         trace!("arg_size = {}, count = {}, limit = {} ", arg_size, count, limit);
         for _ in 0..rsm.names.len() {
             if offset >= limit {
-                return Err(PrtError::ProtocolError("Error in reading ResultSetMetadata".to_string()));
+                return Err(prot_err("Error in reading ResultSetMetadata"));
             };
             let nl = try!(rdr.read_u8());                                       // UI1
             let buffer: Vec<u8> = try!(util::parse_bytes(nl as usize,rdr));     // variable
