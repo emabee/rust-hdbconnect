@@ -19,19 +19,24 @@ const BUFFER_SIZE: u32 = 130000;
 const MESSAGE_HEADER_SIZE: u32 = 32;
 const SEGMENT_HEADER_SIZE: usize = 24; // same for in and out
 
+#[derive(Debug)]
+pub enum Message {
+    Request(Request),
+    Reply(Reply),
+}
 
 // Packets having the same sequence number belong to one request/response pair.
 #[derive(Debug)]
-pub struct RequestMessage {
+pub struct Request {
     pub session_id: i64,
     pub msg_type: MessageType,
     pub auto_commit: bool,
     pub command_options: u8,
     pub parts: Vec<Part>,
 }
-impl RequestMessage {
-    pub fn new(session_id: i64, msg_type: MessageType, auto_commit: bool, command_options: u8) -> RequestMessage  {
-        RequestMessage {
+impl Request {
+    pub fn new(session_id: i64, msg_type: MessageType, auto_commit: bool, command_options: u8) -> Request  {
+        Request {
             session_id: session_id,
             msg_type: msg_type,
             auto_commit: auto_commit,
@@ -44,17 +49,17 @@ impl RequestMessage {
                             o_rs: &mut Option<&mut ResultSet>,
                             conn_ref: &ConnRef,
                             expected_fc: Option<FunctionCode>)
-    -> PrtResult<ReplyMessage> {
-        trace!("RequestMessage::send_and_receive()");
+    -> PrtResult<Reply> {
+        trace!("Request::send_and_receive()");
         let start = Local::now();
         try!(self.serialize(conn_ref));
         let delta1 = (Local::now() - start).num_milliseconds();
 
-        let mut response = try!(ReplyMessage::parse(o_rs, conn_ref));
+        let mut response = try!(Reply::parse(o_rs, conn_ref));
         try!(response.assert_no_error());
         try!(response.assert_expected_fc(expected_fc));
         let delta2 = (Local::now() - start).num_milliseconds();
-        debug!("RequestMessage::send_and_receive() took {total} ms (send: {send} ms)", send=delta1, total=delta2);
+        debug!("Request::send_and_receive() took {total} ms (send: {send} ms)", send=delta1, total=delta2);
 
         Ok(response)
     }
@@ -68,12 +73,13 @@ impl RequestMessage {
         trace!("Writing Message with total size {}", total_size);
         let mut remaining_bufsize = BUFFER_SIZE - MESSAGE_HEADER_SIZE;
 
-        // MESSAGE HEADER
         let conn_ref_local = conn_ref.clone();
         let mut cs = conn_ref_local.borrow_mut();
         let session_id = cs.session_id;
         let seq_number = cs.next_seq_number();
-        let w = &mut io::BufWriter::new(&mut cs.stream);
+        let w = &mut io::BufWriter::with_capacity(total_size as usize, &mut cs.stream);
+
+        // MESSAGE HEADER
         try!(w.write_i64::<LittleEndian>(session_id));                  // I8
         try!(w.write_i32::<LittleEndian>(seq_number));                  // I4
         try!(w.write_u32::<LittleEndian>(varpart_size));                // UI4
@@ -122,15 +128,15 @@ impl RequestMessage {
     }
 }
 
-///
-pub struct ReplyMessage {
+#[derive(Debug)]
+pub struct Reply {
     pub session_id: i64,
     pub function_code: FunctionCode,
     pub parts: Vec<Part>,
 }
-impl ReplyMessage {
-    fn new(session_id: i64, function_code: FunctionCode) -> ReplyMessage {
-        ReplyMessage {
+impl Reply {
+    fn new(session_id: i64, function_code: FunctionCode) -> Reply {
+        Reply {
             session_id: session_id,
             function_code: function_code,
             parts: Vec::<Part>::new(),
@@ -138,51 +144,22 @@ impl ReplyMessage {
     }
 
     ///
-    fn parse(o_rs: &mut Option<&mut ResultSet>, conn_ref: &ConnRef) -> PrtResult<ReplyMessage> {
-        trace!("ReplyMessage::parse()");
+    fn parse(o_rs: &mut Option<&mut ResultSet>, conn_ref: &ConnRef) -> PrtResult<Reply> {
+        trace!("Reply::parse()");
         let stream = &mut (conn_ref.borrow_mut().stream);
         let mut rdr = io::BufReader::new(stream);
 
-        // MESSAGE HEADER: 32 bytes
-        let session_id = try!(rdr.read_i64::<LittleEndian>());          // I8
-        let packet_seq_number = try!(rdr.read_i32::<LittleEndian>());   // I4
-        let varpart_size = try!(rdr.read_u32::<LittleEndian>());        // UI4  not needed?
-        let remaining_bufsize = try!(rdr.read_u32::<LittleEndian>());   // UI4  not needed?
-        let no_of_segs = try!(rdr.read_i16::<LittleEndian>());          // I2
-        assert!(no_of_segs == 1);
-
-        rdr.consume(10usize);                                           // (I1 + B[9])
-
-        // SEGMENT HEADER: 24 bytes
-        try!(rdr.read_i32::<LittleEndian>());                                       // I4 seg_size (BigEndian??)
-        try!(rdr.read_i32::<LittleEndian>());                                       // I4 seg_offset (BigEndian??)
-        let no_of_parts = try!(rdr.read_i16::<LittleEndian>());                     // I2
-        try!(rdr.read_i16::<LittleEndian>());                                       // I2 seg_number
-        try!(Kind::from_i8(try!(rdr.read_i8())));                                   // I1
-        // match seg_kind {
-            // Kind::Request => {
-            //     let mt = try!(MessageType::from_i8(try!(rdr.read_i8())));        // I1
-            //     let commit = try!(rdr.read_i8()) != 0_i8;                        // I1
-            //     let command_options = try!(rdr.read_u8());                       // I1 command_options
-            //     rdr.consume(8_usize);                                            // B[8] reserved1
-            //     new_request_seg(mt, commit, command_options)
-            // },
-            // Kind::Reply | Kind::Error => {
-        rdr.consume(1_usize);                                                       // I1 reserved2
-        let fc = try!(FunctionCode::from_i16(try!(rdr.read_i16::<LittleEndian>())));// I2
-        rdr.consume(8_usize);                                                       // B[8] reserved3
-        //     },
-        // };
-        trace!("message and segment header: \
-                {{ session_id = {}, packet_seq_number = {}, varpart_size = {}, remaining_bufsize = {}, no_of_parts = {} }}",
-                session_id, packet_seq_number, varpart_size, remaining_bufsize, no_of_parts);
-        let mut msg = ReplyMessage::new(session_id, fc);
-
-        for _ in 0..no_of_parts {
-            let part = try!(Part::parse(&mut (msg.parts), conn_ref, o_rs, &mut rdr));
-            msg.push(part);
+        let (no_of_parts, msg) = try!(parse_message_and_sequence_header(&mut rdr));
+        match msg {
+            Message::Request(_) => Err(prot_err("Reply::parse() found Request")),
+            Message::Reply(mut msg) => {
+                for _ in 0..no_of_parts {
+                    let part = try!(Part::parse(&mut (msg.parts), Some(conn_ref), o_rs, &mut rdr));
+                    msg.push(part);
+                }
+                Ok(msg)
+            }
         }
-        Ok(msg)
     }
 
     fn assert_expected_fc(&self, expected_fc: Option<FunctionCode>) -> PrtResult<()> {
@@ -217,39 +194,57 @@ impl ReplyMessage {
     }
 }
 
+pub fn parse_message_and_sequence_header(rdr: &mut BufRead) -> PrtResult<(i16,Message)> {
+    // MESSAGE HEADER: 32 bytes
+    let session_id: i64 = try!(rdr.read_i64::<LittleEndian>());                             // I8
+    let packet_seq_number: i32 = try!(rdr.read_i32::<LittleEndian>());                      // I4
+    let varpart_size: u32 = try!(rdr.read_u32::<LittleEndian>());                           // UI4  not needed?
+    let remaining_bufsize: u32 = try!(rdr.read_u32::<LittleEndian>());                      // UI4  not needed?
+    let no_of_segs = try!(rdr.read_i16::<LittleEndian>());                                  // I2
+    assert!(no_of_segs == 1);
+
+    rdr.consume(10usize);                                                                   // (I1 + B[9])
+
+    // SEGMENT HEADER: 24 bytes
+    try!(rdr.read_i32::<LittleEndian>());                                                   // I4 seg_size
+    try!(rdr.read_i32::<LittleEndian>());                                                   // I4 seg_offset
+    let no_of_parts: i16 = try!(rdr.read_i16::<LittleEndian>());                                 // I2
+    try!(rdr.read_i16::<LittleEndian>());                                                   // I2 seg_number
+    let seg_kind = try!(Kind::from_i8(try!(rdr.read_i8())));                                // I1
+
+    trace!("message and segment header: \
+            {{ packet_seq_number = {}, varpart_size = {}, remaining_bufsize = {}, no_of_parts = {} }}",
+            packet_seq_number, varpart_size, remaining_bufsize, no_of_parts);
+
+    match seg_kind {
+        Kind::Request => {
+            let msg_type = try!(MessageType::from_i8(try!(rdr.read_i8())));                 // I1
+            let commit = try!(rdr.read_i8()) != 0_i8;                                       // I1
+            let command_options = try!(rdr.read_u8());                                      // I1 command_options
+            rdr.consume(8_usize);                                                           // B[8] reserved1
+            Ok((no_of_parts, Message::Request(Request::new(session_id, msg_type, commit, command_options))))
+        },
+        Kind::Reply | Kind::Error => {
+            rdr.consume(1_usize);                                                           // I1 reserved2
+            let fc = try!(FunctionCode::from_i16(try!(rdr.read_i16::<LittleEndian>())));    // I2
+            rdr.consume(8_usize);                                                           // B[8] reserved3
+            Ok((no_of_parts, Message::Reply(Reply::new(session_id, fc))))
+        },
+    }
+}
+
 /// Specifies the layout of the remaining segment header structure
 #[derive(Debug)]
 enum Kind {
+    Request,
     Reply,
     Error,    // sp1sk_proccall, sp1sk_procreply ,sp1sk_last_segment_kind see api/Communication/Protocol/Layout.hpp
 }
 impl Kind {
     fn from_i8(val: i8) -> PrtResult<Kind> {match val {
+        1 => Ok(Kind::Request),
         2 => Ok(Kind::Reply),
         5 => Ok(Kind::Error),
-        _ => Err(PrtError::ProtocolError(format!("Invalid value for segment::Kind::from_i8() detected: {}",val))),
+        _ => Err(prot_err(&format!("Invalid value for message::Kind::from_i8() detected: {}",val))),
     }}
 }
-
-
-
-//
-//
-// #[cfg(test)]
-// mod tests {
-//     use super::parse;
-//     use std::io;
-//
-//     // run exclusively with
-//     // cargo test protocol::lowlevel::message::tests::test_parse_from_bstring -- --nocapture
-//     #[test]
-//     fn test_parse_from_bstring() {
-//         // use flexi_logger;
-//         // flexi_logger::init( flexi_logger::LogConfig::new(), Some("info".to_string()))
-//         // .unwrap();
-//
-//         let bytes = b"\x5b\xd3\xf3\x17\x47\xa5\x04\x00\x02\x00\x00\x00\x06\x01\x00\x00\x10\x75\x00\x00\x01\x00\x00\x00\x00\x3a\x9b\x6c\x01\x00\x00\x00\x08\x01\x00\x00\x00\x00\x00\x00\x04\x00\x01\x00\x02\x01\x05\x00\x00\x00\x00\x00\x00\x00\x00\x00\x30\x00\x02\x00\x00\x00\x00\x00\x51\x00\x00\x00\xe8\x74\x00\x00\x02\x09\x00\x00\x20\x00\x00\x00\x00\x00\x00\x00\xff\xff\xff\xff\x0c\x00\x00\x00\x0c\x00\x00\x00\x01\x0b\x00\x00\x00\x01\x00\x00\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\x14\x00\x00\x00\x0b\x4d\x5f\x44\x41\x54\x41\x42\x41\x53\x45\x5f\x07\x56\x45\x52\x53\x49\x4f\x4e\x0c\x43\x55\x52\x52\x45\x4e\x54\x5f\x55\x53\x45\x52\x00\x00\x00\x13\x1c\x01\x15\x0d\x00\x01\x00\x00\x00\x00\x00\x08\x00\x00\x00\x80\x74\x00\x00\x80\x57\x7f\x62\x47\xa5\x04\x00\x27\x00\x02\x00\x00\x00\x00\x00\x2a\x00\x00\x00\x68\x74\x00\x00\x01\x21\x1c\x00\x01\x00\x00\x00\x00\x00\xad\xde\x38\xe2\x49\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xff\xff\xff\xff\x02\x04\x5f\x02\x00\x00\x00\x00\x00\x00\xf0\x3f\x06\x1c\x01\x07\x05\x11\x01\x00\x00\x00\x00\x00\x1e\x00\x00\x00\x28\x74\x00\x00\x16\x31\x2e\x35\x30\x2e\x30\x30\x30\x2e\x30\x31\x2e\x31\x34\x33\x37\x35\x38\x30\x31\x33\x31\x06\x53\x59\x53\x54\x45\x4d";
-//         let mut reader = io::BufReader::new(io::Cursor::new(bytes.to_vec()));
-//         info!("Got {:?}", parse(&mut None, &mut reader).unwrap());
-//     }
-// }

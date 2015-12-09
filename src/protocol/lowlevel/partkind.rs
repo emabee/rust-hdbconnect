@@ -6,8 +6,8 @@ pub enum PartKind {
     Command,                // 3 // SQL Command Data
     ResultSet,              // 5 // Tabular result set data
     Error,                  // 6 // Error information
-    Statementid,            // 10 // Prepared statement identifier
-    Transactionid,          // 11 // Transaction identifier
+    StatementId,            // 10 // Prepared statement identifier
+    TransactionId,          // 11 // Transaction identifier
     RowsAffected,           // 12 // Number of affected rows of DML statement
     ResultSetId,            // 13 // Identifier of result set
     TopologyInformation,    // 15 // Topology information
@@ -56,8 +56,8 @@ impl PartKind {
         PartKind::Command => 3,
         PartKind::ResultSet => 5,
         PartKind::Error => 6,
-        PartKind::Statementid => 10,
-        PartKind::Transactionid => 11,
+        PartKind::StatementId => 10,
+        PartKind::TransactionId => 11,
         PartKind::RowsAffected => 12,
         PartKind::ResultSetId => 13,
         PartKind::TopologyInformation => 15,
@@ -106,8 +106,8 @@ impl PartKind {
         3 => Ok(PartKind::Command),
         5 => Ok(PartKind::ResultSet),
         6 => Ok(PartKind::Error),
-        10 => Ok(PartKind::Statementid),
-        11 => Ok(PartKind::Transactionid),
+        10 => Ok(PartKind::StatementId),
+        11 => Ok(PartKind::TransactionId),
         12 => Ok(PartKind::RowsAffected),
         13 => Ok(PartKind::ResultSetId),
         15 => Ok(PartKind::TopologyInformation),

@@ -5,7 +5,7 @@ use super::lowlevel::clientcontext_option::{CcOption,CcOptionId};
 use super::lowlevel::conn_core::ConnRef;
 use super::lowlevel::connect_option::{ConnectOption,ConnectOptionId};
 use super::lowlevel::function_code::FunctionCode;
-use super::lowlevel::message::{RequestMessage,ReplyMessage};
+use super::lowlevel::message::{Request,Reply};
 use super::lowlevel::message_type::MessageType;
 use super::lowlevel::option_value::OptionValue;
 use super::lowlevel::part::Part;
@@ -45,7 +45,7 @@ pub fn authenticate(conn_ref: &ConnRef, username: &str, password: &str)
 }
 
 /// Build the auth1-request: message_header + (segment_header + (part1+options) + (part2+authrequest)
-fn build_auth1_request (chllng_sha256: &Vec<u8>, username: &str) -> RequestMessage {
+fn build_auth1_request (chllng_sha256: &Vec<u8>, username: &str) -> Request {
     trace!("Entering auth1_request()");
 
     let mut cc_options = Vec::<CcOption>::new();
@@ -71,24 +71,24 @@ fn build_auth1_request (chllng_sha256: &Vec<u8>, username: &str) -> RequestMessa
 
     let part2 = Part::new(PartKind::Authentication, Argument::Auth(auth_fields));
 
-    let mut message = RequestMessage::new(0, MessageType::Authenticate, true, 0);
-    message.push(part1);
-    message.push(part2);
+    let mut request = Request::new(0, MessageType::Authenticate, true, 0);
+    request.push(part1);
+    request.push(part2);
 
-    trace!("Message: {:?}", message);
-    message
+    trace!("Request: {:?}", request);
+    request
 }
 
-fn build_auth2_request (client_proof: &Vec<u8>, username: &str) -> RequestMessage {
+fn build_auth2_request (client_proof: &Vec<u8>, username: &str) -> Request {
     trace!("Entering auth2_request()");
-    let mut message = RequestMessage::new(0, MessageType::Connect, true, 0);
+    let mut request = Request::new(0, MessageType::Connect, true, 0);
 
     let mut auth_fields = Vec::<AuthField>::with_capacity(3);
     auth_fields.push( AuthField(username.as_bytes().to_vec()) );
     auth_fields.push( AuthField(b"SCRAMSHA256".to_vec()) );
     auth_fields.push( AuthField(client_proof.clone()) );
-    message.push(Part::new(PartKind::Authentication, Argument::Auth(auth_fields)));
-    message.push(Part::new(PartKind::ClientID, Argument::ClientID(get_client_id())));
+    request.push(Part::new(PartKind::Authentication, Argument::Auth(auth_fields)));
+    request.push(Part::new(PartKind::ClientID, Argument::ClientID(get_client_id())));
 
     let mut conn_opts = Vec::<ConnectOption>::new();
     conn_opts.push( ConnectOption{id: ConnectOptionId::CompleteArrayExecution, value: OptionValue::BOOLEAN(true)});
@@ -100,10 +100,10 @@ fn build_auth2_request (client_proof: &Vec<u8>, username: &str) -> RequestMessag
     conn_opts.push( ConnectOption{id: ConnectOptionId::SelectForUpdateSupported, value: OptionValue::BOOLEAN(true)});
     conn_opts.push( ConnectOption{id: ConnectOptionId::DistributionProtocolVersion, value: OptionValue::INT(1)});
     conn_opts.push( ConnectOption{id: ConnectOptionId::RowSlotImageParameter, value: OptionValue::BOOLEAN(true)});
-    message.push(Part::new(PartKind::ConnectOptions, Argument::ConnectOptions(conn_opts)));
+    request.push(Part::new(PartKind::ConnectOptions, Argument::ConnectOptions(conn_opts)));
 
-    trace!("Message: {:?}", message);
-    message
+    trace!("request: {:?}", request);
+    request
 }
 
 fn get_client_id() -> Vec<u8> {
@@ -126,7 +126,7 @@ fn create_client_challenge() -> Vec<u8>{
     client_challenge.to_vec()
 }
 
-fn get_server_challenge(response: ReplyMessage) -> PrtResult<Vec<u8>> {
+fn get_server_challenge(response: Reply) -> PrtResult<Vec<u8>> {
     trace!("Entering get_server_challenge()");
     let part = match util::get_first_part_of_kind(PartKind::Authentication, &response.parts) {
         Some(idx) => response.parts.get(idx).unwrap(),
@@ -142,7 +142,7 @@ fn get_server_challenge(response: ReplyMessage) -> PrtResult<Vec<u8>> {
     }
 }
 
-fn evaluate_resp2(response: ReplyMessage) -> PrtResult<(Vec<ConnectOption>,Vec<TopologyAttr>)> {
+fn evaluate_resp2(response: Reply) -> PrtResult<(Vec<ConnectOption>,Vec<TopologyAttr>)> {
     trace!("Entering evaluate_resp2()");
     assert!(response.parts.len() >= 1, "no part found");
 

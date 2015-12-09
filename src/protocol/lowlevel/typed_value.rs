@@ -141,13 +141,6 @@ impl TypedValue {
 
     // is used to calculate the argument size (in serialize)
     pub fn size(&self) -> PrtResult<usize> {
-        fn _hdblen(s: &String) -> usize {
-            match util::cesu8_length(s) {
-                clen if clen <= MAX_1_BYTE_LENGTH as usize    => 1 + 1 + clen,
-                clen if clen <= MAX_2_BYTE_LENGTH as usize    => 1 + 3 + clen,
-                clen                                          => 1 + 5 + clen,
-            }
-        }
         fn _size_not_implemented(type_id: u8) -> PrtError {
             return PrtError::ProtocolError(format!("TypedValue::size() not implemented for type code {}", type_id));
         }
@@ -175,7 +168,7 @@ impl TypedValue {
             TypedValue::STRING(ref s) |
             TypedValue::NSTRING(ref s) |
             TypedValue::TEXT(ref s) |
-            TypedValue::SHORTTEXT(ref s)    => _hdblen(s),
+            TypedValue::SHORTTEXT(ref s)    => string_length(s),
             TypedValue::BINARY(ref v) |
             TypedValue::VARBINARY(ref v) |
             TypedValue::BSTRING(ref v)      => v.len() + 2,
@@ -195,7 +188,7 @@ impl TypedValue {
             TypedValue::N_STRING(ref o) |
             TypedValue::N_NSTRING(ref o) |
             TypedValue::N_TEXT(ref o) |
-            TypedValue::N_SHORTTEXT(ref o)  => match o {&Some(ref s) => _hdblen(s), &None => 0},
+            TypedValue::N_SHORTTEXT(ref o)  => match o {&Some(ref s) => string_length(s), &None => 0},
             TypedValue::N_BINARY(ref o) |
             TypedValue::N_VARBINARY(ref o) |
             TypedValue::N_BSTRING(ref o)    => match o {&Some(ref v) => v.len() + 2, &None => 0},
@@ -433,7 +426,16 @@ const LENGTH_INDICATOR_2BYTE:u8 = 246;
 const LENGTH_INDICATOR_4BYTE:u8 = 247;
 const LENGTH_INDICATOR_NULL:u8  = 255;
 
-fn serialize_length_and_string(s: &String, w: &mut io::Write) -> PrtResult<()> {
+pub fn string_length(s: &String) -> usize {
+    match util::cesu8_length(s) {
+        clen if clen <= MAX_1_BYTE_LENGTH as usize    => 1 + 1 + clen,
+        clen if clen <= MAX_2_BYTE_LENGTH as usize    => 1 + 3 + clen,
+        clen                                          => 1 + 5 + clen,
+    }
+}
+
+
+pub fn serialize_length_and_string(s: &String, w: &mut io::Write) -> PrtResult<()> {
     serialize_length_and_bytes(&util::string_to_cesu8(s), w)
 }
 
@@ -454,7 +456,7 @@ fn serialize_length_and_bytes(v: &Vec<u8>, w: &mut io::Write) -> PrtResult<()> {
     util::serialize_bytes(v, w)                                // B variable   VALUE BYTES
 }
 
-fn parse_length_and_string(rdr: &mut io::BufRead) -> PrtResult<String> {
+pub fn parse_length_and_string(rdr: &mut io::BufRead) -> PrtResult<String> {
     match util::cesu8_to_string(&try!(parse_length_and_binary(rdr))) {
         Ok(s) => Ok(s),
         Err(e) => {error!("cesu-8 problem occured in typed_value:parse_length_and_string()");Err(e)}
@@ -572,20 +574,4 @@ fn parse_lob_2(rdr: &mut io::BufRead) -> PrtResult<(u64,u64,u64,Vec<u8>)> {
     let data = try!(util::parse_bytes(chunk_length as usize,rdr));          // B[chunk_length]
     trace!("Got LOB locator {}", locator_id);
     Ok((length_c, length_b, locator_id, data))
-}
-
-
-pub struct ReadLobReply;
-impl ReadLobReply {
-    pub fn parse(rdr: &mut io::BufRead) -> PrtResult<(u64,bool,Vec<u8>)>{
-        let locator_id = try!(rdr.read_u64::<LittleEndian>());                  // I8
-        let options = try!(rdr.read_u8());                                      // I1
-        // let is_null = (options & 0b_1_u8) != 0;
-        // let is_data_included = (options & 0b_10_u8) != 0;
-        let is_last_data = (options & 0b_100_u8) != 0;
-        let chunk_length = try!(rdr.read_i32::<LittleEndian>());                // I4
-        rdr.consume(3);                                                         // B3 (filler)
-        let data = try!(util::parse_bytes(chunk_length as usize,rdr));          // B[chunk_length]
-        Ok((locator_id, is_last_data, data))
-    }
 }

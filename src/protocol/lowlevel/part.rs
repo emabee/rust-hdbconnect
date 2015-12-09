@@ -1,5 +1,5 @@
 use super::PrtResult;
-use super::argument;
+use super::argument::Argument;
 use super::conn_core::ConnRef;
 use super::partkind::PartKind;
 use super::part_attributes::PartAttributes;
@@ -14,15 +14,12 @@ const PART_HEADER_SIZE: usize = 16;
 #[derive(Debug)]
 pub struct Part {
     pub kind: PartKind,
-    pub arg: argument::Argument,      // a.k.a. part data, or part buffer :-(
+    pub arg: Argument,      // a.k.a. part data, or part buffer :-(
 }
 
 impl Part {
-    pub fn new(kind: PartKind, arg: argument::Argument) -> Part {
-        Part{
-            kind: kind,
-            arg: arg,
-        }
+    pub fn new(kind: PartKind, arg: Argument) -> Part {
+        Part{ kind: kind, arg: arg }
     }
 
     pub fn serialize(&self, mut remaining_bufsize: u32, w: &mut io::Write) -> PrtResult<u32> {
@@ -47,24 +44,27 @@ impl Part {
     }
 
     ///
-    pub fn parse(already_received_parts: &mut Vec<Part>, conn_ref: &ConnRef, o_rs: &mut Option<&mut ResultSet>, rdr: &mut io::BufRead)
+    pub fn parse(already_received_parts: &mut Vec<Part>, o_conn_ref: Option<&ConnRef>, o_rs: &mut Option<&mut ResultSet>, rdr: &mut io::BufRead)
     -> PrtResult<Part> {
         trace!("Entering parse()");
-
-        // PART HEADER: 16 bytes
-        let kind = try!(PartKind::from_i8( try!(rdr.read_i8()) ));          // I1
-        let attributes = PartAttributes::new( try!(rdr.read_u8()) );        // U1    (documented as I1)
-        let no_of_argsi16 = try!(rdr.read_i16::<LittleEndian>());           // I2
-        let no_of_argsi32 = try!(rdr.read_i32::<LittleEndian>());           // I4
-        let arg_size = try!(rdr.read_i32::<LittleEndian>());                // I4
-        try!(rdr.read_i32::<LittleEndian>());                               // I4    remaining_packet_size
-
-        let no_of_args =  max(no_of_argsi16 as i32, no_of_argsi32);
-        debug!("parse() found part of kind {:?} with attributes {:?}({:b}) and no_of_args {}",
-            kind, attributes, attributes, no_of_args);
-
+        let (kind,attributes,arg_size,no_of_args) = try!(parse_part_header(rdr));
+        debug!("parse() found part of kind {:?} with attributes {:?}, arg_size {} and no_of_args {}",
+            kind, attributes, arg_size, no_of_args);
         Ok(Part::new(kind, try!(
-            argument::parse(kind, attributes, no_of_args, arg_size, already_received_parts, conn_ref, o_rs, rdr)
+            Argument::parse(kind, attributes, no_of_args, arg_size, already_received_parts, o_conn_ref, o_rs, rdr)
         )))
     }
+}
+
+fn parse_part_header(rdr: &mut io::BufRead) -> PrtResult<(PartKind,PartAttributes,i32,i32)> {
+    // PART HEADER: 16 bytes
+    let kind = try!(PartKind::from_i8( try!(rdr.read_i8()) ));          // I1
+    let attributes = PartAttributes::new( try!(rdr.read_u8()) );        // U1    (documented as I1)
+    let no_of_argsi16 = try!(rdr.read_i16::<LittleEndian>());           // I2
+    let no_of_argsi32 = try!(rdr.read_i32::<LittleEndian>());           // I4
+    let arg_size = try!(rdr.read_i32::<LittleEndian>());                // I4
+    try!(rdr.read_i32::<LittleEndian>());                               // I4    remaining_packet_size
+
+    let no_of_args =  max(no_of_argsi16 as i32, no_of_argsi32);
+    Ok((kind,attributes,arg_size,no_of_args))
 }

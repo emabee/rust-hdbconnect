@@ -2,7 +2,7 @@ use {DbcError,DbcResult};
 use protocol::lowlevel::conn_core::ConnRef;
 use protocol::lowlevel::argument::Argument;
 use protocol::lowlevel::function_code::FunctionCode;
-use protocol::lowlevel::message::RequestMessage;
+use protocol::lowlevel::message::Request;
 use protocol::lowlevel::message_type::MessageType;
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::partkind::PartKind;
@@ -26,14 +26,14 @@ impl CallableStatement {
         trace!("CallableStatement::execute({})",self.stmt);
         // build the request
         let command_options = 0b_1000;
-        let mut message = RequestMessage::new(0, MessageType::ExecuteDirect, auto_commit, command_options);
+        let mut request = Request::new(0, MessageType::ExecuteDirect, auto_commit, command_options);
         let fetch_size = { self.conn_ref.borrow().get_fetch_size() };
-        message.push(Part::new(PartKind::FetchSize, Argument::FetchSize(fetch_size)));
-        message.push(Part::new(PartKind::Command, Argument::Command(self.stmt.clone())));
+        request.push(Part::new(PartKind::FetchSize, Argument::FetchSize(fetch_size)));
+        request.push(Part::new(PartKind::Command, Argument::Command(self.stmt.clone())));
 
 
         // send it
-        let mut response = try!(message.send_and_receive(&mut None, &(self.conn_ref), None));
+        let mut response = try!(request.send_and_receive(&mut None, &(self.conn_ref), None));
 
         // digest response
         match &response.function_code {

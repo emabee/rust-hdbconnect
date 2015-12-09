@@ -3,7 +3,7 @@ use super::{PrtError,PrtResult,prot_err};
 use super::argument::Argument;
 use super::conn_core::ConnRef;
 use super::function_code::FunctionCode;
-use super::message::RequestMessage;
+use super::message::Request;
 use super::message_type::MessageType;
 use super::option_value::OptionValue;
 use super::part::Part;
@@ -69,7 +69,7 @@ impl ResultSet {
         Ok(size)
     }
     pub fn parse( no_of_rows: i32, attributes: PartAttributes, parts: &mut Vec<Part>,
-                  conn_ref: &ConnRef, o_rs: &mut Option<&mut ResultSet>, rdr: &mut io::BufRead )
+                  o_conn_ref: Option<&ConnRef>, o_rs: &mut Option<&mut ResultSet>, rdr: &mut io::BufRead )
     -> PrtResult<Option<ResultSet>> {
         match *o_rs {
             mut None => {
@@ -92,7 +92,7 @@ impl ResultSet {
                     };
                     match rs_id_part.arg {
                         Argument::ResultSetId(i) => i,
-                        _ => return Err(prot_err("Inconstent ResultSetId part found for ResultSet")),
+                        _ => return Err(prot_err("Inconsistent ResultSetId part found for ResultSet")),
                     }
                 };
                 let stmt_context = {
@@ -102,11 +102,11 @@ impl ResultSet {
                     };
                     match scpart.arg {
                         Argument::StatementContext(s) => s,
-                        _ => return Err(prot_err("Inconstent StatementContext part found for ResultSet")),
+                        _ => return Err(prot_err("Inconsistent StatementContext part found for ResultSet")),
                     }
                 };
 
-                let mut result = ResultSet::new(Some(conn_ref), attributes, rs_id, stmt_context, rs_metadata);
+                let mut result = ResultSet::new(o_conn_ref, attributes, rs_id, stmt_context, rs_metadata);
                 try!(result.parse_rows(no_of_rows,rdr));
                 Ok(Some(result))
             },
@@ -119,7 +119,7 @@ impl ResultSet {
                 };
                 let stmt_context = match scpart.arg {
                     Argument::StatementContext(s) => s,
-                    _ => return Err(prot_err("Inconstent StatementContext part found for ResultSet")),
+                    _ => return Err(prot_err("Inconsistent StatementContext part found for ResultSet")),
                 };
 
                 {
@@ -212,14 +212,14 @@ impl ResultSet {
 
         // build the request, provide StatementContext and resultset id, define FetchSize
         let command_options = 0; // FIXME not sure if this is OK
-        let mut message = RequestMessage::new(0, MessageType::FetchNext, true, command_options);
+        let mut request = Request::new(0, MessageType::FetchNext, true, command_options);
         let mut stmt_ctx = StatementContext::new();
         stmt_ctx.statement_sequence_info = statement_sequence_info;
-        message.push(Part::new(PartKind::StatementContext, Argument::StatementContext(stmt_ctx)));
-        message.push(Part::new(PartKind::ResultSetId, Argument::ResultSetId(resultset_id)));
-        message.push(Part::new(PartKind::FetchSize, Argument::FetchSize(fetch_size)));
+        request.push(Part::new(PartKind::StatementContext, Argument::StatementContext(stmt_ctx)));
+        request.push(Part::new(PartKind::ResultSetId, Argument::ResultSetId(resultset_id)));
+        request.push(Part::new(PartKind::FetchSize, Argument::FetchSize(fetch_size)));
 
-        try!(message.send_and_receive(&mut Some(self), &conn_ref, Some(FunctionCode::Fetch)));
+        try!(request.send_and_receive(&mut Some(self), &conn_ref, Some(FunctionCode::Fetch)));
         Ok(())
     }
 

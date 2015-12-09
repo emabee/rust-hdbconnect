@@ -1,7 +1,7 @@
 use super::{PrtResult,prot_err};
 use super::argument::Argument;
 use super::function_code::FunctionCode;
-use super::message::RequestMessage;
+use super::message::Request;
 use super::message_type::MessageType;
 use super::part::Part;
 use super::partkind::PartKind;
@@ -152,16 +152,16 @@ fn fetch_a_lob_chunk(rs_ref: &Option<RsRef>, locator_id: u64, length_b: u64, dat
             },
         }
     };
-    let mut message = RequestMessage::new(0, MessageType::ReadLob, true, 0);
+    let mut request = Request::new(0, MessageType::ReadLob, true, 0);
 
     let mut stmt_ctx = StatementContext::new();
     stmt_ctx.statement_sequence_info = statement_sequence_info;
-    message.push(Part::new(PartKind::StatementContext, Argument::StatementContext(stmt_ctx)));
+    request.push(Part::new(PartKind::StatementContext, Argument::StatementContext(stmt_ctx)));
 
     let offset = data_len + 1;
-    message.push(Part::new(PartKind::ReadLobRequest, Argument::ReadLobRequest(locator_id, offset, length_to_read)));
+    request.push(Part::new(PartKind::ReadLobRequest, Argument::ReadLobRequest(locator_id, offset, length_to_read)));
 
-    let mut response = try!(message.send_and_receive(&mut None, &conn_ref, Some(FunctionCode::ReadLob)));
+    let mut response = try!(request.send_and_receive(&mut None, &conn_ref, Some(FunctionCode::ReadLob)));
 
     let part = match util::get_first_part_of_kind(PartKind::ReadLobReply, &response.parts) {
         Some(idx) => response.parts.swap_remove(idx),
