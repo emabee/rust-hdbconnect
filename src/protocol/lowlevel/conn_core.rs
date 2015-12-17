@@ -19,9 +19,9 @@ impl ConnectionCore {
     pub fn new_conn_ref(stream: TcpStream) -> ConnRef{
         Rc::new(RefCell::new(ConnectionCore{
             session_id: 0,
+            seq_number: 0,
             fetch_size: DEFAULT_FETCH_SIZE,
             lob_read_length: DEFAULT_LOB_READ_LENGTH,
-            seq_number: 0,
             stream: stream
         }))
     }

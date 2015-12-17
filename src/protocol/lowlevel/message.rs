@@ -8,7 +8,7 @@ use super::function_code::FunctionCode;
 use super::message_type::MessageType;
 use super::part::Part;
 use super::partkind::PartKind;
-use super::resultset::ResultSet;
+use super::parts::resultset::ResultSet;
 use super::util;
 
 use byteorder::{LittleEndian,ReadBytesExt,WriteBytesExt};

@@ -1,18 +1,17 @@
 use DbcResult;
-use super::{PrtError,PrtResult,prot_err};
-use super::argument::Argument;
-use super::conn_core::ConnRef;
-use super::function_code::FunctionCode;
-use super::message::Request;
-use super::message_type::MessageType;
+use super::{PrtError,PrtResult,prot_err,util};
 use super::option_value::OptionValue;
-use super::part::Part;
-use super::partkind::PartKind;
-use super::part_attributes::PartAttributes;
 use super::resultset_metadata::ResultSetMetadata;
 use super::statement_context::StatementContext;
 use super::typed_value::TypedValue;
-use super::util;
+use super::super::argument::Argument;
+use super::super::conn_core::ConnRef;
+use super::super::function_code::FunctionCode;
+use super::super::message::Request;
+use super::super::message_type::MessageType;
+use super::super::part::Part;
+use super::super::part_attributes::PartAttributes;
+use super::super::partkind::PartKind;
 
 use rs_serde::deserialize::RsDeserializer;
 
@@ -23,14 +22,14 @@ use std::rc::Rc;
 
 #[derive(Debug)]
 pub struct ResultSet {
-    pub core_ref: RsRef,
+    pub core_ref: RsRef, // FIXME can we make this private?
     pub metadata: ResultSetMetadata,
     pub rows: Vec<Row>,
 }
 
 #[derive(Debug)]
 pub struct ResultSetCore {
-    pub o_conn_ref: Option<ConnRef>,
+    pub o_conn_ref: Option<ConnRef>, // FIXME can we make this private?
     pub attributes: PartAttributes,
     pub resultset_id: u64,
     pub statement_contexts: Vec<StatementContext>,

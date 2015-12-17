@@ -1,10 +1,10 @@
-use super::protocol::lowlevel::init;
-use super::protocol::lowlevel::conn_core::{ConnectionCore, ConnRef};
-use super::protocol::lowlevel::connect_option::ConnectOption;
-use super::protocol::lowlevel::topology_attribute::TopologyAttr;
+use protocol::lowlevel::init;
+use protocol::lowlevel::conn_core::{ConnectionCore, ConnRef};
+use protocol::lowlevel::parts::connect_option::ConnectOption;
+use protocol::lowlevel::parts::topology_attribute::TopologyAttr;
 
-use super::protocol::authentication::authenticate;
-use super::callable_statement::CallableStatement;
+use protocol::authentication::authenticate;
+use callable_statement::CallableStatement;
 use DbcResult;
 
 use chrono::Local;
@@ -19,13 +19,17 @@ pub struct Connection {
     pub major_product_version: i8,
     pub minor_product_version: i16,
     core: ConnRef,
-    connect_options: Vec<ConnectOption>,
-    topology_attributes: Vec<TopologyAttr>,
+    props: ConnProps,
+}
+#[derive(Debug)]
+pub struct ConnProps {
+    pub connect_options: Vec<ConnectOption>,
+    pub topology_attributes: Vec<TopologyAttr>,
 }
 
 impl Connection {
     /// static factory: does low-level connect and login
-    pub fn new(host: &str, port: &str, username: &str, password: &str) -> DbcResult<Connection> {
+    pub fn new(host: &str, port: &str) -> DbcResult<Connection> {
         trace!("Entering connect()");
         let start = Local::now();
 
@@ -37,9 +41,8 @@ impl Connection {
         trace!("connection is initialized");
 
         let conn_ref = ConnectionCore::new_conn_ref(tcp_stream);
-        let (conn_opts, topology_attrs) = try!(authenticate(&conn_ref, username, password));
         let delta = match (Local::now() - start).num_microseconds() {Some(m) => m, None => -1};
-        debug!("successfully logged on as user \"{}\" at {}:{} in  {} µs", username, host, port, delta);
+        debug!("connection to {}:{} is initialized in {} µs", host, port, delta);
 
         Ok(Connection {
             host: String::from(host),
@@ -47,9 +50,19 @@ impl Connection {
             major_product_version: major,
             minor_product_version: minor,
             core: conn_ref,
-            connect_options: conn_opts,
-            topology_attributes: topology_attrs
+            props: ConnProps{
+                connect_options: Vec::<ConnectOption>::new(),
+                topology_attributes: Vec::<TopologyAttr>::new()
+            }
         })
+    }
+
+    pub fn authenticate_user_password(&mut self, username: &str, password: &str) -> DbcResult<()> {
+        let start = Local::now();
+        try!(authenticate(&(self.core), &mut (self.props), username, password));
+        let delta = match (Local::now() - start).num_microseconds() {Some(m) => m, None => -1};
+        debug!("successfully logged on as user \"{}\" in {} µs", username, delta);
+        Ok(())
     }
 
     pub fn set_fetch_size(&mut self, fetch_size: u32) {
@@ -59,10 +72,10 @@ impl Connection {
         self.core.borrow().last_seq_number()
     }
     pub fn get_connect_options(&self) -> &Vec<ConnectOption> {
-        &(self.connect_options)
+        &(self.props.connect_options)
     }
     pub fn get_topology_info(&self) -> &Vec<TopologyAttr> {
-        &(self.topology_attributes)
+        &(self.props.topology_attributes)
     }
 
     pub fn prepare_call(&self, stmt: String) -> DbcResult<CallableStatement> {

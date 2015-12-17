@@ -18,8 +18,8 @@ use std::error::Error;
 
 #[test]
 pub fn init() {
-    use flexi_logger::LogConfig;
-    flexi_logger::init(LogConfig::new(), Some("info".to_string())).unwrap();
+    // use flexi_logger::LogConfig;
+    // flexi_logger::init(LogConfig::new(), Some("info".to_string())).unwrap();
 }
 
 // cargo test lob_1 -- --nocapture
@@ -43,7 +43,8 @@ pub fn lob_1() {
 }
 
 fn impl_connect_and_select() -> DbcResult<()> {
-    let mut connection = try!(hdbconnect::Connection::new("wdfd00245307a", "30415", "SYSTEM", "manager"));
+    let mut connection = try!(hdbconnect::Connection::new("wdfd00245307a", "30415"));
+    connection.authenticate_user_password("SYSTEM", "manager").ok();
     connection.set_fetch_size(1024);
     try!(impl_select_many_active_objects(&mut connection));
     // try!(impl_select_blob(&mut connection));

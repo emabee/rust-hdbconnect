@@ -1,4 +1,4 @@
-use super::super::protocol_error::{PrtError,PrtResult};
+use protocol::protocol_error::{PrtError,PrtResult};
 
 
 /// Identifies the nature of the statement or functionality that has been prepared or executed

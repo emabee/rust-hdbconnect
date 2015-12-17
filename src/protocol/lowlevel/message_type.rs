@@ -1,4 +1,4 @@
-use super::super::protocol_error::{PrtError,PrtResult};
+use protocol::protocol_error::{PrtError,PrtResult};
 
 
 /// Defines the action requested from the database server

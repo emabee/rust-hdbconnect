@@ -1,17 +1,17 @@
-use super::protocol_error::{PrtResult,prot_err};
-use super::lowlevel::argument::Argument;
-use super::lowlevel::authfield::AuthField;
-use super::lowlevel::clientcontext_option::{CcOption,CcOptionId};
-use super::lowlevel::conn_core::ConnRef;
-use super::lowlevel::connect_option::{ConnectOption,ConnectOptionId};
-use super::lowlevel::function_code::FunctionCode;
-use super::lowlevel::message::{Request,Reply};
-use super::lowlevel::message_type::MessageType;
-use super::lowlevel::option_value::OptionValue;
-use super::lowlevel::part::Part;
-use super::lowlevel::partkind::PartKind;
-use super::lowlevel::topology_attribute::TopologyAttr;
-use super::lowlevel::util;
+use connection::{ConnProps};
+use protocol::protocol_error::{PrtResult,prot_err};
+use protocol::lowlevel::argument::Argument;
+use protocol::lowlevel::conn_core::ConnRef;
+use protocol::lowlevel::function_code::FunctionCode;
+use protocol::lowlevel::message::{Request,Reply};
+use protocol::lowlevel::message_type::MessageType;
+use protocol::lowlevel::part::Part;
+use protocol::lowlevel::partkind::PartKind;
+use protocol::lowlevel::parts::authfield::AuthField;
+use protocol::lowlevel::parts::connect_option::{ConnectOption,ConnectOptionId};
+use protocol::lowlevel::parts::clientcontext_option::{CcOption,CcOptionId};
+use protocol::lowlevel::parts::option_value::OptionValue;
+use protocol::lowlevel::util;
 
 use byteorder::{LittleEndian,ReadBytesExt,WriteBytesExt};
 use rand::{Rng,thread_rng};
@@ -26,8 +26,8 @@ use crypto::sha2::Sha256;
 // FIXME we do too much clone/copy here - working with slices and references should be possible
 
 /// authenticate with the scram_sha256 method
-pub fn authenticate(conn_ref: &ConnRef, username: &str, password: &str)
--> PrtResult<(Vec<ConnectOption>,Vec<TopologyAttr>)> {
+pub fn authenticate(conn_ref: &ConnRef, conn_props: &mut ConnProps, username: &str, password: &str)
+-> PrtResult<()> {
     trace!("Entering authenticate()");
 
     let client_challenge = create_client_challenge();
@@ -41,7 +41,7 @@ pub fn authenticate(conn_ref: &ConnRef, username: &str, password: &str)
                          .send_and_receive(&mut None, conn_ref, Some(FunctionCode::Nil)));
 
     conn_ref.borrow_mut().session_id = response2.session_id;
-    evaluate_resp2(response2)
+    evaluate_resp2(response2, conn_props)
 }
 
 /// Build the auth1-request: message_header + (segment_header + (part1+options) + (part2+authrequest)
@@ -52,7 +52,7 @@ fn build_auth1_request (chllng_sha256: &Vec<u8>, username: &str) -> Request {
     cc_options.push( CcOption {
         id: CcOptionId::Version,
         value: OptionValue::STRING(String::from("1.50.00.000000")),
-    });
+    });  // FIXME encapsulate this into a CcOptions object
     cc_options.push( CcOption {
         id: CcOptionId::ClientType,
         value: OptionValue::STRING(String::from("JDBC")),
@@ -90,7 +90,7 @@ fn build_auth2_request (client_proof: &Vec<u8>, username: &str) -> Request {
     request.push(Part::new(PartKind::Authentication, Argument::Auth(auth_fields)));
     request.push(Part::new(PartKind::ClientID, Argument::ClientID(get_client_id())));
 
-    let mut conn_opts = Vec::<ConnectOption>::new();
+    let mut conn_opts = Vec::<ConnectOption>::new(); // FIXME shouldn't we put this into the conn_props, too?
     conn_opts.push( ConnectOption{id: ConnectOptionId::CompleteArrayExecution, value: OptionValue::BOOLEAN(true)});
     conn_opts.push( ConnectOption{id: ConnectOptionId::DataFormatVersion2, value: OptionValue::INT(4)});
     conn_opts.push( ConnectOption{id: ConnectOptionId::DataFormatVersion, value: OptionValue::INT(1)});
@@ -107,12 +107,13 @@ fn build_auth2_request (client_proof: &Vec<u8>, username: &str) -> Request {
 }
 
 fn get_client_id() -> Vec<u8> {
-    // FIXME this is supposed to return something like 10508@WDFN00319537A.EMEA.global.corp.sap
+    // FIXME IMPORTANT this is supposed to return something like
+    // 10508@WDFN00319537A.EMEA.global.corp.sap
     // i.e., <process id>@<fully qualified hostname>
     // rust has nothing stable to access the process id or the host name
 
-    //b"do not know who and where I am, sorry".to_vec()
-    b"10509@WDFN00319537A.emea.global.corp.sap".to_vec()
+    b"4711@somemachine.nirwana".to_vec()
+    // b"10509@WDFN00319537A.emea.global.corp.sap".to_vec()
 }
 
 fn get_locale() -> String {
@@ -142,13 +143,11 @@ fn get_server_challenge(response: Reply) -> PrtResult<Vec<u8>> {
     }
 }
 
-fn evaluate_resp2(response: Reply) -> PrtResult<(Vec<ConnectOption>,Vec<TopologyAttr>)> {
+fn evaluate_resp2(response: Reply, conn_props: &mut ConnProps) -> PrtResult<()> {
     trace!("Entering evaluate_resp2()");
     assert!(response.parts.len() >= 1, "no part found");
 
     let mut server_proof = Vec::<u8>::new();
-    let mut conn_opts = Vec::<ConnectOption>::new();
-    let mut topo_attrs = Vec::<TopologyAttr>::new();
 
     for part in response.parts {
         match part.kind {
@@ -159,12 +158,12 @@ fn evaluate_resp2(response: Reply) -> PrtResult<(Vec<ConnectOption>,Vec<Topology
             },
             PartKind::ConnectOptions => {
                 if let Argument::ConnectOptions(vec) = part.arg {
-                    for e in vec { conn_opts.push(e); }
+                    for e in vec { conn_props.connect_options.push(e); }
                 }
             },
             PartKind::TopologyInformation => {
                 if let Argument::TopologyInformation(vec) = part.arg {
-                    for e in vec { topo_attrs.push(e); }
+                    for e in vec { conn_props.topology_attributes.push(e); }
                 }
             },
             pk => {
@@ -172,8 +171,8 @@ fn evaluate_resp2(response: Reply) -> PrtResult<(Vec<ConnectOption>,Vec<Topology
             }
         }
     }
-    warn!("still don't know what to do with the server proof: {:?}", server_proof);
-    Ok((conn_opts,topo_attrs))
+    warn!("the server proof is not evaluated: {:?}", server_proof);
+    Ok(())
 }
 
 fn calculate_client_proof(server_challenge: Vec<u8>, client_challenge: Vec<u8>, password: &str)

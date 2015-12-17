@@ -1,21 +1,23 @@
 use super::{PrtError,PrtResult};
-use super::authfield::AuthField;
-use super::client_info::ClientInfo;
-use super::clientcontext_option::CcOption;
 use super::conn_core::ConnRef;
-use super::connect_option::ConnectOption;
-use super::hdberror::HdbError;
-use super::parameter_metadata::ParameterMetadata;
-use super::part::Part;
 use super::part_attributes::PartAttributes;
 use super::partkind::PartKind;
-use super::read_lob_reply::ReadLobReply;
-use super::resultset::ResultSet;
-use super::resultset_metadata::ResultSetMetadata;
-use super::rows_affected::RowsAffected;
-use super::statement_context::StatementContext;
-use super::topology_attribute::TopologyAttr;
-use super::transactionflags::TransactionFlag;
+use super::part::Part;
+use super::parts::authfield::AuthField;
+use super::parts::client_info::ClientInfo;
+use super::parts::clientcontext_option::CcOption;
+use super::parts::commit_option::CommitOption;
+use super::parts::connect_option::ConnectOption;
+use super::parts::fetch_option::FetchOption;
+use super::parts::hdberror::HdbError;
+use super::parts::parameter_metadata::ParameterMetadata;
+use super::parts::read_lob_reply::ReadLobReply;
+use super::parts::resultset::ResultSet;
+use super::parts::resultset_metadata::ResultSetMetadata;
+use super::parts::rows_affected::RowsAffected;
+use super::parts::statement_context::StatementContext;
+use super::parts::topology_attribute::TopologyAttr;
+use super::parts::transactionflags::TransactionFlag;
 use super::util;
 
 use byteorder::{LittleEndian,ReadBytesExt,WriteBytesExt};
@@ -29,8 +31,10 @@ pub enum Argument {
     ClientID(Vec<u8>),
     ClientInfo(ClientInfo),
     Command(String),
+    CommitOptions(Vec<CommitOption>),
     ConnectOptions(Vec<ConnectOption>),
     Error(Vec<HdbError>),
+    FetchOptions(Vec<FetchOption>),
     FetchSize(u32),
     ParameterMetadata(ParameterMetadata),
     ReadLobRequest(u64,u64,i32),        // locator, offset, length
@@ -54,8 +58,10 @@ impl Argument {
         Argument::ClientInfo(ref client_info) => client_info.count(),
         Argument::ClientID(_) => 1,
         Argument::Command(_) => 1,
+        Argument::CommitOptions(ref opts) => opts.len() as i16,
         Argument::ConnectOptions(ref opts) => opts.len() as i16,
         Argument::Error(ref vec) => vec.len() as i16,
+        Argument::FetchOptions(ref opts) => opts.len() as i16,
         Argument::FetchSize(_) => 1,
         Argument::ParameterMetadata(_) => 1, //FIXME is this correct?
         Argument::ReadLobRequest(_,_,_) => 1,
@@ -76,8 +82,10 @@ impl Argument {
             Argument::ClientID(ref vec) => { size += 1 + vec.len(); },
             Argument::ClientInfo(ref client_info) => { size += client_info.size(); },
             Argument::Command(ref s) => { size += util::string_to_cesu8(s).len(); },
+            Argument::CommitOptions(ref vec) => { for opt in vec { size += opt.size(); }},
             Argument::ConnectOptions(ref vec) => { for opt in vec { size += opt.size(); }},
             Argument::Error(ref vec) => { for hdberror in vec { size += hdberror.size(); }},
+            Argument::FetchOptions(ref vec) => { for opt in vec { size += opt.size(); }},
             Argument::FetchSize(_) => {size += 4},
             Argument::ParameterMetadata(ref pmd) => {size += pmd.size();},
             Argument::ReadLobRequest(_,_,_) => {size += 24},
@@ -117,11 +125,17 @@ impl Argument {
                 let vec = util::string_to_cesu8(s);
                 for b in vec { try!(w.write_u8(b)); }
             },
+            Argument::CommitOptions(ref vec) => {
+                for ref opt in vec { try!(opt.serialize(w)); }
+            },
             Argument::ConnectOptions(ref vec) => {
                 for ref opt in vec { try!(opt.serialize(w)); }
             },
             Argument::Error(ref vec) => {
                 for ref hdberror in vec { try!(hdberror.serialize(w)); }
+            },
+            Argument::FetchOptions(ref vec) => {
+                for ref opt in vec { try!(opt.serialize(w)); }
             },
             Argument::FetchSize(fs) => {
                 try!(w.write_u32::<LittleEndian>(fs));
@@ -192,6 +206,14 @@ impl Argument {
                 let s = try!(util::cesu8_to_string(&bytes));
                 Argument::Command(s)
             },
+            PartKind::CommitOptions => {
+                let mut vec = Vec::<CommitOption>::new();
+                for _ in 0..no_of_args {
+                    let opt = try!(CommitOption::parse(rdr));
+                    vec.push(opt);
+                }
+                Argument::CommitOptions(vec)
+            },
             PartKind::ConnectOptions => {
                 let mut vec = Vec::<ConnectOption>::new();
                 for _ in 0..no_of_args {
@@ -207,6 +229,14 @@ impl Argument {
                     vec.push(hdberror);
                 }
                 Argument::Error(vec)
+            },
+            PartKind::FetchOptions => {
+                let mut vec = Vec::<FetchOption>::new();
+                for _ in 0..no_of_args {
+                    let opt = try!(FetchOption::parse(rdr));
+                    vec.push(opt);
+                }
+                Argument::FetchOptions(vec)
             },
             PartKind::ParameterMetadata => {
                 let pmd = try!(ParameterMetadata::parse(no_of_args, arg_size as u32, rdr));

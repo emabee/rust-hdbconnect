@@ -6,8 +6,8 @@ use protocol::lowlevel::message::Request;
 use protocol::lowlevel::message_type::MessageType;
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::partkind::PartKind;
-use protocol::lowlevel::resultset::ResultSet;
-use protocol::lowlevel::rows_affected::RowsAffected;
+use protocol::lowlevel::parts::resultset::ResultSet;
+use protocol::lowlevel::parts::rows_affected::RowsAffected;
 use protocol::lowlevel::util;
 
 ///

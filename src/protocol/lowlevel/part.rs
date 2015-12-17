@@ -3,7 +3,7 @@ use super::argument::Argument;
 use super::conn_core::ConnRef;
 use super::partkind::PartKind;
 use super::part_attributes::PartAttributes;
-use super::resultset::ResultSet;
+use super::parts::resultset::ResultSet;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::cmp::max;

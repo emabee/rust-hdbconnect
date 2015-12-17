@@ -4,9 +4,9 @@
 
 //! Deserialize a ResultSet into a normal rust type.
 
-use protocol::lowlevel::resultset::ResultSet;
+use protocol::lowlevel::parts::resultset::ResultSet;
+use protocol::lowlevel::parts::typed_value::TypedValue;
 use types::longdate::LongDate;
-use protocol::lowlevel::typed_value::TypedValue;
 use super::deser_error::{DeserError,DeserResult,prog_err};
 
 use serde;

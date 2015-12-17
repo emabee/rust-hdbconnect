@@ -25,7 +25,8 @@ pub fn init() {
 // cargo test connect_successfully -- --nocapture
 #[test]
 pub fn connect_successfully() {
-    hdbconnect::Connection::new("wdfd00245307a", "30415", "SYSTEM", "manager").ok();
+    Connection::new("wdfd00245307a", "30415").unwrap()
+    .authenticate_user_password("SYSTEM", "manager").ok();
 }
 
 #[test]
@@ -35,7 +36,8 @@ pub fn connect_wrong_password() {
 
     let start = Local::now();
     let (host, port, user, password) = ("wdfd00245307a", "30415", "SYSTEM", "wrong_password");
-    let err = hdbconnect::Connection::new(host, port, user, password).err().unwrap();
+    let mut connection: Connection = Connection::new(host, port).unwrap();
+    let err = connection.authenticate_user_password(user, password).err().unwrap();
     info!("connect as user \"{}\" with wrong password failed at {}:{} after {} µs with {}.",
           user, host, port, (Local::now() - start).num_microseconds().unwrap(), err.description() );
 }
@@ -61,7 +63,8 @@ pub fn connect_and_select() {
 }
 
 fn impl_connect_and_select() -> DbcResult<()> {
-    let mut connection = try!(hdbconnect::Connection::new("wdfd00245307a", "30415", "SYSTEM", "manager"));
+    let mut connection = try!(hdbconnect::Connection::new("wdfd00245307a", "30415"));
+    connection.authenticate_user_password("SYSTEM", "manager").ok();
     connection.set_fetch_size(1024);
     try!(impl_select_version_and_user(&mut connection));
     try!(impl_select_many_active_objects(&mut connection));

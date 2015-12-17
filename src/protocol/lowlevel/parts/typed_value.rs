@@ -1,8 +1,7 @@
-use super::{PrtError,PrtResult,prot_err};
+use super::{PrtError,PrtResult,prot_err,util};
 use super::resultset::RsRef;
 use super::lob::{BLOB,CLOB};
 use types::longdate::LongDate;
-use super::util;
 
 use byteorder::{LittleEndian,ReadBytesExt,WriteBytesExt};
 use std::borrow::Cow;
@@ -36,16 +35,12 @@ pub enum TypedValue {               // Description, Support Level
     BOOLEAN(bool), 			        // Boolean
     STRING(String), 		        // Character string, 1
     NSTRING(String),		        // Unicode character string, 1
-//  BLOCATOR = 31, 					// Binary locator, 1
-//  NLOCATOR = 32, 					// Unicode character locator, 1
     BSTRING(Vec<u8>),   	        // Binary string, 1
 //  SMALLDECIMAL = 47, 				// SMALLDECIMAL data type, -
-//  ABAPITAB = 48, 					// ABAPSTREAM procedure parameter, 1
-//  ABAPSTRUCT = 49, 				// ABAP structure procedure parameter, 1
     TEXT(String), 			        // TEXT data type, 3
     SHORTTEXT(String), 		        // SHORTTEXT data type, 3
     LONGDATE(LongDate),             // TIMESTAMP data type, 3
-//  SECONDDATE = 62, 				// TIMESTAMP type with second precision, 3
+    // SECONDDATE(SecondDate),			// TIMESTAMP type with second precision, 3
 //  DAYDATE = 63, 					// DATE data type, 3
 //  SECONDTIME = 64, 				// TIME data type, 3
 
@@ -68,16 +63,12 @@ pub enum TypedValue {               // Description, Support Level
     N_BOOLEAN(Option<bool>), 		// Boolean
     N_STRING(Option<String>), 		// Character string, 1
     N_NSTRING(Option<String>),		// Unicode character string, 1
-//  N_BLOCATOR = 31, 				// Binary locator, 1
-//  N_NLOCATOR = 32, 				// Unicode character locator, 1
     N_BSTRING(Option<Vec<u8>>),   	// Binary string, 1
 //  N_SMALLDECIMAL = 47, 			// SMALLDECIMAL data type, -
-//  N_ABAPITAB = 48, 				// ABAPSTREAM procedure parameter, 1
-//  N_ABAPSTRUCT = 49, 				// ABAP structure procedure parameter, 1
     N_TEXT(Option<String>), 		// TEXT data type, 3
     N_SHORTTEXT(Option<String>), 	// SHORTTEXT data type, 3
     N_LONGDATE(Option<LongDate>),   // TIMESTAMP data type, 3
-//  N_SECONDDATE = 62, 				// TIMESTAMP type with second precision, 3
+    // N_SECONDDATE(Option<SecondDate>), // TIMESTAMP type with second precision, 3
 //  N_DAYDATE = 63, 				// DATE data type, 3
 //  N_SECONDTIME = 64, 				// TIME data type, 3
 }
@@ -218,12 +209,8 @@ impl TypedValue {
         TypedValue::BOOLEAN(_)          =>  28,
         TypedValue::STRING(_)           =>  29,
         TypedValue::NSTRING(_)          =>  30,
-     // TypedValue::BLOCATOR(_)         =>  31,
-     // TypedValue::NLOCATOR(_)         =>  32,
         TypedValue::BSTRING(_)          =>  33,
      // TypedValue::SMALLDECIMAL(_)     =>  47,
-     // TypedValue::ABAPITAB(_)         =>  48,
-     // TypedValue::ABAPSTRUCT(_)       =>  49,
         TypedValue::TEXT(_)             =>  51,
         TypedValue::SHORTTEXT(_)        =>  52,
         TypedValue::LONGDATE(_)         =>  61,
@@ -235,7 +222,7 @@ impl TypedValue {
         TypedValue::N_SMALLINT(_)        =>  2 + 128,
         TypedValue::N_INT(_)             =>  3 + 128,
         TypedValue::N_BIGINT(_)          =>  4 + 128,
-    //  TypedValue::N_DECIMALo_)         =>  5 + 128,
+    //  TypedValue::N_DECIMAL(_)         =>  5 + 128,
         TypedValue::N_REAL(_)            =>  6 + 128,
         TypedValue::N_DOUBLE(_)          =>  7 + 128,
         TypedValue::N_CHAR(_)            =>  8 + 128,
@@ -251,12 +238,8 @@ impl TypedValue {
         TypedValue::N_BOOLEAN(_)         => 28 + 128,
         TypedValue::N_STRING(_)          => 29 + 128,
         TypedValue::N_NSTRING(_)         => 30 + 128,
-     // TypedValue::N_BLOCATOR(_)        => 31 + 128,
-     // TypedValue::N_NLOCATOR(_)        => 32 + 128,
         TypedValue::N_BSTRING(_)         => 33 + 128,
      // TypedValue::N_SMALLDECIMAL(_)    => 47 + 128,
-     // TypedValue::N_ABAPITAB(_)        => 48 + 128,
-     // TypedValue::N_ABAPSTRUCT(_)      => 49 + 128,
         TypedValue::N_TEXT(_)            => 51 + 128,
         TypedValue::N_SHORTTEXT(_)       => 52 + 128,
         TypedValue::N_LONGDATE(_)        => 61 + 128,
@@ -292,12 +275,8 @@ impl TypedValue {
             28 => Ok(TypedValue::BOOLEAN(    try!(rdr.read_u8()) > 0 )),
             29 => Ok(TypedValue::STRING(     try!(parse_length_and_string(rdr)) )),
             30 => Ok(TypedValue::NSTRING(    try!(parse_length_and_string(rdr)) )),
-         // 31 => Ok(TypedValue::BLOCATOR(
-         // 32 => Ok(TypedValue::NLOCATOR(
             33 => Ok(TypedValue::BSTRING(    try!(parse_length_and_binary(rdr)) )),
          // 47 => Ok(TypedValue::SMALLDECIMAL(
-         // 48 => Ok(TypedValue::ABAPITAB(
-         // 49 => Ok(TypedValue::ABAPSTRUCT(
             51 => Ok(TypedValue::TEXT(       try!(parse_length_and_string(rdr)) )),
             52 => Ok(TypedValue::SHORTTEXT(  try!(parse_length_and_string(rdr)) )),
             61 => Ok(TypedValue::LONGDATE(   try!(parse_longdate(rdr)) )),
@@ -341,12 +320,8 @@ impl TypedValue {
                     })),
             157 => Ok(TypedValue::N_STRING(     try!(parse_nullable_length_and_string(rdr)) )),
             158 => Ok(TypedValue::N_NSTRING(    try!(parse_nullable_length_and_string(rdr)) )),
-         // 159 => Ok(TypedValue::N_BLOCATOR(
-         // 160 => Ok(TypedValue::N_NLOCATOR(
             161 => Ok(TypedValue::N_BSTRING(    try!(parse_nullable_length_and_binary(rdr)) )),
          // 175 => Ok(TypedValue::N_SMALLDECIMAL(
-         // 176 => Ok(TypedValue::N_ABAPITAB(
-         // 177 => Ok(TypedValue::N_ABAPSTRUCT(
             179 => Ok(TypedValue::N_TEXT(       try!(parse_nullable_length_and_string(rdr)) )),
             180 => Ok(TypedValue::N_SHORTTEXT(  try!(parse_nullable_length_and_string(rdr)) )),
             189 => Ok(TypedValue::N_LONGDATE(   try!(parse_nullable_longdate(rdr)) )),
@@ -497,7 +472,7 @@ fn parse_nullable_length_and_binary(rdr: &mut io::BufRead) -> PrtResult<Option<V
 }
 
 //-----  LongDates ----------------------------------------------------------------------------------------------
-const LONGDATE_NULL_REPRESENTATION: i64 = 3_155_380_704_000_000_001_i64;
+const LONGDATE_NULL_REPRESENTATION: i64 = 3_155_380_704_000_000_001_i64; // = SECONDDATE_NULL_REPRESENTATION
 fn parse_longdate(rdr: &mut io::BufRead) -> PrtResult<LongDate> {
     let i = try!(rdr.read_i64::<LittleEndian>());
     match i {

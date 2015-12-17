@@ -38,7 +38,8 @@ pub fn select_variants() {
 }
 
 fn select_variants_impl() -> DbcResult<()> {
-    let mut connection = try!(Connection::new("wdfd00245307a", "30415", "SYSTEM", "manager"));
+    let mut connection = try!(hdbconnect::Connection::new("wdfd00245307a", "30415"));
+    connection.authenticate_user_password("SYSTEM", "manager").ok();
 
     try!(deser_option_into_option(&mut connection));
     try!(deser_plain_into_plain(&mut connection));

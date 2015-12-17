@@ -1,4 +1,4 @@
-use protocol::lowlevel::hdberror::HdbError;
+use protocol::lowlevel::parts::hdberror::HdbError;
 use protocol::lowlevel::util::Cesu8DecodingError;
 
 use byteorder;

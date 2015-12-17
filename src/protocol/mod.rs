@@ -1,5 +1,5 @@
 pub use self::lowlevel::message::{Request,Reply};
-pub use self::lowlevel::resultset::ResultSet;
+pub use self::lowlevel::parts::resultset::ResultSet;
 
 pub mod authentication;
 pub mod lowlevel;

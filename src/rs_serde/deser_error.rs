@@ -1,4 +1,4 @@
-use super::super::protocol::protocol_error::PrtError;
+use protocol::protocol_error::PrtError;
 
 use serde;
 use std::error::Error;

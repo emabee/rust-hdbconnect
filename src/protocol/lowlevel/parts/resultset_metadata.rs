@@ -1,5 +1,4 @@
-use super::{PrtError,PrtResult,prot_err};
-use super::util;
+use super::{PrtError,PrtResult,prot_err,util};
 
 use byteorder::{LittleEndian,ReadBytesExt};
 use std::io;

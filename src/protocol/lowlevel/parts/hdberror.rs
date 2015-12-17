@@ -1,5 +1,4 @@
-use super::PrtResult;
-use super::util;
+use super::{PrtResult,util};
 
 use byteorder::{LittleEndian,ReadBytesExt,WriteBytesExt};
 use std::fmt;

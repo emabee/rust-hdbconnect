@@ -3,53 +3,38 @@ use super::{PrtError,PrtResult};
 #[derive(Debug)]
 #[derive(Clone,Copy)]
 pub enum PartKind {
-    Command,                // 3 // SQL Command Data
-    ResultSet,              // 5 // Tabular result set data
-    Error,                  // 6 // Error information
+    Command,                //  3 // SQL Command Data
+    ResultSet,              //  5 // Tabular result set data
+    Error,                  //  6 // Error information
     StatementId,            // 10 // Prepared statement identifier
-    TransactionId,          // 11 // Transaction identifier
+    TransactionId,          // 11 // Transaction identifier // FIXME is missing
     RowsAffected,           // 12 // Number of affected rows of DML statement
     ResultSetId,            // 13 // Identifier of result set
     TopologyInformation,    // 15 // Topology information
     TableLocation,          // 16 // Location of table data
     ReadLobRequest,         // 17 // Request data of READLOB message
     ReadLobReply,           // 18 // Reply data of READLOB message
-    AbapIStream,            // 25 // ABAP input stream identifier
-    AbapOStream,            // 26 // ABAP output stream identifier
-    CommandInfo,            // 27 // Command information
-    WriteLobRequest,        // 28 // Request data of WRITELOB message
+    CommandInfo,            // 27 // Command information // FIXME is missing
+    WriteLobRequest,        // 28 // Request data of WRITELOB message // FIXME is missing
     ClientContext,          // 29 // Client context (see also PartKindEnum in api/Communication/Protocol/Layout.hpp)
-    WriteLobReply,          // 30 // Reply data of WRITELOB message
-    Parameters,             // 32 // Parameter data
+    WriteLobReply,          // 30 // Reply data of WRITELOB message // FIXME is missing
+    Parameters,             // 32 // Parameter data  // FIXME is missing
     Authentication,         // 33 // Authentication data
-    SessionContext,         // 34 // Session context information
+    SessionContext,         // 34 // Session context information  // FIXME is missing
     ClientID,               // 35 // Client ID  (see also PartKindEnum in api/Communication/Protocol/Layout.hpp)
     StatementContext,       // 39 // Statement visibility context
-    PartitionInformation,   // 40 // Table partitioning information
-    OutputParameters,       // 41 // Output parameter data
+    PartitionInformation,   // 40 // Table partitioning information // FIXME is missing
+    OutputParameters,       // 41 // Output parameter data // FIXME is missing
     ConnectOptions,         // 42 // Connect options
-    CommitOptions,          // 43 // Commit options
-    FetchOptions,           // 44 // Fetch options
+    CommitOptions,          // 43 // Commit options // FIXME is missing
+    FetchOptions,           // 44 // Fetch options // FIXME is missing
     FetchSize,              // 45 // Number of rows to fetch
     ParameterMetadata,      // 47 // Parameter metadata (type and length information)
-    ResultSetMetadata,      // 48 // Result set metadata (type, length, and name information)
-    FindLobRequest,         // 49 // Request data of FINDLOB message
-    FindLobReply,           // 50 // Reply data of FINDLOB message
-    ItabShm,                // 51 // Information on shared memory segment used for ITAB transfer
-    ItabChunkMetadata,      // 53 // Reserved, do not use
-    ItabMetadata,           // 55 // Information on ABAP ITAB structure for ITAB transfer
-    ItabResultChunk,        // 56 // ABAP ITAB data chunk
+    ResultSetMetadata,      // 48 // Result set metadata (type, length , and name information)
+    FindLobRequest,         // 49 // Request data of FINDLOB message // FIXME is missing
+    FindLobReply,           // 50 // Reply data of FINDLOB message // FIXME is missing
     ClientInfo,             // 57 // Client information values
-    StreamData,             // 58 // ABAP stream data
-    OStreamResult,          // 59 // ABAP output stream result information
-    FdaRequestMetadata,     // 60 // Information on memory and request details for FDA request
-    FdaReplyMetadata,       // 61 // Information on memory and request details for FDA reply
-    BatchPrepare,           // 62 // Reserved, do not use
-    BatchExecute,           // 63 // Reserved, do not use
     TransactionFlags,       // 64 // Transaction handling flags
-    RowDatapartMetadata,    // 65 // Reserved, do not use
-    ColDatapartMetadata,    // 66 // Reserved, do not use
-    DbConnectInfo,          // 67 // Reserved, do not use
 }
 impl PartKind {
     pub fn to_i8(&self) -> i8 {match *self {
@@ -64,8 +49,6 @@ impl PartKind {
         PartKind::TableLocation => 16,
         PartKind::ReadLobRequest => 17,
         PartKind::ReadLobReply => 18,
-        PartKind::AbapIStream => 25,
-        PartKind::AbapOStream => 26,
         PartKind::CommandInfo => 27,
         PartKind::WriteLobRequest => 28,
         PartKind::ClientContext => 29,
@@ -85,21 +68,8 @@ impl PartKind {
         PartKind::ResultSetMetadata => 48,
         PartKind::FindLobRequest => 49,
         PartKind::FindLobReply => 50,
-        PartKind::ItabShm => 51,
-        PartKind::ItabChunkMetadata => 53,
-        PartKind::ItabMetadata => 55,
-        PartKind::ItabResultChunk => 56,
         PartKind::ClientInfo => 57,
-        PartKind::StreamData => 58,
-        PartKind::OStreamResult => 59,
-        PartKind::FdaRequestMetadata => 60,
-        PartKind::FdaReplyMetadata => 61,
-        PartKind::BatchPrepare => 62,
-        PartKind::BatchExecute => 63,
         PartKind::TransactionFlags => 64,
-        PartKind::RowDatapartMetadata => 65,
-        PartKind::ColDatapartMetadata => 66,
-        PartKind::DbConnectInfo => 67,
     }}
 
     pub fn from_i8(val: i8) -> PrtResult<PartKind> { match val {
@@ -114,8 +84,6 @@ impl PartKind {
         16 => Ok(PartKind::TableLocation),
         17 => Ok(PartKind::ReadLobRequest),
         18 => Ok(PartKind::ReadLobReply),
-        25 => Ok(PartKind::AbapIStream),
-        26 => Ok(PartKind::AbapOStream),
         27 => Ok(PartKind::CommandInfo),
         28 => Ok(PartKind::WriteLobRequest),
         29 => Ok(PartKind::ClientContext),
@@ -135,21 +103,8 @@ impl PartKind {
         48 => Ok(PartKind::ResultSetMetadata),
         49 => Ok(PartKind::FindLobRequest),
         50 => Ok(PartKind::FindLobReply),
-        51 => Ok(PartKind::ItabShm),
-        53 => Ok(PartKind::ItabChunkMetadata),
-        55 => Ok(PartKind::ItabMetadata),
-        56 => Ok(PartKind::ItabResultChunk),
         57 => Ok(PartKind::ClientInfo),
-        58 => Ok(PartKind::StreamData),
-        59 => Ok(PartKind::OStreamResult),
-        60 => Ok(PartKind::FdaRequestMetadata),
-        61 => Ok(PartKind::FdaReplyMetadata),
-        62 => Ok(PartKind::BatchPrepare),
-        63 => Ok(PartKind::BatchExecute),
         64 => Ok(PartKind::TransactionFlags),
-        65 => Ok(PartKind::RowDatapartMetadata),
-        66 => Ok(PartKind::ColDatapartMetadata),
-        67 => Ok(PartKind::DbConnectInfo),
         _ => Err(PrtError::ProtocolError(format!("Invalid value for PartKind detected: {}",val))),
     }}
 }
