@@ -101,8 +101,7 @@ fn impl_connect_and_select() -> DbcResult<()> {
                 and object_name = 'hdbtable-columnstore' \
                 and object_suffix = 'template' ");
 
-    let callable_stmt = try!(connection.prepare_call(stmt));
-    let resultset = try!(callable_stmt.execute_rs(true));
+    let resultset = try!(connection.query_direct(stmt));
     debug!("ResultSet: {:?}", resultset);
 
     for t in resultset.server_processing_times() {

@@ -1,5 +1,6 @@
 use super::{PrtError,PrtResult};
 use super::conn_core::ConnRef;
+use super::message::{Metadata,MsgType};
 use super::part_attributes::PartAttributes;
 use super::partkind::PartKind;
 use super::part::Part;
@@ -10,6 +11,8 @@ use super::parts::commit_option::CommitOption;
 use super::parts::connect_option::ConnectOption;
 use super::parts::fetch_option::FetchOption;
 use super::parts::hdberror::HdbError;
+use super::parts::parameters::Parameters;
+use super::parts::output_parameters::OutputParameters;
 use super::parts::parameter_metadata::ParameterMetadata;
 use super::parts::read_lob_reply::ReadLobReply;
 use super::parts::resultset::ResultSet;
@@ -25,7 +28,7 @@ use std::io;
 
 #[derive(Debug)]
 pub enum Argument {
-    Dummy(PartKind,Vec<u8>),     // only for read_wire on requests, contains the Partkind and the bytes without padding
+    Dummy(PrtError),                    // only for read_wire
     Auth(Vec<AuthField>),
     CcOptions(Vec<CcOption>),
     ClientID(Vec<u8>),
@@ -36,9 +39,11 @@ pub enum Argument {
     Error(Vec<HdbError>),
     FetchOptions(Vec<FetchOption>),
     FetchSize(u32),
+    OutputParameters(OutputParameters),
     ParameterMetadata(ParameterMetadata),
-    ReadLobRequest(u64,u64,i32),        // locator, offset, length
-    ReadLobReply(u64,bool,Vec<u8>),     // locator, is_last_data, data
+    Parameters(Parameters),
+    ReadLobRequest(u64,u64,i32),        // locator, offset, length      // FIXME should be a separate struct
+    ReadLobReply(u64,bool,Vec<u8>),     // locator, is_last_data, data  // FIXME should be a separate struct
     ResultSet(Option<ResultSet>),
     ResultSetId(u64),
     ResultSetMetadata(ResultSetMetadata),
@@ -174,9 +179,11 @@ impl Argument {
     }
 
 
-    pub fn parse( kind: PartKind, attributes: PartAttributes, no_of_args: i32,  arg_size: i32, parts: &mut Vec<Part>,
-                  o_conn_ref: Option<&ConnRef>, o_rs: &mut Option<&mut ResultSet>, rdr: &mut io::BufRead )
-    -> PrtResult<Argument> {
+    pub fn parse(
+        msg_type: MsgType, kind: PartKind, attributes: PartAttributes, no_of_args: i32, arg_size: i32,
+        parts: &mut Vec<Part>, o_conn_ref: Option<&ConnRef>,
+        metadata: &Metadata, o_rs: &mut Option<&mut ResultSet>, rdr: &mut io::BufRead
+    ) -> PrtResult<Argument> {
         trace!("Entering parse(no_of_args={}, kind={:?})",no_of_args,kind);
 
         let arg = match kind {
@@ -238,16 +245,23 @@ impl Argument {
                 }
                 Argument::FetchOptions(vec)
             },
+            // PartKind::OutputParameters => {
+            //     FIXME!! implement argument::parse() for OutputParameters
+            // },
             PartKind::ParameterMetadata => {
                 let pmd = try!(ParameterMetadata::parse(no_of_args, arg_size as u32, rdr));
                 Argument::ParameterMetadata(pmd)
+            },
+            PartKind::Parameters => {
+                let pars = try!(Parameters::parse(msg_type, no_of_args, rdr));
+                Argument::Parameters(pars)
             },
             PartKind::ReadLobReply => {
                 let (locator, is_last_data, data) = try!(ReadLobReply::parse(rdr));
                 Argument::ReadLobReply(locator, is_last_data, data)
             },
             PartKind::ResultSet => {
-                let rs = try!(ResultSet::parse(no_of_args, attributes, parts, o_conn_ref, o_rs, rdr));
+                let rs = try!(ResultSet::parse(no_of_args, attributes, parts, o_conn_ref, metadata, o_rs, rdr));
                 Argument::ResultSet(rs)
             },
             PartKind::ResultSetId => {

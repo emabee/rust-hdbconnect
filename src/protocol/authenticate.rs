@@ -2,16 +2,15 @@ use connection::{ConnProps};
 use protocol::protocol_error::{PrtResult,prot_err};
 use protocol::lowlevel::argument::Argument;
 use protocol::lowlevel::conn_core::ConnRef;
-use protocol::lowlevel::function_code::FunctionCode;
-use protocol::lowlevel::message::{Request,Reply};
-use protocol::lowlevel::message_type::MessageType;
+use protocol::lowlevel::message::{Metadata,Request,Reply};
+use protocol::lowlevel::reply_type::ReplyType;
+use protocol::lowlevel::request_type::RequestType;
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::partkind::PartKind;
 use protocol::lowlevel::parts::authfield::AuthField;
 use protocol::lowlevel::parts::connect_option::{ConnectOption,ConnectOptionId};
 use protocol::lowlevel::parts::clientcontext_option::{CcOption,CcOptionId};
 use protocol::lowlevel::parts::option_value::OptionValue;
-use protocol::lowlevel::util;
 
 use byteorder::{LittleEndian,ReadBytesExt,WriteBytesExt};
 use rand::{Rng,thread_rng};
@@ -25,26 +24,27 @@ use crypto::sha2::Sha256;
 
 // FIXME we do too much clone/copy here - working with slices and references should be possible
 
-/// authenticate with the scram_sha256 method
-pub fn authenticate(conn_ref: &ConnRef, conn_props: &mut ConnProps, username: &str, password: &str)
+/// authenticate with user and password, using the scram_sha256 method
+pub fn user_pw(conn_ref: &ConnRef, conn_props: &mut ConnProps, username: &str, password: &str)
 -> PrtResult<()> {
     trace!("Entering authenticate()");
 
     let client_challenge = create_client_challenge();
+    debug!("do auth1_request()");
     let response1 = try!(build_auth1_request(&client_challenge, username)
-                         .send_and_receive(&mut None, conn_ref, Some(FunctionCode::Nil)));
+                         .send_and_receive(&Metadata::None, &mut None, conn_ref, Some(ReplyType::Nil)));
     let server_challenge: Vec<u8> = try!(get_server_challenge(response1));
 
     let client_proof = try!(calculate_client_proof(server_challenge, client_challenge, password));
 
+    debug!("do auth2_request()");
     let response2 = try!(build_auth2_request(&client_proof, username)
-                         .send_and_receive(&mut None, conn_ref, Some(FunctionCode::Nil)));
+                         .send_and_receive(&Metadata::None, &mut None, conn_ref, Some(ReplyType::Nil)));
 
     conn_ref.borrow_mut().session_id = response2.session_id;
-    evaluate_resp2(response2, conn_props)
+    evaluate_reply2(response2, conn_props)
 }
 
-/// Build the auth1-request: message_header + (segment_header + (part1+options) + (part2+authrequest)
 fn build_auth1_request (chllng_sha256: &Vec<u8>, username: &str) -> Request {
     trace!("Entering auth1_request()");
 
@@ -71,7 +71,7 @@ fn build_auth1_request (chllng_sha256: &Vec<u8>, username: &str) -> Request {
 
     let part2 = Part::new(PartKind::Authentication, Argument::Auth(auth_fields));
 
-    let mut request = Request::new(0, MessageType::Authenticate, true, 0);
+    let mut request = Request::new(0, RequestType::Authenticate, true, 0);
     request.push(part1);
     request.push(part2);
 
@@ -81,7 +81,7 @@ fn build_auth1_request (chllng_sha256: &Vec<u8>, username: &str) -> Request {
 
 fn build_auth2_request (client_proof: &Vec<u8>, username: &str) -> Request {
     trace!("Entering auth2_request()");
-    let mut request = Request::new(0, MessageType::Connect, true, 0);
+    let mut request = Request::new(0, RequestType::Connect, true, 0);
 
     let mut auth_fields = Vec::<AuthField>::with_capacity(3);
     auth_fields.push( AuthField(username.as_bytes().to_vec()) );
@@ -127,12 +127,9 @@ fn create_client_challenge() -> Vec<u8>{
     client_challenge.to_vec()
 }
 
-fn get_server_challenge(response: Reply) -> PrtResult<Vec<u8>> {
+fn get_server_challenge(mut reply: Reply) -> PrtResult<Vec<u8>> {
     trace!("Entering get_server_challenge()");
-    let part = match util::get_first_part_of_kind(PartKind::Authentication, &response.parts) {
-        Some(idx) => response.parts.get(idx).unwrap(),
-        None => return Err(prot_err("no part of kind Authentication")),
-    };
+    let part = try!(reply.retrieve_first_part_of_kind(PartKind::Authentication));
 
     if let Argument::Auth(ref vec) = part.arg {
         let server_challenge = vec.get(1).unwrap().0.clone();
@@ -143,13 +140,13 @@ fn get_server_challenge(response: Reply) -> PrtResult<Vec<u8>> {
     }
 }
 
-fn evaluate_resp2(response: Reply, conn_props: &mut ConnProps) -> PrtResult<()> {
-    trace!("Entering evaluate_resp2()");
-    assert!(response.parts.len() >= 1, "no part found");
+fn evaluate_reply2(reply: Reply, conn_props: &mut ConnProps) -> PrtResult<()> {
+    trace!("Entering evaluate_reply2()");
+    assert!(reply.parts.len() >= 1, "no part found");
 
     let mut server_proof = Vec::<u8>::new();
 
-    for part in response.parts {
+    for part in reply.parts {
         match part.kind {
             PartKind::Authentication => {
                 if let Argument::Auth(ref vec) = part.arg {
@@ -167,7 +164,7 @@ fn evaluate_resp2(response: Reply, conn_props: &mut ConnProps) -> PrtResult<()> 
                 }
             },
             pk => {
-                error!("ignoring unexpected partkind ({}) in auth_response2", pk.to_i8());
+                error!("ignoring unexpected partkind ({}) in evaluate_reply2", pk.to_i8());
             }
         }
     }

@@ -71,8 +71,7 @@ fn deser_option_into_option(connection: &mut Connection) -> DbcResult<()> {
         F_D: Option<LongDate>,
     }
 
-    let callable_stmt = try!(connection.prepare_call(String::from("select * from TEST_OPT_OPT")));
-    let resultset = try!(callable_stmt.execute_rs(true));
+    let resultset = try!(connection.query_direct(String::from("select * from TEST_OPT_OPT")));
     let typed_result: Vec<TestStruct> = try!(resultset.into_typed());
 
     debug!("Typed Result: {:?}", typed_result);
@@ -98,8 +97,7 @@ fn deser_plain_into_plain(connection: &mut Connection) -> DbcResult<()> {
         F_D: LongDate,
     }
 
-    let callable_stmt = try!(connection.prepare_call(String::from("select * from TEST_PLAIN_PLAIN")));
-    let resultset = try!(callable_stmt.execute_rs(true));
+    let resultset = try!(connection.query_direct(String::from("select * from TEST_PLAIN_PLAIN")));
     debug!("ResultSet: {:?}", resultset);
 
     let typed_result: Vec<TestStruct> = try!(resultset.into_typed());
@@ -127,8 +125,7 @@ fn deser_plain_into_option(connection: &mut Connection) -> DbcResult<()> {
         F_D: Option<LongDate>,
     }
 
-    let callable_stmt = try!(connection.prepare_call(String::from("select * from TEST_PLAIN_OPT")));
-    let resultset = try!(callable_stmt.execute_rs(true));
+    let resultset = try!(connection.query_direct(String::from("select * from TEST_PLAIN_OPT")));
     debug!("ResultSet: {:?}", resultset);
 
     let typed_result: Vec<TestStruct> = try!(resultset.into_typed());
@@ -162,8 +159,7 @@ fn deser_option_into_plain(connection: &mut Connection) -> DbcResult<()> {
         "insert into TEST_OPT_PLAIN values('world', 19, '01.01.2100')",
     )));
 
-    let callable_stmt = try!(connection.prepare_call(String::from("select * from TEST_OPT_PLAIN")));
-    let resultset = try!(callable_stmt.execute_rs(true));
+    let resultset = try!(connection.query_direct(String::from("select * from TEST_OPT_PLAIN")));
     let typed_result: Vec<TestStruct> = try!(resultset.into_typed());
 
     debug!("Typed Result: {:?}", typed_result);
@@ -175,8 +171,7 @@ fn deser_option_into_plain(connection: &mut Connection) -> DbcResult<()> {
         "insert into TEST_OPT_PLAIN (F_I) values(17)",
     )));
     let stmt = "select * from TEST_OPT_PLAIN".to_string();
-    let callable_stmt = try!(connection.prepare_call(stmt));
-    let resultset = try!(callable_stmt.execute_rs(true));
+    let resultset = try!(connection.query_direct(stmt));
 
     let typed_result: Vec<TestStruct> = match resultset.into_typed() {
         Ok(tr) => {panic!("deserialization of null values to plain data fields did not fail");tr},
@@ -206,15 +201,13 @@ fn deser_singleline_into_struct(connection: &mut Connection) -> DbcResult<()> {
 
     // first part: single line works
     let stmt = String::from("select * from TEST_SINGLE_LINE where O_S = 'hello'");
-    let callable_stmt = try!(connection.prepare_call(stmt));
-    let resultset = try!(callable_stmt.execute_rs(true));
+    let resultset = try!(connection.query_direct(stmt));
     assert_eq!(resultset.rows.len(),1);
     let typed_result: TestStruct = try!(resultset.into_typed());
     debug!("Typed Result: {:?}", typed_result);
 
     // second part: multi-line fails
-    let callable_stmt = try!(connection.prepare_call(String::from("select * from TEST_SINGLE_LINE")));
-    let resultset = try!(callable_stmt.execute_rs(true));
+    let resultset = try!(connection.query_direct(String::from("select * from TEST_SINGLE_LINE")));
     assert_eq!(resultset.rows.len(),3);
     let typed_result: TestStruct = match resultset.into_typed() {
         Ok(tr) => {panic!("deserialization of a multiline resultset to a plain struct did not fail");tr},
@@ -237,15 +230,13 @@ fn deser_singlevalue_into_plain(connection: &mut Connection) -> DbcResult<()> {
 
     // first part: single value should work
     let stmt = String::from("select count(*) from TEST_SINGLE_VALUE");
-    let callable_stmt = try!(connection.prepare_call(stmt));
-    let resultset = try!(callable_stmt.execute_rs(true));
+    let resultset = try!(connection.query_direct(stmt));
     let typed_result: i64 = try!(resultset.into_typed());
     debug!("Typed Result: {:?}", typed_result);
 
     // second part: multi col or multi rows should not work
     let stmt = String::from("select TOP 3 O_S, O_D from TEST_SINGLE_VALUE");
-    let callable_stmt = try!(connection.prepare_call(stmt));
-    let resultset = try!(callable_stmt.execute_rs(true));
+    let resultset = try!(connection.query_direct(stmt));
     let typed_result: i64 = match resultset.into_typed() {
         Ok(tr) => {
             error!("Typed Result: {:?}", tr);
@@ -258,7 +249,7 @@ fn deser_singlevalue_into_plain(connection: &mut Connection) -> DbcResult<()> {
 
 fn clean(connection: &mut Connection, clean: Vec<&str>) -> DbcResult<()> {
     for s in clean {
-        match try!(connection.prepare_call(String::from(s))).execute(true) {
+        match connection.call_direct(String::from(s)) {
             Ok(_) => {},
             Err(_) => {},
         }
@@ -268,7 +259,7 @@ fn clean(connection: &mut Connection, clean: Vec<&str>) -> DbcResult<()> {
 
 fn prepare(connection: &mut Connection, prep: Vec<&str>) -> DbcResult<()> {
     for s in prep {
-        try!(try!(connection.prepare_call(String::from(s))).execute(true));
+        try!(connection.execute_direct(String::from(s)));
     }
     Ok(())
 }

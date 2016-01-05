@@ -1,10 +1,13 @@
 use super::{PrtError,PrtResult,prot_err,util};
-use super::resultset::RsRef;
-use super::lob::{BLOB,CLOB};
+use super::resultset::{RsRef};
+use super::lob::{BLOB,CLOB,
+                 parse_blob_from_reply,parse_nullable_blob_from_reply,
+                 parse_clob_from_reply,parse_nullable_clob_from_reply};
+use super::lob::{parse_blob_from_request,
+                 parse_clob_from_request};
 use types::longdate::LongDate;
 
 use byteorder::{LittleEndian,ReadBytesExt,WriteBytesExt};
-use std::borrow::Cow;
 use std::i16;
 use std::u32;
 use std::u64;
@@ -15,12 +18,11 @@ use std::iter::repeat;
 #[allow(non_camel_case_types)]
 #[derive(Clone,Debug)]
 pub enum TypedValue {               // Description, Support Level
-    NULL, 						    // NULL value, -
     TINYINT(u8),                    // TINYINT, 1
     SMALLINT(i16), 			        // SMALLINT, 1
     INT(i32), 				        // INTEGER, 1
     BIGINT(i64), 			        // BIGINT, 1
-//  DECIMAL = 5, 					// DECIMAL, and DECIMAL(p,s), 1
+    //  DECIMAL = 5, 					// DECIMAL, and DECIMAL(p,s), 1
     REAL(f32), 				        // REAL, 1
     DOUBLE(f64), 			        // DOUBLE, 1
     CHAR(String), 			        // CHAR, 1
@@ -36,19 +38,19 @@ pub enum TypedValue {               // Description, Support Level
     STRING(String), 		        // Character string, 1
     NSTRING(String),		        // Unicode character string, 1
     BSTRING(Vec<u8>),   	        // Binary string, 1
-//  SMALLDECIMAL = 47, 				// SMALLDECIMAL data type, -
+    //  SMALLDECIMAL = 47, 				// SMALLDECIMAL data type, -
     TEXT(String), 			        // TEXT data type, 3
     SHORTTEXT(String), 		        // SHORTTEXT data type, 3
     LONGDATE(LongDate),             // TIMESTAMP data type, 3
     // SECONDDATE(SecondDate),			// TIMESTAMP type with second precision, 3
-//  DAYDATE = 63, 					// DATE data type, 3
-//  SECONDTIME = 64, 				// TIME data type, 3
+    //  DAYDATE = 63, 					// DATE data type, 3
+    //  SECONDTIME = 64, 				// TIME data type, 3
 
     N_TINYINT(Option<u8>),          // TINYINT, 1
     N_SMALLINT(Option<i16>), 		// SMALLINT, 1
     N_INT(Option<i32>), 			// INTEGER, 1
     N_BIGINT(Option<i64>), 			// BIGINT, 1
-//  N_DECIMAL = 5, 					// DECIMAL, and DECIMAL(p,s), 1
+    //  N_DECIMAL = 5, 					// DECIMAL, and DECIMAL(p,s), 1
     N_REAL(Option<f32>), 			// REAL, 1
     N_DOUBLE(Option<f64>), 			// DOUBLE, 1
     N_CHAR(Option<String>), 		// CHAR, 1
@@ -64,23 +66,57 @@ pub enum TypedValue {               // Description, Support Level
     N_STRING(Option<String>), 		// Character string, 1
     N_NSTRING(Option<String>),		// Unicode character string, 1
     N_BSTRING(Option<Vec<u8>>),   	// Binary string, 1
-//  N_SMALLDECIMAL = 47, 			// SMALLDECIMAL data type, -
+    // N_SMALLDECIMAL = 47, 			// SMALLDECIMAL data type, -
     N_TEXT(Option<String>), 		// TEXT data type, 3
     N_SHORTTEXT(Option<String>), 	// SHORTTEXT data type, 3
     N_LONGDATE(Option<LongDate>),   // TIMESTAMP data type, 3
     // N_SECONDDATE(Option<SecondDate>), // TIMESTAMP type with second precision, 3
-//  N_DAYDATE = 63, 				// DATE data type, 3
-//  N_SECONDTIME = 64, 				// TIME data type, 3
+    // N_DAYDATE = 63, 				// DATE data type, 3
+    // N_SECONDTIME = 64, 				// TIME data type, 3
 }
 
 impl TypedValue {
+    fn serialize_type_id(&self, w: &mut io::Write) -> PrtResult<bool> {
+        let is_null = match *self {
+            TypedValue::N_TINYINT(None) |
+            TypedValue::N_SMALLINT(None) |
+            TypedValue::N_INT(None) |
+            TypedValue::N_BIGINT(None) |
+            TypedValue::N_REAL(None) |
+            TypedValue::N_BOOLEAN(None) |
+            TypedValue::N_LONGDATE(None) |
+            TypedValue::N_CLOB(None) |
+            TypedValue::N_NCLOB(None) |
+            TypedValue::N_BLOB(None) |
+            TypedValue::N_CHAR(None) |
+            TypedValue::N_VARCHAR(None) |
+            TypedValue::N_NCHAR(None) |
+            TypedValue::N_NVARCHAR(None) |
+            TypedValue::N_STRING(None) |
+            TypedValue::N_NSTRING(None) |
+            TypedValue::N_TEXT(None) |
+            TypedValue::N_SHORTTEXT(None) |
+            TypedValue::N_BINARY(None) |
+            TypedValue::N_VARBINARY(None) |
+            TypedValue::N_BSTRING(None) => true,
+            _ => false
+        };
+
+        if is_null {
+            try!(w.write_u8(self.type_id()));
+        }
+        else {
+            try!(w.write_u8(self.type_id() %128));
+        }
+        Ok(is_null)
+    }
+
     pub fn serialize(&self, w: &mut io::Write) -> PrtResult<()> {
         fn _serialize_not_implemented(type_id: u8) -> PrtError {
             return PrtError::ProtocolError(format!("TypedValue::serialize() not implemented for type code {}", type_id));
         }
-        try!(w.write_u8(self.type_id()));                   // I1
-        match *self {                                       // variable
-            TypedValue::NULL                => {},
+
+        if ! try!(self.serialize_type_id(w)) { match *self {
             TypedValue::TINYINT(u)          => try!(w.write_u8(u)),
             TypedValue::SMALLINT(i)         => try!(w.write_i16::<LittleEndian>(i)),
             TypedValue::INT(i)              => try!(w.write_i32::<LittleEndian>(i)),
@@ -126,7 +162,7 @@ impl TypedValue {
             TypedValue::N_BINARY(ref o) |
             TypedValue::N_VARBINARY(ref o) |
             TypedValue::N_BSTRING(ref o)    => if let &Some(ref v) = o {try!(serialize_length_and_bytes(v,w))},
-        }
+        }}
         Ok(())
     }
 
@@ -137,7 +173,6 @@ impl TypedValue {
         }
 
         Ok(1 + match *self {
-            TypedValue::NULL => 0,
             TypedValue::TINYINT(_)          => 1,
             TypedValue::SMALLINT(_)         => 2,
             TypedValue::INT(_)              => 4,
@@ -188,12 +223,11 @@ impl TypedValue {
 
     /// hdb protocol uses ids < 128 for non-null values, and ids > 128 for null values
     pub fn type_id(&self) -> u8 { match *self {
-        TypedValue::NULL                =>   0,
         TypedValue::TINYINT(_)          =>   1,
-        TypedValue::INT(_)              =>   3,
         TypedValue::SMALLINT(_)         =>   2,
+        TypedValue::INT(_)              =>   3,
         TypedValue::BIGINT(_)           =>   4,
-    //  TypedValue::DECIMAL(_)          =>   5,
+        //  TypedValue::DECIMAL(_)          =>   5,
         TypedValue::REAL(_)             =>   6,
         TypedValue::DOUBLE(_)           =>   7,
         TypedValue::CHAR(_)             =>   8,
@@ -202,7 +236,7 @@ impl TypedValue {
         TypedValue::NVARCHAR(_)         =>  11,
         TypedValue::BINARY(_)           =>  12,
         TypedValue::VARBINARY(_)        =>  13,
-     // TypedValue::TIMESTAMP(_)        =>  16,
+        // TypedValue::TIMESTAMP(_)        =>  16,
         TypedValue::CLOB(_)             =>  25,
         TypedValue::NCLOB(_)            =>  26,
         TypedValue::BLOB(_)             =>  27,
@@ -210,19 +244,19 @@ impl TypedValue {
         TypedValue::STRING(_)           =>  29,
         TypedValue::NSTRING(_)          =>  30,
         TypedValue::BSTRING(_)          =>  33,
-     // TypedValue::SMALLDECIMAL(_)     =>  47,
+        // TypedValue::SMALLDECIMAL(_)     =>  47,
         TypedValue::TEXT(_)             =>  51,
         TypedValue::SHORTTEXT(_)        =>  52,
         TypedValue::LONGDATE(_)         =>  61,
-     // TypedValue::SECONDDATE(_)       =>  62,
-     // TypedValue::DAYDATE(_)          =>  63,
-     // TypedValue::SECONDTIME(_)       =>  64,
+        // TypedValue::SECONDDATE(_)       =>  62,
+        // TypedValue::DAYDATE(_)          =>  63,
+        // TypedValue::SECONDTIME(_)       =>  64,
 
         TypedValue::N_TINYINT(_)         =>  1 + 128,
         TypedValue::N_SMALLINT(_)        =>  2 + 128,
         TypedValue::N_INT(_)             =>  3 + 128,
         TypedValue::N_BIGINT(_)          =>  4 + 128,
-    //  TypedValue::N_DECIMAL(_)         =>  5 + 128,
+        //  TypedValue::N_DECIMAL(_)         =>  5 + 128,
         TypedValue::N_REAL(_)            =>  6 + 128,
         TypedValue::N_DOUBLE(_)          =>  7 + 128,
         TypedValue::N_CHAR(_)            =>  8 + 128,
@@ -231,7 +265,7 @@ impl TypedValue {
         TypedValue::N_NVARCHAR(_)        => 11 + 128,
         TypedValue::N_BINARY(_)          => 12 + 128,
         TypedValue::N_VARBINARY(_)       => 13 + 128,
-     // TypedValue::N_TIMESTAMP(_)       => 16 + 128,
+        // TypedValue::N_TIMESTAMP(_)       => 16 + 128,
         TypedValue::N_CLOB(_)            => 25 + 128,
         TypedValue::N_NCLOB(_)           => 26 + 128,
         TypedValue::N_BLOB(_)            => 27 + 128,
@@ -239,16 +273,17 @@ impl TypedValue {
         TypedValue::N_STRING(_)          => 29 + 128,
         TypedValue::N_NSTRING(_)         => 30 + 128,
         TypedValue::N_BSTRING(_)         => 33 + 128,
-     // TypedValue::N_SMALLDECIMAL(_)    => 47 + 128,
+        // TypedValue::N_SMALLDECIMAL(_)    => 47 + 128,
         TypedValue::N_TEXT(_)            => 51 + 128,
         TypedValue::N_SHORTTEXT(_)       => 52 + 128,
         TypedValue::N_LONGDATE(_)        => 61 + 128,
-     // TypedValue::N_SECONDDATE(_)      => 62 + 128,
-     // TypedValue::N_DAYDATE(_)         => 63 + 128,
-     // TypedValue::N_SECONDTIME(_)      => 64 + 128,
+        // TypedValue::N_SECONDDATE(_)      => 62 + 128,
+        // TypedValue::N_DAYDATE(_)         => 63 + 128,
+        // TypedValue::N_SECONDTIME(_)      => 64 + 128,
     }}
 
-    pub fn parse(p_typecode: u8, nullable: bool, rs_ref: &RsRef, rdr: &mut io::BufRead) -> PrtResult<TypedValue> {
+    pub fn parse_from_reply(p_typecode: u8, nullable: bool, rs_ref: Option<&RsRef>, rdr: &mut io::BufRead)
+    -> PrtResult<TypedValue> {
         // here p_typecode is always < 127
         // the flag nullable from the metadata governs our behavior:
         // if it is true, we return types with typecode above 128, which use Option<type>,
@@ -269,9 +304,9 @@ impl TypedValue {
             12 => Ok(TypedValue::BINARY(     try!(parse_length_and_binary(rdr)) )),
             13 => Ok(TypedValue::VARBINARY(  try!(parse_length_and_binary(rdr)) )),
          // 16 => Ok(TypedValue::TIMESTAMP(
-            25 => Ok(TypedValue::CLOB(       try!(parse_clob(rs_ref, rdr)) )),
-            26 => Ok(TypedValue::NCLOB(      try!(parse_clob(rs_ref, rdr)) )),
-            27 => Ok(TypedValue::BLOB(       try!(parse_blob(rs_ref, rdr)) )),
+            25 => Ok(TypedValue::CLOB(       try!(parse_clob_from_reply(rs_ref.unwrap(), rdr)) )),  // FIXME improve error handling
+            26 => Ok(TypedValue::NCLOB(      try!(parse_clob_from_reply(rs_ref.unwrap(), rdr)) )),
+            27 => Ok(TypedValue::BLOB(       try!(parse_blob_from_reply(rs_ref.unwrap(), rdr)) )),
             28 => Ok(TypedValue::BOOLEAN(    try!(rdr.read_u8()) > 0 )),
             29 => Ok(TypedValue::STRING(     try!(parse_length_and_string(rdr)) )),
             30 => Ok(TypedValue::NSTRING(    try!(parse_length_and_string(rdr)) )),
@@ -284,7 +319,6 @@ impl TypedValue {
          // 63 => Ok(TypedValue::DAYDATE(
          // 64 => Ok(TypedValue::SECONDTIME(
 
-            128 => Ok(TypedValue::NULL) ,
             129 => Ok(TypedValue::N_TINYINT(match try!(ind_null(rdr)) {
                                 true  => None,
                                 false => Some(try!(rdr.read_u8()))
@@ -311,9 +345,9 @@ impl TypedValue {
             140 => Ok(TypedValue::N_BINARY(     try!(parse_nullable_length_and_binary(rdr)) )),
             141 => Ok(TypedValue::N_VARBINARY(  try!(parse_nullable_length_and_binary(rdr)) )),
          // 144 => Ok(TypedValue::N_TIMESTAMP(
-            153 => Ok(TypedValue::N_CLOB(       try!(parse_nullable_clob(rs_ref, rdr)) )),
-            154 => Ok(TypedValue::N_NCLOB(      try!(parse_nullable_clob(rs_ref, rdr)) )),
-            155 => Ok(TypedValue::N_BLOB(       try!(parse_nullable_blob(rs_ref, rdr)) )),
+            153 => Ok(TypedValue::N_CLOB(       try!(parse_nullable_clob_from_reply(rs_ref.unwrap(), rdr)) )),  // FIXME improve error handling
+            154 => Ok(TypedValue::N_NCLOB(      try!(parse_nullable_clob_from_reply(rs_ref.unwrap(), rdr)) )),
+            155 => Ok(TypedValue::N_BLOB(       try!(parse_nullable_blob_from_reply(rs_ref.unwrap(), rdr)) )),
             156 => Ok(TypedValue::N_BOOLEAN(match try!(ind_null(rdr)) {
                                 true  => None,
                                 false => Some(try!(rdr.read_u8()) > 0),
@@ -329,7 +363,75 @@ impl TypedValue {
          // 191 => Ok(TypedValue::N_DAYDATE(
          // 192 => Ok(TypedValue::N_SECONDTIME(
 
-            _   => Err(PrtError::ProtocolError(format!("TypedValue::parse_value() not implemented for type code {}",typecode))),
+            _   => Err(PrtError::ProtocolError(format!("TypedValue::parse_from_reply() not implemented for type code {}",typecode))),
+        }
+    }
+
+
+    /// this is "only" needed for read_wire
+    pub fn parse_from_request(rdr: &mut io::BufRead) -> PrtResult<TypedValue> {
+        let typecode = try!(rdr.read_u8());
+        trace!("parse_from_request(): typecode = {}",typecode);
+        match typecode {
+            1  => Ok(TypedValue::TINYINT(    try!(rdr.read_u8()) ) ),
+            2  => Ok(TypedValue::SMALLINT(   try!(rdr.read_i16::<LittleEndian>()) ) ),
+            3  => Ok(TypedValue::INT(        try!(rdr.read_i32::<LittleEndian>()) ) ),
+            4  => Ok(TypedValue::BIGINT(     try!(rdr.read_i64::<LittleEndian>()) ) ),
+         // 5  => Ok(TypedValue::DECIMAL(
+            6  => Ok(TypedValue::REAL(       try!(parse_real(rdr)) )),
+            7  => Ok(TypedValue::DOUBLE(     try!(parse_double(rdr)) )),
+            8  => Ok(TypedValue::CHAR(       try!(parse_length_and_string(rdr)) )),
+            9  => Ok(TypedValue::VARCHAR(    try!(parse_length_and_string(rdr)) )),
+            10 => Ok(TypedValue::NCHAR(      try!(parse_length_and_string(rdr)) )),
+            11 => Ok(TypedValue::NVARCHAR(   try!(parse_length_and_string(rdr)) )),
+            12 => Ok(TypedValue::BINARY(     try!(parse_length_and_binary(rdr)) )),
+            13 => Ok(TypedValue::VARBINARY(  try!(parse_length_and_binary(rdr)) )),
+         // 16 => Ok(TypedValue::TIMESTAMP(
+            25 => Ok(TypedValue::CLOB(       try!(parse_clob_from_request(rdr)) )),
+            26 => Ok(TypedValue::NCLOB(      try!(parse_clob_from_request(rdr)) )),
+            27 => Ok(TypedValue::BLOB(       try!(parse_blob_from_request(rdr)) )),
+            28 => Ok(TypedValue::BOOLEAN(    try!(rdr.read_u8()) > 0 )),
+            29 => Ok(TypedValue::STRING(     try!(parse_length_and_string(rdr)) )),
+            30 => Ok(TypedValue::NSTRING(    try!(parse_length_and_string(rdr)) )),
+            33 => Ok(TypedValue::BSTRING(    try!(parse_length_and_binary(rdr)) )),
+         // 47 => Ok(TypedValue::SMALLDECIMAL(
+            51 => Ok(TypedValue::TEXT(       try!(parse_length_and_string(rdr)) )),
+            52 => Ok(TypedValue::SHORTTEXT(  try!(parse_length_and_string(rdr)) )),
+            61 => Ok(TypedValue::LONGDATE(   try!(parse_longdate(rdr)) )),
+         // 62 => Ok(TypedValue::SECONDDATE(
+         // 63 => Ok(TypedValue::DAYDATE(
+         // 64 => Ok(TypedValue::SECONDTIME(
+
+            129 => Ok(TypedValue::N_TINYINT(None)),
+            130 => Ok(TypedValue::N_SMALLINT(None)),
+            131 => Ok(TypedValue::N_INT(None)),
+            132 => Ok(TypedValue::N_BIGINT(None)),
+         // 133 => Ok(TypedValue::N_DECIMAL(
+            134 => Ok(TypedValue::N_REAL(None)),
+            135 => Ok(TypedValue::N_DOUBLE(None)),
+            136 => Ok(TypedValue::N_CHAR(None)),
+            137 => Ok(TypedValue::N_VARCHAR(None)),
+            138 => Ok(TypedValue::N_NCHAR(None)),
+            139 => Ok(TypedValue::N_NVARCHAR(None)),
+            140 => Ok(TypedValue::N_BINARY(None)),
+            141 => Ok(TypedValue::N_VARBINARY(None)),
+         // 144 => Ok(TypedValue::N_TIMESTAMP(
+            153 => Ok(TypedValue::N_CLOB(None)),
+            154 => Ok(TypedValue::N_NCLOB(None)),
+            155 => Ok(TypedValue::N_BLOB(None)),
+            156 => Ok(TypedValue::N_BOOLEAN(None)),
+            157 => Ok(TypedValue::N_STRING(None)),
+            158 => Ok(TypedValue::N_NSTRING(None)),
+            161 => Ok(TypedValue::N_BSTRING(None)),
+         // 175 => Ok(TypedValue::N_SMALLDECIMAL(
+            179 => Ok(TypedValue::N_TEXT(None)),
+            180 => Ok(TypedValue::N_SHORTTEXT(None)),
+            189 => Ok(TypedValue::N_LONGDATE(None)),
+         // 190 => Ok(TypedValue::N_SECONDDATE(
+         // 191 => Ok(TypedValue::N_DAYDATE(
+         // 192 => Ok(TypedValue::N_SECONDTIME(
+
+            _   => Err(PrtError::ProtocolError(format!("TypedValue::parse_from_request() not implemented for type code {}",typecode))),
         }
     }
 }
@@ -487,66 +589,4 @@ fn parse_nullable_longdate(rdr: &mut io::BufRead) -> PrtResult<Option<LongDate>>
         LONGDATE_NULL_REPRESENTATION => Ok(None),
         _ => Ok(Some(LongDate(i)))
     }
-}
-
-//-----  LOBs ----------------------------------------------------------------------------------------------
-fn parse_blob(rs_ref: &RsRef, rdr: &mut io::BufRead) -> PrtResult<BLOB> {
-    match try!(parse_nullable_blob(rs_ref, rdr)) {
-        Some(blob) => Ok(blob),
-        None => Err(prot_err("Null value found for non-null blob column"))
-    }
-}
-fn parse_nullable_blob(rs_ref: &RsRef, rdr: &mut io::BufRead) -> PrtResult<Option<BLOB>> {
-    let (is_null, is_last_data) = try!(parse_lob_1(rdr));
-    match is_null {
-        true => { return Ok(None); },
-        false => {
-            let (_, length_b, locator_id, data) = try!(parse_lob_2(rdr));
-            Ok(Some(BLOB::new(rs_ref, is_last_data, length_b, locator_id, data)))
-        }
-    }
-}
-
-fn parse_clob(rs_ref: &RsRef, rdr: &mut io::BufRead) -> PrtResult<CLOB> {
-    match try!(parse_nullable_clob(rs_ref, rdr)) {
-        Some(clob) => Ok(clob),
-        None => Err(prot_err("Null value found for non-null clob column"))
-    }
-}
-fn parse_nullable_clob(rs_ref: &RsRef, rdr: &mut io::BufRead) -> PrtResult<Option<CLOB>> {
-    let (is_null, is_last_data) = try!(parse_lob_1(rdr));
-    match is_null {
-        true => { return Ok(None); },
-        false => {
-            let (length_c, length_b, locator_id, data) = try!(parse_lob_2(rdr));
-            let (s,char_count) = try!(util::from_cesu8_with_count(&data));
-            let s = match s {
-                Cow::Owned(s) => s,
-                Cow::Borrowed(s) => String::from(s)
-            };
-            assert_eq!(data.len(), s.len());
-            trace!("parse_nullable_clob(): s: =============================\n{}\n===========================", s);
-            Ok(Some(CLOB::new(rs_ref, is_last_data, length_c, length_b, char_count, locator_id, s)))
-        }
-    }
-}
-
-// see "Output BLOB/CLOB/NCLOB"
-fn parse_lob_1(rdr: &mut io::BufRead) -> PrtResult<(bool, bool)> {
-    rdr.consume(1);    //let data_type = try!(rdr.read_u8());               // I1  "type of data": unclear
-    let options = try!(rdr.read_u8());                                      // I1
-    let is_null = (options & 0b_1_u8) != 0;
-    // let is_data_included = (options & 0b_10_u8) != 0;
-    let is_last_data = (options & 0b_100_u8) != 0;
-    Ok((is_null, is_last_data))
-}
-fn parse_lob_2(rdr: &mut io::BufRead) -> PrtResult<(u64,u64,u64,Vec<u8>)> {
-    rdr.consume(2);                                                         // U2 (filler)
-    let length_c = try!(rdr.read_u64::<LittleEndian>());                    // I8
-    let length_b = try!(rdr.read_u64::<LittleEndian>());                    // I8
-    let locator_id = try!(rdr.read_u64::<LittleEndian>());                  // I8
-    let chunk_length = try!(rdr.read_i32::<LittleEndian>());                // I4
-    let data = try!(util::parse_bytes(chunk_length as usize,rdr));          // B[chunk_length]
-    trace!("Got LOB locator {}", locator_id);
-    Ok((length_c, length_b, locator_id, data))
 }

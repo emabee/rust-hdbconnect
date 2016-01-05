@@ -24,10 +24,10 @@ pub enum PartKind {
     ClientID,               // 35 // Client ID  (see also PartKindEnum in api/Communication/Protocol/Layout.hpp)
     StatementContext,       // 39 // Statement visibility context
     PartitionInformation,   // 40 // Table partitioning information // FIXME is missing
-    OutputParameters,       // 41 // Output parameter data // FIXME is missing
+    OutputParameters,       // 41 // Output parameter data
     ConnectOptions,         // 42 // Connect options
-    CommitOptions,          // 43 // Commit options // FIXME is missing
-    FetchOptions,           // 44 // Fetch options // FIXME is missing
+    CommitOptions,          // 43 // Commit options
+    FetchOptions,           // 44 // Fetch options
     FetchSize,              // 45 // Number of rows to fetch
     ParameterMetadata,      // 47 // Parameter metadata (type and length information)
     ResultSetMetadata,      // 48 // Result set metadata (type, length , and name information)

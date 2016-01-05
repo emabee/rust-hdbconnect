@@ -1,3 +1,5 @@
+use protocol::lowlevel::parts::option_value::OptionValue;
+
 use std::cell::RefCell;
 use std::net::TcpStream;
 use std::rc::Rc;
@@ -13,6 +15,7 @@ pub struct ConnectionCore {
     seq_number: i32,
     fetch_size: u32,
     lob_read_length: i32,
+    pub ssi: Option<OptionValue>,
     pub stream: TcpStream,
 }
 impl ConnectionCore {
@@ -22,7 +25,8 @@ impl ConnectionCore {
             seq_number: 0,
             fetch_size: DEFAULT_FETCH_SIZE,
             lob_read_length: DEFAULT_LOB_READ_LENGTH,
-            stream: stream
+            ssi: None,
+            stream: stream,
         }))
     }
 

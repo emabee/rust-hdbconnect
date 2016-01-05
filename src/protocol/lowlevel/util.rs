@@ -1,6 +1,4 @@
 use super::PrtResult;
-use super::partkind::PartKind;
-use super::part::Part;
 
 use byteorder::WriteBytesExt;
 use std::io;
@@ -43,13 +41,6 @@ pub fn cesu8_length(s: &String) -> usize{
         }
     }
     len
-}
-
-
-///
-pub fn get_first_part_of_kind(kind: PartKind, parts: &Vec<Part>) -> Option<usize> {
-    let code = kind.to_i8();
-    parts.iter().position(|p| p.kind.to_i8() == code)
 }
 
 

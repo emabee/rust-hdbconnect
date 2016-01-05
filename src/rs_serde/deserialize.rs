@@ -5,6 +5,7 @@
 //! Deserialize a ResultSet into a normal rust type.
 
 use protocol::lowlevel::parts::resultset::ResultSet;
+use protocol::lowlevel::parts::lob::{BLOB,CLOB};
 use protocol::lowlevel::parts::typed_value::TypedValue;
 use types::longdate::LongDate;
 use super::deser_error::{DeserError,DeserResult,prog_err};
@@ -616,10 +617,13 @@ impl serde::de::Deserializer for RsDeserializer {
             | TypedValue::N_NSTRING(Some(s))
             | TypedValue::N_SHORTTEXT(Some(s))
             | TypedValue::N_TEXT(Some(s)) => visitor.visit_string(s),
-            TypedValue::CLOB(clob)
-            | TypedValue::NCLOB(clob)
-            | TypedValue::N_CLOB(Some(clob))
-            | TypedValue::N_NCLOB(Some(clob)) => visitor.visit_string(try!(clob.into_string())),
+
+            TypedValue::CLOB(CLOB::FromDB(clob_from_db))
+            | TypedValue::NCLOB(CLOB::FromDB(clob_from_db))
+            | TypedValue::N_CLOB(Some(CLOB::FromDB(clob_from_db)))
+            | TypedValue::N_NCLOB(Some(CLOB::FromDB(clob_from_db)))
+                => visitor.visit_string(try!(clob_from_db.into_string())),
+
             value => return Err(self.wrong_type(&value, "String")),
         }
     }
@@ -709,12 +713,6 @@ impl serde::de::Deserializer for RsDeserializer {
             | &TypedValue::TEXT(_)
             | &TypedValue::SHORTTEXT(_)
             | &TypedValue::LONGDATE(_) => true,
-
-            tv => {
-                let s = format!("the deserialization of the result value {:?}  \
-                                 into an option field is not yet implemented", tv);
-                return Err(DeserError::ProgramError(s));
-            }
         };
 
         // the borrow-checker forces us to extract this to here
@@ -735,10 +733,10 @@ impl serde::de::Deserializer for RsDeserializer {
         match self.rows_treat {
             MCD::Done => {
                 match try!(self.current_value_pop()) {
-                    TypedValue::BLOB(blob)
-                    | TypedValue::N_BLOB(Some(blob))
+                    TypedValue::BLOB(BLOB::FromDB(blob_from_db))
+                    | TypedValue::N_BLOB(Some(BLOB::FromDB(blob_from_db)))
                     => {
-                        match visitor.visit_bytes(&try!(blob.into_bytes())) {
+                        match visitor.visit_bytes(&try!(blob_from_db.into_bytes())) {
                             Ok(v) => Ok(v),
                             Err(e) => {
                                 trace!("ERRRRRRRRR: {:?}",e);

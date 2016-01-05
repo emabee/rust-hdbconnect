@@ -1,101 +1,61 @@
-use {DbcError,DbcResult};
+use {DbcError,DbcResult,DbResult};
 use protocol::lowlevel::conn_core::ConnRef;
 use protocol::lowlevel::argument::Argument;
-use protocol::lowlevel::function_code::FunctionCode;
-use protocol::lowlevel::message::Request;
-use protocol::lowlevel::message_type::MessageType;
+use protocol::lowlevel::message::{Request,Metadata};
+use protocol::lowlevel::reply_type::ReplyType;
+use protocol::lowlevel::request_type::RequestType;
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::partkind::PartKind;
-use protocol::lowlevel::parts::resultset::ResultSet;
-use protocol::lowlevel::parts::rows_affected::RowsAffected;
-use protocol::lowlevel::util;
 
 ///
 pub struct CallableStatement {
     conn_ref: ConnRef,
     stmt: String,
+    auto_commit: bool,
 }
 impl CallableStatement {
-    pub fn new(conn_ref: ConnRef, stmt: String) -> DbcResult<CallableStatement> {
-        Ok(CallableStatement { conn_ref: conn_ref, stmt: stmt })
+    pub fn new(conn_ref: ConnRef, stmt: String, auto_commit: bool) -> CallableStatement {
+        CallableStatement { conn_ref: conn_ref, stmt: stmt, auto_commit: auto_commit }
     }
 }
 
 impl CallableStatement {
-    pub fn execute(&self, auto_commit: bool) -> DbcResult<CallableStatementResult> {
+    pub fn execute(&self) -> DbcResult<DbResult> {
         trace!("CallableStatement::execute({})",self.stmt);
         // build the request
         let command_options = 0b_1000;
-        let mut request = Request::new(0, MessageType::ExecuteDirect, auto_commit, command_options);
+        let mut request = Request::new(0, RequestType::ExecuteDirect, self.auto_commit, command_options);
         let fetch_size = { self.conn_ref.borrow().get_fetch_size() };
         request.push(Part::new(PartKind::FetchSize, Argument::FetchSize(fetch_size)));
         request.push(Part::new(PartKind::Command, Argument::Command(self.stmt.clone())));
 
 
         // send it
-        let mut response = try!(request.send_and_receive(&mut None, &(self.conn_ref), None));
+        let mut reply = try!(request.send_and_receive(&Metadata::None, &mut None, &(self.conn_ref), None));
 
-        // digest response
-        match &response.function_code {
-            &FunctionCode::Select => {
-                let part = match util::get_first_part_of_kind(PartKind::ResultSet, &response.parts) {
-                    Some(idx) => response.parts.swap_remove(idx),
-                    None => return Err(DbcError::EvaluationError(String::from("no part of kind ResultSet"))),
-                };
+        // digest reply
+        match reply.type_ {
+            ReplyType::Select => {
+                let part = try!(reply.retrieve_first_part_of_kind(PartKind::ResultSet));
                 match part.arg {
                     Argument::ResultSet(Some(mut resultset)) => {
-                        try!(resultset.fetch_all());  // FIXME fetching remaining data should be done more lazily
-                        Ok(CallableStatementResult::ResultSet(resultset))
+                        Ok(DbResult::ResultSet(resultset))
                     },
-                    _ => Err(DbcError::EvaluationError(String::from("unexpected error in CallableStatement::execute() 1"))),
+                    _ => Err(DbcError::EvaluationError(String::from("No ResultSet in CallableStatement::execute()"))),
                 }
             },
 
-            &FunctionCode::Ddl | &FunctionCode::Insert => {
-                let part = match util::get_first_part_of_kind(PartKind::RowsAffected, &response.parts) {
-                    Some(idx) => response.parts.remove(idx),
-                    None => return Err(DbcError::EvaluationError(String::from("no part of kind RowsAffected"))),
-                };
+            ReplyType::Ddl | ReplyType::Insert => {
+                let part = try!(reply.retrieve_first_part_of_kind(PartKind::RowsAffected));
                 match part.arg {
                     Argument::RowsAffected(vec) => {
-                        Ok(CallableStatementResult::RowsAffected(vec))
+                        Ok(DbResult::RowsAffected(vec))
                     },
-                    _ => Err(DbcError::EvaluationError(String::from("unexpected error in CallableStatement::execute() 2"))),
+                    _ => Err(DbcError::EvaluationError(String::from("No RowsAffected in CallableStatement::execute()"))),
                 }
             },
 
-            fc => Err(DbcError::EvaluationError(format!("CallableStatement: unexpected function code {:?}", fc))),
-        }
-    }
-
-    pub fn execute_rs(&self, auto_commit: bool) -> DbcResult<ResultSet> {
-        try!(self.execute(auto_commit)).as_resultset()
-    }
-    pub fn execute_ra(&self, auto_commit: bool) -> DbcResult<Vec<RowsAffected>> {
-        try!(self.execute(auto_commit)).as_rows_affected()
-    }
-}
-
-pub enum CallableStatementResult {
-    ResultSet(ResultSet),
-    RowsAffected(Vec<RowsAffected>)
-}
-
-impl CallableStatementResult {
-    pub fn as_resultset(self) -> DbcResult<ResultSet> {
-        match self {
-            CallableStatementResult::RowsAffected(_) => {
-                Err(DbcError::EvaluationError(String::from("The statement returned a RowsAffected, not a ResultSet")))
-            },
-            CallableStatementResult::ResultSet(rs) => Ok(rs),
-        }
-    }
-    pub fn as_rows_affected(self) -> DbcResult<Vec<RowsAffected>> {
-        match self {
-            CallableStatementResult::RowsAffected(v) => Ok(v),
-            CallableStatementResult::ResultSet(_) => {
-                Err(DbcError::EvaluationError(String::from("The statement returned a ResultSet, not a RowsAffected")))
-            },
+            rt => Err(DbcError::EvaluationError(format!("CallableStatement: unexpected reply type {:?}", rt))),
         }
     }
 }

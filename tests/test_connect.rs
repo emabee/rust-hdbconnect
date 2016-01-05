@@ -18,8 +18,8 @@ use hdbconnect::LongDate;
 
 #[test]
 pub fn init() {
-    use flexi_logger::LogConfig;
-    flexi_logger::init(LogConfig::new(), Some("info".to_string())).unwrap();
+    // use flexi_logger::LogConfig;
+    // flexi_logger::init(LogConfig::new(), Some("info".to_string())).unwrap();
 }
 
 // cargo test connect_successfully -- --nocapture
@@ -52,7 +52,7 @@ pub fn connect_and_select() {
             log_to_file: true,
             format: detailed_format,
             .. LogConfig::new() },
-            Some("info,\
+            Some("debug,\
             hdbconnect::protocol::lowlevel::message=debug,\
             ".to_string())).unwrap();
 
@@ -64,7 +64,8 @@ pub fn connect_and_select() {
 
 fn impl_connect_and_select() -> DbcResult<()> {
     let mut connection = try!(hdbconnect::Connection::new("wdfd00245307a", "30415"));
-    connection.authenticate_user_password("SYSTEM", "manager").ok();
+    debug!("calling connection.authenticate_user_password()");
+    try!(connection.authenticate_user_password("SYSTEM", "manager"));
     connection.set_fetch_size(1024);
     try!(impl_select_version_and_user(&mut connection));
     try!(impl_select_many_active_objects(&mut connection));
@@ -80,8 +81,8 @@ fn impl_select_version_and_user(connection: &mut Connection) -> DbcResult<()> {
     }
 
     let stmt = String::from("SELECT VERSION as \"version\", CURRENT_USER as \"current_user\" FROM SYS.M_DATABASE");
-    let callable_stmt = try!(connection.prepare_call(stmt));
-    let resultset = try!(callable_stmt.execute_rs(true));
+    debug!("calling connection.query_direct(stmt)");
+    let resultset = try!(connection.query_direct(stmt));
     let typed_result: Vec<VersionAndUser> = try!(resultset.into_typed());
 
     assert_eq!(typed_result.len()>0, true);
@@ -141,8 +142,8 @@ fn impl_select_many_active_objects(connection: &mut Connection) -> DbcResult<usi
                 RELEASED_AT as \"released_at\" \
                  from _SYS_REPO.ACTIVE_OBJECT", top_n);
 
-    let callable_stmt = try!(connection.prepare_call(stmt));
-    let resultset = try!(callable_stmt.execute_rs(true));
+    debug!("calling connection.query_direct(\"select top ... from active_object \")");
+    let resultset = try!(connection.query_direct(stmt));
     debug!("ResultSet: {:?}", resultset);
 
     for t in resultset.server_processing_times() {

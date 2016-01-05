@@ -1,6 +1,7 @@
 use super::PrtResult;
 use super::argument::Argument;
 use super::conn_core::ConnRef;
+use super::message::{Metadata,MsgType};
 use super::partkind::PartKind;
 use super::part_attributes::PartAttributes;
 use super::parts::resultset::ResultSet;
@@ -23,6 +24,7 @@ impl Part {
     }
 
     pub fn serialize(&self, mut remaining_bufsize: u32, w: &mut io::Write) -> PrtResult<u32> {
+        debug!("Serializing part of kind {:?}",self.kind);
         // PART HEADER 16 bytes
         try!(w.write_i8(self.kind.to_i8()));                                    // I1    Nature of part data
         try!(w.write_u8(0));                                                    // U1    Attributes of part - not used in requests
@@ -44,14 +46,22 @@ impl Part {
     }
 
     ///
-    pub fn parse(already_received_parts: &mut Vec<Part>, o_conn_ref: Option<&ConnRef>, o_rs: &mut Option<&mut ResultSet>, rdr: &mut io::BufRead)
-    -> PrtResult<Part> {
+    pub fn parse(
+            msg_type: MsgType,
+            already_received_parts: &mut Vec<Part>, o_conn_ref: Option<&ConnRef>,
+            metadata: &Metadata,
+            o_rs: &mut Option<&mut ResultSet>,
+            rdr: &mut io::BufRead
+    ) -> PrtResult<Part> {
         trace!("Entering parse()");
         let (kind,attributes,arg_size,no_of_args) = try!(parse_part_header(rdr));
         debug!("parse() found part of kind {:?} with attributes {:?}, arg_size {} and no_of_args {}",
             kind, attributes, arg_size, no_of_args);
         Ok(Part::new(kind, try!(
-            Argument::parse(kind, attributes, no_of_args, arg_size, already_received_parts, o_conn_ref, o_rs, rdr)
+            Argument::parse(
+                msg_type, kind, attributes, no_of_args, arg_size,
+                already_received_parts, o_conn_ref, metadata, o_rs, rdr
+            )
         )))
     }
 }

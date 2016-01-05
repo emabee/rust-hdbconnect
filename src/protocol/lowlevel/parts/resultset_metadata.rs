@@ -14,7 +14,7 @@ pub struct ResultSetMetadata {
     pub names: VecMap<String>,
 }
 impl ResultSetMetadata {
-    pub fn parse(count: i32, arg_size:u32, rdr: &mut io::BufRead) -> PrtResult<ResultSetMetadata> {
+    pub fn parse(count: i32, arg_size: u32, rdr: &mut io::BufRead) -> PrtResult<ResultSetMetadata> {
         let mut rsm = ResultSetMetadata {
             fields: Vec::<FieldMetadata>::new(),
             names: VecMap::<String>::new(),

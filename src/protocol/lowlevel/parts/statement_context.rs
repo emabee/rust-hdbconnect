@@ -1,4 +1,4 @@
-use super::{PrtError,PrtResult};
+use super::{PrtError,PrtResult,prot_err};
 use super::option_value::OptionValue;
 
 use byteorder::{ReadBytesExt,WriteBytesExt};
@@ -17,19 +17,14 @@ impl StatementContext {
     }
 
     pub fn serialize (&self, w: &mut io::Write)  -> PrtResult<()> {
-        if let Some(ref value) = self.statement_sequence_info {
-            try!(w.write_i8(ScId::StatementSequenceInfo.to_i8()));              // I1
-            try!(value.serialize(w));
+        match self.statement_sequence_info {
+            Some(ref value) => {
+                try!(w.write_i8(ScId::StatementSequenceInfo.to_i8()));              // I1
+                try!(value.serialize(w));
+                Ok(())
+            },
+            None => Err(prot_err("StatementContext::serialize(): statement_sequence_info is not filled")),
         }
-        if let Some(ref value) = self.server_processing_time {
-            try!(w.write_i8(ScId::ServerProcessingTime.to_i8()));               // I1
-            try!(value.serialize(w));
-        }
-        if let Some(ref value) = self.schema_name {
-            try!(w.write_i8(ScId::SchemaName.to_i8()));                         // I1
-            try!(value.serialize(w));
-        }
-        Ok(())
     }
 
     pub fn size(&self) -> usize {

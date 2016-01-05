@@ -1,9 +1,8 @@
 #![cfg(test)]
-use protocol::lowlevel::resultset::{ResultSet,ResultSetCore,Row};
+use protocol::lowlevel::parts::resultset::{ResultSet,ResultSetCore,Row};
 use protocol::lowlevel::part_attributes::PartAttributes;
-use protocol::lowlevel::resultset_metadata::{FieldMetadata,ResultSetMetadata};
-use protocol::lowlevel::statement_context::StatementContext;
-use protocol::lowlevel::typed_value::TypedValue;
+use protocol::lowlevel::parts::resultset_metadata::{FieldMetadata,ResultSetMetadata};
+use protocol::lowlevel::parts::typed_value::TypedValue;
 use DbcResult;
 
 use vec_map::VecMap;
@@ -48,10 +47,8 @@ fn some_resultset() -> ResultSet {
     rsm.names.insert(12_usize,"VERSION".to_string());
     rsm.names.insert(20_usize,"CURRENT_USER".to_string());
 
-
-
     let mut resultset = ResultSet {
-        core_ref: ResultSetCore::new_rs_ref(None, PartAttributes::new(0), 0_u64, StatementContext::new()),
+        core_ref: ResultSetCore::new_rs_ref(None, PartAttributes::new(0), 0_u64),
         metadata: rsm,
         rows: Vec::<Row>::new(),
     };
