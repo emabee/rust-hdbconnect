@@ -15,7 +15,9 @@ pub struct ConnectionCore {
     seq_number: i32,
     fetch_size: u32,
     lob_read_length: i32,
+    pub auto_commit: bool,
     pub ssi: Option<OptionValue>,
+    ref_count: usize,
     pub stream: TcpStream,
 }
 impl ConnectionCore {
@@ -25,9 +27,23 @@ impl ConnectionCore {
             seq_number: 0,
             fetch_size: DEFAULT_FETCH_SIZE,
             lob_read_length: DEFAULT_LOB_READ_LENGTH,
+            auto_commit: true,
             ssi: None,
+            ref_count: 1,
             stream: stream,
         }))
+    }
+
+    pub fn increment_ref_count(&mut self) {
+        self.ref_count += 1;
+    }
+
+    pub fn decrement_ref_count(&mut self) {
+        self.ref_count -= 1;
+    }
+
+    pub fn is_last_ref(&self) -> bool {
+        self.ref_count == 1
     }
 
     pub fn get_fetch_size(&self) -> u32 {

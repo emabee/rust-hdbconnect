@@ -12,8 +12,8 @@ use hdbconnect::protocol::lowlevel::partkind::PartKind;
 use std::fs::File;
 use std::io::{Cursor,BufRead,BufReader};
 
-// cargo test --test read_wire -- --nocapture
-#[test]
+// uncomment the next line, and then: cargo test --test read_wire -- --nocapture
+//#[test]
 pub fn read_wire() {
     use flexi_logger::{LogConfig,detailed_format};
     // hdbconnect::protocol::lowlevel::resultset::deserialize=info,\
@@ -30,7 +30,7 @@ pub fn read_wire() {
         ".to_string())
     ).unwrap();
 
-    let name = "on_the_wire/2015-12-18.wire";
+    let name = "on_the_wire/prepare.wire";
     println!("Reading task from file {}", &name);
 
     let f = File::open(name).unwrap();
@@ -51,7 +51,7 @@ pub fn read_wire() {
                 Message::Request(mut request) => {
                     for _ in 0..no_of_parts {
                         let part = Part::parse(
-                            MsgType::Request, &mut (request.parts), None, &Metadata::None, &mut None, &mut reader
+                            MsgType::Request, &mut (request.parts), None, Metadata::None, &mut None, &mut reader
                         ).unwrap();
                         request.push(part);
                     }
@@ -60,7 +60,7 @@ pub fn read_wire() {
                 Message::Reply(mut reply) => {
                     for _ in 0..no_of_parts {
                         match Part::parse(
-                            MsgType::Reply, &mut (reply.parts), None, &Metadata::None, &mut None, &mut reader
+                            MsgType::Reply, &mut (reply.parts), None, Metadata::None, &mut None, &mut reader
                         ) {
                             Ok(part) => reply.push(part),
                             Err(e) => reply.push(Part::new(PartKind::Error, Argument::Dummy(e))),

@@ -1,7 +1,7 @@
 use super::{PrtResult,prot_err,util};
 use byteorder::{LittleEndian,ReadBytesExt};
 use std::io;
-
+use std::u32;
 
 #[derive(Clone,Debug)]
 pub struct ParameterMetadata {
@@ -17,7 +17,7 @@ impl ParameterMetadata {
 
 #[derive(Clone,Debug)]
 pub struct ParameterDescriptor {
-    pub option: ParameterOption,   // bit 0: Mandatory; 1: optional, 2: has_default
+    pub option: ParameterOption,   // bit 0: mandatory; 1: optional, 2: has_default
     pub value_type: u8,
     pub fraction: u16,      // Scale of the parameter
     pub length: u16,        // Length/Precision of the parameter
@@ -52,15 +52,18 @@ impl ParameterMetadata {
             let fraction = try!(rdr.read_u16::<LittleEndian>());
             try!(rdr.read_u32::<LittleEndian>());
             consumed += 16;
+            assert!(arg_size >= consumed);
             pmd.descriptors.push(ParameterDescriptor::new(option, value_type, mode, name_offset, length, fraction));
         }
         // read the parameter names
         for ref mut descriptor in &mut pmd.descriptors {
-            assert!(arg_size > consumed);
-            let length = try!(rdr.read_u8());
-            let name = try!(util::cesu8_to_string( &try!(util::parse_bytes(length as usize, rdr))));
-            descriptor.name.push_str(&name);
-            consumed += 1 + length as u32;
+            if descriptor.name_offset != u32::MAX {
+                let length = try!(rdr.read_u8());
+                let name = try!(util::cesu8_to_string( &try!(util::parse_bytes(length as usize, rdr))));
+                descriptor.name.push_str(&name);
+                consumed += 1 + length as u32;
+                assert!(arg_size >= consumed);
+            }
         }
 
         Ok(pmd)

@@ -1,8 +1,7 @@
 use super::{PrtResult,prot_err,util};
 use super::resultset::RsRef;
-
 use super::super::argument::Argument;
-use super::super::message::{Metadata,Request};
+use super::super::message::Request;
 use super::super::reply_type::ReplyType;
 use super::super::request_type::RequestType;
 use super::super::part::Part;
@@ -277,12 +276,12 @@ fn fetch_a_lob_chunk(rs_ref: &Option<RsRef>, locator_id: u64, length_b: u64, dat
             },
         }
     };
-    let mut request = Request::new(0, RequestType::ReadLob, true, 0);
+    let mut request = try!(Request::new(&conn_ref, RequestType::ReadLob, true, 0));
 
     let offset = data_len + 1;
     request.push(Part::new(PartKind::ReadLobRequest, Argument::ReadLobRequest(locator_id, offset, length_to_read)));
 
-    let mut reply = try!(request.send_and_receive(&Metadata::None, &mut None, &conn_ref, Some(ReplyType::ReadLob)));
+    let mut reply = try!(request.send_and_receive(&conn_ref, Some(ReplyType::ReadLob)));
 
     let part = try!(reply.retrieve_first_part_of_kind(PartKind::ReadLobReply));
     if let Argument::ReadLobReply(reply_locator_id, reply_is_last_data, reply_data) = part.arg {

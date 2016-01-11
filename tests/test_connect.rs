@@ -18,8 +18,12 @@ use hdbconnect::LongDate;
 
 #[test]
 pub fn init() {
-    // use flexi_logger::LogConfig;
-    // flexi_logger::init(LogConfig::new(), Some("info".to_string())).unwrap();
+    use flexi_logger::{LogConfig,detailed_format};
+    flexi_logger::init(LogConfig {
+            log_to_file: true,
+            format: detailed_format,
+            .. LogConfig::new() },
+            Some("trace".to_string())).unwrap();
 }
 
 // cargo test connect_successfully -- --nocapture
@@ -32,7 +36,7 @@ pub fn connect_successfully() {
 #[test]
 pub fn connect_wrong_password() {
     // use flexi_logger::LogConfig;
-    // flexi_logger::init(LogConfig::new(),Some("warn".to_string())).unwrap();
+    // flexi_logger::init(LogConfig::new(),Some("trace".to_string())).unwrap();
 
     let start = Local::now();
     let (host, port, user, password) = ("wdfd00245307a", "30415", "SYSTEM", "wrong_password");
@@ -45,16 +49,16 @@ pub fn connect_wrong_password() {
 // cargo test connect_and_select -- --nocapture
 #[test]
 pub fn connect_and_select() {
-    use flexi_logger::{LogConfig,detailed_format};
-    // hdbconnect::protocol::lowlevel::resultset::deserialize=info,\
-            // hdbconnect::protocol::lowlevel::resultset=debug,\
-    flexi_logger::init(LogConfig {
-            log_to_file: true,
-            format: detailed_format,
-            .. LogConfig::new() },
-            Some("debug,\
-            hdbconnect::protocol::lowlevel::message=debug,\
-            ".to_string())).unwrap();
+    // use flexi_logger::{LogConfig,detailed_format};
+    // // hdbconnect::protocol::lowlevel::resultset::deserialize=info,\
+    //         // hdbconnect::protocol::lowlevel::resultset=debug,\
+    // flexi_logger::init(LogConfig {
+    //         log_to_file: true,
+    //         format: detailed_format,
+    //         .. LogConfig::new() },
+    //         Some("trace,\
+    //         hdbconnect::protocol::lowlevel::message=debug,\
+    //         ".to_string())).unwrap();
 
     match impl_connect_and_select() {
         Err(e) => {error!("connect_and_select() failed with {:?}",e); assert!(false)},
@@ -80,9 +84,9 @@ fn impl_select_version_and_user(connection: &mut Connection) -> DbcResult<()> {
         current_user: String,
     }
 
-    let stmt = String::from("SELECT VERSION as \"version\", CURRENT_USER as \"current_user\" FROM SYS.M_DATABASE");
-    debug!("calling connection.query_direct(stmt)");
-    let resultset = try!(connection.query_direct(stmt));
+    let stmt = "SELECT VERSION as \"version\", CURRENT_USER as \"current_user\" FROM SYS.M_DATABASE";
+    debug!("calling connection.query(stmt)");
+    let resultset = try!(connection.query(stmt));
     let typed_result: Vec<VersionAndUser> = try!(resultset.into_typed());
 
     assert_eq!(typed_result.len()>0, true);
@@ -142,8 +146,8 @@ fn impl_select_many_active_objects(connection: &mut Connection) -> DbcResult<usi
                 RELEASED_AT as \"released_at\" \
                  from _SYS_REPO.ACTIVE_OBJECT", top_n);
 
-    debug!("calling connection.query_direct(\"select top ... from active_object \")");
-    let resultset = try!(connection.query_direct(stmt));
+    debug!("calling connection.query(\"select top ... from active_object \")");
+    let resultset = try!(connection.query(&stmt));
     debug!("ResultSet: {:?}", resultset);
 
     for t in resultset.server_processing_times() {

@@ -1,4 +1,4 @@
-use super::PrtResult;
+use super::{PrtResult,prot_err};
 use super::argument::Argument;
 use super::conn_core::ConnRef;
 use super::message::{Metadata,MsgType};
@@ -8,7 +8,7 @@ use super::parts::resultset::ResultSet;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::cmp::max;
-use std::io;
+use std::{io,i16};
 
 const PART_HEADER_SIZE: usize = 16;
 
@@ -24,12 +24,22 @@ impl Part {
     }
 
     pub fn serialize(&self, mut remaining_bufsize: u32, w: &mut io::Write) -> PrtResult<u32> {
-        debug!("Serializing part of kind {:?}",self.kind);
+        debug!("Serializing part of kind {:?} with remaining_bufsize {} (u32) = {} (i32)",self.kind,remaining_bufsize,remaining_bufsize as i32);
+        // debug!("Serializing part of kind {:?}",self.kind);
         // PART HEADER 16 bytes
         try!(w.write_i8(self.kind.to_i8()));                                    // I1    Nature of part data
         try!(w.write_u8(0));                                                    // U1    Attributes of part - not used in requests
-        try!(w.write_i16::<LittleEndian>(try!(self.arg.count())));              // I2    Number of elements in arg
-        try!(w.write_i32::<LittleEndian>(0));                                   // I4    Number of elements in arg (FIXME: is not always 0!)
+        match try!(self.arg.count()) {
+            i if i < i16::MAX  => {
+                try!(w.write_i16::<LittleEndian>(i as i16));                    // I2    Number of elements in arg
+                try!(w.write_i32::<LittleEndian>(0));                           // I4    Number of elements in arg
+            },
+            i => {
+                try!(w.write_i16::<LittleEndian>(-1));                          // I2    Number of elements in arg
+                try!(w.write_i32::<LittleEndian>(i as i32));                    // I4    Number of elements in arg
+                return Err(prot_err("argument count bigger than i16::MAX is not supported"))   // FIXME
+            },
+        }
         try!(w.write_i32::<LittleEndian>(try!(self.arg.size(false)) as i32));   // I4    Length of args in bytes
         try!(w.write_i32::<LittleEndian>(remaining_bufsize as i32));            // I4    Length in packet remaining without this part
 
@@ -49,7 +59,7 @@ impl Part {
     pub fn parse(
             msg_type: MsgType,
             already_received_parts: &mut Vec<Part>, o_conn_ref: Option<&ConnRef>,
-            metadata: &Metadata,
+            metadata: Metadata,
             o_rs: &mut Option<&mut ResultSet>,
             rdr: &mut io::BufRead
     ) -> PrtResult<Part> {

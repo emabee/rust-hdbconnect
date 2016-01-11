@@ -20,4 +20,5 @@ pub mod rows_affected;
 pub mod statement_context;
 pub mod topology_attribute;
 pub mod transactionflags;
+pub mod type_id;
 pub mod typed_value;

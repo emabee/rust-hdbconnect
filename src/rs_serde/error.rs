@@ -4,6 +4,55 @@ use serde;
 use std::error::Error;
 use std::fmt;
 
+// Error that can occur while serializing a standard rust type or struct into a SQL parameter
+pub enum SerializationError {
+    StructuralMismatch(&'static str),
+    TypeMismatch(&'static str, u8),
+    RangeErr(&'static str, u8),
+}
+
+impl Error for SerializationError {
+    fn description(&self) -> &str {
+        match *self {
+            SerializationError::StructuralMismatch(_) => "structural mismatch",
+            SerializationError::TypeMismatch(_,_) => "type mismatch",
+            SerializationError::RangeErr(_,_) => "range exceeded",
+        }
+    }
+}
+impl fmt::Debug for SerializationError {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            SerializationError::StructuralMismatch(s) => write!(fmt, "{}: {}", self.description(), s),
+            SerializationError::TypeMismatch(s,tc) => write!(
+                    fmt, "{}: given value of type \"{}\" cannot be converted into value of type code {}",
+                    self.description(), s, tc
+            ),
+            SerializationError::RangeErr(s,tc) => write!(
+                    fmt, "{}: given value of type \"{}\" does not fit into supported range of SQL type (type code {})",
+                    self.description(), s, tc
+            ),
+        }
+    }
+}
+impl fmt::Display for SerializationError {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            SerializationError::StructuralMismatch(s) => write!(fmt, "{}: {}", self.description(), s),
+            SerializationError::TypeMismatch(s,tc) => write!(
+                    fmt, "{}: given value of type \"{}\" cannot be converted into value of type code {}",
+                    self.description(), s, tc
+            ),
+            SerializationError::RangeErr(s,tc) => write!(
+                    fmt, "{}: given value of type \"{}\" does not fit into supported range of SQL type (type code {})",
+                    self.description(), s, tc
+            ),
+        }
+    }
+}
+pub type SerializeResult<T> = Result<T, SerializationError>;
+
+
 /// The errors that can arise while deserializing a ResultSet into a standard rust type/struct/Vec
 pub enum DeserError {
     ProgramError(String),
@@ -31,7 +80,6 @@ impl Error for DeserError {
 pub fn prog_err(s: &str) -> DeserError {
     DeserError::ProgramError(String::from(s))
 }
-
 
 impl From<PrtError> for DeserError {
     fn from(error: PrtError) -> DeserError {
@@ -73,5 +121,4 @@ impl fmt::Display for DeserError {
         }
     }
 }
-
 pub type DeserResult<T> = Result<T, DeserError>;

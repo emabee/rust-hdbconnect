@@ -1,14 +1,17 @@
-use callable_statement::CallableStatement;
+use adhoc_statement::AdhocStatement;
 use prepared_statement::PreparedStatement;
-use {DbcResult,DbResult};
+use {DbcResult,DbResponse};
 
 use protocol::authenticate;
 use protocol::lowlevel::conn_core::{ConnectionCore, ConnRef};
 use protocol::lowlevel::init;
+use protocol::lowlevel::message::Request;
 use protocol::lowlevel::parts::connect_option::ConnectOption;
 use protocol::lowlevel::parts::resultset::ResultSet;
 use protocol::lowlevel::parts::rows_affected::RowsAffected;
 use protocol::lowlevel::parts::topology_attribute::TopologyAttr;
+use protocol::lowlevel::reply_type::ReplyType;
+use protocol::lowlevel::request_type::RequestType;
 
 use chrono::Local;
 use std::net::TcpStream;
@@ -26,7 +29,7 @@ pub struct Connection {
     core: ConnRef,
     props: ConnProps,
 }
-#[derive(Debug)]
+#[derive(Clone,Debug)]
 pub struct ConnProps {
     pub auto_commit: bool,
     pub command_options: u8,
@@ -74,14 +77,13 @@ impl Connection {
         Ok(())
     }
 
-    //fn disconnect(&mut self) {
-        // FIXME implement disconnect
-        // should be done on drop (only?)
-        // #Logout-request
-        // request = Request { session_id: ..., msg_type: Disconnect, auto_commit: false, command_options: 0, parts: [] }
-        // #Logout-response
-        // reply = Reply { session_id: ..., function_code: Disconnect, parts: [] }
-    //}
+    fn disconnect(&mut self) -> DbcResult<()> {
+        trace!("Entering Connection.disconnect()");
+        let mut request = try!(Request::new( &(self.core), RequestType::Disconnect, false, 0));
+        try!(request.send_and_receive(&(self.core), Some(ReplyType::Disconnect)));
+        self.core.borrow_mut().session_id = 0;
+        Ok(())
+    }
 
     pub fn set_auto_commit(&mut self, ac: bool) {
         self.props.auto_commit = ac;
@@ -100,22 +102,22 @@ impl Connection {
     }
 
     /// Execute a statement and expect either a ResultSet or a RowsAffected
-    pub fn call_direct(&self, stmt: String) -> DbcResult<DbResult> {
-        CallableStatement::new(self.core.clone(), stmt, self.props.auto_commit)
+    pub fn execute_or_query(&self, stmt: &str) -> DbcResult<DbResponse> {
+        AdhocStatement::new(self.core.clone(), String::from(stmt), self.props.auto_commit)
         .execute()
     }
     /// Execute a statement and expect a ResultSet
-    pub fn query_direct(&self, stmt: String) -> DbcResult<ResultSet> {
-        try!(self.call_direct(stmt)).as_resultset()
+    pub fn query(&self, stmt: &str) -> DbcResult<ResultSet> {
+        try!(self.execute_or_query(stmt)).as_resultset()
     }
     /// Execute a statement and expect a RowsAffected
-    pub fn execute_direct(&self, stmt: String) -> DbcResult<Vec<RowsAffected>> {
-        try!(self.call_direct(stmt)).as_rows_affected()
+    pub fn execute(&self, stmt: &str) -> DbcResult<Vec<RowsAffected>> {
+        try!(self.execute_or_query(stmt)).as_rows_affected()
     }
 
     /// Prepare a statement
-    pub fn prepare(&self, stmt: String) -> DbcResult<PreparedStatement> {
-        PreparedStatement::prepare(self.core.clone(), stmt, self.props.auto_commit, self.props.command_options)
+    pub fn prepare(&self, stmt: &str) -> DbcResult<PreparedStatement> {
+        PreparedStatement::prepare(self.core.clone(), String::from(stmt))
     }
 
     // pub fn commit(&self, stmt: String) -> DbcResult<()> {
@@ -126,9 +128,27 @@ impl Connection {
     //     panic!("FIXME");
     // }
     //
-    // pub fn transaction(&self) -> DbcResult<Transaction> {
-    //     panic!("FIXME");
-    // }
-    // - set_commit()
-    // - set_rollback()
+    // pub fn transaction(&self) -> DbcResult<Transaction> ???
+
+    pub fn spawn(&self) -> DbcResult<Connection> {
+        self.core.borrow_mut().increment_ref_count();
+        Ok(Connection {
+            host: self.host.clone(),
+            port: self.port.clone(),
+            major_product_version: self.major_product_version.clone(),
+            minor_product_version: self.minor_product_version.clone(),
+            core: self.core.clone(),
+            props: self.props.clone(),
+        })
+    }
+}
+
+impl Drop for Connection {
+    fn drop(&mut self) {
+        self.core.borrow_mut().decrement_ref_count();
+        trace!("Entering Connection.drop()");
+        if self.core.borrow().is_last_ref() {
+            self.disconnect().ok();
+        }
+    }
 }

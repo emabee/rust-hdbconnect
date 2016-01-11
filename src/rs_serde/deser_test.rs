@@ -15,13 +15,13 @@ pub struct VersionAndUser {
 }
 
 
-// cargo test protocol::lowlevel::resultset::test::test_from_resultset -- --nocapture
+// cargo test rs_serde::deser_test::test_from_resultset -- --nocapture
 #[test]
 fn test_from_resultset() {
     // use flexi_logger;
     // flexi_logger::init(flexi_logger::LogConfig::new(),
     //         Some("error,\
-    //               hdbconnect::protocol::lowlevel::resultset=trace,\
+    //               hdbconnect::rs_serde=trace,\
     //               ".to_string())).unwrap();
 
     let resultset = some_resultset();
@@ -48,7 +48,7 @@ fn some_resultset() -> ResultSet {
     rsm.names.insert(20_usize,"CURRENT_USER".to_string());
 
     let mut resultset = ResultSet {
-        core_ref: ResultSetCore::new_rs_ref(None, PartAttributes::new(0), 0_u64),
+        core_ref: ResultSetCore::new_rs_ref(None, PartAttributes::new(0b_0000_0001), 0_u64),
         metadata: rsm,
         rows: Vec::<Row>::new(),
     };

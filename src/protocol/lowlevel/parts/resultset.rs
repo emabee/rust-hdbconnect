@@ -12,7 +12,7 @@ use super::super::part::Part;
 use super::super::part_attributes::PartAttributes;
 use super::super::partkind::PartKind;
 
-use rs_serde::deserialize::RsDeserializer;
+use rs_serde::deserializer::RsDeserializer;
 
 use serde;
 use std::cell::RefCell;
@@ -56,14 +56,6 @@ impl ResultSet {
         }
     }
 
-    pub fn size(&self) -> PrtResult<usize> {
-        let mut size = 0;
-        for row in &self.rows {
-            size += try!(row.size());
-        }
-        Ok(size)
-    }
-
     /// resultsets can be part of the response in three cases which differ especially in regard to metadata handling:
     /// a) a response to a plain "execute" will contain the metadata in one of the other parts;
     ///    the metadata parameter will thus have the variant None
@@ -74,7 +66,7 @@ impl ResultSet {
                   attributes: PartAttributes,
                   parts: &mut Vec<Part>,
                   o_conn_ref: Option<&ConnRef>,
-                  metadata: &Metadata,
+                  metadata: Metadata,
                   o_rs: &mut Option<&mut ResultSet>,
                   rdr: &mut io::BufRead )
     -> PrtResult<Option<ResultSet>> {
@@ -92,8 +84,8 @@ impl ResultSet {
                             }
                         },
                         Err(e) => {
-                            if let Metadata::ResultSetMetadata(ref rsmd) = *metadata {
-                                rsmd.clone()
+                            if let Metadata::ResultSetMetadata(ref rsmd) = metadata {
+                                (*rsmd).clone()
                             }
                             else { return Err(e); }
                         },
@@ -190,11 +182,11 @@ impl ResultSet {
 
         // build the request, provide resultset id, define FetchSize
         let command_options = 0; // FIXME not sure if this is OK
-        let mut request = Request::new(0, RequestType::FetchNext, true, command_options);
+        let mut request = try!(Request::new(&conn_ref, RequestType::FetchNext, true, command_options));
         request.push(Part::new(PartKind::ResultSetId, Argument::ResultSetId(resultset_id)));
         request.push(Part::new(PartKind::FetchSize, Argument::FetchSize(fetch_size)));
 
-        let reply = try!(request.send_and_receive(&Metadata::None, &mut Some(self), &conn_ref, Some(ReplyType::Fetch)));
+        let reply = try!(request.send_and_receive_detailed(Metadata::None, &mut Some(self), &conn_ref, Some(ReplyType::Fetch)));
 
         if let Some(OptionValue::BIGINT(server_processing_time)) = reply.server_processing_time {
             self.core_ref.borrow_mut().execution_times.push(server_processing_time);
@@ -216,6 +208,8 @@ impl ResultSet {
         let mut deserializer = RsDeserializer::new(self);
         Ok(try!(serde::de::Deserialize::deserialize(&mut deserializer)))
     }
+
+    // FIXME implement DROP as send a request of type CLOSERESULTSET in case the resultset is not yet closed (RESULTSETCLOSED)
 }
 
 
@@ -223,12 +217,12 @@ impl ResultSet {
 pub struct Row {
     pub values: Vec<TypedValue>,
 }
-impl Row{
-    fn size(&self) -> PrtResult<usize> {
-        let mut size = 0;
-        for value in &self.values {
-            size += try!(value.size());
-        }
-        Ok(size)
-    }
-}
+// impl Row{
+//     fn size(&self) -> PrtResult<usize> {
+//         let mut size = 0;
+//         for value in &self.values {
+//             size += try!(value.size());
+//         }
+//         Ok(size)
+//     }
+// }

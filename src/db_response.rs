@@ -3,24 +3,24 @@ use protocol::lowlevel::parts::resultset::ResultSet;
 use protocol::lowlevel::parts::rows_affected::RowsAffected;
 
 
-pub enum DbResult {
+pub enum DbResponse {
     ResultSet(ResultSet),
     RowsAffected(Vec<RowsAffected>)
 }
 
-impl DbResult {
+impl DbResponse {
     pub fn as_resultset(self) -> DbcResult<ResultSet> {
         match self {
-            DbResult::RowsAffected(_) => {
+            DbResponse::RowsAffected(_) => {
                 Err(DbcError::EvaluationError(String::from("The call returned a RowsAffected, not a ResultSet")))
             },
-            DbResult::ResultSet(rs) => Ok(rs),
+            DbResponse::ResultSet(rs) => Ok(rs),
         }
     }
     pub fn as_rows_affected(self) -> DbcResult<Vec<RowsAffected>> {
         match self {
-            DbResult::RowsAffected(v) => Ok(v),
-            DbResult::ResultSet(_) => {
+            DbResponse::RowsAffected(v) => Ok(v),
+            DbResponse::ResultSet(_) => {
                 Err(DbcError::EvaluationError(String::from("The call returned a ResultSet, not a RowsAffected")))
             },
         }

@@ -1,6 +1,5 @@
 use protocol::protocol_error::{PrtError,PrtResult};
 
-
 /// Identifies the nature of the statement or functionality that has been prepared or executed
 #[derive(Debug)]
 pub enum ReplyType {
@@ -17,15 +16,12 @@ pub enum ReplyType {
     Fetch,						// FETCH message
     Commit,					    // COMMIT message or statement
     Rollback,					// ROLLBACK message or statement
-    Savepoint,					// Reserved, do not use
     Connect,					// CONNECT or AUTHENTICATION message
     WriteLob,					// WRITELOB message
     ReadLob,					// READLOB message
-    Ping,						// Reserved, do not use
     Disconnect,				    // DISCONNECT message
     CloseCursor,				// CLOSECURSOR message
     FindLob,					// FINDLOB message
-    AbapStream,				    // ABAPSTREAM message
     XaStart,					// XA_START message
     XaJoin,					    // XA_JOIN message
 }
@@ -44,15 +40,12 @@ impl ReplyType {
         10 => Ok(ReplyType::Fetch),
         11 => Ok(ReplyType::Commit),
         12 => Ok(ReplyType::Rollback),
-        13 => Ok(ReplyType::Savepoint),
         14 => Ok(ReplyType::Connect),
         15 => Ok(ReplyType::WriteLob),
         16 => Ok(ReplyType::ReadLob),
-        17 => Ok(ReplyType::Ping),
         18 => Ok(ReplyType::Disconnect),
         19 => Ok(ReplyType::CloseCursor),
         20 => Ok(ReplyType::FindLob),
-        21 => Ok(ReplyType::AbapStream),
         22 => Ok(ReplyType::XaStart),
         23 => Ok(ReplyType::XaJoin),
         _ => Err(PrtError::ProtocolError(format!("Invalid value for ReplyType detected: {}",val))),
@@ -72,15 +65,12 @@ impl ReplyType {
         ReplyType::Fetch => 10,
         ReplyType::Commit => 11,
         ReplyType::Rollback => 12,
-        ReplyType::Savepoint => 13,
         ReplyType::Connect => 14,
         ReplyType::WriteLob => 15,
         ReplyType::ReadLob => 16,
-        ReplyType::Ping => 17,
         ReplyType::Disconnect => 18,
         ReplyType::CloseCursor => 19,
         ReplyType::FindLob => 20,
-        ReplyType::AbapStream => 21,
         ReplyType::XaStart => 22,
         ReplyType::XaJoin => 23,
     }}

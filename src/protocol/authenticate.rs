@@ -2,7 +2,7 @@ use connection::{ConnProps};
 use protocol::protocol_error::{PrtResult,prot_err};
 use protocol::lowlevel::argument::Argument;
 use protocol::lowlevel::conn_core::ConnRef;
-use protocol::lowlevel::message::{Metadata,Request,Reply};
+use protocol::lowlevel::message::{Request,Reply};
 use protocol::lowlevel::reply_type::ReplyType;
 use protocol::lowlevel::request_type::RequestType;
 use protocol::lowlevel::part::Part;
@@ -22,7 +22,6 @@ use crypto::mac::Mac;
 use crypto::digest::Digest;
 use crypto::sha2::Sha256;
 
-// FIXME we do too much clone/copy here - working with slices and references should be possible
 
 /// authenticate with user and password, using the scram_sha256 method
 pub fn user_pw(conn_ref: &ConnRef, conn_props: &mut ConnProps, username: &str, password: &str)
@@ -30,24 +29,18 @@ pub fn user_pw(conn_ref: &ConnRef, conn_props: &mut ConnProps, username: &str, p
     trace!("Entering authenticate()");
 
     let client_challenge = create_client_challenge();
-    debug!("do auth1_request()");
-    let response1 = try!(build_auth1_request(&client_challenge, username)
-                         .send_and_receive(&Metadata::None, &mut None, conn_ref, Some(ReplyType::Nil)));
-    let server_challenge: Vec<u8> = try!(get_server_challenge(response1));
+    let reply1 = try!(auth1_request(conn_ref, &client_challenge, username));
+    let server_challenge: Vec<u8> = try!(get_server_challenge(reply1));
 
     let client_proof = try!(calculate_client_proof(server_challenge, client_challenge, password));
 
-    debug!("do auth2_request()");
-    let response2 = try!(build_auth2_request(&client_proof, username)
-                         .send_and_receive(&Metadata::None, &mut None, conn_ref, Some(ReplyType::Nil)));
-
-    conn_ref.borrow_mut().session_id = response2.session_id;
-    evaluate_reply2(response2, conn_props)
+    let reply2 = try!(auth2_request(conn_ref, &client_proof, username));
+    conn_ref.borrow_mut().session_id = reply2.session_id;
+    evaluate_reply2(reply2, conn_props)
 }
 
-fn build_auth1_request (chllng_sha256: &Vec<u8>, username: &str) -> Request {
+fn auth1_request (conn_ref: &ConnRef, chllng_sha256: &Vec<u8>, username: &str) -> PrtResult<Reply> {
     trace!("Entering auth1_request()");
-
     let mut cc_options = Vec::<CcOption>::new();
     cc_options.push( CcOption {
         id: CcOptionId::Version,
@@ -71,17 +64,16 @@ fn build_auth1_request (chllng_sha256: &Vec<u8>, username: &str) -> Request {
 
     let part2 = Part::new(PartKind::Authentication, Argument::Auth(auth_fields));
 
-    let mut request = Request::new(0, RequestType::Authenticate, true, 0);
+    let mut request = try!(Request::new(conn_ref, RequestType::Authenticate, true, 0));
     request.push(part1);
     request.push(part2);
 
-    trace!("Request: {:?}", request);
-    request
+    request.send_and_receive(conn_ref, Some(ReplyType::Nil))
 }
 
-fn build_auth2_request (client_proof: &Vec<u8>, username: &str) -> Request {
+fn auth2_request (conn_ref: &ConnRef, client_proof: &Vec<u8>, username: &str) -> PrtResult<Reply> {
     trace!("Entering auth2_request()");
-    let mut request = Request::new(0, RequestType::Connect, true, 0);
+    let mut request = try!(Request::new(conn_ref, RequestType::Connect, true, 0));
 
     let mut auth_fields = Vec::<AuthField>::with_capacity(3);
     auth_fields.push( AuthField(username.as_bytes().to_vec()) );
@@ -102,8 +94,7 @@ fn build_auth2_request (client_proof: &Vec<u8>, username: &str) -> Request {
     conn_opts.push( ConnectOption{id: ConnectOptionId::RowSlotImageParameter, value: OptionValue::BOOLEAN(true)});
     request.push(Part::new(PartKind::ConnectOptions, Argument::ConnectOptions(conn_opts)));
 
-    trace!("request: {:?}", request);
-    request
+    request.send_and_receive(conn_ref, Some(ReplyType::Nil))
 }
 
 fn get_client_id() -> Vec<u8> {
@@ -131,8 +122,8 @@ fn get_server_challenge(mut reply: Reply) -> PrtResult<Vec<u8>> {
     trace!("Entering get_server_challenge()");
     let part = try!(reply.retrieve_first_part_of_kind(PartKind::Authentication));
 
-    if let Argument::Auth(ref vec) = part.arg {
-        let server_challenge = vec.get(1).unwrap().0.clone();
+    if let Argument::Auth(mut vec) = part.arg {
+        let server_challenge = vec.remove(1).0;
         debug!("get_server_challenge(): returning {:?}",&server_challenge);
         Ok(server_challenge)
     } else {
@@ -140,34 +131,30 @@ fn get_server_challenge(mut reply: Reply) -> PrtResult<Vec<u8>> {
     }
 }
 
-fn evaluate_reply2(reply: Reply, conn_props: &mut ConnProps) -> PrtResult<()> {
+fn evaluate_reply2(mut reply: Reply, conn_props: &mut ConnProps) -> PrtResult<()> {
     trace!("Entering evaluate_reply2()");
     assert!(reply.parts.len() >= 1, "no part found");
 
     let mut server_proof = Vec::<u8>::new();
 
-    for part in reply.parts {
-        match part.kind {
-            PartKind::Authentication => {
-                if let Argument::Auth(ref vec) = part.arg {
-                    for b in &(vec.get(0).unwrap()).0 { server_proof.push(*b); }
-                }
-            },
-            PartKind::ConnectOptions => {
-                if let Argument::ConnectOptions(vec) = part.arg {
-                    for e in vec { conn_props.connect_options.push(e); }
-                }
-            },
-            PartKind::TopologyInformation => {
-                if let Argument::TopologyInformation(vec) = part.arg {
-                    for e in vec { conn_props.topology_attributes.push(e); }
-                }
-            },
-            pk => {
-                error!("ignoring unexpected partkind ({}) in evaluate_reply2", pk.to_i8());
-            }
-        }
+    let part = try!(reply.retrieve_first_part_of_kind(PartKind::Authentication));
+    match part.arg {
+        Argument::Auth(ref vec) => { for b in &(vec.get(0).unwrap()).0 { server_proof.push(*b); } },
+        _ => {return Err(prot_err("Inconsistent Auth part found"));},
     }
+
+    let part = try!(reply.retrieve_first_part_of_kind(PartKind::ConnectOptions));
+    match part.arg {
+        Argument::ConnectOptions(vec) => { for e in vec { conn_props.connect_options.push(e); } },
+        _ => {return Err(prot_err("Inconsistent ConnectOptions part found"));},
+    }
+
+    let part = try!(reply.retrieve_first_part_of_kind(PartKind::TopologyInformation));
+    match part.arg {
+        Argument::TopologyInformation(vec) => { for e in vec { conn_props.topology_attributes.push(e); } },
+        _ => {return Err(prot_err("Inconsistent TopologyInformation part found"));},
+    }
+
     warn!("the server proof is not evaluated: {:?}", server_proof);
     Ok(())
 }

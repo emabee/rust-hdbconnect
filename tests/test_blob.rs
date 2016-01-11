@@ -76,7 +76,7 @@ fn impl_connect_and_select() -> DbcResult<()> {
         released_at: Option<LongDate>,
     }
 
-    let stmt = format!("select \
+    let stmt = "select \
                 PACKAGE_ID as \"package_id\", \
                 OBJECT_NAME as \"object_name\", \
                 OBJECT_SUFFIX as \"object_suffix\", \
@@ -99,9 +99,9 @@ fn impl_connect_and_select() -> DbcResult<()> {
                 from _SYS_REPO.ACTIVE_OBJECT \
                 where package_id = 'sap.hana.xs.dt.base.content.template' \
                 and object_name = 'hdbtable-columnstore' \
-                and object_suffix = 'template' ");
+                and object_suffix = 'template' ";
 
-    let resultset = try!(connection.query_direct(stmt));
+    let resultset = try!(connection.query(stmt));
     debug!("ResultSet: {:?}", resultset);
 
     for t in resultset.server_processing_times() {

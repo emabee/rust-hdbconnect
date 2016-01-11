@@ -14,9 +14,9 @@ extern crate serde;
 extern crate vec_map;
 
 
-mod callable_statement;
+mod adhoc_statement;
 pub mod connection;
-pub mod db_result;
+pub mod db_response;
 pub mod dbc_error;
 pub mod prepared_statement;
 
@@ -26,6 +26,6 @@ pub mod types;
 
 
 pub use connection::Connection;
-pub use db_result::DbResult;
+pub use db_response::DbResponse;
 pub use types::longdate::LongDate;
 pub use dbc_error::{DbcError,DbcResult};
