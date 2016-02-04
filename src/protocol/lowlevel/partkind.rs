@@ -21,7 +21,6 @@ pub enum PartKind {
     Parameters,             // 32 // Parameter data  // FIXME is missing
     Authentication,         // 33 // Authentication data
     SessionContext,         // 34 // Session context information  // FIXME is missing
-    ClientID,               // 35 // Client ID  (see also PartKindEnum in api/Communication/Protocol/Layout.hpp)
     StatementContext,       // 39 // Statement visibility context
     PartitionInformation,   // 40 // Table partitioning information // FIXME is missing
     OutputParameters,       // 41 // Output parameter data
@@ -35,6 +34,7 @@ pub enum PartKind {
     FindLobReply,           // 50 // Reply data of FINDLOB message // FIXME is missing
     ClientInfo,             // 57 // Client information values
     TransactionFlags,       // 64 // Transaction handling flags
+    LobFlags,               // 68 // LOB flags // FIXME is missing
 }
 impl PartKind {
     pub fn to_i8(&self) -> i8 {match *self {
@@ -56,7 +56,6 @@ impl PartKind {
         PartKind::Parameters => 32,
         PartKind::Authentication => 33,
         PartKind::SessionContext => 34,
-        PartKind::ClientID => 35,
         PartKind::StatementContext => 39,
         PartKind::PartitionInformation => 40,
         PartKind::OutputParameters => 41,
@@ -70,6 +69,7 @@ impl PartKind {
         PartKind::FindLobReply => 50,
         PartKind::ClientInfo => 57,
         PartKind::TransactionFlags => 64,
+        PartKind::LobFlags => 68,
     }}
 
     pub fn from_i8(val: i8) -> PrtResult<PartKind> { match val {
@@ -91,7 +91,6 @@ impl PartKind {
         32 => Ok(PartKind::Parameters),
         33 => Ok(PartKind::Authentication),
         34 => Ok(PartKind::SessionContext),
-        35 => Ok(PartKind::ClientID),
         39 => Ok(PartKind::StatementContext),
         40 => Ok(PartKind::PartitionInformation),
         41 => Ok(PartKind::OutputParameters),
@@ -105,6 +104,7 @@ impl PartKind {
         50 => Ok(PartKind::FindLobReply),
         57 => Ok(PartKind::ClientInfo),
         64 => Ok(PartKind::TransactionFlags),
+        68 => Ok(PartKind::LobFlags),
         _ => Err(PrtError::ProtocolError(format!("Invalid value for PartKind detected: {}",val))),
     }}
 }

@@ -37,17 +37,7 @@ impl fmt::Debug for SerializationError {
 }
 impl fmt::Display for SerializationError {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            SerializationError::StructuralMismatch(s) => write!(fmt, "{}: {}", self.description(), s),
-            SerializationError::TypeMismatch(s,tc) => write!(
-                    fmt, "{}: given value of type \"{}\" cannot be converted into value of type code {}",
-                    self.description(), s, tc
-            ),
-            SerializationError::RangeErr(s,tc) => write!(
-                    fmt, "{}: given value of type \"{}\" does not fit into supported range of SQL type (type code {})",
-                    self.description(), s, tc
-            ),
-        }
+        fmt::Debug::fmt(&self,fmt)
     }
 }
 pub type SerializeResult<T> = Result<T, SerializationError>;

@@ -9,6 +9,7 @@ use types::longdate::LongDate;
 
 use byteorder::{LittleEndian,ReadBytesExt,WriteBytesExt};
 use std::{i16,u32,u64};
+use std::fmt;
 use std::io::{self,Read};
 use std::iter::repeat;
 
@@ -122,7 +123,7 @@ impl TypedValue {
             TypedValue::REAL(f)             => try!(w.write_f32::<LittleEndian>(f)),
             TypedValue::DOUBLE(f)           => try!(w.write_f64::<LittleEndian>(f)),
             TypedValue::BOOLEAN(b)          => try!(w.write_u8(match b{true => 1, false => 0})),
-            TypedValue::LONGDATE(_) |
+            TypedValue::LONGDATE(LongDate(i)) => try!(w.write_i64::<LittleEndian>(i)),
             TypedValue::CLOB(_) |
             TypedValue::NCLOB(_) |
             TypedValue::BLOB(_) |
@@ -145,7 +146,7 @@ impl TypedValue {
             TypedValue::N_REAL(o)           => if let Some(f) = o {try!(w.write_f32::<LittleEndian>(f))},
             TypedValue::N_DOUBLE(o)         => if let Some(f) = o {try!(w.write_f64::<LittleEndian>(f))},
             TypedValue::N_BOOLEAN(o)        => if let Some(b) = o {try!(w.write_u8(match b{true => 1, false => 0}))},
-            TypedValue::N_LONGDATE(_) |
+            TypedValue::N_LONGDATE(ref o)   => if let &Some(LongDate(ref i)) = o {try!(w.write_i64::<LittleEndian>(*i))},
             TypedValue::N_CLOB(_) |
             TypedValue::N_NCLOB(_) |
             TypedValue::N_BLOB(_) |
@@ -586,5 +587,80 @@ fn parse_nullable_longdate(rdr: &mut io::BufRead) -> PrtResult<Option<LongDate>>
     match i {
         LONGDATE_NULL_REPRESENTATION => Ok(None),
         _ => Ok(Some(LongDate(i)))
+    }
+}
+
+
+impl fmt::Display for TypedValue {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            TypedValue::TINYINT(value) |
+            TypedValue::N_TINYINT(Some(value)) => write!(fmt,"{}",value),
+            TypedValue::SMALLINT(value) |
+            TypedValue::N_SMALLINT(Some(value)) => write!(fmt,"{}",value),
+            TypedValue::INT(value) |
+            TypedValue::N_INT(Some(value)) => write!(fmt,"{}",value),
+            TypedValue::BIGINT(value) |
+            TypedValue::N_BIGINT(Some(value)) => write!(fmt,"{}",value),
+            TypedValue::REAL(value) |
+            TypedValue::N_REAL(Some(value)) => write!(fmt,"{}",value),
+            TypedValue::DOUBLE(value) |
+            TypedValue::N_DOUBLE(Some(value)) => write!(fmt,"{}",value),
+            TypedValue::CHAR(ref value) |
+            TypedValue::N_CHAR(Some(ref value)) |
+            TypedValue::VARCHAR(ref value) |
+            TypedValue::N_VARCHAR(Some(ref value)) |
+            TypedValue::NCHAR(ref value) |
+            TypedValue::N_NCHAR(Some(ref value)) |
+            TypedValue::NVARCHAR(ref value) |
+            TypedValue::N_NVARCHAR(Some(ref value)) |
+            TypedValue::STRING(ref value) |
+            TypedValue::N_STRING(Some(ref value)) |
+            TypedValue::NSTRING(ref value) |
+            TypedValue::N_NSTRING(Some(ref value)) |
+            TypedValue::TEXT(ref value) |
+            TypedValue::N_TEXT(Some(ref value)) |
+            TypedValue::SHORTTEXT(ref value) |
+            TypedValue::N_SHORTTEXT(Some(ref value)) => write!(fmt,"\"{}\"",value),
+            TypedValue::BINARY(_) |
+            TypedValue::N_BINARY(Some(_)) => write!(fmt,"<BINARY>"),
+            TypedValue::VARBINARY(_) |
+            TypedValue::N_VARBINARY(Some(_)) => write!(fmt,"<VARBINARY>"),
+            TypedValue::CLOB(_) |
+            TypedValue::N_CLOB(Some(_)) => write!(fmt,"<CLOB>"),
+            TypedValue::NCLOB(_) |
+            TypedValue::N_NCLOB(Some(_)) => write!(fmt,"<NCLOB>"),
+            TypedValue::BLOB(_) |
+            TypedValue::N_BLOB(Some(_)) => write!(fmt,"<BLOB>"),
+            TypedValue::BOOLEAN(value) |
+            TypedValue::N_BOOLEAN(Some(value)) => write!(fmt,"{}",value),
+            TypedValue::BSTRING(_) |
+            TypedValue::N_BSTRING(Some(_)) => write!(fmt,"<BSTRING>"),
+            TypedValue::LONGDATE(ref value) |
+            TypedValue::N_LONGDATE(Some(ref value)) => write!(fmt,"{}",value),
+
+            TypedValue::N_TINYINT(None) |
+            TypedValue::N_SMALLINT(None) |
+            TypedValue::N_INT(None) |
+            TypedValue::N_BIGINT(None) |
+            TypedValue::N_REAL(None) |
+            TypedValue::N_DOUBLE(None) |
+            TypedValue::N_CHAR(None) |
+            TypedValue::N_VARCHAR(None) |
+            TypedValue::N_NCHAR(None) |
+            TypedValue::N_NVARCHAR(None) |
+            TypedValue::N_BINARY(None) |
+            TypedValue::N_VARBINARY(None) |
+            TypedValue::N_CLOB(None) |
+            TypedValue::N_NCLOB(None) |
+            TypedValue::N_BLOB(None) |
+            TypedValue::N_BOOLEAN(None) |
+            TypedValue::N_STRING(None) |
+            TypedValue::N_NSTRING(None) |
+            TypedValue::N_BSTRING(None) |
+            TypedValue::N_TEXT(None) |
+            TypedValue::N_SHORTTEXT(None) |
+            TypedValue::N_LONGDATE(None) => write!(fmt,"<NULL>"),
+        }
     }
 }

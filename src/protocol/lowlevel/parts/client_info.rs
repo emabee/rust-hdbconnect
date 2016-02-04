@@ -7,7 +7,6 @@ use std::io::{BufRead,Write};
 #[derive(Debug)]
 pub struct ClientInfo (HashMap<String,String>);
 
-
 impl ClientInfo {
     pub fn serialize (&self, w: &mut Write)  -> PrtResult<()> {
         for (key, value) in &self.0 {
@@ -20,8 +19,7 @@ impl ClientInfo {
     pub fn size(&self) -> usize {
         let mut len = 0;
         for (key, value) in &self.0 {
-            len += string_length(&key);
-            len += string_length(&value);
+            len += string_length(&key) + string_length(&value);
         }
         len
     }

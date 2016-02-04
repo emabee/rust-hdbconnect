@@ -68,9 +68,9 @@ impl Request {
     }
 
     pub fn send_and_get_response(&mut self,
-                            metadata: Metadata,
-                            conn_ref: &ConnRef,
-                            expected_fc: Option<ReplyType>)
+                                    metadata: Metadata,
+                                    conn_ref: &ConnRef,
+                                    expected_fc: Option<ReplyType>)
     -> DbcResult<DbResponse> {
         let mut reply = try!(self.send_and_receive_detailed(metadata, &mut None, conn_ref, expected_fc));
 
@@ -85,7 +85,7 @@ impl Request {
                 }
             },
 
-            ReplyType::Ddl |
+            ReplyType::Ddl | ReplyType::Commit | ReplyType::Rollback |
             ReplyType::Insert | ReplyType::Update | ReplyType::Delete => {
                 let part = try!(reply.retrieve_first_part_of_kind(PartKind::RowsAffected));
                 match part.arg {
@@ -99,7 +99,7 @@ impl Request {
             // only in dedicated and already elsewhere implemented calls (should not go through this method)
             ReplyType::Nil | ReplyType::Connect | ReplyType::Fetch | ReplyType::ReadLob | ReplyType::CloseCursor |
             // FIXME: 5 ReplyTypes that occur only in dedicated but not yet implemented calls
-            ReplyType::FindLob | ReplyType::WriteLob | ReplyType::Commit | ReplyType::Rollback | ReplyType::Disconnect |
+            ReplyType::FindLob | ReplyType::WriteLob | ReplyType::Disconnect |
             // FIXME: 7 ReplyTypes where it is unclear when they occur
             ReplyType::SelectForUpdate |
             ReplyType::Explain |
@@ -125,7 +125,7 @@ impl Request {
                             conn_ref: &ConnRef,
                             expected_fc: Option<ReplyType>)
     -> PrtResult<Reply> {
-        trace!("Request::send_and_get_response()");
+        trace!("Request::send_and_receive_detailed() with requestType = {:?}, auto_commit = {}",self.request_type,self.auto_commit);
         let _start = Local::now();
 
         try!(self.serialize(conn_ref));
@@ -134,8 +134,9 @@ impl Request {
         try!(reply.assert_no_error());
         try!(reply.assert_expected_fc(expected_fc));
         try!(reply.evaluate_stmt_context(conn_ref));
+        try!(reply.evaluate_transaction_flags(conn_ref));
 
-        debug!("Request::send_and_get_response() took {} ms", (Local::now() - _start).num_milliseconds());
+        debug!("Request::send_and_receive_detailed() took {} ms", (Local::now() - _start).num_milliseconds());
         Ok(reply)
     }
 
@@ -299,6 +300,21 @@ impl Reply {
                     _ => Err(prot_err("Inconsistent StatementContext part found for ResultSet")),
                 }
             }
+        }
+    }
+
+    fn evaluate_transaction_flags(&mut self, conn_ref: &ConnRef) -> PrtResult<()> {
+        match self.retrieve_first_part_of_kind(PartKind::TransactionFlags) {
+            Ok(part) => {
+                match part.arg {
+                    Argument::TransactionFlags(vec) => {
+                        for ta_flag in vec {try!(conn_ref.borrow_mut().set_transaction_state(ta_flag));}
+                        Ok(())
+                    },
+                    _ => Err(prot_err("No ResultSet")),
+                }
+            },
+            Err(_) => Ok(()),
         }
     }
 

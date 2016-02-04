@@ -11,29 +11,31 @@ extern crate serde;
 
 // use chrono::Local;
 // use std::error::Error;
-use flexi_logger::LogConfig;
+use flexi_logger::{LogConfig,opt_format};
 
 use hdbconnect::Connection;
 use hdbconnect::DbcResult;
 use hdbconnect::LongDate;
 
 
-
-// cargo test select_variants -- --nocapture
+// cargo test test_select -- --nocapture
 #[test]
-pub fn select_variants() {
+pub fn test_select() {
 
     // hdbconnect::protocol::lowlevel::resultset=trace,\
     // hdbconnect::protocol::lowlevel::part=debug,\
     // hdbconnect::protocol::callable_statement=trace,\
-    flexi_logger::init(LogConfig::new(),
+    // hdbconnect::rs_serde::deserializer=trace\
+    flexi_logger::init(LogConfig{
+                log_to_file: false,
+                format: opt_format,
+                .. LogConfig::new()},
             Some("info,\
-            hdbconnect::protocol::lowlevel::resultset::deserialize=info,\
                  ".to_string())).unwrap();
 
     match select_variants_impl() {
-        Err(e) => {error!("select_variants() failed with {:?}",e); assert!(false)},
-        Ok(_) => {info!("select_variants() ended successful")},
+        Err(e) => {error!("test_select() failed with {:?}",e); assert!(false)},
+        Ok(_) => {info!("test_select() ended successful")},
     }
 }
 
@@ -45,9 +47,10 @@ fn select_variants_impl() -> DbcResult<()> {
     try!(deser_plain_into_plain(&mut connection));
     try!(deser_plain_into_option(&mut connection));
     try!(deser_option_into_plain(&mut connection));
+
     try!(deser_singleline_into_struct(&mut connection));
+    try!(deser_singlecolumn_into_vec(&mut connection));
     try!(deser_singlevalue_into_plain(&mut connection));
-    //FIXME deserialization of a single column into a Vec of field (error if rs has multiple cols)
 
     info!("{} calls to DB were executed", connection.get_call_count());
     Ok(())
@@ -242,6 +245,41 @@ fn deser_singlevalue_into_plain(connection: &mut Connection) -> DbcResult<()> {
         Err(_) => {return Ok(());},
     };
 }
+
+
+#[allow(unused_variables)]
+#[allow(unreachable_code)]
+fn deser_singlecolumn_into_vec(connection: &mut Connection) -> DbcResult<()>{
+    info!("deserialize a single-column resultset into a Vec of plain fields; \
+           test that multi-column resultsets fail");
+
+    clean(connection, vec!("drop table TEST_SINGLE_COLUMN")).unwrap();
+    try!(prepare(connection, vec!(
+        "create table TEST_SINGLE_COLUMN (O_S NVARCHAR(10), DUMMY int)",
+        "insert into TEST_SINGLE_COLUMN (O_S, DUMMY) values('hello', 0)",
+        "insert into TEST_SINGLE_COLUMN (O_S, DUMMY) values('world', 1)",
+        "insert into TEST_SINGLE_COLUMN (O_S, DUMMY) values('here', 2)",
+        "insert into TEST_SINGLE_COLUMN (O_S, DUMMY) values('I', 3)",
+        "insert into TEST_SINGLE_COLUMN (O_S, DUMMY) values('am', 4)",
+    )));
+
+    debug!("first part: single column should work");
+    let resultset = try!(connection.query("select O_S from TEST_SINGLE_COLUMN order by DUMMY asc"));
+    let typed_result: Vec<String> = try!(resultset.into_typed());
+    debug!("Typed Result: {:?}", typed_result);
+
+    debug!("second part: multi columns should not work");
+    let resultset = try!(connection.query("select * from TEST_SINGLE_COLUMN order by DUMMY asc"));
+    let typed_result: Vec<String> = match resultset.into_typed() {
+        Ok(tr) => {
+            error!("Typed Result: {:?}", tr);
+            panic!("deserialization of a multi-column resultset into a Vec<plain field> did not fail");
+            tr
+        },
+        Err(_) => {return Ok(());},
+    };
+}
+
 
 fn clean(connection: &mut Connection, clean: Vec<&str>) -> DbcResult<()> {
     for s in clean {

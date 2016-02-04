@@ -17,15 +17,14 @@ use std::mem;
 pub struct PreparedStatement {
     conn_ref: ConnRef,
     statement_id: u64,
-    auto_commit: bool,
+    pub auto_commit: bool,
     par_md: Option<ParameterMetadata>, // optional, because there will not always be parameters
     batch: Option<Vec<ParameterRow>>,
 }
 
 impl PreparedStatement {
     /// Prepare a statement
-    pub fn prepare(conn_ref: ConnRef, stmt: String,) -> DbcResult<PreparedStatement> {
-        let auto_commit: bool = {conn_ref.borrow().auto_commit};
+    pub fn prepare(conn_ref: ConnRef, stmt: String, auto_commit: bool) -> DbcResult<PreparedStatement> {
         let command_options: u8 = 8;
         let mut request = try!(Request::new(&conn_ref, RequestType::Prepare, auto_commit, command_options));
         request.push(Part::new(PartKind::Command, Argument::Command(stmt)));

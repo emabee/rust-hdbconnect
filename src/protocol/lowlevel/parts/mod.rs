@@ -3,7 +3,6 @@ pub use protocol::lowlevel::util;
 
 pub mod authfield;
 pub mod client_info;
-pub mod clientcontext_option;
 pub mod commit_option;
 pub mod connect_option;
 pub mod fetch_option;

@@ -1,0 +1,61 @@
+TODO
+
+row visitor visits row after row
+field visitor visits field after field in a row
+
+currently the field visitor switches at its end to the next row
+this fails for result sets with one field per row, which is deserialized into a vector
+
+
+
+
+- data types
+    - newdb/orange/Interfaces/SQLDBC/impl/LongdateTranslator.cpp
+    - newdb/orange/Interfaces/SQLDBC/impl/SeconddateTranslator.cpp
+    - newdb/orange/Interfaces/SQLDBC/impl/DaydateTranslator.cpp
+- Transaction Handling
+    * transactionflags
+        - has ids 0..6
+        - test_prepare: reply is dropped, but not all parts were evaluated: part-kind = TransactionFlags
+
+- Client Info:
+    * (contains Application, ApplicationVersion, ApplicationSource, ApplicationUser)
+    * add it to the conn_core
+    * allow setting it in the connection API,
+    * send it with execute_direct, prepare, execute
+
+- distributed system
+    - additional options in session_context
+    - additional part CLIENTDISTRIBUTIONMODE
+
+
+LOBs: externes LOB Objekt anbieten
+    • das die Applikation in ihrer Datenstruktur nutzen kann
+    • und das bei der Serialisierung noch kein fetch all erzwingt
+    • das ein Streaming-Interface anbietet, mit dem man das Dokument ohne volle Materialisierung zB in ein File schreiben kann
+    - additional request-part LOBFLAGS
+
+- avoid sending fetchsize always
+- implement procedure calls
+- implement missing types
+    - SECONDDATE
+    - DAYDATE
+    - SECONDTIME
+    - DECIMAL -> should be based on https://github.com/rust-num/num/issues/8
+    - SMALLDECIMAL  -> no docu found -> see sources?
+- refactor resultset::deserialize out into its own crate, independent of a concrete ResultSet implementation
+- size/length/padding in argument ??
+- allow setting the clientinfo stuff on the connection (or do it automatically?) and send it to the server whenever necessary/adequate
+- evaluate tablelocation
+===
+
+
+Revise the API model
+- ResultSet
+    - into_typed()
+    - iterator() //? or whatever is needed to write sth like
+        "for row in &try!(conn.query("SELECT bar, baz FROM foo WHERE buz = $1", &[&1i32])) {"
+- Row
+    - into_typed()
+    - field_into_typed<usize>(i: usize) // index, starting with 0
+    - field_into_typed<String>(s: &str) // field_name

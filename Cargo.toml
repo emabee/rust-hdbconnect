@@ -1,16 +1,16 @@
 [package]
 name = "hdbconnect"
-version = "0.0.17"
+version = "0.0.18"
 authors = ["emabee <meinolf.block@sap.com>"]
 
 [dependencies]
-byteorder = "*"
+byteorder = "0.4"
 chrono = "0.2"
 flexi_logger = "0.3"
-log = "*"
-num = "*"
-rand = "0.3.9"
+log = "0.3"
+num = "0.1"
+rand = "0.3"
 rust-crypto = "0.2"
-serde = "*"
-serde_macros = "*"
-vec_map = "*"
+serde = "0.6"
+serde_macros = "0.6"
+vec_map = "0.4"

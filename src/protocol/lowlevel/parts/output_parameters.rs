@@ -1,7 +1,5 @@
-use DbcResult;
-use super::{PrtError,PrtResult,prot_err,util};
+use super::{PrtResult,prot_err};
 use super::parameter_metadata::{ParameterDescriptor,ParMode};
-use super::statement_context::StatementContext;
 use super::typed_value::TypedValue;
 use super::super::message::Metadata;
 
@@ -20,14 +18,6 @@ impl OutputParameters {
             values: Vec::<TypedValue>::new(),
         }
     }
-
-    // pub fn size(&self) -> PrtResult<usize> {
-    //     let mut size = 0;
-    //     for row in &self.rows {
-    //         size += try!(row.size());
-    //     }
-    //     Ok(size)
-    // }
 
     pub fn parse( metadata: Metadata, rdr: &mut io::BufRead )
     -> PrtResult<OutputParameters> {

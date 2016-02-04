@@ -1,5 +1,4 @@
 target
-Cargo.lock
-tmp_docs
-on_the_wire
+z_docs
+z_logs
 *.log

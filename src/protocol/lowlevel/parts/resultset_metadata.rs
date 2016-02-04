@@ -1,6 +1,7 @@
 use super::{PrtError,PrtResult,prot_err,util};
 
 use byteorder::{LittleEndian,ReadBytesExt};
+use std::fmt;
 use std::io;
 use std::u32;
 use vec_map::VecMap;
@@ -132,5 +133,19 @@ impl ColumnOption {
             2 => Ok(ColumnOption::Nullable),
             _ => Err(PrtError::ProtocolError(format!("ColumnOption::from_u8() not implemented for value {}",val))),
         }
+    }
+}
+
+// this just writes a headline with field names as it is handy in Display for ResultSet
+impl fmt::Display for ResultSetMetadata {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(fmt, "").unwrap();
+        for field_metadata in &self.fields {
+            match self.names.get(&(field_metadata.column_displayname as usize)) {
+                Some(fieldname) => write!(fmt, "{}, ", fieldname).unwrap(),
+                None => write!(fmt, "<unnamed>, ").unwrap(),
+            };
+        }
+        Ok(())
     }
 }

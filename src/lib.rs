@@ -1,6 +1,5 @@
 #![feature(custom_derive, plugin)]  // necessary for serde
 #![feature(associated_consts)]      // necessary for local consts
-#![feature(read_exact)]             // additional io error kind
 #![plugin(serde_macros)]
 
 extern crate byteorder;
@@ -15,6 +14,7 @@ extern crate vec_map;
 
 
 mod adhoc_statement;
+pub mod log_format;
 pub mod connection;
 pub mod db_response;
 pub mod dbc_error;

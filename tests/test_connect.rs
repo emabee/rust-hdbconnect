@@ -159,7 +159,7 @@ fn impl_select_many_active_objects(connection: &mut Connection) -> DbcResult<usi
     assert_eq!(typed_result.len(),top_n);
 
 
-    let s = typed_result.get(0).unwrap().activated_at.datetime_utc().format("%Y-%m-%d %H:%M:%S").to_string();
+    let s = typed_result.get(0).unwrap().activated_at.to_datetime_utc().unwrap().format("%Y-%m-%d %H:%M:%S").to_string();
     debug!("Activated_at: {}", s);
     let delta = (Local::now() - start).num_milliseconds();
     info!("impl_select_many_active_objects() took {} ms",delta);

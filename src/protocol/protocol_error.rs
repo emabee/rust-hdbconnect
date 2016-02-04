@@ -75,7 +75,7 @@ impl From<byteorder::Error> for PrtError {
         match err {
             byteorder::Error::Io(err) => PrtError::IoError(err),
             byteorder::Error::UnexpectedEOF =>
-                PrtError::IoError(io::Error::new(io::ErrorKind::UnexpectedEOF,err))
+                PrtError::IoError(io::Error::new(io::ErrorKind::UnexpectedEof,err))
         }
     }
 }

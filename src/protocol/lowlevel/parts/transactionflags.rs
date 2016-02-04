@@ -4,9 +4,15 @@ use super::option_value::OptionValue;
 use byteorder::{ReadBytesExt,WriteBytesExt};
 use std::io;
 
+///  The part is sent from the server to signal changes of the current transaction status
+///  (committed, rolled back, start of a write transaction) and changes of the general session state,
+///  that is, whether the transaction isolation level has been changed, or whether DDL statements
+///  are automatically committed or not. Also, the server can signal it has detected a state
+///  that makes it impossible to continue processing the session.
+
 #[derive(Clone,Debug)]
 pub struct TransactionFlag {
-    pub id: TransactionFlagId,
+    pub id: TaFlagId,
     pub value: OptionValue,
 }
 impl TransactionFlag {
@@ -20,7 +26,7 @@ impl TransactionFlag {
     }
 
     pub fn parse(rdr: &mut io::BufRead) -> PrtResult<TransactionFlag> {
-        let option_id = try!(TransactionFlagId::from_i8(try!(rdr.read_i8())));    // I1
+        let option_id = try!(TaFlagId::from_i8(try!(rdr.read_i8())));    // I1
         let value = try!(OptionValue::parse(rdr));
         Ok(TransactionFlag{id: option_id, value: value})
     }
@@ -28,36 +34,36 @@ impl TransactionFlag {
 
 
 #[derive(Clone,Debug)]
-pub enum TransactionFlagId {
-    RolledBack,                         // 0 // BOOL    // The transaction is rolled back.
-    Committed,                          // 1 // BOOL    // The transaction is committed.
-    NewIsolationlevel,                  // 2 // INT     // The transaction isolation level has changed.
-    DdlCommitmodeChanged,               // 3 // BOOL    // The DDL auto-commit mode has been changed.
-    WritetransactionStarted,            // 4 // BOOL    // A write transaction has been started.
-    NoWritetransactionStarted,          // 5 // BOOL    // No write transaction has been started.
-    SessionclosingTransactionerror,     // 6 // BOOL    // An error happened that implies the session must be terminated.
+pub enum TaFlagId {
+    RolledBack,                 // 0 // BOOL    // The transaction is rolled back.
+    Committed,                  // 1 // BOOL    // The transaction is committed.
+    NewIsolationlevel,          // 2 // INT     // The transaction isolation level has changed.
+    DdlCommitmodeChanged,       // 3 // BOOL    // The DDL auto-commit mode has been changed.
+    WriteTaStarted,             // 4 // BOOL    // A write transaction has been started.
+    NoWriteTaStarted,           // 5 // BOOL    // No write transaction has been started.
+    SessionclosingTaError,      // 6 // BOOL    // An error happened that implies the session must be terminated.
 }
-impl TransactionFlagId {
+impl TaFlagId {
     fn to_i8(&self) -> i8 {
         match *self {
-            TransactionFlagId::RolledBack                       => 0,
-            TransactionFlagId::Committed                        => 1,
-            TransactionFlagId::NewIsolationlevel                => 2,
-            TransactionFlagId::DdlCommitmodeChanged             => 3,
-            TransactionFlagId::WritetransactionStarted          => 4,
-            TransactionFlagId::NoWritetransactionStarted        => 5,
-            TransactionFlagId::SessionclosingTransactionerror   => 6,
+            TaFlagId::RolledBack              => 0,
+            TaFlagId::Committed               => 1,
+            TaFlagId::NewIsolationlevel       => 2,
+            TaFlagId::DdlCommitmodeChanged    => 3,
+            TaFlagId::WriteTaStarted          => 4,
+            TaFlagId::NoWriteTaStarted        => 5,
+            TaFlagId::SessionclosingTaError   => 6,
         }
     }
 
-    fn from_i8(val: i8) -> PrtResult<TransactionFlagId> { match val {
-        0 => Ok(TransactionFlagId::RolledBack),
-        1 => Ok(TransactionFlagId::Committed),
-        2 => Ok(TransactionFlagId::NewIsolationlevel),
-        3 => Ok(TransactionFlagId::DdlCommitmodeChanged),
-        4 => Ok(TransactionFlagId::WritetransactionStarted),
-        5 => Ok(TransactionFlagId::NoWritetransactionStarted),
-        6 => Ok(TransactionFlagId::SessionclosingTransactionerror),
+    fn from_i8(val: i8) -> PrtResult<TaFlagId> { match val {
+        0 => Ok(TaFlagId::RolledBack),
+        1 => Ok(TaFlagId::Committed),
+        2 => Ok(TaFlagId::NewIsolationlevel),
+        3 => Ok(TaFlagId::DdlCommitmodeChanged),
+        4 => Ok(TaFlagId::WriteTaStarted),
+        5 => Ok(TaFlagId::NoWriteTaStarted),
+        6 => Ok(TaFlagId::SessionclosingTaError),
         _ => Err(PrtError::ProtocolError(format!("Invalid value for TransactionFlag detected: {}",val))),
     }}
 }

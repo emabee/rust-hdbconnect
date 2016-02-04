@@ -47,23 +47,23 @@ use std::{u8,u16,u32,usize,i8,i16,i32,isize};
 /// ```
 
 //   Matrix:         [[x..]..]  =>   Vec<struct>     -           -           -
-//   Single column:  [[x]..]    =>   Vec<struct>     Vec<f>      -           -
+//   Single column:  [[x]..]    =>   Vec<struct>     Vec<val>    -           -
 //   Single row:     [[x,..]]   =>   Vec<struct>     -           struct      -
-//   Single value:   [[x]]      =>   Vec<struct>     Vec<f>      struct      f
+//   Single value:   [[x]]      =>   Vec<struct>     Vec<val>    struct      val
 
 // Identify case: => enum RsStruct {Matrix, SingleColumn, SingleRow, SingleValue}
 
-// Have ternary flags (MUST, CAN, DONE) rows_treat and cols_treat which have to be set before a value can be deserialized
+// Have ternary flags (Must, Can, Done) rows_treat and cols_treat which have to be set before a value can be deserialized
 
-// Matrix       => rows_treat = MUST, cols_treat = MUST
-// SingleColumn => rows_treat = MUST, cols_treat = CAN
-// SingleRow    => rows_treat = CAN,  cols_treat = MUST
-// SingleValue  => rows_treat = CAN,  cols_treat = CAN
+// Matrix       => rows_treat = Must, cols_treat = Must
+// SingleColumn => rows_treat = Must, cols_treat = Can
+// SingleRow    => rows_treat = Can,  cols_treat = Must
+// SingleValue  => rows_treat = Can,  cols_treat = Can
 
-// Starting row handling: match rows_treat {DONE => error,  _ => {rows_treat = DONE; ...},}
-// Starting col handling: match cols_treat {DONE => error,  _ => {cols_treat = DONE; ...},}
-// When switching to next row: reset cols_treat to CAN or MUST
-// When deserializing a value: ensure that rows_treat != MUST and cols_treat != MUST
+// Starting row handling: match rows_treat {Done => error,  _ => {rows_treat = Done; ...},}
+// Starting col handling: match cols_treat {Done => error,  _ => {cols_treat = Done; ...},}
+// When switching to next row: reset cols_treat to Can or Must
+// When deserializing a value: ensure that rows_treat != Must and cols_treat != Must
 
 
 #[derive(Debug)]
@@ -92,7 +92,7 @@ enum RsStruct {
 impl RsStruct {
     fn get_struct(rs: &ResultSet) -> RsStruct {
         if rs.rows.len() <= 1 {
-            if rs.metadata.fields.len() <= 1 {
+            if rs.metadata.fields.len() <= 1 {  //FIXME len = 0 should return an error
                 RsStruct::SingleValue
             } else {
                 RsStruct::SingleRow
@@ -134,7 +134,7 @@ impl RsDeserializer {
             Some(row) => {
                 match row.values.pop() {
                     Some(tv) => Ok(tv),
-                    None => Err(prog_err("no column found in row")),
+                    None => Err(prog_err("current_value_pop(): no more value found in row")),
                 }
             },
         }
@@ -147,7 +147,7 @@ impl RsDeserializer {
             Some(row) => {
                 match row.values.last() {
                     Some(tv) => Ok(tv),
-                    None => Err(prog_err("no column found in row")),
+                    None => Err(prog_err("current_value_ref(): no more value found in row")),
                 }
             },
         }
@@ -883,8 +883,16 @@ impl<'a> serde::de::SeqVisitor for RowVisitor<'a> {
             },
             _ => {
                 match serde::de::Deserialize::deserialize(self.de) {
-                    Ok(v) => { trace!("RowVisitor_visit() ends"); Ok(Some(v)) },
                     Err(e) => { trace!("RowVisitor_visit() fails"); Err(e) },
+                    Ok(v) => {
+                        trace!("RowVisitor_visit() ends, switching to next row");
+                        self.de.rs.rows.pop();
+                        self.de.cols_treat = match self.de.rs_struct {
+                            RsStruct::Matrix | RsStruct::SingleRow => MCD::Must,
+                            RsStruct::SingleColumn | RsStruct::SingleValue => MCD::Can,
+                        };
+                        Ok(Some(v))
+                        },
                 }
             },
         }
@@ -950,26 +958,8 @@ impl<'a> serde::de::MapVisitor for FieldVisitor<'a> {
     fn end(&mut self) -> DeserResult<()> {
         trace!("FieldVisitor::end()");
         match self.de.rs.rows.last().unwrap().values.len() {
-            0 => {
-                trace!("FieldVisitor::end() switching to next row");
-                self.de.rs.rows.pop();
-                self.de.cols_treat = match self.de.rs_struct {
-                    RsStruct::Matrix | RsStruct::SingleRow => MCD::Must,
-                    RsStruct::SingleColumn | RsStruct::SingleValue => MCD::Can,
-                };
-                match self.de.rs.rows.last() {
-                    None => {},
-                    Some(next_row) => {
-                        trace!("Next row: {:?}, {:?}, {:?}",
-                            (*next_row).values.get(0).unwrap(),
-                            (*next_row).values.get(1).unwrap(),
-                            (*next_row).values.get(2).unwrap()
-                        );
-                    },
-                }
-                Ok(())
-            },
-            _ => { Err(DeserError::TrailingCols) },
+            0 => Ok(()),
+            _ => Err(DeserError::TrailingCols),
         }
     }
 }

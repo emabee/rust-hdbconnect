@@ -6,9 +6,8 @@ use super::partkind::PartKind;
 use super::part::Part;
 use super::parts::authfield::AuthField;
 use super::parts::client_info::ClientInfo;
-use super::parts::clientcontext_option::CcOption;
 // use super::parts::commit_option::CommitOption;
-use super::parts::connect_option::ConnectOption;
+use super::parts::connect_option::{ConnectOption,ConnectOptions};
 // use super::parts::fetch_option::FetchOption;
 use super::parts::hdberror::HdbError;
 use super::parts::parameters::Parameters;
@@ -17,7 +16,7 @@ use super::parts::parameter_metadata::ParameterMetadata;
 use super::parts::read_lob_reply::ReadLobReply;
 use super::parts::resultset::ResultSet;
 use super::parts::resultset_metadata::ResultSetMetadata;
-use super::parts::rows_affected::RowsAffected;
+use super::parts::rows_affected::VecRowsAffected;
 use super::parts::statement_context::StatementContext;
 use super::parts::topology_attribute::TopologyAttr;
 use super::parts::transactionflags::TransactionFlag;
@@ -30,12 +29,10 @@ use std::io;
 pub enum Argument {
     Dummy(PrtError),                    // only for read_wire
     Auth(Vec<AuthField>),
-    CcOptions(Vec<CcOption>),
-    ClientID(Vec<u8>),
     ClientInfo(ClientInfo),
     Command(String),
     // CommitOptions(Vec<CommitOption>),
-    ConnectOptions(Vec<ConnectOption>),
+    ConnectOptions(ConnectOptions),
     Error(Vec<HdbError>),
     // FetchOptions(Vec<FetchOption>),
     FetchSize(u32),
@@ -47,7 +44,7 @@ pub enum Argument {
     ResultSet(Option<ResultSet>),
     ResultSetId(u64),
     ResultSetMetadata(ResultSetMetadata),
-    RowsAffected(Vec<RowsAffected>),
+    RowsAffected(VecRowsAffected),
     StatementContext(StatementContext),
     StatementId(u64),
     TableLocation(Vec<i32>),
@@ -59,12 +56,10 @@ impl Argument {
     // only called on output (serialize)
     pub fn count(&self) -> PrtResult<i16> { Ok(match *self {
         Argument::Auth(_) => 1,
-        Argument::CcOptions(ref opts) => opts.len() as i16,
         Argument::ClientInfo(ref client_info) => client_info.count(),
-        Argument::ClientID(_) => 1,
         Argument::Command(_) => 1,
         // Argument::CommitOptions(ref opts) => opts.len() as i16,
-        Argument::ConnectOptions(ref opts) => opts.len() as i16,
+        Argument::ConnectOptions(ref opts) => opts.0.len() as i16,
         Argument::Error(ref vec) => vec.len() as i16,
         // Argument::FetchOptions(ref opts) => opts.len() as i16,
         Argument::FetchSize(_) => 1,
@@ -83,12 +78,10 @@ impl Argument {
         let mut size = 0usize;
         match *self {
             Argument::Auth(ref vec) => {size += 2; for ref field in vec { size += field.size(); } },
-            Argument::CcOptions(ref vec) => { for opt in vec { size += opt.size(); } },
-            Argument::ClientID(ref vec) => { size += 1 + vec.len(); },
             Argument::ClientInfo(ref client_info) => { size += client_info.size(); },
             Argument::Command(ref s) => { size += util::string_to_cesu8(s).len(); },
             // Argument::CommitOptions(ref vec) => { for opt in vec { size += opt.size(); }},
-            Argument::ConnectOptions(ref vec) => { for opt in vec { size += opt.size(); }},
+            Argument::ConnectOptions(ConnectOptions(ref vec)) => { for opt in vec { size += opt.size(); }},
             Argument::Error(ref vec) => { for hdberror in vec { size += hdberror.size(); }},
             // Argument::FetchOptions(ref vec) => { for opt in vec { size += opt.size(); }},
             Argument::FetchSize(_) => {size += 4},
@@ -115,13 +108,6 @@ impl Argument {
                 try!(w.write_i16::<LittleEndian>(vec.len() as i16));
                 for ref field in vec { try!(field.serialize(w)); }
             },
-            Argument::CcOptions(ref vec) => {
-                for ref opt in vec { try!(opt.serialize(w)); }
-            },
-            Argument::ClientID(ref vec) => {
-                try!(w.write_u8(b' '));  // strange!
-                for b in vec { try!(w.write_u8(*b)); }
-            },
             Argument::ClientInfo(ref client_info) => {
                 try!(client_info.serialize(w));
             },
@@ -132,7 +118,7 @@ impl Argument {
             // Argument::CommitOptions(ref vec) => {
             //     for ref opt in vec { try!(opt.serialize(w)); }
             // },
-            Argument::ConnectOptions(ref vec) => {
+            Argument::ConnectOptions(ConnectOptions(ref vec)) => {
                 for ref opt in vec { try!(opt.serialize(w)); }
             },
             Argument::Error(ref vec) => {
@@ -201,14 +187,6 @@ impl Argument {
                 }
                 Argument::Auth(vec)
             },
-            PartKind::ClientContext => {
-                let mut vec = Vec::<CcOption>::new();
-                for _ in 0..no_of_args {
-                    let opt = try!(CcOption::parse(rdr));
-                    vec.push(opt);
-                }
-                Argument::CcOptions(vec)
-            },
             PartKind::ClientInfo => {
                 let client_info = try!(ClientInfo::parse(no_of_args, rdr));
                 Argument::ClientInfo(client_info)
@@ -227,12 +205,12 @@ impl Argument {
             //     Argument::CommitOptions(vec)
             // },
             PartKind::ConnectOptions => {
-                let mut vec = Vec::<ConnectOption>::new();
+                let mut conn_opts = ConnectOptions::new();
                 for _ in 0..no_of_args {
                     let opt = try!(ConnectOption::parse(rdr));
-                    vec.push(opt);
+                    conn_opts.0.push(opt);
                 }
-                Argument::ConnectOptions(vec)
+                Argument::ConnectOptions(conn_opts)
             },
             PartKind::Error => {
                 let mut vec = Vec::<HdbError>::new();
@@ -250,12 +228,11 @@ impl Argument {
             //     }
             //     Argument::FetchOptions(vec)
             // },
-            // PartKind::OutputParameters => {
-            //     FIXME!! implement argument::parse() for OutputParameters
-            // },
+            PartKind::OutputParameters => {
+                Argument::OutputParameters(try!(OutputParameters::parse(metadata,rdr)))
+            },
             PartKind::ParameterMetadata => {
-                let pmd = try!(ParameterMetadata::parse(no_of_args, arg_size as u32, rdr));
-                Argument::ParameterMetadata(pmd)
+                Argument::ParameterMetadata(try!(ParameterMetadata::parse(no_of_args, arg_size as u32, rdr)))
             },
             PartKind::ReadLobReply => {
                 let (locator, is_last_data, data) = try!(ReadLobReply::parse(rdr));
@@ -269,20 +246,16 @@ impl Argument {
                 Argument::ResultSetId(try!(rdr.read_u64::<LittleEndian>()))
             },
             PartKind::ResultSetMetadata => {
-                let rsm = try!(ResultSetMetadata::parse(no_of_args, arg_size as u32, rdr));
-                Argument::ResultSetMetadata(rsm)
+                Argument::ResultSetMetadata(try!(ResultSetMetadata::parse(no_of_args, arg_size as u32, rdr)))
             },
             PartKind::RowsAffected => {
-                let v = try!(RowsAffected::parse(no_of_args, rdr));
-                Argument::RowsAffected(v)
+                Argument::RowsAffected(try!(VecRowsAffected::parse(no_of_args, rdr)))
             }
             PartKind::StatementContext => {
-                let sc = try!(StatementContext::parse(no_of_args, rdr));
-                Argument::StatementContext(sc)
+                Argument::StatementContext(try!(StatementContext::parse(no_of_args, rdr)))
             },
             PartKind::StatementId => {
-                let id = try!(rdr.read_u64::<LittleEndian>());
-                Argument::StatementId(id)
+                Argument::StatementId(try!(rdr.read_u64::<LittleEndian>()))
             },
             PartKind::TableLocation => {
                 let mut vec = Vec::<i32>::new();

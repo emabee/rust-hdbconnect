@@ -1,3 +1,4 @@
+use LongDate;
 use protocol::lowlevel::parts::parameter_metadata::{ParameterDescriptor,ParameterMetadata,ParMode};
 use protocol::lowlevel::parts::parameters::ParameterRow;
 use protocol::lowlevel::parts::type_id::*;
@@ -207,18 +208,20 @@ impl<'a> serde::ser::Serializer for Serializer<'a>
                     self.row.push(TypedValue::N_SMALLINT(Some(value as i16)))
                 } else { return Err(SerializationError::RangeErr(input_type,TYPEID_N_SMALLINT)) }
             },
-            TYPEID_INT   => {
+            TYPEID_INT        => {
                 if (value >= i32::MIN as i64) && (value <= i32::MAX as i64) {
                     self.row.push(TypedValue::INT(value as i32))
                 } else { return Err(SerializationError::RangeErr(input_type,TYPEID_SMALLINT)) }
             },
-            TYPEID_N_INT => {
+            TYPEID_N_INT      => {
                 if (value >= i32::MIN as i64) && (value <= i32::MAX as i64) {
                     self.row.push(TypedValue::N_INT(Some(value as i32)))
                 } else { return Err(SerializationError::RangeErr(input_type,TYPEID_N_SMALLINT)) }
             },
             TYPEID_BIGINT     => self.row.push(TypedValue::BIGINT(value)),
             TYPEID_N_BIGINT   => self.row.push(TypedValue::N_BIGINT(Some(value))),
+            TYPEID_LONGDATE   => self.row.push(TypedValue::LONGDATE(LongDate(value))),
+            TYPEID_N_LONGDATE => self.row.push(TypedValue::N_LONGDATE(Some(LongDate(value)))),
             target_tc  => return Err(SerializationError::TypeMismatch(input_type, target_tc)),
         }
         Ok(())

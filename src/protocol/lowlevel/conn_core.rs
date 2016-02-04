@@ -1,4 +1,8 @@
+use protocol::protocol_error::{PrtResult,prot_err};
+use protocol::lowlevel::parts::connect_option::ConnectOption;
 use protocol::lowlevel::parts::option_value::OptionValue;
+use protocol::lowlevel::parts::topology_attribute::TopologyAttr;
+use protocol::lowlevel::parts::transactionflags::{TransactionFlag,TaFlagId};
 
 use std::cell::RefCell;
 use std::net::TcpStream;
@@ -15,9 +19,10 @@ pub struct ConnectionCore {
     seq_number: i32,
     fetch_size: u32,
     lob_read_length: i32,
-    pub auto_commit: bool,
-    pub ssi: Option<OptionValue>,
-    ref_count: usize,
+    transaction_state: TransactionState,
+    pub ssi: Option<OptionValue>,                   // Information on the statement sequence within the transaction
+    pub server_connect_options: Vec<ConnectOption>, // FIXME transmute into explicit structure; see also jdbc\EngineFeatures.java
+    pub topology_attributes: Vec<TopologyAttr>,
     pub stream: TcpStream,
 }
 impl ConnectionCore {
@@ -27,23 +32,12 @@ impl ConnectionCore {
             seq_number: 0,
             fetch_size: DEFAULT_FETCH_SIZE,
             lob_read_length: DEFAULT_LOB_READ_LENGTH,
-            auto_commit: true,
+            transaction_state: TransactionState::Initial,
             ssi: None,
-            ref_count: 1,
+            server_connect_options: Vec::<ConnectOption>::new(),
+            topology_attributes: Vec::<TopologyAttr>::new(),
             stream: stream,
         }))
-    }
-
-    pub fn increment_ref_count(&mut self) {
-        self.ref_count += 1;
-    }
-
-    pub fn decrement_ref_count(&mut self) {
-        self.ref_count -= 1;
-    }
-
-    pub fn is_last_ref(&self) -> bool {
-        self.ref_count == 1
     }
 
     pub fn get_fetch_size(&self) -> u32 {
@@ -52,11 +46,9 @@ impl ConnectionCore {
     pub fn set_fetch_size(&mut self, fetch_size: u32) {
         self.fetch_size = fetch_size;
     }
-
     pub fn get_lob_read_length(&self) -> i32 {
         self.lob_read_length
     }
-
     pub fn set_lob_read_length(&mut self, lob_read_length: i32) {
         self.lob_read_length = lob_read_length;
     }
@@ -65,8 +57,39 @@ impl ConnectionCore {
         self.seq_number += 1;
         self.seq_number
     }
-
     pub fn last_seq_number(&self) -> i32 {
         self.seq_number
     }
+
+    pub fn set_transaction_state(&mut self, transaction_flag: TransactionFlag) -> PrtResult<()> {
+        match (transaction_flag.id, transaction_flag.value) {
+            (TaFlagId::RolledBack, OptionValue::BOOLEAN(true)) => {
+                self.transaction_state = TransactionState::RolledBack;
+            },
+            (TaFlagId::Committed, OptionValue::BOOLEAN(true)) => {
+                self.transaction_state = TransactionState::Committed;
+            },
+            (TaFlagId::NewIsolationlevel, OptionValue::INT(i)) => {
+                self.transaction_state = TransactionState::OpenWithIsolationlevel(i);
+            },
+            (TaFlagId::WriteTaStarted, OptionValue::BOOLEAN(true)) => {
+                self.transaction_state = TransactionState::OpenWithIsolationlevel(0);
+            },
+            (TaFlagId::SessionclosingTaError, OptionValue::BOOLEAN(true)) => {
+                return Err(prot_err("SessionclosingTaError received"));
+            },
+            (TaFlagId::DdlCommitmodeChanged, OptionValue::BOOLEAN(true)) |
+            (TaFlagId::NoWriteTaStarted, OptionValue::BOOLEAN(true)) => {},
+            (id,value) => warn!("unexpected transaction flag received: {:?} = {:?}",id, value),
+        };
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+pub enum TransactionState {
+    Initial,
+    RolledBack,
+    Committed,
+    OpenWithIsolationlevel(i32)
 }

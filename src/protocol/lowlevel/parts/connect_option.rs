@@ -4,13 +4,24 @@ use super::option_value::OptionValue;
 use byteorder::{ReadBytesExt,WriteBytesExt};
 use std::io;
 
-#[derive(Clone,Debug)]
+#[derive(Debug)]
+pub struct ConnectOptions(pub Vec<ConnectOption>);
+impl ConnectOptions {
+    pub fn new() -> ConnectOptions {
+        ConnectOptions(Vec::<ConnectOption>::new())
+    }
+    pub fn push(&mut self, id: ConnectOptionId, value: OptionValue) {
+        self.0.push( ConnectOption{id: id, value: value});
+    }
+}
+
+#[derive(Debug)]
 pub struct ConnectOption {
     pub id: ConnectOptionId,
     pub value: OptionValue,
 }
 impl ConnectOption {
-    pub fn serialize (&self, w: &mut io::Write)  -> PrtResult<()> {
+    pub fn serialize (&self, w: &mut io::Write) -> PrtResult<()> {
         try!(w.write_i8(self.id.to_i8()));                                      // I1
         self.value.serialize(w)
     }
@@ -27,7 +38,7 @@ impl ConnectOption {
 }
 
 
-#[derive(Clone,Debug)]
+#[derive(Debug)]
 pub enum ConnectOptionId {
     ConnectionID,                         // 1 //
     CompleteArrayExecution,               // 2 // @deprecated Array execution semantics, always true.

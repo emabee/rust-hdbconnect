@@ -1,4 +1,3 @@
-use connection::{ConnProps};
 use protocol::protocol_error::{PrtResult,prot_err};
 use protocol::lowlevel::argument::Argument;
 use protocol::lowlevel::conn_core::ConnRef;
@@ -8,13 +7,13 @@ use protocol::lowlevel::request_type::RequestType;
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::partkind::PartKind;
 use protocol::lowlevel::parts::authfield::AuthField;
-use protocol::lowlevel::parts::connect_option::{ConnectOption,ConnectOptionId};
-use protocol::lowlevel::parts::clientcontext_option::{CcOption,CcOptionId};
+use protocol::lowlevel::parts::connect_option::{ConnectOptions,ConnectOptionId};
 use protocol::lowlevel::parts::option_value::OptionValue;
 
 use byteorder::{LittleEndian,ReadBytesExt,WriteBytesExt};
 use rand::{Rng,thread_rng};
 use std::io::{self,Read};
+use std::mem;
 
 use std::iter::repeat;
 use crypto::hmac::Hmac;
@@ -24,7 +23,7 @@ use crypto::sha2::Sha256;
 
 
 /// authenticate with user and password, using the scram_sha256 method
-pub fn user_pw(conn_ref: &ConnRef, conn_props: &mut ConnProps, username: &str, password: &str)
+pub fn user_pw(conn_ref: &ConnRef, username: &str, password: &str)
 -> PrtResult<()> {
     trace!("Entering authenticate()");
 
@@ -35,28 +34,11 @@ pub fn user_pw(conn_ref: &ConnRef, conn_props: &mut ConnProps, username: &str, p
     let client_proof = try!(calculate_client_proof(server_challenge, client_challenge, password));
 
     let reply2 = try!(auth2_request(conn_ref, &client_proof, username));
-    conn_ref.borrow_mut().session_id = reply2.session_id;
-    evaluate_reply2(reply2, conn_props)
+    evaluate_reply2(reply2, conn_ref)
 }
 
 fn auth1_request (conn_ref: &ConnRef, chllng_sha256: &Vec<u8>, username: &str) -> PrtResult<Reply> {
     trace!("Entering auth1_request()");
-    let mut cc_options = Vec::<CcOption>::new();
-    cc_options.push( CcOption {
-        id: CcOptionId::Version,
-        value: OptionValue::STRING(String::from("1.50.00.000000")),
-    });  // FIXME encapsulate this into a CcOptions object
-    cc_options.push( CcOption {
-        id: CcOptionId::ClientType,
-        value: OptionValue::STRING(String::from("JDBC")),
-    });
-    cc_options.push( CcOption {
-        id: CcOptionId::ClientApplicationProgram,
-        value: OptionValue::STRING(String::from("UNKNOWN")),
-    });
-
-    let part1 = Part::new(PartKind::ClientContext, Argument::CcOptions(cc_options));
-
     let mut auth_fields = Vec::<AuthField>::with_capacity(3);
     auth_fields.push( AuthField(username.as_bytes().to_vec()) );
     auth_fields.push( AuthField(b"SCRAMSHA256".to_vec()) );
@@ -65,7 +47,6 @@ fn auth1_request (conn_ref: &ConnRef, chllng_sha256: &Vec<u8>, username: &str) -
     let part2 = Part::new(PartKind::Authentication, Argument::Auth(auth_fields));
 
     let mut request = try!(Request::new(conn_ref, RequestType::Authenticate, true, 0));
-    request.push(part1);
     request.push(part2);
 
     request.send_and_receive(conn_ref, Some(ReplyType::Nil))
@@ -80,35 +61,26 @@ fn auth2_request (conn_ref: &ConnRef, client_proof: &Vec<u8>, username: &str) ->
     auth_fields.push( AuthField(b"SCRAMSHA256".to_vec()) );
     auth_fields.push( AuthField(client_proof.clone()) );
     request.push(Part::new(PartKind::Authentication, Argument::Auth(auth_fields)));
-    request.push(Part::new(PartKind::ClientID, Argument::ClientID(get_client_id())));
 
-    let mut conn_opts = Vec::<ConnectOption>::new(); // FIXME shouldn't we put this into the conn_props, too?
-    conn_opts.push( ConnectOption{id: ConnectOptionId::CompleteArrayExecution, value: OptionValue::BOOLEAN(true)});
-    conn_opts.push( ConnectOption{id: ConnectOptionId::DataFormatVersion2, value: OptionValue::INT(4)});
-    conn_opts.push( ConnectOption{id: ConnectOptionId::DataFormatVersion, value: OptionValue::INT(1)});
-    conn_opts.push( ConnectOption{id: ConnectOptionId::ClientLocale, value: OptionValue::STRING(get_locale())});
-    conn_opts.push( ConnectOption{id: ConnectOptionId::DistributionEnabled, value: OptionValue::BOOLEAN(true)});
-    conn_opts.push( ConnectOption{id: ConnectOptionId::ClientDistributionMode, value: OptionValue::INT(3)});
-    conn_opts.push( ConnectOption{id: ConnectOptionId::SelectForUpdateSupported, value: OptionValue::BOOLEAN(true)});
-    conn_opts.push( ConnectOption{id: ConnectOptionId::DistributionProtocolVersion, value: OptionValue::INT(1)});
-    conn_opts.push( ConnectOption{id: ConnectOptionId::RowSlotImageParameter, value: OptionValue::BOOLEAN(true)});
+    let mut conn_opts = ConnectOptions::new();
+    conn_opts.push(ConnectOptionId::CompleteArrayExecution,     OptionValue::BOOLEAN(true));
+    conn_opts.push(ConnectOptionId::DataFormatVersion2,         OptionValue::INT(4));
+    conn_opts.push(ConnectOptionId::DataFormatVersion,          OptionValue::INT(1));
+    conn_opts.push(ConnectOptionId::ClientLocale,               OptionValue::STRING(get_locale()));
+    conn_opts.push(ConnectOptionId::EnableArrayType,            OptionValue::BOOLEAN(true));
+    conn_opts.push(ConnectOptionId::DistributionEnabled,        OptionValue::BOOLEAN(true));
+    conn_opts.push(ConnectOptionId::ClientDistributionMode,     OptionValue::INT(3));
+    conn_opts.push(ConnectOptionId::SelectForUpdateSupported,   OptionValue::BOOLEAN(true));
+    conn_opts.push(ConnectOptionId::DistributionProtocolVersion,OptionValue::INT(1));
+    conn_opts.push(ConnectOptionId::RowSlotImageParameter,      OptionValue::BOOLEAN(true));
+    conn_opts.push(ConnectOptionId::OSUser,                     OptionValue::STRING(get_locale()));
     request.push(Part::new(PartKind::ConnectOptions, Argument::ConnectOptions(conn_opts)));
 
     request.send_and_receive(conn_ref, Some(ReplyType::Nil))
 }
 
-fn get_client_id() -> Vec<u8> {
-    // FIXME IMPORTANT this is supposed to return something like
-    // 10508@WDFN00319537A.EMEA.global.corp.sap
-    // i.e., <process id>@<fully qualified hostname>
-    // rust has nothing stable to access the process id or the host name
-
-    b"4711@somemachine.nirwana".to_vec()
-    // b"10509@WDFN00319537A.emea.global.corp.sap".to_vec()
-}
-
 fn get_locale() -> String {
-    String::from("en_US")
+    String::from("en_US")       // FIXME make locale settable from API? Or retrieve it from OS?
 }
 
 fn create_client_challenge() -> Vec<u8>{
@@ -131,31 +103,31 @@ fn get_server_challenge(mut reply: Reply) -> PrtResult<Vec<u8>> {
     }
 }
 
-fn evaluate_reply2(mut reply: Reply, conn_props: &mut ConnProps) -> PrtResult<()> {
+fn evaluate_reply2(mut reply: Reply, conn_ref: &ConnRef) -> PrtResult<()> {
     trace!("Entering evaluate_reply2()");
-    assert!(reply.parts.len() >= 1, "no part found");
+    let mut conn_core = conn_ref.borrow_mut();
+    conn_core.session_id = reply.session_id;
 
     let mut server_proof = Vec::<u8>::new();
-
     let part = try!(reply.retrieve_first_part_of_kind(PartKind::Authentication));
     match part.arg {
-        Argument::Auth(ref vec) => { for b in &(vec.get(0).unwrap()).0 { server_proof.push(*b); } },
+        Argument::Auth(mut vec) => mem::swap(&mut (vec.get_mut(0).unwrap().0), &mut server_proof),
         _ => {return Err(prot_err("Inconsistent Auth part found"));},
     }
+    warn!("the server proof is not evaluated");
 
     let part = try!(reply.retrieve_first_part_of_kind(PartKind::ConnectOptions));
     match part.arg {
-        Argument::ConnectOptions(vec) => { for e in vec { conn_props.connect_options.push(e); } },
-        _ => {return Err(prot_err("Inconsistent ConnectOptions part found"));},
+        Argument::ConnectOptions(ConnectOptions(mut vec)) => mem::swap(&mut vec, &mut (conn_core.server_connect_options)),
+        _ => return Err(prot_err("Inconsistent ConnectOptions part found")),
     }
 
     let part = try!(reply.retrieve_first_part_of_kind(PartKind::TopologyInformation));
     match part.arg {
-        Argument::TopologyInformation(vec) => { for e in vec { conn_props.topology_attributes.push(e); } },
+        Argument::TopologyInformation(mut vec) => mem::swap(&mut vec, &mut (conn_core.topology_attributes)),
         _ => {return Err(prot_err("Inconsistent TopologyInformation part found"));},
     }
 
-    warn!("the server proof is not evaluated: {:?}", server_proof);
     Ok(())
 }
 
@@ -257,14 +229,10 @@ fn xor(a: &Vec<u8>, b: &Vec<u8>) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::calculate_client_proof;
-//    use flexi_logger;
 
-    // run exclusively with
     // cargo test protocol::authentication::tests::test_client_proof -- --nocapture
     #[test]
     fn test_client_proof() {
-
-//        flexi_logger::init(flexi_logger::LogConfig::new(), Some("hdbconnect=warn".to_string())).unwrap();
 
         let client_challenge: Vec<u8> = b"\xb5\xab\x3a\x90\xc5\xad\xb8\x04\x15\x27\x37\x66\x54\xd7\x5c\x31\x94\xd8\x61\x50\x3f\xe0\x8d\xff\x8b\xea\xd5\x1b\xc3\x5a\x07\xcc\x63\xed\xbf\xa9\x5d\x03\x62\xf5\x6f\x1a\x48\x2e\x4c\x3f\xb8\x32\xe4\x1c\x89\x74\xf9\x02\xef\x87\x38\xcc\x74\xb6\xef\x99\x2e\x8e"
         .to_vec();

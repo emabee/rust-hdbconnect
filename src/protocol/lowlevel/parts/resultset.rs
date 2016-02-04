@@ -16,6 +16,7 @@ use rs_serde::deserializer::RsDeserializer;
 
 use serde;
 use std::cell::RefCell;
+use std::fmt;
 use std::io;
 use std::rc::Rc;
 
@@ -186,12 +187,15 @@ impl ResultSet {
         request.push(Part::new(PartKind::ResultSetId, Argument::ResultSetId(resultset_id)));
         request.push(Part::new(PartKind::FetchSize, Argument::FetchSize(fetch_size)));
 
-        let reply = try!(request.send_and_receive_detailed(Metadata::None, &mut Some(self), &conn_ref, Some(ReplyType::Fetch)));
+        let mut reply = try!(request.send_and_receive_detailed(
+                                Metadata::None, &mut Some(self), &conn_ref, Some(ReplyType::Fetch)
+        ));
 
         if let Some(OptionValue::BIGINT(server_processing_time)) = reply.server_processing_time {
             self.core_ref.borrow_mut().execution_times.push(server_processing_time);
         }
 
+        try!(reply.retrieve_first_part_of_kind(PartKind::ResultSet)); // don't leave parts to avoid a warning
         Ok(())
     }
 
@@ -212,17 +216,29 @@ impl ResultSet {
     // FIXME implement DROP as send a request of type CLOSERESULTSET in case the resultset is not yet closed (RESULTSETCLOSED)
 }
 
+impl fmt::Display for ResultSet {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&self.metadata, fmt).unwrap();     // write a header
+        writeln!(fmt, "").unwrap();
+        for row in &self.rows {
+            fmt::Display::fmt(&row, fmt).unwrap();           // write the data
+            writeln!(fmt, "").unwrap();
+        }
+        Ok(())
+    }
+}
 
 #[derive(Debug,Clone)]
 pub struct Row {
     pub values: Vec<TypedValue>,
 }
-// impl Row{
-//     fn size(&self) -> PrtResult<usize> {
-//         let mut size = 0;
-//         for value in &self.values {
-//             size += try!(value.size());
-//         }
-//         Ok(size)
-//     }
-// }
+
+impl fmt::Display for Row {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        for value in &self.values {
+            fmt::Display::fmt(&value, fmt).unwrap();         // write the value
+            write!(fmt, ", ").unwrap();
+        }
+        Ok(())
+    }
+}
