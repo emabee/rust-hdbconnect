@@ -23,8 +23,8 @@ impl ClientInfo {
         }
         len
     }
-    pub fn count(&self) -> i16 {
-        self.0.len() as i16
+    pub fn count(&self) -> usize {
+        self.0.len()
     }
 
     pub fn parse(no_of_args: i32, rdr: &mut BufRead) -> PrtResult<ClientInfo> {

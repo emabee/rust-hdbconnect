@@ -11,10 +11,10 @@ extern crate num;
 extern crate rand;
 extern crate serde;
 extern crate vec_map;
+extern crate user;
 
 
 mod adhoc_statement;
-pub mod log_format;
 pub mod connection;
 pub mod db_response;
 pub mod dbc_error;
@@ -26,6 +26,6 @@ pub mod types;
 
 
 pub use connection::Connection;
-pub use db_response::DbResponse;
+pub use db_response::DbResponses;
 pub use types::longdate::LongDate;
 pub use dbc_error::{DbcError,DbcResult};

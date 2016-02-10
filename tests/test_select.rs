@@ -7,10 +7,7 @@ extern crate log;
 extern crate flexi_logger;
 extern crate hdbconnect;
 extern crate serde;
-// extern crate vec_map;
 
-// use chrono::Local;
-// use std::error::Error;
 use flexi_logger::{LogConfig,opt_format};
 
 use hdbconnect::Connection;
@@ -21,7 +18,6 @@ use hdbconnect::LongDate;
 // cargo test test_select -- --nocapture
 #[test]
 pub fn test_select() {
-
     // hdbconnect::protocol::lowlevel::resultset=trace,\
     // hdbconnect::protocol::lowlevel::part=debug,\
     // hdbconnect::protocol::callable_statement=trace,\
@@ -267,6 +263,7 @@ fn deser_singlecolumn_into_vec(connection: &mut Connection) -> DbcResult<()>{
     let resultset = try!(connection.query("select O_S from TEST_SINGLE_COLUMN order by DUMMY asc"));
     let typed_result: Vec<String> = try!(resultset.into_typed());
     debug!("Typed Result: {:?}", typed_result);
+    assert_eq!(typed_result.len(),5);
 
     debug!("second part: multi columns should not work");
     let resultset = try!(connection.query("select * from TEST_SINGLE_COLUMN order by DUMMY asc"));

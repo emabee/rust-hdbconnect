@@ -35,7 +35,7 @@ impl StatementContext {
         size
     }
 
-    pub fn count(&self) -> i16 {
+    pub fn count(&self) -> usize {
         let mut count = 0;
         if let Some(_) = self.statement_sequence_info { count += 1; }
         if let Some(_) = self.server_processing_time { count += 1; }

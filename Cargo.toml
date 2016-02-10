@@ -1,6 +1,6 @@
 [package]
 name = "hdbconnect"
-version = "0.0.18"
+version = "0.0.19"
 authors = ["emabee <meinolf.block@sap.com>"]
 
 [dependencies]
@@ -14,3 +14,4 @@ rust-crypto = "0.2"
 serde = "0.6"
 serde_macros = "0.6"
 vec_map = "0.4"
+user = "0.1"

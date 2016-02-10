@@ -30,6 +30,7 @@ impl<'a> Serializer<'a> {
         serializer
     }
     pub fn _into_row(self) -> ParameterRow {
+        debug!("Row: {:?}",self.row);
         self.row
     }
 
@@ -433,14 +434,14 @@ impl<'a> serde::ser::Serializer for Serializer<'a>
         let mut s = String::new();
         s.push(value);
         match try!(self.expected_type_code()) {
-            TYPEID_CHAR       => self.row.push(TypedValue::STRING(s)),      //CHAR(s)),
-            TYPEID_VARCHAR    => self.row.push(TypedValue::STRING(s)),      //VARCHAR(s)),
-            TYPEID_NCHAR      => self.row.push(TypedValue::STRING(s)),      //NCHAR(s)),
-            TYPEID_NVARCHAR   => self.row.push(TypedValue::STRING(s)),      //NVARCHAR(s)),
-            TYPEID_STRING     => self.row.push(TypedValue::STRING(s)),      //STRING(s)),
-            TYPEID_NSTRING    => self.row.push(TypedValue::STRING(s)),      //NSTRING(s)),
-            TYPEID_TEXT       => self.row.push(TypedValue::STRING(s)),      //TEXT(s)),
-            TYPEID_SHORTTEXT  => self.row.push(TypedValue::STRING(s)),      //SHORTTEXT(s)),
+            TYPEID_CHAR       => self.row.push(TypedValue::STRING(s)),
+            TYPEID_VARCHAR    => self.row.push(TypedValue::STRING(s)),
+            TYPEID_NCHAR      => self.row.push(TypedValue::STRING(s)),
+            TYPEID_NVARCHAR   => self.row.push(TypedValue::STRING(s)),
+            TYPEID_STRING     => self.row.push(TypedValue::STRING(s)),
+            TYPEID_NSTRING    => self.row.push(TypedValue::STRING(s)),
+            TYPEID_TEXT       => self.row.push(TypedValue::STRING(s)),
+            TYPEID_SHORTTEXT  => self.row.push(TypedValue::STRING(s)),
             target_tc  => return Err(SerializationError::TypeMismatch("char",target_tc)),
         }
         Ok(())
@@ -450,14 +451,14 @@ impl<'a> serde::ser::Serializer for Serializer<'a>
     fn visit_str(&mut self, value: &str) -> SerializeResult<()> {
         let s = String::from(value);
         match try!(self.expected_type_code()) {
-            TYPEID_CHAR       => self.row.push(TypedValue::STRING(s)),      //CHAR(s)),
-            TYPEID_VARCHAR    => self.row.push(TypedValue::STRING(s)),      //VARCHAR(s)),
-            TYPEID_NCHAR      => self.row.push(TypedValue::STRING(s)),      //NCHAR(s)),
-            TYPEID_NVARCHAR   => self.row.push(TypedValue::STRING(s)),      //NVARCHAR(s)),
-            TYPEID_STRING     => self.row.push(TypedValue::STRING(s)),      //STRING(s)),
-            TYPEID_NSTRING    => self.row.push(TypedValue::STRING(s)),      //NSTRING(s)),
-            TYPEID_TEXT       => self.row.push(TypedValue::STRING(s)),      //TEXT(s)),
-            TYPEID_SHORTTEXT  => self.row.push(TypedValue::STRING(s)),      //SHORTTEXT(s)),
+            TYPEID_CHAR       => self.row.push(TypedValue::STRING(s)),
+            TYPEID_VARCHAR    => self.row.push(TypedValue::STRING(s)),
+            TYPEID_NCHAR      => self.row.push(TypedValue::STRING(s)),
+            TYPEID_NVARCHAR   => self.row.push(TypedValue::STRING(s)),
+            TYPEID_STRING     => self.row.push(TypedValue::STRING(s)),
+            TYPEID_NSTRING    => self.row.push(TypedValue::STRING(s)),
+            TYPEID_TEXT       => self.row.push(TypedValue::STRING(s)),
+            TYPEID_SHORTTEXT  => self.row.push(TypedValue::STRING(s)),
             target_tc  => return Err(SerializationError::TypeMismatch("&str",target_tc)),
         }
         Ok(())
@@ -536,6 +537,7 @@ impl<'a> serde::ser::Serializer for Serializer<'a>
                                 value: T) -> SerializeResult<()>
         where T: serde::ser::Serialize,
     {
+        error!("visit_newtype_variant _name: {}, _variant_index: {}, variant: {}", _name,_variant_index,variant);
         Err(SerializationError::TypeMismatch("newtype_variant",try!(self.expected_type_code())))
     }
 
@@ -544,7 +546,8 @@ impl<'a> serde::ser::Serializer for Serializer<'a>
     fn visit_seq<V>(&mut self, mut visitor: V) -> SerializeResult<()>
         where V: serde::ser::SeqVisitor,
     {
-        Err(SerializationError::TypeMismatch("seq",try!(self.expected_type_code())))
+        while let Some(()) = try!(visitor.visit(self)) { }  // FIXME why do we need a loop here?
+        Ok(())
     }
 
     #[inline]
@@ -564,7 +567,8 @@ impl<'a> serde::ser::Serializer for Serializer<'a>
     fn visit_seq_elt<T>(&mut self, value: T) -> SerializeResult<()>
         where T: serde::ser::Serialize,
     {
-        Err(SerializationError::TypeMismatch("seq_elt",try!(self.expected_type_code())))
+        // Err(SerializationError::TypeMismatch("seq_elt",try!(self.expected_type_code())))
+        value.serialize(self)  // FIXME
     }
 
     #[inline]
@@ -572,21 +576,8 @@ impl<'a> serde::ser::Serializer for Serializer<'a>
     fn visit_map<V>(&mut self, mut visitor: V) -> SerializeResult<()>
         where V: serde::ser::MapVisitor,
     {
-        // match visitor.len() {
-        //     Some(len) if len == 0 => {
-        //         self.writer.write_all(b"{}").map_err(From::from)
-        //     }
-        //     _ => {
-        //         try!(self.formatter.open(&mut self.writer, b'{'));
-        //
-        //         self.first = true;
-        //
-                while let Some(()) = try!(visitor.visit(self)) { }  // FIXME why do we need a loop here?
-                Ok(())
-        //
-        //         self.formatter.close(&mut self.writer, b'}')
-        //     }
-        // }
+        while let Some(()) = try!(visitor.visit(self)) { }  // FIXME why do we need a loop here?
+        Ok(())
     }
 
     #[inline]
@@ -612,158 +603,3 @@ impl<'a> serde::ser::Serializer for Serializer<'a>
         Ok(())
     }
 }
-
-// struct MapKeySerializer<'a> {
-//     ser: &'a mut Serializer,
-// }
-//
-// impl<'a> serde::ser::Serializer for MapKeySerializer<'a> {
-//     type Error = SerializationError;
-//
-//     #[inline]
-//     fn visit_str(&mut self, value: &str) -> SerializeResult<()> {
-//         self.ser.visit_str(value)
-//     }
-//
-//     fn visit_bool(&mut self, _value: bool) -> SerializeResult<()> {
-//         Err(Error::SyntaxError(ErrorCode::KeyMustBeAString, 0, 0))
-//     }
-//
-//     fn visit_i64(&mut self, _value: i64) -> SerializeResult<()> {
-//         Err(Error::SyntaxError(ErrorCode::KeyMustBeAString, 0, 0))
-//     }
-//
-//     fn visit_u64(&mut self, _value: u64) -> SerializeResult<()> {
-//         Err(Error::SyntaxError(ErrorCode::KeyMustBeAString, 0, 0))
-//     }
-//
-//     fn visit_f64(&mut self, _value: f64) -> SerializeResult<()> {
-//         Err(Error::SyntaxError(ErrorCode::KeyMustBeAString, 0, 0))
-//     }
-//
-//     fn visit_unit(&mut self) -> SerializeResult<()> {
-//         Err(Error::SyntaxError(ErrorCode::KeyMustBeAString, 0, 0))
-//     }
-//
-//     fn visit_none(&mut self) -> SerializeResult<()> {
-//         Err(Error::SyntaxError(ErrorCode::KeyMustBeAString, 0, 0))
-//     }
-//
-//     fn visit_some<V>(&mut self, _value: V) -> SerializeResult<()>
-//         where V: serde::ser::Serialize
-//     {
-//         Err(Error::SyntaxError(ErrorCode::KeyMustBeAString, 0, 0))
-//     }
-//
-//     fn visit_seq<V>(&mut self, _visitor: V) -> SerializeResult<()>
-//         where V: serde::ser::SeqVisitor,
-//     {
-//         Err(Error::SyntaxError(ErrorCode::KeyMustBeAString, 0, 0))
-//     }
-//
-//     fn visit_seq_elt<T>(&mut self, _value: T) -> SerializeResult<()>
-//         where T: serde::ser::Serialize,
-//     {
-//         Err(Error::SyntaxError(ErrorCode::KeyMustBeAString, 0, 0))
-//     }
-//
-//     fn visit_map<V>(&mut self, _visitor: V) -> SerializeResult<()>
-//         where V: serde::ser::MapVisitor,
-//     {
-//         Err(Error::SyntaxError(ErrorCode::KeyMustBeAString, 0, 0))
-//     }
-//
-//     fn visit_map_elt<K, V>(&mut self, _key: K, _value: V) -> SerializeResult<()>
-//         where K: serde::ser::Serialize,
-//               V: serde::ser::Serialize,
-//     {
-//         Err(Error::SyntaxError(ErrorCode::KeyMustBeAString, 0, 0))
-//     }
-// }
-
-// /// Serializes and escapes a `&[u8]` into a JSON string.
-// #[inline]
-// pub fn escape_bytes<W>(wr: &mut W, bytes: &[u8]) -> SerializeResult<()>
-//     where W: io::Write
-// {
-//     try!(wr.write_all(b"\""));
-//
-//     let mut start = 0;
-//
-//     for (i, byte) in bytes.iter().enumerate() {
-//         let escaped = match *byte {
-//             b'"' => b"\\\"",
-//             b'\\' => b"\\\\",
-//             b'\x08' => b"\\b",
-//             b'\x0c' => b"\\f",
-//             b'\n' => b"\\n",
-//             b'\r' => b"\\r",
-//             b'\t' => b"\\t",
-//             _ => { continue; }
-//         };
-//
-//         if start < i {
-//             try!(wr.write_all(&bytes[start..i]));
-//         }
-//
-//         try!(wr.write_all(escaped));
-//
-//         start = i + 1;
-//     }
-//
-//     if start != bytes.len() {
-//         try!(wr.write_all(&bytes[start..]));
-//     }
-//
-//     try!(wr.write_all(b"\""));
-//     Ok(())
-// }
-//
-// /// Serializes and escapes a `&str` into a JSON string.
-// #[inline]
-// pub fn escape_str<W>(wr: &mut W, value: &str) -> SerializeResult<()>
-//     where W: io::Write
-// {
-//     escape_bytes(wr, value.as_bytes())
-// }
-//
-// #[inline]
-// fn escape_char<W>(wr: &mut W, value: char) -> SerializeResult<()>
-//     where W: io::Write
-// {
-//     // FIXME: this allocation is required in order to be compatible with stable
-//     // rust, which doesn't support encoding a `char` into a stack buffer.
-//     let mut s = String::new();
-//     s.push(value);
-//     escape_bytes(wr, s.as_bytes())
-// }
-//
-// fn fmt_f32_or_null<W>(wr: &mut W, value: f32) -> SerializeResult<()>
-//     where W: io::Write
-// {
-//     match value.classify() {
-//         FpCategory::Nan | FpCategory::Infinite => {
-//             try!(wr.write_all(b"null"))
-//         }
-//         _ => {
-//             try!(write!(wr, "{:?}", value))
-//         }
-//     }
-//
-//     Ok(())
-// }
-//
-// fn fmt_f64_or_null<W>(wr: &mut W, value: f64) -> SerializeResult<()>
-//     where W: io::Write
-// {
-//     match value.classify() {
-//         FpCategory::Nan | FpCategory::Infinite => {
-//             try!(wr.write_all(b"null"))
-//         }
-//         _ => {
-//             try!(write!(wr, "{:?}", value))
-//         }
-//     }
-//
-//     Ok(())
-// }

@@ -11,16 +11,18 @@ use protocol::lowlevel::parts::connect_option::{ConnectOptions,ConnectOptionId};
 use protocol::lowlevel::parts::option_value::OptionValue;
 
 use byteorder::{LittleEndian,ReadBytesExt,WriteBytesExt};
-use rand::{Rng,thread_rng};
-use std::io::{self,Read};
-use std::mem;
-
-use std::iter::repeat;
 use crypto::hmac::Hmac;
 use crypto::mac::Mac;
 use crypto::digest::Digest;
 use crypto::sha2::Sha256;
+use rand::{Rng,thread_rng};
 
+use std::env;
+use std::io::{self,Read};
+use std::iter::repeat;
+use std::mem;
+
+use user;
 
 /// authenticate with user and password, using the scram_sha256 method
 pub fn user_pw(conn_ref: &ConnRef, username: &str, password: &str)
@@ -73,14 +75,25 @@ fn auth2_request (conn_ref: &ConnRef, client_proof: &Vec<u8>, username: &str) ->
     conn_opts.push(ConnectOptionId::SelectForUpdateSupported,   OptionValue::BOOLEAN(true));
     conn_opts.push(ConnectOptionId::DistributionProtocolVersion,OptionValue::INT(1));
     conn_opts.push(ConnectOptionId::RowSlotImageParameter,      OptionValue::BOOLEAN(true));
-    conn_opts.push(ConnectOptionId::OSUser,                     OptionValue::STRING(get_locale()));
+    conn_opts.push(ConnectOptionId::OSUser,                     OptionValue::STRING(get_username()));
     request.push(Part::new(PartKind::ConnectOptions, Argument::ConnectOptions(conn_opts)));
 
     request.send_and_receive(conn_ref, Some(ReplyType::Nil))
 }
 
 fn get_locale() -> String {
-    String::from("en_US")       // FIXME make locale settable from API? Or retrieve it from OS?
+    let locale = match env::var("LANG") {
+        Ok(l) => l,
+        Err(_) => String::from("en_US"),
+    };
+    debug!("Using locale {}",locale);
+    locale
+}
+
+fn get_username() -> String {
+    let username = user::get_user_name().unwrap_or(String::new());
+    debug!("Username: {}",username);
+    username
 }
 
 fn create_client_challenge() -> Vec<u8>{

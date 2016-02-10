@@ -15,13 +15,12 @@ extern crate serde;
 use hdbconnect::Connection;
 use hdbconnect::DbcResult;
 use hdbconnect::LongDate;
-use hdbconnect::log_format::opt_format;
 
 
 // cargo run --example incident_102147 -- --nocapture
 fn main() {
 
-    use flexi_logger::LogConfig;
+    use flexi_logger::{LogConfig,opt_format};
     flexi_logger::init(LogConfig {
                             log_to_file: true,
                             format: opt_format,

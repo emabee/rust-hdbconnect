@@ -1,4 +1,4 @@
-use {DbcResult,DbResponse};
+use {DbcResult,DbResponses};
 use protocol::lowlevel::conn_core::ConnRef;
 use protocol::lowlevel::argument::Argument;
 use protocol::lowlevel::message::{Request,Metadata};
@@ -19,7 +19,7 @@ impl AdhocStatement {
 }
 
 impl AdhocStatement {
-    pub fn execute(&self) -> DbcResult<DbResponse> {
+    pub fn execute(&self) -> DbcResult<DbResponses> {
         trace!("AdhocStatement::execute({})",self.stmt);
         // build the request
         let command_options = 0b_1000;

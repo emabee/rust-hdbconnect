@@ -115,8 +115,8 @@ fn run_statements(connection: &mut Connection) -> DbcResult<()> {
     }
 
     // Prove that '' is the same as '0001-01-01 00:00:00.000000000'
-    let rows_affected = try!(connection.execute("insert into TEST_LONGDATE (number,mydate) values(77, '')"));
-    assert!(rows_affected.get(0).unwrap().equals(1));
+    let rows_affected = try!(connection.dml("insert into TEST_LONGDATE (number,mydate) values(77, '')"));
+    assert_eq!(rows_affected,1);
 
     let selected_dates: Vec<LongDate> = try!(try!(
         connection.query("select mydate from TEST_LONGDATE where number = 77 or number = 13"))

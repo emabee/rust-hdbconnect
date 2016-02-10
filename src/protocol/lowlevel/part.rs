@@ -8,7 +8,7 @@ use super::parts::resultset::ResultSet;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::cmp::max;
-use std::{io,i16};
+use std::{io,i16,i32};
 
 const PART_HEADER_SIZE: usize = 16;
 
@@ -24,20 +24,22 @@ impl Part {
     }
 
     pub fn serialize(&self, mut remaining_bufsize: u32, w: &mut io::Write) -> PrtResult<u32> {
-        debug!("Serializing part of kind {:?} with remaining_bufsize {} (u32) = {} (i32)",self.kind,remaining_bufsize,remaining_bufsize as i32);
-        // debug!("Serializing part of kind {:?}",self.kind);
+        debug!("Serializing part of kind {:?} with remaining_bufsize {} (u32) = {} (i32)",
+               self.kind, remaining_bufsize, remaining_bufsize as i32);
         // PART HEADER 16 bytes
         try!(w.write_i8(self.kind.to_i8()));                                    // I1    Nature of part data
         try!(w.write_u8(0));                                                    // U1    Attributes of part - not used in requests
         match try!(self.arg.count()) {
-            i if i < i16::MAX  => {
+            i if i < i16::MAX as usize => {
                 try!(w.write_i16::<LittleEndian>(i as i16));                    // I2    Number of elements in arg
                 try!(w.write_i32::<LittleEndian>(0));                           // I4    Number of elements in arg
             },
-            i => {
+            i if i <= i32::MAX as usize => {
                 try!(w.write_i16::<LittleEndian>(-1));                          // I2    Number of elements in arg
                 try!(w.write_i32::<LittleEndian>(i as i32));                    // I4    Number of elements in arg
-                return Err(prot_err("argument count bigger than i16::MAX is not supported"))   // FIXME
+            },
+            _ => {
+                return Err(prot_err("argument count bigger than i32::MAX is not supported"));
             },
         }
         try!(w.write_i32::<LittleEndian>(try!(self.arg.size(false)) as i32));   // I4    Length of args in bytes

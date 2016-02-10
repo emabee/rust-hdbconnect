@@ -1,6 +1,7 @@
 //! Since there is obviously no usecase for multiple segments in one request, we model message and segment together.
 //! But we differentiate explicitly between request messages and reply messages.
-use {DbcError,DbcResult,DbResponse};
+use {DbcError,DbcResult,DbResponses};
+use db_response::factory as DbResponseFactory;
 use super::{PrtError,PrtResult,prot_err};
 use super::conn_core::ConnRef;
 use super::argument::Argument;
@@ -71,17 +72,15 @@ impl Request {
                                     metadata: Metadata,
                                     conn_ref: &ConnRef,
                                     expected_fc: Option<ReplyType>)
-    -> DbcResult<DbResponse> {
+    -> DbcResult<DbResponses> {
         let mut reply = try!(self.send_and_receive_detailed(metadata, &mut None, conn_ref, expected_fc));
 
         match reply.type_ {
             ReplyType::Select => {
                 let part = try!(reply.retrieve_first_part_of_kind(PartKind::ResultSet));
                 match part.arg {
-                    Argument::ResultSet(Some(resultset)) => {
-                        Ok(DbResponse::ResultSet(resultset))
-                    },
-                    _ => Err(DbcError::EvaluationError(String::from("No ResultSet"))),
+                    Argument::ResultSet(Some(resultset)) => Ok(DbResponseFactory::from_resultset(resultset)),
+                    _ => Err(DbcError::EvaluationError("No ResultSet")),
                 }
             },
 
@@ -89,10 +88,8 @@ impl Request {
             ReplyType::Insert | ReplyType::Update | ReplyType::Delete => {
                 let part = try!(reply.retrieve_first_part_of_kind(PartKind::RowsAffected));
                 match part.arg {
-                    Argument::RowsAffected(vec) => {
-                        Ok(DbResponse::RowsAffected(vec))
-                    },
-                    _ => Err(DbcError::EvaluationError(String::from("No RowsAffected"))),
+                    Argument::RowsAffected(vec) => Ok(DbResponseFactory::from_rows_affected(vec)),
+                    _ => Err(DbcError::EvaluationError("No RowsAffected")),
                 }
             },
 
@@ -107,10 +104,10 @@ impl Request {
             ReplyType::DbProcedureCallWithResult |
             ReplyType::XaStart |
             ReplyType::XaJoin => {
-                let s = format!("unexpected reply type {:?} in send_and_get_response", reply.type_);
+                let s = format!("unexpected reply type {:?} in send_and_get_response()", reply.type_);
                 error!("{}",s);
                 error!("Reply: {:?}",reply);
-                Err(DbcError::EvaluationError(s))
+                Err(DbcError::EvaluationError("send_and_get_response(): unexpected reply type"))
             },
         }
     }

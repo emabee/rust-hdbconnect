@@ -1,14 +1,6 @@
 TODO
 
-row visitor visits row after row
-field visitor visits field after field in a row
-
-currently the field visitor switches at its end to the next row
-this fails for result sets with one field per row, which is deserialized into a vector
-
-
-
-
+- move ResultSet::new, new_for_tests, and parse, into a factory namespace, to avoid exposing them
 - data types
     - newdb/orange/Interfaces/SQLDBC/impl/LongdateTranslator.cpp
     - newdb/orange/Interfaces/SQLDBC/impl/SeconddateTranslator.cpp

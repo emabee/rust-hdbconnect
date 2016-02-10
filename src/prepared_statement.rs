@@ -1,4 +1,4 @@
-use {DbcError,DbcResult,DbResponse};
+use {DbcError,DbcResult,DbResponses};
 use protocol::lowlevel::conn_core::ConnRef;
 use protocol::lowlevel::argument::Argument;
 use protocol::lowlevel::message::{Request,Metadata};
@@ -33,7 +33,7 @@ impl PreparedStatement {
 
         let statement_id = match try!(reply.retrieve_first_part_of_kind(PartKind::StatementId)).arg {
             Argument::StatementId(statement_id) => statement_id,
-            _ => return Err(DbcError::EvaluationError(String::from("No StatementId in PreparedStatement::prepare()"))),
+            _ => return Err(DbcError::EvaluationError("No StatementId in PreparedStatement::prepare()")),
         };
         let par_md = match try!(reply.retrieve_first_part_of_kind(PartKind::ParameterMetadata)).arg {
             Argument::ParameterMetadata(par_md) => Some(par_md),
@@ -65,7 +65,7 @@ impl PreparedStatement {
     }
 
     // Execute the statement with the collected batch, and clear the batch
-    pub fn execute_batch(&mut self) -> DbcResult<DbResponse> {
+    pub fn execute_batch(&mut self) -> DbcResult<DbResponses> {
         let mut request = try!(Request::new( &(self.conn_ref), RequestType::Execute, self.auto_commit, 8_u8));
         request.push(Part::new(PartKind::StatementId, Argument::StatementId(self.statement_id.clone())));
         if let &mut Some(ref mut pars1) = &mut self.batch {

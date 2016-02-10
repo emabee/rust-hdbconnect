@@ -1,35 +1,33 @@
 use DbcResult;
-use super::{PrtError,PrtResult,prot_err};
-use super::option_value::OptionValue;
-use super::resultset_metadata::ResultSetMetadata;
-use super::typed_value::TypedValue;
-use super::super::argument::Argument;
-use super::super::conn_core::ConnRef;
-use super::super::message::{Metadata,Request,retrieve_first_part_of_kind};
-use super::super::reply_type::ReplyType;
-use super::super::request_type::RequestType;
-use super::super::part::Part;
-use super::super::part_attributes::PartAttributes;
-use super::super::partkind::PartKind;
-
+use protocol::lowlevel::{PrtError,PrtResult,prot_err};
+use protocol::lowlevel::argument::Argument;
+use protocol::lowlevel::conn_core::ConnRef;
+use protocol::lowlevel::message::{Metadata,Request};
+use protocol::lowlevel::reply_type::ReplyType;
+use protocol::lowlevel::request_type::RequestType;
+use protocol::lowlevel::part::Part;
+use protocol::lowlevel::part_attributes::PartAttributes;
+use protocol::lowlevel::partkind::PartKind;
+use protocol::lowlevel::parts::option_value::OptionValue;
+use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
+use protocol::lowlevel::parts::typed_value::TypedValue;
 use rs_serde::deserializer::RsDeserializer;
 
 use serde;
 use std::cell::RefCell;
 use std::fmt;
-use std::io;
 use std::rc::Rc;
 
 #[derive(Debug)]
 pub struct ResultSet {
-    pub core_ref: RsRef, // FIXME can we make this private?
+    core_ref: RsRef,
     pub metadata: ResultSetMetadata,
     pub rows: Vec<Row>,
 }
 
 #[derive(Debug)]
 pub struct ResultSetCore {
-    pub o_conn_ref: Option<ConnRef>, // FIXME can we make this private?
+    pub o_conn_ref: Option<ConnRef>, // public because it is needed in lob
     pub attributes: PartAttributes,
     pub resultset_id: u64,
     pub execution_times: Vec<i64>,
@@ -48,91 +46,6 @@ impl ResultSetCore {
 }
 
 impl ResultSet {
-    pub fn new(conn_ref: Option<&ConnRef>, attrs: PartAttributes, rs_id: u64, rsm: ResultSetMetadata)
-    -> ResultSet {
-        ResultSet {
-            core_ref: ResultSetCore::new_rs_ref(conn_ref, attrs, rs_id),
-            metadata: rsm,
-            rows: Vec::<Row>::new(),
-        }
-    }
-
-    /// resultsets can be part of the response in three cases which differ especially in regard to metadata handling:
-    /// a) a response to a plain "execute" will contain the metadata in one of the other parts;
-    ///    the metadata parameter will thus have the variant None
-    /// b) a response to an "execute prepared" will only contain data;
-    ///    the metadata had beeen returned already to the "prepare" call
-    /// c) a response to a "fetch more lines" is triggered from an older resultset which already has its metadata
-    pub fn parse( no_of_rows: i32,
-                  attributes: PartAttributes,
-                  parts: &mut Vec<Part>,
-                  o_conn_ref: Option<&ConnRef>,
-                  metadata: Metadata,
-                  o_rs: &mut Option<&mut ResultSet>,
-                  rdr: &mut io::BufRead )
-    -> PrtResult<Option<ResultSet>> {
-        match *o_rs {
-            mut None => {
-                // case a) or b)
-                // for first resultset packets, we create and return a new ResultSet object
-                // we expect to already have received a matching metadata part, a ResultSetId, and a StatementContext
-                let rs_metadata = {
-                    match retrieve_first_part_of_kind(PartKind::ResultSetMetadata, parts) {
-                        Ok(mdpart) => {
-                            match mdpart.arg {
-                                Argument::ResultSetMetadata(r) => r,
-                                _ => return Err(prot_err("Inconsistent metadata part found for ResultSet")),
-                            }
-                        },
-                        Err(e) => {
-                            if let Metadata::ResultSetMetadata(ref rsmd) = metadata {
-                                (*rsmd).clone()
-                            }
-                            else { return Err(e); }
-                        },
-                    }
-                };
-                let rs_id = {
-                    let rs_id_part = try!(retrieve_first_part_of_kind(PartKind::ResultSetId, parts));
-                    match rs_id_part.arg {
-                        Argument::ResultSetId(i) => i,
-                        _ => return Err(prot_err("Inconsistent ResultSetId part found for ResultSet")),
-                    }
-                };
-                let mut result = ResultSet::new(o_conn_ref, attributes, rs_id, rs_metadata);
-                try!(result.parse_rows(no_of_rows,rdr));
-                Ok(Some(result))
-            },
-
-            Some(ref mut rs) => {
-                rs.core_ref.borrow_mut().attributes = attributes;
-                try!(rs.parse_rows(no_of_rows, rdr));
-                Ok(None)
-            },
-        }
-    }
-
-
-    fn parse_rows(&mut self, no_of_rows: i32, rdr: &mut io::BufRead ) -> PrtResult<()> {
-        let no_of_cols = self.metadata.count();
-        debug!("resultset::parse_rows() reading {} lines with {} columns", no_of_rows, no_of_cols);
-
-        for r in 0..no_of_rows {
-            let mut row = Row{values: Vec::<TypedValue>::new()};
-            for c in 0..no_of_cols {
-                let field_md = self.metadata.fields.get(c as usize).unwrap();
-                let typecode = field_md.value_type;
-                let nullable = field_md.column_option.is_nullable();
-                trace!("Parsing row {}, column {}, typecode {}, nullable {}", r, c, typecode, nullable);
-                let value = try!(TypedValue::parse_from_reply(typecode, nullable, Some(&(self.core_ref)), rdr));
-                trace!("Found value {:?}", value);
-                row.values.push(value);
-            }
-            self.rows.push(row);
-        }
-        Ok(())
-    }
-
     pub fn get_fieldname(&self, field_idx: usize) -> Option<&String> {
         self.metadata.get_fieldname(field_idx)
     }
@@ -182,7 +95,7 @@ impl ResultSet {
         };
 
         // build the request, provide resultset id, define FetchSize
-        let command_options = 0; // FIXME not sure if this is OK
+        let command_options = 0;
         let mut request = try!(Request::new(&conn_ref, RequestType::FetchNext, true, command_options));
         request.push(Part::new(PartKind::ResultSetId, Argument::ResultSetId(resultset_id)));
         request.push(Part::new(PartKind::FetchSize, Argument::FetchSize(fetch_size)));
@@ -238,6 +151,116 @@ impl fmt::Display for Row {
         for value in &self.values {
             fmt::Display::fmt(&value, fmt).unwrap();         // write the value
             write!(fmt, ", ").unwrap();
+        }
+        Ok(())
+    }
+}
+
+
+pub mod factory {
+    use super::{ResultSet,ResultSetCore,Row};
+    use protocol::protocol_error::{PrtResult,prot_err};
+    use protocol::lowlevel::argument::Argument;
+    use protocol::lowlevel::conn_core::ConnRef;
+    use protocol::lowlevel::message::{Metadata,retrieve_first_part_of_kind};
+    use protocol::lowlevel::part::Part;
+    use protocol::lowlevel::part_attributes::PartAttributes;
+    use protocol::lowlevel::partkind::PartKind;
+    use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
+    use protocol::lowlevel::parts::typed_value::TypedValue;
+    use std::io;
+
+    pub fn new(conn_ref: Option<&ConnRef>, attrs: PartAttributes, rs_id: u64, rsm: ResultSetMetadata)
+    -> ResultSet {
+        ResultSet {
+            core_ref: ResultSetCore::new_rs_ref(conn_ref, attrs, rs_id),
+            metadata: rsm,
+            rows: Vec::<Row>::new(),
+        }
+    }
+
+    pub fn new_for_tests(rsm: ResultSetMetadata) -> ResultSet {
+        ResultSet {
+            core_ref: ResultSetCore::new_rs_ref(None, PartAttributes::new(0b_0000_0001), 0_u64),
+            metadata: rsm,
+            rows: Vec::<Row>::new(),
+        }
+    }
+
+    /// resultsets can be part of the response in three cases which differ especially in regard to metadata handling:
+    ///
+    /// a) a response to a plain "execute" will contain the metadata in one of the other parts;
+    ///    the metadata parameter will thus have the variant None
+    ///
+    /// b) a response to an "execute prepared" will only contain data;
+    ///    the metadata had beeen returned already to the "prepare" call
+    ///
+    /// c) a response to a "fetch more lines" is triggered from an older resultset which already has its metadata
+    pub fn parse( no_of_rows: i32,
+                  attributes: PartAttributes,
+                  parts: &mut Vec<Part>,
+                  o_conn_ref: Option<&ConnRef>,
+                  metadata: Metadata,
+                  o_rs: &mut Option<&mut ResultSet>,
+                  rdr: &mut io::BufRead )
+    -> PrtResult<Option<ResultSet>> {
+        match *o_rs {
+            mut None => {
+                // case a) or b)
+                // for first resultset packets, we create and return a new ResultSet object
+                // we expect to already have received a matching metadata part, a ResultSetId, and a StatementContext
+                let rs_metadata = {
+                    match retrieve_first_part_of_kind(PartKind::ResultSetMetadata, parts) {
+                        Ok(mdpart) => {
+                            match mdpart.arg {
+                                Argument::ResultSetMetadata(r) => r,
+                                _ => return Err(prot_err("Inconsistent metadata part found for ResultSet")),
+                            }
+                        },
+                        Err(e) => {
+                            if let Metadata::ResultSetMetadata(ref rsmd) = metadata {
+                                (*rsmd).clone()
+                            }
+                            else { return Err(e); }
+                        },
+                    }
+                };
+                let rs_id = {
+                    let rs_id_part = try!(retrieve_first_part_of_kind(PartKind::ResultSetId, parts));
+                    match rs_id_part.arg {
+                        Argument::ResultSetId(i) => i,
+                        _ => return Err(prot_err("Inconsistent ResultSetId part found for ResultSet")),
+                    }
+                };
+                let mut result = new(o_conn_ref, attributes, rs_id, rs_metadata);
+                try!(parse_rows(&mut result,no_of_rows,rdr));
+                Ok(Some(result))
+            },
+
+            Some(ref mut rs) => {
+                rs.core_ref.borrow_mut().attributes = attributes;
+                try!(parse_rows(rs,no_of_rows,rdr));
+                Ok(None)
+            },
+        }
+    }
+
+    fn parse_rows(resultset: &mut ResultSet, no_of_rows: i32, rdr: &mut io::BufRead ) -> PrtResult<()> {
+        let no_of_cols = resultset.metadata.count();
+        debug!("resultset::parse_rows() reading {} lines with {} columns", no_of_rows, no_of_cols);
+
+        for r in 0..no_of_rows {
+            let mut row = Row{values: Vec::<TypedValue>::new()};
+            for c in 0..no_of_cols {
+                let field_md = resultset.metadata.fields.get(c as usize).unwrap();
+                let typecode = field_md.value_type;
+                let nullable = field_md.column_option.is_nullable();
+                trace!("Parsing row {}, column {}, typecode {}, nullable {}", r, c, typecode, nullable);
+                let value = try!(TypedValue::parse_from_reply(typecode, nullable, Some(&(resultset.core_ref)), rdr));
+                trace!("Found value {:?}", value);
+                row.values.push(value);
+            }
+            resultset.rows.push(row);
         }
         Ok(())
     }

@@ -37,6 +37,30 @@ impl LongDate {
         }
     }
 
+    pub fn ymd(y: u32, m: u32, d: u32) -> Result<LongDate, &'static str> {
+        LongDate::ymd_hms(y,m,d,0,0,0)
+    }
+
+    pub fn ymd_hms(y: u32, m: u32, d: u32, hour: u32, minute: u32, second: u32) -> Result<LongDate, &'static str> {
+        if y < 1 || y > 9999 {
+            return Err("Only years between 1 and 9999 are supported");
+        }
+        if m < 1 || m > 12 {
+            return Err("Only months between 1 and 12 are supported");
+        }
+        if d < 1 || d > 31 {
+            return Err("Only days between 1 and 31 are supported");
+        }
+
+        Ok(LongDate(
+            to_day_number(y, m, d)*DAY_FACTOR
+            + hour   as i64 * HOUR_FACTOR
+            + minute as i64 * MINUTE_FACTOR
+            + second as i64 * SECOND_FACTOR
+            + 1
+        ))
+    }
+
     // see jdbc/translators/LongDateTranslator.java, getTimestamp()
     pub fn to_datetime_utc(&self) -> Option<DateTime<UTC>> {
         trace!("Entering to_datetime_utc()");

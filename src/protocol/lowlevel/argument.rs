@@ -15,6 +15,7 @@ use super::parts::output_parameters::OutputParameters;
 use super::parts::parameter_metadata::ParameterMetadata;
 use super::parts::read_lob_reply::ReadLobReply;
 use super::parts::resultset::ResultSet;
+use super::parts::resultset::factory as ResultSetFactory;
 use super::parts::resultset_metadata::ResultSetMetadata;
 use super::parts::rows_affected::VecRowsAffected;
 use super::parts::statement_context::StatementContext;
@@ -54,22 +55,22 @@ pub enum Argument {
 
 impl Argument {
     // only called on output (serialize)
-    pub fn count(&self) -> PrtResult<i16> { Ok(match *self {
+    pub fn count(&self) -> PrtResult<usize> { Ok(match *self {
         Argument::Auth(_) => 1,
         Argument::ClientInfo(ref client_info) => client_info.count(),
         Argument::Command(_) => 1,
-        // Argument::CommitOptions(ref opts) => opts.len() as i16,
-        Argument::ConnectOptions(ref opts) => opts.0.len() as i16,
-        Argument::Error(ref vec) => vec.len() as i16,
-        // Argument::FetchOptions(ref opts) => opts.len() as i16,
+        // Argument::CommitOptions(ref opts) => opts.len(),
+        Argument::ConnectOptions(ref opts) => opts.0.len(),
+        Argument::Error(ref vec) => vec.len(),
+        // Argument::FetchOptions(ref opts) => opts.len(),
         Argument::FetchSize(_) => 1,
-        Argument::Parameters(ref pars) => pars.count() as i16,
+        Argument::Parameters(ref pars) => pars.count(),
         Argument::ReadLobRequest(_,_,_) => 1,
         Argument::ResultSetId(_) => 1,
         Argument::StatementId(_) => 1,
         Argument::StatementContext(ref sc) => sc.count(),
         Argument::TopologyInformation(_) => 1,
-        Argument::TransactionFlags(ref opts) => opts.len() as i16,
+        Argument::TransactionFlags(ref opts) => opts.len(),
         ref a => {return Err(PrtError::ProtocolError(format!("Argument::count() called on {:?}", a)));},
     })}
 
@@ -239,7 +240,7 @@ impl Argument {
                 Argument::ReadLobReply(locator, is_last_data, data)
             },
             PartKind::ResultSet => {
-                let rs = try!(ResultSet::parse(no_of_args, attributes, parts, o_conn_ref, metadata, o_rs, rdr));
+                let rs = try!(ResultSetFactory::parse(no_of_args, attributes, parts, o_conn_ref, metadata, o_rs, rdr));
                 Argument::ResultSet(rs)
             },
             PartKind::ResultSetId => {
