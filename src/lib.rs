@@ -15,17 +15,21 @@ extern crate user;
 
 
 mod adhoc_statement;
-pub mod connection;
-pub mod db_response;
-pub mod dbc_error;
-pub mod prepared_statement;
+mod connection;
+mod db_response;
+mod dbc_error;
+mod prepared_statement;
 
-pub mod protocol;
-pub mod rs_serde;
+mod protocol;
+mod rs_serde;
+mod tests;
+
 pub mod types;
-
+pub mod test_utils;
 
 pub use connection::Connection;
-pub use db_response::DbResponses;
-pub use types::longdate::LongDate;
+pub use prepared_statement::PreparedStatement;
+pub use db_response::DbResponse;
+pub use protocol::lowlevel::parts::resultset::{ResultSet,Row};
+pub use protocol::lowlevel::parts::typed_value::TypedValue;
 pub use dbc_error::{DbcError,DbcResult};

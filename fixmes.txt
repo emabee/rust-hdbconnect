@@ -1,0 +1,33 @@
+src/protocol/lowlevel/argument.rs:40:    ReadLobRequest(u64,u64,i32),        // locator, offset, length      // FIXME should be a separate struct
+src/protocol/lowlevel/argument.rs:41:    ReadLobReply(u64,bool,Vec<u8>),     // locator, is_last_data, data  // FIXME should be a separate struct
+src/protocol/lowlevel/conn_core.rs:30:    pub server_connect_options: Vec<ConnectOption>, // FIXME transmute into explicit structure; see also jdbc\EngineFeatures.java
+src/protocol/lowlevel/message.rs:45:    ResultSetMetadata(&'a ResultSetMetadata),  // FIXME unused???
+src/protocol/lowlevel/message.rs:89:        let mut server_processing_time = 0;  // FIXME unused???
+src/protocol/lowlevel/message.rs:154:            // FIXME: 2 ReplyTypes that occur only in not yet implemented calls
+src/protocol/lowlevel/message.rs:158:            // FIXME: 4 ReplyTypes where it is unclear when they occur and what to return
+src/protocol/lowlevel/part.rs:17:    pub kind: PartKind,     // FIXME can we remove this?
+src/protocol/lowlevel/partkind.rs:10:    TransactionId,          // 11 // Transaction identifier // FIXME is missing
+src/protocol/lowlevel/partkind.rs:17:    CommandInfo,            // 27 // Command information // FIXME is missing
+src/protocol/lowlevel/partkind.rs:18:    WriteLobRequest,        // 28 // Request data of WRITELOB message // FIXME is missing
+src/protocol/lowlevel/partkind.rs:20:    WriteLobReply,          // 30 // Reply data of WRITELOB message // FIXME is missing
+src/protocol/lowlevel/partkind.rs:21:    Parameters,             // 32 // Parameter data  // FIXME is missing
+src/protocol/lowlevel/partkind.rs:23:    SessionContext,         // 34 // Session context information  // FIXME is missing
+src/protocol/lowlevel/partkind.rs:25:    PartitionInformation,   // 40 // Table partitioning information // FIXME is missing
+src/protocol/lowlevel/partkind.rs:33:    FindLobRequest,         // 49 // Request data of FINDLOB message // FIXME is missing
+src/protocol/lowlevel/partkind.rs:34:    FindLobReply,           // 50 // Reply data of FINDLOB message // FIXME is missing
+src/protocol/lowlevel/partkind.rs:37:    LobFlags,               // 68 // LOB flags // FIXME is missing
+src/protocol/lowlevel/parts/client_info.rs:40:    #[allow(dead_code)]// FIXME (see info.txt)
+src/protocol/lowlevel/parts/client_info.rs:51:#[allow(dead_code)]// FIXME (see info.txt)
+src/protocol/lowlevel/parts/lob.rs:46:    // FIXME should be sth like as_byte_stream()
+src/protocol/lowlevel/parts/lob.rs:158:    // FIXME implement sth like into_character_stream() with deferred chunk fetching
+src/protocol/lowlevel/parts/resultset.rs:57:    /// FIXME Should be replaced with a method get_rows() -> Iterator.
+src/protocol/lowlevel/parts/resultset.rs:144:    // FIXME implement DROP as send a request of type CLOSERESULTSET in case the resultset is not yet closed (RESULTSETCLOSED)
+src/protocol/lowlevel/parts/resultset.rs:287:            None => {/*cannot happen FIXME: make this more robust*/},
+src/protocol/lowlevel/parts/resultset_metadata.rs:83:    /// FIXME for large result sets, this method will be called very often - is caching meaningful?
+src/protocol/lowlevel/parts/typed_value.rs:306:            25 => Ok(TypedValue::CLOB(       try!(parse_clob_from_reply(conn_ref, rdr)) )),  // FIXME improve error handling
+src/protocol/lowlevel/parts/typed_value.rs:347:            153 => Ok(TypedValue::N_CLOB(       try!(parse_nullable_clob_from_reply(conn_ref, rdr)) )),  // FIXME improve error handling
+src/rs_serde/deserializer.rs:95:            if rs.metadata.fields.len() <= 1 {  //FIXME len = 0 should return an error
+src/rs_serde/serializer.rs:549:        while let Some(()) = try!(visitor.visit(self)) { }  // FIXME why do we need a loop here?
+src/rs_serde/serializer.rs:571:        value.serialize(self)  // FIXME
+src/rs_serde/serializer.rs:579:        while let Some(()) = try!(visitor.visit(self)) { }  // FIXME why do we need a loop here?
+tests/test_lobs.rs:102:    //let typed_result: ActiveObject = try!(resultset.into_typed()); // FIXME this should work, too, but we get a problem with the BLOB deserialization

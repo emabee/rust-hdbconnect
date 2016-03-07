@@ -1,22 +1,31 @@
 use adhoc_statement::AdhocStatement;
 use prepared_statement::PreparedStatement;
-use {DbcError,DbcResult,DbResponses};
+use prepared_statement::factory as PreparedStatementFactory;
+use {DbcError,DbcResult,DbResponse};
 
 use protocol::authenticate;
 use protocol::lowlevel::conn_core::{ConnectionCore, ConnRef};
 use protocol::lowlevel::init;
-use protocol::lowlevel::message::Request;
 use protocol::lowlevel::parts::resultset::ResultSet;
-use protocol::lowlevel::reply_type::ReplyType;
-use protocol::lowlevel::request_type::RequestType;
 
 use chrono::Local;
 use std::net::TcpStream;
 use std::ops::{Add};
+use std::fmt;
 
 const HOLD_OVER_COMMIT: u8 = 8;
 
 /// Connection object
+///
+/// This is the central starting point of hdbconnect.
+/// The typical pattern is:
+///
+/// ```ignore
+/// use hdbconnect::Connection;
+/// let mut connection = try!(Connection::new("mymachine", "30415"));
+/// try!(connection.authenticate_user_password("Annidda", "BF1äÖkn&nG"));
+
+/// ```
 #[derive(Debug)]
 pub struct Connection {
     host: String,
@@ -26,6 +35,7 @@ pub struct Connection {
     pub minor_product_version: i16,
     auto_commit: bool,
     command_options: u8,
+    acc_server_proc_time: i32,
     core: ConnRef,
 }
 impl Connection {
@@ -54,6 +64,7 @@ impl Connection {
             auto_commit: true,
             command_options: HOLD_OVER_COMMIT,
             core: conn_ref,
+            acc_server_proc_time: 0,
         })
     }
 
@@ -95,40 +106,45 @@ impl Connection {
     /// Executes a statement on the database
     ///
     /// This generic method can handle all kinds of calls, and thus has the most complex return type.
-    /// In many cases it will be more appropriate to use one of query(), dml(),
-    /// execute(), which have the simple result types you usually expect.
-    pub fn what_ever(&self, stmt: &str) -> DbcResult<DbResponses> {
+    /// In many cases it will be more appropriate to use one of query_statement(), dml_statement(),
+    /// exec_statement(), which have the simple result types you usually expect.
+    pub fn any_statement(&mut self, stmt: &str) -> DbcResult<DbResponse> {
         AdhocStatement::new(self.core.clone(), String::from(stmt), self.auto_commit)
-        .execute()
+        .exec_statement(&mut self.acc_server_proc_time)
     }
+
     /// Executes a statement and expects a single ResultSet
-    pub fn query(&self, stmt: &str) -> DbcResult<ResultSet> {
-        try!(self.what_ever(stmt)).as_resultset()
+    pub fn query_statement(&mut self, stmt: &str) -> DbcResult<ResultSet> {
+        try!(self.any_statement(stmt)).as_resultset()
     }
     /// Executes a statement and expects a single number of affected rows
-    pub fn dml(&self, stmt: &str) -> DbcResult<usize> {
-        try!(self.what_ever(stmt)).as_row_count()
+    pub fn dml_statement(&mut self, stmt: &str) -> DbcResult<usize> {
+        let vec = &(try!(try!(self.any_statement(stmt)).as_affected_rows()));
+        match vec.len() {
+            1 => Ok(vec.get(0).unwrap().clone()),
+            _ => Err(DbcError::UsageError("number of affected-rows-counts <> 1")),
+        }
     }
     /// Executes a statement and expects a plain success
-    pub fn execute(&self, stmt: &str) -> DbcResult<()> {
-        try!(self.what_ever(stmt)).as_success()
+    pub fn exec_statement(&mut self, stmt: &str) -> DbcResult<()> {
+        try!(self.any_statement(stmt)).as_success()
     }
 
     /// Prepares a statement
     pub fn prepare(&self, stmt: &str) -> DbcResult<PreparedStatement> {
-        let stmt = try!(PreparedStatement::prepare(self.core.clone(), String::from(stmt), self.auto_commit));
+        let stmt = try!(PreparedStatementFactory::prepare(self.core.clone(), String::from(stmt), self.auto_commit));
         debug!("PreparedStatement created with auto_commit = {}", stmt.auto_commit);
         Ok(stmt)
     }
 
     // Commits the current transaction
-    pub fn commit(&self) -> DbcResult<()> {
-        try!(self.what_ever("commit")).as_success()
+    pub fn commit(&mut self) -> DbcResult<()> {
+        try!(self.any_statement("commit")).as_success()
     }
 
     // Rolls back the current transaction
-    pub fn rollback(&self) -> DbcResult<()> {
-        try!(self.what_ever("rollback")).as_success()
+    pub fn rollback(&mut self) -> DbcResult<()> {
+        try!(self.any_statement("rollback")).as_success()
     }
 
     /// Creates a new connection object with the same settings and authentication
@@ -152,19 +168,13 @@ impl Connection {
     }
 }
 
-impl Drop for Connection {
-    fn drop(&mut self) {
-        trace!("Entering Connection.drop()");
-        match Request::new( &(self.core), RequestType::Disconnect, false, 0) {
-            Ok(mut request) => {request.send_and_receive(&(self.core), Some(ReplyType::Disconnect)).ok();},
-            Err(_) => {},
-        };
-        self.core.borrow_mut().session_id = 0;
-    }
-}
-
-#[derive(Debug)]  // FIXME we should implement this explicitly and avoid printing out sensitive data
 struct Credentials {
     username: String,
     password: String,
+}
+impl fmt::Debug for Credentials {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(fmt, "username: {}, password: <not printed>",self.username).unwrap();
+        Ok(())
+    }
 }

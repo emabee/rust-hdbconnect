@@ -3,9 +3,9 @@ use super::lob::{BLOB,CLOB,
                  parse_blob_from_reply,parse_nullable_blob_from_reply,
                  parse_clob_from_reply,parse_nullable_clob_from_reply,
                  parse_blob_from_request,parse_clob_from_request};
-use super::resultset::{RsRef};
+use protocol::lowlevel::conn_core::ConnRef;
 use super::type_id::*;
-use types::longdate::LongDate;
+use types::LongDate;
 
 use byteorder::{LittleEndian,ReadBytesExt,WriteBytesExt};
 use std::{i16,u32,u64};
@@ -281,7 +281,7 @@ impl TypedValue {
         // TypedValue::N_SECONDTIME(_)      => TYPEID_N_SECONDTIME,
     }}
 
-    pub fn parse_from_reply(p_typecode: u8, nullable: bool, rs_ref: Option<&RsRef>, rdr: &mut io::BufRead)
+    pub fn parse_from_reply(p_typecode: u8, nullable: bool, conn_ref: &ConnRef, rdr: &mut io::BufRead)
     -> PrtResult<TypedValue> {
         // here p_typecode is always < 127
         // the flag nullable from the metadata governs our behavior:
@@ -303,9 +303,9 @@ impl TypedValue {
             12 => Ok(TypedValue::BINARY(     try!(parse_length_and_binary(rdr)) )),
             13 => Ok(TypedValue::VARBINARY(  try!(parse_length_and_binary(rdr)) )),
          // 16 => Ok(TypedValue::TIMESTAMP(
-            25 => Ok(TypedValue::CLOB(       try!(parse_clob_from_reply(rs_ref.unwrap(), rdr)) )),  // FIXME improve error handling
-            26 => Ok(TypedValue::NCLOB(      try!(parse_clob_from_reply(rs_ref.unwrap(), rdr)) )),
-            27 => Ok(TypedValue::BLOB(       try!(parse_blob_from_reply(rs_ref.unwrap(), rdr)) )),
+            25 => Ok(TypedValue::CLOB(       try!(parse_clob_from_reply(conn_ref, rdr)) )),  // FIXME improve error handling
+            26 => Ok(TypedValue::NCLOB(      try!(parse_clob_from_reply(conn_ref, rdr)) )),
+            27 => Ok(TypedValue::BLOB(       try!(parse_blob_from_reply(conn_ref, rdr)) )),
             28 => Ok(TypedValue::BOOLEAN(    try!(rdr.read_u8()) > 0 )),
             29 => Ok(TypedValue::STRING(     try!(parse_length_and_string(rdr)) )),
             30 => Ok(TypedValue::NSTRING(    try!(parse_length_and_string(rdr)) )),
@@ -344,9 +344,9 @@ impl TypedValue {
             140 => Ok(TypedValue::N_BINARY(     try!(parse_nullable_length_and_binary(rdr)) )),
             141 => Ok(TypedValue::N_VARBINARY(  try!(parse_nullable_length_and_binary(rdr)) )),
          // 144 => Ok(TypedValue::N_TIMESTAMP(
-            153 => Ok(TypedValue::N_CLOB(       try!(parse_nullable_clob_from_reply(rs_ref.unwrap(), rdr)) )),  // FIXME improve error handling
-            154 => Ok(TypedValue::N_NCLOB(      try!(parse_nullable_clob_from_reply(rs_ref.unwrap(), rdr)) )),
-            155 => Ok(TypedValue::N_BLOB(       try!(parse_nullable_blob_from_reply(rs_ref.unwrap(), rdr)) )),
+            153 => Ok(TypedValue::N_CLOB(       try!(parse_nullable_clob_from_reply(conn_ref, rdr)) )),  // FIXME improve error handling
+            154 => Ok(TypedValue::N_NCLOB(      try!(parse_nullable_clob_from_reply(conn_ref, rdr)) )),
+            155 => Ok(TypedValue::N_BLOB(       try!(parse_nullable_blob_from_reply(conn_ref, rdr)) )),
             156 => Ok(TypedValue::N_BOOLEAN(match try!(ind_null(rdr)) {
                                 true  => None,
                                 false => Some(try!(rdr.read_u8()) > 0),
@@ -368,6 +368,7 @@ impl TypedValue {
 
 
     /// this is "only" needed for read_wire
+    #[allow(dead_code)]
     pub fn parse_from_request(rdr: &mut io::BufRead) -> PrtResult<TypedValue> {
         let typecode = try!(rdr.read_u8());
         trace!("parse_from_request(): typecode = {}",typecode);

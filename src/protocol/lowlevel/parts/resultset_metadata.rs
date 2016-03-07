@@ -15,7 +15,8 @@ pub struct ResultSetMetadata {
     pub names: VecMap<String>,
 }
 impl ResultSetMetadata {
-    pub fn new() -> ResultSetMetadata {
+    #[allow(dead_code)]
+    pub fn new_for_tests() -> ResultSetMetadata {
         ResultSetMetadata {
             fields: Vec::<FieldMetadata>::new(),
             names: VecMap::<String>::new(),
@@ -76,14 +77,6 @@ impl ResultSetMetadata {
 
     pub fn count(&self) -> i16 {
         self.fields.len() as i16
-    }
-
-    pub fn size(&self) -> usize {
-        let mut size = self.fields.len() * 22;
-        for name in self.names.values() {
-            size += 1 + name.len();
-        }
-        size
     }
 
     /// TODO is it OK that we ignore here the column_name?

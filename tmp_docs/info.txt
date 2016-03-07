@@ -1,6 +1,17 @@
 TODO
+- evaluation of StatementContext
+    add method to conn_core to digest a StatementContext
+    add distinct accumulated_server_processing_times to
+        - connection
+        - prepared_statement
+        - resultset
+        - lob
 
-- move ResultSet::new, new_for_tests, and parse, into a factory namespace, to avoid exposing them
+
+- DbProcedureCallWithResult should look for (ResultSetMetadata, ResultSetId) and create an empty ResultSet for these
+
+- Procedure support
+
 - data types
     - newdb/orange/Interfaces/SQLDBC/impl/LongdateTranslator.cpp
     - newdb/orange/Interfaces/SQLDBC/impl/SeconddateTranslator.cpp
@@ -46,7 +57,7 @@ Revise the API model
 - ResultSet
     - into_typed()
     - iterator() //? or whatever is needed to write sth like
-        "for row in &try!(conn.query("SELECT bar, baz FROM foo WHERE buz = $1", &[&1i32])) {"
+        "for row in &try!(conn.query_statement("SELECT bar, baz FROM foo WHERE buz = $1", &[&1i32])) {"
 - Row
     - into_typed()
     - field_into_typed<usize>(i: usize) // index, starting with 0

@@ -1,10 +1,13 @@
 use protocol::protocol_error::{PrtResult,prot_err};
+use protocol::lowlevel::message::{Message,Metadata,MsgType,Request,parse_message_and_sequence_header};
+use protocol::lowlevel::part::Part;
 use protocol::lowlevel::parts::connect_option::ConnectOption;
 use protocol::lowlevel::parts::option_value::OptionValue;
 use protocol::lowlevel::parts::topology_attribute::TopologyAttr;
 use protocol::lowlevel::parts::transactionflags::{TransactionFlag,TaFlagId};
 
 use std::cell::RefCell;
+use std::io;
 use std::net::TcpStream;
 use std::rc::Rc;
 
@@ -15,6 +18,7 @@ pub const DEFAULT_LOB_READ_LENGTH: i32 = 1_000_000;
 
 #[derive(Debug)]
 pub struct ConnectionCore {
+    pub is_authenticated: bool,
     pub session_id: i64,
     seq_number: i32,
     fetch_size: u32,
@@ -28,6 +32,7 @@ pub struct ConnectionCore {
 impl ConnectionCore {
     pub fn new_conn_ref(stream: TcpStream) -> ConnRef{
         Rc::new(RefCell::new(ConnectionCore{
+            is_authenticated: false,
             session_id: 0,
             seq_number: 0,
             fetch_size: DEFAULT_FETCH_SIZE,
@@ -83,6 +88,42 @@ impl ConnectionCore {
             (id,value) => warn!("unexpected transaction flag received: {:?} = {:?}",id, value),
         };
         Ok(())
+    }
+}
+
+impl Drop for ConnectionCore {
+    // try to send a disconnect to the database, ignore all errors
+    fn drop(&mut self) {
+        trace!("Drop of ConnectionCore, session_id = {}",self.session_id);
+        if self.is_authenticated {
+            let request = Request::new_for_disconnect();
+            match request.serialize_impl(self.session_id, self.next_seq_number(), &mut self.stream) {
+                Ok(()) => {
+                    trace!("Disconnect: request successfully sent");
+                    let mut rdr = io::BufReader::new(&mut self.stream);
+                    match parse_message_and_sequence_header(&mut rdr) {
+                        Ok((no_of_parts, msg)) => {
+                            trace!("Disconnect: response header successfully parsed, now parsing {} parts", no_of_parts);
+                            match msg {
+                                Message::Reply(mut msg) => {
+                                    for _ in 0..no_of_parts {
+                                        Part::parse(
+                                            MsgType::Reply, &mut (msg.parts), None, Metadata::None, &mut None, &mut rdr
+                                        ).ok();
+                                    }
+                                }
+                                _ => {},
+                            }
+                        },
+                        _ => {},
+                    }
+                    trace!("Disconnect: response successfully parsed");
+                }
+                Err(e) => {
+                    trace!("Disconnect request failed with {:?}",e);
+                }
+            }
+        }
     }
 }
 

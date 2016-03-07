@@ -14,67 +14,59 @@ use serde::bytes::ByteBuf;
 use std::error::Error;
 use hdbconnect::Connection;
 use hdbconnect::DbcResult;
-use hdbconnect::LongDate;
+use hdbconnect::types::LongDate;
 
+
+// cargo test test_connect -- --nocapture
 #[test]
-pub fn init() {
-    use flexi_logger::{LogConfig,detailed_format};
+pub fn test_connect(){
+    use flexi_logger::LogConfig;
+    // hdbconnect::protocol::lowlevel::resultset=debug,\
     flexi_logger::init(LogConfig {
-            log_to_file: true,
-            format: detailed_format,
+            log_to_file: false,
             .. LogConfig::new() },
-            Some("trace".to_string())).unwrap();
+            Some("info,\
+            ".to_string())).unwrap();
+
+    connect_successfully();
+    connect_wrong_password();
+    connect_and_select();
 }
 
-// cargo test connect_successfully -- --nocapture
-#[test]
-pub fn connect_successfully() {
+fn connect_successfully() {
+    info!("test a successful connection");
     Connection::new("wdfd00245307a", "30415").unwrap()
-    .authenticate_user_password("SYSTEM", "manager").ok();
+    .authenticate_user_password("SYSTEM", "manager").unwrap();
 }
 
-#[test]
-pub fn connect_wrong_password() {
-    // use flexi_logger::LogConfig;
-    // flexi_logger::init(LogConfig::new(),Some("trace".to_string())).unwrap();
-
+fn connect_wrong_password() {
+    info!("test connect failure on wrong credentials");
     let start = Local::now();
     let (host, port, user, password) = ("wdfd00245307a", "30415", "SYSTEM", "wrong_password");
-    let mut connection: Connection = Connection::new(host, port).unwrap();
+    let mut connection = Connection::new(host, port).unwrap();
     let err = connection.authenticate_user_password(user, password).err().unwrap();
-    info!("connect as user \"{}\" with wrong password failed at {}:{} after {} µs with {}.",
+    info!("connect as user \"{}\" with wrong password failed as expected, at {}:{} after {} µs with {}.",
           user, host, port, (Local::now() - start).num_microseconds().unwrap(), err.description() );
 }
 
-// cargo test connect_and_select -- --nocapture
-#[test]
-pub fn connect_and_select() {
-    // use flexi_logger::{LogConfig,detailed_format};
-    // // hdbconnect::protocol::lowlevel::resultset::deserialize=info,\
-    //         // hdbconnect::protocol::lowlevel::resultset=debug,\
-    // flexi_logger::init(LogConfig {
-    //         log_to_file: true,
-    //         format: detailed_format,
-    //         .. LogConfig::new() },
-    //         Some("trace,\
-    //         hdbconnect::protocol::lowlevel::message=debug,\
-    //         ".to_string())).unwrap();
-
+fn connect_and_select() {
+    info!("test a successful connection and do some simple selects");
     match impl_connect_and_select() {
         Err(e) => {error!("connect_and_select() failed with {:?}",e); assert!(false)},
-        Ok(()) => {info!("connect_and_select() ended successful")},
+        Ok(i) => {info!("connect_and_select(): {} calls to DB were executed", i)},
     }
 }
 
-fn impl_connect_and_select() -> DbcResult<()> {
-    let mut connection = try!(hdbconnect::Connection::new("wdfd00245307a", "30415"));
-    debug!("calling connection.authenticate_user_password()");
+fn impl_connect_and_select() -> DbcResult<i32> {
+    let mut connection = try!(Connection::new("wdfd00245307a", "30415"));
     try!(connection.authenticate_user_password("SYSTEM", "manager"));
     connection.set_fetch_size(1024);
+
     try!(impl_select_version_and_user(&mut connection));
+
     try!(impl_select_many_active_objects(&mut connection));
-    info!("{} calls to DB were executed", connection.get_call_count());
-    Ok(())
+
+    Ok(connection.get_call_count())
 }
 
 fn impl_select_version_and_user(connection: &mut Connection) -> DbcResult<()> {
@@ -85,8 +77,8 @@ fn impl_select_version_and_user(connection: &mut Connection) -> DbcResult<()> {
     }
 
     let stmt = "SELECT VERSION as \"version\", CURRENT_USER as \"current_user\" FROM SYS.M_DATABASE";
-    debug!("calling connection.query(stmt)");
-    let resultset = try!(connection.query(stmt));
+    debug!("calling connection.query_statement(stmt)");
+    let resultset = try!(connection.query_statement(stmt));
     let typed_result: Vec<VersionAndUser> = try!(resultset.into_typed());
 
     assert_eq!(typed_result.len()>0, true);
@@ -146,13 +138,11 @@ fn impl_select_many_active_objects(connection: &mut Connection) -> DbcResult<usi
                 RELEASED_AT as \"released_at\" \
                  from _SYS_REPO.ACTIVE_OBJECT", top_n);
 
-    debug!("calling connection.query(\"select top ... from active_object \")");
-    let resultset = try!(connection.query(&stmt));
+    debug!("calling connection.query_statement(\"select top ... from active_object \")");
+    let resultset = try!(connection.query_statement(&stmt));
     debug!("ResultSet: {:?}", resultset);
 
-    for t in resultset.server_processing_times() {
-        debug!("Server processing time: {} µs", t);
-    }
+    debug!("Server processing time: {} µs", resultset.accumulated_server_processing_time());
 
     let typed_result: Vec<ActiveObject> = try!(resultset.into_typed());
     debug!("Typed Result: {:?}", typed_result);

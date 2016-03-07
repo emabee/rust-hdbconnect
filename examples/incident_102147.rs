@@ -14,7 +14,7 @@ extern crate serde;
 
 use hdbconnect::Connection;
 use hdbconnect::DbcResult;
-use hdbconnect::LongDate;
+use hdbconnect::types::LongDate;
 
 
 // cargo run --example incident_102147 -- --nocapture
@@ -65,8 +65,8 @@ fn do_test_1(connection: &mut Connection) -> DbcResult<()> {
     // plain prepare & execute
     let stmt1 = "select * from hanae2e_ws2.hist_12 as of UTCTIMESTAMP '2015-12-07 07:50:00'";
     let stmt2 = "select * from hanae2e_ws2.hist_12 as of UTCTIMESTAMP '2015-12-08 09:57:22'";
-    let result1 = try!(connection.query(stmt1));
-    let result2 = try!(connection.query(stmt2));
+    let result1 = try!(connection.query_statement(stmt1));
+    let result2 = try!(connection.query_statement(stmt2));
     info!("Result1: {} rows", result1.rows.len());
     info!("Result2: {} rows", result2.rows.len());
     Ok(())

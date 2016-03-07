@@ -27,7 +27,7 @@ impl ClientInfo {
         self.0.len()
     }
 
-    pub fn parse(no_of_args: i32, rdr: &mut BufRead) -> PrtResult<ClientInfo> {
+    pub fn parse_from_request(no_of_args: i32, rdr: &mut BufRead) -> PrtResult<ClientInfo> {
         let mut map = HashMap::new();
         for _ in 0..no_of_args {
             let key = try!(parse_length_and_string(rdr));
@@ -37,6 +37,7 @@ impl ClientInfo {
         Ok(ClientInfo(map))
     }
 
+    #[allow(dead_code)]// FIXME (see info.txt)
     pub fn set(&mut self, key: ClientInfoKey, value: String) {
         match key {
             ClientInfoKey::Application          => self.0.insert(String::from("APPLICATION"),value),
@@ -47,6 +48,7 @@ impl ClientInfo {
     }
 }
 
+#[allow(dead_code)]// FIXME (see info.txt)
 pub enum ClientInfoKey {
     Application,
     ApplicationVersion,

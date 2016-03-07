@@ -19,31 +19,31 @@ impl OutputParameters {
         }
     }
 
-    pub fn parse( metadata: Metadata, rdr: &mut io::BufRead )
-    -> PrtResult<OutputParameters> {
-        trace!("OutputParameters::parse()");
-        if let Metadata::ParameterMetadata(ref par_md) = metadata {
-            let mut output_pars = OutputParameters::new();
-
-            for descriptor in &(par_md.descriptors) {
-                match descriptor.mode {
-                    ParMode::INOUT | ParMode::OUT => {
-                        let typecode = descriptor.value_type;
-                        let nullable = descriptor.option.is_nullable();
-                        trace!("Parsing value with typecode {}, nullable {}", typecode, nullable);
-                        let value = try!(TypedValue::parse_from_reply(typecode, nullable, None, rdr));
-                        trace!("Found value {:?}", value);
-                        output_pars.metadata.push(descriptor.clone());
-                        output_pars.values.push(value);
-                    },
-                    _ => {},
-                }
-            }
-            Ok(output_pars)
-        } else {
-            Err(prot_err("Cannot parse output parameters without metdata"))
-        }
-    }
+    // pub fn parse( metadata: Metadata, rdr: &mut io::BufRead )
+    // -> PrtResult<OutputParameters> {
+    //     trace!("OutputParameters::parse()");
+    //     if let Metadata::ParameterMetadata(ref par_md) = metadata {
+    //         let mut output_pars = OutputParameters::new();
+    //
+    //         for descriptor in &(par_md.descriptors) {
+    //             match descriptor.mode {
+    //                 ParMode::INOUT | ParMode::OUT => {
+    //                     let typecode = descriptor.value_type;
+    //                     let nullable = descriptor.option.is_nullable();
+    //                     trace!("Parsing value with typecode {}, nullable {}", typecode, nullable);
+    //                     let value = try!(TypedValue::parse_from_reply(typecode, nullable, &None, rdr));
+    //                     trace!("Found value {:?}", value);
+    //                     output_pars.metadata.push(descriptor.clone());
+    //                     output_pars.values.push(value);
+    //                 },
+    //                 _ => {},
+    //             }
+    //         }
+    //         Ok(output_pars)
+    //     } else {
+    //         Err(prot_err("Cannot parse output parameters without metdata"))
+    //     }
+    // }
 
 
     // pub fn get_fieldname(&self, field_idx: usize) -> Option<&String> {

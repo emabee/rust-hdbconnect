@@ -7,53 +7,46 @@ extern crate log;
 extern crate flexi_logger;
 extern crate hdbconnect;
 extern crate serde;
-// extern crate vec_map;
 
 // use chrono::Local;
 // use std::error::Error;
 
 use hdbconnect::Connection;
 use hdbconnect::DbcResult;
-use hdbconnect::LongDate;
-
+use hdbconnect::types::LongDate;
+use hdbconnect::test_utils;
 
 
 // cargo test test_prepare -- --nocapture
 #[test]
 pub fn test_prepare() {
-
-    use flexi_logger::{LogConfig,detailed_format};
-    // hdbconnect::protocol::lowlevel::resultset=trace,\
-    // hdbconnect::protocol::lowlevel::part=debug,\
-    // hdbconnect::protocol::callable_statement=trace,\
-    //hdbconnect::protocol::lowlevel::resultset::deserialize=info,\
+    use flexi_logger::LogConfig;
+    // hdbconnect::protocol::lowlevel::resultset=debug,\
     flexi_logger::init(LogConfig {
-            log_to_file: true,
-            format: detailed_format,
+            log_to_file: false,
             .. LogConfig::new() },
-            Some("trace,\
-                 ".to_string())).unwrap();
+            Some("info,\
+            ".to_string())).unwrap();
 
     match test_impl() {
         Err(e) => {error!("test_prepare() failed with {:?}",e); assert!(false)},
-        Ok(_) => {info!("test_prepare() ended successful")},
+        Ok(i) => {info!("{} calls to DB were executed", i)},
     }
 }
 
-fn test_impl() -> DbcResult<()> {
+fn test_impl() -> DbcResult<i32> {
     let mut connection = try!(hdbconnect::Connection::new("wdfd00245307a", "30415"));
     connection.authenticate_user_password("SYSTEM", "manager").ok();
 
-    try!(prepare_statement(&mut connection));
+    try!(prepare_any_statement(&mut connection));
 
-    info!("{} calls to DB were executed", connection.get_call_count());
-    Ok(())
+    Ok(connection.get_call_count())
 }
 
-fn prepare_statement(connection: &mut Connection) -> DbcResult<()> {
+fn prepare_any_statement(connection: &mut Connection) -> DbcResult<()> {
     info!("test statement preparation");
-    clean(connection, vec!("drop table TEST_PREPARE")).unwrap();
-    try!(prepare(connection, vec!(
+    test_utils::statement_ignore_err(connection, vec!("drop table TEST_PREPARE"));
+    try!(test_utils::multiple_statements(connection, vec!(
         "create table TEST_PREPARE (F_S NVARCHAR(20), F_I INT, F_D LONGDATE)",
         "insert into TEST_PREPARE (F_S) values('hello')",
         "insert into TEST_PREPARE (F_I) values(17)",
@@ -107,7 +100,7 @@ fn prepare_statement(connection: &mut Connection) -> DbcResult<()> {
     try!(connection.commit());
 
     // plain prepare & execute on second connection
-    let connection3 = try!(connection.spawn());
+    let mut connection3 = try!(connection.spawn());
     let mut insert_stmt3 = try!(connection3.prepare("insert into TEST_PREPARE (F_S, F_I) values(?, ?)"));
     try!(insert_stmt3.add_batch( &WriteStruct{F_S: "conn3-auto1", F_I: 45_i32} ));
     try!(insert_stmt3.add_batch( &WriteStruct{F_S: "conn3-auto2", F_I: 46_i32} ));
@@ -116,28 +109,10 @@ fn prepare_statement(connection: &mut Connection) -> DbcResult<()> {
     try!(connection3.rollback());
 
 
-    let resultset = try!(connection.query("select * from TEST_PREPARE"));
+    let resultset = try!(connection.query_statement("select * from TEST_PREPARE"));
     let typed_result: Vec<TestStruct> = try!(resultset.into_typed());
 
     debug!("Typed Result: {:?}", typed_result);
     assert_eq!(typed_result.len(),12);
-    Ok(())
-}
-
-
-fn clean(connection: &mut Connection, clean: Vec<&str>) -> DbcResult<()> {
-    for s in clean {
-        match connection.execute(s) {
-            Ok(_) => {},
-            Err(_) => {},
-        }
-    }
-    Ok(())
-}
-
-fn prepare(connection: &mut Connection, prep: Vec<&str>) -> DbcResult<()> {
-    for s in prep {
-        try!(connection.execute(s));
-    }
     Ok(())
 }

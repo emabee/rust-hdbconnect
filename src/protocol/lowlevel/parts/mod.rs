@@ -3,9 +3,7 @@ pub use protocol::lowlevel::util;
 
 pub mod authfield;
 pub mod client_info;
-pub mod commit_option;
 pub mod connect_option;
-pub mod fetch_option;
 pub mod hdberror;
 pub mod lob;
 pub mod option_value;

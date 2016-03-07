@@ -1,2 +1,5 @@
-pub mod longdate;
-pub mod seconddate;
+mod longdate;
+mod seconddate;
+
+pub use self::longdate::LongDate;
+pub use self::seconddate::SecondDate;

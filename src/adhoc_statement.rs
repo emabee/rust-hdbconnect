@@ -1,4 +1,4 @@
-use {DbcResult,DbResponses};
+use {DbcResult,DbResponse};
 use protocol::lowlevel::conn_core::ConnRef;
 use protocol::lowlevel::argument::Argument;
 use protocol::lowlevel::message::{Request,Metadata};
@@ -19,8 +19,8 @@ impl AdhocStatement {
 }
 
 impl AdhocStatement {
-    pub fn execute(&self) -> DbcResult<DbResponses> {
-        trace!("AdhocStatement::execute({})",self.stmt);
+    pub fn exec_statement(&self, acc_server_proc_time: &mut i32) -> DbcResult<DbResponse> {
+        debug!("AdhocStatement::exec_statement({})",self.stmt);
         // build the request
         let command_options = 0b_1000;
         let mut request = try!(Request::new(&(self.conn_ref), RequestType::ExecuteDirect, self.auto_commit, command_options));
@@ -29,6 +29,6 @@ impl AdhocStatement {
         request.push(Part::new(PartKind::Command, Argument::Command(self.stmt.clone())));
 
         // send it
-        request.send_and_get_response(Metadata::None, &(self.conn_ref), None)
+        request.send_and_get_response(Metadata::None, &(self.conn_ref), None, acc_server_proc_time)
     }
 }

@@ -1,4 +1,4 @@
-use LongDate;
+use types::LongDate;
 use protocol::lowlevel::parts::parameter_metadata::{ParameterDescriptor,ParameterMetadata,ParMode};
 use protocol::lowlevel::parts::parameters::ParameterRow;
 use protocol::lowlevel::parts::type_id::*;

@@ -1,23 +1,27 @@
 //! Since there is obviously no usecase for multiple segments in one request, we model message and segment together.
 //! But we differentiate explicitly between request messages and reply messages.
-use {DbcError,DbcResult,DbResponses};
+use {DbcError,DbcResult,DbResponse};
 use db_response::factory as DbResponseFactory;
+use db_response::factory::InternalReturnValue;
 use super::{PrtError,PrtResult,prot_err};
 use super::conn_core::ConnRef;
 use super::argument::Argument;
 use super::reply_type::ReplyType;
 use super::request_type::RequestType;
-use super::part::Part;
+use super::part::{Part,Parts};
+use super::part_attributes::PartAttributes;
 use super::partkind::PartKind;
 use super::parts::resultset::ResultSet;
 use super::parts::option_value::OptionValue;
 use super::parts::parameter_metadata::ParameterMetadata;
 use super::parts::resultset_metadata::ResultSetMetadata;
 use super::parts::statement_context::StatementContext;
+use super::parts::resultset::factory as ResultSetFactory;
 
 use byteorder::{LittleEndian,ReadBytesExt,WriteBytesExt};
 use chrono::Local;
 use std::io::{self,BufRead};
+use std::net::TcpStream;
 
 const BUFFER_SIZE: u32 = 130000;
 const MESSAGE_HEADER_SIZE: u32 = 32;
@@ -25,7 +29,7 @@ const SEGMENT_HEADER_SIZE: usize = 24; // same for in and out
 
 #[derive(Debug)]
 pub enum MsgType {
-    Request,
+    //Request,              // only required for read_wire
     Reply,
 }
 
@@ -37,7 +41,7 @@ pub enum Message {
 
 #[derive(Clone)]
 pub enum Metadata<'a> {
-    ResultSetMetadata(&'a ResultSetMetadata),
+    ResultSetMetadata(&'a ResultSetMetadata),  // FIXME unused???
     ParameterMetadata(&'a ParameterMetadata),
     None
 }
@@ -48,7 +52,7 @@ pub struct Request {
     pub request_type: RequestType,
     pub auto_commit: bool,
     pub command_options: u8,
-    pub parts: Vec<Part>,
+    pub parts: Parts,
 }
 impl Request {
     pub fn new(conn_ref: &ConnRef,request_type: RequestType, auto_commit: bool, command_options: u8)
@@ -57,51 +61,103 @@ impl Request {
                         request_type: request_type,
                         auto_commit: auto_commit,
                         command_options: command_options,
-                        parts: Vec::<Part>::new(),
+                        parts: Parts::new(),
         };
-        match &request.request_type {
-            &RequestType::Disconnect => {},
-            _ => {
-                try!(request.add_ssi(conn_ref));
-            }
-        }
+        try!(request.add_ssi(conn_ref));
         Ok(request)
+    }
+
+    pub fn new_for_disconnect() -> Request {
+        Request {
+            request_type: RequestType::Disconnect,
+            auto_commit: false,
+            command_options: 0,
+            parts: Parts::new(),
+        }
     }
 
     pub fn send_and_get_response(&mut self,
                                     metadata: Metadata,
                                     conn_ref: &ConnRef,
-                                    expected_fc: Option<ReplyType>)
-    -> DbcResult<DbResponses> {
+                                    expected_fc: Option<ReplyType>,
+                                    acc_server_proc_time: &mut i32)
+    -> DbcResult<DbResponse> {
         let mut reply = try!(self.send_and_receive_detailed(metadata, &mut None, conn_ref, expected_fc));
 
+        // digest parts, collect InternalReturnValues
+        let mut int_return_values = Vec::<InternalReturnValue>::new();
+        reply.parts.0.reverse(); //digest the last part first
+        while let Some(part) = reply.parts.0.pop() {
+            debug!("digesting a part of kind {:?}",part.kind);
+            match part.arg {
+                Argument::RowsAffected(vra) => {
+                    int_return_values.push(InternalReturnValue::AffectedRows(vra));
+                },
+                Argument::StatementContext(stmt_ctx) => {
+                    trace!("Received StatementContext with sequence_info = {:?}",stmt_ctx.statement_sequence_info);
+                    conn_ref.borrow_mut().ssi = stmt_ctx.statement_sequence_info;
+                    *acc_server_proc_time += match stmt_ctx.server_processing_time {
+                        Some(OptionValue::INT(i)) => i,
+                        _ => 0,
+                    };
+                },
+                Argument::TransactionFlags(vec) => {
+                    for ta_flag in vec {
+                        try!(conn_ref.borrow_mut().set_transaction_state(ta_flag));
+                    }
+                },
+                Argument::ResultSet(Some(rs)) => {
+                    int_return_values.push(InternalReturnValue::ResultSet(rs));
+                },
+                Argument::ResultSetMetadata(rsm) => {
+                    match reply.parts.0.pop() {
+                        Some(part) => {
+                            match part.arg {
+                                Argument::ResultSetId(rs_id) => {
+                                    let rs = ResultSetFactory::resultset_new(
+                                        Some(conn_ref), PartAttributes::new(0b_0000_0100), rs_id, rsm, None,
+                                    );
+                                    int_return_values.push(InternalReturnValue::ResultSet(rs));
+                                },
+                                _ => panic!("wrong Argument variant: ResultSetID expected"),
+                            }
+                        },
+                        _ => panic!("Missing required part ResultSetID"),
+                    }
+                }
+                _ => warn!("send_and_get_response: found unexpected part of kind {:?}",part.kind),
+            }
+        }
+
+        // re-pack InternalReturnValues into appropriate DbResponse
+        debug!("Building DbResponse for a reply of type {:?}",reply.type_);
+        trace!("The found InternalReturnValue are: {:?}",int_return_values);
         match reply.type_ {
-            ReplyType::Select => {
-                let part = try!(reply.retrieve_first_part_of_kind(PartKind::ResultSet));
-                match part.arg {
-                    Argument::ResultSet(Some(resultset)) => Ok(DbResponseFactory::from_resultset(resultset)),
-                    _ => Err(DbcError::EvaluationError("No ResultSet")),
-                }
-            },
+            ReplyType::Select => DbResponseFactory::resultset(int_return_values),
 
-            ReplyType::Ddl | ReplyType::Commit | ReplyType::Rollback |
-            ReplyType::Insert | ReplyType::Update | ReplyType::Delete => {
-                let part = try!(reply.retrieve_first_part_of_kind(PartKind::RowsAffected));
-                match part.arg {
-                    Argument::RowsAffected(vec) => Ok(DbResponseFactory::from_rows_affected(vec)),
-                    _ => Err(DbcError::EvaluationError("No RowsAffected")),
-                }
-            },
+            ReplyType::Ddl |
+            ReplyType::Commit |
+            ReplyType::Rollback => DbResponseFactory::success(int_return_values),
 
-            // only in dedicated and already elsewhere implemented calls (should not go through this method)
-            ReplyType::Nil | ReplyType::Connect | ReplyType::Fetch | ReplyType::ReadLob | ReplyType::CloseCursor |
-            // FIXME: 5 ReplyTypes that occur only in dedicated but not yet implemented calls
-            ReplyType::FindLob | ReplyType::WriteLob | ReplyType::Disconnect |
-            // FIXME: 7 ReplyTypes where it is unclear when they occur
+            ReplyType::Insert |
+            ReplyType::Update |
+            ReplyType::Delete => DbResponseFactory::rows_affected(int_return_values),
+
+            ReplyType::DbProcedureCall |
+            ReplyType::DbProcedureCallWithResult =>
+                DbResponseFactory::multiple_return_values(int_return_values),
+
+            // dedicated ReplyTypes that are handled elsewhere and that should not go through this method
+            ReplyType::Nil | ReplyType::Connect | ReplyType::Fetch | ReplyType::ReadLob |
+            ReplyType::CloseCursor | ReplyType::Disconnect |
+
+            // FIXME: 2 ReplyTypes that occur only in not yet implemented calls
+            ReplyType::FindLob |
+            ReplyType::WriteLob |
+
+            // FIXME: 4 ReplyTypes where it is unclear when they occur and what to return
             ReplyType::SelectForUpdate |
             ReplyType::Explain |
-            ReplyType::DbProcedureCall |
-            ReplyType::DbProcedureCallWithResult |
             ReplyType::XaStart |
             ReplyType::XaJoin => {
                 let s = format!("unexpected reply type {:?} in send_and_get_response()", reply.type_);
@@ -112,6 +168,7 @@ impl Request {
         }
     }
 
+    // simplified interface
     pub fn send_and_receive(&mut self, conn_ref: &ConnRef, expected_fc: Option<ReplyType>) -> PrtResult<Reply> {
         self.send_and_receive_detailed(Metadata::None, &mut None, conn_ref, expected_fc)
     }
@@ -122,7 +179,8 @@ impl Request {
                             conn_ref: &ConnRef,
                             expected_fc: Option<ReplyType>)
     -> PrtResult<Reply> {
-        trace!("Request::send_and_receive_detailed() with requestType = {:?}, auto_commit = {}",self.request_type,self.auto_commit);
+        trace!("Request::send_and_receive_detailed() with requestType = {:?}, auto_commit = {}",
+                self.request_type,self.auto_commit);
         let _start = Local::now();
 
         try!(self.serialize(conn_ref));
@@ -130,8 +188,6 @@ impl Request {
         let mut reply = try!(Reply::parse(metadata, o_rs, conn_ref));
         try!(reply.assert_no_error());
         try!(reply.assert_expected_fc(expected_fc));
-        try!(reply.evaluate_stmt_context(conn_ref));
-        try!(reply.evaluate_transaction_flags(conn_ref));
 
         debug!("Request::send_and_receive_detailed() took {} ms", (Local::now() - _start).num_milliseconds());
         Ok(reply)
@@ -143,8 +199,8 @@ impl Request {
             Some(ref ssi) => {
                 let mut stmt_ctx = StatementContext::new();
                 stmt_ctx.statement_sequence_info = Some(ssi.clone());
-                trace!("Sending StatementContext with statement_sequence_info = {:?}",stmt_ctx.statement_sequence_info);
-                self.parts.push(Part::new(PartKind::StatementContext, Argument::StatementContext(stmt_ctx)));
+                trace!("Sending StatementContext with sequence_info = {:?}",stmt_ctx.statement_sequence_info);
+                self.parts.0.push(Part::new(PartKind::StatementContext, Argument::StatementContext(stmt_ctx)));
             }
         }
         Ok(())
@@ -153,17 +209,17 @@ impl Request {
 
     fn serialize(&self, conn_ref: &ConnRef) -> PrtResult<()> {
         trace!("Entering Message::serialize()");
+        let mut conn_core = conn_ref.borrow_mut();
+        self.serialize_impl(conn_core.session_id, conn_core.next_seq_number(), &mut conn_core.stream)
+    }
 
+    pub fn serialize_impl(&self, session_id: i64,  seq_number: i32, stream: &mut TcpStream) -> PrtResult<()> {
         let varpart_size = try!(self.varpart_size());
         let total_size = MESSAGE_HEADER_SIZE + varpart_size;
         trace!("Writing Message with total size {}", total_size);
         let mut remaining_bufsize = BUFFER_SIZE - MESSAGE_HEADER_SIZE;
 
-        let conn_ref_local = conn_ref.clone();
-        let mut cs = conn_ref_local.borrow_mut();
-        let session_id = cs.session_id;
-        let seq_number = cs.next_seq_number();
-        let w = &mut io::BufWriter::with_capacity(total_size as usize, &mut cs.stream);
+        let w = &mut io::BufWriter::with_capacity(total_size as usize, stream);
         debug!(
             "Request::serialize() for session_id = {}, seq_number = {}, request_type = {:?}",
             session_id, seq_number, self.request_type
@@ -180,7 +236,7 @@ impl Request {
         let size = try!(self.seg_size()) as i32;
         try!(w.write_i32::<LittleEndian>(size));                        // I4    Length including the header
         try!(w.write_i32::<LittleEndian>(0));                           // I4    Offset within the message buffer
-        try!(w.write_i16::<LittleEndian>(self.parts.len() as i16));     // I2    Number of contained parts
+        try!(w.write_i16::<LittleEndian>(self.parts.0.len() as i16));   // I2    Number of contained parts
         try!(w.write_i16::<LittleEndian>(1));                           // I2    Number of this segment, starting with 1
         try!(w.write_i8(1));                                            // I1    Segment kind: always 1 = Request
         try!(w.write_i8(self.request_type.to_i8()));                    // I1    "Message type"
@@ -189,15 +245,17 @@ impl Request {
         for _ in 0..8 { try!(w.write_u8(0)); }                          // [B;8] Reserved, do not use
 
         remaining_bufsize -= SEGMENT_HEADER_SIZE as u32;
+        trace!("Headers are written");
         // PARTS
-        for ref part in &self.parts {
+        for ref part in &self.parts.0 {
             remaining_bufsize = try!(part.serialize(remaining_bufsize, w));
         }
+        trace!("Parts are written");
         Ok(())
     }
 
     pub fn push(&mut self, part: Part){
-        self.parts.push(part);
+        self.parts.0.push(part);
     }
 
     /// Length in bytes of the variable part of the message, i.e. total message without the header
@@ -210,7 +268,7 @@ impl Request {
 
     fn seg_size(&self) -> PrtResult<usize> {
         let mut len = SEGMENT_HEADER_SIZE;
-        for part in &self.parts {
+        for part in &self.parts.0 {
             len += try!(part.size(true));
         }
         Ok(len)
@@ -222,7 +280,7 @@ impl Request {
 pub struct Reply {
     pub session_id: i64,
     pub type_: ReplyType,
-    pub parts: Vec<Part>,
+    pub parts: Parts,
     pub server_processing_time: Option<OptionValue>,
 }
 impl Reply {
@@ -230,7 +288,7 @@ impl Reply {
         Reply {
             session_id: session_id,
             type_: type_,
-            parts: Vec::<Part>::new(),
+            parts: Parts::new(),
             server_processing_time: None,
         }
     }
@@ -249,7 +307,9 @@ impl Reply {
             Message::Request(_) => Err(prot_err("Reply::parse() found Request")),
             Message::Reply(mut msg) => {
                 for _ in 0..no_of_parts {
-                    let part = try!(Part::parse(MsgType::Reply, &mut (msg.parts), Some(conn_ref), metadata.clone(), o_rs, &mut rdr));
+                    let part = try!(Part::parse(
+                        MsgType::Reply, &mut (msg.parts), Some(conn_ref), metadata.clone(), o_rs, &mut rdr
+                    ));
                     msg.push(part);
                 }
                 Ok(msg)
@@ -271,75 +331,37 @@ impl Reply {
     }
 
     fn assert_no_error(&mut self) -> PrtResult<()> {
-        if let Ok(errpart) = self.retrieve_first_part_of_kind(PartKind::Error) {
-            let vec = match errpart.arg {
-                Argument::Error(v) => v,
-                _ => return Err(prot_err("Inconsistent error part found")),
-            };
-            let err = PrtError::DbMessage(vec);
-            warn!("{}",err);
-            return Err(err);
-        }
-        Ok(())
-    }
-
-    fn evaluate_stmt_context(&mut self, conn_ref: &ConnRef) -> PrtResult<()> {
-        match self.retrieve_first_part_of_kind(PartKind::StatementContext) {
-            Err(_) => Ok(()),
-            Ok(scpart) => {
-                match scpart.arg {
-                    Argument::StatementContext(stmt_ctx) => {
-                        trace!("Received StatementContext with statement_sequence_info = {:?}",stmt_ctx.statement_sequence_info);
-                        conn_ref.borrow_mut().ssi = stmt_ctx.statement_sequence_info;
-                        self.server_processing_time = stmt_ctx.server_processing_time;
-                        Ok(())
+        let err_code = PartKind::Error.to_i8();
+        match self.parts.0.iter().position(|p| p.kind.to_i8() == err_code) {
+            None => Ok(()),
+            Some(idx) => {
+                let err_part = self.parts.0.swap_remove(idx);
+                match err_part.arg {
+                    Argument::Error(vec) => {
+                        let err = PrtError::DbMessage(vec);
+                        warn!("{}",err);
+                        Err(err)
                     },
-                    _ => Err(prot_err("Inconsistent StatementContext part found for ResultSet")),
-                }
-            }
-        }
-    }
-
-    fn evaluate_transaction_flags(&mut self, conn_ref: &ConnRef) -> PrtResult<()> {
-        match self.retrieve_first_part_of_kind(PartKind::TransactionFlags) {
-            Ok(part) => {
-                match part.arg {
-                    Argument::TransactionFlags(vec) => {
-                        for ta_flag in vec {try!(conn_ref.borrow_mut().set_transaction_state(ta_flag));}
-                        Ok(())
-                    },
-                    _ => Err(prot_err("No ResultSet")),
+                    _ => Err(prot_err("assert_no_error: inconsistent error part found")),
                 }
             },
-            Err(_) => Ok(()),
         }
     }
 
     pub fn push(&mut self, part: Part){
-        self.parts.push(part);
-    }
-
-    pub fn retrieve_first_part_of_kind(&mut self, kind: PartKind) -> PrtResult<Part> {
-        retrieve_first_part_of_kind(kind, &mut self.parts)
+        self.parts.0.push(part);
     }
 }
 impl Drop for Reply {
     fn drop(&mut self) {
-        for ref part in &self.parts {
+        for ref part in &self.parts.0 {
             warn!("reply is dropped, but not all parts were evaluated: part-kind = {:?}", part.kind);
         }
     }
 }
 
-///
-pub fn retrieve_first_part_of_kind(kind: PartKind, parts: &mut Vec<Part>) -> PrtResult<Part> {
-    let code = kind.to_i8();
-    match parts.iter().position(|p| p.kind.to_i8() == code) {
-        Some(idx) => Ok(parts.swap_remove(idx)),
-        None => return Err(PrtError::ProtocolError(format!("no part of kind {:?}", kind))),
-    }
-}
 
+///
 pub fn parse_message_and_sequence_header(rdr: &mut BufRead) -> PrtResult<(i16,Message)> {
     // MESSAGE HEADER: 32 bytes
     let session_id: i64 = try!(rdr.read_i64::<LittleEndian>());                             // I8
@@ -372,7 +394,7 @@ pub fn parse_message_and_sequence_header(rdr: &mut BufRead) -> PrtResult<(i16,Me
                                                     request_type: request_type,
                                                     auto_commit: auto_commit,
                                                     command_options: command_options,
-                                                    parts: Vec::<Part>::new(),
+                                                    parts: Parts::new(),
             })))
         },
         Kind::Reply | Kind::Error => {

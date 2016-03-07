@@ -250,6 +250,7 @@ pub fn from_cesu8_with_count(bytes: &[u8]) -> Result<(Cow<str>,u64), Cesu8Decodi
 
 #[test]
 fn test_from_cesu8() {
+    info!("minimalistic test of cesu8 decoder");
     // The surrogate-encoded character below is from the ICU library's
     // icu/source/test/testdata/conversion.txt test case.
     let data = &[0x4D, 0xE6, 0x97, 0xA5, 0xED, 0xA0, 0x81, 0xED, 0xB0, 0x81];

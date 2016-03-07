@@ -8,26 +8,20 @@ extern crate flexi_logger;
 extern crate hdbconnect;
 extern crate serde;
 
-use flexi_logger::{LogConfig,opt_format};
+use hdbconnect::{Connection,DbcResult,test_utils};
+use hdbconnect::types::LongDate;
 
-use hdbconnect::Connection;
-use hdbconnect::DbcResult;
-use hdbconnect::LongDate;
-
-
-    // cargo test test_transactions -- --nocapture
+// cargo test test_transactions -- --nocapture
 #[test]
 pub fn test_transactions() {
-    // hdbconnect::protocol::lowlevel::resultset=trace,\
-    // hdbconnect::protocol::lowlevel::part=debug,\
-    // hdbconnect::protocol::callable_statement=trace,\
-    // hdbconnect::rs_serde::deserializer=trace\
-    flexi_logger::init(LogConfig{
-                log_to_file: false,
-                format: opt_format,
-                .. LogConfig::new()},
-            Some("test_transactions=info,\
-                 ".to_string())).unwrap();
+    use flexi_logger::LogConfig;
+    // hdbconnect::protocol::lowlevel::resultset=debug,\
+    flexi_logger::init(LogConfig {
+            log_to_file: false,
+            .. LogConfig::new() },
+            Some("info,\
+            ".to_string())).unwrap();
+
 
     match test_transactions_impl() {
         Err(e) => {error!("test_transactions() failed with {:?}",e); assert!(false)},
@@ -46,24 +40,17 @@ fn test_transactions_impl() -> DbcResult<()> {
 }
 
 fn write1_read2(connection1: &mut Connection) -> DbcResult<()> {
-    info!("verify that we can_t read uncommitted data");
-    clean(connection1, vec!("drop table TEST_TRANSACTIONS"));
-    try!(prepare(connection1, vec!(
+    info!("verify that we can read uncommitted data in same connection, but not on other connection");
+    test_utils::statement_ignore_err(connection1, vec!("drop table TEST_TRANSACTIONS"));
+    try!(test_utils::multiple_statements(connection1, vec!(
         "create table TEST_TRANSACTIONS (strng NVARCHAR(100) primary key, nmbr INT, dt LONGDATE)",
         "insert into TEST_TRANSACTIONS (strng,nmbr,dt) values('Hello',1,'01.01.1900')",
         "insert into TEST_TRANSACTIONS (strng,nmbr,dt) values('world!',20,'01.01.1901')",
         "insert into TEST_TRANSACTIONS (strng,nmbr,dt) values('I am here.',300,'01.01.1902')",
     )));
 
-    // #[derive(Deserialize, Debug)]
-    // struct TestStruct {
-    //     string: String,
-    //     number: i32,
-    //     date: LongDate,
-    // }
-
     fn get_checksum(connection: &mut Connection) -> usize {
-        let resultset = connection.query("select sum(nmbr) from TEST_TRANSACTIONS").unwrap();
+        let resultset = connection.query_statement("select sum(nmbr) from TEST_TRANSACTIONS").unwrap();
         let checksum: usize = resultset.into_typed().unwrap();
         checksum
     }
@@ -86,6 +73,7 @@ fn write1_read2(connection1: &mut Connection) -> DbcResult<()> {
     assert_eq!(get_checksum(&mut connection2),321);  // we cannot yet read the new lines from connection2
 
     try!(connection1.rollback());
+    info!("verify that we can't read rolled-back data on same connection");
     assert_eq!(get_checksum(connection1),321);  // we can't read the new lines from connection1 anymore
 
     try!(prepared_statement.add_batch(&("who",    4000, LongDate::ymd(1903,1,1).unwrap() )));
@@ -98,19 +86,5 @@ fn write1_read2(connection1: &mut Connection) -> DbcResult<()> {
     try!(connection1.commit());
     assert_eq!(get_checksum(&mut connection2),654321);  // after commit, we can read the new lines also from connection2
 
-    Ok(())
-}
-
-
-fn clean(connection: &mut Connection, clean: Vec<&str>) {
-    for s in clean {
-        connection.what_ever(s).ok();
-    }
-}
-
-fn prepare(connection: &mut Connection, prep: Vec<&str>) -> DbcResult<()> {
-    for s in prep {
-        try!(connection.what_ever(s));
-    }
     Ok(())
 }

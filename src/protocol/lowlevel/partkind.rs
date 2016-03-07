@@ -8,7 +8,7 @@ pub enum PartKind {
     Error,                  //  6 // Error information
     StatementId,            // 10 // Prepared statement identifier
     TransactionId,          // 11 // Transaction identifier // FIXME is missing
-    RowsAffected,           // 12 // Number of affected rows of DML statement
+    RowsAffected,           // 12 // Number of affected rows of dml statement
     ResultSetId,            // 13 // Identifier of result set
     TopologyInformation,    // 15 // Topology information
     TableLocation,          // 16 // Location of table data

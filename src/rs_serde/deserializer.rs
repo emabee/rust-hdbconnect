@@ -7,7 +7,7 @@
 use protocol::lowlevel::parts::resultset::ResultSet;
 use protocol::lowlevel::parts::lob::{BLOB,CLOB};
 use protocol::lowlevel::parts::typed_value::TypedValue;
-use types::longdate::LongDate;
+use types::LongDate;
 use super::error::{DeserError,DeserResult,prog_err};
 
 use serde;

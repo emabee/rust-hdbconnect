@@ -1,14 +1,11 @@
-#![feature(custom_derive, plugin)]
-#![plugin(serde_macros)]
-#[macro_use] extern crate log;
-extern crate flexi_logger;
-extern crate hdbconnect;
+#![cfg(test)]
 
-use hdbconnect::protocol::lowlevel::message::{Message,Metadata, MsgType,parse_message_and_sequence_header};
-use hdbconnect::protocol::lowlevel::argument::Argument;
-use hdbconnect::protocol::lowlevel::part::Part;
-use hdbconnect::protocol::lowlevel::partkind::PartKind;
+use protocol::lowlevel::message::{Message,Metadata, MsgType,parse_message_and_sequence_header};
+use protocol::lowlevel::argument::Argument;
+use protocol::lowlevel::part::Part;
+use protocol::lowlevel::partkind::PartKind;
 
+use flexi_logger;
 use std::fs::File;
 use std::io::{Cursor,BufRead,BufReader};
 

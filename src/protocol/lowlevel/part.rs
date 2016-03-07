@@ -14,7 +14,7 @@ const PART_HEADER_SIZE: usize = 16;
 
 #[derive(Debug)]
 pub struct Part {
-    pub kind: PartKind,
+    pub kind: PartKind,     // FIXME can we remove this?
     pub arg: Argument,      // a.k.a. part data, or part buffer :-(
 }
 
@@ -60,7 +60,8 @@ impl Part {
     ///
     pub fn parse(
             msg_type: MsgType,
-            already_received_parts: &mut Vec<Part>, o_conn_ref: Option<&ConnRef>,
+            already_received_parts: &mut Parts,
+            o_conn_ref: Option<&ConnRef>,
             metadata: Metadata,
             o_rs: &mut Option<&mut ResultSet>,
             rdr: &mut io::BufRead
@@ -89,4 +90,27 @@ fn parse_part_header(rdr: &mut io::BufRead) -> PrtResult<(PartKind,PartAttribute
 
     let no_of_args =  max(no_of_argsi16 as i32, no_of_argsi32);
     Ok((kind,attributes,arg_size,no_of_args))
+}
+
+
+#[derive(Debug)]
+pub struct Parts(pub Vec<Part>);
+
+impl Parts {
+    pub fn new() -> Parts {
+        Parts(Vec::<Part>::new())
+    }
+    pub fn pop_arg(&mut self) -> Option<Argument> {
+        match self.0.pop() {
+            Some(part) => Some(part.arg),
+            None => None,
+        }
+    }
+    pub fn pop_arg_if_kind(&mut self, kind: PartKind) -> Option<Argument> {
+        match self.0.last() {
+            Some(part) if part.kind.to_i8() == kind.to_i8() => {},  // escape the borrow
+            _ => return None,
+        }
+        Some(self.0.pop().unwrap().arg)
+    }
 }

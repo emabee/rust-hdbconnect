@@ -3,7 +3,7 @@ use super::typed_value::TypedValue;
 
 use std::io;
 
-/// A single row of parameters; batches can consist of many such roles
+/// A single row of parameters; batches can consist of many such rows
 #[derive(Debug,Clone)]
 pub struct ParameterRow {
     pub values: Vec<TypedValue>,

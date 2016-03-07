@@ -105,14 +105,13 @@ fn create_client_challenge() -> Vec<u8>{
 
 fn get_server_challenge(mut reply: Reply) -> PrtResult<Vec<u8>> {
     trace!("Entering get_server_challenge()");
-    let part = try!(reply.retrieve_first_part_of_kind(PartKind::Authentication));
-
-    if let Argument::Auth(mut vec) = part.arg {
-        let server_challenge = vec.remove(1).0;
-        debug!("get_server_challenge(): returning {:?}",&server_challenge);
-        Ok(server_challenge)
-    } else {
-        Err(prot_err("wrong Argument variant"))
+    match reply.parts.pop_arg_if_kind(PartKind::Authentication) {
+        Some(Argument::Auth(mut vec)) => {
+            let server_challenge = vec.remove(1).0;
+            debug!("get_server_challenge(): returning {:?}",&server_challenge);
+            Ok(server_challenge)
+        },
+        _ => Err(prot_err("get_server_challenge(): expected Authentication part")),
     }
 }
 
@@ -121,26 +120,27 @@ fn evaluate_reply2(mut reply: Reply, conn_ref: &ConnRef) -> PrtResult<()> {
     let mut conn_core = conn_ref.borrow_mut();
     conn_core.session_id = reply.session_id;
 
+    match reply.parts.pop_arg_if_kind(PartKind::TopologyInformation) {
+        Some(Argument::TopologyInformation(mut vec)) => mem::swap(&mut vec, &mut (conn_core.topology_attributes)),
+        _ => return Err(prot_err("evaluate_reply2(): expected TopologyInformation part")),
+    }
+
+    match reply.parts.pop_arg_if_kind(PartKind::ConnectOptions) {
+        Some(Argument::ConnectOptions(ConnectOptions(mut vec))) =>
+            mem::swap(&mut vec, &mut (conn_core.server_connect_options)),
+        _ => return Err(prot_err("evaluate_reply2(): expected ConnectOptions part")),
+    }
+
     let mut server_proof = Vec::<u8>::new();
-    let part = try!(reply.retrieve_first_part_of_kind(PartKind::Authentication));
-    match part.arg {
-        Argument::Auth(mut vec) => mem::swap(&mut (vec.get_mut(0).unwrap().0), &mut server_proof),
-        _ => {return Err(prot_err("Inconsistent Auth part found"));},
+    debug!("parts before: {:?}",reply.parts.0);
+    match reply.parts.pop_arg_if_kind(PartKind::Authentication) {
+        Some(Argument::Auth(mut vec)) => mem::swap(&mut (vec.get_mut(0).unwrap().0), &mut server_proof),
+        _ => return Err(prot_err("evaluate_reply2(): expected Authentication part")),
     }
-    warn!("the server proof is not evaluated");
+    // FIXME the server proof is not evaluated
 
-    let part = try!(reply.retrieve_first_part_of_kind(PartKind::ConnectOptions));
-    match part.arg {
-        Argument::ConnectOptions(ConnectOptions(mut vec)) => mem::swap(&mut vec, &mut (conn_core.server_connect_options)),
-        _ => return Err(prot_err("Inconsistent ConnectOptions part found")),
-    }
-
-    let part = try!(reply.retrieve_first_part_of_kind(PartKind::TopologyInformation));
-    match part.arg {
-        Argument::TopologyInformation(mut vec) => mem::swap(&mut vec, &mut (conn_core.topology_attributes)),
-        _ => {return Err(prot_err("Inconsistent TopologyInformation part found"));},
-    }
-
+    conn_core.is_authenticated = true;
+    debug!("parts after: {:?}",reply.parts.0);
     Ok(())
 }
 
@@ -246,7 +246,7 @@ mod tests {
     // cargo test protocol::authentication::tests::test_client_proof -- --nocapture
     #[test]
     fn test_client_proof() {
-
+        info!("test calculation of client proof");
         let client_challenge: Vec<u8> = b"\xb5\xab\x3a\x90\xc5\xad\xb8\x04\x15\x27\x37\x66\x54\xd7\x5c\x31\x94\xd8\x61\x50\x3f\xe0\x8d\xff\x8b\xea\xd5\x1b\xc3\x5a\x07\xcc\x63\xed\xbf\xa9\x5d\x03\x62\xf5\x6f\x1a\x48\x2e\x4c\x3f\xb8\x32\xe4\x1c\x89\x74\xf9\x02\xef\x87\x38\xcc\x74\xb6\xef\x99\x2e\x8e"
         .to_vec();
         let server_challenge: Vec<u8> =

@@ -11,48 +11,37 @@ extern crate vec_map;
 
 use hdbconnect::Connection;
 use hdbconnect::DbcResult;
-use hdbconnect::LongDate;
+use hdbconnect::types::LongDate;
 
 use serde::bytes::ByteBuf;
 use std::error::Error;
 
+// cargo test test_lobs -- --nocapture
 #[test]
-pub fn init() {
-    // use flexi_logger::LogConfig;
-    // flexi_logger::init(LogConfig::new(), Some("info".to_string())).unwrap();
-}
-
-// cargo test lob_1 -- --nocapture
-#[test]
-pub fn lob_1() {
-    use flexi_logger::{LogConfig,detailed_format};
-    // hdbconnect::protocol::lowlevel::resultset::deserialize=info,\
-            // hdbconnect::protocol::lowlevel::typed_value=trace,\
-            // hdbconnect::protocol::lowlevel::resultset=debug,\
+pub fn test_lobs() {
+    use flexi_logger::LogConfig;
+    // hdbconnect::protocol::lowlevel::resultset=debug,\
     flexi_logger::init(LogConfig {
-            log_to_file: true,
-            format: detailed_format,
+            log_to_file: false,
             .. LogConfig::new() },
-            Some("debug,\
+            Some("info,\
             ".to_string())).unwrap();
 
-    match impl_connect_and_select() {
-        Err(e) => {error!("connect_and_select() failed with {:?}",e); assert!(false)},
-        Ok(()) => {info!("connect_and_select() ended successful")},
+
+    match impl_test_lobs() {
+        Err(e) => {error!("test_lobs() failed with {:?}",e); assert!(false)},
+        Ok(n) => {info!("{} calls to DB were executed", n)},
     }
 }
 
-fn impl_connect_and_select() -> DbcResult<()> {
+fn impl_test_lobs() -> DbcResult<i32> {
     let mut connection = try!(hdbconnect::Connection::new("wdfd00245307a", "30415"));
     connection.authenticate_user_password("SYSTEM", "manager").ok();
-    connection.set_fetch_size(1024);
-    try!(impl_select_many_active_objects(&mut connection));
-    // try!(impl_select_blob(&mut connection));
-    info!("{} calls to DB were executed", connection.get_call_count());
-    Ok(())
-}
 
- fn impl_select_many_active_objects(connection: &mut Connection) -> DbcResult<usize> {
+    info!("select a single table line with a lob, and fetch the complete lob using a small fetch size (1kB)");
+
+    connection.set_fetch_size(1024);
+
     #[derive(Serialize, Deserialize, Debug)]
     struct ActiveObject {
         package_id: String,
@@ -63,7 +52,7 @@ fn impl_connect_and_select() -> DbcResult<()> {
         activated_by: String,
         edit: u8,
         cdata: Option<String>,
-        bdata: Option<ByteBuf>,//<Vec<u8>>, //Binary,
+        bdata: Option<ByteBuf>,
         compression_type: Option<i32>,
         format_version: Option<String>,
         delivery_unit: Option<String>,
@@ -101,15 +90,14 @@ fn impl_connect_and_select() -> DbcResult<()> {
                 and object_name = 'hdbtable-columnstore' \
                 and object_suffix = 'template' ";
 
-    let resultset = try!(connection.query(stmt));
+    let resultset = try!(connection.query_statement(stmt));
     debug!("ResultSet: {:?}", resultset);
 
-    for t in resultset.server_processing_times() {
-        debug!("Server processing time: {} µs", t);
-    }
+    debug!("Server processing time: {} µs", resultset.accumulated_server_processing_time());
 
+    //let typed_result: ActiveObject = try!(resultset.into_typed()); // FIXME this should work, too, but we get a problem with the BLOB deserialization
     let typed_result: Vec<ActiveObject> = try!(resultset.into_typed());
     debug!("Typed Result: {:?}", typed_result);
 
-    Ok(typed_result.len())
+    Ok(connection.get_call_count())
 }
