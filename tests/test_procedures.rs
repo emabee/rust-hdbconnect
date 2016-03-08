@@ -16,9 +16,9 @@ pub fn test_procedures() {
     use flexi_logger::LogConfig;
     // hdbconnect::protocol::lowlevel::resultset=debug,\
     flexi_logger::init(LogConfig {
-            log_to_file: true,
+            log_to_file: false,
             .. LogConfig::new() },
-            Some("debug,\
+            Some("info,\
             ".to_string())).unwrap();
 
 
@@ -36,7 +36,11 @@ fn impl_test_procedures() -> DbcResult<i32> {
     try!(procedure_with_out_resultsets(&mut connection));
     try!(procedure_with_secret_resultsets(&mut connection));
 
-    // test IN, OUT, INOUT parameters
+    // test IN parameters
+    try!(procedure_with_in_parameters(&mut connection));
+
+    // test OUT, INOUT parameters
+    try!(procedure_with_in_and_out_parameters(&mut connection));
 
     Ok(connection.get_call_count())
 }
@@ -126,5 +130,52 @@ fn procedure_with_secret_resultsets(connection: &mut Connection) -> DbcResult<()
     debug!("hana_dus = {}",try!(response.get_resultset()));
     debug!("other_dus = {}",try!(response.get_resultset()));
 
+    Ok(())
+}
+
+fn procedure_with_in_parameters(connection: &mut Connection) -> DbcResult<()> {
+    info!("verify that we can run a sqlscript procedure with input parameters");
+
+    test_utils::statement_ignore_err(connection, vec!("drop procedure TEST_INPUT_PARS"));
+    try!(test_utils::multiple_statements(connection, vec!("\
+        CREATE  PROCEDURE TEST_INPUT_PARS(IN some_number INT, IN some_string NVARCHAR(20)) AS \
+        BEGIN \
+            SELECT some_number AS \"I\", some_string AS \"A\" FROM DUMMY; \
+        END;",
+    )));
+
+    let mut prepared_stmt = try!(connection.prepare("call TEST_INPUT_PARS(?,?)"));
+    try!(prepared_stmt.add_batch( &(42,"is between 41 and 43") ));
+    let mut response = try!(prepared_stmt.execute_batch());
+    debug!("response = {:?}", response);
+    try!(response.get_success());
+    let rs = try!(response.get_resultset());
+    debug!("resultset = {:?}", rs);
+    Ok(())
+}
+
+
+fn procedure_with_in_and_out_parameters(connection: &mut Connection) -> DbcResult<()> {
+    info!("verify that we can run a sqlscript procedure with input and output parameters");
+
+    test_utils::statement_ignore_err(connection, vec!("drop procedure TEST_INPUT_AND_OUTPUT_PARS"));
+    try!(test_utils::multiple_statements(connection, vec!("\
+        CREATE  PROCEDURE \
+        TEST_INPUT_AND_OUTPUT_PARS(IN some_number INT, OUT some_string NVARCHAR(40)) AS \
+        BEGIN \
+            some_string = 'my first output parameter';
+            SELECT some_number AS \"I\" FROM DUMMY; \
+        END;",
+    )));
+
+    let mut prepared_stmt = try!(connection.prepare("call TEST_INPUT_AND_OUTPUT_PARS(?,?)"));
+    try!(prepared_stmt.add_batch( &(42) ));
+    let mut response = try!(prepared_stmt.execute_batch());
+    debug!("response = {:?}", response);
+    try!(response.get_success());
+    let op = try!(response.get_output_parameters());
+    debug!("output_parameters = {}", op);
+    let rs = try!(response.get_resultset());
+    debug!("resultset = {}", rs);
     Ok(())
 }

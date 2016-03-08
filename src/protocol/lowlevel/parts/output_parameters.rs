@@ -1,9 +1,6 @@
-use super::{PrtResult,prot_err};
-use super::parameter_metadata::{ParameterDescriptor,ParMode};
-use super::typed_value::TypedValue;
-use super::super::message::Metadata;
-
-use std::io;
+use protocol::lowlevel::parts::parameter_metadata::ParameterDescriptor;
+use protocol::lowlevel::parts::typed_value::TypedValue;
+use std::fmt;
 
 #[derive(Clone,Debug)]
 pub struct OutputParameters {
@@ -11,72 +8,66 @@ pub struct OutputParameters {
     pub values: Vec<TypedValue>,
 }
 
-impl OutputParameters {
-    pub fn new() -> OutputParameters {
-        OutputParameters {
-            metadata: Vec::<ParameterDescriptor>::new(),
-            values: Vec::<TypedValue>::new(),
+impl fmt::Display for OutputParameters {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        // write a header
+        writeln!(fmt, "").unwrap();
+        for parameter_descriptor in &self.metadata {
+            write!(fmt, "{}, ", parameter_descriptor.name).unwrap();
         }
+        writeln!(fmt, "").unwrap();
+
+        // write the data
+        for value in &self.values {
+            fmt::Display::fmt(&value, fmt).unwrap();         // write the value
+            write!(fmt, ", ").unwrap();
+        }
+        writeln!(fmt, "").unwrap();
+        Ok(())
     }
-
-    // pub fn parse( metadata: Metadata, rdr: &mut io::BufRead )
-    // -> PrtResult<OutputParameters> {
-    //     trace!("OutputParameters::parse()");
-    //     if let Metadata::ParameterMetadata(ref par_md) = metadata {
-    //         let mut output_pars = OutputParameters::new();
-    //
-    //         for descriptor in &(par_md.descriptors) {
-    //             match descriptor.mode {
-    //                 ParMode::INOUT | ParMode::OUT => {
-    //                     let typecode = descriptor.value_type;
-    //                     let nullable = descriptor.option.is_nullable();
-    //                     trace!("Parsing value with typecode {}, nullable {}", typecode, nullable);
-    //                     let value = try!(TypedValue::parse_from_reply(typecode, nullable, &None, rdr));
-    //                     trace!("Found value {:?}", value);
-    //                     output_pars.metadata.push(descriptor.clone());
-    //                     output_pars.values.push(value);
-    //                 },
-    //                 _ => {},
-    //             }
-    //         }
-    //         Ok(output_pars)
-    //     } else {
-    //         Err(prot_err("Cannot parse output parameters without metdata"))
-    //     }
-    // }
-
-
-    // pub fn get_fieldname(&self, field_idx: usize) -> Option<&String> {
-    //     self.metadata.get_fieldname(field_idx)
-    // }
-    //
-    // pub fn get_value(&self, row_idx: usize, column: usize) -> Option<&TypedValue> {
-    //     match self.rows.get(row_idx) {
-    //         Some(row) => row.values.get(column),
-    //         None => None,
-    //     }
-    // }
-    //
-    // pub fn no_of_rows(&self) -> usize {
-    //     self.rows.len()
-    // }
-    //
-    // pub fn no_of_cols(&self) -> usize {
-    //     self.metadata.fields.len()
-    // }
 }
 
 
-// #[derive(Debug,Clone)]
-// pub struct Row {
-//     pub values: Vec<TypedValue>,
-// }
-// impl Row{
-//     fn size(&self) -> PrtResult<usize> {
-//         let mut size = 0;
-//         for value in &self.values {
-//             size += try!(value.size());
-//         }
-//         Ok(size)
-//     }
-// }
+
+pub mod factory {
+    use super::OutputParameters;
+    use protocol::lowlevel::{PrtResult,prot_err};
+    use protocol::lowlevel::parts::parameter_metadata::{ParameterDescriptor,ParameterMetadata,ParMode};
+    use protocol::lowlevel::parts::typed_value::TypedValue;
+    use protocol::lowlevel::conn_core::ConnRef;
+
+    use std::io;
+
+    pub fn parse( o_conn_ref: Option<&ConnRef>, o_par_md: &mut Option<ParameterMetadata>, rdr: &mut io::BufRead )
+    -> PrtResult<OutputParameters> {
+        trace!("OutputParameters::parse()");
+        let conn_ref = match o_conn_ref {
+            Some(conn_ref) => conn_ref,
+            None => return Err(prot_err("Cannot parse output parameters without conn_ref")),
+        };
+        if let &mut Some(ref par_md) = o_par_md {
+            let mut output_pars = OutputParameters {
+                metadata: Vec::<ParameterDescriptor>::new(),
+                values: Vec::<TypedValue>::new(),
+            };
+
+            for descriptor in &(par_md.descriptors) {
+                match descriptor.mode {
+                    ParMode::INOUT | ParMode::OUT => {
+                        let typecode = descriptor.value_type;
+                        let nullable = descriptor.option.is_nullable();
+                        trace!("Parsing value with typecode {}, nullable {}", typecode, nullable);
+                        let value = try!(TypedValue::parse_from_reply(typecode, nullable, conn_ref, rdr));
+                        trace!("Found value {:?}", value);
+                        output_pars.metadata.push(descriptor.clone());
+                        output_pars.values.push(value);
+                    },
+                    _ => {},
+                }
+            }
+            Ok(output_pars)
+        } else {
+            Err(prot_err("Cannot parse output parameters without metadata"))
+        }
+    }
+}

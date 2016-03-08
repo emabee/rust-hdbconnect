@@ -68,18 +68,6 @@ impl ParameterMetadata {
 
         Ok(pmd)
     }
-
-    pub fn count(&self) -> i16 {
-        self.descriptors.len() as i16
-    }
-
-    pub fn size(&self) -> usize {
-        let mut size = 0;
-        for ref descriptor in &self.descriptors {
-            size += 16 + 1 + descriptor.name.len();
-        }
-        size
-    }
 }
 
 #[derive(Clone,Debug)]

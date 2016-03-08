@@ -1,7 +1,7 @@
 use {DbcResult,DbResponse};
 use protocol::lowlevel::conn_core::ConnRef;
 use protocol::lowlevel::argument::Argument;
-use protocol::lowlevel::message::{Request,Metadata};
+use protocol::lowlevel::message::Request;
 use protocol::lowlevel::request_type::RequestType;
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::partkind::PartKind;
@@ -23,12 +23,13 @@ impl AdhocStatement {
         debug!("AdhocStatement::exec_statement({})",self.stmt);
         // build the request
         let command_options = 0b_1000;
-        let mut request = try!(Request::new(&(self.conn_ref), RequestType::ExecuteDirect, self.auto_commit, command_options));
+        let mut request = try!(
+            Request::new(&(self.conn_ref), RequestType::ExecuteDirect, self.auto_commit, command_options));
         let fetch_size = { self.conn_ref.borrow().get_fetch_size() };
         request.push(Part::new(PartKind::FetchSize, Argument::FetchSize(fetch_size)));
         request.push(Part::new(PartKind::Command, Argument::Command(self.stmt.clone())));
 
         // send it
-        request.send_and_get_response(Metadata::None, &(self.conn_ref), None, acc_server_proc_time)
+        request.send_and_get_response(&mut None, &(self.conn_ref), None, acc_server_proc_time)
     }
 }

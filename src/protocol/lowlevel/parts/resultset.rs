@@ -2,7 +2,7 @@ use DbcResult;
 use protocol::lowlevel::{PrtError,PrtResult,prot_err};
 use protocol::lowlevel::argument::Argument;
 use protocol::lowlevel::conn_core::ConnRef;
-use protocol::lowlevel::message::{Metadata,Request};
+use protocol::lowlevel::message::Request;
 use protocol::lowlevel::reply_type::ReplyType;
 use protocol::lowlevel::request_type::RequestType;
 use protocol::lowlevel::part::Part;
@@ -112,7 +112,7 @@ impl ResultSet {
         request.push(Part::new(PartKind::FetchSize, Argument::FetchSize(fetch_size)));
 
         let mut reply = try!(request.send_and_receive_detailed(
-                                Metadata::None, &mut Some(self), &conn_ref, Some(ReplyType::Fetch)
+                                &mut None, &mut Some(self), &conn_ref, Some(ReplyType::Fetch)
         ));
         reply.parts.pop_arg_if_kind(PartKind::ResultSet);
 
@@ -176,7 +176,6 @@ pub mod factory {
     use protocol::protocol_error::{PrtResult,prot_err};
     use protocol::lowlevel::argument::Argument;
     use protocol::lowlevel::conn_core::ConnRef;
-    use protocol::lowlevel::message::Metadata;
     use protocol::lowlevel::part::Parts;
     use protocol::lowlevel::part_attributes::PartAttributes;
     use protocol::lowlevel::partkind::PartKind;
@@ -235,7 +234,6 @@ pub mod factory {
                   attributes: PartAttributes,
                   parts: &mut Parts,
                   o_conn_ref: Option<&ConnRef>,
-                  metadata: Metadata,
                   o_rs: &mut Option<&mut ResultSet>,
                   rdr: &mut io::BufRead )
     -> PrtResult<Option<ResultSet>> {
@@ -255,12 +253,7 @@ pub mod factory {
 
                 let rs_metadata = match parts.pop_arg_if_kind(PartKind::ResultSetMetadata) {
                     Some(Argument::ResultSetMetadata(rsmd)) => rsmd,
-                    None => {
-                        match metadata {
-                            Metadata::ResultSetMetadata(ref rsmd) => (*rsmd).clone(),
-                            _ => return Err(prot_err("No metadata provided for ResultSet")),
-                        }
-                    },
+                    None => return Err(prot_err("No metadata provided for ResultSet")),
                     _ => return Err(prot_err("Inconsistent metadata part found for ResultSet")),
                 };
 

@@ -1,5 +1,5 @@
 use protocol::protocol_error::{PrtResult,prot_err};
-use protocol::lowlevel::message::{Message,Metadata,MsgType,Request,parse_message_and_sequence_header};
+use protocol::lowlevel::message::{Message,MsgType,Request,parse_message_and_sequence_header};
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::parts::connect_option::ConnectOption;
 use protocol::lowlevel::parts::option_value::OptionValue;
@@ -108,7 +108,7 @@ impl Drop for ConnectionCore {
                                 Message::Reply(mut msg) => {
                                     for _ in 0..no_of_parts {
                                         Part::parse(
-                                            MsgType::Reply, &mut (msg.parts), None, Metadata::None, &mut None, &mut rdr
+                                            MsgType::Reply, &mut (msg.parts), None, &mut None, &mut None, &mut rdr
                                         ).ok();
                                     }
                                 }

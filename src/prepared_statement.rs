@@ -1,7 +1,7 @@
 use {DbcError,DbcResult,DbResponse};
 use protocol::lowlevel::conn_core::ConnRef;
 use protocol::lowlevel::argument::Argument;
-use protocol::lowlevel::message::{Request,Metadata};
+use protocol::lowlevel::message::Request;
 use protocol::lowlevel::request_type::RequestType;
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::partkind::PartKind;
@@ -54,11 +54,7 @@ impl PreparedStatement {
             debug!("pars: {:?}",pars2);
             request.push(Part::new(PartKind::Parameters, Argument::Parameters(Parameters::new(pars2))));
         }
-        let metadata = match self.o_par_md {
-            Some(ref md) => Metadata::ParameterMetadata(&md),
-            None => Metadata::None,
-        };
-        request.send_and_get_response(metadata, &(self.conn_ref), None, &mut self.acc_server_proc_time)
+        request.send_and_get_response(&mut (self.o_par_md), &(self.conn_ref), None, &mut self.acc_server_proc_time)
     }
 }
 

@@ -1,6 +1,6 @@
 use super::{PrtError,PrtResult};
 use super::conn_core::ConnRef;
-use super::message::{Metadata,MsgType};
+use super::message::MsgType;
 use super::part_attributes::PartAttributes;
 use super::partkind::PartKind;
 use super::part::Parts;
@@ -10,6 +10,7 @@ use super::parts::connect_option::{ConnectOption,ConnectOptions};
 use super::parts::hdberror::HdbError;
 use super::parts::parameters::Parameters;
 use super::parts::output_parameters::OutputParameters;
+use super::parts::output_parameters::factory as OutputParametersFactory;
 use super::parts::parameter_metadata::ParameterMetadata;
 use super::parts::read_lob_reply::ReadLobReply;
 use super::parts::resultset::ResultSet;
@@ -160,7 +161,7 @@ impl Argument {
     pub fn parse(
         msg_type: MsgType, kind: PartKind, attributes: PartAttributes, no_of_args: i32, arg_size: i32,
         parts: &mut Parts, o_conn_ref: Option<&ConnRef>,
-        metadata: Metadata, o_rs: &mut Option<&mut ResultSet>, rdr: &mut io::BufRead
+        o_par_md: &mut Option<ParameterMetadata>, o_rs: &mut Option<&mut ResultSet>, rdr: &mut io::BufRead
     ) -> PrtResult<Argument> {
         trace!("Entering parse(no_of_args={}, msg_type = {:?}, kind={:?})",no_of_args, msg_type, kind);
 
@@ -199,9 +200,9 @@ impl Argument {
                 }
                 Argument::Error(vec)
             },
-            // PartKind::OutputParameters => {
-            //     Argument::OutputParameters(try!(OutputParameters::parse(metadata,rdr)))
-            // },
+            PartKind::OutputParameters => {
+                Argument::OutputParameters(try!(OutputParametersFactory::parse(o_conn_ref,o_par_md,rdr)))
+            },
             PartKind::ParameterMetadata => {
                 Argument::ParameterMetadata(try!(ParameterMetadata::parse(no_of_args, arg_size as u32, rdr)))
             },
@@ -210,7 +211,7 @@ impl Argument {
                 Argument::ReadLobReply(locator, is_last_data, data)
             },
             PartKind::ResultSet => {
-                let rs = try!(ResultSetFactory::parse(no_of_args, attributes, parts, o_conn_ref, metadata, o_rs, rdr));
+                let rs = try!(ResultSetFactory::parse(no_of_args, attributes, parts, o_conn_ref, o_rs, rdr));
                 Argument::ResultSet(rs)
             },
             PartKind::ResultSetId => {

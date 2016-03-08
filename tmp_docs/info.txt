@@ -1,15 +1,4 @@
 TODO
-- evaluation of StatementContext
-    add method to conn_core to digest a StatementContext
-    add distinct accumulated_server_processing_times to
-        - connection
-        - prepared_statement
-        - resultset
-        - lob
-
-
-- DbProcedureCallWithResult should look for (ResultSetMetadata, ResultSetId) and create an empty ResultSet for these
-
 - Procedure support
 
 - data types
@@ -53,7 +42,7 @@ LOBs: externes LOB Objekt anbieten
 ===
 
 
-Revise the API model
+Extend the API
 - ResultSet
     - into_typed()
     - iterator() //? or whatever is needed to write sth like

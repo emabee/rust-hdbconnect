@@ -1,9 +1,10 @@
 use super::{PrtResult,prot_err};
 use super::argument::Argument;
 use super::conn_core::ConnRef;
-use super::message::{Metadata,MsgType};
+use super::message::MsgType;
 use super::partkind::PartKind;
 use super::part_attributes::PartAttributes;
+use super::parts::parameter_metadata::ParameterMetadata;
 use super::parts::resultset::ResultSet;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -62,7 +63,7 @@ impl Part {
             msg_type: MsgType,
             already_received_parts: &mut Parts,
             o_conn_ref: Option<&ConnRef>,
-            metadata: Metadata,
+            o_par_md: &mut Option<ParameterMetadata>,
             o_rs: &mut Option<&mut ResultSet>,
             rdr: &mut io::BufRead
     ) -> PrtResult<Part> {
@@ -73,7 +74,7 @@ impl Part {
         Ok(Part::new(kind, try!(
             Argument::parse(
                 msg_type, kind, attributes, no_of_args, arg_size,
-                already_received_parts, o_conn_ref, metadata, o_rs, rdr
+                already_received_parts, o_conn_ref, o_par_md, o_rs, rdr
             )
         )))
     }

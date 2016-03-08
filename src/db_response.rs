@@ -1,4 +1,5 @@
 use {DbcError,DbcResult};
+use protocol::lowlevel::parts::output_parameters::OutputParameters;
 use protocol::lowlevel::parts::resultset::ResultSet;
 use std::fmt;
 
@@ -7,6 +8,7 @@ const ERR_2: &'static str = "Wrong call to as_affected_rows()";
 const ERR_3: &'static str = "Wrong call to as_success()";
 const ERR_4: &'static str = "Wrong call to get_success()";
 const ERR_5: &'static str = "Wrong call to get_resultset()";
+const ERR_6: &'static str = "Wrong call to get_output_parameters()";
 
 
 /// Represents the database response to a command.
@@ -21,6 +23,7 @@ pub enum DbResponse {
 pub enum DbReturnValue {
     ResultSet(ResultSet),
     AffectedRows(Vec<usize>),
+    OutputParameters(OutputParameters),
     Success,
 }
 
@@ -85,6 +88,16 @@ impl DbResponse {
         }
         Err(DbcError::EvaluationError(ERR_5))
     }
+
+    /// returns the latest object as ResultSet, if it is one
+    pub fn get_output_parameters(&mut self) -> DbcResult<OutputParameters> {
+        if let DbResponse::MultipleReturnValues(ref mut vec) = *self {
+            if let Some(DbReturnValue::OutputParameters(op)) = vec.pop() {
+                return Ok(op);
+            }
+        }
+        Err(DbcError::EvaluationError(ERR_6))
+    }
 }
 
 impl fmt::Display for DbResponse {
@@ -106,8 +119,9 @@ impl fmt::Display for DbResponse {
 impl fmt::Display for DbReturnValue {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            DbReturnValue::ResultSet(ref rs) => try!(fmt::Display::fmt(rs, fmt)),
             DbReturnValue::AffectedRows(ref vec) => try!(fmt::Debug::fmt(vec, fmt)),
+            DbReturnValue::OutputParameters(ref op) => try!(fmt::Display::fmt(op, fmt)),
+            DbReturnValue::ResultSet(ref rs) => try!(fmt::Display::fmt(rs, fmt)),
             DbReturnValue::Success => try!(fmt::Display::fmt("Success", fmt)),
         }
         Ok(())
@@ -119,11 +133,13 @@ pub mod factory {
     use {DbcError,DbcResult};
     use protocol::lowlevel::parts::resultset::ResultSet;
     use protocol::lowlevel::parts::rows_affected::RowsAffected;
+    use protocol::lowlevel::parts::output_parameters::OutputParameters;
 
     #[derive(Debug)]
     pub enum InternalReturnValue {
         ResultSet(ResultSet),
         AffectedRows(Vec<RowsAffected>),
+        OutputParameters(OutputParameters),
     }
 
     pub fn resultset(mut int_return_values: Vec<InternalReturnValue>) -> DbcResult<DbResponse> {
@@ -156,6 +172,9 @@ pub mod factory {
                     }
                 }
                 Ok(DbResponse::SingleReturnValue(DbReturnValue::AffectedRows(vec_i)))
+            },
+            Some(InternalReturnValue::OutputParameters(_)) => {
+                return Err(DbcError::EvaluationError("Found OutputParameters, but a single AffectedRows was expected"))
             },
             Some(InternalReturnValue::ResultSet(_)) => {
                 return Err(DbcError::EvaluationError("Found ResultSet, but a single AffectedRows was expected"))
@@ -190,6 +209,9 @@ pub mod factory {
                     },
                 }
             },
+            Some(InternalReturnValue::OutputParameters(_)) => {
+                Err(DbcError::EvaluationError("Found OutputParameters, but a single Success was expected"))
+            },
             Some(InternalReturnValue::ResultSet(_)) => {
                 Err(DbcError::EvaluationError("Found ResultSet, but a single Success was expected"))
             },
@@ -204,9 +226,6 @@ pub mod factory {
         int_return_values.reverse();
         for irv in int_return_values {
             match irv {
-                InternalReturnValue::ResultSet(rs) => {
-                    vec_dbrv.push(DbReturnValue::ResultSet(rs));
-                },
                 InternalReturnValue::AffectedRows(vec_ra) => {
                     let mut vec_i = Vec::<usize>::new();
                     for ra in vec_ra {
@@ -219,6 +238,12 @@ pub mod factory {
                         }
                     }
                     vec_dbrv.push(DbReturnValue::AffectedRows(vec_i));
+                },
+                InternalReturnValue::OutputParameters(op) => {
+                    vec_dbrv.push(DbReturnValue::OutputParameters(op));
+                },
+                InternalReturnValue::ResultSet(rs) => {
+                    vec_dbrv.push(DbReturnValue::ResultSet(rs));
                 },
             }
         }

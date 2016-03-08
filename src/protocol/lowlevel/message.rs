@@ -14,7 +14,6 @@ use super::partkind::PartKind;
 use super::parts::resultset::ResultSet;
 use super::parts::option_value::OptionValue;
 use super::parts::parameter_metadata::ParameterMetadata;
-use super::parts::resultset_metadata::ResultSetMetadata;
 use super::parts::statement_context::StatementContext;
 use super::parts::resultset::factory as ResultSetFactory;
 
@@ -27,6 +26,7 @@ const BUFFER_SIZE: u32 = 130000;
 const MESSAGE_HEADER_SIZE: u32 = 32;
 const SEGMENT_HEADER_SIZE: usize = 24; // same for in and out
 
+
 #[derive(Debug)]
 pub enum MsgType {
     //Request,              // only required for read_wire
@@ -37,13 +37,6 @@ pub enum MsgType {
 pub enum Message {
     Request(Request),
     Reply(Reply),
-}
-
-#[derive(Clone)]
-pub enum Metadata<'a> {
-    ResultSetMetadata(&'a ResultSetMetadata),  // FIXME unused???
-    ParameterMetadata(&'a ParameterMetadata),
-    None
 }
 
 // Packets having the same sequence number belong to one request/response pair.
@@ -77,12 +70,12 @@ impl Request {
     }
 
     pub fn send_and_get_response(&mut self,
-                                    metadata: Metadata,
+                                    o_par_md: &mut Option<ParameterMetadata>,
                                     conn_ref: &ConnRef,
                                     expected_fc: Option<ReplyType>,
                                     acc_server_proc_time: &mut i32)
     -> DbcResult<DbResponse> {
-        let mut reply = try!(self.send_and_receive_detailed(metadata, &mut None, conn_ref, expected_fc));
+        let mut reply = try!(self.send_and_receive_detailed(o_par_md, &mut None, conn_ref, expected_fc));
 
         // digest parts, collect InternalReturnValues
         let mut int_return_values = Vec::<InternalReturnValue>::new();
@@ -108,6 +101,9 @@ impl Request {
                 },
                 Argument::ResultSet(Some(rs)) => {
                     int_return_values.push(InternalReturnValue::ResultSet(rs));
+                },
+                Argument::OutputParameters(op) => {
+                    int_return_values.push(InternalReturnValue::OutputParameters(op));
                 },
                 Argument::ResultSetMetadata(rsm) => {
                     match reply.parts.0.pop() {
@@ -170,11 +166,11 @@ impl Request {
 
     // simplified interface
     pub fn send_and_receive(&mut self, conn_ref: &ConnRef, expected_fc: Option<ReplyType>) -> PrtResult<Reply> {
-        self.send_and_receive_detailed(Metadata::None, &mut None, conn_ref, expected_fc)
+        self.send_and_receive_detailed(&mut None, &mut None, conn_ref, expected_fc)
     }
 
     pub fn send_and_receive_detailed(&mut self,
-                            metadata: Metadata,
+                            o_par_md: &mut Option<ParameterMetadata>,
                             o_rs: &mut Option<&mut ResultSet>,
                             conn_ref: &ConnRef,
                             expected_fc: Option<ReplyType>)
@@ -185,7 +181,7 @@ impl Request {
 
         try!(self.serialize(conn_ref));
 
-        let mut reply = try!(Reply::parse(metadata, o_rs, conn_ref));
+        let mut reply = try!(Reply::parse(o_par_md, o_rs, conn_ref));
         try!(reply.assert_no_error());
         try!(reply.assert_expected_fc(expected_fc));
 
@@ -297,7 +293,8 @@ impl Reply {
     /// `ResultSetMetadata` need to be injected in case of execute calls of prepared statements
     /// `ResultSet` needs to be injected (and is extended and returned) in case of fetch requests
     /// `conn_ref` needs to be injected in case we get an incomplete resultset or lob (so that they later can fetch)
-    fn parse(metadata: Metadata, o_rs: &mut Option<&mut ResultSet>, conn_ref: &ConnRef) -> PrtResult<Reply> {
+    fn parse(o_par_md: &mut Option<ParameterMetadata>, o_rs: &mut Option<&mut ResultSet>, conn_ref: &ConnRef)
+    -> PrtResult<Reply> {
         trace!("Reply::parse()");
         let stream = &mut (conn_ref.borrow_mut().stream);
         let mut rdr = io::BufReader::new(stream);
@@ -308,7 +305,7 @@ impl Reply {
             Message::Reply(mut msg) => {
                 for _ in 0..no_of_parts {
                     let part = try!(Part::parse(
-                        MsgType::Reply, &mut (msg.parts), Some(conn_ref), metadata.clone(), o_rs, &mut rdr
+                        MsgType::Reply, &mut (msg.parts), Some(conn_ref), o_par_md, o_rs, &mut rdr
                     ));
                     msg.push(part);
                 }
