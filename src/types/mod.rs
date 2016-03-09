@@ -1,3 +1,5 @@
+//! Types exposed to client.
+
 mod longdate;
 mod seconddate;
 

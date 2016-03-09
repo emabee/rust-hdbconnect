@@ -18,7 +18,7 @@ use std::mem;
 pub struct PreparedStatement {
     conn_ref: ConnRef,
     statement_id: u64,
-    pub auto_commit: bool,
+    auto_commit: bool,
     #[allow(dead_code)]
     o_table_location: Option<Vec<i32>>,
     o_par_md: Option<ParameterMetadata>, // optional, because there will not always be parameters
@@ -57,6 +57,11 @@ impl PreparedStatement {
             request.push(Part::new(PartKind::Parameters, Argument::Parameters(Parameters::new(pars2))));
         }
         request.send_and_get_response(&mut (self.o_par_md), &(self.conn_ref), None, &mut self.acc_server_proc_time)
+    }
+
+    /// Sets the prepared statement's auto-commit behavior for future calls.
+    pub fn set_auto_commit(&mut self, ac: bool) {
+        self.auto_commit = ac;
     }
 }
 
@@ -149,6 +154,9 @@ pub mod factory {
             Some(id) => id,
             None => return Err(DbcError::EvaluationError("PreparedStatement needs a StatementId")),
         };
+
+        debug!("PreparedStatement created with auto_commit = {}", auto_commit);
+
         Ok(PreparedStatement {
             conn_ref: conn_ref,
             statement_id: statement_id,

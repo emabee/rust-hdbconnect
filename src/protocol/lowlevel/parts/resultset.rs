@@ -21,22 +21,23 @@ use std::rc::Rc;
 #[derive(Debug)]
 pub struct ResultSet {
     core_ref: RsRef,
+    /// FIXME Exposes the resultset's metadata directly.
     pub metadata: ResultSetMetadata,
+    /// FIXME Exposes the resultset's data directly.
     pub rows: Vec<Row>,
     acc_server_proc_time: i32,
 }
 
-// FIXME make all non-public
 #[derive(Debug)]
-pub struct ResultSetCore {
-    pub o_conn_ref: Option<ConnRef>, // public because it is needed in lob
-    pub attributes: PartAttributes,
-    pub resultset_id: u64,
+struct ResultSetCore {
+    o_conn_ref: Option<ConnRef>,
+    attributes: PartAttributes,
+    resultset_id: u64,
 }
-pub type RsRef = Rc<RefCell<ResultSetCore>>;
+type RsRef = Rc<RefCell<ResultSetCore>>;
 
 impl ResultSetCore {
-    pub fn new_rs_ref(conn_ref: Option<&ConnRef>, attrs: PartAttributes, rs_id: u64) -> RsRef {
+    fn new_rs_ref(conn_ref: Option<&ConnRef>, attrs: PartAttributes, rs_id: u64) -> RsRef {
         Rc::new(RefCell::new(ResultSetCore {
             o_conn_ref: match conn_ref {
                 Some(conn_ref) => Some(conn_ref.clone()),
@@ -191,6 +192,7 @@ pub mod factory {
     use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
     use protocol::lowlevel::parts::statement_context::StatementContext;
     use protocol::lowlevel::parts::typed_value::TypedValue;
+    use protocol::lowlevel::parts::typed_value::factory as TypedValueFactory;
     use std::io;
 
     pub fn resultset_new(conn_ref: Option<&ConnRef>, attrs: PartAttributes, rs_id: u64, rsm: ResultSetMetadata,
@@ -295,7 +297,7 @@ pub mod factory {
                         let typecode = field_md.value_type;
                         let nullable = field_md.column_option.is_nullable();
                         trace!("Parsing row {}, column {}, typecode {}, nullable {}", r, c, typecode, nullable);
-                        let value = try!(TypedValue::parse_from_reply(typecode, nullable, conn_ref, rdr));
+                        let value = try!(TypedValueFactory::parse_from_reply(typecode, nullable, conn_ref, rdr));
                         trace!("Found value {:?}", value);
                         row.values.push(value);
                     }

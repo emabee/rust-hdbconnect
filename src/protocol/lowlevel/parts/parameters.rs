@@ -1,5 +1,7 @@
 use super::PrtResult;
 use super::typed_value::TypedValue;
+use super::typed_value::size as typed_value_size;
+use super::typed_value::serialize as typed_value_serialize;
 
 use std::io;
 
@@ -19,14 +21,14 @@ impl ParameterRow {
     pub fn size(&self) -> PrtResult<usize> {
         let mut size = 0;
         for value in &self.values {
-            size += try!(value.size());
+            size += try!(typed_value_size(value));
         }
         Ok(size)
     }
 
     pub fn serialize(&self, w: &mut io::Write) -> PrtResult<()> {
         for value in &self.values {
-            try!(value.serialize(w));
+            try!(typed_value_serialize(value,w));
         }
         Ok(())
     }

@@ -34,6 +34,7 @@ pub mod factory {
     use protocol::lowlevel::{PrtResult, prot_err};
     use protocol::lowlevel::parts::parameter_metadata::{ParameterDescriptor, ParameterMetadata, ParMode};
     use protocol::lowlevel::parts::typed_value::TypedValue;
+    use protocol::lowlevel::parts::typed_value::factory as TypedValueFactory;
     use protocol::lowlevel::conn_core::ConnRef;
 
     use std::io;
@@ -57,7 +58,7 @@ pub mod factory {
                         let typecode = descriptor.value_type;
                         let nullable = descriptor.option.is_nullable();
                         trace!("Parsing value with typecode {}, nullable {}", typecode, nullable);
-                        let value = try!(TypedValue::parse_from_reply(typecode, nullable, conn_ref, rdr));
+                        let value = try!(TypedValueFactory::parse_from_reply(typecode, nullable, conn_ref, rdr));
                         trace!("Found value {:?}", value);
                         output_pars.metadata.push(descriptor.clone());
                         output_pars.values.push(value);

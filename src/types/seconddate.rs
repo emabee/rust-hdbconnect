@@ -9,11 +9,13 @@ const DAY_FACTOR: i64 = 86_400;   // 60 * 60 * 24;
 const ZEITENWENDE: i64 = 1721424;
 const JGREG: i64 = 2299161;
 
+/// Rust implementation of HANA's SecondDate.
 #[derive(Clone,Debug,Deserialize,Serialize)]
 pub struct SecondDate(pub i64);
 
 impl SecondDate {
     // see jdbc/translators/LongDateTranslator.java, getTimestamp()
+    /// Returns a chrono DateTime<UTC> that represents the same value.
     pub fn datetime_utc(&self) -> DateTime<UTC> {
         let value = self.0 - 1;
 

@@ -31,8 +31,8 @@ pub struct Connection {
     host: String,
     port: String,
     credentials: Option<Credentials>,
-    pub major_product_version: i8,
-    pub minor_product_version: i16,
+    major_product_version: i8,
+    minor_product_version: i16,
     auto_commit: bool,
     command_options: u8,
     acc_server_proc_time: i32,
@@ -90,20 +90,25 @@ impl Connection {
         Ok(())
     }
 
-    /// Configures the connection's auto-commit behavior for future calls
+    /// Returns the HANA's product version info.
+    pub fn get_major_and_minor_product_version(&self) -> (i8,i16) {
+        ( self.major_product_version, self.minor_product_version )
+    }
+
+    /// Sets the connection's auto-commit behavior for future calls.
     pub fn set_auto_commit(&mut self, ac: bool) {
         self.auto_commit = ac;
     }
-    /// Configures the connection's fetch size for future calls
+    /// Configures the connection's fetch size for future calls.
     pub fn set_fetch_size(&mut self, fetch_size: u32) {
         self.core.borrow_mut().set_fetch_size(fetch_size);
     }
-    /// Configures the connection's lob read length for future calls
+    /// Configures the connection's lob read length for future calls.
     pub fn set_lob_read_length(&mut self, lob_read_length: i32) {
         self.core.borrow_mut().set_lob_read_length(lob_read_length);
     }
 
-    /// Returns the number of roundtrips to DB that have been done through this connection
+    /// Returns the number of roundtrips to the database that have been done through this connection.
     pub fn get_call_count(&self) -> i32 {
         self.core.borrow().last_seq_number()
     }
@@ -139,16 +144,15 @@ impl Connection {
     /// Prepares a statement
     pub fn prepare(&self, stmt: &str) -> DbcResult<PreparedStatement> {
         let stmt = try!(PreparedStatementFactory::prepare(self.core.clone(), String::from(stmt), self.auto_commit));
-        debug!("PreparedStatement created with auto_commit = {}", stmt.auto_commit);
         Ok(stmt)
     }
 
-    // Commits the current transaction
+    /// Commits the current transaction
     pub fn commit(&mut self) -> DbcResult<()> {
         try!(self.any_statement("commit")).as_success()
     }
 
-    // Rolls back the current transaction
+    /// Rolls back the current transaction
     pub fn rollback(&mut self) -> DbcResult<()> {
         try!(self.any_statement("rollback")).as_success()
     }

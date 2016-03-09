@@ -1,6 +1,12 @@
+//! Native rust database client for SAP HANA(TM).
+//!
+//! The implementation makes use of serde, and thus compiles so far only with rust nightly.
+
 #![feature(custom_derive, plugin)]  // necessary for serde
 #![feature(associated_consts)]      // necessary for local consts
 #![plugin(serde_macros)]
+
+#![warn(missing_docs)]
 
 extern crate byteorder;
 extern crate chrono;
@@ -26,6 +32,8 @@ mod rs_serde;
 mod tests;
 
 pub mod types;
+
+#[allow(missing_docs)]
 pub mod test_utils;
 
 pub use connection::Connection;

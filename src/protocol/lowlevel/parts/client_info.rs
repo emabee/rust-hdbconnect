@@ -1,5 +1,6 @@
 use super::PrtResult;
-use super::typed_value::{parse_length_and_string, serialize_length_and_string, string_length};
+use super::typed_value::{serialize_length_and_string, string_length};
+use super::typed_value::factory::parse_length_and_string;
 
 use std::collections::HashMap;
 use std::io::{BufRead, Write};

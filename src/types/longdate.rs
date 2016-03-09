@@ -12,12 +12,15 @@ const ZEITENWENDE: i64 = 1_721_424;
 const JGREG: i64 = 2_299_161;
 // const IGREG: i64         =    18_994;   /* Julianischer Tag des 01.01.0001 n. Chr. */
 
-
+/// Implementation of HANA's LongDate.
+///
+/// The type is used in ResultSets and can be used as input parameters.
 #[derive(Clone,Debug,Deserialize,Serialize)]
 pub struct LongDate(pub i64);
 
 impl LongDate {
     // see  UnifiedTypes/impl/Longdate.cpp, int Longdate::set(const DateRepresentation &dr)
+    /// Converts a chrono DateTime<UTC> into a LongDate that represents the same value.
     pub fn from(dt_utc: DateTime<UTC>) -> Result<LongDate, &'static str> {
         if dt_utc.year() < 1 || dt_utc.year() > 9999 {
             return Err("Only years between 1 and 9999 are supported");
@@ -38,10 +41,12 @@ impl LongDate {
         }
     }
 
+    /// Factory method for LongDate.
     pub fn ymd(y: u32, m: u32, d: u32) -> Result<LongDate, &'static str> {
         LongDate::ymd_hms(y, m, d, 0, 0, 0)
     }
 
+    /// Factory method for LongDate.
     pub fn ymd_hms(y: u32, m: u32, d: u32, hour: u32, minute: u32, second: u32) -> Result<LongDate, &'static str> {
         if y < 1 || y > 9999 {
             return Err("Only years between 1 and 9999 are supported");
@@ -58,6 +63,7 @@ impl LongDate {
     }
 
     // see jdbc/translators/LongDateTranslator.java, getTimestamp()
+    /// Converts a LongDate into a chrono DateTime<UTC>.
     pub fn to_datetime_utc(&self) -> Option<DateTime<UTC>> {
         trace!("Entering to_datetime_utc()");
         let value = match self.0 {

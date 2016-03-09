@@ -15,15 +15,22 @@ const ERR_6: &'static str = "Wrong call to get_output_parameters()";
 ///
 #[derive(Debug)]
 pub enum DbResponse {
+    /// Most commands return a single return value which can easily be evaluated here.
     SingleReturnValue(DbReturnValue),
+    /// Some commands return multiple return values of same or different types.
     MultipleReturnValues(Vec<DbReturnValue>),
 }
 
+/// Represents a single return value.
 #[derive(Debug)]
 pub enum DbReturnValue {
+    /// A result set of a query.
     ResultSet(ResultSet),
+    /// A list of numbers of affected rows.
     AffectedRows(Vec<usize>),
+    /// Values of output parameters of a procedure call.
     OutputParameters(OutputParameters),
+    /// Indication that a db call was successful.
     Success,
 }
 
