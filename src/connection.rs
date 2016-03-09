@@ -1,7 +1,7 @@
 use adhoc_statement::AdhocStatement;
 use prepared_statement::PreparedStatement;
 use prepared_statement::factory as PreparedStatementFactory;
-use {DbcError,DbcResult,DbResponse};
+use {DbcError, DbcResult, DbResponse};
 
 use protocol::authenticate;
 use protocol::lowlevel::conn_core::{ConnectionCore, ConnRef};
@@ -10,7 +10,7 @@ use protocol::lowlevel::parts::resultset::ResultSet;
 
 use chrono::Local;
 use std::net::TcpStream;
-use std::ops::{Add};
+use std::ops::Add;
 use std::fmt;
 
 const HOLD_OVER_COMMIT: u8 = 8;
@@ -48,11 +48,14 @@ impl Connection {
         let mut tcp_stream = try!(TcpStream::connect(&connect_string as &str));
         trace!("tcp_stream is open");
 
-        let (major,minor) = try!(init::send_and_receive(&mut tcp_stream));
+        let (major, minor) = try!(init::send_and_receive(&mut tcp_stream));
         trace!("connection is initialized");
 
         let conn_ref = ConnectionCore::new_conn_ref(tcp_stream);
-        let delta = match (Local::now() - start).num_microseconds() {Some(m) => m, None => -1};
+        let delta = match (Local::now() - start).num_microseconds() {
+            Some(m) => m,
+            None => -1,
+        };
         debug!("connection to {}:{} is initialized in {} µs", host, port, delta);
 
         Ok(Connection {
@@ -79,7 +82,10 @@ impl Connection {
             username: String::from(username),
             password: String::from(password),
         });
-        let delta = match (Local::now() - start).num_microseconds() {Some(m) => m, None => -1};
+        let delta = match (Local::now() - start).num_microseconds() {
+            Some(m) => m,
+            None => -1,
+        };
         debug!("successfully logged on as user \"{}\" in {} µs", username, delta);
         Ok(())
     }
@@ -110,7 +116,7 @@ impl Connection {
     /// exec_statement(), which have the simple result types you usually expect.
     pub fn any_statement(&mut self, stmt: &str) -> DbcResult<DbResponse> {
         AdhocStatement::new(self.core.clone(), String::from(stmt), self.auto_commit)
-        .exec_statement(&mut self.acc_server_proc_time)
+            .exec_statement(&mut self.acc_server_proc_time)
     }
 
     /// Executes a statement and expects a single ResultSet
@@ -149,13 +155,13 @@ impl Connection {
 
     /// Creates a new connection object with the same settings and authentication
     pub fn spawn(&self) -> DbcResult<Connection> {
-        let mut other_conn = try!(Connection::new(&(self.host),&(self.port)));
+        let mut other_conn = try!(Connection::new(&(self.host), &(self.port)));
         other_conn.auto_commit = self.auto_commit;
         other_conn.command_options = self.command_options;
         other_conn.set_fetch_size(self.core.borrow().get_fetch_size());
         other_conn.set_lob_read_length(self.core.borrow().get_lob_read_length());
         if let Some(ref creds) = self.credentials {
-            try!(other_conn.authenticate_user_password(&(creds.username),&(creds.password)));
+            try!(other_conn.authenticate_user_password(&(creds.username), &(creds.password)));
         }
         Ok(other_conn)
     }
@@ -174,7 +180,7 @@ struct Credentials {
 }
 impl fmt::Debug for Credentials {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(fmt, "username: {}, password: <not printed>",self.username).unwrap();
+        writeln!(fmt, "username: {}, password: <not printed>", self.username).unwrap();
         Ok(())
     }
 }

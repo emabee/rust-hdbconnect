@@ -1,5 +1,5 @@
-use super::{PrtResult,prot_err,util};
-use byteorder::{LittleEndian,ReadBytesExt};
+use super::{PrtResult, prot_err, util};
+use byteorder::{LittleEndian, ReadBytesExt};
 use std::io;
 use std::u32;
 
@@ -9,24 +9,23 @@ pub struct ParameterMetadata {
 }
 impl ParameterMetadata {
     fn new() -> ParameterMetadata {
-        ParameterMetadata {
-            descriptors: Vec::<ParameterDescriptor>::new(),
-        }
+        ParameterMetadata { descriptors: Vec::<ParameterDescriptor>::new() }
     }
 }
 
 #[derive(Clone,Debug)]
 pub struct ParameterDescriptor {
-    pub option: ParameterOption,   // bit 0: mandatory; 1: optional, 2: has_default
+    pub option: ParameterOption, // bit 0: mandatory; 1: optional, 2: has_default
     pub value_type: u8,
-    pub fraction: u16,      // Scale of the parameter
-    pub length: u16,        // Length/Precision of the parameter
-    pub mode: ParMode,      // Whether the parameter is input or output
-    pub name_offset: u32,   // Offset of parameter name in part, set to 0xFFFFFFFF to signal no name
-    pub name: String,       //
+    pub fraction: u16, // Scale of the parameter
+    pub length: u16, // Length/Precision of the parameter
+    pub mode: ParMode, // Whether the parameter is input or output
+    pub name_offset: u32, // Offset of parameter name in part, set to 0xFFFFFFFF to signal no name
+    pub name: String, //
 }
 impl ParameterDescriptor {
-    fn new(option: ParameterOption, value_type: u8, mode: ParMode, name_offset: u32, length: u16, fraction: u16) -> ParameterDescriptor {
+    fn new(option: ParameterOption, value_type: u8, mode: ParMode, name_offset: u32, length: u16, fraction: u16)
+           -> ParameterDescriptor {
         ParameterDescriptor {
             option: option,
             value_type: value_type,
@@ -42,7 +41,8 @@ impl ParameterMetadata {
     pub fn parse(count: i32, arg_size: u32, rdr: &mut io::BufRead) -> PrtResult<ParameterMetadata> {
         let mut consumed = 0;
         let mut pmd = ParameterMetadata::new();
-        for _ in 0..count {  // 16 byte each
+        for _ in 0..count {
+            // 16 byte each
             let option = try!(ParameterOption::from_u8(try!(rdr.read_u8())));
             let value_type = try!(rdr.read_u8());
             let mode = try!(ParMode::from_u8(try!(rdr.read_u8())));
@@ -59,7 +59,7 @@ impl ParameterMetadata {
         for ref mut descriptor in &mut pmd.descriptors {
             if descriptor.name_offset != u32::MAX {
                 let length = try!(rdr.read_u8());
-                let name = try!(util::cesu8_to_string( &try!(util::parse_bytes(length as usize, rdr))));
+                let name = try!(util::cesu8_to_string(&try!(util::parse_bytes(length as usize, rdr))));
                 descriptor.name.push_str(&name);
                 consumed += 1 + length as u32;
                 assert!(arg_size >= consumed);
@@ -89,7 +89,7 @@ impl ParameterOption {
             1 => Ok(ParameterOption::NotNull),
             2 => Ok(ParameterOption::Nullable),
             4 => Ok(ParameterOption::HasDefault),
-            _ => Err(prot_err(&format!("ParameterOption::from_u8() not implemented for value {}",val))),
+            _ => Err(prot_err(&format!("ParameterOption::from_u8() not implemented for value {}", val))),
         }
     }
 }
@@ -101,13 +101,13 @@ pub enum ParMode {
     INOUT,
     OUT,
 }
-impl ParMode{
+impl ParMode {
     fn from_u8(v: u8) -> PrtResult<ParMode> {
         match v {
             1 => Ok(ParMode::IN),
             2 => Ok(ParMode::INOUT),
             4 => Ok(ParMode::OUT),
-            _ => {Err(prot_err(&format!("invalid value for ParMode: {}", v)))},
+            _ => Err(prot_err(&format!("invalid value for ParMode: {}", v))),
         }
     }
 }

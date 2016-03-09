@@ -1,4 +1,4 @@
-pub use protocol::protocol_error::{PrtError,PrtResult,prot_err};
+pub use protocol::protocol_error::{PrtError, PrtResult, prot_err};
 
 pub mod argument;
 pub mod init;

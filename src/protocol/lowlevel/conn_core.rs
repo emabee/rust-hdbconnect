@@ -1,10 +1,10 @@
-use protocol::protocol_error::{PrtResult,prot_err};
-use protocol::lowlevel::message::{Message,MsgType,Request,parse_message_and_sequence_header};
+use protocol::protocol_error::{PrtResult, prot_err};
+use protocol::lowlevel::message::{Message, MsgType, Request, parse_message_and_sequence_header};
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::parts::connect_option::ConnectOption;
 use protocol::lowlevel::parts::option_value::OptionValue;
 use protocol::lowlevel::parts::topology_attribute::TopologyAttr;
-use protocol::lowlevel::parts::transactionflags::{TransactionFlag,TaFlagId};
+use protocol::lowlevel::parts::transactionflags::{TransactionFlag, TaFlagId};
 
 use std::cell::RefCell;
 use std::io;
@@ -24,14 +24,14 @@ pub struct ConnectionCore {
     fetch_size: u32,
     lob_read_length: i32,
     transaction_state: TransactionState,
-    pub ssi: Option<OptionValue>,                   // Information on the statement sequence within the transaction
-    pub server_connect_options: Vec<ConnectOption>, // FIXME transmute into explicit structure; see also jdbc\EngineFeatures.java
+    pub ssi: Option<OptionValue>, // Information on the statement sequence within the transaction
+    pub server_connect_options: Vec<ConnectOption>, /* FIXME transmute into explicit structure; see also jdbc\EngineFeatures.java */
     pub topology_attributes: Vec<TopologyAttr>,
     pub stream: TcpStream,
 }
 impl ConnectionCore {
-    pub fn new_conn_ref(stream: TcpStream) -> ConnRef{
-        Rc::new(RefCell::new(ConnectionCore{
+    pub fn new_conn_ref(stream: TcpStream) -> ConnRef {
+        Rc::new(RefCell::new(ConnectionCore {
             is_authenticated: false,
             session_id: 0,
             seq_number: 0,
@@ -70,22 +70,22 @@ impl ConnectionCore {
         match (transaction_flag.id, transaction_flag.value) {
             (TaFlagId::RolledBack, OptionValue::BOOLEAN(true)) => {
                 self.transaction_state = TransactionState::RolledBack;
-            },
+            }
             (TaFlagId::Committed, OptionValue::BOOLEAN(true)) => {
                 self.transaction_state = TransactionState::Committed;
-            },
+            }
             (TaFlagId::NewIsolationlevel, OptionValue::INT(i)) => {
                 self.transaction_state = TransactionState::OpenWithIsolationlevel(i);
-            },
+            }
             (TaFlagId::WriteTaStarted, OptionValue::BOOLEAN(true)) => {
                 self.transaction_state = TransactionState::OpenWithIsolationlevel(0);
-            },
+            }
             (TaFlagId::SessionclosingTaError, OptionValue::BOOLEAN(true)) => {
                 return Err(prot_err("SessionclosingTaError received"));
-            },
+            }
             (TaFlagId::DdlCommitmodeChanged, OptionValue::BOOLEAN(true)) |
-            (TaFlagId::NoWriteTaStarted, OptionValue::BOOLEAN(true)) => {},
-            (id,value) => warn!("unexpected transaction flag received: {:?} = {:?}",id, value),
+            (TaFlagId::NoWriteTaStarted, OptionValue::BOOLEAN(true)) => {}
+            (id, value) => warn!("unexpected transaction flag received: {:?} = {:?}", id, value),
         };
         Ok(())
     }
@@ -94,7 +94,7 @@ impl ConnectionCore {
 impl Drop for ConnectionCore {
     // try to send a disconnect to the database, ignore all errors
     fn drop(&mut self) {
-        trace!("Drop of ConnectionCore, session_id = {}",self.session_id);
+        trace!("Drop of ConnectionCore, session_id = {}", self.session_id);
         if self.is_authenticated {
             let request = Request::new_for_disconnect();
             match request.serialize_impl(self.session_id, self.next_seq_number(), &mut self.stream) {
@@ -103,24 +103,29 @@ impl Drop for ConnectionCore {
                     let mut rdr = io::BufReader::new(&mut self.stream);
                     match parse_message_and_sequence_header(&mut rdr) {
                         Ok((no_of_parts, msg)) => {
-                            trace!("Disconnect: response header successfully parsed, now parsing {} parts", no_of_parts);
+                            trace!("Disconnect: response header successfully parsed, now parsing {} parts",
+                                   no_of_parts);
                             match msg {
                                 Message::Reply(mut msg) => {
                                     for _ in 0..no_of_parts {
-                                        Part::parse(
-                                            MsgType::Reply, &mut (msg.parts), None, &mut None, &mut None, &mut rdr
-                                        ).ok();
+                                        Part::parse(MsgType::Reply,
+                                                    &mut (msg.parts),
+                                                    None,
+                                                    &mut None,
+                                                    &mut None,
+                                                    &mut rdr)
+                                            .ok();
                                     }
                                 }
-                                _ => {},
+                                _ => {}
                             }
-                        },
-                        _ => {},
+                        }
+                        _ => {}
                     }
                     trace!("Disconnect: response successfully parsed");
                 }
                 Err(e) => {
-                    trace!("Disconnect request failed with {:?}",e);
+                    trace!("Disconnect request failed with {:?}", e);
                 }
             }
         }
@@ -132,5 +137,5 @@ pub enum TransactionState {
     Initial,
     RolledBack,
     Committed,
-    OpenWithIsolationlevel(i32)
+    OpenWithIsolationlevel(i32),
 }

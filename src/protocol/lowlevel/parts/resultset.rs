@@ -1,5 +1,5 @@
 use DbcResult;
-use protocol::lowlevel::{PrtError,PrtResult,prot_err};
+use protocol::lowlevel::{PrtError, PrtResult, prot_err};
 use protocol::lowlevel::argument::Argument;
 use protocol::lowlevel::conn_core::ConnRef;
 use protocol::lowlevel::message::Request;
@@ -36,9 +36,12 @@ pub struct ResultSetCore {
 pub type RsRef = Rc<RefCell<ResultSetCore>>;
 
 impl ResultSetCore {
-    pub fn new_rs_ref(conn_ref: Option<&ConnRef>, attrs: PartAttributes, rs_id: u64) -> RsRef{
-        Rc::new(RefCell::new(ResultSetCore{
-            o_conn_ref: match conn_ref {Some(conn_ref) => Some(conn_ref.clone()), None => None},
+    pub fn new_rs_ref(conn_ref: Option<&ConnRef>, attrs: PartAttributes, rs_id: u64) -> RsRef {
+        Rc::new(RefCell::new(ResultSetCore {
+            o_conn_ref: match conn_ref {
+                Some(conn_ref) => Some(conn_ref.clone()),
+                None => None,
+            },
             attributes: attrs,
             resultset_id: rs_id,
         }))
@@ -73,8 +76,8 @@ impl ResultSet {
 
     fn is_complete(&self) -> PrtResult<bool> {
         let rs_core = self.core_ref.borrow();
-        if (!rs_core.attributes.is_last_packet())
-           && (rs_core.attributes.row_not_found() || rs_core.attributes.is_resultset_closed()) {
+        if (!rs_core.attributes.is_last_packet()) &&
+           (rs_core.attributes.row_not_found() || rs_core.attributes.is_resultset_closed()) {
             Err(PrtError::ProtocolError(String::from("ResultSet incomplete, but already closed on server")))
         } else {
             Ok(rs_core.attributes.is_last_packet())
@@ -87,7 +90,7 @@ impl ResultSet {
     /// the number of roundtrips depends on the size of the resultset
     /// and the configured fetch_size of the connection.
     pub fn fetch_all(&mut self) -> PrtResult<()> {
-        while ! try!(self.is_complete()) {
+        while !try!(self.is_complete()) {
             try!(self.fetch_next());
         }
         Ok(())
@@ -95,11 +98,14 @@ impl ResultSet {
 
     fn fetch_next(&mut self) -> PrtResult<()> {
         trace!("ResultSet::fetch_next()");
-        let (conn_ref, resultset_id, fetch_size) = { // scope the borrow
+        let (conn_ref, resultset_id, fetch_size) = {
+            // scope the borrow
             let rs_core = self.core_ref.borrow();
             let conn_ref = match rs_core.o_conn_ref {
                 Some(ref cr) => cr.clone(),
-                None => {return Err(prot_err("Fetch no more possible"));},
+                None => {
+                    return Err(prot_err("Fetch no more possible"));
+                }
             };
             let fetch_size = conn_ref.borrow().get_fetch_size();
             (conn_ref, rs_core.resultset_id, fetch_size)
@@ -111,9 +117,10 @@ impl ResultSet {
         request.push(Part::new(PartKind::ResultSetId, Argument::ResultSetId(resultset_id)));
         request.push(Part::new(PartKind::FetchSize, Argument::FetchSize(fetch_size)));
 
-        let mut reply = try!(request.send_and_receive_detailed(
-                                &mut None, &mut Some(self), &conn_ref, Some(ReplyType::Fetch)
-        ));
+        let mut reply = try!(request.send_and_receive_detailed(&mut None,
+                                                               &mut Some(self),
+                                                               &conn_ref,
+                                                               Some(ReplyType::Fetch)));
         reply.parts.pop_arg_if_kind(PartKind::ResultSet);
 
         let mut rs_core = self.core_ref.borrow_mut();
@@ -130,7 +137,8 @@ impl ResultSet {
 
     /// Translates a generic result set into a given type.
     pub fn into_typed<T>(mut self) -> DbcResult<T>
-    where T: serde::de::Deserialize {
+        where T: serde::de::Deserialize
+    {
         trace!("ResultSet::into_typed()");
         try!(self.fetch_all());
         let mut deserializer = RsDeserializer::new(self);
@@ -172,8 +180,8 @@ impl fmt::Display for Row {
 
 
 pub mod factory {
-    use super::{ResultSet,ResultSetCore,Row};
-    use protocol::protocol_error::{PrtResult,prot_err};
+    use super::{ResultSet, ResultSetCore, Row};
+    use protocol::protocol_error::{PrtResult, prot_err};
     use protocol::lowlevel::argument::Argument;
     use protocol::lowlevel::conn_core::ConnRef;
     use protocol::lowlevel::part::Parts;
@@ -185,17 +193,11 @@ pub mod factory {
     use protocol::lowlevel::parts::typed_value::TypedValue;
     use std::io;
 
-    pub fn resultset_new(
-        conn_ref: Option<&ConnRef>,
-        attrs: PartAttributes,
-        rs_id: u64,
-        rsm: ResultSetMetadata,
-        o_stmt_ctx: Option<StatementContext>
-    ) -> ResultSet {
+    pub fn resultset_new(conn_ref: Option<&ConnRef>, attrs: PartAttributes, rs_id: u64, rsm: ResultSetMetadata,
+                         o_stmt_ctx: Option<StatementContext>)
+                         -> ResultSet {
         let server_processing_time = match o_stmt_ctx {
-            Some(stmt_ctx) => {
-                if let Some(OptionValue::INT(i)) = stmt_ctx.server_processing_time {i} else {0}
-            },
+            Some(stmt_ctx) => if let Some(OptionValue::INT(i)) = stmt_ctx.server_processing_time { i } else { 0 },
             None => 0,
         };
 
@@ -230,16 +232,13 @@ pub mod factory {
     // for first resultset packets, we create and return a new ResultSet object
     // we expect the previous three parts to be
     // a matching ResultSetMetadata, a ResultSetId, and a StatementContext
-    pub fn parse( no_of_rows: i32,
-                  attributes: PartAttributes,
-                  parts: &mut Parts,
-                  o_conn_ref: Option<&ConnRef>,
-                  o_rs: &mut Option<&mut ResultSet>,
-                  rdr: &mut io::BufRead )
-    -> PrtResult<Option<ResultSet>> {
+    pub fn parse(no_of_rows: i32, attributes: PartAttributes, parts: &mut Parts, o_conn_ref: Option<&ConnRef>,
+                 o_rs: &mut Option<&mut ResultSet>, rdr: &mut io::BufRead)
+                 -> PrtResult<Option<ResultSet>> {
 
         match *o_rs {
-            mut None => { // case a) or b)
+            mut None => {
+                // case a) or b)
                 let o_stmt_ctx = match parts.pop_arg_if_kind(PartKind::StatementContext) {
                     Some(Argument::StatementContext(stmt_ctx)) => Some(stmt_ctx),
                     None => None,
@@ -258,10 +257,9 @@ pub mod factory {
                 };
 
                 let mut result = resultset_new(o_conn_ref, attributes, rs_id, rs_metadata, o_stmt_ctx);
-                try!(parse_rows(&mut result,no_of_rows,rdr));
+                try!(parse_rows(&mut result, no_of_rows, rdr));
                 Ok(Some(result))
-            },
-
+            }
 
             Some(ref mut fetching_resultset) => {
                 match parts.pop_arg_if_kind(PartKind::StatementContext) {
@@ -269,27 +267,29 @@ pub mod factory {
                         if let Some(OptionValue::INT(i)) = stmt_ctx.server_processing_time {
                             fetching_resultset.acc_server_proc_time += i;
                         }
-                    },
-                    None => {},
+                    }
+                    None => {}
                     _ => return Err(prot_err("Inconsistent StatementContext part found for ResultSet")),
                 };
 
                 fetching_resultset.core_ref.borrow_mut().attributes = attributes;
-                try!(parse_rows(fetching_resultset,no_of_rows,rdr));
+                try!(parse_rows(fetching_resultset, no_of_rows, rdr));
                 Ok(None)
-            },
+            }
         }
     }
 
-    fn parse_rows(resultset: &mut ResultSet, no_of_rows: i32, rdr: &mut io::BufRead ) -> PrtResult<()> {
+    fn parse_rows(resultset: &mut ResultSet, no_of_rows: i32, rdr: &mut io::BufRead) -> PrtResult<()> {
         let no_of_cols = resultset.metadata.count();
         debug!("resultset::parse_rows() reading {} lines with {} columns", no_of_rows, no_of_cols);
 
         match resultset.core_ref.borrow_mut().o_conn_ref {
-            None => {/*cannot happen FIXME: make this more robust*/},
+            None => {
+                // cannot happen FIXME: make this more robust
+            }
             Some(ref conn_ref) => {
                 for r in 0..no_of_rows {
-                    let mut row = Row{values: Vec::<TypedValue>::new()};
+                    let mut row = Row { values: Vec::<TypedValue>::new() };
                     for c in 0..no_of_cols {
                         let field_md = resultset.metadata.fields.get(c as usize).unwrap();
                         let typecode = field_md.value_type;
@@ -301,7 +301,7 @@ pub mod factory {
                     }
                     resultset.rows.push(row);
                 }
-            },
+            }
         }
         Ok(())
     }

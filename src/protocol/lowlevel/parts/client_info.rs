@@ -2,13 +2,13 @@ use super::PrtResult;
 use super::typed_value::{parse_length_and_string, serialize_length_and_string, string_length};
 
 use std::collections::HashMap;
-use std::io::{BufRead,Write};
+use std::io::{BufRead, Write};
 
 #[derive(Debug)]
-pub struct ClientInfo (HashMap<String,String>);
+pub struct ClientInfo(HashMap<String, String>);
 
 impl ClientInfo {
-    pub fn serialize (&self, w: &mut Write)  -> PrtResult<()> {
+    pub fn serialize(&self, w: &mut Write) -> PrtResult<()> {
         for (key, value) in &self.0 {
             try!(serialize_length_and_string(&key, w));
             try!(serialize_length_and_string(&value, w));
@@ -32,7 +32,7 @@ impl ClientInfo {
         for _ in 0..no_of_args {
             let key = try!(parse_length_and_string(rdr));
             let value = try!(parse_length_and_string(rdr));
-            map.insert(key,value);
+            map.insert(key, value);
         }
         Ok(ClientInfo(map))
     }
@@ -40,10 +40,10 @@ impl ClientInfo {
     #[allow(dead_code)]// FIXME (see info.txt)
     pub fn set(&mut self, key: ClientInfoKey, value: String) {
         match key {
-            ClientInfoKey::Application          => self.0.insert(String::from("APPLICATION"),value),
-            ClientInfoKey::ApplicationVersion   => self.0.insert(String::from("APPLICATIONVERSION"),value),
-            ClientInfoKey::ApplicationSource    => self.0.insert(String::from("APPLICATIONSOURCE"),value),
-            ClientInfoKey::ApplicationUser      => self.0.insert(String::from("APPLICATIONUSER"),value),
+            ClientInfoKey::Application => self.0.insert(String::from("APPLICATION"), value),
+            ClientInfoKey::ApplicationVersion => self.0.insert(String::from("APPLICATIONVERSION"), value),
+            ClientInfoKey::ApplicationSource => self.0.insert(String::from("APPLICATIONSOURCE"), value),
+            ClientInfoKey::ApplicationUser => self.0.insert(String::from("APPLICATIONUSER"), value),
         };
     }
 }

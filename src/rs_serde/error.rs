@@ -15,8 +15,8 @@ impl Error for SerializationError {
     fn description(&self) -> &str {
         match *self {
             SerializationError::StructuralMismatch(_) => "structural mismatch",
-            SerializationError::TypeMismatch(_,_) => "type mismatch",
-            SerializationError::RangeErr(_,_) => "range exceeded",
+            SerializationError::TypeMismatch(_, _) => "type mismatch",
+            SerializationError::RangeErr(_, _) => "range exceeded",
         }
     }
 }
@@ -24,20 +24,26 @@ impl fmt::Debug for SerializationError {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             SerializationError::StructuralMismatch(s) => write!(fmt, "{}: {}", self.description(), s),
-            SerializationError::TypeMismatch(s,tc) => write!(
-                    fmt, "{}: given value of type \"{}\" cannot be converted into value of type code {}",
-                    self.description(), s, tc
-            ),
-            SerializationError::RangeErr(s,tc) => write!(
-                    fmt, "{}: given value of type \"{}\" does not fit into supported range of SQL type (type code {})",
-                    self.description(), s, tc
-            ),
+            SerializationError::TypeMismatch(s, tc) => {
+                write!(fmt,
+                       "{}: given value of type \"{}\" cannot be converted into value of type code {}",
+                       self.description(),
+                       s,
+                       tc)
+            }
+            SerializationError::RangeErr(s, tc) => {
+                write!(fmt,
+                       "{}: given value of type \"{}\" does not fit into supported range of SQL type (type code {})",
+                       self.description(),
+                       s,
+                       tc)
+            }
         }
     }
 }
 impl fmt::Display for SerializationError {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Debug::fmt(&self,fmt)
+        fmt::Debug::fmt(&self, fmt)
     }
 }
 pub type SerializeResult<T> = Result<T, SerializationError>;
@@ -78,22 +84,34 @@ impl From<PrtError> for DeserError {
 }
 
 impl serde::de::Error for DeserError {
-    fn syntax(s: &str)              -> DeserError { DeserError::ProgramError(String::from(s)) }
-    fn end_of_stream()              -> DeserError { DeserError::TrailingRows }
-    fn unknown_field(field: &str)   -> DeserError { DeserError::UnknownField(String::from(field)) }
-    fn missing_field(field: &str)   -> DeserError { DeserError::MissingField(String::from(field)) }
+    fn syntax(s: &str) -> DeserError {
+        DeserError::ProgramError(String::from(s))
+    }
+    fn end_of_stream() -> DeserError {
+        DeserError::TrailingRows
+    }
+    fn unknown_field(field: &str) -> DeserError {
+        DeserError::UnknownField(String::from(field))
+    }
+    fn missing_field(field: &str) -> DeserError {
+        DeserError::MissingField(String::from(field))
+    }
 }
 impl fmt::Debug for DeserError {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            DeserError::ProgramError(ref s)
-            | DeserError::UnknownField(ref s)
-            | DeserError::WrongValueType(ref s) => write!(fmt, "{}: {}", self.description(), s),
-            DeserError::MissingField(ref s) =>
-                write!(fmt, "{} \"{}\"; note that the field mapping is case-sensitive, \
-                           and partial deserialization is not supported", self.description(), s),
-            DeserError::TrailingRows
-            | DeserError::TrailingCols => write!(fmt, "{}", self.description()),
+            DeserError::ProgramError(ref s) |
+            DeserError::UnknownField(ref s) |
+            DeserError::WrongValueType(ref s) => write!(fmt, "{}: {}", self.description(), s),
+            DeserError::MissingField(ref s) => {
+                write!(fmt,
+                       "{} \"{}\"; note that the field mapping is case-sensitive, and partial deserialization is not \
+                        supported",
+                       self.description(),
+                       s)
+            }
+            DeserError::TrailingRows |
+            DeserError::TrailingCols => write!(fmt, "{}", self.description()),
             DeserError::FetchError(ref error) => write!(fmt, "{:?}", error),
         }
     }
@@ -101,10 +119,10 @@ impl fmt::Debug for DeserError {
 impl fmt::Display for DeserError {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            DeserError::ProgramError(ref s)
-            | DeserError::UnknownField(ref s)
-            | DeserError::MissingField(ref s)
-            | DeserError::WrongValueType(ref s) => write!(fmt, "{} ", s),
+            DeserError::ProgramError(ref s) |
+            DeserError::UnknownField(ref s) |
+            DeserError::MissingField(ref s) |
+            DeserError::WrongValueType(ref s) => write!(fmt, "{} ", s),
             DeserError::TrailingRows => write!(fmt, "{} ", "TrailingRows"),
             DeserError::TrailingCols => write!(fmt, "{} ", "TrailingCols"),
             DeserError::FetchError(ref error) => write!(fmt, "{}", error),

@@ -1,4 +1,4 @@
-use {DbcResult,DbResponse};
+use {DbcResult, DbResponse};
 use protocol::lowlevel::conn_core::ConnRef;
 use protocol::lowlevel::argument::Argument;
 use protocol::lowlevel::message::Request;
@@ -14,18 +14,26 @@ pub struct AdhocStatement {
 }
 impl AdhocStatement {
     pub fn new(conn_ref: ConnRef, stmt: String, auto_commit: bool) -> AdhocStatement {
-        AdhocStatement { conn_ref: conn_ref, stmt: stmt, auto_commit: auto_commit }
+        AdhocStatement {
+            conn_ref: conn_ref,
+            stmt: stmt,
+            auto_commit: auto_commit,
+        }
     }
 }
 
 impl AdhocStatement {
     pub fn exec_statement(&self, acc_server_proc_time: &mut i32) -> DbcResult<DbResponse> {
-        debug!("AdhocStatement::exec_statement({})",self.stmt);
+        debug!("AdhocStatement::exec_statement({})", self.stmt);
         // build the request
         let command_options = 0b_1000;
-        let mut request = try!(
-            Request::new(&(self.conn_ref), RequestType::ExecuteDirect, self.auto_commit, command_options));
-        let fetch_size = { self.conn_ref.borrow().get_fetch_size() };
+        let mut request = try!(Request::new(&(self.conn_ref),
+                                            RequestType::ExecuteDirect,
+                                            self.auto_commit,
+                                            command_options));
+        let fetch_size = {
+            self.conn_ref.borrow().get_fetch_size()
+        };
         request.push(Part::new(PartKind::FetchSize, Argument::FetchSize(fetch_size)));
         request.push(Part::new(PartKind::Command, Argument::Command(self.stmt.clone())));
 

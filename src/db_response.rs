@@ -1,4 +1,4 @@
-use {DbcError,DbcResult};
+use {DbcError, DbcResult};
 use protocol::lowlevel::parts::output_parameters::OutputParameters;
 use protocol::lowlevel::parts::resultset::ResultSet;
 use std::fmt;
@@ -55,23 +55,20 @@ impl DbResponse {
     /// returns the latest object as true, if that is a success
     pub fn get_success(&mut self) -> DbcResult<()> {
         if let DbResponse::MultipleReturnValues(ref mut vec) = *self {
-            match vec.iter().rposition(
-                                |x: &DbReturnValue| match *x {
-                                    DbReturnValue::AffectedRows(ref vec) => {
-                                        if vec.len() == 1 && vec.get(0) == Some(&0) {
-                                            true
-                                        } else {
-                                            false
-                                        }
-                                    },
-                                    DbReturnValue::Success => true,
-                                    _ => false
-                                }) {
+            match vec.iter().rposition(|x: &DbReturnValue| {
+                match *x {
+                    DbReturnValue::AffectedRows(ref vec) => {
+                        if vec.len() == 1 && vec.get(0) == Some(&0) { true } else { false }
+                    }
+                    DbReturnValue::Success => true,
+                    _ => false,
+                }
+            }) {
                 Some(idx) => {
                     vec.remove(idx);
                     Ok(())
-                },
-                None => Err(DbcError::EvaluationError("No Success found in DbResponse"))
+                }
+                None => Err(DbcError::EvaluationError("No Success found in DbResponse")),
             }
         } else {
             Err(DbcError::EvaluationError(ERR_4))
@@ -105,12 +102,12 @@ impl fmt::Display for DbResponse {
         match *self {
             DbResponse::SingleReturnValue(ref dbretval) => {
                 try!(fmt::Display::fmt(dbretval, fmt));
-            },
+            }
             DbResponse::MultipleReturnValues(ref vec) => {
                 for dbretval in vec {
                     try!(fmt::Display::fmt(dbretval, fmt));
                 }
-            },
+            }
         }
         Ok(())
     }
@@ -129,8 +126,8 @@ impl fmt::Display for DbReturnValue {
 }
 
 pub mod factory {
-    use super::{DbResponse,DbReturnValue};
-    use {DbcError,DbcResult};
+    use super::{DbResponse, DbReturnValue};
+    use {DbcError, DbcResult};
     use protocol::lowlevel::parts::resultset::ResultSet;
     use protocol::lowlevel::parts::rows_affected::RowsAffected;
     use protocol::lowlevel::parts::output_parameters::OutputParameters;
@@ -147,9 +144,7 @@ pub mod factory {
             return Err(DbcError::EvaluationError("Only a single ResultSet was expected"));
         }
         match int_return_values.pop() {
-            Some(InternalReturnValue::ResultSet(rs)) => {
-                Ok(DbResponse::SingleReturnValue(DbReturnValue::ResultSet(rs)))
-            },
+            Some(InternalReturnValue::ResultSet(rs)) => Ok(DbResponse::SingleReturnValue(DbReturnValue::ResultSet(rs))),
             None => return Err(DbcError::EvaluationError("Nothing found, but a single Resultset was expected")),
             _ => return Err(DbcError::EvaluationError("Wrong DbReturnValue, a single Resultset was expected")),
         }
@@ -164,60 +159,54 @@ pub mod factory {
                 let mut vec_i = Vec::<usize>::new();
                 for ra in vec_ra {
                     match ra {
-                        RowsAffected::Count(i) => {vec_i.push(i)},
-                        RowsAffected::SuccessNoInfo => {vec_i.push(0)},
+                        RowsAffected::Count(i) => vec_i.push(i),
+                        RowsAffected::SuccessNoInfo => vec_i.push(0),
                         RowsAffected::ExecutionFailed => {
                             return Err(DbcError::EvaluationError("Found unexpected returnvalue ExecutionFailed"));
-                        },
+                        }
                     }
                 }
                 Ok(DbResponse::SingleReturnValue(DbReturnValue::AffectedRows(vec_i)))
-            },
+            }
             Some(InternalReturnValue::OutputParameters(_)) => {
                 return Err(DbcError::EvaluationError("Found OutputParameters, but a single AffectedRows was expected"))
-            },
+            }
             Some(InternalReturnValue::ResultSet(_)) => {
                 return Err(DbcError::EvaluationError("Found ResultSet, but a single AffectedRows was expected"))
-            },
-            None => {
-                return Err(DbcError::EvaluationError("Nothing found, but a single AffectedRows was expected"))
-            },
+            }
+            None => return Err(DbcError::EvaluationError("Nothing found, but a single AffectedRows was expected")),
         }
     }
 
     pub fn success(mut int_return_values: Vec<InternalReturnValue>) -> DbcResult<DbResponse> {
         if int_return_values.len() > 1 {
-            return Err(DbcError::EvaluationError(
-                "found multiple InternalReturnValues, but only a single Success was expected"));
+            return Err(DbcError::EvaluationError("found multiple InternalReturnValues, but only a single Success \
+                                                  was expected"));
         }
         match int_return_values.pop() {
             Some(InternalReturnValue::AffectedRows(mut vec_ra)) => {
                 if vec_ra.len() != 1 {
-                    return Err(DbcError::EvaluationError(
-                        "found no or multiple affected-row-counts, but only a single Success was expected"));
+                    return Err(DbcError::EvaluationError("found no or multiple affected-row-counts, but only a \
+                                                          single Success was expected"));
                 }
                 match vec_ra.pop().unwrap() {
                     RowsAffected::Count(i) if i > 0 => {
-                        Err(DbcError::EvaluationError(
-                            "found an affected-row-count > 0, but only a single Success was expected"))
-                    },
+                        Err(DbcError::EvaluationError("found an affected-row-count > 0, but only a single Success \
+                                                       was expected"))
+                    }
                     RowsAffected::ExecutionFailed => {
                         Err(DbcError::EvaluationError("Found unexpected returnvalue ExecutionFailed"))
-                    },
-                    _ => {
-                        Ok(DbResponse::SingleReturnValue(DbReturnValue::Success))
-                    },
+                    }
+                    _ => Ok(DbResponse::SingleReturnValue(DbReturnValue::Success)),
                 }
-            },
+            }
             Some(InternalReturnValue::OutputParameters(_)) => {
                 Err(DbcError::EvaluationError("Found OutputParameters, but a single Success was expected"))
-            },
+            }
             Some(InternalReturnValue::ResultSet(_)) => {
                 Err(DbcError::EvaluationError("Found ResultSet, but a single Success was expected"))
-            },
-            None => {
-                Err(DbcError::EvaluationError("Nothing found, but a single Success was expected"))
-            },
+            }
+            None => Err(DbcError::EvaluationError("Nothing found, but a single Success was expected")),
         }
     }
 
@@ -230,21 +219,21 @@ pub mod factory {
                     let mut vec_i = Vec::<usize>::new();
                     for ra in vec_ra {
                         match ra {
-                            RowsAffected::Count(i) => {vec_i.push(i)},
-                            RowsAffected::SuccessNoInfo => {vec_i.push(0)},
+                            RowsAffected::Count(i) => vec_i.push(i),
+                            RowsAffected::SuccessNoInfo => vec_i.push(0),
                             RowsAffected::ExecutionFailed => {
                                 return Err(DbcError::EvaluationError("Found unexpected returnvalue 'ExecutionFailed'"));
-                            },
+                            }
                         }
                     }
                     vec_dbrv.push(DbReturnValue::AffectedRows(vec_i));
-                },
+                }
                 InternalReturnValue::OutputParameters(op) => {
                     vec_dbrv.push(DbReturnValue::OutputParameters(op));
-                },
+                }
                 InternalReturnValue::ResultSet(rs) => {
                     vec_dbrv.push(DbReturnValue::ResultSet(rs));
-                },
+                }
             }
         }
         Ok(DbResponse::MultipleReturnValues(vec_dbrv))

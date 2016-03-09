@@ -31,15 +31,15 @@ impl fmt::Display for OutputParameters {
 
 pub mod factory {
     use super::OutputParameters;
-    use protocol::lowlevel::{PrtResult,prot_err};
-    use protocol::lowlevel::parts::parameter_metadata::{ParameterDescriptor,ParameterMetadata,ParMode};
+    use protocol::lowlevel::{PrtResult, prot_err};
+    use protocol::lowlevel::parts::parameter_metadata::{ParameterDescriptor, ParameterMetadata, ParMode};
     use protocol::lowlevel::parts::typed_value::TypedValue;
     use protocol::lowlevel::conn_core::ConnRef;
 
     use std::io;
 
-    pub fn parse( o_conn_ref: Option<&ConnRef>, o_par_md: &mut Option<ParameterMetadata>, rdr: &mut io::BufRead )
-    -> PrtResult<OutputParameters> {
+    pub fn parse(o_conn_ref: Option<&ConnRef>, o_par_md: &mut Option<ParameterMetadata>, rdr: &mut io::BufRead)
+                 -> PrtResult<OutputParameters> {
         trace!("OutputParameters::parse()");
         let conn_ref = match o_conn_ref {
             Some(conn_ref) => conn_ref,
@@ -61,8 +61,8 @@ pub mod factory {
                         trace!("Found value {:?}", value);
                         output_pars.metadata.push(descriptor.clone());
                         output_pars.values.push(value);
-                    },
-                    _ => {},
+                    }
+                    _ => {}
                 }
             }
             Ok(output_pars)

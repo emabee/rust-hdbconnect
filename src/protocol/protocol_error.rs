@@ -40,8 +40,8 @@ impl error::Error for PrtError {
         match *self {
             PrtError::Cesu8Error(ref error) => Some(error),
             PrtError::IoError(ref error) => Some(error),
-            PrtError::ProtocolError(_)
-            | PrtError::DbMessage(_) => None,
+            PrtError::ProtocolError(_) |
+            PrtError::DbMessage(_) => None,
         }
     }
 }
@@ -57,25 +57,28 @@ impl fmt::Display for PrtError {
                     try!(fmt::Display::fmt(hdberr, fmt));
                 }
                 Ok(())
-            },
+            }
         }
     }
 }
 
 impl From<io::Error> for PrtError {
-    fn from(error: io::Error) -> PrtError { PrtError::IoError(error)  }
+    fn from(error: io::Error) -> PrtError {
+        PrtError::IoError(error)
+    }
 }
 
 impl From<Cesu8DecodingError> for PrtError {
-    fn from(error: Cesu8DecodingError) -> PrtError {  PrtError::Cesu8Error(error) }
+    fn from(error: Cesu8DecodingError) -> PrtError {
+        PrtError::Cesu8Error(error)
+    }
 }
 
 impl From<byteorder::Error> for PrtError {
     fn from(err: byteorder::Error) -> PrtError {
         match err {
             byteorder::Error::Io(err) => PrtError::IoError(err),
-            byteorder::Error::UnexpectedEOF =>
-                PrtError::IoError(io::Error::new(io::ErrorKind::UnexpectedEof,err))
+            byteorder::Error::UnexpectedEOF => PrtError::IoError(io::Error::new(io::ErrorKind::UnexpectedEof, err)),
         }
     }
 }

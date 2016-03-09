@@ -5,8 +5,8 @@ use DbcResult;
 pub fn statement_ignore_err(connection: &mut Connection, stmts: Vec<&str>) {
     for s in stmts {
         match connection.any_statement(s) {
-            Ok(_) => {},
-            Err(_) => {},
+            Ok(_) => {}
+            Err(_) => {}
         }
     }
 }

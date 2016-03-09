@@ -1,6 +1,6 @@
-use super::{PrtError,PrtResult,prot_err,util};
+use super::{PrtError, PrtResult, prot_err, util};
 
-use byteorder::{LittleEndian,ReadBytesExt};
+use byteorder::{LittleEndian, ReadBytesExt};
 use std::fmt;
 use std::io;
 use std::u32;
@@ -27,7 +27,7 @@ impl ResultSetMetadata {
             fields: Vec::<FieldMetadata>::new(),
             names: VecMap::<String>::new(),
         };
-        trace!("Got count {}",count);
+        trace!("Got count {}", count);
         for _ in 0..count {
             let co = try!(rdr.read_u8());                   // U1 (documented as I1)
             let vt = try!(rdr.read_u8());                   // I1
@@ -43,10 +43,10 @@ impl ResultSetMetadata {
             let cdn = try!(rdr.read_u32::<LittleEndian>()); // I4
             rsm.add_to_names(cdn);
 
-            let fm = try!(FieldMetadata::new(co,vt,fr,pr,tn,sn,cn,cdn));
+            let fm = try!(FieldMetadata::new(co, vt, fr, pr, tn, sn, cn, cdn));
             rsm.fields.push(fm);
         }
-        trace!("Read ResultSetMetadata phase 1: {:?}",rsm);
+        trace!("Read ResultSetMetadata phase 1: {:?}", rsm);
         // now we read the names
         let mut offset = 0;
         let limit = arg_size - (count as u32) * 22;
@@ -56,10 +56,10 @@ impl ResultSetMetadata {
                 return Err(prot_err("Error in reading ResultSetMetadata"));
             };
             let nl = try!(rdr.read_u8());                                       // UI1
-            let buffer: Vec<u8> = try!(util::parse_bytes(nl as usize,rdr));     // variable
+            let buffer: Vec<u8> = try!(util::parse_bytes(nl as usize, rdr));     // variable
             let name = try!(util::cesu8_to_string(&buffer));
-            trace!("offset = {}, name = {}",offset, name);
-            rsm.names.insert(offset as usize,name);
+            trace!("offset = {}, name = {}", offset, name);
+            rsm.names.insert(offset as usize, name);
             offset += (nl as u32) + 1;
         }
         Ok(rsm)
@@ -69,7 +69,7 @@ impl ResultSetMetadata {
         if offset != u32::MAX {
             let tn = offset as usize;
             if !self.names.contains_key(&tn) {
-                self.names.insert(tn,"".to_string());
+                self.names.insert(tn, "".to_string());
             };
         }
     }
@@ -83,9 +83,7 @@ impl ResultSetMetadata {
     /// FIXME for large result sets, this method will be called very often - is caching meaningful?
     pub fn get_fieldname(&self, field_idx: usize) -> Option<&String> {
         match self.fields.get(field_idx) {
-            Some(field_metadata) => {
-                self.names.get(&(field_metadata.column_displayname as usize))
-            },
+            Some(field_metadata) => self.names.get(&(field_metadata.column_displayname as usize)),
             None => None,
         }
     }
@@ -103,12 +101,16 @@ pub struct FieldMetadata {
     pub column_displayname: u32,
 }
 impl FieldMetadata {
-    pub fn new(co: u8, vt: u8, fr: i16, pr: i16, tn: u32, sn: u32, cn: u32, cdn: u32,) -> PrtResult<FieldMetadata>
-    {
+    pub fn new(co: u8, vt: u8, fr: i16, pr: i16, tn: u32, sn: u32, cn: u32, cdn: u32) -> PrtResult<FieldMetadata> {
         Ok(FieldMetadata {
             column_option: try!(ColumnOption::from_u8(co)),
-            value_type: vt, fraction: fr, precision: pr, tablename: tn,
-            schemaname: sn, columnname: cn, column_displayname: cdn
+            value_type: vt,
+            fraction: fr,
+            precision: pr,
+            tablename: tn,
+            schemaname: sn,
+            columnname: cn,
+            column_displayname: cdn,
         })
     }
 }
@@ -130,7 +132,7 @@ impl ColumnOption {
         match val {
             1 => Ok(ColumnOption::NotNull),
             2 => Ok(ColumnOption::Nullable),
-            _ => Err(PrtError::ProtocolError(format!("ColumnOption::from_u8() not implemented for value {}",val))),
+            _ => Err(PrtError::ProtocolError(format!("ColumnOption::from_u8() not implemented for value {}", val))),
         }
     }
 }

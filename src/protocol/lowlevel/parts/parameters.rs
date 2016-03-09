@@ -8,11 +8,9 @@ use std::io;
 pub struct ParameterRow {
     pub values: Vec<TypedValue>,
 }
-impl ParameterRow{
+impl ParameterRow {
     pub fn new() -> ParameterRow {
-        ParameterRow {
-            values: Vec::<TypedValue>::new()
-        }
+        ParameterRow { values: Vec::<TypedValue>::new() }
     }
     pub fn push(&mut self, val: TypedValue) {
         self.values.push(val)
@@ -38,12 +36,12 @@ impl ParameterRow{
 /// A PARAMETERS part contains input parameters.
 /// The argument count of the part defines how many rows of parameters are included.
 #[derive(Clone,Debug)]
-pub struct Parameters{
-    rows: Vec<ParameterRow>
+pub struct Parameters {
+    rows: Vec<ParameterRow>,
 }
 impl Parameters {
     pub fn new(rows: Vec<ParameterRow>) -> Parameters {
-        Parameters{rows: rows}
+        Parameters { rows: rows }
     }
 
     pub fn serialize(&self, w: &mut io::Write) -> PrtResult<()> {
@@ -64,16 +62,4 @@ impl Parameters {
         }
         Ok(size)
     }
-
-    // // only for read_wire, but is difficult to realize because we need the number of values per row
-    // pub fn parse(count: i32, rdr: &mut io::BufRead) -> PrtResult<Parameters> {
-    //             let mut pars = Parameters::new();
-    //             trace!("parse(): count = {}",count);
-    //             for _ in 0..count {
-    //                 let tv = try!(TypedValue::parse_from_request(rdr));
-    //                 pars.0.push(tv);
-    //             }
-    //             Ok(pars)
-    // }
-    //
 }

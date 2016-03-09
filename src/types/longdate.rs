@@ -1,16 +1,16 @@
-use chrono::{Datelike,DateTime,Timelike,UTC};
+use chrono::{Datelike, DateTime, Timelike, UTC};
 use chrono::offset::TimeZone;
 use std::cmp;
 use std::fmt;
 
-const SECOND_FACTOR: i64 =      10_000_000;
-const MINUTE_FACTOR: i64 =     600_000_000;   // 10_000_000 * 60;
-const HOUR_FACTOR: i64   =  36_000_000_000;   // 10_000_000 * 60 * 60;
-const DAY_FACTOR: i64    = 864_000_000_000;   // 10_000_000 * 60 * 60 * 24;
+const SECOND_FACTOR: i64 = 10_000_000;
+const MINUTE_FACTOR: i64 = 600_000_000;   // 10_000_000 * 60;
+const HOUR_FACTOR: i64 = 36_000_000_000;   // 10_000_000 * 60 * 60;
+const DAY_FACTOR: i64 = 864_000_000_000;   // 10_000_000 * 60 * 60 * 24;
 
-const ZEITENWENDE: i64   = 1_721_424;
-const JGREG: i64         = 2_299_161;
-//const IGREG: i64         =    18_994;   /* Julianischer Tag des 01.01.0001 n. Chr. */
+const ZEITENWENDE: i64 = 1_721_424;
+const JGREG: i64 = 2_299_161;
+// const IGREG: i64         =    18_994;   /* Julianischer Tag des 01.01.0001 n. Chr. */
 
 
 #[derive(Clone,Debug,Deserialize,Serialize)]
@@ -24,21 +24,22 @@ impl LongDate {
         } else {
             let mut m: u32 = dt_utc.month();
             let mut d: u32 = dt_utc.day();
-            if m == 0 {m = 1;}
-            if d == 0 {d = 1;}
+            if m == 0 {
+                m = 1;
+            }
+            if d == 0 {
+                d = 1;
+            }
 
-            Ok(LongDate(
-                to_day_number(dt_utc.year() as u32, m, d)*DAY_FACTOR
-                + dt_utc.hour() as i64   * HOUR_FACTOR
-                + dt_utc.minute() as i64 * MINUTE_FACTOR
-                + dt_utc.second() as i64 * SECOND_FACTOR
-                + dt_utc.nanosecond() as i64/100 + 1
-            ))
+            Ok(LongDate(to_day_number(dt_utc.year() as u32, m, d) * DAY_FACTOR + dt_utc.hour() as i64 * HOUR_FACTOR +
+                        dt_utc.minute() as i64 * MINUTE_FACTOR +
+                        dt_utc.second() as i64 * SECOND_FACTOR +
+                        dt_utc.nanosecond() as i64 / 100 + 1))
         }
     }
 
     pub fn ymd(y: u32, m: u32, d: u32) -> Result<LongDate, &'static str> {
-        LongDate::ymd_hms(y,m,d,0,0,0)
+        LongDate::ymd_hms(y, m, d, 0, 0, 0)
     }
 
     pub fn ymd_hms(y: u32, m: u32, d: u32, hour: u32, minute: u32, second: u32) -> Result<LongDate, &'static str> {
@@ -52,13 +53,8 @@ impl LongDate {
             return Err("Only days between 1 and 31 are supported");
         }
 
-        Ok(LongDate(
-            to_day_number(y, m, d)*DAY_FACTOR
-            + hour   as i64 * HOUR_FACTOR
-            + minute as i64 * MINUTE_FACTOR
-            + second as i64 * SECOND_FACTOR
-            + 1
-        ))
+        Ok(LongDate(to_day_number(y, m, d) * DAY_FACTOR + hour as i64 * HOUR_FACTOR +
+                    minute as i64 * MINUTE_FACTOR + second as i64 * SECOND_FACTOR + 1))
     }
 
     // see jdbc/translators/LongDateTranslator.java, getTimestamp()
@@ -73,16 +69,16 @@ impl LongDate {
         let mut timevalue = value - (datevalue * DAY_FACTOR);
         let hour: u32 = (timevalue / HOUR_FACTOR) as u32;
         timevalue -= HOUR_FACTOR * (hour as i64);
-        let minute:u32 = (timevalue / MINUTE_FACTOR) as u32;
+        let minute: u32 = (timevalue / MINUTE_FACTOR) as u32;
         timevalue -= MINUTE_FACTOR * (minute as i64);
-        let second:u32 = (timevalue / SECOND_FACTOR) as u32;
+        let second: u32 = (timevalue / SECOND_FACTOR) as u32;
         timevalue -= SECOND_FACTOR * (second as i64);
         let fraction: u32 = timevalue as u32; // 10**-7
 
         let julian: i64 = datevalue + ZEITENWENDE;
         let ja: i64 = if julian >= JGREG {
             let jalpha: i64 = (((julian - 1867216) as f64 - 0.25_f64) / 36524.25_f64) as i64;
-            julian + 1 + jalpha - ( (0.25_f64 * jalpha as f64) as i64)
+            julian + 1 + jalpha - ((0.25_f64 * jalpha as f64) as i64)
         } else {
             julian
         };
@@ -94,20 +90,32 @@ impl LongDate {
 
         let day: u32 = (jb - jd - ((30.6001 * je as f64) as i64)) as u32;
         let mut month: u32 = je as u32 - 1;
-        let mut year: i32 = jc as i32- 4715;
+        let mut year: i32 = jc as i32 - 4715;
 
-        if month > 12 { month -= 12; }
-        if month >  2 { year -= 1; }
-        if year <=  0 { year -= 1; }
+        if month > 12 {
+            month -= 12;
+        }
+        if month > 2 {
+            year -= 1;
+        }
+        if year <= 0 {
+            year -= 1;
+        }
 
         trace!("Leaving to_datetime_utc(): year {}, month {}, day {}, hour {}, minute {}, second {}, fraction {}",
-                                          year, month, day, hour, minute, second, fraction);
-        Some(UTC.ymd(year, month, day).and_hms_nano(hour, minute, second, fraction*100))
+               year,
+               month,
+               day,
+               hour,
+               minute,
+               second,
+               fraction);
+        Some(UTC.ymd(year, month, day).and_hms_nano(hour, minute, second, fraction * 100))
     }
 }
 
 fn to_day_number(y: u32, m: u32, d: u32) -> i64 {
-    let (yd,md) = to_day(m);
+    let (yd, md) = to_day(m);
     let y2 = y as i32 + yd;
     let mut daynr: i64 = (((1461 * y2) >> 2) + md + d as i32 - 307) as i64;
     if daynr > 577746_i64 {
@@ -115,7 +123,7 @@ fn to_day_number(y: u32, m: u32, d: u32) -> i64 {
     }
     daynr
 }
-fn to_day(m: u32) -> (i32,i32) {
+fn to_day(m: u32) -> (i32, i32) {
     match m {
         1 => (-1, 306),
         2 => (-1, 337),
@@ -129,7 +137,7 @@ fn to_day(m: u32) -> (i32,i32) {
         10 => (0, 214),
         11 => (0, 245),
         12 => (0, 275),
-        _  => panic!("unexpected value m = {} in to_day()",m),
+        _ => panic!("unexpected value m = {} in to_day()", m),
     }
 }
 
@@ -137,8 +145,8 @@ fn to_day(m: u32) -> (i32,i32) {
 impl fmt::Display for LongDate {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match self.to_datetime_utc() {
-            Some(dtu) => write!(fmt,"{}",dtu),
-            None => write!(fmt,"Unprintable Longdate ({:?})", self),
+            Some(dtu) => write!(fmt, "{}", dtu),
+            None => write!(fmt, "Unprintable Longdate ({:?})", self),
         }
     }
 }
@@ -170,7 +178,7 @@ mod test {
                                 LongDate(  77777777777777777_i64),
         ) {
             let datetime_utc = longdate.to_datetime_utc().unwrap();
-            debug!("1 (LongDate => chrono => LongDate): {:?} == {} ?",longdate,datetime_utc);
+            debug!("1 (LongDate => chrono => LongDate): {:?} == {} ?", longdate, datetime_utc);
             assert_eq!(longdate, LongDate::from(datetime_utc).unwrap());
         }
 
@@ -182,7 +190,7 @@ mod test {
                                     UTC.ymd(4444, 4, 4).and_hms_nano(0, 0, 0, 0),
         ) {
             let longdate = LongDate::from(datetime_utc).unwrap();
-            debug!("2 (chrono => LongDate => chrono): {:?} == {} ?",longdate,datetime_utc);
+            debug!("2 (chrono => LongDate => chrono): {:?} == {} ?", longdate, datetime_utc);
             assert_eq!(datetime_utc, longdate.to_datetime_utc().unwrap());
         }
     }

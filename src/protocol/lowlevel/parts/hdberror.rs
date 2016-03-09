@@ -1,6 +1,6 @@
-use super::{PrtResult,util};
+use super::{PrtResult, util};
 
-use byteorder::{LittleEndian,ReadBytesExt,WriteBytesExt};
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::fmt;
 use std::io;
 
@@ -8,15 +8,19 @@ pub struct HdbError {
     pub code: i32,
     pub position: i32,
     pub text_length: i32,
-    pub severity: i8,       // 0 = warning, 1 = error, 2 = fatal
+    pub severity: i8, // 0 = warning, 1 = error, 2 = fatal
     pub sqlstate: Vec<u8>,
     pub text: String,
 }
 impl HdbError {
-    pub fn new( code: i32, position: i32, text_length: i32, severity: i8, sqlstate: Vec<u8>, text: String)
-            -> HdbError {
-        HdbError { code: code, position: position, text_length: text_length,
-            severity: severity, sqlstate: sqlstate, text: text
+    pub fn new(code: i32, position: i32, text_length: i32, severity: i8, sqlstate: Vec<u8>, text: String) -> HdbError {
+        HdbError {
+            code: code,
+            position: position,
+            text_length: text_length,
+            severity: severity,
+            sqlstate: sqlstate,
+            text: text,
         }
     }
 
@@ -29,7 +33,9 @@ impl HdbError {
         try!(w.write_i32::<LittleEndian>(self.position));
         try!(w.write_i32::<LittleEndian>(self.text_length));
         try!(w.write_i8(self.severity));
-        for b in self.sqlstate.iter() {try!(w.write_u8(*b))};
+        for b in self.sqlstate.iter() {
+            try!(w.write_u8(*b))
+        }
         try!(util::serialize_bytes(&util::string_to_cesu8(&(self.text)), w));
         Ok(())
     }
@@ -48,17 +54,17 @@ impl HdbError {
 
 
         let hdberr = HdbError::new(code, position, text_length, severity, sqlstate, text);
-        debug!("parse(): found hdberr with {}",hdberr.textual_repr());
+        debug!("parse(): found hdberr with {}", hdberr.textual_repr());
         Ok(hdberr)
     }
 
     fn textual_repr(&self) -> String {
         let sev = match self.severity {
-                    0 => "warning",
-                    1 => "error",
-                    2 => "fatal error",
-                    _ => "message of unknown severity"
-                };
+            0 => "warning",
+            1 => "error",
+            2 => "fatal error",
+            _ => "message of unknown severity",
+        };
         format!("{} [code: {}, sql state: {}] at position {}: \"{}\"",
                 sev,
                 self.code,
@@ -70,12 +76,12 @@ impl HdbError {
 
 impl fmt::Display for HdbError {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "{}",self.textual_repr())
+        write!(fmt, "{}", self.textual_repr())
     }
 }
 
 impl fmt::Debug for HdbError {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "{}",self.textual_repr())
+        write!(fmt, "{}", self.textual_repr())
     }
 }

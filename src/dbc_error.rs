@@ -1,4 +1,4 @@
-use rs_serde::error::{DeserError,SerializationError};
+use rs_serde::error::{DeserError, SerializationError};
 use protocol::protocol_error::PrtError;
 
 use std::error;
@@ -61,25 +61,33 @@ impl fmt::Display for DbcError {
             DbcError::DeserializationError(ref error) => write!(fmt, "{:?}", error),
             DbcError::IoError(ref error) => write!(fmt, "{:?}", error),
             DbcError::ProtocolError(ref error) => write!(fmt, "{:?}", error),
-            DbcError::EvaluationError(ref s) => write!(fmt, "{:?}",s),
+            DbcError::EvaluationError(ref s) => write!(fmt, "{:?}", s),
             DbcError::SerializationError(ref error) => write!(fmt, "{:?}", error),
-            DbcError::UsageError(ref s) => write!(fmt, "{:?}",s),
+            DbcError::UsageError(ref s) => write!(fmt, "{:?}", s),
         }
     }
 }
 
 impl From<DeserError> for DbcError {
-    fn from(error: DeserError) -> DbcError { DbcError::DeserializationError(error) }
+    fn from(error: DeserError) -> DbcError {
+        DbcError::DeserializationError(error)
+    }
 }
 
 impl From<SerializationError> for DbcError {
-    fn from(error: SerializationError) -> DbcError { DbcError::SerializationError(error) }
+    fn from(error: SerializationError) -> DbcError {
+        DbcError::SerializationError(error)
+    }
 }
 
 impl From<PrtError> for DbcError {
-    fn from(error: PrtError) -> DbcError { DbcError::ProtocolError(error) }
+    fn from(error: PrtError) -> DbcError {
+        DbcError::ProtocolError(error)
+    }
 }
 
 impl From<io::Error> for DbcError {
-    fn from(error: io::Error) -> DbcError { DbcError::IoError(error)  }
+    fn from(error: io::Error) -> DbcError {
+        DbcError::IoError(error)
+    }
 }
