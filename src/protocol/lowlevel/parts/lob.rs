@@ -13,30 +13,33 @@ use std::borrow::Cow;
 use std::cmp;
 use std::io;
 
+/// TypedValue::BLOB is a wrapper around BLOB. BLOB comes in two flavors, depending on
+/// whether we read it from the database or write it to the database.
 #[derive(Clone,Debug)]
 pub enum BLOB {
-    FromDB(BlobFromDB),
-    ToDB(BlobToDB),
+    FromDB(BlobHandle),
+    ToDB(Vec<u8>),
 }
 
-/// Is used for BLOBS that we receive from the DB.
-/// The data are often not transferred completely, so we support fetching remaining data on demand.
+/// BlobHandle is used for BLOBS that we receive from the database.
+/// The data are often not transferred completely, so we carry a connection and the necessary controls to
+/// support fetching remaining data on demand.
 #[derive(Clone,Debug)]
-pub struct BlobFromDB {
+pub struct BlobHandle {
     o_conn_ref: Option<ConnRef>,
     is_data_complete: bool,
     length_b: u64,
     locator_id: u64,
-    data: Vec<u8>,
+    pub data: Vec<u8>,
     acc_server_proc_time: i32,
 }
-impl BlobFromDB {
-    pub fn new(conn_ref: &ConnRef, is_data_complete: bool, length_b: u64, locator_id: u64, data: Vec<u8>) -> BlobFromDB {
-        trace!("Instantiate BlobFromDB with length_b = {}, is_data_complete = {}, data.length() = {}",
+impl BlobHandle {
+    fn new(conn_ref: &ConnRef, is_data_complete: bool, length_b: u64, locator_id: u64, data: Vec<u8>) -> BlobHandle {
+        trace!("Instantiate BlobHandle with length_b = {}, is_data_complete = {}, data.length() = {}",
                length_b,
                is_data_complete,
                data.len());
-        BlobFromDB {
+        BlobHandle {
             o_conn_ref: Some(conn_ref.clone()),
             length_b: length_b,
             is_data_complete: is_data_complete,
@@ -46,10 +49,6 @@ impl BlobFromDB {
         }
     }
 
-    // FIXME should be sth like as_byte_stream()
-    // pub fn to_owned_data(self) -> Vec<u8> {
-    //     self.data
-    // }
     fn fetch_next_chunk(&mut self) -> PrtResult<()> {
         let (mut reply_data, reply_is_last_data, server_processing_time) =
             try!(fetch_a_lob_chunk(&self.o_conn_ref, self.locator_id, self.length_b, self.data.len() as u64));
@@ -59,52 +58,35 @@ impl BlobFromDB {
         self.acc_server_proc_time += server_processing_time;
 
         assert_eq!(self.is_data_complete, self.length_b == self.data.len() as u64);
-        trace!("After BlobFromDB fetch: is_data_complete = {}, data.length() = {}",
+        trace!("After BlobHandle fetch: is_data_complete = {}, data.length() = {}",
                self.is_data_complete,
                self.length_b);
         Ok(())
     }
 
     pub fn into_bytes(mut self) -> PrtResult<Vec<u8>> {
-        trace!("BlobFromDB::into_bytes()");
+        trace!("BlobHandle::into_bytes()");
         while !self.is_data_complete {
             try!(self.fetch_next_chunk());
         }
         Ok(self.data)
     }
+    // FIXME we should also have sth like into_byte_stream()
 }
 
-// Is used for writing BLOBS to requests
-#[derive(Clone,Debug)]
-pub struct BlobToDB {
-    is_complete: bool,
-    length: u32,
-    position: u32,
-    data: Vec<u8>,
-}
 
-// only for read-wire
-// parse from request (for read-wire)
-pub fn parse_blob_from_request(rdr: &mut io::BufRead) -> PrtResult<BLOB> {
-    let options = try!(rdr.read_u8());                                      // I1
-    let length = try!(rdr.read_u32::<LittleEndian>());                      // I4
-    let position = try!(rdr.read_u32::<LittleEndian>());                    // I4
-    Ok(BLOB::ToDB(BlobToDB {
-        is_complete: (options & 0b_100_u8) != 0,
-        length: length,
-        position: position,
-        data: Vec::<u8>::new(),
-    }))
-}
+////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
 
 #[derive(Clone,Debug)]
 pub enum CLOB {
-    FromDB(ClobFromDB),
-    ToDB(ClobToDB),
+    FromDB(ClobHandle),
+    ToDB(String),
 }
 
+
 #[derive(Clone,Debug)]
-pub struct ClobFromDB {
+pub struct ClobHandle {
     o_conn_ref: Option<ConnRef>,
     is_data_complete: bool,
     length_c: u64,
@@ -114,11 +96,11 @@ pub struct ClobFromDB {
     data: String,
     acc_server_proc_time: i32,
 }
-impl ClobFromDB {
-    pub fn new(conn_ref: &ConnRef, is_data_complete: bool, length_c: u64, length_b: u64, char_count: u64,
-               locator_id: u64, data: String)
-               -> ClobFromDB {
-        ClobFromDB {
+impl ClobHandle {
+    fn new(conn_ref: &ConnRef, is_data_complete: bool, length_c: u64, length_b: u64, char_count: u64, locator_id: u64,
+           data: String)
+           -> ClobHandle {
+        ClobHandle {
             o_conn_ref: Some(conn_ref.clone()),
             length_c: length_c,
             length_b: length_b,
@@ -146,50 +128,28 @@ impl ClobFromDB {
         self.acc_server_proc_time += server_processing_time;
 
         assert_eq!(self.is_data_complete, self.length_b == self.data.len() as u64);
-        trace!("After ClobFromDB fetch: is_data_complete = {}, data.length() = {}",
+        trace!("After ClobHandle fetch: is_data_complete = {}, data.length() = {}",
                self.is_data_complete,
                self.length_b);
         Ok(())
     }
 
     fn load_complete(&mut self) -> PrtResult<()> {
-        trace!("ClobFromDB::load_complete()");
+        trace!("ClobHandle::load_complete()");
         while !self.is_data_complete {
             try!(self.fetch_next_chunk());
         }
         Ok(())
     }
 
-    // FIXME implement sth like into_character_stream() with deferred chunk fetching
     pub fn into_string(mut self) -> PrtResult<String> {
-        trace!("ClobFromDB::into_string()");
+        trace!("ClobHandle::into_string()");
         try!(self.load_complete());
         Ok(self.data)
     }
+    // FIXME we should also have sth like into_character_stream() with deferred chunk fetching
 }
 
-// Is used for writing BLOBS to requests
-#[derive(Clone,Debug)]
-pub struct ClobToDB {
-    is_complete: bool,
-    length: u32,
-    position: u32,
-    data: String,
-}
-
-// only for read-wire
-// parse from request (for read-wire)
-pub fn parse_clob_from_request(rdr: &mut io::BufRead) -> PrtResult<CLOB> {
-    let options = try!(rdr.read_u8());                                      // I1
-    let length = try!(rdr.read_u32::<LittleEndian>());                      // I4
-    let position = try!(rdr.read_u32::<LittleEndian>());                    // I4
-    Ok(CLOB::ToDB(ClobToDB {
-        is_complete: (options & 0b_100_u8) != 0,
-        length: length,
-        position: position,
-        data: String::new(),
-    }))
-}
 
 
 // ===
@@ -208,7 +168,7 @@ pub fn parse_nullable_blob_from_reply(conn_ref: &ConnRef, rdr: &mut io::BufRead)
         }
         false => {
             let (_, length_b, locator_id, data) = try!(parse_lob_2(rdr));
-            Ok(Some(BLOB::FromDB(BlobFromDB::new(conn_ref, is_last_data, length_b, locator_id, data))))
+            Ok(Some(BLOB::FromDB(BlobHandle::new(conn_ref, is_last_data, length_b, locator_id, data))))
         }
     }
 }
@@ -233,7 +193,7 @@ pub fn parse_nullable_clob_from_reply(conn_ref: &ConnRef, rdr: &mut io::BufRead)
                 Cow::Borrowed(s) => String::from(s),
             };
             assert_eq!(data.len(), s.len());
-            Ok(Some(CLOB::FromDB(ClobFromDB::new(conn_ref,
+            Ok(Some(CLOB::FromDB(ClobHandle::new(conn_ref,
                                                  is_last_data,
                                                  length_c,
                                                  length_b,

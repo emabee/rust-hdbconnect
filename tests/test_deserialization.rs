@@ -8,21 +8,15 @@ extern crate flexi_logger;
 extern crate hdbconnect;
 extern crate serde;
 
-use hdbconnect::{Connection,DbcResult,test_utils};
+use hdbconnect::{Connection,DbcResult};
 use hdbconnect::types::LongDate;
 
+mod test_utils;
 
-// cargo test test_select_and_deserialization -- --nocapture
-#[test]
+
+#[test]     // cargo test test_select_and_deserialization -- --nocapture
 pub fn test_select_and_deserialization() {
-    use flexi_logger::LogConfig;
-    // hdbconnect::protocol::lowlevel::resultset=debug,\
-    flexi_logger::init(LogConfig {
-            log_to_file: false,
-            .. LogConfig::new() },
-            Some("info,\
-            ".to_string())).unwrap();
-
+    test_utils::init_logger(false, "info");
 
     match impl_test_select_and_deserialization() {
         Err(e) => {error!("test_select_and_deserialization() failed with {:?}",e); assert!(false)},

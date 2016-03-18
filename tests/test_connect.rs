@@ -4,10 +4,10 @@
 extern crate chrono;
 #[macro_use]
 extern crate log;
-extern crate flexi_logger;
 extern crate hdbconnect;
 extern crate serde;
-extern crate vec_map;
+
+mod test_utils;
 
 use chrono::Local;
 use serde::bytes::ByteBuf;
@@ -20,13 +20,7 @@ use hdbconnect::types::LongDate;
 // cargo test test_connect -- --nocapture
 #[test]
 pub fn test_connect(){
-    use flexi_logger::LogConfig;
-    // hdbconnect::protocol::lowlevel::resultset=debug,\
-    flexi_logger::init(LogConfig {
-            log_to_file: false,
-            .. LogConfig::new() },
-            Some("info,\
-            ".to_string())).unwrap();
+    test_utils::init_logger(false, "info");
 
     connect_successfully();
     connect_wrong_password();

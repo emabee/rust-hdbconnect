@@ -1,4 +1,5 @@
 use types::LongDate;
+use protocol::lowlevel::parts::lob::BLOB;
 use protocol::lowlevel::parts::parameter_metadata::{ParameterDescriptor, ParameterMetadata, ParMode};
 use protocol::lowlevel::parts::parameters::ParameterRow;
 use protocol::lowlevel::parts::type_id::*;
@@ -8,7 +9,7 @@ use super::error::{SerializationError, SerializeResult};
 use serde;
 use std::{u8, i16, i32, i64};
 
-/// A structure for serializing Rust values into JSON.
+/// A structure for serializing Rust values into a parameter row for a prepared statement.
 pub struct Serializer<'a> {
     row: ParameterRow,
     metadata: Vec<&'a ParameterDescriptor>,
@@ -47,6 +48,7 @@ impl<'a> Serializer<'a> {
     pub fn into_row<T>(value: &T, md: &ParameterMetadata) -> SerializeResult<ParameterRow>
         where T: serde::ser::Serialize
     {
+        trace!("Serializer::into_row() called");
         let mut serializer = Serializer::new(md);
         try!(value.serialize(&mut serializer));
         Ok(serializer._into_row())
@@ -57,7 +59,8 @@ impl<'a> serde::ser::Serializer for Serializer<'a> {
     type Error = SerializationError;
 
     #[inline]
-    fn visit_bool(&mut self, value: bool) -> SerializeResult<()> {
+    fn serialize_bool(&mut self, value: bool) -> SerializeResult<()> {
+        trace!("Serializer::visit_bool() called");
         match try!(self.expected_type_code()) {
             TYPEID_BOOLEAN => self.row.push(TypedValue::BOOLEAN(value)),
             TYPEID_N_BOOLEAN => self.row.push(TypedValue::N_BOOLEAN(Some(value))),
@@ -67,7 +70,8 @@ impl<'a> serde::ser::Serializer for Serializer<'a> {
     }
 
     #[inline]
-    fn visit_isize(&mut self, value: isize) -> SerializeResult<()> {
+    fn serialize_isize(&mut self, value: isize) -> SerializeResult<()> {
+        trace!("Serializer::visit_isize() called");
         let input_type = "isize";
         match try!(self.expected_type_code()) {
             TYPEID_TINYINT => {
@@ -110,7 +114,8 @@ impl<'a> serde::ser::Serializer for Serializer<'a> {
     }
 
     #[inline]
-    fn visit_i8(&mut self, value: i8) -> SerializeResult<()> {
+    fn serialize_i8(&mut self, value: i8) -> SerializeResult<()> {
+        trace!("Serializer::visit_i8() called");
         let input_type = "i8";
         match try!(self.expected_type_code()) {
             TYPEID_TINYINT => {
@@ -139,7 +144,8 @@ impl<'a> serde::ser::Serializer for Serializer<'a> {
     }
 
     #[inline]
-    fn visit_i16(&mut self, value: i16) -> SerializeResult<()> {
+    fn serialize_i16(&mut self, value: i16) -> SerializeResult<()> {
+        trace!("Serializer::visit_i16() called");
         let input_type = "i16";
         match try!(self.expected_type_code()) {
             TYPEID_TINYINT => {
@@ -168,7 +174,8 @@ impl<'a> serde::ser::Serializer for Serializer<'a> {
     }
 
     #[inline]
-    fn visit_i32(&mut self, value: i32) -> SerializeResult<()> {
+    fn serialize_i32(&mut self, value: i32) -> SerializeResult<()> {
+        trace!("Serializer::visit_i32() called");
         let input_type = "i32";
         match try!(self.expected_type_code()) {
             TYPEID_TINYINT => {
@@ -209,7 +216,8 @@ impl<'a> serde::ser::Serializer for Serializer<'a> {
     }
 
     #[inline]
-    fn visit_i64(&mut self, value: i64) -> SerializeResult<()> {
+    fn serialize_i64(&mut self, value: i64) -> SerializeResult<()> {
+        trace!("Serializer::visit_i64() called");
         let input_type = "i64";
         match try!(self.expected_type_code()) {
             TYPEID_TINYINT => {
@@ -264,7 +272,8 @@ impl<'a> serde::ser::Serializer for Serializer<'a> {
     }
 
     #[inline]
-    fn visit_usize(&mut self, value: usize) -> SerializeResult<()> {
+    fn serialize_usize(&mut self, value: usize) -> SerializeResult<()> {
+        trace!("Serializer::visit_usize() called");
         let input_type = "usize";
         match try!(self.expected_type_code()) {
             TYPEID_TINYINT => {
@@ -317,7 +326,8 @@ impl<'a> serde::ser::Serializer for Serializer<'a> {
     }
 
     #[inline]
-    fn visit_u8(&mut self, value: u8) -> SerializeResult<()> {
+    fn serialize_u8(&mut self, value: u8) -> SerializeResult<()> {
+        trace!("Serializer::visit_u8() called");
         let input_type = "u8";
         match try!(self.expected_type_code()) {
             TYPEID_TINYINT => self.row.push(TypedValue::TINYINT(value)),
@@ -334,7 +344,8 @@ impl<'a> serde::ser::Serializer for Serializer<'a> {
     }
 
     #[inline]
-    fn visit_u16(&mut self, value: u16) -> SerializeResult<()> {
+    fn serialize_u16(&mut self, value: u16) -> SerializeResult<()> {
+        trace!("Serializer::visit_u16() called");
         let input_type = "u16";
         match try!(self.expected_type_code()) {
             TYPEID_TINYINT => {
@@ -375,7 +386,8 @@ impl<'a> serde::ser::Serializer for Serializer<'a> {
     }
 
     #[inline]
-    fn visit_u32(&mut self, value: u32) -> SerializeResult<()> {
+    fn serialize_u32(&mut self, value: u32) -> SerializeResult<()> {
+        trace!("Serializer::visit_u32() called");
         let input_type = "u32";
         match try!(self.expected_type_code()) {
             TYPEID_TINYINT => {
@@ -428,7 +440,8 @@ impl<'a> serde::ser::Serializer for Serializer<'a> {
     }
 
     #[inline]
-    fn visit_u64(&mut self, value: u64) -> SerializeResult<()> {
+    fn serialize_u64(&mut self, value: u64) -> SerializeResult<()> {
+        trace!("Serializer::visit_u64() called");
         let input_type = "u64";
         match try!(self.expected_type_code()) {
             TYPEID_TINYINT => {
@@ -493,7 +506,8 @@ impl<'a> serde::ser::Serializer for Serializer<'a> {
     }
 
     #[inline]
-    fn visit_f32(&mut self, value: f32) -> SerializeResult<()> {
+    fn serialize_f32(&mut self, value: f32) -> SerializeResult<()> {
+        trace!("Serializer::visit_f32() called");
         match try!(self.expected_type_code()) {
             TYPEID_REAL => self.row.push(TypedValue::REAL(value)),
             TYPEID_N_REAL => self.row.push(TypedValue::N_REAL(Some(value))),
@@ -503,7 +517,8 @@ impl<'a> serde::ser::Serializer for Serializer<'a> {
     }
 
     #[inline]
-    fn visit_f64(&mut self, value: f64) -> SerializeResult<()> {
+    fn serialize_f64(&mut self, value: f64) -> SerializeResult<()> {
+        trace!("Serializer::visit_f64() called");
         match try!(self.expected_type_code()) {
             TYPEID_DOUBLE => self.row.push(TypedValue::DOUBLE(value)),
             TYPEID_N_DOUBLE => self.row.push(TypedValue::N_DOUBLE(Some(value))),
@@ -513,7 +528,8 @@ impl<'a> serde::ser::Serializer for Serializer<'a> {
     }
 
     #[inline]
-    fn visit_char(&mut self, value: char) -> SerializeResult<()> {
+    fn serialize_char(&mut self, value: char) -> SerializeResult<()> {
+        trace!("Serializer::visit_char() called");
         let mut s = String::new();
         s.push(value);
         match try!(self.expected_type_code()) {
@@ -531,7 +547,8 @@ impl<'a> serde::ser::Serializer for Serializer<'a> {
     }
 
     #[inline]
-    fn visit_str(&mut self, value: &str) -> SerializeResult<()> {
+    fn serialize_str(&mut self, value: &str) -> SerializeResult<()> {
+        trace!("Serializer::visit_str() called");
         let s = String::from(value);
         match try!(self.expected_type_code()) {
             TYPEID_CHAR => self.row.push(TypedValue::STRING(s)),
@@ -548,7 +565,8 @@ impl<'a> serde::ser::Serializer for Serializer<'a> {
     }
 
     #[inline]
-    fn visit_none(&mut self) -> SerializeResult<()> {
+    fn serialize_none(&mut self) -> SerializeResult<()> {
+        trace!("Serializer::visit_none() called");
         match try!(self.expected_type_code()) {
             TYPEID_N_TINYINT => self.row.push(TypedValue::N_TINYINT(None)),
             TYPEID_N_SMALLINT => self.row.push(TypedValue::N_SMALLINT(None)),
@@ -572,55 +590,73 @@ impl<'a> serde::ser::Serializer for Serializer<'a> {
             TYPEID_N_TEXT => self.row.push(TypedValue::N_TEXT(None)),
             TYPEID_N_SHORTTEXT => self.row.push(TypedValue::N_SHORTTEXT(None)),
             TYPEID_N_LONGDATE => self.row.push(TypedValue::N_LONGDATE(None)),
-            target_tc => return Err(SerializationError::TypeMismatch("&str", target_tc)),
+            target_tc => return Err(SerializationError::TypeMismatch("none", target_tc)),
         }
         Ok(())
     }
 
     #[inline]
     #[allow(unused_variables)]
-    fn visit_some<V>(&mut self, value: V) -> SerializeResult<()>
+    fn serialize_some<V>(&mut self, value: V) -> SerializeResult<()>
         where V: serde::ser::Serialize
     {
+        trace!("Serializer::visit_some() called");
         value.serialize(self)
     }
 
     #[inline]
     #[allow(unused_variables)]
-    fn visit_unit(&mut self) -> SerializeResult<()> {
+    fn serialize_unit(&mut self) -> SerializeResult<()> {
+        trace!("Serializer::visit_unit() called");
         Err(SerializationError::TypeMismatch("unit", try!(self.expected_type_code())))
+    }
+
+
+    #[inline]
+    fn serialize_bytes(&mut self, value: &[u8]) -> Result<(), Self::Error> {
+        trace!("Serializer::serialize_bytes() called");
+        match try!(self.expected_type_code()) {
+            TYPEID_BLOB => self.row.push(TypedValue::BLOB(BLOB::ToDB((*value).to_vec()))),
+            TYPEID_N_BLOB => self.row.push(TypedValue::N_BLOB(Some(BLOB::ToDB((*value).to_vec())))),
+            target_tc => return Err(SerializationError::TypeMismatch("bytes", target_tc)),
+        }
+        Ok(())
     }
 
     /// Override `visit_newtype_struct` to serialize newtypes without an object wrapper.
     #[inline]
     #[allow(unused_variables)]
-    fn visit_newtype_struct<T>(&mut self, _name: &'static str, value: T) -> SerializeResult<()>
+    fn serialize_newtype_struct<T>(&mut self, _name: &'static str, value: T) -> SerializeResult<()>
         where T: serde::ser::Serialize
     {
+        trace!("Serializer::visit_newtype_struct() called");
         value.serialize(self)
     }
 
     #[inline]
     #[allow(unused_variables)]
-    fn visit_unit_variant(&mut self, _name: &str, _variant_index: usize, variant: &str) -> SerializeResult<()> {
+    fn serialize_unit_variant(&mut self, _name: &str, _variant_index: usize, variant: &str) -> SerializeResult<()> {
+        trace!("Serializer::visit_unit_variant() called");
         Err(SerializationError::TypeMismatch("unit_variant", try!(self.expected_type_code())))
     }
 
     #[inline]
     #[allow(unused_variables)]
-    fn visit_newtype_variant<T>(&mut self, _name: &str, _variant_index: usize, variant: &str, value: T)
+    fn serialize_newtype_variant<T>(&mut self, _name: &str, _variant_index: usize, variant: &str, value: T)
                                 -> SerializeResult<()>
         where T: serde::ser::Serialize
     {
+        trace!("Serializer::visit_newtype_variant() called");
         error!("visit_newtype_variant _name: {}, _variant_index: {}, variant: {}", _name, _variant_index, variant);
         Err(SerializationError::TypeMismatch("newtype_variant", try!(self.expected_type_code())))
     }
 
     #[inline]
     #[allow(unused_mut,unused_variables)]
-    fn visit_seq<V>(&mut self, mut visitor: V) -> SerializeResult<()>
+    fn serialize_seq<V>(&mut self, mut visitor: V) -> SerializeResult<()>
         where V: serde::ser::SeqVisitor
     {
+        trace!("Serializer::visit_seq() called");
         while let Some(()) = try!(visitor.visit(self)) {
         }  // FIXME why do we need a loop here?
         Ok(())
@@ -628,27 +664,31 @@ impl<'a> serde::ser::Serializer for Serializer<'a> {
 
     #[inline]
     #[allow(unused_variables)]
-    fn visit_tuple_variant<V>(&mut self, _name: &str, _variant_index: usize, variant: &str, visitor: V)
+    fn serialize_tuple_variant<V>(&mut self, _name: &str, _variant_index: usize, variant: &str, visitor: V)
                               -> SerializeResult<()>
         where V: serde::ser::SeqVisitor
     {
+        trace!("Serializer::visit_tuple_variant() called");
         Err(SerializationError::TypeMismatch("tuple_variant", try!(self.expected_type_code())))
     }
 
     #[inline]
     #[allow(unused_variables)]
-    fn visit_seq_elt<T>(&mut self, value: T) -> SerializeResult<()>
+    fn serialize_seq_elt<T>(&mut self, value: T) -> SerializeResult<()>
         where T: serde::ser::Serialize
     {
+        trace!("Serializer::visit_seq_elt() called");
+
         // Err(SerializationError::TypeMismatch("seq_elt",try!(self.expected_type_code())))
         value.serialize(self)  // FIXME
     }
 
     #[inline]
     #[allow(unused_mut,unused_variables)]
-    fn visit_map<V>(&mut self, mut visitor: V) -> SerializeResult<()>
+    fn serialize_map<V>(&mut self, mut visitor: V) -> SerializeResult<()>
         where V: serde::ser::MapVisitor
     {
+        trace!("Serializer::visit_map() called");
         while let Some(()) = try!(visitor.visit(self)) {
         }  // FIXME why do we need a loop here?
         Ok(())
@@ -656,19 +696,21 @@ impl<'a> serde::ser::Serializer for Serializer<'a> {
 
     #[inline]
     #[allow(unused_variables)]
-    fn visit_struct_variant<V>(&mut self, _name: &str, _variant_index: usize, variant: &str, visitor: V)
+    fn serialize_struct_variant<V>(&mut self, _name: &str, _variant_index: usize, variant: &str, visitor: V)
                                -> SerializeResult<()>
         where V: serde::ser::MapVisitor
     {
+        trace!("Serializer::visit_struct_variant() called");
         Err(SerializationError::TypeMismatch("struct_variant", try!(self.expected_type_code())))
     }
 
     #[inline]
     #[allow(unused_variables)]
-    fn visit_map_elt<K, V>(&mut self, key: K, value: V) -> SerializeResult<()>
+    fn serialize_map_elt<K, V>(&mut self, key: K, value: V) -> SerializeResult<()>
         where K: serde::ser::Serialize,
               V: serde::ser::Serialize
     {
+        trace!("Serializer::visit_map_elt() called");
         // try!(key.serialize(&mut MapKeySerializer { ser: self }));
         try!(value.serialize(self));
         Ok(())

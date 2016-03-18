@@ -68,7 +68,7 @@ impl ResultSetMetadata {
     fn add_to_names(&mut self, offset: u32) {
         if offset != u32::MAX {
             let tn = offset as usize;
-            if !self.names.contains_key(&tn) {
+            if !self.names.contains_key(tn) {
                 self.names.insert(tn, "".to_string());
             };
         }
@@ -79,11 +79,11 @@ impl ResultSetMetadata {
         self.fields.len() as i16
     }
 
-    /// TODO is it OK that we ignore here the column_name?
+    /// FIXME is it OK that we ignore here the column_name?
     /// FIXME for large result sets, this method will be called very often - is caching meaningful?
     pub fn get_fieldname(&self, field_idx: usize) -> Option<&String> {
         match self.fields.get(field_idx) {
-            Some(field_metadata) => self.names.get(&(field_metadata.column_displayname as usize)),
+            Some(field_metadata) => self.names.get(field_metadata.column_displayname as usize),
             None => None,
         }
     }
@@ -142,7 +142,7 @@ impl fmt::Display for ResultSetMetadata {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         writeln!(fmt, "").unwrap();
         for field_metadata in &self.fields {
-            match self.names.get(&(field_metadata.column_displayname as usize)) {
+            match self.names.get(field_metadata.column_displayname as usize) {
                 Some(fieldname) => write!(fmt, "{}, ", fieldname).unwrap(),
                 None => write!(fmt, "<unnamed>, ").unwrap(),
             };

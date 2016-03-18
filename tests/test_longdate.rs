@@ -2,31 +2,22 @@
 #![plugin(serde_macros)]
 
 extern crate chrono;
-extern crate flexi_logger;
 extern crate hdbconnect;
 #[macro_use]
 extern crate log;
 extern crate serde;
 
+mod test_utils;
+
 use chrono::UTC;
 use chrono::offset::TimeZone;
 
-use hdbconnect::Connection;
-use hdbconnect::DbcResult;
+use hdbconnect::{Connection, DbcResult};
 use hdbconnect::types::LongDate;
 
-use hdbconnect::test_utils;
-
-// cargo test test_longdate -- --nocapture
-#[test]
+#[test]     // cargo test test_longdate -- --nocapture
 pub fn test_longdate() {
-    use flexi_logger::LogConfig;
-    // hdbconnect::protocol::lowlevel::resultset=debug,\
-    flexi_logger::init(LogConfig {
-            log_to_file: false,
-            .. LogConfig::new() },
-            Some("info,\
-            ".to_string())).unwrap();
+    test_utils::init_logger(false, "info");
 
     match impl_test_longdate() {
         Err(e) => {error!("test_longdate() failed with {:?}",e); assert!(false)},
@@ -38,7 +29,7 @@ pub fn test_longdate() {
 // - during serialization (for this we use the cond_values in the prepared select statement)
 // - during deserialization (her we only need to check the result)
 fn impl_test_longdate() -> DbcResult<i32> {
-    let mut connection = try!(hdbconnect::Connection::new("wdfd00245307a", "30415"));
+    let mut connection = try!(Connection::new("wdfd00245307a", "30415"));
     try!(connection.authenticate_user_password("SYSTEM", "manager"));
 
     info!("verify that chrono UTC values match with the expected string representation");

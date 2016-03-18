@@ -17,7 +17,11 @@ use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
 
-/// Contains the metadata and the data of a database read command.
+/// Contains the result of a database read command, including the describing metadata.
+///
+/// In most cases, you will want to use the powerful method [into_typed](#method.into_typed)
+/// to convert the data from the generic format into your application specific format.
+
 #[derive(Debug)]
 pub struct ResultSet {
     core_ref: RsRef,
@@ -131,12 +135,49 @@ impl ResultSet {
         Ok(())
     }
 
-    /// Returns the server processing times of the calls that produced this result set.
+    /// Returns the accumulated server processing time of the calls that produced this result set, i.e.
+    /// the initial call and potentially a subsequent number of fetches.
     pub fn accumulated_server_processing_time(&self) -> i32 {
         self.acc_server_proc_time
     }
 
-    /// Translates a generic result set into a given type.
+    /// Translates a generic result set into a given rust type.
+    ///
+    /// A result set is essentially a two-dimensional structure, given as a list of rows
+    /// (a <code> Vec&lt;Row&gt; </code>),
+    /// where each row is a list of fields (a <code>Vec&lt;TypedValue&gt;</code>);
+    /// the name of each field is given in the metadata of the resultset.
+    ///
+    /// It depends on the dimension of the resultset, what target data structures can be used for deserialization:
+    ///
+    /// * The default target data structure that can always be used is a <code>Vec&lt;line_struct&gt;</code>, where
+    ///   <code>line_struct</code> matches the field list of the result set.
+    ///
+    /// * If the result set contains only a single line (e.g. because you specified TOP 1 in your select),
+    ///    then you can also deserialize into a plain <code>line_struct</code>.
+    ///
+    /// * If the result set contains only a single column, then you can also deserialize into a
+    ///   <code>Vec&lt;plain_field&gt;</code>.
+    ///
+    /// * If the result set contains only a single value (one row with one column),
+    ///   then you can also deserialize into a plain <code>line_struct</code>,
+    ///   or a <code>Vec&lt;plain_field&gt;</code>, or a plain variable.
+    ///
+    /// Note that you need to specify the type of your variable explicitly:
+    ///
+    /// ```ignore
+    ///         let resultset = try!(connection.query_statement("select * from TEST_TABLE"));
+    ///         let typed_result: Vec<TestStruct> = try!(resultset.into_typed());
+    /// ```
+    /// Also the translation of the values provides a lot of flexibility.
+    /// You can e.g. convert values from a nullable column into a plain field, provided that no NULL values are
+    /// given in the result set.
+    ///
+    /// Vice versa, you always can use an Option<code>&lt;plain_field&gt;</code>,
+    /// even if the column is marked as NOT NULL.
+    ///
+    /// Similarly, integer types can differ, as long as the concrete values can be assigned without loss.
+
     pub fn into_typed<T>(mut self) -> DbcResult<T>
         where T: serde::de::Deserialize
     {
@@ -163,6 +204,8 @@ impl fmt::Display for ResultSet {
 
 
 /// A single line of a ResultSet.
+///
+/// Not much to add, I guess.
 #[derive(Debug,Clone)]
 pub struct Row {
     /// The single field contains the Vec of types values.

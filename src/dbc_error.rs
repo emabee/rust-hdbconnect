@@ -6,29 +6,29 @@ use std::fmt;
 use std::io;
 use std::result;
 
-/// This type represents all possible errors that can occur in hdbconnect
+/// This error type represents all possible errors that can occur in hdbconnect.
 #[derive(Debug)]
 pub enum DbcError {
-    /// Error occured in deserialization of data into an application-defined structure
+    /// Error occured in deserialization of data into an application-defined structure.
     DeserializationError(DeserError),
 
-    /// Error occured in evaluation of a response from the DB
+    /// Error occured in evaluation of a response from the DB.
     EvaluationError(&'static str),
 
-    /// IO error occured in communication setup
+    /// IO error occured in communication setup.
     IoError(io::Error),
 
-    /// Error occured in communication with the database
+    /// Error occured in communication with the database.
     ProtocolError(PrtError),
 
-    /// Error occured in serialization of rust data into values for the database
+    /// Error occured in serialization of rust data into values for the database.
     SerializationError(SerializationError),
 
-    /// Error due to wrong usage of API,
+    /// Error due to wrong usage of API.
     UsageError(&'static str),
 }
 
-/// Shortcut to avoid redundant occurence of DbcError in the code
+/// <code>DbcResult&lt;T&gt;</code> is an abbreviation of <code>Result&lt;T, DbcError&gt;</code>.
 pub type DbcResult<T> = result::Result<T, DbcError>;
 
 impl error::Error for DbcError {

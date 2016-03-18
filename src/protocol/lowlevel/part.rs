@@ -106,7 +106,9 @@ fn parse_part_header(rdr: &mut io::BufRead) -> PrtResult<(PartKind, PartAttribut
 pub struct Parts(pub Vec<Part>);
 
 impl Parts {
-    pub fn new() -> Parts { Parts(Vec::<Part>::new()) }
+    pub fn new() -> Parts {
+        Parts(Vec::<Part>::new())
+    }
     pub fn pop_arg(&mut self) -> Option<Argument> {
         match self.0.pop() {
             Some(part) => Some(part.arg),

@@ -2,26 +2,19 @@
 #![plugin(serde_macros)]
 
 extern crate chrono;
+extern crate hdbconnect;
 #[macro_use]
 extern crate log;
-extern crate flexi_logger;
-extern crate hdbconnect;
 extern crate serde;
 
-use hdbconnect::{Connection,DbcResult,test_utils};
+mod test_utils;
+
+use hdbconnect::{Connection,DbcResult};
 use hdbconnect::types::LongDate;
 
-// cargo test test_transactions -- --nocapture
-#[test]
+#[test]     // cargo test test_transactions -- --nocapture
 pub fn test_transactions() {
-    use flexi_logger::LogConfig;
-    // hdbconnect::protocol::lowlevel::resultset=debug,\
-    flexi_logger::init(LogConfig {
-            log_to_file: false,
-            .. LogConfig::new() },
-            Some("info,\
-            ".to_string())).unwrap();
-
+    test_utils::init_logger(false, "info");
 
     match test_transactions_impl() {
         Err(e) => {error!("test_transactions() failed with {:?}",e); assert!(false)},

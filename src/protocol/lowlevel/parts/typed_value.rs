@@ -17,105 +17,61 @@ const LENGTH_INDICATOR_NULL: u8 = 255;
 #[allow(non_camel_case_types)]
 #[derive(Clone,Debug)]
 pub enum TypedValue {
-    // Description, Support Level
-    /// TINYINT, 1
     TINYINT(u8),
-    /// SMALLINT, 1
     SMALLINT(i16),
-    /// INTEGER, 1
     INT(i32),
-    /// BIGINT, 1
     BIGINT(i64),
     // DECIMAL = 5, 					// DECIMAL, and DECIMAL(p,s), 1
-    /// REAL, 1
     REAL(f32),
-    /// DOUBLE, 1
     DOUBLE(f64),
-    /// CHAR, 1
     CHAR(String),
-    /// VARCHAR, 1
     VARCHAR(String),
-    /// NCHAR (Unicode character type), 1
     NCHAR(String),
-    /// NVARCHAR (Unicode character type), 1
     NVARCHAR(String),
-    /// BINARY, 1
     BINARY(Vec<u8>),
-    /// VARBINARY, 1
     VARBINARY(Vec<u8>),
-    /// Character Large Object, 1
     CLOB(CLOB),
-    /// Unicode Character Large Object, 1
     NCLOB(CLOB),
-    /// Binary Large Object, 1
     BLOB(BLOB),
-    /// Boolean
     BOOLEAN(bool),
-    /// Character string, 1
     STRING(String),
-    /// Unicode character string, 1
     NSTRING(String),
-    /// Binary string, 1
     BSTRING(Vec<u8>),
     // SMALLDECIMAL = 47, 				// SMALLDECIMAL data type, -
-    /// TEXT data type, 3
     TEXT(String),
-    /// SHORTTEXT data type, 3
     SHORTTEXT(String),
-    /// TIMESTAMP data type, 3
     LONGDATE(LongDate),
     //  SECONDDATE(SecondDate),			// TIMESTAMP type with second precision, 3
     //  DAYDATE = 63, 					// DATE data type, 3
     //  SECONDTIME = 64, 				// TIME data type, 3
     /// TINYINT, 1
     N_TINYINT(Option<u8>),
-    /// SMALLINT, 1
     N_SMALLINT(Option<i16>),
-    /// INTEGER, 1
     N_INT(Option<i32>),
-    /// BIGINT, 1
     N_BIGINT(Option<i64>),
     // N_DECIMAL = 5, 					// DECIMAL, and DECIMAL(p,s), 1
-    /// REAL, 1
     N_REAL(Option<f32>),
-    /// DOUBLE, 1
     N_DOUBLE(Option<f64>),
-    /// CHAR, 1
     N_CHAR(Option<String>),
-    /// VARCHAR, 1
     N_VARCHAR(Option<String>),
-    /// NCHAR (Unicode character type), 1
     N_NCHAR(Option<String>),
-    /// NVARCHAR (Unicode character type), 1
     N_NVARCHAR(Option<String>),
-    /// BINARY, 1
     N_BINARY(Option<Vec<u8>>),
-    /// VARBINARY, 1
     N_VARBINARY(Option<Vec<u8>>),
-    /// Character Large Object, 1
     N_CLOB(Option<CLOB>),
-    /// Unicode Character Large Object, 1
     N_NCLOB(Option<CLOB>),
-    /// Binary Large Object, 1
     N_BLOB(Option<BLOB>),
-    /// Boolean
     N_BOOLEAN(Option<bool>),
-    /// Character string, 1
     N_STRING(Option<String>),
-    /// Unicode character string, 1
     N_NSTRING(Option<String>),
-    /// Binary string, 1
     N_BSTRING(Option<Vec<u8>>),
     // N_SMALLDECIMAL = 47, 			// SMALLDECIMAL data type, -
-    /// TEXT data type, 3
     N_TEXT(Option<String>),
-    /// SHORTTEXT data type, 3
     N_SHORTTEXT(Option<String>),
 
     // N_SECONDDATE(Option<SecondDate>),// TIMESTAMP type with second precision, 3
     // N_DAYDATE = 63, 				    // DATE data type, 3
     // N_SECONDTIME = 64, 				// TIME data type, 3
-    /// TIMESTAMP data type, 3
     N_LONGDATE(Option<LongDate>),
 }
 
@@ -218,107 +174,97 @@ impl TypedValue {
     }
 }
 
-pub fn serialize(tv: &TypedValue, w: &mut io::Write) -> PrtResult<()> {
+// FIXME LOBs!!
+pub fn serialize(tv: &TypedValue, data_pos: &mut i32, w: &mut io::Write) -> PrtResult<()> {
     fn _serialize_not_implemented(type_id: u8) -> PrtError {
-        return PrtError::ProtocolError(format!("TypedValue::serialize() not implemented for type code {}",
-                                               type_id));
+        return PrtError::ProtocolError(format!("TypedValue::serialize() not implemented for type code {}", type_id));
     }
 
     if !try!(tv.serialize_type_id(w)) {
         match *tv {
-            TypedValue::TINYINT(u) => try!(w.write_u8(u)),
-            TypedValue::SMALLINT(i) => try!(w.write_i16::<LittleEndian>(i)),
-            TypedValue::INT(i) => try!(w.write_i32::<LittleEndian>(i)),
-            TypedValue::BIGINT(i) => try!(w.write_i64::<LittleEndian>(i)),
-            TypedValue::REAL(f) => try!(w.write_f32::<LittleEndian>(f)),
-            TypedValue::DOUBLE(f) => try!(w.write_f64::<LittleEndian>(f)),
-            TypedValue::BOOLEAN(b) => {
-                try!(w.write_u8(match b {
-                    true => 1,
-                    false => 0,
-                }))
-            }
-            TypedValue::LONGDATE(LongDate(i)) => try!(w.write_i64::<LittleEndian>(i)),
-            TypedValue::CLOB(_) |
-            TypedValue::NCLOB(_) |
-            TypedValue::BLOB(_) |
-            TypedValue::CHAR(_) |
-            TypedValue::VARCHAR(_) |
-            TypedValue::NCHAR(_) |
-            TypedValue::NVARCHAR(_) => return Err(_serialize_not_implemented(tv.type_id())),
+            TypedValue::TINYINT(u) |
+            TypedValue::N_TINYINT(Some(u)) => try!(w.write_u8(u)),
+
+            TypedValue::SMALLINT(i) |
+            TypedValue::N_SMALLINT(Some(i)) => try!(w.write_i16::<LittleEndian>(i)),
+
+            TypedValue::INT(i) |
+            TypedValue::N_INT(Some(i)) => try!(w.write_i32::<LittleEndian>(i)),
+
+            TypedValue::BIGINT(i) |
+            TypedValue::N_BIGINT(Some(i)) => try!(w.write_i64::<LittleEndian>(i)),
+
+            TypedValue::REAL(f) |
+            TypedValue::N_REAL(Some(f)) => try!(w.write_f32::<LittleEndian>(f)),
+
+            TypedValue::DOUBLE(f) |
+            TypedValue::N_DOUBLE(Some(f)) => try!(w.write_f64::<LittleEndian>(f)),
+
+            TypedValue::BOOLEAN(true) |
+            TypedValue::N_BOOLEAN(Some(true)) => try!(w.write_u8(1)),
+            TypedValue::BOOLEAN(false) |
+            TypedValue::N_BOOLEAN(Some(false)) => try!(w.write_u8(0)),
+
+            TypedValue::LONGDATE(LongDate(i)) |
+            TypedValue::N_LONGDATE(Some(LongDate(i))) => try!(w.write_i64::<LittleEndian>(i)),
+
+            TypedValue::CLOB(CLOB::ToDB(ref s)) |
+            TypedValue::N_CLOB(Some(CLOB::ToDB(ref s))) |
+            TypedValue::NCLOB(CLOB::ToDB(ref s)) |
+            TypedValue::N_NCLOB(Some(CLOB::ToDB(ref s))) => try!(serialize_clob_header(s, data_pos, w)),
+
+            TypedValue::BLOB(BLOB::ToDB(ref v)) |
+            TypedValue::N_BLOB(Some(BLOB::ToDB(ref v))) => try!(serialize_blob_header(v, data_pos, w)),
+
             TypedValue::STRING(ref s) |
             TypedValue::NSTRING(ref s) |
             TypedValue::TEXT(ref s) |
-            TypedValue::SHORTTEXT(ref s) => try!(serialize_length_and_string(s, w)),
+            TypedValue::SHORTTEXT(ref s) |
+            TypedValue::N_STRING(Some(ref s)) |
+            TypedValue::N_NSTRING(Some(ref s)) |
+            TypedValue::N_TEXT(Some(ref s)) |
+            TypedValue::N_SHORTTEXT(Some(ref s)) => try!(serialize_length_and_string(s, w)),
+
             TypedValue::BINARY(ref v) |
             TypedValue::VARBINARY(ref v) |
-            TypedValue::BSTRING(ref v) => try!(serialize_length_and_bytes(v, w)),
+            TypedValue::BSTRING(ref v) |
+            TypedValue::N_BINARY(Some(ref v)) |
+            TypedValue::N_VARBINARY(Some(ref v)) |
+            TypedValue::N_BSTRING(Some(ref v)) => try!(serialize_length_and_bytes(v, w)),
 
-            TypedValue::N_TINYINT(o) => {
-                if let Some(u) = o {
-                    try!(w.write_u8(u))
-                }
-            }
-            TypedValue::N_SMALLINT(o) => {
-                if let Some(i) = o {
-                    try!(w.write_i16::<LittleEndian>(i))
-                }
-            }
-            TypedValue::N_INT(o) => {
-                if let Some(i) = o {
-                    try!(w.write_i32::<LittleEndian>(i))
-                }
-            }
-            TypedValue::N_BIGINT(o) => {
-                if let Some(i) = o {
-                    try!(w.write_i64::<LittleEndian>(i))
-                }
-            }
-            TypedValue::N_REAL(o) => {
-                if let Some(f) = o {
-                    try!(w.write_f32::<LittleEndian>(f))
-                }
-            }
-            TypedValue::N_DOUBLE(o) => {
-                if let Some(f) = o {
-                    try!(w.write_f64::<LittleEndian>(f))
-                }
-            }
-            TypedValue::N_BOOLEAN(o) => {
-                if let Some(b) = o {
-                    try!(w.write_u8(match b {
-                        true => 1,
-                        false => 0,
-                    }))
-                }
-            }
-            TypedValue::N_LONGDATE(ref o) => {
-                if let &Some(LongDate(ref i)) = o {
-                    try!(w.write_i64::<LittleEndian>(*i))
-                }
-            }
-            TypedValue::N_CLOB(_) |
-            TypedValue::N_NCLOB(_) |
-            TypedValue::N_BLOB(_) |
+            TypedValue::N_TINYINT(None) |
+            TypedValue::N_SMALLINT(None) |
+            TypedValue::N_INT(None) |
+            TypedValue::N_BIGINT(None) |
+            TypedValue::N_REAL(None) |
+            TypedValue::N_DOUBLE(None) |
+            TypedValue::N_BOOLEAN(None) |
+            TypedValue::N_LONGDATE(None) |
+            TypedValue::N_STRING(None) |
+            TypedValue::N_NSTRING(None) |
+            TypedValue::N_TEXT(None) |
+            TypedValue::N_SHORTTEXT(None) |
+            TypedValue::N_CLOB(None) |
+            TypedValue::N_NCLOB(None) |
+            TypedValue::N_BLOB(None) |
+            TypedValue::N_BINARY(None) |
+            TypedValue::N_VARBINARY(None) |
+            TypedValue::N_BSTRING(None) => {},
+
+            TypedValue::CLOB(CLOB::FromDB(_)) |
+            TypedValue::NCLOB(CLOB::FromDB(_)) |
+            TypedValue::BLOB(BLOB::FromDB(_)) |
+            TypedValue::N_CLOB(Some(CLOB::FromDB(_))) |
+            TypedValue::N_NCLOB(Some(CLOB::FromDB(_))) |
+            TypedValue::N_BLOB(Some(BLOB::FromDB(_))) |
+            TypedValue::CHAR(_) |
             TypedValue::N_CHAR(_) |
-            TypedValue::N_VARCHAR(_) |
+            TypedValue::NCHAR(_) |
             TypedValue::N_NCHAR(_) |
+            TypedValue::VARCHAR(_) |
+            TypedValue::N_VARCHAR(_) |
+            TypedValue::NVARCHAR(_) |
             TypedValue::N_NVARCHAR(_) => return Err(_serialize_not_implemented(tv.type_id())),
-            TypedValue::N_STRING(ref o) |
-            TypedValue::N_NSTRING(ref o) |
-            TypedValue::N_TEXT(ref o) |
-            TypedValue::N_SHORTTEXT(ref o) => {
-                if let &Some(ref s) = o {
-                    try!(serialize_length_and_string(s, w))
-                }
-            }
-            TypedValue::N_BINARY(ref o) |
-            TypedValue::N_VARBINARY(ref o) |
-            TypedValue::N_BSTRING(ref o) => {
-                if let &Some(ref v) = o {
-                    try!(serialize_length_and_bytes(v, w))
-                }
-            }
         }
     }
     Ok(())
@@ -332,101 +278,87 @@ pub fn size(tv: &TypedValue) -> PrtResult<usize> {
 
     Ok(1 +
        match *tv {
-        TypedValue::TINYINT(_) => 1,
-        TypedValue::SMALLINT(_) => 2,
-        TypedValue::INT(_) => 4,
-        TypedValue::BIGINT(_) => 8,
-        TypedValue::REAL(_) => 4,
-        TypedValue::DOUBLE(_) => 8,
-        TypedValue::BOOLEAN(_) => 1,
-        TypedValue::LONGDATE(_) => 8,
-        TypedValue::CLOB(_) |
-        TypedValue::NCLOB(_) |
-        TypedValue::BLOB(_) |
-        TypedValue::N_CLOB(_) |
-        TypedValue::N_NCLOB(_) |
-        TypedValue::N_BLOB(_) |
+        TypedValue::TINYINT(_) |
+        TypedValue::N_TINYINT(Some(_)) => 1,
+
+        TypedValue::SMALLINT(_) |
+        TypedValue::N_SMALLINT(Some(_)) => 2,
+
+        TypedValue::INT(_) |
+        TypedValue::N_INT(Some(_)) => 4,
+
+        TypedValue::BIGINT(_) |
+        TypedValue::N_BIGINT(Some(_)) => 8,
+
+        TypedValue::REAL(_) |
+        TypedValue::N_REAL(Some(_)) => 4,
+
+        TypedValue::DOUBLE(_) |
+        TypedValue::N_DOUBLE(Some(_)) => 8,
+
+        TypedValue::BOOLEAN(_) |
+        TypedValue::N_BOOLEAN(Some(_)) => 1,
+
+        TypedValue::LONGDATE(_) |
+        TypedValue::N_LONGDATE(Some(_)) => 8,
+
+        TypedValue::CLOB(CLOB::ToDB(ref s)) |
+        TypedValue::N_CLOB(Some(CLOB::ToDB(ref s))) |
+        TypedValue::NCLOB(CLOB::ToDB(ref s)) |
+        TypedValue::N_NCLOB(Some(CLOB::ToDB(ref s))) => 9 + s.len(),
+
+        TypedValue::BLOB(BLOB::ToDB(ref v)) |
+        TypedValue::N_BLOB(Some(BLOB::ToDB(ref v))) => 9 + v.len(),
+
+        TypedValue::STRING(ref s) |
+        TypedValue::N_STRING(Some(ref s)) |
+        TypedValue::NSTRING(ref s) |
+        TypedValue::N_NSTRING(Some(ref s)) |
+        TypedValue::TEXT(ref s) |
+        TypedValue::N_TEXT(Some(ref s)) |
+        TypedValue::SHORTTEXT(ref s) |
+        TypedValue::N_SHORTTEXT(Some(ref s)) => string_length(s),
+
+        TypedValue::BINARY(ref v) |
+        TypedValue::N_BINARY(Some(ref v)) |
+        TypedValue::VARBINARY(ref v) |
+        TypedValue::N_VARBINARY(Some(ref v)) |
+        TypedValue::BSTRING(ref v) |
+        TypedValue::N_BSTRING(Some(ref v)) => v.len() + 2,
+
+        TypedValue::N_TINYINT(None) |
+        TypedValue::N_SMALLINT(None) |
+        TypedValue::N_INT(None) |
+        TypedValue::N_BIGINT(None) |
+        TypedValue::N_REAL(None) |
+        TypedValue::N_DOUBLE(None) |
+        TypedValue::N_BOOLEAN(None) |
+        TypedValue::N_LONGDATE(None) |
+        TypedValue::N_CLOB(None) |
+        TypedValue::N_NCLOB(None) |
+        TypedValue::N_BLOB(None) |
+        TypedValue::N_BINARY(None) |
+        TypedValue::N_VARBINARY(None) |
+        TypedValue::N_BSTRING(None) |
+        TypedValue::N_STRING(None) |
+        TypedValue::N_NSTRING(None) |
+        TypedValue::N_TEXT(None) |
+        TypedValue::N_SHORTTEXT(None) => 0,
+
+        TypedValue::CLOB(CLOB::FromDB(_)) |
+        TypedValue::NCLOB(CLOB::FromDB(_)) |
+        TypedValue::BLOB(BLOB::FromDB(_)) |
+        TypedValue::N_CLOB(Some(CLOB::FromDB(_))) |
+        TypedValue::N_NCLOB(Some(CLOB::FromDB(_))) |
+        TypedValue::N_BLOB(Some(BLOB::FromDB(_))) |
         TypedValue::CHAR(_) |
         TypedValue::VARCHAR(_) |
         TypedValue::NCHAR(_) |
-        TypedValue::NVARCHAR(_) => return Err(_size_not_implemented(tv.type_id())),
-        TypedValue::STRING(ref s) |
-        TypedValue::NSTRING(ref s) |
-        TypedValue::TEXT(ref s) |
-        TypedValue::SHORTTEXT(ref s) => string_length(s),
-        TypedValue::BINARY(ref v) |
-        TypedValue::VARBINARY(ref v) |
-        TypedValue::BSTRING(ref v) => v.len() + 2,
-
-        TypedValue::N_TINYINT(o) => {
-            match o {
-                Some(_) => 1,
-                None => 0,
-            }
-        }
-        TypedValue::N_SMALLINT(o) => {
-            match o {
-                Some(_) => 2,
-                None => 0,
-            }
-        }
-        TypedValue::N_INT(o) => {
-            match o {
-                Some(_) => 4,
-                None => 0,
-            }
-        }
-        TypedValue::N_BIGINT(o) => {
-            match o {
-                Some(_) => 8,
-                None => 0,
-            }
-        }
-        TypedValue::N_REAL(o) => {
-            match o {
-                Some(_) => 4,
-                None => 0,
-            }
-        }
-        TypedValue::N_DOUBLE(o) => {
-            match o {
-                Some(_) => 8,
-                None => 0,
-            }
-        }
-        TypedValue::N_BOOLEAN(o) => {
-            match o {
-                Some(_) => 1,
-                None => 0,
-            }
-        }
-        TypedValue::N_LONGDATE(ref o) => {
-            match o {
-                &Some(_) => 8,
-                &None => 0,
-            }
-        }
+        TypedValue::NVARCHAR(_) |
         TypedValue::N_CHAR(_) |
         TypedValue::N_VARCHAR(_) |
         TypedValue::N_NCHAR(_) |
         TypedValue::N_NVARCHAR(_) => return Err(_size_not_implemented(tv.type_id())),
-        TypedValue::N_STRING(ref o) |
-        TypedValue::N_NSTRING(ref o) |
-        TypedValue::N_TEXT(ref o) |
-        TypedValue::N_SHORTTEXT(ref o) => {
-            match o {
-                &Some(ref s) => string_length(s),
-                &None => 0,
-            }
-        }
-        TypedValue::N_BINARY(ref o) |
-        TypedValue::N_VARBINARY(ref o) |
-        TypedValue::N_BSTRING(ref o) => {
-            match o {
-                &Some(ref v) => v.len() + 2,
-                &None => 0,
-            }
-        }
     })
 }
 
@@ -461,13 +393,31 @@ fn serialize_length_and_bytes(v: &Vec<u8>, w: &mut io::Write) -> PrtResult<()> {
 }
 
 
+fn serialize_blob_header(v: &Vec<u8>, data_pos: &mut i32, w: &mut io::Write) -> PrtResult<()> {
+    // bit 0: not used; bit 1: data is included; bit 2: no more data remaining
+    try!(w.write_u8(0b_110_u8));                            // I1           Bit set for options
+    try!(w.write_i32::<LittleEndian>(v.len() as i32));      // I4           LENGTH OF VALUE
+    try!(w.write_i32::<LittleEndian>(*data_pos as i32));    // I4           position
+    *data_pos += v.len() as i32;
+    Ok(())
+}
+
+fn serialize_clob_header(s: &String, data_pos: &mut i32, w: &mut io::Write) -> PrtResult<()> {
+    // bit 0: not used; bit 1: data is included; bit 2: no more data remaining
+    try!(w.write_u8(0b_110_u8));                            // I1           Bit set for options
+    try!(w.write_i32::<LittleEndian>(s.len() as i32));      // I4           LENGTH OF VALUE
+    try!(w.write_i32::<LittleEndian>(*data_pos as i32));    // I4           position
+    *data_pos += s.len() as i32;
+    Ok(())
+}
+
+
 pub mod factory {
     use super::TypedValue;
     use super::super::{PrtError, PrtResult, prot_err, util};
     use super::super::lob::{parse_blob_from_reply, parse_nullable_blob_from_reply, parse_clob_from_reply,
-                            parse_nullable_clob_from_reply, parse_blob_from_request, parse_clob_from_request};
+                            parse_nullable_clob_from_reply}; //, parse_blob_from_request, parse_clob_from_request};
     use protocol::lowlevel::conn_core::ConnRef;
-    use super::super::type_id::*;
     use types::LongDate;
 
     use byteorder::{LittleEndian, ReadBytesExt};
@@ -598,77 +548,6 @@ pub mod factory {
     }
 
 
-    /// this is "only" needed for read_wire
-    #[allow(dead_code)]
-    pub fn parse_from_request(rdr: &mut io::BufRead) -> PrtResult<TypedValue> {
-        let typecode = try!(rdr.read_u8());
-        trace!("parse_from_request(): typecode = {}", typecode);
-        match typecode {
-            TYPEID_TINYINT => Ok(TypedValue::TINYINT(try!(rdr.read_u8()))),
-            TYPEID_SMALLINT => Ok(TypedValue::SMALLINT(try!(rdr.read_i16::<LittleEndian>()))),
-            TYPEID_INT => Ok(TypedValue::INT(try!(rdr.read_i32::<LittleEndian>()))),
-            TYPEID_BIGINT => Ok(TypedValue::BIGINT(try!(rdr.read_i64::<LittleEndian>()))),
-            // TYPEID_DECIMAL      => Ok(TypedValue::DECIMAL(
-            TYPEID_REAL => Ok(TypedValue::REAL(try!(parse_real(rdr)))),
-            TYPEID_DOUBLE => Ok(TypedValue::DOUBLE(try!(parse_double(rdr)))),
-            TYPEID_CHAR => Ok(TypedValue::CHAR(try!(parse_length_and_string(rdr)))),
-            TYPEID_VARCHAR => Ok(TypedValue::VARCHAR(try!(parse_length_and_string(rdr)))),
-            TYPEID_NCHAR => Ok(TypedValue::NCHAR(try!(parse_length_and_string(rdr)))),
-            TYPEID_NVARCHAR => Ok(TypedValue::NVARCHAR(try!(parse_length_and_string(rdr)))),
-            TYPEID_BINARY => Ok(TypedValue::BINARY(try!(parse_length_and_binary(rdr)))),
-            TYPEID_VARBINARY => Ok(TypedValue::VARBINARY(try!(parse_length_and_binary(rdr)))),
-            // TYPEID_TIMESTAMP    => Ok(TypedValue::TIMESTAMP(
-            TYPEID_CLOB => Ok(TypedValue::CLOB(try!(parse_clob_from_request(rdr)))),
-            TYPEID_NCLOB => Ok(TypedValue::NCLOB(try!(parse_clob_from_request(rdr)))),
-            TYPEID_BLOB => Ok(TypedValue::BLOB(try!(parse_blob_from_request(rdr)))),
-            TYPEID_BOOLEAN => Ok(TypedValue::BOOLEAN(try!(rdr.read_u8()) > 0)),
-            TYPEID_STRING => Ok(TypedValue::STRING(try!(parse_length_and_string(rdr)))),
-            TYPEID_NSTRING => Ok(TypedValue::NSTRING(try!(parse_length_and_string(rdr)))),
-            TYPEID_BSTRING => Ok(TypedValue::BSTRING(try!(parse_length_and_binary(rdr)))),
-            // TYPEID_SMALLDECIMAL => Ok(TypedValue::SMALLDECIMAL(
-            TYPEID_TEXT => Ok(TypedValue::TEXT(try!(parse_length_and_string(rdr)))),
-            TYPEID_SHORTTEXT => Ok(TypedValue::SHORTTEXT(try!(parse_length_and_string(rdr)))),
-            TYPEID_LONGDATE => Ok(TypedValue::LONGDATE(try!(parse_longdate(rdr)))),
-            // TYPEID_SECONDDATE   => Ok(TypedValue::SECONDDATE(
-            // TYPEID_DAYDATE      => Ok(TypedValue::DAYDATE(
-            // TYPEID_SECONDTIME   => Ok(TypedValue::SECONDTIME(
-            TYPEID_N_TINYINT => Ok(TypedValue::N_TINYINT(None)),
-            TYPEID_N_SMALLINT => Ok(TypedValue::N_SMALLINT(None)),
-            TYPEID_N_INT => Ok(TypedValue::N_INT(None)),
-            TYPEID_N_BIGINT => Ok(TypedValue::N_BIGINT(None)),
-            // TYPEID_N_DECIMAL    => Ok(TypedValue::N_DECIMAL(
-            TYPEID_N_REAL => Ok(TypedValue::N_REAL(None)),
-            TYPEID_N_DOUBLE => Ok(TypedValue::N_DOUBLE(None)),
-            TYPEID_N_CHAR => Ok(TypedValue::N_CHAR(None)),
-            TYPEID_N_VARCHAR => Ok(TypedValue::N_VARCHAR(None)),
-            TYPEID_N_NCHAR => Ok(TypedValue::N_NCHAR(None)),
-            TYPEID_N_NVARCHAR => Ok(TypedValue::N_NVARCHAR(None)),
-            TYPEID_N_BINARY => Ok(TypedValue::N_BINARY(None)),
-            TYPEID_N_VARBINARY => Ok(TypedValue::N_VARBINARY(None)),
-            // TYPEID_N_TIMESTAMP  => Ok(TypedValue::N_TIMESTAMP(
-            TYPEID_N_CLOB => Ok(TypedValue::N_CLOB(None)),
-            TYPEID_N_NCLOB => Ok(TypedValue::N_NCLOB(None)),
-            TYPEID_N_BLOB => Ok(TypedValue::N_BLOB(None)),
-            TYPEID_N_BOOLEAN => Ok(TypedValue::N_BOOLEAN(None)),
-            TYPEID_N_STRING => Ok(TypedValue::N_STRING(None)),
-            TYPEID_N_NSTRING => Ok(TypedValue::N_NSTRING(None)),
-            TYPEID_N_BSTRING => Ok(TypedValue::N_BSTRING(None)),
-            // TYPEID_N_SMALLDECIMAL => Ok(TypedValue::N_SMALLDECIMAL(
-            TYPEID_N_TEXT => Ok(TypedValue::N_TEXT(None)),
-            TYPEID_N_SHORTTEXT => Ok(TypedValue::N_SHORTTEXT(None)),
-            TYPEID_N_LONGDATE => Ok(TypedValue::N_LONGDATE(None)),
-            // TYPEID_N_SECONDDATE => Ok(TypedValue::N_SECONDDATE(
-            // TYPEID_N_DAYDATE    => Ok(TypedValue::N_DAYDATE(
-            // TYPEID_N_SECONDTIME => Ok(TypedValue::N_SECONDTIME(
-            _ => {
-                Err(PrtError::ProtocolError(format!("TypedValue::parse_from_request() not implemented for type code \
-                                                     {}",
-                                                    typecode)))
-            }
-        }
-    }
-
-
     // reads the nullindicator and returns Ok(true) if it has value 0 or Ok(false) otherwise
     fn ind_null(rdr: &mut io::BufRead) -> PrtResult<bool> {
         Ok(try!(rdr.read_u8()) == 0)
@@ -741,7 +620,7 @@ pub mod factory {
     }
 
 
-    // ----- STRINGS and BINARIES ------------------------------------------------------------------------------------------
+    // ----- STRINGS and BINARIES -------------------------------------------------------------------------------------
     pub fn parse_length_and_string(rdr: &mut io::BufRead) -> PrtResult<String> {
         match util::cesu8_to_string(&try!(parse_length_and_binary(rdr))) {
             Ok(s) => Ok(s),

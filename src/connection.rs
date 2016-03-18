@@ -1,9 +1,13 @@
-use adhoc_statement::AdhocStatement;
 use prepared_statement::PreparedStatement;
 use prepared_statement::factory as PreparedStatementFactory;
 use {DbcError, DbcResult, DbResponse};
 
 use protocol::authenticate;
+use protocol::lowlevel::argument::Argument;
+use protocol::lowlevel::message::Request;
+use protocol::lowlevel::request_type::RequestType;
+use protocol::lowlevel::part::Part;
+use protocol::lowlevel::partkind::PartKind;
 use protocol::lowlevel::conn_core::{ConnectionCore, ConnRef};
 use protocol::lowlevel::init;
 use protocol::lowlevel::parts::resultset::ResultSet;
@@ -15,17 +19,16 @@ use std::fmt;
 
 const HOLD_OVER_COMMIT: u8 = 8;
 
-/// Connection object
+/// Connection object.
 ///
-/// This is the central starting point of hdbconnect.
-/// The typical pattern is:
+/// The connection to the database. You get started with something like this:
 ///
 /// ```ignore
 /// use hdbconnect::Connection;
 /// let mut connection = try!(Connection::new("mymachine", "30415"));
 /// try!(connection.authenticate_user_password("Annidda", "BF1äÖkn&nG"));
-
 /// ```
+
 #[derive(Debug)]
 pub struct Connection {
     host: String,
@@ -91,8 +94,8 @@ impl Connection {
     }
 
     /// Returns the HANA's product version info.
-    pub fn get_major_and_minor_product_version(&self) -> (i8,i16) {
-        ( self.major_product_version, self.minor_product_version )
+    pub fn get_major_and_minor_product_version(&self) -> (i8, i16) {
+        (self.major_product_version, self.minor_product_version)
     }
 
     /// Sets the connection's auto-commit behavior for future calls.
@@ -114,21 +117,20 @@ impl Connection {
     }
 
 
-    /// Executes a statement on the database
+    /// Executes a statement on the database.
     ///
     /// This generic method can handle all kinds of calls, and thus has the most complex return type.
-    /// In many cases it will be more appropriate to use one of query_statement(), dml_statement(),
-    /// exec_statement(), which have the simple result types you usually expect.
+    /// In many cases it will be more appropriate to use one of the methods query_statement(),
+    /// dml_statement(), exec_statement(), which have the simple result types you usually expect.
     pub fn any_statement(&mut self, stmt: &str) -> DbcResult<DbResponse> {
-        AdhocStatement::new(self.core.clone(), String::from(stmt), self.auto_commit)
-            .exec_statement(&mut self.acc_server_proc_time)
+        exec_statement(self.core.clone(), String::from(stmt), self.auto_commit, &mut self.acc_server_proc_time)
     }
 
-    /// Executes a statement and expects a single ResultSet
+    /// Executes a statement and expects a single ResultSet.
     pub fn query_statement(&mut self, stmt: &str) -> DbcResult<ResultSet> {
         try!(self.any_statement(stmt)).as_resultset()
     }
-    /// Executes a statement and expects a single number of affected rows
+    /// Executes a statement and expects a single number of affected rows.
     pub fn dml_statement(&mut self, stmt: &str) -> DbcResult<usize> {
         let vec = &(try!(try!(self.any_statement(stmt)).as_affected_rows()));
         match vec.len() {
@@ -136,28 +138,29 @@ impl Connection {
             _ => Err(DbcError::UsageError("number of affected-rows-counts <> 1")),
         }
     }
-    /// Executes a statement and expects a plain success
+    /// Executes a statement and expects a plain success.
     pub fn exec_statement(&mut self, stmt: &str) -> DbcResult<()> {
         try!(self.any_statement(stmt)).as_success()
     }
 
-    /// Prepares a statement
+    /// Prepares a statement and returns a handle to it.
+    /// Note that the handle keeps using the same connection.
     pub fn prepare(&self, stmt: &str) -> DbcResult<PreparedStatement> {
         let stmt = try!(PreparedStatementFactory::prepare(self.core.clone(), String::from(stmt), self.auto_commit));
         Ok(stmt)
     }
 
-    /// Commits the current transaction
+    /// Commits the current transaction.
     pub fn commit(&mut self) -> DbcResult<()> {
         try!(self.any_statement("commit")).as_success()
     }
 
-    /// Rolls back the current transaction
+    /// Rolls back the current transaction.
     pub fn rollback(&mut self) -> DbcResult<()> {
         try!(self.any_statement("rollback")).as_success()
     }
 
-    /// Creates a new connection object with the same settings and authentication
+    /// Creates a new connection object with the same settings and authentication.
     pub fn spawn(&self) -> DbcResult<Connection> {
         let mut other_conn = try!(Connection::new(&(self.host), &(self.port)));
         other_conn.auto_commit = self.auto_commit;
@@ -176,6 +179,20 @@ impl Connection {
             Some(_) => true,
         }
     }
+}
+
+pub fn exec_statement(conn_ref: ConnRef, stmt: String, auto_commit: bool, acc_server_proc_time: &mut i32)
+-> DbcResult<DbResponse> {
+    debug!("connection::exec_statement({})", stmt);
+    let command_options = 0b_1000;
+    let fetch_size = {
+        conn_ref.borrow().get_fetch_size()
+    };
+    let mut request = try!(Request::new(&(conn_ref), RequestType::ExecuteDirect, auto_commit, command_options));
+    request.push(Part::new(PartKind::FetchSize, Argument::FetchSize(fetch_size)));
+    request.push(Part::new(PartKind::Command, Argument::Command(stmt)));
+
+    request.send_and_get_response(&mut None, &(conn_ref), None, acc_server_proc_time)
 }
 
 struct Credentials {

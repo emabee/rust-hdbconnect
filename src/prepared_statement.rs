@@ -29,11 +29,11 @@ pub struct PreparedStatement {
 }
 
 impl PreparedStatement {
-    /// Adds the values from the rust-typed from_row to the batch and
-    /// validates that the Row is consistent to the metadata.
+    /// Adds the values from the rust-typed from_row to the batch, if it is consistent with the metadata.
     pub fn add_batch<T>(&mut self, from_row: &T) -> DbcResult<()>
         where T: serde::ser::Serialize
     {
+        trace!("PreparedStatement::add_batch() called");
         match (&(self.o_par_md), &mut (self.o_batch)) {
             (&Some(ref metadata), &mut Some(ref mut vec)) => {
                 let row = try!(Serializer::into_row(from_row, &metadata));
@@ -155,7 +155,7 @@ pub mod factory {
             None => return Err(DbcError::EvaluationError("PreparedStatement needs a StatementId")),
         };
 
-        debug!("PreparedStatement created with auto_commit = {}", auto_commit);
+        debug!("PreparedStatement created with auto_commit = {}, parameter_metadata = {:?}", auto_commit, o_par_md);
 
         Ok(PreparedStatement {
             conn_ref: conn_ref,

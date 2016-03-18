@@ -1,4 +1,6 @@
+use protocol::lowlevel::util;
 use super::PrtResult;
+use super::lob::{BLOB, CLOB};
 use super::typed_value::TypedValue;
 use super::typed_value::size as typed_value_size;
 use super::typed_value::serialize as typed_value_serialize;
@@ -27,8 +29,24 @@ impl ParameterRow {
     }
 
     pub fn serialize(&self, w: &mut io::Write) -> PrtResult<()> {
+        let mut data_pos = 0_i32;  // FIXME or must it be 1?
+        // serialize the values (LOBs only serialize their header, the data follow below)
         for value in &self.values {
-            try!(typed_value_serialize(value,w));
+            try!(typed_value_serialize(value, &mut data_pos, w));
+        }
+
+        // serialize LOB data
+        for value in &self.values {
+            match *value {
+                TypedValue::BLOB(BLOB::ToDB(ref v)) |
+                TypedValue::N_BLOB(Some(BLOB::ToDB(ref v))) => try!(util::serialize_bytes(v,w)),
+
+                TypedValue::CLOB(CLOB::ToDB(ref s)) |
+                TypedValue::N_CLOB(Some(CLOB::ToDB(ref s))) |
+                TypedValue::NCLOB(CLOB::ToDB(ref s)) |
+                TypedValue::N_NCLOB(Some(CLOB::ToDB(ref s))) => try!(util::serialize_bytes(s.as_bytes(),w)),
+                _ => {},
+            }
         }
         Ok(())
     }

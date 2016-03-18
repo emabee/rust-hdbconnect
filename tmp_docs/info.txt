@@ -1,4 +1,6 @@
 TODO
+- LOBs
+    - revise and check completeness: test for writing LOBs is missing!
 - data types
     - newdb/orange/Interfaces/SQLDBC/impl/LongdateTranslator.cpp
     - newdb/orange/Interfaces/SQLDBC/impl/SeconddateTranslator.cpp

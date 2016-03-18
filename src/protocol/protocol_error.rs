@@ -1,7 +1,6 @@
 use protocol::lowlevel::parts::hdberror::HdbError;
 use protocol::lowlevel::util::Cesu8DecodingError;
 
-use byteorder;
 use std::error;
 use std::fmt;
 use std::io;
@@ -71,14 +70,5 @@ impl From<io::Error> for PrtError {
 impl From<Cesu8DecodingError> for PrtError {
     fn from(error: Cesu8DecodingError) -> PrtError {
         PrtError::Cesu8Error(error)
-    }
-}
-
-impl From<byteorder::Error> for PrtError {
-    fn from(err: byteorder::Error) -> PrtError {
-        match err {
-            byteorder::Error::Io(err) => PrtError::IoError(err),
-            byteorder::Error::UnexpectedEOF => PrtError::IoError(io::Error::new(io::ErrorKind::UnexpectedEof, err)),
-        }
     }
 }

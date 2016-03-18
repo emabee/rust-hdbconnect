@@ -7,10 +7,6 @@ extern crate log;
 extern crate flexi_logger;
 extern crate hdbconnect;
 extern crate serde;
-// extern crate vec_map;
-
-// use chrono::Local;
-// use std::error::Error;
 
 use hdbconnect::Connection;
 use hdbconnect::DbcResult;
