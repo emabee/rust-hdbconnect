@@ -1,9 +1,9 @@
 use protocol::lowlevel::util;
 use super::PrtResult;
-use super::lob::{BLOB, CLOB};
 use super::typed_value::TypedValue;
 use super::typed_value::size as typed_value_size;
 use super::typed_value::serialize as typed_value_serialize;
+use types::{BLOB, CLOB};
 
 use std::io;
 
@@ -39,13 +39,15 @@ impl ParameterRow {
         for value in &self.values {
             match *value {
                 TypedValue::BLOB(BLOB::ToDB(ref v)) |
-                TypedValue::N_BLOB(Some(BLOB::ToDB(ref v))) => try!(util::serialize_bytes(v,w)),
+                TypedValue::N_BLOB(Some(BLOB::ToDB(ref v))) => try!(util::serialize_bytes(v, w)),
 
                 TypedValue::CLOB(CLOB::ToDB(ref s)) |
                 TypedValue::N_CLOB(Some(CLOB::ToDB(ref s))) |
                 TypedValue::NCLOB(CLOB::ToDB(ref s)) |
-                TypedValue::N_NCLOB(Some(CLOB::ToDB(ref s))) => try!(util::serialize_bytes(s.as_bytes(),w)),
-                _ => {},
+                TypedValue::N_NCLOB(Some(CLOB::ToDB(ref s))) => {
+                    try!(util::serialize_bytes(s.as_bytes(), w))
+                }
+                _ => {}
             }
         }
         Ok(())

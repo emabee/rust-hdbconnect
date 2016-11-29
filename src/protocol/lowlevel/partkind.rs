@@ -4,19 +4,19 @@ use super::{PrtError, PrtResult};
 #[derive(Clone,Copy)]
 pub enum PartKind {
     Command, // 3 // SQL Command Data
-    ResultSet, // 5 // Tabular result set data
+    ResultSet, // 5 // Tabular resultset data
     Error, // 6 // Error information
     StatementId, // 10 // Prepared statement identifier
     TransactionId, // 11 // Transaction identifier // FIXME is missing
     RowsAffected, // 12 // Number of affected rows of dml statement
-    ResultSetId, // 13 // Identifier of result set
+    ResultSetId, // 13 // Identifier of resultset
     TopologyInformation, // 15 // Topology information
     TableLocation, // 16 // Location of table data
     ReadLobRequest, // 17 // Request data of READLOB message
     ReadLobReply, // 18 // Reply data of READLOB message
     CommandInfo, // 27 // Command information // FIXME is missing
     WriteLobRequest, // 28 // Request data of WRITELOB message // FIXME is missing
-    ClientContext, // 29 // Client context (see also PartKindEnum in api/Communication/Protocol/Layout.hpp)
+    ClientContext, // 29 // Client context; PartKindEnum in api/Communication/Protocol/Layout.hpp
     WriteLobReply, // 30 // Reply data of WRITELOB message // FIXME is missing
     Parameters, // 32 // Parameter data  // FIXME is missing
     Authentication, // 33 // Authentication data
@@ -108,7 +108,10 @@ impl PartKind {
             57 => Ok(PartKind::ClientInfo),
             64 => Ok(PartKind::TransactionFlags),
             68 => Ok(PartKind::LobFlags),
-            _ => Err(PrtError::ProtocolError(format!("Invalid value for PartKind detected: {}", val))),
+            _ => {
+                Err(PrtError::ProtocolError(format!("Invalid value for PartKind detected: {}",
+                                                    val)))
+            }
         }
     }
 }

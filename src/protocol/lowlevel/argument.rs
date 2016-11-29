@@ -7,7 +7,6 @@ use super::part::Parts;
 use super::parts::authfield::AuthField;
 use super::parts::client_info::ClientInfo;
 use super::parts::connect_option::{ConnectOption, ConnectOptions};
-use super::parts::hdberror::HdbError;
 use super::parts::parameters::Parameters;
 use super::parts::output_parameters::OutputParameters;
 use super::parts::output_parameters::factory as OutputParametersFactory;
@@ -17,6 +16,7 @@ use super::parts::resultset::ResultSet;
 use super::parts::resultset::factory as ResultSetFactory;
 use super::parts::resultset_metadata::ResultSetMetadata;
 use super::parts::rows_affected::RowsAffected;
+use super::parts::server_error::ServerError;
 use super::parts::statement_context::StatementContext;
 use super::parts::topology_attribute::TopologyAttr;
 use super::parts::transactionflags::TransactionFlag;
@@ -32,13 +32,15 @@ pub enum Argument {
     ClientInfo(ClientInfo),
     Command(String),
     ConnectOptions(ConnectOptions),
-    Error(Vec<HdbError>),
+    Error(Vec<ServerError>),
     FetchSize(u32),
     OutputParameters(OutputParameters),
     ParameterMetadata(ParameterMetadata),
     Parameters(Parameters),
-    ReadLobRequest(u64, u64, i32), // locator, offset, length      // FIXME should be a separate struct
-    ReadLobReply(u64, bool, Vec<u8>), // locator, is_last_data, data  // FIXME should be a separate struct
+    // FIXME should be a separate struct:
+    ReadLobRequest(u64, u64, i32), // locator, offset, length
+    // FIXME should be a separate struct:
+    ReadLobReply(u64, bool, Vec<u8>), // locator, is_last_data, data
     ResultSet(Option<ResultSet>),
     ResultSetId(u64),
     ResultSetMetadata(ResultSetMetadata),
@@ -95,8 +97,8 @@ impl Argument {
                 }
             }
             Argument::Error(ref vec) => {
-                for hdberror in vec {
-                    size += hdberror.size();
+                for server_error in vec {
+                    size += server_error.size();
                 }
             }
             Argument::FetchSize(_) => size += 4,
@@ -155,8 +157,8 @@ impl Argument {
                 }
             }
             Argument::Error(ref vec) => {
-                for ref hdberror in vec {
-                    try!(hdberror.serialize(w));
+                for ref server_error in vec {
+                    try!(server_error.serialize(w));
                 }
             }
             Argument::FetchSize(fs) => {
@@ -166,7 +168,8 @@ impl Argument {
                 try!(parameters.serialize(w));
             }
             Argument::ReadLobRequest(ref locator_id, ref offset, ref length_to_read) => {
-                trace!("argument::serialize() ReadLobRequest for locator_id {}, offset {}, length_to_read {}",
+                trace!("argument::serialize() ReadLobRequest for locator_id {}, offset {}, \
+                        length_to_read {}",
                        locator_id,
                        offset,
                        length_to_read);
@@ -210,11 +213,15 @@ impl Argument {
     }
 
 
-    pub fn parse(msg_type: MsgType, kind: PartKind, attributes: PartAttributes, no_of_args: i32, arg_size: i32,
-                 parts: &mut Parts, o_conn_ref: Option<&ConnRef>, o_par_md: &mut Option<ParameterMetadata>,
-                 o_rs: &mut Option<&mut ResultSet>, rdr: &mut io::BufRead)
+    pub fn parse(msg_type: MsgType, kind: PartKind, attributes: PartAttributes, no_of_args: i32,
+                 arg_size: i32, parts: &mut Parts, o_conn_ref: Option<&ConnRef>,
+                 o_par_md: &mut Option<ParameterMetadata>, o_rs: &mut Option<&mut ResultSet>,
+                 rdr: &mut io::BufRead)
                  -> PrtResult<Argument> {
-        trace!("Entering parse(no_of_args={}, msg_type = {:?}, kind={:?})", no_of_args, msg_type, kind);
+        trace!("Entering parse(no_of_args={}, msg_type = {:?}, kind={:?})",
+               no_of_args,
+               msg_type,
+               kind);
 
         let arg = match kind {
             PartKind::Authentication => {
@@ -244,33 +251,48 @@ impl Argument {
                 Argument::ConnectOptions(conn_opts)
             }
             PartKind::Error => {
-                let mut vec = Vec::<HdbError>::new();
+                let mut vec = Vec::<ServerError>::new();
                 for _ in 0..no_of_args {
-                    let hdberror = try!(HdbError::parse(arg_size, rdr));
-                    vec.push(hdberror);
+                    let server_error = try!(ServerError::parse(arg_size, rdr));
+                    vec.push(server_error);
                 }
                 Argument::Error(vec)
             }
             PartKind::OutputParameters => {
-                Argument::OutputParameters(try!(OutputParametersFactory::parse(o_conn_ref, o_par_md, rdr)))
+                Argument::OutputParameters(try!(OutputParametersFactory::parse(o_conn_ref,
+                                                                               o_par_md,
+                                                                               rdr)))
             }
             PartKind::ParameterMetadata => {
-                Argument::ParameterMetadata(try!(ParameterMetadata::parse(no_of_args, arg_size as u32, rdr)))
+                Argument::ParameterMetadata(try!(ParameterMetadata::parse(no_of_args,
+                                                                          arg_size as u32,
+                                                                          rdr)))
             }
             PartKind::ReadLobReply => {
                 let (locator, is_last_data, data) = try!(ReadLobReply::parse(rdr));
                 Argument::ReadLobReply(locator, is_last_data, data)
             }
             PartKind::ResultSet => {
-                let rs = try!(ResultSetFactory::parse(no_of_args, attributes, parts, o_conn_ref, o_rs, rdr));
+                let rs = try!(ResultSetFactory::parse(no_of_args,
+                                                      attributes,
+                                                      parts,
+                                                      o_conn_ref,
+                                                      o_rs,
+                                                      rdr));
                 Argument::ResultSet(rs)
             }
             PartKind::ResultSetId => Argument::ResultSetId(try!(rdr.read_u64::<LittleEndian>())),
             PartKind::ResultSetMetadata => {
-                Argument::ResultSetMetadata(try!(ResultSetMetadata::parse(no_of_args, arg_size as u32, rdr)))
+                Argument::ResultSetMetadata(try!(ResultSetMetadata::parse(no_of_args,
+                                                                          arg_size as u32,
+                                                                          rdr)))
             }
-            PartKind::RowsAffected => Argument::RowsAffected(try!(RowsAffected::parse(no_of_args, rdr))),
-            PartKind::StatementContext => Argument::StatementContext(try!(StatementContext::parse(no_of_args, rdr))),
+            PartKind::RowsAffected => {
+                Argument::RowsAffected(try!(RowsAffected::parse(no_of_args, rdr)))
+            }
+            PartKind::StatementContext => {
+                Argument::StatementContext(try!(StatementContext::parse(no_of_args, rdr)))
+            }
             PartKind::StatementId => Argument::StatementId(try!(rdr.read_u64::<LittleEndian>())),
             PartKind::TableLocation => {
                 let mut vec = Vec::<i32>::new();
@@ -297,7 +319,8 @@ impl Argument {
                 Argument::TransactionFlags(vec)
             }
             _ => {
-                return Err(PrtError::ProtocolError(format!("No handling implemented for received partkind value {}",
+                return Err(PrtError::ProtocolError(format!("No handling implemented for \
+                                                            received partkind value {}",
                                                            kind.to_i8())));
             }
         };

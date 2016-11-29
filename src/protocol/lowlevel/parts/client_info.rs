@@ -42,8 +42,12 @@ impl ClientInfo {
     pub fn set(&mut self, key: ClientInfoKey, value: String) {
         match key {
             ClientInfoKey::Application => self.0.insert(String::from("APPLICATION"), value),
-            ClientInfoKey::ApplicationVersion => self.0.insert(String::from("APPLICATIONVERSION"), value),
-            ClientInfoKey::ApplicationSource => self.0.insert(String::from("APPLICATIONSOURCE"), value),
+            ClientInfoKey::ApplicationVersion => {
+                self.0.insert(String::from("APPLICATIONVERSION"), value)
+            }
+            ClientInfoKey::ApplicationSource => {
+                self.0.insert(String::from("APPLICATIONSOURCE"), value)
+            }
             ClientInfoKey::ApplicationUser => self.0.insert(String::from("APPLICATIONUSER"), value),
         };
     }

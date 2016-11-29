@@ -2,10 +2,11 @@ use protocol::lowlevel::parts::parameter_metadata::ParameterDescriptor;
 use protocol::lowlevel::parts::typed_value::TypedValue;
 use std::fmt;
 
+/// Describes output parameters.
 #[derive(Clone,Debug)]
 pub struct OutputParameters {
-    pub metadata: Vec<ParameterDescriptor>,
-    pub values: Vec<TypedValue>,
+    metadata: Vec<ParameterDescriptor>,
+    values: Vec<TypedValue>,
 }
 
 impl fmt::Display for OutputParameters {
@@ -32,14 +33,16 @@ impl fmt::Display for OutputParameters {
 pub mod factory {
     use super::OutputParameters;
     use protocol::lowlevel::{PrtResult, prot_err};
-    use protocol::lowlevel::parts::parameter_metadata::{ParameterDescriptor, ParameterMetadata, ParMode};
+    use protocol::lowlevel::parts::parameter_metadata::{ParameterDescriptor, ParameterMetadata,
+                                                        ParMode};
     use protocol::lowlevel::parts::typed_value::TypedValue;
     use protocol::lowlevel::parts::typed_value::factory as TypedValueFactory;
     use protocol::lowlevel::conn_core::ConnRef;
 
     use std::io;
 
-    pub fn parse(o_conn_ref: Option<&ConnRef>, o_par_md: &mut Option<ParameterMetadata>, rdr: &mut io::BufRead)
+    pub fn parse(o_conn_ref: Option<&ConnRef>, o_par_md: &mut Option<ParameterMetadata>,
+                 rdr: &mut io::BufRead)
                  -> PrtResult<OutputParameters> {
         trace!("OutputParameters::parse()");
         let conn_ref = match o_conn_ref {
@@ -58,7 +61,10 @@ pub mod factory {
                         let typecode = descriptor.value_type;
                         let nullable = descriptor.option.is_nullable();
                         trace!("Parsing value with typecode {}, nullable {}", typecode, nullable);
-                        let value = try!(TypedValueFactory::parse_from_reply(typecode, nullable, conn_ref, rdr));
+                        let value = try!(TypedValueFactory::parse_from_reply(typecode,
+                                                                             nullable,
+                                                                             conn_ref,
+                                                                             rdr));
                         trace!("Found value {:?}", value);
                         output_pars.metadata.push(descriptor.clone());
                         output_pars.values.push(value);

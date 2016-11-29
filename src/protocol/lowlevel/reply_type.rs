@@ -49,7 +49,10 @@ impl ReplyType {
             20 => Ok(ReplyType::FindLob),
             22 => Ok(ReplyType::XaStart),
             23 => Ok(ReplyType::XaJoin),
-            _ => Err(PrtError::ProtocolError(format!("Invalid value for ReplyType detected: {}", val))),
+            _ => {
+                Err(PrtError::ProtocolError(format!("Invalid value for ReplyType detected: {}",
+                                                    val)))
+            }
         }
     }
 

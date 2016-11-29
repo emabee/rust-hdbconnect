@@ -120,7 +120,9 @@ fn evaluate_reply2(mut reply: Reply, conn_ref: &ConnRef) -> PrtResult<()> {
     conn_core.session_id = reply.session_id;
 
     match reply.parts.pop_arg_if_kind(PartKind::TopologyInformation) {
-        Some(Argument::TopologyInformation(mut vec)) => mem::swap(&mut vec, &mut (conn_core.topology_attributes)),
+        Some(Argument::TopologyInformation(mut vec)) => {
+            mem::swap(&mut vec, &mut (conn_core.topology_attributes))
+        }
         _ => return Err(prot_err("evaluate_reply2(): expected TopologyInformation part")),
     }
 
@@ -134,7 +136,9 @@ fn evaluate_reply2(mut reply: Reply, conn_ref: &ConnRef) -> PrtResult<()> {
     let mut server_proof = Vec::<u8>::new();
     debug!("parts before: {:?}", reply.parts.0);
     match reply.parts.pop_arg_if_kind(PartKind::Authentication) {
-        Some(Argument::Auth(mut vec)) => mem::swap(&mut (vec.get_mut(0).unwrap().0), &mut server_proof),
+        Some(Argument::Auth(mut vec)) => {
+            mem::swap(&mut (vec.get_mut(0).unwrap().0), &mut server_proof)
+        }
         _ => return Err(prot_err("evaluate_reply2(): expected Authentication part")),
     }
     // FIXME the server proof is not evaluated
@@ -144,7 +148,8 @@ fn evaluate_reply2(mut reply: Reply, conn_ref: &ConnRef) -> PrtResult<()> {
     Ok(())
 }
 
-fn calculate_client_proof(server_challenge: Vec<u8>, client_challenge: Vec<u8>, password: &str) -> PrtResult<Vec<u8>> {
+fn calculate_client_proof(server_challenge: Vec<u8>, client_challenge: Vec<u8>, password: &str)
+                          -> PrtResult<Vec<u8>> {
     let client_proof_size = 32usize;
     trace!("Entering calculate_client_proof()");
     let (salts, srv_key) = get_salt_and_key(server_challenge).unwrap();
@@ -190,7 +195,8 @@ fn get_salt_and_key(server_challenge: Vec<u8>) -> PrtResult<(Vec<Vec<u8>>, Vec<u
     Ok((salts, key))
 }
 
-fn scramble(salt: &Vec<u8>, server_key: &Vec<u8>, client_key: &Vec<u8>, password: &str) -> PrtResult<Vec<u8>> {
+fn scramble(salt: &Vec<u8>, server_key: &Vec<u8>, client_key: &Vec<u8>, password: &str)
+            -> PrtResult<Vec<u8>> {
     let length = salt.len() + server_key.len() + client_key.len();
     let mut msg = Vec::<u8>::with_capacity(length);
     for b in salt {
@@ -253,23 +259,41 @@ mod tests {
     #[test]
     fn test_client_proof() {
         info!("test calculation of client proof");
-        let client_challenge: Vec<u8> = b"\xb5\xab\x3a\x90\xc5\xad\xb8\x04\x15\x27\x37\x66\x54\xd7\x5c\x31\x94\xd8\x61\x50\x3f\xe0\x8d\xff\x8b\xea\xd5\x1b\xc3\x5a\x07\xcc\x63\xed\xbf\xa9\x5d\x03\x62\xf5\x6f\x1a\x48\x2e\x4c\x3f\xb8\x32\xe4\x1c\x89\x74\xf9\x02\xef\x87\x38\xcc\x74\xb6\xef\x99\x2e\x8e"
-        .to_vec();
-        let server_challenge: Vec<u8> =
-        b"\x02\x00\x10\x12\x41\xe5\x8f\x39\x23\x4e\xeb\x77\x3e\x90\x90\x33\xe5\xcb\x6e\x30\x1a\xce\xdc\xdd\x05\xc1\x90\xb0\xf0\xd0\x7d\x81\x1a\xdb\x0d\x6f\xed\xa8\x87\x59\xc2\x94\x06\x0d\xae\xab\x3f\x62\xea\x4b\x16\x6a\xc9\x7e\xfc\x9a\x6b\xde\x4f\xe9\xe5\xda\xcc\xb5\x0a\xcf\xce\x56"
-        .to_vec();
+        #[cfg_attr(rustfmt, rustfmt_skip)]
+        let client_challenge: Vec<u8> = b"\xb5\xab\x3a\x90\xc5\xad\xb8\x04\x15\x27\
+                                          \x37\x66\x54\xd7\x5c\x31\x94\xd8\x61\x50\
+                                          \x3f\xe0\x8d\xff\x8b\xea\xd5\x1b\xc3\x5a\
+                                          \x07\xcc\x63\xed\xbf\xa9\x5d\x03\x62\xf5\
+                                          \x6f\x1a\x48\x2e\x4c\x3f\xb8\x32\xe4\x1c\
+                                          \x89\x74\xf9\x02\xef\x87\x38\xcc\x74\xb6\
+                                          \xef\x99\x2e\x8e"
+                                            .to_vec();
+        let server_challenge: Vec<u8> = b"\x02\x00\x10\x12\x41\xe5\x8f\x39\x23\x4e\
+                                          \xeb\x77\x3e\x90\x90\x33\xe5\xcb\x6e\x30\
+                                          \x1a\xce\xdc\xdd\x05\xc1\x90\xb0\xf0\xd0\
+                                          \x7d\x81\x1a\xdb\x0d\x6f\xed\xa8\x87\x59\
+                                          \xc2\x94\x06\x0d\xae\xab\x3f\x62\xea\x4b\
+                                          \x16\x6a\xc9\x7e\xfc\x9a\x6b\xde\x4f\xe9\
+                                          \xe5\xda\xcc\xb5\x0a\xcf\xce\x56"
+                                            .to_vec();
         let password: &str = "manager";
-        let correct_client_proof: Vec<u8> = b"\x00\x01\x20\x17\x26\x25\xab\x29\x71\xd8\x58\x74\x32\x5d\x21\xbc\x3d\x68\x37\x71\x80\x5c\x9a\xfe\x38\xd0\x95\x1d\xad\x46\x53\x00\x9c\xc9\x21"
-        .to_vec();
+        let correct_client_proof: Vec<u8> = b"\x00\x01\x20\x17\x26\x25\xab\x29\x71\xd8\
+                                              \x58\x74\x32\x5d\x21\xbc\x3d\x68\x37\x71\
+                                              \x80\x5c\x9a\xfe\x38\xd0\x95\x1d\xad\x46\
+                                              \x53\x00\x9c\xc9\x21"
+                                                .to_vec();
 
         trace!("----------------------------------------------------");
         trace!("client_challenge ({} bytes): \n{:?}", &client_challenge.len(), &client_challenge);
         trace!("server_challenge ({} bytes): \n{:?}", &server_challenge.len(), &server_challenge);
 
-        let my_client_proof = calculate_client_proof(server_challenge, client_challenge, password).unwrap();
+        let my_client_proof = calculate_client_proof(server_challenge, client_challenge, password)
+            .unwrap();
 
         trace!("my_client_proof ({} bytes): \n{:?}", &my_client_proof.len(), &my_client_proof);
-        trace!("correct_client_proof ({} bytes): \n{:?}", &correct_client_proof.len(), &correct_client_proof);
+        trace!("correct_client_proof ({} bytes): \n{:?}",
+               &correct_client_proof.len(),
+               &correct_client_proof);
         trace!("----------------------------------------------------");
         assert_eq!(my_client_proof, correct_client_proof);
     }

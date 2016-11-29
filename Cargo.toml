@@ -1,20 +1,20 @@
 [package]
 name = "hdbconnect"
-version = "0.0.24"
+version = "0.0.25"
 authors = ["emabee <meinolf.block@sap.com>"]
 
 [dependencies]
-byteorder = "0.*"
-chrono = "0.*"
-#flexi_logger = "0.3"
-log = "0.*"
-num = "0.*"
-rand = "0.*"
-rust-crypto = "0.*"
-serde = "0.7"
-serde_macros = "0.7"
-vec_map = "0.*"
-user = "0.*"
+byteorder = "*"
+chrono = "*"
+flexi_logger = "*"
+log = "*"
+num = "*"
+rand = "*"
+rust-crypto = "*"
+serde = "*"
+serde_derive ="*"
+vec_map = "*"
+user = "*"
 
-[dependencies.flexi_logger]
-path = "/dev/rust/projects/flexi_logger"
+#[dependencies.flexi_logger]
+#path = "/dev/rust/projects/flexi_logger"

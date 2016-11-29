@@ -33,7 +33,8 @@ pub fn cesu8_to_string(v: &Vec<u8>) -> PrtResult<String> {
     Ok(String::from(&*cow))
 }
 
-/// cesu-8 is identical to utf-8, except for high code points which consume 4 bytes in utf-8 and 6 in cesu-8;
+/// cesu-8 is identical to utf-8, except for high code points
+/// which consume 4 bytes in utf-8 and 6 in cesu-8;
 /// the first byte of such a code point in utf8 has the bit pattern 11110xxx (240 -247)
 pub fn cesu8_length(s: &String) -> usize {
     let mut len = s.len();
@@ -142,13 +143,20 @@ use std::str;
 
 #[cfg_attr(rustfmt, rustfmt_skip)]
 static UTF8_CHAR_WIDTH: [u8; 256] = [
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 /* 0x1F */,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 /* 0x3F */,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 /* 0x5F */,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 /* 0x7F */,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 /* 0x9F */,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 /* 0xBF */,
-    0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 /* 0xDF */,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 /* 0x1F */,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 /* 0x3F */,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 /* 0x5F */,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 /* 0x7F */,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 /* 0x9F */,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 /* 0xBF */,
+    0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 /* 0xDF */,
     3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 /* 0xEF */,
     4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 /* 0xFF */
 ];
@@ -235,10 +243,10 @@ pub fn from_cesu8_with_count(bytes: &[u8]) -> Result<(Cow<str>, u64), Cesu8Decod
                 // We can remove this assertion if we trust our decoder.
                 assert!(str::from_utf8(&decoded[..]).is_ok());
                 Ok((Cow::Owned(unsafe {
-                    let s = String::from_utf8_unchecked(decoded);
-                    trace!("util::from_cesu8(): {}", s);
-                    (s)
-                }),
+                        let s = String::from_utf8_unchecked(decoded);
+                        trace!("util::from_cesu8(): {}", s);
+                        (s)
+                    }),
                     count))
             } else {
                 debug!("util::from_cesu8() failed for {:?}", bytes);
@@ -325,8 +333,8 @@ fn decode_from_iter(decoded: &mut Vec<u8>, iter: &mut slice::Iter<u8>) -> (bool,
                         (0xED, 0x80...0x9F) |
                         (0xEE...0xEF, 0x80...0xBF) => {
                             decoded.extend([first, second, third]
-                                               .iter()
-                                               .cloned())
+                                .iter()
+                                .cloned())
                         }
                         // First half a surrogate pair, so decode.
                         (0xED, 0xA0...0xAF) => {
@@ -418,9 +426,11 @@ pub fn to_cesu8(text: &str) -> Cow<[u8]> {
                     // for u in s.utf16_units() {
                     //     encoded.extend(enc_surrogate(u).iter().cloned());
                     // }
-                    // we have the four UTF-8 bytes (in &bytes[i..i+w]) and have to convert them to two surrogates
+                    // we have the four UTF-8 bytes (in &bytes[i..i+w]) and have to convert
+                    // them to two surrogates
                     let mut utf8 = [0_u8; 4];
-                    for (ref mut place, ref data) in utf8.as_mut().iter().zip(bytes[i..i + 4].iter()) {
+                    for (ref mut place, ref data) in
+                        utf8.as_mut().iter().zip(bytes[i..i + 4].iter()) {
                         *place = *data;
                     }
                     let (hi, lo) = get_hi_lo_surrogates(&utf8);
@@ -440,7 +450,8 @@ fn get_hi_lo_surrogates(utf8_4: &[u8; 4]) -> (u16, u16) {
     assert!(utf8_4[1] >= 128);
     assert!(utf8_4[2] >= 128);
     assert!(utf8_4[3] >= 128);
-    let codepoint: u32 = (((utf8_4[0] & 0b_00000111_u8) as u32) << 24) + (((utf8_4[1] & 0b_00111111_u8) as u32) << 16) +
+    let codepoint: u32 = (((utf8_4[0] & 0b_00000111_u8) as u32) << 24) +
+                         (((utf8_4[1] & 0b_00111111_u8) as u32) << 16) +
                          (((utf8_4[2] & 0b_00111111_u8) as u32) << 8) +
                          ((utf8_4[3] & 0b_00111111_u8) as u32);
 
@@ -448,10 +459,13 @@ fn get_hi_lo_surrogates(utf8_4: &[u8; 4]) -> (u16, u16) {
     // Low Surrogates:  U+DC00–U+DFFF = 56320 - 57343 (1024 values)
 
     // Codepoint to surrogate pair:
-    //  0x010000 is subtracted from the code point, leaving a 20-bit number in the range 0..0x0FFFFF.
-    // The top ten bits (a number in the range 0..0x03FF) are added to 0xD800 to give the first 16-bit code unit
+    //  0x010000 is subtracted from the code point,
+    // leaving a 20-bit number in the range 0..0x0FFFFF.
+    // The top ten bits (a number in the range 0..0x03FF)
+    // are added to 0xD800 to give the first 16-bit code unit
     // or high surrogate, which will be in the range 0xD800..0xDBFF.
-    // The low ten bits (also in the range 0..0x03FF) are added to 0xDC00 to give the second 16-bit code unit
+    // The low ten bits (also in the range 0..0x03FF)
+    // are added to 0xDC00 to give the second 16-bit code unit
     // or low surrogate, which will be in the range 0xDC00..0xDFFF.
     let tmp: u32 = codepoint - 0x010000_u32; // = codepoint - 1.048.576
     assert!(tmp < 1_048_575_u32);

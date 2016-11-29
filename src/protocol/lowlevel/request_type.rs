@@ -17,11 +17,11 @@ pub enum RequestType {
     Connect, // Connects to the database
     Commit, // Commits current transaction
     Rollback, // Rolls back current transaction
-    CloseResultSet, // Closes result set
+    CloseResultSet, // Closes resultset
     DropStatementId, // Drops prepared statement identifier
-    FetchNext, // Fetches next data from result set
+    FetchNext, // Fetches next data from resultset
     FetchAbsolute, // Moves the cursor to the given row number and fetches the data
-    FetchRelative, // Like above, but moves the cursor relative to the current position, forward or backward
+    FetchRelative, // Like above, but moves the cursor relative to the current position
     FetchFirst, // Moves the cursor to the first row and fetches the data
     FetchLast, // Moves the cursor to the last row and fetches the data
     Disconnect, // Disconnects session
@@ -80,7 +80,10 @@ impl RequestType {
             75 => Ok(RequestType::FetchLast),
             77 => Ok(RequestType::Disconnect),
             82 => Ok(RequestType::DbConnectInfo),
-            _ => Err(PrtError::ProtocolError(format!("Invalid value for RequestType detected: {}", val))),
+            _ => {
+                Err(PrtError::ProtocolError(format!("Invalid value for RequestType detected: {}",
+                                                    val)))
+            }
         }
     }
 }

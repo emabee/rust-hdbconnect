@@ -1,4 +1,4 @@
-use protocol::lowlevel::parts::hdberror::HdbError;
+use protocol::lowlevel::parts::server_error::ServerError;
 use protocol::lowlevel::util::Cesu8DecodingError;
 
 use std::error;
@@ -10,7 +10,7 @@ use std::result;
 #[derive(Debug)]
 pub enum PrtError {
     /// Database server responded with an error
-    DbMessage(Vec<HdbError>),
+    DbMessage(Vec<ServerError>),
     /// Some error occured while reading CESU-8.
     Cesu8Error(Cesu8DecodingError),
     /// IO error occured in communication with the database

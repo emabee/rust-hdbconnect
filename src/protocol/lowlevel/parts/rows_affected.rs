@@ -27,9 +27,13 @@ impl RowsAffected {
 impl fmt::Display for RowsAffected {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            RowsAffected::Count(count) => try!(writeln!(fmt, "Number of affected rows: {}, ", count)),
+            RowsAffected::Count(count) => {
+                try!(writeln!(fmt, "Number of affected rows: {}, ", count))
+            }
             RowsAffected::SuccessNoInfo => {
-                try!(writeln!(fmt, "Command successfully executed but number of affected rows cannot be determined"))
+                try!(writeln!(fmt,
+                              "Command successfully executed but number of affected rows cannot \
+                               be determined"))
             }
             RowsAffected::ExecutionFailed => {
                 try!(writeln!(fmt, "Execution of statement or processing of row has failed"))

@@ -13,18 +13,27 @@ impl ParameterMetadata {
     }
 }
 
+/// Metadata for a parameter.
 #[derive(Clone,Debug)]
 pub struct ParameterDescriptor {
-    pub option: ParameterOption, // bit 0: mandatory; 1: optional, 2: has_default
+    /// bit 0: mandatory; 1: optional, 2: has_default
+    pub option: ParameterOption,
+    /// value type
     pub value_type: u8,
-    pub fraction: u16, // Scale of the parameter
-    pub length: u16, // Length/Precision of the parameter
-    pub mode: ParMode, // Whether the parameter is input or output
-    pub name_offset: u32, // Offset of parameter name in part, set to 0xFFFFFFFF to signal no name
-    pub name: String, //
+    /// Scale of the parameter
+    pub fraction: u16,
+    /// length/precision of the parameter
+    pub length: u16,
+    /// whether the parameter is input or output
+    pub mode: ParMode,
+    /// Offset of parameter name in part, set to 0xFFFFFFFF to signal no name
+    pub name_offset: u32,
+    /// Name
+    pub name: String,
 }
 impl ParameterDescriptor {
-    fn new(option: ParameterOption, value_type: u8, mode: ParMode, name_offset: u32, length: u16, fraction: u16)
+    fn new(option: ParameterOption, value_type: u8, mode: ParMode, name_offset: u32, length: u16,
+           fraction: u16)
            -> ParameterDescriptor {
         ParameterDescriptor {
             option: option,
@@ -53,13 +62,19 @@ impl ParameterMetadata {
             try!(rdr.read_u32::<LittleEndian>());
             consumed += 16;
             assert!(arg_size >= consumed);
-            pmd.descriptors.push(ParameterDescriptor::new(option, value_type, mode, name_offset, length, fraction));
+            pmd.descriptors.push(ParameterDescriptor::new(option,
+                                                          value_type,
+                                                          mode,
+                                                          name_offset,
+                                                          length,
+                                                          fraction));
         }
         // read the parameter names
         for ref mut descriptor in &mut pmd.descriptors {
             if descriptor.name_offset != u32::MAX {
                 let length = try!(rdr.read_u8());
-                let name = try!(util::cesu8_to_string(&try!(util::parse_bytes(length as usize, rdr))));
+                let name = try!(util::cesu8_to_string(&try!(util::parse_bytes(length as usize,
+                                                                              rdr))));
                 descriptor.name.push_str(&name);
                 consumed += 1 + length as u32;
                 assert!(arg_size >= consumed);
@@ -70,13 +85,18 @@ impl ParameterMetadata {
     }
 }
 
+/// Describes whether a parameter is Nullable or not or if it has even d default value.
 #[derive(Clone,Debug)]
 pub enum ParameterOption {
+    /// Parameter can be Null.
     Nullable,
+    /// A value must be specified.
     NotNull,
+    /// A value is given if no value is given explicitly
     HasDefault,
 }
 impl ParameterOption {
+    /// check if the parameter is nullable
     pub fn is_nullable(&self) -> bool {
         match *self {
             ParameterOption::Nullable => true,
@@ -89,16 +109,22 @@ impl ParameterOption {
             1 => Ok(ParameterOption::NotNull),
             2 => Ok(ParameterOption::Nullable),
             4 => Ok(ParameterOption::HasDefault),
-            _ => Err(prot_err(&format!("ParameterOption::from_u8() not implemented for value {}", val))),
+            _ => {
+                Err(prot_err(&format!("ParameterOption::from_u8() not implemented for value {}",
+                                      val)))
+            }
         }
     }
 }
 
-
+/// Describes whether a parameter is used for input, output, or both.
 #[derive(Clone,Debug)]
 pub enum ParMode {
+    /// input parameter
     IN,
+    /// input and output parameter
     INOUT,
+    /// output parameter
     OUT,
 }
 impl ParMode {

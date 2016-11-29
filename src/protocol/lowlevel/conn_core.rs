@@ -25,7 +25,8 @@ pub struct ConnectionCore {
     lob_read_length: i32,
     transaction_state: TransactionState,
     pub ssi: Option<OptionValue>, // Information on the statement sequence within the transaction
-    pub server_connect_options: Vec<ConnectOption>, /* FIXME transmute into explicit structure; see also jdbc\EngineFeatures.java */
+    // FIXME transmute into explicit structure; see also jdbc\EngineFeatures.java :
+    pub server_connect_options: Vec<ConnectOption>,
     pub topology_attributes: Vec<TopologyAttr>,
     pub stream: TcpStream,
 }
@@ -84,7 +85,8 @@ impl ConnectionCore {
                 return Err(prot_err("SessionclosingTaError received"));
             }
             (TaFlagId::DdlCommitmodeChanged, OptionValue::BOOLEAN(true)) |
-            (TaFlagId::NoWriteTaStarted, OptionValue::BOOLEAN(true)) => {}
+            (TaFlagId::NoWriteTaStarted, OptionValue::BOOLEAN(true)) |
+            (TaFlagId::ReadOnlyMode, OptionValue::BOOLEAN(false)) => {}
             (id, value) => warn!("unexpected transaction flag received: {:?} = {:?}", id, value),
         };
         Ok(())
@@ -97,13 +99,15 @@ impl Drop for ConnectionCore {
         trace!("Drop of ConnectionCore, session_id = {}", self.session_id);
         if self.is_authenticated {
             let request = Request::new_for_disconnect();
-            match request.serialize_impl(self.session_id, self.next_seq_number(), &mut self.stream) {
+            match request.serialize_impl(self.session_id,
+                                         self.next_seq_number(),
+                                         &mut self.stream) {
                 Ok(()) => {
                     trace!("Disconnect: request successfully sent");
                     let mut rdr = io::BufReader::new(&mut self.stream);
                     match parse_message_and_sequence_header(&mut rdr) {
                         Ok((no_of_parts, msg)) => {
-                            trace!("Disconnect: response header successfully parsed, now parsing {} parts",
+                            trace!("Disconnect: response header parsed, now parsing {} parts",
                                    no_of_parts);
                             match msg {
                                 Message::Reply(mut msg) => {

@@ -1,4 +1,4 @@
-use {DbcError, DbcResult, DbResponse};
+use {HdbError, HdbResult, HdbResponse};
 use protocol::lowlevel::conn_core::ConnRef;
 use protocol::lowlevel::argument::Argument;
 use protocol::lowlevel::message::Request;
@@ -8,13 +8,14 @@ use protocol::lowlevel::partkind::PartKind;
 use protocol::lowlevel::parts::parameter_metadata::ParameterMetadata;
 use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
 use protocol::lowlevel::parts::parameters::{ParameterRow, Parameters};
-use rs_serde::error::SerializationError;
-use rs_serde::serializer::Serializer;
+use rs_serde::ser::SerializationError;
+use rs_serde::ser::Serializer;
 
 use serde;
 use std::mem;
 
-/// Allows injection-safe SQL execution and repeated calls with different parameters with as few roundtrips as possible.
+/// Allows injection-safe SQL execution and repeated calls with different parameters
+/// with as few roundtrips as possible.
 pub struct PreparedStatement {
     conn_ref: ConnRef,
     statement_id: u64,
@@ -29,8 +30,9 @@ pub struct PreparedStatement {
 }
 
 impl PreparedStatement {
-    /// Adds the values from the rust-typed from_row to the batch, if it is consistent with the metadata.
-    pub fn add_batch<T>(&mut self, from_row: &T) -> DbcResult<()>
+    /// Adds the values from the rust-typed from_row to the batch,
+    /// if it is consistent with the metadata.
+    pub fn add_batch<T>(&mut self, from_row: &T) -> HdbResult<()>
         where T: serde::ser::Serialize
     {
         trace!("PreparedStatement::add_batch() called");
@@ -41,22 +43,29 @@ impl PreparedStatement {
                 Ok(())
             }
             (_, _) => {
-                Err(DbcError::SerializationError(SerializationError::StructuralMismatch("no metadata in add_batch()")))
+                let s = "no metadata in add_batch()";
+                Err(HdbError::SerializationError(SerializationError::StructuralMismatch(s)))
             }
         }
     }
 
     /// Executes the statement with the collected batch, and clears the batch.
-    pub fn execute_batch(&mut self) -> DbcResult<DbResponse> {
-        let mut request = try!(Request::new(&(self.conn_ref), RequestType::Execute, self.auto_commit, 8_u8));
-        request.push(Part::new(PartKind::StatementId, Argument::StatementId(self.statement_id.clone())));
+    pub fn execute_batch(&mut self) -> HdbResult<HdbResponse> {
+        let mut request =
+            try!(Request::new(&(self.conn_ref), RequestType::Execute, self.auto_commit, 8_u8));
+        request.push(Part::new(PartKind::StatementId,
+                               Argument::StatementId(self.statement_id.clone())));
         if let &mut Some(ref mut pars1) = &mut self.o_batch {
             let mut pars2 = Vec::<ParameterRow>::new();
             mem::swap(pars1, &mut pars2);
             debug!("pars: {:?}", pars2);
-            request.push(Part::new(PartKind::Parameters, Argument::Parameters(Parameters::new(pars2))));
+            request.push(Part::new(PartKind::Parameters,
+                                   Argument::Parameters(Parameters::new(pars2))));
         }
-        request.send_and_get_response(&mut (self.o_par_md), &(self.conn_ref), None, &mut self.acc_server_proc_time)
+        request.send_and_get_response(&mut (self.o_par_md),
+                                      &(self.conn_ref),
+                                      None,
+                                      &mut self.acc_server_proc_time)
     }
 
     /// Sets the prepared statement's auto-commit behavior for future calls.
@@ -72,7 +81,8 @@ impl Drop for PreparedStatement {
         match Request::new(&(self.conn_ref), RequestType::DropStatementId, false, 0) {
             Err(_) => {}
             Ok(mut request) => {
-                request.push(Part::new(PartKind::StatementId, Argument::StatementId(self.statement_id.clone())));
+                request.push(Part::new(PartKind::StatementId,
+                                       Argument::StatementId(self.statement_id.clone())));
                 if let Ok(mut reply) = request.send_and_receive(&(self.conn_ref), None) {
                     reply.parts.pop_arg_if_kind(PartKind::StatementContext);
                 }
@@ -82,7 +92,7 @@ impl Drop for PreparedStatement {
 }
 
 pub mod factory {
-    use {DbcError, DbcResult};
+    use {HdbError, HdbResult};
     use protocol::lowlevel::conn_core::ConnRef;
     use protocol::lowlevel::argument::Argument;
     use protocol::lowlevel::message::Request;
@@ -99,14 +109,17 @@ pub mod factory {
 
 
     /// Prepare a statement.
-    pub fn prepare(conn_ref: ConnRef, stmt: String, auto_commit: bool) -> DbcResult<PreparedStatement> {
+    pub fn prepare(conn_ref: ConnRef, stmt: String, auto_commit: bool)
+                   -> HdbResult<PreparedStatement> {
         let command_options: u8 = 8;
-        let mut request = try!(Request::new(&conn_ref, RequestType::Prepare, auto_commit, command_options));
+        let mut request =
+            try!(Request::new(&conn_ref, RequestType::Prepare, auto_commit, command_options));
         request.push(Part::new(PartKind::Command, Argument::Command(stmt)));
 
         let mut reply = try!(request.send_and_receive(&conn_ref, None));
 
-        // TableLocation, TransactionFlags, StatementContext, StatementId, ParameterMetadata, ResultSetMetadata
+        // TableLocation, TransactionFlags, StatementContext,
+        // StatementId, ParameterMetadata, ResultSetMetadata
         let mut o_table_location: Option<Vec<i32>> = None;
         let mut o_ta_flags: Option<Vec<TransactionFlag>> = None;
         let mut o_stmt_ctx: Option<StatementContext> = None;
@@ -152,10 +165,12 @@ pub mod factory {
 
         let statement_id = match o_stmt_id {
             Some(id) => id,
-            None => return Err(DbcError::EvaluationError("PreparedStatement needs a StatementId")),
+            None => return Err(HdbError::EvaluationError("PreparedStatement needs a StatementId")),
         };
 
-        debug!("PreparedStatement created with auto_commit = {}, parameter_metadata = {:?}", auto_commit, o_par_md);
+        debug!("PreparedStatement created with auto_commit = {}, parameter_metadata = {:?}",
+               auto_commit,
+               o_par_md);
 
         Ok(PreparedStatement {
             conn_ref: conn_ref,

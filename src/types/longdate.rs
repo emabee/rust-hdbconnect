@@ -34,7 +34,8 @@ impl LongDate {
                 d = 1;
             }
 
-            Ok(LongDate(to_day_number(dt_utc.year() as u32, m, d) * DAY_FACTOR + dt_utc.hour() as i64 * HOUR_FACTOR +
+            Ok(LongDate(to_day_number(dt_utc.year() as u32, m, d) * DAY_FACTOR +
+                        dt_utc.hour() as i64 * HOUR_FACTOR +
                         dt_utc.minute() as i64 * MINUTE_FACTOR +
                         dt_utc.second() as i64 * SECOND_FACTOR +
                         dt_utc.nanosecond() as i64 / 100 + 1))
@@ -47,7 +48,8 @@ impl LongDate {
     }
 
     /// Factory method for LongDate.
-    pub fn ymd_hms(y: u32, m: u32, d: u32, hour: u32, minute: u32, second: u32) -> Result<LongDate, &'static str> {
+    pub fn ymd_hms(y: u32, m: u32, d: u32, hour: u32, minute: u32, second: u32)
+                   -> Result<LongDate, &'static str> {
         if y < 1 || y > 9999 {
             return Err("Only years between 1 and 9999 are supported");
         }
@@ -59,7 +61,8 @@ impl LongDate {
         }
 
         Ok(LongDate(to_day_number(y, m, d) * DAY_FACTOR + hour as i64 * HOUR_FACTOR +
-                    minute as i64 * MINUTE_FACTOR + second as i64 * SECOND_FACTOR + 1))
+                    minute as i64 * MINUTE_FACTOR +
+                    second as i64 * SECOND_FACTOR + 1))
     }
 
     // see jdbc/translators/LongDateTranslator.java, getTimestamp()
@@ -67,7 +70,7 @@ impl LongDate {
     pub fn to_datetime_utc(&self) -> Option<DateTime<UTC>> {
         trace!("Entering to_datetime_utc()");
         let value = match self.0 {
-            0 => 0,             // with this we map the special value '' == 0 to '0001-01-01 00:00:00.000000000' = 1
+            0 => 0,       // maps the special value '' == 0 to '0001-01-01 00:00:00.000000000' = 1
             v => v - 1,
         };
 
@@ -108,7 +111,8 @@ impl LongDate {
             year -= 1;
         }
 
-        trace!("Leaving to_datetime_utc(): year {}, month {}, day {}, hour {}, minute {}, second {}, fraction {}",
+        trace!("Leaving to_datetime_utc(): year {}, month {}, day {}, hour {}, minute {}, second \
+                {}, fraction {}",
                year,
                month,
                day,
@@ -175,26 +179,25 @@ mod test {
         flexi_logger::init(flexi_logger::LogConfig::new(), Some("info".to_string())).unwrap();
 
 
-        info!("test consistency of conversions between chrono::DateTime<UTC> and hdbconnect::LongDate");
+        info!("test consistency of conversions between chrono::DateTime<UTC> and \
+               hdbconnect::LongDate");
 
         // LongDate => DateTime<UTC> => LongDate
-        for longdate in vec!(   LongDate(1234567890123456789_i64),
-                                LongDate(1010101010101010101_i64),
-                                LongDate( 635895889133394319_i64),
-                                LongDate(  77777777777777777_i64),
-        ) {
+        for longdate in vec![LongDate(1234567890123456789_i64),
+                             LongDate(1010101010101010101_i64),
+                             LongDate(635895889133394319_i64),
+                             LongDate(77777777777777777_i64)] {
             let datetime_utc = longdate.to_datetime_utc().unwrap();
             debug!("1 (LongDate => chrono => LongDate): {:?} == {} ?", longdate, datetime_utc);
             assert_eq!(longdate, LongDate::from(datetime_utc).unwrap());
         }
 
         // DateTime<UTC> => LongDate => DateTime<UTC>
-        for datetime_utc in vec!(   UTC::now(),
-                                    UTC.ymd(   1, 1, 1).and_hms_nano(0, 0, 0, 0),
-                                    UTC.ymd(  22, 2, 2).and_hms_nano(0, 0, 0, 0),
-                                    UTC.ymd( 333, 3, 3).and_hms_nano(0, 0, 0, 0),
-                                    UTC.ymd(4444, 4, 4).and_hms_nano(0, 0, 0, 0),
-        ) {
+        for datetime_utc in vec![UTC::now(),
+                                 UTC.ymd(1, 1, 1).and_hms_nano(0, 0, 0, 0),
+                                 UTC.ymd(22, 2, 2).and_hms_nano(0, 0, 0, 0),
+                                 UTC.ymd(333, 3, 3).and_hms_nano(0, 0, 0, 0),
+                                 UTC.ymd(4444, 4, 4).and_hms_nano(0, 0, 0, 0)] {
             let longdate = LongDate::from(datetime_utc).unwrap();
             debug!("2 (chrono => LongDate => chrono): {:?} == {} ?", longdate, datetime_utc);
             assert_eq!(datetime_utc, longdate.to_datetime_utc().unwrap());

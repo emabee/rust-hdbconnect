@@ -68,11 +68,11 @@ pub enum ConnectOptionId {
     RowSlotImageParameter, // 20 // row-slot image parameter passing
     IgnoreUnknownParts, // 21 // server does not abort on unknown parts
     TableOutputParameterMetadataSupport, // 22 // support table type output parameter metadata.
-    DataFormatVersion2, // 23 // Version of data format (as DataFormatVersion used wrongly in old servers)
+    DataFormatVersion2, // 23 // Version of data format
     ItabParameter, // 24 // bool option to signal abap itab parameter support
-    DescribeTableOutputParameter, // 25 // override "omit table output parameter" setting in this session
+    DescribeTableOutputParameter, // 25 // overrides in this session "omit table output parameter"
     ColumnarResultSet, // 26 // column wise result passing
-    ScrollableResultSet, // 27 // scrollable result set
+    ScrollableResultSet, // 27 // scrollable resultset
     ClientInfoNullValueSupported, // 28 // can handle null values in client info
     AssociatedConnectionID, // 29 // associated connection id
     NonTransactionalPrepare, // 30 // can handle and uses non-transactional prepare
@@ -83,6 +83,16 @@ pub enum ConnectOptionId {
     UpdateTopologyAnwhere, // 35 // Allow update of topology from any reply
     EnableArrayType, // 36 // Enable supporting Array data type
     ImplicitLobStreaming, // 37 // implicit lob streaming
+    CachedViewProperty, // 38 //
+    XOpenXAProtocolSupported, // 39 //
+    MasterCommitRedirectionSupported, // 40 //
+    ActiveActiveProtocolVersion, // 41 //
+    ActiveActiveConnectionOriginSite, // 42 //
+    QueryTimeoutSupported, // 43 //
+    FullVersionString, // 44 //
+    DatabaseName, // 45 //
+    BuildPlatform, //  46 //
+    ImplicitXASessionSupported, // 47 //
 }
 impl ConnectOptionId {
     fn to_i8(&self) -> i8 {
@@ -124,6 +134,17 @@ impl ConnectOptionId {
             ConnectOptionId::UpdateTopologyAnwhere => 35,
             ConnectOptionId::EnableArrayType => 36,
             ConnectOptionId::ImplicitLobStreaming => 37,
+            ConnectOptionId::CachedViewProperty => 38,
+            ConnectOptionId::XOpenXAProtocolSupported => 39,
+            ConnectOptionId::MasterCommitRedirectionSupported => 40,
+            ConnectOptionId::ActiveActiveProtocolVersion => 41,
+            ConnectOptionId::ActiveActiveConnectionOriginSite => 42,
+            ConnectOptionId::QueryTimeoutSupported => 43,
+            ConnectOptionId::FullVersionString => 44,
+            ConnectOptionId::DatabaseName => 45,
+            ConnectOptionId::BuildPlatform => 46,
+            ConnectOptionId::ImplicitXASessionSupported => 47,
+
         }
     }
 
@@ -166,7 +187,21 @@ impl ConnectOptionId {
             35 => Ok(ConnectOptionId::UpdateTopologyAnwhere),
             36 => Ok(ConnectOptionId::EnableArrayType),
             37 => Ok(ConnectOptionId::ImplicitLobStreaming),
-            _ => Err(PrtError::ProtocolError(format!("Invalid value for ConnectOptionId detected: {}", val))),
+            38 => Ok(ConnectOptionId::CachedViewProperty),
+            39 => Ok(ConnectOptionId::XOpenXAProtocolSupported),
+            40 => Ok(ConnectOptionId::MasterCommitRedirectionSupported),
+            41 => Ok(ConnectOptionId::ActiveActiveProtocolVersion),
+            42 => Ok(ConnectOptionId::ActiveActiveConnectionOriginSite),
+            43 => Ok(ConnectOptionId::QueryTimeoutSupported),
+            44 => Ok(ConnectOptionId::FullVersionString),
+            45 => Ok(ConnectOptionId::DatabaseName),
+            46 => Ok(ConnectOptionId::BuildPlatform),
+            47 => Ok(ConnectOptionId::ImplicitXASessionSupported),
+            _ => {
+                Err(PrtError::ProtocolError(format!("unknown value for ConnectOptionId \
+                                                     detected: {}",
+                                                    val)))
+            }
         }
     }
 }

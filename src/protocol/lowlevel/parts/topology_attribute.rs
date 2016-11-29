@@ -71,7 +71,11 @@ impl TopologyAttrId {
             7 => Ok(TopologyAttrId::IsCurrentSession),
             8 => Ok(TopologyAttrId::ServiceType),
             10 => Ok(TopologyAttrId::IsStandby),
-            _ => Err(PrtError::ProtocolError(format!("Invalid value for TopologyAttrId detected: {}", val))),
+            _ => {
+                Err(PrtError::ProtocolError(format!("Invalid value for TopologyAttrId detected: \
+                                                     {}",
+                                                    val)))
+            }
         }
     }
 }

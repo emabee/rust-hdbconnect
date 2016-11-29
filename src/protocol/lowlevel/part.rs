@@ -33,23 +33,25 @@ impl Part {
                remaining_bufsize,
                remaining_bufsize as i32);
         // PART HEADER 16 bytes
-        try!(w.write_i8(self.kind.to_i8()));                                    // I1 Nature of part data
-        try!(w.write_u8(0));                                                    // U1 Attributes are'nt used in requests
+        try!(w.write_i8(self.kind.to_i8()));                 // I1 Nature of part data
+        try!(w.write_u8(0));                                 // U1 Attributes not used in requests
         match try!(self.arg.count()) {
             i if i < i16::MAX as usize => {
-                try!(w.write_i16::<LittleEndian>(i as i16));                    // I2 Number of elements in arg
-                try!(w.write_i32::<LittleEndian>(0));                           // I4 Number of elements in arg
+                try!(w.write_i16::<LittleEndian>(i as i16)); // I2 Number of elements in arg
+                try!(w.write_i32::<LittleEndian>(0));        // I4 Number of elements in arg
             }
             i if i <= i32::MAX as usize => {
-                try!(w.write_i16::<LittleEndian>(-1));                          // I2 Number of elements in arg
-                try!(w.write_i32::<LittleEndian>(i as i32));                    // I4 Number of elements in arg
+                try!(w.write_i16::<LittleEndian>(-1));       // I2 Number of elements in arg
+                try!(w.write_i32::<LittleEndian>(i as i32)); // I4 Number of elements in arg
             }
             _ => {
                 return Err(prot_err("argument count bigger than i32::MAX is not supported"));
             }
         }
-        try!(w.write_i32::<LittleEndian>(try!(self.arg.size(false)) as i32));   // I4 Length of args in bytes
-        try!(w.write_i32::<LittleEndian>(remaining_bufsize as i32));            // I4 Length remaining without this part
+        // I4 Length of args in bytes:
+        try!(w.write_i32::<LittleEndian>(try!(self.arg.size(false)) as i32));
+        // I4 Length remaining without this part:
+        try!(w.write_i32::<LittleEndian>(remaining_bufsize as i32));
 
         remaining_bufsize -= PART_HEADER_SIZE as u32;
 
@@ -64,12 +66,14 @@ impl Part {
     }
 
     ///
-    pub fn parse(msg_type: MsgType, already_received_parts: &mut Parts, o_conn_ref: Option<&ConnRef>,
-                 o_par_md: &mut Option<ParameterMetadata>, o_rs: &mut Option<&mut ResultSet>, rdr: &mut io::BufRead)
+    pub fn parse(msg_type: MsgType, already_received_parts: &mut Parts,
+                 o_conn_ref: Option<&ConnRef>, o_par_md: &mut Option<ParameterMetadata>,
+                 o_rs: &mut Option<&mut ResultSet>, rdr: &mut io::BufRead)
                  -> PrtResult<Part> {
         trace!("Entering parse()");
         let (kind, attributes, arg_size, no_of_args) = try!(parse_part_header(rdr));
-        debug!("parse() found part of kind {:?} with attributes {:?}, arg_size {} and no_of_args {}",
+        debug!("parse() found part of kind {:?} with attributes {:?}, arg_size {} and no_of_args \
+                {}",
                kind,
                attributes,
                arg_size,
@@ -91,11 +95,11 @@ impl Part {
 fn parse_part_header(rdr: &mut io::BufRead) -> PrtResult<(PartKind, PartAttributes, i32, i32)> {
     // PART HEADER: 16 bytes
     let kind = try!(PartKind::from_i8(try!(rdr.read_i8())));            // I1
-    let attributes = PartAttributes::new(try!(rdr.read_u8()));          // U1    (documented as I1)
+    let attributes = PartAttributes::new(try!(rdr.read_u8()));          // U1 (documented as I1)
     let no_of_argsi16 = try!(rdr.read_i16::<LittleEndian>());           // I2
     let no_of_argsi32 = try!(rdr.read_i32::<LittleEndian>());           // I4
     let arg_size = try!(rdr.read_i32::<LittleEndian>());                // I4
-    try!(rdr.read_i32::<LittleEndian>());                               // I4    remaining_packet_size
+    try!(rdr.read_i32::<LittleEndian>());                               // I4 remaining_packet_size
 
     let no_of_args = max(no_of_argsi16 as i32, no_of_argsi32);
     Ok((kind, attributes, arg_size, no_of_args))

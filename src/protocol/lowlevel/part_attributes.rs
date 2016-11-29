@@ -8,26 +8,31 @@ impl PartAttributes {
         PartAttributes(bits)
     }
 
-    const IS_LAST_PACKET: u8    = 0b_0000_0001;     // Last part in a sequence of parts (FETCH, array command EXECUTE)
-    const HAS_NEXT_PACKET: u8   = 0b_0000_0010;     // Part in a sequence of parts
-    const IS_FIRST_PACKET: u8   = 0b_0000_0100;     // First part in a sequence of parts
-    const ROW_NOT_FOUND: u8     = 0b_0000_1000;     // Empty part, caused by “row not found” error
-    const RESULTSET_CLOSED: u8  = 0b_0001_0000;     // The result set that produced this part is closed
+    // Last part in a sequence of parts (FETCH, array command EXECUTE):
+    // const IS_LAST_PACKET: u8    = 0b_0000_0001;
+    // Part in a sequence of parts:
+    // const HAS_NEXT_PACKET: u8   = 0b_0000_0010;
+    // First part in a sequence of parts:
+    // const IS_FIRST_PACKET: u8   = 0b_0000_0100;
+    // Empty part, caused by “row not found” error:
+    // const ROW_NOT_FOUND: u8     = 0b_0000_1000;
+    // The resultset that produced this part is closed:
+    // const RESULTSET_CLOSED: u8  = 0b_0001_0000;
 
     pub fn is_last_packet(&self) -> bool {
-        (self.0 & PartAttributes::IS_LAST_PACKET) != 0
+        (self.0 & 0b_0000_0001) != 0
     }
     fn has_next_packet(&self) -> bool {
-        (self.0 & PartAttributes::HAS_NEXT_PACKET) != 0
+        (self.0 & 0b_0000_0010) != 0
     }
     fn is_first_packet(&self) -> bool {
-        (self.0 & PartAttributes::IS_FIRST_PACKET) != 0
+        (self.0 & 0b_0000_0100) != 0
     }
     pub fn row_not_found(&self) -> bool {
-        (self.0 & PartAttributes::ROW_NOT_FOUND) != 0
+        (self.0 & 0b_0000_1000) != 0
     }
     pub fn is_resultset_closed(&self) -> bool {
-        (self.0 & PartAttributes::RESULTSET_CLOSED) != 0
+        (self.0 & 0b_0001_0000) != 0
     }
 }
 

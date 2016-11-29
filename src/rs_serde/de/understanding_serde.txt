@@ -1,0 +1,69 @@
+deserialization
+===============
+
+resultset calls deserialize() method in interface deserialize, 
+passing the rs_deserializer as argument:
+        serde::de::Deserialize::deserialize(&mut rs_deserializer)
+
+The target type defines which method of the rs_deserializer is called first:
+
+  target type               first called method
+  -----------               -------------------
+Vec<MyStruct>           RsDeserializer::deserialize_seq
+MyStruct                RsDeserializer::deserialize_struct
+plain_string            RsDeserializer::deserialize_string
+plain_u16               RsDeserializer::deserialize_u16
+
+All these methods receive an implementation of serde::de::Visitor, 
+which offers a big set of methods to hand over data.
+
+Our implementation of deserialize_string() e.g. extracts a String value 
+from the resultset and enters it into visitor.visit_string().
+
+Example Flow for Vec<MyStruct>
+==============================
+RsDeserializer::deserialize_seq() 
+    calls visitor.visit_seq( RowsVisitor::new(self) )
+[...]
+
+_STRUCT
+RsDeserializer::deserialize_struct()
+    checks that row-deserialization has been started, if necessary
+    checks that struct-deserialization has not been started yet
+    visitor.visit_map( FieldsVisitor::new(self) )
+
+_FIELDS:
+    [...]
+    FieldsVisitor::visit_key()
+        switches rs_deserializer to next key
+        serde::de::Deserialize::deserialize(self.de)
+    [...]
+    if no more key 
+        GOTO _FIELDS_END
+
+    RsDeserializer::deserialize_struct_field()
+        retrieves next fieldname
+        visitor.visit_str(fieldname)
+    [...]
+    FieldsVisitor::visit_value()
+        checks that current row is not yet empty
+        serde::de::Deserialize::deserialize(self.de)
+    [...]
+    RsDeserializer::deserialize_string()  // or other methods, depending on the rust type of the respective column
+        visitor.visit_string(s)
+    [...]
+GOTO _FIELDS
+
+_FIELDS_END:
+FieldsVisitor::end()
+    checks that we're really at the end of the field list
+[...]
+RowsVisitor::visit()
+    switch to next row
+    GOTO _STRUCT
+
+[...]
+RowsVisitor::visit()
+    no more rows
+[...]
+RowsVisitor::end()
