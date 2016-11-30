@@ -31,7 +31,7 @@ pub fn statement_ignore_err(connection: &mut Connection, stmts: Vec<&str>) {
 
 pub fn multiple_statements(connection: &mut Connection, prep: Vec<&str>) -> HdbResult<()> {
     for s in prep {
-        try!(connection.any_statement(s));
+        try!(connection.any_statement(&s));
     }
     Ok(())
 }

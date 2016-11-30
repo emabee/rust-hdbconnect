@@ -62,7 +62,16 @@ impl PreparedStatement {
             request.push(Part::new(PartKind::Parameters,
                                    Argument::Parameters(Parameters::new(pars2))));
         }
-        request.send_and_get_response(&mut (self.o_par_md),
+        let rs_md = match self.o_rs_md {
+            Some(ref rs_md) => Some(rs_md),
+            None => None,
+        };
+        let par_md = match self.o_par_md {
+            Some(ref par_md) => Some(par_md),
+            None => None,
+        };
+        request.send_and_get_response(rs_md,
+                                      par_md,
                                       &(self.conn_ref),
                                       None,
                                       &mut self.acc_server_proc_time)

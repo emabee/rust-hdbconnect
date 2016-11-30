@@ -2,9 +2,9 @@
 //!
 //! Since the implementation makes use of serde, this crate compiles so far only with rust nightly.
 //!
-//! The reason for publishing this driver in its immature state is that we want to
+//! The reason for publishing this driver in its immature state is to
 //! demonstrate how [serde](https://serde.rs/)
-//! can be used to simplify the API of such a driver.
+//! can be used to simplify the API of such a database driver.
 //!
 //! Concretely, we use serde to simplify the data exchange between your code and the driver,
 //! both for input parameters to prepared statements

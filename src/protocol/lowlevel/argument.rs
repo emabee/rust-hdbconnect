@@ -1,4 +1,4 @@
-use super::{PrtError, PrtResult};
+use super::{PrtError, PrtResult, prot_err};
 use super::conn_core::ConnRef;
 use super::message::MsgType;
 use super::part_attributes::PartAttributes;
@@ -215,8 +215,8 @@ impl Argument {
 
     pub fn parse(msg_type: MsgType, kind: PartKind, attributes: PartAttributes, no_of_args: i32,
                  arg_size: i32, parts: &mut Parts, o_conn_ref: Option<&ConnRef>,
-                 o_par_md: &mut Option<ParameterMetadata>, o_rs: &mut Option<&mut ResultSet>,
-                 rdr: &mut io::BufRead)
+                 rs_md: Option<&ResultSetMetadata>, par_md: Option<&ParameterMetadata>,
+                 o_rs: &mut Option<&mut ResultSet>, rdr: &mut io::BufRead)
                  -> PrtResult<Argument> {
         trace!("Entering parse(no_of_args={}, msg_type = {:?}, kind={:?})",
                no_of_args,
@@ -259,9 +259,13 @@ impl Argument {
                 Argument::Error(vec)
             }
             PartKind::OutputParameters => {
-                Argument::OutputParameters(try!(OutputParametersFactory::parse(o_conn_ref,
-                                                                               o_par_md,
-                                                                               rdr)))
+                if let Some(par_md) = par_md {
+                    Argument::OutputParameters(try!(OutputParametersFactory::parse(o_conn_ref,
+                                                                                   par_md,
+                                                                                   rdr)))
+                } else {
+                    return Err(prot_err("Cannot parse output parameters without metadata"));
+                }
             }
             PartKind::ParameterMetadata => {
                 Argument::ParameterMetadata(try!(ParameterMetadata::parse(no_of_args,
@@ -277,6 +281,7 @@ impl Argument {
                                                       attributes,
                                                       parts,
                                                       o_conn_ref,
+                                                      rs_md,
                                                       o_rs,
                                                       rdr));
                 Argument::ResultSet(rs)

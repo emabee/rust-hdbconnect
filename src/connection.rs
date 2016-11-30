@@ -227,7 +227,7 @@ pub fn exec_statement(conn_ref: ConnRef, stmt: String, auto_commit: bool,
     request.push(Part::new(PartKind::FetchSize, Argument::FetchSize(fetch_size)));
     request.push(Part::new(PartKind::Command, Argument::Command(stmt)));
 
-    request.send_and_get_response(&mut None, &(conn_ref), None, acc_server_proc_time)
+    request.send_and_get_response(None, None, &(conn_ref), None, acc_server_proc_time)
 }
 
 struct Credentials {

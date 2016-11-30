@@ -5,6 +5,7 @@ use super::message::MsgType;
 use super::partkind::PartKind;
 use super::part_attributes::PartAttributes;
 use super::parts::parameter_metadata::ParameterMetadata;
+use super::parts::resultset_metadata::ResultSetMetadata;
 use super::parts::resultset::ResultSet;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -67,8 +68,9 @@ impl Part {
 
     ///
     pub fn parse(msg_type: MsgType, already_received_parts: &mut Parts,
-                 o_conn_ref: Option<&ConnRef>, o_par_md: &mut Option<ParameterMetadata>,
-                 o_rs: &mut Option<&mut ResultSet>, rdr: &mut io::BufRead)
+                 o_conn_ref: Option<&ConnRef>, rs_md: Option<&ResultSetMetadata>,
+                 par_md: Option<&ParameterMetadata>, o_rs: &mut Option<&mut ResultSet>,
+                 rdr: &mut io::BufRead)
                  -> PrtResult<Part> {
         trace!("Entering parse()");
         let (kind, attributes, arg_size, no_of_args) = try!(parse_part_header(rdr));
@@ -86,7 +88,8 @@ impl Part {
                                           arg_size,
                                           already_received_parts,
                                           o_conn_ref,
-                                          o_par_md,
+                                          rs_md,
+                                          par_md,
                                           o_rs,
                                           rdr))))
     }

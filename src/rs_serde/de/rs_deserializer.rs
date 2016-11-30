@@ -794,27 +794,9 @@ impl serde::de::Deserializer for RsDeserializer {
 
         match self.rows_treat {
             MCD::Done => {
-                match try!(self.current_value_pop()) {
-                    TypedValue::BLOB(BLOB::FromDB(blob_from_db)) |
-                    TypedValue::N_BLOB(Some(BLOB::FromDB(blob_from_db))) => {
-                        match visitor.visit_bytes(&try!(blob_from_db.into_bytes())) {
-                            Ok(v) => Ok(v),
-                            Err(e) => {
-                                trace!("ERRRRRRRRR: {:?}", e);
-                                Err(e)
-                            }
-                        }
-                    }
-
-                    TypedValue::BINARY(v) |
-                    TypedValue::VARBINARY(v) |
-                    TypedValue::BSTRING(v) |
-                    TypedValue::N_BINARY(Some(v)) |
-                    TypedValue::N_VARBINARY(Some(v)) |
-                    TypedValue::N_BSTRING(Some(v)) => visitor.visit_bytes(&v),
-
-                    value => return Err(self.wrong_type(&value, "seq")),
-                }
+                Err(DeserError::ProgramError("deserialize_seq() called when rows_treat = \
+                                              MCD::Done"
+                                                 .to_string()))
             }
             _ => {
                 self.rows_treat = MCD::Done;
@@ -901,11 +883,32 @@ impl serde::de::Deserializer for RsDeserializer {
     /// This method hints that the `Deserialize` type is expecting a `Vec<u8>`. This allows
     /// deserializers that provide a custom byte vector serialization to properly deserialize the
     /// type.
-    fn deserialize_bytes<V>(&mut self, visitor: V) -> DeserResult<V::Value>
+    fn deserialize_bytes<V>(&mut self, mut visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor
     {
         trace!("RsDeserializer::deserialize_bytes() called");
-        self.deserialize_seq(visitor)
+        // self.deserialize_seq(visitor)
+        match try!(self.current_value_pop()) {
+            TypedValue::BLOB(BLOB::FromDB(blob_from_db)) |
+            TypedValue::N_BLOB(Some(BLOB::FromDB(blob_from_db))) => {
+                match visitor.visit_bytes(&try!(blob_from_db.into_bytes())) {
+                    Ok(v) => Ok(v),
+                    Err(e) => {
+                        trace!("ERRRRRRRRR: {:?}", e);
+                        Err(e)
+                    }
+                }
+            }
+
+            TypedValue::BINARY(v) |
+            TypedValue::VARBINARY(v) |
+            TypedValue::BSTRING(v) |
+            TypedValue::N_BINARY(Some(v)) |
+            TypedValue::N_VARBINARY(Some(v)) |
+            TypedValue::N_BSTRING(Some(v)) => visitor.visit_bytes(&v),
+
+            value => return Err(self.wrong_type(&value, "seq")),
+        }
     }
 
     /// This method hints that the Deserialize type is expecting some sort of struct field name.

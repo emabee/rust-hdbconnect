@@ -17,7 +17,7 @@ use hdbconnect::types::LongDate;
 
 #[test]     // cargo test test_longdate -- --nocapture
 pub fn test_longdate() {
-    test_utils::init_logger(false, "info");
+    test_utils::init_logger(false, "trace");
 
     match impl_test_longdate() {
         Err(e) => {
@@ -95,7 +95,9 @@ fn impl_test_longdate() -> HdbResult<i32> {
     let mut prep_stmt = try!(connection.prepare("select sum(number) from TEST_LONGDATE where \
                                                  mydate = ? or mydate = ?"));
     try!(prep_stmt.add_batch(&cond_values));
-    let resultset = try!(try!(prep_stmt.execute_batch()).as_resultset());
+    let result_ = try!(prep_stmt.execute_batch());
+    info!("Result: {}", result_);
+    let resultset = try!(result_.as_resultset());
     debug!("resultset: {:?}", resultset);
     let typed_result: i32 = try!(resultset.into_typed());
     assert_eq!(typed_result, 31_i32);

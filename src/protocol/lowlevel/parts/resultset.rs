@@ -161,7 +161,8 @@ impl ResultSet {
         request.push(Part::new(PartKind::ResultSetId, Argument::ResultSetId(resultset_id)));
         request.push(Part::new(PartKind::FetchSize, Argument::FetchSize(fetch_size)));
 
-        let mut reply = try!(request.send_and_receive_detailed(&mut None,
+        let mut reply = try!(request.send_and_receive_detailed(None,
+                                                               None,
                                                                &mut Some(self),
                                                                &conn_ref,
                                                                Some(ReplyType::Fetch)));
@@ -337,8 +338,8 @@ pub mod factory {
     // we expect the previous three parts to be
     // a matching ResultSetMetadata, a ResultSetId, and a StatementContext
     pub fn parse(no_of_rows: i32, attributes: PartAttributes, parts: &mut Parts,
-                 o_conn_ref: Option<&ConnRef>, o_rs: &mut Option<&mut ResultSet>,
-                 rdr: &mut io::BufRead)
+                 o_conn_ref: Option<&ConnRef>, rs_md: Option<&ResultSetMetadata>,
+                 o_rs: &mut Option<&mut ResultSet>, rdr: &mut io::BufRead)
                  -> PrtResult<Option<ResultSet>> {
 
         match *o_rs {
@@ -360,7 +361,12 @@ pub mod factory {
 
                 let rs_metadata = match parts.pop_arg_if_kind(PartKind::ResultSetMetadata) {
                     Some(Argument::ResultSetMetadata(rsmd)) => rsmd,
-                    None => return Err(prot_err("No metadata provided for ResultSet")),
+                    None => {
+                        match rs_md {
+                            Some(rs_md) => rs_md.clone(),
+                            _ => return Err(prot_err("No metadata provided for ResultSet")),
+                        }
+                    }
                     _ => return Err(prot_err("Inconsistent metadata part found for ResultSet")),
                 };
 

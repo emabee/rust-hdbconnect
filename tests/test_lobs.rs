@@ -20,7 +20,7 @@ use serde::bytes::{ByteBuf, Bytes};
 // cargo test test_lobs -- --nocapture
 #[test]
 pub fn test_lobs() {
-    test_utils::init_logger(false, "info");
+    test_utils::init_logger(false, "info,test_lobs=debug,hdbconnect::rs_serde::ser=trace");
 
     match impl_test_lobs() {
         Err(e) => {
@@ -95,9 +95,11 @@ fn test_write_blob(connection: &mut Connection) -> HdbResult<()> {
                                          vec!["create table TEST_WRITE_BLOB (\"f1\" \
                                                NVARCHAR(10), \"fblob\" BLOB, \"f3\" INT)"]));
 
-    let stmt = "select  BDATA as \"bdata\" from    _SYS_REPO.ACTIVE_OBJECT where   package_id = \
-                'sap.ui5.1.sdk.docs.guide' and     object_name = \
-                'loiof144853312cd42a1bff62ce4695eba2d_LowRes' and     object_suffix = 'png' ";
+    let stmt = "select  BDATA as \"bdata\" \
+                from    _SYS_REPO.ACTIVE_OBJECT \
+                where   package_id = 'sap.ui5.1.sdk.docs.guide' \
+                and     object_name = 'loiof144853312cd42a1bff62ce4695eba2d_LowRes'
+                and     object_suffix = 'png' ";
     let mut resultset = try!(connection.query_statement(stmt));
     let bytes: &Vec<u8> = {
         if let &mut HdbValue::N_BLOB(Some(ref mut blob)) = resultset.get_value(0, 0).unwrap() {

@@ -41,40 +41,36 @@ pub mod factory {
 
     use std::io;
 
-    pub fn parse(o_conn_ref: Option<&ConnRef>, o_par_md: &mut Option<ParameterMetadata>,
-                 rdr: &mut io::BufRead)
+    pub fn parse(o_conn_ref: Option<&ConnRef>, par_md: &ParameterMetadata, rdr: &mut io::BufRead)
                  -> PrtResult<OutputParameters> {
         trace!("OutputParameters::parse()");
         let conn_ref = match o_conn_ref {
             Some(conn_ref) => conn_ref,
             None => return Err(prot_err("Cannot parse output parameters without conn_ref")),
         };
-        if let &mut Some(ref par_md) = o_par_md {
-            let mut output_pars = OutputParameters {
-                metadata: Vec::<ParameterDescriptor>::new(),
-                values: Vec::<TypedValue>::new(),
-            };
 
-            for descriptor in &(par_md.descriptors) {
-                match descriptor.mode {
-                    ParMode::INOUT | ParMode::OUT => {
-                        let typecode = descriptor.value_type;
-                        let nullable = descriptor.option.is_nullable();
-                        trace!("Parsing value with typecode {}, nullable {}", typecode, nullable);
-                        let value = try!(TypedValueFactory::parse_from_reply(typecode,
-                                                                             nullable,
-                                                                             conn_ref,
-                                                                             rdr));
-                        trace!("Found value {:?}", value);
-                        output_pars.metadata.push(descriptor.clone());
-                        output_pars.values.push(value);
-                    }
-                    _ => {}
+        let mut output_pars = OutputParameters {
+            metadata: Vec::<ParameterDescriptor>::new(),
+            values: Vec::<TypedValue>::new(),
+        };
+
+        for descriptor in &(par_md.descriptors) {
+            match descriptor.mode {
+                ParMode::INOUT | ParMode::OUT => {
+                    let typecode = descriptor.value_type;
+                    let nullable = descriptor.option.is_nullable();
+                    trace!("Parsing value with typecode {}, nullable {}", typecode, nullable);
+                    let value = try!(TypedValueFactory::parse_from_reply(typecode,
+                                                                         nullable,
+                                                                         conn_ref,
+                                                                         rdr));
+                    trace!("Found value {:?}", value);
+                    output_pars.metadata.push(descriptor.clone());
+                    output_pars.values.push(value);
                 }
+                _ => {}
             }
-            Ok(output_pars)
-        } else {
-            Err(prot_err("Cannot parse output parameters without metadata"))
         }
+        Ok(output_pars)
     }
 }

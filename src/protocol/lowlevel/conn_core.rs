@@ -114,8 +114,7 @@ impl Drop for ConnectionCore {
                                     for _ in 0..no_of_parts {
                                         Part::parse(MsgType::Reply,
                                                     &mut (msg.parts),
-                                                    None,
-                                                    &mut None,
+                                                    None, None, None,
                                                     &mut None,
                                                     &mut rdr)
                                             .ok();

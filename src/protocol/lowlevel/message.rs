@@ -15,6 +15,7 @@ use super::partkind::PartKind;
 use super::parts::resultset::ResultSet;
 use super::parts::option_value::OptionValue;
 use super::parts::parameter_metadata::ParameterMetadata;
+use super::parts::resultset_metadata::ResultSetMetadata;
 use super::parts::statement_context::StatementContext;
 use super::parts::resultset::factory as ResultSetFactory;
 
@@ -71,12 +72,12 @@ impl Request {
         }
     }
 
-    pub fn send_and_get_response(&mut self, o_par_md: &mut Option<ParameterMetadata>,
-                                 conn_ref: &ConnRef, expected_fc: Option<ReplyType>,
-                                 acc_server_proc_time: &mut i32)
+    pub fn send_and_get_response(&mut self, rs_md: Option<&ResultSetMetadata>,
+                                 par_md: Option<&ParameterMetadata>, conn_ref: &ConnRef,
+                                 expected_fc: Option<ReplyType>, acc_server_proc_time: &mut i32)
                                  -> HdbResult<HdbResponse> {
         let mut reply =
-            try!(self.send_and_receive_detailed(o_par_md, &mut None, conn_ref, expected_fc));
+            try!(self.send_and_receive_detailed(rs_md, par_md, &mut None, conn_ref, expected_fc));
 
         // digest parts, collect InternalReturnValues
         let mut int_return_values = Vec::<InternalReturnValue>::new();
@@ -174,10 +175,11 @@ impl Request {
     // simplified interface
     pub fn send_and_receive(&mut self, conn_ref: &ConnRef, expected_fc: Option<ReplyType>)
                             -> PrtResult<Reply> {
-        self.send_and_receive_detailed(&mut None, &mut None, conn_ref, expected_fc)
+        self.send_and_receive_detailed(None, None, &mut None, conn_ref, expected_fc)
     }
 
-    pub fn send_and_receive_detailed(&mut self, o_par_md: &mut Option<ParameterMetadata>,
+    pub fn send_and_receive_detailed(&mut self, rs_md: Option<&ResultSetMetadata>,
+                                     par_md: Option<&ParameterMetadata>,
                                      o_rs: &mut Option<&mut ResultSet>, conn_ref: &ConnRef,
                                      expected_fc: Option<ReplyType>)
                                      -> PrtResult<Reply> {
@@ -188,7 +190,7 @@ impl Request {
 
         try!(self.serialize(conn_ref));
 
-        let mut reply = try!(Reply::parse(o_par_md, o_rs, conn_ref));
+        let mut reply = try!(Reply::parse(rs_md, par_md, o_rs, conn_ref));
         try!(reply.assert_no_error());
         try!(reply.assert_expected_fc(expected_fc));
 
@@ -314,8 +316,8 @@ impl Reply {
     /// `ResultSet` needs to be injected (and is extended and returned) in case of fetch requests
     /// `conn_ref` needs to be injected in case we get an incomplete resultset or lob
     /// (so that they later can fetch)
-    fn parse(o_par_md: &mut Option<ParameterMetadata>, o_rs: &mut Option<&mut ResultSet>,
-             conn_ref: &ConnRef)
+    fn parse(rs_md: Option<&ResultSetMetadata>, par_md: Option<&ParameterMetadata>,
+             o_rs: &mut Option<&mut ResultSet>, conn_ref: &ConnRef)
              -> PrtResult<Reply> {
         trace!("Reply::parse()");
         let stream = &mut (conn_ref.borrow_mut().stream);
@@ -329,7 +331,8 @@ impl Reply {
                     let part = try!(Part::parse(MsgType::Reply,
                                                 &mut (msg.parts),
                                                 Some(conn_ref),
-                                                o_par_md,
+                                                rs_md,
+                                                par_md,
                                                 o_rs,
                                                 &mut rdr));
                     msg.push(part);
