@@ -12,35 +12,6 @@ use protocol::lowlevel::conn_core::ConnRef;
 use std::borrow::Cow;
 use std::cmp;
 
-/// TypedValue::BLOB is a wrapper around BLOB. BLOB comes in two flavors, depending on
-/// whether we read it from the database or write it to the database.
-#[derive(Clone,Debug)]
-pub enum BLOB {
-    /// A BlobHandle represents a CLOB that was read from the database.
-    FromDB(BlobHandle),
-    /// A mere newtype-struct around the data.
-    ToDB(Vec<u8>),
-}
-
-impl BLOB {
-    /// Returns a reference to the Vec<u8> containing its data.
-    pub fn ref_bytes(&mut self) -> PrtResult<&Vec<u8>> {
-        match *self {
-            BLOB::FromDB(ref mut bh) => {
-                trace!("BlobHandle::ref_bytes()");
-                while !bh.is_data_complete {
-                    try!(bh.fetch_next_chunk());
-                }
-                Ok(&(bh.data))
-            }
-            BLOB::ToDB(ref vec) => Ok(vec),
-        }
-    }
-}
-
-
-
-
 /// BlobHandle is used for BLOBs that we receive from the database.
 /// The data are often not transferred completely,
 /// so we carry internally a database connection and the
@@ -55,6 +26,14 @@ pub struct BlobHandle {
     acc_server_proc_time: i32,
 }
 impl BlobHandle {
+    pub fn get_data(&mut self) -> PrtResult<&Vec<u8>> {
+        // fetch all chunks
+        while !self.is_data_complete {
+            try!(self.fetch_next_chunk());
+        }
+        Ok(&(self.data))
+    }
+
     fn fetch_next_chunk(&mut self) -> PrtResult<()> {
         let (mut reply_data, reply_is_last_data, server_processing_time) =
             try!(fetch_a_lob_chunk(&self.o_conn_ref,
@@ -85,18 +64,6 @@ impl BlobHandle {
 }
 
 
-// ////////////////////////////////////////////////////////////////////////////////////////
-
-/// TypedValue::CLOB and TypedValue::NCLOB are wrappers around CLOB.
-/// CLOB comes in two flavors, depending on
-/// whether we read it from the database or want to write it to the database.
-#[derive(Clone,Debug)]
-pub enum CLOB {
-    /// A ClobHandle represents a CLOB that was read from the database.
-    FromDB(ClobHandle),
-    /// A mere newtype-struct around the data.
-    ToDB(String),
-}
 
 /// ClobHandle is used for CLOBs and NCLOBs that we receive from the database.
 /// The data are often not transferred completely, so we carry internally

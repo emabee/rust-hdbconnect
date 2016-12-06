@@ -1,10 +1,12 @@
-use types::{BLOB, LongDate};
+use types::BLOB;
+use types::LongDate;
 use protocol::lowlevel::parts::parameter_metadata::{ParameterDescriptor, ParameterMetadata,
                                                     ParMode};
 use protocol::lowlevel::parts::parameters::ParameterRow;
 use protocol::lowlevel::parts::type_id::*;
 use protocol::lowlevel::parts::typed_value::TypedValue;
 use super::{SerializationError, SerializeResult};
+use super::super::hdbdate::longdate_from_str;
 
 use serde;
 use std::{u8, i16, i32, i64};
@@ -520,31 +522,22 @@ impl<'a> serde::ser::Serializer for Serializer<'a> {
         let mut s = String::new();
         s.push(value);
         match try!(self.expected_type_code()) {
-            TYPEID_CHAR => self.row.push(TypedValue::STRING(s)),
-            TYPEID_VARCHAR => self.row.push(TypedValue::STRING(s)),
-            TYPEID_NCHAR => self.row.push(TypedValue::STRING(s)),
-            TYPEID_NVARCHAR => self.row.push(TypedValue::STRING(s)),
-            TYPEID_STRING => self.row.push(TypedValue::STRING(s)),
-            TYPEID_NSTRING => self.row.push(TypedValue::STRING(s)),
-            TYPEID_TEXT => self.row.push(TypedValue::STRING(s)),
-            TYPEID_SHORTTEXT => self.row.push(TypedValue::STRING(s)),
+            TYPEID_CHAR | TYPEID_VARCHAR | TYPEID_NCHAR | TYPEID_NVARCHAR | TYPEID_STRING |
+            TYPEID_NSTRING | TYPEID_TEXT | TYPEID_SHORTTEXT => self.row.push(TypedValue::STRING(s)),
             target_tc => return Err(SerializationError::TypeMismatch("char", target_tc)),
         }
         Ok(())
     }
 
     fn serialize_str(&mut self, value: &str) -> SerializeResult<()> {
-        trace!("Serializer::serialize_str()");
+        trace!("Serializer::serialize_str() with {}", value);
         let s = String::from(value);
         match try!(self.expected_type_code()) {
-            TYPEID_CHAR => self.row.push(TypedValue::STRING(s)),
-            TYPEID_VARCHAR => self.row.push(TypedValue::STRING(s)),
-            TYPEID_NCHAR => self.row.push(TypedValue::STRING(s)),
-            TYPEID_NVARCHAR => self.row.push(TypedValue::STRING(s)),
-            TYPEID_STRING => self.row.push(TypedValue::STRING(s)),
-            TYPEID_NSTRING => self.row.push(TypedValue::STRING(s)),
-            TYPEID_TEXT => self.row.push(TypedValue::STRING(s)),
-            TYPEID_SHORTTEXT => self.row.push(TypedValue::STRING(s)),
+            TYPEID_CHAR | TYPEID_VARCHAR | TYPEID_NCHAR | TYPEID_NVARCHAR | TYPEID_STRING |
+            TYPEID_NSTRING | TYPEID_TEXT | TYPEID_SHORTTEXT => self.row.push(TypedValue::STRING(s)),
+
+            TYPEID_LONGDATE => self.row.push(TypedValue::LONGDATE(try!(longdate_from_str(value)))),
+
             target_tc => return Err(SerializationError::TypeMismatch("&str", target_tc)),
         }
         Ok(())

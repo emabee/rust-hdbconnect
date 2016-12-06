@@ -1,9 +1,10 @@
 use protocol::lowlevel::parts::resultset::ResultSet;
 use protocol::lowlevel::parts::typed_value::TypedValue;
-use types::{BLOB, CLOB, LongDate};
+use types::LongDate;
 use super::deserialization_error::{DeserError, DeserResult, prog_err};
 use super::fields_visitor::FieldsVisitor;
 use super::rows_visitor::RowsVisitor;
+use super::super::hdbdate::str_from_longdate;
 
 use serde;
 use std::mem::size_of;
@@ -214,10 +215,15 @@ impl serde::de::Deserializer for RsDeserializer {
 
     /// This method walks a visitor through a value as it is being deserialized.
     #[allow(unused_variables)]
-    fn deserialize<V>(&mut self, visitor: V) -> DeserResult<V::Value>
+    fn deserialize<V>(&mut self, mut visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor
     {
-        panic!("RsDeserializer::deserialize(): not implemented!");
+        trace!("RsDeserializer::deserialize() called");
+        match try!(self.current_value_pop()) {
+            TypedValue::LONGDATE(ld) |
+            TypedValue::N_LONGDATE(Some(ld)) => visitor.visit_str(&str_from_longdate(&ld)),
+            value => return Err(self.wrong_type(&value, "[some date or datetime]")),
+        }
     }
 
     /// This method hints that the `Deserialize` type is expecting a `bool` value.
@@ -677,12 +683,10 @@ impl serde::de::Deserializer for RsDeserializer {
             TypedValue::N_SHORTTEXT(Some(s)) |
             TypedValue::N_TEXT(Some(s)) => visitor.visit_string(s),
 
-            TypedValue::CLOB(CLOB::FromDB(clob_from_db)) |
-            TypedValue::NCLOB(CLOB::FromDB(clob_from_db)) |
-            TypedValue::N_CLOB(Some(CLOB::FromDB(clob_from_db))) |
-            TypedValue::N_NCLOB(Some(CLOB::FromDB(clob_from_db))) => {
-                visitor.visit_string(try!(clob_from_db.into_string()))
-            }
+            TypedValue::CLOB(clob) |
+            TypedValue::NCLOB(clob) |
+            TypedValue::N_CLOB(Some(clob)) |
+            TypedValue::N_NCLOB(Some(clob)) => visitor.visit_string(try!(clob.into_string())),
 
             value => return Err(self.wrong_type(&value, "String")),
         }
@@ -889,9 +893,9 @@ impl serde::de::Deserializer for RsDeserializer {
         trace!("RsDeserializer::deserialize_bytes() called");
         // self.deserialize_seq(visitor)
         match try!(self.current_value_pop()) {
-            TypedValue::BLOB(BLOB::FromDB(blob_from_db)) |
-            TypedValue::N_BLOB(Some(BLOB::FromDB(blob_from_db))) => {
-                match visitor.visit_bytes(&try!(blob_from_db.into_bytes())) {
+            TypedValue::BLOB(blob) |
+            TypedValue::N_BLOB(Some(blob)) => {
+                match visitor.visit_bytes(&try!(blob.into_bytes())) {
                     Ok(v) => Ok(v),
                     Err(e) => {
                         trace!("ERRRRRRRRR: {:?}", e);
@@ -928,7 +932,7 @@ impl serde::de::Deserializer for RsDeserializer {
             }
             None => {
                 trace!("RsDeserializer::deserialize_struct_field(): no next_key");
-                Err(prog_err("no next_key in RsDeserializer::deserialize()"))
+                Err(prog_err("no next_key in RsDeserializer::deserialize_struct_field()"))
             }
         }
     }
@@ -940,9 +944,8 @@ impl serde::de::Deserializer for RsDeserializer {
     fn deserialize_tuple<V>(&mut self, _len: usize, visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor
     {
-        trace!("RsDeserializer::deserialize_tuple() called");
+        panic!("RsDeserializer::deserialize_tuple() not implemented")
         // self.deserialize_seq(visitor) ?
-        panic!("Not implemented")
     }
 
     /// This method hints that the Deserialize type is expecting an enum value.
@@ -954,8 +957,7 @@ impl serde::de::Deserializer for RsDeserializer {
                            -> Result<V::Value, Self::Error>
         where V: serde::de::EnumVisitor
     {
-        trace!("RsDeserializer::deserialize_enum() called");
-        panic!("Not implemented")
+        panic!("RsDeserializer::deserialize_enum() not implemented")
     }
 
     /// This method hints that the Deserialize type needs to deserialize a value
@@ -964,7 +966,6 @@ impl serde::de::Deserializer for RsDeserializer {
     fn deserialize_ignored_any<V>(&mut self, visitor: V) -> Result<V::Value, Self::Error>
         where V: serde::de::Visitor
     {
-        trace!("RsDeserializer::deserialize_ignored_any() called");
-        panic!("Not implemented")
+        panic!("RsDeserializer::deserialize_ignored_any() not implemented")
     }
 }

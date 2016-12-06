@@ -12,8 +12,8 @@ extern crate serde_derive;
 
 mod test_utils;
 
+use chrono::NaiveDateTime;
 use hdbconnect::{Connection, HdbResult};
-use hdbconnect::types::LongDate;
 
 
 #[test]     // cargo test test_select_and_deserialization -- --nocapture
@@ -59,7 +59,7 @@ fn deser_option_into_option(connection: &mut Connection) -> HdbResult<()> {
     struct TestStruct {
         F_S: Option<String>,
         F_I: Option<i32>,
-        F_D: Option<LongDate>,
+        F_D: Option<NaiveDateTime>,
     }
 
     let resultset = try!(connection.query_statement("select * from TEST_OPT_OPT"));
@@ -89,7 +89,7 @@ fn deser_plain_into_plain(connection: &mut Connection) -> HdbResult<()> {
     struct TestStruct {
         F_S: String,
         F_I: i32,
-        F_D: LongDate,
+        F_D: NaiveDateTime,
     }
 
     let resultset = try!(connection.query_statement("select * from TEST_PLAIN_PLAIN"));
@@ -121,7 +121,7 @@ fn deser_plain_into_option(connection: &mut Connection) -> HdbResult<()> {
     struct TestStruct {
         F_S: Option<String>,
         F_I: Option<i32>,
-        F_D: Option<LongDate>,
+        F_D: Option<NaiveDateTime>,
     }
 
     let resultset = try!(connection.query_statement("select * from TEST_PLAIN_OPT"));
@@ -149,7 +149,7 @@ fn deser_option_into_plain(connection: &mut Connection) -> HdbResult<()> {
     struct TestStruct {
         F_S: String,
         F_I: i32,
-        F_D: LongDate,
+        F_D: NaiveDateTime,
     }
 
     // first part: no null values, this must work
@@ -204,7 +204,7 @@ fn deser_singleline_into_struct(connection: &mut Connection) -> HdbResult<()> {
     struct TestStruct {
         O_S: Option<String>,
         O_I: Option<i32>,
-        O_D: Option<LongDate>,
+        O_D: Option<NaiveDateTime>,
     }
 
     // first part: single line works

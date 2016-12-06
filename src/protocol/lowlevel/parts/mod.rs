@@ -4,7 +4,7 @@ pub use protocol::lowlevel::util;
 pub mod authfield;
 pub mod client_info;
 pub mod connect_option;
-pub mod lob;
+pub mod lob_handles;
 pub mod option_value;
 pub mod output_parameters;
 pub mod parameters;

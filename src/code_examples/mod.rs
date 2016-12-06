@@ -1,6 +1,6 @@
 //! Here are some code examples for the usage of this database driver.
 //!
-//! 1. Get an authenticated database connection.
+//! <b>1. Get an authenticated database connection</b>
 //!
 //!  Establish a physical connecton to the database server ...
 //!
@@ -17,32 +17,112 @@
 //!  ```
 //!
 //!
-//! 2. Query to the database.
+//! <b>2. Query the database</b>
 //!
-//!  Thanks to the usage of serde you can get the database result directly
-//!  into a fitting rust structure.
-//!  No need to traverse a resultset by row and column...
-//!
+//!  The most generic way to fire SQL statements without preparation is using
+//!  <code>Connection::any_statement()</code>.
+//!  This generic method can handle all kinds of calls,
+//!  and thus has the most complex return type, <code>HdbResponse</code>.
 //!
 //!  ```ignore
-//!  let stmt = "select \
-//!                  LNAME as \"last_name\", \
-//!                  FNAME as \"first_name\", \
-//!                  MI as \"middle\", \
-//!                  birthdate as \"birthdate\" \
-//!              from COMPANY.EMPLOYEE \
-//!              where id = 4711";
+//!  let my_statement = "..."; // some statement that doesn't need preparation
+//!  let response: HdbResponse = try!(connection.any_statement(my_statement));
+//!  ```
 //!
-//!  #[derive(Deserialize)]
-//!  struct Person {
-//!      last_name: String,
-//!      first_name: String,
-//!      middle: Option<char>,
-//!      birthdate: Option<LongDate>,
-//!  }
+//!  <code>HdbResponse</code> is quite a complex nested enum which covers all possible
+//!  return values we can get from the database.
+//!  You thus have to analyze it to come to the
+//!  concrete response relevant for your call.
+//!  You can do this either explicitly using <code>match</code> etc or with the
+//!  adequate short-cut method, e.g.:
 //!
-//!  let result: Vec<Person> = try!(connection.query_statement(stmt));
+//!  ```ignore
+//!  let resultset: ResultSet = try!(response.as_resultset());
+//!  ```
+//!
+//!  You can do the same of course with <code>HdbResponse</code>s obtained from the execution
+//!  of prepared statements.
+//!
+//!  In many cases it will be more appropriate and convenient to use one of the
+//!  specialized methods
+//!
+//!  * <code>query_statement()</code> -> ResultSet
+//!  * <code>dml_statement()</code> -> usize
+//!  * <code>exec_statement()</code> -> ()
+//!
+//!  which have the adequate simple result type you usually want:
+//!
+//!  ```ignore
+//!  let my_statement = "..."; // some statement that doesn't need preparation
+//!  let resultset: ResultSet = try!(connection.query_statement(my_statement));
 //!  ```
 //!
 //!
+//! <b>3. Evaluate a resultset</b>
+//!
+//!  Evaluating a resultset by traversing rows and columns should always be possible,
+//!  of course, but there's again a more convenient alternative.
+//!  Thanks to the usage of serde you can convert the resultset directly
+//!  into a fitting rust structure.
+//!
+//!  Note that you need to specify the type of your target variable explicitly, so that
+//!  <code>ResultSet::into_typed(self)</code> can derive the type it needs to serialize into.
+//!
+//!  Depending on the usecase, <code>ResultSet::into_typed(self)</code>
+//!  supports a variety of target data structures,
+//!  with the only strong limitation that no data loss is supported.
+//!
+//!  * It depends on the <b>dimension of the resultset</b> what target data structures
+//!    you can choose for deserialization:
+//!
+//!      * You can always use a <code>Vec&lt;MyRow&gt;</code>, where
+//!        <code>MyRow</code> is a struct or tuple that matches the fields of the resultset.
+//!
+//!        ```ignore
+//!         #[derive(Deserialize)]
+//!         struct MyRow {
+//!             ...
+//!         }
+//!
+//!        let result: Vec<MyRow> = try!(resultset.into_typed());
+//!        ```
+//!
+//!      * If the resultset contains only a single line (e.g. because you specified
+//!        TOP 1 in your select, or qualified the full primary key),
+//!        then you can optionally choose to deserialize into a plain <code>MyRow</code> directly.
+//!
+//!        ```ignore
+//!         #[derive(Deserialize)]
+//!         struct MyRow {
+//!             ...
+//!         }
+//!
+//!        let result: MyRow = try!(resultset.into_typed());
+//!        ```
+//!
+//!      * If the resultset contains only a single column, then you can optionally choose to
+//!        deserialize into a <code>Vec&lt;field&gt;</code>,
+//!        where <code>field</code> is a type that matches the field of the resultset.
+//!
+//!        ```ignore
+//!        let result: Vec<u32> = try!(resultset.into_typed());
+//!        ```
+//!
+//!      * If the resultset contains only a single value (one row with one column),
+//!        then you can optionally choose to deserialize into a plain <code>MyRow</code>,
+//!        or a <code>Vec&lt;field&gt;</code>, or a <code>field</code>.
+//!
+//!        ```ignore
+//!        let result: u32 = try!(resultset.into_typed());
+//!        ```
+//!
+//!  * Also the <b>(de)serialization of the individual field values</b> provides flexibility.
+//!      * You can e.g. convert values from a nullable column into a plain field,
+//!        provided that no NULL values are given in the resultset.
+//!
+//!      * Vice versa, you always can use an Option<code>&lt;field&gt;</code>,
+//!        even if the column is marked as NOT NULL.
+//!
+//!      * Similarly, integer types can differ, as long as the returned values can
+//!        be assigned without loss.
 //!

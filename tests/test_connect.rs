@@ -13,12 +13,10 @@ extern crate serde_derive;
 
 mod test_utils;
 
-use chrono::Local;
+use chrono::{Local, NaiveDateTime};
 use serde::bytes::ByteBuf;
 use std::error::Error;
-use hdbconnect::Connection;
-use hdbconnect::HdbResult;
-use hdbconnect::types::LongDate;
+use hdbconnect::{Connection, HdbResult};
 
 
 // cargo test test_connect -- --nocapture
@@ -96,7 +94,7 @@ fn impl_select_many_active_objects(connection: &mut Connection) -> HdbResult<usi
         object_name: String,
         object_suffix: String,
         version_id: i32,
-        activated_at: LongDate,
+        activated_at: NaiveDateTime,
         activated_by: String,
         edit: u8,
         cdata: Option<String>,
@@ -110,7 +108,7 @@ fn impl_select_many_active_objects(connection: &mut Connection) -> HdbResult<usi
         du_version_patch: Option<String>,
         object_status: u8,
         change_number: Option<i32>,
-        released_at: Option<LongDate>,
+        released_at: Option<NaiveDateTime>,
     }
 
     let start = Local::now();
@@ -138,12 +136,9 @@ fn impl_select_many_active_objects(connection: &mut Connection) -> HdbResult<usi
     debug!("Typed Result: {:?}", typed_result);
     assert_eq!(typed_result.len(), top_n);
 
-
     let s = typed_result.get(0)
                         .unwrap()
                         .activated_at
-                        .to_datetime_utc()
-                        .unwrap()
                         .format("%Y-%m-%d %H:%M:%S")
                         .to_string();
     debug!("Activated_at: {}", s);

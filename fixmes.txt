@@ -1,3 +1,11 @@
+* move the metadata descriptors to a submodule metadata
+* the crate itself (not the tests) should compile with stable
+  -> verify / improve handling of LOBs and of longdate
+* implement other date-types
+* implement geospatial types
+* resolve fixmes in resultset and other important fixmes
+
+
 src/protocol/authenticate.rs:144:    // FIXME the server proof is not evaluated
 src/protocol/lowlevel/argument.rs:40:    // FIXME should be a separate struct:
 src/protocol/lowlevel/argument.rs:42:    // FIXME should be a separate struct:

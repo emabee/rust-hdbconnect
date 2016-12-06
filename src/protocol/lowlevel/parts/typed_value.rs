@@ -1,6 +1,7 @@
 use protocol::lowlevel::{PrtError, PrtResult, util};
 use super::type_id::*;
-use types::{BLOB, CLOB, LongDate};
+use types::{BLOB, CLOB};
+use types::LongDate;
 
 use byteorder::{LittleEndian, WriteBytesExt};
 use std::i16;
@@ -78,15 +79,15 @@ pub enum TypedValue {
     /// maximum length in bytes,
     /// where n indicates the maximum length and is an integer between 1 and 5000.
     VARBINARY(Vec<u8>),
-    /// The CLOB data type is used to store large amounts of ASCII character data.
+    /// The CLOB data type is used to store a large ASCII character string.
     CLOB(CLOB),
-    /// The NCLOB data type is used to store a large Unicode character object.
+    /// The NCLOB data type is used to store a large Unicode string.
     NCLOB(CLOB),
-    /// The BLOB data type is used to store large amounts of binary data.
+    /// The BLOB data type is used to store a large binary string.
     BLOB(BLOB),
     /// BOOLEAN stores boolean values, which are TRUE or FALSE.
     BOOLEAN(bool),
-    /// The DB returns all Strings as type STRING, independent of the concrete conlumn type.
+    /// The DB returns all Strings as type STRING, independent of the concrete column type.
     STRING(String),
     /// Likely not used?
     NSTRING(String),
@@ -514,9 +515,10 @@ fn serialize_clob_header(s: &String, data_pos: &mut i32, w: &mut io::Write) -> P
 pub mod factory {
     use super::TypedValue;
     use super::super::{PrtError, PrtResult, prot_err, util};
+    use super::super::lob_handles::lob_factory;
     use protocol::lowlevel::conn_core::ConnRef;
-    use types::{BLOB, CLOB, LongDate};
-    use super::super::lob::lob_factory::{blob_handle, clob_handle};
+    use types::{BLOB, CLOB};
+    use types::LongDate;
     use byteorder::{LittleEndian, ReadBytesExt};
     use std::borrow::Cow;
     use std::fmt;
@@ -795,11 +797,11 @@ pub mod factory {
             }
             false => {
                 let (_, length_b, locator_id, data) = try!(parse_lob_2(rdr));
-                Ok(Some(BLOB::FromDB(blob_handle(conn_ref,
-                                                 is_last_data,
-                                                 length_b,
-                                                 locator_id,
-                                                 data))))
+                Ok(Some(BLOB::FromDB(lob_factory::blob_handle(conn_ref,
+                                                              is_last_data,
+                                                              length_b,
+                                                              locator_id,
+                                                              data))))
             }
         }
     }
@@ -825,13 +827,13 @@ pub mod factory {
                     Cow::Borrowed(s) => String::from(s),
                 };
                 assert_eq!(data.len(), s.len());
-                Ok(Some(CLOB::FromDB(clob_handle(conn_ref,
-                                                 is_last_data,
-                                                 length_c,
-                                                 length_b,
-                                                 char_count,
-                                                 locator_id,
-                                                 s))))
+                Ok(Some(CLOB::FromDB(lob_factory::clob_handle(conn_ref,
+                                                              is_last_data,
+                                                              length_c,
+                                                              length_b,
+                                                              char_count,
+                                                              locator_id,
+                                                              s))))
             }
         }
     }

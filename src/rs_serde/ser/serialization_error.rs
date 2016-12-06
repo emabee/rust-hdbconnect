@@ -1,4 +1,5 @@
 use serde;
+use std::convert::From;
 use std::error::Error;
 use std::fmt;
 
@@ -20,6 +21,12 @@ impl Error for SerializationError {
             SerializationError::TypeMismatch(_, _) => "type mismatch",
             SerializationError::RangeErr(_, _) => "range exceeded",
         }
+    }
+}
+
+impl From<&'static str> for SerializationError {
+    fn from(error: &'static str) -> SerializationError {
+        SerializationError::StructuralMismatch(error)
     }
 }
 

@@ -11,11 +11,11 @@ extern crate serde_derive;
 mod test_utils;
 
 use hdbconnect::{Connection, HdbResult};
-use hdbconnect::types::LongDate;
+use chrono::NaiveDate;
 
 #[test]     // cargo test test_transactions -- --nocapture
 pub fn test_transactions() {
-    test_utils::init_logger(false, "info");
+    test_utils::init_logger(false, "info"); // ,hdbconnect::rs_serde=trace
 
     match test_transactions_impl() {
         Err(e) => {
@@ -68,12 +68,10 @@ fn write1_read2(connection1: &mut Connection) -> HdbResult<()> {
 
     let mut prepared_statement = try!(connection1.prepare("insert into TEST_TRANSACTIONS \
                                                            (strng,nmbr,dt) values(?,?,?)"));
-    try!(prepared_statement.add_batch(&("who", 4000, LongDate::ymd(1903, 1, 1).unwrap())));
-    try!(prepared_statement.add_batch(&("added", 50000, LongDate::ymd(1903, 1, 1).unwrap())));
-    try!(prepared_statement.add_batch(&("this?", 600000, LongDate::ymd(1903, 1, 1).unwrap())));
+    try!(prepared_statement.add_batch(&("who", 4000, NaiveDate::from_ymd(1903, 1, 1))));
+    try!(prepared_statement.add_batch(&("added", 50000, NaiveDate::from_ymd(1903, 1, 1))));
+    try!(prepared_statement.add_batch(&("this?", 600000, NaiveDate::from_ymd(1903, 1, 1))));
     try!(prepared_statement.execute_batch());
-    // let db_responses = try!(prepared_statement.execute_batch());
-    // info!("db_responses = {:?}", db_responses);
 
     // we can read the new lines from connection1:
     assert_eq!(get_checksum(connection1), 654321);
@@ -87,9 +85,9 @@ fn write1_read2(connection1: &mut Connection) -> HdbResult<()> {
     // we can't read the new lines from connection1 anymore:
     assert_eq!(get_checksum(connection1), 321);
 
-    try!(prepared_statement.add_batch(&("who", 4000, LongDate::ymd(1903, 1, 1).unwrap())));
-    try!(prepared_statement.add_batch(&("added", 50000, LongDate::ymd(1903, 1, 1).unwrap())));
-    try!(prepared_statement.add_batch(&("this?", 600000, LongDate::ymd(1903, 1, 1).unwrap())));
+    try!(prepared_statement.add_batch(&("who", 4000, NaiveDate::from_ymd(1903, 1, 1))));
+    try!(prepared_statement.add_batch(&("added", 50000, NaiveDate::from_ymd(1903, 1, 1))));
+    try!(prepared_statement.add_batch(&("this?", 600000, NaiveDate::from_ymd(1903, 1, 1))));
     try!(prepared_statement.execute_batch());
     // we can read the new lines from connection1:
     assert_eq!(get_checksum(connection1), 654321);

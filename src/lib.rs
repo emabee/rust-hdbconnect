@@ -16,8 +16,9 @@
 //! Whatever query you need, you just use it, and whatever result structure you need,
 //! you just use a corresponding rust structure into which you deserialize the data.
 //!
-//! See [ResultSet.into_typed()](struct.ResultSet.html#method.into_typed) and
-//! [code examples](code_examples/index.html) for details.
+//! See
+//! [code examples](code_examples/index.html)
+//! for an overview.
 
 #![feature(proc_macro)]
 #![warn(missing_docs)]
@@ -50,12 +51,10 @@ mod rs_serde;
 pub mod code_examples;
 pub mod types;
 
-
 pub use connection::Connection;
 pub use prepared_statement::PreparedStatement;
 pub use hdb_response::{HdbResponse, HdbReturnValue};
-pub use protocol::lowlevel::parts::resultset::{ResultSet, Row};
-pub use protocol::lowlevel::parts::typed_value::TypedValue as HdbValue;
+pub use protocol::lowlevel::parts::resultset::ResultSet;
 pub use protocol::lowlevel::parts::output_parameters::OutputParameters;
 pub use protocol::lowlevel::parts::parameter_metadata::{ParameterDescriptor, ParameterOption,
                                                         ParMode};

@@ -13,14 +13,13 @@ extern crate serde_derive;
 
 mod test_utils;
 
-use hdbconnect::{Connection, HdbResult, HdbValue};
-
-use serde::bytes::{ByteBuf, Bytes};
+use hdbconnect::{Connection, HdbResult};
+use serde::bytes::ByteBuf;
 
 // cargo test test_lobs -- --nocapture
 #[test]
 pub fn test_lobs() {
-    test_utils::init_logger(false, "info,test_lobs=debug,hdbconnect::rs_serde::ser=trace");
+    test_utils::init_logger(false, "info");  //,test_lobs=debug,hdbconnect::rs_serde::ser=trace
 
     match impl_test_lobs() {
         Err(e) => {
@@ -100,26 +99,20 @@ fn test_write_blob(connection: &mut Connection) -> HdbResult<()> {
                 where   package_id = 'sap.ui5.1.sdk.docs.guide' \
                 and     object_name = 'loiof144853312cd42a1bff62ce4695eba2d_LowRes'
                 and     object_suffix = 'png' ";
-    let mut resultset = try!(connection.query_statement(stmt));
-    let bytes: &Vec<u8> = {
-        if let &mut HdbValue::N_BLOB(Some(ref mut blob)) = resultset.get_value(0, 0).unwrap() {
-            try!(blob.ref_bytes())
-        } else {
-            panic!("didn't get the blob data");
-        }
-    };
+    let resultset = try!(connection.query_statement(stmt));
+    let byte_buf: ByteBuf = try!(resultset.into_typed());
 
     let insert_stmt_str = "insert into TEST_WRITE_BLOB (\"f1\", \"fblob\", \"f3\") values(?, ?, ?)";
     let mut insert_stmt = try!(connection.prepare(insert_stmt_str));
-    let data = ("TEST", Bytes::from(bytes), 42_i32);
+    let data = ("TEST", &byte_buf, 42_i32);
     trace!("data = {:?}", data);
     try!(insert_stmt.add_batch(&data));
     try!(insert_stmt.execute_batch());
 
     connection.set_lob_read_length(1_000_000);
     let stmt = "select * from TEST_WRITE_BLOB";
-    let mut twl: TestWriteLob = try!(try!(connection.query_statement(stmt)).into_typed());
+    let twl: TestWriteLob = try!(try!(connection.query_statement(stmt)).into_typed());
 
-    assert_eq!(*bytes, twl.fblob.as_mut());
+    assert_eq!(byte_buf, twl.fblob);
     Ok(())
 }
