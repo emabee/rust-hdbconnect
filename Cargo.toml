@@ -1,20 +1,14 @@
 [package]
 name = "hdbconnect"
-version = "0.0.25"
+version = "0.0.26"
 authors = ["emabee <meinolf.block@sap.com>"]
 
 [dependencies]
 byteorder = "*"
-chrono = { version = "0.2", features = ["serde", "rustc-serialize"] }
-flexi_logger = "*"
+chrono = { version = "0.2"}
 log = "*"
-num = "*"
 rand = "*"
 rust-crypto = "*"
 serde = "*"
-serde_derive ="*"
-vec_map = "*"
 user = "*"
-
-#[dependencies.flexi_logger]
-#path = "/dev/rust/projects/flexi_logger"
+vec_map = "*"

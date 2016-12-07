@@ -88,7 +88,7 @@ impl ResultSet {
 
     /// Returns the number of fields
     pub fn number_of_fields(&self) -> usize {
-        self.metadata.fields.len()
+        self.metadata.len()
     }
 
     /// Returns the name of the column at the specified index
@@ -109,11 +109,6 @@ impl ResultSet {
     /// Returns the number of result rows.
     pub fn no_of_rows(&self) -> usize {
         self.rows.len()
-    }
-
-    /// Returns the number of columns (metadata).
-    pub fn no_of_cols(&self) -> usize {
-        self.metadata.fields.len()
     }
 
     fn is_complete(&self) -> PrtResult<bool> {
@@ -311,7 +306,8 @@ pub mod factory {
         }
     }
 
-    #[allow(dead_code)]
+
+    /// Factory for ResultSets, only useful for tests.
     pub fn new_for_tests(rsm: ResultSetMetadata, rows: Vec<Row>) -> ResultSet {
         ResultSet {
             core_ref: ResultSetCore::new_rs_ref(None, PartAttributes::new(0b_0000_0001), 0_u64),
@@ -410,7 +406,7 @@ pub mod factory {
                 for r in 0..no_of_rows {
                     let mut row = Row { values: Vec::<TypedValue>::new() };
                     for c in 0..no_of_cols {
-                        let field_md = resultset.metadata.fields.get(c as usize).unwrap();
+                        let field_md = resultset.metadata.get_fieldmetadata(c as usize).unwrap();
                         let typecode = field_md.value_type;
                         let nullable = field_md.column_option.is_nullable();
                         trace!("Parsing row {}, column {}, typecode {}, nullable {}",

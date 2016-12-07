@@ -7,7 +7,14 @@ use std::fmt;
 use std::io;
 use std::result;
 
-/// This error type represents all possible errors that can occur in hdbconnect.
+/// An abbreviation of <code>Result&lt;T, HdbError&gt;</code>.
+///
+/// Just for convenience.
+pub type HdbResult<T> = result::Result<T, HdbError>;
+
+
+
+/// Represents all possible errors that can occur in hdbconnect.
 #[derive(Debug)]
 pub enum HdbError {
     /// Error occured in deserialization of data into an application-defined structure.
@@ -28,11 +35,6 @@ pub enum HdbError {
     /// Error due to wrong usage of API.
     UsageError(&'static str),
 }
-
-/// An abbreviation of <code>Result&lt;T, HdbError&gt;</code>.
-///
-/// Just for convenience.
-pub type HdbResult<T> = result::Result<T, HdbError>;
 
 impl error::Error for HdbError {
     fn description(&self) -> &str {

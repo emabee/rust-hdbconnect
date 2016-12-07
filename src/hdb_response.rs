@@ -11,7 +11,7 @@ const ERR_5: &'static str = "Wrong call to get_resultset()";
 const ERR_6: &'static str = "Wrong call to get_output_parameters()";
 
 
-/// Represents the database response to a command.
+/// Represents all possible non-error responses to a database command.
 ///
 #[derive(Debug)]
 pub enum HdbResponse {

@@ -26,12 +26,26 @@ pub struct BlobHandle {
     acc_server_proc_time: i32,
 }
 impl BlobHandle {
-    pub fn get_data(&mut self) -> PrtResult<&Vec<u8>> {
-        // fetch all chunks
-        while !self.is_data_complete {
-            try!(self.fetch_next_chunk());
+    pub fn new(conn_ref: &ConnRef, is_data_complete: bool, length_b: u64, locator_id: u64,
+               data: Vec<u8>)
+               -> BlobHandle {
+        trace!("BlobHandle::new() with length_b = {}, is_data_complete = {}, data.length() = {}",
+               length_b,
+               is_data_complete,
+               data.len());
+        BlobHandle {
+            o_conn_ref: Some(conn_ref.clone()),
+            length_b: length_b,
+            is_data_complete: is_data_complete,
+            locator_id: locator_id,
+            data: data,
+            acc_server_proc_time: 0,
         }
-        Ok(&(self.data))
+    }
+
+    pub fn len(&mut self) -> PrtResult<usize> {
+        try!(self.fetch_all());
+        Ok(self.data.len())
     }
 
     fn fetch_next_chunk(&mut self) -> PrtResult<()> {
@@ -53,11 +67,17 @@ impl BlobHandle {
     }
 
     /// Converts a BLOB into a Vec<u8> containing its data.
-    pub fn into_bytes(mut self) -> PrtResult<Vec<u8>> {
-        trace!("BlobHandle::into_bytes()");
+    fn fetch_all(&mut self) -> PrtResult<()> {
+        trace!("BlobHandle::fetch_all()");
         while !self.is_data_complete {
             try!(self.fetch_next_chunk());
         }
+        Ok(())
+    }
+    /// Converts a BLOB into a Vec<u8> containing its data.
+    pub fn into_bytes(mut self) -> PrtResult<Vec<u8>> {
+        trace!("BlobHandle::into_bytes()");
+        try!(self.fetch_all());
         Ok(self.data)
     }
     // FIXME we should also have sth like into_byte_stream()
@@ -81,6 +101,26 @@ pub struct ClobHandle {
     acc_server_proc_time: i32,
 }
 impl ClobHandle {
+    pub fn new(conn_ref: &ConnRef, is_data_complete: bool, length_c: u64, length_b: u64,
+               char_count: u64, locator_id: u64, data: String)
+               -> ClobHandle {
+        ClobHandle {
+            o_conn_ref: Some(conn_ref.clone()),
+            length_c: length_c,
+            length_b: length_b,
+            char_count: char_count,
+            is_data_complete: is_data_complete,
+            locator_id: locator_id,
+            data: data,
+            acc_server_proc_time: 0,
+        }
+    }
+
+    pub fn len(&mut self) -> PrtResult<usize> {
+        try!(self.load_complete());
+        Ok(self.data.len())
+    }
+
     fn fetch_next_chunk(&mut self) -> PrtResult<()> {
         let (reply_data, reply_is_last_data, server_processing_time) =
             try!(fetch_a_lob_chunk(&self.o_conn_ref,
@@ -168,43 +208,4 @@ fn fetch_a_lob_chunk(o_conn_ref: &Option<ConnRef>, locator_id: u64, length_b: u6
         _ => return Err(prot_err("Inconsistent StatementContext part found for ResultSet")),
     };
     Ok((reply_data, reply_is_last_data, server_processing_time))
-}
-
-
-pub mod lob_factory {
-    use super::{BlobHandle, ClobHandle};
-    use protocol::lowlevel::conn_core::ConnRef;
-
-    pub fn blob_handle(conn_ref: &ConnRef, is_data_complete: bool, length_b: u64,
-                       locator_id: u64, data: Vec<u8>)
-                       -> BlobHandle {
-        trace!("Instantiate BlobHandle with length_b = {}, is_data_complete = {}, data.length() \
-                = {}",
-               length_b,
-               is_data_complete,
-               data.len());
-        BlobHandle {
-            o_conn_ref: Some(conn_ref.clone()),
-            length_b: length_b,
-            is_data_complete: is_data_complete,
-            locator_id: locator_id,
-            data: data,
-            acc_server_proc_time: 0,
-        }
-    }
-
-    pub fn clob_handle(conn_ref: &ConnRef, is_data_complete: bool, length_c: u64, length_b: u64,
-                       char_count: u64, locator_id: u64, data: String)
-                       -> ClobHandle {
-        ClobHandle {
-            o_conn_ref: Some(conn_ref.clone()),
-            length_c: length_c,
-            length_b: length_b,
-            char_count: char_count,
-            is_data_complete: is_data_complete,
-            locator_id: locator_id,
-            data: data,
-            acc_server_proc_time: 0,
-        }
-    }
 }

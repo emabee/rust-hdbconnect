@@ -11,10 +11,11 @@ use vec_map::VecMap;
 /// the variable-length Strings are extracted into the names vecmap, which uses an integer as key
 #[derive(Clone,Debug)]
 pub struct ResultSetMetadata {
-    pub fields: Vec<FieldMetadata>,
-    pub names: VecMap<String>,
+    fields: Vec<FieldMetadata>,
+    names: VecMap<String>,
 }
 impl ResultSetMetadata {
+    /// Factory method for ResultSetMetadata, only useful for tests.
     #[allow(dead_code)]
     pub fn new_for_tests() -> ResultSetMetadata {
         ResultSetMetadata {
@@ -22,47 +23,10 @@ impl ResultSetMetadata {
             names: VecMap::<String>::new(),
         }
     }
-    pub fn parse(count: i32, arg_size: u32, rdr: &mut io::BufRead) -> PrtResult<ResultSetMetadata> {
-        let mut rsm = ResultSetMetadata {
-            fields: Vec::<FieldMetadata>::new(),
-            names: VecMap::<String>::new(),
-        };
-        trace!("Got count {}", count);
-        for _ in 0..count {
-            let co = try!(rdr.read_u8());                   // U1 (documented as I1)
-            let vt = try!(rdr.read_u8());                   // I1
-            let fr = try!(rdr.read_i16::<LittleEndian>());  // I2
-            let pr = try!(rdr.read_i16::<LittleEndian>());  // I2
-            try!(rdr.read_i16::<LittleEndian>());           // I2
-            let tn = try!(rdr.read_u32::<LittleEndian>());  // I4
-            rsm.add_to_names(tn);
-            let sn = try!(rdr.read_u32::<LittleEndian>());  // I4
-            rsm.add_to_names(sn);
-            let cn = try!(rdr.read_u32::<LittleEndian>());  // I4
-            rsm.add_to_names(cn);
-            let cdn = try!(rdr.read_u32::<LittleEndian>()); // I4
-            rsm.add_to_names(cdn);
 
-            let fm = try!(FieldMetadata::new(co, vt, fr, pr, tn, sn, cn, cdn));
-            rsm.fields.push(fm);
-        }
-        trace!("Read ResultSetMetadata phase 1: {:?}", rsm);
-        // now we read the names
-        let mut offset = 0;
-        let limit = arg_size - (count as u32) * 22;
-        trace!("arg_size = {}, count = {}, limit = {} ", arg_size, count, limit);
-        for _ in 0..rsm.names.len() {
-            if offset >= limit {
-                return Err(prot_err("Error in reading ResultSetMetadata"));
-            };
-            let nl = try!(rdr.read_u8());                                       // UI1
-            let buffer: Vec<u8> = try!(util::parse_bytes(nl as usize, rdr));     // variable
-            let name = try!(util::cesu8_to_string(&buffer));
-            trace!("offset = {}, name = {}", offset, name);
-            rsm.names.insert(offset as usize, name);
-            offset += (nl as u32) + 1;
-        }
-        Ok(rsm)
+    /// Returns the number of fields (columns) in the ResultSet.
+    pub fn len(&self) -> usize {
+        self.fields.len()
     }
 
     fn add_to_names(&mut self, offset: u32) {
@@ -74,9 +38,14 @@ impl ResultSetMetadata {
         }
     }
 
-
+    /// Returns the number of described fields.
     pub fn count(&self) -> i16 {
         self.fields.len() as i16
+    }
+
+    /// Returns the metadata of a specified field, or None if the index is too big.
+    pub fn get_fieldmetadata(&self, field_idx: usize) -> Option<&FieldMetadata> {
+        self.fields.get(field_idx)
     }
 
     /// FIXME is it OK that we ignore here the column_name?
@@ -89,18 +58,73 @@ impl ResultSetMetadata {
     }
 }
 
+
+pub fn parse(count: i32, arg_size: u32, rdr: &mut io::BufRead) -> PrtResult<ResultSetMetadata> {
+    let mut rsm = ResultSetMetadata {
+        fields: Vec::<FieldMetadata>::new(),
+        names: VecMap::<String>::new(),
+    };
+    trace!("Got count {}", count);
+    for _ in 0..count {
+        let co = try!(rdr.read_u8());                   // U1 (documented as I1)
+        let vt = try!(rdr.read_u8());                   // I1
+        let fr = try!(rdr.read_i16::<LittleEndian>());  // I2
+        let pr = try!(rdr.read_i16::<LittleEndian>());  // I2
+        try!(rdr.read_i16::<LittleEndian>());           // I2
+        let tn = try!(rdr.read_u32::<LittleEndian>());  // I4
+        rsm.add_to_names(tn);
+        let sn = try!(rdr.read_u32::<LittleEndian>());  // I4
+        rsm.add_to_names(sn);
+        let cn = try!(rdr.read_u32::<LittleEndian>());  // I4
+        rsm.add_to_names(cn);
+        let cdn = try!(rdr.read_u32::<LittleEndian>()); // I4
+        rsm.add_to_names(cdn);
+
+        let fm = try!(FieldMetadata::new(co, vt, fr, pr, tn, sn, cn, cdn));
+        rsm.fields.push(fm);
+    }
+    trace!("Read ResultSetMetadata phase 1: {:?}", rsm);
+    // now we read the names
+    let mut offset = 0;
+    let limit = arg_size - (count as u32) * 22;
+    trace!("arg_size = {}, count = {}, limit = {} ", arg_size, count, limit);
+    for _ in 0..rsm.names.len() {
+        if offset >= limit {
+            return Err(prot_err("Error in reading ResultSetMetadata"));
+        };
+        let nl = try!(rdr.read_u8());                                       // UI1
+        let buffer: Vec<u8> = try!(util::parse_bytes(nl as usize, rdr));     // variable
+        let name = try!(util::cesu8_to_string(&buffer));
+        trace!("offset = {}, name = {}", offset, name);
+        rsm.names.insert(offset as usize, name);
+        offset += (nl as u32) + 1;
+    }
+    Ok(rsm)
+}
+
+
+/// Describes a single field (column) in a result set.
 #[derive(Clone,Debug)]
 pub struct FieldMetadata {
-    pub column_option: ColumnOption,
-    pub value_type: u8,
-    pub fraction: i16,
-    pub precision: i16,
-    pub tablename: u32,
+    /// Database schema.
     pub schemaname: u32,
+    /// Database table.
+    pub tablename: u32,
+    /// Name of the column.
     pub columnname: u32,
+    /// Various column settings.
+    pub column_option: ColumnOption,
+    /// The id of the value type.
+    pub value_type: u8,
+    /// Fraction length (for some numeric types only).
+    pub fraction: i16,
+    /// Precision (for some numeric types only).
+    pub precision: i16,
+    /// Display name of a column.
     pub column_displayname: u32,
 }
 impl FieldMetadata {
+    /// Factory method for FieldMetadata; only usable for tests.
     pub fn new(co: u8, vt: u8, fr: i16, pr: i16, tn: u32, sn: u32, cn: u32, cdn: u32)
                -> PrtResult<FieldMetadata> {
         Ok(FieldMetadata {

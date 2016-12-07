@@ -3,6 +3,8 @@ use protocol::lowlevel::parts::typed_value::TypedValue;
 use std::fmt;
 
 /// Describes output parameters.
+///
+/// To be done: provide some accessors to the contained parameter descriptors and values.
 #[derive(Clone,Debug)]
 pub struct OutputParameters {
     metadata: Vec<ParameterDescriptor>,

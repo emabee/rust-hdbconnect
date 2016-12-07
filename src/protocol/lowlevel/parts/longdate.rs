@@ -13,10 +13,12 @@ const JGREG: i64 = 2_299_161;
 /// Implementation of HANA's LongDate.
 ///
 /// The type is used internally to implement serialization to the wire.
+/// It is agnostic of timezones.
 #[derive(Clone,Debug)]
 pub struct LongDate(pub i64);
 
 impl fmt::Display for LongDate {
+    // The format chosen supports the conversion to chrono types.
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let (year, month, day, hour, minute, second, fraction) = self.as_ymd_hms_f();
         write!(fmt,
@@ -143,42 +145,3 @@ fn to_day(m: u32) -> (i32, i32) {
         _ => panic!("unexpected value m = {} in to_day()", m),
     }
 }
-
-
-// #[cfg(test)]
-// mod test {
-//     use super::LongDate;
-//     use chrono::UTC;
-//     use chrono::offset::TimeZone;
-//     use flexi_logger;
-//
-//     #[test]
-//     fn longdate_conversion() {
-//         flexi_logger::init(flexi_logger::LogConfig::new(), Some("info".to_string())).unwrap();
-//
-//
-//         info!("test consistency of conversions between chrono::DateTime<UTC> and \
-//                hdbconnect::LongDate");
-//
-//         // LongDate => DateTime<UTC> => LongDate
-//         for longdate in vec![LongDate(1234567890123456789_i64),
-//                              LongDate(1010101010101010101_i64),
-//                              LongDate(635895889133394319_i64),
-//                              LongDate(77777777777777777_i64)] {
-//             let datetime_utc = longdate.to_datetime_utc().unwrap();
-//             debug!("1 (LongDate => chrono => LongDate): {:?} == {} ?", longdate, datetime_utc);
-//             assert_eq!(longdate, LongDate::from(datetime_utc).unwrap());
-//         }
-//
-//         // DateTime<UTC> => LongDate => DateTime<UTC>
-//         for datetime_utc in vec![UTC::now(),
-//                                  UTC.ymd(1, 1, 1).and_hms_nano(0, 0, 0, 0),
-//                                  UTC.ymd(22, 2, 2).and_hms_nano(0, 0, 0, 0),
-//                                  UTC.ymd(333, 3, 3).and_hms_nano(0, 0, 0, 0),
-//                                  UTC.ymd(4444, 4, 4).and_hms_nano(0, 0, 0, 0)] {
-//             let longdate = LongDate::from(datetime_utc).unwrap();
-//             debug!("2 (chrono => LongDate => chrono): {:?} == {} ?", longdate, datetime_utc);
-//             assert_eq!(datetime_utc, longdate.to_datetime_utc().unwrap());
-//         }
-//     }
-// }

@@ -5,7 +5,5 @@ mod fields_visitor;
 mod rows_visitor;
 mod rs_deserializer;
 
-mod deser_test;
-
 pub use self::rs_deserializer::RsDeserializer;
 pub use self::deserialization_error::DeserError;

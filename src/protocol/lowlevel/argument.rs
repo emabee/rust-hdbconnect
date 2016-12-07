@@ -14,7 +14,7 @@ use super::parts::parameter_metadata::ParameterMetadata;
 use super::parts::read_lob_reply::ReadLobReply;
 use super::parts::resultset::ResultSet;
 use super::parts::resultset::factory as ResultSetFactory;
-use super::parts::resultset_metadata::ResultSetMetadata;
+use super::parts::resultset_metadata::{self, ResultSetMetadata};
 use super::parts::rows_affected::RowsAffected;
 use super::parts::server_error::ServerError;
 use super::parts::statement_context::StatementContext;
@@ -288,9 +288,9 @@ impl Argument {
             }
             PartKind::ResultSetId => Argument::ResultSetId(try!(rdr.read_u64::<LittleEndian>())),
             PartKind::ResultSetMetadata => {
-                Argument::ResultSetMetadata(try!(ResultSetMetadata::parse(no_of_args,
-                                                                          arg_size as u32,
-                                                                          rdr)))
+                Argument::ResultSetMetadata(try!(resultset_metadata::parse(no_of_args,
+                                                                           arg_size as u32,
+                                                                           rdr)))
             }
             PartKind::RowsAffected => {
                 Argument::RowsAffected(try!(RowsAffected::parse(no_of_args, rdr)))

@@ -1,7 +1,7 @@
 use protocol::lowlevel::{PrtError, PrtResult, util};
 use super::type_id::*;
-use types::{BLOB, CLOB};
-use types::LongDate;
+use super::lob::*;
+use super::longdate::LongDate;
 
 use byteorder::{LittleEndian, WriteBytesExt};
 use std::i16;
@@ -302,16 +302,16 @@ pub fn serialize(tv: &TypedValue, data_pos: &mut i32, w: &mut io::Write) -> PrtR
             TypedValue::LONGDATE(LongDate(i)) |
             TypedValue::N_LONGDATE(Some(LongDate(i))) => try!(w.write_i64::<LittleEndian>(i)),
 
-            TypedValue::CLOB(CLOB::ToDB(ref s)) |
-            TypedValue::N_CLOB(Some(CLOB::ToDB(ref s))) |
-            TypedValue::NCLOB(CLOB::ToDB(ref s)) |
-            TypedValue::N_NCLOB(Some(CLOB::ToDB(ref s))) => {
-                try!(serialize_clob_header(s, data_pos, w))
+            TypedValue::CLOB(ref clob) |
+            TypedValue::N_CLOB(Some(ref clob)) |
+            TypedValue::NCLOB(ref clob) |
+            TypedValue::N_NCLOB(Some(ref clob)) => {
+                try!(serialize_clob_header(try!(clob.len()), data_pos, w))
             }
 
-            TypedValue::BLOB(BLOB::ToDB(ref v)) |
-            TypedValue::N_BLOB(Some(BLOB::ToDB(ref v))) => {
-                try!(serialize_blob_header(v, data_pos, w))
+            TypedValue::BLOB(ref blob) |
+            TypedValue::N_BLOB(Some(ref blob)) => {
+                try!(serialize_blob_header(try!(blob.len()), data_pos, w))
             }
 
             TypedValue::STRING(ref s) |
@@ -349,12 +349,6 @@ pub fn serialize(tv: &TypedValue, data_pos: &mut i32, w: &mut io::Write) -> PrtR
             TypedValue::N_VARBINARY(None) |
             TypedValue::N_BSTRING(None) => {}
 
-            TypedValue::CLOB(CLOB::FromDB(_)) |
-            TypedValue::NCLOB(CLOB::FromDB(_)) |
-            TypedValue::BLOB(BLOB::FromDB(_)) |
-            TypedValue::N_CLOB(Some(CLOB::FromDB(_))) |
-            TypedValue::N_NCLOB(Some(CLOB::FromDB(_))) |
-            TypedValue::N_BLOB(Some(BLOB::FromDB(_))) |
             TypedValue::CHAR(_) |
             TypedValue::N_CHAR(_) |
             TypedValue::NCHAR(_) |
@@ -402,13 +396,13 @@ pub fn size(tv: &TypedValue) -> PrtResult<usize> {
         TypedValue::LONGDATE(_) |
         TypedValue::N_LONGDATE(Some(_)) => 8,
 
-        TypedValue::CLOB(CLOB::ToDB(ref s)) |
-        TypedValue::N_CLOB(Some(CLOB::ToDB(ref s))) |
-        TypedValue::NCLOB(CLOB::ToDB(ref s)) |
-        TypedValue::N_NCLOB(Some(CLOB::ToDB(ref s))) => 9 + s.len(),
+        TypedValue::CLOB(ref clob) |
+        TypedValue::N_CLOB(Some(ref clob)) |
+        TypedValue::NCLOB(ref clob) |
+        TypedValue::N_NCLOB(Some(ref clob)) => 9 + try!(clob.len()),
 
-        TypedValue::BLOB(BLOB::ToDB(ref v)) |
-        TypedValue::N_BLOB(Some(BLOB::ToDB(ref v))) => 9 + v.len(),
+        TypedValue::BLOB(ref blob) |
+        TypedValue::N_BLOB(Some(ref blob)) => 9 + try!(blob.len()),
 
         TypedValue::STRING(ref s) |
         TypedValue::N_STRING(Some(ref s)) |
@@ -445,12 +439,6 @@ pub fn size(tv: &TypedValue) -> PrtResult<usize> {
         TypedValue::N_TEXT(None) |
         TypedValue::N_SHORTTEXT(None) => 0,
 
-        TypedValue::CLOB(CLOB::FromDB(_)) |
-        TypedValue::NCLOB(CLOB::FromDB(_)) |
-        TypedValue::BLOB(BLOB::FromDB(_)) |
-        TypedValue::N_CLOB(Some(CLOB::FromDB(_))) |
-        TypedValue::N_NCLOB(Some(CLOB::FromDB(_))) |
-        TypedValue::N_BLOB(Some(BLOB::FromDB(_))) |
         TypedValue::CHAR(_) |
         TypedValue::VARCHAR(_) |
         TypedValue::NCHAR(_) |
@@ -493,21 +481,21 @@ fn serialize_length_and_bytes(v: &Vec<u8>, w: &mut io::Write) -> PrtResult<()> {
 }
 
 
-fn serialize_blob_header(v: &Vec<u8>, data_pos: &mut i32, w: &mut io::Write) -> PrtResult<()> {
+fn serialize_blob_header(v_len: usize, data_pos: &mut i32, w: &mut io::Write) -> PrtResult<()> {
     // bit 0: not used; bit 1: data is included; bit 2: no more data remaining
     try!(w.write_u8(0b_110_u8));                            // I1           Bit set for options
-    try!(w.write_i32::<LittleEndian>(v.len() as i32));      // I4           LENGTH OF VALUE
+    try!(w.write_i32::<LittleEndian>(v_len as i32));        // I4           LENGTH OF VALUE
     try!(w.write_i32::<LittleEndian>(*data_pos as i32));    // I4           position
-    *data_pos += v.len() as i32;
+    *data_pos += v_len as i32;
     Ok(())
 }
 
-fn serialize_clob_header(s: &String, data_pos: &mut i32, w: &mut io::Write) -> PrtResult<()> {
+fn serialize_clob_header(s_len: usize, data_pos: &mut i32, w: &mut io::Write) -> PrtResult<()> {
     // bit 0: not used; bit 1: data is included; bit 2: no more data remaining
     try!(w.write_u8(0b_110_u8));                            // I1           Bit set for options
-    try!(w.write_i32::<LittleEndian>(s.len() as i32));      // I4           LENGTH OF VALUE
+    try!(w.write_i32::<LittleEndian>(s_len as i32));        // I4           LENGTH OF VALUE
     try!(w.write_i32::<LittleEndian>(*data_pos as i32));    // I4           position
-    *data_pos += s.len() as i32;
+    *data_pos += s_len as i32;
     Ok(())
 }
 
@@ -515,10 +503,9 @@ fn serialize_clob_header(s: &String, data_pos: &mut i32, w: &mut io::Write) -> P
 pub mod factory {
     use super::TypedValue;
     use super::super::{PrtError, PrtResult, prot_err, util};
-    use super::super::lob_handles::lob_factory;
+    use super::super::lob::*;
+    use super::super::longdate::LongDate;
     use protocol::lowlevel::conn_core::ConnRef;
-    use types::{BLOB, CLOB};
-    use types::LongDate;
     use byteorder::{LittleEndian, ReadBytesExt};
     use std::borrow::Cow;
     use std::fmt;
@@ -797,11 +784,7 @@ pub mod factory {
             }
             false => {
                 let (_, length_b, locator_id, data) = try!(parse_lob_2(rdr));
-                Ok(Some(BLOB::FromDB(lob_factory::blob_handle(conn_ref,
-                                                              is_last_data,
-                                                              length_b,
-                                                              locator_id,
-                                                              data))))
+                Ok(Some(new_blob_from_db(conn_ref, is_last_data, length_b, locator_id, data)))
             }
         }
     }
@@ -827,13 +810,13 @@ pub mod factory {
                     Cow::Borrowed(s) => String::from(s),
                 };
                 assert_eq!(data.len(), s.len());
-                Ok(Some(CLOB::FromDB(lob_factory::clob_handle(conn_ref,
-                                                              is_last_data,
-                                                              length_c,
-                                                              length_b,
-                                                              char_count,
-                                                              locator_id,
-                                                              s))))
+                Ok(Some(new_clob_from_db(conn_ref,
+                                         is_last_data,
+                                         length_c,
+                                         length_b,
+                                         char_count,
+                                         locator_id,
+                                         s)))
             }
         }
     }
