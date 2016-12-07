@@ -1,6 +1,7 @@
 TODO
 - LOBs
-    - revise and check completeness: test for writing LOBs is missing!
+    - revise and check completeness: test for writing LOBs??!
+- make sure it compiles with rust-stable
 - data types
     - newdb/orange/Interfaces/SQLDBC/impl/LongdateTranslator.cpp
     - newdb/orange/Interfaces/SQLDBC/impl/SeconddateTranslator.cpp
@@ -21,21 +22,18 @@ TODO
     - additional part CLIENTDISTRIBUTIONMODE
 
 
-LOBs: externes LOB Objekt anbieten
-    • das die Applikation in ihrer Datenstruktur nutzen kann
-    • und das bei der Serialisierung noch kein fetch all erzwingt
-    • das ein Streaming-Interface anbietet, mit dem man das Dokument ohne volle Materialisierung zB in ein File schreiben kann
+LOBs
+    - Streaming-Interface anbieten, mit dem man das Dokument
+      ohne volle Materialisierung zB in ein File schreiben kann
     - additional request-part LOBFLAGS
 
 - avoid sending fetchsize always
-- implement procedure calls
 - implement missing types
     - SECONDDATE
     - DAYDATE
     - SECONDTIME
     - DECIMAL -> should be based on https://github.com/rust-num/num/issues/8
     - SMALLDECIMAL  -> no docu found -> see sources?
-- refactor resultset::deserialize out into its own crate, independent of a concrete ResultSet implementation
 - size/length/padding in argument ??
 - allow setting the clientinfo stuff on the connection (or do it automatically?) and send it to the server whenever necessary/adequate
 - evaluate tablelocation

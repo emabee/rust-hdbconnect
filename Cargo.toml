@@ -1,20 +1,24 @@
 [package]
 name = "hdbconnect"
-version = "0.0.25"
+version = "0.0.26"
 authors = ["emabee <meinolf.block@sap.com>"]
+description = "An experimental pure rust driver for SAP HANA(TM)"
+documentation = "https://docs.rs/hdbconnect/"
+keywords = ["relational", "database", "driver", "in-memory", "serde"]
+license = "Apache-2.0"
+
+#repository = "..."
+
+# This points to a file in the repository (relative to this `Cargo.toml`). The
+# contents of this file are stored and indexed in the registry.
+#readme = "..."
 
 [dependencies]
-byteorder = "*"
-chrono = { version = "0.2", features = ["serde", "rustc-serialize"] }
-flexi_logger = "*"
-log = "*"
-num = "*"
-rand = "*"
-rust-crypto = "*"
-serde = "*"
-serde_derive ="*"
-vec_map = "*"
-user = "*"
-
-#[dependencies.flexi_logger]
-#path = "/dev/rust/projects/flexi_logger"
+byteorder = "0.5"
+chrono = { version = "0.2"}
+log = "0.3"
+rand = "0.3"
+rust-crypto = "0.2"
+serde = "0.8"
+user = "0.1"
+vec_map = "0.6"

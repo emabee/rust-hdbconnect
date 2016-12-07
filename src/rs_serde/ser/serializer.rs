@@ -1,5 +1,5 @@
-use types::BLOB;
-use types::LongDate;
+use protocol::lowlevel::parts::longdate::LongDate;
+use protocol::lowlevel::parts::lob::*;
 use protocol::lowlevel::parts::parameter_metadata::{ParameterDescriptor, ParameterMetadata,
                                                     ParMode};
 use protocol::lowlevel::parts::parameters::ParameterRow;
@@ -546,8 +546,10 @@ impl<'a> serde::ser::Serializer for Serializer<'a> {
     fn serialize_bytes(&mut self, value: &[u8]) -> SerializeResult<()> {
         trace!("Serializer::serialize_bytes()");
         match try!(self.expected_type_code()) {
-            TYPEID_BLOB => self.row.push(TypedValue::BLOB(BLOB::ToDB((*value).to_vec()))),
-            TYPEID_N_BLOB => self.row.push(TypedValue::N_BLOB(Some(BLOB::ToDB((*value).to_vec())))),
+            TYPEID_BLOB => self.row.push(TypedValue::BLOB(new_blob_to_db((*value).to_vec()))),
+            TYPEID_N_BLOB => {
+                self.row.push(TypedValue::N_BLOB(Some(new_blob_to_db((*value).to_vec()))))
+            }
             target_tc => return Err(SerializationError::TypeMismatch("bytes", target_tc)),
         }
         Ok(())

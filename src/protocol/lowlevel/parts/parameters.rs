@@ -3,7 +3,6 @@ use super::PrtResult;
 use super::typed_value::TypedValue;
 use super::typed_value::size as typed_value_size;
 use super::typed_value::serialize as typed_value_serialize;
-use types::{BLOB, CLOB};
 
 use std::io;
 
@@ -22,7 +21,7 @@ impl ParameterRow {
 
     pub fn size(&self) -> PrtResult<usize> {
         let mut size = 0;
-        for value in &self.values {
+        for ref value in &(self.values) {
             size += try!(typed_value_size(value));
         }
         Ok(size)
@@ -31,21 +30,23 @@ impl ParameterRow {
     pub fn serialize(&self, w: &mut io::Write) -> PrtResult<()> {
         let mut data_pos = 0_i32;  // FIXME or must it be 1?
         // serialize the values (LOBs only serialize their header, the data follow below)
-        for value in &self.values {
+        for ref value in &(self.values) {
             try!(typed_value_serialize(value, &mut data_pos, w));
         }
 
         // serialize LOB data
-        for value in &self.values {
+        for value in &(self.values) {
             match *value {
-                TypedValue::BLOB(BLOB::ToDB(ref v)) |
-                TypedValue::N_BLOB(Some(BLOB::ToDB(ref v))) => try!(util::serialize_bytes(v, w)),
+                TypedValue::BLOB(ref blob) |
+                TypedValue::N_BLOB(Some(ref blob)) => {
+                    try!(util::serialize_bytes(&try!(blob.ref_to_bytes()), w))
+                }
 
-                TypedValue::CLOB(CLOB::ToDB(ref s)) |
-                TypedValue::N_CLOB(Some(CLOB::ToDB(ref s))) |
-                TypedValue::NCLOB(CLOB::ToDB(ref s)) |
-                TypedValue::N_NCLOB(Some(CLOB::ToDB(ref s))) => {
-                    try!(util::serialize_bytes(s.as_bytes(), w))
+                TypedValue::CLOB(ref clob) |
+                TypedValue::N_CLOB(Some(ref clob)) |
+                TypedValue::NCLOB(ref clob) |
+                TypedValue::N_NCLOB(Some(ref clob)) => {
+                    try!(util::serialize_bytes(try!(clob.ref_to_string()).as_bytes(), w))
                 }
                 _ => {}
             }

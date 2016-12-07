@@ -57,6 +57,26 @@
 //!  let resultset: ResultSet = try!(connection.query_statement(my_statement));
 //!  ```
 //!
+//!  * In many cases, you will need or want to use prepared statements.
+//!  Then the code will look like this:
+//!
+//!  ```ignore
+//!  let stmt_str = "insert into TEST_PREPARE (F_STRING, F_INTEGER) values(?, ?)";
+//!  let mut stmt = try!(connection.prepare(stmt_str));
+//!  try!(stmt.add_batch(&("foo", 45_i32)));
+//!  try!(stmt.add_batch(&("bar", 46_i32)));
+//!  try!(stmt.execute_batch());
+//!  ```
+//!
+//!  Or like this:
+//!
+//!  ```ignore
+//!  let stmt_str = "select NAME, CITY from TEST_TABLE where age > ?";
+//!  let mut stmt = try!(connection.prepare(stmt_str));
+//!  try!(stmt.add_batch(&(45_i32)));
+//!  let resultset: ResultSet = try!(stmt.execute_batch());
+//!  ```
+//!
 //!
 //! <b>3. Evaluate a resultset</b>
 //!
