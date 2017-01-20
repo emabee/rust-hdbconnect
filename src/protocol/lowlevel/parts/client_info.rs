@@ -11,8 +11,8 @@ pub struct ClientInfo(HashMap<String, String>);
 impl ClientInfo {
     pub fn serialize(&self, w: &mut Write) -> PrtResult<()> {
         for (key, value) in &self.0 {
-            try!(serialize_length_and_string(&key, w));
-            try!(serialize_length_and_string(&value, w));
+            serialize_length_and_string(&key, w)?;
+            serialize_length_and_string(&value, w)?;
         }
         Ok(())
     }
@@ -31,14 +31,14 @@ impl ClientInfo {
     pub fn parse_from_request(no_of_args: i32, rdr: &mut BufRead) -> PrtResult<ClientInfo> {
         let mut map = HashMap::new();
         for _ in 0..no_of_args {
-            let key = try!(parse_length_and_string(rdr));
-            let value = try!(parse_length_and_string(rdr));
+            let key = parse_length_and_string(rdr)?;
+            let value = parse_length_and_string(rdr)?;
             map.insert(key, value);
         }
         Ok(ClientInfo(map))
     }
 
-    #[allow(dead_code)]// FIXME (see info.txt)
+    #[allow(dead_code)] // FIXME (see info.txt)
     pub fn set(&mut self, key: ClientInfoKey, value: String) {
         match key {
             ClientInfoKey::Application => self.0.insert(String::from("APPLICATION"), value),
@@ -53,7 +53,7 @@ impl ClientInfo {
     }
 }
 
-#[allow(dead_code)]// FIXME (see info.txt)
+#[allow(dead_code)] // FIXME (see info.txt)
 pub enum ClientInfoKey {
     Application,
     ApplicationVersion,

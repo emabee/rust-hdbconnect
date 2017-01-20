@@ -44,16 +44,16 @@ impl BlobHandle {
     }
 
     pub fn len(&mut self) -> PrtResult<usize> {
-        try!(self.fetch_all());
+        self.fetch_all()?;
         Ok(self.data.len())
     }
 
     fn fetch_next_chunk(&mut self) -> PrtResult<()> {
         let (mut reply_data, reply_is_last_data, server_processing_time) =
-            try!(fetch_a_lob_chunk(&self.o_conn_ref,
-                                   self.locator_id,
-                                   self.length_b,
-                                   self.data.len() as u64));
+            fetch_a_lob_chunk(&self.o_conn_ref,
+                              self.locator_id,
+                              self.length_b,
+                              self.data.len() as u64)?;
 
         self.data.append(&mut reply_data);
         self.is_data_complete = reply_is_last_data;
@@ -70,14 +70,14 @@ impl BlobHandle {
     fn fetch_all(&mut self) -> PrtResult<()> {
         trace!("BlobHandle::fetch_all()");
         while !self.is_data_complete {
-            try!(self.fetch_next_chunk());
+            self.fetch_next_chunk()?;
         }
         Ok(())
     }
     /// Converts a BLOB into a Vec<u8> containing its data.
     pub fn into_bytes(mut self) -> PrtResult<Vec<u8>> {
         trace!("BlobHandle::into_bytes()");
-        try!(self.fetch_all());
+        self.fetch_all()?;
         Ok(self.data)
     }
     // FIXME we should also have sth like into_byte_stream()
@@ -117,18 +117,15 @@ impl ClobHandle {
     }
 
     pub fn len(&mut self) -> PrtResult<usize> {
-        try!(self.load_complete());
+        self.load_complete()?;
         Ok(self.data.len())
     }
 
     fn fetch_next_chunk(&mut self) -> PrtResult<()> {
         let (reply_data, reply_is_last_data, server_processing_time) =
-            try!(fetch_a_lob_chunk(&self.o_conn_ref,
-                                   self.locator_id,
-                                   self.length_b,
-                                   self.char_count));
+            fetch_a_lob_chunk(&self.o_conn_ref, self.locator_id, self.length_b, self.char_count)?;
 
-        let (s, char_count) = try!(util::from_cesu8_with_count(&reply_data));
+        let (s, char_count) = util::from_cesu8_with_count(&reply_data)?;
         match s {
             Cow::Owned(s) => self.data.push_str(&s),
             Cow::Borrowed(s) => self.data.push_str(s),
@@ -147,7 +144,7 @@ impl ClobHandle {
     fn load_complete(&mut self) -> PrtResult<()> {
         trace!("ClobHandle::load_complete()");
         while !self.is_data_complete {
-            try!(self.fetch_next_chunk());
+            self.fetch_next_chunk()?;
         }
         Ok(())
     }
@@ -155,7 +152,7 @@ impl ClobHandle {
     /// Converts a ClobHandle into a String containing its data.
     pub fn into_string(mut self) -> PrtResult<String> {
         trace!("ClobHandle::into_string()");
-        try!(self.load_complete());
+        self.load_complete()?;
         Ok(self.data)
     }
     // FIXME we should also have sth like into_character_stream() with deferred chunk fetching
@@ -177,13 +174,13 @@ fn fetch_a_lob_chunk(o_conn_ref: &Option<ConnRef>, locator_id: u64, length_b: u6
             (conn_ref, length_to_read as i32)
         }
     };
-    let mut request = try!(Request::new(&conn_ref, RequestType::ReadLob, true, 0));
+    let mut request = Request::new(&conn_ref, RequestType::ReadLob, true, 0)?;
 
     let offset = data_len + 1;
     request.push(Part::new(PartKind::ReadLobRequest,
                            Argument::ReadLobRequest(locator_id, offset, length_to_read)));
 
-    let mut reply = try!(request.send_and_receive(&conn_ref, Some(ReplyType::ReadLob)));
+    let mut reply = request.send_and_receive(&conn_ref, Some(ReplyType::ReadLob))?;
 
     let (reply_data, reply_is_last_data) = match reply.parts
                                                       .pop_arg_if_kind(PartKind::ReadLobReply) {

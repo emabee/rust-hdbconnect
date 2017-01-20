@@ -66,21 +66,21 @@ pub fn parse(count: i32, arg_size: u32, rdr: &mut io::BufRead) -> PrtResult<Resu
     };
     trace!("Got count {}", count);
     for _ in 0..count {
-        let co = try!(rdr.read_u8());                   // U1 (documented as I1)
-        let vt = try!(rdr.read_u8());                   // I1
-        let fr = try!(rdr.read_i16::<LittleEndian>());  // I2
-        let pr = try!(rdr.read_i16::<LittleEndian>());  // I2
-        try!(rdr.read_i16::<LittleEndian>());           // I2
-        let tn = try!(rdr.read_u32::<LittleEndian>());  // I4
+        let co = rdr.read_u8()?; // U1 (documented as I1)
+        let vt = rdr.read_u8()?; // I1
+        let fr = rdr.read_i16::<LittleEndian>()?; // I2
+        let pr = rdr.read_i16::<LittleEndian>()?; // I2
+        rdr.read_i16::<LittleEndian>()?; // I2
+        let tn = rdr.read_u32::<LittleEndian>()?; // I4
         rsm.add_to_names(tn);
-        let sn = try!(rdr.read_u32::<LittleEndian>());  // I4
+        let sn = rdr.read_u32::<LittleEndian>()?; // I4
         rsm.add_to_names(sn);
-        let cn = try!(rdr.read_u32::<LittleEndian>());  // I4
+        let cn = rdr.read_u32::<LittleEndian>()?; // I4
         rsm.add_to_names(cn);
-        let cdn = try!(rdr.read_u32::<LittleEndian>()); // I4
+        let cdn = rdr.read_u32::<LittleEndian>()?; // I4
         rsm.add_to_names(cdn);
 
-        let fm = try!(FieldMetadata::new(co, vt, fr, pr, tn, sn, cn, cdn));
+        let fm = FieldMetadata::new(co, vt, fr, pr, tn, sn, cn, cdn)?;
         rsm.fields.push(fm);
     }
     trace!("Read ResultSetMetadata phase 1: {:?}", rsm);
@@ -92,9 +92,9 @@ pub fn parse(count: i32, arg_size: u32, rdr: &mut io::BufRead) -> PrtResult<Resu
         if offset >= limit {
             return Err(prot_err("Error in reading ResultSetMetadata"));
         };
-        let nl = try!(rdr.read_u8());                                       // UI1
-        let buffer: Vec<u8> = try!(util::parse_bytes(nl as usize, rdr));     // variable
-        let name = try!(util::cesu8_to_string(&buffer));
+        let nl = rdr.read_u8()?; // UI1
+        let buffer: Vec<u8> = util::parse_bytes(nl as usize, rdr)?; // variable
+        let name = util::cesu8_to_string(&buffer)?;
         trace!("offset = {}, name = {}", offset, name);
         rsm.names.insert(offset as usize, name);
         offset += (nl as u32) + 1;
@@ -128,7 +128,7 @@ impl FieldMetadata {
     pub fn new(co: u8, vt: u8, fr: i16, pr: i16, tn: u32, sn: u32, cn: u32, cdn: u32)
                -> PrtResult<FieldMetadata> {
         Ok(FieldMetadata {
-            column_option: try!(ColumnOption::from_u8(co)),
+            column_option: ColumnOption::from_u8(co)?,
             value_type: vt,
             fraction: fr,
             precision: pr,

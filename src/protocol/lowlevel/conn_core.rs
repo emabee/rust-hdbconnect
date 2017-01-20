@@ -13,7 +13,7 @@ use std::rc::Rc;
 
 pub type ConnRef = Rc<RefCell<ConnectionCore>>;
 
-pub const DEFAULT_FETCH_SIZE: u32 = 1024;
+pub const DEFAULT_FETCH_SIZE: u32 = 32;
 pub const DEFAULT_LOB_READ_LENGTH: i32 = 1_000_000;
 
 #[derive(Debug)]

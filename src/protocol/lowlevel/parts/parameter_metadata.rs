@@ -52,14 +52,14 @@ impl ParameterMetadata {
         let mut pmd = ParameterMetadata::new();
         for _ in 0..count {
             // 16 byte each
-            let option = try!(ParameterOption::from_u8(try!(rdr.read_u8())));
-            let value_type = try!(rdr.read_u8());
-            let mode = try!(ParMode::from_u8(try!(rdr.read_u8())));
-            try!(rdr.read_u8());
-            let name_offset = try!(rdr.read_u32::<LittleEndian>());
-            let length = try!(rdr.read_u16::<LittleEndian>());
-            let fraction = try!(rdr.read_u16::<LittleEndian>());
-            try!(rdr.read_u32::<LittleEndian>());
+            let option = ParameterOption::from_u8(rdr.read_u8()?)?;
+            let value_type = rdr.read_u8()?;
+            let mode = ParMode::from_u8(rdr.read_u8()?)?;
+            rdr.read_u8()?;
+            let name_offset = rdr.read_u32::<LittleEndian>()?;
+            let length = rdr.read_u16::<LittleEndian>()?;
+            let fraction = rdr.read_u16::<LittleEndian>()?;
+            rdr.read_u32::<LittleEndian>()?;
             consumed += 16;
             assert!(arg_size >= consumed);
             pmd.descriptors.push(ParameterDescriptor::new(option,
@@ -72,9 +72,8 @@ impl ParameterMetadata {
         // read the parameter names
         for ref mut descriptor in &mut pmd.descriptors {
             if descriptor.name_offset != u32::MAX {
-                let length = try!(rdr.read_u8());
-                let name = try!(util::cesu8_to_string(&try!(util::parse_bytes(length as usize,
-                                                                              rdr))));
+                let length = rdr.read_u8()?;
+                let name = util::cesu8_to_string(&util::parse_bytes(length as usize, rdr)?)?;
                 descriptor.name.push_str(&name);
                 consumed += 1 + length as u32;
                 assert!(arg_size >= consumed);

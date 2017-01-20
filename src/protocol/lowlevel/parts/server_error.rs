@@ -31,25 +31,25 @@ impl ServerError {
     }
 
     pub fn serialize(&self, w: &mut io::Write) -> PrtResult<()> {
-        try!(w.write_i32::<LittleEndian>(self.code));
-        try!(w.write_i32::<LittleEndian>(self.position));
-        try!(w.write_i32::<LittleEndian>(self.text_length));
-        try!(w.write_i8(self.severity));
+        w.write_i32::<LittleEndian>(self.code)?;
+        w.write_i32::<LittleEndian>(self.position)?;
+        w.write_i32::<LittleEndian>(self.text_length)?;
+        w.write_i8(self.severity)?;
         for b in self.sqlstate.iter() {
-            try!(w.write_u8(*b))
+            w.write_u8(*b)?
         }
-        try!(util::serialize_bytes(&util::string_to_cesu8(&(self.text)), w));
+        util::serialize_bytes(&util::string_to_cesu8(&(self.text)), w)?;
         Ok(())
     }
 
     pub fn parse(arg_size: i32, rdr: &mut io::BufRead) -> PrtResult<ServerError> {
-        let code = try!(rdr.read_i32::<LittleEndian>());                // I4
-        let position = try!(rdr.read_i32::<LittleEndian>());            // I4
-        let text_length = try!(rdr.read_i32::<LittleEndian>());         // I4
-        let severity = try!(rdr.read_i8());                             // I1
-        let sqlstate = try!(util::parse_bytes(5_usize, rdr));           // B5
-        let bytes = try!(util::parse_bytes(text_length as usize, rdr)); // B[text_length]
-        let text = try!(util::cesu8_to_string(&bytes));
+        let code = rdr.read_i32::<LittleEndian>()?; // I4
+        let position = rdr.read_i32::<LittleEndian>()?; // I4
+        let text_length = rdr.read_i32::<LittleEndian>()?; // I4
+        let severity = rdr.read_i8()?; // I1
+        let sqlstate = util::parse_bytes(5_usize, rdr)?; // B5
+        let bytes = util::parse_bytes(text_length as usize, rdr)?; // B[text_length]
+        let text = util::cesu8_to_string(&bytes)?;
         let pad = arg_size - 4 - 4 - 4 - 1 - 5 - text_length;
         trace!("Skipping over {} padding bytes", pad);
         rdr.consume(pad as usize);

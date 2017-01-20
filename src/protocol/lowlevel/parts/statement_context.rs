@@ -23,8 +23,8 @@ impl StatementContext {
     pub fn serialize(&self, w: &mut io::Write) -> PrtResult<()> {
         match self.statement_sequence_info {
             Some(ref value) => {
-                try!(w.write_i8(ScId::StatementSequenceInfo.to_i8()));              // I1
-                try!(value.serialize(w));
+                w.write_i8(ScId::StatementSequenceInfo.to_i8())?; // I1
+                value.serialize(w)?;
                 Ok(())
             }
             None => {
@@ -66,8 +66,8 @@ impl StatementContext {
         trace!("StatementContext::parse()");
         let mut sc = StatementContext::new();
         for _ in 0..count {
-            let sc_id = try!(ScId::from_i8(try!(rdr.read_i8())));               // I1
-            let value = try!(OptionValue::parse(rdr));
+            let sc_id = ScId::from_i8(rdr.read_i8()?)?; // I1
+            let value = OptionValue::parse(rdr)?;
             match sc_id {
                 ScId::StatementSequenceInfo => sc.statement_sequence_info = Some(value),
                 ScId::ServerProcessingTime => sc.server_processing_time = Some(value),

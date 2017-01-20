@@ -42,26 +42,26 @@ impl fmt::Debug for PartAttributes {
             write!(f, "(NONE)")
         } else {
             let mut b = false;
-            try!(write!(f, "("));
+            write!(f, "(")?;
             if self.is_last_packet() {
                 b = true;
-                try!(write!(f, "IS_LAST_PACKET"));
+                write!(f, "IS_LAST_PACKET")?;
             };
             if self.has_next_packet() {
-                b = try!(w_and(b, f));
-                try!(write!(f, "HAS_NEXT_PACKET"));
+                b = w_and(b, f)?;
+                write!(f, "HAS_NEXT_PACKET")?;
             };
             if self.is_first_packet() {
-                b = try!(w_and(b, f));
-                try!(write!(f, "IS_FIRST_PACKET_IN_A_SEQUENCE"));
+                b = w_and(b, f)?;
+                write!(f, "IS_FIRST_PACKET_IN_A_SEQUENCE")?;
             };
             if self.row_not_found() {
-                b = try!(w_and(b, f));
-                try!(write!(f, "ROW_NOT_FOUND"));
+                b = w_and(b, f)?;
+                write!(f, "ROW_NOT_FOUND")?;
             };
             if self.is_resultset_closed() {
-                try!(w_and(b, f));
-                try!(write!(f, "RESULTSET_CLOSED"));
+                w_and(b, f)?;
+                write!(f, "RESULTSET_CLOSED")?;
             };
             write!(f, ")")
         }
@@ -76,7 +76,7 @@ impl fmt::Binary for PartAttributes {
 // write an ampersand (&) if required
 fn w_and(b: bool, f: &mut fmt::Formatter) -> Result<bool, fmt::Error> {
     if b {
-        try!(write!(f, " & "));
+        write!(f, " & ")?;
     }
     Ok(true)
 }

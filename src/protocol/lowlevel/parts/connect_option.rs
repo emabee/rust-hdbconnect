@@ -25,7 +25,7 @@ pub struct ConnectOption {
 }
 impl ConnectOption {
     pub fn serialize(&self, w: &mut io::Write) -> PrtResult<()> {
-        try!(w.write_i8(self.id.to_i8()));                                      // I1
+        w.write_i8(self.id.to_i8())?; // I1
         self.value.serialize(w)
     }
 
@@ -34,8 +34,8 @@ impl ConnectOption {
     }
 
     pub fn parse(rdr: &mut io::BufRead) -> PrtResult<ConnectOption> {
-        let option_id = try!(ConnectOptionId::from_i8(try!(rdr.read_i8())));    // I1
-        let value = try!(OptionValue::parse(rdr));
+        let option_id = ConnectOptionId::from_i8(rdr.read_i8()?)?; // I1
+        let value = OptionValue::parse(rdr)?;
         Ok(ConnectOption {
             id: option_id,
             value: value,

@@ -18,7 +18,7 @@ pub struct TransactionFlag {
 }
 impl TransactionFlag {
     pub fn serialize(&self, w: &mut io::Write) -> PrtResult<()> {
-        try!(w.write_i8(self.id.to_i8()));                                      // I1
+        w.write_i8(self.id.to_i8())?; // I1
         self.value.serialize(w)
     }
 
@@ -27,8 +27,8 @@ impl TransactionFlag {
     }
 
     pub fn parse(rdr: &mut io::BufRead) -> PrtResult<TransactionFlag> {
-        let option_id = try!(TaFlagId::from_i8(try!(rdr.read_i8())));    // I1
-        let value = try!(OptionValue::parse(rdr));
+        let option_id = TaFlagId::from_i8(rdr.read_i8()?)?; // I1
+        let value = OptionValue::parse(rdr)?;
         Ok(TransactionFlag {
             id: option_id,
             value: value,

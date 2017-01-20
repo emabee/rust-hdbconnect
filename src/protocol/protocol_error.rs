@@ -53,7 +53,7 @@ impl fmt::Display for PrtError {
             PrtError::ProtocolError(ref s) => write!(fmt, "{}", s),
             PrtError::DbMessage(ref vec) => {
                 for hdberr in vec {
-                    try!(fmt::Display::fmt(hdberr, fmt));
+                    fmt::Display::fmt(hdberr, fmt)?;
                 }
                 Ok(())
             }

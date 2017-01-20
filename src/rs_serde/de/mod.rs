@@ -1,4 +1,4 @@
-/// Deserialize a ResultSet into a normal rust type.
+//! Deserialize a ResultSet into a normal rust type.
 
 mod deserialization_error;
 mod fields_visitor;

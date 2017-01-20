@@ -6,14 +6,14 @@
 //!
 //!  ```ignore
 //!  let (host, port): (&str, &str) = ...;
-//!  let mut connection = try!(Connection::new(host,port));
+//!  let mut connection = Connection::new(host,port)?;
 //!  ```
 //!
 //!  .. and authenticate to the database:
 //!
 //!  ```ignore
 //!  let (user, pw): (&str, &str) = ...;
-//!  try!(connection.authenticate_user_password(user, pw));
+//!  connection.authenticate_user_password(user, pw)?;
 //!  ```
 //!
 //!
@@ -26,7 +26,7 @@
 //!
 //!  ```ignore
 //!  let my_statement = "..."; // some statement that doesn't need preparation
-//!  let response: HdbResponse = try!(connection.any_statement(my_statement));
+//!  let response: HdbResponse = connection.any_statement(my_statement)?;
 //!  ```
 //!
 //!  <code>HdbResponse</code> is quite a complex nested enum which covers all possible
@@ -37,7 +37,7 @@
 //!  adequate short-cut method, e.g.:
 //!
 //!  ```ignore
-//!  let resultset: ResultSet = try!(response.as_resultset());
+//!  let resultset: ResultSet = response.as_resultset()?;
 //!  ```
 //!
 //!  You can do the same of course with <code>HdbResponse</code>s obtained from the execution
@@ -54,7 +54,7 @@
 //!
 //!  ```ignore
 //!  let my_statement = "..."; // some statement that doesn't need preparation
-//!  let resultset: ResultSet = try!(connection.query_statement(my_statement));
+//!  let resultset: ResultSet = connection.query_statement(my_statement)?;
 //!  ```
 //!
 //!  * In many cases, you will need or want to use prepared statements.
@@ -62,19 +62,19 @@
 //!
 //!  ```ignore
 //!  let stmt_str = "insert into TEST_PREPARE (F_STRING, F_INTEGER) values(?, ?)";
-//!  let mut stmt = try!(connection.prepare(stmt_str));
-//!  try!(stmt.add_batch(&("foo", 45_i32)));
-//!  try!(stmt.add_batch(&("bar", 46_i32)));
-//!  try!(stmt.execute_batch());
+//!  let mut stmt = connection.prepare(stmt_str)?;
+//!  stmt.add_batch(&("foo", 45_i32))?;
+//!  stmt.add_batch(&("bar", 46_i32))?;
+//!  stmt.execute_batch()?;
 //!  ```
 //!
 //!  Or like this:
 //!
 //!  ```ignore
 //!  let stmt_str = "select NAME, CITY from TEST_TABLE where age > ?";
-//!  let mut stmt = try!(connection.prepare(stmt_str));
-//!  try!(stmt.add_batch(&(45_i32)));
-//!  let resultset: ResultSet = try!(stmt.execute_batch());
+//!  let mut stmt = connection.prepare(stmt_str)?;
+//!  stmt.add_batch(&(45_i32))?;
+//!  let resultset: ResultSet = stmt.execute_batch()?;
 //!  ```
 //!
 //!
@@ -104,7 +104,7 @@
 //!             ...
 //!         }
 //!
-//!        let result: Vec<MyRow> = try!(resultset.into_typed());
+//!        let result: Vec<MyRow> = resultset.into_typed()?;
 //!        ```
 //!
 //!      * If the resultset contains only a single line (e.g. because you specified
@@ -117,7 +117,7 @@
 //!             ...
 //!         }
 //!
-//!        let result: MyRow = try!(resultset.into_typed());
+//!        let result: MyRow = resultset.into_typed()?;
 //!        ```
 //!
 //!      * If the resultset contains only a single column, then you can optionally choose to
@@ -125,7 +125,7 @@
 //!        where <code>field</code> is a type that matches the field of the resultset.
 //!
 //!        ```ignore
-//!        let result: Vec<u32> = try!(resultset.into_typed());
+//!        let result: Vec<u32> = resultset.into_typed()?;
 //!        ```
 //!
 //!      * If the resultset contains only a single value (one row with one column),
@@ -133,7 +133,7 @@
 //!        or a <code>Vec&lt;field&gt;</code>, or a <code>field</code>.
 //!
 //!        ```ignore
-//!        let result: u32 = try!(resultset.into_typed());
+//!        let result: u32 = resultset.into_typed()?;
 //!        ```
 //!
 //!  * Also the <b>(de)serialization of the individual field values</b> provides flexibility.

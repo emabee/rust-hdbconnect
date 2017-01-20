@@ -14,7 +14,7 @@ impl RowsAffected {
     pub fn parse(count: i32, rdr: &mut io::BufRead) -> PrtResult<Vec<RowsAffected>> {
         let mut vec = Vec::<RowsAffected>::with_capacity(count as usize);
         for _ in 0..count {
-            match try!(rdr.read_i32::<LittleEndian>()) {
+            match rdr.read_i32::<LittleEndian>()? {
                 -2 => vec.push(RowsAffected::SuccessNoInfo),
                 -3 => vec.push(RowsAffected::ExecutionFailed),
                 i => vec.push(RowsAffected::Count(i as usize)),
@@ -27,16 +27,14 @@ impl RowsAffected {
 impl fmt::Display for RowsAffected {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            RowsAffected::Count(count) => {
-                try!(writeln!(fmt, "Number of affected rows: {}, ", count))
-            }
+            RowsAffected::Count(count) => writeln!(fmt, "Number of affected rows: {}, ", count)?,
             RowsAffected::SuccessNoInfo => {
-                try!(writeln!(fmt,
-                              "Command successfully executed but number of affected rows cannot \
-                               be determined"))
+                writeln!(fmt,
+                         "Command successfully executed but number of affected rows cannot be \
+                          determined")?
             }
             RowsAffected::ExecutionFailed => {
-                try!(writeln!(fmt, "Execution of statement or processing of row has failed"))
+                writeln!(fmt, "Execution of statement or processing of row has failed")?
             }
         }
         Ok(())

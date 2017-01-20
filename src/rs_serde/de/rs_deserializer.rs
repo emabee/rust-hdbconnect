@@ -147,12 +147,12 @@ impl RsDeserializer {
         self.rs.get_fieldname(idx).unwrap(/* FIXME */)
     }
 
-    pub fn has_rows(&self) -> bool {
-        self.rs.len() > 0
+    pub fn has_rows(&mut self) -> DeserResult<bool> {
+        Ok(self.rs.len()? > 0)
     }
 
     fn current_value_pop(&mut self) -> DeserResult<TypedValue> {
-        try!(self.value_deserialization_allowed());
+        self.value_deserialization_allowed()?;
         match self.rs.last_row_mut() {
             None => Err(prog_err("no row found in resultset")),
             Some(row) => {
@@ -165,7 +165,7 @@ impl RsDeserializer {
     }
 
     fn current_value_ref(&self) -> DeserResult<&TypedValue> {
-        try!(self.value_deserialization_allowed());
+        self.value_deserialization_allowed()?;
         match self.rs.last_row() {
             None => Err(prog_err("no row found in resultset")),
             Some(row) => {
@@ -219,7 +219,7 @@ impl serde::de::Deserializer for RsDeserializer {
         where V: serde::de::Visitor
     {
         trace!("RsDeserializer::deserialize() called");
-        match try!(self.current_value_pop()) {
+        match self.current_value_pop()? {
             TypedValue::LONGDATE(ld) |
             TypedValue::N_LONGDATE(Some(ld)) => visitor.visit_str(&str_from_longdate(&ld)),
             value => return Err(self.wrong_type(&value, "[some date or datetime]")),
@@ -231,7 +231,7 @@ impl serde::de::Deserializer for RsDeserializer {
         where V: serde::de::Visitor
     {
         trace!("RsDeserializer::deserialize_bool() called");
-        match try!(self.current_value_pop()) {
+        match self.current_value_pop()? {
             TypedValue::BOOLEAN(b) |
             TypedValue::N_BOOLEAN(Some(b)) => visitor.visit_bool(b),
             value => return Err(self.wrong_type(&value, "bool")),
@@ -243,7 +243,7 @@ impl serde::de::Deserializer for RsDeserializer {
         where V: serde::de::Visitor
     {
         trace!("RsDeserializer::deserialize_usize() called");
-        match try!(self.current_value_pop()) {
+        match self.current_value_pop()? {
             TypedValue::TINYINT(u) |
             TypedValue::N_TINYINT(Some(u)) => visitor.visit_usize(u as usize),
 
@@ -296,7 +296,7 @@ impl serde::de::Deserializer for RsDeserializer {
         where V: serde::de::Visitor
     {
         trace!("RsDeserializer::deserialize_u8() called");
-        match try!(self.current_value_pop()) {
+        match self.current_value_pop()? {
             TypedValue::TINYINT(u) |
             TypedValue::N_TINYINT(Some(u)) => visitor.visit_u8(u),
 
@@ -336,7 +336,7 @@ impl serde::de::Deserializer for RsDeserializer {
         where V: serde::de::Visitor
     {
         trace!("RsDeserializer::deserialize_u16() called");
-        match try!(self.current_value_pop()) {
+        match self.current_value_pop()? {
             TypedValue::TINYINT(u) |
             TypedValue::N_TINYINT(Some(u)) => visitor.visit_u16(u as u16),
 
@@ -376,7 +376,7 @@ impl serde::de::Deserializer for RsDeserializer {
         where V: serde::de::Visitor
     {
         trace!("RsDeserializer::deserialize_u32() called");
-        match try!(self.current_value_pop()) {
+        match self.current_value_pop()? {
             TypedValue::TINYINT(u) |
             TypedValue::N_TINYINT(Some(u)) => visitor.visit_u32(u as u32),
 
@@ -416,7 +416,7 @@ impl serde::de::Deserializer for RsDeserializer {
         where V: serde::de::Visitor
     {
         trace!("RsDeserializer::deserialize_u64() called");
-        match try!(self.current_value_pop()) {
+        match self.current_value_pop()? {
             TypedValue::TINYINT(u) |
             TypedValue::N_TINYINT(Some(u)) => visitor.visit_u64(u as u64),
 
@@ -456,7 +456,7 @@ impl serde::de::Deserializer for RsDeserializer {
         where V: serde::de::Visitor
     {
         trace!("RsDeserializer::deserialize_isize() called");
-        match try!(self.current_value_pop()) {
+        match self.current_value_pop()? {
             TypedValue::TINYINT(u) |
             TypedValue::N_TINYINT(Some(u)) => visitor.visit_isize(u as isize),
 
@@ -493,7 +493,7 @@ impl serde::de::Deserializer for RsDeserializer {
         where V: serde::de::Visitor
     {
         trace!("RsDeserializer::deserialize_i8() called");
-        match try!(self.current_value_pop()) {
+        match self.current_value_pop()? {
             TypedValue::TINYINT(u) |
             TypedValue::N_TINYINT(Some(u)) => {
                 if u <= i8::MAX as u8 {
@@ -539,7 +539,7 @@ impl serde::de::Deserializer for RsDeserializer {
         where V: serde::de::Visitor
     {
         trace!("RsDeserializer::deserialize_i16() called");
-        match try!(self.current_value_pop()) {
+        match self.current_value_pop()? {
             TypedValue::TINYINT(u) |
             TypedValue::N_TINYINT(Some(u)) => visitor.visit_i16(u as i16),
 
@@ -573,7 +573,7 @@ impl serde::de::Deserializer for RsDeserializer {
         where V: serde::de::Visitor
     {
         trace!("RsDeserializer::deserialize_i32() called");
-        match try!(self.current_value_pop()) {
+        match self.current_value_pop()? {
             TypedValue::TINYINT(u) |
             TypedValue::N_TINYINT(Some(u)) => visitor.visit_i32(u as i32),
 
@@ -601,7 +601,7 @@ impl serde::de::Deserializer for RsDeserializer {
         where V: serde::de::Visitor
     {
         trace!("RsDeserializer::deserialize_i64() called");
-        match try!(self.current_value_pop()) {
+        match self.current_value_pop()? {
             TypedValue::TINYINT(u) |
             TypedValue::N_TINYINT(Some(u)) => visitor.visit_i64(u as i64),
 
@@ -625,7 +625,7 @@ impl serde::de::Deserializer for RsDeserializer {
         where V: serde::de::Visitor
     {
         trace!("RsDeserializer::deserialize_f32() called");
-        match try!(self.current_value_pop()) {
+        match self.current_value_pop()? {
             TypedValue::REAL(f) |
             TypedValue::N_REAL(Some(f)) => visitor.visit_f32(f),
             value => return Err(self.wrong_type(&value, "f32")),
@@ -637,7 +637,7 @@ impl serde::de::Deserializer for RsDeserializer {
         where V: serde::de::Visitor
     {
         trace!("RsDeserializer::deserialize_f64() called");
-        match try!(self.current_value_pop()) {
+        match self.current_value_pop()? {
             TypedValue::DOUBLE(f) |
             TypedValue::N_DOUBLE(Some(f)) => visitor.visit_f64(f),
             value => return Err(self.wrong_type(&value, "f64")),
@@ -665,7 +665,7 @@ impl serde::de::Deserializer for RsDeserializer {
         where V: serde::de::Visitor
     {
         trace!("RsDeserializer::deserialize_string() called");
-        match try!(self.current_value_pop()) {
+        match self.current_value_pop()? {
             TypedValue::CHAR(s) |
             TypedValue::VARCHAR(s) |
             TypedValue::NCHAR(s) |
@@ -686,7 +686,7 @@ impl serde::de::Deserializer for RsDeserializer {
             TypedValue::CLOB(clob) |
             TypedValue::NCLOB(clob) |
             TypedValue::N_CLOB(Some(clob)) |
-            TypedValue::N_NCLOB(Some(clob)) => visitor.visit_string(try!(clob.into_string())),
+            TypedValue::N_NCLOB(Some(clob)) => visitor.visit_string(clob.into_string()?),
 
             value => return Err(self.wrong_type(&value, "String")),
         }
@@ -708,7 +708,7 @@ impl serde::de::Deserializer for RsDeserializer {
         where V: serde::de::Visitor
     {
         trace!("RsDeserializer::deserialize_option() called");
-        let is_some = match try!(self.current_value_ref()) {
+        let is_some = match self.current_value_ref()? {
             &TypedValue::N_TINYINT(None) |
             &TypedValue::N_SMALLINT(None) |
             &TypedValue::N_INT(None) |
@@ -892,10 +892,10 @@ impl serde::de::Deserializer for RsDeserializer {
     {
         trace!("RsDeserializer::deserialize_bytes() called");
         // self.deserialize_seq(visitor)
-        match try!(self.current_value_pop()) {
+        match self.current_value_pop()? {
             TypedValue::BLOB(blob) |
             TypedValue::N_BLOB(Some(blob)) => {
-                match visitor.visit_bytes(&try!(blob.into_bytes())) {
+                match visitor.visit_bytes(&blob.into_bytes()?) {
                     Ok(v) => Ok(v),
                     Err(e) => {
                         trace!("ERRRRRRRRR: {:?}", e);

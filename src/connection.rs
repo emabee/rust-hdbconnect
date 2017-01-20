@@ -25,8 +25,8 @@ const HOLD_OVER_COMMIT: u8 = 8;
 ///
 /// ```ignore
 /// use hdbconnect::Connection;
-/// let mut connection = try!(Connection::new("mymachine", "30415"));
-/// try!(connection.authenticate_user_password("Annidda", "BF1äÖkn&nG"));
+/// let mut connection = Connection::new("mymachine", "30415")?;
+/// connection.authenticate_user_password("Annidda", "BF1äÖkn&nG")?;
 /// ```
 /// The most important attributes of a connection, including the TcpStream,
 /// are "outsourced" into a ConnectionCore object, which is kept alive
@@ -52,10 +52,11 @@ impl Connection {
         let start = Local::now();
 
         let connect_string = String::with_capacity(200).add(host).add(":").add(port);
-        let mut tcp_stream = try!(TcpStream::connect(&connect_string as &str));
+        trace!("Connecting with \"{}\"", connect_string);
+        let mut tcp_stream = TcpStream::connect(&connect_string as &str)?;
         trace!("tcp_stream is open");
 
-        let (major, minor) = try!(init::send_and_receive(&mut tcp_stream));
+        let (major, minor) = init::send_and_receive(&mut tcp_stream)?;
         trace!("connection is initialized");
 
         let conn_ref = ConnectionCore::new_conn_ref(tcp_stream);
@@ -85,7 +86,7 @@ impl Connection {
                                              Connection instead"));
         }
         let start = Local::now();
-        try!(authenticate::user_pw(&(self.core), username, password));
+        authenticate::user_pw(&(self.core), username, password)?;
         self.credentials = Some(Credentials {
             username: String::from(username),
             password: String::from(password),
@@ -140,11 +141,11 @@ impl Connection {
 
     /// Executes a statement and expects a single ResultSet.
     pub fn query_statement(&mut self, stmt: &str) -> HdbResult<ResultSet> {
-        try!(self.any_statement(stmt)).as_resultset()
+        self.any_statement(stmt)?.as_resultset()
     }
     /// Executes a statement and expects a single number of affected rows.
     pub fn dml_statement(&mut self, stmt: &str) -> HdbResult<usize> {
-        let vec = &(try!(try!(self.any_statement(stmt)).as_affected_rows()));
+        let vec = &(self.any_statement(stmt)?.as_affected_rows()?);
         match vec.len() {
             1 => Ok(vec.get(0).unwrap().clone()),
             _ => Err(HdbError::UsageError("number of affected-rows-counts <> 1")),
@@ -152,37 +153,37 @@ impl Connection {
     }
     /// Executes a statement and expects a plain success.
     pub fn exec_statement(&mut self, stmt: &str) -> HdbResult<()> {
-        try!(self.any_statement(stmt)).as_success()
+        self.any_statement(stmt)?.as_success()
     }
 
     /// Prepares a statement and returns a handle to it.
     /// Note that the handle keeps using the same connection.
     pub fn prepare(&self, stmt: &str) -> HdbResult<PreparedStatement> {
-        let stmt = try!(PreparedStatementFactory::prepare(self.core.clone(),
+        let stmt = PreparedStatementFactory::prepare(self.core.clone(),
                                                           String::from(stmt),
-                                                          self.auto_commit));
+                                                          self.auto_commit)?;
         Ok(stmt)
     }
 
     /// Commits the current transaction.
     pub fn commit(&mut self) -> HdbResult<()> {
-        try!(self.any_statement("commit")).as_success()
+        self.any_statement("commit")?.as_success()
     }
 
     /// Rolls back the current transaction.
     pub fn rollback(&mut self) -> HdbResult<()> {
-        try!(self.any_statement("rollback")).as_success()
+        self.any_statement("rollback")?.as_success()
     }
 
     /// Creates a new connection object with the same settings and authentication.
     pub fn spawn(&self) -> HdbResult<Connection> {
-        let mut other_conn = try!(Connection::new(&(self.host), &(self.port)));
+        let mut other_conn = Connection::new(&(self.host), &(self.port))?;
         other_conn.auto_commit = self.auto_commit;
         other_conn.command_options = self.command_options;
         other_conn.set_fetch_size(self.core.borrow().get_fetch_size());
         other_conn.set_lob_read_length(self.core.borrow().get_lob_read_length());
         if let Some(ref creds) = self.credentials {
-            try!(other_conn.authenticate_user_password(&(creds.username), &(creds.password)));
+            other_conn.authenticate_user_password(&(creds.username), &(creds.password))?;
         }
         Ok(other_conn)
     }
@@ -201,7 +202,7 @@ impl Connection {
     /// the method returns with the first error, or with  ()
     pub fn multiple_statements(&mut self, prep: Vec<&str>) -> HdbResult<()> {
         for s in prep {
-            try!(self.any_statement(s));
+            self.any_statement(s)?;
         }
         Ok(())
     }
@@ -223,7 +224,7 @@ pub fn exec_statement(conn_ref: ConnRef, stmt: String, auto_commit: bool,
         conn_ref.borrow().get_fetch_size()
     };
     let mut request =
-        try!(Request::new(&(conn_ref), RequestType::ExecuteDirect, auto_commit, command_options));
+        Request::new(&(conn_ref), RequestType::ExecuteDirect, auto_commit, command_options)?;
     request.push(Part::new(PartKind::FetchSize, Argument::FetchSize(fetch_size)));
     request.push(Part::new(PartKind::Command, Argument::Command(stmt)));
 

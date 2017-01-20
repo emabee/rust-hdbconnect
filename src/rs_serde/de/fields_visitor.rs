@@ -50,7 +50,7 @@ impl<'a> serde::de::MapVisitor for FieldsVisitor<'a> {
             0 => Err(prog_err("FieldsVisitor::visit_value(): no more value")),
             len => {
                 trace!("FieldsVisitor::visit_value() for col {}", len - 1);
-                let tmp = try!(serde::de::Deserialize::deserialize(self.de));
+                let tmp = serde::de::Deserialize::deserialize(self.de)?;
                 Ok(tmp)
             }
         }

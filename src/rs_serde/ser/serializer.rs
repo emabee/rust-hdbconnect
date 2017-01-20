@@ -38,7 +38,7 @@ impl<'a> Serializer<'a> {
     {
         trace!("Serializer::into_row()");
         let mut serializer = Serializer::new(md);
-        try!(value.serialize(&mut serializer));
+        value.serialize(&mut serializer)?;
         Ok(serializer.row)
     }
 
@@ -63,7 +63,7 @@ impl<'a> serde::ser::Serializer for Serializer<'a> {
 
     fn serialize_bool(&mut self, value: bool) -> SerializeResult<()> {
         trace!("Serializer::serialize_bool()");
-        match try!(self.expected_type_code()) {
+        match self.expected_type_code()? {
             TYPEID_BOOLEAN => self.row.push(TypedValue::BOOLEAN(value)),
             TYPEID_N_BOOLEAN => self.row.push(TypedValue::N_BOOLEAN(Some(value))),
             target_tc => return Err(SerializationError::TypeMismatch("boolean", target_tc)),
@@ -74,7 +74,7 @@ impl<'a> serde::ser::Serializer for Serializer<'a> {
     fn serialize_isize(&mut self, value: isize) -> SerializeResult<()> {
         trace!("Serializer::serialize_isize()");
         let input_type = "isize";
-        match try!(self.expected_type_code()) {
+        match self.expected_type_code()? {
             TYPEID_TINYINT => {
                 if (value >= 0) && (value <= u8::MAX as isize) {
                     self.row.push(TypedValue::TINYINT(value as u8))
@@ -117,7 +117,7 @@ impl<'a> serde::ser::Serializer for Serializer<'a> {
     fn serialize_i8(&mut self, value: i8) -> SerializeResult<()> {
         trace!("Serializer::serialize_i8()");
         let input_type = "i8";
-        match try!(self.expected_type_code()) {
+        match self.expected_type_code()? {
             TYPEID_TINYINT => {
                 if value >= 0 {
                     self.row.push(TypedValue::TINYINT(value as u8))
@@ -146,7 +146,7 @@ impl<'a> serde::ser::Serializer for Serializer<'a> {
     fn serialize_i16(&mut self, value: i16) -> SerializeResult<()> {
         trace!("Serializer::serialize_i16()");
         let input_type = "i16";
-        match try!(self.expected_type_code()) {
+        match self.expected_type_code()? {
             TYPEID_TINYINT => {
                 if (value >= 0) && (value <= u8::MAX as i16) {
                     self.row.push(TypedValue::TINYINT(value as u8))
@@ -175,7 +175,7 @@ impl<'a> serde::ser::Serializer for Serializer<'a> {
     fn serialize_i32(&mut self, value: i32) -> SerializeResult<()> {
         trace!("Serializer::serialize_i32()");
         let input_type = "i32";
-        match try!(self.expected_type_code()) {
+        match self.expected_type_code()? {
             TYPEID_TINYINT => {
                 if (value >= 0) && (value <= u8::MAX as i32) {
                     self.row.push(TypedValue::TINYINT(value as u8))
@@ -216,7 +216,7 @@ impl<'a> serde::ser::Serializer for Serializer<'a> {
     fn serialize_i64(&mut self, value: i64) -> SerializeResult<()> {
         trace!("Serializer::serialize_i64()");
         let input_type = "i64";
-        match try!(self.expected_type_code()) {
+        match self.expected_type_code()? {
             TYPEID_TINYINT => {
                 if (value >= 0) && (value <= u8::MAX as i64) {
                     self.row.push(TypedValue::TINYINT(value as u8))
@@ -271,7 +271,7 @@ impl<'a> serde::ser::Serializer for Serializer<'a> {
     fn serialize_usize(&mut self, value: usize) -> SerializeResult<()> {
         trace!("Serializer::serialize_usize()");
         let input_type = "usize";
-        match try!(self.expected_type_code()) {
+        match self.expected_type_code()? {
             TYPEID_TINYINT => {
                 if value <= u8::MAX as usize {
                     self.row.push(TypedValue::TINYINT(value as u8))
@@ -324,7 +324,7 @@ impl<'a> serde::ser::Serializer for Serializer<'a> {
     fn serialize_u8(&mut self, value: u8) -> SerializeResult<()> {
         trace!("Serializer::serialize_u8()");
         let input_type = "u8";
-        match try!(self.expected_type_code()) {
+        match self.expected_type_code()? {
             TYPEID_TINYINT => self.row.push(TypedValue::TINYINT(value)),
             TYPEID_N_TINYINT => self.row.push(TypedValue::N_TINYINT(Some(value))),
             TYPEID_SMALLINT => self.row.push(TypedValue::SMALLINT(value as i16)),
@@ -341,7 +341,7 @@ impl<'a> serde::ser::Serializer for Serializer<'a> {
     fn serialize_u16(&mut self, value: u16) -> SerializeResult<()> {
         trace!("Serializer::serialize_u16()");
         let input_type = "u16";
-        match try!(self.expected_type_code()) {
+        match self.expected_type_code()? {
             TYPEID_TINYINT => {
                 if value <= u8::MAX as u16 {
                     self.row.push(TypedValue::TINYINT(value as u8))
@@ -382,7 +382,7 @@ impl<'a> serde::ser::Serializer for Serializer<'a> {
     fn serialize_u32(&mut self, value: u32) -> SerializeResult<()> {
         trace!("Serializer::serialize_u32()");
         let input_type = "u32";
-        match try!(self.expected_type_code()) {
+        match self.expected_type_code()? {
             TYPEID_TINYINT => {
                 if value <= u8::MAX as u32 {
                     self.row.push(TypedValue::TINYINT(value as u8))
@@ -435,7 +435,7 @@ impl<'a> serde::ser::Serializer for Serializer<'a> {
     fn serialize_u64(&mut self, value: u64) -> SerializeResult<()> {
         trace!("Serializer::serialize_u64()");
         let input_type = "u64";
-        match try!(self.expected_type_code()) {
+        match self.expected_type_code()? {
             TYPEID_TINYINT => {
                 if value <= u8::MAX as u64 {
                     self.row.push(TypedValue::TINYINT(value as u8))
@@ -499,7 +499,7 @@ impl<'a> serde::ser::Serializer for Serializer<'a> {
 
     fn serialize_f32(&mut self, value: f32) -> SerializeResult<()> {
         trace!("Serializer::serialize_f32()");
-        match try!(self.expected_type_code()) {
+        match self.expected_type_code()? {
             TYPEID_REAL => self.row.push(TypedValue::REAL(value)),
             TYPEID_N_REAL => self.row.push(TypedValue::N_REAL(Some(value))),
             target_tc => return Err(SerializationError::TypeMismatch("f32", target_tc)),
@@ -509,7 +509,7 @@ impl<'a> serde::ser::Serializer for Serializer<'a> {
 
     fn serialize_f64(&mut self, value: f64) -> SerializeResult<()> {
         trace!("Serializer::serialize_f64()");
-        match try!(self.expected_type_code()) {
+        match self.expected_type_code()? {
             TYPEID_DOUBLE => self.row.push(TypedValue::DOUBLE(value)),
             TYPEID_N_DOUBLE => self.row.push(TypedValue::N_DOUBLE(Some(value))),
             target_tc => return Err(SerializationError::TypeMismatch("f64", target_tc)),
@@ -521,7 +521,7 @@ impl<'a> serde::ser::Serializer for Serializer<'a> {
         trace!("Serializer::serialize_char()");
         let mut s = String::new();
         s.push(value);
-        match try!(self.expected_type_code()) {
+        match self.expected_type_code()? {
             TYPEID_CHAR | TYPEID_VARCHAR | TYPEID_NCHAR | TYPEID_NVARCHAR | TYPEID_STRING |
             TYPEID_NSTRING | TYPEID_TEXT | TYPEID_SHORTTEXT => self.row.push(TypedValue::STRING(s)),
             target_tc => return Err(SerializationError::TypeMismatch("char", target_tc)),
@@ -532,11 +532,11 @@ impl<'a> serde::ser::Serializer for Serializer<'a> {
     fn serialize_str(&mut self, value: &str) -> SerializeResult<()> {
         trace!("Serializer::serialize_str() with {}", value);
         let s = String::from(value);
-        match try!(self.expected_type_code()) {
+        match self.expected_type_code()? {
             TYPEID_CHAR | TYPEID_VARCHAR | TYPEID_NCHAR | TYPEID_NVARCHAR | TYPEID_STRING |
             TYPEID_NSTRING | TYPEID_TEXT | TYPEID_SHORTTEXT => self.row.push(TypedValue::STRING(s)),
 
-            TYPEID_LONGDATE => self.row.push(TypedValue::LONGDATE(try!(longdate_from_str(value)))),
+            TYPEID_LONGDATE => self.row.push(TypedValue::LONGDATE(longdate_from_str(value)?)),
 
             target_tc => return Err(SerializationError::TypeMismatch("&str", target_tc)),
         }
@@ -545,7 +545,7 @@ impl<'a> serde::ser::Serializer for Serializer<'a> {
 
     fn serialize_bytes(&mut self, value: &[u8]) -> SerializeResult<()> {
         trace!("Serializer::serialize_bytes()");
-        match try!(self.expected_type_code()) {
+        match self.expected_type_code()? {
             TYPEID_BLOB => self.row.push(TypedValue::BLOB(new_blob_to_db((*value).to_vec()))),
             TYPEID_N_BLOB => {
                 self.row.push(TypedValue::N_BLOB(Some(new_blob_to_db((*value).to_vec()))))
@@ -557,13 +557,13 @@ impl<'a> serde::ser::Serializer for Serializer<'a> {
 
     fn serialize_unit(&mut self) -> SerializeResult<()> {
         trace!("Serializer::serialize_unit()");
-        Err(SerializationError::TypeMismatch("unit", try!(self.expected_type_code())))
+        Err(SerializationError::TypeMismatch("unit", self.expected_type_code()?))
     }
 
     #[allow(unused_variables)]
     fn serialize_unit_struct(&mut self, name: &'static str) -> SerializeResult<()> {
         trace!("Serializer::serialize_unit_struct()");
-        Err(SerializationError::TypeMismatch("unit_struct", try!(self.expected_type_code())))
+        Err(SerializationError::TypeMismatch("unit_struct", self.expected_type_code()?))
     }
 
     #[allow(unused_variables)]
@@ -571,7 +571,7 @@ impl<'a> serde::ser::Serializer for Serializer<'a> {
                               variant: &'static str)
                               -> SerializeResult<()> {
         trace!("Serializer::serialize_unit_variant()");
-        Err(SerializationError::TypeMismatch("unit_variant", try!(self.expected_type_code())))
+        Err(SerializationError::TypeMismatch("unit_variant", self.expected_type_code()?))
     }
 
     #[allow(unused_variables)]
@@ -592,7 +592,7 @@ impl<'a> serde::ser::Serializer for Serializer<'a> {
 
     fn serialize_none(&mut self) -> SerializeResult<()> {
         trace!("Serializer::serialize_none()");
-        match try!(self.expected_type_code()) {
+        match self.expected_type_code()? {
             TYPEID_N_TINYINT => self.row.push(TypedValue::N_TINYINT(None)),
             TYPEID_N_SMALLINT => self.row.push(TypedValue::N_SMALLINT(None)),
             TYPEID_N_INT => self.row.push(TypedValue::N_INT(None)),

@@ -59,7 +59,7 @@ impl Request {
             command_options: command_options,
             parts: Parts::new(),
         };
-        try!(request.add_ssi(conn_ref));
+        request.add_ssi(conn_ref)?;
         Ok(request)
     }
 
@@ -77,7 +77,7 @@ impl Request {
                                  expected_fc: Option<ReplyType>, acc_server_proc_time: &mut i32)
                                  -> HdbResult<HdbResponse> {
         let mut reply =
-            try!(self.send_and_receive_detailed(rs_md, par_md, &mut None, conn_ref, expected_fc));
+            self.send_and_receive_detailed(rs_md, par_md, &mut None, conn_ref, expected_fc)?;
 
         // digest parts, collect InternalReturnValues
         let mut int_return_values = Vec::<InternalReturnValue>::new();
@@ -99,7 +99,7 @@ impl Request {
                 }
                 Argument::TransactionFlags(vec) => {
                     for ta_flag in vec {
-                        try!(conn_ref.borrow_mut().set_transaction_state(ta_flag));
+                        conn_ref.borrow_mut().set_transaction_state(ta_flag)?;
                     }
                 }
                 Argument::ResultSet(Some(rs)) => {
@@ -188,11 +188,11 @@ impl Request {
                self.auto_commit);
         let _start = Local::now();
 
-        try!(self.serialize(conn_ref));
+        self.serialize(conn_ref)?;
 
-        let mut reply = try!(Reply::parse(rs_md, par_md, o_rs, conn_ref));
-        try!(reply.assert_no_error());
-        try!(reply.assert_expected_fc(expected_fc));
+        let mut reply = Reply::parse(rs_md, par_md, o_rs, conn_ref)?;
+        reply.assert_no_error()?;
+        reply.assert_expected_fc(expected_fc)?;
 
         debug!("Request::send_and_receive_detailed() took {} ms",
                (Local::now() - _start).num_milliseconds());
@@ -225,7 +225,7 @@ impl Request {
 
     pub fn serialize_impl(&self, session_id: i64, seq_number: i32, stream: &mut TcpStream)
                           -> PrtResult<()> {
-        let varpart_size = try!(self.varpart_size());
+        let varpart_size = self.varpart_size()?;
         let total_size = MESSAGE_HEADER_SIZE + varpart_size;
         trace!("Writing Message with total size {}", total_size);
         let mut remaining_bufsize = BUFFER_SIZE - MESSAGE_HEADER_SIZE;
@@ -236,37 +236,37 @@ impl Request {
                seq_number,
                self.request_type);
         // MESSAGE HEADER
-        try!(w.write_i64::<LittleEndian>(session_id));          // I8
-        try!(w.write_i32::<LittleEndian>(seq_number));          // I4
-        try!(w.write_u32::<LittleEndian>(varpart_size));        // UI4
-        try!(w.write_u32::<LittleEndian>(remaining_bufsize));   // UI4
-        try!(w.write_i16::<LittleEndian>(1));                   // I2    Number of segments
+        w.write_i64::<LittleEndian>(session_id)?; // I8
+        w.write_i32::<LittleEndian>(seq_number)?; // I4
+        w.write_u32::<LittleEndian>(varpart_size)?; // UI4
+        w.write_u32::<LittleEndian>(remaining_bufsize)?; // UI4
+        w.write_i16::<LittleEndian>(1)?; // I2    Number of segments
         for _ in 0..10 {
-            try!(w.write_u8(0));
-        }                                                       // I1+ B[9]  unused
+            w.write_u8(0)?;
+        } // I1+ B[9]  unused
 
         // SEGMENT HEADER
-        let size = try!(self.seg_size()) as i32;
-        try!(w.write_i32::<LittleEndian>(size));    // I4  Length including the header
-        try!(w.write_i32::<LittleEndian>(0));       // I4 Offset within the message buffer
-        try!(w.write_i16::<LittleEndian>(self.parts.0.len() as i16));//I2 Number of contained parts
-        try!(w.write_i16::<LittleEndian>(1));       // I2 Number of this segment, starting with 1
-        try!(w.write_i8(1));                        // I1 Segment kind: always 1 = Request
-        try!(w.write_i8(self.request_type.to_i8()));// I1 "Message type"
-        try!(w.write_i8(match self.auto_commit {
+        let size = self.seg_size()? as i32;
+        w.write_i32::<LittleEndian>(size)?; // I4  Length including the header
+        w.write_i32::<LittleEndian>(0)?; // I4 Offset within the message buffer
+        w.write_i16::<LittleEndian>(self.parts.0.len() as i16)?; //I2 Number of contained parts
+        w.write_i16::<LittleEndian>(1)?; // I2 Number of this segment, starting with 1
+        w.write_i8(1)?; // I1 Segment kind: always 1 = Request
+        w.write_i8(self.request_type.to_i8())?; // I1 "Message type"
+        w.write_i8(match self.auto_commit {
             true => 1,
             _ => 0,
-        }));                                        // I1 auto_commit on/off
-        try!(w.write_u8(self.command_options));     // I1 Bit set for options
+        })?; // I1 auto_commit on/off
+        w.write_u8(self.command_options)?; // I1 Bit set for options
         for _ in 0..8 {
-            try!(w.write_u8(0));
-        }                                           // [B;8] Reserved, do not use
+            w.write_u8(0)?;
+        } // [B;8] Reserved, do not use
 
         remaining_bufsize -= SEGMENT_HEADER_SIZE as u32;
         trace!("Headers are written");
         // PARTS
         for ref part in &self.parts.0 {
-            remaining_bufsize = try!(part.serialize(remaining_bufsize, w));
+            remaining_bufsize = part.serialize(remaining_bufsize, w)?;
         }
         trace!("Parts are written");
         Ok(())
@@ -279,7 +279,7 @@ impl Request {
     /// Length in bytes of the variable part of the message, i.e. total message without the header
     fn varpart_size(&self) -> PrtResult<u32> {
         let mut len = 0_u32;
-        len += try!(self.seg_size()) as u32;
+        len += self.seg_size()? as u32;
         trace!("varpart_size = {}", len);
         Ok(len)
     }
@@ -287,7 +287,7 @@ impl Request {
     fn seg_size(&self) -> PrtResult<usize> {
         let mut len = SEGMENT_HEADER_SIZE;
         for part in &self.parts.0 {
-            len += try!(part.size(true));
+            len += part.size(true)?;
         }
         Ok(len)
     }
@@ -323,18 +323,18 @@ impl Reply {
         let stream = &mut (conn_ref.borrow_mut().stream);
         let mut rdr = io::BufReader::new(stream);
 
-        let (no_of_parts, msg) = try!(parse_message_and_sequence_header(&mut rdr));
+        let (no_of_parts, msg) = parse_message_and_sequence_header(&mut rdr)?;
         match msg {
             Message::Request(_) => Err(prot_err("Reply::parse() found Request")),
             Message::Reply(mut msg) => {
                 for _ in 0..no_of_parts {
-                    let part = try!(Part::parse(MsgType::Reply,
+                    let part = Part::parse(MsgType::Reply,
                                                 &mut (msg.parts),
                                                 Some(conn_ref),
                                                 rs_md,
                                                 par_md,
                                                 o_rs,
-                                                &mut rdr));
+                                                &mut rdr)?;
                     msg.push(part);
                 }
                 Ok(msg)
@@ -347,7 +347,7 @@ impl Reply {
             None => Ok(()),     // we had no clear expectation
             Some(fc) => {
                 if self.type_.to_i16() == fc.to_i16() {
-                    Ok(())      // we got what we expected
+                    Ok(()) // we got what we expected
                 } else {
                     Err(PrtError::ProtocolError(format!("unexpected reply_type (function code) \
                                                          {:?}",
@@ -392,21 +392,21 @@ impl Drop for Reply {
 ///
 pub fn parse_message_and_sequence_header(rdr: &mut BufRead) -> PrtResult<(i16, Message)> {
     // MESSAGE HEADER: 32 bytes
-    let session_id: i64 = try!(rdr.read_i64::<LittleEndian>());             // I8
-    let packet_seq_number: i32 = try!(rdr.read_i32::<LittleEndian>());      // I4
-    let varpart_size: u32 = try!(rdr.read_u32::<LittleEndian>());           // UI4  not needed?
-    let remaining_bufsize: u32 = try!(rdr.read_u32::<LittleEndian>());      // UI4  not needed?
-    let no_of_segs = try!(rdr.read_i16::<LittleEndian>());                  // I2
+    let session_id: i64 = rdr.read_i64::<LittleEndian>()?; // I8
+    let packet_seq_number: i32 = rdr.read_i32::<LittleEndian>()?; // I4
+    let varpart_size: u32 = rdr.read_u32::<LittleEndian>()?; // UI4  not needed?
+    let remaining_bufsize: u32 = rdr.read_u32::<LittleEndian>()?; // UI4  not needed?
+    let no_of_segs = rdr.read_i16::<LittleEndian>()?; // I2
     assert!(no_of_segs == 1);
 
-    rdr.consume(10usize);                                                   // (I1 + B[9])
+    rdr.consume(10usize); // (I1 + B[9])
 
     // SEGMENT HEADER: 24 bytes
-    try!(rdr.read_i32::<LittleEndian>());                                   // I4 seg_size
-    try!(rdr.read_i32::<LittleEndian>());                                   // I4 seg_offset
-    let no_of_parts: i16 = try!(rdr.read_i16::<LittleEndian>());            // I2
-    try!(rdr.read_i16::<LittleEndian>());                                   // I2 seg_number
-    let seg_kind = try!(Kind::from_i8(try!(rdr.read_i8())));                // I1
+    rdr.read_i32::<LittleEndian>()?; // I4 seg_size
+    rdr.read_i32::<LittleEndian>()?; // I4 seg_offset
+    let no_of_parts: i16 = rdr.read_i16::<LittleEndian>()?; // I2
+    rdr.read_i16::<LittleEndian>()?; // I2 seg_number
+    let seg_kind = Kind::from_i8(rdr.read_i8()?)?; // I1
 
     trace!("message and segment header: {{ packet_seq_number = {}, varpart_size = {}, \
             remaining_bufsize = {}, no_of_parts = {} }}",
@@ -418,10 +418,10 @@ pub fn parse_message_and_sequence_header(rdr: &mut BufRead) -> PrtResult<(i16, M
     match seg_kind {
         Kind::Request => {
             // only for read_wire
-            let request_type = try!(RequestType::from_i8(try!(rdr.read_i8()))); // I1
-            let auto_commit = try!(rdr.read_i8()) != 0_i8;                  // I1
-            let command_options = try!(rdr.read_u8());                      // I1 command_options
-            rdr.consume(8_usize);                                           // B[8] reserved1
+            let request_type = RequestType::from_i8(rdr.read_i8()?)?; // I1
+            let auto_commit = rdr.read_i8()? != 0_i8; // I1
+            let command_options = rdr.read_u8()?; // I1 command_options
+            rdr.consume(8_usize); // B[8] reserved1
             Ok((no_of_parts,
                 Message::Request(Request {
                     request_type: request_type,
@@ -431,9 +431,9 @@ pub fn parse_message_and_sequence_header(rdr: &mut BufRead) -> PrtResult<(i16, M
                 })))
         }
         Kind::Reply | Kind::Error => {
-            rdr.consume(1_usize);                                           // I1 reserved2
-            let rt = try!(ReplyType::from_i16(try!(rdr.read_i16::<LittleEndian>()))); // I2
-            rdr.consume(8_usize);                                           // B[8] reserved3
+            rdr.consume(1_usize); // I1 reserved2
+            let rt = ReplyType::from_i16(rdr.read_i16::<LittleEndian>()?)?; // I2
+            rdr.consume(8_usize); // B[8] reserved3
             debug!("Reply::parse(): found reply of type {:?} and seg_kind {:?} for session_id {}",
                    rt,
                    seg_kind,

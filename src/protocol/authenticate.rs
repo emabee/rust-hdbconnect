@@ -29,12 +29,12 @@ pub fn user_pw(conn_ref: &ConnRef, username: &str, password: &str) -> PrtResult<
     trace!("Entering authenticate()");
 
     let client_challenge = create_client_challenge();
-    let reply1 = try!(auth1_request(conn_ref, &client_challenge, username));
-    let server_challenge: Vec<u8> = try!(get_server_challenge(reply1));
+    let reply1 = auth1_request(conn_ref, &client_challenge, username)?;
+    let server_challenge: Vec<u8> = get_server_challenge(reply1)?;
 
-    let client_proof = try!(calculate_client_proof(server_challenge, client_challenge, password));
+    let client_proof = calculate_client_proof(server_challenge, client_challenge, password)?;
 
-    let reply2 = try!(auth2_request(conn_ref, &client_proof, username));
+    let reply2 = auth2_request(conn_ref, &client_proof, username)?;
     evaluate_reply2(reply2, conn_ref)
 }
 
@@ -47,7 +47,7 @@ fn auth1_request(conn_ref: &ConnRef, chllng_sha256: &Vec<u8>, username: &str) ->
 
     let part2 = Part::new(PartKind::Authentication, Argument::Auth(auth_fields));
 
-    let mut request = try!(Request::new(conn_ref, RequestType::Authenticate, true, 0));
+    let mut request = Request::new(conn_ref, RequestType::Authenticate, true, 0)?;
     request.push(part2);
 
     request.send_and_receive(conn_ref, Some(ReplyType::Nil))
@@ -55,7 +55,7 @@ fn auth1_request(conn_ref: &ConnRef, chllng_sha256: &Vec<u8>, username: &str) ->
 
 fn auth2_request(conn_ref: &ConnRef, client_proof: &Vec<u8>, username: &str) -> PrtResult<Reply> {
     trace!("Entering auth2_request()");
-    let mut request = try!(Request::new(conn_ref, RequestType::Connect, true, 0));
+    let mut request = Request::new(conn_ref, RequestType::Connect, true, 0)?;
 
     let mut auth_fields = Vec::<AuthField>::with_capacity(3);
     auth_fields.push(AuthField(username.as_bytes().to_vec()));
@@ -155,16 +155,16 @@ fn calculate_client_proof(server_challenge: Vec<u8>, client_challenge: Vec<u8>, 
     let (salts, srv_key) = get_salt_and_key(server_challenge).unwrap();
     let buf = Vec::<u8>::with_capacity(2 + (client_proof_size + 1) * salts.len());
     let mut w = io::Cursor::new(buf);
-    try!(w.write_u8(0u8));
-    try!(w.write_u8(salts.len() as u8));
+    w.write_u8(0u8)?;
+    w.write_u8(salts.len() as u8)?;
 
     for salt in salts {
-        try!(w.write_u8(client_proof_size as u8));
+        w.write_u8(client_proof_size as u8)?;
         trace!("buf: \n{:?}", w.get_ref());
-        let scrambled = try!(scramble(&salt, &srv_key, &client_challenge, password));
+        let scrambled = scramble(&salt, &srv_key, &client_challenge, password)?;
         for b in scrambled {
-            try!(w.write_u8(b));
-        }                // B variable   VALUE
+            w.write_u8(b)?;
+        } // B variable   VALUE
         trace!("buf: \n{:?}", w.get_ref());
     }
     Ok(w.into_inner())
@@ -175,22 +175,22 @@ fn calculate_client_proof(server_challenge: Vec<u8>, client_challenge: Vec<u8>, 
 fn get_salt_and_key(server_challenge: Vec<u8>) -> PrtResult<(Vec<Vec<u8>>, Vec<u8>)> {
     trace!("Entering get_salt_and_key()");
     let mut rdr = io::Cursor::new(server_challenge);
-    let fieldcount = rdr.read_i16::<LittleEndian>().unwrap();               // I2
+    let fieldcount = rdr.read_i16::<LittleEndian>().unwrap(); // I2
     trace!("fieldcount = {}", fieldcount);
 
     type BVec = Vec<u8>;
     let mut salts = Vec::<BVec>::new();
     for _ in 0..(fieldcount - 1) {
-        let len = try!(rdr.read_u8());                                      // B1
+        let len = rdr.read_u8()?; // B1
         let mut salt: Vec<u8> = repeat(0u8).take(len as usize).collect();
-        try!(rdr.read(&mut salt));                                          // variable
+        rdr.read(&mut salt)?; // variable
         trace!("salt: \n{:?}", salt);
         salts.push(salt);
     }
 
-    let len = try!(rdr.read_u8());                                          // B1
+    let len = rdr.read_u8()?; // B1
     let mut key: Vec<u8> = repeat(0u8).take(len as usize).collect();
-    try!(rdr.read(&mut key));                                               // variable
+    rdr.read(&mut key)?; // variable
     trace!("key: \n{:?}", key);
     Ok((salts, key))
 }

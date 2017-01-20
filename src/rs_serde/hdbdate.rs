@@ -33,14 +33,14 @@ fn from_naivedt_string_full(s: &str) -> Result<LongDate, ()> {
     trace!("from_naivedt_string_full");
     match NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S%.f") {
         Ok(ndt_parsed) => {
-            let ld = try!(LongDate::from_ymd_hms_n(ndt_parsed.year(),
+            let ld = LongDate::from_ymd_hms_n(ndt_parsed.year(),
                                                    ndt_parsed.month(),
                                                    ndt_parsed.day(),
                                                    ndt_parsed.hour(),
                                                    ndt_parsed.minute(),
                                                    ndt_parsed.second(),
                                                    ndt_parsed.nanosecond())
-                              .or(Err(())));
+                              .or(Err(()))?;
             trace!("NaiveDateTime::from_naivedt_string_full(): OK with ld = {}", ld);
             Ok(ld)
         }
@@ -55,13 +55,13 @@ fn from_naivedt_string_second(s: &str) -> Result<LongDate, ()> {
     trace!("from_naivedt_string_second");
     match NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S") {
         Ok(ndt_parsed) => {
-            let ld = try!(LongDate::from_ymd_hms(ndt_parsed.year(),
+            let ld = LongDate::from_ymd_hms(ndt_parsed.year(),
                                                  ndt_parsed.month(),
                                                  ndt_parsed.day(),
                                                  ndt_parsed.hour(),
                                                  ndt_parsed.minute(),
                                                  ndt_parsed.second())
-                              .or(Err(())));
+                              .or(Err(()))?;
             trace!("NaiveDateTime::from_naivedt_string_second(): OK with ld = {}", ld);
             Ok(ld)
         }

@@ -103,7 +103,7 @@ impl Argument {
             }
             Argument::FetchSize(_) => size += 4,
             Argument::Parameters(ref pars) => {
-                size += try!(pars.size());
+                size += pars.size()?;
             }
             Argument::ReadLobRequest(_, _, _) => size += 24,
             Argument::ResultSetId(_) => size += 8,
@@ -137,35 +137,35 @@ impl Argument {
     pub fn serialize(&self, remaining_bufsize: u32, w: &mut io::Write) -> PrtResult<u32> {
         match *self {
             Argument::Auth(ref vec) => {
-                try!(w.write_i16::<LittleEndian>(vec.len() as i16));
+                w.write_i16::<LittleEndian>(vec.len() as i16)?;
                 for ref field in vec {
-                    try!(field.serialize(w));
+                    field.serialize(w)?;
                 }
             }
             Argument::ClientInfo(ref client_info) => {
-                try!(client_info.serialize(w));
+                client_info.serialize(w)?;
             }
             Argument::Command(ref s) => {
                 let vec = util::string_to_cesu8(s);
                 for b in vec {
-                    try!(w.write_u8(b));
+                    w.write_u8(b)?;
                 }
             }
             Argument::ConnectOptions(ConnectOptions(ref vec)) => {
                 for ref opt in vec {
-                    try!(opt.serialize(w));
+                    opt.serialize(w)?;
                 }
             }
             Argument::Error(ref vec) => {
                 for ref server_error in vec {
-                    try!(server_error.serialize(w));
+                    server_error.serialize(w)?;
                 }
             }
             Argument::FetchSize(fs) => {
-                try!(w.write_u32::<LittleEndian>(fs));
+                w.write_u32::<LittleEndian>(fs)?;
             }
             Argument::Parameters(ref parameters) => {
-                try!(parameters.serialize(w));
+                parameters.serialize(w)?;
             }
             Argument::ReadLobRequest(ref locator_id, ref offset, ref length_to_read) => {
                 trace!("argument::serialize() ReadLobRequest for locator_id {}, offset {}, \
@@ -173,29 +173,29 @@ impl Argument {
                        locator_id,
                        offset,
                        length_to_read);
-                try!(w.write_u64::<LittleEndian>(*locator_id));
-                try!(w.write_u64::<LittleEndian>(*offset));
-                try!(w.write_i32::<LittleEndian>(*length_to_read));
-                try!(w.write_u32::<LittleEndian>(0_u32)); // FILLER
+                w.write_u64::<LittleEndian>(*locator_id)?;
+                w.write_u64::<LittleEndian>(*offset)?;
+                w.write_i32::<LittleEndian>(*length_to_read)?;
+                w.write_u32::<LittleEndian>(0_u32)?; // FILLER
             }
             Argument::ResultSetId(rs_id) => {
-                try!(w.write_u64::<LittleEndian>(rs_id));
+                w.write_u64::<LittleEndian>(rs_id)?;
             }
             Argument::StatementId(stmt_id) => {
-                try!(w.write_u64::<LittleEndian>(stmt_id));
+                w.write_u64::<LittleEndian>(stmt_id)?;
             }
             Argument::StatementContext(ref sc) => {
-                try!(sc.serialize(w));
+                sc.serialize(w)?;
             }
             Argument::TopologyInformation(ref vec) => {
-                try!(w.write_i16::<LittleEndian>(vec.len() as i16));
+                w.write_i16::<LittleEndian>(vec.len() as i16)?;
                 for ref topo_attr in vec {
-                    try!(topo_attr.serialize(w));
+                    topo_attr.serialize(w)?;
                 }
             }
             Argument::TransactionFlags(ref vec) => {
                 for ref opt in vec {
-                    try!(opt.serialize(w));
+                    opt.serialize(w)?;
                 }
             }
             ref a => {
@@ -203,10 +203,10 @@ impl Argument {
             }
         }
 
-        let size = try!(self.size(false));
+        let size = self.size(false)?;
         let padsize = padsize(size);
         for _ in 0..padsize {
-            try!(w.write_u8(0));
+            w.write_u8(0)?;
         }
 
         Ok(remaining_bufsize - size as u32 - padsize as u32)
@@ -225,27 +225,27 @@ impl Argument {
 
         let arg = match kind {
             PartKind::Authentication => {
-                let field_count = try!(rdr.read_i16::<LittleEndian>()) as usize;    // I2
+                let field_count = rdr.read_i16::<LittleEndian>()? as usize; // I2
                 let mut vec = Vec::<AuthField>::with_capacity(field_count);
                 for _ in 0..field_count {
-                    let field = try!(AuthField::parse(rdr));
+                    let field = AuthField::parse(rdr)?;
                     vec.push(field);
                 }
                 Argument::Auth(vec)
             }
             PartKind::ClientInfo => {
-                let client_info = try!(ClientInfo::parse_from_request(no_of_args, rdr));
+                let client_info = ClientInfo::parse_from_request(no_of_args, rdr)?;
                 Argument::ClientInfo(client_info)
             }
             PartKind::Command => {
-                let bytes = try!(util::parse_bytes(arg_size as usize, rdr));
-                let s = try!(util::cesu8_to_string(&bytes));
+                let bytes = util::parse_bytes(arg_size as usize, rdr)?;
+                let s = util::cesu8_to_string(&bytes)?;
                 Argument::Command(s)
             }
             PartKind::ConnectOptions => {
                 let mut conn_opts = ConnectOptions::new();
                 for _ in 0..no_of_args {
-                    let opt = try!(ConnectOption::parse(rdr));
+                    let opt = ConnectOption::parse(rdr)?;
                     conn_opts.0.push(opt);
                 }
                 Argument::ConnectOptions(conn_opts)
@@ -253,64 +253,62 @@ impl Argument {
             PartKind::Error => {
                 let mut vec = Vec::<ServerError>::new();
                 for _ in 0..no_of_args {
-                    let server_error = try!(ServerError::parse(arg_size, rdr));
+                    let server_error = ServerError::parse(arg_size, rdr)?;
                     vec.push(server_error);
                 }
                 Argument::Error(vec)
             }
             PartKind::OutputParameters => {
                 if let Some(par_md) = par_md {
-                    Argument::OutputParameters(try!(OutputParametersFactory::parse(o_conn_ref,
-                                                                                   par_md,
-                                                                                   rdr)))
+                    Argument::OutputParameters(OutputParametersFactory::parse(o_conn_ref,
+                                                                              par_md,
+                                                                              rdr)?)
                 } else {
                     return Err(prot_err("Cannot parse output parameters without metadata"));
                 }
             }
             PartKind::ParameterMetadata => {
-                Argument::ParameterMetadata(try!(ParameterMetadata::parse(no_of_args,
-                                                                          arg_size as u32,
-                                                                          rdr)))
+                Argument::ParameterMetadata(ParameterMetadata::parse(no_of_args,
+                                                                     arg_size as u32,
+                                                                     rdr)?)
             }
             PartKind::ReadLobReply => {
-                let (locator, is_last_data, data) = try!(ReadLobReply::parse(rdr));
+                let (locator, is_last_data, data) = ReadLobReply::parse(rdr)?;
                 Argument::ReadLobReply(locator, is_last_data, data)
             }
             PartKind::ResultSet => {
-                let rs = try!(ResultSetFactory::parse(no_of_args,
-                                                      attributes,
-                                                      parts,
-                                                      o_conn_ref,
-                                                      rs_md,
-                                                      o_rs,
-                                                      rdr));
+                let rs = ResultSetFactory::parse(no_of_args,
+                                                 attributes,
+                                                 parts,
+                                                 o_conn_ref,
+                                                 rs_md,
+                                                 o_rs,
+                                                 rdr)?;
                 Argument::ResultSet(rs)
             }
-            PartKind::ResultSetId => Argument::ResultSetId(try!(rdr.read_u64::<LittleEndian>())),
+            PartKind::ResultSetId => Argument::ResultSetId(rdr.read_u64::<LittleEndian>()?),
             PartKind::ResultSetMetadata => {
-                Argument::ResultSetMetadata(try!(resultset_metadata::parse(no_of_args,
-                                                                           arg_size as u32,
-                                                                           rdr)))
+                Argument::ResultSetMetadata(resultset_metadata::parse(no_of_args,
+                                                                      arg_size as u32,
+                                                                      rdr)?)
             }
-            PartKind::RowsAffected => {
-                Argument::RowsAffected(try!(RowsAffected::parse(no_of_args, rdr)))
-            }
+            PartKind::RowsAffected => Argument::RowsAffected(RowsAffected::parse(no_of_args, rdr)?),
             PartKind::StatementContext => {
-                Argument::StatementContext(try!(StatementContext::parse(no_of_args, rdr)))
+                Argument::StatementContext(StatementContext::parse(no_of_args, rdr)?)
             }
-            PartKind::StatementId => Argument::StatementId(try!(rdr.read_u64::<LittleEndian>())),
+            PartKind::StatementId => Argument::StatementId(rdr.read_u64::<LittleEndian>()?),
             PartKind::TableLocation => {
                 let mut vec = Vec::<i32>::new();
                 for _ in 0..no_of_args {
-                    vec.push(try!(rdr.read_i32::<LittleEndian>()));
+                    vec.push(rdr.read_i32::<LittleEndian>()?);
                 }
                 Argument::TableLocation(vec)
             }
             PartKind::TopologyInformation => {
-                let field_count = try!(rdr.read_i16::<LittleEndian>()) as usize;    // I2
+                let field_count = rdr.read_i16::<LittleEndian>()? as usize; // I2
                 let mut vec = Vec::<TopologyAttr>::with_capacity(field_count);
                 for _ in 0..field_count {
-                    let info = try!(TopologyAttr::parse(rdr));
+                    let info = TopologyAttr::parse(rdr)?;
                     vec.push(info);
                 }
                 Argument::TopologyInformation(vec)
@@ -318,7 +316,7 @@ impl Argument {
             PartKind::TransactionFlags => {
                 let mut vec = Vec::<TransactionFlag>::new();
                 for _ in 0..no_of_args {
-                    let opt = try!(TransactionFlag::parse(rdr));
+                    let opt = TransactionFlag::parse(rdr)?;
                     vec.push(opt);
                 }
                 Argument::TransactionFlags(vec)

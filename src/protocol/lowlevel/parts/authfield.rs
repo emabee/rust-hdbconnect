@@ -9,19 +9,17 @@ pub struct AuthField(pub Vec<u8>);
 impl AuthField {
     pub fn serialize(&self, w: &mut io::Write) -> PrtResult<()> {
         match self.0.len() {
-            l if l <= 250usize => {
-                try!(w.write_u8(l as u8));                              // B1: length of value
-            }
+            l if l <= 250usize => w.write_u8(l as u8)?,                 // B1: length of value
             l if l <= 65535usize => {
-                try!(w.write_u8(255));                                  // B1: 247
-                try!(w.write_u16::<LittleEndian>(l as u16));            // U2: length of value
+                w.write_u8(255)?; // B1: 247
+                w.write_u16::<LittleEndian>(l as u16)?; // U2: length of value
             }
             l => {
                 return Err(PrtError::ProtocolError(format!("Value of AuthField is too big: {}",
                                                            l)));
             }
         }
-        util::serialize_bytes(&self.0, w)                               // B (varying) value
+        util::serialize_bytes(&self.0, w) // B (varying) value
     }
 
     pub fn size(&self) -> usize {
@@ -29,10 +27,10 @@ impl AuthField {
     }
 
     pub fn parse(rdr: &mut io::BufRead) -> PrtResult<AuthField> {
-        let mut len = try!(rdr.read_u8()) as usize;                     // B1
+        let mut len = rdr.read_u8()? as usize; // B1
         match len {
             255usize => {
-                len = try!(rdr.read_u16::<LittleEndian>()) as usize;    // (B1+)I2
+                len = rdr.read_u16::<LittleEndian>()? as usize; // (B1+)I2
             }
             251...255 => {
                 return Err(PrtError::ProtocolError(format!("Unknown length indicator for \
@@ -41,6 +39,6 @@ impl AuthField {
             }
             _ => {}
         }
-        Ok(AuthField(try!(util::parse_bytes(len, rdr))))
+        Ok(AuthField(util::parse_bytes(len, rdr)?))
     }
 }

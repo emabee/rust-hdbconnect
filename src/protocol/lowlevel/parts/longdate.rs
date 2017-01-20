@@ -2,9 +2,9 @@ use std::cmp;
 use std::fmt;
 
 const SECOND_FACTOR: i64 = 10_000_000;
-const MINUTE_FACTOR: i64 = 600_000_000;    // 10_000_000 * 60;
-const HOUR_FACTOR: i64 = 36_000_000_000;   // 10_000_000 * 60 * 60;
-const DAY_FACTOR: i64 = 864_000_000_000;   // 10_000_000 * 60 * 60 * 24;
+const MINUTE_FACTOR: i64 = 600_000_000; // 10_000_000 * 60;
+const HOUR_FACTOR: i64 = 36_000_000_000; // 10_000_000 * 60 * 60;
+const DAY_FACTOR: i64 = 864_000_000_000; // 10_000_000 * 60 * 60 * 24;
 
 const ZEITENWENDE: i64 = 1_721_424;
 const JGREG: i64 = 2_299_161;

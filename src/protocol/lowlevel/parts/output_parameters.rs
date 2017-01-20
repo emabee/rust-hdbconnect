@@ -22,7 +22,7 @@ impl fmt::Display for OutputParameters {
 
         // write the data
         for value in &self.values {
-            fmt::Display::fmt(&value, fmt).unwrap();         // write the value
+            fmt::Display::fmt(&value, fmt).unwrap(); // write the value
             write!(fmt, ", ").unwrap();
         }
         writeln!(fmt, "").unwrap();
@@ -62,10 +62,8 @@ pub mod factory {
                     let typecode = descriptor.value_type;
                     let nullable = descriptor.option.is_nullable();
                     trace!("Parsing value with typecode {}, nullable {}", typecode, nullable);
-                    let value = try!(TypedValueFactory::parse_from_reply(typecode,
-                                                                         nullable,
-                                                                         conn_ref,
-                                                                         rdr));
+                    let value =
+                        TypedValueFactory::parse_from_reply(typecode, nullable, conn_ref, rdr)?;
                     trace!("Found value {:?}", value);
                     output_pars.metadata.push(descriptor.clone());
                     output_pars.values.push(value);

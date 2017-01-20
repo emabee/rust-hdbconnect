@@ -8,7 +8,7 @@ use std::iter::repeat;
 /// Write a byte vec to a Write impl
 pub fn serialize_bytes(v: &[u8], w: &mut io::Write) -> PrtResult<()> {
     for b in v {
-        try!(w.write_u8(*b));
+        w.write_u8(*b)?;
     }
     Ok(())
 }
@@ -18,7 +18,7 @@ pub fn parse_bytes(len: usize, rdr: &mut io::BufRead) -> PrtResult<Vec<u8>> {
     let mut vec: Vec<u8> = repeat(0u8).take(len).collect();
     let mut read = 0;
     while read < len {
-        read += try!(rdr.read(&mut vec[read..]));
+        read += rdr.read(&mut vec[read..])?;
     }
     Ok(vec)
 }
@@ -29,7 +29,7 @@ pub fn string_to_cesu8(s: &String) -> Vec<u8> {
 }
 
 pub fn cesu8_to_string(v: &Vec<u8>) -> PrtResult<String> {
-    let cow = try!(from_cesu8(v));
+    let cow = from_cesu8(v)?;
     Ok(String::from(&*cow))
 }
 
@@ -472,7 +472,7 @@ fn get_hi_lo_surrogates(utf8_4: &[u8; 4]) -> (u16, u16) {
     let high_surrogate_codepoint = ((tmp & 0b_11111111110000000000_u32) >> 10) + 0xD800_u32;
     let low_surrogate_codepoint = (tmp & 0b_00000000001111111111_u32) + 0xDC00_u32;
     assert!(high_surrogate_codepoint <= 0xFFFF_u32);
-    assert!(low_surrogate_codepoint <= 0xFFFF_u32);    // so both are 16 bit only
+    assert!(low_surrogate_codepoint <= 0xFFFF_u32); // so both are 16 bit only
     (high_surrogate_codepoint as u16, low_surrogate_codepoint as u16)
 }
 

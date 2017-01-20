@@ -38,7 +38,7 @@ impl PreparedStatement {
         trace!("PreparedStatement::add_batch() called");
         match (&(self.o_par_md), &mut (self.o_batch)) {
             (&Some(ref metadata), &mut Some(ref mut vec)) => {
-                let row = try!(Serializer::into_row(from_row, &metadata));
+                let row = Serializer::into_row(from_row, &metadata)?;
                 vec.push(row);
                 Ok(())
             }
@@ -52,7 +52,7 @@ impl PreparedStatement {
     /// Executes the statement with the collected batch, and clears the batch.
     pub fn execute_batch(&mut self) -> HdbResult<HdbResponse> {
         let mut request =
-            try!(Request::new(&(self.conn_ref), RequestType::Execute, self.auto_commit, 8_u8));
+            Request::new(&(self.conn_ref), RequestType::Execute, self.auto_commit, 8_u8)?;
         request.push(Part::new(PartKind::StatementId,
                                Argument::StatementId(self.statement_id.clone())));
         if let &mut Some(ref mut pars1) = &mut self.o_batch {
@@ -122,10 +122,10 @@ pub mod factory {
                    -> HdbResult<PreparedStatement> {
         let command_options: u8 = 8;
         let mut request =
-            try!(Request::new(&conn_ref, RequestType::Prepare, auto_commit, command_options));
+            Request::new(&conn_ref, RequestType::Prepare, auto_commit, command_options)?;
         request.push(Part::new(PartKind::Command, Argument::Command(stmt)));
 
-        let mut reply = try!(request.send_and_receive(&conn_ref, None));
+        let mut reply = request.send_and_receive(&conn_ref, None)?;
 
         // TableLocation, TransactionFlags, StatementContext,
         // StatementId, ParameterMetadata, ResultSetMetadata
@@ -161,7 +161,7 @@ pub mod factory {
         if let Some(vec) = o_ta_flags {
             let mut conn_core = conn_ref.borrow_mut();
             for ta_flag in vec {
-                try!(conn_core.set_transaction_state(ta_flag));
+                conn_core.set_transaction_state(ta_flag)?;
             }
         }
 

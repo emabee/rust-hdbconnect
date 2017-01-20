@@ -62,8 +62,9 @@ impl ResultSet {
     }
 
     /// Returns the number of contained rows
-    pub fn len(&self) -> usize {
-        self.rows.len()
+    pub fn len(&mut self) -> PrtResult<usize> {
+        self.fetch_all()?;
+        Ok(self.rows.len())
     }
 
     /// Returns a pointer to the last row
@@ -128,8 +129,8 @@ impl ResultSet {
     /// the number of roundtrips depends on the size of the resultset
     /// and the configured fetch_size of the connection.
     pub fn fetch_all(&mut self) -> PrtResult<()> {
-        while !try!(self.is_complete()) {
-            try!(self.fetch_next());
+        while !self.is_complete()? {
+            self.fetch_next()?;
         }
         Ok(())
     }
@@ -150,17 +151,17 @@ impl ResultSet {
         };
 
         // build the request, provide resultset id, define FetchSize
+        debug!("ResultSet::fetch_next() with fetch_size = {}", fetch_size);
         let command_options = 0;
-        let mut request =
-            try!(Request::new(&conn_ref, RequestType::FetchNext, true, command_options));
+        let mut request = Request::new(&conn_ref, RequestType::FetchNext, true, command_options)?;
         request.push(Part::new(PartKind::ResultSetId, Argument::ResultSetId(resultset_id)));
         request.push(Part::new(PartKind::FetchSize, Argument::FetchSize(fetch_size)));
 
-        let mut reply = try!(request.send_and_receive_detailed(None,
-                                                               None,
-                                                               &mut Some(self),
-                                                               &conn_ref,
-                                                               Some(ReplyType::Fetch)));
+        let mut reply = request.send_and_receive_detailed(None,
+                                                          None,
+                                                          &mut Some(self),
+                                                          &conn_ref,
+                                                          Some(ReplyType::Fetch))?;
         reply.parts.pop_arg_if_kind(PartKind::ResultSet);
 
         let mut rs_core = self.core_ref.borrow_mut();
@@ -222,16 +223,16 @@ impl ResultSet {
     /// struct MyStruct {
     ///     ...
     /// }
-    /// let typed_result: Vec<MyStruct> = try!(resultset.into_typed());
+    /// let typed_result: Vec<MyStruct> = resultset.into_typed()?;
     /// ```
 
     pub fn into_typed<T>(mut self) -> HdbResult<T>
         where T: serde::de::Deserialize
     {
         trace!("ResultSet::into_typed()");
-        try!(self.fetch_all());  // FIXME should be avoided
+        self.fetch_all()?; // FIXME should be avoidable
         let mut rs_deserializer = RsDeserializer::new(self);
-        Ok(try!(serde::de::Deserialize::deserialize(&mut rs_deserializer)))
+        Ok(serde::de::Deserialize::deserialize(&mut rs_deserializer)?)
     }
 
     // FIXME implement DROP as send a request of type CLOSERESULTSET in case
@@ -240,10 +241,10 @@ impl ResultSet {
 
 impl fmt::Display for ResultSet {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(&self.metadata, fmt).unwrap();     // write a header
+        fmt::Display::fmt(&self.metadata, fmt).unwrap(); // write a header
         writeln!(fmt, "").unwrap();
         for row in &self.rows {
-            fmt::Display::fmt(&row, fmt).unwrap();           // write the data
+            fmt::Display::fmt(&row, fmt).unwrap(); // write the data
             writeln!(fmt, "").unwrap();
         }
         Ok(())
@@ -261,7 +262,7 @@ pub struct Row {
 impl fmt::Display for Row {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         for value in &self.values {
-            fmt::Display::fmt(&value, fmt).unwrap();         // write the value
+            fmt::Display::fmt(&value, fmt).unwrap(); // write the value
             write!(fmt, ", ").unwrap();
         }
         Ok(())
@@ -368,7 +369,7 @@ pub mod factory {
 
                 let mut result =
                     resultset_new(o_conn_ref, attributes, rs_id, rs_metadata, o_stmt_ctx);
-                try!(parse_rows(&mut result, no_of_rows, rdr));
+                parse_rows(&mut result, no_of_rows, rdr)?;
                 Ok(Some(result))
             }
 
@@ -387,7 +388,7 @@ pub mod factory {
                 };
 
                 fetching_resultset.core_ref.borrow_mut().attributes = attributes;
-                try!(parse_rows(fetching_resultset, no_of_rows, rdr));
+                parse_rows(fetching_resultset, no_of_rows, rdr)?;
                 Ok(None)
             }
         }
@@ -414,10 +415,8 @@ pub mod factory {
                                c,
                                typecode,
                                nullable);
-                        let value = try!(TypedValueFactory::parse_from_reply(typecode,
-                                                                             nullable,
-                                                                             conn_ref,
-                                                                             rdr));
+                        let value =
+                            TypedValueFactory::parse_from_reply(typecode, nullable, conn_ref, rdr)?;
                         trace!("Found value {:?}", value);
                         row.values.push(value);
                     }

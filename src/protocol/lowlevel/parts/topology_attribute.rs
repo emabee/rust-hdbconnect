@@ -11,7 +11,7 @@ pub struct TopologyAttr {
 }
 impl TopologyAttr {
     pub fn serialize(&self, w: &mut io::Write) -> PrtResult<()> {
-        try!(w.write_i8(self.id.to_i8()));                                      // I1
+        w.write_i8(self.id.to_i8())?; // I1
         self.value.serialize(w)
     }
 
@@ -20,8 +20,8 @@ impl TopologyAttr {
     }
 
     pub fn parse(rdr: &mut io::BufRead) -> PrtResult<TopologyAttr> {
-        let id = try!(TopologyAttrId::from_i8(try!(rdr.read_i8())));            // I1
-        let value = try!(OptionValue::parse(rdr));
+        let id = TopologyAttrId::from_i8(rdr.read_i8()?)?; // I1
+        let value = OptionValue::parse(rdr)?;
         Ok(TopologyAttr {
             id: id,
             value: value,

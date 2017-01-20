@@ -68,18 +68,16 @@ impl HdbResponse {
     /// Pops and returns the latest object as (), if that is a success.
     pub fn get_success(&mut self) -> HdbResult<()> {
         if let HdbResponse::MultipleReturnValues(ref mut vec) = *self {
-            match vec.iter().rposition(|x: &HdbReturnValue| {
-                match *x {
-                    HdbReturnValue::AffectedRows(ref vec) => {
-                        if vec.len() == 1 && vec.get(0) == Some(&0) {
-                            true
-                        } else {
-                            false
-                        }
+            match vec.iter().rposition(|x: &HdbReturnValue| match *x {
+                HdbReturnValue::AffectedRows(ref vec) => {
+                    if vec.len() == 1 && vec.get(0) == Some(&0) {
+                        true
+                    } else {
+                        false
                     }
-                    HdbReturnValue::Success => true,
-                    _ => false,
                 }
+                HdbReturnValue::Success => true,
+                _ => false,
             }) {
                 Some(idx) => {
                     vec.remove(idx);
@@ -96,7 +94,7 @@ impl HdbResponse {
     pub fn get_resultset(&mut self) -> HdbResult<ResultSet> {
         if let HdbResponse::MultipleReturnValues(ref mut vec) = *self {
             if let Some(HdbReturnValue::ResultSet(mut rs)) = vec.pop() {
-                try!(rs.fetch_all());
+                rs.fetch_all()?;
                 return Ok(rs);
             }
         }
@@ -118,11 +116,11 @@ impl fmt::Display for HdbResponse {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             HdbResponse::SingleReturnValue(ref dbretval) => {
-                try!(fmt::Display::fmt(dbretval, fmt));
+                fmt::Display::fmt(dbretval, fmt)?;
             }
             HdbResponse::MultipleReturnValues(ref vec) => {
                 for dbretval in vec {
-                    try!(fmt::Display::fmt(dbretval, fmt));
+                    fmt::Display::fmt(dbretval, fmt)?;
                 }
             }
         }
@@ -133,10 +131,10 @@ impl fmt::Display for HdbResponse {
 impl fmt::Display for HdbReturnValue {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            HdbReturnValue::AffectedRows(ref vec) => try!(fmt::Debug::fmt(vec, fmt)),
-            HdbReturnValue::OutputParameters(ref op) => try!(fmt::Display::fmt(op, fmt)),
-            HdbReturnValue::ResultSet(ref rs) => try!(fmt::Display::fmt(rs, fmt)),
-            HdbReturnValue::Success => try!(fmt::Display::fmt("Success", fmt)),
+            HdbReturnValue::AffectedRows(ref vec) => fmt::Debug::fmt(vec, fmt)?,
+            HdbReturnValue::OutputParameters(ref op) => fmt::Display::fmt(op, fmt)?,
+            HdbReturnValue::ResultSet(ref rs) => fmt::Display::fmt(rs, fmt)?,
+            HdbReturnValue::Success => fmt::Display::fmt("Success", fmt)?,
         }
         Ok(())
     }
@@ -238,9 +236,7 @@ pub mod factory {
                 Err(HdbError::EvaluationError("Found OutputParameters, but a single Success was \
                                                expected"))
             }
-            Some(InternalReturnValue::ResultSet(_)) => {
-                Err(HdbError::EvaluationError("Found ResultSet, but a single Success was expected"))
-            }
+            Some(InternalReturnValue::ResultSet(_)) => {Err(HdbError::EvaluationError("Found ResultSet, but a single Success was expected"))},
             None => {
                 Err(HdbError::EvaluationError("Nothing found, but a single Success was expected"))
             }
