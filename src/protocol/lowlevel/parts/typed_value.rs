@@ -305,14 +305,10 @@ pub fn serialize(tv: &TypedValue, data_pos: &mut i32, w: &mut io::Write) -> PrtR
             TypedValue::CLOB(ref clob) |
             TypedValue::N_CLOB(Some(ref clob)) |
             TypedValue::NCLOB(ref clob) |
-            TypedValue::N_NCLOB(Some(ref clob)) => {
-                serialize_clob_header(clob.len()?, data_pos, w)?
-            }
+            TypedValue::N_NCLOB(Some(ref clob)) => serialize_clob_header(clob.len()?, data_pos, w)?,
 
             TypedValue::BLOB(ref blob) |
-            TypedValue::N_BLOB(Some(ref blob)) => {
-                serialize_blob_header(blob.len()?, data_pos, w)?
-            }
+            TypedValue::N_BLOB(Some(ref blob)) => serialize_blob_header(blob.len()?, data_pos, w)?,
 
             TypedValue::STRING(ref s) |
             TypedValue::NSTRING(ref s) |

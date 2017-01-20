@@ -254,9 +254,9 @@ impl Request {
         w.write_i8(1)?; // I1 Segment kind: always 1 = Request
         w.write_i8(self.request_type.to_i8())?; // I1 "Message type"
         w.write_i8(match self.auto_commit {
-            true => 1,
-            _ => 0,
-        })?; // I1 auto_commit on/off
+             true => 1,
+             _ => 0,
+         })?; // I1 auto_commit on/off
         w.write_u8(self.command_options)?; // I1 Bit set for options
         for _ in 0..8 {
             w.write_u8(0)?;
@@ -329,12 +329,12 @@ impl Reply {
             Message::Reply(mut msg) => {
                 for _ in 0..no_of_parts {
                     let part = Part::parse(MsgType::Reply,
-                                                &mut (msg.parts),
-                                                Some(conn_ref),
-                                                rs_md,
-                                                par_md,
-                                                o_rs,
-                                                &mut rdr)?;
+                                           &mut (msg.parts),
+                                           Some(conn_ref),
+                                           rs_md,
+                                           par_md,
+                                           o_rs,
+                                           &mut rdr)?;
                     msg.push(part);
                 }
                 Ok(msg)

@@ -236,7 +236,10 @@ pub mod factory {
                 Err(HdbError::EvaluationError("Found OutputParameters, but a single Success was \
                                                expected"))
             }
-            Some(InternalReturnValue::ResultSet(_)) => {Err(HdbError::EvaluationError("Found ResultSet, but a single Success was expected"))},
+            Some(InternalReturnValue::ResultSet(_)) => {
+                Err(HdbError::EvaluationError("Found ResultSet, \
+                                               but a single Success was expected"))
+            }
             None => {
                 Err(HdbError::EvaluationError("Nothing found, but a single Success was expected"))
             }

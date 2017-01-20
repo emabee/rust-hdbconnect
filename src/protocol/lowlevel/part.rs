@@ -82,16 +82,16 @@ impl Part {
                no_of_args);
         Ok(Part::new(kind,
                      Argument::parse(msg_type,
-                                          kind,
-                                          attributes,
-                                          no_of_args,
-                                          arg_size,
-                                          already_received_parts,
-                                          o_conn_ref,
-                                          rs_md,
-                                          par_md,
-                                          o_rs,
-                                          rdr)?))
+                                     kind,
+                                     attributes,
+                                     no_of_args,
+                                     arg_size,
+                                     already_received_parts,
+                                     o_conn_ref,
+                                     rs_md,
+                                     par_md,
+                                     o_rs,
+                                     rdr)?))
     }
 }
 

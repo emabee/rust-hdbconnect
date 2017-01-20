@@ -160,8 +160,8 @@ impl Connection {
     /// Note that the handle keeps using the same connection.
     pub fn prepare(&self, stmt: &str) -> HdbResult<PreparedStatement> {
         let stmt = PreparedStatementFactory::prepare(self.core.clone(),
-                                                          String::from(stmt),
-                                                          self.auto_commit)?;
+                                                     String::from(stmt),
+                                                     self.auto_commit)?;
         Ok(stmt)
     }
 
