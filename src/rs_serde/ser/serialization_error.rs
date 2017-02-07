@@ -31,13 +31,13 @@ impl From<&'static str> for SerializationError {
 }
 
 impl serde::ser::Error for SerializationError {
-    fn custom<T: Into<String>>(msg: T) -> Self {
-        SerializationError::GeneralError(msg.into())
+    fn custom<T: fmt::Display>(msg: T) -> Self {
+        SerializationError::GeneralError(msg.to_string())
     }
 
-    fn invalid_value(msg: &str) -> Self {
-        SerializationError::InvalidValue(msg.into())
-    }
+    // fn invalid_value(msg: &str) -> Self {
+    //     SerializationError::InvalidValue(msg.into())
+    // }
 }
 
 impl fmt::Debug for SerializationError {
@@ -72,4 +72,4 @@ impl fmt::Display for SerializationError {
         fmt::Debug::fmt(&self, fmt)
     }
 }
-pub type SerializeResult<T> = Result<T, SerializationError>;
+pub type SerializationResult<T> = Result<T, SerializationError>;

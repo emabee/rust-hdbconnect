@@ -231,8 +231,7 @@ impl ResultSet {
     {
         trace!("ResultSet::into_typed()");
         self.fetch_all()?; // FIXME should be avoidable
-        let mut rs_deserializer = RsDeserializer::new(self);
-        Ok(serde::de::Deserialize::deserialize(&mut rs_deserializer)?)
+        Ok(serde::de::Deserialize::deserialize(&mut RsDeserializer::new(self))?)
     }
 
     // FIXME implement DROP as send a request of type CLOSERESULTSET in case

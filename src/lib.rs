@@ -1,26 +1,6 @@
 //! Experimental native rust database driver for SAP HANA(TM).
 //!
-//! This crate compiles with rust stable, but for using the interesting part of its API
-//! you need serde's serialization and deserialization. You either add
-//!
-//! ```ignore
-//! #![feature(proc_macro)]
-//!
-//! #[macro_use]
-//! extern crate serde_derive;
-//! ```
-//!
-//! to your crate root and
-//!
-//! ```ignore
-//! chrono = { version = "0.2", features = ["serde"] }
-//! serde_derive ="*"
-//! ```
-//!
-//! to your dependencies-list in Cargo.toml, and use rust nightly for compiling.
-//! Or you go with the somewhat cumbersome
-//! [workaround](https://serde.rs/codegen-stable.html)
-//! described by serde to stick with rust stable.
+//! This crate uses serde and compiles with rust stable as of version 1.15.
 //!
 //! The reason for publishing this driver in its immature state is to
 //! <b>demonstrate how [serde](https://serde.rs/)

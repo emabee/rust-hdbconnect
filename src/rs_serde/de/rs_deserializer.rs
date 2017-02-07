@@ -2,13 +2,10 @@ use protocol::lowlevel::parts::resultset::ResultSet;
 use protocol::lowlevel::parts::typed_value::TypedValue;
 use types::LongDate;
 use super::deserialization_error::{DeserError, DeserResult, prog_err};
-use super::fields_visitor::FieldsVisitor;
-use super::rows_visitor::RowsVisitor;
 use super::super::hdbdate::str_from_longdate;
 
 use serde;
-use std::mem::size_of;
-use std::{u8, u16, u32, usize, i8, i16, i32, isize};
+use std::{u8, u16, u32, usize, i8, i16, i32};
 
 /// Deserialize a ResultSet into a normal rust type.
 ///
@@ -210,12 +207,12 @@ impl RsDeserializer {
 }
 
 
-impl serde::de::Deserializer for RsDeserializer {
+impl<'a> serde::Deserializer for &'a mut RsDeserializer {
     type Error = DeserError;
 
     /// This method walks a visitor through a value as it is being deserialized.
     #[allow(unused_variables)]
-    fn deserialize<V>(&mut self, mut visitor: V) -> DeserResult<V::Value>
+    fn deserialize<V>(mut self, visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor
     {
         trace!("RsDeserializer::deserialize() called");
@@ -227,7 +224,7 @@ impl serde::de::Deserializer for RsDeserializer {
     }
 
     /// This method hints that the `Deserialize` type is expecting a `bool` value.
-    fn deserialize_bool<V>(&mut self, mut visitor: V) -> DeserResult<V::Value>
+    fn deserialize_bool<V>(mut self, visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor
     {
         trace!("RsDeserializer::deserialize_bool() called");
@@ -238,61 +235,8 @@ impl serde::de::Deserializer for RsDeserializer {
         }
     }
 
-    /// This method hints that the `Deserialize` type is expecting an `usize` value.
-    fn deserialize_usize<V>(&mut self, mut visitor: V) -> DeserResult<V::Value>
-        where V: serde::de::Visitor
-    {
-        trace!("RsDeserializer::deserialize_usize() called");
-        match self.current_value_pop()? {
-            TypedValue::TINYINT(u) |
-            TypedValue::N_TINYINT(Some(u)) => visitor.visit_usize(u as usize),
-
-            TypedValue::SMALLINT(i) |
-            TypedValue::N_SMALLINT(Some(i)) => {
-                if i >= 0 {
-                    visitor.visit_usize(i as usize)
-                } else {
-                    Err(self.number_range(&(i as i64), "usize"))
-                }
-            }
-
-            TypedValue::INT(i) |
-            TypedValue::N_INT(Some(i)) => {
-                if i >= 0 {
-                    visitor.visit_usize(i as usize)
-                } else {
-                    Err(self.number_range(&(i as i64), "usize"))
-                }
-            }
-
-            TypedValue::BIGINT(i) |
-            TypedValue::N_BIGINT(Some(i)) => {
-                if size_of::<usize>() == size_of::<u64>() {
-                    // usize is 8 bytes
-                    if i >= 0 {
-                        visitor.visit_usize(i as usize)
-                    } else {
-                        Err(self.number_range(&i, "usize"))
-                    }
-
-                } else if size_of::<usize>() == size_of::<u32>() {
-                    // usize is 4 bytes
-                    if (i >= 0) && (i <= usize::MAX as i64) {
-                        visitor.visit_usize(i as usize)
-                    } else {
-                        Err(self.number_range(&i, "usize"))
-                    }
-                } else {
-                    Err(self.number_range(&i, "usize - unexpected size of usize !!"))
-                }
-            }
-
-            value => Err(self.wrong_type(&value, "usize")),
-        }
-    }
-
     /// This method hints that the `Deserialize` type is expecting an `u8` value.
-    fn deserialize_u8<V>(&mut self, mut visitor: V) -> DeserResult<V::Value>
+    fn deserialize_u8<V>(mut self, visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor
     {
         trace!("RsDeserializer::deserialize_u8() called");
@@ -332,7 +276,7 @@ impl serde::de::Deserializer for RsDeserializer {
     }
 
     /// This method hints that the `Deserialize` type is expecting an `u16` value.
-    fn deserialize_u16<V>(&mut self, mut visitor: V) -> DeserResult<V::Value>
+    fn deserialize_u16<V>(mut self, visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor
     {
         trace!("RsDeserializer::deserialize_u16() called");
@@ -372,7 +316,7 @@ impl serde::de::Deserializer for RsDeserializer {
     }
 
     /// This method hints that the `Deserialize` type is expecting an `u32` value.
-    fn deserialize_u32<V>(&mut self, mut visitor: V) -> DeserResult<V::Value>
+    fn deserialize_u32<V>(mut self, visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor
     {
         trace!("RsDeserializer::deserialize_u32() called");
@@ -412,7 +356,7 @@ impl serde::de::Deserializer for RsDeserializer {
     }
 
     /// This method hints that the `Deserialize` type is expecting an `u64` value.
-    fn deserialize_u64<V>(&mut self, mut visitor: V) -> DeserResult<V::Value>
+    fn deserialize_u64<V>(mut self, visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor
     {
         trace!("RsDeserializer::deserialize_u64() called");
@@ -451,45 +395,8 @@ impl serde::de::Deserializer for RsDeserializer {
         }
     }
 
-    /// This method hints that the `Deserialize` type is expecting an `isize` value.
-    fn deserialize_isize<V>(&mut self, mut visitor: V) -> DeserResult<V::Value>
-        where V: serde::de::Visitor
-    {
-        trace!("RsDeserializer::deserialize_isize() called");
-        match self.current_value_pop()? {
-            TypedValue::TINYINT(u) |
-            TypedValue::N_TINYINT(Some(u)) => visitor.visit_isize(u as isize),
-
-            TypedValue::SMALLINT(i) |
-            TypedValue::N_SMALLINT(Some(i)) => visitor.visit_isize(i as isize),
-
-            TypedValue::INT(i) |
-            TypedValue::N_INT(Some(i)) => visitor.visit_isize(i as isize),
-
-            TypedValue::BIGINT(i) |
-            TypedValue::N_BIGINT(Some(i)) => {
-                if size_of::<isize>() == size_of::<i64>() {
-                    // isize is 8 bytes
-                    visitor.visit_isize(i as isize)
-
-                } else if size_of::<isize>() == size_of::<i32>() {
-                    // isize is 4 bytes
-                    if (i >= isize::MIN as i64) && (i <= isize::MAX as i64) {
-                        visitor.visit_isize(i as isize)
-                    } else {
-                        Err(self.number_range(&i, "isize"))
-                    }
-                } else {
-                    Err(self.number_range(&i, "isize - unexpected size of isize !!"))
-                }
-            }
-
-            value => Err(self.wrong_type(&value, "isize")),
-        }
-    }
-
     /// This method hints that the `Deserialize` type is expecting an `i8` value.
-    fn deserialize_i8<V>(&mut self, mut visitor: V) -> DeserResult<V::Value>
+    fn deserialize_i8<V>(mut self, visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor
     {
         trace!("RsDeserializer::deserialize_i8() called");
@@ -535,7 +442,7 @@ impl serde::de::Deserializer for RsDeserializer {
     }
 
     /// This method hints that the `Deserialize` type is expecting an `i16` value.
-    fn deserialize_i16<V>(&mut self, mut visitor: V) -> DeserResult<V::Value>
+    fn deserialize_i16<V>(mut self, visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor
     {
         trace!("RsDeserializer::deserialize_i16() called");
@@ -569,7 +476,7 @@ impl serde::de::Deserializer for RsDeserializer {
     }
 
     /// This method hints that the `Deserialize` type is expecting an `i32` value.
-    fn deserialize_i32<V>(&mut self, mut visitor: V) -> DeserResult<V::Value>
+    fn deserialize_i32<V>(mut self, visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor
     {
         trace!("RsDeserializer::deserialize_i32() called");
@@ -597,7 +504,7 @@ impl serde::de::Deserializer for RsDeserializer {
     }
 
     /// This method hints that the `Deserialize` type is expecting an `i64` value.
-    fn deserialize_i64<V>(&mut self, mut visitor: V) -> DeserResult<V::Value>
+    fn deserialize_i64<V>(mut self, visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor
     {
         trace!("RsDeserializer::deserialize_i64() called");
@@ -621,7 +528,7 @@ impl serde::de::Deserializer for RsDeserializer {
     }
 
     /// This method hints that the `Deserialize` type is expecting a `f32` value.
-    fn deserialize_f32<V>(&mut self, mut visitor: V) -> DeserResult<V::Value>
+    fn deserialize_f32<V>(mut self, visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor
     {
         trace!("RsDeserializer::deserialize_f32() called");
@@ -633,7 +540,7 @@ impl serde::de::Deserializer for RsDeserializer {
     }
 
     /// This method hints that the `Deserialize` type is expecting a `f64` value.
-    fn deserialize_f64<V>(&mut self, mut visitor: V) -> DeserResult<V::Value>
+    fn deserialize_f64<V>(mut self, visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor
     {
         trace!("RsDeserializer::deserialize_f64() called");
@@ -646,14 +553,14 @@ impl serde::de::Deserializer for RsDeserializer {
 
     /// This method hints that the `Deserialize` type is expecting a `char` value.
     #[allow(unused_variables)]
-    fn deserialize_char<V>(&mut self, visitor: V) -> DeserResult<V::Value>
+    fn deserialize_char<V>(self, visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor
     {
         panic!("RsDeserializer::deserialize_char() not implemented!");
     }
 
     /// This method hints that the `Deserialize` type is expecting a `&str` value.
-    fn deserialize_str<V>(&mut self, visitor: V) -> DeserResult<V::Value>
+    fn deserialize_str<V>(self, visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor
     {
         trace!("RsDeserializer::deserialize_str() called");
@@ -661,7 +568,7 @@ impl serde::de::Deserializer for RsDeserializer {
     }
 
     /// This method hints that the `Deserialize` type is expecting a `String` value.
-    fn deserialize_string<V>(&mut self, mut visitor: V) -> DeserResult<V::Value>
+    fn deserialize_string<V>(mut self, visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor
     {
         trace!("RsDeserializer::deserialize_string() called");
@@ -683,6 +590,9 @@ impl serde::de::Deserializer for RsDeserializer {
             TypedValue::N_SHORTTEXT(Some(s)) |
             TypedValue::N_TEXT(Some(s)) => visitor.visit_string(s),
 
+            TypedValue::LONGDATE(ld) |
+            TypedValue::N_LONGDATE(Some(ld)) => visitor.visit_str(&str_from_longdate(&ld)),
+
             TypedValue::CLOB(clob) |
             TypedValue::NCLOB(clob) |
             TypedValue::N_CLOB(Some(clob)) |
@@ -694,7 +604,7 @@ impl serde::de::Deserializer for RsDeserializer {
 
     /// This method hints that the `Deserialize` type is expecting an `unit` value.
     #[allow(unused_variables)]
-    fn deserialize_unit<V>(&mut self, visitor: V) -> DeserResult<V::Value>
+    fn deserialize_unit<V>(self, visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor
     {
         panic!("RsDeserializer::deserialize_unit(): not implemented!");
@@ -704,7 +614,7 @@ impl serde::de::Deserializer for RsDeserializer {
     /// deserializers that encode an optional value as a nullable value to convert the null value
     /// into a `None`, and a regular value as `Some(value)`.
     #[inline]
-    fn deserialize_option<V>(&mut self, mut visitor: V) -> DeserResult<V::Value>
+    fn deserialize_option<V>(mut self, visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor
     {
         trace!("RsDeserializer::deserialize_option() called");
@@ -791,7 +701,7 @@ impl serde::de::Deserializer for RsDeserializer {
     /// This method hints that the `Deserialize` type is expecting a sequence value. This allows
     /// deserializers to parse sequences that aren't tagged as sequences.
     #[inline]
-    fn deserialize_seq<V>(&mut self, mut visitor: V) -> DeserResult<V::Value>
+    fn deserialize_seq<V>(mut self, visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor
     {
         trace!("RsDeserializer::deserialize_seq() called");
@@ -805,16 +715,15 @@ impl serde::de::Deserializer for RsDeserializer {
             _ => {
                 self.rows_treat = MCD::Done;
                 self.rs.reverse_rows(); // consuming from the end is easier and faster
-                visitor.visit_seq(RowsVisitor::new(self))
+                visitor.visit_seq(RowsVisitor::new(&mut self))
             }
         }
     }
 
-    // This method hints that the Deserialize type is expecting a fixed size array.
-    // This allows deserializers to parse arrays that aren't tagged as arrays.
+    /// This method hints that the Deserialize type is expecting a fixed size array.
+    /// This allows deserializers to parse arrays that aren't tagged as arrays.
     #[allow(unused_variables)]
-    fn deserialize_seq_fixed_size<V>(&mut self, len: usize, visitor: V)
-                                     -> Result<V::Value, Self::Error>
+    fn deserialize_seq_fixed_size<V>(self, len: usize, visitor: V) -> Result<V::Value, Self::Error>
         where V: serde::de::Visitor
     {
         panic!("RsDeserializer::deserialize_seq_fixed_size(): not implemented!");
@@ -823,7 +732,7 @@ impl serde::de::Deserializer for RsDeserializer {
     /// This method hints that the `Deserialize` type is expecting a map of values. This allows
     /// deserializers to parse sequences that aren't tagged as maps.
     #[allow(unused_variables)]
-    fn deserialize_map<V>(&mut self, visitor: V) -> DeserResult<V::Value>
+    fn deserialize_map<V>(self, visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor
     {
         panic!("RsDeserializer::deserialize_map(): not implemented!");
@@ -832,8 +741,7 @@ impl serde::de::Deserializer for RsDeserializer {
     /// This method hints that the `Deserialize` type is expecting a unit struct. This allows
     /// deserializers to a unit struct that aren't tagged as a unit struct.
     #[allow(unused_variables)]
-    fn deserialize_unit_struct<V>(&mut self, _name: &'static str, visitor: V)
-                                  -> DeserResult<V::Value>
+    fn deserialize_unit_struct<V>(self, _name: &'static str, visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor
     {
         panic!("RsDeserializer::deserialize_unit_struct(): not implemented!");
@@ -841,8 +749,7 @@ impl serde::de::Deserializer for RsDeserializer {
 
     /// This method hints that the `Deserialize` type is expecting a newtype struct. This allows
     /// deserializers to a newtype struct that aren't tagged as a newtype struct.
-    fn deserialize_newtype_struct<V>(&mut self, _name: &'static str, mut visitor: V)
-                                     -> DeserResult<V::Value>
+    fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor
     {
         trace!("RsDeserializer::deserialize_newtype_struct() called with _name = {}", _name);
@@ -853,7 +760,7 @@ impl serde::de::Deserializer for RsDeserializer {
     /// This method hints that the `Deserialize` type is expecting a tuple struct. This allows
     /// deserializers to parse sequences that aren't tagged as sequences.
     #[allow(unused_variables)]
-    fn deserialize_tuple_struct<V>(&mut self, _name: &'static str, len: usize, visitor: V)
+    fn deserialize_tuple_struct<V>(self, _name: &'static str, len: usize, visitor: V)
                                    -> DeserResult<V::Value>
         where V: serde::de::Visitor
     {
@@ -863,8 +770,8 @@ impl serde::de::Deserializer for RsDeserializer {
 
     /// This method hints that the `Deserialize` type is expecting a struct. This allows
     /// deserializers to parse sequences that aren't tagged as maps.
-    fn deserialize_struct<V>(&mut self, _name: &'static str, _fields: &'static [&'static str],
-                             mut visitor: V)
+    fn deserialize_struct<V>(mut self, _name: &'static str, _fields: &'static [&'static str],
+                             visitor: V)
                              -> DeserResult<V::Value>
         where V: serde::de::Visitor
     {
@@ -877,17 +784,57 @@ impl serde::de::Deserializer for RsDeserializer {
                     _ => {
                         self.cols_treat = MCD::Done;
                         self.rows_treat = MCD::Done; // in case we deserialize into a plain struct
-                        visitor.visit_map(FieldsVisitor::new(self))
+                        visitor.visit_map(FieldsVisitor::new(&mut self))
                     }
                 }
             }
         }
     }
 
-    /// This method hints that the `Deserialize` type is expecting a `Vec<u8>`. This allows
-    /// deserializers that provide a custom byte vector serialization to properly deserialize the
-    /// type.
-    fn deserialize_bytes<V>(&mut self, mut visitor: V) -> DeserResult<V::Value>
+    /// Hint that the `Deserialize` type is expecting a byte array and does not
+    /// benefit from taking ownership of buffered data owned by the
+    /// `Deserializer`.
+    ///
+    /// If the `Visitor would benefit from taking ownership of `Vec<u8>` data,
+    /// indicate this to the `Deserializer` by using `deserialize_byte_buf`
+    /// instead.
+    fn deserialize_bytes<V>(mut self, visitor: V) -> DeserResult<V::Value>
+        where V: serde::de::Visitor
+    {
+        trace!("RsDeserializer::deserialize_bytes() called");
+        // self.deserialize_seq(visitor)
+        match self.current_value_pop()? {
+            TypedValue::BLOB(blob) |
+            TypedValue::N_BLOB(Some(blob)) => {
+                match visitor.visit_bytes(&blob.into_bytes()?) {
+                    Ok(v) => Ok(v),
+                    Err(e) => {
+                        trace!("ERRRRRRRRR: {:?}", e);
+                        Err(e)
+                    }
+                }
+            }
+
+            TypedValue::BINARY(v) |
+            TypedValue::VARBINARY(v) |
+            TypedValue::BSTRING(v) |
+            TypedValue::N_BINARY(Some(v)) |
+            TypedValue::N_VARBINARY(Some(v)) |
+            TypedValue::N_BSTRING(Some(v)) => visitor.visit_bytes(&v),
+
+            value => return Err(self.wrong_type(&value, "seq")),
+        }
+    }
+
+    /// Hint that the `Deserialize` type is expecting a byte array and would
+    /// benefit from taking ownership of buffered data owned by the
+    /// `Deserializer`.
+    ///
+    /// If the `Visitor` would not benefit from taking ownership of `Vec<u8>`
+    /// data, indicate that to the `Deserializer` by using `deserialize_bytes`
+    /// instead.
+    // FIXME check the implementation (it was just copied)
+    fn deserialize_byte_buf<V>(mut self, visitor: V) -> Result<V::Value, Self::Error>
         where V: serde::de::Visitor
     {
         trace!("RsDeserializer::deserialize_bytes() called");
@@ -918,7 +865,7 @@ impl serde::de::Deserializer for RsDeserializer {
     /// This method hints that the Deserialize type is expecting some sort of struct field name.
     /// This allows deserializers to choose between &str, usize, or &[u8] to properly deserialize
     /// a struct field.
-    fn deserialize_struct_field<V>(&mut self, mut visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_struct_field<V>(mut self, visitor: V) -> Result<V::Value, Self::Error>
         where V: serde::de::Visitor
     {
         match self.next_key {
@@ -941,21 +888,19 @@ impl serde::de::Deserializer for RsDeserializer {
     /// This allows deserializers that provide a custom tuple serialization
     /// to properly deserialize the type.
     #[allow(unused_variables)]
-    fn deserialize_tuple<V>(&mut self, _len: usize, visitor: V) -> DeserResult<V::Value>
+    fn deserialize_tuple<V>(self, _len: usize, visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor
     {
         panic!("RsDeserializer::deserialize_tuple() not implemented")
         // self.deserialize_seq(visitor) ?
     }
 
-    /// This method hints that the Deserialize type is expecting an enum value.
-    /// This allows deserializers that provide a custom enumeration serialization
-    /// to properly deserialize the type.
-    #[allow(unused_variables)]
-    fn deserialize_enum<V>(&mut self, name: &'static str, variants: &'static [&'static str],
-                           visitor: V)
+    /// Hint that the `Deserialize` type is expecting an enum value with a
+    /// particular name and possible variants.
+    fn deserialize_enum<V>(self, _name: &'static str, _variants: &'static [&'static str],
+                           _visitor: V)
                            -> Result<V::Value, Self::Error>
-        where V: serde::de::EnumVisitor
+        where V: serde::de::Visitor
     {
         panic!("RsDeserializer::deserialize_enum() not implemented")
     }
@@ -963,9 +908,110 @@ impl serde::de::Deserializer for RsDeserializer {
     /// This method hints that the Deserialize type needs to deserialize a value
     /// whose type doesn't matter because it is ignored.
     #[allow(unused_variables)]
-    fn deserialize_ignored_any<V>(&mut self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_ignored_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
         where V: serde::de::Visitor
     {
         panic!("RsDeserializer::deserialize_ignored_any() not implemented")
+    }
+}
+
+
+
+
+struct RowsVisitor<'a> {
+    de: &'a mut RsDeserializer,
+}
+
+impl<'a> RowsVisitor<'a> {
+    pub fn new(de: &'a mut RsDeserializer) -> Self {
+        trace!("RowsVisitor::new()");
+        RowsVisitor { de: de }
+    }
+}
+
+impl<'a> serde::de::SeqVisitor for RowsVisitor<'a> {
+    type Error = DeserError;
+
+    /// Returns `Ok(Some(value))` for the next value in the sequence, or
+    /// `Ok(None)` if there are no more remaining items.
+    fn visit_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>, Self::Error>
+        where T: serde::de::DeserializeSeed
+    {
+        trace!("RowsVisitor.visit_seed()");
+        match self.de.has_rows()? {
+            false => {
+                trace!("RowsVisitor::visit(): no more rows");
+                Ok(None)
+            }
+            _ => {
+                trace!("RowsVisitor.visit_seed calls seed.deserialize(...)");
+                match seed.deserialize(&mut *self.de) {
+                    Err(e) => {
+                        trace!("RowsVisitor::visit() fails");
+                        Err(e)
+                    }
+                    Ok(v) => {
+                        trace!("RowsVisitor::visit(): switch to next row");
+                        self.de.switch_to_next_row();
+                        Ok(Some(v))
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+
+struct FieldsVisitor<'a> {
+    de: &'a mut RsDeserializer,
+}
+
+impl<'a> FieldsVisitor<'a> {
+    pub fn new(de: &'a mut RsDeserializer) -> Self {
+        trace!("FieldsVisitor::new()");
+        FieldsVisitor { de: de }
+    }
+}
+
+impl<'a> serde::de::MapVisitor for FieldsVisitor<'a> {
+    type Error = DeserError;
+
+    /// This returns `Ok(Some(key))` for the next key in the map, or `Ok(None)`
+    /// if there are no more remaining entries.
+    fn visit_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Self::Error>
+        where K: serde::de::DeserializeSeed
+    {
+        match self.de.last_row_length() {
+            0 => {
+                trace!("FieldsVisitor::visit_key() called on empty row");
+                Ok(None)
+            }
+            len => {
+                let idx = len - 1;
+                trace!("FieldsVisitor::visit_key() for col {}", idx);
+                self.de.set_next_key(Some(idx));
+                match seed.deserialize(&mut *self.de) {
+                    Ok(res) => Ok(Some(res)),
+                    Err(_) => {
+                        let fname = self.de.get_fieldname(idx);
+                        Err(DeserError::UnknownField(fname.clone()))
+                    }
+                }
+            }
+        }
+    }
+
+    /// This returns a `Ok(value)` for the next value in the map.
+    fn visit_value_seed<V>(&mut self, seed: V) -> Result<V::Value, Self::Error>
+        where V: serde::de::DeserializeSeed
+    {
+        match self.de.last_row_length() {
+            0 => Err(prog_err("FieldsVisitor::visit_value(): no more value")),
+            len => {
+                trace!("FieldsVisitor::visit_value() for col {}", len - 1);
+                seed.deserialize(&mut *self.de)
+            }
+        }
     }
 }

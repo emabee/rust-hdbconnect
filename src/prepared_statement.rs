@@ -5,7 +5,7 @@ use protocol::lowlevel::message::Request;
 use protocol::lowlevel::request_type::RequestType;
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::partkind::PartKind;
-use protocol::lowlevel::parts::parameter_metadata::ParameterMetadata;
+use protocol::lowlevel::parts::parameter_metadata::{ParameterDescriptor, ParameterMetadata, ParMode};
 use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
 use protocol::lowlevel::parts::parameters::{ParameterRow, Parameters};
 use rs_serde::ser::SerializationError;
@@ -30,15 +30,24 @@ pub struct PreparedStatement {
 }
 
 impl PreparedStatement {
-    /// Adds the values from the rust-typed from_row to the batch,
+    /// Adds the values from the rust-typed input to the batch,
     /// if it is consistent with the metadata.
-    pub fn add_batch<T>(&mut self, from_row: &T) -> HdbResult<()>
+    pub fn add_batch<T>(&mut self, input: &T) -> HdbResult<()>
         where T: serde::ser::Serialize
     {
         trace!("PreparedStatement::add_batch() called");
         match (&(self.o_par_md), &mut (self.o_batch)) {
             (&Some(ref metadata), &mut Some(ref mut vec)) => {
-                let row = Serializer::into_row(from_row, &metadata)?;
+
+                let mut input_metadata = Vec::<ParameterDescriptor>::new();
+                for ref pd in &metadata.descriptors {
+                    match pd.mode {
+                        ParMode::IN | ParMode::INOUT => input_metadata.push((*pd).clone()),
+                        ParMode::OUT => {}
+                    }
+                }
+
+                let row = Serializer::into_row(input, input_metadata)?;
                 vec.push(row);
                 Ok(())
             }

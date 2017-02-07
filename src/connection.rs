@@ -60,7 +60,7 @@ impl Connection {
         trace!("connection is initialized");
 
         let conn_ref = ConnectionCore::new_conn_ref(tcp_stream);
-        let delta = match (Local::now() - start).num_microseconds() {
+        let delta = match (Local::now().signed_duration_since(start)).num_microseconds() {
             Some(m) => m,
             None => -1,
         };
@@ -91,7 +91,7 @@ impl Connection {
             username: String::from(username),
             password: String::from(password),
         });
-        let delta = match (Local::now() - start).num_microseconds() {
+        let delta = match (Local::now().signed_duration_since(start)).num_microseconds() {
             Some(m) => m,
             None => -1,
         };

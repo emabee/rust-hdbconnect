@@ -195,7 +195,7 @@ impl Request {
         reply.assert_expected_fc(expected_fc)?;
 
         debug!("Request::send_and_receive_detailed() took {} ms",
-               (Local::now() - _start).num_milliseconds());
+               (Local::now().signed_duration_since(_start)).num_milliseconds());
         Ok(reply)
     }
 
@@ -366,7 +366,7 @@ impl Reply {
                 match err_part.arg {
                     Argument::Error(vec) => {
                         let err = PrtError::DbMessage(vec);
-                        warn!("{}", err);
+                        debug!("{}", err);
                         Err(err)
                     }
                     _ => Err(prot_err("assert_no_error: inconsistent error part found")),

@@ -47,19 +47,19 @@ impl From<PrtError> for DeserError {
 }
 
 impl serde::de::Error for DeserError {
-    fn custom<T: Into<String>>(msg: T) -> Self {
-        DeserError::CustomError(msg.into())
+    fn custom<T: fmt::Display>(msg: T) -> Self {
+        DeserError::CustomError(msg.to_string())
     }
 
-    fn end_of_stream() -> DeserError {
-        DeserError::TrailingRows
-    }
-    fn unknown_field(field: &str) -> DeserError {
-        DeserError::UnknownField(String::from(field))
-    }
-    fn missing_field(field: &str) -> DeserError {
-        DeserError::MissingField(String::from(field))
-    }
+    // fn end_of_stream() -> DeserError {
+    //     DeserError::TrailingRows
+    // }
+    // fn unknown_field(field: &str) -> DeserError {
+    //     DeserError::UnknownField(String::from(field))
+    // }
+    // fn missing_field(field: &str) -> DeserError {
+    //     DeserError::MissingField(String::from(field))
+    // }
 }
 impl fmt::Debug for DeserError {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {

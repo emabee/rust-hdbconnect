@@ -2,3 +2,4 @@ target
 z_docs
 z_logs
 *.log
+db_access.json
