@@ -58,6 +58,7 @@ fn very_simple_procedure(connection: &mut Connection) -> HdbResult<()> {
     response.get_success()?;
     let resultset = response.get_resultset()?;
     debug!("resultset = {}", resultset);
+    test_utils::statement_ignore_err(connection, vec!["drop procedure TEST_PROCEDURE"]);
     Ok(())
 }
 
@@ -90,7 +91,7 @@ fn procedure_with_out_resultsets(connection: &mut Connection) -> HdbResult<()> {
     debug!("procedures = {}", response.get_resultset()?);
     debug!("hana_dus = {}", response.get_resultset()?);
     debug!("other_dus = {}", response.get_resultset()?);
-
+    test_utils::statement_ignore_err(connection, vec!["drop procedure GET_PROCEDURES"]);
     Ok(())
 }
 
@@ -120,7 +121,7 @@ fn procedure_with_secret_resultsets(connection: &mut Connection) -> HdbResult<()
     debug!("procedures = {}", response.get_resultset()?);
     debug!("hana_dus = {}", response.get_resultset()?);
     debug!("other_dus = {}", response.get_resultset()?);
-
+    test_utils::statement_ignore_err(connection, vec!["drop procedure GET_PROCEDURES_SECRETLY"]);
     Ok(())
 }
 
@@ -142,6 +143,7 @@ fn procedure_with_in_parameters(connection: &mut Connection) -> HdbResult<()> {
     response.get_success()?;
     let rs = response.get_resultset()?;
     debug!("resultset = {:?}", rs);
+    test_utils::statement_ignore_err(connection, vec!["drop procedure TEST_INPUT_PARS"]);
     Ok(())
 }
 
@@ -160,7 +162,7 @@ fn procedure_with_in_and_out_parameters(connection: &mut Connection) -> HdbResul
                                                SELECT some_number AS \"I\" FROM DUMMY; END;"])?;
 
     let mut prepared_stmt = connection.prepare("call TEST_INPUT_AND_OUTPUT_PARS(?,?)")?;
-    prepared_stmt.add_batch(&(42))?;
+    prepared_stmt.add_batch(42)?;
     let mut response = prepared_stmt.execute_batch()?;
     debug!("response = {:?}", response);
     response.get_success()?;
@@ -168,6 +170,7 @@ fn procedure_with_in_and_out_parameters(connection: &mut Connection) -> HdbResul
     debug!("output_parameters = {}", op);
     let rs = response.get_resultset()?;
     debug!("resultset = {}", rs);
+    test_utils::statement_ignore_err(connection, vec!["drop procedure TEST_INPUT_AND_OUTPUT_PARS"]);
     Ok(())
 }
 
@@ -180,12 +183,13 @@ fn procedure_with_in_nclob(connection: &mut Connection) -> HdbResult<()> {
                                                AS BEGIN SELECT some_string AS \"A\" FROM DUMMY; END;"])?;
 
     let mut prepared_stmt = connection.prepare("call TEST_CLOB_INPUT_PARS(?)")?;
-    prepared_stmt.add_batch(&("nclob string"))?;
+    prepared_stmt.add_batch("nclob string")?;
     let mut response = prepared_stmt.execute_batch()?;
     debug!("response = {:?}", response);
     response.get_success()?;
     let rs = response.get_resultset()?;
     debug!("resultset = {:?}", rs);
+    test_utils::statement_ignore_err(connection, vec!["drop procedure TEST_CLOB_INPUT_PARS"]);
     Ok(())
 
 }
