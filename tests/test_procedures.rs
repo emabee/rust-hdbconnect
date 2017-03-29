@@ -185,7 +185,7 @@ fn procedure_with_in_nclob_non_consuming(connection: &mut Connection) -> HdbResu
     let mut prepared_stmt = connection.prepare("call TEST_CLOB_INPUT_PARS(?)")?;
     let my_parameter = "nclob string".to_string();
     prepared_stmt.add_batch(&my_parameter)?;
-    println!("Still owned {:?}", &my_parameter);
+    debug!("Still owned {:?}", &my_parameter);
     let mut response = prepared_stmt.execute_batch()?;
     debug!("response = {:?}", response);
     response.get_success()?;
