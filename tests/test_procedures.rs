@@ -40,7 +40,7 @@ fn impl_test_procedures() -> HdbResult<i32> {
     // test OUT, INOUT parameters
     procedure_with_in_and_out_parameters(&mut connection)?;
 
-    procedure_with_in_nclob(&mut connection)?;
+    procedure_with_in_nclob_non_consuming(&mut connection)?;
     Ok(connection.get_call_count())
 }
 
@@ -174,7 +174,7 @@ fn procedure_with_in_and_out_parameters(connection: &mut Connection) -> HdbResul
     Ok(())
 }
 
-fn procedure_with_in_nclob(connection: &mut Connection) -> HdbResult<()> {
+fn procedure_with_in_nclob_non_consuming(connection: &mut Connection) -> HdbResult<()> {
     info!("verify that we can convert to nclob");
 
     test_utils::statement_ignore_err(connection, vec!["drop procedure TEST_CLOB_INPUT_PARS"]);
@@ -183,7 +183,9 @@ fn procedure_with_in_nclob(connection: &mut Connection) -> HdbResult<()> {
                                                AS BEGIN SELECT some_string AS \"A\" FROM DUMMY; END;"])?;
 
     let mut prepared_stmt = connection.prepare("call TEST_CLOB_INPUT_PARS(?)")?;
-    prepared_stmt.add_batch("nclob string")?;
+    let my_parameter = "nclob string".to_string();
+    prepared_stmt.add_batch(&my_parameter)?;
+    println!("Still owned {:?}", &my_parameter);
     let mut response = prepared_stmt.execute_batch()?;
     debug!("response = {:?}", response);
     response.get_success()?;
