@@ -32,8 +32,7 @@ pub struct PreparedStatement {
 impl PreparedStatement {
     /// Adds the values from the rust-typed input to the batch,
     /// if it is consistent with the metadata.
-    pub fn add_batch<T>(&mut self, input: &T) -> HdbResult<()>
-        where T: serde::ser::Serialize
+    pub fn add_batch<T: serde::ser::Serialize>(&mut self, input: T) -> HdbResult<()>
     {
         trace!("PreparedStatement::add_batch() called");
         match (&(self.o_par_md), &mut (self.o_batch)) {
@@ -47,7 +46,7 @@ impl PreparedStatement {
                     }
                 }
 
-                let row = Serializer::into_row(input, input_metadata)?;
+                let row = Serializer::into_row(&input, input_metadata)?;
                 vec.push(row);
                 Ok(())
             }

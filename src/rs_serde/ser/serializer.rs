@@ -435,7 +435,7 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
         let s = String::from(value);
         match self.expected_type_code()? {
             TYPEID_CHAR | TYPEID_VARCHAR | TYPEID_NCHAR | TYPEID_NVARCHAR | TYPEID_STRING |
-            TYPEID_NSTRING | TYPEID_TEXT | TYPEID_SHORTTEXT => {
+            TYPEID_NSTRING | TYPEID_TEXT | TYPEID_SHORTTEXT | TYPEID_N_CLOB | TYPEID_N_NCLOB | TYPEID_NCLOB | TYPEID_CLOB => {
                 self.output.push(TypedValue::STRING(s))
             }
             TYPEID_LONGDATE => self.output.push(TypedValue::LONGDATE(longdate_from_str(value)?)),

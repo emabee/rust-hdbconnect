@@ -30,16 +30,17 @@ pub fn test_procedures() {
 fn impl_test_procedures() -> HdbResult<i32> {
     let mut connection = test_utils::get_authenticated_connection();
 
-    try!(very_simple_procedure(&mut connection));
-    try!(procedure_with_out_resultsets(&mut connection));
-    try!(procedure_with_secret_resultsets(&mut connection));
+    very_simple_procedure(&mut connection)?;
+    procedure_with_out_resultsets(&mut connection)?;
+    procedure_with_secret_resultsets(&mut connection)?;
 
     // test IN parameters
-    try!(procedure_with_in_parameters(&mut connection));
+    procedure_with_in_parameters(&mut connection)?;
 
     // test OUT, INOUT parameters
-    try!(procedure_with_in_and_out_parameters(&mut connection));
+    procedure_with_in_and_out_parameters(&mut connection)?;
 
+    procedure_with_in_nclob_non_consuming(&mut connection)?;
     Ok(connection.get_call_count())
 }
 
@@ -47,16 +48,17 @@ fn very_simple_procedure(connection: &mut Connection) -> HdbResult<()> {
     info!("verify that we can run a simple sqlscript procedure");
 
     test_utils::statement_ignore_err(connection, vec!["drop procedure TEST_PROCEDURE"]);
-    try!(test_utils::multiple_statements(connection,
+    test_utils::multiple_statements(connection,
                                          vec!["CREATE PROCEDURE TEST_PROCEDURE LANGUAGE \
                                                SQLSCRIPT SQL SECURITY DEFINER AS BEGIN SELECT \
-                                               CURRENT_USER \"current user\" FROM DUMMY;END"]));
+                                               CURRENT_USER \"current user\" FROM DUMMY;END"])?;
 
-    let mut response = try!(connection.any_statement("call TEST_PROCEDURE"));
+    let mut response = connection.any_statement("call TEST_PROCEDURE")?;
     debug!("response: {:?}", response);
-    try!(response.get_success());
-    let resultset = try!(response.get_resultset());
+    response.get_success()?;
+    let resultset = response.get_resultset()?;
     debug!("resultset = {}", resultset);
+    test_utils::statement_ignore_err(connection, vec!["drop procedure TEST_PROCEDURE"]);
     Ok(())
 }
 
@@ -64,7 +66,7 @@ fn procedure_with_out_resultsets(connection: &mut Connection) -> HdbResult<()> {
     info!("verify that we can run a sqlscript procedure with resultsets as OUT parameters");
 
     test_utils::statement_ignore_err(connection, vec!["drop procedure GET_PROCEDURES"]);
-    try!(test_utils::multiple_statements(connection,
+    test_utils::multiple_statements(connection,
                                          vec!["\
         CREATE  PROCEDURE GET_PROCEDURES( OUT \
                                                procedures TABLE(schema_name NVARCHAR(256), \
@@ -80,16 +82,16 @@ fn procedure_with_out_resultsets(connection: &mut Connection) -> HdbResult<()> {
                                                delivery_unit like 'HANA%'; other_dus = select \
                                                delivery_unit as du, vendor from \
                                                _SYS_REPO.DELIVERY_UNITS where not \
-                                               delivery_unit like 'HANA%'; END;"]));
+                                               delivery_unit like 'HANA%'; END;"])?;
 
-    let mut response = try!(connection.any_statement("call GET_PROCEDURES(?,?,?)"));
+    let mut response = connection.any_statement("call GET_PROCEDURES(?,?,?)")?;
     debug!("response = {:?}", response);
 
-    try!(response.get_success());
-    debug!("procedures = {}", try!(response.get_resultset()));
-    debug!("hana_dus = {}", try!(response.get_resultset()));
-    debug!("other_dus = {}", try!(response.get_resultset()));
-
+    response.get_success()?;
+    debug!("procedures = {}", response.get_resultset()?);
+    debug!("hana_dus = {}", response.get_resultset()?);
+    debug!("other_dus = {}", response.get_resultset()?);
+    test_utils::statement_ignore_err(connection, vec!["drop procedure GET_PROCEDURES"]);
     Ok(())
 }
 
@@ -97,7 +99,7 @@ fn procedure_with_secret_resultsets(connection: &mut Connection) -> HdbResult<()
     info!("verify that we can run a sqlscript procedure with implicit resultsets");
 
     test_utils::statement_ignore_err(connection, vec!["drop procedure GET_PROCEDURES_SECRETLY"]);
-    try!(test_utils::multiple_statements(connection,
+    test_utils::multiple_statements(connection,
                                          vec!["\
         CREATE  PROCEDURE \
                                                GET_PROCEDURES_SECRETLY() AS BEGIN SELECT  \
@@ -110,16 +112,16 @@ fn procedure_with_secret_resultsets(connection: &mut Connection) -> HdbResult<()
             SELECT  \
                                                delivery_unit as du, vendor FROM \
                                                _SYS_REPO.DELIVERY_UNITS WHERE not \
-                                               delivery_unit like 'HANA%'; END;"]));
+                                               delivery_unit like 'HANA%'; END;"])?;
 
-    let mut response = try!(connection.any_statement("call GET_PROCEDURES_SECRETLY()"));
+    let mut response = connection.any_statement("call GET_PROCEDURES_SECRETLY()")?;
     debug!("response = {:?}", response);
 
-    try!(response.get_success());
-    debug!("procedures = {}", try!(response.get_resultset()));
-    debug!("hana_dus = {}", try!(response.get_resultset()));
-    debug!("other_dus = {}", try!(response.get_resultset()));
-
+    response.get_success()?;
+    debug!("procedures = {}", response.get_resultset()?);
+    debug!("hana_dus = {}", response.get_resultset()?);
+    debug!("other_dus = {}", response.get_resultset()?);
+    test_utils::statement_ignore_err(connection, vec!["drop procedure GET_PROCEDURES_SECRETLY"]);
     Ok(())
 }
 
@@ -127,20 +129,21 @@ fn procedure_with_in_parameters(connection: &mut Connection) -> HdbResult<()> {
     info!("verify that we can run a sqlscript procedure with input parameters");
 
     test_utils::statement_ignore_err(connection, vec!["drop procedure TEST_INPUT_PARS"]);
-    try!(test_utils::multiple_statements(connection,
+    test_utils::multiple_statements(connection,
                                          vec!["\
         CREATE  PROCEDURE TEST_INPUT_PARS(IN \
                                                some_number INT, IN some_string NVARCHAR(20)) \
                                                AS BEGIN SELECT some_number AS \"I\", \
-                                               some_string AS \"A\" FROM DUMMY; END;"]));
+                                               some_string AS \"A\" FROM DUMMY; END;"])?;
 
-    let mut prepared_stmt = try!(connection.prepare("call TEST_INPUT_PARS(?,?)"));
-    try!(prepared_stmt.add_batch(&(42, "is between 41 and 43")));
-    let mut response = try!(prepared_stmt.execute_batch());
+    let mut prepared_stmt = connection.prepare("call TEST_INPUT_PARS(?,?)")?;
+    prepared_stmt.add_batch(&(42, "is between 41 and 43"))?;
+    let mut response = prepared_stmt.execute_batch()?;
     debug!("response = {:?}", response);
-    try!(response.get_success());
-    let rs = try!(response.get_resultset());
+    response.get_success()?;
+    let rs = response.get_resultset()?;
     debug!("resultset = {:?}", rs);
+    test_utils::statement_ignore_err(connection, vec!["drop procedure TEST_INPUT_PARS"]);
     Ok(())
 }
 
@@ -149,23 +152,46 @@ fn procedure_with_in_and_out_parameters(connection: &mut Connection) -> HdbResul
     info!("verify that we can run a sqlscript procedure with input and output parameters");
 
     test_utils::statement_ignore_err(connection, vec!["drop procedure TEST_INPUT_AND_OUTPUT_PARS"]);
-    try!(test_utils::multiple_statements(connection,
+    test_utils::multiple_statements(connection,
                                          vec!["\
         CREATE  PROCEDURE \
                                                TEST_INPUT_AND_OUTPUT_PARS(IN some_number INT, \
                                                OUT some_string NVARCHAR(40)) AS BEGIN \
                                                some_string = 'my first output parameter';
             \
-                                               SELECT some_number AS \"I\" FROM DUMMY; END;"]));
+                                               SELECT some_number AS \"I\" FROM DUMMY; END;"])?;
 
-    let mut prepared_stmt = try!(connection.prepare("call TEST_INPUT_AND_OUTPUT_PARS(?,?)"));
-    try!(prepared_stmt.add_batch(&(42)));
-    let mut response = try!(prepared_stmt.execute_batch());
+    let mut prepared_stmt = connection.prepare("call TEST_INPUT_AND_OUTPUT_PARS(?,?)")?;
+    prepared_stmt.add_batch(42)?;
+    let mut response = prepared_stmt.execute_batch()?;
     debug!("response = {:?}", response);
-    try!(response.get_success());
-    let op = try!(response.get_output_parameters());
+    response.get_success()?;
+    let op = response.get_output_parameters()?;
     debug!("output_parameters = {}", op);
-    let rs = try!(response.get_resultset());
+    let rs = response.get_resultset()?;
     debug!("resultset = {}", rs);
+    test_utils::statement_ignore_err(connection, vec!["drop procedure TEST_INPUT_AND_OUTPUT_PARS"]);
     Ok(())
+}
+
+fn procedure_with_in_nclob_non_consuming(connection: &mut Connection) -> HdbResult<()> {
+    info!("verify that we can convert to nclob");
+
+    test_utils::statement_ignore_err(connection, vec!["drop procedure TEST_CLOB_INPUT_PARS"]);
+    test_utils::multiple_statements(connection,
+                                         vec!["CREATE PROCEDURE TEST_CLOB_INPUT_PARS(IN some_string NCLOB) \
+                                               AS BEGIN SELECT some_string AS \"A\" FROM DUMMY; END;"])?;
+
+    let mut prepared_stmt = connection.prepare("call TEST_CLOB_INPUT_PARS(?)")?;
+    let my_parameter = "nclob string".to_string();
+    prepared_stmt.add_batch(&my_parameter)?;
+    debug!("Still owned {:?}", &my_parameter);
+    let mut response = prepared_stmt.execute_batch()?;
+    debug!("response = {:?}", response);
+    response.get_success()?;
+    let rs = response.get_resultset()?;
+    debug!("resultset = {:?}", rs);
+    test_utils::statement_ignore_err(connection, vec!["drop procedure TEST_CLOB_INPUT_PARS"]);
+    Ok(())
+
 }
