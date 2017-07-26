@@ -501,7 +501,7 @@ pub mod factory {
     use super::super::{PrtError, PrtResult, prot_err, util};
     use super::super::lob::*;
     use super::super::longdate::LongDate;
-    use protocol::lowlevel::conn_core::ConnRef;
+    use protocol::lowlevel::conn_core::ConnCoreRef;
     use byteorder::{LittleEndian, ReadBytesExt};
     use std::borrow::Cow;
     use std::fmt;
@@ -509,7 +509,7 @@ pub mod factory {
     use std::iter::repeat;
     use std::{u32, u64};
 
-    pub fn parse_from_reply(p_typecode: u8, nullable: bool, conn_ref: &ConnRef,
+    pub fn parse_from_reply(p_typecode: u8, nullable: bool, conn_ref: &ConnCoreRef,
                             rdr: &mut io::BufRead)
                             -> PrtResult<TypedValue> {
         // here p_typecode is always < 127
@@ -765,13 +765,13 @@ pub mod factory {
     // ----- BLOBS and CLOBS
     // ===
     // regular parse
-    pub fn parse_blob_from_reply(conn_ref: &ConnRef, rdr: &mut io::BufRead) -> PrtResult<BLOB> {
+    pub fn parse_blob_from_reply(conn_ref: &ConnCoreRef, rdr: &mut io::BufRead) -> PrtResult<BLOB> {
         match parse_nullable_blob_from_reply(conn_ref, rdr)? {
             Some(blob) => Ok(blob),
             None => Err(prot_err("Null value found for non-null blob column")),
         }
     }
-    pub fn parse_nullable_blob_from_reply(conn_ref: &ConnRef, rdr: &mut io::BufRead)
+    pub fn parse_nullable_blob_from_reply(conn_ref: &ConnCoreRef, rdr: &mut io::BufRead)
                                           -> PrtResult<Option<BLOB>> {
         let (is_null, is_last_data) = parse_lob_1(rdr)?;
         match is_null {
@@ -785,13 +785,13 @@ pub mod factory {
         }
     }
 
-    pub fn parse_clob_from_reply(conn_ref: &ConnRef, rdr: &mut io::BufRead) -> PrtResult<CLOB> {
+    pub fn parse_clob_from_reply(conn_ref: &ConnCoreRef, rdr: &mut io::BufRead) -> PrtResult<CLOB> {
         match parse_nullable_clob_from_reply(conn_ref, rdr)? {
             Some(clob) => Ok(clob),
             None => Err(prot_err("Null value found for non-null clob column")),
         }
     }
-    pub fn parse_nullable_clob_from_reply(conn_ref: &ConnRef, rdr: &mut io::BufRead)
+    pub fn parse_nullable_clob_from_reply(conn_ref: &ConnCoreRef, rdr: &mut io::BufRead)
                                           -> PrtResult<Option<CLOB>> {
         let (is_null, is_last_data) = parse_lob_1(rdr)?;
         match is_null {

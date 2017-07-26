@@ -1,5 +1,5 @@
 use super::{PrtError, PrtResult, prot_err};
-use super::conn_core::ConnRef;
+use super::conn_core::ConnCoreRef;
 use super::message::MsgType;
 use super::part_attributes::PartAttributes;
 use super::partkind::PartKind;
@@ -214,7 +214,7 @@ impl Argument {
 
 
     pub fn parse(msg_type: MsgType, kind: PartKind, attributes: PartAttributes, no_of_args: i32,
-                 arg_size: i32, parts: &mut Parts, o_conn_ref: Option<&ConnRef>,
+                 arg_size: i32, parts: &mut Parts, o_conn_ref: Option<&ConnCoreRef>,
                  rs_md: Option<&ResultSetMetadata>, par_md: Option<&ParameterMetadata>,
                  o_rs: &mut Option<&mut ResultSet>, rdr: &mut io::BufRead)
                  -> PrtResult<Argument> {

@@ -1,7 +1,7 @@
 use HdbResult;
 use protocol::lowlevel::{PrtError, PrtResult, prot_err};
 use protocol::lowlevel::argument::Argument;
-use protocol::lowlevel::conn_core::ConnRef;
+use protocol::lowlevel::conn_core::ConnCoreRef;
 use protocol::lowlevel::message::Request;
 use protocol::lowlevel::reply_type::ReplyType;
 use protocol::lowlevel::request_type::RequestType;
@@ -31,14 +31,14 @@ pub struct ResultSet {
 
 #[derive(Debug)]
 struct ResultSetCore {
-    o_conn_ref: Option<ConnRef>,
+    o_conn_ref: Option<ConnCoreRef>,
     attributes: PartAttributes,
     resultset_id: u64,
 }
 type RsRef = Rc<RefCell<ResultSetCore>>;
 
 impl ResultSetCore {
-    fn new_rs_ref(conn_ref: Option<&ConnRef>, attrs: PartAttributes, rs_id: u64) -> RsRef {
+    fn new_rs_ref(conn_ref: Option<&ConnCoreRef>, attrs: PartAttributes, rs_id: u64) -> RsRef {
         Rc::new(RefCell::new(ResultSetCore {
             o_conn_ref: match conn_ref {
                 Some(conn_ref) => Some(conn_ref.clone()),
@@ -226,8 +226,8 @@ impl ResultSet {
     /// let typed_result: Vec<MyStruct> = resultset.into_typed()?;
     /// ```
 
-    pub fn into_typed<T>(mut self) -> HdbResult<T>
-        where T: serde::de::Deserialize
+    pub fn into_typed<'de, T>(mut self) -> HdbResult<T>
+        where T: serde::de::Deserialize<'de>
     {
         trace!("ResultSet::into_typed()");
         self.fetch_all()?; // FIXME should be avoidable
@@ -273,7 +273,7 @@ pub mod factory {
     use super::{ResultSet, ResultSetCore, Row};
     use protocol::protocol_error::{PrtResult, prot_err};
     use protocol::lowlevel::argument::Argument;
-    use protocol::lowlevel::conn_core::ConnRef;
+    use protocol::lowlevel::conn_core::ConnCoreRef;
     use protocol::lowlevel::part::Parts;
     use protocol::lowlevel::part_attributes::PartAttributes;
     use protocol::lowlevel::partkind::PartKind;
@@ -284,7 +284,7 @@ pub mod factory {
     use protocol::lowlevel::parts::typed_value::factory as TypedValueFactory;
     use std::io;
 
-    pub fn resultset_new(conn_ref: Option<&ConnRef>, attrs: PartAttributes, rs_id: u64,
+    pub fn resultset_new(conn_ref: Option<&ConnCoreRef>, attrs: PartAttributes, rs_id: u64,
                          rsm: ResultSetMetadata, o_stmt_ctx: Option<StatementContext>)
                          -> ResultSet {
         let server_processing_time = match o_stmt_ctx {
@@ -334,7 +334,7 @@ pub mod factory {
     // we expect the previous three parts to be
     // a matching ResultSetMetadata, a ResultSetId, and a StatementContext
     pub fn parse(no_of_rows: i32, attributes: PartAttributes, parts: &mut Parts,
-                 o_conn_ref: Option<&ConnRef>, rs_md: Option<&ResultSetMetadata>,
+                 o_conn_ref: Option<&ConnCoreRef>, rs_md: Option<&ResultSetMetadata>,
                  o_rs: &mut Option<&mut ResultSet>, rdr: &mut io::BufRead)
                  -> PrtResult<Option<ResultSet>> {
 

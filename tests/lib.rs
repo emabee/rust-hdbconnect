@@ -1,9 +1,5 @@
 extern crate flexi_logger;
-
-#[macro_use]
-extern crate serde_derive;
-extern crate serde_json;
-
 extern crate hdbconnect;
+extern crate serde_json;
 
 pub mod test_utils;

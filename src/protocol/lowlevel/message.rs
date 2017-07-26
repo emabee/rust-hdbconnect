@@ -5,7 +5,7 @@ use {HdbError, HdbResult, HdbResponse};
 use hdb_response::factory as HdbResponseFactory;
 use hdb_response::factory::InternalReturnValue;
 use super::{PrtError, PrtResult, prot_err};
-use super::conn_core::ConnRef;
+use super::conn_core::ConnCoreRef;
 use super::argument::Argument;
 use super::reply_type::ReplyType;
 use super::request_type::RequestType;
@@ -50,7 +50,7 @@ pub struct Request {
     pub parts: Parts,
 }
 impl Request {
-    pub fn new(conn_ref: &ConnRef, request_type: RequestType, auto_commit: bool,
+    pub fn new(conn_ref: &ConnCoreRef, request_type: RequestType, auto_commit: bool,
                command_options: u8)
                -> PrtResult<Request> {
         let mut request = Request {
@@ -73,7 +73,7 @@ impl Request {
     }
 
     pub fn send_and_get_response(&mut self, rs_md: Option<&ResultSetMetadata>,
-                                 par_md: Option<&ParameterMetadata>, conn_ref: &ConnRef,
+                                 par_md: Option<&ParameterMetadata>, conn_ref: &ConnCoreRef,
                                  expected_fc: Option<ReplyType>, acc_server_proc_time: &mut i32)
                                  -> HdbResult<HdbResponse> {
         let mut reply =
@@ -173,14 +173,14 @@ impl Request {
     }
 
     // simplified interface
-    pub fn send_and_receive(&mut self, conn_ref: &ConnRef, expected_fc: Option<ReplyType>)
+    pub fn send_and_receive(&mut self, conn_ref: &ConnCoreRef, expected_fc: Option<ReplyType>)
                             -> PrtResult<Reply> {
         self.send_and_receive_detailed(None, None, &mut None, conn_ref, expected_fc)
     }
 
     pub fn send_and_receive_detailed(&mut self, rs_md: Option<&ResultSetMetadata>,
                                      par_md: Option<&ParameterMetadata>,
-                                     o_rs: &mut Option<&mut ResultSet>, conn_ref: &ConnRef,
+                                     o_rs: &mut Option<&mut ResultSet>, conn_ref: &ConnCoreRef,
                                      expected_fc: Option<ReplyType>)
                                      -> PrtResult<Reply> {
         trace!("Request::send_and_receive_detailed() with requestType = {:?}, auto_commit = {}",
@@ -199,7 +199,7 @@ impl Request {
         Ok(reply)
     }
 
-    fn add_ssi(&mut self, conn_ref: &ConnRef) -> PrtResult<()> {
+    fn add_ssi(&mut self, conn_ref: &ConnCoreRef) -> PrtResult<()> {
         match conn_ref.borrow().ssi {
             None => {}
             Some(ref ssi) => {
@@ -215,7 +215,7 @@ impl Request {
     }
 
 
-    fn serialize(&self, conn_ref: &ConnRef) -> PrtResult<()> {
+    fn serialize(&self, conn_ref: &ConnCoreRef) -> PrtResult<()> {
         trace!("Entering Message::serialize()");
         let mut conn_core = conn_ref.borrow_mut();
         self.serialize_impl(conn_core.session_id,
@@ -317,7 +317,7 @@ impl Reply {
     /// `conn_ref` needs to be injected in case we get an incomplete resultset or lob
     /// (so that they later can fetch)
     fn parse(rs_md: Option<&ResultSetMetadata>, par_md: Option<&ParameterMetadata>,
-             o_rs: &mut Option<&mut ResultSet>, conn_ref: &ConnRef)
+             o_rs: &mut Option<&mut ResultSet>, conn_ref: &ConnCoreRef)
              -> PrtResult<Reply> {
         trace!("Reply::parse()");
         let stream = &mut (conn_ref.borrow_mut().stream);

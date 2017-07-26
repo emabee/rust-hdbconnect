@@ -1,52 +1,34 @@
 // advisable because not all test modules use all functions of this module:
  #![allow(dead_code)]
 
-use flexi_logger;
-use hdbconnect::{Connection, HdbResult};
+use flexi_logger::Logger;
+use hdbconnect::{Connection, ConnectParamsBuilder, HdbError, HdbResult};
 use serde_json;
 use std::io::BufReader;
 use std::path::Path;
 use std::fs::File;
 
-pub fn init_logger(log_to_file: bool, log_spec: &str) {
-    flexi_logger::LogOptions::new()
-        .log_to_file(log_to_file)
-        .init(Some(log_spec.to_string()))
+pub fn init_logger(log_spec: &str) {
+    Logger::with_str(log_spec)
+        .start()
         .unwrap_or_else(|e| panic!("Logger initialization failed with {}", e));
 }
 
-#[derive(Deserialize, Debug)]
-struct DbAccess {
-    host: String,
-    port: String,
-    user: String,
-    password: String,
+pub fn get_authenticated_connection() -> HdbResult<Connection> {
+    let params = connect_params_builder_from_file()?.build()?;
+    Connection::new(params)
 }
 
-
-fn connection_info() -> DbAccess {
+pub fn connect_params_builder_from_file() -> HdbResult<ConnectParamsBuilder> {
     let path = Path::new("db_access.json");
-    let reader = BufReader::new(match File::open(&path) {
-        Err(e) => panic!("Cannot open db-connection-info file, {:?}", e),
-        Ok(file) => file,
-    });
-
+    let reader = BufReader::new(File::open(&path)?);
     match serde_json::from_reader(reader) {
-        Err(e) => panic!("Cannot parse db-connection-info file due to {}", e),
-        Ok(db) => db,
+        Ok(cpb) => Ok(cpb),
+        Err(e) => {
+            println!("{:?}", e);
+            Err(HdbError::UsageError("Cannot read db_access.json"))
+        }
     }
-}
-
-pub fn get_connection() -> Connection {
-    let conn_info = connection_info();
-    Connection::new(&conn_info.host, &conn_info.port).unwrap()
-}
-
-pub fn get_authenticated_connection() -> Connection {
-    let conn_info = connection_info();
-    let mut connection = Connection::new(&conn_info.host, &conn_info.port).unwrap();
-    connection.authenticate_user_password(&conn_info.user, &conn_info.password).unwrap();
-    connection
 }
 
 pub fn statement_ignore_err(connection: &mut Connection, stmts: Vec<&str>) {

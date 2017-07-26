@@ -1,6 +1,6 @@
 use protocol::protocol_error::{PrtResult, prot_err};
 use protocol::lowlevel::argument::Argument;
-use protocol::lowlevel::conn_core::ConnRef;
+use protocol::lowlevel::conn_core::ConnCoreRef;
 use protocol::lowlevel::message::{Request, Reply};
 use protocol::lowlevel::reply_type::ReplyType;
 use protocol::lowlevel::request_type::RequestType;
@@ -25,7 +25,7 @@ use std::mem;
 use user;
 
 /// authenticate with user and password, using the scram_sha256 method
-pub fn user_pw(conn_ref: &ConnRef, username: &str, password: &str) -> PrtResult<()> {
+pub fn user_pw(conn_ref: &ConnCoreRef, username: &str, password: &str) -> PrtResult<()> {
     trace!("Entering authenticate()");
 
     let client_challenge = create_client_challenge();
@@ -38,7 +38,8 @@ pub fn user_pw(conn_ref: &ConnRef, username: &str, password: &str) -> PrtResult<
     evaluate_reply2(reply2, conn_ref)
 }
 
-fn auth1_request(conn_ref: &ConnRef, chllng_sha256: &Vec<u8>, username: &str) -> PrtResult<Reply> {
+fn auth1_request(conn_ref: &ConnCoreRef, chllng_sha256: &Vec<u8>, username: &str)
+                 -> PrtResult<Reply> {
     trace!("Entering auth1_request()");
     let mut auth_fields = Vec::<AuthField>::with_capacity(3);
     auth_fields.push(AuthField(username.as_bytes().to_vec()));
@@ -53,7 +54,8 @@ fn auth1_request(conn_ref: &ConnRef, chllng_sha256: &Vec<u8>, username: &str) ->
     request.send_and_receive(conn_ref, Some(ReplyType::Nil))
 }
 
-fn auth2_request(conn_ref: &ConnRef, client_proof: &Vec<u8>, username: &str) -> PrtResult<Reply> {
+fn auth2_request(conn_ref: &ConnCoreRef, client_proof: &Vec<u8>, username: &str)
+                 -> PrtResult<Reply> {
     trace!("Entering auth2_request()");
     let mut request = Request::new(conn_ref, RequestType::Connect, true, 0)?;
 
@@ -114,7 +116,7 @@ fn get_server_challenge(mut reply: Reply) -> PrtResult<Vec<u8>> {
     }
 }
 
-fn evaluate_reply2(mut reply: Reply, conn_ref: &ConnRef) -> PrtResult<()> {
+fn evaluate_reply2(mut reply: Reply, conn_ref: &ConnCoreRef) -> PrtResult<()> {
     trace!("Entering evaluate_reply2()");
     let mut conn_core = conn_ref.borrow_mut();
     conn_core.session_id = reply.session_id;

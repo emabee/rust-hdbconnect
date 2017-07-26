@@ -1,3 +1,5 @@
+use connect_params::ConnectParams;
+
 use prepared_statement::PreparedStatement;
 use prepared_statement::factory as PreparedStatementFactory;
 use {HdbError, HdbResult, HdbResponse};
@@ -8,14 +10,13 @@ use protocol::lowlevel::message::Request;
 use protocol::lowlevel::request_type::RequestType;
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::partkind::PartKind;
-use protocol::lowlevel::conn_core::{ConnectionCore, ConnRef};
+use protocol::lowlevel::conn_core::{ConnectionCore, ConnCoreRef};
 use protocol::lowlevel::init;
 use protocol::lowlevel::parts::resultset::ResultSet;
 
 use chrono::Local;
 use std::net::TcpStream;
-use std::ops::Add;
-use std::fmt;
+use std::fmt::Write;
 
 const HOLD_OVER_COMMIT: u8 = 8;
 
@@ -31,72 +32,56 @@ const HOLD_OVER_COMMIT: u8 = 8;
 /// The most important attributes of a connection, including the TcpStream,
 /// are "outsourced" into a ConnectionCore object, which is kept alive
 /// through ref-counted references, from this connection object and / or
-/// from other objects that are created by this
-/// connection object and have their independent lifetime.
+/// from other objects, which are created by this connection and have an independent lifetime.
 #[derive(Debug)]
 pub struct Connection {
-    host: String,
-    port: String,
-    credentials: Option<Credentials>,
+    params: ConnectParams,
     major_product_version: i8,
     minor_product_version: i16,
     auto_commit: bool,
     command_options: u8,
     acc_server_proc_time: i32,
-    core: ConnRef,
+    core: ConnCoreRef,
 }
 impl Connection {
-    /// Creates a new connection object that is already connected to the specified host/port
-    pub fn new(host: &str, port: &str) -> HdbResult<Connection> {
+    /// Factory method for authenticated connections.
+    pub fn new(params: ConnectParams) -> HdbResult<Connection> {
         trace!("Entering connect()");
         let start = Local::now();
 
-        let connect_string = String::with_capacity(200).add(host).add(":").add(port);
-        trace!("Connecting with \"{}\"", connect_string);
+        let mut connect_string = String::with_capacity(200);
+        write!(connect_string, "{}:{}", params.hostname(), params.port())?;
+
+        trace!("Connecting to \"{}\"", connect_string);
         let mut tcp_stream = TcpStream::connect(&connect_string as &str)?;
         trace!("tcp_stream is open");
 
         let (major, minor) = init::send_and_receive(&mut tcp_stream)?;
-        trace!("connection is initialized");
 
-        let conn_ref = ConnectionCore::new_conn_ref(tcp_stream);
+        let conn_ref = ConnectionCore::new_ref(tcp_stream);
         let delta = match (Local::now().signed_duration_since(start)).num_microseconds() {
             Some(m) => m,
             None => -1,
         };
-        debug!("connection to {}:{} is initialized in {} µs", host, port, delta);
+        debug!("connection to {} is initialized ({} µs)", connect_string, delta);
 
-        Ok(Connection {
-            host: String::from(host),
-            port: String::from(port),
-            credentials: None,
+        let conn = Connection {
+            params: params,
             major_product_version: major,
             minor_product_version: minor,
             auto_commit: true,
             command_options: HOLD_OVER_COMMIT,
             core: conn_ref,
             acc_server_proc_time: 0,
-        })
-    }
+        };
 
-    /// Authenticates with username and password
-    pub fn authenticate_user_password(&mut self, username: &str, password: &str) -> HdbResult<()> {
-        if self.is_authenticated() {
-            return Err(HdbError::UsageError("Re-authentication not possible, create a new \
-                                             Connection instead"));
-        }
-        let start = Local::now();
-        authenticate::user_pw(&(self.core), username, password)?;
-        self.credentials = Some(Credentials {
-            username: String::from(username),
-            password: String::from(password),
-        });
+        authenticate::user_pw(&(conn.core), conn.params.dbuser(), conn.params.password())?;
         let delta = match (Local::now().signed_duration_since(start)).num_microseconds() {
             Some(m) => m,
             None => -1,
         };
-        debug!("successfully logged on as user \"{}\" in {} µs", username, delta);
-        Ok(())
+        debug!("user \"{}\" successfully logged on ({} µs)", conn.params.dbuser(), delta);
+        Ok(conn)
     }
 
     /// Returns the HANA's product version info.
@@ -177,14 +162,12 @@ impl Connection {
 
     /// Creates a new connection object with the same settings and authentication.
     pub fn spawn(&self) -> HdbResult<Connection> {
-        let mut other_conn = Connection::new(&(self.host), &(self.port))?;
+        let mut other_conn = Connection::new(self.params.clone())?;
         other_conn.auto_commit = self.auto_commit;
         other_conn.command_options = self.command_options;
-        other_conn.set_fetch_size(self.core.borrow().get_fetch_size());
-        other_conn.set_lob_read_length(self.core.borrow().get_lob_read_length());
-        if let Some(ref creds) = self.credentials {
-            other_conn.authenticate_user_password(&(creds.username), &(creds.password))?;
-        }
+        let core = self.core.borrow();
+        other_conn.set_fetch_size(core.get_fetch_size());
+        other_conn.set_lob_read_length(core.get_lob_read_length());
         Ok(other_conn)
     }
 
@@ -206,16 +189,9 @@ impl Connection {
         }
         Ok(())
     }
-
-    fn is_authenticated(&self) -> bool {
-        match self.credentials {
-            None => false,
-            Some(_) => true,
-        }
-    }
 }
 
-pub fn exec_statement(conn_ref: ConnRef, stmt: String, auto_commit: bool,
+pub fn exec_statement(conn_ref: ConnCoreRef, stmt: String, auto_commit: bool,
                       acc_server_proc_time: &mut i32)
                       -> HdbResult<HdbResponse> {
     debug!("connection::exec_statement({})", stmt);
@@ -229,15 +205,4 @@ pub fn exec_statement(conn_ref: ConnRef, stmt: String, auto_commit: bool,
     request.push(Part::new(PartKind::Command, Argument::Command(stmt)));
 
     request.send_and_get_response(None, None, &(conn_ref), None, acc_server_proc_time)
-}
-
-struct Credentials {
-    username: String,
-    password: String,
-}
-impl fmt::Debug for Credentials {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(fmt, "username: {}, password: <not printed>", self.username).unwrap();
-        Ok(())
-    }
 }

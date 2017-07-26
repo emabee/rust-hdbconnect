@@ -1,4 +1,4 @@
-use protocol::lowlevel::conn_core::ConnRef;
+use protocol::lowlevel::conn_core::ConnCoreRef;
 use protocol::lowlevel::parts::lob_handles::{BlobHandle, ClobHandle};
 use protocol::protocol_error::{PrtError, PrtResult};
 
@@ -19,7 +19,7 @@ enum BlobEnum {
     ToDB(Vec<u8>),
 }
 
-pub fn new_blob_from_db(conn_ref: &ConnRef, is_data_complete: bool, length_b: u64,
+pub fn new_blob_from_db(conn_ref: &ConnCoreRef, is_data_complete: bool, length_b: u64,
                         locator_id: u64, data: Vec<u8>)
                         -> BLOB {
     BLOB(BlobEnum::FromDB(RefCell::new(BlobHandle::new(conn_ref,
@@ -81,8 +81,8 @@ enum ClobEnum {
     ToDB(String),
 }
 
-pub fn new_clob_from_db(conn_ref: &ConnRef, is_data_complete: bool, length_c: u64, length_b: u64,
-                        char_count: u64, locator_id: u64, data: String)
+pub fn new_clob_from_db(conn_ref: &ConnCoreRef, is_data_complete: bool, length_c: u64,
+                        length_b: u64, char_count: u64, locator_id: u64, data: String)
                         -> CLOB {
     CLOB(ClobEnum::FromDB(RefCell::new(ClobHandle::new(conn_ref,
                                                        is_data_complete,

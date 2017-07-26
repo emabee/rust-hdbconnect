@@ -25,6 +25,7 @@
 extern crate byteorder;
 extern crate chrono;
 extern crate crypto;
+extern crate hex;
 
 #[macro_use]
 extern crate log;
@@ -32,19 +33,24 @@ extern crate log;
 extern crate rand;
 
 extern crate serde;
+#[macro_use]
+extern crate serde_derive;
 extern crate vec_map;
 extern crate user;
 
 mod connection;
+mod connect_params;
 mod hdb_response;
 mod hdb_error;
 mod prepared_statement;
 mod protocol;
 mod rs_serde;
+mod url;
 
 pub mod code_examples;
 
 pub use connection::Connection;
+pub use connect_params::{ConnectParams, ConnectParamsBuilder};
 pub use prepared_statement::PreparedStatement;
 pub use hdb_response::{HdbResponse, HdbReturnValue};
 pub use protocol::lowlevel::parts::resultset::ResultSet;

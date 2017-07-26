@@ -1,5 +1,5 @@
 use {HdbError, HdbResult, HdbResponse};
-use protocol::lowlevel::conn_core::ConnRef;
+use protocol::lowlevel::conn_core::ConnCoreRef;
 use protocol::lowlevel::argument::Argument;
 use protocol::lowlevel::message::Request;
 use protocol::lowlevel::request_type::RequestType;
@@ -17,7 +17,7 @@ use std::mem;
 /// Allows injection-safe SQL execution and repeated calls with different parameters
 /// with as few roundtrips as possible.
 pub struct PreparedStatement {
-    conn_ref: ConnRef,
+    conn_ref: ConnCoreRef,
     statement_id: u64,
     auto_commit: bool,
     #[allow(dead_code)]
@@ -32,8 +32,7 @@ pub struct PreparedStatement {
 impl PreparedStatement {
     /// Adds the values from the rust-typed input to the batch,
     /// if it is consistent with the metadata.
-    pub fn add_batch<T: serde::ser::Serialize>(&mut self, input: T) -> HdbResult<()>
-    {
+    pub fn add_batch<T: serde::ser::Serialize>(&mut self, input: &T) -> HdbResult<()> {
         trace!("PreparedStatement::add_batch() called");
         match (&(self.o_par_md), &mut (self.o_batch)) {
             (&Some(ref metadata), &mut Some(ref mut vec)) => {
@@ -46,7 +45,7 @@ impl PreparedStatement {
                     }
                 }
 
-                let row = Serializer::into_row(&input, input_metadata)?;
+                let row = Serializer::into_row(input, input_metadata)?;
                 vec.push(row);
                 Ok(())
             }
@@ -110,7 +109,7 @@ impl Drop for PreparedStatement {
 
 pub mod factory {
     use {HdbError, HdbResult};
-    use protocol::lowlevel::conn_core::ConnRef;
+    use protocol::lowlevel::conn_core::ConnCoreRef;
     use protocol::lowlevel::argument::Argument;
     use protocol::lowlevel::message::Request;
     use protocol::lowlevel::request_type::RequestType;
@@ -126,7 +125,7 @@ pub mod factory {
 
 
     /// Prepare a statement.
-    pub fn prepare(conn_ref: ConnRef, stmt: String, auto_commit: bool)
+    pub fn prepare(conn_ref: ConnCoreRef, stmt: String, auto_commit: bool)
                    -> HdbResult<PreparedStatement> {
         let command_options: u8 = 8;
         let mut request =

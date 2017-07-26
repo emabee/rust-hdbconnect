@@ -11,7 +11,7 @@ use std::io;
 use std::net::TcpStream;
 use std::rc::Rc;
 
-pub type ConnRef = Rc<RefCell<ConnectionCore>>;
+pub type ConnCoreRef = Rc<RefCell<ConnectionCore>>;
 
 pub const DEFAULT_FETCH_SIZE: u32 = 32;
 pub const DEFAULT_LOB_READ_LENGTH: i32 = 1_000_000;
@@ -31,7 +31,7 @@ pub struct ConnectionCore {
     pub stream: TcpStream,
 }
 impl ConnectionCore {
-    pub fn new_conn_ref(stream: TcpStream) -> ConnRef {
+    pub fn new_ref(stream: TcpStream) -> ConnCoreRef {
         Rc::new(RefCell::new(ConnectionCore {
             is_authenticated: false,
             session_id: 0,

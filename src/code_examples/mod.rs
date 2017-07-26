@@ -25,7 +25,7 @@
 //!  and thus has the most complex return type, <code>HdbResponse</code>.
 //!
 //!  ```ignore
-//!  let my_statement = "..."; // some statement that doesn't need preparation
+//!  let my_statement = "SELECT foo FROM bar"; // some statement that doesn't need preparation
 //!  let response: HdbResponse = connection.any_statement(my_statement)?;
 //!  ```
 //!
@@ -46,14 +46,14 @@
 //!  In many cases it will be more appropriate and convenient to use one of the
 //!  specialized methods
 //!
-//!  * <code>query_statement()</code> -> ResultSet
-//!  * <code>dml_statement()</code> -> usize
-//!  * <code>exec_statement()</code> -> ()
+//!  * <code>connection.query_statement(...)</code> -> ResultSet
+//!  * <code>connection.dml_statement(...)</code> -> usize
+//!  * <code>connection.exec_statement(...)</code> -> ()
 //!
 //!  which have the adequate simple result type you usually want:
 //!
 //!  ```ignore
-//!  let my_statement = "..."; // some statement that doesn't need preparation
+//!  let my_statement = "SELECT foo FROM bar"; // some statement that doesn't need preparation
 //!  let resultset: ResultSet = connection.query_statement(my_statement)?;
 //!  ```
 //!
@@ -76,27 +76,6 @@
 //!  stmt.add_batch(&(45_i32))?;
 //!  let resultset: ResultSet = stmt.execute_batch()?;
 //!  ```
-//!
-//!  * In many cases, you will need or want to use prepared statements.
-//!  Then the code will look like this:
-//!
-//!  ```ignore
-//!  let stmt_str = "insert into TEST_PREPARE (F_STRING, F_INTEGER) values(?, ?)";
-//!  let mut stmt = try!(connection.prepare(stmt_str));
-//!  try!(stmt.add_batch(&("foo", 45_i32)));
-//!  try!(stmt.add_batch(&("bar", 46_i32)));
-//!  try!(stmt.execute_batch());
-//!  ```
-//!
-//!  Or like this:
-//!
-//!  ```ignore
-//!  let stmt_str = "select NAME, CITY from TEST_TABLE where age > ?";
-//!  let mut stmt = try!(connection.prepare(stmt_str));
-//!  try!(stmt.add_batch(&(45_i32)));
-//!  let resultset: ResultSet = try!(stmt.execute_batch());
-//!  ```
-//!
 //!
 //! <b>3. Evaluate a resultset</b>
 //!

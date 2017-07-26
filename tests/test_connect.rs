@@ -14,33 +14,35 @@ mod test_utils;
 
 use chrono::{Local, NaiveDateTime};
 use std::error::Error;
-use hdbconnect::{Connection, HdbResult};
-use serde::bytes::ByteBuf;
+use hdbconnect::{Connection, ConnectParams, HdbResult};
 
 
 // cargo test test_connect -- --nocapture
 #[test]
 pub fn test_connect() {
-    test_utils::init_logger(false, "info"); // info,test_connect=debug,hdbconnect::rs_serde=trace
-
+    test_utils::init_logger("info"); // info,test_connect=debug,hdbconnect::rs_serde=trace
     connect_successfully();
-    connect_wrong_password();
+    connect_wrong_password().unwrap();
     connect_and_select();
 }
 
 fn connect_successfully() {
     info!("test a successful connection");
-    let _ = test_utils::get_connection();
+    test_utils::get_authenticated_connection().ok();
 }
 
-fn connect_wrong_password() {
+fn connect_wrong_password() -> HdbResult<()> {
     info!("test connect failure on wrong credentials");
     let start = Local::now();
-    let mut connection = test_utils::get_connection();
-    let err = connection.authenticate_user_password("bla", "blubber").err().unwrap();
+    let conn_params: ConnectParams = test_utils::connect_params_builder_from_file()?
+        .dbuser("bla")
+        .password("blubber")
+        .build()?;
+    let err = Connection::new(conn_params).err().unwrap();
     info!("connect with wrong password failed as expected, after {} µs with {}.",
           Local::now().signed_duration_since(start).num_microseconds().unwrap(),
           err.description());
+    Ok(())
 }
 
 fn connect_and_select() {
@@ -48,14 +50,14 @@ fn connect_and_select() {
     match impl_connect_and_select() {
         Err(e) => {
             error!("connect_and_select() failed with {:?}", e);
-            assert!(false)
+            assert!(false);
         }
         Ok(i) => info!("connect_and_select(): {} calls to DB were executed", i),
     }
 }
 
 fn impl_connect_and_select() -> HdbResult<i32> {
-    let mut connection = test_utils::get_authenticated_connection();
+    let mut connection = test_utils::get_authenticated_connection()?;
     // connection.set_fetch_size(61); setting high values leads to hang-situation :-(
 
     try!(impl_select_version_and_user(&mut connection));
@@ -97,7 +99,7 @@ fn impl_select_many_active_objects(connection: &mut Connection) -> HdbResult<usi
         activated_by: String,
         edit: u8,
         cdata: Option<String>,
-        bdata: Option<ByteBuf>, //<Vec<u8>>, //Binary,
+        bdata: Option<Vec<u8>>, //Binary,
         compression_type: Option<i32>,
         format_version: Option<String>,
         delivery_unit: Option<String>,

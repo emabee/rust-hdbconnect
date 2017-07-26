@@ -13,12 +13,11 @@ extern crate serde;
 mod test_utils;
 
 use hdbconnect::{Connection, HdbResult};
-use serde::bytes::ByteBuf;
 
 // cargo test test_lobs -- --nocapture
 #[test]
 pub fn test_lobs() {
-    test_utils::init_logger(false, "info"); //,test_lobs=debug,hdbconnect::rs_serde::ser=trace
+    test_utils::init_logger("trace"); //,test_lobs=debug,hdbconnect::rs_serde::ser=trace
 
     match impl_test_lobs() {
         Err(e) => {
@@ -30,7 +29,7 @@ pub fn test_lobs() {
 }
 
 fn impl_test_lobs() -> HdbResult<i32> {
-    let mut connection = test_utils::get_authenticated_connection();
+    let mut connection = test_utils::get_authenticated_connection()?;
     try!(test_read_blob(&mut connection));
     try!(test_write_blob(&mut connection));
     Ok(connection.get_call_count())
@@ -50,7 +49,7 @@ fn test_read_blob(connection: &mut Connection) -> HdbResult<()> {
         object_suffix: String,
         edit: u8,
         bdata_length: usize,
-        bdata: ByteBuf,
+        bdata: Vec<u8>,
         object_status: u8,
     }
 
@@ -84,7 +83,7 @@ fn test_write_blob(connection: &mut Connection) -> HdbResult<()> {
     #[derive(Deserialize,Debug)]
     struct TestWriteLob {
         f1: String,
-        fblob: ByteBuf,
+        fblob: Vec<u8>,
         f3: i32,
     }
 
@@ -99,11 +98,11 @@ fn test_write_blob(connection: &mut Connection) -> HdbResult<()> {
                 and     object_name = 'loiof144853312cd42a1bff62ce4695eba2d_LowRes'
                 and     object_suffix = 'png' ";
     let resultset = try!(connection.query_statement(stmt));
-    let byte_buf: ByteBuf = try!(resultset.into_typed());
+    let bytes: Vec<u8> = try!(resultset.into_typed());
 
     let insert_stmt_str = "insert into TEST_WRITE_BLOB (\"f1\", \"fblob\", \"f3\") values(?, ?, ?)";
     let mut insert_stmt = try!(connection.prepare(insert_stmt_str));
-    let data = ("TEST", &byte_buf, 42_i32);
+    let data = ("TEST", &bytes, 42_i32);
     trace!("data = {:?}", data);
     try!(insert_stmt.add_batch(&data));
     try!(insert_stmt.execute_batch());
@@ -112,6 +111,6 @@ fn test_write_blob(connection: &mut Connection) -> HdbResult<()> {
     let stmt = "select * from TEST_WRITE_BLOB";
     let twl: TestWriteLob = try!(try!(connection.query_statement(stmt)).into_typed());
 
-    assert_eq!(byte_buf, twl.fblob);
+    assert_eq!(bytes, twl.fblob);
     Ok(())
 }

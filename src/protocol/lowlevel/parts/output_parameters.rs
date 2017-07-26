@@ -39,11 +39,12 @@ pub mod factory {
                                                         ParMode};
     use protocol::lowlevel::parts::typed_value::TypedValue;
     use protocol::lowlevel::parts::typed_value::factory as TypedValueFactory;
-    use protocol::lowlevel::conn_core::ConnRef;
+    use protocol::lowlevel::conn_core::ConnCoreRef;
 
     use std::io;
 
-    pub fn parse(o_conn_ref: Option<&ConnRef>, par_md: &ParameterMetadata, rdr: &mut io::BufRead)
+    pub fn parse(o_conn_ref: Option<&ConnCoreRef>, par_md: &ParameterMetadata,
+                 rdr: &mut io::BufRead)
                  -> PrtResult<OutputParameters> {
         trace!("OutputParameters::parse()");
         let conn_ref = match o_conn_ref {

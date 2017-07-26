@@ -23,6 +23,9 @@ pub enum HdbError {
     /// Error occured in evaluation of a response from the DB.
     EvaluationError(&'static str),
 
+    /// Format error occured in communication setup.
+    FmtError(fmt::Error),
+
     /// IO error occured in communication setup.
     IoError(io::Error),
 
@@ -41,6 +44,7 @@ impl error::Error for HdbError {
         match *self {
             HdbError::DeserializationError(ref error) => error.description(),
             HdbError::IoError(ref error) => error.description(),
+            HdbError::FmtError(ref error) => error.description(),
             HdbError::ProtocolError(ref error) => error.description(),
             HdbError::EvaluationError(ref s) => s,
             HdbError::SerializationError(ref error) => error.description(),
@@ -52,6 +56,7 @@ impl error::Error for HdbError {
         match *self {
             HdbError::DeserializationError(ref error) => Some(error),
             HdbError::IoError(ref error) => Some(error),
+            HdbError::FmtError(ref error) => Some(error),
             HdbError::ProtocolError(ref error) => Some(error),
             HdbError::EvaluationError(_) => None,
             HdbError::SerializationError(ref error) => Some(error),
@@ -65,6 +70,7 @@ impl fmt::Display for HdbError {
         match *self {
             HdbError::DeserializationError(ref error) => write!(fmt, "{:?}", error),
             HdbError::IoError(ref error) => write!(fmt, "{:?}", error),
+            HdbError::FmtError(ref error) => write!(fmt, "{:?}", error),
             HdbError::ProtocolError(ref error) => write!(fmt, "{:?}", error),
             HdbError::EvaluationError(ref s) => write!(fmt, "{:?}", s),
             HdbError::SerializationError(ref error) => write!(fmt, "{:?}", error),
@@ -94,5 +100,11 @@ impl From<PrtError> for HdbError {
 impl From<io::Error> for HdbError {
     fn from(error: io::Error) -> HdbError {
         HdbError::IoError(error)
+    }
+}
+
+impl From<fmt::Error> for HdbError {
+    fn from(error: fmt::Error) -> HdbError {
+        HdbError::FmtError(error)
     }
 }

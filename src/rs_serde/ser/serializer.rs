@@ -435,9 +435,8 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
         let s = String::from(value);
         match self.expected_type_code()? {
             TYPEID_CHAR | TYPEID_VARCHAR | TYPEID_NCHAR | TYPEID_NVARCHAR | TYPEID_STRING |
-            TYPEID_NSTRING | TYPEID_TEXT | TYPEID_SHORTTEXT | TYPEID_N_CLOB | TYPEID_N_NCLOB | TYPEID_NCLOB | TYPEID_CLOB => {
-                self.output.push(TypedValue::STRING(s))
-            }
+            TYPEID_NSTRING | TYPEID_TEXT | TYPEID_SHORTTEXT | TYPEID_N_CLOB | TYPEID_N_NCLOB |
+            TYPEID_NCLOB | TYPEID_CLOB => self.output.push(TypedValue::STRING(s)),
             TYPEID_LONGDATE => self.output.push(TypedValue::LONGDATE(longdate_from_str(value)?)),
 
             target_tc => return Err(SerializationError::TypeMismatch("&str", target_tc)),
@@ -469,8 +468,7 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
     }
 
     #[allow(unused_variables)]
-    fn serialize_unit_variant(self, name: &'static str, variant_index: usize,
-                              variant: &'static str)
+    fn serialize_unit_variant(self, name: &'static str, variant_index: u32, variant: &'static str)
                               -> SerializationResult<Self::Ok> {
         trace!("Serializer::serialize_unit_variant()");
         Err(SerializationError::TypeMismatch("unit_variant", self.expected_type_code()?))
@@ -486,7 +484,7 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
 
     #[allow(unused_variables)]
     fn serialize_newtype_variant<T: ?Sized + serde::ser::Serialize>
-        (self, name: &'static str, variant_index: usize, variant: &'static str, value: &T)
+        (self, name: &'static str, variant_index: u32, variant: &'static str, value: &T)
          -> SerializationResult<Self::Ok> {
         trace!("Serializer::serialize_newtype_variant()");
         value.serialize(self)
@@ -533,11 +531,11 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
         Ok(Compound { ser: self })
     }
 
-    fn serialize_seq_fixed_size(self, size: usize) -> SerializationResult<Self::SerializeSeq> {
-        trace!("Serializer::serialize_seq_fixed_size()");
-        self.serialize_seq(Some(size))
-    }
-
+    // fn serialize_seq_fixed_size(self, size: usize) -> SerializationResult<Self::SerializeSeq> {
+    //     trace!("Serializer::serialize_seq_fixed_size()");
+    //     self.serialize_seq(Some(size))
+    // }
+    //
     fn serialize_tuple(self, len: usize) -> SerializationResult<Self::SerializeTuple> {
         trace!("Serializer::serialize_tuple()");
         self.serialize_seq(Some(len))
@@ -549,7 +547,7 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
         self.serialize_seq(Some(len))
     }
 
-    fn serialize_tuple_variant(self, _name: &'static str, _variant_index: usize,
+    fn serialize_tuple_variant(self, _name: &'static str, _variant_index: u32,
                                _variant: &'static str, len: usize)
                                -> SerializationResult<Self::SerializeTupleVariant> {
         trace!("Serializer::serialize_tuple_variant()");
@@ -566,7 +564,7 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
         self.serialize_map(Some(len))
     }
 
-    fn serialize_struct_variant(self, _name: &'static str, _variant_index: usize,
+    fn serialize_struct_variant(self, _name: &'static str, _variant_index: u32,
                                 _variant: &'static str, _len: usize)
                                 -> SerializationResult<Self::SerializeStructVariant> {
         panic!("FIXME: Serializer::serialize_struct_variant()")

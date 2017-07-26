@@ -17,7 +17,7 @@ use hdbconnect::HdbResult;
 
 #[test] // cargo test test_prepare -- --nocapture
 pub fn test_prepare() {
-    test_utils::init_logger(false, "info");
+    test_utils::init_logger("info");
 
     match impl_test_prepare() {
         Err(e) => {
@@ -29,10 +29,8 @@ pub fn test_prepare() {
 }
 
 fn impl_test_prepare() -> HdbResult<i32> {
-    let mut connection = test_utils::get_authenticated_connection();
-
-    try!(prepare_insert_statement(&mut connection));
-
+    let mut connection = test_utils::get_authenticated_connection()?;
+    prepare_insert_statement(&mut connection)?;
     Ok(connection.get_call_count())
 }
 

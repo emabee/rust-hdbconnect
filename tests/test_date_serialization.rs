@@ -1,23 +1,20 @@
 extern crate chrono;
-extern crate hdbconnect;
 extern crate flexi_logger;
-
 #[macro_use]
 extern crate log;
-
-#[macro_use]
-extern crate serde_derive;
 extern crate serde_json;
+
+extern crate hdbconnect;
 
 mod test_utils;
 
-use chrono::{DateTime, NaiveDate, NaiveDateTime, UTC};
+use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
 
 use hdbconnect::HdbResult;
 
 #[test] // cargo test test_naivedate -- --nocapture
 pub fn test_date_serialization() {
-    test_utils::init_logger(false, "info"); //,hdbconnect::rs_serde=trace
+    test_utils::init_logger("info"); //,hdbconnect::rs_serde=trace
 
     match impl_test_date_serialization() {
         Err(e) => {
@@ -49,7 +46,7 @@ fn impl_test_date_serialization() -> HdbResult<i32> {
                    test_values_string[i]);
     }
 
-    let mut connection = test_utils::get_authenticated_connection();
+    let mut connection = test_utils::get_authenticated_connection()?;
 
     // We do the data insert in a way that the conversion "String -> LongDate" is done on the
     // server side (we assume that this conversion is error-free).
@@ -97,10 +94,10 @@ fn impl_test_date_serialization() -> HdbResult<i32> {
     assert_eq!(typed_result, 31_i32);
 
 
-    info!("test the conversion DateTime<UTC> -> DB");
-    debug!("add_batch with UTC");
-    let utc2: DateTime<UTC> = DateTime::from_utc(test_values_datetime[2], UTC);
-    let utc3: DateTime<UTC> = DateTime::from_utc(test_values_datetime[3], UTC);
+    info!("test the conversion DateTime<Utc> -> DB");
+    debug!("add_batch with Utc");
+    let utc2: DateTime<Utc> = DateTime::from_utc(test_values_datetime[2], Utc);
+    let utc3: DateTime<Utc> = DateTime::from_utc(test_values_datetime[3], Utc);
     try!(prep_stmt.add_batch(&(utc2, utc3)));
 
     debug!("execute_batch");

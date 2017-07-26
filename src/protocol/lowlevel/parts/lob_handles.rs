@@ -7,7 +7,7 @@ use protocol::lowlevel::request_type::RequestType;
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::parts::option_value::OptionValue;
 use protocol::lowlevel::partkind::PartKind;
-use protocol::lowlevel::conn_core::ConnRef;
+use protocol::lowlevel::conn_core::ConnCoreRef;
 
 use std::borrow::Cow;
 use std::cmp;
@@ -18,7 +18,7 @@ use std::cmp;
 /// necessary controls to support fetching remaining data on demand.
 #[derive(Clone,Debug)]
 pub struct BlobHandle {
-    o_conn_ref: Option<ConnRef>,
+    o_conn_ref: Option<ConnCoreRef>,
     is_data_complete: bool,
     length_b: u64,
     locator_id: u64,
@@ -26,7 +26,7 @@ pub struct BlobHandle {
     acc_server_proc_time: i32,
 }
 impl BlobHandle {
-    pub fn new(conn_ref: &ConnRef, is_data_complete: bool, length_b: u64, locator_id: u64,
+    pub fn new(conn_ref: &ConnCoreRef, is_data_complete: bool, length_b: u64, locator_id: u64,
                data: Vec<u8>)
                -> BlobHandle {
         trace!("BlobHandle::new() with length_b = {}, is_data_complete = {}, data.length() = {}",
@@ -91,7 +91,7 @@ impl BlobHandle {
 /// necessary controls to support fetching remaining data on demand.
 #[derive(Clone,Debug)]
 pub struct ClobHandle {
-    o_conn_ref: Option<ConnRef>,
+    o_conn_ref: Option<ConnCoreRef>,
     is_data_complete: bool,
     length_c: u64,
     length_b: u64,
@@ -101,7 +101,7 @@ pub struct ClobHandle {
     acc_server_proc_time: i32,
 }
 impl ClobHandle {
-    pub fn new(conn_ref: &ConnRef, is_data_complete: bool, length_c: u64, length_b: u64,
+    pub fn new(conn_ref: &ConnCoreRef, is_data_complete: bool, length_c: u64, length_b: u64,
                char_count: u64, locator_id: u64, data: String)
                -> ClobHandle {
         ClobHandle {
@@ -160,7 +160,8 @@ impl ClobHandle {
 
 
 //
-fn fetch_a_lob_chunk(o_conn_ref: &Option<ConnRef>, locator_id: u64, length_b: u64, data_len: u64)
+fn fetch_a_lob_chunk(o_conn_ref: &Option<ConnCoreRef>, locator_id: u64, length_b: u64,
+                     data_len: u64)
                      -> PrtResult<(Vec<u8>, bool, i32)> {
     // build the request, provide StatementContext and length_to_read
     let (conn_ref, length_to_read) = match *o_conn_ref {

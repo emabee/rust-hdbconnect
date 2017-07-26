@@ -17,7 +17,7 @@ use hdbconnect::{Connection, HdbResult};
 
 #[test] // cargo test test_select_and_deserialization -- --nocapture
 pub fn test_select_and_deserialization() {
-    test_utils::init_logger(false, "info");
+    test_utils::init_logger("info");
 
     match impl_test_select_and_deserialization() {
         Err(e) => {
@@ -29,7 +29,7 @@ pub fn test_select_and_deserialization() {
 }
 
 fn impl_test_select_and_deserialization() -> HdbResult<i32> {
-    let mut connection = test_utils::get_authenticated_connection();
+    let mut connection = test_utils::get_authenticated_connection()?;
 
     try!(deser_option_into_option(&mut connection));
     try!(deser_plain_into_plain(&mut connection));
