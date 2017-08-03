@@ -94,20 +94,24 @@ impl Connection {
         self.auto_commit = ac;
     }
     /// Configures the connection's fetch size for future calls.
-    pub fn set_fetch_size(&mut self, fetch_size: u32) {
-        self.core.borrow_mut().set_fetch_size(fetch_size);
+    pub fn set_fetch_size(&mut self, fetch_size: u32) -> HdbResult<()> {
+        let mut guard = self.core.lock()?;
+        (*guard).set_fetch_size(fetch_size);
+        Ok(())
     }
     /// Configures the connection's lob read length for future calls.
-    pub fn set_lob_read_length(&mut self, lob_read_length: i32) {
-        self.core.borrow_mut().set_lob_read_length(lob_read_length);
+    pub fn set_lob_read_length(&mut self, lob_read_length: i32) -> HdbResult<()> {
+        let mut guard = self.core.lock()?;
+        (*guard).set_lob_read_length(lob_read_length);
+        Ok(())
     }
 
     /// Returns the number of roundtrips to the database that
     /// have been done through this connection.
-    pub fn get_call_count(&self) -> i32 {
-        self.core.borrow().last_seq_number()
+    pub fn get_call_count(&self) -> HdbResult<i32> {
+        let guard = self.core.lock()?;
+        Ok((*guard).last_seq_number())
     }
-
 
     /// Executes a statement on the database.
     ///
@@ -165,9 +169,12 @@ impl Connection {
         let mut other_conn = Connection::new(self.params.clone())?;
         other_conn.auto_commit = self.auto_commit;
         other_conn.command_options = self.command_options;
-        let core = self.core.borrow();
-        other_conn.set_fetch_size(core.get_fetch_size());
-        other_conn.set_lob_read_length(core.get_lob_read_length());
+        {
+            let guard = self.core.lock()?;
+            let core = &*guard;
+            other_conn.set_fetch_size(core.get_fetch_size())?;
+            other_conn.set_lob_read_length(core.get_lob_read_length())?;
+        }
         Ok(other_conn)
     }
 
@@ -183,8 +190,8 @@ impl Connection {
 
     /// Utility method to fire a couple of statements, ignoring their return values;
     /// the method returns with the first error, or with  ()
-    pub fn multiple_statements(&mut self, prep: Vec<&str>) -> HdbResult<()> {
-        for s in prep {
+    pub fn multiple_statements(&mut self, stmts: Vec<&str>) -> HdbResult<()> {
+        for s in stmts {
             self.any_statement(s)?;
         }
         Ok(())
@@ -196,8 +203,9 @@ pub fn exec_statement(conn_ref: ConnCoreRef, stmt: String, auto_commit: bool,
                       -> HdbResult<HdbResponse> {
     debug!("connection::exec_statement({})", stmt);
     let command_options = 0b_1000;
-    let fetch_size = {
-        conn_ref.borrow().get_fetch_size()
+    let fetch_size: u32 = {
+        let guard = conn_ref.lock()?;
+        (*guard).get_fetch_size()
     };
     let mut request =
         Request::new(&(conn_ref), RequestType::ExecuteDirect, auto_commit, command_options)?;

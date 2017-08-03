@@ -30,6 +30,7 @@ extern crate hex;
 #[macro_use]
 extern crate log;
 
+extern crate r2d2;
 extern crate rand;
 
 extern crate serde;
@@ -38,8 +39,9 @@ extern crate serde_derive;
 extern crate vec_map;
 extern crate user;
 
-mod connection;
 mod connect_params;
+mod connection;
+mod connection_manager;
 mod hdb_response;
 mod hdb_error;
 mod prepared_statement;
@@ -49,8 +51,9 @@ mod url;
 
 pub mod code_examples;
 
+pub use connection_manager::ConnectionManager;
 pub use connection::Connection;
-pub use connect_params::{ConnectParams, ConnectParamsBuilder};
+pub use connect_params::{ConnectParams, ConnectParamsBuilder, IntoConnectParams};
 pub use prepared_statement::PreparedStatement;
 pub use hdb_response::{HdbResponse, HdbReturnValue};
 pub use protocol::lowlevel::parts::resultset::ResultSet;

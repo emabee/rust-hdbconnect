@@ -146,7 +146,10 @@ impl ResultSet {
                     return Err(prot_err("Fetch no more possible"));
                 }
             };
-            let fetch_size = conn_ref.borrow().get_fetch_size();
+            let fetch_size = {
+                let guard = conn_ref.lock()?;
+                (*guard).get_fetch_size()
+            };
             (conn_ref, rs_core.resultset_id, fetch_size)
         };
 

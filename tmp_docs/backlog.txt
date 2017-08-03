@@ -1,7 +1,4 @@
 TODO
-- LOBs
-    - revise and check completeness: test for writing LOBs??!
-- make sure it compiles with rust-stable
 - data types
     - newdb/orange/Interfaces/SQLDBC/impl/LongdateTranslator.cpp
     - newdb/orange/Interfaces/SQLDBC/impl/SeconddateTranslator.cpp
@@ -9,7 +6,8 @@ TODO
 - Transaction Handling
     * transactionflags
         - has ids 0..6
-        - test_prepare: reply is dropped, but not all parts were evaluated: part-kind = TransactionFlags
+        - test_prepare: reply is dropped, but not all parts were evaluated:
+          part-kind = TransactionFlags
 
 - Client Info:
     * (contains Application, ApplicationVersion, ApplicationSource, ApplicationUser)
@@ -35,7 +33,8 @@ LOBs
     - DECIMAL -> should be based on https://github.com/rust-num/num/issues/8
     - SMALLDECIMAL  -> no docu found -> see sources?
 - size/length/padding in argument ??
-- allow setting the clientinfo stuff on the connection (or do it automatically?) and send it to the server whenever necessary/adequate
+- allow setting the clientinfo stuff on the connection (or do it automatically?)
+  and send it to the server whenever necessary/adequate
 - evaluate tablelocation
 ===
 

@@ -166,9 +166,9 @@ pub mod factory {
         }
 
         if let Some(vec) = o_ta_flags {
-            let mut conn_core = conn_ref.borrow_mut();
+            let mut guard = conn_ref.lock()?;
             for ta_flag in vec {
-                conn_core.set_transaction_state(ta_flag)?;
+                (*guard).set_transaction_state(ta_flag)?;
             }
         }
 

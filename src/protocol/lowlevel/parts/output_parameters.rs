@@ -4,11 +4,12 @@ use std::fmt;
 
 /// Describes output parameters.
 ///
-/// To be done: provide some accessors to the contained parameter descriptors and values.
+/// FIXME: provide some accessors to the contained parameter descriptors and values.
 #[derive(Clone,Debug)]
 pub struct OutputParameters {
     metadata: Vec<ParameterDescriptor>,
-    values: Vec<TypedValue>,
+    ///
+    pub values: Vec<TypedValue>,
 }
 
 impl fmt::Display for OutputParameters {

@@ -14,11 +14,6 @@ pub fn init_logger(log_spec: &str) {
         .unwrap_or_else(|e| panic!("Logger initialization failed with {}", e));
 }
 
-pub fn get_authenticated_connection() -> HdbResult<Connection> {
-    let params = connect_params_builder_from_file()?.build()?;
-    Connection::new(params)
-}
-
 pub fn connect_params_builder_from_file() -> HdbResult<ConnectParamsBuilder> {
     let path = Path::new("db_access.json");
     let reader = BufReader::new(File::open(&path)?);
@@ -31,6 +26,11 @@ pub fn connect_params_builder_from_file() -> HdbResult<ConnectParamsBuilder> {
     }
 }
 
+pub fn get_authenticated_connection() -> HdbResult<Connection> {
+    let params = connect_params_builder_from_file()?.build()?;
+    Connection::new(params)
+}
+
 pub fn statement_ignore_err(connection: &mut Connection, stmts: Vec<&str>) {
     for s in stmts {
         match connection.any_statement(s) {
@@ -38,11 +38,4 @@ pub fn statement_ignore_err(connection: &mut Connection, stmts: Vec<&str>) {
             Err(_) => {}
         }
     }
-}
-
-pub fn multiple_statements(connection: &mut Connection, prep: Vec<&str>) -> HdbResult<()> {
-    for s in prep {
-        try!(connection.any_statement(&s));
-    }
-    Ok(())
 }

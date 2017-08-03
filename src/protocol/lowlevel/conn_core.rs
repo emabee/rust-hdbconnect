@@ -6,12 +6,12 @@ use protocol::lowlevel::parts::option_value::OptionValue;
 use protocol::lowlevel::parts::topology_attribute::TopologyAttr;
 use protocol::lowlevel::parts::transactionflags::{TransactionFlag, TaFlagId};
 
-use std::cell::RefCell;
+use std::sync::Mutex;
 use std::io;
 use std::net::TcpStream;
-use std::rc::Rc;
+use std::sync::Arc;
 
-pub type ConnCoreRef = Rc<RefCell<ConnectionCore>>;
+pub type ConnCoreRef = Arc<Mutex<ConnectionCore>>;
 
 pub const DEFAULT_FETCH_SIZE: u32 = 32;
 pub const DEFAULT_LOB_READ_LENGTH: i32 = 1_000_000;
@@ -30,9 +30,10 @@ pub struct ConnectionCore {
     pub topology_attributes: Vec<TopologyAttr>,
     pub stream: TcpStream,
 }
+
 impl ConnectionCore {
     pub fn new_ref(stream: TcpStream) -> ConnCoreRef {
-        Rc::new(RefCell::new(ConnectionCore {
+        Arc::new(Mutex::new(ConnectionCore {
             is_authenticated: false,
             session_id: 0,
             seq_number: 0,

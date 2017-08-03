@@ -170,7 +170,8 @@ fn fetch_a_lob_chunk(o_conn_ref: &Option<ConnCoreRef>, locator_id: u64, length_b
                                  possible (connection not available)"));
         }
         Some(ref conn_ref) => {
-            let length_to_read = cmp::min(conn_ref.borrow().get_lob_read_length() as u64,
+            let guard = conn_ref.lock()?;
+            let length_to_read = cmp::min((*guard).get_lob_read_length() as u64,
                                           length_b - data_len);
             (conn_ref, length_to_read as i32)
         }

@@ -209,6 +209,7 @@ impl Argument {
             w.write_u8(0)?;
         }
 
+        trace!("remaining_bufsize: {}, size: {}, padsize: {}", remaining_bufsize, size, padsize);
         Ok(remaining_bufsize - size as u32 - padsize as u32)
     }
 

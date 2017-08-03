@@ -24,7 +24,6 @@ use chrono::Local;
 use std::io::{self, BufRead};
 use std::net::TcpStream;
 
-const BUFFER_SIZE: u32 = 130000;
 const MESSAGE_HEADER_SIZE: u32 = 32;
 const SEGMENT_HEADER_SIZE: usize = 24; // same for in and out
 
@@ -91,7 +90,8 @@ impl Request {
                 Argument::StatementContext(stmt_ctx) => {
                     trace!("Received StatementContext with sequence_info = {:?}",
                            stmt_ctx.statement_sequence_info);
-                    conn_ref.borrow_mut().ssi = stmt_ctx.statement_sequence_info;
+                    let mut guard = conn_ref.lock()?;
+                    (*guard).ssi = stmt_ctx.statement_sequence_info;
                     *acc_server_proc_time += match stmt_ctx.server_processing_time {
                         Some(OptionValue::INT(i)) => i,
                         _ => 0,
@@ -99,7 +99,8 @@ impl Request {
                 }
                 Argument::TransactionFlags(vec) => {
                     for ta_flag in vec {
-                        conn_ref.borrow_mut().set_transaction_state(ta_flag)?;
+                        let mut guard = conn_ref.lock()?;
+                        (*guard).set_transaction_state(ta_flag)?;
                     }
                 }
                 Argument::ResultSet(Some(rs)) => {
@@ -200,7 +201,8 @@ impl Request {
     }
 
     fn add_ssi(&mut self, conn_ref: &ConnCoreRef) -> PrtResult<()> {
-        match conn_ref.borrow().ssi {
+        let guard = conn_ref.lock()?;
+        match (*guard).ssi {
             None => {}
             Some(ref ssi) => {
                 let mut stmt_ctx = StatementContext::new();
@@ -217,7 +219,8 @@ impl Request {
 
     fn serialize(&self, conn_ref: &ConnCoreRef) -> PrtResult<()> {
         trace!("Entering Message::serialize()");
-        let mut conn_core = conn_ref.borrow_mut();
+        let mut guard = conn_ref.lock()?;
+        let mut conn_core = &mut *guard;
         self.serialize_impl(conn_core.session_id,
                             conn_core.next_seq_number(),
                             &mut conn_core.stream)
@@ -228,7 +231,7 @@ impl Request {
         let varpart_size = self.varpart_size()?;
         let total_size = MESSAGE_HEADER_SIZE + varpart_size;
         trace!("Writing Message with total size {}", total_size);
-        let mut remaining_bufsize = BUFFER_SIZE - MESSAGE_HEADER_SIZE;
+        let mut remaining_bufsize = total_size - MESSAGE_HEADER_SIZE;
 
         let w = &mut io::BufWriter::with_capacity(total_size as usize, stream);
         debug!("Request::serialize() for session_id = {}, seq_number = {}, request_type = {:?}",
@@ -320,7 +323,8 @@ impl Reply {
              o_rs: &mut Option<&mut ResultSet>, conn_ref: &ConnCoreRef)
              -> PrtResult<Reply> {
         trace!("Reply::parse()");
-        let stream = &mut (conn_ref.borrow_mut().stream);
+        let mut guard = conn_ref.lock()?;
+        let stream = &mut (*guard).stream;
         let mut rdr = io::BufReader::new(stream);
 
         let (no_of_parts, msg) = parse_message_and_sequence_header(&mut rdr)?;

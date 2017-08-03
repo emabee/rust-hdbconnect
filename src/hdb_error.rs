@@ -1,11 +1,13 @@
 use rs_serde::de::DeserError;
 use rs_serde::ser::SerializationError;
 use protocol::protocol_error::PrtError;
+use protocol::lowlevel::conn_core::ConnectionCore;
 
-use std::error;
+use std::error::{self, Error};
 use std::fmt;
 use std::io;
 use std::result;
+use std::sync;
 
 /// An abbreviation of <code>Result&lt;T, HdbError&gt;</code>.
 ///
@@ -37,6 +39,9 @@ pub enum HdbError {
 
     /// Error due to wrong usage of API.
     UsageError(&'static str),
+
+    /// Error occured in thread synchronization.
+    PoisonError(String),
 }
 
 impl error::Error for HdbError {
@@ -49,6 +54,7 @@ impl error::Error for HdbError {
             HdbError::EvaluationError(ref s) => s,
             HdbError::SerializationError(ref error) => error.description(),
             HdbError::UsageError(ref s) => s,
+            HdbError::PoisonError(ref s) => s,
         }
     }
 
@@ -61,6 +67,7 @@ impl error::Error for HdbError {
             HdbError::EvaluationError(_) => None,
             HdbError::SerializationError(ref error) => Some(error),
             HdbError::UsageError(_) => None,
+            HdbError::PoisonError(_) => None,
         }
     }
 }
@@ -75,6 +82,7 @@ impl fmt::Display for HdbError {
             HdbError::EvaluationError(ref s) => write!(fmt, "{:?}", s),
             HdbError::SerializationError(ref error) => write!(fmt, "{:?}", error),
             HdbError::UsageError(ref s) => write!(fmt, "{:?}", s),
+            HdbError::PoisonError(ref s) => write!(fmt, "{:?}", s),
         }
     }
 }
@@ -106,5 +114,11 @@ impl From<io::Error> for HdbError {
 impl From<fmt::Error> for HdbError {
     fn from(error: fmt::Error) -> HdbError {
         HdbError::FmtError(error)
+    }
+}
+
+impl<'a> From<sync::PoisonError<sync::MutexGuard<'a, ConnectionCore>>> for HdbError {
+    fn from(error: sync::PoisonError<sync::MutexGuard<'a, ConnectionCore>>) -> HdbError {
+        HdbError::PoisonError(error.description().to_owned())
     }
 }

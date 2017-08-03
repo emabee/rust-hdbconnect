@@ -118,7 +118,8 @@ fn get_server_challenge(mut reply: Reply) -> PrtResult<Vec<u8>> {
 
 fn evaluate_reply2(mut reply: Reply, conn_ref: &ConnCoreRef) -> PrtResult<()> {
     trace!("Entering evaluate_reply2()");
-    let mut conn_core = conn_ref.borrow_mut();
+    let mut guard = conn_ref.lock()?;
+    let conn_core = &mut *guard;
     conn_core.session_id = reply.session_id;
 
     match reply.parts.pop_arg_if_kind(PartKind::TopologyInformation) {
