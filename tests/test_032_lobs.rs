@@ -36,7 +36,7 @@ pub fn test_032_lobs() {
 fn impl_test_032_lobs(logger_handle: &mut ReconfigurationHandle) -> HdbResult<i32> {
     let mut connection = test_utils::get_authenticated_connection()?;
     test_read_blob(&mut connection, logger_handle)?;
-    Ok(connection.get_call_count())
+    Ok(connection.get_call_count()?)
 }
 
 fn test_read_blob(connection: &mut Connection, _logger_handle: &mut ReconfigurationHandle)
@@ -78,7 +78,7 @@ fn test_read_blob(connection: &mut Connection, _logger_handle: &mut Reconfigurat
     insert_stmt.add_batch(&("10MB", Bytes::new(&*raw_data)))?;
     insert_stmt.execute_batch()?;
     let query = "select * from TEST_LOBS";
-    let resultset = connection.query_statement(query)?;
+    let resultset = connection.query(query)?;
     let first: Lobs = resultset.into_typed()?;
 
     assert_eq!(size, first.f3_b.as_ref().unwrap().len());
@@ -88,8 +88,8 @@ fn test_read_blob(connection: &mut Connection, _logger_handle: &mut Reconfigurat
     let fingerprint2 = hasher.result();
     assert_eq!(fingerprint1, fingerprint2);
 
-    connection.set_lob_read_length(1024);
-    let resultset = connection.query_statement(query)?;
+    connection.set_lob_read_length(1024)?;
+    let resultset = connection.query(query)?;
     let second: Lobs = resultset.into_typed()?;
     assert_eq!(first.f3_b, second.f3_b);
 

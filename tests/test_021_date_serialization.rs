@@ -81,16 +81,16 @@ fn impl_date_serialization() -> HdbResult<i32> {
     info!("test the conversion DB -> NaiveDateTime");
     // back conversion is done in into_typed() (with serde)
     let s = "select mydate from TEST_DATE_SERIALIZATION order by number asc";
-    let dates: Vec<NaiveDateTime> = connection.query_statement(s)?.into_typed()?;
+    let dates: Vec<NaiveDateTime> = connection.query(s)?.into_typed()?;
 
     for (date, tvd) in dates.iter().zip(naive_datetime_values.iter()) {
         assert_eq!(date, tvd);
     }
 
     info!("prove that '' is the same as '0001-01-01 00:00:00.000000000'");
-    let rows_affected = connection.dml_statement(&insert_stmt(77, ""))?;
+    let rows_affected = connection.dml(&insert_stmt(77, ""))?;
     assert_eq!(rows_affected, 1);
-    let dates: Vec<NaiveDateTime> = connection.query_statement("select mydate from \
+    let dates: Vec<NaiveDateTime> = connection.query("select mydate from \
                                                                 TEST_DATE_SERIALIZATION where \
                                                                 number = 77 or number = 13")?
                                               .into_typed()?;
@@ -99,5 +99,5 @@ fn impl_date_serialization() -> HdbResult<i32> {
         assert_eq!(date, naive_datetime_values[0]);
     }
 
-    Ok(connection.get_call_count())
+    Ok(connection.get_call_count()?)
 }

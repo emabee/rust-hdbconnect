@@ -2,6 +2,7 @@ use rs_serde::de::DeserError;
 use rs_serde::ser::SerializationError;
 use protocol::protocol_error::PrtError;
 use protocol::lowlevel::conn_core::ConnectionCore;
+use db_value::ConversionError;
 
 use std::error::{self, Error};
 use std::fmt;
@@ -19,7 +20,10 @@ pub type HdbResult<T> = result::Result<T, HdbError>;
 /// Represents all possible errors that can occur in hdbconnect.
 #[derive(Debug)]
 pub enum HdbError {
-    /// Error occured in deserialization of data into an application-defined structure.
+    /// Conversion of single db value to rust type failed.
+    ConversionError(ConversionError),
+
+    /// Error occured in deserialization of data structures into an application-defined structure.
     DeserializationError(DeserError),
 
     /// Error occured in evaluation of a response from the DB.
@@ -38,7 +42,7 @@ pub enum HdbError {
     SerializationError(SerializationError),
 
     /// Error due to wrong usage of API.
-    UsageError(&'static str),
+    UsageError(String),
 
     /// Error occured in thread synchronization.
     PoisonError(String),
@@ -47,6 +51,7 @@ pub enum HdbError {
 impl error::Error for HdbError {
     fn description(&self) -> &str {
         match *self {
+            HdbError::ConversionError(_) => "Conversion of database type to rust type failed",
             HdbError::DeserializationError(ref error) => error.description(),
             HdbError::IoError(ref error) => error.description(),
             HdbError::FmtError(ref error) => error.description(),
@@ -60,6 +65,7 @@ impl error::Error for HdbError {
 
     fn cause(&self) -> Option<&error::Error> {
         match *self {
+            HdbError::ConversionError(ref error) => Some(error),
             HdbError::DeserializationError(ref error) => Some(error),
             HdbError::IoError(ref error) => Some(error),
             HdbError::FmtError(ref error) => Some(error),
@@ -75,6 +81,7 @@ impl error::Error for HdbError {
 impl fmt::Display for HdbError {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
+            HdbError::ConversionError(ref e) => write!(fmt, "{}", e),
             HdbError::DeserializationError(ref error) => write!(fmt, "{:?}", error),
             HdbError::IoError(ref error) => write!(fmt, "{:?}", error),
             HdbError::FmtError(ref error) => write!(fmt, "{:?}", error),
@@ -84,6 +91,12 @@ impl fmt::Display for HdbError {
             HdbError::UsageError(ref s) => write!(fmt, "{:?}", s),
             HdbError::PoisonError(ref s) => write!(fmt, "{:?}", s),
         }
+    }
+}
+
+impl From<ConversionError> for HdbError {
+    fn from(error: ConversionError) -> HdbError {
+        HdbError::ConversionError(error)
     }
 }
 

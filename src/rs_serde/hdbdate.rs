@@ -4,12 +4,6 @@ use types::LongDate;
 use super::ser::SerializationError;
 
 
-/// Deserializes a LongDate into a String format.
-pub fn str_from_longdate(ld: &LongDate) -> String {
-    format!("{}", ld)
-}
-
-
 /// Serializes a date string into a LongDate.
 ///
 /// Chrono types serialize as formatted Strings. We try to parse such a string

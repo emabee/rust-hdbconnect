@@ -43,7 +43,7 @@ Extend the API
 - ResultSet
     - into_typed()
     - iterator() //? or whatever is needed to write sth like
-        "for row in &try!(conn.query_statement("SELECT bar, baz FROM foo WHERE buz = $1", &[&1i32])) {"
+        "for row in &try!(conn.query("SELECT bar, baz FROM foo WHERE buz = $1", &[&1i32])) {"
 - Row
     - into_typed()
     - field_into_typed<usize>(i: usize) // index, starting with 0

@@ -118,30 +118,29 @@ impl Connection {
     /// This generic method can handle all kinds of calls,
     /// and thus has the most complex return type.
     /// In many cases it will be more appropriate to use
-    /// one of the methods query_statement(),
-    /// dml_statement(), exec_statement(), which have the
+    /// one of the methods query(), dml(), exec(), which have the
     /// adequate simple result type you usually want.
     pub fn any_statement(&mut self, stmt: &str) -> HdbResult<HdbResponse> {
-        exec_statement(self.core.clone(),
-                       String::from(stmt),
-                       self.auto_commit,
-                       &mut self.acc_server_proc_time)
+        execute(self.core.clone(),
+                String::from(stmt),
+                self.auto_commit,
+                &mut self.acc_server_proc_time)
     }
 
     /// Executes a statement and expects a single ResultSet.
-    pub fn query_statement(&mut self, stmt: &str) -> HdbResult<ResultSet> {
+    pub fn query(&mut self, stmt: &str) -> HdbResult<ResultSet> {
         self.any_statement(stmt)?.as_resultset()
     }
     /// Executes a statement and expects a single number of affected rows.
-    pub fn dml_statement(&mut self, stmt: &str) -> HdbResult<usize> {
+    pub fn dml(&mut self, stmt: &str) -> HdbResult<usize> {
         let vec = &(self.any_statement(stmt)?.as_affected_rows()?);
         match vec.len() {
             1 => Ok(vec.get(0).unwrap().clone()),
-            _ => Err(HdbError::UsageError("number of affected-rows-counts <> 1")),
+            _ => Err(HdbError::UsageError("number of affected-rows-counts <> 1".to_owned())),
         }
     }
     /// Executes a statement and expects a plain success.
-    pub fn exec_statement(&mut self, stmt: &str) -> HdbResult<()> {
+    pub fn exec(&mut self, stmt: &str) -> HdbResult<()> {
         self.any_statement(stmt)?.as_success()
     }
 
@@ -198,10 +197,9 @@ impl Connection {
     }
 }
 
-pub fn exec_statement(conn_ref: ConnCoreRef, stmt: String, auto_commit: bool,
-                      acc_server_proc_time: &mut i32)
-                      -> HdbResult<HdbResponse> {
-    debug!("connection::exec_statement({})", stmt);
+fn execute(conn_ref: ConnCoreRef, stmt: String, auto_commit: bool, acc_server_proc_time: &mut i32)
+           -> HdbResult<HdbResponse> {
+    debug!("connection::execute({})", stmt);
     let command_options = 0b_1000;
     let fetch_size: u32 = {
         let guard = conn_ref.lock()?;

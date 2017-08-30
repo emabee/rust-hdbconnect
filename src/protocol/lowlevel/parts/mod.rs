@@ -14,6 +14,7 @@ pub mod parameter_metadata;
 pub mod read_lob_reply;
 pub mod resultset;
 pub mod resultset_metadata;
+pub mod row;
 pub mod rows_affected;
 pub mod server_error;
 pub mod statement_context;

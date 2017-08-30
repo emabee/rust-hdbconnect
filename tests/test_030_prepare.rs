@@ -32,7 +32,7 @@ fn impl_test_030_prepare() -> HdbResult<i32> {
 
     prepare_insert_statement(&mut connection)?;
 
-    Ok(connection.get_call_count())
+    Ok(connection.get_call_count()?)
 }
 
 fn prepare_insert_statement(connection: &mut Connection) -> HdbResult<()> {
@@ -90,7 +90,7 @@ fn prepare_insert_statement(connection: &mut Connection) -> HdbResult<()> {
     insert_stmt3.execute_batch()?;
     connection3.rollback()?;
 
-    let typed_result: Vec<TestStruct> = connection.query_statement("select * from TEST_PREPARE")?
+    let typed_result: Vec<TestStruct> = connection.query("select * from TEST_PREPARE")?
                                                   .into_typed()?;
     assert_eq!(typed_result.len(), 6);
     for ts in typed_result {
