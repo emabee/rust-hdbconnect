@@ -59,7 +59,7 @@ fn connect_and_select() {
 fn impl_connect_and_select() -> HdbResult<i32> {
     let mut connection = test_utils::get_authenticated_connection()?;
     impl_select_version_and_user(&mut connection)?;
-    Ok(connection.get_call_count())
+    Ok(connection.get_call_count()?)
 }
 
 fn impl_select_version_and_user(connection: &mut Connection) -> HdbResult<()> {
@@ -71,8 +71,8 @@ fn impl_select_version_and_user(connection: &mut Connection) -> HdbResult<()> {
 
     let stmt = "SELECT VERSION as \"version\", CURRENT_USER as \"current_user\" FROM \
                 SYS.M_DATABASE";
-    debug!("calling connection.query_statement(SELECT VERSION as ...)");
-    let resultset = connection.query_statement(stmt)?;
+    debug!("calling connection.query(SELECT VERSION as ...)");
+    let resultset = connection.query(stmt)?;
     let version_and_user: VersionAndUser = resultset.into_typed()?;
 
     assert_eq!(version_and_user.current_user,

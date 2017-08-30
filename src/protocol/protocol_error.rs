@@ -1,6 +1,7 @@
 use protocol::lowlevel::parts::server_error::ServerError;
 use protocol::lowlevel::util::Cesu8DecodingError;
 use protocol::lowlevel::conn_core::ConnectionCore;
+use protocol::lowlevel::parts::resultset::ResultSetCore;
 
 use std::error::{self, Error};
 use std::fmt;
@@ -82,6 +83,12 @@ impl From<Cesu8DecodingError> for PrtError {
 
 impl<'a> From<sync::PoisonError<sync::MutexGuard<'a, ConnectionCore>>> for PrtError {
     fn from(error: sync::PoisonError<sync::MutexGuard<'a, ConnectionCore>>) -> PrtError {
+        PrtError::PoisonError(error.description().to_owned())
+    }
+}
+
+impl<'a> From<sync::PoisonError<sync::MutexGuard<'a, ResultSetCore>>> for PrtError {
+    fn from(error: sync::PoisonError<sync::MutexGuard<'a, ResultSetCore>>) -> PrtError {
         PrtError::PoisonError(error.description().to_owned())
     }
 }

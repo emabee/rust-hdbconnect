@@ -31,7 +31,7 @@ fn test_080_conn_pooling_with_r2d2() {
         let pool = pool.clone();
         thread::spawn(move || {
             let mut conn = pool.get().unwrap();
-            conn.query_statement("select 1 from dummy").unwrap();
+            conn.query("select 1 from dummy").unwrap();
         });
     }
     thread::sleep(Duration::from_millis(100));

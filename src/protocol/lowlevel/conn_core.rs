@@ -6,10 +6,9 @@ use protocol::lowlevel::parts::option_value::OptionValue;
 use protocol::lowlevel::parts::topology_attribute::TopologyAttr;
 use protocol::lowlevel::parts::transactionflags::{TransactionFlag, TaFlagId};
 
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::io;
 use std::net::TcpStream;
-use std::sync::Arc;
 
 pub type ConnCoreRef = Arc<Mutex<ConnectionCore>>;
 

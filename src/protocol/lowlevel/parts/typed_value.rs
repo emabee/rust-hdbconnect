@@ -2,7 +2,6 @@ use protocol::lowlevel::{PrtError, PrtResult, util};
 use super::type_id::*;
 use super::lob::*;
 use super::longdate::LongDate;
-use {HdbError, HdbResult};
 
 use byteorder::{LittleEndian, WriteBytesExt};
 use std::i16;
@@ -170,33 +169,6 @@ pub enum TypedValue {
 }
 
 impl TypedValue {
-    // FIXME Rework the following very ncomplete set of functions
-    ///
-    pub fn get_i32(&self) -> HdbResult<i32> {
-        match *self {
-            TypedValue::INT(i) => Ok(i),
-            TypedValue::N_INT(Some(i)) => Ok(i),
-            _ => Err(HdbError::UsageError("Not a i32 value")),
-        }
-    }
-
-    ///
-    pub fn get_string(&self) -> HdbResult<String> {
-        match *self {
-            TypedValue::VARCHAR(ref s) |
-            TypedValue::NVARCHAR(ref s) |
-            TypedValue::STRING(ref s) => Ok(s.clone()),
-            TypedValue::N_VARCHAR(Some(ref s)) |
-            TypedValue::N_NVARCHAR(Some(ref s)) |
-            TypedValue::N_STRING(Some(ref s)) => Ok(s.clone()),
-            TypedValue::CLOB(_) |
-            TypedValue::NCLOB(_) |
-            TypedValue::N_CLOB(_) |
-            TypedValue::N_NCLOB(_) => Err(HdbError::UsageError("Is a CLOB, not a String value")),
-            _ => Err(HdbError::UsageError("Not a String value")),
-        }
-    }
-
     fn serialize_type_id(&self, w: &mut io::Write) -> PrtResult<bool> {
         let is_null = match *self {
             TypedValue::N_TINYINT(None) |

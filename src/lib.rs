@@ -39,6 +39,7 @@ extern crate serde_derive;
 extern crate vec_map;
 extern crate user;
 
+mod db_value;
 mod connect_params;
 mod connection;
 mod connection_manager;
@@ -77,6 +78,7 @@ pub mod metadata {
 pub mod types {
     pub use protocol::lowlevel::parts::lob::{BLOB, CLOB, new_clob_to_db};
     pub use protocol::lowlevel::parts::longdate::LongDate;
-    pub use protocol::lowlevel::parts::resultset::Row;
-    pub use protocol::lowlevel::parts::typed_value::TypedValue as HdbValue;
 }
+pub use protocol::lowlevel::parts::row::Row;
+pub use protocol::lowlevel::parts::typed_value::TypedValue as HdbValue;
+pub use db_value::DbValue;

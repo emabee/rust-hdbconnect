@@ -9,13 +9,12 @@ use protocol::lowlevel::part::Part;
 use protocol::lowlevel::part_attributes::PartAttributes;
 use protocol::lowlevel::partkind::PartKind;
 use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
-use protocol::lowlevel::parts::typed_value::TypedValue;
+use protocol::lowlevel::parts::row::Row;
 use rs_serde::de::RsDeserializer;
 
 use serde;
-use std::cell::RefCell;
 use std::fmt;
-use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
 /// Contains the result of a database read command, including the describing metadata.
 ///
@@ -23,23 +22,23 @@ use std::rc::Rc;
 /// to convert the data from the generic format into your application specific format.
 #[derive(Debug)]
 pub struct ResultSet {
-    core_ref: RsRef,
-    metadata: ResultSetMetadata,
+    core_ref: Arc<Mutex<ResultSetCore>>,
+    metadata: Arc<ResultSetMetadata>,
     rows: Vec<Row>,
     acc_server_proc_time: i32,
 }
 
 #[derive(Debug)]
-struct ResultSetCore {
+pub struct ResultSetCore {
     o_conn_ref: Option<ConnCoreRef>,
     attributes: PartAttributes,
     resultset_id: u64,
 }
-type RsRef = Rc<RefCell<ResultSetCore>>;
 
 impl ResultSetCore {
-    fn new_rs_ref(conn_ref: Option<&ConnCoreRef>, attrs: PartAttributes, rs_id: u64) -> RsRef {
-        Rc::new(RefCell::new(ResultSetCore {
+    fn new_rs_ref(conn_ref: Option<&ConnCoreRef>, attrs: PartAttributes, rs_id: u64)
+                  -> Arc<Mutex<ResultSetCore>> {
+        Arc::new(Mutex::new(ResultSetCore {
             o_conn_ref: match conn_ref {
                 Some(conn_ref) => Some(conn_ref.clone()),
                 None => None,
@@ -77,7 +76,7 @@ impl ResultSet {
         self.rows.last_mut()
     }
 
-    /// Returns a mutable pointer to the last row
+    /// Reverses the order of the rows
     pub fn reverse_rows(&mut self) {
         self.rows.reverse()
     }
@@ -97,23 +96,14 @@ impl ResultSet {
         self.metadata.get_fieldname(field_idx)
     }
 
-    /// Returns the value at the specified position.
-    ///
-    /// FIXME Should be replaced with a method get_rows() -> Iterator.
-    pub fn get_value(&mut self, row: usize, column: usize) -> Option<&mut TypedValue> {
-        match self.rows.get_mut(row) {
-            Some(row) => row.values.get_mut(column),
-            None => None,
-        }
-    }
-
     /// Returns the number of result rows.
     pub fn no_of_rows(&self) -> usize {
         self.rows.len()
     }
 
     fn is_complete(&self) -> PrtResult<bool> {
-        let rs_core = self.core_ref.borrow();
+        let guard = self.core_ref.lock()?;
+        let rs_core = &*guard;
         if (!rs_core.attributes.is_last_packet()) &&
            (rs_core.attributes.row_not_found() || rs_core.attributes.is_resultset_closed()) {
             Err(PrtError::ProtocolError(String::from("ResultSet incomplete, but already closed \
@@ -139,7 +129,8 @@ impl ResultSet {
         trace!("ResultSet::fetch_next()");
         let (conn_ref, resultset_id, fetch_size) = {
             // scope the borrow
-            let rs_core = self.core_ref.borrow();
+            let guard = self.core_ref.lock()?;
+            let rs_core = &*guard;
             let conn_ref = match rs_core.o_conn_ref {
                 Some(ref cr) => cr.clone(),
                 None => {
@@ -167,7 +158,8 @@ impl ResultSet {
                                                           Some(ReplyType::Fetch))?;
         reply.parts.pop_arg_if_kind(PartKind::ResultSet);
 
-        let mut rs_core = self.core_ref.borrow_mut();
+        let mut guard = self.core_ref.lock()?;
+        let mut rs_core = &mut *guard;
         if rs_core.attributes.is_last_packet() {
             rs_core.o_conn_ref = None;
         }
@@ -233,7 +225,7 @@ impl ResultSet {
         where T: serde::de::Deserialize<'de>
     {
         trace!("ResultSet::into_typed()");
-        self.fetch_all()?; // FIXME should be avoidable
+        self.fetch_all()?;
         Ok(serde::de::Deserialize::deserialize(&mut RsDeserializer::new(self))?)
     }
 
@@ -253,27 +245,44 @@ impl fmt::Display for ResultSet {
     }
 }
 
+impl IntoIterator for ResultSet {
+    type Item = HdbResult<Row>;
+    type IntoIter = RowIterator;
 
-/// A single line of a ResultSet.
-#[derive(Debug,Clone)]
-pub struct Row {
-    /// The single field contains the Vec of types values.
-    pub values: Vec<TypedValue>,
-}
-
-impl fmt::Display for Row {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        for value in &self.values {
-            fmt::Display::fmt(&value, fmt).unwrap(); // write the value
-            write!(fmt, ", ").unwrap();
-        }
-        Ok(())
+    fn into_iter(self) -> Self::IntoIter {
+        RowIterator { rs: self }
     }
 }
 
+pub struct RowIterator {
+    rs: ResultSet,
+}
+impl RowIterator {
+    fn next_int(&mut self) -> HdbResult<Option<Row>> {
+        if self.rs.rows.len() == 0 {
+            if self.rs.is_complete()? {
+                return Ok(None);
+            } else {
+                self.rs.fetch_next()?;
+            }
+        }
+        Ok(self.rs.rows.pop())
+    }
+}
+
+impl Iterator for RowIterator {
+    type Item = HdbResult<Row>;
+    fn next(&mut self) -> Option<HdbResult<Row>> {
+        match self.next_int() {
+            Ok(Some(row)) => Some(Ok(row)),
+            Ok(None) => None,
+            Err(e) => Some(Err(e)),
+        }
+    }
+}
 
 pub mod factory {
-    use super::{ResultSet, ResultSetCore, Row};
+    use super::{ResultSet, ResultSetCore};
     use protocol::protocol_error::{PrtResult, prot_err};
     use protocol::lowlevel::argument::Argument;
     use protocol::lowlevel::conn_core::ConnCoreRef;
@@ -282,10 +291,12 @@ pub mod factory {
     use protocol::lowlevel::partkind::PartKind;
     use protocol::lowlevel::parts::option_value::OptionValue;
     use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
+    use protocol::lowlevel::parts::row::{new_row, Row};
     use protocol::lowlevel::parts::statement_context::StatementContext;
     use protocol::lowlevel::parts::typed_value::TypedValue;
     use protocol::lowlevel::parts::typed_value::factory as TypedValueFactory;
     use std::io;
+    use std::sync::Arc;
 
     pub fn resultset_new(conn_ref: Option<&ConnCoreRef>, attrs: PartAttributes, rs_id: u64,
                          rsm: ResultSetMetadata, o_stmt_ctx: Option<StatementContext>)
@@ -303,7 +314,7 @@ pub mod factory {
 
         ResultSet {
             core_ref: ResultSetCore::new_rs_ref(conn_ref, attrs, rs_id),
-            metadata: rsm,
+            metadata: Arc::new(rsm),
             rows: Vec::<Row>::new(),
             acc_server_proc_time: server_processing_time,
         }
@@ -314,7 +325,7 @@ pub mod factory {
     pub fn new_for_tests(rsm: ResultSetMetadata, rows: Vec<Row>) -> ResultSet {
         ResultSet {
             core_ref: ResultSetCore::new_rs_ref(None, PartAttributes::new(0b_0000_0001), 0_u64),
-            metadata: rsm,
+            metadata: Arc::new(rsm),
             rows: rows,
             acc_server_proc_time: 0,
         }
@@ -389,7 +400,11 @@ pub mod factory {
                     }
                 };
 
-                fetching_resultset.core_ref.borrow_mut().attributes = attributes;
+                {
+                    let mut guard = fetching_resultset.core_ref.lock()?;
+                    let mut rs_core = &mut *guard;
+                    rs_core.attributes = attributes;
+                }
                 parse_rows(fetching_resultset, no_of_rows, rdr)?;
                 Ok(None)
             }
@@ -401,13 +416,16 @@ pub mod factory {
         let no_of_cols = resultset.metadata.count();
         debug!("resultset::parse_rows() reading {} lines with {} columns", no_of_rows, no_of_cols);
 
-        match resultset.core_ref.borrow_mut().o_conn_ref {
+        let guard = resultset.core_ref.lock()?;
+        let rs_core = &*guard;
+        match rs_core.o_conn_ref {
             None => {
                 // cannot happen FIXME: make this more robust
             }
             Some(ref conn_ref) => {
                 for r in 0..no_of_rows {
-                    let mut row = Row { values: Vec::<TypedValue>::new() };
+                    // let mut row = Row { values: Vec::<TypedValue>::new() };
+                    let mut values = Vec::<TypedValue>::new();
                     for c in 0..no_of_cols {
                         let field_md = resultset.metadata.get_fieldmetadata(c as usize).unwrap();
                         let typecode = field_md.value_type;
@@ -420,9 +438,9 @@ pub mod factory {
                         let value =
                             TypedValueFactory::parse_from_reply(typecode, nullable, conn_ref, rdr)?;
                         trace!("Found value {:?}", value);
-                        row.values.push(value);
+                        values.push(value);
                     }
-                    resultset.rows.push(row);
+                    resultset.rows.push(new_row(resultset.metadata.clone(), values));
                 }
             }
         }

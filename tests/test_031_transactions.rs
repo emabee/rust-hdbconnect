@@ -27,7 +27,7 @@ pub fn test_031_transactions() {
 fn impl_test_031_transactions() -> HdbResult<()> {
     let mut connection = test_utils::get_authenticated_connection()?;
     write1_read2(&mut connection)?;
-    debug!("{} calls to DB were executed", connection.get_call_count());
+    debug!("{} calls to DB were executed", connection.get_call_count()?);
     Ok(())
 }
 
@@ -44,7 +44,7 @@ fn write1_read2(connection1: &mut Connection) -> HdbResult<()> {
     connection1.multiple_statements(stmts)?;
 
     let get_checksum = |conn: &mut Connection| {
-        let resultset = conn.query_statement("select sum(nmbr) from TEST_TRANSACTIONS").unwrap();
+        let resultset = conn.query("select sum(nmbr) from TEST_TRANSACTIONS").unwrap();
         let checksum: usize = resultset.into_typed().unwrap();
         checksum
     };

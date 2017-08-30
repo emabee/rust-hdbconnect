@@ -71,8 +71,8 @@ impl LongDate {
         LongDate::from_ymd_hms_n(y, m, d, 0, 0, 0, 0)
     }
 
-
-    fn as_ymd_hms_f(&self) -> (i32, u32, u32, u32, u32, u32, u32) {
+    /// Convert into tuple of "elements".
+    pub fn as_ymd_hms_f(&self) -> (i32, u32, u32, u32, u32, u32, u32) {
         let value = match self.0 {
             0 => 0,       // maps the special value '' == 0 to '0001-01-01 00:00:00.000000000' = 1
             v => v - 1,

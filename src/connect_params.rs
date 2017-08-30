@@ -1,10 +1,7 @@
 //! Connection parameters
-// use std::error::Error;
-use std::mem;
 use {HdbError, HdbResult};
-
-// use std::path::PathBuf;
 use url::{self, Url};
+use std::mem;
 
 
 /// Immutable struct with all information necessary to open a new connection to a HANA database.
@@ -107,19 +104,19 @@ impl ConnectParamsBuilder {
         Ok(ConnectParams {
             hostname: match self.hostname {
                 Some(ref s) => s.clone(),
-                None => return Err(HdbError::UsageError("hostname is missing")),
+                None => return Err(HdbError::UsageError("hostname is missing".to_owned())),
             },
             port: match self.port {
                 Some(p) => p,
-                None => return Err(HdbError::UsageError("port is missing")),
+                None => return Err(HdbError::UsageError("port is missing".to_owned())),
             },
             dbuser: match self.dbuser {
                 Some(_) => self.dbuser.take().unwrap(),
-                None => return Err(HdbError::UsageError("dbuser is missing")),
+                None => return Err(HdbError::UsageError("dbuser is missing".to_owned())),
             },
             password: match self.password {
                 Some(_) => self.password.take().unwrap(),
-                None => return Err(HdbError::UsageError("password is missing")),
+                None => return Err(HdbError::UsageError("password is missing".to_owned())),
             },
             options: mem::replace(&mut self.options, vec![]),
         })
@@ -142,7 +139,7 @@ impl<'a> IntoConnectParams for &'a str {
     fn into_connect_params(self) -> HdbResult<ConnectParams> {
         match Url::parse(self) {
             Ok(url) => url.into_connect_params(),
-            Err(_) => Err(HdbError::UsageError("url parse error")),
+            Err(_) => Err(HdbError::UsageError("url parse error".to_owned())),
         }
     }
 }
@@ -179,7 +176,7 @@ impl IntoConnectParams for Url {
             builder.option(&name, &value);
         }
 
-        let host = url::decode_component(&host).map_err(|_| HdbError::UsageError("decode error"))?;
+        let host = url::decode_component(&host).map_err(|_| HdbError::UsageError("decode error".to_owned()))?;
         builder.hostname(host);
         builder.build()
     }
@@ -202,7 +199,7 @@ impl<'a> IntoConnectParamsBuilder for &'a str {
     fn into_connect_params_builder(self) -> HdbResult<ConnectParamsBuilder> {
         match Url::parse(self) {
             Ok(url) => url.into_connect_params_builder(),
-            Err(_) => Err(HdbError::UsageError("url parse error")),
+            Err(_) => Err(HdbError::UsageError("url parse error".to_owned())),
         }
     }
 }
@@ -239,7 +236,7 @@ impl IntoConnectParamsBuilder for Url {
             builder.option(&name, &value);
         }
 
-        let host = url::decode_component(&host).map_err(|_| HdbError::UsageError("decode error"))?;
+        let host = url::decode_component(&host).map_err(|_| HdbError::UsageError("decode error".to_owned()))?;
         builder.hostname(host);
         Ok(builder)
     }

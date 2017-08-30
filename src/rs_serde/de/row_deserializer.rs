@@ -1,71 +1,9 @@
-use protocol::lowlevel::parts::resultset::ResultSet;
+use protocol::lowlevel::parts::row::Row;
 use protocol::lowlevel::parts::typed_value::TypedValue;
 use super::deserialization_error::{DeserError, DeserResult, prog_err};
 
 use serde;
 use db_value::DbValue;
-
-/// Deserialize a ResultSet into a normal rust type.
-///
-/// A resultset is essentially a two-dimensional structure, given as a list of rows
-/// (a <code> Vec&lt;Row&gt; </code>), where each row is a list of fields
-/// (a <code>Vec&lt;Field&gt;</code>); the name of each field is given in the metadata of
-/// the resultset.
-///
-/// It depends on the dimension of the resultset, what target data structures can be used
-/// for deserialization:
-///
-/// * The default target data structure is a Vec<line_struct>, where line_struct has to match
-///  the field list of the resultset
-///
-/// * If the resultset contains only a single line (e.g. because you specified TOP 1 in your
-///  select), then you can also deserialize into a plain line_struct
-///
-/// * If the resultset contains only a single column, then you can also deserialize into a
-///  Vec<plain_field>
-///
-/// * If the resultset contains only a single value (one row with one column), then you can
-///  also deserialize into a plain variable.
-
-/// To make use of this, you can add a method like this to your resultset implementation:
-///
-/// ```ignore
-///         // Translates a generic resultset into a given type
-///         pub fn into_typed<T>(self) -> DeserResult<T>
-///           where T: serde::de::Deserialize
-///         {
-///             trace!("ResultSet::into_typed()");
-///             let mut deserializer = self::deserialize::RsDeserializer::new(self);
-///             serde::de::Deserialize::deserialize(&mut deserializer)
-///         }
-/// ```
-//   Matrix:         [[x..]..]  =>   Vec<struct>     -           -           -
-//   Single column:  [[x]..]    =>   Vec<struct>     Vec<val>    -           -
-//   Single row:     [[x,..]]   =>   Vec<struct>     -           struct      -
-//   Single value:   [[x]]      =>   Vec<struct>     Vec<val>    struct      val
-//
-// Identify case: => enum RsStruct {Matrix, SingleColumn, SingleRow, SingleValue}
-//
-// Have ternary flags (Must, Can, Done) rows_treat and cols_treat which have to be set before a
-// value can be deserialized
-//
-// Matrix       => rows_treat = Must, cols_treat = Must
-// SingleColumn => rows_treat = Must, cols_treat = Can
-// SingleRow    => rows_treat = Can,  cols_treat = Must
-// SingleValue  => rows_treat = Can,  cols_treat = Can
-//
-// Starting row handling: match rows_treat {Done => error,  _ => {rows_treat = Done; ...},}
-// Starting col handling: match cols_treat {Done => error,  _ => {cols_treat = Done; ...},}
-// When switching to next row: reset cols_treat to Can or Must
-// When deserializing a value: ensure that rows_treat != Must and cols_treat != Must
-#[derive(Debug)]
-pub struct RsDeserializer<RS> {
-    rs: RS,
-    rs_struct: RsStruct,
-    rows_treat: MCD,
-    cols_treat: MCD,
-    next_key: Option<usize>,
-}
 
 #[derive(Debug)]
 enum MCD {
@@ -74,116 +12,71 @@ enum MCD {
     Done,
 }
 
+/// Deserialize a single Row into a normal rust type.
 #[derive(Debug)]
-enum RsStruct {
-    Matrix,
-    SingleColumn,
-    SingleRow,
-    SingleValue,
-}
-impl RsStruct {
-    fn get_struct(rs: &ResultSet) -> RsStruct {
-        match rs.has_multiple_rows() {
-            true => {
-                match rs.number_of_fields() {
-                    1 => RsStruct::SingleColumn,
-                    _ => RsStruct::Matrix,
-                }
-            }
-            false => {
-                match rs.number_of_fields() {
-                    1 => RsStruct::SingleValue,
-                    _ => RsStruct::SingleRow,
-                }
-            }
-        }
-    }
+pub struct RowDeserializer<Row> {
+    row: Row,
+    cols_treat: MCD,
+    next_key: Option<usize>,
 }
 
-impl RsDeserializer<ResultSet> {
-    pub fn new(rs: ResultSet) -> RsDeserializer<ResultSet> {
-        trace!("RsDeserializer::new()");
-        let rs_struct = RsStruct::get_struct(&rs);
-        let (rows_treat, cols_treat) = match rs_struct {
-            RsStruct::Matrix => (MCD::Must, MCD::Must),
-            RsStruct::SingleColumn => (MCD::Must, MCD::Can),
-            RsStruct::SingleRow => (MCD::Can, MCD::Must),
-            RsStruct::SingleValue => (MCD::Can, MCD::Can),
+impl RowDeserializer<Row> {
+    pub fn new(row: Row) -> RowDeserializer<Row> {
+        trace!("RowDeserializer::new()");
+        let cols_treat = match row.len() {
+            1 => MCD::Can,
+            _ => MCD::Must,
         };
-        RsDeserializer {
+        RowDeserializer {
             next_key: None,
-            rs_struct: rs_struct,
-            rows_treat: rows_treat,
             cols_treat: cols_treat,
-            rs: rs,
+            row: row,
         }
     }
 
     pub fn set_next_key(&mut self, next_key: Option<usize>) {
+        trace!("RowDeserializer::set_next_key({:?})", next_key);
         self.next_key = next_key;
     }
 
-
-    pub fn switch_to_next_row(&mut self) {
-        self.rs.pop_row();
-        self.cols_treat = match self.rs_struct {
-            RsStruct::Matrix | RsStruct::SingleRow => MCD::Must,
-            RsStruct::SingleColumn | RsStruct::SingleValue => MCD::Can,
-        };
-    }
-
-    pub fn last_row_length(&self) -> Option<usize> {
-        self.rs.last_row().map(|row| row.len())
+    pub fn row_length(&self) -> usize {
+        self.row.len()
     }
 
     pub fn get_fieldname(&self, idx: usize) -> Option<&String> {
-        self.rs.get_fieldname(idx)
+        self.row.get_fieldname(idx)
     }
 
-    pub fn has_rows(&mut self) -> DeserResult<bool> {
-        Ok(self.rs.len()? > 0)
-    }
 
     fn current_value_pop(&mut self) -> DeserResult<TypedValue> {
+        trace!("RowDeserializer::current_value_pop()");
         self.value_deserialization_allowed()?;
-        match self.rs.last_row_mut() {
-            None => Err(prog_err("no row found in resultset")),
-            Some(row) => {
-                match row.pop() {
-                    Some(tv) => Ok(tv),
-                    None => Err(prog_err("current_value_pop(): no more value found in row")),
-                }
+        match self.row.pop() {
+            Some(tv) => {
+                trace!("RowDeserializer::current_value_pop(): {:?}", tv);
+                Ok(tv)
             }
+            None => Err(prog_err("current_value_pop(): no more value found in row")),
         }
     }
 
     fn current_value_ref(&self) -> DeserResult<&TypedValue> {
         self.value_deserialization_allowed()?;
-        match self.rs.last_row() {
-            None => Err(prog_err("no row found in resultset")),
-            Some(row) => {
-                match row.last() {
-                    Some(tv) => Ok(tv),
-                    None => Err(prog_err("current_value_ref(): no more value found in row")),
-                }
-            }
+        match self.row.last() {
+            Some(tv) => Ok(tv),
+            None => Err(prog_err("current_value_ref(): no more value found in row")),
         }
     }
 
     fn value_deserialization_allowed(&self) -> DeserResult<()> {
-        match self.rows_treat {
-            MCD::Must => Err(DeserError::TrailingRows),
-            _ => {
-                match self.cols_treat {
-                    MCD::Must => Err(DeserError::TrailingCols),
-                    _ => Ok(()),
-                }
-            }
+        match self.cols_treat {
+            MCD::Must => Err(DeserError::TrailingCols),
+            _ => Ok(()),
         }
     }
 
     fn wrong_type(&self, tv: &TypedValue, ovt: &str) -> DeserError {
-        let fieldname = self.rs.get_fieldname(self.rs.last_row().unwrap().len()).unwrap();
+        let fieldname = self.row.get_fieldname(self.row.len()).unwrap();
         DeserError::WrongValueType(format!("The result value {:?} in column {} cannot be \
                                             deserialized into a field of type {}",
                                            tv,
@@ -192,16 +85,14 @@ impl RsDeserializer<ResultSet> {
     }
 }
 
-
-impl<'x, 'a> serde::Deserializer<'x> for &'a mut RsDeserializer<ResultSet> {
+impl<'x, 'a> serde::Deserializer<'x> for &'a mut RowDeserializer<Row> {
     type Error = DeserError;
 
     /// This method walks a visitor through a value as it is being deserialized.
-    #[allow(unused_variables)]
-    fn deserialize_any<V>(self, visitor: V) -> DeserResult<V::Value>
+    fn deserialize_any<V>(self, _visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor<'x>
     {
-        panic!("RsDeserializer::deserialize() called");
+        panic!("RowDeserializer::deserialize() called");
         // match self.current_value_pop()? {
         //     TypedValue::LONGDATE(ld) |
         //     TypedValue::N_LONGDATE(Some(ld)) => visitor.visit_str(&str_from_longdate(&ld)),
@@ -213,7 +104,7 @@ impl<'x, 'a> serde::Deserializer<'x> for &'a mut RsDeserializer<ResultSet> {
     fn deserialize_bool<V>(mut self, visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor<'x>
     {
-        trace!("RsDeserializer::deserialize_bool() called");
+        trace!("RowDeserializer::deserialize_bool() called");
         visitor.visit_bool(self.current_value_pop()?.try_into()?)
     }
 
@@ -221,7 +112,7 @@ impl<'x, 'a> serde::Deserializer<'x> for &'a mut RsDeserializer<ResultSet> {
     fn deserialize_u8<V>(mut self, visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor<'x>
     {
-        trace!("RsDeserializer::deserialize_u8() called");
+        trace!("RowDeserializer::deserialize_u8() called");
         visitor.visit_u8(self.current_value_pop()?.try_into()?)
     }
 
@@ -229,7 +120,7 @@ impl<'x, 'a> serde::Deserializer<'x> for &'a mut RsDeserializer<ResultSet> {
     fn deserialize_u16<V>(mut self, visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor<'x>
     {
-        trace!("RsDeserializer::deserialize_u16() called");
+        trace!("RowDeserializer::deserialize_u16() called");
         visitor.visit_u16(self.current_value_pop()?.try_into()?)
     }
 
@@ -237,7 +128,7 @@ impl<'x, 'a> serde::Deserializer<'x> for &'a mut RsDeserializer<ResultSet> {
     fn deserialize_u32<V>(mut self, visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor<'x>
     {
-        trace!("RsDeserializer::deserialize_u32() called");
+        trace!("RowDeserializer::deserialize_u32() called");
         visitor.visit_u32(self.current_value_pop()?.try_into()?)
     }
 
@@ -245,7 +136,7 @@ impl<'x, 'a> serde::Deserializer<'x> for &'a mut RsDeserializer<ResultSet> {
     fn deserialize_u64<V>(mut self, visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor<'x>
     {
-        trace!("RsDeserializer::deserialize_u64() called");
+        trace!("RowDeserializer::deserialize_u64() called");
         visitor.visit_u64(self.current_value_pop()?.try_into()?)
     }
 
@@ -253,7 +144,7 @@ impl<'x, 'a> serde::Deserializer<'x> for &'a mut RsDeserializer<ResultSet> {
     fn deserialize_i8<V>(mut self, visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor<'x>
     {
-        trace!("RsDeserializer::deserialize_i8() called");
+        trace!("RowDeserializer::deserialize_i8() called");
         visitor.visit_i8(self.current_value_pop()?.try_into()?)
     }
 
@@ -261,7 +152,7 @@ impl<'x, 'a> serde::Deserializer<'x> for &'a mut RsDeserializer<ResultSet> {
     fn deserialize_i16<V>(mut self, visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor<'x>
     {
-        trace!("RsDeserializer::deserialize_i16() called");
+        trace!("RowDeserializer::deserialize_i16() called");
         visitor.visit_i16(self.current_value_pop()?.try_into()?)
     }
 
@@ -269,7 +160,7 @@ impl<'x, 'a> serde::Deserializer<'x> for &'a mut RsDeserializer<ResultSet> {
     fn deserialize_i32<V>(mut self, visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor<'x>
     {
-        trace!("RsDeserializer::deserialize_i32() called");
+        trace!("RowDeserializer::deserialize_i32() called");
         visitor.visit_i32(self.current_value_pop()?.try_into()?)
     }
 
@@ -277,7 +168,7 @@ impl<'x, 'a> serde::Deserializer<'x> for &'a mut RsDeserializer<ResultSet> {
     fn deserialize_i64<V>(mut self, visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor<'x>
     {
-        trace!("RsDeserializer::deserialize_i64() called");
+        trace!("RowDeserializer::deserialize_i64() called");
         visitor.visit_i64(self.current_value_pop()?.try_into()?)
     }
 
@@ -285,7 +176,7 @@ impl<'x, 'a> serde::Deserializer<'x> for &'a mut RsDeserializer<ResultSet> {
     fn deserialize_f32<V>(mut self, visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor<'x>
     {
-        trace!("RsDeserializer::deserialize_f32() called");
+        trace!("RowDeserializer::deserialize_f32() called");
         visitor.visit_f32(self.current_value_pop()?.try_into()?)
     }
 
@@ -293,23 +184,22 @@ impl<'x, 'a> serde::Deserializer<'x> for &'a mut RsDeserializer<ResultSet> {
     fn deserialize_f64<V>(mut self, visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor<'x>
     {
-        trace!("RsDeserializer::deserialize_f64() called");
+        trace!("RowDeserializer::deserialize_f64() called");
         visitor.visit_f64(self.current_value_pop()?.try_into()?)
     }
 
     /// This method hints that the `Deserialize` type is expecting a `char` value.
-    #[allow(unused_variables)]
-    fn deserialize_char<V>(self, visitor: V) -> DeserResult<V::Value>
+    fn deserialize_char<V>(self, _visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor<'x>
     {
-        panic!("RsDeserializer::deserialize_char() not implemented!");
+        panic!("RowDeserializer::deserialize_char() not implemented!");
     }
 
     /// This method hints that the `Deserialize` type is expecting a `&str` value.
     fn deserialize_str<V>(self, visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor<'x>
     {
-        trace!("RsDeserializer::deserialize_str() called, delegates to deserialize_string()");
+        trace!("RowDeserializer::deserialize_str() called, delegates to deserialize_string()");
         self.deserialize_string(visitor)
     }
 
@@ -317,26 +207,24 @@ impl<'x, 'a> serde::Deserializer<'x> for &'a mut RsDeserializer<ResultSet> {
     fn deserialize_string<V>(mut self, visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor<'x>
     {
-        trace!("RsDeserializer::deserialize_string() called");
+        trace!("RowDeserializer::deserialize_string() called");
         visitor.visit_string(self.current_value_pop()?.try_into()?)
     }
 
     /// This method hints that the `Deserialize` type is expecting an `unit` value.
-    #[allow(unused_variables)]
-    fn deserialize_unit<V>(self, visitor: V) -> DeserResult<V::Value>
+    fn deserialize_unit<V>(self, _visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor<'x>
     {
-        panic!("RsDeserializer::deserialize_unit(): not implemented!");
+        panic!("RowDeserializer::deserialize_unit(): not implemented!");
     }
 
     /// This method hints that the `Deserialize` type is expecting an `Option` value. This allows
     /// deserializers that encode an optional value as a nullable value to convert the null value
     /// into a `None`, and a regular value as `Some(value)`.
-    #[inline]
     fn deserialize_option<V>(mut self, visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor<'x>
     {
-        trace!("RsDeserializer::deserialize_option() called");
+        trace!("RowDeserializer::deserialize_option() called");
         let is_some = match self.current_value_ref()? {
             &TypedValue::N_TINYINT(None) |
             &TypedValue::N_SMALLINT(None) |
@@ -420,40 +308,26 @@ impl<'x, 'a> serde::Deserializer<'x> for &'a mut RsDeserializer<ResultSet> {
     /// This method hints that the `Deserialize` type is expecting a sequence value. This allows
     /// deserializers to parse sequences that aren't tagged as sequences.
     #[inline]
-    fn deserialize_seq<V>(mut self, visitor: V) -> DeserResult<V::Value>
+    fn deserialize_seq<V>(self, _visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor<'x>
     {
-        trace!("RsDeserializer::deserialize_seq() called");
-
-        match self.rows_treat {
-            MCD::Done => {
-                Err(DeserError::ProgramError("deserialize_seq() when rows_treat = MCD::Done"
-                    .to_string()))
-            }
-            _ => {
-                self.rows_treat = MCD::Done;
-                self.rs.reverse_rows(); // consuming from the end is easier and faster
-                visitor.visit_seq(RowsVisitor::new(&mut self))
-            }
-        }
+        panic!("RowDeserializer::deserialize_seq() not implemented");
     }
 
     /// This method hints that the `Deserialize` type is expecting a map of values. This allows
     /// deserializers to parse sequences that aren't tagged as maps.
-    #[allow(unused_variables)]
-    fn deserialize_map<V>(self, visitor: V) -> DeserResult<V::Value>
+    fn deserialize_map<V>(self, _visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor<'x>
     {
-        panic!("RsDeserializer::deserialize_map(): not implemented!");
+        panic!("RowDeserializer::deserialize_map(): not implemented!");
     }
 
     /// This method hints that the `Deserialize` type is expecting a unit struct. This allows
     /// deserializers to a unit struct that aren't tagged as a unit struct.
-    #[allow(unused_variables)]
-    fn deserialize_unit_struct<V>(self, _name: &'static str, visitor: V) -> DeserResult<V::Value>
+    fn deserialize_unit_struct<V>(self, _name: &'static str, _visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor<'x>
     {
-        panic!("RsDeserializer::deserialize_unit_struct(): not implemented!");
+        panic!("RowDeserializer::deserialize_unit_struct(): not implemented!");
     }
 
     /// This method hints that the `Deserialize` type is expecting a newtype struct. This allows
@@ -461,21 +335,18 @@ impl<'x, 'a> serde::Deserializer<'x> for &'a mut RsDeserializer<ResultSet> {
     fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor<'x>
     {
-        trace!("RsDeserializer::deserialize_newtype_struct() called with _name = {}", _name);
+        trace!("RowDeserializer::deserialize_newtype_struct() called with _name = {}", _name);
         visitor.visit_newtype_struct(self)
     }
 
-
     /// This method hints that the `Deserialize` type is expecting a tuple struct. This allows
     /// deserializers to parse sequences that aren't tagged as sequences.
-    #[allow(unused_variables)]
-    fn deserialize_tuple_struct<V>(self, _name: &'static str, len: usize, visitor: V)
+    fn deserialize_tuple_struct<V>(self, _name: &'static str, _len: usize, _visitor: V)
                                    -> DeserResult<V::Value>
         where V: serde::de::Visitor<'x>
     {
-        panic!("RsDeserializer::deserialize_tuple_struct(): not implemented!");
+        panic!("RowDeserializer::deserialize_tuple_struct(): not implemented!");
     }
-
 
     /// This method hints that the `Deserialize` type is expecting a struct. This allows
     /// deserializers to parse sequences that aren't tagged as maps.
@@ -484,18 +355,12 @@ impl<'x, 'a> serde::Deserializer<'x> for &'a mut RsDeserializer<ResultSet> {
                              -> DeserResult<V::Value>
         where V: serde::de::Visitor<'x>
     {
-        trace!("RsDeserializer::deserialize_struct() called");
-        match self.rows_treat {
-            MCD::Must => Err(DeserError::TrailingRows),
+        trace!("RowDeserializer::deserialize_struct() called");
+        match self.cols_treat {
+            MCD::Done => Err(prog_err("double-nesting (struct in struct) not possible")),
             _ => {
-                match self.cols_treat {
-                    MCD::Done => Err(prog_err("double-nesting (struct in struct) not possible")),
-                    _ => {
-                        self.cols_treat = MCD::Done;
-                        self.rows_treat = MCD::Done; // in case we deserialize into a plain struct
-                        visitor.visit_map(FieldsVisitor::new(&mut self))
-                    }
-                }
+                self.cols_treat = MCD::Done;
+                visitor.visit_map(FieldsMapVisitor::new(&mut self))
             }
         }
     }
@@ -510,7 +375,7 @@ impl<'x, 'a> serde::Deserializer<'x> for &'a mut RsDeserializer<ResultSet> {
     fn deserialize_bytes<V>(mut self, visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor<'x>
     {
-        trace!("RsDeserializer::deserialize_bytes() called");
+        trace!("RowDeserializer::deserialize_bytes() called");
         // self.deserialize_seq(visitor)
         match self.current_value_pop()? {
             TypedValue::BLOB(blob) |
@@ -546,7 +411,8 @@ impl<'x, 'a> serde::Deserializer<'x> for &'a mut RsDeserializer<ResultSet> {
     fn deserialize_byte_buf<V>(mut self, visitor: V) -> Result<V::Value, Self::Error>
         where V: serde::de::Visitor<'x>
     {
-        trace!("RsDeserializer::deserialize_bytes() called");
+        trace!("RowDeserializer::deserialize_bytes() called");
+        // self.deserialize_seq(visitor)
         match self.current_value_pop()? {
             TypedValue::BLOB(blob) |
             TypedValue::N_BLOB(Some(blob)) => {
@@ -573,12 +439,19 @@ impl<'x, 'a> serde::Deserializer<'x> for &'a mut RsDeserializer<ResultSet> {
     /// This method hints that the `Deserialize` type is expecting a tuple value.
     /// This allows deserializers that provide a custom tuple serialization
     /// to properly deserialize the type.
-    #[allow(unused_variables)]
-    fn deserialize_tuple<V>(self, _len: usize, visitor: V) -> DeserResult<V::Value>
+    fn deserialize_tuple<V>(mut self, _len: usize, visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor<'x>
     {
-        panic!("RsDeserializer::deserialize_tuple() not implemented")
-        // self.deserialize_seq(visitor) ?
+        trace!("RowDeserializer::deserialize_tuple() called");
+        match self.cols_treat {
+            MCD::Done => {
+                Err(prog_err("double-nesting (struct/tuple in struct/tuple) not possible"))
+            }
+            _ => {
+                self.cols_treat = MCD::Done;
+                visitor.visit_seq(FieldsSeqVisitor::new(&mut self))
+            }
+        }
     }
 
     /// Hint that the `Deserialize` type is expecting an enum value with a
@@ -588,7 +461,7 @@ impl<'x, 'a> serde::Deserializer<'x> for &'a mut RsDeserializer<ResultSet> {
                            -> Result<V::Value, Self::Error>
         where V: serde::de::Visitor<'x>
     {
-        panic!("RsDeserializer::deserialize_enum() not implemented")
+        panic!("RowDeserializer::deserialize_enum() not implemented")
     }
 
 
@@ -601,14 +474,14 @@ impl<'x, 'a> serde::Deserializer<'x> for &'a mut RsDeserializer<ResultSet> {
         match self.next_key {
             Some(i) => {
                 self.next_key = None;
-                let fieldname = self.rs.get_fieldname(i).unwrap();
-                trace!("RsDeserializer::deserialize_struct_field(): column {:?} ({})",
+                let fieldname = self.get_fieldname(i).unwrap();
+                trace!("RowDeserializer::deserialize_struct_field(): column {:?} ({})",
                        i,
                        fieldname);
                 visitor.visit_str(fieldname)
             }
             None => {
-                trace!("RsDeserializer::deserialize_identifier(): no next_key");
+                trace!("RowDeserializer::deserialize_identifier(): no next_key");
                 Err(prog_err("no next_key in RsDeserializer::deserialize_identifier()"))
             }
         }
@@ -616,73 +489,27 @@ impl<'x, 'a> serde::Deserializer<'x> for &'a mut RsDeserializer<ResultSet> {
 
     /// This method hints that the Deserialize type needs to deserialize a value
     /// whose type doesn't matter because it is ignored.
-    #[allow(unused_variables)]
-    fn deserialize_ignored_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_ignored_any<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
         where V: serde::de::Visitor<'x>
     {
-        panic!("RsDeserializer::deserialize_ignored_any() not implemented")
-    }
-}
-
-// we use generalization <R> here because this allows us to bind the parameter to the lifetime 'a
-struct RowsVisitor<'a, R: 'a> {
-    de: &'a mut RsDeserializer<R>,
-}
-impl<'a, R> RowsVisitor<'a, R> {
-    pub fn new(de: &'a mut RsDeserializer<R>) -> Self {
-        trace!("RowsVisitor::new()");
-        RowsVisitor { de: de }
-    }
-}
-
-impl<'x, 'a> serde::de::SeqAccess<'x> for RowsVisitor<'a, ResultSet> {
-    type Error = DeserError;
-
-    /// Returns `Ok(Some(value))` for the next value in the sequence, or
-    /// `Ok(None)` if there are no more remaining items.
-    fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>, Self::Error>
-        where T: serde::de::DeserializeSeed<'x>
-    {
-        trace!("RowsVisitor.next_element_seed()");
-        match self.de.has_rows()? {
-            false => {
-                trace!("RowsVisitor::visit(): no more rows");
-                Ok(None)
-            }
-            _ => {
-                trace!("RowsVisitor.next_element_seed() calls seed.deserialize(...)");
-
-                let value = seed.deserialize(&mut *self.de);
-                match value {
-                    Err(e) => {
-                        trace!("RowsVisitor::next_element_seed() fails");
-                        Err(e)
-                    }
-                    Ok(v) => {
-                        trace!("RowsVisitor::next_element_seed(): switch to next row");
-                        self.de.switch_to_next_row();
-                        Ok(Some(v))
-                    }
-                }
-            }
-        }
+        panic!("RowDeserializer::deserialize_ignored_any() not implemented")
     }
 }
 
 
 
-struct FieldsVisitor<'a, R: 'a> {
-    de: &'a mut RsDeserializer<R>,
+struct FieldsMapVisitor<'a, R: 'a> {
+    de: &'a mut RowDeserializer<R>,
 }
 
-impl<'a, R> FieldsVisitor<'a, R> {
-    pub fn new(de: &'a mut RsDeserializer<R>) -> Self {
-        trace!("FieldsVisitor::new()");
-        FieldsVisitor { de: de }
+impl<'a, R> FieldsMapVisitor<'a, R> {
+    pub fn new(de: &'a mut RowDeserializer<R>) -> Self {
+        trace!("FieldsMapVisitor::new()");
+        FieldsMapVisitor { de: de }
     }
 }
 
-impl<'x, 'a> serde::de::MapAccess<'x> for FieldsVisitor<'a, ResultSet> {
+impl<'x, 'a> serde::de::MapAccess<'x> for FieldsMapVisitor<'a, Row> {
     type Error = DeserError;
 
     /// This returns `Ok(Some(key))` for the next key in the map, or `Ok(None)`
@@ -690,14 +517,14 @@ impl<'x, 'a> serde::de::MapAccess<'x> for FieldsVisitor<'a, ResultSet> {
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Self::Error>
         where K: serde::de::DeserializeSeed<'x>
     {
-        match self.de.last_row_length().unwrap() {
+        match self.de.row.len() {
             0 => {
-                trace!("FieldsVisitor::visit_key() called on empty row");
+                trace!("FieldsMapVisitor::next_key_seed() called on empty row");
                 Ok(None)
             }
             len => {
                 let idx = len - 1;
-                trace!("FieldsVisitor::visit_key() for col {}", idx);
+                trace!("FieldsMapVisitor::next_key_seed() for col {}", idx);
                 self.de.set_next_key(Some(idx));
                 let value = seed.deserialize(&mut *self.de);
                 match value {
@@ -715,11 +542,51 @@ impl<'x, 'a> serde::de::MapAccess<'x> for FieldsVisitor<'a, ResultSet> {
     fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value, Self::Error>
         where V: serde::de::DeserializeSeed<'x>
     {
-        match self.de.last_row_length().unwrap() {
-            0 => Err(prog_err("FieldsVisitor::visit_value(): no more value")),
+        match self.de.row.len() {
+            0 => Err(prog_err("FieldsMapVisitor::next_value_seed(): no more value")),
             len => {
-                trace!("FieldsVisitor::visit_value() for col {}", len - 1);
+                trace!("FieldsMapVisitor::next_value_seed() for col {}", len - 1);
                 seed.deserialize(&mut *self.de)
+            }
+        }
+    }
+}
+
+struct FieldsSeqVisitor<'a, R: 'a> {
+    de: &'a mut RowDeserializer<R>,
+}
+impl<'a> FieldsSeqVisitor<'a, Row> {
+    pub fn new(de: &'a mut RowDeserializer<Row>) -> Self {
+        trace!("FieldsSeqVisitor::new()");
+        de.row.reverse_values();
+        FieldsSeqVisitor { de: de }
+    }
+}
+
+impl<'x, 'a> serde::de::SeqAccess<'x> for FieldsSeqVisitor<'a, Row> {
+    type Error = DeserError;
+
+    //
+    fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>, Self::Error>
+        where T: serde::de::DeserializeSeed<'x>
+    {
+        match self.de.row.len() {
+            0 => {
+                trace!("FieldsSeqVisitor::next_element_seed() called on empty row");
+                Ok(None)
+            }
+            len => {
+                let idx = len - 1;
+                trace!("FieldsSeqVisitor::next_element_seed() for col {}", idx);
+                self.de.set_next_key(Some(idx));
+                let value = seed.deserialize(&mut *self.de);
+                match value {
+                    Ok(res) => Ok(Some(res)),
+                    Err(_) => {
+                        let fname = self.de.get_fieldname(idx).unwrap();
+                        Err(DeserError::UnknownField(fname.clone()))
+                    }
+                }
             }
         }
     }

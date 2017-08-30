@@ -9,7 +9,7 @@ extern crate serde_json;
 
 mod test_utils;
 
-use hdbconnect::{Connection, HdbResult};
+use hdbconnect::{Connection, DbValue, HdbResult};
 
 #[test] // cargo test test_procedures -- --nocapture
 pub fn test_040_procedures() {
@@ -41,7 +41,7 @@ fn impl_test_040_procedures() -> HdbResult<i32> {
     procedure_with_in_and_out_parameters(&mut connection)?;
 
     procedure_with_in_nclob_non_consuming(&mut connection)?;
-    Ok(connection.get_call_count())
+    Ok(connection.get_call_count()?)
 }
 
 fn very_simple_procedure(connection: &mut Connection) -> HdbResult<()> {
@@ -143,8 +143,8 @@ fn procedure_with_in_parameters(connection: &mut Connection) -> HdbResult<()> {
     response.get_success()?;
     let mut rs = response.get_resultset()?;
     let row = rs.pop_row().unwrap();
-    assert_eq!(row.values.get(0).unwrap().get_i32()?, 42);
-    assert_eq!(row.values.get(1).unwrap().get_string()?, "is between 41 and 43");
+    assert_eq!(DbValue::<i32>::try_into(row.get(0).unwrap())?, 42_i32);
+    assert_eq!(DbValue::<String>::try_into(row.get(1).unwrap())?, "is between 41 and 43");
     Ok(())
 }
 
@@ -171,11 +171,12 @@ fn procedure_with_in_and_out_parameters(connection: &mut Connection) -> HdbResul
     let mut response = prepared_stmt.execute_batch()?;
     response.get_success()?;
     let op = response.get_output_parameters()?;
-    assert_eq!(op.values.get(0).unwrap().get_string()?, "my first output parameter");
+    assert_eq!(DbValue::<String>::try_into(op.values.get(0).unwrap().clone())?,
+               "my first output parameter");
 
     let mut rs = response.get_resultset()?;
     let row = rs.pop_row().unwrap();
-    assert_eq!(row.values.get(0).unwrap().get_i32()?, 42);
+    assert_eq!(DbValue::<i32>::try_into(row.get(0).unwrap())?, 42);
 
     Ok(())
 }
@@ -199,7 +200,7 @@ fn procedure_with_in_nclob_non_consuming(connection: &mut Connection) -> HdbResu
     response.get_success()?;
     let mut rs = response.get_resultset()?;
     let row = rs.pop_row().unwrap();
-    assert_eq!(row.values.get(0).unwrap().get_string()?, "nclob string");
+    assert_eq!(DbValue::<String>::try_into(row.get(0).unwrap())?, "nclob string");
 
     Ok(())
 }

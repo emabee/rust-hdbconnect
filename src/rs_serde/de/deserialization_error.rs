@@ -2,10 +2,12 @@ use protocol::protocol_error::PrtError;
 use std::error::Error;
 use serde;
 use std::fmt;
+use db_value::ConversionError;
 
 
 /// The errors that can arise while deserializing a ResultSet into a standard rust type/struct/Vec
 pub enum DeserError {
+    ConversionError(ConversionError),
     CustomError(String),
     ProgramError(String),
     UnknownField(String),
@@ -18,6 +20,7 @@ pub enum DeserError {
 impl Error for DeserError {
     fn description(&self) -> &str {
         match *self {
+            DeserError::ConversionError(_) => "Conversion of database type to rust type failed",
             DeserError::CustomError(_) => "general error from the deserialization framework",
             DeserError::ProgramError(_) => {
                 "error in the implementation of the resultset deserialization"
@@ -46,6 +49,13 @@ impl From<PrtError> for DeserError {
     }
 }
 
+impl From<ConversionError> for DeserError {
+    fn from(error: ConversionError) -> DeserError {
+        DeserError::ConversionError(error)
+    }
+}
+
+
 impl serde::de::Error for DeserError {
     fn custom<T: fmt::Display>(msg: T) -> Self {
         DeserError::CustomError(msg.to_string())
@@ -64,6 +74,7 @@ impl serde::de::Error for DeserError {
 impl fmt::Debug for DeserError {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         match *self {
+            DeserError::ConversionError(ref e) => write!(formatter, "{:?}", e),
             DeserError::CustomError(ref s) |
             DeserError::ProgramError(ref s) |
             DeserError::UnknownField(ref s) |
@@ -87,6 +98,7 @@ impl fmt::Debug for DeserError {
 impl fmt::Display for DeserError {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
+            DeserError::ConversionError(ref e) => write!(fmt, "{}", e),
             DeserError::CustomError(ref s) |
             DeserError::ProgramError(ref s) |
             DeserError::UnknownField(ref s) |

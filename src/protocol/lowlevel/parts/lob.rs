@@ -45,7 +45,7 @@ impl BLOB {
 
     /// Ref to the contained Vec<u8>.
     pub fn ref_to_bytes(&self) -> PrtResult<&Vec<u8>> {
-        trace!("BLOB::into_bytes()");
+        trace!("BLOB::ref_to_bytes()");
         match self.0 {
             BlobEnum::FromDB(_) => {
                 Err(PrtError::ProtocolError("cannot serialize BlobHandle".to_string()))
