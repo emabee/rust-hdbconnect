@@ -39,7 +39,6 @@ extern crate serde_derive;
 extern crate vec_map;
 extern crate user;
 
-mod db_value;
 mod connect_params;
 mod connection;
 mod connection_manager;
@@ -79,6 +78,10 @@ pub mod types {
     pub use protocol::lowlevel::parts::lob::{BLOB, CLOB, new_clob_to_db};
     pub use protocol::lowlevel::parts::longdate::LongDate;
 }
-pub use protocol::lowlevel::parts::row::Row;
 pub use protocol::lowlevel::parts::typed_value::TypedValue as HdbValue;
-pub use db_value::DbValue;
+
+pub use rs_serde::de::db_value::{DbValue, DbValueInto};
+pub use rs_serde::de::deser_row::DeserializableRow;
+
+/// The row type used by hdbconnect.
+pub type HdbRow = rs_serde::de::row::Row<metadata::ResultSetMetadata, HdbValue>;

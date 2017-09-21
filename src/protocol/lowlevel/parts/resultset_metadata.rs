@@ -1,5 +1,7 @@
 use super::{PrtError, PrtResult, prot_err, util};
 
+use rs_serde::de::rs_metadata::RsMetadata;
+
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::fmt;
 use std::io;
@@ -47,10 +49,13 @@ impl ResultSetMetadata {
     pub fn get_fieldmetadata(&self, field_idx: usize) -> Option<&FieldMetadata> {
         self.fields.get(field_idx)
     }
+}
 
+impl RsMetadata for ResultSetMetadata {
     /// FIXME is it OK that we ignore here the column_name?
     /// FIXME for large resultsets, this method will be called very often - is caching meaningful?
-    pub fn get_fieldname(&self, field_idx: usize) -> Option<&String> {
+    #[inline]
+    fn get_fieldname(&self, field_idx: usize) -> Option<&String> {
         match self.fields.get(field_idx) {
             Some(field_metadata) => self.names.get(field_metadata.column_displayname as usize),
             None => None,

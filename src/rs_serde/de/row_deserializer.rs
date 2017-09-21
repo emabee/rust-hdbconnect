@@ -1,9 +1,8 @@
-use protocol::lowlevel::parts::row::Row;
-use protocol::lowlevel::parts::typed_value::TypedValue;
+use super::deser_row::DeserializableRow;
 use super::deserialization_error::{DeserError, DeserResult, prog_err};
 
 use serde;
-use db_value::DbValue;
+use rs_serde::de::db_value::{DbValue, DbValueInto};
 
 #[derive(Debug)]
 enum MCD {
@@ -14,14 +13,17 @@ enum MCD {
 
 /// Deserialize a single Row into a normal rust type.
 #[derive(Debug)]
-pub struct RowDeserializer<Row> {
-    row: Row,
+pub struct RowDeserializer<ROW> {
+    row: ROW,
     cols_treat: MCD,
     next_key: Option<usize>,
 }
 
-impl RowDeserializer<Row> {
-    pub fn new(row: Row) -> RowDeserializer<Row> {
+impl<ROW> RowDeserializer<ROW>
+    where ROW: DeserializableRow,
+          <ROW as DeserializableRow>::V: DbValue
+{
+    pub fn new(row: ROW) -> RowDeserializer<ROW> {
         trace!("RowDeserializer::new()");
         let cols_treat = match row.len() {
             1 => MCD::Can,
@@ -48,19 +50,19 @@ impl RowDeserializer<Row> {
     }
 
 
-    fn current_value_pop(&mut self) -> DeserResult<TypedValue> {
+    fn current_value_pop(&mut self) -> DeserResult<ROW::V> {
         trace!("RowDeserializer::current_value_pop()");
         self.value_deserialization_allowed()?;
         match self.row.pop() {
             Some(tv) => {
-                trace!("RowDeserializer::current_value_pop(): {:?}", tv);
+                // FIXME trace!("RowDeserializer::current_value_pop(): {:?}", tv);
                 Ok(tv)
             }
             None => Err(prog_err("current_value_pop(): no more value found in row")),
         }
     }
 
-    fn current_value_ref(&self) -> DeserResult<&TypedValue> {
+    fn current_value_ref(&self) -> DeserResult<&ROW::V> {
         self.value_deserialization_allowed()?;
         match self.row.last() {
             Some(tv) => Ok(tv),
@@ -74,18 +76,11 @@ impl RowDeserializer<Row> {
             _ => Ok(()),
         }
     }
-
-    fn wrong_type(&self, tv: &TypedValue, ovt: &str) -> DeserError {
-        let fieldname = self.row.get_fieldname(self.row.len()).unwrap();
-        DeserError::WrongValueType(format!("The result value {:?} in column {} cannot be \
-                                            deserialized into a field of type {}",
-                                           tv,
-                                           fieldname,
-                                           ovt))
-    }
 }
 
-impl<'x, 'a> serde::Deserializer<'x> for &'a mut RowDeserializer<Row> {
+impl<'x, 'a, ROW: DeserializableRow> serde::Deserializer<'x> for &'a mut RowDeserializer<ROW>
+    where <ROW as DeserializableRow>::V: DbValue
+{
     type Error = DeserError;
 
     /// This method walks a visitor through a value as it is being deserialized.
@@ -93,11 +88,6 @@ impl<'x, 'a> serde::Deserializer<'x> for &'a mut RowDeserializer<Row> {
         where V: serde::de::Visitor<'x>
     {
         panic!("RowDeserializer::deserialize() called");
-        // match self.current_value_pop()? {
-        //     TypedValue::LONGDATE(ld) |
-        //     TypedValue::N_LONGDATE(Some(ld)) => visitor.visit_str(&str_from_longdate(&ld)),
-        //     value => return Err(self.wrong_type(&value, "[some date or datetime]")),
-        // }
     }
 
     /// This method hints that the `Deserialize` type is expecting a `bool` value.
@@ -225,80 +215,9 @@ impl<'x, 'a> serde::Deserializer<'x> for &'a mut RowDeserializer<Row> {
         where V: serde::de::Visitor<'x>
     {
         trace!("RowDeserializer::deserialize_option() called");
-        let is_some = match self.current_value_ref()? {
-            &TypedValue::N_TINYINT(None) |
-            &TypedValue::N_SMALLINT(None) |
-            &TypedValue::N_INT(None) |
-            &TypedValue::N_BIGINT(None) |
-            &TypedValue::N_REAL(None) |
-            &TypedValue::N_DOUBLE(None) |
-            &TypedValue::N_CHAR(None) |
-            &TypedValue::N_VARCHAR(None) |
-            &TypedValue::N_NCHAR(None) |
-            &TypedValue::N_NVARCHAR(None) |
-            &TypedValue::N_BINARY(None) |
-            &TypedValue::N_VARBINARY(None) |
-            &TypedValue::N_CLOB(None) |
-            &TypedValue::N_NCLOB(None) |
-            &TypedValue::N_BLOB(None) |
-            &TypedValue::N_BOOLEAN(None) |
-            &TypedValue::N_STRING(None) |
-            &TypedValue::N_NSTRING(None) |
-            &TypedValue::N_BSTRING(None) |
-            &TypedValue::N_TEXT(None) |
-            &TypedValue::N_SHORTTEXT(None) |
-            &TypedValue::N_LONGDATE(None) => false,
-
-            &TypedValue::N_TINYINT(Some(_)) |
-            &TypedValue::N_SMALLINT(Some(_)) |
-            &TypedValue::N_INT(Some(_)) |
-            &TypedValue::N_BIGINT(Some(_)) |
-            &TypedValue::N_REAL(Some(_)) |
-            &TypedValue::N_DOUBLE(Some(_)) |
-            &TypedValue::N_CHAR(Some(_)) |
-            &TypedValue::N_VARCHAR(Some(_)) |
-            &TypedValue::N_NCHAR(Some(_)) |
-            &TypedValue::N_NVARCHAR(Some(_)) |
-            &TypedValue::N_BINARY(Some(_)) |
-            &TypedValue::N_VARBINARY(Some(_)) |
-            &TypedValue::N_CLOB(Some(_)) |
-            &TypedValue::N_NCLOB(Some(_)) |
-            &TypedValue::N_BLOB(Some(_)) |
-            &TypedValue::N_BOOLEAN(Some(_)) |
-            &TypedValue::N_STRING(Some(_)) |
-            &TypedValue::N_NSTRING(Some(_)) |
-            &TypedValue::N_BSTRING(Some(_)) |
-            &TypedValue::N_TEXT(Some(_)) |
-            &TypedValue::N_SHORTTEXT(Some(_)) |
-            &TypedValue::N_LONGDATE(Some(_)) |
-            &TypedValue::TINYINT(_) |
-            &TypedValue::SMALLINT(_) |
-            &TypedValue::INT(_) |
-            &TypedValue::BIGINT(_) |
-            &TypedValue::REAL(_) |
-            &TypedValue::DOUBLE(_) |
-            &TypedValue::CHAR(_) |
-            &TypedValue::VARCHAR(_) |
-            &TypedValue::NCHAR(_) |
-            &TypedValue::NVARCHAR(_) |
-            &TypedValue::BINARY(_) |
-            &TypedValue::VARBINARY(_) |
-            &TypedValue::CLOB(_) |
-            &TypedValue::NCLOB(_) |
-            &TypedValue::BLOB(_) |
-            &TypedValue::BOOLEAN(_) |
-            &TypedValue::STRING(_) |
-            &TypedValue::NSTRING(_) |
-            &TypedValue::BSTRING(_) |
-            &TypedValue::TEXT(_) |
-            &TypedValue::SHORTTEXT(_) |
-            &TypedValue::LONGDATE(_) => true,
-        };
-
-        // the borrow-checker forces us to extract this to here
-        match is_some {
-            true => visitor.visit_some(self),
-            false => {
+        match self.current_value_ref()?.is_null() {
+            false => visitor.visit_some(self),
+            true => {
                 self.current_value_pop().unwrap();
                 visitor.visit_none()
             }
@@ -376,28 +295,7 @@ impl<'x, 'a> serde::Deserializer<'x> for &'a mut RowDeserializer<Row> {
         where V: serde::de::Visitor<'x>
     {
         trace!("RowDeserializer::deserialize_bytes() called");
-        // self.deserialize_seq(visitor)
-        match self.current_value_pop()? {
-            TypedValue::BLOB(blob) |
-            TypedValue::N_BLOB(Some(blob)) => {
-                match visitor.visit_bytes(&blob.into_bytes()?) {
-                    Ok(v) => Ok(v),
-                    Err(e) => {
-                        trace!("ERRRRRRRRR: {:?}", e);
-                        Err(e)
-                    }
-                }
-            }
-
-            TypedValue::BINARY(v) |
-            TypedValue::VARBINARY(v) |
-            TypedValue::BSTRING(v) |
-            TypedValue::N_BINARY(Some(v)) |
-            TypedValue::N_VARBINARY(Some(v)) |
-            TypedValue::N_BSTRING(Some(v)) => visitor.visit_bytes(&v),
-
-            value => return Err(self.wrong_type(&value, "seq")),
-        }
+        visitor.visit_bytes(&DbValueInto::<Vec<u8>>::try_into(self.current_value_pop()?)?)
     }
 
     /// Hint that the `Deserialize` type is expecting a byte array and would
@@ -407,33 +305,11 @@ impl<'x, 'a> serde::Deserializer<'x> for &'a mut RowDeserializer<Row> {
     /// If the `Visitor<'x>` would not benefit from taking ownership of `Vec<u8>`
     /// data, indicate that to the `Deserializer` by using `deserialize_bytes`
     /// instead.
-    // FIXME check the implementation (it was just copied)
     fn deserialize_byte_buf<V>(mut self, visitor: V) -> Result<V::Value, Self::Error>
         where V: serde::de::Visitor<'x>
     {
         trace!("RowDeserializer::deserialize_bytes() called");
-        // self.deserialize_seq(visitor)
-        match self.current_value_pop()? {
-            TypedValue::BLOB(blob) |
-            TypedValue::N_BLOB(Some(blob)) => {
-                match visitor.visit_bytes(&blob.into_bytes()?) {
-                    Ok(v) => Ok(v),
-                    Err(e) => {
-                        trace!("ERRRRRRRRR: {:?}", e);
-                        Err(e)
-                    }
-                }
-            }
-
-            TypedValue::BINARY(v) |
-            TypedValue::VARBINARY(v) |
-            TypedValue::BSTRING(v) |
-            TypedValue::N_BINARY(Some(v)) |
-            TypedValue::N_VARBINARY(Some(v)) |
-            TypedValue::N_BSTRING(Some(v)) => visitor.visit_bytes(&v),
-
-            value => return Err(self.wrong_type(&value, "seq")),
-        }
+        visitor.visit_bytes(&DbValueInto::<Vec<u8>>::try_into(self.current_value_pop()?)?)
     }
 
     /// This method hints that the `Deserialize` type is expecting a tuple value.
@@ -498,18 +374,24 @@ impl<'x, 'a> serde::Deserializer<'x> for &'a mut RowDeserializer<Row> {
 
 
 
-struct FieldsMapVisitor<'a, R: 'a> {
+struct FieldsMapVisitor<'a, R: 'a + DeserializableRow>
+    where <R as DeserializableRow>::V: DbValue
+{
     de: &'a mut RowDeserializer<R>,
 }
 
-impl<'a, R> FieldsMapVisitor<'a, R> {
+impl<'a, R: DeserializableRow> FieldsMapVisitor<'a, R>
+    where <R as DeserializableRow>::V: DbValue
+{
     pub fn new(de: &'a mut RowDeserializer<R>) -> Self {
         trace!("FieldsMapVisitor::new()");
         FieldsMapVisitor { de: de }
     }
 }
 
-impl<'x, 'a> serde::de::MapAccess<'x> for FieldsMapVisitor<'a, Row> {
+impl<'x, 'a, R: DeserializableRow> serde::de::MapAccess<'x> for FieldsMapVisitor<'a, R>
+    where <R as DeserializableRow>::V: DbValue
+{
     type Error = DeserError;
 
     /// This returns `Ok(Some(key))` for the next key in the map, or `Ok(None)`
@@ -552,18 +434,24 @@ impl<'x, 'a> serde::de::MapAccess<'x> for FieldsMapVisitor<'a, Row> {
     }
 }
 
-struct FieldsSeqVisitor<'a, R: 'a> {
+struct FieldsSeqVisitor<'a, R: 'a + DeserializableRow>
+    where <R as DeserializableRow>::V: DbValue
+{
     de: &'a mut RowDeserializer<R>,
 }
-impl<'a> FieldsSeqVisitor<'a, Row> {
-    pub fn new(de: &'a mut RowDeserializer<Row>) -> Self {
+impl<'a, R: DeserializableRow> FieldsSeqVisitor<'a, R>
+    where <R as DeserializableRow>::V: DbValue
+{
+    pub fn new(de: &'a mut RowDeserializer<R>) -> Self {
         trace!("FieldsSeqVisitor::new()");
         de.row.reverse_values();
         FieldsSeqVisitor { de: de }
     }
 }
 
-impl<'x, 'a> serde::de::SeqAccess<'x> for FieldsSeqVisitor<'a, Row> {
+impl<'x, 'a, R: DeserializableRow> serde::de::SeqAccess<'x> for FieldsSeqVisitor<'a, R>
+    where <R as DeserializableRow>::V: DbValue
+{
     type Error = DeserError;
 
     //

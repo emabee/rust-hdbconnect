@@ -33,7 +33,7 @@ pub fn get_authenticated_connection() -> HdbResult<Connection> {
 
 pub fn statement_ignore_err(connection: &mut Connection, stmts: Vec<&str>) {
     for s in stmts {
-        match connection.any_statement(s) {
+        match connection.statement(s) {
             Ok(_) => {}
             Err(_) => {}
         }

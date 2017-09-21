@@ -1,9 +1,27 @@
-use protocol::lowlevel::parts::resultset::ResultSet;
-use protocol::lowlevel::parts::typed_value::TypedValue;
-use super::deserialization_error::{DeserError, DeserResult, prog_err};
-
 use serde;
-use db_value::DbValue;
+
+use super::db_value::{DbValue, DbValueInto};
+use super::deserialization_error::{DeserError, DeserResult, prog_err};
+use super::deser_resultset::DeserializableResultSet as DesrlResultSet;
+use super::deser_row::DeserializableRow as DesrlRow;
+
+
+#[derive(Debug)]
+enum MCD {
+    Must,
+    Can,
+    Done,
+}
+
+#[derive(Debug)]
+enum RsStructure {
+    Matrix,
+    SingleColumn,
+    SingleRow,
+    SingleValue,
+}
+
+
 
 /// Deserialize a ResultSet into a normal rust type.
 ///
@@ -44,7 +62,7 @@ use db_value::DbValue;
 //   Single row:     [[x,..]]   =>   Vec<struct>     -           struct      -
 //   Single value:   [[x]]      =>   Vec<struct>     Vec<val>    struct      val
 //
-// Identify case: => enum RsStruct {Matrix, SingleColumn, SingleRow, SingleValue}
+// Identify case: => enum RsStructure {Matrix, SingleColumn, SingleRow, SingleValue}
 //
 // Have ternary flags (Must, Can, Done) rows_treat and cols_treat which have to be set before a
 // value can be deserialized
@@ -61,54 +79,24 @@ use db_value::DbValue;
 #[derive(Debug)]
 pub struct RsDeserializer<RS> {
     rs: RS,
-    rs_struct: RsStruct,
+    rs_struct: RsStructure,
     rows_treat: MCD,
     cols_treat: MCD,
     next_key: Option<usize>,
 }
 
-#[derive(Debug)]
-enum MCD {
-    Must,
-    Can,
-    Done,
-}
-
-#[derive(Debug)]
-enum RsStruct {
-    Matrix,
-    SingleColumn,
-    SingleRow,
-    SingleValue,
-}
-impl RsStruct {
-    fn get_struct(rs: &ResultSet) -> RsStruct {
-        match rs.has_multiple_rows() {
-            true => {
-                match rs.number_of_fields() {
-                    1 => RsStruct::SingleColumn,
-                    _ => RsStruct::Matrix,
-                }
-            }
-            false => {
-                match rs.number_of_fields() {
-                    1 => RsStruct::SingleValue,
-                    _ => RsStruct::SingleRow,
-                }
-            }
-        }
-    }
-}
-
-impl RsDeserializer<ResultSet> {
-    pub fn new(rs: ResultSet) -> RsDeserializer<ResultSet> {
+impl<RS> RsDeserializer<RS>
+    where RS: DesrlResultSet,
+          <<RS as DesrlResultSet>::ROW as DesrlRow>::V: DbValue
+{
+    pub fn new(rs: RS) -> RsDeserializer<RS> {
         trace!("RsDeserializer::new()");
-        let rs_struct = RsStruct::get_struct(&rs);
+        let rs_struct = RsDeserializer::get_struct(&rs);
         let (rows_treat, cols_treat) = match rs_struct {
-            RsStruct::Matrix => (MCD::Must, MCD::Must),
-            RsStruct::SingleColumn => (MCD::Must, MCD::Can),
-            RsStruct::SingleRow => (MCD::Can, MCD::Must),
-            RsStruct::SingleValue => (MCD::Can, MCD::Can),
+            RsStructure::Matrix => (MCD::Must, MCD::Must),
+            RsStructure::SingleColumn => (MCD::Must, MCD::Can),
+            RsStructure::SingleRow => (MCD::Can, MCD::Must),
+            RsStructure::SingleValue => (MCD::Can, MCD::Can),
         };
         RsDeserializer {
             next_key: None,
@@ -116,6 +104,23 @@ impl RsDeserializer<ResultSet> {
             rows_treat: rows_treat,
             cols_treat: cols_treat,
             rs: rs,
+        }
+    }
+
+    fn get_struct(rs: &RS) -> RsStructure {
+        match rs.has_multiple_rows() {
+            true => {
+                match rs.number_of_fields() {
+                    1 => RsStructure::SingleColumn,
+                    _ => RsStructure::Matrix,
+                }
+            }
+            false => {
+                match rs.number_of_fields() {
+                    1 => RsStructure::SingleValue,
+                    _ => RsStructure::SingleRow,
+                }
+            }
         }
     }
 
@@ -127,8 +132,9 @@ impl RsDeserializer<ResultSet> {
     pub fn switch_to_next_row(&mut self) {
         self.rs.pop_row();
         self.cols_treat = match self.rs_struct {
-            RsStruct::Matrix | RsStruct::SingleRow => MCD::Must,
-            RsStruct::SingleColumn | RsStruct::SingleValue => MCD::Can,
+            RsStructure::Matrix | RsStructure::SingleRow => MCD::Must,
+            RsStructure::SingleColumn |
+            RsStructure::SingleValue => MCD::Can,
         };
     }
 
@@ -140,11 +146,13 @@ impl RsDeserializer<ResultSet> {
         self.rs.get_fieldname(idx)
     }
 
-    pub fn has_rows(&mut self) -> DeserResult<bool> {
+    pub fn has_rows(&mut self) -> Result<bool, DeserError> {
         Ok(self.rs.len()? > 0)
     }
 
-    fn current_value_pop(&mut self) -> DeserResult<TypedValue> {
+    fn current_value_pop(&mut self) -> DeserResult<<<RS as DesrlResultSet>::ROW as DesrlRow>::V>
+    where <<RS as DesrlResultSet>::ROW as DesrlRow>::V : DbValue
+     {
         self.value_deserialization_allowed()?;
         match self.rs.last_row_mut() {
             None => Err(prog_err("no row found in resultset")),
@@ -157,7 +165,7 @@ impl RsDeserializer<ResultSet> {
         }
     }
 
-    fn current_value_ref(&self) -> DeserResult<&TypedValue> {
+    fn current_value_ref(&self) -> DeserResult<&<<RS as DesrlResultSet>::ROW as DesrlRow>::V> {
         self.value_deserialization_allowed()?;
         match self.rs.last_row() {
             None => Err(prog_err("no row found in resultset")),
@@ -182,23 +190,23 @@ impl RsDeserializer<ResultSet> {
         }
     }
 
-    fn wrong_type(&self, tv: &TypedValue, ovt: &str) -> DeserError {
-        let fieldname = self.rs.get_fieldname(self.rs.last_row().unwrap().len()).unwrap();
-        DeserError::WrongValueType(format!("The result value {:?} in column {} cannot be \
-                                            deserialized into a field of type {}",
-                                           tv,
-                                           fieldname,
-                                           ovt))
-    }
+    // fn wrong_type(&self, tv: &<<RS as DesrlResultSet>::ROW as DesrlRow>::V, ovt: &str) -> DeserError {
+    //     let fieldname = self.rs.get_fieldname(self.rs.last_row().unwrap().len()).unwrap();
+    //     DeserError::WrongValueType(format!("The result value {:?} in column {} cannot be \
+    //                                         deserialized into a field of type {}",
+    //                                        tv,
+    //                                        fieldname,
+    //                                        ovt))
+    // }
 }
 
-
-impl<'x, 'a> serde::Deserializer<'x> for &'a mut RsDeserializer<ResultSet> {
+impl<'x, 'a, RS: DesrlResultSet> serde::Deserializer<'x> for &'a mut RsDeserializer<RS>
+    where <<RS as DesrlResultSet>::ROW as DesrlRow>::V: DbValue
+{
     type Error = DeserError;
 
     /// This method walks a visitor through a value as it is being deserialized.
-    #[allow(unused_variables)]
-    fn deserialize_any<V>(self, visitor: V) -> DeserResult<V::Value>
+    fn deserialize_any<V>(self, _visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor<'x>
     {
         panic!("RsDeserializer::deserialize() called");
@@ -337,80 +345,10 @@ impl<'x, 'a> serde::Deserializer<'x> for &'a mut RsDeserializer<ResultSet> {
         where V: serde::de::Visitor<'x>
     {
         trace!("RsDeserializer::deserialize_option() called");
-        let is_some = match self.current_value_ref()? {
-            &TypedValue::N_TINYINT(None) |
-            &TypedValue::N_SMALLINT(None) |
-            &TypedValue::N_INT(None) |
-            &TypedValue::N_BIGINT(None) |
-            &TypedValue::N_REAL(None) |
-            &TypedValue::N_DOUBLE(None) |
-            &TypedValue::N_CHAR(None) |
-            &TypedValue::N_VARCHAR(None) |
-            &TypedValue::N_NCHAR(None) |
-            &TypedValue::N_NVARCHAR(None) |
-            &TypedValue::N_BINARY(None) |
-            &TypedValue::N_VARBINARY(None) |
-            &TypedValue::N_CLOB(None) |
-            &TypedValue::N_NCLOB(None) |
-            &TypedValue::N_BLOB(None) |
-            &TypedValue::N_BOOLEAN(None) |
-            &TypedValue::N_STRING(None) |
-            &TypedValue::N_NSTRING(None) |
-            &TypedValue::N_BSTRING(None) |
-            &TypedValue::N_TEXT(None) |
-            &TypedValue::N_SHORTTEXT(None) |
-            &TypedValue::N_LONGDATE(None) => false,
-
-            &TypedValue::N_TINYINT(Some(_)) |
-            &TypedValue::N_SMALLINT(Some(_)) |
-            &TypedValue::N_INT(Some(_)) |
-            &TypedValue::N_BIGINT(Some(_)) |
-            &TypedValue::N_REAL(Some(_)) |
-            &TypedValue::N_DOUBLE(Some(_)) |
-            &TypedValue::N_CHAR(Some(_)) |
-            &TypedValue::N_VARCHAR(Some(_)) |
-            &TypedValue::N_NCHAR(Some(_)) |
-            &TypedValue::N_NVARCHAR(Some(_)) |
-            &TypedValue::N_BINARY(Some(_)) |
-            &TypedValue::N_VARBINARY(Some(_)) |
-            &TypedValue::N_CLOB(Some(_)) |
-            &TypedValue::N_NCLOB(Some(_)) |
-            &TypedValue::N_BLOB(Some(_)) |
-            &TypedValue::N_BOOLEAN(Some(_)) |
-            &TypedValue::N_STRING(Some(_)) |
-            &TypedValue::N_NSTRING(Some(_)) |
-            &TypedValue::N_BSTRING(Some(_)) |
-            &TypedValue::N_TEXT(Some(_)) |
-            &TypedValue::N_SHORTTEXT(Some(_)) |
-            &TypedValue::N_LONGDATE(Some(_)) |
-            &TypedValue::TINYINT(_) |
-            &TypedValue::SMALLINT(_) |
-            &TypedValue::INT(_) |
-            &TypedValue::BIGINT(_) |
-            &TypedValue::REAL(_) |
-            &TypedValue::DOUBLE(_) |
-            &TypedValue::CHAR(_) |
-            &TypedValue::VARCHAR(_) |
-            &TypedValue::NCHAR(_) |
-            &TypedValue::NVARCHAR(_) |
-            &TypedValue::BINARY(_) |
-            &TypedValue::VARBINARY(_) |
-            &TypedValue::CLOB(_) |
-            &TypedValue::NCLOB(_) |
-            &TypedValue::BLOB(_) |
-            &TypedValue::BOOLEAN(_) |
-            &TypedValue::STRING(_) |
-            &TypedValue::NSTRING(_) |
-            &TypedValue::BSTRING(_) |
-            &TypedValue::TEXT(_) |
-            &TypedValue::SHORTTEXT(_) |
-            &TypedValue::LONGDATE(_) => true,
-        };
-
-        // the borrow-checker forces us to extract this to here
-        match is_some {
-            true => visitor.visit_some(self),
-            false => {
+        trace!("RowDeserializer::deserialize_option() called");
+        match self.current_value_ref()?.is_null() {
+            false => visitor.visit_some(self),
+            true => {
                 self.current_value_pop().unwrap();
                 visitor.visit_none()
             }
@@ -433,7 +371,7 @@ impl<'x, 'a> serde::Deserializer<'x> for &'a mut RsDeserializer<ResultSet> {
             _ => {
                 self.rows_treat = MCD::Done;
                 self.rs.reverse_rows(); // consuming from the end is easier and faster
-                visitor.visit_seq(RowsVisitor::new(&mut self))
+                Ok(visitor.visit_seq(RowsVisitor::new(&mut self))?)
             }
         }
     }
@@ -492,7 +430,7 @@ impl<'x, 'a> serde::Deserializer<'x> for &'a mut RsDeserializer<ResultSet> {
                     MCD::Done => Err(prog_err("double-nesting (struct in struct) not possible")),
                     _ => {
                         self.cols_treat = MCD::Done;
-                        self.rows_treat = MCD::Done; // in case we deserialize into a plain struct
+                        // in case we deserialize into a plain struct
                         visitor.visit_map(FieldsVisitor::new(&mut self))
                     }
                 }
@@ -510,29 +448,9 @@ impl<'x, 'a> serde::Deserializer<'x> for &'a mut RsDeserializer<ResultSet> {
     fn deserialize_bytes<V>(mut self, visitor: V) -> DeserResult<V::Value>
         where V: serde::de::Visitor<'x>
     {
+        // visitor.visit_i32(self.current_value_pop()?.try_into()?)
         trace!("RsDeserializer::deserialize_bytes() called");
-        // self.deserialize_seq(visitor)
-        match self.current_value_pop()? {
-            TypedValue::BLOB(blob) |
-            TypedValue::N_BLOB(Some(blob)) => {
-                match visitor.visit_bytes(&blob.into_bytes()?) {
-                    Ok(v) => Ok(v),
-                    Err(e) => {
-                        trace!("ERRRRRRRRR: {:?}", e);
-                        Err(e)
-                    }
-                }
-            }
-
-            TypedValue::BINARY(v) |
-            TypedValue::VARBINARY(v) |
-            TypedValue::BSTRING(v) |
-            TypedValue::N_BINARY(Some(v)) |
-            TypedValue::N_VARBINARY(Some(v)) |
-            TypedValue::N_BSTRING(Some(v)) => visitor.visit_bytes(&v),
-
-            value => return Err(self.wrong_type(&value, "seq")),
-        }
+        visitor.visit_bytes(&DbValueInto::<Vec<u8>>::try_into(self.current_value_pop()?)?)
     }
 
     /// Hint that the `Deserialize` type is expecting a byte array and would
@@ -546,28 +464,8 @@ impl<'x, 'a> serde::Deserializer<'x> for &'a mut RsDeserializer<ResultSet> {
     fn deserialize_byte_buf<V>(mut self, visitor: V) -> Result<V::Value, Self::Error>
         where V: serde::de::Visitor<'x>
     {
-        trace!("RsDeserializer::deserialize_bytes() called");
-        match self.current_value_pop()? {
-            TypedValue::BLOB(blob) |
-            TypedValue::N_BLOB(Some(blob)) => {
-                match visitor.visit_bytes(&blob.into_bytes()?) {
-                    Ok(v) => Ok(v),
-                    Err(e) => {
-                        trace!("ERRRRRRRRR: {:?}", e);
-                        Err(e)
-                    }
-                }
-            }
-
-            TypedValue::BINARY(v) |
-            TypedValue::VARBINARY(v) |
-            TypedValue::BSTRING(v) |
-            TypedValue::N_BINARY(Some(v)) |
-            TypedValue::N_VARBINARY(Some(v)) |
-            TypedValue::N_BSTRING(Some(v)) => visitor.visit_bytes(&v),
-
-            value => return Err(self.wrong_type(&value, "seq")),
-        }
+        trace!("RsDeserializer::deserialize_byte_buf() called");
+        visitor.visit_bytes(&DbValueInto::<Vec<u8>>::try_into(self.current_value_pop()?)?)
     }
 
     /// This method hints that the `Deserialize` type is expecting a tuple value.
@@ -628,6 +526,7 @@ impl<'x, 'a> serde::Deserializer<'x> for &'a mut RsDeserializer<ResultSet> {
 struct RowsVisitor<'a, R: 'a> {
     de: &'a mut RsDeserializer<R>,
 }
+
 impl<'a, R> RowsVisitor<'a, R> {
     pub fn new(de: &'a mut RsDeserializer<R>) -> Self {
         trace!("RowsVisitor::new()");
@@ -635,7 +534,7 @@ impl<'a, R> RowsVisitor<'a, R> {
     }
 }
 
-impl<'x, 'a> serde::de::SeqAccess<'x> for RowsVisitor<'a, ResultSet> {
+impl<'x, 'a, R: DesrlResultSet> serde::de::SeqAccess<'x> for RowsVisitor<'a, R> {
     type Error = DeserError;
 
     /// Returns `Ok(Some(value))` for the next value in the sequence, or
@@ -654,9 +553,9 @@ impl<'x, 'a> serde::de::SeqAccess<'x> for RowsVisitor<'a, ResultSet> {
 
                 let value = seed.deserialize(&mut *self.de);
                 match value {
-                    Err(e) => {
+                    Err(_) => {
                         trace!("RowsVisitor::next_element_seed() fails");
-                        Err(e)
+                        Err(From::from(DeserError::CustomError("no next element".to_owned())))
                     }
                     Ok(v) => {
                         trace!("RowsVisitor::next_element_seed(): switch to next row");
@@ -670,7 +569,6 @@ impl<'x, 'a> serde::de::SeqAccess<'x> for RowsVisitor<'a, ResultSet> {
 }
 
 
-
 struct FieldsVisitor<'a, R: 'a> {
     de: &'a mut RsDeserializer<R>,
 }
@@ -682,7 +580,7 @@ impl<'a, R> FieldsVisitor<'a, R> {
     }
 }
 
-impl<'x, 'a> serde::de::MapAccess<'x> for FieldsVisitor<'a, ResultSet> {
+impl<'x, 'a, R: DesrlResultSet> serde::de::MapAccess<'x> for FieldsVisitor<'a, R> {
     type Error = DeserError;
 
     /// This returns `Ok(Some(key))` for the next key in the map, or `Ok(None)`

@@ -9,7 +9,8 @@ extern crate serde_json;
 
 mod test_utils;
 
-use hdbconnect::{Connection, DbValue, HdbResult};
+use hdbconnect::{Connection, HdbRow, ResultSet, HdbResult};
+use hdbconnect::DbValueInto;
 
 #[test] // cargo test test_procedures -- --nocapture
 pub fn test_040_procedures() {
@@ -56,7 +57,7 @@ fn very_simple_procedure(connection: &mut Connection) -> HdbResult<()> {
             SELECT CURRENT_USER \"current user\" FROM DUMMY; \
         END"])?;
 
-    let mut response = connection.any_statement("call TEST_PROCEDURE")?;
+    let mut response = connection.statement("call TEST_PROCEDURE")?;
     response.get_success()?;
     let _resultset = response.get_resultset()?;
     test_utils::statement_ignore_err(connection, vec!["drop procedure TEST_PROCEDURE"]);
@@ -86,7 +87,7 @@ fn procedure_with_out_resultsets(connection: &mut Connection) -> HdbResult<()> {
                     WHERE IS_VALID = 'TRUE'; \
     END;"])?;
 
-    let mut response = connection.any_statement("call GET_PROCEDURES(?,?,?)")?;
+    let mut response = connection.statement("call GET_PROCEDURES(?,?,?)")?;
     response.get_success()?;
     let l1 = response.get_resultset()?.len()?;
     let l2 = response.get_resultset()?.len()?;
@@ -116,7 +117,7 @@ fn procedure_with_secret_resultsets(connection: &mut Connection) -> HdbResult<()
                 WHERE IS_VALID = 'TRUE'; \
             END;"])?;
 
-    let mut response = connection.any_statement("call GET_PROCEDURES_SECRETLY()")?;
+    let mut response = connection.statement("call GET_PROCEDURES_SECRETLY()")?;
 
     response.get_success()?;
     let l1 = response.get_resultset()?.len()?;
@@ -141,10 +142,12 @@ fn procedure_with_in_parameters(connection: &mut Connection) -> HdbResult<()> {
     prepared_stmt.add_batch(&(42, "is between 41 and 43"))?;
     let mut response = prepared_stmt.execute_batch()?;
     response.get_success()?;
-    let mut rs = response.get_resultset()?;
-    let row = rs.pop_row().unwrap();
-    assert_eq!(DbValue::<i32>::try_into(row.get(0).unwrap())?, 42_i32);
-    assert_eq!(DbValue::<String>::try_into(row.get(1).unwrap())?, "is between 41 and 43");
+    let mut rs: ResultSet = response.get_resultset()?;
+    let row: HdbRow = rs.pop_row().unwrap();
+    let value: i32 = row.get(0).unwrap().try_into()?;
+    assert_eq!(value, 42_i32);
+    let value: String = row.get(1).unwrap().try_into()?;
+    assert_eq!(&value, "is between 41 and 43");
     Ok(())
 }
 
@@ -171,12 +174,13 @@ fn procedure_with_in_and_out_parameters(connection: &mut Connection) -> HdbResul
     let mut response = prepared_stmt.execute_batch()?;
     response.get_success()?;
     let op = response.get_output_parameters()?;
-    assert_eq!(DbValue::<String>::try_into(op.values.get(0).unwrap().clone())?,
-               "my first output parameter");
+    let value: String = op.values.get(0).unwrap().clone().try_into()?;
+    assert_eq!(value, "my first output parameter");
 
     let mut rs = response.get_resultset()?;
     let row = rs.pop_row().unwrap();
-    assert_eq!(DbValue::<i32>::try_into(row.get(0).unwrap())?, 42);
+    let value: i32 = row.get(0).unwrap().try_into()?;
+    assert_eq!(value, 42);
 
     Ok(())
 }
@@ -200,7 +204,8 @@ fn procedure_with_in_nclob_non_consuming(connection: &mut Connection) -> HdbResu
     response.get_success()?;
     let mut rs = response.get_resultset()?;
     let row = rs.pop_row().unwrap();
-    assert_eq!(DbValue::<String>::try_into(row.get(0).unwrap())?, "nclob string");
+    let value: String = row.get(0).unwrap().clone().try_into()?;
+    assert_eq!(value, "nclob string");
 
     Ok(())
 }

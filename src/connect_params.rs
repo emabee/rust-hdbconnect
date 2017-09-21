@@ -4,7 +4,18 @@ use url::{self, Url};
 use std::mem;
 
 
-/// Immutable struct with all information necessary to open a new connection to a HANA database.
+/// An immutable struct with all information necessary to open a new connection
+/// to a HANA database.
+///
+/// An instance of ConnectParams can be created either programmatically with the builder,
+/// or implicitly using the trait IntoConnectParams and its implementations.
+///
+/// # Example
+///
+/// ```
+/// use hdbconnect::IntoConnectParams;
+/// let conn_params = "hdbsql://my_user:my_passwd@the_host:2222".into_connect_params().unwrap();
+/// ```
 #[derive(Clone, Debug, Deserialize)]
 pub struct ConnectParams {
     hostname: String,
@@ -15,7 +26,7 @@ pub struct ConnectParams {
 }
 
 impl ConnectParams {
-    /// Returns a new builder.
+    /// Returns a new builder for ConnectParams.
     pub fn builder() -> ConnectParamsBuilder {
         ConnectParamsBuilder::new()
     }
@@ -46,7 +57,75 @@ impl ConnectParams {
     }
 }
 
+/// A trait implemented by types that can be converted into a `ConnectParams`.
+pub trait IntoConnectParams {
+    /// Converts the value of `self` into a `ConnectParams`.
+    fn into_connect_params(self) -> HdbResult<ConnectParams>;
+}
+
+impl IntoConnectParams for ConnectParams {
+    fn into_connect_params(self) -> HdbResult<ConnectParams> {
+        Ok(self)
+    }
+}
+
+impl<'a> IntoConnectParams for &'a str {
+    fn into_connect_params(self) -> HdbResult<ConnectParams> {
+        match Url::parse(self) {
+            Ok(url) => url.into_connect_params(),
+            Err(_) => Err(HdbError::UsageError("url parse error".to_owned())),
+        }
+    }
+}
+
+impl IntoConnectParams for String {
+    fn into_connect_params(self) -> HdbResult<ConnectParams> {
+        self.as_str().into_connect_params()
+    }
+}
+
+impl IntoConnectParams for Url {
+    fn into_connect_params(self) -> HdbResult<ConnectParams> {
+        let Url { host, port, user, path: url::Path { query: options, .. }, .. } = self;
+
+        let mut builder = ConnectParams::builder();
+
+        if let Some(port) = port {
+            builder.port(port);
+        }
+
+        if let Some(info) = user {
+            builder.dbuser(&info.user);
+            if let Some(pass) = info.pass.as_ref().map(|p| &**p) {
+                builder.password(pass);
+            }
+        }
+
+        for (name, value) in options {
+            builder.option(&name, &value);
+        }
+
+        let host = url::decode_component(&host)?;
+        builder.hostname(host);
+        builder.build()
+    }
+}
+
+
 /// A builder for `ConnectParams`.
+///
+/// # Example
+///
+/// ```
+/// use hdbconnect::ConnectParams;
+/// let connect_params = ConnectParams::builder()
+///     .hostname("abcd123")
+///     .port(2222)
+///     .dbuser("MEIER")
+///     .password("schlau")
+///     .build()
+///     .unwrap();
+/// ```
 #[derive(Clone, Debug, Deserialize)]
 pub struct ConnectParamsBuilder {
     hostname: Option<String>,
@@ -123,69 +202,9 @@ impl ConnectParamsBuilder {
     }
 }
 
-/// A trait implemented by types that can be converted into a `ConnectParams`.
-pub trait IntoConnectParams {
-    /// Converts the value of `self` into a `ConnectParams`.
-    fn into_connect_params(self) -> HdbResult<ConnectParams>;
-}
-
-impl IntoConnectParams for ConnectParams {
-    fn into_connect_params(self) -> HdbResult<ConnectParams> {
-        Ok(self)
-    }
-}
-
-impl<'a> IntoConnectParams for &'a str {
-    fn into_connect_params(self) -> HdbResult<ConnectParams> {
-        match Url::parse(self) {
-            Ok(url) => url.into_connect_params(),
-            Err(_) => Err(HdbError::UsageError("url parse error".to_owned())),
-        }
-    }
-}
-
-impl IntoConnectParams for String {
-    fn into_connect_params(self) -> HdbResult<ConnectParams> {
-        self.as_str().into_connect_params()
-    }
-}
-
-impl IntoConnectParams for Url {
-    fn into_connect_params(self) -> HdbResult<ConnectParams> {
-        let Url { host, port, user, path: url::Path { query: options, .. }, .. } = self;
-
-        let mut builder = ConnectParams::builder();
-
-        if let Some(port) = port {
-            builder.port(port);
-        }
-
-        if let Some(info) = user {
-            builder.dbuser(&info.user);
-            if let Some(pass) = info.pass.as_ref().map(|p| &**p) {
-                builder.password(pass);
-            }
-        }
-
-        // if !path.is_empty() {
-        //     // path contains the leading /
-        //     builder.database(&path[1..]);
-        // }
-
-        for (name, value) in options {
-            builder.option(&name, &value);
-        }
-
-        let host = url::decode_component(&host).map_err(|_| HdbError::UsageError("decode error".to_owned()))?;
-        builder.hostname(host);
-        builder.build()
-    }
-}
-
-
 /// A trait implemented by types that can be converted into a `ConnectParamsBuilder`.
 pub trait IntoConnectParamsBuilder {
-    /// Converts the value of `self` into a `ConnectParams`.
+    /// Consumes the builder and produces a `ConnectParams`.
     fn into_connect_params_builder(self) -> HdbResult<ConnectParamsBuilder>;
 }
 
@@ -227,16 +246,11 @@ impl IntoConnectParamsBuilder for Url {
             }
         }
 
-        // if !path.is_empty() {
-        //     // path contains the leading /
-        //     builder.database(&path[1..]);
-        // }
-
         for (name, value) in options {
             builder.option(&name, &value);
         }
 
-        let host = url::decode_component(&host).map_err(|_| HdbError::UsageError("decode error".to_owned()))?;
+        let host = url::decode_component(&host)?;
         builder.hostname(host);
         Ok(builder)
     }
@@ -275,6 +289,8 @@ mod tests {
                                                .build()
                                                .unwrap();
 
+        assert_eq!("abcd123", params1.hostname());
+        assert_eq!("abcd123", params2.hostname());
         assert_eq!("MEIER", params1.dbuser());
         assert_eq!("schlau", params1.password());
         assert_eq!("HALLODRI", params2.dbuser());

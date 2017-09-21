@@ -1,5 +1,12 @@
 //! Deserialize a ResultSet into a normal rust type.
 
+pub mod conversion_error;
+pub mod db_value;
+pub mod deser_resultset;
+pub mod deser_row;
+pub mod row;
+pub mod rs_metadata;
+
 pub mod deserialization_error;
 mod rs_deserializer;
 mod row_deserializer;

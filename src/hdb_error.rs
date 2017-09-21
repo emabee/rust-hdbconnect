@@ -2,7 +2,8 @@ use rs_serde::de::DeserError;
 use rs_serde::ser::SerializationError;
 use protocol::protocol_error::PrtError;
 use protocol::lowlevel::conn_core::ConnectionCore;
-use db_value::ConversionError;
+use protocol::lowlevel::parts::resultset::ResultSetCore;
+use rs_serde::de::conversion_error::ConversionError;
 
 use std::error::{self, Error};
 use std::fmt;
@@ -118,6 +119,12 @@ impl From<PrtError> for HdbError {
     }
 }
 
+impl From<String> for HdbError {
+    fn from(s: String) -> HdbError {
+        HdbError::UsageError(s)
+    }
+}
+
 impl From<io::Error> for HdbError {
     fn from(error: io::Error) -> HdbError {
         HdbError::IoError(error)
@@ -132,6 +139,12 @@ impl From<fmt::Error> for HdbError {
 
 impl<'a> From<sync::PoisonError<sync::MutexGuard<'a, ConnectionCore>>> for HdbError {
     fn from(error: sync::PoisonError<sync::MutexGuard<'a, ConnectionCore>>) -> HdbError {
+        HdbError::PoisonError(error.description().to_owned())
+    }
+}
+
+impl<'a> From<sync::PoisonError<sync::MutexGuard<'a, ResultSetCore>>> for HdbError {
+    fn from(error: sync::PoisonError<sync::MutexGuard<'a, ResultSetCore>>) -> HdbError {
         HdbError::PoisonError(error.description().to_owned())
     }
 }

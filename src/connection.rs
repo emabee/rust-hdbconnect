@@ -22,17 +22,15 @@ const HOLD_OVER_COMMIT: u8 = 8;
 
 /// Connection object.
 ///
-/// The connection to the database. You get started with something like this:
+/// The connection to the database.
+///
+/// # Example
 ///
 /// ```ignore
-/// use hdbconnect::Connection;
-/// let mut connection = Connection::new("mymachine", "30415")?;
-/// connection.authenticate_user_password("Annidda", "BF1äÖkn&nG")?;
+/// use hdbconnect::{Connection,IntoConnectParams};
+/// let params = "hdbsql://my_user:my_passwd@the_host:2222".into_connect_params().unwrap();
+/// let mut connection = Connection::new(params).unwrap();
 /// ```
-/// The most important attributes of a connection, including the TcpStream,
-/// are "outsourced" into a ConnectionCore object, which is kept alive
-/// through ref-counted references, from this connection object and / or
-/// from other objects, which are created by this connection and have an independent lifetime.
 #[derive(Debug)]
 pub struct Connection {
     params: ConnectParams,
@@ -120,7 +118,7 @@ impl Connection {
     /// In many cases it will be more appropriate to use
     /// one of the methods query(), dml(), exec(), which have the
     /// adequate simple result type you usually want.
-    pub fn any_statement(&mut self, stmt: &str) -> HdbResult<HdbResponse> {
+    pub fn statement(&mut self, stmt: &str) -> HdbResult<HdbResponse> {
         execute(self.core.clone(),
                 String::from(stmt),
                 self.auto_commit,
@@ -129,11 +127,11 @@ impl Connection {
 
     /// Executes a statement and expects a single ResultSet.
     pub fn query(&mut self, stmt: &str) -> HdbResult<ResultSet> {
-        self.any_statement(stmt)?.as_resultset()
+        self.statement(stmt)?.as_resultset()
     }
     /// Executes a statement and expects a single number of affected rows.
     pub fn dml(&mut self, stmt: &str) -> HdbResult<usize> {
-        let vec = &(self.any_statement(stmt)?.as_affected_rows()?);
+        let vec = &(self.statement(stmt)?.as_affected_rows()?);
         match vec.len() {
             1 => Ok(vec.get(0).unwrap().clone()),
             _ => Err(HdbError::UsageError("number of affected-rows-counts <> 1".to_owned())),
@@ -141,7 +139,7 @@ impl Connection {
     }
     /// Executes a statement and expects a plain success.
     pub fn exec(&mut self, stmt: &str) -> HdbResult<()> {
-        self.any_statement(stmt)?.as_success()
+        self.statement(stmt)?.as_success()
     }
 
     /// Prepares a statement and returns a handle to it.
@@ -155,12 +153,12 @@ impl Connection {
 
     /// Commits the current transaction.
     pub fn commit(&mut self) -> HdbResult<()> {
-        self.any_statement("commit")?.as_success()
+        self.statement("commit")?.as_success()
     }
 
     /// Rolls back the current transaction.
     pub fn rollback(&mut self) -> HdbResult<()> {
-        self.any_statement("rollback")?.as_success()
+        self.statement("rollback")?.as_success()
     }
 
     /// Creates a new connection object with the same settings and authentication.
@@ -180,7 +178,7 @@ impl Connection {
     /// Utility method to fire a couple of statements, ignoring errors and return values
     pub fn multiple_statements_ignore_err(&mut self, stmts: Vec<&str>) {
         for s in stmts {
-            match self.any_statement(s) {
+            match self.statement(s) {
                 Ok(_) => {}
                 Err(_) => {}
             }
@@ -191,7 +189,7 @@ impl Connection {
     /// the method returns with the first error, or with  ()
     pub fn multiple_statements(&mut self, stmts: Vec<&str>) -> HdbResult<()> {
         for s in stmts {
-            self.any_statement(s)?;
+            self.statement(s)?;
         }
         Ok(())
     }

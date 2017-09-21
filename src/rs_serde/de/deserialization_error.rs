@@ -1,8 +1,7 @@
-use protocol::protocol_error::PrtError;
 use std::error::Error;
 use serde;
 use std::fmt;
-use db_value::ConversionError;
+use rs_serde::de::conversion_error::ConversionError;
 
 
 /// The errors that can arise while deserializing a ResultSet into a standard rust type/struct/Vec
@@ -15,7 +14,7 @@ pub enum DeserError {
     WrongValueType(String),
     TrailingRows,
     TrailingCols,
-    FetchError(PrtError),
+    FetchError(String),
 }
 impl Error for DeserError {
     fn description(&self) -> &str {
@@ -41,12 +40,6 @@ impl Error for DeserError {
 
 pub fn prog_err(s: &str) -> DeserError {
     DeserError::ProgramError(String::from(s))
-}
-
-impl From<PrtError> for DeserError {
-    fn from(error: PrtError) -> DeserError {
-        DeserError::FetchError(error)
-    }
 }
 
 impl From<ConversionError> for DeserError {
