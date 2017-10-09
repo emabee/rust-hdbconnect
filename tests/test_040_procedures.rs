@@ -9,8 +9,7 @@ extern crate serde_json;
 
 mod test_utils;
 
-use hdbconnect::{Connection, HdbRow, ResultSet, HdbResult};
-use hdbconnect::DbValueInto;
+use hdbconnect::{Connection, HdbResult, ResultSet, Row};
 
 #[test] // cargo test test_procedures -- --nocapture
 pub fn test_040_procedures() {
@@ -143,10 +142,10 @@ fn procedure_with_in_parameters(connection: &mut Connection) -> HdbResult<()> {
     let mut response = prepared_stmt.execute_batch()?;
     response.get_success()?;
     let mut rs: ResultSet = response.get_resultset()?;
-    let row: HdbRow = rs.pop_row().unwrap();
-    let value: i32 = row.get(0).unwrap().try_into()?;
+    let row: Row = rs.pop_row().unwrap();
+    let value: i32 = row.cloned_value(0)?.into_typed()?;
     assert_eq!(value, 42_i32);
-    let value: String = row.get(1).unwrap().try_into()?;
+    let value: String = row.cloned_value(1)?.into_typed()?;
     assert_eq!(&value, "is between 41 and 43");
     Ok(())
 }
@@ -174,12 +173,12 @@ fn procedure_with_in_and_out_parameters(connection: &mut Connection) -> HdbResul
     let mut response = prepared_stmt.execute_batch()?;
     response.get_success()?;
     let op = response.get_output_parameters()?;
-    let value: String = op.values.get(0).unwrap().clone().try_into()?;
+    let value: String = op.values.get(0).unwrap().clone().into_typed()?;
     assert_eq!(value, "my first output parameter");
 
     let mut rs = response.get_resultset()?;
     let row = rs.pop_row().unwrap();
-    let value: i32 = row.get(0).unwrap().try_into()?;
+    let value: i32 = row.cloned_value(0)?.into_typed()?;
     assert_eq!(value, 42);
 
     Ok(())
@@ -204,7 +203,7 @@ fn procedure_with_in_nclob_non_consuming(connection: &mut Connection) -> HdbResu
     response.get_success()?;
     let mut rs = response.get_resultset()?;
     let row = rs.pop_row().unwrap();
-    let value: String = row.get(0).unwrap().clone().try_into()?;
+    let value: String = row.cloned_value(0)?.into_typed()?;
     assert_eq!(value, "nclob string");
 
     Ok(())

@@ -34,6 +34,7 @@ extern crate r2d2;
 extern crate rand;
 
 extern crate serde;
+extern crate serde_db;
 #[macro_use]
 extern crate serde_derive;
 extern crate vec_map;
@@ -57,6 +58,7 @@ pub use connect_params::{ConnectParams, ConnectParamsBuilder, IntoConnectParams}
 pub use prepared_statement::PreparedStatement;
 pub use hdb_response::{HdbResponse, HdbReturnValue};
 pub use protocol::lowlevel::parts::resultset::ResultSet;
+pub use protocol::lowlevel::parts::row::Row;
 pub use hdb_error::{HdbError, HdbResult};
 
 /// Types for describing metadata.
@@ -79,9 +81,3 @@ pub mod types {
     pub use protocol::lowlevel::parts::longdate::LongDate;
 }
 pub use protocol::lowlevel::parts::typed_value::TypedValue as HdbValue;
-
-pub use rs_serde::de::db_value::{DbValue, DbValueInto};
-pub use rs_serde::de::deser_row::DeserializableRow;
-
-/// The row type used by hdbconnect.
-pub type HdbRow = rs_serde::de::row::Row<metadata::ResultSetMetadata, HdbValue>;

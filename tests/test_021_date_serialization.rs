@@ -8,15 +8,16 @@ extern crate serde_json;
 mod test_utils;
 
 use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
+use flexi_logger::ReconfigurationHandle;
 use hdbconnect::HdbResult;
 
 #[test] // cargo test --test test_021_date_serialization
-pub fn date_serialization() {
-    test_utils::init_logger("test_021_date_serialization=info"); //,hdbconnect::rs_serde=trace
+pub fn test_021_date_serialization() {
+    let mut loghandle = test_utils::init_logger("test_021_date_serialization=info");
 
-    match impl_date_serialization() {
+    match test_date_io(&mut loghandle) {
         Err(e) => {
-            error!("date_serialization() failed with {:?}", e);
+            error!("impl_test_021_date_serialization() failed with {:?}", e);
             assert!(false)
         }
         Ok(i) => info!("{} calls to DB were executed", i),
@@ -26,7 +27,7 @@ pub fn date_serialization() {
 // Test the conversion of timestamps
 // - during serialization (input to prepared_statements)
 // - during deserialization (result)
-fn impl_date_serialization() -> HdbResult<i32> {
+fn test_date_io(_loghandle: &mut ReconfigurationHandle) -> HdbResult<i32> {
     info!("verify that NaiveDateTime values match the expected string representation");
 
     debug!("prepare the test data");
@@ -61,43 +62,46 @@ fn impl_date_serialization() -> HdbResult<i32> {
                                         &insert_stmt(16, string_values[3]),
                                         &insert_stmt(17, string_values[4])])?;
 
-    info!("test the conversion NaiveDateTime -> DB");
-    let mut prep_stmt = connection.prepare("select sum(number) from TEST_DATE_SERIALIZATION \
-                                            where mydate = ? or mydate = ?")?;
-    // Enforce that NaiveDateTime values are converted in the client (with serde) to the DB type:
-    prep_stmt.add_batch(&(naive_datetime_values[2], naive_datetime_values[3]))?;
-    let typed_result: i32 = prep_stmt.execute_batch()?.as_resultset()?.into_typed()?;
-    assert_eq!(typed_result, 31_i32);
+    {
+        info!("test the conversion NaiveDateTime -> DB");
+        let mut prep_stmt = connection.prepare("select sum(number) from TEST_DATE_SERIALIZATION \
+                                                where mydate = ? or mydate = ?")?;
+        // Enforce that NaiveDateTime values are converted in the client (with serde) to the DB type:
+        prep_stmt.add_batch(&(naive_datetime_values[2], naive_datetime_values[3]))?;
+        let typed_result: i32 = prep_stmt.execute_batch()?.as_resultset()?.into_typed()?;
+        assert_eq!(typed_result, 31_i32);
 
-
-    info!("test the conversion DateTime<Utc> -> DB");
-    let utc2: DateTime<Utc> = DateTime::from_utc(naive_datetime_values[2], Utc);
-    let utc3: DateTime<Utc> = DateTime::from_utc(naive_datetime_values[3], Utc);
-    // Enforce that UTC timestamps values are converted in the client (with serde) to the DB type:
-    prep_stmt.add_batch(&(utc2, utc3))?;
-    let typed_result: i32 = prep_stmt.execute_batch()?.as_resultset()?.into_typed()?;
-    assert_eq!(typed_result, 31_i32);
-
-    info!("test the conversion DB -> NaiveDateTime");
-    // back conversion is done in into_typed() (with serde)
-    let s = "select mydate from TEST_DATE_SERIALIZATION order by number asc";
-    let dates: Vec<NaiveDateTime> = connection.query(s)?.into_typed()?;
-
-    for (date, tvd) in dates.iter().zip(naive_datetime_values.iter()) {
-        assert_eq!(date, tvd);
+        info!("test the conversion DateTime<Utc> -> DB");
+        let utc2: DateTime<Utc> = DateTime::from_utc(naive_datetime_values[2], Utc);
+        let utc3: DateTime<Utc> = DateTime::from_utc(naive_datetime_values[3], Utc);
+        // Enforce that UTC timestamps values are converted in the client (with serde) to the DB type:
+        prep_stmt.add_batch(&(utc2, utc3))?;
+        let typed_result: i32 = prep_stmt.execute_batch()?.as_resultset()?.into_typed()?;
+        assert_eq!(typed_result, 31_i32);
     }
 
-    info!("prove that '' is the same as '0001-01-01 00:00:00.000000000'");
-    let rows_affected = connection.dml(&insert_stmt(77, ""))?;
-    assert_eq!(rows_affected, 1);
-    let dates: Vec<NaiveDateTime> = connection.query("select mydate from \
-                                                                TEST_DATE_SERIALIZATION where \
-                                                                number = 77 or number = 13")?
-                                              .into_typed()?;
-    assert_eq!(dates.len(), 2);
-    for date in dates {
-        assert_eq!(date, naive_datetime_values[0]);
+    {
+        info!("test the conversion DB -> NaiveDateTime");
+        let s = "select mydate from TEST_DATE_SERIALIZATION order by number asc";
+        let rs = connection.query(s)?;
+        let dates: Vec<NaiveDateTime> = rs.into_typed()?;
+        for (date, tvd) in dates.iter().zip(naive_datetime_values.iter()) {
+            assert_eq!(date, tvd);
+        }
     }
 
+    {
+        info!("prove that '' is the same as '0001-01-01 00:00:00.000000000'");
+        let rows_affected = connection.dml(&insert_stmt(77, ""))?;
+        assert_eq!(rows_affected, 1);
+        let dates: Vec<NaiveDateTime> = connection.query("select mydate from \
+                                                          TEST_DATE_SERIALIZATION where number = \
+                                                          77 or number = 13")?
+                                                  .into_typed()?;
+        assert_eq!(dates.len(), 2);
+        for date in dates {
+            assert_eq!(date, naive_datetime_values[0]);
+        }
+    }
     Ok(connection.get_call_count()?)
 }

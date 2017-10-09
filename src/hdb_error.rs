@@ -1,9 +1,8 @@
-use rs_serde::de::DeserError;
+use serde_db::de::{ConversionError, DeserializationError};
 use rs_serde::ser::SerializationError;
 use protocol::protocol_error::PrtError;
 use protocol::lowlevel::conn_core::ConnectionCore;
 use protocol::lowlevel::parts::resultset::ResultSetCore;
-use rs_serde::de::conversion_error::ConversionError;
 
 use std::error::{self, Error};
 use std::fmt;
@@ -25,7 +24,7 @@ pub enum HdbError {
     ConversionError(ConversionError),
 
     /// Error occured in deserialization of data structures into an application-defined structure.
-    DeserializationError(DeserError),
+    DeserializationError(DeserializationError),
 
     /// Error occured in evaluation of a response from the DB.
     EvaluationError(&'static str),
@@ -101,8 +100,8 @@ impl From<ConversionError> for HdbError {
     }
 }
 
-impl From<DeserError> for HdbError {
-    fn from(error: DeserError) -> HdbError {
+impl From<DeserializationError> for HdbError {
+    fn from(error: DeserializationError) -> HdbError {
         HdbError::DeserializationError(error)
     }
 }

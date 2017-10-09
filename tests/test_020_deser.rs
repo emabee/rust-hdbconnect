@@ -160,15 +160,12 @@ fn deser_singleline_into_struct(connection: &mut Connection) -> HdbResult<()> {
     type TestStruct = TS<Option<String>, Option<i32>, Option<NaiveDateTime>>;
 
     // single line works
-    let mut resultset = connection.query("select * from TEST_DESER_SINGLE_LINE \
-                                                         where F2_I = 17")?;
-    assert_eq!(resultset.len()?, 1);
+    let resultset = connection.query("select * from TEST_DESER_SINGLE_LINE where F2_I = 17")?;
     let typed_result: TestStruct = resultset.into_typed()?;
     assert_eq!(typed_result.f2_i, Some(17));
 
     // multi-line fails
-    let mut resultset = connection.query("select * from TEST_DESER_SINGLE_LINE")?;
-    assert_eq!(resultset.len()?, 3);
+    let resultset = connection.query("select * from TEST_DESER_SINGLE_LINE")?;
     let _typed_result: HdbResult<TestStruct> = resultset.into_typed();
     if let Ok(_) = _typed_result {
         panic!("deserialization of a multiline resultset to a plain struct did not fail")

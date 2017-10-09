@@ -8,35 +8,29 @@ use protocol::lowlevel::request_type::RequestType;
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::part_attributes::PartAttributes;
 use protocol::lowlevel::partkind::PartKind;
+use protocol::lowlevel::parts::row::Row;
 use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
-use protocol::lowlevel::parts::typed_value::TypedValue;
-use rs_serde::de::row::Row;
-use rs_serde::de::rs_metadata::RsMetadata;
-use rs_serde::de::RsDeserializer;
-use rs_serde::de::deser_resultset::DeserializableResultSet;
-use rs_serde::de::deser_row::DeserializableRow;
-use rs_serde::de::deserialization_error::DeserError;
+use serde_db::de::{DeserializationError, DeserializationResult, DeserializableResultset};
 
 use serde;
-use std::error::Error;
 use std::fmt;
 use std::sync::{Arc, Mutex};
 
 
-pub type HdbRow = Row<ResultSetMetadata, TypedValue>;
-impl HdbRow {
-    /// Returns a clone of the ith value.
-    pub fn get(&self, i: usize) -> HdbResult<TypedValue> {
-        Ok(DeserializableRow::get(self, i)?.clone())
-    }
-
-    // FIXME implement field_into, using a deserializer? Or again twenty variants?
-    // pub fn field_into<T>(&mut self, i: usize) -> HdbResult<T>
-    //     where T: serde::de::Deserialize<'x>
-    // {
-    //     ...
-    // }
-}
+// pub type Row = Row<ResultSetMetadata, TypedValue>;
+// impl Row {
+//     /// Returns a clone of the ith value.
+//     pub fn get(&self, i: usize) -> HdbResult<TypedValue> {
+//         Ok(DeserializableRow::get(self, i)?.clone())
+//     }
+//
+//     // FIXME implement field_into, using a deserializer? Or again twenty variants?
+//     // pub fn field_into<T>(&mut self, i: usize) -> HdbResult<T>
+//     //     where T: serde::de::Deserialize<'x>
+//     // {
+//     //     ...
+//     // }
+// }
 
 
 /// Contains the result of a database read command, including the describing metadata.
@@ -47,7 +41,7 @@ impl HdbRow {
 pub struct ResultSet {
     core_ref: Arc<Mutex<ResultSetCore>>,
     metadata: Arc<ResultSetMetadata>,
-    rows: Vec<HdbRow>,
+    rows: Vec<Row>,
     acc_server_proc_time: i32,
 }
 
@@ -70,47 +64,32 @@ impl ResultSetCore {
             resultset_id: rs_id,
         }))
     }
+    // FIXME implement DROP as send a request of type CLOSERESULTSET in case
+    // the resultset is not yet closed (RESULTSETCLOSED)
 }
 
-impl DeserializableResultSet for ResultSet {
-    type ROW = HdbRow;
+impl DeserializableResultset for ResultSet {
+    type ROW = Row;
     type E = HdbError;
-    /// Returns true if no rows are contained
-    fn is_empty(&self) -> bool {
-        self.rows.len() == 0
-    }
 
     /// Returns true if more than 1 row is contained
-    fn has_multiple_rows(&self) -> bool {
-        self.rows.len() > 1
-    }
-
-    /// FIXME this method should not be exposed !
-    /// Returns the number of contained rows
-    fn len(&mut self) -> Result<usize, DeserError> {
-        DeserializableResultSet::fetch_all(self)
-          .map_err(|e|{DeserError::FetchError(e.description().to_owned())})?;
-        Ok(self.rows.len())
-    }
-
-    /// Returns a pointer to the last row
-    fn last_row(&self) -> Option<&HdbRow> {
-        self.rows.last()
-    }
-
-    /// Returns a mutable pointer to the last row
-    fn last_row_mut(&mut self) -> Option<&mut HdbRow> {
-        self.rows.last_mut()
+    fn has_multiple_rows(&mut self) -> Result<bool, DeserializationError> {
+        let is_complete = match self.is_complete() {
+            Ok(b) => b,
+            Err(_) => false,
+        };
+        Ok(!is_complete || (self.rows.len() > 1))
     }
 
     /// Reverses the order of the rows
     fn reverse_rows(&mut self) {
+        trace!("ResultSet::reverse_rows()");
         self.rows.reverse()
     }
 
     /// Removes the last row and returns it, or None if it is empty.
-    fn pop_row(&mut self) -> Option<HdbRow> {
-        ResultSet::pop_row(self)
+    fn pop_row(&mut self) -> DeserializationResult<Option<Row>> {
+        Ok(ResultSet::pop_row(self))
     }
 
     /// Returns the number of fields
@@ -121,11 +100,6 @@ impl DeserializableResultSet for ResultSet {
     /// Returns the name of the column at the specified index
     fn get_fieldname(&self, field_idx: usize) -> Option<&String> {
         self.metadata.get_fieldname(field_idx)
-    }
-
-    /// Returns the number of result rows.
-    fn no_of_rows(&self) -> usize {
-        self.rows.len()
     }
 
     /// Fetches all not yet transported result lines from the server.
@@ -140,16 +114,15 @@ impl DeserializableResultSet for ResultSet {
 
 
 impl ResultSet {
-    /// Removes the last row and returns it, or None if it is empty.
-    pub fn pop_row(&mut self) -> Option<HdbRow> {
-        self.rows.pop()
+    ///
+    pub fn len(&mut self) -> HdbResult<usize> {
+        self.fetch_all()?;
+        Ok(self.rows.len())
     }
 
-    /// FIXME this method should not be exposed !
-    /// Returns the number of contained rows
-    pub fn len(&mut self) -> HdbResult<usize> {
-        DeserializableResultSet::fetch_all(self)?;
-        Ok(self.rows.len())
+    /// Removes the last row and returns it, or None if it is empty.
+    pub fn pop_row(&mut self) -> Option<Row> {
+        self.rows.pop()
     }
 
     /// Fetches all not yet transported result lines from the server.
@@ -274,16 +247,21 @@ impl ResultSet {
     /// let typed_result: Vec<MyStruct> = resultset.into_typed()?;
     /// ```
 
+    // pub fn into_typed<'de, T>(mut self) -> HdbResult<T>
+    //     where T: serde::de::Deserialize<'de>
+    // {
+    //     trace!("ResultSet::into_typed()");
+    //     self.fetch_all()?;
+    //     Ok(serde::de::Deserialize::deserialize(&mut RsDeserializer::new(self)?)?)
+    // }
+    // Expose the capability from serde_db
     pub fn into_typed<'de, T>(mut self) -> HdbResult<T>
         where T: serde::de::Deserialize<'de>
     {
-        trace!("ResultSet::into_typed()");
+        trace!("Resultset::into_typed()");
         self.fetch_all()?;
-        Ok(serde::de::Deserialize::deserialize(&mut RsDeserializer::new(self))?)
+        Ok(DeserializableResultset::into_typed(self)?)
     }
-
-    // FIXME implement DROP as send a request of type CLOSERESULTSET in case
-    // the resultset is not yet closed (RESULTSETCLOSED)
 }
 
 impl fmt::Display for ResultSet {
@@ -299,7 +277,7 @@ impl fmt::Display for ResultSet {
 }
 
 impl IntoIterator for ResultSet {
-    type Item = HdbResult<HdbRow>;
+    type Item = HdbResult<Row>;
     type IntoIter = RowIterator;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -311,7 +289,7 @@ pub struct RowIterator {
     rs: ResultSet,
 }
 impl RowIterator {
-    fn next_int(&mut self) -> HdbResult<Option<HdbRow>> {
+    fn next_int(&mut self) -> HdbResult<Option<Row>> {
         if self.rs.rows.len() == 0 {
             if self.rs.is_complete()? {
                 return Ok(None);
@@ -324,8 +302,8 @@ impl RowIterator {
 }
 
 impl Iterator for RowIterator {
-    type Item = HdbResult<HdbRow>;
-    fn next(&mut self) -> Option<HdbResult<HdbRow>> {
+    type Item = HdbResult<Row>;
+    fn next(&mut self) -> Option<HdbResult<Row>> {
         match self.next_int() {
             Ok(Some(row)) => Some(Ok(row)),
             Ok(None) => None,
@@ -335,7 +313,7 @@ impl Iterator for RowIterator {
 }
 
 pub mod factory {
-    use super::{ResultSet, ResultSetCore, HdbRow};
+    use super::{ResultSet, ResultSetCore, Row};
     use protocol::protocol_error::{PrtResult, prot_err};
     use protocol::lowlevel::argument::Argument;
     use protocol::lowlevel::conn_core::ConnCoreRef;
@@ -344,7 +322,6 @@ pub mod factory {
     use protocol::lowlevel::partkind::PartKind;
     use protocol::lowlevel::parts::option_value::OptionValue;
     use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
-    use rs_serde::de::row::new_row;
     use protocol::lowlevel::parts::statement_context::StatementContext;
     use protocol::lowlevel::parts::typed_value::TypedValue;
     use protocol::lowlevel::parts::typed_value::factory as TypedValueFactory;
@@ -368,14 +345,14 @@ pub mod factory {
         ResultSet {
             core_ref: ResultSetCore::new_rs_ref(conn_ref, attrs, rs_id),
             metadata: Arc::new(rsm),
-            rows: Vec::<HdbRow>::new(),
+            rows: Vec::<Row>::new(),
             acc_server_proc_time: server_processing_time,
         }
     }
 
 
     /// Factory for ResultSets, only useful for tests.
-    pub fn new_for_tests(rsm: ResultSetMetadata, rows: Vec<HdbRow>) -> ResultSet {
+    pub fn new_for_tests(rsm: ResultSetMetadata, rows: Vec<Row>) -> ResultSet {
         ResultSet {
             core_ref: ResultSetCore::new_rs_ref(None, PartAttributes::new(0b_0000_0001), 0_u64),
             metadata: Arc::new(rsm),
@@ -494,7 +471,7 @@ pub mod factory {
                         values.push(value);
                     }
                     resultset.rows
-                             .push(new_row(resultset.metadata.clone(), values));
+                             .push(Row::new(resultset.metadata.clone(), values));
                 }
             }
         }

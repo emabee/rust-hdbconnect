@@ -1,13 +1,14 @@
 use protocol::lowlevel::{PrtError, PrtResult, util};
-use rs_serde::de::db_value::{DbValue, DbValueInto};
-use rs_serde::de::conversion_error::ConversionError;
+use serde_db::de::{DbValue, DbValueInto, ConversionError};
 use chrono::{NaiveDateTime, NaiveDate, NaiveTime};
 
 use super::type_id::*;
 use super::lob::*;
 use super::longdate::LongDate;
+use HdbError;
 
 use byteorder::{LittleEndian, WriteBytesExt};
+use serde;
 use std::io;
 use std::{u8, u16, u32, i8, i16, i32};
 use std::error::Error;
@@ -269,6 +270,11 @@ impl TypedValue {
             // TypedValue::N_DAYDATE(_)         => TYPEID_N_DAYDATE,
             // TypedValue::N_SECONDTIME(_)      => TYPEID_N_SECONDTIME,
         }
+    }
+
+    /// Deserialize into a rust type
+    pub fn into_typed<'x, T: serde::Deserialize<'x>>(self) -> Result<T, HdbError> {
+        Ok(DbValue::into_typed(self)?)
     }
 }
 
@@ -1320,6 +1326,7 @@ impl DbValueInto<f64> for TypedValue {
 
 impl DbValueInto<String> for TypedValue {
     fn try_into(self) -> Result<String, ConversionError> {
+        trace!("try_into -> String");
         match self {
             TypedValue::CHAR(s) |
             TypedValue::VARCHAR(s) |
@@ -1346,7 +1353,7 @@ impl DbValueInto<String> for TypedValue {
             TypedValue::N_CLOB(Some(clob)) |
             TypedValue::N_NCLOB(Some(clob)) => {
                 Ok(clob.into_string()
-                       .map_err(|e| ConversionError::IncompleteLob(e.description().to_owned()))?)
+                       .map_err(|e| ConversionError::Incomplete(e.description().to_owned()))?)
             }
 
             value => return Err(wrong_type(&value, "String")),
@@ -1356,6 +1363,7 @@ impl DbValueInto<String> for TypedValue {
 
 impl DbValueInto<NaiveDateTime> for TypedValue {
     fn try_into(self) -> Result<NaiveDateTime, ConversionError> {
+        trace!("try_into -> NaiveDateTime");
         match self {
             TypedValue::LONGDATE(ld) |
             TypedValue::N_LONGDATE(Some(ld)) => {
@@ -1375,7 +1383,7 @@ impl DbValueInto<Vec<u8>> for TypedValue {
             TypedValue::BLOB(blob) |
             TypedValue::N_BLOB(Some(blob)) => {
                 Ok(blob.into_bytes()
-                       .map_err(|e| ConversionError::IncompleteLob(e.description().to_owned()))?)
+                       .map_err(|e| ConversionError::Incomplete(e.description().to_owned()))?)
             }
 
             TypedValue::BINARY(v) |

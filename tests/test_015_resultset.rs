@@ -11,8 +11,6 @@ mod test_utils;
 
 use chrono::NaiveDateTime;
 use hdbconnect::{Connection, HdbResult};
-use hdbconnect::DeserializableRow;
-use hdbconnect::DbValueInto;
 
 #[test] // cargo test --test test_015_resultset -- --nocapture
 pub fn test_015_resultset() {
@@ -70,17 +68,17 @@ fn evaluate_resultset(connection: &mut Connection) -> HdbResult<()> {
     };
 
 
-    info!("Loop over rows, pick out single values individually, in arbitrary order");
-    for row in connection.query("select * from TEST_RESULTSET")? {
-        let row = row?;
-        let f4: NaiveDateTime = row.get(3).unwrap().clone().try_into()?;
-        let f1: String = row.get(0).unwrap().clone().try_into()?;
-        let f3: i32 = row.get(2).unwrap().clone().try_into()?;
-        // FIXME this does not work!
-        // let f2: Option<i32> = row.get(1).unwrap().clone().try_into()?;
-        let f2: Option<i32> = None;
-        debug!("Got {}, {:?}, {}, {}", f1, f2, f3, f4);
-    }
+    // info!("Loop over rows, pick out single values individually, in arbitrary order");
+    // for row in connection.query("select * from TEST_RESULTSET")? {
+    //     let row = row?;
+    //     let f4: NaiveDateTime = row.get(3).unwrap().clone().try_into()?;
+    //     let f1: String = row.get(0).unwrap().clone().try_into()?;
+    //     let f3: i32 = row.get(2).unwrap().clone().try_into()?;
+    //     // FIXME this does not work!
+    //     // let f2: Option<i32> = row.get(1).unwrap().clone().try_into()?;
+    //     let f2: Option<i32> = None;
+    //     debug!("Got {}, {:?}, {}, {}", f1, f2, f3, f4);
+    // }
 
     info!("Loop over rows (streaming support), convert row into struct");
     for row in connection.query("select * from TEST_RESULTSET")? {
@@ -88,27 +86,27 @@ fn evaluate_resultset(connection: &mut Connection) -> HdbResult<()> {
         debug!("Got struct with {}, {:?}, {}, {}", td.f1, td.f2, td.f3, td.f4);
     }
 
-    info!("Loop over rows (streaming support), convert row into tuple (avoid defining a struct)");
-    for row in connection.query("select * from TEST_RESULTSET")? {
-        let t: (String, Option<i32>, i32, NaiveDateTime) = row?.into_typed()?;
-        debug!("Got tuple with {}, {:?}, {}, {}", t.0, t.1, t.2, t.3);
-    }
-
-    info!("Loop over rows (streaming support), convert row into single value");
-    for row in connection.query("select F1_S from TEST_RESULTSET")? {
-        let f1: String = row?.into_typed()?;
-        debug!("Got single value: {}", f1);
-    }
-
-    // trace!("Iterate over rows, filter, fold");
-    // connection.query("select * from TEST_RESULTSET")?.map(|r| r?).filter(|r|{let s:String = r.field_into(0)?;}).fold(...)
-
-    info!("Convert a whole resultset into a Vec of structs");
-    let vtd: Vec<TestData> = connection.query("select * from TEST_RESULTSET")?
-                                       .into_typed()?;
-    for td in vtd {
-        debug!("Got {}, {:?}, {}, {}", td.f1, td.f2, td.f3, td.f4);
-    }
+    // info!("Loop over rows (streaming support), convert row into tuple (avoid defining a struct)");
+    // for row in connection.query("select * from TEST_RESULTSET")? {
+    //     let t: (String, Option<i32>, i32, NaiveDateTime) = row?.into_typed()?;
+    //     debug!("Got tuple with {}, {:?}, {}, {}", t.0, t.1, t.2, t.3);
+    // }
+    //
+    // info!("Loop over rows (streaming support), convert row into single value");
+    // for row in connection.query("select F1_S from TEST_RESULTSET")? {
+    //     let f1: String = row?.into_typed()?;
+    //     debug!("Got single value: {}", f1);
+    // }
+    //
+    // // trace!("Iterate over rows, filter, fold");
+    // // connection.query("select * from TEST_RESULTSET")?.map(|r| r?).filter(|r|{let s:String = r.field_into(0)?;}).fold(...)
+    //
+    // info!("Convert a whole resultset into a Vec of structs");
+    // let vtd: Vec<TestData> = connection.query("select * from TEST_RESULTSET")?
+    //                                    .into_typed()?;
+    // for td in vtd {
+    //     debug!("Got {}, {:?}, {}, {}", td.f1, td.f2, td.f3, td.f4);
+    // }
 
     Ok(())
 }

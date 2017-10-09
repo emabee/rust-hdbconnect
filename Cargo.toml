@@ -1,6 +1,6 @@
 [package]
 name = "hdbconnect"
-version = "0.0.30"
+version = "0.1.0"
 authors = ["emabee <meinolf.block@sap.com>"]
 description = "An experimental pure rust driver for SAP HANA(TM)"
 documentation = "https://docs.rs/hdbconnect/"
@@ -23,6 +23,7 @@ rand = "0.3"
 rust-crypto = "0.2"
 serde = "1.0"
 serde_bytes = "0.10"
+serde_db = "0.2"
 serde_derive = "1.0"
 serde_json = "1.0"
 user = "0.1"
