@@ -1,5 +1,5 @@
 use serde_db::de::{ConversionError, DeserializationError};
-use rs_serde::ser::SerializationError;
+use serde_db::ser::SerializationError;
 use protocol::protocol_error::PrtError;
 use protocol::lowlevel::conn_core::ConnectionCore;
 use protocol::lowlevel::parts::resultset::ResultSetCore;

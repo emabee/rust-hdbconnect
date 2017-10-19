@@ -3,13 +3,12 @@ use byteorder::{LittleEndian, ReadBytesExt};
 use std::io;
 use std::{u8, u16, u32, i8, i16, i32, i64};
 
-use rs_serde::hdbdate::longdate_from_str;
-use rs_serde::ser::dbv_factory::DbvFactory;
-use rs_serde::ser::{SerializationError, SerializationResult};
-use protocol::lowlevel::parts::typed_value::TypedValue;
-use protocol::lowlevel::parts::type_id::*;
+use serde_db::ser::{DbvFactory, SerializationError};
+use protocol::lowlevel::parts::hdbdate::longdate_from_str;
 use protocol::lowlevel::parts::longdate::LongDate;
 use protocol::lowlevel::parts::lob::new_blob_to_db;
+use protocol::lowlevel::parts::typed_value::TypedValue;
+use protocol::lowlevel::parts::type_id::*;
 
 
 #[derive(Clone,Debug)]
@@ -58,7 +57,7 @@ impl ParameterDescriptor {
 impl DbvFactory for ParameterDescriptor {
     type DBV = TypedValue;
 
-    fn from_bool(&self, value: bool) -> SerializationResult<TypedValue> {
+    fn from_bool(&self, value: bool) -> Result<TypedValue, SerializationError> {
         Ok(match self.value_type {
             TYPEID_BOOLEAN => TypedValue::BOOLEAN(value),
             TYPEID_N_BOOLEAN => TypedValue::N_BOOLEAN(Some(value)),
@@ -66,7 +65,7 @@ impl DbvFactory for ParameterDescriptor {
         })
     }
 
-    fn from_i8(&self, value: i8) -> SerializationResult<TypedValue> {
+    fn from_i8(&self, value: i8) -> Result<TypedValue, SerializationError> {
         let input_type = "i8";
         Ok(match self.value_type {
             TYPEID_TINYINT => {
@@ -92,7 +91,7 @@ impl DbvFactory for ParameterDescriptor {
             _ => return Err(SerializationError::TypeMismatch(input_type, self.descriptor())),
         })
     }
-    fn from_i16(&self, value: i16) -> SerializationResult<TypedValue> {
+    fn from_i16(&self, value: i16) -> Result<TypedValue, SerializationError> {
         let input_type = "i16";
         Ok(match self.value_type {
             TYPEID_TINYINT => {
@@ -118,7 +117,7 @@ impl DbvFactory for ParameterDescriptor {
             _ => return Err(SerializationError::TypeMismatch(input_type, self.descriptor())),
         })
     }
-    fn from_i32(&self, value: i32) -> SerializationResult<TypedValue> {
+    fn from_i32(&self, value: i32) -> Result<TypedValue, SerializationError> {
         let input_type = "i32";
         Ok(match self.value_type {
             TYPEID_TINYINT => {
@@ -156,7 +155,7 @@ impl DbvFactory for ParameterDescriptor {
             _ => return Err(SerializationError::TypeMismatch(input_type, self.descriptor())),
         })
     }
-    fn from_i64(&self, value: i64) -> SerializationResult<TypedValue> {
+    fn from_i64(&self, value: i64) -> Result<TypedValue, SerializationError> {
         let input_type = "i64";
         Ok(match self.value_type {
             TYPEID_TINYINT => {
@@ -208,7 +207,7 @@ impl DbvFactory for ParameterDescriptor {
             _ => return Err(SerializationError::TypeMismatch(input_type, self.descriptor())),
         })
     }
-    fn from_u8(&self, value: u8) -> SerializationResult<TypedValue> {
+    fn from_u8(&self, value: u8) -> Result<TypedValue, SerializationError> {
         let input_type = "u8";
         Ok(match self.value_type {
             TYPEID_TINYINT => TypedValue::TINYINT(value),
@@ -222,7 +221,7 @@ impl DbvFactory for ParameterDescriptor {
             _ => return Err(SerializationError::TypeMismatch(input_type, self.descriptor())),
         })
     }
-    fn from_u16(&self, value: u16) -> SerializationResult<TypedValue> {
+    fn from_u16(&self, value: u16) -> Result<TypedValue, SerializationError> {
         let input_type = "u16";
         Ok(match self.value_type {
             TYPEID_TINYINT => {
@@ -260,7 +259,7 @@ impl DbvFactory for ParameterDescriptor {
             _ => return Err(SerializationError::TypeMismatch(input_type, self.descriptor())),
         })
     }
-    fn from_u32(&self, value: u32) -> SerializationResult<TypedValue> {
+    fn from_u32(&self, value: u32) -> Result<TypedValue, SerializationError> {
         let input_type = "u32";
         Ok(match self.value_type {
             TYPEID_TINYINT => {
@@ -310,7 +309,7 @@ impl DbvFactory for ParameterDescriptor {
             _ => return Err(SerializationError::TypeMismatch(input_type, self.descriptor())),
         })
     }
-    fn from_u64(&self, value: u64) -> SerializationResult<TypedValue> {
+    fn from_u64(&self, value: u64) -> Result<TypedValue, SerializationError> {
         let input_type = "u64";
         Ok(match self.value_type {
             TYPEID_TINYINT => {
@@ -372,21 +371,21 @@ impl DbvFactory for ParameterDescriptor {
             _ => return Err(SerializationError::TypeMismatch(input_type, self.descriptor())),
         })
     }
-    fn from_f32(&self, value: f32) -> SerializationResult<TypedValue> {
+    fn from_f32(&self, value: f32) -> Result<TypedValue, SerializationError> {
         Ok(match self.value_type {
             TYPEID_REAL => TypedValue::REAL(value),
             TYPEID_N_REAL => TypedValue::N_REAL(Some(value)),
             _ => return Err(SerializationError::TypeMismatch("f32", self.descriptor())),
         })
     }
-    fn from_f64(&self, value: f64) -> SerializationResult<TypedValue> {
+    fn from_f64(&self, value: f64) -> Result<TypedValue, SerializationError> {
         Ok(match self.value_type {
             TYPEID_DOUBLE => TypedValue::DOUBLE(value),
             TYPEID_N_DOUBLE => TypedValue::N_DOUBLE(Some(value)),
             _ => return Err(SerializationError::TypeMismatch("f64", self.descriptor())),
         })
     }
-    fn from_char(&self, value: char) -> SerializationResult<TypedValue> {
+    fn from_char(&self, value: char) -> Result<TypedValue, SerializationError> {
         let mut s = String::new();
         s.push(value);
         Ok(match self.value_type {
@@ -395,7 +394,7 @@ impl DbvFactory for ParameterDescriptor {
             _ => return Err(SerializationError::TypeMismatch("char", self.descriptor())),
         })
     }
-    fn from_str(&self, value: &str) -> SerializationResult<TypedValue> {
+    fn from_str(&self, value: &str) -> Result<TypedValue, SerializationError> {
         let s = String::from(value);
         Ok(match self.value_type {
             TYPEID_CHAR | TYPEID_VARCHAR | TYPEID_NCHAR | TYPEID_NVARCHAR | TYPEID_STRING |
@@ -406,14 +405,14 @@ impl DbvFactory for ParameterDescriptor {
             _ => return Err(SerializationError::TypeMismatch("&str", self.descriptor())),
         })
     }
-    fn from_bytes(&self, value: &[u8]) -> SerializationResult<TypedValue> {
+    fn from_bytes(&self, value: &[u8]) -> Result<TypedValue, SerializationError> {
         Ok(match self.value_type {
             TYPEID_BLOB => TypedValue::BLOB(new_blob_to_db((*value).to_vec())),
             TYPEID_N_BLOB => TypedValue::N_BLOB(Some(new_blob_to_db((*value).to_vec()))),
             _ => return Err(SerializationError::TypeMismatch("bytes", self.descriptor())),
         })
     }
-    fn from_none(&self) -> SerializationResult<TypedValue> {
+    fn from_none(&self) -> Result<TypedValue, SerializationError> {
         Ok(match self.value_type {
             TYPEID_N_TINYINT => TypedValue::N_TINYINT(None),
             TYPEID_N_SMALLINT => TypedValue::N_SMALLINT(None),

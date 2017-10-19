@@ -8,8 +8,8 @@ use protocol::lowlevel::partkind::PartKind;
 use protocol::lowlevel::parts::parameter_metadata::{ParameterDescriptor, ParameterMetadata, ParMode};
 use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
 use protocol::lowlevel::parts::parameters::{ParameterRow, Parameters};
-use rs_serde::ser::SerializationError;
-use rs_serde::ser::Serializer;
+use serde_db;
+use serde_db::ser::SerializationError;
 
 use serde;
 use std::mem;
@@ -30,13 +30,12 @@ pub struct PreparedStatement {
 }
 
 impl PreparedStatement {
-    /// Adds the values from the rust-typed input to the batch,
+    /// Converts the input into a row of parameters for the batch,
     /// if it is consistent with the metadata.
     pub fn add_batch<T: serde::ser::Serialize>(&mut self, input: &T) -> HdbResult<()> {
         trace!("PreparedStatement::add_batch() called");
         match (&(self.o_par_md), &mut (self.o_batch)) {
             (&Some(ref metadata), &mut Some(ref mut vec)) => {
-
                 let mut input_metadata = Vec::<ParameterDescriptor>::new();
                 for ref pd in &metadata.descriptors {
                     match pd.mode {
@@ -44,7 +43,7 @@ impl PreparedStatement {
                         ParMode::OUT => {}
                     }
                 }
-                vec.push(ParameterRow::new(Serializer::to_row(input, input_metadata)?));
+                vec.push(ParameterRow::new(serde_db::to_params(input, input_metadata)?));
                 Ok(())
             }
             (_, _) => {

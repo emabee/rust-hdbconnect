@@ -4,6 +4,7 @@ pub use protocol::lowlevel::util;
 pub mod authfield;
 pub mod client_info;
 pub mod connect_option;
+pub mod hdbdate;
 pub mod lob;
 pub mod lob_handles;
 pub mod longdate;

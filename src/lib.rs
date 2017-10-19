@@ -45,7 +45,6 @@ mod hdb_response;
 mod hdb_error;
 mod prepared_statement;
 mod protocol;
-mod rs_serde;
 mod url;
 
 pub mod code_examples;

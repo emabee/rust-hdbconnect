@@ -1,7 +1,7 @@
 use chrono::{Datelike, DateTime, NaiveDate, NaiveDateTime, Timelike};
 
 use types::LongDate;
-use super::ser::SerializationError;
+use serde_db::ser::SerializationError;
 
 
 /// Serializes a date string into a LongDate.
