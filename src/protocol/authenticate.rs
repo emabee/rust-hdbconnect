@@ -22,7 +22,7 @@ use std::io::{self, Read};
 use std::iter::repeat;
 use std::mem;
 
-use user;
+use username;
 
 /// authenticate with user and password, using the scram_sha256 method
 pub fn user_pw(conn_ref: &ConnCoreRef, username: &str, password: &str) -> PrtResult<()> {
@@ -92,7 +92,7 @@ fn get_locale() -> String {
 }
 
 fn get_username() -> String {
-    let username = user::get_user_name().unwrap_or(String::new());
+    let username = username::get_user_name().unwrap_or(String::new());
     debug!("Username: {}", username);
     username
 }

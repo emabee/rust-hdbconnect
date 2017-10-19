@@ -1,2 +1,2 @@
 pub mod ser;
-mod hdbdate;
+pub mod hdbdate;

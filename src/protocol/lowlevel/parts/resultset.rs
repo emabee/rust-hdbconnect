@@ -171,7 +171,7 @@ impl ResultSet {
         reply.parts.pop_arg_if_kind(PartKind::ResultSet);
 
         let mut guard = self.core_ref.lock()?;
-        let mut rs_core = &mut *guard;
+        let rs_core = &mut *guard;
         if rs_core.attributes.is_last_packet() {
             rs_core.o_conn_ref = None;
         }
@@ -199,7 +199,9 @@ impl ResultSet {
         self.acc_server_proc_time
     }
 
-    /// Translates a generic resultset into a given rust type (that implements Deserialize).
+    /// Translates a generic resultset into a given rust type that implements
+    /// serde::Deserialize. The implementation of this function uses serde_db.
+    /// See [there](https://docs.rs/serde_db/) for more details.
     ///
     /// A resultset is essentially a two-dimensional structure, given as a list of rows
     /// (a <code>Vec&lt;Row&gt;</code>),
@@ -246,15 +248,7 @@ impl ResultSet {
     /// }
     /// let typed_result: Vec<MyStruct> = resultset.into_typed()?;
     /// ```
-
-    // pub fn into_typed<'de, T>(mut self) -> HdbResult<T>
-    //     where T: serde::de::Deserialize<'de>
-    // {
-    //     trace!("ResultSet::into_typed()");
-    //     self.fetch_all()?;
-    //     Ok(serde::de::Deserialize::deserialize(&mut RsDeserializer::new(self)?)?)
-    // }
-    // Expose the capability from serde_db
+    ///
     pub fn into_typed<'de, T>(mut self) -> HdbResult<T>
         where T: serde::de::Deserialize<'de>
     {
@@ -432,7 +426,7 @@ pub mod factory {
 
                 {
                     let mut guard = fetching_resultset.core_ref.lock()?;
-                    let mut rs_core = &mut *guard;
+                    let rs_core = &mut *guard;
                     rs_core.attributes = attributes;
                 }
                 parse_rows(fetching_resultset, no_of_rows, rdr)?;

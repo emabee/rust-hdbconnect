@@ -12,11 +12,8 @@ pub struct ParameterRow {
     pub values: Vec<TypedValue>,
 }
 impl ParameterRow {
-    pub fn new() -> ParameterRow {
-        ParameterRow { values: Vec::<TypedValue>::new() }
-    }
-    pub fn push(&mut self, val: TypedValue) {
-        self.values.push(val)
+    pub fn new(vtv: Vec<TypedValue>) -> ParameterRow {
+        ParameterRow { values: vtv }
     }
 
     pub fn size(&self) -> PrtResult<usize> {

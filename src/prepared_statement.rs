@@ -44,9 +44,7 @@ impl PreparedStatement {
                         ParMode::OUT => {}
                     }
                 }
-
-                let row = Serializer::into_row(input, input_metadata)?;
-                vec.push(row);
+                vec.push(ParameterRow::new(Serializer::to_row(input, input_metadata)?));
                 Ok(())
             }
             (_, _) => {

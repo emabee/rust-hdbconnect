@@ -1,6 +1,4 @@
 use protocol::lowlevel::{PrtError, PrtResult, util};
-use serde_db::de::{DbValue, DbValueInto, ConversionError};
-use chrono::{NaiveDateTime, NaiveDate, NaiveTime};
 
 use super::type_id::*;
 use super::lob::*;
@@ -8,9 +6,11 @@ use super::longdate::LongDate;
 use HdbError;
 
 use byteorder::{LittleEndian, WriteBytesExt};
+use chrono::{NaiveDateTime, NaiveDate, NaiveTime};
 use serde;
+use serde_db::de::{DbValue, DbValueInto, ConversionError};
 use std::io;
-use std::{u8, u16, u32, i8, i16, i32};
+use std::{u8, u16, u32, i8, i16, i32, i64};
 use std::error::Error;
 
 const MAX_1_BYTE_LENGTH: u8 = 245;

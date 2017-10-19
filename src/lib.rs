@@ -1,10 +1,8 @@
 //! Experimental native rust database driver for SAP HANA(TM).
 //!
-//! This crate uses serde and compiles with rust stable as of version 1.15.
-//!
-//! The reason for publishing this driver in its immature state is to
-//! <b>demonstrate how [serde](https://serde.rs/)
-//! can be used to simplify the API of such a database driver</b>.
+//! One reason for publishing this driver in its incomplete (some datatypes are missing,
+//! SSL is not supported) state is to demonstrate how [serde_db](https://docs.rs/serde_db)
+//! can be used to simplify the API of such a database driver.
 //!
 //! Concretely, we use serde to simplify the data exchange between your code and the driver,
 //! both for input parameters to prepared statements
@@ -38,7 +36,7 @@ extern crate serde_db;
 #[macro_use]
 extern crate serde_derive;
 extern crate vec_map;
-extern crate user;
+extern crate username;
 
 mod connect_params;
 mod connection;

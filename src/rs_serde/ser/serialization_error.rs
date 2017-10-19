@@ -8,7 +8,7 @@ pub enum SerializationError {
     GeneralError(String),
     InvalidValue(String),
     StructuralMismatch(&'static str),
-    TypeMismatch(&'static str, u8),
+    TypeMismatch(&'static str, String),
     RangeErr(&'static str, u8),
 }
 
@@ -34,10 +34,6 @@ impl serde::ser::Error for SerializationError {
     fn custom<T: fmt::Display>(msg: T) -> Self {
         SerializationError::GeneralError(msg.to_string())
     }
-
-    // fn invalid_value(msg: &str) -> Self {
-    //     SerializationError::InvalidValue(msg.into())
-    // }
 }
 
 impl fmt::Debug for SerializationError {
@@ -45,10 +41,10 @@ impl fmt::Debug for SerializationError {
         match *self {
             SerializationError::GeneralError(ref s) => write!(fmt, "{}: {}", self.description(), s),
             SerializationError::InvalidValue(ref s) => write!(fmt, "{}: {}", self.description(), s),
-            SerializationError::StructuralMismatch(s) => {
+            SerializationError::StructuralMismatch(ref s) => {
                 write!(fmt, "{}: {}", self.description(), s)
             }
-            SerializationError::TypeMismatch(s, tc) => {
+            SerializationError::TypeMismatch(ref s, ref tc) => {
                 write!(fmt,
                        "{}: given value of type \"{}\" cannot be converted into value of type \
                         code {}",
@@ -56,7 +52,7 @@ impl fmt::Debug for SerializationError {
                        s,
                        tc)
             }
-            SerializationError::RangeErr(s, tc) => {
+            SerializationError::RangeErr(ref s, tc) => {
                 write!(fmt,
                        "{}: given value of type \"{}\" does not fit into supported range of SQL \
                         type (type code {})",

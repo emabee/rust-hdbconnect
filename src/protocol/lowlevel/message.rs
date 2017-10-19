@@ -220,7 +220,7 @@ impl Request {
     fn serialize(&self, conn_ref: &ConnCoreRef) -> PrtResult<()> {
         trace!("Entering Message::serialize()");
         let mut guard = conn_ref.lock()?;
-        let mut conn_core = &mut *guard;
+        let conn_core = &mut *guard;
         self.serialize_impl(conn_core.session_id,
                             conn_core.next_seq_number(),
                             &mut conn_core.stream)

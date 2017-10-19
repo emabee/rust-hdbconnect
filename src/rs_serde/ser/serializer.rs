@@ -1,522 +1,171 @@
-use protocol::lowlevel::parts::longdate::LongDate;
-use protocol::lowlevel::parts::lob::*;
-use protocol::lowlevel::parts::parameter_metadata::ParameterDescriptor;
-use protocol::lowlevel::parts::parameters::ParameterRow;
-use protocol::lowlevel::parts::type_id::*;
-use protocol::lowlevel::parts::typed_value::TypedValue;
 use super::{SerializationError, SerializationResult};
-use super::super::hdbdate::longdate_from_str;
+use super::dbv_factory::DbvFactory;
 
 use serde;
-use std::{u8, i16, i32, i64};
+use std::cell::RefCell;
 
 /// A structure for serializing Rust values into a parameter row for a prepared statement.
-pub struct Serializer {
-    output: ParameterRow,
-    metadata: Vec<ParameterDescriptor>,
+pub struct Serializer<DF: DbvFactory> {
+    output: RefCell<Vec<DF::DBV>>,
+    metadata: Vec<DF>,
 }
 
-impl Serializer {
-    pub fn new(metadata: Vec<ParameterDescriptor>) -> Self {
-        Serializer {
-            output: ParameterRow::new(),
-            metadata: metadata,
-        }
-    }
-
-    /// translate the specified struct into a Row
-    pub fn into_row<T>(input: &T, md: Vec<ParameterDescriptor>) -> SerializationResult<ParameterRow>
+impl<DF: DbvFactory> Serializer<DF> {
+    /// Static, external facing method that translates the input into a Row
+    pub fn to_row<T: ?Sized>(value: &T, metadata: Vec<DF>) -> SerializationResult<Vec<DF::DBV>>
         where T: serde::ser::Serialize
     {
-        trace!("Serializer::into_row()");
-        let mut serializer = Serializer::new(md);
-        {
-            input.serialize(&mut serializer)?;
-        }
-        Ok(serializer.output)
+        trace!("Serializer::to_row()");
+        let mut serializer = Serializer {
+            output: RefCell::new(Vec::<DF::DBV>::new()),
+            metadata: metadata,
+        };
+        value.serialize(&mut serializer)?;
+        Ok(serializer.output.into_inner())
     }
 
-    /// get the type code of the current field
-    fn expected_type_code(&self) -> SerializationResult<u8> {
-        match self.metadata.get(self.output.values.len()) {
-            Some(pd) => Ok(pd.value_type),
+    fn get_current_field(&self) -> SerializationResult<&DF> {
+        match self.metadata.get(self.output.borrow().len()) {
+            Some(df) => Ok(df),
             None => return Err(SerializationError::StructuralMismatch("too many values specified")),
         }
     }
+
+    fn push(&self, value: DF::DBV) {
+        self.output.borrow_mut().push(value);
+    }
 }
 
-impl<'a> serde::ser::Serializer for &'a mut Serializer {
+impl<'a, DF: DbvFactory> serde::ser::Serializer for &'a mut Serializer<DF> {
     type Ok = ();
     type Error = SerializationError;
-    type SerializeSeq = Compound<'a>;
-    type SerializeTuple = Compound<'a>;
-    type SerializeTupleStruct = Compound<'a>;
-    type SerializeTupleVariant = Compound<'a>;
-    type SerializeMap = Compound<'a>;
-    type SerializeStruct = Compound<'a>;
-    type SerializeStructVariant = Compound<'a>;
+    type SerializeSeq = Compound<'a, DF>;
+    type SerializeTuple = Compound<'a, DF>;
+    type SerializeTupleStruct = Compound<'a, DF>;
+    type SerializeTupleVariant = Compound<'a, DF>;
+    type SerializeMap = Compound<'a, DF>;
+    type SerializeStruct = Compound<'a, DF>;
+    type SerializeStructVariant = Compound<'a, DF>;
 
-    fn serialize_bool(mut self, value: bool) -> SerializationResult<Self::Ok> {
+    fn serialize_bool(self, value: bool) -> SerializationResult<Self::Ok> {
         trace!("Serializer::serialize_bool()");
-        match self.expected_type_code()? {
-            TYPEID_BOOLEAN => self.output.push(TypedValue::BOOLEAN(value)),
-            TYPEID_N_BOOLEAN => self.output.push(TypedValue::N_BOOLEAN(Some(value))),
-            target_tc => return Err(SerializationError::TypeMismatch("boolean", target_tc)),
-        }
+        self.push(self.get_current_field()?.from_bool(value)?);
         Ok(())
     }
 
-    fn serialize_i8(mut self, value: i8) -> SerializationResult<Self::Ok> {
+    fn serialize_i8(self, value: i8) -> SerializationResult<Self::Ok> {
         trace!("Serializer::serialize_i8()");
-        let input_type = "i8";
-        match self.expected_type_code()? {
-            TYPEID_TINYINT => {
-                if value >= 0 {
-                    self.output.push(TypedValue::TINYINT(value as u8))
-                } else {
-                    return Err(SerializationError::RangeErr(input_type, TYPEID_TINYINT));
-                }
-            }
-            TYPEID_N_TINYINT => {
-                if value >= 0 {
-                    self.output.push(TypedValue::N_TINYINT(Some(value as u8)))
-                } else {
-                    return Err(SerializationError::RangeErr(input_type, TYPEID_TINYINT));
-                }
-            }
-            TYPEID_SMALLINT => self.output.push(TypedValue::SMALLINT(value as i16)),
-            TYPEID_N_SMALLINT => self.output.push(TypedValue::N_SMALLINT(Some(value as i16))),
-            TYPEID_INT => self.output.push(TypedValue::INT(value as i32)),
-            TYPEID_N_INT => self.output.push(TypedValue::N_INT(Some(value as i32))),
-            TYPEID_BIGINT => self.output.push(TypedValue::BIGINT(value as i64)),
-            TYPEID_N_BIGINT => self.output.push(TypedValue::N_BIGINT(Some(value as i64))),
-            target_tc => return Err(SerializationError::TypeMismatch(input_type, target_tc)),
-        }
+        self.push(self.get_current_field()?.from_i8(value)?);
         Ok(())
     }
 
-    fn serialize_i16(mut self, value: i16) -> SerializationResult<Self::Ok> {
+    fn serialize_i16(self, value: i16) -> SerializationResult<Self::Ok> {
         trace!("Serializer::serialize_i16()");
-        let input_type = "i16";
-        match self.expected_type_code()? {
-            TYPEID_TINYINT => {
-                if (value >= 0) && (value <= u8::MAX as i16) {
-                    self.output.push(TypedValue::TINYINT(value as u8))
-                } else {
-                    return Err(SerializationError::RangeErr(input_type, TYPEID_TINYINT));
-                }
-            }
-            TYPEID_N_TINYINT => {
-                if (value >= 0) && (value <= u8::MAX as i16) {
-                    self.output.push(TypedValue::N_TINYINT(Some(value as u8)))
-                } else {
-                    return Err(SerializationError::RangeErr(input_type, TYPEID_TINYINT));
-                }
-            }
-            TYPEID_SMALLINT => self.output.push(TypedValue::SMALLINT(value)),
-            TYPEID_N_SMALLINT => self.output.push(TypedValue::N_SMALLINT(Some(value))),
-            TYPEID_INT => self.output.push(TypedValue::INT(value as i32)),
-            TYPEID_N_INT => self.output.push(TypedValue::N_INT(Some(value as i32))),
-            TYPEID_BIGINT => self.output.push(TypedValue::BIGINT(value as i64)),
-            TYPEID_N_BIGINT => self.output.push(TypedValue::N_BIGINT(Some(value as i64))),
-            target_tc => return Err(SerializationError::TypeMismatch(input_type, target_tc)),
-        }
+        self.push(self.get_current_field()?.from_i16(value)?);
         Ok(())
     }
 
-    fn serialize_i32(mut self, value: i32) -> SerializationResult<Self::Ok> {
+    fn serialize_i32(self, value: i32) -> SerializationResult<Self::Ok> {
         trace!("Serializer::serialize_i32()");
-        let input_type = "i32";
-        match self.expected_type_code()? {
-            TYPEID_TINYINT => {
-                if (value >= 0) && (value <= u8::MAX as i32) {
-                    self.output.push(TypedValue::TINYINT(value as u8))
-                } else {
-                    return Err(SerializationError::RangeErr(input_type, TYPEID_TINYINT));
-                }
-            }
-            TYPEID_N_TINYINT => {
-                if (value >= 0) && (value <= u8::MAX as i32) {
-                    self.output.push(TypedValue::N_TINYINT(Some(value as u8)))
-                } else {
-                    return Err(SerializationError::RangeErr(input_type, TYPEID_TINYINT));
-                }
-            }
-            TYPEID_SMALLINT => {
-                if (value >= i16::MIN as i32) && (value <= i16::MAX as i32) {
-                    self.output.push(TypedValue::SMALLINT(value as i16))
-                } else {
-                    return Err(SerializationError::RangeErr(input_type, TYPEID_SMALLINT));
-                }
-            }
-            TYPEID_N_SMALLINT => {
-                if (value >= i16::MIN as i32) && (value <= i16::MAX as i32) {
-                    self.output.push(TypedValue::N_SMALLINT(Some(value as i16)))
-                } else {
-                    return Err(SerializationError::RangeErr(input_type, TYPEID_N_SMALLINT));
-                }
-            }
-            TYPEID_INT => self.output.push(TypedValue::INT(value)),
-            TYPEID_N_INT => self.output.push(TypedValue::N_INT(Some(value))),
-            TYPEID_BIGINT => self.output.push(TypedValue::BIGINT(value as i64)),
-            TYPEID_N_BIGINT => self.output.push(TypedValue::N_BIGINT(Some(value as i64))),
-            target_tc => return Err(SerializationError::TypeMismatch(input_type, target_tc)),
-        }
+        self.push(self.get_current_field()?.from_i32(value)?);
         Ok(())
     }
 
-    fn serialize_i64(mut self, value: i64) -> SerializationResult<Self::Ok> {
+    fn serialize_i64(self, value: i64) -> SerializationResult<Self::Ok> {
         trace!("Serializer::serialize_i64()");
-        let input_type = "i64";
-        match self.expected_type_code()? {
-            TYPEID_TINYINT => {
-                if (value >= 0) && (value <= u8::MAX as i64) {
-                    self.output.push(TypedValue::TINYINT(value as u8))
-                } else {
-                    return Err(SerializationError::RangeErr(input_type, TYPEID_TINYINT));
-                }
-            }
-            TYPEID_N_TINYINT => {
-                if (value >= 0) && (value <= u8::MAX as i64) {
-                    self.output.push(TypedValue::N_TINYINT(Some(value as u8)))
-                } else {
-                    return Err(SerializationError::RangeErr(input_type, TYPEID_TINYINT));
-                }
-            }
-            TYPEID_SMALLINT => {
-                if (value >= i16::MIN as i64) && (value <= i16::MAX as i64) {
-                    self.output.push(TypedValue::SMALLINT(value as i16))
-                } else {
-                    return Err(SerializationError::RangeErr(input_type, TYPEID_SMALLINT));
-                }
-            }
-            TYPEID_N_SMALLINT => {
-                if (value >= i16::MIN as i64) && (value <= i16::MAX as i64) {
-                    self.output.push(TypedValue::N_SMALLINT(Some(value as i16)))
-                } else {
-                    return Err(SerializationError::RangeErr(input_type, TYPEID_N_SMALLINT));
-                }
-            }
-            TYPEID_INT => {
-                if (value >= i32::MIN as i64) && (value <= i32::MAX as i64) {
-                    self.output.push(TypedValue::INT(value as i32))
-                } else {
-                    return Err(SerializationError::RangeErr(input_type, TYPEID_SMALLINT));
-                }
-            }
-            TYPEID_N_INT => {
-                if (value >= i32::MIN as i64) && (value <= i32::MAX as i64) {
-                    self.output.push(TypedValue::N_INT(Some(value as i32)))
-                } else {
-                    return Err(SerializationError::RangeErr(input_type, TYPEID_N_SMALLINT));
-                }
-            }
-            TYPEID_BIGINT => self.output.push(TypedValue::BIGINT(value)),
-            TYPEID_N_BIGINT => self.output.push(TypedValue::N_BIGINT(Some(value))),
-            TYPEID_LONGDATE => self.output.push(TypedValue::LONGDATE(LongDate(value))),
-            TYPEID_N_LONGDATE => self.output.push(TypedValue::N_LONGDATE(Some(LongDate(value)))),
-            target_tc => return Err(SerializationError::TypeMismatch(input_type, target_tc)),
-        }
+        self.push(self.get_current_field()?.from_i64(value)?);
         Ok(())
     }
 
-    fn serialize_u8(mut self, value: u8) -> SerializationResult<Self::Ok> {
+    fn serialize_u8(self, value: u8) -> SerializationResult<Self::Ok> {
         trace!("Serializer::serialize_u8()");
-        let input_type = "u8";
-        match self.expected_type_code()? {
-            TYPEID_TINYINT => self.output.push(TypedValue::TINYINT(value)),
-            TYPEID_N_TINYINT => self.output.push(TypedValue::N_TINYINT(Some(value))),
-            TYPEID_SMALLINT => self.output.push(TypedValue::SMALLINT(value as i16)),
-            TYPEID_N_SMALLINT => self.output.push(TypedValue::N_SMALLINT(Some(value as i16))),
-            TYPEID_INT => self.output.push(TypedValue::INT(value as i32)),
-            TYPEID_N_INT => self.output.push(TypedValue::N_INT(Some(value as i32))),
-            TYPEID_BIGINT => self.output.push(TypedValue::BIGINT(value as i64)),
-            TYPEID_N_BIGINT => self.output.push(TypedValue::N_BIGINT(Some(value as i64))),
-            target_tc => return Err(SerializationError::TypeMismatch(input_type, target_tc)),
-        }
+        self.push(self.get_current_field()?.from_u8(value)?);
         Ok(())
     }
 
-    fn serialize_u16(mut self, value: u16) -> SerializationResult<Self::Ok> {
+    fn serialize_u16(self, value: u16) -> SerializationResult<Self::Ok> {
         trace!("Serializer::serialize_u16()");
-        let input_type = "u16";
-        match self.expected_type_code()? {
-            TYPEID_TINYINT => {
-                if value <= u8::MAX as u16 {
-                    self.output.push(TypedValue::TINYINT(value as u8))
-                } else {
-                    return Err(SerializationError::RangeErr(input_type, TYPEID_TINYINT));
-                }
-            }
-            TYPEID_N_TINYINT => {
-                if value <= u8::MAX as u16 {
-                    self.output.push(TypedValue::N_TINYINT(Some(value as u8)))
-                } else {
-                    return Err(SerializationError::RangeErr(input_type, TYPEID_TINYINT));
-                }
-            }
-            TYPEID_SMALLINT => {
-                if value <= i16::MAX as u16 {
-                    self.output.push(TypedValue::SMALLINT(value as i16))
-                } else {
-                    return Err(SerializationError::RangeErr(input_type, TYPEID_SMALLINT));
-                }
-            }
-            TYPEID_N_SMALLINT => {
-                if value <= i16::MAX as u16 {
-                    self.output.push(TypedValue::N_SMALLINT(Some(value as i16)))
-                } else {
-                    return Err(SerializationError::RangeErr(input_type, TYPEID_TINYINT));
-                }
-            }
-            TYPEID_INT => self.output.push(TypedValue::INT(value as i32)),
-            TYPEID_N_INT => self.output.push(TypedValue::N_INT(Some(value as i32))),
-            TYPEID_BIGINT => self.output.push(TypedValue::BIGINT(value as i64)),
-            TYPEID_N_BIGINT => self.output.push(TypedValue::N_BIGINT(Some(value as i64))),
-            target_tc => return Err(SerializationError::TypeMismatch(input_type, target_tc)),
-        }
+        self.push(self.get_current_field()?.from_u16(value)?);
         Ok(())
     }
 
-    fn serialize_u32(mut self, value: u32) -> SerializationResult<Self::Ok> {
+    fn serialize_u32(self, value: u32) -> SerializationResult<Self::Ok> {
         trace!("Serializer::serialize_u32()");
-        let input_type = "u32";
-        match self.expected_type_code()? {
-            TYPEID_TINYINT => {
-                if value <= u8::MAX as u32 {
-                    self.output.push(TypedValue::TINYINT(value as u8))
-                } else {
-                    return Err(SerializationError::RangeErr(input_type, TYPEID_TINYINT));
-                }
-            }
-            TYPEID_N_TINYINT => {
-                if value <= u8::MAX as u32 {
-                    self.output.push(TypedValue::N_TINYINT(Some(value as u8)))
-                } else {
-                    return Err(SerializationError::RangeErr(input_type, TYPEID_TINYINT));
-                }
-            }
-            TYPEID_SMALLINT => {
-                if value <= i16::MAX as u32 {
-                    self.output.push(TypedValue::SMALLINT(value as i16))
-                } else {
-                    return Err(SerializationError::RangeErr(input_type, TYPEID_SMALLINT));
-                }
-            }
-            TYPEID_N_SMALLINT => {
-                if value <= i16::MAX as u32 {
-                    self.output.push(TypedValue::N_SMALLINT(Some(value as i16)))
-                } else {
-                    return Err(SerializationError::RangeErr(input_type, TYPEID_TINYINT));
-                }
-            }
-            TYPEID_INT => {
-                if value <= i32::MAX as u32 {
-                    self.output.push(TypedValue::INT(value as i32))
-                } else {
-                    return Err(SerializationError::RangeErr(input_type, TYPEID_INT));
-                }
-            }
-            TYPEID_N_INT => {
-                if value <= i32::MAX as u32 {
-                    self.output.push(TypedValue::N_INT(Some(value as i32)))
-                } else {
-                    return Err(SerializationError::RangeErr(input_type, TYPEID_INT));
-                }
-            }
-            TYPEID_BIGINT => self.output.push(TypedValue::BIGINT(value as i64)),
-            TYPEID_N_BIGINT => self.output.push(TypedValue::N_BIGINT(Some(value as i64))),
-            target_tc => return Err(SerializationError::TypeMismatch(input_type, target_tc)),
-        }
+        self.push(self.get_current_field()?.from_u32(value)?);
         Ok(())
     }
 
-    fn serialize_u64(mut self, value: u64) -> SerializationResult<Self::Ok> {
+    fn serialize_u64(self, value: u64) -> SerializationResult<Self::Ok> {
         trace!("Serializer::serialize_u64()");
-        let input_type = "u64";
-        match self.expected_type_code()? {
-            TYPEID_TINYINT => {
-                if value <= u8::MAX as u64 {
-                    self.output.push(TypedValue::TINYINT(value as u8))
-                } else {
-                    return Err(SerializationError::RangeErr(input_type, TYPEID_TINYINT));
-                }
-            }
-            TYPEID_N_TINYINT => {
-                if value <= u8::MAX as u64 {
-                    self.output.push(TypedValue::N_TINYINT(Some(value as u8)))
-                } else {
-                    return Err(SerializationError::RangeErr(input_type, TYPEID_TINYINT));
-                }
-            }
-            TYPEID_SMALLINT => {
-                if value <= i16::MAX as u64 {
-                    self.output.push(TypedValue::SMALLINT(value as i16))
-                } else {
-                    return Err(SerializationError::RangeErr(input_type, TYPEID_SMALLINT));
-                }
-            }
-            TYPEID_N_SMALLINT => {
-                if value <= i16::MAX as u64 {
-                    self.output.push(TypedValue::N_SMALLINT(Some(value as i16)))
-                } else {
-                    return Err(SerializationError::RangeErr(input_type, TYPEID_TINYINT));
-                }
-            }
-            TYPEID_INT => {
-                if value <= i32::MAX as u64 {
-                    self.output.push(TypedValue::INT(value as i32))
-                } else {
-                    return Err(SerializationError::RangeErr(input_type, TYPEID_INT));
-                }
-            }
-            TYPEID_N_INT => {
-                if value <= i32::MAX as u64 {
-                    self.output.push(TypedValue::N_INT(Some(value as i32)))
-                } else {
-                    return Err(SerializationError::RangeErr(input_type, TYPEID_INT));
-                }
-            }
-            TYPEID_BIGINT => {
-                if value <= i64::MAX as u64 {
-                    self.output.push(TypedValue::BIGINT(value as i64))
-                } else {
-                    return Err(SerializationError::RangeErr(input_type, TYPEID_BIGINT));
-                }
-            }
-            TYPEID_N_BIGINT => {
-                if value <= i64::MAX as u64 {
-                    self.output.push(TypedValue::N_BIGINT(Some(value as i64)))
-                } else {
-                    return Err(SerializationError::RangeErr(input_type, TYPEID_BIGINT));
-                }
-            }
-            target_tc => return Err(SerializationError::TypeMismatch(input_type, target_tc)),
-        }
+        self.push(self.get_current_field()?.from_u64(value)?);
         Ok(())
     }
 
-    fn serialize_f32(mut self, value: f32) -> SerializationResult<Self::Ok> {
+    fn serialize_f32(self, value: f32) -> SerializationResult<Self::Ok> {
         trace!("Serializer::serialize_f32()");
-        match self.expected_type_code()? {
-            TYPEID_REAL => self.output.push(TypedValue::REAL(value)),
-            TYPEID_N_REAL => self.output.push(TypedValue::N_REAL(Some(value))),
-            target_tc => return Err(SerializationError::TypeMismatch("f32", target_tc)),
-        }
+        self.push(self.get_current_field()?.from_f32(value)?);
         Ok(())
     }
 
-    fn serialize_f64(mut self, value: f64) -> SerializationResult<Self::Ok> {
+    fn serialize_f64(self, value: f64) -> SerializationResult<Self::Ok> {
         trace!("Serializer::serialize_f64()");
-        match self.expected_type_code()? {
-            TYPEID_DOUBLE => self.output.push(TypedValue::DOUBLE(value)),
-            TYPEID_N_DOUBLE => self.output.push(TypedValue::N_DOUBLE(Some(value))),
-            target_tc => return Err(SerializationError::TypeMismatch("f64", target_tc)),
-        }
+        self.push(self.get_current_field()?.from_f64(value)?);
         Ok(())
     }
 
-    fn serialize_char(mut self, value: char) -> SerializationResult<Self::Ok> {
+    fn serialize_char(self, value: char) -> SerializationResult<Self::Ok> {
         trace!("Serializer::serialize_char()");
-        let mut s = String::new();
-        s.push(value);
-        match self.expected_type_code()? {
-            TYPEID_CHAR | TYPEID_VARCHAR | TYPEID_NCHAR | TYPEID_NVARCHAR | TYPEID_STRING |
-            TYPEID_NSTRING | TYPEID_TEXT | TYPEID_SHORTTEXT => {
-                self.output.push(TypedValue::STRING(s))
-            }
-            target_tc => return Err(SerializationError::TypeMismatch("char", target_tc)),
-        }
+        self.push(self.get_current_field()?.from_char(value)?);
         Ok(())
     }
 
-    fn serialize_str(mut self, value: &str) -> SerializationResult<Self::Ok> {
+    fn serialize_str(self, value: &str) -> SerializationResult<Self::Ok> {
         trace!("Serializer::serialize_str() with {}", value);
-        let s = String::from(value);
-        match self.expected_type_code()? {
-            TYPEID_CHAR | TYPEID_VARCHAR | TYPEID_NCHAR | TYPEID_NVARCHAR | TYPEID_STRING |
-            TYPEID_NSTRING | TYPEID_TEXT | TYPEID_SHORTTEXT | TYPEID_N_CLOB | TYPEID_N_NCLOB |
-            TYPEID_NCLOB | TYPEID_CLOB => self.output.push(TypedValue::STRING(s)),
-            TYPEID_LONGDATE => self.output.push(TypedValue::LONGDATE(longdate_from_str(value)?)),
-
-            target_tc => return Err(SerializationError::TypeMismatch("&str", target_tc)),
-        }
+        self.push(self.get_current_field()?.from_str(value)?);
         Ok(())
     }
 
-    fn serialize_bytes(mut self, value: &[u8]) -> SerializationResult<Self::Ok> {
+    fn serialize_bytes(self, value: &[u8]) -> SerializationResult<Self::Ok> {
         trace!("Serializer::serialize_bytes()");
-        match self.expected_type_code()? {
-            TYPEID_BLOB => self.output.push(TypedValue::BLOB(new_blob_to_db((*value).to_vec()))),
-            TYPEID_N_BLOB => {
-                self.output.push(TypedValue::N_BLOB(Some(new_blob_to_db((*value).to_vec()))))
-            }
-            target_tc => return Err(SerializationError::TypeMismatch("bytes", target_tc)),
-        }
+        self.push(self.get_current_field()?.from_bytes(value)?);
         Ok(())
     }
 
     fn serialize_unit(self) -> SerializationResult<Self::Ok> {
         trace!("Serializer::serialize_unit()");
-        Err(SerializationError::TypeMismatch("unit", self.expected_type_code()?))
+        Err(SerializationError::TypeMismatch("unit", self.get_current_field()?.descriptor()))
     }
 
-    #[allow(unused_variables)]
-    fn serialize_unit_struct(self, name: &'static str) -> SerializationResult<Self::Ok> {
+    fn serialize_unit_struct(self, _name: &'static str) -> SerializationResult<Self::Ok> {
         trace!("Serializer::serialize_unit_struct()");
-        Err(SerializationError::TypeMismatch("unit_struct", self.expected_type_code()?))
+        Err(SerializationError::TypeMismatch("unit_struct", self.get_current_field()?.descriptor()))
     }
 
-    #[allow(unused_variables)]
-    fn serialize_unit_variant(self, name: &'static str, variant_index: u32, variant: &'static str)
+    fn serialize_unit_variant(self, _name: &'static str, _variant_index: u32,
+                              _variant: &'static str)
                               -> SerializationResult<Self::Ok> {
         trace!("Serializer::serialize_unit_variant()");
-        Err(SerializationError::TypeMismatch("unit_variant", self.expected_type_code()?))
+        Err(SerializationError::TypeMismatch("unit_variant",
+                                             self.get_current_field()?.descriptor()))
     }
 
-    #[allow(unused_variables)]
     fn serialize_newtype_struct<T: ?Sized + serde::ser::Serialize>
-        (self, name: &'static str, value: &T)
+        (self, _name: &'static str, value: &T)
          -> SerializationResult<Self::Ok> {
         trace!("Serializer::serialize_newtype_struct()");
         value.serialize(self)
     }
 
-    #[allow(unused_variables)]
     fn serialize_newtype_variant<T: ?Sized + serde::ser::Serialize>
-        (self, name: &'static str, variant_index: u32, variant: &'static str, value: &T)
+        (self, _name: &'static str, _variant_index: u32, _variant: &'static str, value: &T)
          -> SerializationResult<Self::Ok> {
         trace!("Serializer::serialize_newtype_variant()");
         value.serialize(self)
     }
 
-    fn serialize_none(mut self) -> SerializationResult<Self::Ok> {
+    fn serialize_none(self) -> SerializationResult<Self::Ok> {
         trace!("Serializer::serialize_none()");
-        match self.expected_type_code()? {
-            TYPEID_N_TINYINT => self.output.push(TypedValue::N_TINYINT(None)),
-            TYPEID_N_SMALLINT => self.output.push(TypedValue::N_SMALLINT(None)),
-            TYPEID_N_INT => self.output.push(TypedValue::N_INT(None)),
-            TYPEID_N_BIGINT => self.output.push(TypedValue::N_BIGINT(None)),
-            TYPEID_N_REAL => self.output.push(TypedValue::N_REAL(None)),
-            TYPEID_N_DOUBLE => self.output.push(TypedValue::N_DOUBLE(None)),
-            TYPEID_N_CHAR => self.output.push(TypedValue::N_CHAR(None)),
-            TYPEID_N_VARCHAR => self.output.push(TypedValue::N_VARCHAR(None)),
-            TYPEID_N_NCHAR => self.output.push(TypedValue::N_NCHAR(None)),
-            TYPEID_N_NVARCHAR => self.output.push(TypedValue::N_NVARCHAR(None)),
-            TYPEID_N_BINARY => self.output.push(TypedValue::N_BINARY(None)),
-            TYPEID_N_VARBINARY => self.output.push(TypedValue::N_VARBINARY(None)),
-            TYPEID_N_CLOB => self.output.push(TypedValue::N_CLOB(None)),
-            TYPEID_N_NCLOB => self.output.push(TypedValue::N_NCLOB(None)),
-            TYPEID_N_BLOB => self.output.push(TypedValue::N_BLOB(None)),
-            TYPEID_N_BOOLEAN => self.output.push(TypedValue::N_BOOLEAN(None)),
-            TYPEID_N_STRING => self.output.push(TypedValue::N_STRING(None)),
-            TYPEID_N_NSTRING => self.output.push(TypedValue::N_NSTRING(None)),
-            TYPEID_N_BSTRING => self.output.push(TypedValue::N_BSTRING(None)),
-            TYPEID_N_TEXT => self.output.push(TypedValue::N_TEXT(None)),
-            TYPEID_N_SHORTTEXT => self.output.push(TypedValue::N_SHORTTEXT(None)),
-            TYPEID_N_LONGDATE => self.output.push(TypedValue::N_LONGDATE(None)),
-            target_tc => return Err(SerializationError::TypeMismatch("none", target_tc)),
-        }
+        self.push(self.get_current_field()?.from_none()?);
         Ok(())
     }
 
@@ -531,11 +180,6 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
         Ok(Compound { ser: self })
     }
 
-    // fn serialize_seq_fixed_size(self, size: usize) -> SerializationResult<Self::SerializeSeq> {
-    //     trace!("Serializer::serialize_seq_fixed_size()");
-    //     self.serialize_seq(Some(size))
-    // }
-    //
     fn serialize_tuple(self, len: usize) -> SerializationResult<Self::SerializeTuple> {
         trace!("Serializer::serialize_tuple()");
         self.serialize_seq(Some(len))
@@ -555,7 +199,7 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
     }
 
     fn serialize_map(self, _len: Option<usize>) -> SerializationResult<Self::SerializeMap> {
-        panic!("FIXME: Serializer::serialize_map()")
+        Err(SerializationError::StructuralMismatch("serialize_map() not implemented"))
     }
 
     fn serialize_struct(self, _name: &'static str, len: usize)
@@ -567,39 +211,37 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
     fn serialize_struct_variant(self, _name: &'static str, _variant_index: u32,
                                 _variant: &'static str, _len: usize)
                                 -> SerializationResult<Self::SerializeStructVariant> {
-        panic!("FIXME: Serializer::serialize_struct_variant()")
+        Err(SerializationError::StructuralMismatch("serialize_struct_variant() not implemented"))
     }
 }
 
 #[doc(hidden)]
-pub struct Compound<'a> {
-    ser: &'a mut Serializer,
+pub struct Compound<'a, DF: 'a + DbvFactory> {
+    ser: &'a mut Serializer<DF>,
 }
 
-impl<'a> serde::ser::SerializeSeq for Compound<'a> {
+impl<'a, DF: DbvFactory> serde::ser::SerializeSeq for Compound<'a, DF> {
     type Ok = ();
     type Error = SerializationError;
 
-    #[inline]
     fn serialize_element<T: ?Sized>(&mut self, value: &T) -> SerializationResult<()>
         where T: serde::ser::Serialize
     {
         trace!("Compound: SerializeSeq::serialize_element()");
-        value.serialize(&mut *self.ser)
+        let t: &mut Serializer<DF> = self.ser;
+        value.serialize(t)
     }
 
-    #[inline]
     fn end(self) -> SerializationResult<Self::Ok> {
         trace!("Compound: SerializeSeq::end()");
         Ok(())
     }
 }
 
-impl<'a> serde::ser::SerializeTuple for Compound<'a> {
+impl<'a, DF: 'a + DbvFactory> serde::ser::SerializeTuple for Compound<'a, DF> {
     type Ok = ();
     type Error = SerializationError;
 
-    #[inline]
     fn serialize_element<T: ?Sized>(&mut self, value: &T) -> SerializationResult<()>
         where T: serde::ser::Serialize
     {
@@ -607,18 +249,16 @@ impl<'a> serde::ser::SerializeTuple for Compound<'a> {
         serde::ser::SerializeSeq::serialize_element(self, value)
     }
 
-    #[inline]
     fn end(self) -> SerializationResult<Self::Ok> {
         trace!("Compound: SerializeTuple::end()");
         Ok(())
     }
 }
 
-impl<'a> serde::ser::SerializeTupleStruct for Compound<'a> {
+impl<'a, DF: 'a + DbvFactory> serde::ser::SerializeTupleStruct for Compound<'a, DF> {
     type Ok = ();
     type Error = SerializationError;
 
-    #[inline]
     fn serialize_field<T: ?Sized>(&mut self, value: &T) -> SerializationResult<()>
         where T: serde::ser::Serialize
     {
@@ -626,18 +266,16 @@ impl<'a> serde::ser::SerializeTupleStruct for Compound<'a> {
         serde::ser::SerializeSeq::serialize_element(self, value)
     }
 
-    #[inline]
     fn end(self) -> SerializationResult<Self::Ok> {
         trace!("Compound: SerializeTupleStruct::end()");
         serde::ser::SerializeSeq::end(self)
     }
 }
 
-impl<'a> serde::ser::SerializeTupleVariant for Compound<'a> {
+impl<'a, DF: 'a + DbvFactory> serde::ser::SerializeTupleVariant for Compound<'a, DF> {
     type Ok = ();
     type Error = SerializationError;
 
-    #[inline]
     fn serialize_field<T: ?Sized>(&mut self, value: &T) -> SerializationResult<()>
         where T: serde::ser::Serialize
     {
@@ -645,7 +283,6 @@ impl<'a> serde::ser::SerializeTupleVariant for Compound<'a> {
         serde::ser::SerializeSeq::serialize_element(self, value)
     }
 
-    #[inline]
     fn end(self) -> SerializationResult<Self::Ok> {
         trace!("Compound: SerializeTupleVariant::end()");
         Ok(())
@@ -653,11 +290,10 @@ impl<'a> serde::ser::SerializeTupleVariant for Compound<'a> {
 }
 
 
-impl<'a> serde::ser::SerializeMap for Compound<'a> {
+impl<'a, DF: 'a + DbvFactory> serde::ser::SerializeMap for Compound<'a, DF> {
     type Ok = ();
     type Error = SerializationError;
 
-    #[inline]
     fn serialize_key<T: ?Sized>(&mut self, _key: &T) -> SerializationResult<()>
         where T: serde::ser::Serialize
     {
@@ -665,15 +301,14 @@ impl<'a> serde::ser::SerializeMap for Compound<'a> {
         Ok(())
     }
 
-    #[inline]
     fn serialize_value<T: ?Sized>(&mut self, value: &T) -> SerializationResult<()>
         where T: serde::ser::Serialize
     {
         trace!("Compound: SerializeMap::serialize_value()");
-        value.serialize(&mut *self.ser)
+        let t: &mut Serializer<DF> = self.ser;
+        value.serialize(t)
     }
 
-    #[inline]
     fn end(self) -> SerializationResult<Self::Ok> {
         trace!("Compound: SerializeMap::end()");
         Ok(())
@@ -681,11 +316,10 @@ impl<'a> serde::ser::SerializeMap for Compound<'a> {
 }
 
 
-impl<'a> serde::ser::SerializeStruct for Compound<'a> {
+impl<'a, DF: 'a + DbvFactory> serde::ser::SerializeStruct for Compound<'a, DF> {
     type Ok = ();
     type Error = SerializationError;
 
-    #[inline]
     fn serialize_field<T: ?Sized>(&mut self, key: &'static str, value: &T)
                                   -> SerializationResult<()>
         where T: serde::ser::Serialize
@@ -695,18 +329,16 @@ impl<'a> serde::ser::SerializeStruct for Compound<'a> {
         serde::ser::SerializeMap::serialize_value(self, value)
     }
 
-    #[inline]
     fn end(self) -> SerializationResult<Self::Ok> {
         trace!("Compound: SerializeStruct::end()");
         serde::ser::SerializeMap::end(self)
     }
 }
 
-impl<'a> serde::ser::SerializeStructVariant for Compound<'a> {
+impl<'a, DF: 'a + DbvFactory> serde::ser::SerializeStructVariant for Compound<'a, DF> {
     type Ok = ();
     type Error = SerializationError;
 
-    #[inline]
     fn serialize_field<T: ?Sized>(&mut self, key: &'static str, value: &T)
                                   -> SerializationResult<()>
         where T: serde::ser::Serialize
@@ -715,7 +347,6 @@ impl<'a> serde::ser::SerializeStructVariant for Compound<'a> {
         serde::ser::SerializeStruct::serialize_field(self, key, value)
     }
 
-    #[inline]
     fn end(self) -> SerializationResult<Self::Ok> {
         trace!("Compound: SerializeStructVariant::end()");
         serde::ser::SerializeStruct::end(self)
