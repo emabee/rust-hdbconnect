@@ -168,11 +168,13 @@ impl Argument {
                 parameters.serialize(w)?;
             }
             Argument::ReadLobRequest(ref locator_id, ref offset, ref length_to_read) => {
-                trace!("argument::serialize() ReadLobRequest for locator_id {}, offset {}, \
-                        length_to_read {}",
-                       locator_id,
-                       offset,
-                       length_to_read);
+                trace!(
+                    "argument::serialize() ReadLobRequest for locator_id {}, offset {}, \
+                     length_to_read {}",
+                    locator_id,
+                    offset,
+                    length_to_read
+                );
                 w.write_u64::<LittleEndian>(*locator_id)?;
                 w.write_u64::<LittleEndian>(*offset)?;
                 w.write_i32::<LittleEndian>(*length_to_read)?;
@@ -219,10 +221,12 @@ impl Argument {
                  rs_md: Option<&ResultSetMetadata>, par_md: Option<&ParameterMetadata>,
                  o_rs: &mut Option<&mut ResultSet>, rdr: &mut io::BufRead)
                  -> PrtResult<Argument> {
-        trace!("Entering parse(no_of_args={}, msg_type = {:?}, kind={:?})",
-               no_of_args,
-               msg_type,
-               kind);
+        trace!(
+            "Entering parse(no_of_args={}, msg_type = {:?}, kind={:?})",
+            no_of_args,
+            msg_type,
+            kind
+        );
 
         let arg = match kind {
             PartKind::Authentication => {
@@ -261,37 +265,39 @@ impl Argument {
             }
             PartKind::OutputParameters => {
                 if let Some(par_md) = par_md {
-                    Argument::OutputParameters(OutputParametersFactory::parse(o_conn_ref,
-                                                                              par_md,
-                                                                              rdr)?)
+                    Argument::OutputParameters(
+                        OutputParametersFactory::parse(o_conn_ref, par_md, rdr)?,
+                    )
                 } else {
                     return Err(prot_err("Cannot parse output parameters without metadata"));
                 }
             }
             PartKind::ParameterMetadata => {
-                Argument::ParameterMetadata(ParameterMetadata::parse(no_of_args,
-                                                                     arg_size as u32,
-                                                                     rdr)?)
+                Argument::ParameterMetadata(
+                    ParameterMetadata::parse(no_of_args, arg_size as u32, rdr)?,
+                )
             }
             PartKind::ReadLobReply => {
                 let (locator, is_last_data, data) = ReadLobReply::parse(rdr)?;
                 Argument::ReadLobReply(locator, is_last_data, data)
             }
             PartKind::ResultSet => {
-                let rs = ResultSetFactory::parse(no_of_args,
-                                                 attributes,
-                                                 parts,
-                                                 o_conn_ref,
-                                                 rs_md,
-                                                 o_rs,
-                                                 rdr)?;
+                let rs = ResultSetFactory::parse(
+                    no_of_args,
+                    attributes,
+                    parts,
+                    o_conn_ref,
+                    rs_md,
+                    o_rs,
+                    rdr,
+                )?;
                 Argument::ResultSet(rs)
             }
             PartKind::ResultSetId => Argument::ResultSetId(rdr.read_u64::<LittleEndian>()?),
             PartKind::ResultSetMetadata => {
-                Argument::ResultSetMetadata(resultset_metadata::parse(no_of_args,
-                                                                      arg_size as u32,
-                                                                      rdr)?)
+                Argument::ResultSetMetadata(
+                    resultset_metadata::parse(no_of_args, arg_size as u32, rdr)?,
+                )
             }
             PartKind::RowsAffected => Argument::RowsAffected(RowsAffected::parse(no_of_args, rdr)?),
             PartKind::StatementContext => {
@@ -323,9 +329,10 @@ impl Argument {
                 Argument::TransactionFlags(vec)
             }
             _ => {
-                return Err(PrtError::ProtocolError(format!("No handling implemented for \
-                                                            received partkind value {}",
-                                                           kind.to_i8())));
+                return Err(PrtError::ProtocolError(format!(
+                    "No handling implemented for received partkind value {}",
+                    kind.to_i8()
+                )));
             }
         };
 

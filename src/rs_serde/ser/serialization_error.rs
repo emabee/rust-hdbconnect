@@ -49,20 +49,23 @@ impl fmt::Debug for SerializationError {
                 write!(fmt, "{}: {}", self.description(), s)
             }
             SerializationError::TypeMismatch(s, tc) => {
-                write!(fmt,
-                       "{}: given value of type \"{}\" cannot be converted into value of type \
-                        code {}",
-                       self.description(),
-                       s,
-                       tc)
+                write!(
+                    fmt,
+                    "{}: given value of type \"{}\" cannot be converted into value of type code {}",
+                    self.description(),
+                    s,
+                    tc
+                )
             }
             SerializationError::RangeErr(s, tc) => {
-                write!(fmt,
-                       "{}: given value of type \"{}\" does not fit into supported range of SQL \
-                        type (type code {})",
-                       self.description(),
-                       s,
-                       tc)
+                write!(
+                    fmt,
+                    "{}: given value of type \"{}\" does not fit into supported range of SQL type \
+                     (type code {})",
+                    self.description(),
+                    s,
+                    tc
+                )
             }
         }
     }

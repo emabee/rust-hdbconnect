@@ -81,8 +81,9 @@ impl RequestType {
             77 => Ok(RequestType::Disconnect),
             82 => Ok(RequestType::DbConnectInfo),
             _ => {
-                Err(PrtError::ProtocolError(format!("Invalid value for RequestType detected: {}",
-                                                    val)))
+                Err(
+                    PrtError::ProtocolError(format!("Invalid value for RequestType detected: {}", val)),
+                )
             }
         }
     }

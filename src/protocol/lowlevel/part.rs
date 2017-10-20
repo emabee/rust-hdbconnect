@@ -29,10 +29,12 @@ impl Part {
     }
 
     pub fn serialize(&self, mut remaining_bufsize: u32, w: &mut io::Write) -> PrtResult<u32> {
-        debug!("Serializing part of kind {:?} with remaining_bufsize {} (u32) = {} (i32)",
-               self.kind,
-               remaining_bufsize,
-               remaining_bufsize as i32);
+        debug!(
+            "Serializing part of kind {:?} with remaining_bufsize {} (u32) = {} (i32)",
+            self.kind,
+            remaining_bufsize,
+            remaining_bufsize as i32
+        );
         // PART HEADER 16 bytes
         w.write_i8(self.kind.to_i8())?; // I1 Nature of part data
         w.write_u8(0)?; // U1 Attributes not used in requests
@@ -74,24 +76,29 @@ impl Part {
                  -> PrtResult<Part> {
         trace!("Entering parse()");
         let (kind, attributes, arg_size, no_of_args) = parse_part_header(rdr)?;
-        debug!("parse() found part of kind {:?} with attributes {:?}, arg_size {} and no_of_args \
-                {}",
-               kind,
-               attributes,
-               arg_size,
-               no_of_args);
-        Ok(Part::new(kind,
-                     Argument::parse(msg_type,
-                                     kind,
-                                     attributes,
-                                     no_of_args,
-                                     arg_size,
-                                     already_received_parts,
-                                     o_conn_ref,
-                                     rs_md,
-                                     par_md,
-                                     o_rs,
-                                     rdr)?))
+        debug!(
+            "parse() found part of kind {:?} with attributes {:?}, arg_size {} and no_of_args {}",
+            kind,
+            attributes,
+            arg_size,
+            no_of_args
+        );
+        Ok(Part::new(
+            kind,
+            Argument::parse(
+                msg_type,
+                kind,
+                attributes,
+                no_of_args,
+                arg_size,
+                already_received_parts,
+                o_conn_ref,
+                rs_md,
+                par_md,
+                o_rs,
+                rdr,
+            )?,
+        ))
     }
 }
 

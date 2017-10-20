@@ -67,12 +67,14 @@ impl ServerError {
             2 => "fatal error",
             _ => "message of unknown severity",
         };
-        format!("{} [code: {}, sql state: {}] at position {}: \"{}\"",
-                sev,
-                self.code,
-                String::from_utf8_lossy(&self.sqlstate),
-                self.position,
-                self.text)
+        format!(
+            "{} [code: {}, sql state: {}] at position {}: \"{}\"",
+            sev,
+            self.code,
+            String::from_utf8_lossy(&self.sqlstate),
+            self.position,
+            self.text
+        )
     }
 }
 

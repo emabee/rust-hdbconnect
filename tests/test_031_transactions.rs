@@ -32,19 +32,23 @@ fn impl_test_031_transactions() -> HdbResult<()> {
 }
 
 fn write1_read2(connection1: &mut Connection) -> HdbResult<()> {
-    info!("verify that we can read uncommitted data in same connection, but not on other \
-           connection");
+    info!(
+        "verify that we can read uncommitted data in same connection, but not on other connection"
+    );
     test_utils::statement_ignore_err(connection1, vec!["drop table TEST_TRANSACTIONS"]);
     let stmts =
-        vec!["create table TEST_TRANSACTIONS (strng NVARCHAR(100) primary key, nmbr INT, dt \
-              LONGDATE)",
-             "insert into TEST_TRANSACTIONS (strng,nmbr,dt) values('Hello',1,'01.01.1900')",
-             "insert into TEST_TRANSACTIONS (strng,nmbr,dt) values('world!',20,'01.01.1901')",
-             "insert into TEST_TRANSACTIONS (strng,nmbr,dt) values('I am here.',300,'01.01.1902')"];
+        vec![
+            "create table TEST_TRANSACTIONS (strng NVARCHAR(100) primary key, nmbr INT, dt \
+             LONGDATE)",
+            "insert into TEST_TRANSACTIONS (strng,nmbr,dt) values('Hello',1,'01.01.1900')",
+            "insert into TEST_TRANSACTIONS (strng,nmbr,dt) values('world!',20,'01.01.1901')",
+            "insert into TEST_TRANSACTIONS (strng,nmbr,dt) values('I am here.',300,'01.01.1902')",
+        ];
     connection1.multiple_statements(stmts)?;
 
     let get_checksum = |conn: &mut Connection| {
-        let resultset = conn.query("select sum(nmbr) from TEST_TRANSACTIONS").unwrap();
+        let resultset = conn.query("select sum(nmbr) from TEST_TRANSACTIONS")
+                            .unwrap();
         let checksum: usize = resultset.into_typed().unwrap();
         checksum
     };
@@ -59,11 +63,25 @@ fn write1_read2(connection1: &mut Connection) -> HdbResult<()> {
 
     connection1.set_auto_commit(false);
 
-    let mut prepared_statement1 = connection1.prepare("insert into TEST_TRANSACTIONS \
-                                                           (strng,nmbr,dt) values(?,?,?)")?;
-    prepared_statement1.add_batch(&("who", 4000, NaiveDate::from_ymd(1903, 1, 1)))?;
-    prepared_statement1.add_batch(&("added", 50000, NaiveDate::from_ymd(1903, 1, 1)))?;
-    prepared_statement1.add_batch(&("this?", 600000, NaiveDate::from_ymd(1903, 1, 1)))?;
+    let mut prepared_statement1 = connection1.prepare(
+        "insert into TEST_TRANSACTIONS (strng,nmbr,dt) \
+         values(?,?,?)",
+    )?;
+    prepared_statement1.add_batch(&(
+        "who",
+        4000,
+        NaiveDate::from_ymd(1903, 1, 1),
+    ))?;
+    prepared_statement1.add_batch(&(
+        "added",
+        50000,
+        NaiveDate::from_ymd(1903, 1, 1),
+    ))?;
+    prepared_statement1.add_batch(&(
+        "this?",
+        600000,
+        NaiveDate::from_ymd(1903, 1, 1),
+    ))?;
     prepared_statement1.execute_batch()?;
 
     // read the new lines from connection1
@@ -76,9 +94,21 @@ fn write1_read2(connection1: &mut Connection) -> HdbResult<()> {
     connection1.rollback()?;
     assert_eq!(get_checksum(connection1), 321);
 
-    prepared_statement1.add_batch(&("who", 4000, NaiveDate::from_ymd(1903, 1, 1)))?;
-    prepared_statement1.add_batch(&("added", 50000, NaiveDate::from_ymd(1903, 1, 1)))?;
-    prepared_statement1.add_batch(&("this?", 600000, NaiveDate::from_ymd(1903, 1, 1)))?;
+    prepared_statement1.add_batch(&(
+        "who",
+        4000,
+        NaiveDate::from_ymd(1903, 1, 1),
+    ))?;
+    prepared_statement1.add_batch(&(
+        "added",
+        50000,
+        NaiveDate::from_ymd(1903, 1, 1),
+    ))?;
+    prepared_statement1.add_batch(&(
+        "this?",
+        600000,
+        NaiveDate::from_ymd(1903, 1, 1),
+    ))?;
     prepared_statement1.execute_batch()?;
     // read the new lines from connection1
     assert_eq!(get_checksum(connection1), 654321);

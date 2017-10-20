@@ -4,7 +4,7 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::io;
 
 #[allow(non_camel_case_types)]
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub enum OptionValue {
     INT(i32), // INTEGER
     BIGINT(i64), // BIGINT
@@ -23,9 +23,9 @@ impl OptionValue {
             OptionValue::DOUBLE(f) => w.write_f64::<LittleEndian>(f)?,
             OptionValue::BOOLEAN(b) => {
                 w.write_u8(match b {
-                     true => 1,
-                     false => 0,
-                 })?
+                    true => 1,
+                    false => 0,
+                })?
             }
             OptionValue::STRING(ref s) => serialize_length_and_string(s, w)?,
             OptionValue::BSTRING(ref v) => serialize_length_and_bytes(v, w)?,
@@ -35,14 +35,14 @@ impl OptionValue {
 
     pub fn size(&self) -> usize {
         1 +
-        match *self {
-            OptionValue::INT(_) => 4,
-            OptionValue::BIGINT(_) => 8,
-            OptionValue::DOUBLE(_) => 8,
-            OptionValue::BOOLEAN(_) => 1,
-            OptionValue::STRING(ref s) => util::cesu8_length(s) + 2,
-            OptionValue::BSTRING(ref v) => v.len() + 2,
-        }
+            match *self {
+                OptionValue::INT(_) => 4,
+                OptionValue::BIGINT(_) => 8,
+                OptionValue::DOUBLE(_) => 8,
+                OptionValue::BOOLEAN(_) => 1,
+                OptionValue::STRING(ref s) => util::cesu8_length(s) + 2,
+                OptionValue::BSTRING(ref v) => v.len() + 2,
+            }
     }
 
     fn type_id(&self) -> u8 {
@@ -70,9 +70,9 @@ impl OptionValue {
             29 => Ok(OptionValue::STRING(parse_length_and_string(rdr)?)),
             33 => Ok(OptionValue::BSTRING(parse_length_and_binary(rdr)?)),
             _ => {
-                Err(PrtError::ProtocolError(format!("OptionValue::parse_value() not implemented \
-                                                     for type code {}",
-                                                    typecode)))
+                Err(PrtError::ProtocolError(
+                    format!("OptionValue::parse_value() not implemented for type code {}", typecode),
+                ))
             }
         }
     }

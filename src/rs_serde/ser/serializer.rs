@@ -26,7 +26,8 @@ impl Serializer {
 
     /// translate the specified struct into a Row
     pub fn into_row<T>(input: &T, md: Vec<ParameterDescriptor>) -> SerializationResult<ParameterRow>
-        where T: serde::ser::Serialize
+    where
+        T: serde::ser::Serialize,
     {
         trace!("Serializer::into_row()");
         let mut serializer = Serializer::new(md);
@@ -56,7 +57,7 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
     type SerializeStruct = Compound<'a>;
     type SerializeStructVariant = Compound<'a>;
 
-    fn serialize_bool(mut self, value: bool) -> SerializationResult<Self::Ok> {
+    fn serialize_bool(self, value: bool) -> SerializationResult<Self::Ok> {
         trace!("Serializer::serialize_bool()");
         match self.expected_type_code()? {
             TYPEID_BOOLEAN => self.output.push(TypedValue::BOOLEAN(value)),
@@ -66,7 +67,7 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
         Ok(())
     }
 
-    fn serialize_i8(mut self, value: i8) -> SerializationResult<Self::Ok> {
+    fn serialize_i8(self, value: i8) -> SerializationResult<Self::Ok> {
         trace!("Serializer::serialize_i8()");
         let input_type = "i8";
         match self.expected_type_code()? {
@@ -95,7 +96,7 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
         Ok(())
     }
 
-    fn serialize_i16(mut self, value: i16) -> SerializationResult<Self::Ok> {
+    fn serialize_i16(self, value: i16) -> SerializationResult<Self::Ok> {
         trace!("Serializer::serialize_i16()");
         let input_type = "i16";
         match self.expected_type_code()? {
@@ -124,7 +125,7 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
         Ok(())
     }
 
-    fn serialize_i32(mut self, value: i32) -> SerializationResult<Self::Ok> {
+    fn serialize_i32(self, value: i32) -> SerializationResult<Self::Ok> {
         trace!("Serializer::serialize_i32()");
         let input_type = "i32";
         match self.expected_type_code()? {
@@ -165,7 +166,7 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
         Ok(())
     }
 
-    fn serialize_i64(mut self, value: i64) -> SerializationResult<Self::Ok> {
+    fn serialize_i64(self, value: i64) -> SerializationResult<Self::Ok> {
         trace!("Serializer::serialize_i64()");
         let input_type = "i64";
         match self.expected_type_code()? {
@@ -214,13 +215,17 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
             TYPEID_BIGINT => self.output.push(TypedValue::BIGINT(value)),
             TYPEID_N_BIGINT => self.output.push(TypedValue::N_BIGINT(Some(value))),
             TYPEID_LONGDATE => self.output.push(TypedValue::LONGDATE(LongDate(value))),
-            TYPEID_N_LONGDATE => self.output.push(TypedValue::N_LONGDATE(Some(LongDate(value)))),
+            TYPEID_N_LONGDATE => {
+                self.output.push(
+                    TypedValue::N_LONGDATE(Some(LongDate(value))),
+                )
+            }
             target_tc => return Err(SerializationError::TypeMismatch(input_type, target_tc)),
         }
         Ok(())
     }
 
-    fn serialize_u8(mut self, value: u8) -> SerializationResult<Self::Ok> {
+    fn serialize_u8(self, value: u8) -> SerializationResult<Self::Ok> {
         trace!("Serializer::serialize_u8()");
         let input_type = "u8";
         match self.expected_type_code()? {
@@ -237,7 +242,7 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
         Ok(())
     }
 
-    fn serialize_u16(mut self, value: u16) -> SerializationResult<Self::Ok> {
+    fn serialize_u16(self, value: u16) -> SerializationResult<Self::Ok> {
         trace!("Serializer::serialize_u16()");
         let input_type = "u16";
         match self.expected_type_code()? {
@@ -278,7 +283,7 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
         Ok(())
     }
 
-    fn serialize_u32(mut self, value: u32) -> SerializationResult<Self::Ok> {
+    fn serialize_u32(self, value: u32) -> SerializationResult<Self::Ok> {
         trace!("Serializer::serialize_u32()");
         let input_type = "u32";
         match self.expected_type_code()? {
@@ -331,7 +336,7 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
         Ok(())
     }
 
-    fn serialize_u64(mut self, value: u64) -> SerializationResult<Self::Ok> {
+    fn serialize_u64(self, value: u64) -> SerializationResult<Self::Ok> {
         trace!("Serializer::serialize_u64()");
         let input_type = "u64";
         match self.expected_type_code()? {
@@ -396,7 +401,7 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
         Ok(())
     }
 
-    fn serialize_f32(mut self, value: f32) -> SerializationResult<Self::Ok> {
+    fn serialize_f32(self, value: f32) -> SerializationResult<Self::Ok> {
         trace!("Serializer::serialize_f32()");
         match self.expected_type_code()? {
             TYPEID_REAL => self.output.push(TypedValue::REAL(value)),
@@ -406,7 +411,7 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
         Ok(())
     }
 
-    fn serialize_f64(mut self, value: f64) -> SerializationResult<Self::Ok> {
+    fn serialize_f64(self, value: f64) -> SerializationResult<Self::Ok> {
         trace!("Serializer::serialize_f64()");
         match self.expected_type_code()? {
             TYPEID_DOUBLE => self.output.push(TypedValue::DOUBLE(value)),
@@ -416,7 +421,7 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
         Ok(())
     }
 
-    fn serialize_char(mut self, value: char) -> SerializationResult<Self::Ok> {
+    fn serialize_char(self, value: char) -> SerializationResult<Self::Ok> {
         trace!("Serializer::serialize_char()");
         let mut s = String::new();
         s.push(value);
@@ -430,26 +435,36 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
         Ok(())
     }
 
-    fn serialize_str(mut self, value: &str) -> SerializationResult<Self::Ok> {
+    fn serialize_str(self, value: &str) -> SerializationResult<Self::Ok> {
         trace!("Serializer::serialize_str() with {}", value);
         let s = String::from(value);
         match self.expected_type_code()? {
             TYPEID_CHAR | TYPEID_VARCHAR | TYPEID_NCHAR | TYPEID_NVARCHAR | TYPEID_STRING |
             TYPEID_NSTRING | TYPEID_TEXT | TYPEID_SHORTTEXT | TYPEID_N_CLOB | TYPEID_N_NCLOB |
             TYPEID_NCLOB | TYPEID_CLOB => self.output.push(TypedValue::STRING(s)),
-            TYPEID_LONGDATE => self.output.push(TypedValue::LONGDATE(longdate_from_str(value)?)),
+            TYPEID_LONGDATE => {
+                self.output.push(
+                    TypedValue::LONGDATE(longdate_from_str(value)?),
+                )
+            }
 
             target_tc => return Err(SerializationError::TypeMismatch("&str", target_tc)),
         }
         Ok(())
     }
 
-    fn serialize_bytes(mut self, value: &[u8]) -> SerializationResult<Self::Ok> {
+    fn serialize_bytes(self, value: &[u8]) -> SerializationResult<Self::Ok> {
         trace!("Serializer::serialize_bytes()");
         match self.expected_type_code()? {
-            TYPEID_BLOB => self.output.push(TypedValue::BLOB(new_blob_to_db((*value).to_vec()))),
+            TYPEID_BLOB => {
+                self.output.push(TypedValue::BLOB(
+                    new_blob_to_db((*value).to_vec()),
+                ))
+            }
             TYPEID_N_BLOB => {
-                self.output.push(TypedValue::N_BLOB(Some(new_blob_to_db((*value).to_vec()))))
+                self.output.push(TypedValue::N_BLOB(
+                    Some(new_blob_to_db((*value).to_vec())),
+                ))
             }
             target_tc => return Err(SerializationError::TypeMismatch("bytes", target_tc)),
         }
@@ -490,7 +505,7 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
         value.serialize(self)
     }
 
-    fn serialize_none(mut self) -> SerializationResult<Self::Ok> {
+    fn serialize_none(self) -> SerializationResult<Self::Ok> {
         trace!("Serializer::serialize_none()");
         match self.expected_type_code()? {
             TYPEID_N_TINYINT => self.output.push(TypedValue::N_TINYINT(None)),
@@ -582,7 +597,8 @@ impl<'a> serde::ser::SerializeSeq for Compound<'a> {
 
     #[inline]
     fn serialize_element<T: ?Sized>(&mut self, value: &T) -> SerializationResult<()>
-        where T: serde::ser::Serialize
+    where
+        T: serde::ser::Serialize,
     {
         trace!("Compound: SerializeSeq::serialize_element()");
         value.serialize(&mut *self.ser)
@@ -601,7 +617,8 @@ impl<'a> serde::ser::SerializeTuple for Compound<'a> {
 
     #[inline]
     fn serialize_element<T: ?Sized>(&mut self, value: &T) -> SerializationResult<()>
-        where T: serde::ser::Serialize
+    where
+        T: serde::ser::Serialize,
     {
         trace!("Compound: SerializeTuple::serialize_element()");
         serde::ser::SerializeSeq::serialize_element(self, value)
@@ -620,7 +637,8 @@ impl<'a> serde::ser::SerializeTupleStruct for Compound<'a> {
 
     #[inline]
     fn serialize_field<T: ?Sized>(&mut self, value: &T) -> SerializationResult<()>
-        where T: serde::ser::Serialize
+    where
+        T: serde::ser::Serialize,
     {
         trace!("Compound: SerializeTupleStruct::serialize_field()");
         serde::ser::SerializeSeq::serialize_element(self, value)
@@ -639,7 +657,8 @@ impl<'a> serde::ser::SerializeTupleVariant for Compound<'a> {
 
     #[inline]
     fn serialize_field<T: ?Sized>(&mut self, value: &T) -> SerializationResult<()>
-        where T: serde::ser::Serialize
+    where
+        T: serde::ser::Serialize,
     {
         trace!("Compound: SerializeTupleVariant::serialize_field()");
         serde::ser::SerializeSeq::serialize_element(self, value)
@@ -659,7 +678,8 @@ impl<'a> serde::ser::SerializeMap for Compound<'a> {
 
     #[inline]
     fn serialize_key<T: ?Sized>(&mut self, _key: &T) -> SerializationResult<()>
-        where T: serde::ser::Serialize
+    where
+        T: serde::ser::Serialize,
     {
         trace!("Compound: SerializeMap::serialize_key()");
         Ok(())
@@ -667,7 +687,8 @@ impl<'a> serde::ser::SerializeMap for Compound<'a> {
 
     #[inline]
     fn serialize_value<T: ?Sized>(&mut self, value: &T) -> SerializationResult<()>
-        where T: serde::ser::Serialize
+    where
+        T: serde::ser::Serialize,
     {
         trace!("Compound: SerializeMap::serialize_value()");
         value.serialize(&mut *self.ser)
@@ -688,7 +709,8 @@ impl<'a> serde::ser::SerializeStruct for Compound<'a> {
     #[inline]
     fn serialize_field<T: ?Sized>(&mut self, key: &'static str, value: &T)
                                   -> SerializationResult<()>
-        where T: serde::ser::Serialize
+    where
+        T: serde::ser::Serialize,
     {
         trace!("Compound: SerializeStruct::serialize_field()");
         try!(serde::ser::SerializeMap::serialize_key(self, key));
@@ -709,7 +731,8 @@ impl<'a> serde::ser::SerializeStructVariant for Compound<'a> {
     #[inline]
     fn serialize_field<T: ?Sized>(&mut self, key: &'static str, value: &T)
                                   -> SerializationResult<()>
-        where T: serde::ser::Serialize
+    where
+        T: serde::ser::Serialize,
     {
         trace!("Compound: SerializeStructVariant::serialize_field()");
         serde::ser::SerializeStruct::serialize_field(self, key, value)

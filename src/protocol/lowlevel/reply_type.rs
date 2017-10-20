@@ -50,8 +50,9 @@ impl ReplyType {
             22 => Ok(ReplyType::XaStart),
             23 => Ok(ReplyType::XaJoin),
             _ => {
-                Err(PrtError::ProtocolError(format!("Invalid value for ReplyType detected: {}",
-                                                    val)))
+                Err(
+                    PrtError::ProtocolError(format!("Invalid value for ReplyType detected: {}", val)),
+                )
             }
         }
     }

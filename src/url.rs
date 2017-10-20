@@ -115,17 +115,21 @@ fn decode_inner(c: &str, full_url: bool) -> DecodeResult<String> {
                         let bytes = match (iter.next(), iter.next()) {
                             (Some(one), Some(two)) => [one, two],
                             _ => {
-                                return Err("Malformed input: found '%' without two trailing bytes"
-                                    .to_owned())
+                                return Err(
+                                    "Malformed input: found '%' without two trailing bytes"
+                                        .to_owned(),
+                                )
                             }
                         };
 
                         let bytes_from_hex = match Vec::<u8>::from_hex(&bytes) {
                             Ok(b) => b,
                             _ => {
-                                return Err("Malformed input: found '%' followed by invalid hex  \
-                                            values. Character '%' must escaped."
-                                               .to_owned())
+                                return Err(
+                                    "Malformed input: found '%' followed by invalid hex  \
+                                     values. Character '%' must escaped."
+                                    .to_owned(),
+                                )
                             }
                         };
 

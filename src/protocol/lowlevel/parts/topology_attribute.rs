@@ -4,7 +4,7 @@ use super::option_value::OptionValue;
 use byteorder::{ReadBytesExt, WriteBytesExt};
 use std::io;
 
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct TopologyAttr {
     pub id: TopologyAttrId,
     pub value: OptionValue,
@@ -30,7 +30,7 @@ impl TopologyAttr {
 }
 
 
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub enum TopologyAttrId {
     HostName, // 1 // host name
     HostPortNumber, // 2 // port number
@@ -72,9 +72,9 @@ impl TopologyAttrId {
             8 => Ok(TopologyAttrId::ServiceType),
             10 => Ok(TopologyAttrId::IsStandby),
             _ => {
-                Err(PrtError::ProtocolError(format!("Invalid value for TopologyAttrId detected: \
-                                                     {}",
-                                                    val)))
+                Err(PrtError::ProtocolError(
+                    format!("Invalid value for TopologyAttrId detected: {}", val),
+                ))
             }
         }
     }

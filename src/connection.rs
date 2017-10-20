@@ -119,10 +119,12 @@ impl Connection {
     /// one of the methods query(), dml(), exec(), which have the
     /// adequate simple result type you usually want.
     pub fn statement(&mut self, stmt: &str) -> HdbResult<HdbResponse> {
-        execute(self.core.clone(),
-                String::from(stmt),
-                self.auto_commit,
-                &mut self.acc_server_proc_time)
+        execute(
+            self.core.clone(),
+            String::from(stmt),
+            self.auto_commit,
+            &mut self.acc_server_proc_time,
+        )
     }
 
     /// Executes a statement and expects a single ResultSet.
@@ -145,9 +147,11 @@ impl Connection {
     /// Prepares a statement and returns a handle to it.
     /// Note that the handle keeps using the same connection.
     pub fn prepare(&self, stmt: &str) -> HdbResult<PreparedStatement> {
-        let stmt = PreparedStatementFactory::prepare(self.core.clone(),
-                                                     String::from(stmt),
-                                                     self.auto_commit)?;
+        let stmt = PreparedStatementFactory::prepare(
+            self.core.clone(),
+            String::from(stmt),
+            self.auto_commit,
+        )?;
         Ok(stmt)
     }
 

@@ -14,22 +14,24 @@ const JGREG: i64 = 2_299_161;
 ///
 /// The type is used internally to implement serialization to the wire.
 /// It is agnostic of timezones.
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct LongDate(pub i64);
 
 impl fmt::Display for LongDate {
     // The format chosen supports the conversion to chrono types.
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let (year, month, day, hour, minute, second, fraction) = self.as_ymd_hms_f();
-        write!(fmt,
-               "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:07}",
-               year,
-               month,
-               day,
-               hour,
-               minute,
-               second,
-               fraction)
+        write!(
+            fmt,
+            "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:07}",
+            year,
+            month,
+            day,
+            hour,
+            minute,
+            second,
+            fraction
+        )
     }
 }
 
@@ -55,9 +57,11 @@ impl LongDate {
             return Err("Only days between 1 and 31 are supported");
         }
 
-        Ok(LongDate(1 + to_day_number(y as u32, m, d) * DAY_FACTOR + hour as i64 * HOUR_FACTOR +
-                    minute as i64 * MINUTE_FACTOR +
-                    second as i64 * SECOND_FACTOR + nanosecond as i64 / 100))
+        Ok(LongDate(
+            1 + to_day_number(y as u32, m, d) * DAY_FACTOR + hour as i64 * HOUR_FACTOR +
+                minute as i64 * MINUTE_FACTOR + second as i64 * SECOND_FACTOR +
+                nanosecond as i64 / 100,
+        ))
     }
 
     /// Factory method for LongDate up to second precision.

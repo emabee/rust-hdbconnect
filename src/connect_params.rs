@@ -86,7 +86,13 @@ impl IntoConnectParams for String {
 
 impl IntoConnectParams for Url {
     fn into_connect_params(self) -> HdbResult<ConnectParams> {
-        let Url { host, port, user, path: url::Path { query: options, .. }, .. } = self;
+        let Url {
+            host,
+            port,
+            user,
+            path: url::Path { query: options, .. },
+            ..
+        } = self;
 
         let mut builder = ConnectParams::builder();
 
@@ -231,7 +237,13 @@ impl IntoConnectParamsBuilder for String {
 
 impl IntoConnectParamsBuilder for Url {
     fn into_connect_params_builder(self) -> HdbResult<ConnectParamsBuilder> {
-        let Url { host, port, user, path: url::Path { query: options, .. }, .. } = self;
+        let Url {
+            host,
+            port,
+            user,
+            path: url::Path { query: options, .. },
+            ..
+        } = self;
 
         let mut builder = ConnectParams::builder();
 
@@ -278,8 +290,7 @@ mod tests {
     #[test]
     fn test_reuse_builder() {
         let mut cp_builder: ConnectParamsBuilder = ConnectParams::builder();
-        cp_builder.hostname("abcd123")
-                  .port(2222);
+        cp_builder.hostname("abcd123").port(2222);
         let params1: ConnectParams = cp_builder.dbuser("MEIER")
                                                .password("schlau")
                                                .build()
@@ -299,7 +310,9 @@ mod tests {
 
     #[test]
     fn test_params_from_url() {
-        let params = "hdbsql://meier:schLau@abcd123:2222".into_connect_params().unwrap();
+        let params = "hdbsql://meier:schLau@abcd123:2222"
+            .into_connect_params()
+            .unwrap();
 
         assert_eq!("meier", params.dbuser());
         assert_eq!("schLau", params.password());

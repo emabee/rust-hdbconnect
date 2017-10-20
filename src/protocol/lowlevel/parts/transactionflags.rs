@@ -11,7 +11,7 @@ use std::io;
 ///  whether the transaction isolation level has been changed, or whether DDL statements
 ///  are automatically committed or not. Also, the server can signal it has detected a state
 ///  that makes it impossible to continue processing the session.
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct TransactionFlag {
     pub id: TaFlagId,
     pub value: OptionValue,
@@ -37,7 +37,7 @@ impl TransactionFlag {
 }
 
 
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub enum TaFlagId {
     RolledBack, // 0 // BOOL    // The transaction is rolled back
     Committed, // 1 // BOOL    // The transaction is committed
@@ -76,9 +76,9 @@ impl TaFlagId {
             7 => Ok(TaFlagId::ReadOnlyMode),
             8 => Ok(TaFlagId::Last),
             _ => {
-                Err(PrtError::ProtocolError(format!("Invalid value for TransactionFlag \
-                                                     detected: {}",
-                                                    val)))
+                Err(PrtError::ProtocolError(
+                    format!("Invalid value for TransactionFlag detected: {}", val),
+                ))
             }
         }
     }

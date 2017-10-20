@@ -21,7 +21,7 @@ const LENGTH_INDICATOR_NULL: u8 = 255;
 
 /// Enum for all supported database value types.
 #[allow(non_camel_case_types)]
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub enum TypedValue {
     /// TINYINT stores an 8-bit unsigned integer.
     /// The minimum value is 0. The maximum value is 255.
@@ -280,9 +280,9 @@ impl TypedValue {
 
 pub fn serialize(tv: &TypedValue, data_pos: &mut i32, w: &mut io::Write) -> PrtResult<()> {
     fn _serialize_not_implemented(type_id: u8) -> PrtError {
-        return PrtError::ProtocolError(format!("TypedValue::serialize() not implemented for \
-                                                type code {}",
-                                               type_id));
+        return PrtError::ProtocolError(
+            format!("TypedValue::serialize() not implemented for type code {}", type_id),
+        );
     }
 
     if !tv.serialize_type_id(w)? {
@@ -372,89 +372,91 @@ pub fn serialize(tv: &TypedValue, data_pos: &mut i32, w: &mut io::Write) -> PrtR
 // is used to calculate the argument size (in serialize)
 pub fn size(tv: &TypedValue) -> PrtResult<usize> {
     fn _size_not_implemented(type_id: u8) -> PrtError {
-        return PrtError::ProtocolError(format!("TypedValue::size() not implemented for type \
-                                                code {}",
-                                               type_id));
+        return PrtError::ProtocolError(
+            format!("TypedValue::size() not implemented for type code {}", type_id),
+        );
     }
 
-    Ok(1 +
-       match *tv {
-        TypedValue::TINYINT(_) |
-        TypedValue::N_TINYINT(Some(_)) => 1,
+    Ok(
+        1 +
+            match *tv {
+                TypedValue::TINYINT(_) |
+                TypedValue::N_TINYINT(Some(_)) => 1,
 
-        TypedValue::SMALLINT(_) |
-        TypedValue::N_SMALLINT(Some(_)) => 2,
+                TypedValue::SMALLINT(_) |
+                TypedValue::N_SMALLINT(Some(_)) => 2,
 
-        TypedValue::INT(_) |
-        TypedValue::N_INT(Some(_)) => 4,
+                TypedValue::INT(_) |
+                TypedValue::N_INT(Some(_)) => 4,
 
-        TypedValue::BIGINT(_) |
-        TypedValue::N_BIGINT(Some(_)) => 8,
+                TypedValue::BIGINT(_) |
+                TypedValue::N_BIGINT(Some(_)) => 8,
 
-        TypedValue::REAL(_) |
-        TypedValue::N_REAL(Some(_)) => 4,
+                TypedValue::REAL(_) |
+                TypedValue::N_REAL(Some(_)) => 4,
 
-        TypedValue::DOUBLE(_) |
-        TypedValue::N_DOUBLE(Some(_)) => 8,
+                TypedValue::DOUBLE(_) |
+                TypedValue::N_DOUBLE(Some(_)) => 8,
 
-        TypedValue::BOOLEAN(_) |
-        TypedValue::N_BOOLEAN(Some(_)) => 1,
+                TypedValue::BOOLEAN(_) |
+                TypedValue::N_BOOLEAN(Some(_)) => 1,
 
-        TypedValue::LONGDATE(_) |
-        TypedValue::N_LONGDATE(Some(_)) => 8,
+                TypedValue::LONGDATE(_) |
+                TypedValue::N_LONGDATE(Some(_)) => 8,
 
-        TypedValue::CLOB(ref clob) |
-        TypedValue::N_CLOB(Some(ref clob)) |
-        TypedValue::NCLOB(ref clob) |
-        TypedValue::N_NCLOB(Some(ref clob)) => 9 + clob.len()?,
+                TypedValue::CLOB(ref clob) |
+                TypedValue::N_CLOB(Some(ref clob)) |
+                TypedValue::NCLOB(ref clob) |
+                TypedValue::N_NCLOB(Some(ref clob)) => 9 + clob.len()?,
 
-        TypedValue::BLOB(ref blob) |
-        TypedValue::N_BLOB(Some(ref blob)) => 9 + blob.len()?,
+                TypedValue::BLOB(ref blob) |
+                TypedValue::N_BLOB(Some(ref blob)) => 9 + blob.len()?,
 
-        TypedValue::STRING(ref s) |
-        TypedValue::N_STRING(Some(ref s)) |
-        TypedValue::NSTRING(ref s) |
-        TypedValue::N_NSTRING(Some(ref s)) |
-        TypedValue::TEXT(ref s) |
-        TypedValue::N_TEXT(Some(ref s)) |
-        TypedValue::SHORTTEXT(ref s) |
-        TypedValue::N_SHORTTEXT(Some(ref s)) => string_length(s),
+                TypedValue::STRING(ref s) |
+                TypedValue::N_STRING(Some(ref s)) |
+                TypedValue::NSTRING(ref s) |
+                TypedValue::N_NSTRING(Some(ref s)) |
+                TypedValue::TEXT(ref s) |
+                TypedValue::N_TEXT(Some(ref s)) |
+                TypedValue::SHORTTEXT(ref s) |
+                TypedValue::N_SHORTTEXT(Some(ref s)) => string_length(s),
 
-        TypedValue::BINARY(ref v) |
-        TypedValue::N_BINARY(Some(ref v)) |
-        TypedValue::VARBINARY(ref v) |
-        TypedValue::N_VARBINARY(Some(ref v)) |
-        TypedValue::BSTRING(ref v) |
-        TypedValue::N_BSTRING(Some(ref v)) => v.len() + 2,
+                TypedValue::BINARY(ref v) |
+                TypedValue::N_BINARY(Some(ref v)) |
+                TypedValue::VARBINARY(ref v) |
+                TypedValue::N_VARBINARY(Some(ref v)) |
+                TypedValue::BSTRING(ref v) |
+                TypedValue::N_BSTRING(Some(ref v)) => v.len() + 2,
 
-        TypedValue::N_TINYINT(None) |
-        TypedValue::N_SMALLINT(None) |
-        TypedValue::N_INT(None) |
-        TypedValue::N_BIGINT(None) |
-        TypedValue::N_REAL(None) |
-        TypedValue::N_DOUBLE(None) |
-        TypedValue::N_BOOLEAN(None) |
-        TypedValue::N_LONGDATE(None) |
-        TypedValue::N_CLOB(None) |
-        TypedValue::N_NCLOB(None) |
-        TypedValue::N_BLOB(None) |
-        TypedValue::N_BINARY(None) |
-        TypedValue::N_VARBINARY(None) |
-        TypedValue::N_BSTRING(None) |
-        TypedValue::N_STRING(None) |
-        TypedValue::N_NSTRING(None) |
-        TypedValue::N_TEXT(None) |
-        TypedValue::N_SHORTTEXT(None) => 0,
+                TypedValue::N_TINYINT(None) |
+                TypedValue::N_SMALLINT(None) |
+                TypedValue::N_INT(None) |
+                TypedValue::N_BIGINT(None) |
+                TypedValue::N_REAL(None) |
+                TypedValue::N_DOUBLE(None) |
+                TypedValue::N_BOOLEAN(None) |
+                TypedValue::N_LONGDATE(None) |
+                TypedValue::N_CLOB(None) |
+                TypedValue::N_NCLOB(None) |
+                TypedValue::N_BLOB(None) |
+                TypedValue::N_BINARY(None) |
+                TypedValue::N_VARBINARY(None) |
+                TypedValue::N_BSTRING(None) |
+                TypedValue::N_STRING(None) |
+                TypedValue::N_NSTRING(None) |
+                TypedValue::N_TEXT(None) |
+                TypedValue::N_SHORTTEXT(None) => 0,
 
-        TypedValue::CHAR(_) |
-        TypedValue::VARCHAR(_) |
-        TypedValue::NCHAR(_) |
-        TypedValue::NVARCHAR(_) |
-        TypedValue::N_CHAR(_) |
-        TypedValue::N_VARCHAR(_) |
-        TypedValue::N_NCHAR(_) |
-        TypedValue::N_NVARCHAR(_) => return Err(_size_not_implemented(tv.type_id())),
-    })
+                TypedValue::CHAR(_) |
+                TypedValue::VARCHAR(_) |
+                TypedValue::NCHAR(_) |
+                TypedValue::NVARCHAR(_) |
+                TypedValue::N_CHAR(_) |
+                TypedValue::N_VARCHAR(_) |
+                TypedValue::N_NCHAR(_) |
+                TypedValue::N_NVARCHAR(_) => return Err(_size_not_implemented(tv.type_id())),
+            },
+    )
 }
 
 
@@ -528,10 +530,10 @@ pub mod factory {
         // if it is true, we return types with typecode above 128, which use Option<type>,
         // if it is false, we return types with the original typecode, which use plain values
         let typecode = p_typecode +
-                       match nullable {
-            true => 128,
-            false => 0,
-        };
+            match nullable {
+                true => 128,
+                false => 0,
+            };
         match typecode {
             1 => {
                 Ok(TypedValue::TINYINT({
@@ -636,9 +638,9 @@ pub mod factory {
             // 191 => Ok(TypedValue::N_DAYDATE(
             // 192 => Ok(TypedValue::N_SECONDTIME(
             _ => {
-                Err(PrtError::ProtocolError(format!("TypedValue::parse_from_reply() not \
-                                                     implemented for type code {}",
-                                                    typecode)))
+                Err(PrtError::ProtocolError(
+                    format!("TypedValue::parse_from_reply() not implemented for type code {}", typecode),
+                ))
             }
         }
     }
@@ -734,9 +736,9 @@ pub mod factory {
             super::LENGTH_INDICATOR_2BYTE => rdr.read_i16::<LittleEndian>()? as usize, // I2
             super::LENGTH_INDICATOR_4BYTE => rdr.read_i32::<LittleEndian>()? as usize, // I4
             l => {
-                return Err(PrtError::ProtocolError(format!("Invalid value in length indicator: \
-                                                            {}",
-                                                           l)));
+                return Err(
+                    PrtError::ProtocolError(format!("Invalid value in length indicator: {}", l)),
+                );
             }
         };
         util::parse_bytes(len, rdr) // B (varying)
@@ -748,8 +750,9 @@ pub mod factory {
                 match util::cesu8_to_string(&vec) {
                     Ok(s) => Ok(Some(s)),
                     Err(_) => {
-                        Err(prot_err("cesu-8 problem occured in \
-                                      typed_value:parse_length_and_string()"))
+                        Err(
+                            prot_err("cesu-8 problem occured in typed_value:parse_length_and_string()"),
+                        )
                     }
                 }
             }
@@ -765,9 +768,9 @@ pub mod factory {
             super::LENGTH_INDICATOR_4BYTE => rdr.read_i32::<LittleEndian>()? as usize, // I4
             super::LENGTH_INDICATOR_NULL => return Ok(None),
             l => {
-                return Err(PrtError::ProtocolError(format!("Invalid value in length indicator: \
-                                                            {}",
-                                                           l)))
+                return Err(
+                    PrtError::ProtocolError(format!("Invalid value in length indicator: {}", l)),
+                )
             }
         };
         Ok(Some(util::parse_bytes(len, rdr)?)) // B (varying)
@@ -817,13 +820,15 @@ pub mod factory {
                     Cow::Borrowed(s) => String::from(s),
                 };
                 assert_eq!(data.len(), s.len());
-                Ok(Some(new_clob_from_db(conn_ref,
-                                         is_last_data,
-                                         length_c,
-                                         length_b,
-                                         char_count,
-                                         locator_id,
-                                         s)))
+                Ok(Some(new_clob_from_db(
+                    conn_ref,
+                    is_last_data,
+                    length_c,
+                    length_b,
+                    char_count,
+                    locator_id,
+                    s,
+                )))
             }
         }
     }
@@ -1352,8 +1357,9 @@ impl DbValueInto<String> for TypedValue {
             TypedValue::NCLOB(clob) |
             TypedValue::N_CLOB(Some(clob)) |
             TypedValue::N_NCLOB(Some(clob)) => {
-                Ok(clob.into_string()
-                       .map_err(|e| ConversionError::Incomplete(e.description().to_owned()))?)
+                Ok(clob.into_string().map_err(|e| {
+                    ConversionError::Incomplete(e.description().to_owned())
+                })?)
             }
 
             value => return Err(wrong_type(&value, "String")),
@@ -1368,8 +1374,10 @@ impl DbValueInto<NaiveDateTime> for TypedValue {
             TypedValue::LONGDATE(ld) |
             TypedValue::N_LONGDATE(Some(ld)) => {
                 let (y, m, d, h, min, s, f) = ld.as_ymd_hms_f();
-                Ok(NaiveDateTime::new(NaiveDate::from_ymd(y, m, d),
-                                      NaiveTime::from_hms_nano(h, min, s, f * 100)))
+                Ok(NaiveDateTime::new(
+                    NaiveDate::from_ymd(y, m, d),
+                    NaiveTime::from_hms_nano(h, min, s, f * 100),
+                ))
             }
             _ => Err(ConversionError::ValueType("Not a LongDate value".to_owned())),
         }
@@ -1382,8 +1390,9 @@ impl DbValueInto<Vec<u8>> for TypedValue {
         match self {
             TypedValue::BLOB(blob) |
             TypedValue::N_BLOB(Some(blob)) => {
-                Ok(blob.into_bytes()
-                       .map_err(|e| ConversionError::Incomplete(e.description().to_owned()))?)
+                Ok(blob.into_bytes().map_err(|e| {
+                    ConversionError::Incomplete(e.description().to_owned())
+                })?)
             }
 
             TypedValue::BINARY(v) |
@@ -1406,9 +1415,9 @@ fn wrong_type(tv: &TypedValue, ovt: &str) -> ConversionError {
 }
 
 fn number_range(value: &i64, ovt: &str) -> ConversionError {
-    ConversionError::NumberRange(format!("The value {:?} exceeds the number range of type {}",
-                                         value,
-                                         ovt))
+    ConversionError::NumberRange(
+        format!("The value {:?} exceeds the number range of type {}", value, ovt),
+    )
 }
 
 

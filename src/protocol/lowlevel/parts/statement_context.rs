@@ -28,8 +28,9 @@ impl StatementContext {
                 Ok(())
             }
             None => {
-                Err(prot_err("StatementContext::serialize(): statement_sequence_info is not \
-                              filled"))
+                Err(
+                    prot_err("StatementContext::serialize(): statement_sequence_info is not filled"),
+                )
             }
         }
     }

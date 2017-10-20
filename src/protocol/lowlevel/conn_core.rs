@@ -99,9 +99,11 @@ impl Drop for ConnectionCore {
         trace!("Drop of ConnectionCore, session_id = {}", self.session_id);
         if self.is_authenticated {
             let request = Request::new_for_disconnect();
-            match request.serialize_impl(self.session_id,
-                                         self.next_seq_number(),
-                                         &mut self.stream) {
+            match request.serialize_impl(
+                self.session_id,
+                self.next_seq_number(),
+                &mut self.stream,
+            ) {
                 Ok(()) => {
                     trace!("Disconnect: request successfully sent");
                     let mut rdr = io::BufReader::new(&mut self.stream);

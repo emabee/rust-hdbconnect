@@ -270,21 +270,23 @@ mod tests {
                                           \x6f\x1a\x48\x2e\x4c\x3f\xb8\x32\xe4\x1c\
                                           \x89\x74\xf9\x02\xef\x87\x38\xcc\x74\xb6\
                                           \xef\x99\x2e\x8e"
-                                            .to_vec();
-        let server_challenge: Vec<u8> = b"\x02\x00\x10\x12\x41\xe5\x8f\x39\x23\x4e\
+                                        .to_vec();
+        let server_challenge: Vec<u8> =
+            b"\x02\x00\x10\x12\x41\xe5\x8f\x39\x23\x4e\
                                           \xeb\x77\x3e\x90\x90\x33\xe5\xcb\x6e\x30\
                                           \x1a\xce\xdc\xdd\x05\xc1\x90\xb0\xf0\xd0\
                                           \x7d\x81\x1a\xdb\x0d\x6f\xed\xa8\x87\x59\
                                           \xc2\x94\x06\x0d\xae\xab\x3f\x62\xea\x4b\
                                           \x16\x6a\xc9\x7e\xfc\x9a\x6b\xde\x4f\xe9\
                                           \xe5\xda\xcc\xb5\x0a\xcf\xce\x56"
-                                            .to_vec();
+            .to_vec();
         let password: &str = "manager";
-        let correct_client_proof: Vec<u8> = b"\x00\x01\x20\x17\x26\x25\xab\x29\x71\xd8\
+        let correct_client_proof: Vec<u8> =
+            b"\x00\x01\x20\x17\x26\x25\xab\x29\x71\xd8\
                                               \x58\x74\x32\x5d\x21\xbc\x3d\x68\x37\x71\
                                               \x80\x5c\x9a\xfe\x38\xd0\x95\x1d\xad\x46\
                                               \x53\x00\x9c\xc9\x21"
-                                                .to_vec();
+            .to_vec();
 
         trace!("----------------------------------------------------");
         trace!("client_challenge ({} bytes): \n{:?}", &client_challenge.len(), &client_challenge);
@@ -294,9 +296,11 @@ mod tests {
             .unwrap();
 
         trace!("my_client_proof ({} bytes): \n{:?}", &my_client_proof.len(), &my_client_proof);
-        trace!("correct_client_proof ({} bytes): \n{:?}",
-               &correct_client_proof.len(),
-               &correct_client_proof);
+        trace!(
+            "correct_client_proof ({} bytes): \n{:?}",
+            &correct_client_proof.len(),
+            &correct_client_proof
+        );
         trace!("----------------------------------------------------");
         assert_eq!(my_client_proof, correct_client_proof);
     }

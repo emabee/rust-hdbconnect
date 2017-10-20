@@ -8,10 +8,10 @@ use std::cell::RefCell;
 ///
 /// BLOB comes in two flavors, depending on
 /// whether we read it from the database or write it to the database.
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct BLOB(BlobEnum);
 
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 enum BlobEnum {
     /// A BlobHandle represents a CLOB that was read from the database.
     FromDB(RefCell<BlobHandle>),
@@ -22,11 +22,9 @@ enum BlobEnum {
 pub fn new_blob_from_db(conn_ref: &ConnCoreRef, is_data_complete: bool, length_b: u64,
                         locator_id: u64, data: Vec<u8>)
                         -> BLOB {
-    BLOB(BlobEnum::FromDB(RefCell::new(BlobHandle::new(conn_ref,
-                                                       is_data_complete,
-                                                       length_b,
-                                                       locator_id,
-                                                       data))))
+    BLOB(BlobEnum::FromDB(
+        RefCell::new(BlobHandle::new(conn_ref, is_data_complete, length_b, locator_id, data)),
+    ))
 }
 
 /// Factory method for BLOBs that are to be sent to the database.
@@ -70,10 +68,10 @@ impl BLOB {
 ///
 /// CLOB comes in two flavors, depending on
 /// whether we read it from the database or want to write it to the database.
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct CLOB(ClobEnum);
 
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 enum ClobEnum {
     /// A ClobHandle represents a CLOB that was read from the database.
     FromDB(RefCell<ClobHandle>),
@@ -84,13 +82,9 @@ enum ClobEnum {
 pub fn new_clob_from_db(conn_ref: &ConnCoreRef, is_data_complete: bool, length_c: u64,
                         length_b: u64, char_count: u64, locator_id: u64, data: String)
                         -> CLOB {
-    CLOB(ClobEnum::FromDB(RefCell::new(ClobHandle::new(conn_ref,
-                                                       is_data_complete,
-                                                       length_c,
-                                                       length_b,
-                                                       char_count,
-                                                       locator_id,
-                                                       data))))
+    CLOB(ClobEnum::FromDB(RefCell::new(
+        ClobHandle::new(conn_ref, is_data_complete, length_c, length_b, char_count, locator_id, data),
+    )))
 }
 
 /// Factory method for CLOBs that are to be sent to the database.

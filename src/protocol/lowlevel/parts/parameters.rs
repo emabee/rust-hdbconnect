@@ -7,7 +7,7 @@ use super::typed_value::serialize as typed_value_serialize;
 use std::io;
 
 /// A single row of parameters; batches can consist of many such rows
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub struct ParameterRow {
     pub values: Vec<TypedValue>,
 }
@@ -58,7 +58,7 @@ impl ParameterRow {
 
 /// A PARAMETERS part contains input parameters.
 /// The argument count of the part defines how many rows of parameters are included.
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct Parameters {
     rows: Vec<ParameterRow>,
 }

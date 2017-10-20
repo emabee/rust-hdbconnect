@@ -242,12 +242,14 @@ pub fn from_cesu8_with_count(bytes: &[u8]) -> Result<(Cow<str>, u64), Cesu8Decod
             if success {
                 // We can remove this assertion if we trust our decoder.
                 assert!(str::from_utf8(&decoded[..]).is_ok());
-                Ok((Cow::Owned(unsafe {
+                Ok((
+                    Cow::Owned(unsafe {
                         let s = String::from_utf8_unchecked(decoded);
                         trace!("util::from_cesu8(): {}", s);
                         (s)
                     }),
-                    count))
+                    count,
+                ))
             } else {
                 debug!("util::from_cesu8() failed for {:?}", bytes);
                 Err(Cesu8DecodingError)
@@ -332,9 +334,7 @@ fn decode_from_iter(decoded: &mut Vec<u8>, iter: &mut slice::Iter<u8>) -> (bool,
                         (0xE1...0xEC, 0x80...0xBF) |
                         (0xED, 0x80...0x9F) |
                         (0xEE...0xEF, 0x80...0xBF) => {
-                            decoded.extend([first, second, third]
-                                .iter()
-                                .cloned())
+                            decoded.extend([first, second, third].iter().cloned())
                         }
                         // First half a surrogate pair, so decode.
                         (0xED, 0xA0...0xAF) => {
@@ -378,10 +378,12 @@ fn dec_surrogates(second: u8, third: u8, fifth: u8, sixth: u8) -> [u8; 4] {
 
     // Convert to UTF-8.
     // 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
-    [0b1111_0000u8 | ((c & 0b1_1100_0000_0000_0000_0000) >> 18) as u8,
-     TAG_CONT_U8 | ((c & 0b0_0011_1111_0000_0000_0000) >> 12) as u8,
-     TAG_CONT_U8 | ((c & 0b0_0000_0000_1111_1100_0000) >> 6) as u8,
-     TAG_CONT_U8 | ((c & 0b0_0000_0000_0000_0011_1111)) as u8]
+    [
+        0b1111_0000u8 | ((c & 0b1_1100_0000_0000_0000_0000) >> 18) as u8,
+        TAG_CONT_U8 | ((c & 0b0_0011_1111_0000_0000_0000) >> 12) as u8,
+        TAG_CONT_U8 | ((c & 0b0_0000_0000_1111_1100_0000) >> 6) as u8,
+        TAG_CONT_U8 | ((c & 0b0_0000_0000_0000_0011_1111)) as u8,
+    ]
 }
 
 // / Convert a Rust `&str` to CESU-8 bytes.
@@ -430,7 +432,8 @@ pub fn to_cesu8(text: &str) -> Cow<[u8]> {
                     // them to two surrogates
                     let mut utf8 = [0_u8; 4];
                     for (ref mut place, ref data) in
-                        utf8.as_mut().iter().zip(bytes[i..i + 4].iter()) {
+                        utf8.as_mut().iter().zip(bytes[i..i + 4].iter())
+                    {
                         *place = *data;
                     }
                     let (hi, lo) = get_hi_lo_surrogates(&utf8);
@@ -451,9 +454,9 @@ fn get_hi_lo_surrogates(utf8_4: &[u8; 4]) -> (u16, u16) {
     assert!(utf8_4[2] >= 128);
     assert!(utf8_4[3] >= 128);
     let codepoint: u32 = (((utf8_4[0] & 0b_00000111_u8) as u32) << 24) +
-                         (((utf8_4[1] & 0b_00111111_u8) as u32) << 16) +
-                         (((utf8_4[2] & 0b_00111111_u8) as u32) << 8) +
-                         ((utf8_4[3] & 0b_00111111_u8) as u32);
+        (((utf8_4[1] & 0b_00111111_u8) as u32) << 16) +
+        (((utf8_4[2] & 0b_00111111_u8) as u32) << 8) +
+        ((utf8_4[3] & 0b_00111111_u8) as u32);
 
     // High Surrogates: U+D800–U+DBFF = 55296 - 56319 (1024 values)
     // Low Surrogates:  U+DC00–U+DFFF = 56320 - 57343 (1024 values)
@@ -498,7 +501,9 @@ pub fn is_valid_cesu8(text: &str) -> bool {
 fn enc_surrogate(surrogate: u16) -> [u8; 3] {
     assert!(0xD800 <= surrogate && surrogate <= 0xDFFF);
     // 1110xxxx 10xxxxxx 10xxxxxx
-    [0b11100000 | ((surrogate & 0b11110000_00000000) >> 12) as u8,
-     TAG_CONT_U8 | ((surrogate & 0b00001111_11000000) >> 6) as u8,
-     TAG_CONT_U8 | ((surrogate & 0b00000000_00111111)) as u8]
+    [
+        0b11100000 | ((surrogate & 0b11110000_00000000) >> 12) as u8,
+        TAG_CONT_U8 | ((surrogate & 0b00001111_11000000) >> 6) as u8,
+        TAG_CONT_U8 | ((surrogate & 0b00000000_00111111)) as u8,
+    ]
 }
