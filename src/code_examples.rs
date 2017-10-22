@@ -3,7 +3,7 @@
 //! <b>1. Database connections</b>
 //!
 //! Establish an authenticated connection to the database server
-//! (see also [ConnectParams](../struct.ConnectParams.html)):
+//! (see also [`ConnectParams`](../struct.ConnectParams.html)):
 //!
 //! ```ignore
 //! let params: ConnectParams = ...;
@@ -13,16 +13,16 @@
 //! <b>2. Queries and other database calls</b>
 //!
 //! The most generic way to fire SQL statements without preparation is using
-//! <code>Connection::statement()</code>.
+//! <code>`Connection::statement`()</code>.
 //! This generic method can handle very different kinds of calls (queries, dml, procedures),
-//! and thus has the most complex return type, <code>HdbResponse</code>.
+//! and thus has the most complex return type, <code>`HdbResponse`</code>.
 //!
 //! ```ignore
 //! let query = "SELECT foo FROM bar";
 //! let response: HdbResponse = connection.statement(query)?;
 //! ```
 //!
-//! <code>HdbResponse</code> is a nested enum which covers all possible
+//! <code>`HdbResponse`</code> is a nested enum which covers all possible
 //! return values we can get from the database.
 //! You thus have to analyze it to come to the
 //! concrete response relevant for your call.
@@ -33,13 +33,13 @@
 //! let resultset: ResultSet = response.as_resultset()?;
 //! ```
 //!
-//! You can do the same of course with <code>HdbResponse</code>s obtained from the execution
+//! You can do the same of course with <code>`HdbResponse`</code>s obtained from the execution
 //! of prepared statements.
 //!
 //! In many cases it will be more appropriate and convenient to use one of the
 //! specialized methods
 //!
-//! * <code>connection.query(...)</code> -> ResultSet
+//! * <code>connection.query(...)</code> -> `ResultSet`
 //! * <code>connection.dml(...)</code> -> usize
 //! * <code>connection.exec(...)</code> -> ()
 //!
@@ -91,7 +91,7 @@
 //! ```
 //!
 //! You _can_ retrieve the field values of a row  individually, in arbitrary order.
-//! <code>hdbconnect::Row</code> provides for this a single
+//! <code>`hdbconnect::Row`</code> provides for this a single
 //! method that is generalized by its return value,
 //! so you need to specify the target type explicitly:
 //!
@@ -135,7 +135,7 @@
 //!
 //! * If the resultset contains only a single line (e.g. because you specified
 //!   TOP 1 in your select, or you qualified the full primary key),
-//!   then you can choose to deserialize into a plain <code>MyRow</code> directly.
+//!   then you can choose to deserialize into a plain <code>`MyRow`</code> directly.
 //!
 //!   ```ignore
 //!    #[derive(Deserialize)]

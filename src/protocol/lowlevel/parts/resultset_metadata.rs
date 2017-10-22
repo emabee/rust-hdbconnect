@@ -29,6 +29,11 @@ impl ResultSetMetadata {
         self.fields.len()
     }
 
+    /// Is the set of fields empty
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     fn add_to_names(&mut self, offset: u32) {
         if offset != u32::MAX {
             let tn = offset as usize;
@@ -97,7 +102,7 @@ pub fn parse(count: i32, arg_size: u32, rdr: &mut io::BufRead) -> PrtResult<Resu
         let name = util::cesu8_to_string(&buffer)?;
         trace!("offset = {}, name = {}", offset, name);
         rsm.names.insert(offset as usize, name);
-        offset += (nl as u32) + 1;
+        offset += u32::from(nl) + 1;
     }
     Ok(rsm)
 }

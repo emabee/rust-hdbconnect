@@ -111,7 +111,7 @@ fn parse_part_header(rdr: &mut io::BufRead) -> PrtResult<(PartKind, PartAttribut
     let arg_size = rdr.read_i32::<LittleEndian>()?; // I4
     rdr.read_i32::<LittleEndian>()?; // I4 remaining_packet_size
 
-    let no_of_args = max(no_of_argsi16 as i32, no_of_argsi32);
+    let no_of_args = max(i32::from(no_of_argsi16), no_of_argsi32);
     Ok((kind, attributes, arg_size, no_of_args))
 }
 

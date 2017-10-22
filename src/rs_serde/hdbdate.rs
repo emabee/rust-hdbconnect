@@ -4,10 +4,10 @@ use types::LongDate;
 use super::ser::SerializationError;
 
 
-/// Serializes a date string into a LongDate.
+/// Serializes a date string into a `LongDate`.
 ///
 /// Chrono types serialize as formatted Strings. We try to parse such a string
-/// to convert back into the type we had originally, and construct a LongDate.
+/// to convert back into the type we had originally, and construct a `LongDate`.
 pub fn longdate_from_str(s: &str) -> Result<LongDate, SerializationError> {
     let funcs: Vec<fn(&str) -> Result<LongDate, ()>> = vec![
         from_naivedt_string_full,

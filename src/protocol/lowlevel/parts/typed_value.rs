@@ -280,9 +280,9 @@ impl TypedValue {
 
 pub fn serialize(tv: &TypedValue, data_pos: &mut i32, w: &mut io::Write) -> PrtResult<()> {
     fn _serialize_not_implemented(type_id: u8) -> PrtError {
-        return PrtError::ProtocolError(
+        PrtError::ProtocolError(
             format!("TypedValue::serialize() not implemented for type code {}", type_id),
-        );
+        )
     }
 
     if !tv.serialize_type_id(w)? {
@@ -372,14 +372,16 @@ pub fn serialize(tv: &TypedValue, data_pos: &mut i32, w: &mut io::Write) -> PrtR
 // is used to calculate the argument size (in serialize)
 pub fn size(tv: &TypedValue) -> PrtResult<usize> {
     fn _size_not_implemented(type_id: u8) -> PrtError {
-        return PrtError::ProtocolError(
+        PrtError::ProtocolError(
             format!("TypedValue::size() not implemented for type code {}", type_id),
-        );
+        )
     }
 
     Ok(
         1 +
             match *tv {
+                TypedValue::BOOLEAN(_) |
+                TypedValue::N_BOOLEAN(Some(_)) |
                 TypedValue::TINYINT(_) |
                 TypedValue::N_TINYINT(Some(_)) => 1,
 
@@ -387,20 +389,14 @@ pub fn size(tv: &TypedValue) -> PrtResult<usize> {
                 TypedValue::N_SMALLINT(Some(_)) => 2,
 
                 TypedValue::INT(_) |
-                TypedValue::N_INT(Some(_)) => 4,
-
-                TypedValue::BIGINT(_) |
-                TypedValue::N_BIGINT(Some(_)) => 8,
-
+                TypedValue::N_INT(Some(_)) |
                 TypedValue::REAL(_) |
                 TypedValue::N_REAL(Some(_)) => 4,
 
+                TypedValue::BIGINT(_) |
+                TypedValue::N_BIGINT(Some(_)) |
                 TypedValue::DOUBLE(_) |
-                TypedValue::N_DOUBLE(Some(_)) => 8,
-
-                TypedValue::BOOLEAN(_) |
-                TypedValue::N_BOOLEAN(Some(_)) => 1,
-
+                TypedValue::N_DOUBLE(Some(_)) |
                 TypedValue::LONGDATE(_) |
                 TypedValue::N_LONGDATE(Some(_)) => 8,
 
@@ -460,7 +456,7 @@ pub fn size(tv: &TypedValue) -> PrtResult<usize> {
 }
 
 
-pub fn string_length(s: &String) -> usize {
+pub fn string_length(s: &str) -> usize {
     match util::cesu8_length(s) {
         clen if clen <= MAX_1_BYTE_LENGTH as usize => 1 + clen,
         clen if clen <= MAX_2_BYTE_LENGTH as usize => 3 + clen,
@@ -468,11 +464,11 @@ pub fn string_length(s: &String) -> usize {
     }
 }
 
-pub fn serialize_length_and_string(s: &String, w: &mut io::Write) -> PrtResult<()> {
+pub fn serialize_length_and_string(s: &str, w: &mut io::Write) -> PrtResult<()> {
     serialize_length_and_bytes(&util::string_to_cesu8(s), w)
 }
 
-fn serialize_length_and_bytes(v: &Vec<u8>, w: &mut io::Write) -> PrtResult<()> {
+fn serialize_length_and_bytes(v: &[u8], w: &mut io::Write) -> PrtResult<()> {
     match v.len() {
         l if l <= MAX_1_BYTE_LENGTH as usize => {
             w.write_u8(l as u8)?; // B1           LENGTH OF VALUE
@@ -529,36 +525,24 @@ pub mod factory {
         // the flag nullable from the metadata governs our behavior:
         // if it is true, we return types with typecode above 128, which use Option<type>,
         // if it is false, we return types with the original typecode, which use plain values
-        let typecode = p_typecode +
-            match nullable {
-                true => 128,
-                false => 0,
-            };
+        let typecode = p_typecode + if nullable { 128 } else { 0 };
         match typecode {
-            1 => {
-                Ok(TypedValue::TINYINT({
-                    ind_not_null(rdr)?;
-                    rdr.read_u8()?
-                }))
-            }
-            2 => {
-                Ok(TypedValue::SMALLINT({
-                    ind_not_null(rdr)?;
-                    rdr.read_i16::<LittleEndian>()?
-                }))
-            }
-            3 => {
-                Ok(TypedValue::INT({
-                    ind_not_null(rdr)?;
-                    rdr.read_i32::<LittleEndian>()?
-                }))
-            }
-            4 => {
-                Ok(TypedValue::BIGINT({
-                    ind_not_null(rdr)?;
-                    rdr.read_i64::<LittleEndian>()?
-                }))
-            }
+            1 => Ok(TypedValue::TINYINT({
+                ind_not_null(rdr)?;
+                rdr.read_u8()?
+            })),
+            2 => Ok(TypedValue::SMALLINT({
+                ind_not_null(rdr)?;
+                rdr.read_i16::<LittleEndian>()?
+            })),
+            3 => Ok(TypedValue::INT({
+                ind_not_null(rdr)?;
+                rdr.read_i32::<LittleEndian>()?
+            })),
+            4 => Ok(TypedValue::BIGINT({
+                ind_not_null(rdr)?;
+                rdr.read_i64::<LittleEndian>()?
+            })),
             // 5  => Ok(TypedValue::DECIMAL(
             6 => Ok(TypedValue::REAL(parse_real(rdr)?)),
             7 => Ok(TypedValue::DOUBLE(parse_double(rdr)?)),
@@ -584,30 +568,27 @@ pub mod factory {
             // 62 => Ok(TypedValue::SECONDDATE(
             // 63 => Ok(TypedValue::DAYDATE(
             // 64 => Ok(TypedValue::SECONDTIME(
-            129 => {
-                Ok(TypedValue::N_TINYINT(match ind_null(rdr)? {
-                    true => None,
-                    false => Some(rdr.read_u8()?),
-                }))
-            }
-            130 => {
-                Ok(TypedValue::N_SMALLINT(match ind_null(rdr)? {
-                    true => None,
-                    false => Some(rdr.read_i16::<LittleEndian>()?),
-                }))
-            }
-            131 => {
-                Ok(TypedValue::N_INT(match ind_null(rdr)? {
-                    true => None,
-                    false => Some(rdr.read_i32::<LittleEndian>()?),
-                }))
-            }
-            132 => {
-                Ok(TypedValue::N_BIGINT(match ind_null(rdr)? {
-                    true => None,
-                    false => Some(rdr.read_i64::<LittleEndian>()?),
-                }))
-            }
+            129 => Ok(TypedValue::N_TINYINT(if ind_null(rdr)? {
+                None
+            } else {
+                Some(rdr.read_u8()?)
+            })),
+
+            130 => Ok(TypedValue::N_SMALLINT(if ind_null(rdr)? {
+                None
+            } else {
+                Some(rdr.read_i16::<LittleEndian>()?)
+            })),
+            131 => Ok(TypedValue::N_INT(if ind_null(rdr)? {
+                None
+            } else {
+                Some(rdr.read_i32::<LittleEndian>()?)
+            })),
+            132 => Ok(TypedValue::N_BIGINT(if ind_null(rdr)? {
+                None
+            } else {
+                Some(rdr.read_i64::<LittleEndian>()?)
+            })),
             // 133 => Ok(TypedValue::N_DECIMAL(
             134 => Ok(TypedValue::N_REAL(parse_nullable_real(rdr)?)),
             135 => Ok(TypedValue::N_DOUBLE(parse_nullable_double(rdr)?)),
@@ -621,12 +602,11 @@ pub mod factory {
             153 => Ok(TypedValue::N_CLOB(parse_nullable_clob_from_reply(conn_ref, rdr)?)),
             154 => Ok(TypedValue::N_NCLOB(parse_nullable_clob_from_reply(conn_ref, rdr)?)),
             155 => Ok(TypedValue::N_BLOB(parse_nullable_blob_from_reply(conn_ref, rdr)?)),
-            156 => {
-                Ok(TypedValue::N_BOOLEAN(match ind_null(rdr)? {
-                    true => None,
-                    false => Some(rdr.read_u8()? > 0),
-                }))
-            }
+            156 => Ok(TypedValue::N_BOOLEAN(if ind_null(rdr)? {
+                None
+            } else {
+                Some(rdr.read_u8()? > 0)
+            })),
             157 => Ok(TypedValue::N_STRING(parse_nullable_length_and_string(rdr)?)),
             158 => Ok(TypedValue::N_NSTRING(parse_nullable_length_and_string(rdr)?)),
             161 => Ok(TypedValue::N_BSTRING(parse_nullable_length_and_binary(rdr)?)),
@@ -653,17 +633,17 @@ pub mod factory {
 
     // reads the nullindicator and throws an error if it has value 0
     fn ind_not_null(rdr: &mut io::BufRead) -> PrtResult<()> {
-        match ind_null(rdr)? {
-            true => Err(prot_err("null value returned for not-null column")),
-            false => Ok(()),
+        if ind_null(rdr)? {
+            Err(prot_err("null value returned for not-null column"))
+        } else {
+            Ok(())
         }
     }
 
 
     fn parse_real(rdr: &mut io::BufRead) -> PrtResult<f32> {
         let mut vec: Vec<u8> = repeat(0u8).take(4).collect();
-        rdr.read(&mut vec[..])?;
-
+        rdr.read_exact(&mut vec[..])?;
         let mut r = io::Cursor::new(&vec);
         let tmp = r.read_u32::<LittleEndian>()?;
         match tmp {
@@ -677,7 +657,7 @@ pub mod factory {
 
     fn parse_nullable_real(rdr: &mut io::BufRead) -> PrtResult<Option<f32>> {
         let mut vec: Vec<u8> = repeat(0u8).take(4).collect();
-        rdr.read(&mut vec[..])?;
+        rdr.read_exact(&mut vec[..])?;
         let mut r = io::Cursor::new(&vec);
         let tmp = r.read_u32::<LittleEndian>()?;
         match tmp {
@@ -691,7 +671,7 @@ pub mod factory {
 
     fn parse_double(rdr: &mut io::BufRead) -> PrtResult<f64> {
         let mut vec: Vec<u8> = repeat(0u8).take(8).collect();
-        rdr.read(&mut vec[..])?;
+        rdr.read_exact(&mut vec[..])?;
         let mut r = io::Cursor::new(&vec);
         let tmp = r.read_u64::<LittleEndian>()?;
         match tmp {
@@ -705,7 +685,7 @@ pub mod factory {
 
     fn parse_nullable_double(rdr: &mut io::BufRead) -> PrtResult<Option<f64>> {
         let mut vec: Vec<u8> = repeat(0u8).take(8).collect();
-        rdr.read(&mut vec[..])?;
+        rdr.read_exact(&mut vec[..])?;
         let mut r = io::Cursor::new(&vec);
         let tmp = r.read_u64::<LittleEndian>()?;
         match tmp {
@@ -785,17 +765,15 @@ pub mod factory {
             None => Err(prot_err("Null value found for non-null blob column")),
         }
     }
+
     pub fn parse_nullable_blob_from_reply(conn_ref: &ConnCoreRef, rdr: &mut io::BufRead)
                                           -> PrtResult<Option<BLOB>> {
         let (is_null, is_last_data) = parse_lob_1(rdr)?;
-        match is_null {
-            true => {
-                return Ok(None);
-            }
-            false => {
-                let (_, length_b, locator_id, data) = parse_lob_2(rdr)?;
-                Ok(Some(new_blob_from_db(conn_ref, is_last_data, length_b, locator_id, data)))
-            }
+        if is_null {
+            Ok(None)
+        } else {
+            let (_, length_b, locator_id, data) = parse_lob_2(rdr)?;
+            Ok(Some(new_blob_from_db(conn_ref, is_last_data, length_b, locator_id, data)))
         }
     }
 
@@ -805,31 +783,23 @@ pub mod factory {
             None => Err(prot_err("Null value found for non-null clob column")),
         }
     }
+
     pub fn parse_nullable_clob_from_reply(conn_ref: &ConnCoreRef, rdr: &mut io::BufRead)
                                           -> PrtResult<Option<CLOB>> {
         let (is_null, is_last_data) = parse_lob_1(rdr)?;
-        match is_null {
-            true => {
-                return Ok(None);
-            }
-            false => {
-                let (length_c, length_b, locator_id, data) = parse_lob_2(rdr)?;
-                let (s, char_count) = util::from_cesu8_with_count(&data)?;
-                let s = match s {
-                    Cow::Owned(s) => s,
-                    Cow::Borrowed(s) => String::from(s),
-                };
-                assert_eq!(data.len(), s.len());
-                Ok(Some(new_clob_from_db(
-                    conn_ref,
-                    is_last_data,
-                    length_c,
-                    length_b,
-                    char_count,
-                    locator_id,
-                    s,
-                )))
-            }
+        if is_null {
+            Ok(None)
+        } else {
+            let (length_c, length_b, locator_id, data) = parse_lob_2(rdr)?;
+            let (s, char_count) = util::from_cesu8_with_count(&data)?;
+            let s = match s {
+                Cow::Owned(s) => s,
+                Cow::Borrowed(s) => String::from(s),
+            };
+            assert_eq!(data.len(), s.len());
+            Ok(Some(
+                new_clob_from_db(conn_ref, is_last_data, length_c, length_b, char_count, locator_id, s),
+            ))
         }
     }
 
@@ -840,6 +810,7 @@ pub mod factory {
         let is_last_data = (options & 0b_100_u8) != 0;
         Ok((is_null, is_last_data))
     }
+
     fn parse_lob_2(rdr: &mut io::BufRead) -> PrtResult<(u64, u64, u64, Vec<u8>)> {
         rdr.consume(2); // U2 (filler)
         let length_c = rdr.read_u64::<LittleEndian>()?; // I8
@@ -1042,25 +1013,25 @@ impl DbValueInto<u8> for TypedValue {
 
             TypedValue::SMALLINT(i) |
             TypedValue::N_SMALLINT(Some(i)) => {
-                if (i >= 0) && (i <= u8::MAX as i16) {
+                if (i >= 0) && (i <= i16::from(u8::MAX)) {
                     Ok(i as u8)
                 } else {
-                    Err(number_range(&(i as i64), "u8"))
+                    Err(number_range(&(i64::from(i)), "u8"))
                 }
             }
 
             TypedValue::INT(i) |
             TypedValue::N_INT(Some(i)) => {
-                if (i >= 0) && (i <= u8::MAX as i32) {
+                if (i >= 0) && (i <= i32::from(u8::MAX)) {
                     Ok(i as u8)
                 } else {
-                    Err(number_range(&(i as i64), "u8"))
+                    Err(number_range(&(i64::from(i)), "u8"))
                 }
             }
 
             TypedValue::BIGINT(i) |
             TypedValue::N_BIGINT(Some(i)) => {
-                if (i >= 0) && (i <= u8::MAX as i64) {
+                if (i >= 0) && (i <= i64::from(u8::MAX)) {
                     Ok(i as u8)
                 } else {
                     Err(number_range(&i, "u8"))
@@ -1076,29 +1047,29 @@ impl DbValueInto<u16> for TypedValue {
     fn try_into(self) -> Result<u16, ConversionError> {
         match self {
             TypedValue::TINYINT(u) |
-            TypedValue::N_TINYINT(Some(u)) => Ok(u as u16),
+            TypedValue::N_TINYINT(Some(u)) => Ok(u16::from(u)),
 
             TypedValue::SMALLINT(i) |
             TypedValue::N_SMALLINT(Some(i)) => {
                 if i >= 0 {
                     Ok(i as u16)
                 } else {
-                    Err(number_range(&(i as i64), "u16"))
+                    Err(number_range(&(i64::from(i)), "u16"))
                 }
             }
 
             TypedValue::INT(i) |
             TypedValue::N_INT(Some(i)) => {
-                if (i >= 0) && (i <= u16::MAX as i32) {
+                if (i >= 0) && (i <= i32::from(u16::MAX)) {
                     Ok(i as u16)
                 } else {
-                    Err(number_range(&(i as i64), "u16"))
+                    Err(number_range(&(i64::from(i)), "u16"))
                 }
             }
 
             TypedValue::BIGINT(i) |
             TypedValue::N_BIGINT(Some(i)) => {
-                if (i >= 0) && (i <= u16::MAX as i64) {
+                if (i >= 0) && (i <= i64::from(u16::MAX)) {
                     Ok(i as u16)
                 } else {
                     Err(number_range(&i, "u16"))
@@ -1114,14 +1085,14 @@ impl DbValueInto<u32> for TypedValue {
     fn try_into(self) -> Result<u32, ConversionError> {
         match self {
             TypedValue::TINYINT(u) |
-            TypedValue::N_TINYINT(Some(u)) => Ok(u as u32),
+            TypedValue::N_TINYINT(Some(u)) => Ok(u32::from(u)),
 
             TypedValue::SMALLINT(i) |
             TypedValue::N_SMALLINT(Some(i)) => {
                 if i >= 0 {
                     Ok(i as u32)
                 } else {
-                    Err(number_range(&(i as i64), "u32"))
+                    Err(number_range(&(i64::from(i)), "u32"))
                 }
             }
 
@@ -1130,13 +1101,13 @@ impl DbValueInto<u32> for TypedValue {
                 if i >= 0 {
                     Ok(i as u32)
                 } else {
-                    Err(number_range(&(i as i64), "u32"))
+                    Err(number_range(&(i64::from(i)), "u32"))
                 }
             }
 
             TypedValue::BIGINT(i) |
             TypedValue::N_BIGINT(Some(i)) => {
-                if (i >= 0) && (i <= u32::MAX as i64) {
+                if (i >= 0) && (i <= i64::from(u32::MAX)) {
                     Ok(i as u32)
                 } else {
                     Err(number_range(&i, "u32"))
@@ -1152,14 +1123,14 @@ impl DbValueInto<u64> for TypedValue {
     fn try_into(self) -> Result<u64, ConversionError> {
         match self {
             TypedValue::TINYINT(u) |
-            TypedValue::N_TINYINT(Some(u)) => Ok(u as u64),
+            TypedValue::N_TINYINT(Some(u)) => Ok(u64::from(u)),
 
             TypedValue::SMALLINT(i) |
             TypedValue::N_SMALLINT(Some(i)) => {
                 if i >= 0 {
                     Ok(i as u64)
                 } else {
-                    Err(number_range(&(i as i64), "u64"))
+                    Err(number_range(&(i64::from(i)), "u64"))
                 }
             }
 
@@ -1168,7 +1139,7 @@ impl DbValueInto<u64> for TypedValue {
                 if i >= 0 {
                     Ok(i as u64)
                 } else {
-                    Err(number_range(&(i as i64), "u64"))
+                    Err(number_range(&(i64::from(i)), "u64"))
                 }
             }
 
@@ -1194,31 +1165,31 @@ impl DbValueInto<i8> for TypedValue {
                 if u <= i8::MAX as u8 {
                     Ok(u as i8)
                 } else {
-                    Err(number_range(&(u as i64), "i8"))
+                    Err(number_range(&(i64::from(u)), "i8"))
                 }
             }
 
             TypedValue::SMALLINT(i) |
             TypedValue::N_SMALLINT(Some(i)) => {
-                if (i >= i8::MIN as i16) && (i <= i8::MAX as i16) {
+                if (i >= i16::from(i8::MIN)) && (i <= i16::from(i8::MAX)) {
                     Ok(i as i8)
                 } else {
-                    Err(number_range(&(i as i64), "i8"))
+                    Err(number_range(&(i64::from(i)), "i8"))
                 }
             }
 
             TypedValue::INT(i) |
             TypedValue::N_INT(Some(i)) => {
-                if (i >= i8::MIN as i32) && (i <= i8::MAX as i32) {
+                if (i >= i32::from(i8::MIN)) && (i <= i32::from(i8::MAX)) {
                     Ok(i as i8)
                 } else {
-                    Err(number_range(&(i as i64), "i8"))
+                    Err(number_range(&(i64::from(i)), "i8"))
                 }
             }
 
             TypedValue::BIGINT(i) |
             TypedValue::N_BIGINT(Some(i)) => {
-                if (i >= i8::MIN as i64) && (i <= i8::MAX as i64) {
+                if (i >= i64::from(i8::MIN)) && (i <= i64::from(i8::MAX)) {
                     Ok(i as i8)
                 } else {
                     Err(number_range(&i, "i8"))
@@ -1234,23 +1205,23 @@ impl DbValueInto<i16> for TypedValue {
     fn try_into(self) -> Result<i16, ConversionError> {
         match self {
             TypedValue::TINYINT(u) |
-            TypedValue::N_TINYINT(Some(u)) => Ok(u as i16),
+            TypedValue::N_TINYINT(Some(u)) => Ok(i16::from(u)),
 
             TypedValue::SMALLINT(i) |
             TypedValue::N_SMALLINT(Some(i)) => Ok(i),
 
             TypedValue::INT(i) |
             TypedValue::N_INT(Some(i)) => {
-                if (i >= i16::MIN as i32) && (i <= i16::MAX as i32) {
+                if (i >= i32::from(i16::MIN)) && (i <= i32::from(i16::MAX)) {
                     Ok(i as i16)
                 } else {
-                    Err(number_range(&(i as i64), "i16"))
+                    Err(number_range(&(i64::from(i)), "i16"))
                 }
             }
 
             TypedValue::BIGINT(i) |
             TypedValue::N_BIGINT(Some(i)) => {
-                if (i >= i16::MIN as i64) && (i <= i16::MAX as i64) {
+                if (i >= i64::from(i16::MIN)) && (i <= i64::from(i16::MAX)) {
                     Ok(i as i16)
                 } else {
                     Err(number_range(&i, "i16"))
@@ -1266,17 +1237,17 @@ impl DbValueInto<i32> for TypedValue {
     fn try_into(self) -> Result<i32, ConversionError> {
         match self {
             TypedValue::TINYINT(u) |
-            TypedValue::N_TINYINT(Some(u)) => Ok(u as i32),
+            TypedValue::N_TINYINT(Some(u)) => Ok(i32::from(u)),
 
             TypedValue::SMALLINT(i) |
-            TypedValue::N_SMALLINT(Some(i)) => Ok(i as i32),
+            TypedValue::N_SMALLINT(Some(i)) => Ok(i32::from(i)),
 
             TypedValue::INT(i) |
             TypedValue::N_INT(Some(i)) => Ok(i),
 
             TypedValue::BIGINT(i) |
             TypedValue::N_BIGINT(Some(i)) => {
-                if (i >= i32::MIN as i64) && (i <= i32::MAX as i64) {
+                if (i >= i64::from(i32::MIN)) && (i <= i64::from(i32::MAX)) {
                     Ok(i as i32)
                 } else {
                     Err(number_range(&i, "i32"))
@@ -1291,20 +1262,20 @@ impl DbValueInto<i64> for TypedValue {
     fn try_into(self) -> Result<i64, ConversionError> {
         match self {
             TypedValue::TINYINT(u) |
-            TypedValue::N_TINYINT(Some(u)) => Ok(u as i64),
+            TypedValue::N_TINYINT(Some(u)) => Ok(i64::from(u)),
 
             TypedValue::SMALLINT(i) |
-            TypedValue::N_SMALLINT(Some(i)) => Ok(i as i64),
+            TypedValue::N_SMALLINT(Some(i)) => Ok(i64::from(i)),
 
             TypedValue::INT(i) |
-            TypedValue::N_INT(Some(i)) => Ok(i as i64),
+            TypedValue::N_INT(Some(i)) => Ok(i64::from(i)),
 
             TypedValue::BIGINT(i) |
             TypedValue::N_BIGINT(Some(i)) |
             TypedValue::LONGDATE(LongDate(i)) |
             TypedValue::N_LONGDATE(Some(LongDate(i))) => Ok(i),
 
-            value => return Err(wrong_type(&value, "i64")),
+            value => Err(wrong_type(&value, "i64")),
         }
     }
 }
@@ -1314,7 +1285,7 @@ impl DbValueInto<f32> for TypedValue {
         match self {
             TypedValue::REAL(f) |
             TypedValue::N_REAL(Some(f)) => Ok(f),
-            value => return Err(wrong_type(&value, "f32")),
+            value => Err(wrong_type(&value, "f32")),
         }
     }
 }
@@ -1324,7 +1295,7 @@ impl DbValueInto<f64> for TypedValue {
         match self {
             TypedValue::DOUBLE(f) |
             TypedValue::N_DOUBLE(Some(f)) => Ok(f),
-            value => return Err(wrong_type(&value, "f64")),
+            value => Err(wrong_type(&value, "f64")),
         }
     }
 }
@@ -1362,7 +1333,7 @@ impl DbValueInto<String> for TypedValue {
                 })?)
             }
 
-            value => return Err(wrong_type(&value, "String")),
+            value => Err(wrong_type(&value, "String")),
         }
     }
 }
@@ -1402,7 +1373,7 @@ impl DbValueInto<Vec<u8>> for TypedValue {
             TypedValue::N_VARBINARY(Some(v)) |
             TypedValue::N_BSTRING(Some(v)) => Ok(v),
 
-            value => return Err(wrong_type(&value, "seq")),
+            value => Err(wrong_type(&value, "seq")),
         }
 
     }
@@ -1421,7 +1392,7 @@ fn number_range(value: &i64, ovt: &str) -> ConversionError {
 }
 
 
-/// Deserializes a LongDate into a String format.
+/// Deserializes a `LongDate` into a String format.
 fn str_from_longdate(ld: &LongDate) -> String {
     format!("{}", ld)
 }

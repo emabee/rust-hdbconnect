@@ -69,13 +69,7 @@ impl HdbResponse {
     pub fn get_success(&mut self) -> HdbResult<()> {
         if let HdbResponse::MultipleReturnValues(ref mut vec) = *self {
             match vec.iter().rposition(|x: &HdbReturnValue| match *x {
-                HdbReturnValue::AffectedRows(ref vec) => {
-                    if vec.len() == 1 && vec.get(0) == Some(&0) {
-                        true
-                    } else {
-                        false
-                    }
-                }
+                HdbReturnValue::AffectedRows(ref vec) => vec.len() == 1 && vec.get(0) == Some(&0), 
                 HdbReturnValue::Success => true,
                 _ => false,
             }) {
@@ -163,14 +157,12 @@ pub mod factory {
                 Ok(HdbResponse::SingleReturnValue(HdbReturnValue::ResultSet(rs)))
             }
             None => {
-                return Err(HdbError::EvaluationError(
-                    "Nothing found, but a single Resultset was expected",
-                ))
+                Err(HdbError::EvaluationError("Nothing found, but a single Resultset was expected"))
             }
             _ => {
-                return Err(HdbError::EvaluationError(
-                    "Wrong HdbReturnValue, a single Resultset was expected",
-                ))
+                Err(
+                    HdbError::EvaluationError("Wrong HdbReturnValue, a single Resultset was expected"),
+                )
             }
         }
     }
@@ -197,19 +189,19 @@ pub mod factory {
                 Ok(HdbResponse::SingleReturnValue(HdbReturnValue::AffectedRows(vec_i)))
             }
             Some(InternalReturnValue::OutputParameters(_)) => {
-                return Err(HdbError::EvaluationError(
+                Err(HdbError::EvaluationError(
                     "Found OutputParameters, but a single AffectedRows was expected",
                 ))
             }
             Some(InternalReturnValue::ResultSet(_)) => {
-                return Err(HdbError::EvaluationError(
-                    "Found ResultSet, but a single AffectedRows was expected",
-                ))
+                Err(
+                    HdbError::EvaluationError("Found ResultSet, but a single AffectedRows was expected"),
+                )
             }
             None => {
-                return Err(HdbError::EvaluationError(
-                    "Nothing found, but a single AffectedRows was expected",
-                ))
+                Err(
+                    HdbError::EvaluationError("Nothing found, but a single AffectedRows was expected"),
+                )
             }
         }
     }

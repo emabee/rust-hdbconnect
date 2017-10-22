@@ -77,7 +77,7 @@ impl Path {
         let (path, rest) = get_path(rawpath, false)?;
 
         // query and fragment
-        let (query, fragment) = get_query_fragment(&rest)?;
+        let (query, fragment) = get_query_fragment(rest)?;
 
         Ok(Path {
             path: path,

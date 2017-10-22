@@ -4,7 +4,7 @@ use protocol::protocol_error::{PrtError, PrtResult};
 
 use std::cell::RefCell;
 
-/// BLOB implementation that is used within TypedValue::BLOB.
+/// BLOB implementation that is used within `TypedValue::BLOB`.
 ///
 /// BLOB comes in two flavors, depending on
 /// whether we read it from the database or write it to the database.
@@ -41,6 +41,11 @@ impl BLOB {
         }
     }
 
+    /// Is container empty
+    pub fn is_empty(&self) -> PrtResult<bool> {
+        Ok(self.len()? == 0)
+    }
+
     /// Ref to the contained Vec<u8>.
     pub fn ref_to_bytes(&self) -> PrtResult<&Vec<u8>> {
         trace!("BLOB::ref_to_bytes()");
@@ -64,7 +69,7 @@ impl BLOB {
 
 // ////////////////////////////////////////////////////////////////////////////////////////
 
-/// CLOB implementation that is used with TypedValue::CLOB and TypedValue::NCLOB.
+/// CLOB implementation that is used with `TypedValue::CLOB` and `TypedValue::NCLOB`.
 ///
 /// CLOB comes in two flavors, depending on
 /// whether we read it from the database or want to write it to the database.
@@ -99,6 +104,11 @@ impl CLOB {
             ClobEnum::FromDB(ref handle) => handle.borrow_mut().len(),
             ClobEnum::ToDB(ref s) => Ok(s.len()),
         }
+    }
+
+    /// Is container empty
+    pub fn is_empty(&self) -> PrtResult<bool> {
+        Ok(self.len()? == 0)
     }
 
     /// Ref to the contained String.

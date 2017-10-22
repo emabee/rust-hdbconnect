@@ -11,8 +11,9 @@ use protocol::lowlevel::conn_core::ConnCoreRef;
 
 use std::borrow::Cow;
 use std::cmp;
+use std::sync::Arc;
 
-/// BlobHandle is used for BLOBs that we receive from the database.
+/// `BlobHandle` is used for BLOBs that we receive from the database.
 /// The data are often not transferred completely,
 /// so we carry internally a database connection and the
 /// necessary controls to support fetching remaining data on demand.
@@ -36,7 +37,7 @@ impl BlobHandle {
             data.len()
         );
         BlobHandle {
-            o_conn_ref: Some(conn_ref.clone()),
+            o_conn_ref: Some(Arc::clone(conn_ref)),
             length_b: length_b,
             is_data_complete: is_data_complete,
             locator_id: locator_id,
@@ -90,7 +91,7 @@ impl BlobHandle {
 
 
 
-/// ClobHandle is used for CLOBs and NCLOBs that we receive from the database.
+/// `ClobHandle` is used for CLOBs and NCLOBs that we receive from the database.
 /// The data are often not transferred completely, so we carry internally
 /// a database connection and the
 /// necessary controls to support fetching remaining data on demand.
@@ -110,7 +111,7 @@ impl ClobHandle {
                char_count: u64, locator_id: u64, data: String)
                -> ClobHandle {
         ClobHandle {
-            o_conn_ref: Some(conn_ref.clone()),
+            o_conn_ref: Some(Arc::clone(conn_ref)),
             length_c: length_c,
             length_b: length_b,
             char_count: char_count,
@@ -185,7 +186,7 @@ fn fetch_a_lob_chunk(o_conn_ref: &Option<ConnCoreRef>, locator_id: u64, length_b
             (conn_ref, length_to_read as i32)
         }
     };
-    let mut request = Request::new(&conn_ref, RequestType::ReadLob, true, 0)?;
+    let mut request = Request::new(conn_ref, RequestType::ReadLob, true, 0)?;
 
     let offset = data_len + 1;
     request.push(Part::new(
@@ -193,10 +194,7 @@ fn fetch_a_lob_chunk(o_conn_ref: &Option<ConnCoreRef>, locator_id: u64, length_b
         Argument::ReadLobRequest(locator_id, offset, length_to_read),
     ));
 
-    let mut reply = request.send_and_receive(
-        &conn_ref,
-        Some(ReplyType::ReadLob),
-    )?;
+    let mut reply = request.send_and_receive(conn_ref, Some(ReplyType::ReadLob))?;
 
     let (reply_data, reply_is_last_data) =
         match reply.parts.pop_arg_if_kind(PartKind::ReadLobReply) {

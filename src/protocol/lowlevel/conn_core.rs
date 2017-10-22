@@ -107,12 +107,11 @@ impl Drop for ConnectionCore {
                 Ok(()) => {
                     trace!("Disconnect: request successfully sent");
                     let mut rdr = io::BufReader::new(&mut self.stream);
-                    match parse_message_and_sequence_header(&mut rdr) {
-                        Ok((no_of_parts, msg)) => {
+                    if let Ok((no_of_parts, msg)) = 
+                    parse_message_and_sequence_header(&mut rdr) {
                             trace!("Disconnect: response header parsed, now parsing {} parts",
                                    no_of_parts);
-                            match msg {
-                                Message::Reply(mut msg) => {
+                            if let Message::Reply(mut msg) = msg {
                                     for _ in 0..no_of_parts {
                                         Part::parse(MsgType::Reply,
                                                     &mut (msg.parts),
@@ -122,11 +121,7 @@ impl Drop for ConnectionCore {
                                             .ok();
                                     }
                                 }
-                                _ => {}
-                            }
                         }
-                        _ => {}
-                    }
                     trace!("Disconnect: response successfully parsed");
                 }
                 Err(e) => {

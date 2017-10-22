@@ -72,12 +72,12 @@ impl ParameterMetadata {
             ));
         }
         // read the parameter names
-        for ref mut descriptor in &mut pmd.descriptors {
+        for descriptor in &mut pmd.descriptors {
             if descriptor.name_offset != u32::MAX {
                 let length = rdr.read_u8()?;
                 let name = util::cesu8_to_string(&util::parse_bytes(length as usize, rdr)?)?;
                 descriptor.name.push_str(&name);
-                consumed += 1 + length as u32;
+                consumed += 1 + u32::from(length);
                 assert!(arg_size >= consumed);
             }
         }

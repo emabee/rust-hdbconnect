@@ -41,7 +41,7 @@ impl Serializer {
     fn expected_type_code(&self) -> SerializationResult<u8> {
         match self.metadata.get(self.output.values.len()) {
             Some(pd) => Ok(pd.value_type),
-            None => return Err(SerializationError::StructuralMismatch("too many values specified")),
+            None => Err(SerializationError::StructuralMismatch("too many values specified")),
         }
     }
 }
@@ -85,12 +85,20 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
                     return Err(SerializationError::RangeErr(input_type, TYPEID_TINYINT));
                 }
             }
-            TYPEID_SMALLINT => self.output.push(TypedValue::SMALLINT(value as i16)),
-            TYPEID_N_SMALLINT => self.output.push(TypedValue::N_SMALLINT(Some(value as i16))),
-            TYPEID_INT => self.output.push(TypedValue::INT(value as i32)),
-            TYPEID_N_INT => self.output.push(TypedValue::N_INT(Some(value as i32))),
-            TYPEID_BIGINT => self.output.push(TypedValue::BIGINT(value as i64)),
-            TYPEID_N_BIGINT => self.output.push(TypedValue::N_BIGINT(Some(value as i64))),
+            TYPEID_SMALLINT => self.output.push(TypedValue::SMALLINT(i16::from(value))),
+            TYPEID_N_SMALLINT => {
+                self.output.push(
+                    TypedValue::N_SMALLINT(Some(i16::from(value))),
+                )
+            }
+            TYPEID_INT => self.output.push(TypedValue::INT(i32::from(value))),
+            TYPEID_N_INT => self.output.push(TypedValue::N_INT(Some(i32::from(value)))),
+            TYPEID_BIGINT => self.output.push(TypedValue::BIGINT(i64::from(value))),
+            TYPEID_N_BIGINT => {
+                self.output.push(
+                    TypedValue::N_BIGINT(Some(i64::from(value))),
+                )
+            }
             target_tc => return Err(SerializationError::TypeMismatch(input_type, target_tc)),
         }
         Ok(())
@@ -101,14 +109,14 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
         let input_type = "i16";
         match self.expected_type_code()? {
             TYPEID_TINYINT => {
-                if (value >= 0) && (value <= u8::MAX as i16) {
+                if (value >= 0) && (value <= i16::from(u8::MAX)) {
                     self.output.push(TypedValue::TINYINT(value as u8))
                 } else {
                     return Err(SerializationError::RangeErr(input_type, TYPEID_TINYINT));
                 }
             }
             TYPEID_N_TINYINT => {
-                if (value >= 0) && (value <= u8::MAX as i16) {
+                if (value >= 0) && (value <= i16::from(u8::MAX)) {
                     self.output.push(TypedValue::N_TINYINT(Some(value as u8)))
                 } else {
                     return Err(SerializationError::RangeErr(input_type, TYPEID_TINYINT));
@@ -116,10 +124,14 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
             }
             TYPEID_SMALLINT => self.output.push(TypedValue::SMALLINT(value)),
             TYPEID_N_SMALLINT => self.output.push(TypedValue::N_SMALLINT(Some(value))),
-            TYPEID_INT => self.output.push(TypedValue::INT(value as i32)),
-            TYPEID_N_INT => self.output.push(TypedValue::N_INT(Some(value as i32))),
-            TYPEID_BIGINT => self.output.push(TypedValue::BIGINT(value as i64)),
-            TYPEID_N_BIGINT => self.output.push(TypedValue::N_BIGINT(Some(value as i64))),
+            TYPEID_INT => self.output.push(TypedValue::INT(i32::from(value))),
+            TYPEID_N_INT => self.output.push(TypedValue::N_INT(Some(i32::from(value)))),
+            TYPEID_BIGINT => self.output.push(TypedValue::BIGINT(i64::from(value))),
+            TYPEID_N_BIGINT => {
+                self.output.push(
+                    TypedValue::N_BIGINT(Some(i64::from(value))),
+                )
+            }
             target_tc => return Err(SerializationError::TypeMismatch(input_type, target_tc)),
         }
         Ok(())
@@ -130,28 +142,28 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
         let input_type = "i32";
         match self.expected_type_code()? {
             TYPEID_TINYINT => {
-                if (value >= 0) && (value <= u8::MAX as i32) {
+                if (value >= 0) && (value <= i32::from(u8::MAX)) {
                     self.output.push(TypedValue::TINYINT(value as u8))
                 } else {
                     return Err(SerializationError::RangeErr(input_type, TYPEID_TINYINT));
                 }
             }
             TYPEID_N_TINYINT => {
-                if (value >= 0) && (value <= u8::MAX as i32) {
+                if (value >= 0) && (value <= i32::from(u8::MAX)) {
                     self.output.push(TypedValue::N_TINYINT(Some(value as u8)))
                 } else {
                     return Err(SerializationError::RangeErr(input_type, TYPEID_TINYINT));
                 }
             }
             TYPEID_SMALLINT => {
-                if (value >= i16::MIN as i32) && (value <= i16::MAX as i32) {
+                if (value >= i32::from(i16::MIN)) && (value <= i32::from(i16::MAX)) {
                     self.output.push(TypedValue::SMALLINT(value as i16))
                 } else {
                     return Err(SerializationError::RangeErr(input_type, TYPEID_SMALLINT));
                 }
             }
             TYPEID_N_SMALLINT => {
-                if (value >= i16::MIN as i32) && (value <= i16::MAX as i32) {
+                if (value >= i32::from(i16::MIN)) && (value <= i32::from(i16::MAX)) {
                     self.output.push(TypedValue::N_SMALLINT(Some(value as i16)))
                 } else {
                     return Err(SerializationError::RangeErr(input_type, TYPEID_N_SMALLINT));
@@ -159,8 +171,12 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
             }
             TYPEID_INT => self.output.push(TypedValue::INT(value)),
             TYPEID_N_INT => self.output.push(TypedValue::N_INT(Some(value))),
-            TYPEID_BIGINT => self.output.push(TypedValue::BIGINT(value as i64)),
-            TYPEID_N_BIGINT => self.output.push(TypedValue::N_BIGINT(Some(value as i64))),
+            TYPEID_BIGINT => self.output.push(TypedValue::BIGINT(i64::from(value))),
+            TYPEID_N_BIGINT => {
+                self.output.push(
+                    TypedValue::N_BIGINT(Some(i64::from(value))),
+                )
+            }
             target_tc => return Err(SerializationError::TypeMismatch(input_type, target_tc)),
         }
         Ok(())
@@ -171,42 +187,42 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
         let input_type = "i64";
         match self.expected_type_code()? {
             TYPEID_TINYINT => {
-                if (value >= 0) && (value <= u8::MAX as i64) {
+                if (value >= 0) && (value <= i64::from(u8::MAX)) {
                     self.output.push(TypedValue::TINYINT(value as u8))
                 } else {
                     return Err(SerializationError::RangeErr(input_type, TYPEID_TINYINT));
                 }
             }
             TYPEID_N_TINYINT => {
-                if (value >= 0) && (value <= u8::MAX as i64) {
+                if (value >= 0) && (value <= i64::from(u8::MAX)) {
                     self.output.push(TypedValue::N_TINYINT(Some(value as u8)))
                 } else {
                     return Err(SerializationError::RangeErr(input_type, TYPEID_TINYINT));
                 }
             }
             TYPEID_SMALLINT => {
-                if (value >= i16::MIN as i64) && (value <= i16::MAX as i64) {
+                if (value >= i64::from(i16::MIN)) && (value <= i64::from(i16::MAX)) {
                     self.output.push(TypedValue::SMALLINT(value as i16))
                 } else {
                     return Err(SerializationError::RangeErr(input_type, TYPEID_SMALLINT));
                 }
             }
             TYPEID_N_SMALLINT => {
-                if (value >= i16::MIN as i64) && (value <= i16::MAX as i64) {
+                if (value >= i64::from(i16::MIN)) && (value <= i64::from(i16::MAX)) {
                     self.output.push(TypedValue::N_SMALLINT(Some(value as i16)))
                 } else {
                     return Err(SerializationError::RangeErr(input_type, TYPEID_N_SMALLINT));
                 }
             }
             TYPEID_INT => {
-                if (value >= i32::MIN as i64) && (value <= i32::MAX as i64) {
+                if (value >= i64::from(i32::MIN)) && (value <= i64::from(i32::MAX)) {
                     self.output.push(TypedValue::INT(value as i32))
                 } else {
                     return Err(SerializationError::RangeErr(input_type, TYPEID_SMALLINT));
                 }
             }
             TYPEID_N_INT => {
-                if (value >= i32::MIN as i64) && (value <= i32::MAX as i64) {
+                if (value >= i64::from(i32::MIN)) && (value <= i64::from(i32::MAX)) {
                     self.output.push(TypedValue::N_INT(Some(value as i32)))
                 } else {
                     return Err(SerializationError::RangeErr(input_type, TYPEID_N_SMALLINT));
@@ -231,12 +247,20 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
         match self.expected_type_code()? {
             TYPEID_TINYINT => self.output.push(TypedValue::TINYINT(value)),
             TYPEID_N_TINYINT => self.output.push(TypedValue::N_TINYINT(Some(value))),
-            TYPEID_SMALLINT => self.output.push(TypedValue::SMALLINT(value as i16)),
-            TYPEID_N_SMALLINT => self.output.push(TypedValue::N_SMALLINT(Some(value as i16))),
-            TYPEID_INT => self.output.push(TypedValue::INT(value as i32)),
-            TYPEID_N_INT => self.output.push(TypedValue::N_INT(Some(value as i32))),
-            TYPEID_BIGINT => self.output.push(TypedValue::BIGINT(value as i64)),
-            TYPEID_N_BIGINT => self.output.push(TypedValue::N_BIGINT(Some(value as i64))),
+            TYPEID_SMALLINT => self.output.push(TypedValue::SMALLINT(i16::from(value))),
+            TYPEID_N_SMALLINT => {
+                self.output.push(
+                    TypedValue::N_SMALLINT(Some(i16::from(value))),
+                )
+            }
+            TYPEID_INT => self.output.push(TypedValue::INT(i32::from(value))),
+            TYPEID_N_INT => self.output.push(TypedValue::N_INT(Some(i32::from(value)))),
+            TYPEID_BIGINT => self.output.push(TypedValue::BIGINT(i64::from(value))),
+            TYPEID_N_BIGINT => {
+                self.output.push(
+                    TypedValue::N_BIGINT(Some(i64::from(value))),
+                )
+            }
             target_tc => return Err(SerializationError::TypeMismatch(input_type, target_tc)),
         }
         Ok(())
@@ -247,14 +271,14 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
         let input_type = "u16";
         match self.expected_type_code()? {
             TYPEID_TINYINT => {
-                if value <= u8::MAX as u16 {
+                if value <= u16::from(u8::MAX) {
                     self.output.push(TypedValue::TINYINT(value as u8))
                 } else {
                     return Err(SerializationError::RangeErr(input_type, TYPEID_TINYINT));
                 }
             }
             TYPEID_N_TINYINT => {
-                if value <= u8::MAX as u16 {
+                if value <= u16::from(u8::MAX) {
                     self.output.push(TypedValue::N_TINYINT(Some(value as u8)))
                 } else {
                     return Err(SerializationError::RangeErr(input_type, TYPEID_TINYINT));
@@ -274,10 +298,14 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
                     return Err(SerializationError::RangeErr(input_type, TYPEID_TINYINT));
                 }
             }
-            TYPEID_INT => self.output.push(TypedValue::INT(value as i32)),
-            TYPEID_N_INT => self.output.push(TypedValue::N_INT(Some(value as i32))),
-            TYPEID_BIGINT => self.output.push(TypedValue::BIGINT(value as i64)),
-            TYPEID_N_BIGINT => self.output.push(TypedValue::N_BIGINT(Some(value as i64))),
+            TYPEID_INT => self.output.push(TypedValue::INT(i32::from(value))),
+            TYPEID_N_INT => self.output.push(TypedValue::N_INT(Some(i32::from(value)))),
+            TYPEID_BIGINT => self.output.push(TypedValue::BIGINT(i64::from(value))),
+            TYPEID_N_BIGINT => {
+                self.output.push(
+                    TypedValue::N_BIGINT(Some(i64::from(value))),
+                )
+            }
             target_tc => return Err(SerializationError::TypeMismatch(input_type, target_tc)),
         }
         Ok(())
@@ -288,14 +316,14 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
         let input_type = "u32";
         match self.expected_type_code()? {
             TYPEID_TINYINT => {
-                if value <= u8::MAX as u32 {
+                if value <= u32::from(u8::MAX) {
                     self.output.push(TypedValue::TINYINT(value as u8))
                 } else {
                     return Err(SerializationError::RangeErr(input_type, TYPEID_TINYINT));
                 }
             }
             TYPEID_N_TINYINT => {
-                if value <= u8::MAX as u32 {
+                if value <= u32::from(u8::MAX) {
                     self.output.push(TypedValue::N_TINYINT(Some(value as u8)))
                 } else {
                     return Err(SerializationError::RangeErr(input_type, TYPEID_TINYINT));
@@ -329,8 +357,12 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
                     return Err(SerializationError::RangeErr(input_type, TYPEID_INT));
                 }
             }
-            TYPEID_BIGINT => self.output.push(TypedValue::BIGINT(value as i64)),
-            TYPEID_N_BIGINT => self.output.push(TypedValue::N_BIGINT(Some(value as i64))),
+            TYPEID_BIGINT => self.output.push(TypedValue::BIGINT(i64::from(value))),
+            TYPEID_N_BIGINT => {
+                self.output.push(
+                    TypedValue::N_BIGINT(Some(i64::from(value))),
+                )
+            }
             target_tc => return Err(SerializationError::TypeMismatch(input_type, target_tc)),
         }
         Ok(())
@@ -341,14 +373,14 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
         let input_type = "u64";
         match self.expected_type_code()? {
             TYPEID_TINYINT => {
-                if value <= u8::MAX as u64 {
+                if value <= u64::from(u8::MAX) {
                     self.output.push(TypedValue::TINYINT(value as u8))
                 } else {
                     return Err(SerializationError::RangeErr(input_type, TYPEID_TINYINT));
                 }
             }
             TYPEID_N_TINYINT => {
-                if value <= u8::MAX as u64 {
+                if value <= u64::from(u8::MAX) {
                     self.output.push(TypedValue::N_TINYINT(Some(value as u8)))
                 } else {
                     return Err(SerializationError::RangeErr(input_type, TYPEID_TINYINT));

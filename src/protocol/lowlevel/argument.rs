@@ -56,18 +56,18 @@ impl Argument {
     // only called on output (serialize)
     pub fn count(&self) -> PrtResult<usize> {
         Ok(match *self {
-            Argument::Auth(_) => 1,
+            Argument::Auth(_) |
+            Argument::Command(_) |
+            Argument::FetchSize(_) |
+            Argument::ResultSetId(_) |
+            Argument::StatementId(_) |
+            Argument::TopologyInformation(_) |
+            Argument::ReadLobRequest(_, _, _) => 1,
             Argument::ClientInfo(ref client_info) => client_info.count(),
-            Argument::Command(_) => 1,
             Argument::ConnectOptions(ref opts) => opts.0.len(),
             Argument::Error(ref vec) => vec.len(),
-            Argument::FetchSize(_) => 1,
             Argument::Parameters(ref pars) => pars.count(),
-            Argument::ReadLobRequest(_, _, _) => 1,
-            Argument::ResultSetId(_) => 1,
-            Argument::StatementId(_) => 1,
             Argument::StatementContext(ref sc) => sc.count(),
-            Argument::TopologyInformation(_) => 1,
             Argument::TransactionFlags(ref opts) => opts.len(),
             ref a => {
                 return Err(PrtError::ProtocolError(format!("Argument::count() called on {:?}", a)));
@@ -81,7 +81,7 @@ impl Argument {
         match *self {
             Argument::Auth(ref vec) => {
                 size += 2;
-                for ref field in vec {
+                for field in vec {
                     size += field.size();
                 }
             }
@@ -113,7 +113,7 @@ impl Argument {
             }
             Argument::TopologyInformation(ref vec) => {
                 size += 2;
-                for ref attr in vec {
+                for attr in vec {
                     size += attr.size();
                 }
             }
@@ -138,7 +138,7 @@ impl Argument {
         match *self {
             Argument::Auth(ref vec) => {
                 w.write_i16::<LittleEndian>(vec.len() as i16)?;
-                for ref field in vec {
+                for field in vec {
                     field.serialize(w)?;
                 }
             }
@@ -152,12 +152,12 @@ impl Argument {
                 }
             }
             Argument::ConnectOptions(ConnectOptions(ref vec)) => {
-                for ref opt in vec {
+                for opt in vec {
                     opt.serialize(w)?;
                 }
             }
             Argument::Error(ref vec) => {
-                for ref server_error in vec {
+                for server_error in vec {
                     server_error.serialize(w)?;
                 }
             }
@@ -191,12 +191,12 @@ impl Argument {
             }
             Argument::TopologyInformation(ref vec) => {
                 w.write_i16::<LittleEndian>(vec.len() as i16)?;
-                for ref topo_attr in vec {
+                for topo_attr in vec {
                     topo_attr.serialize(w)?;
                 }
             }
             Argument::TransactionFlags(ref vec) => {
-                for ref opt in vec {
+                for opt in vec {
                     opt.serialize(w)?;
                 }
             }

@@ -43,7 +43,7 @@ impl serde::ser::Error for SerializationError {
 impl fmt::Debug for SerializationError {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            SerializationError::GeneralError(ref s) => write!(fmt, "{}: {}", self.description(), s),
+            SerializationError::GeneralError(ref s) |
             SerializationError::InvalidValue(ref s) => write!(fmt, "{}: {}", self.description(), s),
             SerializationError::StructuralMismatch(s) => {
                 write!(fmt, "{}: {}", self.description(), s)

@@ -71,10 +71,10 @@ pub mod metadata {
 }
 
 
-/// Types that are used within the content part of a ResultSet.
+/// Types that are used within the content part of a `ResultSet`.
 ///
-/// A ResultSet contains a sequence of Rows. A row is a sequence of HdbValues.
-/// Some of the HdbValues are implemented using LongDate, BLOB, etc
+/// A `ResultSet` contains a sequence of Rows. A row is a sequence of `HdbValues`.
+/// Some of the `HdbValues` are implemented using `LongDate`, BLOB, etc
 ///
 pub mod types {
     pub use protocol::lowlevel::parts::lob::{BLOB, CLOB, new_clob_to_db};

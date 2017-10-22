@@ -13,7 +13,7 @@ pub fn serialize_bytes(v: &[u8], w: &mut io::Write) -> PrtResult<()> {
     Ok(())
 }
 
-/// Read n bytes from a BufRead, return as Vec<u8>
+/// Read n bytes from a `BufRead`, return as Vec<u8>
 pub fn parse_bytes(len: usize, rdr: &mut io::BufRead) -> PrtResult<Vec<u8>> {
     let mut vec: Vec<u8> = repeat(0u8).take(len).collect();
     let mut read = 0;
@@ -24,11 +24,11 @@ pub fn parse_bytes(len: usize, rdr: &mut io::BufRead) -> PrtResult<Vec<u8>> {
 }
 
 
-pub fn string_to_cesu8(s: &String) -> Vec<u8> {
+pub fn string_to_cesu8(s: &str) -> Vec<u8> {
     to_cesu8(s).to_vec()
 }
 
-pub fn cesu8_to_string(v: &Vec<u8>) -> PrtResult<String> {
+pub fn cesu8_to_string(v: &[u8]) -> PrtResult<String> {
     let cow = from_cesu8(v)?;
     Ok(String::from(&*cow))
 }
@@ -36,7 +36,7 @@ pub fn cesu8_to_string(v: &Vec<u8>) -> PrtResult<String> {
 /// cesu-8 is identical to utf-8, except for high code points
 /// which consume 4 bytes in utf-8 and 6 in cesu-8;
 /// the first byte of such a code point in utf8 has the bit pattern 11110xxx (240 -247)
-pub fn cesu8_length(s: &String) -> usize {
+pub fn cesu8_length(s: &str) -> usize {
     let mut len = s.len();
     for b in s.as_bytes() {
         if *b >= 240_u8 {
@@ -164,14 +164,14 @@ static UTF8_CHAR_WIDTH: [u8; 256] = [
 /// Given a first byte, determine how many bytes are in this UTF-8 character
 #[inline]
 pub fn utf8_char_width(b: u8) -> usize {
-    return UTF8_CHAR_WIDTH[b as usize] as usize;
+    UTF8_CHAR_WIDTH[b as usize] as usize
 }
 
 
 
 /// Mask of the value bits of a continuation byte.
 const CONT_MASK: u8 = 0b0011_1111u8;
-/// Value of the tag bits (tag mask is !CONT_MASK) of a continuation byte.
+/// Value of the tag bits (tag mask is !`CONT_MASK`) of a continuation byte.
 const TAG_CONT_U8: u8 = 0b1000_0000u8;
 
 /// The CESU-8 data could not be decoded as valid UTF-8 data.
@@ -361,7 +361,7 @@ fn decode_from_iter(decoded: &mut Vec<u8>, iter: &mut slice::Iter<u8>) -> (bool,
 /// Convert the two trailing bytes from a CESU-8 surrogate to a regular
 /// surrogate value.
 fn dec_surrogate(second: u8, third: u8) -> u32 {
-    0xD000u32 | ((second & CONT_MASK) as u32) << 6 | (third & CONT_MASK) as u32
+    0xD000u32 | u32::from(second & CONT_MASK) << 6 | u32::from(third & CONT_MASK)
 }
 
 /// Convert the bytes from a CESU-8 surrogate pair into a valid UTF-8
@@ -370,11 +370,11 @@ fn dec_surrogates(second: u8, third: u8, fifth: u8, sixth: u8) -> [u8; 4] {
     // Convert to a 32-bit code point.
     let s1 = dec_surrogate(second, third);
     let s2 = dec_surrogate(fifth, sixth);
-    let c = 0x10000 + (((s1 - 0xD800) << 10) | (s2 - 0xDC00));
+    let c = 0x1_0000 + (((s1 - 0xD800) << 10) | (s2 - 0xDC00));
     // println!("{:0>8b} {:0>8b} {:0>8b} -> {:0>16b}", 0xEDu8, second, third, s1);
     // println!("{:0>8b} {:0>8b} {:0>8b} -> {:0>16b}", 0xEDu8, fifth, sixth, s2);
     // println!("-> {:0>32b}", c);
-    assert!(0x010000 <= c && c <= 0x10FFFF);
+    assert!(0x01_0000 <= c && c <= 0x10_FFFF);
 
     // Convert to UTF-8.
     // 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
@@ -382,7 +382,7 @@ fn dec_surrogates(second: u8, third: u8, fifth: u8, sixth: u8) -> [u8; 4] {
         0b1111_0000u8 | ((c & 0b1_1100_0000_0000_0000_0000) >> 18) as u8,
         TAG_CONT_U8 | ((c & 0b0_0011_1111_0000_0000_0000) >> 12) as u8,
         TAG_CONT_U8 | ((c & 0b0_0000_0000_1111_1100_0000) >> 6) as u8,
-        TAG_CONT_U8 | ((c & 0b0_0000_0000_0000_0011_1111)) as u8,
+        TAG_CONT_U8 | (c & 0b0_0000_0000_0000_0011_1111) as u8,
     ]
 }
 
@@ -406,7 +406,7 @@ pub fn to_cesu8(text: &str) -> Cow<[u8]> {
         Cow::Borrowed(text.as_bytes())
     } else {
         let bytes = text.as_bytes();
-        let mut encoded = Vec::with_capacity(bytes.len() + bytes.len() >> 2);
+        let mut encoded = Vec::with_capacity((bytes.len() + bytes.len()) >> 2);
         let mut i = 0;
         while i < bytes.len() {
             let b = bytes[i];
@@ -431,10 +431,8 @@ pub fn to_cesu8(text: &str) -> Cow<[u8]> {
                     // we have the four UTF-8 bytes (in &bytes[i..i+w]) and have to convert
                     // them to two surrogates
                     let mut utf8 = [0_u8; 4];
-                    for (ref mut place, ref data) in
-                        utf8.as_mut().iter().zip(bytes[i..i + 4].iter())
-                    {
-                        *place = *data;
+                    for (ref mut place, data) in utf8.as_mut().iter().zip(bytes[i..i + 4].iter()) {
+                        *place = data;
                     }
                     let (hi, lo) = get_hi_lo_surrogates(&utf8);
                     encoded.extend(enc_surrogate(hi).iter().cloned());
@@ -453,10 +451,10 @@ fn get_hi_lo_surrogates(utf8_4: &[u8; 4]) -> (u16, u16) {
     assert!(utf8_4[1] >= 128);
     assert!(utf8_4[2] >= 128);
     assert!(utf8_4[3] >= 128);
-    let codepoint: u32 = (((utf8_4[0] & 0b_00000111_u8) as u32) << 24) +
-        (((utf8_4[1] & 0b_00111111_u8) as u32) << 16) +
-        (((utf8_4[2] & 0b_00111111_u8) as u32) << 8) +
-        ((utf8_4[3] & 0b_00111111_u8) as u32);
+    let codepoint: u32 = (u32::from(utf8_4[0] & 0b0000_0111_u8) << 24) +
+        (u32::from(utf8_4[1] & 0b0011_1111_u8) << 16) +
+        (u32::from(utf8_4[2] & 0b0011_1111_u8) << 8) +
+        u32::from(utf8_4[3] & 0b0011_1111_u8);
 
     // High Surrogates: U+D800–U+DBFF = 55296 - 56319 (1024 values)
     // Low Surrogates:  U+DC00–U+DFFF = 56320 - 57343 (1024 values)
@@ -470,10 +468,10 @@ fn get_hi_lo_surrogates(utf8_4: &[u8; 4]) -> (u16, u16) {
     // The low ten bits (also in the range 0..0x03FF)
     // are added to 0xDC00 to give the second 16-bit code unit
     // or low surrogate, which will be in the range 0xDC00..0xDFFF.
-    let tmp: u32 = codepoint - 0x010000_u32; // = codepoint - 1.048.576
+    let tmp: u32 = codepoint - 0x01_0000_u32; // = codepoint - 1.048.576
     assert!(tmp < 1_048_575_u32);
-    let high_surrogate_codepoint = ((tmp & 0b_11111111110000000000_u32) >> 10) + 0xD800_u32;
-    let low_surrogate_codepoint = (tmp & 0b_00000000001111111111_u32) + 0xDC00_u32;
+    let high_surrogate_codepoint = ((tmp & 0b1111_1111_1100_0000_0000_u32) >> 10) + 0xD800_u32;
+    let low_surrogate_codepoint = (tmp & 0b0000_0000_0011_1111_1111_u32) + 0xDC00_u32;
     assert!(high_surrogate_codepoint <= 0xFFFF_u32);
     assert!(low_surrogate_codepoint <= 0xFFFF_u32);
     // so both are 16 bit only
@@ -502,8 +500,8 @@ fn enc_surrogate(surrogate: u16) -> [u8; 3] {
     assert!(0xD800 <= surrogate && surrogate <= 0xDFFF);
     // 1110xxxx 10xxxxxx 10xxxxxx
     [
-        0b11100000 | ((surrogate & 0b11110000_00000000) >> 12) as u8,
-        TAG_CONT_U8 | ((surrogate & 0b00001111_11000000) >> 6) as u8,
-        TAG_CONT_U8 | ((surrogate & 0b00000000_00111111)) as u8,
+        0b1110_0000 | ((surrogate & 0b1111_0000_0000_0000) >> 12) as u8,
+        TAG_CONT_U8 | ((surrogate & 0b0000_1111_1100_0000) >> 6) as u8,
+        TAG_CONT_U8 | (surrogate & 0b0000_0000_0011_1111) as u8,
     ]
 }

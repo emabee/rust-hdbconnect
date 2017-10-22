@@ -276,10 +276,7 @@ impl Request {
         w.write_i16::<LittleEndian>(1)?; // I2 Number of this segment, starting with 1
         w.write_i8(1)?; // I1 Segment kind: always 1 = Request
         w.write_i8(self.request_type.to_i8())?; // I1 "Message type"
-        w.write_i8(match self.auto_commit {
-            true => 1,
-            _ => 0,
-        })?; // I1 auto_commit on/off
+        w.write_i8(if self.auto_commit { 1 } else { 0 })?; // I1 auto_commit on/off
         w.write_u8(self.command_options)?; // I1 Bit set for options
         for _ in 0..8 {
             w.write_u8(0)?;
@@ -288,7 +285,7 @@ impl Request {
         remaining_bufsize -= SEGMENT_HEADER_SIZE as u32;
         trace!("Headers are written");
         // PARTS
-        for ref part in &self.parts.0 {
+        for part in &self.parts.0 {
             remaining_bufsize = part.serialize(remaining_bufsize, w)?;
         }
         trace!("Parts are written");
@@ -407,7 +404,7 @@ impl Reply {
 }
 impl Drop for Reply {
     fn drop(&mut self) {
-        for ref part in &self.parts.0 {
+        for part in &self.parts.0 {
             warn!(
                 "reply is dropped, but not all parts were evaluated: part-kind = {:?}",
                 part.kind
@@ -425,7 +422,7 @@ pub fn parse_message_and_sequence_header(rdr: &mut BufRead) -> PrtResult<(i16, M
     let varpart_size: u32 = rdr.read_u32::<LittleEndian>()?; // UI4  not needed?
     let remaining_bufsize: u32 = rdr.read_u32::<LittleEndian>()?; // UI4  not needed?
     let no_of_segs = rdr.read_i16::<LittleEndian>()?; // I2
-    assert!(no_of_segs == 1);
+    assert_eq!(no_of_segs, 1);
 
     rdr.consume(10usize); // (I1 + B[9])
 

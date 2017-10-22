@@ -35,7 +35,7 @@ use std::sync::{Arc, Mutex};
 
 /// Contains the result of a database read command, including the describing metadata.
 ///
-/// In most cases, you will want to use the powerful method [into_typed](#method.into_typed)
+/// In most cases, you will want to use the powerful method [`into_typed`](#method.into_typed)
 /// to convert the data from the generic format into your application specific format.
 #[derive(Debug)]
 pub struct ResultSet {
@@ -57,7 +57,7 @@ impl ResultSetCore {
                   -> Arc<Mutex<ResultSetCore>> {
         Arc::new(Mutex::new(ResultSetCore {
             o_conn_ref: match conn_ref {
-                Some(conn_ref) => Some(conn_ref.clone()),
+                Some(conn_ref) => Some(Arc::clone(conn_ref)),
                 None => None,
             },
             attributes: attrs,
@@ -120,6 +120,11 @@ impl ResultSet {
         Ok(self.rows.len())
     }
 
+    /// is `ResultSet` empty?
+    pub fn is_empty(&mut self) -> HdbResult<bool> {
+        Ok(self.len()? == 0)
+    }
+
     /// Removes the last row and returns it, or None if it is empty.
     pub fn pop_row(&mut self) -> Option<Row> {
         self.rows.pop()
@@ -144,7 +149,7 @@ impl ResultSet {
             let guard = self.core_ref.lock()?;
             let rs_core = &*guard;
             let conn_ref = match rs_core.o_conn_ref {
-                Some(ref cr) => cr.clone(),
+                Some(ref cr) => Arc::clone(cr),
                 None => {
                     return Err(prot_err("Fetch no more possible"));
                 }
@@ -293,7 +298,7 @@ pub struct RowIterator {
 }
 impl RowIterator {
     fn next_int(&mut self) -> HdbResult<Option<Row>> {
-        if self.rs.rows.len() == 0 {
+        if self.rs.rows.is_empty() {
             if self.rs.is_complete()? {
                 return Ok(None);
             } else {
@@ -354,7 +359,7 @@ pub mod factory {
     }
 
 
-    /// Factory for ResultSets, only useful for tests.
+    /// Factory for `ResultSets`, only useful for tests.
     pub fn new_for_tests(rsm: ResultSetMetadata, rows: Vec<Row>) -> ResultSet {
         ResultSet {
             core_ref: ResultSetCore::new_rs_ref(None, PartAttributes::new(0b_0000_0001), 0_u64),
@@ -477,9 +482,10 @@ pub mod factory {
                         trace!("Found value {:?}", value);
                         values.push(value);
                     }
-                    resultset.rows.push(
-                        Row::new(resultset.metadata.clone(), values),
-                    );
+                    resultset.rows.push(Row::new(
+                        Arc::clone(&resultset.metadata),
+                        values,
+                    ));
                 }
             }
         }

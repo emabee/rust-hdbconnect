@@ -8,7 +8,7 @@ use {HdbError, HdbResult};
 use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
 use protocol::lowlevel::parts::typed_value::TypedValue;
 
-/// A generic implementation of a single line of a ResultSet.
+/// A generic implementation of a single line of a `ResultSet`.
 #[derive(Clone, Debug)]
 pub struct Row {
     metadata: Arc<ResultSetMetadata>,
@@ -27,9 +27,9 @@ impl Row {
     /// Returns a clone of the ith value.
     pub fn cloned_value(&self, i: usize) -> HdbResult<TypedValue> {
         trace!("Row::cloned_value()");
-        self.values.get(i).map(|tv| tv.clone()).ok_or(
-            HdbError::UsageError("element with index {} does not exist".to_owned()),
-        )
+        self.values.get(i).cloned().ok_or_else(|| {
+            HdbError::UsageError("element with index {} does not exist".to_owned())
+        })
     }
 
     /// Converts the field into a plain rust value.
@@ -73,8 +73,7 @@ impl DeserializableRow for Row {
     /// Removes and returns the last value.
     fn pop(&mut self) -> Option<TypedValue> {
         trace!("<Row as DeserializableRow>::pop()");
-        let result = self.values.pop();
-        result
+        self.values.pop()
     }
 
     /// Returns the name of the column at the specified index
