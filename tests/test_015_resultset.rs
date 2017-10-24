@@ -36,23 +36,27 @@ fn impl_test_015_resultset() -> HdbResult<()> {
 fn evaluate_resultset(connection: &mut Connection) -> HdbResult<()> {
     // prepare the db table
     test_utils::statement_ignore_err(connection, vec!["drop table TEST_RESULTSET"]);
-    let stmts = vec!["create table TEST_RESULTSET ( f1_s NVARCHAR(100) primary key, f2_i INT, \
-                      f3_i INT not null, f4_dt LONGDATE)",
-                     "insert into TEST_RESULTSET (f1_s, f2_i, f3_i, f4_dt) values('Hello', null, \
-                      1,'01.01.1900')",
-                     "insert into TEST_RESULTSET (f1_s, f2_i, f3_i, f4_dt) values('world!', \
-                      null, 20,'01.01.1901')",
-                     "insert into TEST_RESULTSET (f1_s, f2_i, f3_i, f4_dt) values('I am here.', \
-                      null, 300,'01.01.1902')"];
+    let stmts = vec![
+        "create table TEST_RESULTSET ( f1_s NVARCHAR(100) primary key, f2_i INT, f3_i \
+         INT not null, f4_dt LONGDATE)",
+        "insert into TEST_RESULTSET (f1_s, f2_i, f3_i, f4_dt) values('Hello', null, \
+         1,'01.01.1900')",
+        "insert into TEST_RESULTSET (f1_s, f2_i, f3_i, f4_dt) values('world!', null, \
+         20,'01.01.1901')",
+        "insert into TEST_RESULTSET (f1_s, f2_i, f3_i, f4_dt) values('I am here.', \
+         null, 300,'01.01.1902')",
+    ];
     connection.multiple_statements(stmts)?;
 
     // insert some mass data
     for i in 100..200 {
-        connection.dml(&format!("insert into TEST_RESULTSET (f1_s, f2_i, f3_i, f4_dt) \
-                                          values('{}', {}, {},'01.01.1900')",
-                                i,
-                                i,
-                                i))?;
+        connection.dml(&format!(
+            "insert into TEST_RESULTSET (f1_s, f2_i, f3_i, \
+             f4_dt) values('{}', {}, {},'01.01.1900')",
+            i,
+            i,
+            i
+        ))?;
     }
 
     #[derive(Deserialize)]

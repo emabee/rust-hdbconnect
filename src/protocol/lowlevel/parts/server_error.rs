@@ -35,7 +35,7 @@ impl ServerError {
         w.write_i32::<LittleEndian>(self.position)?;
         w.write_i32::<LittleEndian>(self.text_length)?;
         w.write_i8(self.severity)?;
-        for b in self.sqlstate.iter() {
+        for b in &self.sqlstate {
             w.write_u8(*b)?
         }
         util::serialize_bytes(&util::string_to_cesu8(&(self.text)), w)?;
@@ -67,12 +67,14 @@ impl ServerError {
             2 => "fatal error",
             _ => "message of unknown severity",
         };
-        format!("{} [code: {}, sql state: {}] at position {}: \"{}\"",
-                sev,
-                self.code,
-                String::from_utf8_lossy(&self.sqlstate),
-                self.position,
-                self.text)
+        format!(
+            "{} [code: {}, sql state: {}] at position {}: \"{}\"",
+            sev,
+            self.code,
+            String::from_utf8_lossy(&self.sqlstate),
+            self.position,
+            self.text
+        )
     }
 }
 

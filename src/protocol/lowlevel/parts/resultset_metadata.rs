@@ -9,7 +9,7 @@ use vec_map::VecMap;
 
 /// contains a table of field metadata;
 /// the variable-length Strings are extracted into the names vecmap, which uses an integer as key
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct ResultSetMetadata {
     fields: Vec<FieldMetadata>,
     names: VecMap<String>,
@@ -27,6 +27,11 @@ impl ResultSetMetadata {
     /// Returns the number of fields (columns) in the ResultSet.
     pub fn len(&self) -> usize {
         self.fields.len()
+    }
+
+    /// Is the set of fields empty
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     fn add_to_names(&mut self, offset: u32) {
@@ -97,14 +102,14 @@ pub fn parse(count: i32, arg_size: u32, rdr: &mut io::BufRead) -> PrtResult<Resu
         let name = util::cesu8_to_string(&buffer)?;
         trace!("offset = {}, name = {}", offset, name);
         rsm.names.insert(offset as usize, name);
-        offset += (nl as u32) + 1;
+        offset += u32::from(nl) + 1;
     }
     Ok(rsm)
 }
 
 
 /// Describes a single field (column) in a result set.
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct FieldMetadata {
     /// Database schema.
     pub schemaname: u32,
@@ -140,7 +145,7 @@ impl FieldMetadata {
     }
 }
 
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub enum ColumnOption {
     Nullable,
     NotNull,
@@ -158,9 +163,9 @@ impl ColumnOption {
             1 => Ok(ColumnOption::NotNull),
             2 => Ok(ColumnOption::Nullable),
             _ => {
-                Err(PrtError::ProtocolError(format!("ColumnOption::from_u8() not implemented \
-                                                     for value {}",
-                                                    val)))
+                Err(PrtError::ProtocolError(
+                    format!("ColumnOption::from_u8() not implemented for value {}", val),
+                ))
             }
         }
     }

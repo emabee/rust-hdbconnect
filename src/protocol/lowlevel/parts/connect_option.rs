@@ -198,9 +198,9 @@ impl ConnectOptionId {
             46 => Ok(ConnectOptionId::BuildPlatform),
             47 => Ok(ConnectOptionId::ImplicitXASessionSupported),
             _ => {
-                Err(PrtError::ProtocolError(format!("unknown value for ConnectOptionId \
-                                                     detected: {}",
-                                                    val)))
+                Err(PrtError::ProtocolError(
+                    format!("unknown value for ConnectOptionId detected: {}", val),
+                ))
             }
         }
     }

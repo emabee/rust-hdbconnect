@@ -11,12 +11,13 @@ use protocol::lowlevel::conn_core::ConnCoreRef;
 
 use std::borrow::Cow;
 use std::cmp;
+use std::sync::Arc;
 
-/// BlobHandle is used for BLOBs that we receive from the database.
+/// `BlobHandle` is used for BLOBs that we receive from the database.
 /// The data are often not transferred completely,
 /// so we carry internally a database connection and the
 /// necessary controls to support fetching remaining data on demand.
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct BlobHandle {
     o_conn_ref: Option<ConnCoreRef>,
     is_data_complete: bool,
@@ -29,12 +30,14 @@ impl BlobHandle {
     pub fn new(conn_ref: &ConnCoreRef, is_data_complete: bool, length_b: u64, locator_id: u64,
                data: Vec<u8>)
                -> BlobHandle {
-        trace!("BlobHandle::new() with length_b = {}, is_data_complete = {}, data.length() = {}",
-               length_b,
-               is_data_complete,
-               data.len());
+        trace!(
+            "BlobHandle::new() with length_b = {}, is_data_complete = {}, data.length() = {}",
+            length_b,
+            is_data_complete,
+            data.len()
+        );
         BlobHandle {
-            o_conn_ref: Some(conn_ref.clone()),
+            o_conn_ref: Some(Arc::clone(conn_ref)),
             length_b: length_b,
             is_data_complete: is_data_complete,
             locator_id: locator_id,
@@ -49,20 +52,23 @@ impl BlobHandle {
     }
 
     fn fetch_next_chunk(&mut self) -> PrtResult<()> {
-        let (mut reply_data, reply_is_last_data, server_processing_time) =
-            fetch_a_lob_chunk(&self.o_conn_ref,
-                              self.locator_id,
-                              self.length_b,
-                              self.data.len() as u64)?;
+        let (mut reply_data, reply_is_last_data, server_processing_time) = fetch_a_lob_chunk(
+            &self.o_conn_ref,
+            self.locator_id,
+            self.length_b,
+            self.data.len() as u64,
+        )?;
 
         self.data.append(&mut reply_data);
         self.is_data_complete = reply_is_last_data;
         self.acc_server_proc_time += server_processing_time;
 
         assert_eq!(self.is_data_complete, self.length_b == self.data.len() as u64);
-        trace!("After BlobHandle fetch: is_data_complete = {}, data.length() = {}",
-               self.is_data_complete,
-               self.length_b);
+        trace!(
+            "After BlobHandle fetch: is_data_complete = {}, data.length() = {}",
+            self.is_data_complete,
+            self.length_b
+        );
         Ok(())
     }
 
@@ -85,11 +91,11 @@ impl BlobHandle {
 
 
 
-/// ClobHandle is used for CLOBs and NCLOBs that we receive from the database.
+/// `ClobHandle` is used for CLOBs and NCLOBs that we receive from the database.
 /// The data are often not transferred completely, so we carry internally
 /// a database connection and the
 /// necessary controls to support fetching remaining data on demand.
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct ClobHandle {
     o_conn_ref: Option<ConnCoreRef>,
     is_data_complete: bool,
@@ -105,7 +111,7 @@ impl ClobHandle {
                char_count: u64, locator_id: u64, data: String)
                -> ClobHandle {
         ClobHandle {
-            o_conn_ref: Some(conn_ref.clone()),
+            o_conn_ref: Some(Arc::clone(conn_ref)),
             length_c: length_c,
             length_b: length_b,
             char_count: char_count,
@@ -135,9 +141,11 @@ impl ClobHandle {
         self.acc_server_proc_time += server_processing_time;
 
         assert_eq!(self.is_data_complete, self.length_b == self.data.len() as u64);
-        trace!("After ClobHandle fetch: is_data_complete = {}, data.length() = {}",
-               self.is_data_complete,
-               self.length_b);
+        trace!(
+            "After ClobHandle fetch: is_data_complete = {}, data.length() = {}",
+            self.is_data_complete,
+            self.length_b
+        );
         Ok(())
     }
 
@@ -166,34 +174,38 @@ fn fetch_a_lob_chunk(o_conn_ref: &Option<ConnCoreRef>, locator_id: u64, length_b
     // build the request, provide StatementContext and length_to_read
     let (conn_ref, length_to_read) = match *o_conn_ref {
         None => {
-            return Err(prot_err("LOB is not complete, but fetching more chunks is no more \
-                                 possible (connection not available)"));
+            return Err(prot_err(
+                "LOB is not complete, but fetching more chunks is no more possible (connection \
+                 not available)",
+            ));
         }
         Some(ref conn_ref) => {
             let guard = conn_ref.lock()?;
-            let length_to_read = cmp::min((*guard).get_lob_read_length() as u64,
-                                          length_b - data_len);
+            let length_to_read =
+                cmp::min((*guard).get_lob_read_length() as u64, length_b - data_len);
             (conn_ref, length_to_read as i32)
         }
     };
-    let mut request = Request::new(&conn_ref, RequestType::ReadLob, true, 0)?;
+    let mut request = Request::new(conn_ref, RequestType::ReadLob, true, 0)?;
 
     let offset = data_len + 1;
-    request.push(Part::new(PartKind::ReadLobRequest,
-                           Argument::ReadLobRequest(locator_id, offset, length_to_read)));
+    request.push(Part::new(
+        PartKind::ReadLobRequest,
+        Argument::ReadLobRequest(locator_id, offset, length_to_read),
+    ));
 
-    let mut reply = request.send_and_receive(&conn_ref, Some(ReplyType::ReadLob))?;
+    let mut reply = request.send_and_receive(conn_ref, Some(ReplyType::ReadLob))?;
 
-    let (reply_data, reply_is_last_data) = match reply.parts
-                                                      .pop_arg_if_kind(PartKind::ReadLobReply) {
-        Some(Argument::ReadLobReply(reply_locator_id, reply_is_last_data, reply_data)) => {
-            if reply_locator_id != locator_id {
-                return Err(prot_err("lob::fetch_a_lob_chunk(): locator ids do not match"));
+    let (reply_data, reply_is_last_data) =
+        match reply.parts.pop_arg_if_kind(PartKind::ReadLobReply) {
+            Some(Argument::ReadLobReply(reply_locator_id, reply_is_last_data, reply_data)) => {
+                if reply_locator_id != locator_id {
+                    return Err(prot_err("lob::fetch_a_lob_chunk(): locator ids do not match"));
+                }
+                (reply_data, reply_is_last_data)
             }
-            (reply_data, reply_is_last_data)
-        }
-        _ => return Err(prot_err("No ReadLobReply part found")),
-    };
+            _ => return Err(prot_err("No ReadLobReply part found")),
+        };
 
     let server_processing_time = match reply.parts.pop_arg_if_kind(PartKind::StatementContext) {
         Some(Argument::StatementContext(stmt_ctx)) => {

@@ -24,7 +24,7 @@ fn send(w: &mut io::Write) -> PrtResult<()> {
     b.write_i8(1)?; // I1    Number of Options
     b.write_i8(1)?; // I1    Option-id "Swap-kind"
     b.write_i8(1)?; // I1    value "LittleEndian" (Big endian would be 0)
-    w.write(&b)?;
+    w.write_all(&b)?;
     w.flush()?;
     Ok(())
 }

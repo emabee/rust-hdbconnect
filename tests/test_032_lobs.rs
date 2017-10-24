@@ -41,11 +41,15 @@ fn impl_test_032_lobs(logger_handle: &mut ReconfigurationHandle) -> HdbResult<i3
 
 fn test_read_blob(connection: &mut Connection, _logger_handle: &mut ReconfigurationHandle)
                   -> HdbResult<()> {
-    info!("create a 10MB lob in the database, and read it again using the default (big) lob read \
-           length; select it again with a small lob read length (1kB), and compare the results");
+    info!(
+        "create a 10MB lob in the database, and read it again using the default (big) lob read \
+         length; select it again with a small lob read length (1kB), and compare the results"
+    );
 
     test_utils::statement_ignore_err(connection, vec!["drop table TEST_LOBS"]);
-    let stmts = vec!["create table TEST_LOBS (f1_s NVARCHAR(10), f2_i INT, f3_b BLOB, f4_s CLOB)"];
+    let stmts = vec![
+        "create table TEST_LOBS (f1_s NVARCHAR(10), f2_i INT, f3_b BLOB, f4_s CLOB)",
+    ];
     connection.multiple_statements(stmts)?;
 
     #[derive(Serialize, Deserialize, Debug)]
@@ -60,7 +64,9 @@ fn test_read_blob(connection: &mut Connection, _logger_handle: &mut Reconfigurat
         f4_s: Option<String>,
     }
 
-    let mut insert_stmt = connection.prepare("insert into TEST_LOBS (F1_S, F3_B) values (?,?)")?;
+    let mut insert_stmt = connection.prepare(
+        "insert into TEST_LOBS (F1_S, F3_B) values (?,?)",
+    )?;
     const SIZE: usize = 10 * 1024 * 1024;
     let mut raw_data: Vec<u8> = Vec::<u8>::new();
     raw_data.resize(SIZE, 0_u8);

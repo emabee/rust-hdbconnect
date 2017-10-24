@@ -1,7 +1,7 @@
 use super::{PrtError, PrtResult};
 
 #[derive(Debug)]
-#[derive(Clone,Copy)]
+#[derive(Clone, Copy)]
 pub enum PartKind {
     Command, // 3 // SQL Command Data
     ResultSet, // 5 // Tabular resultset data
@@ -109,8 +109,9 @@ impl PartKind {
             64 => Ok(PartKind::TransactionFlags),
             68 => Ok(PartKind::LobFlags),
             _ => {
-                Err(PrtError::ProtocolError(format!("Invalid value for PartKind detected: {}",
-                                                    val)))
+                Err(
+                    PrtError::ProtocolError(format!("Invalid value for PartKind detected: {}", val)),
+                )
             }
         }
     }

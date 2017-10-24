@@ -39,9 +39,14 @@ fn connect_wrong_password() -> HdbResult<()> {
         .password("blubber")
         .build()?;
     let err = Connection::new(conn_params).err().unwrap();
-    info!("connect with wrong password failed as expected, after {} µs with {}.",
-          Local::now().signed_duration_since(start).num_microseconds().unwrap(),
-          err.description());
+    info!(
+        "connect with wrong password failed as expected, after {} µs with {}.",
+        Local::now()
+            .signed_duration_since(start)
+            .num_microseconds()
+            .unwrap(),
+        err.description()
+    );
     Ok(())
 }
 
@@ -75,8 +80,12 @@ fn impl_select_version_and_user(connection: &mut Connection) -> HdbResult<()> {
     let resultset = connection.query(stmt)?;
     let version_and_user: VersionAndUser = resultset.into_typed()?;
 
-    assert_eq!(version_and_user.current_user,
-               test_utils::connect_params_builder_from_file()?.build()?.dbuser());
+    assert_eq!(
+        version_and_user.current_user,
+        test_utils::connect_params_builder_from_file()?
+            .build()?
+            .dbuser()
+    );
 
     debug!("VersionAndUser: {:?}", version_and_user);
     Ok(())

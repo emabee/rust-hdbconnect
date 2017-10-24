@@ -36,8 +36,9 @@ fn impl_test_030_prepare() -> HdbResult<i32> {
 }
 
 fn prepare_insert_statement(connection: &mut Connection) -> HdbResult<()> {
-    info!("test statement preparation and transactional correctness (auto_commit on/off, \
-           rollbacks)");
+    info!(
+        "test statement preparation and transactional correctness (auto_commit on/off, rollbacks)"
+    );
     test_utils::statement_ignore_err(connection, vec!["drop table TEST_PREPARE"]);
     let stmts = vec!["create table TEST_PREPARE (F1_S NVARCHAR(20), F2_I INT)"];
     connection.multiple_statements(stmts)?;
@@ -90,8 +91,8 @@ fn prepare_insert_statement(connection: &mut Connection) -> HdbResult<()> {
     insert_stmt3.execute_batch()?;
     connection3.rollback()?;
 
-    let typed_result: Vec<TestStruct> = connection.query("select * from TEST_PREPARE")?
-                                                  .into_typed()?;
+    let typed_result: Vec<TestStruct> =
+        connection.query("select * from TEST_PREPARE")?.into_typed()?;
     assert_eq!(typed_result.len(), 6);
     for ts in typed_result {
         let s = ts.f1_s.as_ref().unwrap();

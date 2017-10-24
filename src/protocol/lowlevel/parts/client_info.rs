@@ -11,8 +11,8 @@ pub struct ClientInfo(HashMap<String, String>);
 impl ClientInfo {
     pub fn serialize(&self, w: &mut Write) -> PrtResult<()> {
         for (key, value) in &self.0 {
-            serialize_length_and_string(&key, w)?;
-            serialize_length_and_string(&value, w)?;
+            serialize_length_and_string(key, w)?;
+            serialize_length_and_string(value, w)?;
         }
         Ok(())
     }
@@ -20,7 +20,7 @@ impl ClientInfo {
     pub fn size(&self) -> usize {
         let mut len = 0;
         for (key, value) in &self.0 {
-            len += string_length(&key) + string_length(&value);
+            len += string_length(key) + string_length(value);
         }
         len
     }
