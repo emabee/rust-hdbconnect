@@ -10,26 +10,28 @@ const ZEITENWENDE: i64 = 1_721_424;
 const JGREG: i64 = 2_299_161;
 // const IGREG: i64 = 18_994;             // Julian day of 01.01.0001 n. Chr.
 
-/// Implementation of HANA's LongDate.
+/// Implementation of HANA's `LongDate`.
 ///
 /// The type is used internally to implement serialization to the wire.
 /// It is agnostic of timezones.
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct LongDate(pub i64);
 
 impl fmt::Display for LongDate {
     // The format chosen supports the conversion to chrono types.
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let (year, month, day, hour, minute, second, fraction) = self.as_ymd_hms_f();
-        write!(fmt,
-               "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:07}",
-               year,
-               month,
-               day,
-               hour,
-               minute,
-               second,
-               fraction)
+        write!(
+            fmt,
+            "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:07}",
+            year,
+            month,
+            day,
+            hour,
+            minute,
+            second,
+            fraction
+        )
     }
 }
 
@@ -55,9 +57,11 @@ impl LongDate {
             return Err("Only days between 1 and 31 are supported");
         }
 
-        Ok(LongDate(1 + to_day_number(y as u32, m, d) * DAY_FACTOR + hour as i64 * HOUR_FACTOR +
-                    minute as i64 * MINUTE_FACTOR +
-                    second as i64 * SECOND_FACTOR + nanosecond as i64 / 100))
+        Ok(LongDate(
+            1 + to_day_number(y as u32, m, d) * DAY_FACTOR + i64::from(hour) * HOUR_FACTOR +
+                i64::from(minute) * MINUTE_FACTOR + i64::from(second) * SECOND_FACTOR +
+                i64::from(nanosecond) / 100,
+        ))
     }
 
     /// Factory method for LongDate up to second precision.
@@ -81,23 +85,23 @@ impl LongDate {
         let datevalue = value / DAY_FACTOR;
         let mut timevalue = value - (datevalue * DAY_FACTOR);
         let hour: u32 = (timevalue / HOUR_FACTOR) as u32;
-        timevalue -= HOUR_FACTOR * (hour as i64);
+        timevalue -= HOUR_FACTOR * (i64::from(hour));
         let minute: u32 = (timevalue / MINUTE_FACTOR) as u32;
-        timevalue -= MINUTE_FACTOR * (minute as i64);
+        timevalue -= MINUTE_FACTOR * (i64::from(minute));
         let second: u32 = (timevalue / SECOND_FACTOR) as u32;
-        timevalue -= SECOND_FACTOR * (second as i64);
+        timevalue -= SECOND_FACTOR * (i64::from(second));
         let fraction: u32 = timevalue as u32; // 10**-7
 
         let julian: i64 = datevalue + ZEITENWENDE;
         let ja: i64 = if julian >= JGREG {
-            let jalpha: i64 = (((julian - 1867216) as f64 - 0.25_f64) / 36524.25_f64) as i64;
+            let jalpha: i64 = (((julian - 1_867_216) as f64 - 0.25_f64) / 36_524.25_f64) as i64;
             julian + 1 + jalpha - ((0.25_f64 * jalpha as f64) as i64)
         } else {
             julian
         };
 
         let jb: i64 = ja + 1524;
-        let jc: i64 = (6680_f64 + ((jb - 2439870) as f64 - 122.1_f64) / 365.25_f64) as i64;
+        let jc: i64 = (6680_f64 + ((jb - 2_439_870) as f64 - 122.1_f64) / 365.25_f64) as i64;
         let jd: i64 = ((365 * jc) as f64 + (0.25_f64 * jc as f64)) as i64;
         let je: i64 = ((jb - jd) as f64 / 30.6001) as i64;
 
@@ -122,9 +126,9 @@ impl LongDate {
 fn to_day_number(y: u32, m: u32, d: u32) -> i64 {
     let (yd, md) = to_day(m);
     let y2 = y as i32 + yd;
-    let mut daynr: i64 = (((1461 * y2) >> 2) + md + d as i32 - 307) as i64;
-    if daynr > 577746_i64 {
-        daynr += 2 - ((3 * ((y2 + 100) / 100)) >> 2) as i64;
+    let mut daynr = i64::from(((1461 * y2) >> 2) + md + d as i32 - 307);
+    if daynr > 577_746_i64 {
+        daynr += 2 - i64::from((3 * ((y2 + 100) / 100)) >> 2);
     }
     daynr
 }

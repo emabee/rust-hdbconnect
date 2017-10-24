@@ -7,7 +7,7 @@ use super::typed_value::serialize as typed_value_serialize;
 use std::io;
 
 /// A single row of parameters; batches can consist of many such rows
-#[derive(Debug,Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct ParameterRow {
     pub values: Vec<TypedValue>,
 }
@@ -21,7 +21,7 @@ impl ParameterRow {
 
     pub fn size(&self) -> PrtResult<usize> {
         let mut size = 0;
-        for ref value in &(self.values) {
+        for value in &(self.values) {
             size += typed_value_size(value)?;
         }
         Ok(size)
@@ -30,7 +30,7 @@ impl ParameterRow {
     pub fn serialize(&self, w: &mut io::Write) -> PrtResult<()> {
         let mut data_pos = 0_i32; // FIXME or must it be 1?
         // serialize the values (LOBs only serialize their header, the data follow below)
-        for ref value in &(self.values) {
+        for value in &(self.values) {
             typed_value_serialize(value, &mut data_pos, w)?;
         }
 
@@ -39,7 +39,7 @@ impl ParameterRow {
             match *value {
                 TypedValue::BLOB(ref blob) |
                 TypedValue::N_BLOB(Some(ref blob)) => {
-                    util::serialize_bytes(&blob.ref_to_bytes()?, w)?
+                    util::serialize_bytes(blob.ref_to_bytes()?, w)?
                 }
 
                 TypedValue::CLOB(ref clob) |
@@ -58,7 +58,7 @@ impl ParameterRow {
 
 /// A PARAMETERS part contains input parameters.
 /// The argument count of the part defines how many rows of parameters are included.
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct Parameters {
     rows: Vec<ParameterRow>,
 }
@@ -68,7 +68,7 @@ impl Parameters {
     }
 
     pub fn serialize(&self, w: &mut io::Write) -> PrtResult<()> {
-        for ref row in &self.rows {
+        for row in &self.rows {
             row.serialize(w)?;
         }
         Ok(())
@@ -80,7 +80,7 @@ impl Parameters {
 
     pub fn size(&self) -> PrtResult<usize> {
         let mut size = 0;
-        for ref row in &self.rows {
+        for row in &self.rows {
             size += row.size()?;
         }
         Ok(size)

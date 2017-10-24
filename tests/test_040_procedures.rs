@@ -48,13 +48,13 @@ fn very_simple_procedure(connection: &mut Connection) -> HdbResult<()> {
     info!("very_simple_procedure(): run a simple sqlscript procedure");
 
     test_utils::statement_ignore_err(connection, vec!["drop procedure TEST_PROCEDURE"]);
-    connection.multiple_statements(vec!["\
+    connection.multiple_statements(vec![
+        "\
         CREATE PROCEDURE TEST_PROCEDURE \
-            LANGUAGE SQLSCRIPT SQL \
-            SECURITY DEFINER \
-        AS BEGIN \
-            SELECT CURRENT_USER \"current user\" FROM DUMMY; \
-        END"])?;
+         LANGUAGE SQLSCRIPT SQL SECURITY DEFINER AS \
+         BEGIN SELECT CURRENT_USER \"current user\" \
+         FROM DUMMY; END",
+    ])?;
 
     let mut response = connection.statement("call TEST_PROCEDURE")?;
     response.get_success()?;
@@ -64,27 +64,31 @@ fn very_simple_procedure(connection: &mut Connection) -> HdbResult<()> {
 }
 
 fn procedure_with_out_resultsets(connection: &mut Connection) -> HdbResult<()> {
-    info!("procedure_with_out_resultsets(): run a sqlscript procedure with resultsets as OUT \
-           parameters");
+    info!(
+        "procedure_with_out_resultsets(): run a sqlscript procedure with resultsets as OUT \
+         parameters"
+    );
 
     test_utils::statement_ignore_err(connection, vec!["drop procedure GET_PROCEDURES"]);
-    connection.multiple_statements(vec!["\
-    CREATE PROCEDURE GET_PROCEDURES( \
-        OUT table1 TABLE(schema_name NVARCHAR(256), procedure_name NVARCHAR(256) ), \
-        OUT table2 TABLE(sql_security NVARCHAR(256), DEFAULT_SCHEMA_NAME NVARCHAR(256) ),  \
-        OUT table3 TABLE(PROCEDURE_TYPE NVARCHAR(256), OWNER_NAME NVARCHAR(256) ) \
-    ) AS BEGIN \
-        table1 =    SELECT schema_name, procedure_name \
-                    FROM PROCEDURES \
-                    WHERE IS_VALID = 'TRUE'; \
-        \
-        table2 =    SELECT sql_security, DEFAULT_SCHEMA_NAME  \
-                    FROM PROCEDURES \
-                    WHERE IS_VALID = 'TRUE'; \
-        table3 =    SELECT PROCEDURE_TYPE, OWNER_NAME  \
-                    FROM PROCEDURES \
-                    WHERE IS_VALID = 'TRUE'; \
-    END;"])?;
+    connection.multiple_statements(vec![
+        "\
+    CREATE PROCEDURE GET_PROCEDURES( OUT \
+         table1 TABLE(schema_name NVARCHAR(256), \
+         procedure_name NVARCHAR(256) ), OUT table2 \
+         TABLE(sql_security NVARCHAR(256), \
+         DEFAULT_SCHEMA_NAME NVARCHAR(256) ),  OUT \
+         table3 TABLE(PROCEDURE_TYPE NVARCHAR(256), \
+         OWNER_NAME NVARCHAR(256) ) ) AS BEGIN \
+         table1 =    SELECT schema_name, \
+         procedure_name FROM PROCEDURES WHERE \
+         IS_VALID = 'TRUE'; \
+        table2 =    \
+         SELECT sql_security, DEFAULT_SCHEMA_NAME  \
+         FROM PROCEDURES WHERE IS_VALID = 'TRUE'; \
+         table3 =    SELECT PROCEDURE_TYPE, \
+         OWNER_NAME  FROM PROCEDURES WHERE IS_VALID \
+         = 'TRUE'; END;",
+    ])?;
 
     let mut response = connection.statement("call GET_PROCEDURES(?,?,?)")?;
     response.get_success()?;
@@ -100,21 +104,19 @@ fn procedure_with_secret_resultsets(connection: &mut Connection) -> HdbResult<()
     info!("procedure_with_secret_resultsets(): run a sqlscript procedure with implicit resultsets");
 
     test_utils::statement_ignore_err(connection, vec!["drop procedure GET_PROCEDURES_SECRETLY"]);
-    connection.multiple_statements(vec!["\
-        CREATE PROCEDURE GET_PROCEDURES_SECRETLY() \
-            AS BEGIN \
-                SELECT schema_name, procedure_name \
-                FROM PROCEDURES \
-                WHERE IS_VALID = 'TRUE'; \
+    connection.multiple_statements(vec![
+        "\
+        CREATE PROCEDURE \
+         GET_PROCEDURES_SECRETLY() AS BEGIN SELECT \
+         schema_name, procedure_name FROM PROCEDURES \
+         WHERE IS_VALID = 'TRUE'; \
                 \
-                SELECT sql_security, DEFAULT_SCHEMA_NAME  \
-                FROM PROCEDURES \
-                WHERE IS_VALID = 'TRUE'; \
+         SELECT sql_security, DEFAULT_SCHEMA_NAME  \
+         FROM PROCEDURES WHERE IS_VALID = 'TRUE'; \
                 \
-                SELECT PROCEDURE_TYPE, OWNER_NAME  \
-                FROM PROCEDURES \
-                WHERE IS_VALID = 'TRUE'; \
-            END;"])?;
+         SELECT PROCEDURE_TYPE, OWNER_NAME  FROM \
+         PROCEDURES WHERE IS_VALID = 'TRUE'; END;",
+    ])?;
 
     let mut response = connection.statement("call GET_PROCEDURES_SECRETLY()")?;
 
@@ -131,11 +133,14 @@ fn procedure_with_in_parameters(connection: &mut Connection) -> HdbResult<()> {
     info!("procedure_with_in_parameters(): run a sqlscript procedure with input parameters");
 
     test_utils::statement_ignore_err(connection, vec!["drop procedure TEST_INPUT_PARS"]);
-    connection.multiple_statements(vec!["\
-        CREATE  PROCEDURE TEST_INPUT_PARS(IN some_number INT, IN some_string NVARCHAR(20)) \
-          AS BEGIN \
-            SELECT some_number AS \"I\", some_string AS \"A\" FROM DUMMY;\
-          END;"])?;
+    connection.multiple_statements(vec![
+        "\
+        CREATE  PROCEDURE \
+         TEST_INPUT_PARS(IN some_number INT, IN \
+         some_string NVARCHAR(20)) AS BEGIN SELECT \
+         some_number AS \"I\", some_string AS \"A\" \
+         FROM DUMMY;END;",
+    ])?;
 
     let mut prepared_stmt = connection.prepare("call TEST_INPUT_PARS(?,?)")?;
     prepared_stmt.add_batch(&(42, "is between 41 and 43"))?;
@@ -152,20 +157,21 @@ fn procedure_with_in_parameters(connection: &mut Connection) -> HdbResult<()> {
 
 
 fn procedure_with_in_and_out_parameters(connection: &mut Connection) -> HdbResult<()> {
-    info!("procedure_with_in_and_out_parameters(): verify that we can run a sqlscript procedure \
-           with input and output parameters");
+    info!(
+        "procedure_with_in_and_out_parameters(): verify that we can run a sqlscript procedure with \
+         input and output parameters"
+    );
 
     test_utils::statement_ignore_err(connection, vec!["drop procedure TEST_INPUT_AND_OUTPUT_PARS"]);
-    connection.multiple_statements(vec!["\
+    connection.multiple_statements(vec![
+        "\
     CREATE  PROCEDURE \
-        TEST_INPUT_AND_OUTPUT_PARS( \
-            IN some_number INT, \
-            OUT some_string NVARCHAR(40) \
-        ) AS \
-    BEGIN \
-        some_string = 'my first output parameter'; \
-        SELECT some_number AS \"I\" FROM DUMMY; \
-    END;"])?;
+         TEST_INPUT_AND_OUTPUT_PARS( IN some_number \
+         INT, OUT some_string NVARCHAR(40) ) AS \
+         BEGIN some_string = 'my first output \
+         parameter'; SELECT some_number AS \"I\" \
+         FROM DUMMY; END;",
+    ])?;
 
     let mut prepared_stmt = connection.prepare("call TEST_INPUT_AND_OUTPUT_PARS(?,?)")?;
     prepared_stmt.add_batch(&42)?;
@@ -188,12 +194,13 @@ fn procedure_with_in_nclob_non_consuming(connection: &mut Connection) -> HdbResu
     info!("procedure_with_in_nclob_non_consuming(): convert input parameter to nclob");
 
     test_utils::statement_ignore_err(connection, vec!["drop procedure TEST_CLOB_INPUT_PARS"]);
-    connection.multiple_statements(vec!["\
+    connection.multiple_statements(vec![
+        "\
     CREATE PROCEDURE \
-        TEST_CLOB_INPUT_PARS(IN some_string NCLOB) \
-    AS BEGIN \
-        SELECT some_string AS \"A\" FROM DUMMY; \
-    END;"])?;
+         TEST_CLOB_INPUT_PARS(IN some_string NCLOB) \
+         AS BEGIN SELECT some_string AS \"A\" FROM \
+         DUMMY; END;",
+    ])?;
 
     let mut prepared_stmt = connection.prepare("call TEST_CLOB_INPUT_PARS(?)")?;
     let my_parameter = "nclob string".to_string();

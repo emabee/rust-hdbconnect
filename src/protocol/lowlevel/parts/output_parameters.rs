@@ -5,7 +5,7 @@ use std::fmt;
 /// Describes output parameters.
 ///
 /// FIXME: provide some accessors to the contained parameter descriptors and values.
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct OutputParameters {
     metadata: Vec<ParameterDescriptor>,
     ///

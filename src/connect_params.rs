@@ -7,8 +7,8 @@ use std::mem;
 /// An immutable struct with all information necessary to open a new connection
 /// to a HANA database.
 ///
-/// An instance of ConnectParams can be created either programmatically with the builder,
-/// or implicitly using the trait IntoConnectParams and its implementations.
+/// An instance of `ConnectParams` can be created either programmatically with the builder,
+/// or implicitly using the trait `IntoConnectParams` and its implementations.
 ///
 /// # Example
 ///
@@ -86,7 +86,13 @@ impl IntoConnectParams for String {
 
 impl IntoConnectParams for Url {
     fn into_connect_params(self) -> HdbResult<ConnectParams> {
-        let Url { host, port, user, path: url::Path { query: options, .. }, .. } = self;
+        let Url {
+            host,
+            port,
+            user,
+            path: url::Path { query: options, .. },
+            ..
+        } = self;
 
         let mut builder = ConnectParams::builder();
 
@@ -126,7 +132,7 @@ impl IntoConnectParams for Url {
 ///     .build()
 ///     .unwrap();
 /// ```
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Default)]
 pub struct ConnectParamsBuilder {
     hostname: Option<String>,
     port: Option<u16>,
@@ -148,25 +154,25 @@ impl ConnectParamsBuilder {
     }
 
     /// Sets the hostname.
-    pub fn hostname<'a, H: AsRef<str>>(&'a mut self, hostname: H) -> &'a mut ConnectParamsBuilder {
+    pub fn hostname<H: AsRef<str>>(&mut self, hostname: H) -> &mut ConnectParamsBuilder {
         self.hostname = Some(hostname.as_ref().to_owned());
         self
     }
 
     /// Sets the port.
-    pub fn port<'a>(&'a mut self, port: u16) -> &'a mut ConnectParamsBuilder {
+    pub fn port(&mut self, port: u16) -> &mut ConnectParamsBuilder {
         self.port = Some(port);
         self
     }
 
     /// Sets the database user.
-    pub fn dbuser<'a, D: AsRef<str>>(&'a mut self, dbuser: D) -> &'a mut ConnectParamsBuilder {
+    pub fn dbuser<D: AsRef<str>>(&mut self, dbuser: D) -> &mut ConnectParamsBuilder {
         self.dbuser = Some(dbuser.as_ref().to_owned());
         self
     }
 
     /// Sets the password.
-    pub fn password<'a, P: AsRef<str>>(&'a mut self, pw: P) -> &'a mut ConnectParamsBuilder {
+    pub fn password<P: AsRef<str>>(&mut self, pw: P) -> &mut ConnectParamsBuilder {
         self.password = Some(pw.as_ref().to_owned());
         self
     }
@@ -179,7 +185,7 @@ impl ConnectParamsBuilder {
 
 
     /// Constructs a `ConnectParams` from the builder.
-    pub fn build<'a>(&'a mut self) -> HdbResult<ConnectParams> {
+    pub fn build(&mut self) -> HdbResult<ConnectParams> {
         Ok(ConnectParams {
             hostname: match self.hostname {
                 Some(ref s) => s.clone(),
@@ -231,7 +237,13 @@ impl IntoConnectParamsBuilder for String {
 
 impl IntoConnectParamsBuilder for Url {
     fn into_connect_params_builder(self) -> HdbResult<ConnectParamsBuilder> {
-        let Url { host, port, user, path: url::Path { query: options, .. }, .. } = self;
+        let Url {
+            host,
+            port,
+            user,
+            path: url::Path { query: options, .. },
+            ..
+        } = self;
 
         let mut builder = ConnectParams::builder();
 
@@ -278,8 +290,7 @@ mod tests {
     #[test]
     fn test_reuse_builder() {
         let mut cp_builder: ConnectParamsBuilder = ConnectParams::builder();
-        cp_builder.hostname("abcd123")
-                  .port(2222);
+        cp_builder.hostname("abcd123").port(2222);
         let params1: ConnectParams = cp_builder.dbuser("MEIER")
                                                .password("schlau")
                                                .build()
@@ -299,7 +310,9 @@ mod tests {
 
     #[test]
     fn test_params_from_url() {
-        let params = "hdbsql://meier:schLau@abcd123:2222".into_connect_params().unwrap();
+        let params = "hdbsql://meier:schLau@abcd123:2222"
+            .into_connect_params()
+            .unwrap();
 
         assert_eq!("meier", params.dbuser());
         assert_eq!("schLau", params.password());

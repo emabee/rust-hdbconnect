@@ -5,7 +5,8 @@ use protocol::lowlevel::message::Request;
 use protocol::lowlevel::request_type::RequestType;
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::partkind::PartKind;
-use protocol::lowlevel::parts::parameter_metadata::{ParameterDescriptor, ParameterMetadata, ParMode};
+use protocol::lowlevel::parts::parameter_metadata::{ParameterDescriptor, ParameterMetadata,
+                                                    ParMode};
 use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
 use protocol::lowlevel::parts::parameters::{ParameterRow, Parameters};
 use rs_serde::ser::SerializationError;
@@ -38,7 +39,7 @@ impl PreparedStatement {
             (&Some(ref metadata), &mut Some(ref mut vec)) => {
 
                 let mut input_metadata = Vec::<ParameterDescriptor>::new();
-                for ref pd in &metadata.descriptors {
+                for pd in &metadata.descriptors {
                     match pd.mode {
                         ParMode::IN | ParMode::INOUT => input_metadata.push((*pd).clone()),
                         ParMode::OUT => {}
@@ -60,14 +61,14 @@ impl PreparedStatement {
     pub fn execute_batch(&mut self) -> HdbResult<HdbResponse> {
         let mut request =
             Request::new(&(self.conn_ref), RequestType::Execute, self.auto_commit, 8_u8)?;
-        request.push(Part::new(PartKind::StatementId,
-                               Argument::StatementId(self.statement_id.clone())));
-        if let &mut Some(ref mut pars1) = &mut self.o_batch {
+        request.push(Part::new(PartKind::StatementId, Argument::StatementId(self.statement_id)));
+        if let Some(ref mut pars1) = self.o_batch {
             let mut pars2 = Vec::<ParameterRow>::new();
             mem::swap(pars1, &mut pars2);
             debug!("pars: {:?}", pars2);
-            request.push(Part::new(PartKind::Parameters,
-                                   Argument::Parameters(Parameters::new(pars2))));
+            request.push(
+                Part::new(PartKind::Parameters, Argument::Parameters(Parameters::new(pars2))),
+            );
         }
         let rs_md = match self.o_rs_md {
             Some(ref rs_md) => Some(rs_md),
@@ -77,11 +78,13 @@ impl PreparedStatement {
             Some(ref par_md) => Some(par_md),
             None => None,
         };
-        request.send_and_get_response(rs_md,
-                                      par_md,
-                                      &(self.conn_ref),
-                                      None,
-                                      &mut self.acc_server_proc_time)
+        request.send_and_get_response(
+            rs_md,
+            par_md,
+            &(self.conn_ref),
+            None,
+            &mut self.acc_server_proc_time,
+        )
     }
 
     /// Sets the prepared statement's auto-commit behavior for future calls.
@@ -97,8 +100,9 @@ impl Drop for PreparedStatement {
         match Request::new(&(self.conn_ref), RequestType::DropStatementId, false, 0) {
             Err(_) => {}
             Ok(mut request) => {
-                request.push(Part::new(PartKind::StatementId,
-                                       Argument::StatementId(self.statement_id.clone())));
+                request.push(
+                    Part::new(PartKind::StatementId, Argument::StatementId(self.statement_id)),
+                );
                 if let Ok(mut reply) = request.send_and_receive(&(self.conn_ref), None) {
                     reply.parts.pop_arg_if_kind(PartKind::StatementContext);
                 }
@@ -143,7 +147,7 @@ pub mod factory {
         let mut o_par_md: Option<ParameterMetadata> = None;
         let mut o_rs_md: Option<ResultSetMetadata> = None;
 
-        while reply.parts.0.len() > 0 {
+        while !reply.parts.0.is_empty() {
             match reply.parts.pop_arg() {
                 Some(Argument::ParameterMetadata(par_md)) => {
                     o_par_md = Some(par_md);
@@ -184,17 +188,19 @@ pub mod factory {
             None => return Err(HdbError::EvaluationError("PreparedStatement needs a StatementId")),
         };
 
-        debug!("PreparedStatement created with auto_commit = {}, parameter_metadata = {:?}",
-               auto_commit,
-               o_par_md);
+        debug!(
+            "PreparedStatement created with auto_commit = {}, parameter_metadata = {:?}",
+            auto_commit,
+            o_par_md
+        );
 
         Ok(PreparedStatement {
             conn_ref: conn_ref,
             statement_id: statement_id,
             auto_commit: auto_commit,
-            o_batch: match &o_par_md {
-                &Some(_) => Some(Vec::<ParameterRow>::new()),
-                &None => None,
+            o_batch: match o_par_md {
+                Some(_) => Some(Vec::<ParameterRow>::new()),
+                None => None,
             },
             o_par_md: o_par_md,
             o_rs_md: o_rs_md,

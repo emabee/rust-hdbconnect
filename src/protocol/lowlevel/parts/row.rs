@@ -8,7 +8,7 @@ use {HdbError, HdbResult};
 use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
 use protocol::lowlevel::parts::typed_value::TypedValue;
 
-/// A generic implementation of a single line of a ResultSet.
+/// A generic implementation of a single line of a `ResultSet`.
 #[derive(Clone, Debug)]
 pub struct Row {
     metadata: Arc<ResultSetMetadata>,
@@ -27,15 +27,15 @@ impl Row {
     /// Returns a clone of the ith value.
     pub fn cloned_value(&self, i: usize) -> HdbResult<TypedValue> {
         trace!("Row::cloned_value()");
-        self.values
-            .get(i)
-            .map(|tv| tv.clone())
-            .ok_or(HdbError::UsageError("element with index {} does not exist".to_owned()))
+        self.values.get(i).cloned().ok_or_else(|| {
+            HdbError::UsageError("element with index {} does not exist".to_owned())
+        })
     }
 
     /// Converts the field into a plain rust value.
     pub fn pop_into_typed<'de, T>(&mut self) -> Result<T, <Row as DeserializableRow>::E>
-        where T: serde::de::Deserialize<'de>
+    where
+        T: serde::de::Deserialize<'de>,
     {
         trace!("Row::pop_into_typed()");
         Ok(DbValue::into_typed(DeserializableRow::pop(self).unwrap())?)
@@ -43,7 +43,8 @@ impl Row {
 
     /// Converts the field into a plain rust value.
     pub fn field_into_typed<'de, T>(&self, i: usize) -> HdbResult<T>
-        where T: serde::de::Deserialize<'de>
+    where
+        T: serde::de::Deserialize<'de>,
     {
         trace!("Row::field_into_typed()");
         Ok(DbValue::into_typed(self.cloned_value(i)?)?)
@@ -51,7 +52,8 @@ impl Row {
 
     /// Converts the Row into a rust value.
     pub fn into_typed<'de, T>(self) -> HdbResult<T>
-        where T: serde::de::Deserialize<'de>
+    where
+        T: serde::de::Deserialize<'de>,
     {
         trace!("Row::into_typed()");
         Ok(DeserializableRow::into_typed(self)?)
@@ -71,8 +73,7 @@ impl DeserializableRow for Row {
     /// Removes and returns the last value.
     fn pop(&mut self) -> Option<TypedValue> {
         trace!("<Row as DeserializableRow>::pop()");
-        let result = self.values.pop();
-        result
+        self.values.pop()
     }
 
     /// Returns the name of the column at the specified index

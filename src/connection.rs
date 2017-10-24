@@ -17,6 +17,7 @@ use protocol::lowlevel::parts::resultset::ResultSet;
 use chrono::Local;
 use std::net::TcpStream;
 use std::fmt::Write;
+use std::sync::Arc;
 
 const HOLD_OVER_COMMIT: u8 = 8;
 
@@ -119,10 +120,7 @@ impl Connection {
     /// one of the methods query(), dml(), exec(), which have the
     /// adequate simple result type you usually want.
     pub fn statement(&mut self, stmt: &str) -> HdbResult<HdbResponse> {
-        execute(self.core.clone(),
-                String::from(stmt),
-                self.auto_commit,
-                &mut self.acc_server_proc_time)
+        execute(&self.core, String::from(stmt), self.auto_commit, &mut self.acc_server_proc_time)
     }
 
     /// Executes a statement and expects a single ResultSet.
@@ -133,7 +131,7 @@ impl Connection {
     pub fn dml(&mut self, stmt: &str) -> HdbResult<usize> {
         let vec = &(self.statement(stmt)?.as_affected_rows()?);
         match vec.len() {
-            1 => Ok(vec.get(0).unwrap().clone()),
+            1 => Ok(vec[0]),
             _ => Err(HdbError::UsageError("number of affected-rows-counts <> 1".to_owned())),
         }
     }
@@ -145,9 +143,11 @@ impl Connection {
     /// Prepares a statement and returns a handle to it.
     /// Note that the handle keeps using the same connection.
     pub fn prepare(&self, stmt: &str) -> HdbResult<PreparedStatement> {
-        let stmt = PreparedStatementFactory::prepare(self.core.clone(),
-                                                     String::from(stmt),
-                                                     self.auto_commit)?;
+        let stmt = PreparedStatementFactory::prepare(
+            Arc::clone(&self.core),
+            String::from(stmt),
+            self.auto_commit,
+        )?;
         Ok(stmt)
     }
 
@@ -178,10 +178,7 @@ impl Connection {
     /// Utility method to fire a couple of statements, ignoring errors and return values
     pub fn multiple_statements_ignore_err(&mut self, stmts: Vec<&str>) {
         for s in stmts {
-            match self.statement(s) {
-                Ok(_) => {}
-                Err(_) => {}
-            }
+            let _ = self.statement(s);
         }
     }
 
@@ -195,7 +192,8 @@ impl Connection {
     }
 }
 
-fn execute(conn_ref: ConnCoreRef, stmt: String, auto_commit: bool, acc_server_proc_time: &mut i32)
+fn execute(conn_ref: &ConnCoreRef, stmt: String, auto_commit: bool,
+           acc_server_proc_time: &mut i32)
            -> HdbResult<HdbResponse> {
     debug!("connection::execute({})", stmt);
     let command_options = 0b_1000;
@@ -204,9 +202,9 @@ fn execute(conn_ref: ConnCoreRef, stmt: String, auto_commit: bool, acc_server_pr
         (*guard).get_fetch_size()
     };
     let mut request =
-        Request::new(&(conn_ref), RequestType::ExecuteDirect, auto_commit, command_options)?;
+        Request::new(conn_ref, RequestType::ExecuteDirect, auto_commit, command_options)?;
     request.push(Part::new(PartKind::FetchSize, Argument::FetchSize(fetch_size)));
     request.push(Part::new(PartKind::Command, Argument::Command(stmt)));
 
-    request.send_and_get_response(None, None, &(conn_ref), None, acc_server_proc_time)
+    request.send_and_get_response(None, None, conn_ref, None, acc_server_proc_time)
 }

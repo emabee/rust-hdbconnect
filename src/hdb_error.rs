@@ -10,7 +10,7 @@ use std::io;
 use std::result;
 use std::sync;
 
-/// An abbreviation of <code>Result&lt;T, HdbError&gt;</code>.
+/// An abbreviation of <code>Result&lt;T, `HdbError`&gt;</code>.
 ///
 /// Just for convenience.
 pub type HdbResult<T> = result::Result<T, HdbError>;
@@ -56,7 +56,7 @@ impl error::Error for HdbError {
             HdbError::IoError(ref error) => error.description(),
             HdbError::FmtError(ref error) => error.description(),
             HdbError::ProtocolError(ref error) => error.description(),
-            HdbError::EvaluationError(ref s) => s,
+            HdbError::EvaluationError(s) => s,
             HdbError::SerializationError(ref error) => error.description(),
             HdbError::UsageError(ref s) => s,
             HdbError::PoisonError(ref s) => s,
@@ -70,10 +70,10 @@ impl error::Error for HdbError {
             HdbError::IoError(ref error) => Some(error),
             HdbError::FmtError(ref error) => Some(error),
             HdbError::ProtocolError(ref error) => Some(error),
-            HdbError::EvaluationError(_) => None,
             HdbError::SerializationError(ref error) => Some(error),
-            HdbError::UsageError(_) => None,
-            HdbError::PoisonError(_) => None,
+            HdbError::UsageError(_) |
+            HdbError::PoisonError(_) |
+            HdbError::EvaluationError(_) => None,
         }
     }
 }
@@ -86,7 +86,7 @@ impl fmt::Display for HdbError {
             HdbError::IoError(ref error) => write!(fmt, "{:?}", error),
             HdbError::FmtError(ref error) => write!(fmt, "{:?}", error),
             HdbError::ProtocolError(ref error) => write!(fmt, "{:?}", error),
-            HdbError::EvaluationError(ref s) => write!(fmt, "{:?}", s),
+            HdbError::EvaluationError(s) => write!(fmt, "{:?}", s),
             HdbError::SerializationError(ref error) => write!(fmt, "{:?}", error),
             HdbError::UsageError(ref s) => write!(fmt, "{:?}", s),
             HdbError::PoisonError(ref s) => write!(fmt, "{:?}", s),

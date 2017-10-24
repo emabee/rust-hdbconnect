@@ -3,7 +3,7 @@ use byteorder::{LittleEndian, ReadBytesExt};
 use std::io;
 use std::u32;
 
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct ParameterMetadata {
     pub descriptors: Vec<ParameterDescriptor>,
 }
@@ -14,7 +14,7 @@ impl ParameterMetadata {
 }
 
 /// Metadata for a parameter.
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct ParameterDescriptor {
     /// bit 0: mandatory; 1: optional, 2: has_default
     pub option: ParameterOption,
@@ -62,20 +62,22 @@ impl ParameterMetadata {
             rdr.read_u32::<LittleEndian>()?;
             consumed += 16;
             assert!(arg_size >= consumed);
-            pmd.descriptors.push(ParameterDescriptor::new(option,
-                                                          value_type,
-                                                          mode,
-                                                          name_offset,
-                                                          length,
-                                                          fraction));
+            pmd.descriptors.push(ParameterDescriptor::new(
+                option,
+                value_type,
+                mode,
+                name_offset,
+                length,
+                fraction,
+            ));
         }
         // read the parameter names
-        for ref mut descriptor in &mut pmd.descriptors {
+        for descriptor in &mut pmd.descriptors {
             if descriptor.name_offset != u32::MAX {
                 let length = rdr.read_u8()?;
                 let name = util::cesu8_to_string(&util::parse_bytes(length as usize, rdr)?)?;
                 descriptor.name.push_str(&name);
-                consumed += 1 + length as u32;
+                consumed += 1 + u32::from(length);
                 assert!(arg_size >= consumed);
             }
         }
@@ -85,7 +87,7 @@ impl ParameterMetadata {
 }
 
 /// Describes whether a parameter is Nullable or not or if it has even d default value.
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub enum ParameterOption {
     /// Parameter can be Null.
     Nullable,
@@ -109,15 +111,16 @@ impl ParameterOption {
             2 => Ok(ParameterOption::Nullable),
             4 => Ok(ParameterOption::HasDefault),
             _ => {
-                Err(prot_err(&format!("ParameterOption::from_u8() not implemented for value {}",
-                                      val)))
+                Err(
+                    prot_err(&format!("ParameterOption::from_u8() not implemented for value {}", val)),
+                )
             }
         }
     }
 }
 
 /// Describes whether a parameter is used for input, output, or both.
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub enum ParMode {
     /// input parameter
     IN,

@@ -35,7 +35,7 @@ use std::sync::{Arc, Mutex};
 
 /// Contains the result of a database read command, including the describing metadata.
 ///
-/// In most cases, you will want to use the powerful method [into_typed](#method.into_typed)
+/// In most cases, you will want to use the powerful method [`into_typed`](#method.into_typed)
 /// to convert the data from the generic format into your application specific format.
 #[derive(Debug)]
 pub struct ResultSet {
@@ -57,7 +57,7 @@ impl ResultSetCore {
                   -> Arc<Mutex<ResultSetCore>> {
         Arc::new(Mutex::new(ResultSetCore {
             o_conn_ref: match conn_ref {
-                Some(conn_ref) => Some(conn_ref.clone()),
+                Some(conn_ref) => Some(Arc::clone(conn_ref)),
                 None => None,
             },
             attributes: attrs,
@@ -120,6 +120,11 @@ impl ResultSet {
         Ok(self.rows.len())
     }
 
+    /// is `ResultSet` empty?
+    pub fn is_empty(&mut self) -> HdbResult<bool> {
+        Ok(self.len()? == 0)
+    }
+
     /// Removes the last row and returns it, or None if it is empty.
     pub fn pop_row(&mut self) -> Option<Row> {
         self.rows.pop()
@@ -144,7 +149,7 @@ impl ResultSet {
             let guard = self.core_ref.lock()?;
             let rs_core = &*guard;
             let conn_ref = match rs_core.o_conn_ref {
-                Some(ref cr) => cr.clone(),
+                Some(ref cr) => Arc::clone(cr),
                 None => {
                     return Err(prot_err("Fetch no more possible"));
                 }
@@ -163,15 +168,17 @@ impl ResultSet {
         request.push(Part::new(PartKind::ResultSetId, Argument::ResultSetId(resultset_id)));
         request.push(Part::new(PartKind::FetchSize, Argument::FetchSize(fetch_size)));
 
-        let mut reply = request.send_and_receive_detailed(None,
-                                                          None,
-                                                          &mut Some(self),
-                                                          &conn_ref,
-                                                          Some(ReplyType::Fetch))?;
+        let mut reply = request.send_and_receive_detailed(
+            None,
+            None,
+            &mut Some(self),
+            &conn_ref,
+            Some(ReplyType::Fetch),
+        )?;
         reply.parts.pop_arg_if_kind(PartKind::ResultSet);
 
         let mut guard = self.core_ref.lock()?;
-        let mut rs_core = &mut *guard;
+        let rs_core = &mut *guard;
         if rs_core.attributes.is_last_packet() {
             rs_core.o_conn_ref = None;
         }
@@ -182,11 +189,11 @@ impl ResultSet {
         let guard = self.core_ref.lock()?;
         let rs_core = &*guard;
         if (!rs_core.attributes.is_last_packet()) &&
-           (rs_core.attributes.row_not_found() || rs_core.attributes.is_resultset_closed()) {
-            Err(HdbError::ProtocolError(PrtError::ProtocolError(String::from("ResultSet \
-                                                                              incomplete, but \
-                                                                              already closed \
-                                                                              on server"))))
+            (rs_core.attributes.row_not_found() || rs_core.attributes.is_resultset_closed())
+        {
+            Err(HdbError::ProtocolError(PrtError::ProtocolError(
+                String::from("ResultSet incomplete, but already closed on server"),
+            )))
         } else {
             Ok(rs_core.attributes.is_last_packet())
         }
@@ -256,7 +263,8 @@ impl ResultSet {
     // }
     // Expose the capability from serde_db
     pub fn into_typed<'de, T>(mut self) -> HdbResult<T>
-        where T: serde::de::Deserialize<'de>
+    where
+        T: serde::de::Deserialize<'de>,
     {
         trace!("Resultset::into_typed()");
         self.fetch_all()?;
@@ -290,7 +298,7 @@ pub struct RowIterator {
 }
 impl RowIterator {
     fn next_int(&mut self) -> HdbResult<Option<Row>> {
-        if self.rs.rows.len() == 0 {
+        if self.rs.rows.is_empty() {
             if self.rs.is_complete()? {
                 return Ok(None);
             } else {
@@ -351,7 +359,7 @@ pub mod factory {
     }
 
 
-    /// Factory for ResultSets, only useful for tests.
+    /// Factory for `ResultSets`, only useful for tests.
     pub fn new_for_tests(rsm: ResultSetMetadata, rows: Vec<Row>) -> ResultSet {
         ResultSet {
             core_ref: ResultSetCore::new_rs_ref(None, PartAttributes::new(0b_0000_0001), 0_u64),
@@ -389,8 +397,9 @@ pub mod factory {
                     Some(Argument::StatementContext(stmt_ctx)) => Some(stmt_ctx),
                     None => None,
                     _ => {
-                        return Err(prot_err("Inconsistent StatementContext part found for \
-                                             ResultSet"))
+                        return Err(
+                            prot_err("Inconsistent StatementContext part found for ResultSet"),
+                        )
                     }
                 };
 
@@ -425,14 +434,15 @@ pub mod factory {
                     }
                     None => {}
                     _ => {
-                        return Err(prot_err("Inconsistent StatementContext part found for \
-                                             ResultSet"))
+                        return Err(
+                            prot_err("Inconsistent StatementContext part found for ResultSet"),
+                        )
                     }
                 };
 
                 {
                     let mut guard = fetching_resultset.core_ref.lock()?;
-                    let mut rs_core = &mut *guard;
+                    let rs_core = &mut *guard;
                     rs_core.attributes = attributes;
                 }
                 parse_rows(fetching_resultset, no_of_rows, rdr)?;
@@ -460,18 +470,22 @@ pub mod factory {
                         let field_md = resultset.metadata.get_fieldmetadata(c as usize).unwrap();
                         let typecode = field_md.value_type;
                         let nullable = field_md.column_option.is_nullable();
-                        trace!("Parsing row {}, column {}, typecode {}, nullable {}",
-                               r,
-                               c,
-                               typecode,
-                               nullable);
+                        trace!(
+                            "Parsing row {}, column {}, typecode {}, nullable {}",
+                            r,
+                            c,
+                            typecode,
+                            nullable
+                        );
                         let value =
                             TypedValueFactory::parse_from_reply(typecode, nullable, conn_ref, rdr)?;
                         trace!("Found value {:?}", value);
                         values.push(value);
                     }
-                    resultset.rows
-                             .push(Row::new(resultset.metadata.clone(), values));
+                    resultset.rows.push(Row::new(
+                        Arc::clone(&resultset.metadata),
+                        values,
+                    ));
                 }
             }
         }

@@ -28,8 +28,9 @@ impl StatementContext {
                 Ok(())
             }
             None => {
-                Err(prot_err("StatementContext::serialize(): statement_sequence_info is not \
-                              filled"))
+                Err(
+                    prot_err("StatementContext::serialize(): statement_sequence_info is not filled"),
+                )
             }
         }
     }
@@ -50,13 +51,13 @@ impl StatementContext {
 
     pub fn count(&self) -> usize {
         let mut count = 0;
-        if let Some(_) = self.statement_sequence_info {
+        if self.statement_sequence_info.is_some() {
             count += 1;
         }
-        if let Some(_) = self.server_processing_time {
+        if self.server_processing_time.is_some() {
             count += 1;
         }
-        if let Some(_) = self.schema_name {
+        if self.schema_name.is_some() {
             count += 1;
         }
         count

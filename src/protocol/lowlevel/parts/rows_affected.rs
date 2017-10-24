@@ -29,9 +29,10 @@ impl fmt::Display for RowsAffected {
         match *self {
             RowsAffected::Count(count) => writeln!(fmt, "Number of affected rows: {}, ", count)?,
             RowsAffected::SuccessNoInfo => {
-                writeln!(fmt,
-                         "Command successfully executed but number of affected rows cannot be \
-                          determined")?
+                writeln!(
+                    fmt,
+                    "Command successfully executed but number of affected rows cannot be determined"
+                )?
             }
             RowsAffected::ExecutionFailed => {
                 writeln!(fmt, "Execution of statement or processing of row has failed")?
