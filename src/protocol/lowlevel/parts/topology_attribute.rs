@@ -32,14 +32,14 @@ impl TopologyAttr {
 
 #[derive(Clone, Debug)]
 pub enum TopologyAttrId {
-    HostName, // 1 // host name
-    HostPortNumber, // 2 // port number
-    TenantName, // 3 // tenant name
-    LoadFactor, // 4 // load factor
-    VolumeID, // 5 // volume id
-    IsMaster, // 6 // master node in the system
+    HostName,         // 1 // host name
+    HostPortNumber,   // 2 // port number
+    TenantName,       // 3 // tenant name
+    LoadFactor,       // 4 // load factor
+    VolumeID,         // 5 // volume id
+    IsMaster,         // 6 // master node in the system
     IsCurrentSession, // 7 // marks this location as valid for current session connected
-    ServiceType, // 8 // this server is normal index server not statserver/xsengine
+    ServiceType,      // 8 // this server is normal index server not statserver/xsengine
     // NetworkDomain_Deprecated,       // 9 // deprecated
     IsStandby, /* 10 // standby server
                 *  AllIpAdresses_Deprecated,       // 11 // deprecated
@@ -71,11 +71,9 @@ impl TopologyAttrId {
             7 => Ok(TopologyAttrId::IsCurrentSession),
             8 => Ok(TopologyAttrId::ServiceType),
             10 => Ok(TopologyAttrId::IsStandby),
-            _ => {
-                Err(PrtError::ProtocolError(
-                    format!("Invalid value for TopologyAttrId detected: {}", val),
-                ))
-            }
+            _ => Err(PrtError::ProtocolError(
+                format!("Invalid value for TopologyAttrId detected: {}", val),
+            )),
         }
     }
 }

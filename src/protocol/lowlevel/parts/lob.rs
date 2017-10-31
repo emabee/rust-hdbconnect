@@ -87,9 +87,15 @@ enum ClobEnum {
 pub fn new_clob_from_db(conn_ref: &ConnCoreRef, is_data_complete: bool, length_c: u64,
                         length_b: u64, char_count: u64, locator_id: u64, data: String)
                         -> CLOB {
-    CLOB(ClobEnum::FromDB(RefCell::new(
-        ClobHandle::new(conn_ref, is_data_complete, length_c, length_b, char_count, locator_id, data),
-    )))
+    CLOB(ClobEnum::FromDB(RefCell::new(ClobHandle::new(
+        conn_ref,
+        is_data_complete,
+        length_c,
+        length_b,
+        char_count,
+        locator_id,
+        data,
+    ))))
 }
 
 /// Factory method for CLOBs that are to be sent to the database.

@@ -61,14 +61,10 @@ fn evaluate_resultset(connection: &mut Connection) -> HdbResult<()> {
 
     #[derive(Deserialize)]
     struct TestData {
-        #[serde(rename = "F1_S")]
-        f1: String,
-        #[serde(rename = "F2_I")]
-        f2: Option<i32>,
-        #[serde(rename = "F3_I")]
-        f3: i32,
-        #[serde(rename = "F4_DT")]
-        f4: NaiveDateTime,
+        #[serde(rename = "F1_S")] f1: String,
+        #[serde(rename = "F2_I")] f2: Option<i32>,
+        #[serde(rename = "F3_I")] f3: i32,
+        #[serde(rename = "F4_DT")] f4: NaiveDateTime,
     };
 
 
@@ -90,7 +86,7 @@ fn evaluate_resultset(connection: &mut Connection) -> HdbResult<()> {
         debug!("Got struct with {}, {:?}, {}, {}", td.f1, td.f2, td.f3, td.f4);
     }
 
-    // info!("Loop over rows (streaming support), convert row into tuple (avoid defining a struct)");
+    // info!("Loop over rows, convert row into tuple (avoid defining a struct)");
     // for row in connection.query("select * from TEST_RESULTSET")? {
     //     let t: (String, Option<i32>, i32, NaiveDateTime) = row?.into_typed()?;
     //     debug!("Got tuple with {}, {:?}, {}, {}", t.0, t.1, t.2, t.3);
@@ -103,7 +99,11 @@ fn evaluate_resultset(connection: &mut Connection) -> HdbResult<()> {
     // }
     //
     // // trace!("Iterate over rows, filter, fold");
-    // // connection.query("select * from TEST_RESULTSET")?.map(|r| r?).filter(|r|{let s:String = r.field_into(0)?;}).fold(...)
+    // // connection
+    // //  .query("select * from TEST_RESULTSET")?
+    // //  .map(|r| r?)
+    // //  .filter(|r|{let s:String = r.field_into(0)?;})
+    // //  .fold(...)
     //
     // info!("Convert a whole resultset into a Vec of structs");
     // let vtd: Vec<TestData> = connection.query("select * from TEST_RESULTSET")?

@@ -114,12 +114,9 @@ fn decode_inner(c: &str, full_url: bool) -> DecodeResult<String> {
                     '%' => {
                         let bytes = match (iter.next(), iter.next()) {
                             (Some(one), Some(two)) => [one, two],
-                            _ => {
-                                return Err(
-                                    "Malformed input: found '%' without two trailing bytes"
-                                        .to_owned(),
-                                )
-                            }
+                            _ => return Err(
+                                "Malformed input: found '%' without two trailing bytes".to_owned(),
+                            ),
                         };
 
                         let bytes_from_hex = match Vec::<u8>::from_hex(&bytes) {
@@ -136,8 +133,25 @@ fn decode_inner(c: &str, full_url: bool) -> DecodeResult<String> {
                         // Only decode some characters if full_url:
                         match bytes_from_hex[0] as char {
                             // gen-delims:
-                            ':' | '/' | '?' | '#' | '[' | ']' | '@' | '!' | '$' | '&' | '"' |
-                            '(' | ')' | '*' | '+' | ',' | ';' | '=' if full_url => {
+                            ':' |
+                            '/' |
+                            '?' |
+                            '#' |
+                            '[' |
+                            ']' |
+                            '@' |
+                            '!' |
+                            '$' |
+                            '&' |
+                            '"' |
+                            '(' |
+                            ')' |
+                            '*' |
+                            '+' |
+                            ',' |
+                            ';' |
+                            '=' if full_url =>
+                            {
                                 out.push('%');
                                 out.push(bytes[0] as char);
                                 out.push(bytes[1] as char);
@@ -187,13 +201,11 @@ pub fn get_scheme(rawurl: &str) -> DecodeResult<(&str, &str)> {
 
                 Err("url: Scheme must begin with a letter.".to_owned())
             }
-            ':' => {
-                if i == 0 {
-                    Err("url: Scheme cannot be empty.".to_owned())
-                } else {
-                    Ok((&rawurl[0..i], &rawurl[i + 1..rawurl.len()]))
-                }
-            }
+            ':' => if i == 0 {
+                Err("url: Scheme cannot be empty.".to_owned())
+            } else {
+                Ok((&rawurl[0..i], &rawurl[i + 1..rawurl.len()]))
+            },
             _ => Err("url: Invalid character in scheme.".to_owned()),
         };
 
@@ -206,18 +218,18 @@ pub fn get_scheme(rawurl: &str) -> DecodeResult<(&str, &str)> {
 // returns userinfo, host, port, and unparsed part, or an error
 fn get_authority(rawurl: &str) -> DecodeResult<(Option<UserInfo>, &str, Option<u16>, &str)> {
     enum State {
-        Start, // starting state
+        Start,        // starting state
         PassHostPort, // could be in user or port
-        Ip6Port, // either in ipv6 host or port
-        Ip6Host, // are in an ipv6 host
-        InHost, // are in a host - may be ipv6, but don't know yet
-        InPort, // are in port
+        Ip6Port,      // either in ipv6 host or port
+        Ip6Host,      // are in an ipv6 host
+        InHost,       // are in a host - may be ipv6, but don't know yet
+        InPort,       // are in port
     }
 
     #[derive(Clone, PartialEq)]
     enum Input {
-        Digit, // all digits
-        Hex, // digits and letters a-f
+        Digit,      // all digits
+        Hex,        // digits and letters a-f
         Unreserved, // all other legal characters
     }
 
@@ -243,13 +255,26 @@ fn get_authority(rawurl: &str) -> DecodeResult<(Option<UserInfo>, &str, Option<u
         // deal with input class first
         match c {
             '0'...'9' => (),
-            'A'...'F' | 'a'...'f' => {
-                if input == Input::Digit {
-                    input = Input::Hex;
-                }
-            }
-            'G'...'Z' | 'g'...'z' | '-' | '.' | '_' | '~' | '%' | '&' | '\'' | '(' | ')' |
-            '+' | '!' | '*' | ',' | ';' | '=' => input = Input::Unreserved,
+            'A'...'F' | 'a'...'f' => if input == Input::Digit {
+                input = Input::Hex;
+            },
+            'G'...'Z' |
+            'g'...'z' |
+            '-' |
+            '.' |
+            '_' |
+            '~' |
+            '%' |
+            '&' |
+            '\'' |
+            '(' |
+            ')' |
+            '+' |
+            '!' |
+            '*' |
+            ',' |
+            ';' |
+            '=' => input = Input::Unreserved,
             ':' | '@' | '?' | '#' | '/' => {
                 // separators, don't change anything
             }
@@ -289,13 +314,11 @@ fn get_authority(rawurl: &str) -> DecodeResult<(Option<UserInfo>, &str, Option<u
                         }
                         st = State::Ip6Host;
                     }
-                    State::Ip6Host => {
-                        if colon_count > 7 {
-                            host = &rawurl[begin..i];
-                            pos = i;
-                            st = State::InPort;
-                        }
-                    }
+                    State::Ip6Host => if colon_count > 7 {
+                        host = &rawurl[begin..i];
+                        pos = i;
+                        st = State::InPort;
+                    },
                     _ => return Err("Invalid ':' in authority.".to_owned()),
                 }
                 input = Input::Digit; // reset input class
@@ -351,12 +374,10 @@ fn get_authority(rawurl: &str) -> DecodeResult<(Option<UserInfo>, &str, Option<u
     // If we have a port string, ensure it parses to u16.
     let port = match port {
         None => None,
-        opt => {
-            match opt.and_then(|p| FromStr::from_str(p).ok()) {
-                None => return Err(format!("Failed to parse port: {:?}", port)),
-                opt => opt,
-            }
-        }
+        opt => match opt.and_then(|p| FromStr::from_str(p).ok()) {
+            None => return Err(format!("Failed to parse port: {:?}", port)),
+            opt => opt,
+        },
     };
 
     Ok((userinfo, host, port, rest))
@@ -369,8 +390,27 @@ fn get_path(rawurl: &str, is_authority: bool) -> DecodeResult<(String, &str)> {
     let mut end = len;
     for (i, c) in rawurl.chars().enumerate() {
         match c {
-            'A'...'Z' | 'a'...'z' | '0'...'9' | '&' | '\'' | '(' | ')' | '.' | '@' | ':' |
-            '%' | '/' | '+' | '!' | '*' | ',' | ';' | '=' | '_' | '-' | '~' => continue,
+            'A'...'Z' |
+            'a'...'z' |
+            '0'...'9' |
+            '&' |
+            '\'' |
+            '(' |
+            ')' |
+            '.' |
+            '@' |
+            ':' |
+            '%' |
+            '/' |
+            '+' |
+            '!' |
+            '*' |
+            ',' |
+            ';' |
+            '=' |
+            '_' |
+            '-' |
+            '~' => continue,
             '?' | '#' => {
                 end = i;
                 break;

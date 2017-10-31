@@ -1,4 +1,4 @@
-use protocol::lowlevel::{PrtError, PrtResult, util};
+use protocol::lowlevel::{util, PrtError, PrtResult};
 
 use super::type_id::*;
 use super::lob::*;
@@ -6,11 +6,11 @@ use super::longdate::LongDate;
 use HdbError;
 
 use byteorder::{LittleEndian, WriteBytesExt};
-use chrono::{NaiveDateTime, NaiveDate, NaiveTime};
+use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use serde;
-use serde_db::de::{DbValue, DbValueInto, ConversionError};
+use serde_db::de::{ConversionError, DbValue, DbValueInto};
 use std::io;
-use std::{u8, u16, u32, i8, i16, i32, i64};
+use std::{i16, i32, i64, i8, u16, u32, u8};
 use std::error::Error;
 
 const MAX_1_BYTE_LENGTH: u8 = 245;
@@ -287,39 +287,39 @@ pub fn serialize(tv: &TypedValue, data_pos: &mut i32, w: &mut io::Write) -> PrtR
 
     if !tv.serialize_type_id(w)? {
         match *tv {
-            TypedValue::TINYINT(u) |
-            TypedValue::N_TINYINT(Some(u)) => w.write_u8(u)?,
+            TypedValue::TINYINT(u) | TypedValue::N_TINYINT(Some(u)) => w.write_u8(u)?,
 
-            TypedValue::SMALLINT(i) |
-            TypedValue::N_SMALLINT(Some(i)) => w.write_i16::<LittleEndian>(i)?,
+            TypedValue::SMALLINT(i) | TypedValue::N_SMALLINT(Some(i)) => {
+                w.write_i16::<LittleEndian>(i)?
+            }
 
-            TypedValue::INT(i) |
-            TypedValue::N_INT(Some(i)) => w.write_i32::<LittleEndian>(i)?,
+            TypedValue::INT(i) | TypedValue::N_INT(Some(i)) => w.write_i32::<LittleEndian>(i)?,
 
-            TypedValue::BIGINT(i) |
-            TypedValue::N_BIGINT(Some(i)) => w.write_i64::<LittleEndian>(i)?,
+            TypedValue::BIGINT(i) | TypedValue::N_BIGINT(Some(i)) => {
+                w.write_i64::<LittleEndian>(i)?
+            }
 
-            TypedValue::REAL(f) |
-            TypedValue::N_REAL(Some(f)) => w.write_f32::<LittleEndian>(f)?,
+            TypedValue::REAL(f) | TypedValue::N_REAL(Some(f)) => w.write_f32::<LittleEndian>(f)?,
 
-            TypedValue::DOUBLE(f) |
-            TypedValue::N_DOUBLE(Some(f)) => w.write_f64::<LittleEndian>(f)?,
+            TypedValue::DOUBLE(f) | TypedValue::N_DOUBLE(Some(f)) => {
+                w.write_f64::<LittleEndian>(f)?
+            }
 
-            TypedValue::BOOLEAN(true) |
-            TypedValue::N_BOOLEAN(Some(true)) => w.write_u8(1)?,
-            TypedValue::BOOLEAN(false) |
-            TypedValue::N_BOOLEAN(Some(false)) => w.write_u8(0)?,
+            TypedValue::BOOLEAN(true) | TypedValue::N_BOOLEAN(Some(true)) => w.write_u8(1)?,
+            TypedValue::BOOLEAN(false) | TypedValue::N_BOOLEAN(Some(false)) => w.write_u8(0)?,
 
-            TypedValue::LONGDATE(LongDate(i)) |
-            TypedValue::N_LONGDATE(Some(LongDate(i))) => w.write_i64::<LittleEndian>(i)?,
+            TypedValue::LONGDATE(LongDate(i)) | TypedValue::N_LONGDATE(Some(LongDate(i))) => {
+                w.write_i64::<LittleEndian>(i)?
+            }
 
             TypedValue::CLOB(ref clob) |
             TypedValue::N_CLOB(Some(ref clob)) |
             TypedValue::NCLOB(ref clob) |
             TypedValue::N_NCLOB(Some(ref clob)) => serialize_clob_header(clob.len()?, data_pos, w)?,
 
-            TypedValue::BLOB(ref blob) |
-            TypedValue::N_BLOB(Some(ref blob)) => serialize_blob_header(blob.len()?, data_pos, w)?,
+            TypedValue::BLOB(ref blob) | TypedValue::N_BLOB(Some(ref blob)) => {
+                serialize_blob_header(blob.len()?, data_pos, w)?
+            }
 
             TypedValue::STRING(ref s) |
             TypedValue::NSTRING(ref s) |
@@ -378,80 +378,77 @@ pub fn size(tv: &TypedValue) -> PrtResult<usize> {
     }
 
     Ok(
-        1 +
-            match *tv {
-                TypedValue::BOOLEAN(_) |
-                TypedValue::N_BOOLEAN(Some(_)) |
-                TypedValue::TINYINT(_) |
-                TypedValue::N_TINYINT(Some(_)) => 1,
+        1 + match *tv {
+            TypedValue::BOOLEAN(_) |
+            TypedValue::N_BOOLEAN(Some(_)) |
+            TypedValue::TINYINT(_) |
+            TypedValue::N_TINYINT(Some(_)) => 1,
 
-                TypedValue::SMALLINT(_) |
-                TypedValue::N_SMALLINT(Some(_)) => 2,
+            TypedValue::SMALLINT(_) | TypedValue::N_SMALLINT(Some(_)) => 2,
 
-                TypedValue::INT(_) |
-                TypedValue::N_INT(Some(_)) |
-                TypedValue::REAL(_) |
-                TypedValue::N_REAL(Some(_)) => 4,
+            TypedValue::INT(_) |
+            TypedValue::N_INT(Some(_)) |
+            TypedValue::REAL(_) |
+            TypedValue::N_REAL(Some(_)) => 4,
 
-                TypedValue::BIGINT(_) |
-                TypedValue::N_BIGINT(Some(_)) |
-                TypedValue::DOUBLE(_) |
-                TypedValue::N_DOUBLE(Some(_)) |
-                TypedValue::LONGDATE(_) |
-                TypedValue::N_LONGDATE(Some(_)) => 8,
+            TypedValue::BIGINT(_) |
+            TypedValue::N_BIGINT(Some(_)) |
+            TypedValue::DOUBLE(_) |
+            TypedValue::N_DOUBLE(Some(_)) |
+            TypedValue::LONGDATE(_) |
+            TypedValue::N_LONGDATE(Some(_)) => 8,
 
-                TypedValue::CLOB(ref clob) |
-                TypedValue::N_CLOB(Some(ref clob)) |
-                TypedValue::NCLOB(ref clob) |
-                TypedValue::N_NCLOB(Some(ref clob)) => 9 + clob.len()?,
+            TypedValue::CLOB(ref clob) |
+            TypedValue::N_CLOB(Some(ref clob)) |
+            TypedValue::NCLOB(ref clob) |
+            TypedValue::N_NCLOB(Some(ref clob)) => 9 + clob.len()?,
 
-                TypedValue::BLOB(ref blob) |
-                TypedValue::N_BLOB(Some(ref blob)) => 9 + blob.len()?,
+            TypedValue::BLOB(ref blob) | TypedValue::N_BLOB(Some(ref blob)) => 9 + blob.len()?,
 
-                TypedValue::STRING(ref s) |
-                TypedValue::N_STRING(Some(ref s)) |
-                TypedValue::NSTRING(ref s) |
-                TypedValue::N_NSTRING(Some(ref s)) |
-                TypedValue::TEXT(ref s) |
-                TypedValue::N_TEXT(Some(ref s)) |
-                TypedValue::SHORTTEXT(ref s) |
-                TypedValue::N_SHORTTEXT(Some(ref s)) => string_length(s),
+            TypedValue::STRING(ref s) |
+            TypedValue::N_STRING(Some(ref s)) |
+            TypedValue::NSTRING(ref s) |
+            TypedValue::N_NSTRING(Some(ref s)) |
+            TypedValue::TEXT(ref s) |
+            TypedValue::N_TEXT(Some(ref s)) |
+            TypedValue::SHORTTEXT(ref s) |
+            TypedValue::N_SHORTTEXT(Some(ref s)) => string_length(s),
 
-                TypedValue::BINARY(ref v) |
-                TypedValue::N_BINARY(Some(ref v)) |
-                TypedValue::VARBINARY(ref v) |
-                TypedValue::N_VARBINARY(Some(ref v)) |
-                TypedValue::BSTRING(ref v) |
-                TypedValue::N_BSTRING(Some(ref v)) => v.len() + 2,
+            TypedValue::BINARY(ref v) |
+            TypedValue::N_BINARY(Some(ref v)) |
+            TypedValue::VARBINARY(ref v) |
+            TypedValue::N_VARBINARY(Some(ref v)) |
+            TypedValue::BSTRING(ref v) |
+            TypedValue::N_BSTRING(Some(ref v)) => v.len() + 2,
 
-                TypedValue::N_TINYINT(None) |
-                TypedValue::N_SMALLINT(None) |
-                TypedValue::N_INT(None) |
-                TypedValue::N_BIGINT(None) |
-                TypedValue::N_REAL(None) |
-                TypedValue::N_DOUBLE(None) |
-                TypedValue::N_BOOLEAN(None) |
-                TypedValue::N_LONGDATE(None) |
-                TypedValue::N_CLOB(None) |
-                TypedValue::N_NCLOB(None) |
-                TypedValue::N_BLOB(None) |
-                TypedValue::N_BINARY(None) |
-                TypedValue::N_VARBINARY(None) |
-                TypedValue::N_BSTRING(None) |
-                TypedValue::N_STRING(None) |
-                TypedValue::N_NSTRING(None) |
-                TypedValue::N_TEXT(None) |
-                TypedValue::N_SHORTTEXT(None) => 0,
+            TypedValue::N_TINYINT(None) |
+            TypedValue::N_SMALLINT(None) |
+            TypedValue::N_INT(None) |
+            TypedValue::N_BIGINT(None) |
+            TypedValue::N_REAL(None) |
+            TypedValue::N_DOUBLE(None) |
+            TypedValue::N_BOOLEAN(None) |
+            TypedValue::N_LONGDATE(None) |
+            TypedValue::N_CLOB(None) |
+            TypedValue::N_NCLOB(None) |
+            TypedValue::N_BLOB(None) |
+            TypedValue::N_BINARY(None) |
+            TypedValue::N_VARBINARY(None) |
+            TypedValue::N_BSTRING(None) |
+            TypedValue::N_STRING(None) |
+            TypedValue::N_NSTRING(None) |
+            TypedValue::N_TEXT(None) |
+            TypedValue::N_SHORTTEXT(None) => 0,
 
-                TypedValue::CHAR(_) |
-                TypedValue::VARCHAR(_) |
-                TypedValue::NCHAR(_) |
-                TypedValue::NVARCHAR(_) |
-                TypedValue::N_CHAR(_) |
-                TypedValue::N_VARCHAR(_) |
-                TypedValue::N_NCHAR(_) |
-                TypedValue::N_NVARCHAR(_) => return Err(_size_not_implemented(tv.type_id())),
-            },
+            TypedValue::CHAR(_) |
+            TypedValue::VARCHAR(_) |
+            TypedValue::NCHAR(_) |
+            TypedValue::NVARCHAR(_) |
+            TypedValue::N_CHAR(_) |
+            TypedValue::N_VARCHAR(_) |
+            TypedValue::N_NCHAR(_) |
+            TypedValue::N_NVARCHAR(_) => return Err(_size_not_implemented(tv.type_id())),
+        },
     )
 }
 
@@ -507,7 +504,7 @@ fn serialize_clob_header(s_len: usize, data_pos: &mut i32, w: &mut io::Write) ->
 
 pub mod factory {
     use super::TypedValue;
-    use super::super::{PrtError, PrtResult, prot_err, util};
+    use super::super::{prot_err, util, PrtError, PrtResult};
     use super::super::lob::*;
     use super::super::longdate::LongDate;
     use protocol::lowlevel::conn_core::ConnCoreRef;
@@ -617,11 +614,10 @@ pub mod factory {
             // 190 => Ok(TypedValue::N_SECONDDATE(
             // 191 => Ok(TypedValue::N_DAYDATE(
             // 192 => Ok(TypedValue::N_SECONDTIME(
-            _ => {
-                Err(PrtError::ProtocolError(
-                    format!("TypedValue::parse_from_reply() not implemented for type code {}", typecode),
-                ))
-            }
+            _ => Err(PrtError::ProtocolError(format!(
+                "TypedValue::parse_from_reply() not implemented for type code {}",
+                typecode
+            ))),
         }
     }
 
@@ -726,16 +722,12 @@ pub mod factory {
 
     fn parse_nullable_length_and_string(rdr: &mut io::BufRead) -> PrtResult<Option<String>> {
         match parse_nullable_length_and_binary(rdr)? {
-            Some(vec) => {
-                match util::cesu8_to_string(&vec) {
-                    Ok(s) => Ok(Some(s)),
-                    Err(_) => {
-                        Err(
-                            prot_err("cesu-8 problem occured in typed_value:parse_length_and_string()"),
-                        )
-                    }
+            Some(vec) => match util::cesu8_to_string(&vec) {
+                Ok(s) => Ok(Some(s)),
+                Err(_) => {
+                    Err(prot_err("cesu-8 problem occured in typed_value:parse_length_and_string()"))
                 }
-            }
+            },
             None => Ok(None),
         }
     }
@@ -797,9 +789,15 @@ pub mod factory {
                 Cow::Borrowed(s) => String::from(s),
             };
             assert_eq!(data.len(), s.len());
-            Ok(Some(
-                new_clob_from_db(conn_ref, is_last_data, length_c, length_b, char_count, locator_id, s),
-            ))
+            Ok(Some(new_clob_from_db(
+                conn_ref,
+                is_last_data,
+                length_c,
+                length_b,
+                char_count,
+                locator_id,
+                s,
+            )))
         }
     }
 
@@ -848,18 +846,22 @@ pub mod factory {
     impl fmt::Display for TypedValue {
         fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
             match *self {
-                TypedValue::TINYINT(value) |
-                TypedValue::N_TINYINT(Some(value)) => write!(fmt, "{}", value),
-                TypedValue::SMALLINT(value) |
-                TypedValue::N_SMALLINT(Some(value)) => write!(fmt, "{}", value),
-                TypedValue::INT(value) |
-                TypedValue::N_INT(Some(value)) => write!(fmt, "{}", value),
-                TypedValue::BIGINT(value) |
-                TypedValue::N_BIGINT(Some(value)) => write!(fmt, "{}", value),
-                TypedValue::REAL(value) |
-                TypedValue::N_REAL(Some(value)) => write!(fmt, "{}", value),
-                TypedValue::DOUBLE(value) |
-                TypedValue::N_DOUBLE(Some(value)) => write!(fmt, "{}", value),
+                TypedValue::TINYINT(value) | TypedValue::N_TINYINT(Some(value)) => {
+                    write!(fmt, "{}", value)
+                }
+                TypedValue::SMALLINT(value) | TypedValue::N_SMALLINT(Some(value)) => {
+                    write!(fmt, "{}", value)
+                }
+                TypedValue::INT(value) | TypedValue::N_INT(Some(value)) => write!(fmt, "{}", value),
+                TypedValue::BIGINT(value) | TypedValue::N_BIGINT(Some(value)) => {
+                    write!(fmt, "{}", value)
+                }
+                TypedValue::REAL(value) | TypedValue::N_REAL(Some(value)) => {
+                    write!(fmt, "{}", value)
+                }
+                TypedValue::DOUBLE(value) | TypedValue::N_DOUBLE(Some(value)) => {
+                    write!(fmt, "{}", value)
+                }
                 TypedValue::CHAR(ref value) |
                 TypedValue::N_CHAR(Some(ref value)) |
                 TypedValue::VARCHAR(ref value) |
@@ -876,22 +878,20 @@ pub mod factory {
                 TypedValue::N_TEXT(Some(ref value)) |
                 TypedValue::SHORTTEXT(ref value) |
                 TypedValue::N_SHORTTEXT(Some(ref value)) => write!(fmt, "\"{}\"", value),
-                TypedValue::BINARY(_) |
-                TypedValue::N_BINARY(Some(_)) => write!(fmt, "<BINARY>"),
-                TypedValue::VARBINARY(_) |
-                TypedValue::N_VARBINARY(Some(_)) => write!(fmt, "<VARBINARY>"),
-                TypedValue::CLOB(_) |
-                TypedValue::N_CLOB(Some(_)) => write!(fmt, "<CLOB>"),
-                TypedValue::NCLOB(_) |
-                TypedValue::N_NCLOB(Some(_)) => write!(fmt, "<NCLOB>"),
-                TypedValue::BLOB(_) |
-                TypedValue::N_BLOB(Some(_)) => write!(fmt, "<BLOB>"),
-                TypedValue::BOOLEAN(value) |
-                TypedValue::N_BOOLEAN(Some(value)) => write!(fmt, "{}", value),
-                TypedValue::BSTRING(_) |
-                TypedValue::N_BSTRING(Some(_)) => write!(fmt, "<BSTRING>"),
-                TypedValue::LONGDATE(ref value) |
-                TypedValue::N_LONGDATE(Some(ref value)) => write!(fmt, "{}", value),
+                TypedValue::BINARY(_) | TypedValue::N_BINARY(Some(_)) => write!(fmt, "<BINARY>"),
+                TypedValue::VARBINARY(_) | TypedValue::N_VARBINARY(Some(_)) => {
+                    write!(fmt, "<VARBINARY>")
+                }
+                TypedValue::CLOB(_) | TypedValue::N_CLOB(Some(_)) => write!(fmt, "<CLOB>"),
+                TypedValue::NCLOB(_) | TypedValue::N_NCLOB(Some(_)) => write!(fmt, "<NCLOB>"),
+                TypedValue::BLOB(_) | TypedValue::N_BLOB(Some(_)) => write!(fmt, "<BLOB>"),
+                TypedValue::BOOLEAN(value) | TypedValue::N_BOOLEAN(Some(value)) => {
+                    write!(fmt, "{}", value)
+                }
+                TypedValue::BSTRING(_) | TypedValue::N_BSTRING(Some(_)) => write!(fmt, "<BSTRING>"),
+                TypedValue::LONGDATE(ref value) | TypedValue::N_LONGDATE(Some(ref value)) => {
+                    write!(fmt, "{}", value)
+                }
 
                 TypedValue::N_TINYINT(None) |
                 TypedValue::N_SMALLINT(None) |
@@ -998,8 +998,7 @@ impl DbValue for TypedValue {
 impl DbValueInto<bool> for TypedValue {
     fn try_into(self) -> Result<bool, ConversionError> {
         match self {
-            TypedValue::BOOLEAN(b) |
-            TypedValue::N_BOOLEAN(Some(b)) => Ok(b),
+            TypedValue::BOOLEAN(b) | TypedValue::N_BOOLEAN(Some(b)) => Ok(b),
             value => Err(wrong_type(&value, "bool")),
         }
     }
@@ -1008,11 +1007,9 @@ impl DbValueInto<bool> for TypedValue {
 impl DbValueInto<u8> for TypedValue {
     fn try_into(self) -> Result<u8, ConversionError> {
         match self {
-            TypedValue::TINYINT(u) |
-            TypedValue::N_TINYINT(Some(u)) => Ok(u),
+            TypedValue::TINYINT(u) | TypedValue::N_TINYINT(Some(u)) => Ok(u),
 
-            TypedValue::SMALLINT(i) |
-            TypedValue::N_SMALLINT(Some(i)) => {
+            TypedValue::SMALLINT(i) | TypedValue::N_SMALLINT(Some(i)) => {
                 if (i >= 0) && (i <= i16::from(u8::MAX)) {
                     Ok(i as u8)
                 } else {
@@ -1020,8 +1017,7 @@ impl DbValueInto<u8> for TypedValue {
                 }
             }
 
-            TypedValue::INT(i) |
-            TypedValue::N_INT(Some(i)) => {
+            TypedValue::INT(i) | TypedValue::N_INT(Some(i)) => {
                 if (i >= 0) && (i <= i32::from(u8::MAX)) {
                     Ok(i as u8)
                 } else {
@@ -1029,8 +1025,7 @@ impl DbValueInto<u8> for TypedValue {
                 }
             }
 
-            TypedValue::BIGINT(i) |
-            TypedValue::N_BIGINT(Some(i)) => {
+            TypedValue::BIGINT(i) | TypedValue::N_BIGINT(Some(i)) => {
                 if (i >= 0) && (i <= i64::from(u8::MAX)) {
                     Ok(i as u8)
                 } else {
@@ -1046,20 +1041,15 @@ impl DbValueInto<u8> for TypedValue {
 impl DbValueInto<u16> for TypedValue {
     fn try_into(self) -> Result<u16, ConversionError> {
         match self {
-            TypedValue::TINYINT(u) |
-            TypedValue::N_TINYINT(Some(u)) => Ok(u16::from(u)),
+            TypedValue::TINYINT(u) | TypedValue::N_TINYINT(Some(u)) => Ok(u16::from(u)),
 
-            TypedValue::SMALLINT(i) |
-            TypedValue::N_SMALLINT(Some(i)) => {
-                if i >= 0 {
-                    Ok(i as u16)
-                } else {
-                    Err(number_range(&(i64::from(i)), "u16"))
-                }
-            }
+            TypedValue::SMALLINT(i) | TypedValue::N_SMALLINT(Some(i)) => if i >= 0 {
+                Ok(i as u16)
+            } else {
+                Err(number_range(&(i64::from(i)), "u16"))
+            },
 
-            TypedValue::INT(i) |
-            TypedValue::N_INT(Some(i)) => {
+            TypedValue::INT(i) | TypedValue::N_INT(Some(i)) => {
                 if (i >= 0) && (i <= i32::from(u16::MAX)) {
                     Ok(i as u16)
                 } else {
@@ -1067,8 +1057,7 @@ impl DbValueInto<u16> for TypedValue {
                 }
             }
 
-            TypedValue::BIGINT(i) |
-            TypedValue::N_BIGINT(Some(i)) => {
+            TypedValue::BIGINT(i) | TypedValue::N_BIGINT(Some(i)) => {
                 if (i >= 0) && (i <= i64::from(u16::MAX)) {
                     Ok(i as u16)
                 } else {
@@ -1084,29 +1073,21 @@ impl DbValueInto<u16> for TypedValue {
 impl DbValueInto<u32> for TypedValue {
     fn try_into(self) -> Result<u32, ConversionError> {
         match self {
-            TypedValue::TINYINT(u) |
-            TypedValue::N_TINYINT(Some(u)) => Ok(u32::from(u)),
+            TypedValue::TINYINT(u) | TypedValue::N_TINYINT(Some(u)) => Ok(u32::from(u)),
 
-            TypedValue::SMALLINT(i) |
-            TypedValue::N_SMALLINT(Some(i)) => {
-                if i >= 0 {
-                    Ok(i as u32)
-                } else {
-                    Err(number_range(&(i64::from(i)), "u32"))
-                }
-            }
+            TypedValue::SMALLINT(i) | TypedValue::N_SMALLINT(Some(i)) => if i >= 0 {
+                Ok(i as u32)
+            } else {
+                Err(number_range(&(i64::from(i)), "u32"))
+            },
 
-            TypedValue::INT(i) |
-            TypedValue::N_INT(Some(i)) => {
-                if i >= 0 {
-                    Ok(i as u32)
-                } else {
-                    Err(number_range(&(i64::from(i)), "u32"))
-                }
-            }
+            TypedValue::INT(i) | TypedValue::N_INT(Some(i)) => if i >= 0 {
+                Ok(i as u32)
+            } else {
+                Err(number_range(&(i64::from(i)), "u32"))
+            },
 
-            TypedValue::BIGINT(i) |
-            TypedValue::N_BIGINT(Some(i)) => {
+            TypedValue::BIGINT(i) | TypedValue::N_BIGINT(Some(i)) => {
                 if (i >= 0) && (i <= i64::from(u32::MAX)) {
                     Ok(i as u32)
                 } else {
@@ -1122,35 +1103,25 @@ impl DbValueInto<u32> for TypedValue {
 impl DbValueInto<u64> for TypedValue {
     fn try_into(self) -> Result<u64, ConversionError> {
         match self {
-            TypedValue::TINYINT(u) |
-            TypedValue::N_TINYINT(Some(u)) => Ok(u64::from(u)),
+            TypedValue::TINYINT(u) | TypedValue::N_TINYINT(Some(u)) => Ok(u64::from(u)),
 
-            TypedValue::SMALLINT(i) |
-            TypedValue::N_SMALLINT(Some(i)) => {
-                if i >= 0 {
-                    Ok(i as u64)
-                } else {
-                    Err(number_range(&(i64::from(i)), "u64"))
-                }
-            }
+            TypedValue::SMALLINT(i) | TypedValue::N_SMALLINT(Some(i)) => if i >= 0 {
+                Ok(i as u64)
+            } else {
+                Err(number_range(&(i64::from(i)), "u64"))
+            },
 
-            TypedValue::INT(i) |
-            TypedValue::N_INT(Some(i)) => {
-                if i >= 0 {
-                    Ok(i as u64)
-                } else {
-                    Err(number_range(&(i64::from(i)), "u64"))
-                }
-            }
+            TypedValue::INT(i) | TypedValue::N_INT(Some(i)) => if i >= 0 {
+                Ok(i as u64)
+            } else {
+                Err(number_range(&(i64::from(i)), "u64"))
+            },
 
-            TypedValue::BIGINT(i) |
-            TypedValue::N_BIGINT(Some(i)) => {
-                if i >= 0 {
-                    Ok(i as u64)
-                } else {
-                    Err(number_range(&i, "u64"))
-                }
-            }
+            TypedValue::BIGINT(i) | TypedValue::N_BIGINT(Some(i)) => if i >= 0 {
+                Ok(i as u64)
+            } else {
+                Err(number_range(&i, "u64"))
+            },
 
             value => Err(wrong_type(&value, "u64")),
         }
@@ -1160,17 +1131,13 @@ impl DbValueInto<u64> for TypedValue {
 impl DbValueInto<i8> for TypedValue {
     fn try_into(self) -> Result<i8, ConversionError> {
         match self {
-            TypedValue::TINYINT(u) |
-            TypedValue::N_TINYINT(Some(u)) => {
-                if u <= i8::MAX as u8 {
-                    Ok(u as i8)
-                } else {
-                    Err(number_range(&(i64::from(u)), "i8"))
-                }
-            }
+            TypedValue::TINYINT(u) | TypedValue::N_TINYINT(Some(u)) => if u <= i8::MAX as u8 {
+                Ok(u as i8)
+            } else {
+                Err(number_range(&(i64::from(u)), "i8"))
+            },
 
-            TypedValue::SMALLINT(i) |
-            TypedValue::N_SMALLINT(Some(i)) => {
+            TypedValue::SMALLINT(i) | TypedValue::N_SMALLINT(Some(i)) => {
                 if (i >= i16::from(i8::MIN)) && (i <= i16::from(i8::MAX)) {
                     Ok(i as i8)
                 } else {
@@ -1178,8 +1145,7 @@ impl DbValueInto<i8> for TypedValue {
                 }
             }
 
-            TypedValue::INT(i) |
-            TypedValue::N_INT(Some(i)) => {
+            TypedValue::INT(i) | TypedValue::N_INT(Some(i)) => {
                 if (i >= i32::from(i8::MIN)) && (i <= i32::from(i8::MAX)) {
                     Ok(i as i8)
                 } else {
@@ -1187,8 +1153,7 @@ impl DbValueInto<i8> for TypedValue {
                 }
             }
 
-            TypedValue::BIGINT(i) |
-            TypedValue::N_BIGINT(Some(i)) => {
+            TypedValue::BIGINT(i) | TypedValue::N_BIGINT(Some(i)) => {
                 if (i >= i64::from(i8::MIN)) && (i <= i64::from(i8::MAX)) {
                     Ok(i as i8)
                 } else {
@@ -1204,14 +1169,11 @@ impl DbValueInto<i8> for TypedValue {
 impl DbValueInto<i16> for TypedValue {
     fn try_into(self) -> Result<i16, ConversionError> {
         match self {
-            TypedValue::TINYINT(u) |
-            TypedValue::N_TINYINT(Some(u)) => Ok(i16::from(u)),
+            TypedValue::TINYINT(u) | TypedValue::N_TINYINT(Some(u)) => Ok(i16::from(u)),
 
-            TypedValue::SMALLINT(i) |
-            TypedValue::N_SMALLINT(Some(i)) => Ok(i),
+            TypedValue::SMALLINT(i) | TypedValue::N_SMALLINT(Some(i)) => Ok(i),
 
-            TypedValue::INT(i) |
-            TypedValue::N_INT(Some(i)) => {
+            TypedValue::INT(i) | TypedValue::N_INT(Some(i)) => {
                 if (i >= i32::from(i16::MIN)) && (i <= i32::from(i16::MAX)) {
                     Ok(i as i16)
                 } else {
@@ -1219,8 +1181,7 @@ impl DbValueInto<i16> for TypedValue {
                 }
             }
 
-            TypedValue::BIGINT(i) |
-            TypedValue::N_BIGINT(Some(i)) => {
+            TypedValue::BIGINT(i) | TypedValue::N_BIGINT(Some(i)) => {
                 if (i >= i64::from(i16::MIN)) && (i <= i64::from(i16::MAX)) {
                     Ok(i as i16)
                 } else {
@@ -1236,17 +1197,13 @@ impl DbValueInto<i16> for TypedValue {
 impl DbValueInto<i32> for TypedValue {
     fn try_into(self) -> Result<i32, ConversionError> {
         match self {
-            TypedValue::TINYINT(u) |
-            TypedValue::N_TINYINT(Some(u)) => Ok(i32::from(u)),
+            TypedValue::TINYINT(u) | TypedValue::N_TINYINT(Some(u)) => Ok(i32::from(u)),
 
-            TypedValue::SMALLINT(i) |
-            TypedValue::N_SMALLINT(Some(i)) => Ok(i32::from(i)),
+            TypedValue::SMALLINT(i) | TypedValue::N_SMALLINT(Some(i)) => Ok(i32::from(i)),
 
-            TypedValue::INT(i) |
-            TypedValue::N_INT(Some(i)) => Ok(i),
+            TypedValue::INT(i) | TypedValue::N_INT(Some(i)) => Ok(i),
 
-            TypedValue::BIGINT(i) |
-            TypedValue::N_BIGINT(Some(i)) => {
+            TypedValue::BIGINT(i) | TypedValue::N_BIGINT(Some(i)) => {
                 if (i >= i64::from(i32::MIN)) && (i <= i64::from(i32::MAX)) {
                     Ok(i as i32)
                 } else {
@@ -1261,14 +1218,11 @@ impl DbValueInto<i32> for TypedValue {
 impl DbValueInto<i64> for TypedValue {
     fn try_into(self) -> Result<i64, ConversionError> {
         match self {
-            TypedValue::TINYINT(u) |
-            TypedValue::N_TINYINT(Some(u)) => Ok(i64::from(u)),
+            TypedValue::TINYINT(u) | TypedValue::N_TINYINT(Some(u)) => Ok(i64::from(u)),
 
-            TypedValue::SMALLINT(i) |
-            TypedValue::N_SMALLINT(Some(i)) => Ok(i64::from(i)),
+            TypedValue::SMALLINT(i) | TypedValue::N_SMALLINT(Some(i)) => Ok(i64::from(i)),
 
-            TypedValue::INT(i) |
-            TypedValue::N_INT(Some(i)) => Ok(i64::from(i)),
+            TypedValue::INT(i) | TypedValue::N_INT(Some(i)) => Ok(i64::from(i)),
 
             TypedValue::BIGINT(i) |
             TypedValue::N_BIGINT(Some(i)) |
@@ -1283,8 +1237,7 @@ impl DbValueInto<i64> for TypedValue {
 impl DbValueInto<f32> for TypedValue {
     fn try_into(self) -> Result<f32, ConversionError> {
         match self {
-            TypedValue::REAL(f) |
-            TypedValue::N_REAL(Some(f)) => Ok(f),
+            TypedValue::REAL(f) | TypedValue::N_REAL(Some(f)) => Ok(f),
             value => Err(wrong_type(&value, "f32")),
         }
     }
@@ -1293,8 +1246,7 @@ impl DbValueInto<f32> for TypedValue {
 impl DbValueInto<f64> for TypedValue {
     fn try_into(self) -> Result<f64, ConversionError> {
         match self {
-            TypedValue::DOUBLE(f) |
-            TypedValue::N_DOUBLE(Some(f)) => Ok(f),
+            TypedValue::DOUBLE(f) | TypedValue::N_DOUBLE(Some(f)) => Ok(f),
             value => Err(wrong_type(&value, "f64")),
         }
     }
@@ -1342,8 +1294,7 @@ impl DbValueInto<NaiveDateTime> for TypedValue {
     fn try_into(self) -> Result<NaiveDateTime, ConversionError> {
         trace!("try_into -> NaiveDateTime");
         match self {
-            TypedValue::LONGDATE(ld) |
-            TypedValue::N_LONGDATE(Some(ld)) => {
+            TypedValue::LONGDATE(ld) | TypedValue::N_LONGDATE(Some(ld)) => {
                 let (y, m, d, h, min, s, f) = ld.as_ymd_hms_f();
                 Ok(NaiveDateTime::new(
                     NaiveDate::from_ymd(y, m, d),
@@ -1375,7 +1326,6 @@ impl DbValueInto<Vec<u8>> for TypedValue {
 
             value => Err(wrong_type(&value, "seq")),
         }
-
     }
 }
 

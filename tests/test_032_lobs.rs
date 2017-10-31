@@ -1,14 +1,14 @@
 extern crate chrono;
-extern crate hdbconnect;
 extern crate flexi_logger;
+extern crate hdbconnect;
 #[macro_use]
 extern crate log;
 extern crate rand;
+extern crate serde;
+extern crate serde_bytes;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
-extern crate serde;
-extern crate serde_bytes;
 extern crate sha2;
 
 mod test_utils;
@@ -16,8 +16,8 @@ mod test_utils;
 use flexi_logger::{Logger, ReconfigurationHandle};
 use hdbconnect::{Connection, HdbResult};
 use rand::{thread_rng, Rng};
-use serde_bytes::{Bytes, ByteBuf};
-use sha2::{Sha256, Digest};
+use serde_bytes::{ByteBuf, Bytes};
+use sha2::{Digest, Sha256};
 
 // cargo test test_032_lobs -- --nocapture
 #[test]
@@ -54,28 +54,22 @@ fn test_read_blob(connection: &mut Connection, _logger_handle: &mut Reconfigurat
 
     #[derive(Serialize, Deserialize, Debug)]
     struct Lobs {
-        #[serde(rename = "F1_S")]
-        f1_s: String,
-        #[serde(rename = "F2_I")]
-        f2_i: Option<i32>,
-        #[serde(rename = "F3_B")]
-        f3_b: Option<ByteBuf>,
-        #[serde(rename = "F4_S")]
-        f4_s: Option<String>,
+        #[serde(rename = "F1_S")] f1_s: String,
+        #[serde(rename = "F2_I")] f2_i: Option<i32>,
+        #[serde(rename = "F3_B")] f3_b: Option<ByteBuf>,
+        #[serde(rename = "F4_S")] f4_s: Option<String>,
     }
 
-    let mut insert_stmt = connection.prepare(
-        "insert into TEST_LOBS (F1_S, F3_B) values (?,?)",
-    )?;
+    let mut insert_stmt = connection.prepare("insert into TEST_LOBS (F1_S, F3_B) values (?,?)")?;
     const SIZE: usize = 10 * 1024 * 1024;
     let mut raw_data: Vec<u8> = Vec::<u8>::new();
     raw_data.resize(SIZE, 0_u8);
-    assert!(&raw_data[SIZE - 1] == &0_u8);
+    assert_eq!(raw_data[SIZE - 1], 0_u8);
     thread_rng().fill_bytes(&mut *raw_data);
 
     let size = raw_data.len();
     assert_eq!(size, SIZE);
-    assert!(&raw_data[SIZE - 1] != &0_u8);
+    assert_ne!(raw_data[SIZE - 1], 0_u8);
 
     let mut hasher = Sha256::default();
     hasher.input(&*raw_data);

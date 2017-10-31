@@ -58,9 +58,9 @@ impl LongDate {
         }
 
         Ok(LongDate(
-            1 + to_day_number(y as u32, m, d) * DAY_FACTOR + i64::from(hour) * HOUR_FACTOR +
-                i64::from(minute) * MINUTE_FACTOR + i64::from(second) * SECOND_FACTOR +
-                i64::from(nanosecond) / 100,
+            1 + to_day_number(y as u32, m, d) * DAY_FACTOR + i64::from(hour) * HOUR_FACTOR
+                + i64::from(minute) * MINUTE_FACTOR + i64::from(second) * SECOND_FACTOR
+                + i64::from(nanosecond) / 100,
         ))
     }
 
@@ -78,7 +78,7 @@ impl LongDate {
     /// Convert into tuple of "elements".
     pub fn as_ymd_hms_f(&self) -> (i32, u32, u32, u32, u32, u32, u32) {
         let value = match self.0 {
-            0 => 0,       // maps the special value '' == 0 to '0001-01-01 00:00:00.000000000' = 1
+            0 => 0, // maps the special value '' == 0 to '0001-01-01 00:00:00.000000000' = 1
             v => v - 1,
         };
 

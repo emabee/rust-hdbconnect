@@ -1,4 +1,4 @@
-use protocol::protocol_error::{PrtResult, prot_err};
+use protocol::protocol_error::{prot_err, PrtResult};
 use protocol::lowlevel::util;
 use protocol::lowlevel::argument::Argument;
 use protocol::lowlevel::message::Request;
@@ -196,16 +196,16 @@ fn fetch_a_lob_chunk(o_conn_ref: &Option<ConnCoreRef>, locator_id: u64, length_b
 
     let mut reply = request.send_and_receive(conn_ref, Some(ReplyType::ReadLob))?;
 
-    let (reply_data, reply_is_last_data) =
-        match reply.parts.pop_arg_if_kind(PartKind::ReadLobReply) {
-            Some(Argument::ReadLobReply(reply_locator_id, reply_is_last_data, reply_data)) => {
-                if reply_locator_id != locator_id {
-                    return Err(prot_err("lob::fetch_a_lob_chunk(): locator ids do not match"));
-                }
-                (reply_data, reply_is_last_data)
+    let (reply_data, reply_is_last_data) = match reply.parts.pop_arg_if_kind(PartKind::ReadLobReply)
+    {
+        Some(Argument::ReadLobReply(reply_locator_id, reply_is_last_data, reply_data)) => {
+            if reply_locator_id != locator_id {
+                return Err(prot_err("lob::fetch_a_lob_chunk(): locator ids do not match"));
             }
-            _ => return Err(prot_err("No ReadLobReply part found")),
-        };
+            (reply_data, reply_is_last_data)
+        }
+        _ => return Err(prot_err("No ReadLobReply part found")),
+    };
 
     let server_processing_time = match reply.parts.pop_arg_if_kind(PartKind::StatementContext) {
         Some(Argument::StatementContext(stmt_ctx)) => {

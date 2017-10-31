@@ -1,4 +1,4 @@
-use super::{PrtError, PrtResult, prot_err};
+use super::{prot_err, PrtError, PrtResult};
 use super::conn_core::ConnCoreRef;
 use super::message::MsgType;
 use super::part_attributes::PartAttributes;
@@ -91,16 +91,12 @@ impl Argument {
             Argument::Command(ref s) => {
                 size += util::string_to_cesu8(s).len();
             }
-            Argument::ConnectOptions(ConnectOptions(ref vec)) => {
-                for opt in vec {
-                    size += opt.size();
-                }
-            }
-            Argument::Error(ref vec) => {
-                for server_error in vec {
-                    size += server_error.size();
-                }
-            }
+            Argument::ConnectOptions(ConnectOptions(ref vec)) => for opt in vec {
+                size += opt.size();
+            },
+            Argument::Error(ref vec) => for server_error in vec {
+                size += server_error.size();
+            },
             Argument::FetchSize(_) => size += 4,
             Argument::Parameters(ref pars) => {
                 size += pars.size()?;
@@ -117,11 +113,9 @@ impl Argument {
                     size += attr.size();
                 }
             }
-            Argument::TransactionFlags(ref vec) => {
-                for opt in vec {
-                    size += opt.size();
-                }
-            }
+            Argument::TransactionFlags(ref vec) => for opt in vec {
+                size += opt.size();
+            },
             ref a => {
                 return Err(PrtError::ProtocolError(format!("size() called on {:?}", a)));
             }
@@ -151,16 +145,12 @@ impl Argument {
                     w.write_u8(b)?;
                 }
             }
-            Argument::ConnectOptions(ConnectOptions(ref vec)) => {
-                for opt in vec {
-                    opt.serialize(w)?;
-                }
-            }
-            Argument::Error(ref vec) => {
-                for server_error in vec {
-                    server_error.serialize(w)?;
-                }
-            }
+            Argument::ConnectOptions(ConnectOptions(ref vec)) => for opt in vec {
+                opt.serialize(w)?;
+            },
+            Argument::Error(ref vec) => for server_error in vec {
+                server_error.serialize(w)?;
+            },
             Argument::FetchSize(fs) => {
                 w.write_u32::<LittleEndian>(fs)?;
             }
@@ -195,11 +185,9 @@ impl Argument {
                     topo_attr.serialize(w)?;
                 }
             }
-            Argument::TransactionFlags(ref vec) => {
-                for opt in vec {
-                    opt.serialize(w)?;
-                }
-            }
+            Argument::TransactionFlags(ref vec) => for opt in vec {
+                opt.serialize(w)?;
+            },
             ref a => {
                 return Err(PrtError::ProtocolError(format!("serialize() called on {:?}", a)));
             }
@@ -215,7 +203,8 @@ impl Argument {
         Ok(remaining_bufsize - size as u32 - padsize as u32)
     }
 
-
+    #[allow(unknown_lints)]
+    #[allow(too_many_arguments)]
     pub fn parse(msg_type: MsgType, kind: PartKind, attributes: PartAttributes, no_of_args: i32,
                  arg_size: i32, parts: &mut Parts, o_conn_ref: Option<&ConnCoreRef>,
                  rs_md: Option<&ResultSetMetadata>, par_md: Option<&ParameterMetadata>,
@@ -263,20 +252,14 @@ impl Argument {
                 }
                 Argument::Error(vec)
             }
-            PartKind::OutputParameters => {
-                if let Some(par_md) = par_md {
-                    Argument::OutputParameters(
-                        OutputParametersFactory::parse(o_conn_ref, par_md, rdr)?,
-                    )
-                } else {
-                    return Err(prot_err("Cannot parse output parameters without metadata"));
-                }
-            }
-            PartKind::ParameterMetadata => {
-                Argument::ParameterMetadata(
-                    ParameterMetadata::parse(no_of_args, arg_size as u32, rdr)?,
-                )
-            }
+            PartKind::OutputParameters => if let Some(par_md) = par_md {
+                Argument::OutputParameters(OutputParametersFactory::parse(o_conn_ref, par_md, rdr)?)
+            } else {
+                return Err(prot_err("Cannot parse output parameters without metadata"));
+            },
+            PartKind::ParameterMetadata => Argument::ParameterMetadata(
+                ParameterMetadata::parse(no_of_args, arg_size as u32, rdr)?,
+            ),
             PartKind::ReadLobReply => {
                 let (locator, is_last_data, data) = ReadLobReply::parse(rdr)?;
                 Argument::ReadLobReply(locator, is_last_data, data)
@@ -294,11 +277,9 @@ impl Argument {
                 Argument::ResultSet(rs)
             }
             PartKind::ResultSetId => Argument::ResultSetId(rdr.read_u64::<LittleEndian>()?),
-            PartKind::ResultSetMetadata => {
-                Argument::ResultSetMetadata(
-                    resultset_metadata::parse(no_of_args, arg_size as u32, rdr)?,
-                )
-            }
+            PartKind::ResultSetMetadata => Argument::ResultSetMetadata(
+                resultset_metadata::parse(no_of_args, arg_size as u32, rdr)?,
+            ),
             PartKind::RowsAffected => Argument::RowsAffected(RowsAffected::parse(no_of_args, rdr)?),
             PartKind::StatementContext => {
                 Argument::StatementContext(StatementContext::parse(no_of_args, rdr)?)
@@ -329,10 +310,9 @@ impl Argument {
                 Argument::TransactionFlags(vec)
             }
             _ => {
-                return Err(PrtError::ProtocolError(format!(
-                    "No handling implemented for received partkind value {}",
-                    kind.to_i8()
-                )));
+                return Err(PrtError::ProtocolError(
+                    format!("No handling implemented for received partkind value {}", kind.to_i8()),
+                ));
             }
         };
 

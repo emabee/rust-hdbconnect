@@ -27,9 +27,9 @@ impl Row {
     /// Returns a clone of the ith value.
     pub fn cloned_value(&self, i: usize) -> HdbResult<TypedValue> {
         trace!("Row::cloned_value()");
-        self.values.get(i).cloned().ok_or_else(|| {
-            HdbError::UsageError("element with index {} does not exist".to_owned())
-        })
+        self.values.get(i)
+            .cloned()
+            .ok_or_else(|| HdbError::UsageError("element with index {} does not exist".to_owned()))
     }
 
     /// Converts the field into a plain rust value.

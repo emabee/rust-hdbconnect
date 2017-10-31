@@ -35,9 +35,9 @@ impl fmt::Display for OutputParameters {
 
 pub mod factory {
     use super::OutputParameters;
-    use protocol::lowlevel::{PrtResult, prot_err};
-    use protocol::lowlevel::parts::parameter_metadata::{ParameterDescriptor, ParameterMetadata,
-                                                        ParMode};
+    use protocol::lowlevel::{prot_err, PrtResult};
+    use protocol::lowlevel::parts::parameter_metadata::{ParMode, ParameterDescriptor,
+                                                        ParameterMetadata};
     use protocol::lowlevel::parts::typed_value::TypedValue;
     use protocol::lowlevel::parts::typed_value::factory as TypedValueFactory;
     use protocol::lowlevel::conn_core::ConnCoreRef;

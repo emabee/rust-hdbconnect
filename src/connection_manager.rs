@@ -1,7 +1,7 @@
 //! Connection Pooling with r2d2.
 //!
 use r2d2;
-use {Connection, ConnectParams, HdbError};
+use {ConnectParams, Connection, HdbError};
 
 
 
@@ -13,7 +13,9 @@ pub struct ConnectionManager {
 impl ConnectionManager {
     ///
     pub fn new(connect_params: &ConnectParams) -> ConnectionManager {
-        ConnectionManager { connect_params: connect_params.clone() }
+        ConnectionManager {
+            connect_params: connect_params.clone(),
+        }
     }
 }
 

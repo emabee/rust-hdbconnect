@@ -2,7 +2,7 @@ use connect_params::ConnectParams;
 
 use prepared_statement::PreparedStatement;
 use prepared_statement::factory as PreparedStatementFactory;
-use {HdbError, HdbResult, HdbResponse};
+use {HdbError, HdbResponse, HdbResult};
 
 use protocol::authenticate;
 use protocol::lowlevel::argument::Argument;
@@ -10,7 +10,7 @@ use protocol::lowlevel::message::Request;
 use protocol::lowlevel::request_type::RequestType;
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::partkind::PartKind;
-use protocol::lowlevel::conn_core::{ConnectionCore, ConnCoreRef};
+use protocol::lowlevel::conn_core::{ConnCoreRef, ConnectionCore};
 use protocol::lowlevel::init;
 use protocol::lowlevel::parts::resultset::ResultSet;
 
@@ -125,11 +125,11 @@ impl Connection {
 
     /// Executes a statement and expects a single ResultSet.
     pub fn query(&mut self, stmt: &str) -> HdbResult<ResultSet> {
-        self.statement(stmt)?.as_resultset()
+        self.statement(stmt)?.into_resultset()
     }
     /// Executes a statement and expects a single number of affected rows.
     pub fn dml(&mut self, stmt: &str) -> HdbResult<usize> {
-        let vec = &(self.statement(stmt)?.as_affected_rows()?);
+        let vec = &(self.statement(stmt)?.into_affected_rows()?);
         match vec.len() {
             1 => Ok(vec[0]),
             _ => Err(HdbError::UsageError("number of affected-rows-counts <> 1".to_owned())),
@@ -137,7 +137,7 @@ impl Connection {
     }
     /// Executes a statement and expects a plain success.
     pub fn exec(&mut self, stmt: &str) -> HdbResult<()> {
-        self.statement(stmt)?.as_success()
+        self.statement(stmt)?.into_success()
     }
 
     /// Prepares a statement and returns a handle to it.
@@ -153,12 +153,12 @@ impl Connection {
 
     /// Commits the current transaction.
     pub fn commit(&mut self) -> HdbResult<()> {
-        self.statement("commit")?.as_success()
+        self.statement("commit")?.into_success()
     }
 
     /// Rolls back the current transaction.
     pub fn rollback(&mut self) -> HdbResult<()> {
-        self.statement("rollback")?.as_success()
+        self.statement("rollback")?.into_success()
     }
 
     /// Creates a new connection object with the same settings and authentication.

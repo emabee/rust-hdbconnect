@@ -39,15 +39,15 @@ impl TransactionFlag {
 
 #[derive(Clone, Debug)]
 pub enum TaFlagId {
-    RolledBack, // 0 // BOOL    // The transaction is rolled back
-    Committed, // 1 // BOOL    // The transaction is committed
-    NewIsolationlevel, // 2 // INT     // The transaction isolation level has changed
-    DdlCommitmodeChanged, // 3 // BOOL    // The DDL auto-commit mode has been changed
-    WriteTaStarted, // 4 // BOOL    // A write transaction has been started
-    NoWriteTaStarted, // 5 // BOOL    // No write transaction has been started
+    RolledBack,            // 0 // BOOL    // The transaction is rolled back
+    Committed,             // 1 // BOOL    // The transaction is committed
+    NewIsolationlevel,     // 2 // INT     // The transaction isolation level has changed
+    DdlCommitmodeChanged,  // 3 // BOOL    // The DDL auto-commit mode has been changed
+    WriteTaStarted,        // 4 // BOOL    // A write transaction has been started
+    NoWriteTaStarted,      // 5 // BOOL    // No write transaction has been started
     SessionclosingTaError, // 6 // BOOL // The session must be terminated
-    ReadOnlyMode, // 7 // BOOL //
-    Last, // 8 // BOOL //
+    ReadOnlyMode,          // 7 // BOOL //
+    Last,                  // 8 // BOOL //
 }
 impl TaFlagId {
     fn to_i8(&self) -> i8 {
@@ -75,11 +75,9 @@ impl TaFlagId {
             6 => Ok(TaFlagId::SessionclosingTaError),
             7 => Ok(TaFlagId::ReadOnlyMode),
             8 => Ok(TaFlagId::Last),
-            _ => {
-                Err(PrtError::ProtocolError(
-                    format!("Invalid value for TransactionFlag detected: {}", val),
-                ))
-            }
+            _ => Err(PrtError::ProtocolError(
+                format!("Invalid value for TransactionFlag detected: {}", val),
+            )),
         }
     }
 }

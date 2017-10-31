@@ -1,4 +1,4 @@
-use super::{PrtError, PrtResult, prot_err, util};
+use super::{prot_err, util, PrtError, PrtResult};
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::fmt;
@@ -85,7 +85,16 @@ pub fn parse(count: i32, arg_size: u32, rdr: &mut io::BufRead) -> PrtResult<Resu
         let cdn = rdr.read_u32::<LittleEndian>()?; // I4
         rsm.add_to_names(cdn);
 
-        let fm = FieldMetadata::new(co, vt, fr, pr, tn, sn, cn, cdn)?;
+        let fm = FieldMetadata {
+            column_option: ColumnOption::from_u8(co)?,
+            value_type: vt,
+            fraction: fr,
+            precision: pr,
+            tablename: tn,
+            schemaname: sn,
+            columnname: cn,
+            column_displayname: cdn,
+        };
         rsm.fields.push(fm);
     }
     trace!("Read ResultSetMetadata phase 1: {:?}", rsm);
@@ -128,22 +137,6 @@ pub struct FieldMetadata {
     /// Display name of a column.
     pub column_displayname: u32,
 }
-impl FieldMetadata {
-    /// Factory method for FieldMetadata; only usable for tests.
-    pub fn new(co: u8, vt: u8, fr: i16, pr: i16, tn: u32, sn: u32, cn: u32, cdn: u32)
-               -> PrtResult<FieldMetadata> {
-        Ok(FieldMetadata {
-            column_option: ColumnOption::from_u8(co)?,
-            value_type: vt,
-            fraction: fr,
-            precision: pr,
-            tablename: tn,
-            schemaname: sn,
-            columnname: cn,
-            column_displayname: cdn,
-        })
-    }
-}
 
 #[derive(Clone, Debug)]
 pub enum ColumnOption {
@@ -162,11 +155,9 @@ impl ColumnOption {
         match val {
             1 => Ok(ColumnOption::NotNull),
             2 => Ok(ColumnOption::Nullable),
-            _ => {
-                Err(PrtError::ProtocolError(
-                    format!("ColumnOption::from_u8() not implemented for value {}", val),
-                ))
-            }
+            _ => Err(PrtError::ProtocolError(
+                format!("ColumnOption::from_u8() not implemented for value {}", val),
+            )),
         }
     }
 }

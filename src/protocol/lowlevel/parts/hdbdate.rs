@@ -1,4 +1,4 @@
-use chrono::{Datelike, DateTime, NaiveDate, NaiveDateTime, Timelike};
+use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, Timelike};
 
 use types::LongDate;
 use serde_db::ser::SerializationError;
@@ -9,6 +9,8 @@ use serde_db::ser::SerializationError;
 /// Chrono types serialize as formatted Strings. We try to parse such a string
 /// to convert back into the type we had originally, and construct a `LongDate`.
 pub fn longdate_from_str(s: &str) -> Result<LongDate, SerializationError> {
+    #[allow(unknown_lints)]
+    #[allow(type_complexity)]
     let funcs: Vec<fn(&str) -> Result<LongDate, ()>> = vec![
         from_naivedt_string_full,
         from_naivedt_string_second,
@@ -21,7 +23,7 @@ pub fn longdate_from_str(s: &str) -> Result<LongDate, SerializationError> {
             return Ok(longdate);
         }
     }
-    Err(SerializationError::InvalidValue("Cannot serialize date-string to LongDate".to_string()))
+    Err(SerializationError::GeneralError("Cannot serialize date-string to LongDate".to_string()))
 }
 
 // 2012-02-02T02:02:02.200
@@ -37,8 +39,7 @@ fn from_naivedt_string_full(s: &str) -> Result<LongDate, ()> {
                 ndt_parsed.minute(),
                 ndt_parsed.second(),
                 ndt_parsed.nanosecond(),
-            )
-                     .or(Err(()))?;
+            ).or(Err(()))?;
             trace!("NaiveDateTime::from_naivedt_string_full(): OK with ld = {}", ld);
             Ok(ld)
         }
@@ -60,8 +61,7 @@ fn from_naivedt_string_second(s: &str) -> Result<LongDate, ()> {
                 ndt_parsed.hour(),
                 ndt_parsed.minute(),
                 ndt_parsed.second(),
-            )
-                     .or(Err(()))?;
+            ).or(Err(()))?;
             trace!("NaiveDateTime::from_naivedt_string_second(): OK with ld = {}", ld);
             Ok(ld)
         }
@@ -77,8 +77,9 @@ fn from_naivedt_string_day(s: &str) -> Result<LongDate, ()> {
     match NaiveDate::parse_from_str(s, "%Y-%m-%d") {
         Ok(ndt_parsed) => {
             let ld = try!(
-                LongDate::from_ymd(ndt_parsed.year(), ndt_parsed.month(), ndt_parsed.day())
-                    .or(Err(()))
+                LongDate::from_ymd(ndt_parsed.year(), ndt_parsed.month(), ndt_parsed.day()).or(
+                    Err(())
+                )
             );
             trace!("NaiveDateTime::from_naivedt_string_day(): OK with ld = {}", ld);
             Ok(ld)
@@ -105,9 +106,8 @@ fn from_utc_string(s: &str) -> Result<LongDate, ()> {
                     ndt.hour(),
                     ndt.minute(),
                     ndt.second(),
-                    ndt.nanosecond(),
-                )
-                .or(Err(()))
+                    ndt.nanosecond()
+                ).or(Err(()))
             );
             trace!("DateTime::parse_from_rfc3339(): OK with ld = {}", ld);
             Ok(ld)

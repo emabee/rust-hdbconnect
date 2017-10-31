@@ -71,9 +71,9 @@ impl error::Error for HdbError {
             HdbError::FmtError(ref error) => Some(error),
             HdbError::ProtocolError(ref error) => Some(error),
             HdbError::SerializationError(ref error) => Some(error),
-            HdbError::UsageError(_) |
-            HdbError::PoisonError(_) |
-            HdbError::EvaluationError(_) => None,
+            HdbError::UsageError(_) | HdbError::PoisonError(_) | HdbError::EvaluationError(_) => {
+                None
+            }
         }
     }
 }

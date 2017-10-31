@@ -35,8 +35,7 @@ impl error::Error for PrtError {
         match *self {
             PrtError::Cesu8Error(ref error) => error.description(),
             PrtError::IoError(ref error) => error.description(),
-            PrtError::ProtocolError(ref s) |
-            PrtError::PoisonError(ref s) => s,
+            PrtError::ProtocolError(ref s) | PrtError::PoisonError(ref s) => s,
             PrtError::DbMessage(_) => "HANA returned at least one error",
         }
     }
@@ -45,9 +44,7 @@ impl error::Error for PrtError {
         match *self {
             PrtError::Cesu8Error(ref error) => Some(error),
             PrtError::IoError(ref error) => Some(error),
-            PrtError::ProtocolError(_) |
-            PrtError::DbMessage(_) |
-            PrtError::PoisonError(_) => None,
+            PrtError::ProtocolError(_) | PrtError::DbMessage(_) | PrtError::PoisonError(_) => None,
         }
     }
 }
@@ -57,8 +54,7 @@ impl fmt::Display for PrtError {
         match *self {
             PrtError::Cesu8Error(ref error) => fmt::Display::fmt(error, fmt),
             PrtError::IoError(ref error) => fmt::Display::fmt(error, fmt),
-            PrtError::ProtocolError(ref s) |
-            PrtError::PoisonError(ref s) => write!(fmt, "{}", s),
+            PrtError::ProtocolError(ref s) | PrtError::PoisonError(ref s) => write!(fmt, "{}", s),
             PrtError::DbMessage(ref vec) => {
                 for hdberr in vec {
                     fmt::Display::fmt(hdberr, fmt)?;

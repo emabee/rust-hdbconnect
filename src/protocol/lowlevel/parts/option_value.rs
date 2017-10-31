@@ -1,4 +1,4 @@
-use super::{PrtError, PrtResult, util};
+use super::{util, PrtError, PrtResult};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::io;
@@ -6,18 +6,19 @@ use std::io;
 #[allow(non_camel_case_types)]
 #[derive(Clone, Debug)]
 pub enum OptionValue {
-    INT(i32), // INTEGER
-    BIGINT(i64), // BIGINT
-    DOUBLE(f64), // DOUBLE
-    BOOLEAN(bool), // Boolean
-    STRING(String), // Character string
+    INT(i32),         // INTEGER
+    BIGINT(i64),      // BIGINT
+    DOUBLE(f64),      // DOUBLE
+    BOOLEAN(bool),    // Boolean
+    STRING(String),   // Character string
     BSTRING(Vec<u8>), // Binary string
 }
 
 impl OptionValue {
     pub fn serialize(&self, w: &mut io::Write) -> PrtResult<()> {
         w.write_u8(self.type_id())?; // I1
-        match *self {                                       // variable
+        match *self {
+            // variable
             OptionValue::INT(i) => w.write_i32::<LittleEndian>(i)?,
             OptionValue::BIGINT(i) => w.write_i64::<LittleEndian>(i)?,
             OptionValue::DOUBLE(f) => w.write_f64::<LittleEndian>(f)?,
@@ -29,15 +30,13 @@ impl OptionValue {
     }
 
     pub fn size(&self) -> usize {
-        1 +
-            match *self {
-                OptionValue::INT(_) => 4,
-                OptionValue::BIGINT(_) |
-                OptionValue::DOUBLE(_) => 8,
-                OptionValue::BOOLEAN(_) => 1,
-                OptionValue::STRING(ref s) => util::cesu8_length(s) + 2,
-                OptionValue::BSTRING(ref v) => v.len() + 2,
-            }
+        1 + match *self {
+            OptionValue::INT(_) => 4,
+            OptionValue::BIGINT(_) | OptionValue::DOUBLE(_) => 8,
+            OptionValue::BOOLEAN(_) => 1,
+            OptionValue::STRING(ref s) => util::cesu8_length(s) + 2,
+            OptionValue::BSTRING(ref v) => v.len() + 2,
+        }
     }
 
     fn type_id(&self) -> u8 {
@@ -58,17 +57,15 @@ impl OptionValue {
 
     fn parse_value(typecode: u8, rdr: &mut io::BufRead) -> PrtResult<OptionValue> {
         match typecode {
-            3 => Ok(OptionValue::INT(rdr.read_i32::<LittleEndian>()?)),        // I4
-            4 => Ok(OptionValue::BIGINT(rdr.read_i64::<LittleEndian>()?)),     // I8
-            7 => Ok(OptionValue::DOUBLE(rdr.read_f64::<LittleEndian>()?)),     // F8
-            28 => Ok(OptionValue::BOOLEAN(rdr.read_u8()? > 0)),                // B1
+            3 => Ok(OptionValue::INT(rdr.read_i32::<LittleEndian>()?)), // I4
+            4 => Ok(OptionValue::BIGINT(rdr.read_i64::<LittleEndian>()?)), // I8
+            7 => Ok(OptionValue::DOUBLE(rdr.read_f64::<LittleEndian>()?)), // F8
+            28 => Ok(OptionValue::BOOLEAN(rdr.read_u8()? > 0)),         // B1
             29 => Ok(OptionValue::STRING(parse_length_and_string(rdr)?)),
             33 => Ok(OptionValue::BSTRING(parse_length_and_binary(rdr)?)),
-            _ => {
-                Err(PrtError::ProtocolError(
-                    format!("OptionValue::parse_value() not implemented for type code {}", typecode),
-                ))
-            }
+            _ => Err(PrtError::ProtocolError(
+                format!("OptionValue::parse_value() not implemented for type code {}", typecode),
+            )),
         }
     }
 }

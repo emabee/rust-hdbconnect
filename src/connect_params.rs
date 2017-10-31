@@ -90,7 +90,9 @@ impl IntoConnectParams for Url {
             host,
             port,
             user,
-            path: url::Path { query: options, .. },
+            path: url::Path {
+                query: options, ..
+            },
             ..
         } = self;
 
@@ -241,7 +243,9 @@ impl IntoConnectParamsBuilder for Url {
             host,
             port,
             user,
-            path: url::Path { query: options, .. },
+            path: url::Path {
+                query: options, ..
+            },
             ..
         } = self;
 
@@ -275,13 +279,12 @@ mod tests {
 
     #[test]
     fn test_oneliner() {
-        let connect_params: ConnectParams = ConnectParams::builder()
-            .hostname("abcd123")
-            .port(2222)
-            .dbuser("MEIER")
-            .password("schlau")
-            .build()
-            .unwrap();
+        let connect_params: ConnectParams = ConnectParams::builder().hostname("abcd123")
+                                                                    .port(2222)
+                                                                    .dbuser("MEIER")
+                                                                    .password("schlau")
+                                                                    .build()
+                                                                    .unwrap();
         assert_eq!("abcd123", connect_params.hostname());
         assert_eq!("MEIER", connect_params.dbuser());
         assert_eq!(2222, connect_params.port());
@@ -310,9 +313,8 @@ mod tests {
 
     #[test]
     fn test_params_from_url() {
-        let params = "hdbsql://meier:schLau@abcd123:2222"
-            .into_connect_params()
-            .unwrap();
+        let params = "hdbsql://meier:schLau@abcd123:2222".into_connect_params()
+                                                         .unwrap();
 
         assert_eq!("meier", params.dbuser());
         assert_eq!("schLau", params.password());
@@ -321,12 +323,11 @@ mod tests {
     }
     #[test]
     fn test_builder_from_url() {
-        let params = "hdbsql://meier:schLau@abcd123:2222"
-            .into_connect_params_builder()
-            .unwrap()
-            .password("GanzArgSchlau")
-            .build()
-            .unwrap();
+        let params = "hdbsql://meier:schLau@abcd123:2222".into_connect_params_builder()
+                                                         .unwrap()
+                                                         .password("GanzArgSchlau")
+                                                         .build()
+                                                         .unwrap();
 
         assert_eq!("meier", params.dbuser());
         assert_eq!("GanzArgSchlau", params.password());

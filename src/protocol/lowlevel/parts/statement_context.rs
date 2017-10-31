@@ -1,4 +1,4 @@
-use super::{PrtError, PrtResult, prot_err};
+use super::{prot_err, PrtError, PrtResult};
 use super::option_value::OptionValue;
 
 use byteorder::{ReadBytesExt, WriteBytesExt};
@@ -27,11 +27,9 @@ impl StatementContext {
                 value.serialize(w)?;
                 Ok(())
             }
-            None => {
-                Err(
-                    prot_err("StatementContext::serialize(): statement_sequence_info is not filled"),
-                )
-            }
+            None => Err(
+                prot_err("StatementContext::serialize(): statement_sequence_info is not filled"),
+            ),
         }
     }
 

@@ -1,13 +1,13 @@
-use protocol::protocol_error::{PrtResult, prot_err};
+use protocol::protocol_error::{prot_err, PrtResult};
 use protocol::lowlevel::argument::Argument;
 use protocol::lowlevel::conn_core::ConnCoreRef;
-use protocol::lowlevel::message::{Request, Reply};
+use protocol::lowlevel::message::{Reply, Request};
 use protocol::lowlevel::reply_type::ReplyType;
 use protocol::lowlevel::request_type::RequestType;
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::partkind::PartKind;
 use protocol::lowlevel::parts::authfield::AuthField;
-use protocol::lowlevel::parts::connect_option::{ConnectOptions, ConnectOptionId};
+use protocol::lowlevel::parts::connect_option::{ConnectOptionId, ConnectOptions};
 use protocol::lowlevel::parts::option_value::OptionValue;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -15,7 +15,7 @@ use crypto::hmac::Hmac;
 use crypto::mac::Mac;
 use crypto::digest::Digest;
 use crypto::sha2::Sha256;
-use rand::{Rng, thread_rng};
+use rand::{thread_rng, Rng};
 
 use std::env;
 use std::io::{self, Read};
@@ -90,7 +90,7 @@ fn get_locale() -> String {
 }
 
 fn get_username() -> String {
-    let username = username::get_user_name().unwrap_or(String::new());
+    let username = username::get_user_name().unwrap_or_default();
     debug!("Username: {}", username);
     username
 }
@@ -267,29 +267,25 @@ mod tests {
                                           \x89\x74\xf9\x02\xef\x87\x38\xcc\x74\xb6\
                                           \xef\x99\x2e\x8e"
                                         .to_vec();
-        let server_challenge: Vec<u8> =
-            b"\x02\x00\x10\x12\x41\xe5\x8f\x39\x23\x4e\
+        let server_challenge: Vec<u8> = b"\x02\x00\x10\x12\x41\xe5\x8f\x39\x23\x4e\
                                           \xeb\x77\x3e\x90\x90\x33\xe5\xcb\x6e\x30\
                                           \x1a\xce\xdc\xdd\x05\xc1\x90\xb0\xf0\xd0\
                                           \x7d\x81\x1a\xdb\x0d\x6f\xed\xa8\x87\x59\
                                           \xc2\x94\x06\x0d\xae\xab\x3f\x62\xea\x4b\
                                           \x16\x6a\xc9\x7e\xfc\x9a\x6b\xde\x4f\xe9\
-                                          \xe5\xda\xcc\xb5\x0a\xcf\xce\x56"
-            .to_vec();
+                                          \xe5\xda\xcc\xb5\x0a\xcf\xce\x56".to_vec();
         let password: &str = "manager";
-        let correct_client_proof: Vec<u8> =
-            b"\x00\x01\x20\x17\x26\x25\xab\x29\x71\xd8\
+        let correct_client_proof: Vec<u8> = b"\x00\x01\x20\x17\x26\x25\xab\x29\x71\xd8\
                                               \x58\x74\x32\x5d\x21\xbc\x3d\x68\x37\x71\
                                               \x80\x5c\x9a\xfe\x38\xd0\x95\x1d\xad\x46\
-                                              \x53\x00\x9c\xc9\x21"
-            .to_vec();
+                                              \x53\x00\x9c\xc9\x21".to_vec();
 
         trace!("----------------------------------------------------");
         trace!("client_challenge ({} bytes): \n{:?}", &client_challenge.len(), &client_challenge);
         trace!("server_challenge ({} bytes): \n{:?}", &server_challenge.len(), &server_challenge);
 
-        let my_client_proof = calculate_client_proof(server_challenge, &client_challenge, password)
-            .unwrap();
+        let my_client_proof =
+            calculate_client_proof(server_challenge, &client_challenge, password).unwrap();
 
         trace!("my_client_proof ({} bytes): \n{:?}", &my_client_proof.len(), &my_client_proof);
         trace!(

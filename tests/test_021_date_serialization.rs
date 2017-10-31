@@ -31,14 +31,13 @@ fn test_date_io(_loghandle: &mut ReconfigurationHandle) -> HdbResult<i32> {
     info!("verify that NaiveDateTime values match the expected string representation");
 
     debug!("prepare the test data");
-    let naive_datetime_values: Vec<NaiveDateTime> =
-        vec![
-            NaiveDate::from_ymd(1, 1, 1).and_hms_nano(0, 0, 0, 000000000),
-            NaiveDate::from_ymd(1, 1, 1).and_hms_nano(0, 0, 0, 000000100),
-            NaiveDate::from_ymd(2012, 2, 2).and_hms_nano(2, 2, 2, 200000000),
-            NaiveDate::from_ymd(2013, 3, 3).and_hms_nano(3, 3, 3, 300000000),
-            NaiveDate::from_ymd(2014, 4, 4).and_hms_nano(4, 4, 4, 400000000),
-        ];
+    let naive_datetime_values: Vec<NaiveDateTime> = vec![
+        NaiveDate::from_ymd(1, 1, 1).and_hms_nano(0, 0, 0, 0),
+        NaiveDate::from_ymd(1, 1, 1).and_hms_nano(0, 0, 0, 100),
+        NaiveDate::from_ymd(2012, 2, 2).and_hms_nano(2, 2, 2, 200_000_000),
+        NaiveDate::from_ymd(2013, 3, 3).and_hms_nano(3, 3, 3, 300_000_000),
+        NaiveDate::from_ymd(2014, 4, 4).and_hms_nano(4, 4, 4, 400_000_000),
+    ];
     let string_values = vec![
         "0001-01-01 00:00:00.000000000",
         "0001-01-01 00:00:00.000000100",
@@ -48,9 +47,8 @@ fn test_date_io(_loghandle: &mut ReconfigurationHandle) -> HdbResult<i32> {
     ];
     for i in 0..5 {
         assert_eq!(
-            naive_datetime_values[i]
-                .format("%Y-%m-%d %H:%M:%S.%f")
-                .to_string(),
+            naive_datetime_values[i].format("%Y-%m-%d %H:%M:%S.%f")
+                                    .to_string(),
             string_values[i]
         );
     }
@@ -80,20 +78,18 @@ fn test_date_io(_loghandle: &mut ReconfigurationHandle) -> HdbResult<i32> {
             "select sum(number) from TEST_DATE_SERIALIZATION \
              where mydate = ? or mydate = ?",
         )?;
-        // Enforce that NaiveDateTime values are converted in the client (with serde) to the DB type:
-        prep_stmt.add_batch(&(
-            naive_datetime_values[2],
-            naive_datetime_values[3],
-        ))?;
-        let typed_result: i32 = prep_stmt.execute_batch()?.as_resultset()?.into_typed()?;
+        // Enforce that NaiveDateTime values are converted in the client (with serde)
+        // to the DB type:
+        prep_stmt.add_batch(&(naive_datetime_values[2], naive_datetime_values[3]))?;
+        let typed_result: i32 = prep_stmt.execute_batch()?.into_resultset()?.into_typed()?;
         assert_eq!(typed_result, 31_i32);
 
         info!("test the conversion DateTime<Utc> -> DB");
         let utc2: DateTime<Utc> = DateTime::from_utc(naive_datetime_values[2], Utc);
         let utc3: DateTime<Utc> = DateTime::from_utc(naive_datetime_values[3], Utc);
-        // Enforce that UTC timestamps values are converted in the client (with serde) to the DB type:
+        // Enforce that UTC timestamps values are converted here in the client to the DB type:
         prep_stmt.add_batch(&(utc2, utc3))?;
-        let typed_result: i32 = prep_stmt.execute_batch()?.as_resultset()?.into_typed()?;
+        let typed_result: i32 = prep_stmt.execute_batch()?.into_resultset()?.into_typed()?;
         assert_eq!(typed_result, 31_i32);
     }
 

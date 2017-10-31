@@ -1,12 +1,12 @@
-use {HdbError, HdbResult, HdbResponse};
+use {HdbError, HdbResponse, HdbResult};
 use protocol::lowlevel::conn_core::ConnCoreRef;
 use protocol::lowlevel::argument::Argument;
 use protocol::lowlevel::message::Request;
 use protocol::lowlevel::request_type::RequestType;
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::partkind::PartKind;
-use protocol::lowlevel::parts::parameter_metadata::{ParameterDescriptor, ParameterMetadata,
-                                                    ParMode};
+use protocol::lowlevel::parts::parameter_metadata::{ParMode, ParameterDescriptor,
+                                                    ParameterMetadata};
 use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
 use protocol::lowlevel::parts::parameters::{ParameterRow, Parameters};
 use serde_db;
@@ -21,11 +21,9 @@ pub struct PreparedStatement {
     conn_ref: ConnCoreRef,
     statement_id: u64,
     auto_commit: bool,
-    #[allow(dead_code)]
-    o_table_location: Option<Vec<i32>>,
+    _o_table_location: Option<Vec<i32>>,
     o_par_md: Option<ParameterMetadata>, // optional, because there will not always be parameters
-    #[allow(dead_code)]
-    o_rs_md: Option<ResultSetMetadata>, // optional, because there will not always be a resultset
+    o_rs_md: Option<ResultSetMetadata>,  // optional, because there will not always be a resultset
     o_batch: Option<Vec<ParameterRow>>,
     acc_server_proc_time: i32,
 }
@@ -37,6 +35,7 @@ impl PreparedStatement {
         trace!("PreparedStatement::add_batch() called");
         match (&(self.o_par_md), &mut (self.o_batch)) {
             (&Some(ref metadata), &mut Some(ref mut vec)) => {
+                // FIXME Do this only once per PreparedStatement, not per call to add_batch
                 let mut input_metadata = Vec::<ParameterDescriptor>::new();
                 for pd in &metadata.descriptors {
                     match pd.mode {
@@ -44,7 +43,7 @@ impl PreparedStatement {
                         ParMode::OUT => {}
                     }
                 }
-                vec.push(ParameterRow::new(serde_db::to_params(input, input_metadata)?));
+                vec.push(ParameterRow::new(serde_db::ser::to_params(input, input_metadata)?));
                 Ok(())
             }
             (_, _) => {
@@ -201,7 +200,7 @@ pub mod factory {
             },
             o_par_md: o_par_md,
             o_rs_md: o_rs_md,
-            o_table_location: o_table_location,
+            _o_table_location: o_table_location,
             acc_server_proc_time: acc_server_proc_time,
         })
     }

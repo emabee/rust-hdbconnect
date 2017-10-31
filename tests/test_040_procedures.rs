@@ -92,9 +92,9 @@ fn procedure_with_out_resultsets(connection: &mut Connection) -> HdbResult<()> {
 
     let mut response = connection.statement("call GET_PROCEDURES(?,?,?)")?;
     response.get_success()?;
-    let l1 = response.get_resultset()?.len()?;
-    let l2 = response.get_resultset()?.len()?;
-    let l3 = response.get_resultset()?.len()?;
+    let l1 = response.get_resultset()?.total_number_of_rows()?;
+    let l2 = response.get_resultset()?.total_number_of_rows()?;
+    let l3 = response.get_resultset()?.total_number_of_rows()?;
     assert_eq!(l1, l2);
     assert_eq!(l1, l3);
     Ok(())
@@ -121,9 +121,9 @@ fn procedure_with_secret_resultsets(connection: &mut Connection) -> HdbResult<()
     let mut response = connection.statement("call GET_PROCEDURES_SECRETLY()")?;
 
     response.get_success()?;
-    let l1 = response.get_resultset()?.len()?;
-    let l2 = response.get_resultset()?.len()?;
-    let l3 = response.get_resultset()?.len()?;
+    let l1 = response.get_resultset()?.total_number_of_rows()?;
+    let l2 = response.get_resultset()?.total_number_of_rows()?;
+    let l3 = response.get_resultset()?.total_number_of_rows()?;
     assert_eq!(l1, l2);
     assert_eq!(l1, l3);
     Ok(())
@@ -158,8 +158,8 @@ fn procedure_with_in_parameters(connection: &mut Connection) -> HdbResult<()> {
 
 fn procedure_with_in_and_out_parameters(connection: &mut Connection) -> HdbResult<()> {
     info!(
-        "procedure_with_in_and_out_parameters(): verify that we can run a sqlscript procedure with \
-         input and output parameters"
+        "procedure_with_in_and_out_parameters(): verify that we can run a sqlscript procedure \
+         with input and output parameters"
     );
 
     test_utils::statement_ignore_err(connection, vec!["drop procedure TEST_INPUT_AND_OUTPUT_PARS"]);
@@ -179,7 +179,7 @@ fn procedure_with_in_and_out_parameters(connection: &mut Connection) -> HdbResul
     let mut response = prepared_stmt.execute_batch()?;
     response.get_success()?;
     let op = response.get_output_parameters()?;
-    let value: String = op.values.get(0).unwrap().clone().into_typed()?;
+    let value: String = op.values[0].clone().into_typed()?;
     assert_eq!(value, "my first output parameter");
 
     let mut rs = response.get_resultset()?;

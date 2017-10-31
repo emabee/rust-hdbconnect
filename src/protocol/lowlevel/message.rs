@@ -1,10 +1,10 @@
 //! Since there is obviously no usecase for multiple segments in one request,
 //! we model message and segment together.
 //! But we differentiate explicitly between request messages and reply messages.
-use {HdbError, HdbResult, HdbResponse};
+use {HdbError, HdbResponse, HdbResult};
 use hdb_response::factory as HdbResponseFactory;
 use hdb_response::factory::InternalReturnValue;
-use super::{PrtError, PrtResult, prot_err};
+use super::{prot_err, PrtError, PrtResult};
 use super::conn_core::ConnCoreRef;
 use super::argument::Argument;
 use super::reply_type::ReplyType;
@@ -75,13 +75,8 @@ impl Request {
                                  par_md: Option<&ParameterMetadata>, conn_ref: &ConnCoreRef,
                                  expected_fc: Option<ReplyType>, acc_server_proc_time: &mut i32)
                                  -> HdbResult<HdbResponse> {
-        let mut reply = self.send_and_receive_detailed(
-            rs_md,
-            par_md,
-            &mut None,
-            conn_ref,
-            expected_fc,
-        )?;
+        let mut reply =
+            self.send_and_receive_detailed(rs_md, par_md, &mut None, conn_ref, expected_fc)?;
 
         // digest parts, collect InternalReturnValues
         let mut int_return_values = Vec::<InternalReturnValue>::new();
@@ -104,38 +99,32 @@ impl Request {
                         _ => 0,
                     };
                 }
-                Argument::TransactionFlags(vec) => {
-                    for ta_flag in vec {
-                        let mut guard = conn_ref.lock()?;
-                        (*guard).set_transaction_state(ta_flag)?;
-                    }
-                }
+                Argument::TransactionFlags(vec) => for ta_flag in vec {
+                    let mut guard = conn_ref.lock()?;
+                    (*guard).set_transaction_state(ta_flag)?;
+                },
                 Argument::ResultSet(Some(rs)) => {
                     int_return_values.push(InternalReturnValue::ResultSet(rs));
                 }
                 Argument::OutputParameters(op) => {
                     int_return_values.push(InternalReturnValue::OutputParameters(op));
                 }
-                Argument::ResultSetMetadata(rsm) => {
-                    match reply.parts.0.pop() {
-                        Some(part) => {
-                            match part.arg {
-                                Argument::ResultSetId(rs_id) => {
-                                    let rs = ResultSetFactory::resultset_new(
-                                        Some(conn_ref),
-                                        PartAttributes::new(0b_0000_0100),
-                                        rs_id,
-                                        rsm,
-                                        None,
-                                    );
-                                    int_return_values.push(InternalReturnValue::ResultSet(rs));
-                                }
-                                _ => panic!("wrong Argument variant: ResultSetID expected"),
-                            }
+                Argument::ResultSetMetadata(rsm) => match reply.parts.0.pop() {
+                    Some(part) => match part.arg {
+                        Argument::ResultSetId(rs_id) => {
+                            let rs = ResultSetFactory::resultset_new(
+                                Some(conn_ref),
+                                PartAttributes::new(0b_0000_0100),
+                                rs_id,
+                                rsm,
+                                None,
+                            );
+                            int_return_values.push(InternalReturnValue::ResultSet(rs));
                         }
-                        _ => panic!("Missing required part ResultSetID"),
-                    }
-                }
+                        _ => panic!("wrong Argument variant: ResultSetID expected"),
+                    },
+                    _ => panic!("Missing required part ResultSetID"),
+                },
                 _ => warn!("send_and_get_response: found unexpected part of kind {:?}", part.kind),
             }
         }
@@ -223,10 +212,9 @@ impl Request {
                     "Sending StatementContext with sequence_info = {:?}",
                     stmt_ctx.statement_sequence_info
                 );
-                self.parts.0.push(Part::new(
-                    PartKind::StatementContext,
-                    Argument::StatementContext(stmt_ctx),
-                ));
+                self.parts.0.push(
+                    Part::new(PartKind::StatementContext, Argument::StatementContext(stmt_ctx)),
+                );
             }
         }
         Ok(())
@@ -367,7 +355,7 @@ impl Reply {
 
     fn assert_expected_fc(&self, expected_fc: Option<ReplyType>) -> PrtResult<()> {
         match expected_fc {
-            None => Ok(()),     // we had no clear expectation
+            None => Ok(()), // we had no clear expectation
             Some(fc) => {
                 if self.type_.to_i16() == fc.to_i16() {
                     Ok(()) // we got what we expected
@@ -487,11 +475,9 @@ impl Kind {
             1 => Ok(Kind::Request),
             2 => Ok(Kind::Reply),
             5 => Ok(Kind::Error),
-            _ => {
-                Err(
-                    prot_err(&format!("Invalid value for message::Kind::from_i8() detected: {}", val)),
-                )
-            }
+            _ => Err(
+                prot_err(&format!("Invalid value for message::Kind::from_i8() detected: {}", val)),
+            ),
         }
     }
 }

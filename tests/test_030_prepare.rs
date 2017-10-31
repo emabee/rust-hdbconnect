@@ -45,10 +45,8 @@ fn prepare_insert_statement(connection: &mut Connection) -> HdbResult<()> {
 
     #[derive(Deserialize, Debug)]
     struct TestStruct {
-        #[serde(rename = "F1_S")]
-        f1_s: Option<String>,
-        #[serde(rename = "F2_I")]
-        f2_i: Option<i32>,
+        #[serde(rename = "F1_S")] f1_s: Option<String>,
+        #[serde(rename = "F2_I")] f2_i: Option<i32>,
     }
 
     let insert_stmt_str = "insert into TEST_PREPARE (F1_S, F2_I) values(?, ?)";

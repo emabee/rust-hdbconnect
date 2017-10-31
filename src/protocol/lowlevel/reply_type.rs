@@ -3,27 +3,27 @@ use protocol::protocol_error::{PrtError, PrtResult};
 /// Identifies the nature of the statement or functionality that has been prepared or executed
 #[derive(Debug)]
 pub enum ReplyType {
-    Nil, // Nil
-    Ddl, // DDL statement
-    Insert, // INSERT statement
-    Update, // UPDATE statement
-    Delete, // DELETE statement
-    Select, // SELECT statement
-    SelectForUpdate, // SELECT … FOR UPDATE statement
-    Explain, // EXPLAIN statement
-    DbProcedureCall, // CALL statement
+    Nil,                       // Nil
+    Ddl,                       // DDL statement
+    Insert,                    // INSERT statement
+    Update,                    // UPDATE statement
+    Delete,                    // DELETE statement
+    Select,                    // SELECT statement
+    SelectForUpdate,           // SELECT … FOR UPDATE statement
+    Explain,                   // EXPLAIN statement
+    DbProcedureCall,           // CALL statement
     DbProcedureCallWithResult, // CALL statement returning one or more results
-    Fetch, // FETCH message
-    Commit, // COMMIT message or statement
-    Rollback, // ROLLBACK message or statement
-    Connect, // CONNECT or AUTHENTICATION message
-    WriteLob, // WRITELOB message
-    ReadLob, // READLOB message
-    Disconnect, // DISCONNECT message
-    CloseCursor, // CLOSECURSOR message
-    FindLob, // FINDLOB message
-    XaStart, // XA_START message
-    XaJoin, // XA_JOIN message
+    Fetch,                     // FETCH message
+    Commit,                    // COMMIT message or statement
+    Rollback,                  // ROLLBACK message or statement
+    Connect,                   // CONNECT or AUTHENTICATION message
+    WriteLob,                  // WRITELOB message
+    ReadLob,                   // READLOB message
+    Disconnect,                // DISCONNECT message
+    CloseCursor,               // CLOSECURSOR message
+    FindLob,                   // FINDLOB message
+    XaStart,                   // XA_START message
+    XaJoin,                    // XA_JOIN message
 }
 impl ReplyType {
     pub fn from_i16(val: i16) -> PrtResult<ReplyType> {
@@ -49,11 +49,9 @@ impl ReplyType {
             20 => Ok(ReplyType::FindLob),
             22 => Ok(ReplyType::XaStart),
             23 => Ok(ReplyType::XaJoin),
-            _ => {
-                Err(
-                    PrtError::ProtocolError(format!("Invalid value for ReplyType detected: {}", val)),
-                )
-            }
+            _ => Err(
+                PrtError::ProtocolError(format!("Invalid value for ReplyType detected: {}", val)),
+            ),
         }
     }
 

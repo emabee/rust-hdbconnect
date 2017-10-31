@@ -1,4 +1,4 @@
-use super::{PrtResult, util};
+use super::{util, PrtResult};
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::io::BufRead;

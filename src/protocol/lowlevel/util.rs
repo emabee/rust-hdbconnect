@@ -451,10 +451,10 @@ fn get_hi_lo_surrogates(utf8_4: &[u8; 4]) -> (u16, u16) {
     assert!(utf8_4[1] >= 128);
     assert!(utf8_4[2] >= 128);
     assert!(utf8_4[3] >= 128);
-    let codepoint: u32 = (u32::from(utf8_4[0] & 0b0000_0111_u8) << 24) +
-        (u32::from(utf8_4[1] & 0b0011_1111_u8) << 16) +
-        (u32::from(utf8_4[2] & 0b0011_1111_u8) << 8) +
-        u32::from(utf8_4[3] & 0b0011_1111_u8);
+    let codepoint: u32 = (u32::from(utf8_4[0] & 0b0000_0111_u8) << 24)
+        + (u32::from(utf8_4[1] & 0b0011_1111_u8) << 16)
+        + (u32::from(utf8_4[2] & 0b0011_1111_u8) << 8)
+        + u32::from(utf8_4[3] & 0b0011_1111_u8);
 
     // High Surrogates: U+D800–U+DBFF = 55296 - 56319 (1024 values)
     // Low Surrogates:  U+DC00–U+DFFF = 56320 - 57343 (1024 values)

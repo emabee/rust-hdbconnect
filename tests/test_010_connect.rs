@@ -1,20 +1,20 @@
 extern crate chrono;
-extern crate hdbconnect;
 extern crate flexi_logger;
+extern crate hdbconnect;
 
 #[macro_use]
 extern crate log;
 
+extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-extern crate serde;
 extern crate serde_json;
 
 mod test_utils;
 
 use chrono::Local;
 use std::error::Error;
-use hdbconnect::{Connection, ConnectParams, HdbResult};
+use hdbconnect::{ConnectParams, Connection, HdbResult};
 
 
 // cargo test test_connect -- --nocapture
@@ -34,17 +34,16 @@ fn connect_successfully() {
 fn connect_wrong_password() -> HdbResult<()> {
     info!("test connect failure on wrong credentials");
     let start = Local::now();
-    let conn_params: ConnectParams = test_utils::connect_params_builder_from_file()?
-        .dbuser("bla")
-        .password("blubber")
-        .build()?;
+    let conn_params: ConnectParams =
+        test_utils::connect_params_builder_from_file()?.dbuser("bla")
+                                                       .password("blubber")
+                                                       .build()?;
     let err = Connection::new(conn_params).err().unwrap();
     info!(
         "connect with wrong password failed as expected, after {} µs with {}.",
-        Local::now()
-            .signed_duration_since(start)
-            .num_microseconds()
-            .unwrap(),
+        Local::now().signed_duration_since(start)
+                    .num_microseconds()
+                    .unwrap(),
         err.description()
     );
     Ok(())
@@ -74,17 +73,16 @@ fn impl_select_version_and_user(connection: &mut Connection) -> HdbResult<()> {
         current_user: String,
     }
 
-    let stmt = "SELECT VERSION as \"version\", CURRENT_USER as \"current_user\" FROM \
-                SYS.M_DATABASE";
+    let stmt =
+        "SELECT VERSION as \"version\", CURRENT_USER as \"current_user\" FROM SYS.M_DATABASE";
     debug!("calling connection.query(SELECT VERSION as ...)");
     let resultset = connection.query(stmt)?;
     let version_and_user: VersionAndUser = resultset.into_typed()?;
 
     assert_eq!(
         version_and_user.current_user,
-        test_utils::connect_params_builder_from_file()?
-            .build()?
-            .dbuser()
+        test_utils::connect_params_builder_from_file()?.build()?
+                                                       .dbuser()
     );
 
     debug!("VersionAndUser: {:?}", version_and_user);

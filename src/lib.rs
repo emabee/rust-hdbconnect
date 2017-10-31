@@ -1,11 +1,11 @@
 //! Experimental native rust database driver for SAP HANA(TM).
 //!
-//! One reason for publishing this driver in its incomplete (some datatypes are missing,
-//! SSL is not supported) state is to demonstrate how [serde_db](https://docs.rs/serde_db)
+//! One reason for publishing this driver in its incomplete state (some datatypes are missing,
+//! SSL is not yet supported) is to demonstrate how [`serde_db`](https://docs.rs/serde_db)
 //! can be used to simplify the API of such a database driver.
 //!
-//! Concretely, we use serde to simplify the data exchange between your code and the driver,
-//! both for input parameters to prepared statements
+//! Concretely, we use serde (via `serde_db`) to simplify the data exchange between your code
+//! and the driver, both for input parameters to prepared statements
 //! and for results that you get from the database:
 //! there is no need to iterate over a complex resultset by rows and columns!
 //!
@@ -35,8 +35,8 @@ extern crate serde;
 extern crate serde_db;
 #[macro_use]
 extern crate serde_derive;
-extern crate vec_map;
 extern crate username;
+extern crate vec_map;
 
 mod connect_params;
 mod connection;
@@ -61,8 +61,8 @@ pub use hdb_error::{HdbError, HdbResult};
 /// Types for describing metadata.
 pub mod metadata {
     pub use protocol::lowlevel::parts::output_parameters::OutputParameters;
-    pub use protocol::lowlevel::parts::parameter_metadata::{ParameterDescriptor, ParameterOption,
-                                                            ParMode};
+    pub use protocol::lowlevel::parts::parameter_metadata::{ParMode, ParameterDescriptor,
+                                                            ParameterOption};
     pub use protocol::lowlevel::parts::resultset::factory::new_for_tests as new_resultset_for_tests;
     pub use protocol::lowlevel::parts::resultset_metadata::{FieldMetadata, ResultSetMetadata};
 }
@@ -74,7 +74,7 @@ pub mod metadata {
 /// Some of the `HdbValues` are implemented using `LongDate`, BLOB, etc
 ///
 pub mod types {
-    pub use protocol::lowlevel::parts::lob::{BLOB, CLOB, new_clob_to_db};
+    pub use protocol::lowlevel::parts::lob::{new_clob_to_db, BLOB, CLOB};
     pub use protocol::lowlevel::parts::longdate::LongDate;
 }
 pub use protocol::lowlevel::parts::typed_value::TypedValue as HdbValue;

@@ -1,4 +1,4 @@
-use super::{PrtResult, prot_err};
+use super::{prot_err, PrtResult};
 use super::argument::Argument;
 use super::conn_core::ConnCoreRef;
 use super::message::MsgType;
@@ -17,7 +17,7 @@ const PART_HEADER_SIZE: usize = 16;
 #[derive(Debug)]
 pub struct Part {
     pub kind: PartKind, // FIXME can we remove this?
-    pub arg: Argument, // a.k.a. part data, or part buffer :-(
+    pub arg: Argument,  // a.k.a. part data, or part buffer :-(
 }
 
 impl Part {
@@ -131,7 +131,8 @@ impl Parts {
     }
     pub fn pop_arg_if_kind(&mut self, kind: PartKind) -> Option<Argument> {
         match self.0.last() {
-            Some(part) if part.kind.to_i8() == kind.to_i8() => {}  // escape the borrow
+            Some(part) if part.kind.to_i8() == kind.to_i8() => {}
+            // escape the borrow
             _ => return None,
         }
         Some(self.0.pop().unwrap().arg)

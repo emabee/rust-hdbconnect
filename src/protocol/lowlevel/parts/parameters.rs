@@ -25,7 +25,8 @@ impl ParameterRow {
     }
 
     pub fn serialize(&self, w: &mut io::Write) -> PrtResult<()> {
-        let mut data_pos = 0_i32; // FIXME or must it be 1?
+        // FIXME must it be 1?
+        let mut data_pos = 0_i32;
         // serialize the values (LOBs only serialize their header, the data follow below)
         for value in &(self.values) {
             typed_value_serialize(value, &mut data_pos, w)?;
@@ -34,8 +35,7 @@ impl ParameterRow {
         // serialize LOB data
         for value in &(self.values) {
             match *value {
-                TypedValue::BLOB(ref blob) |
-                TypedValue::N_BLOB(Some(ref blob)) => {
+                TypedValue::BLOB(ref blob) | TypedValue::N_BLOB(Some(ref blob)) => {
                     util::serialize_bytes(blob.ref_to_bytes()?, w)?
                 }
 

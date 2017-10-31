@@ -38,7 +38,7 @@ impl HdbResponse {
     /// Turns itself into a single resultset.
     ///
     /// If this cannot be done without loss of information, an error is returned.
-    pub fn as_resultset(self) -> HdbResult<ResultSet> {
+    pub fn into_resultset(self) -> HdbResult<ResultSet> {
         match self {
             HdbResponse::SingleReturnValue(HdbReturnValue::ResultSet(rs)) => Ok(rs),
             _ => Err(HdbError::EvaluationError(ERR_1)),
@@ -48,7 +48,7 @@ impl HdbResponse {
     /// Turns itself into a Vector of numbers (each number representing a number of affected rows).
     ///
     /// If this cannot be done without loss of information, an error is returned.
-    pub fn as_affected_rows(self) -> HdbResult<Vec<usize>> {
+    pub fn into_affected_rows(self) -> HdbResult<Vec<usize>> {
         match self {
             HdbResponse::SingleReturnValue(HdbReturnValue::AffectedRows(array)) => Ok(array),
             _ => Err(HdbError::EvaluationError(ERR_2)),
@@ -58,7 +58,7 @@ impl HdbResponse {
     /// Turns itself into (), if the statement had returned successfully.
     ///
     /// If this cannot be done without loss of information, an error is returned.
-    pub fn as_success(self) -> HdbResult<()> {
+    pub fn into_success(self) -> HdbResult<()> {
         match self {
             HdbResponse::SingleReturnValue(HdbReturnValue::Success) => Ok(()),
             _ => Err(HdbError::EvaluationError(ERR_3)),
@@ -69,7 +69,7 @@ impl HdbResponse {
     pub fn get_success(&mut self) -> HdbResult<()> {
         if let HdbResponse::MultipleReturnValues(ref mut vec) = *self {
             match vec.iter().rposition(|x: &HdbReturnValue| match *x {
-                HdbReturnValue::AffectedRows(ref vec) => vec.len() == 1 && vec.get(0) == Some(&0), 
+                HdbReturnValue::AffectedRows(ref vec) => vec.len() == 1 && vec.get(0) == Some(&0),
                 HdbReturnValue::Success => true,
                 _ => false,
             }) {
@@ -112,11 +112,9 @@ impl fmt::Display for HdbResponse {
             HdbResponse::SingleReturnValue(ref dbretval) => {
                 fmt::Display::fmt(dbretval, fmt)?;
             }
-            HdbResponse::MultipleReturnValues(ref vec) => {
-                for dbretval in vec {
-                    fmt::Display::fmt(dbretval, fmt)?;
-                }
-            }
+            HdbResponse::MultipleReturnValues(ref vec) => for dbretval in vec {
+                fmt::Display::fmt(dbretval, fmt)?;
+            },
         }
         Ok(())
     }
@@ -159,11 +157,9 @@ pub mod factory {
             None => {
                 Err(HdbError::EvaluationError("Nothing found, but a single Resultset was expected"))
             }
-            _ => {
-                Err(
-                    HdbError::EvaluationError("Wrong HdbReturnValue, a single Resultset was expected"),
-                )
-            }
+            _ => Err(
+                HdbError::EvaluationError("Wrong HdbReturnValue, a single Resultset was expected"),
+            ),
         }
     }
 
@@ -188,21 +184,15 @@ pub mod factory {
                 }
                 Ok(HdbResponse::SingleReturnValue(HdbReturnValue::AffectedRows(vec_i)))
             }
-            Some(InternalReturnValue::OutputParameters(_)) => {
-                Err(HdbError::EvaluationError(
-                    "Found OutputParameters, but a single AffectedRows was expected",
-                ))
-            }
-            Some(InternalReturnValue::ResultSet(_)) => {
-                Err(
-                    HdbError::EvaluationError("Found ResultSet, but a single AffectedRows was expected"),
-                )
-            }
-            None => {
-                Err(
-                    HdbError::EvaluationError("Nothing found, but a single AffectedRows was expected"),
-                )
-            }
+            Some(InternalReturnValue::OutputParameters(_)) => Err(HdbError::EvaluationError(
+                "Found OutputParameters, but a single AffectedRows was expected",
+            )),
+            Some(InternalReturnValue::ResultSet(_)) => Err(HdbError::EvaluationError(
+                "Found ResultSet, but a single AffectedRows was expected",
+            )),
+            None => Err(
+                HdbError::EvaluationError("Nothing found, but a single AffectedRows was expected"),
+            ),
         }
     }
 
@@ -221,25 +211,18 @@ pub mod factory {
                     ));
                 }
                 match vec_ra.pop().unwrap() {
-                    RowsAffected::Count(i) if i > 0 => {
-                        Err(HdbError::EvaluationError(
-                            "found an affected-row-count > 0, but only a single Success was \
-                             expected",
-                        ))
-                    }
-                    RowsAffected::ExecutionFailed => {
-                        Err(
-                            HdbError::EvaluationError("Found unexpected returnvalue ExecutionFailed"),
-                        )
-                    }
+                    RowsAffected::Count(i) if i > 0 => Err(HdbError::EvaluationError(
+                        "found an affected-row-count > 0, but only a single Success was expected",
+                    )),
+                    RowsAffected::ExecutionFailed => Err(
+                        HdbError::EvaluationError("Found unexpected returnvalue ExecutionFailed"),
+                    ),
                     _ => Ok(HdbResponse::SingleReturnValue(HdbReturnValue::Success)),
                 }
             }
-            Some(InternalReturnValue::OutputParameters(_)) => {
-                Err(HdbError::EvaluationError(
-                    "Found OutputParameters, but a single Success was expected",
-                ))
-            }
+            Some(InternalReturnValue::OutputParameters(_)) => Err(HdbError::EvaluationError(
+                "Found OutputParameters, but a single Success was expected",
+            )),
             Some(InternalReturnValue::ResultSet(_)) => {
                 Err(HdbError::EvaluationError("Found ResultSet, but a single Success was expected"))
             }

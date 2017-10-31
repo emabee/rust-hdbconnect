@@ -46,52 +46,52 @@ impl ConnectOption {
 
 #[derive(Debug)]
 pub enum ConnectOptionId {
-    ConnectionID, // 1 //
-    CompleteArrayExecution, // 2 // @deprecated Array execution semantics, always true.
-    ClientLocale, // 3 // Client locale information.
-    SupportsLargeBulkOperations, // 4 // Bulk operations >32K are supported.
+    ConnectionID,                        // 1 //
+    CompleteArrayExecution,              // 2 // @deprecated Array execution semantics, always true.
+    ClientLocale,                        // 3 // Client locale information.
+    SupportsLargeBulkOperations,         // 4 // Bulk operations >32K are supported.
     DistributionEnabled, // 5 // @deprecated Distribution (topology & call routing) enabled
     PrimaryConnectionId, // 6 // @deprecated Id of primary connection (unused).
     PrimaryConnectionHost, // 7 // @deprecated Primary connection host name (unused).
     PrimaryConnectionPort, // 8 // @deprecated Primary connection port (unused).
     CompleteDatatypeSupport, // 9 // @deprecated All data types supported (always on).
     LargeNumberOfParametersSupport, // 10 // Number of parameters >32K is supported.
-    SystemID, // 11 // SID of SAP HANA Database system (output only).
-    DataFormatVersion, // 12 // Version of data format used in communication
-    AbapVarcharMode, // 13 // ABAP varchar mode (trim trailing blanks in string constants)
+    SystemID,            // 11 // SID of SAP HANA Database system (output only).
+    DataFormatVersion,   // 12 // Version of data format used in communication
+    AbapVarcharMode,     // 13 // ABAP varchar mode (trim trailing blanks in string constants)
     SelectForUpdateSupported, // 14 // SELECT FOR UPDATE function code understood by client
     ClientDistributionMode, // 15 // client distribution mode
     EngineDataFormatVersion, // 16 // Engine version of data format used in communication
     DistributionProtocolVersion, // 17 // version of distribution protocol handling
-    SplitBatchCommands, // 18 // permit splitting of batch commands
+    SplitBatchCommands,  // 18 // permit splitting of batch commands
     UseTransactionFlagsOnly, // 19 // use transaction flags only for controlling transaction
     RowSlotImageParameter, // 20 // row-slot image parameter passing
-    IgnoreUnknownParts, // 21 // server does not abort on unknown parts
+    IgnoreUnknownParts,  // 21 // server does not abort on unknown parts
     TableOutputParameterMetadataSupport, // 22 // support table type output parameter metadata.
-    DataFormatVersion2, // 23 // Version of data format
-    ItabParameter, // 24 // bool option to signal abap itab parameter support
+    DataFormatVersion2,  // 23 // Version of data format
+    ItabParameter,       // 24 // bool option to signal abap itab parameter support
     DescribeTableOutputParameter, // 25 // overrides in this session "omit table output parameter"
-    ColumnarResultSet, // 26 // column wise result passing
+    ColumnarResultSet,   // 26 // column wise result passing
     ScrollableResultSet, // 27 // scrollable resultset
     ClientInfoNullValueSupported, // 28 // can handle null values in client info
     AssociatedConnectionID, // 29 // associated connection id
     NonTransactionalPrepare, // 30 // can handle and uses non-transactional prepare
-    FdaEnabled, // 31 // Fast Data Access at all enabled
-    OSUser, // 32 // client OS user name
+    FdaEnabled,          // 31 // Fast Data Access at all enabled
+    OSUser,              // 32 // client OS user name
     RowSlotImageResultSet, // 33 // row-slot image result passing
-    Endianness, // 34 // endianness
+    Endianness,          // 34 // endianness
     UpdateTopologyAnwhere, // 35 // Allow update of topology from any reply
-    EnableArrayType, // 36 // Enable supporting Array data type
+    EnableArrayType,     // 36 // Enable supporting Array data type
     ImplicitLobStreaming, // 37 // implicit lob streaming
-    CachedViewProperty, // 38 //
+    CachedViewProperty,  // 38 //
     XOpenXAProtocolSupported, // 39 //
     MasterCommitRedirectionSupported, // 40 //
     ActiveActiveProtocolVersion, // 41 //
     ActiveActiveConnectionOriginSite, // 42 //
     QueryTimeoutSupported, // 43 //
-    FullVersionString, // 44 //
-    DatabaseName, // 45 //
-    BuildPlatform, //  46 //
+    FullVersionString,   // 44 //
+    DatabaseName,        // 45 //
+    BuildPlatform,       //  46 //
     ImplicitXASessionSupported, // 47 //
 }
 impl ConnectOptionId {
@@ -144,7 +144,6 @@ impl ConnectOptionId {
             ConnectOptionId::DatabaseName => 45,
             ConnectOptionId::BuildPlatform => 46,
             ConnectOptionId::ImplicitXASessionSupported => 47,
-
         }
     }
 
@@ -197,11 +196,9 @@ impl ConnectOptionId {
             45 => Ok(ConnectOptionId::DatabaseName),
             46 => Ok(ConnectOptionId::BuildPlatform),
             47 => Ok(ConnectOptionId::ImplicitXASessionSupported),
-            _ => {
-                Err(PrtError::ProtocolError(
-                    format!("unknown value for ConnectOptionId detected: {}", val),
-                ))
-            }
+            _ => Err(PrtError::ProtocolError(
+                format!("unknown value for ConnectOptionId detected: {}", val),
+            )),
         }
     }
 }

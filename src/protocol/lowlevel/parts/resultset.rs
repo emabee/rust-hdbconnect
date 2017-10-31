@@ -1,5 +1,5 @@
 use {HdbError, HdbResult};
-use protocol::lowlevel::{PrtError, PrtResult, prot_err};
+use protocol::lowlevel::{prot_err, PrtError, PrtResult};
 use protocol::lowlevel::argument::Argument;
 use protocol::lowlevel::conn_core::ConnCoreRef;
 use protocol::lowlevel::message::Request;
@@ -10,28 +10,11 @@ use protocol::lowlevel::part_attributes::PartAttributes;
 use protocol::lowlevel::partkind::PartKind;
 use protocol::lowlevel::parts::row::Row;
 use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
-use serde_db::de::{DeserializationError, DeserializationResult, DeserializableResultset};
+use serde_db::de::{DeserializableResultset, DeserializationError, DeserializationResult};
 
 use serde;
 use std::fmt;
 use std::sync::{Arc, Mutex};
-
-
-// pub type Row = Row<ResultSetMetadata, TypedValue>;
-// impl Row {
-//     /// Returns a clone of the ith value.
-//     pub fn get(&self, i: usize) -> HdbResult<TypedValue> {
-//         Ok(DeserializableRow::get(self, i)?.clone())
-//     }
-//
-//     // FIXME implement field_into, using a deserializer? Or again twenty variants?
-//     // pub fn field_into<T>(&mut self, i: usize) -> HdbResult<T>
-//     //     where T: serde::de::Deserialize<'x>
-//     // {
-//     //     ...
-//     // }
-// }
-
 
 /// Contains the result of a database read command, including the describing metadata.
 ///
@@ -114,15 +97,15 @@ impl DeserializableResultset for ResultSet {
 
 
 impl ResultSet {
+    /// Returns the total number of rows in the resultset,
+    /// including those that still need to be fetched from the database,
+    /// but excluding those that have already been removed from the resultset.
     ///
-    pub fn len(&mut self) -> HdbResult<usize> {
+    /// This method can be expensive, and it can fail, since it fetches all yet
+    /// outstanding rows from the database.
+    pub fn total_number_of_rows(&mut self) -> HdbResult<usize> {
         self.fetch_all()?;
         Ok(self.rows.len())
-    }
-
-    /// is `ResultSet` empty?
-    pub fn is_empty(&mut self) -> HdbResult<bool> {
-        Ok(self.len()? == 0)
     }
 
     /// Removes the last row and returns it, or None if it is empty.
@@ -188,8 +171,8 @@ impl ResultSet {
     fn is_complete(&self) -> HdbResult<bool> {
         let guard = self.core_ref.lock()?;
         let rs_core = &*guard;
-        if (!rs_core.attributes.is_last_packet()) &&
-            (rs_core.attributes.row_not_found() || rs_core.attributes.is_resultset_closed())
+        if (!rs_core.attributes.is_last_packet())
+            && (rs_core.attributes.row_not_found() || rs_core.attributes.is_resultset_closed())
         {
             Err(HdbError::ProtocolError(PrtError::ProtocolError(
                 String::from("ResultSet incomplete, but already closed on server"),
@@ -316,7 +299,7 @@ impl Iterator for RowIterator {
 
 pub mod factory {
     use super::{ResultSet, ResultSetCore, Row};
-    use protocol::protocol_error::{PrtResult, prot_err};
+    use protocol::protocol_error::{prot_err, PrtResult};
     use protocol::lowlevel::argument::Argument;
     use protocol::lowlevel::conn_core::ConnCoreRef;
     use protocol::lowlevel::part::Parts;
@@ -334,13 +317,11 @@ pub mod factory {
                          rsm: ResultSetMetadata, o_stmt_ctx: Option<StatementContext>)
                          -> ResultSet {
         let server_processing_time = match o_stmt_ctx {
-            Some(stmt_ctx) => {
-                if let Some(OptionValue::INT(i)) = stmt_ctx.server_processing_time {
-                    i
-                } else {
-                    0
-                }
-            }
+            Some(stmt_ctx) => if let Some(OptionValue::INT(i)) = stmt_ctx.server_processing_time {
+                i
+            } else {
+                0
+            },
             None => 0,
         };
 
@@ -383,7 +364,6 @@ pub mod factory {
                  o_conn_ref: Option<&ConnCoreRef>, rs_md: Option<&ResultSetMetadata>,
                  o_rs: &mut Option<&mut ResultSet>, rdr: &mut io::BufRead)
                  -> PrtResult<Option<ResultSet>> {
-
         match *o_rs {
             None => {
                 // case a) or b)
@@ -404,12 +384,10 @@ pub mod factory {
 
                 let rs_metadata = match parts.pop_arg_if_kind(PartKind::ResultSetMetadata) {
                     Some(Argument::ResultSetMetadata(rsmd)) => rsmd,
-                    None => {
-                        match rs_md {
-                            Some(rs_md) => rs_md.clone(),
-                            _ => return Err(prot_err("No metadata provided for ResultSet")),
-                        }
-                    }
+                    None => match rs_md {
+                        Some(rs_md) => rs_md.clone(),
+                        _ => return Err(prot_err("No metadata provided for ResultSet")),
+                    },
                     _ => return Err(prot_err("Inconsistent metadata part found for ResultSet")),
                 };
 
@@ -476,10 +454,8 @@ pub mod factory {
                         trace!("Found value {:?}", value);
                         values.push(value);
                     }
-                    resultset.rows.push(Row::new(
-                        Arc::clone(&resultset.metadata),
-                        values,
-                    ));
+                    resultset.rows
+                             .push(Row::new(Arc::clone(&resultset.metadata), values));
                 }
             }
         }

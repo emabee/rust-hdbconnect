@@ -7,7 +7,7 @@ use std::io;
 #[derive(Debug)]
 pub enum RowsAffected {
     Count(usize),
-    SuccessNoInfo, // -2
+    SuccessNoInfo,   // -2
     ExecutionFailed, // -3
 }
 impl RowsAffected {
@@ -28,12 +28,10 @@ impl fmt::Display for RowsAffected {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             RowsAffected::Count(count) => writeln!(fmt, "Number of affected rows: {}, ", count)?,
-            RowsAffected::SuccessNoInfo => {
-                writeln!(
-                    fmt,
-                    "Command successfully executed but number of affected rows cannot be determined"
-                )?
-            }
+            RowsAffected::SuccessNoInfo => writeln!(
+                fmt,
+                "Command successfully executed but number of affected rows cannot be determined"
+            )?,
             RowsAffected::ExecutionFailed => {
                 writeln!(fmt, "Execution of statement or processing of row has failed")?
             }
