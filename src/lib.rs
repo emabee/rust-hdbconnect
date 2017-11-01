@@ -1,13 +1,12 @@
 //! Experimental native rust database driver for SAP HANA(TM).
 //!
-//! One reason for publishing this driver in its incomplete state (some datatypes are missing,
-//! SSL is not yet supported) is to demonstrate how [`serde_db`](https://docs.rs/serde_db)
-//! can be used to simplify the API of such a database driver.
+//! Works with SAP HANA 1 and SAP HANA 2.
 //!
-//! Concretely, we use serde (via `serde_db`) to simplify the data exchange between your code
+//! `hdbconnect` uses serde (via [`serde_db`](https://docs.rs/serde_db))
+//! to simplify the data exchange between your code
 //! and the driver, both for input parameters to prepared statements
-//! and for results that you get from the database:
-//! there is no need to iterate over a complex resultset by rows and columns!
+//! and for results that you get from the database.
+//! There is no need to iterate over a resultset by rows and columns!
 //!
 //! This approach allows, in contrast to many ORM mapping variants, using
 //! the full flexibility of SQL (projection lists, all kinds of joins, unions, etc, etc).
@@ -17,6 +16,10 @@
 //! See
 //! [code examples](code_examples/index.html)
 //! for an overview.
+//!
+//! Although being functionally operable and working well and fast, this driver is
+//! still in an incomplete state:
+//! some datatypes are missing, SSL is not yet supported.
 
 #![warn(missing_docs)]
 
@@ -43,6 +46,7 @@ mod connection;
 mod connection_manager;
 mod hdb_response;
 mod hdb_error;
+mod impl_serde_db;
 mod prepared_statement;
 mod protocol;
 mod url;

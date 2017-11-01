@@ -79,7 +79,7 @@ fn test_read_blob(connection: &mut Connection, _logger_handle: &mut Reconfigurat
     insert_stmt.execute_batch()?;
     let query = "select * from TEST_LOBS";
     let resultset = connection.query(query)?;
-    let first: Lobs = resultset.into_typed()?;
+    let first: Lobs = resultset.try_into()?;
 
     assert_eq!(size, first.f3_b.as_ref().unwrap().len());
 
@@ -90,7 +90,7 @@ fn test_read_blob(connection: &mut Connection, _logger_handle: &mut Reconfigurat
 
     connection.set_lob_read_length(1024)?;
     let resultset = connection.query(query)?;
-    let second: Lobs = resultset.into_typed()?;
+    let second: Lobs = resultset.try_into()?;
     assert_eq!(first.f3_b, second.f3_b);
 
     Ok(())

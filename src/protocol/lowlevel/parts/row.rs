@@ -24,6 +24,35 @@ impl Row {
         }
     }
 
+    /// Returns the length of the row.
+    pub fn len(&self) -> usize {
+        trace!("Row::len()");
+        self.values.len()
+    }
+
+    /// Returns true if the row contains no value.
+    pub fn is_empty(&self) -> bool {
+        self.values.is_empty()
+    }
+
+    /// Removes and returns the last value.
+    pub fn pop(&mut self) -> Option<TypedValue> {
+        trace!("Row::pop()");
+        self.values.pop()
+    }
+
+    /// Returns the name of the column at the specified index
+    pub fn get_fieldname(&self, field_idx: usize) -> Option<&String> {
+        trace!("Row::get_fieldname()");
+        self.metadata.get_fieldname(field_idx)
+    }
+
+    /// Reverses the order of the values
+    pub fn reverse_values(&mut self) {
+        trace!("Row::reverse()");
+        self.values.reverse()
+    }
+
     /// Returns a clone of the ith value.
     pub fn cloned_value(&self, i: usize) -> HdbResult<TypedValue> {
         trace!("Row::cloned_value()");
@@ -32,60 +61,31 @@ impl Row {
             .ok_or_else(|| HdbError::UsageError("element with index {} does not exist".to_owned()))
     }
 
-    /// Converts the field into a plain rust value.
-    pub fn pop_into_typed<'de, T>(&mut self) -> Result<T, <Row as DeserializableRow>::E>
+    /// Pops and converts the last field into a plain rust value.
+    pub fn pop_into<'de, T>(&mut self) -> Result<T, <Row as DeserializableRow>::E>
     where
         T: serde::de::Deserialize<'de>,
     {
-        trace!("Row::pop_into_typed()");
+        trace!("Row::pop_into()");
         Ok(DbValue::into_typed(DeserializableRow::pop(self).unwrap())?)
     }
 
-    /// Converts the field into a plain rust value.
-    pub fn field_into_typed<'de, T>(&self, i: usize) -> HdbResult<T>
+    /// Converts a copy of the field into a plain rust value.
+    pub fn field_as<'de, T>(&self, i: usize) -> HdbResult<T>
     where
         T: serde::de::Deserialize<'de>,
     {
-        trace!("Row::field_into_typed()");
+        trace!("Row::field_as()");
         Ok(DbValue::into_typed(self.cloned_value(i)?)?)
     }
 
     /// Converts the Row into a rust value.
-    pub fn into_typed<'de, T>(self) -> HdbResult<T>
+    pub fn try_into<'de, T>(self) -> HdbResult<T>
     where
         T: serde::de::Deserialize<'de>,
     {
         trace!("Row::into_typed()");
         Ok(DeserializableRow::into_typed(self)?)
-    }
-}
-
-impl DeserializableRow for Row {
-    type V = TypedValue;
-    type E = HdbError;
-
-    /// Returns the length of the row.
-    fn len(&self) -> usize {
-        trace!("<Row as DeserializableRow>::len()");
-        self.values.len()
-    }
-
-    /// Removes and returns the last value.
-    fn pop(&mut self) -> Option<TypedValue> {
-        trace!("<Row as DeserializableRow>::pop()");
-        self.values.pop()
-    }
-
-    /// Returns the name of the column at the specified index
-    fn get_fieldname(&self, field_idx: usize) -> Option<&String> {
-        trace!("<Row as DeserializableRow>::get_fieldname()");
-        self.metadata.get_fieldname(field_idx)
-    }
-
-    /// Reverses the order of the values
-    fn reverse_values(&mut self) {
-        trace!("<Row as DeserializableRow>::reverse()");
-        self.values.reverse()
     }
 }
 

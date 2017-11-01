@@ -10,7 +10,7 @@ use protocol::lowlevel::part_attributes::PartAttributes;
 use protocol::lowlevel::partkind::PartKind;
 use protocol::lowlevel::parts::row::Row;
 use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
-use serde_db::de::{DeserializableResultset, DeserializationError, DeserializationResult};
+use serde_db::de::DeserializableResultset;
 
 use serde;
 use std::fmt;
@@ -18,7 +18,7 @@ use std::sync::{Arc, Mutex};
 
 /// Contains the result of a database read command, including the describing metadata.
 ///
-/// In most cases, you will want to use the powerful method [`into_typed`](#method.into_typed)
+/// In most cases, you will want to use the powerful method [`try_into`](#method.try_into)
 /// to convert the data from the generic format into your application specific format.
 #[derive(Debug)]
 pub struct ResultSet {
@@ -51,51 +51,6 @@ impl ResultSetCore {
     // the resultset is not yet closed (RESULTSETCLOSED)
 }
 
-impl DeserializableResultset for ResultSet {
-    type ROW = Row;
-    type E = HdbError;
-
-    /// Returns true if more than 1 row is contained
-    fn has_multiple_rows(&mut self) -> Result<bool, DeserializationError> {
-        let is_complete = match self.is_complete() {
-            Ok(b) => b,
-            Err(_) => false,
-        };
-        Ok(!is_complete || (self.rows.len() > 1))
-    }
-
-    /// Reverses the order of the rows
-    fn reverse_rows(&mut self) {
-        trace!("ResultSet::reverse_rows()");
-        self.rows.reverse()
-    }
-
-    /// Removes the last row and returns it, or None if it is empty.
-    fn pop_row(&mut self) -> DeserializationResult<Option<Row>> {
-        Ok(ResultSet::pop_row(self))
-    }
-
-    /// Returns the number of fields
-    fn number_of_fields(&self) -> usize {
-        self.metadata.len()
-    }
-
-    /// Returns the name of the column at the specified index
-    fn get_fieldname(&self, field_idx: usize) -> Option<&String> {
-        self.metadata.get_fieldname(field_idx)
-    }
-
-    /// Fetches all not yet transported result lines from the server.
-    ///
-    /// Bigger resultsets are typically not transported in one DB roundtrip;
-    /// the number of roundtrips depends on the size of the resultset
-    /// and the configured fetch_size of the connection.
-    fn fetch_all(&mut self) -> HdbResult<()> {
-        ResultSet::fetch_all(self)
-    }
-}
-
-
 impl ResultSet {
     /// Returns the total number of rows in the resultset,
     /// including those that still need to be fetched from the database,
@@ -111,6 +66,31 @@ impl ResultSet {
     /// Removes the last row and returns it, or None if it is empty.
     pub fn pop_row(&mut self) -> Option<Row> {
         self.rows.pop()
+    }
+
+    /// Returns true if more than 1 row is contained
+    pub fn has_multiple_rows(&mut self) -> bool {
+        let is_complete = match self.is_complete() {
+            Ok(b) => b,
+            Err(_) => false,
+        };
+        !is_complete || (self.rows.len() > 1)
+    }
+
+    /// Reverses the order of the rows
+    pub fn reverse_rows(&mut self) {
+        trace!("ResultSet::reverse_rows()");
+        self.rows.reverse()
+    }
+
+    /// Returns the number of fields
+    pub fn number_of_fields(&self) -> usize {
+        self.metadata.len()
+    }
+
+    /// Returns the name of the column at the specified index
+    pub fn get_fieldname(&self, field_idx: usize) -> Option<&String> {
+        self.metadata.get_fieldname(field_idx)
     }
 
     /// Fetches all not yet transported result lines from the server.
@@ -229,21 +209,21 @@ impl ResultSet {
     ///   be assigned without loss.
     ///
     /// Note that you need to specify the type of your target variable explicitly, so that
-    /// <code>into_typed()</code> can derive the type it needs to serialize into:
+    /// <code>try_into()</code> can derive the type it needs to serialize into:
     ///
     /// ```ignore
     /// #[derive(Deserialize)]
     /// struct MyStruct {
     ///     ...
     /// }
-    /// let typed_result: Vec<MyStruct> = resultset.into_typed()?;
+    /// let typed_result: Vec<MyStruct> = resultset.try_into()?;
     /// ```
     ///
-    pub fn into_typed<'de, T>(mut self) -> HdbResult<T>
+    pub fn try_into<'de, T>(mut self) -> HdbResult<T>
     where
         T: serde::de::Deserialize<'de>,
     {
-        trace!("Resultset::into_typed()");
+        trace!("Resultset::try_into()");
         self.fetch_all()?;
         Ok(DeserializableResultset::into_typed(self)?)
     }

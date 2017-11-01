@@ -81,7 +81,7 @@ fn test_date_io(_loghandle: &mut ReconfigurationHandle) -> HdbResult<i32> {
         // Enforce that NaiveDateTime values are converted in the client (with serde)
         // to the DB type:
         prep_stmt.add_batch(&(naive_datetime_values[2], naive_datetime_values[3]))?;
-        let typed_result: i32 = prep_stmt.execute_batch()?.into_resultset()?.into_typed()?;
+        let typed_result: i32 = prep_stmt.execute_batch()?.into_resultset()?.try_into()?;
         assert_eq!(typed_result, 31_i32);
 
         info!("test the conversion DateTime<Utc> -> DB");
@@ -89,7 +89,7 @@ fn test_date_io(_loghandle: &mut ReconfigurationHandle) -> HdbResult<i32> {
         let utc3: DateTime<Utc> = DateTime::from_utc(naive_datetime_values[3], Utc);
         // Enforce that UTC timestamps values are converted here in the client to the DB type:
         prep_stmt.add_batch(&(utc2, utc3))?;
-        let typed_result: i32 = prep_stmt.execute_batch()?.into_resultset()?.into_typed()?;
+        let typed_result: i32 = prep_stmt.execute_batch()?.into_resultset()?.try_into()?;
         assert_eq!(typed_result, 31_i32);
     }
 
@@ -97,7 +97,7 @@ fn test_date_io(_loghandle: &mut ReconfigurationHandle) -> HdbResult<i32> {
         info!("test the conversion DB -> NaiveDateTime");
         let s = "select mydate from TEST_DATE_SERIALIZATION order by number asc";
         let rs = connection.query(s)?;
-        let dates: Vec<NaiveDateTime> = rs.into_typed()?;
+        let dates: Vec<NaiveDateTime> = rs.try_into()?;
         for (date, tvd) in dates.iter().zip(naive_datetime_values.iter()) {
             assert_eq!(date, tvd);
         }
@@ -111,7 +111,7 @@ fn test_date_io(_loghandle: &mut ReconfigurationHandle) -> HdbResult<i32> {
             "select mydate from TEST_DATE_SERIALIZATION \
              where number = 77 or number = 13",
         )?
-                                                  .into_typed()?;
+                                                  .try_into()?;
         assert_eq!(dates.len(), 2);
         for date in dates {
             assert_eq!(date, naive_datetime_values[0]);

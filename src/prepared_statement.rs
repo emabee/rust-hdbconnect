@@ -9,10 +9,11 @@ use protocol::lowlevel::parts::parameter_metadata::{ParMode, ParameterDescriptor
                                                     ParameterMetadata};
 use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
 use protocol::lowlevel::parts::parameters::{ParameterRow, Parameters};
-use serde_db;
-use serde_db::ser::SerializationError;
 
 use serde;
+use serde_db::ser::to_params;
+use serde_db::ser::SerializationError;
+
 use std::mem;
 
 /// Allows injection-safe SQL execution and repeated calls with different parameters
@@ -43,7 +44,7 @@ impl PreparedStatement {
                         ParMode::OUT => {}
                     }
                 }
-                vec.push(ParameterRow::new(serde_db::ser::to_params(input, input_metadata)?));
+                vec.push(ParameterRow::new(to_params(input, input_metadata)?));
                 Ok(())
             }
             (_, _) => {

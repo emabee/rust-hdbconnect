@@ -46,7 +46,7 @@ fn write1_read2(connection1: &mut Connection) -> HdbResult<()> {
 
     let get_checksum = |conn: &mut Connection| {
         let resultset = conn.query("select sum(nmbr) from TEST_TRANSACTIONS").unwrap();
-        let checksum: usize = resultset.into_typed().unwrap();
+        let checksum: usize = resultset.try_into().unwrap();
         checksum
     };
 

@@ -67,7 +67,7 @@ fn deser_option_into_option(connection: &mut Connection) -> HdbResult<()> {
     type TestStruct = TS<Option<String>, Option<i32>, Option<NaiveDateTime>>;
 
     let resultset = connection.query("select * from TEST_DESER_OPT_OPT")?;
-    let typed_result: Vec<TestStruct> = resultset.into_typed()?;
+    let typed_result: Vec<TestStruct> = resultset.try_into()?;
 
     assert_eq!(typed_result.len(), 3);
     Ok(())
@@ -88,7 +88,7 @@ fn deser_plain_into_plain(connection: &mut Connection) -> HdbResult<()> {
     type TestStruct = TS<String, i32, NaiveDateTime>;
 
     let resultset = connection.query("select * from TEST_DESER_PLAIN_PLAIN")?;
-    let typed_result: Vec<TestStruct> = resultset.into_typed()?;
+    let typed_result: Vec<TestStruct> = resultset.try_into()?;
 
     assert_eq!(typed_result.len(), 3);
     Ok(())
@@ -109,7 +109,7 @@ fn deser_plain_into_option(connection: &mut Connection) -> HdbResult<()> {
     type TestStruct = TS<Option<String>, Option<i32>, Option<NaiveDateTime>>;
 
     let resultset = connection.query("select * from TEST_DESER_PLAIN_OPT")?;
-    let typed_result: Vec<TestStruct> = resultset.into_typed()?;
+    let typed_result: Vec<TestStruct> = resultset.try_into()?;
 
     assert_eq!(typed_result.len(), 3);
     Ok(())
@@ -138,7 +138,7 @@ fn deser_option_into_plain(connection: &mut Connection) -> HdbResult<()> {
     connection.multiple_statements(stmts)?;
 
     let resultset = connection.query("select * from TEST_DESER_OPT_PLAIN")?;
-    let typed_result: Vec<TestStruct> = resultset.into_typed()?;
+    let typed_result: Vec<TestStruct> = resultset.try_into()?;
     assert_eq!(typed_result.len(), 3);
 
     // second part: with null values, deserialization must fail
@@ -146,7 +146,7 @@ fn deser_option_into_plain(connection: &mut Connection) -> HdbResult<()> {
     connection.multiple_statements(stmts)?;
 
     let resultset = connection.query("select * from TEST_DESER_OPT_PLAIN")?;
-    let typed_result: HdbResult<Vec<TestStruct>> = resultset.into_typed();
+    let typed_result: HdbResult<Vec<TestStruct>> = resultset.try_into();
     if typed_result.is_ok() {
         panic!("deserialization of null values to plain data fields did not fail")
     }
@@ -173,12 +173,12 @@ fn deser_singleline_into_struct(connection: &mut Connection) -> HdbResult<()> {
 
     // single line works
     let resultset = connection.query("select * from TEST_DESER_SINGLE_LINE where F2_I = 17")?;
-    let typed_result: TestStruct = resultset.into_typed()?;
+    let typed_result: TestStruct = resultset.try_into()?;
     assert_eq!(typed_result.f2_i, Some(17));
 
     // multi-line fails
     let resultset = connection.query("select * from TEST_DESER_SINGLE_LINE")?;
-    let typed_result: HdbResult<TestStruct> = resultset.into_typed();
+    let typed_result: HdbResult<TestStruct> = resultset.try_into();
     if typed_result.is_ok() {
         panic!("deserialization of a multiline resultset to a plain struct did not fail")
     }
@@ -203,19 +203,19 @@ fn deser_singlevalue_into_plain(connection: &mut Connection) -> HdbResult<()> {
 
     // single value works
     let resultset = connection.query("select F2_I from TEST_DESER_SINGLE_VALUE where F2_I = 17")?;
-    let _typed_result: i64 = resultset.into_typed()?;
+    let _typed_result: i64 = resultset.try_into()?;
 
     // multi-col fails
     let resultset =
         connection.query("select F2_I, F2_I from TEST_DESER_SINGLE_VALUE where F2_I = 17")?;
-    let typed_result: HdbResult<i64> = resultset.into_typed();
+    let typed_result: HdbResult<i64> = resultset.try_into();
     if typed_result.is_ok() {
         panic!("deserialization of a multi-column resultset into a plain field did not fail")
     }
 
     // multi-row fails
     let resultset = connection.query("select F2_I from TEST_DESER_SINGLE_VALUE")?;
-    let typed_result: HdbResult<i64> = resultset.into_typed();
+    let typed_result: HdbResult<i64> = resultset.try_into();
     if typed_result.is_ok() {
         panic!("deserialization of a multi-row resultset into a plain field did not fail")
     }
@@ -242,13 +242,13 @@ fn deser_singlecolumn_into_vec(connection: &mut Connection) -> HdbResult<()> {
 
     // single-column works
     let resultset = connection.query("select F1_S from TEST_DESER_SINGLE_COL order by F2_I asc")?;
-    let typed_result: Vec<String> = resultset.into_typed()?;
+    let typed_result: Vec<String> = resultset.try_into()?;
     assert_eq!(typed_result.len(), 5);
 
     // multi-column fails
     let resultset =
         connection.query("select F1_S, F1_S from TEST_DESER_SINGLE_COL order by F2_I asc")?;
-    let typed_result: HdbResult<Vec<String>> = resultset.into_typed();
+    let typed_result: HdbResult<Vec<String>> = resultset.try_into();
     if typed_result.is_ok() {
         panic!("deserialization of a multi-column resultset into a Vec<plain field> did not fail");
     }

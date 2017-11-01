@@ -77,7 +77,7 @@ fn impl_select_version_and_user(connection: &mut Connection) -> HdbResult<()> {
         "SELECT VERSION as \"version\", CURRENT_USER as \"current_user\" FROM SYS.M_DATABASE";
     debug!("calling connection.query(SELECT VERSION as ...)");
     let resultset = connection.query(stmt)?;
-    let version_and_user: VersionAndUser = resultset.into_typed()?;
+    let version_and_user: VersionAndUser = resultset.try_into()?;
 
     assert_eq!(
         version_and_user.current_user,
