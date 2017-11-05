@@ -233,31 +233,6 @@ pub fn from_cesu8(bytes: &[u8]) -> Result<Cow<str>, Cesu8DecodingError> {
     }
 }
 
-pub fn from_cesu8_with_count(bytes: &[u8]) -> Result<(Cow<str>, u64), Cesu8DecodingError> {
-    match str::from_utf8(bytes) {
-        Ok(str) => Ok((Cow::Borrowed(str), str.chars().count() as u64)),
-        _ => {
-            let mut decoded = Vec::with_capacity(bytes.len());
-            let (success, count) = decode_from_iter(&mut decoded, &mut bytes.iter());
-            if success {
-                // We can remove this assertion if we trust our decoder.
-                assert!(str::from_utf8(&decoded[..]).is_ok());
-                Ok((
-                    Cow::Owned(unsafe {
-                        let s = String::from_utf8_unchecked(decoded);
-                        trace!("util::from_cesu8(): {}", s);
-                        (s)
-                    }),
-                    count,
-                ))
-            } else {
-                debug!("util::from_cesu8() failed for {:?}", bytes);
-                Err(Cesu8DecodingError)
-            }
-        }
-    }
-}
-
 #[test]
 fn test_from_cesu8() {
     info!("minimalistic test of cesu8 decoder");
@@ -351,6 +326,54 @@ fn decode_from_iter(decoded: &mut Vec<u8>, iter: &mut slice::Iter<u8>) -> (bool,
                         }
                         _ => err!(),
                     }
+                }
+                _ => err!(),
+            }
+        }
+    }
+}
+
+// Just count the cesu-8 characters.
+// A surrogate pair counts 2, half a pair is allowed and counts 1;
+// based on Rust's is_utf8 implementation.
+pub fn count_from_iter(iter: &mut slice::Iter<u8>) -> Result<u64, Cesu8DecodingError> {
+    let mut count = 0;
+    macro_rules! err {
+        () => { return Err(Cesu8DecodingError) }
+    }
+    macro_rules! next {
+        () => {
+            match iter.next() {
+                Some(a) => *a,
+                // We needed data, but there was none: error!
+                None => err!()
+            }
+        }
+    }
+    macro_rules! next_cont {
+        () => {
+            {
+                let byte = next!();
+                if (byte) & !CONT_MASK == TAG_CONT_U8 { byte } else { err!() }
+            }
+        }
+    }
+
+    loop {
+        let first = match iter.next() {
+            Some(&b) => b,
+            // We're at the end of the iterator and a codepoint boundary at
+            // the same time, so this string is valid.
+            None => return Ok(count),
+        };
+        count += 1;
+        if first > 126 {
+            let w = utf8_char_width(first);
+            let _second = next_cont!();
+            match w {
+                2 => {}
+                3 => {
+                    let _third = next_cont!();
                 }
                 _ => err!(),
             }

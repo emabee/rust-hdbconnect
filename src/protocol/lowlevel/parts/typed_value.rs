@@ -579,7 +579,6 @@ pub mod factory {
     use super::super::longdate::LongDate;
     use protocol::lowlevel::conn_core::ConnCoreRef;
     use byteorder::{LittleEndian, ReadBytesExt};
-    use std::borrow::Cow;
     use std::io;
     use std::iter::repeat;
     use std::{u32, u64};
@@ -852,12 +851,7 @@ pub mod factory {
             Ok(None)
         } else {
             let (length_c, length_b, locator_id, data) = parse_lob_2(rdr)?;
-            let (s, char_count) = util::from_cesu8_with_count(&data)?;
-            let s = match s {
-                Cow::Owned(s) => s,
-                Cow::Borrowed(s) => String::from(s),
-            };
-            assert_eq!(data.len(), s.len());
+            let char_count = util::count_from_iter(&mut data.iter())?;
             Ok(Some(new_clob_from_db(
                 conn_ref,
                 is_last_data,
@@ -865,7 +859,7 @@ pub mod factory {
                 length_b,
                 char_count,
                 locator_id,
-                s,
+                data,
             )))
         }
     }

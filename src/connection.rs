@@ -99,6 +99,11 @@ impl Connection {
         Ok(())
     }
     /// Configures the connection's lob read length for future calls.
+    pub fn get_lob_read_length(&self) -> HdbResult<i32> {
+        let guard = self.core.lock()?;
+        Ok((*guard).get_lob_read_length())
+    }
+    /// Configures the connection's lob read length for future calls.
     pub fn set_lob_read_length(&mut self, lob_read_length: i32) -> HdbResult<()> {
         let mut guard = self.core.lock()?;
         (*guard).set_lob_read_length(lob_read_length);

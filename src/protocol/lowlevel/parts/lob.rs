@@ -85,7 +85,7 @@ enum ClobEnum {
 }
 
 pub fn new_clob_from_db(conn_ref: &ConnCoreRef, is_data_complete: bool, length_c: u64,
-                        length_b: u64, char_count: u64, locator_id: u64, data: String)
+                        length_b: u64, char_count: u64, locator_id: u64, data: Vec<u8>)
                         -> CLOB {
     CLOB(ClobEnum::FromDB(RefCell::new(ClobHandle::new(
         conn_ref,

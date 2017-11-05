@@ -103,14 +103,14 @@ pub struct ClobHandle {
     length_b: u64,
     char_count: u64,
     locator_id: u64,
-    data: String,
+    data: Vec<u8>,
     acc_server_proc_time: i32,
 }
 impl ClobHandle {
     pub fn new(conn_ref: &ConnCoreRef, is_data_complete: bool, length_c: u64, length_b: u64,
-               char_count: u64, locator_id: u64, data: String)
+               char_count: u64, locator_id: u64, data: Vec<u8>)
                -> ClobHandle {
-        ClobHandle {
+        let ch = ClobHandle {
             o_conn_ref: Some(Arc::clone(conn_ref)),
             length_c: length_c,
             length_b: length_b,
@@ -119,7 +119,23 @@ impl ClobHandle {
             locator_id: locator_id,
             data: data,
             acc_server_proc_time: 0,
-        }
+        };
+        trace!(
+            "ClobHandle::new() with: is_data_complete = {}, \
+            length_c = {}, \
+            length_b = {}, \
+            char_count = {}, \
+            locator_id = {}, \
+            data.len() = {}",
+            ch.is_data_complete,
+            ch.length_c,
+            ch.length_b,
+            ch.char_count,
+            ch.locator_id,
+            ch.data.len()
+        );
+
+        ch
     }
 
     pub fn len(&mut self) -> PrtResult<usize> {
@@ -128,23 +144,37 @@ impl ClobHandle {
     }
 
     fn fetch_next_chunk(&mut self) -> PrtResult<()> {
-        let (reply_data, reply_is_last_data, server_processing_time) =
-            fetch_a_lob_chunk(&self.o_conn_ref, self.locator_id, self.length_b, self.char_count)?;
+        let (mut reply_data, reply_is_last_data, server_processing_time) = fetch_a_lob_chunk(
+            &self.o_conn_ref,
+            self.locator_id,
+            self.length_b,
+            self.data.len() as u64,
+        )?;
 
-        let (s, char_count) = util::from_cesu8_with_count(&reply_data)?;
-        match s {
-            Cow::Owned(s) => self.data.push_str(&s),
-            Cow::Borrowed(s) => self.data.push_str(s),
-        }
-        self.char_count += char_count;
+        self.data.append(&mut reply_data);
+        // FIXME the count function should support both surrogate types individually
+        // then we can just count each chunk individually,
+        // which is linear (not quadratic, as the current code)
+        self.char_count = util::count_from_iter(&mut self.data.iter())?;
+        trace!("data.len() after append: {}", self.data.len());
+
         self.is_data_complete = reply_is_last_data;
         self.acc_server_proc_time += server_processing_time;
 
         assert_eq!(self.is_data_complete, self.length_b == self.data.len() as u64);
         trace!(
-            "After ClobHandle fetch: is_data_complete = {}, data.length() = {}",
+            "After ClobHandle fetch: is_data_complete = {}, \
+            length_c = {}, \
+            length_b = {}, \
+            char_count = {}, \
+            locator_id = {}, \
+            data.len() = {}",
             self.is_data_complete,
-            self.length_b
+            self.length_c,
+            self.length_b,
+            self.char_count,
+            self.locator_id,
+            self.data.len()
         );
         Ok(())
     }
@@ -161,13 +191,16 @@ impl ClobHandle {
     pub fn into_string(mut self) -> PrtResult<String> {
         trace!("ClobHandle::into_string()");
         self.load_complete()?;
-        Ok(self.data)
+        match util::from_cesu8(&self.data)? {
+            Cow::Owned(s) => Ok(s),
+            Cow::Borrowed(s) => Ok(s.to_owned()),
+        }
     }
     // FIXME we should also have sth like into_character_stream() with deferred chunk fetching
+    // we cannot blindly use the chunks from the DB, because they may be cut within a pair of
+    // surrogates, making it impossible to convert these to utf-8.
 }
 
-
-//
 fn fetch_a_lob_chunk(o_conn_ref: &Option<ConnCoreRef>, locator_id: u64, length_b: u64,
                      data_len: u64)
                      -> PrtResult<(Vec<u8>, bool, i32)> {
@@ -193,6 +226,12 @@ fn fetch_a_lob_chunk(o_conn_ref: &Option<ConnCoreRef>, locator_id: u64, length_b
         PartKind::ReadLobRequest,
         Argument::ReadLobRequest(locator_id, offset, length_to_read),
     ));
+
+    trace!(
+        "Sending ReadLobRequest with offset = {} and length_to_read = {}",
+        offset,
+        length_to_read
+    );
 
     let mut reply = request.send_and_receive(conn_ref, Some(ReplyType::ReadLob))?;
 

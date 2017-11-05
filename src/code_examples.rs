@@ -239,6 +239,8 @@
 //!   # #[derive(Deserialize)]
 //!   # struct MyRow {/* ...*/}
 //!   let result: MyRow = resultset.try_into()?;
+//!   # Ok(())
+//!   # }
 //!   ```
 //!
 //! * If the resultset contains only a single column, then you can choose to
@@ -271,3 +273,25 @@
 //!   as long as the concrete values can be assigned without loss.
 //!
 //! You should use this flexibilty only if you know that the data never violates these boundaries.
+//!
+//!
+//! <b>5. LOBs</b>
+//!
+//! So far, specialization support is not yet in rust stable. Without that, you  have to use
+//! [`serde_bytes::Bytes`](https://docs.serde.rs/serde_bytes/struct.Bytes.html) and
+//! [`serde_bytes::ByteBuf`](https://docs.serde.rs/serde_bytes/struct.ByteBuf.html)
+//! as lean wrappers around `&[u8]` and `Vec<u8>`
+//! to serialize into or deserialize from binary database types.
+//!
+//! ```ignore
+//! let raw_data: Vec<u8> = ...;
+//! insert_stmt.add_batch(&(Bytes::new(&*raw_data)))?;
+//! ```
+//!
+//!
+//! ```ignore
+//! let bindata: ByteBuf = resultset.try_into()?;
+//! let first_byte = bindata[0];
+//! ```
+//!
+//!
