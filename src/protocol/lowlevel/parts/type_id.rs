@@ -1,3 +1,4 @@
+pub const TYPEID_NOTHING: u8 = 0; // is swapped in when a real value is swapped out
 pub const TYPEID_TINYINT: u8 = 1;
 pub const TYPEID_SMALLINT: u8 = 2;
 pub const TYPEID_INT: u8 = 3;

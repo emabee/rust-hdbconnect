@@ -15,11 +15,12 @@ mod test_utils;
 
 use flexi_logger::{LogSpecification, Logger, ReconfigurationHandle};
 use hdbconnect::{Connection, HdbResult};
+use hdbconnect::types::{BLOB, CLOB};
 use rand::{thread_rng, Rng};
 use serde_bytes::{ByteBuf, Bytes};
 use sha2::{Digest, Sha256};
 use std::fs::File;
-use std::io::Read;
+use std::io::{self, Read};
 
 // cargo test test_032_lobs -- --nocapture
 #[test]
@@ -38,18 +39,16 @@ pub fn test_032_lobs() {
 fn impl_test_032_lobs(logger_handle: &mut ReconfigurationHandle) -> HdbResult<i32> {
     let mut connection = test_utils::get_authenticated_connection()?;
 
-    connection.set_lob_read_length(1_000_000)?;
     test_blobs(&mut connection, logger_handle)?;
-
-    connection.set_lob_read_length(1_000_000)?;
     test_clobs(&mut connection, logger_handle)?;
 
     Ok(connection.get_call_count()?)
 }
 
-fn test_blobs(connection: &mut Connection, _logger_handle: &mut ReconfigurationHandle)
+fn test_blobs(connection: &mut Connection, logger_handle: &mut ReconfigurationHandle)
               -> HdbResult<()> {
     info!("create a 5MB BLOB in the database, and read it in various ways");
+    connection.set_lob_read_length(1_000_000)?;
 
     test_utils::statement_ignore_err(connection, vec!["drop table TEST_LOBS"]);
     let stmts = vec![
@@ -115,12 +114,37 @@ fn test_blobs(connection: &mut Connection, _logger_handle: &mut ReconfigurationH
         connection.get_call_count()? - before
     );
     assert_eq!(mydata, second);
+
+
+    // stream a blob from the database into a sink
+    info!("read big blob in streaming fashion");
+
+    connection.set_lob_read_length(200_000)?;
+    logger_handle.set_new_spec(LogSpecification::parse("info"));
+
+    let query = "select desc, bindata as BL1, bindata as BL2 from TEST_LOBS";
+    let mut resultset: hdbconnect::ResultSet = connection.query(query)?;
+    let mut blob: BLOB = resultset.pop_row().unwrap().field_into_blob(1)?;
+    let mut streamed = Vec::<u8>::new();
+    io::copy(&mut blob, &mut streamed)?;
+
+    assert_eq!(raw_data.len(), streamed.len());
+    let mut hasher = Sha256::default();
+    hasher.input(&streamed);
+    let fingerprint4 = hasher.result();
+    assert_eq!(fingerprint1, fingerprint4);
+
+    debug!("blob.max_size(): {}", blob.max_size());
+    // io::copy works with 8MB, if we have less, we fetch 200_000:
+    assert!(blob.max_size() < 210_000);
+
     Ok(())
 }
 
 fn test_clobs(connection: &mut Connection, logger_handle: &mut ReconfigurationHandle)
               -> HdbResult<()> {
     info!("create a big CLOB in the database, and read it in various ways");
+    connection.set_lob_read_length(1_000_000)?;
 
     test_utils::statement_ignore_err(connection, vec!["drop table TEST_LOBS"]);
     let stmts = vec![
@@ -142,15 +166,14 @@ fn test_clobs(connection: &mut Connection, logger_handle: &mut ReconfigurationHa
     {
         let mut f = File::open("tests/blabla.txt").expect("file not found");
         let mut blabla = String::new();
-        f.read_to_string(&mut blabla)
-         .expect("something went wrong reading the file");
+        f.read_to_string(&mut blabla).expect("something went wrong reading the file");
         for _ in 0..3 {
             three_times_blabla.push_str(&blabla);
         }
     }
 
     let mut hasher = Sha256::default();
-    hasher.input(&three_times_blabla.as_bytes());
+    hasher.input(three_times_blabla.as_bytes());
     let fingerprint1 = hasher.result();
 
     // insert it into HANA
@@ -174,7 +197,7 @@ fn test_clobs(connection: &mut Connection, logger_handle: &mut ReconfigurationHa
     assert_eq!(three_times_blabla.len(), mydata.s.len());
 
     let mut hasher = Sha256::default();
-    hasher.input(&mydata.s.as_bytes());
+    hasher.input(mydata.s.as_bytes());
     let fingerprint2 = hasher.result();
     assert_eq!(fingerprint1, fingerprint2);
 
@@ -194,5 +217,29 @@ fn test_clobs(connection: &mut Connection, logger_handle: &mut ReconfigurationHa
         connection.get_call_count()? - before
     );
     assert_eq!(mydata, second);
+
+    // stream a clob from the database into a sink
+    debug!("read big clob in streaming fashion");
+
+    connection.set_lob_read_length(200_000)?;
+    logger_handle.set_new_spec(LogSpecification::parse("info"));
+
+    let query = "select desc, chardata as CL1, chardata as CL2 from TEST_LOBS";
+    let mut resultset: hdbconnect::ResultSet = connection.query(query)?;
+    let mut clob: CLOB = resultset.pop_row().unwrap().field_into_clob(1)?;
+    let mut streamed = Vec::<u8>::new();
+    io::copy(&mut clob, &mut streamed)?;
+
+    assert_eq!(three_times_blabla.len(), streamed.len());
+    let mut hasher = Sha256::default();
+    hasher.input(&streamed);
+    let fingerprint4 = hasher.result();
+    assert_eq!(fingerprint1, fingerprint4);
+
+
+    debug!("clob.max_size(): {}", clob.max_size());
+    // io::copy works with 8MB, if we have less, we fetch 200_000:
+    assert!(clob.max_size() < 210_000);
+
     Ok(())
 }

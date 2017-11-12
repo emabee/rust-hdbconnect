@@ -147,10 +147,10 @@ fn procedure_with_in_parameters(connection: &mut Connection) -> HdbResult<()> {
     let mut response = prepared_stmt.execute_batch()?;
     response.get_success()?;
     let mut rs: ResultSet = response.get_resultset()?;
-    let row: Row = rs.pop_row().unwrap();
-    let value: i32 = row.field_as(0)?;
+    let mut row: Row = rs.pop_row().unwrap();
+    let value: i32 = row.field_into(0)?;
     assert_eq!(value, 42_i32);
-    let value: String = row.field_as(1)?;
+    let value: String = row.field_into(1)?;
     assert_eq!(&value, "is between 41 and 43");
     Ok(())
 }
@@ -183,8 +183,7 @@ fn procedure_with_in_and_out_parameters(connection: &mut Connection) -> HdbResul
     assert_eq!(value, "my first output parameter");
 
     let mut rs = response.get_resultset()?;
-    let row = rs.pop_row().unwrap();
-    let value: i32 = row.field_as(0)?;
+    let value: i32 = rs.pop_row().unwrap().field_into(0)?;
     assert_eq!(value, 42);
 
     Ok(())
@@ -209,8 +208,8 @@ fn procedure_with_in_nclob_non_consuming(connection: &mut Connection) -> HdbResu
     let mut response = prepared_stmt.execute_batch()?;
     response.get_success()?;
     let mut rs = response.get_resultset()?;
-    let row = rs.pop_row().unwrap();
-    let value: String = row.field_as(0)?;
+    let mut row = rs.pop_row().unwrap();
+    let value: String = row.field_into(0)?;
     assert_eq!(value, "nclob string");
 
     Ok(())

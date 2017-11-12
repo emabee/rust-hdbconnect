@@ -70,11 +70,11 @@ fn evaluate_resultset(connection: &mut Connection) -> HdbResult<()> {
 
     info!("Loop over rows, pick out single values individually, in arbitrary order");
     for row in connection.query("select * from TEST_RESULTSET")? {
-        let row = row?;
-        let f4: NaiveDateTime = row.field_as(3)?;
-        let f1: String = row.field_as(0)?;
-        let f3: i32 = row.field_as(2)?;
-        let f2: Option<i32> = row.field_as(1)?;
+        let mut row = row?;
+        let f4: NaiveDateTime = row.field_into(3)?;
+        let f1: String = row.field_into(0)?;
+        let f3: i32 = row.field_into(2)?;
+        let f2: Option<i32> = row.field_into(1)?;
         debug!("Got {}, {:?}, {}, {}", f1, f2, f3, f4);
     }
 

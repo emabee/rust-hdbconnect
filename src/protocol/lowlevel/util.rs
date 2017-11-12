@@ -216,7 +216,7 @@ pub fn from_cesu8(bytes: &[u8]) -> Result<Cow<str>, Cesu8DecodingError> {
         Ok(str) => Ok(Cow::Borrowed(str)),
         _ => {
             let mut decoded = Vec::with_capacity(bytes.len());
-            let (success, _) = decode_from_iter(&mut decoded, &mut bytes.iter());
+            let (success, _, _) = decode_from_iter(&mut decoded, &mut bytes.iter());
             if success {
                 // We can remove this assertion if we trust our decoder.
                 assert!(str::from_utf8(&decoded[..]).is_ok());
@@ -259,10 +259,12 @@ fn test_from_cesu8() {
 }
 
 // Our internal decoder, based on Rust's is_utf8 implementation.
-fn decode_from_iter(decoded: &mut Vec<u8>, iter: &mut slice::Iter<u8>) -> (bool, u64) {
-    let mut count = 0;
+pub fn decode_from_iter(decoded: &mut Vec<u8>, iter: &mut slice::Iter<u8>) -> (bool, u64, u64) {
+    let mut char_count = 0;
+    let mut byte_count = 0;
+
     macro_rules! err {
-        () => { return (false,count) }
+        () => { return (false, char_count, byte_count) }
     }
     macro_rules! next {
         () => {
@@ -287,12 +289,13 @@ fn decode_from_iter(decoded: &mut Vec<u8>, iter: &mut slice::Iter<u8>) -> (bool,
             Some(&b) => b,
             // We're at the end of the iterator and a codepoint boundary at
             // the same time, so this string is valid.
-            None => return (true, count),
+            None => return (true, char_count, byte_count),
         };
-        count += 1;
+        char_count += 1;
         if first < 127 {
             // Pass ASCII through directly.
             decoded.push(first);
+            byte_count += 1;
         } else {
             let w = utf8_char_width(first);
             let second = next_cont!();
@@ -300,6 +303,7 @@ fn decode_from_iter(decoded: &mut Vec<u8>, iter: &mut slice::Iter<u8>) -> (bool,
                 // Two-byte sequences can be used directly.
                 2 => {
                     decoded.extend([first, second].iter().cloned());
+                    byte_count += 2;
                 }
                 3 => {
                     let third = next_cont!();
@@ -309,7 +313,8 @@ fn decode_from_iter(decoded: &mut Vec<u8>, iter: &mut slice::Iter<u8>) -> (bool,
                         (0xE1...0xEC, 0x80...0xBF) |
                         (0xED, 0x80...0x9F) |
                         (0xEE...0xEF, 0x80...0xBF) => {
-                            decoded.extend([first, second, third].iter().cloned())
+                            decoded.extend([first, second, third].iter().cloned());
+                            byte_count += 3;
                         }
                         // First half a surrogate pair, so decode.
                         (0xED, 0xA0...0xAF) => {
@@ -323,6 +328,7 @@ fn decode_from_iter(decoded: &mut Vec<u8>, iter: &mut slice::Iter<u8>) -> (bool,
                             let sixth = next_cont!();
                             let s = dec_surrogates(second, third, fifth, sixth);
                             decoded.extend(s.iter().cloned());
+                            byte_count += 6;
                         }
                         _ => err!(),
                     }
@@ -333,53 +339,7 @@ fn decode_from_iter(decoded: &mut Vec<u8>, iter: &mut slice::Iter<u8>) -> (bool,
     }
 }
 
-// Just count the cesu-8 characters.
-// A surrogate pair counts 2, half a pair is allowed and counts 1;
-// based on Rust's is_utf8 implementation.
-pub fn count_from_iter(iter: &mut slice::Iter<u8>) -> Result<u64, Cesu8DecodingError> {
-    let mut count = 0;
-    macro_rules! err {
-        () => { return Err(Cesu8DecodingError) }
-    }
-    macro_rules! next {
-        () => {
-            match iter.next() {
-                Some(a) => *a,
-                // We needed data, but there was none: error!
-                None => err!()
-            }
-        }
-    }
-    macro_rules! next_cont {
-        () => {
-            {
-                let byte = next!();
-                if (byte) & !CONT_MASK == TAG_CONT_U8 { byte } else { err!() }
-            }
-        }
-    }
 
-    loop {
-        let first = match iter.next() {
-            Some(&b) => b,
-            // We're at the end of the iterator and a codepoint boundary at
-            // the same time, so this string is valid.
-            None => return Ok(count),
-        };
-        count += 1;
-        if first > 126 {
-            let w = utf8_char_width(first);
-            let _second = next_cont!();
-            match w {
-                2 => {}
-                3 => {
-                    let _third = next_cont!();
-                }
-                _ => err!(),
-            }
-        }
-    }
-}
 
 /// Convert the two trailing bytes from a CESU-8 surrogate to a regular
 /// surrogate value.
@@ -527,4 +487,12 @@ fn enc_surrogate(surrogate: u16) -> [u8; 3] {
         TAG_CONT_U8 | ((surrogate & 0b0000_1111_1100_0000) >> 6) as u8,
         TAG_CONT_U8 | (surrogate & 0b0000_0000_0011_1111) as u8,
     ]
+}
+
+/// String has something similar, we need it for byte
+pub fn is_utf8_char_start(b: u8) -> bool {
+    match b {
+        0x00...0x7F | 0xC0...0xDF | 0xE0...0xEF | 0xF0...0xF7 => true,
+        _ => false,
+    }
 }

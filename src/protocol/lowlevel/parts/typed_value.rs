@@ -22,6 +22,8 @@ const LENGTH_INDICATOR_NULL: u8 = 255;
 #[allow(non_camel_case_types)]
 #[derive(Clone, Debug)]
 pub enum TypedValue {
+    /// Internally swapped in where a real value is swapped out
+    NOTHING,
     /// TINYINT stores an 8-bit unsigned integer.
     /// The minimum value is 0. The maximum value is 255.
     TINYINT(u8),
@@ -212,6 +214,7 @@ impl TypedValue {
     /// hdb protocol uses ids < 128 for non-null values, and ids > 128 for null values
     fn type_id(&self) -> u8 {
         match *self {
+            TypedValue::NOTHING => TYPEID_NOTHING,
             TypedValue::TINYINT(_) => TYPEID_TINYINT,
             TypedValue::SMALLINT(_) => TYPEID_SMALLINT,
             TypedValue::INT(_) => TYPEID_INT,
@@ -280,6 +283,11 @@ impl TypedValue {
 pub fn serialize(tv: &TypedValue, data_pos: &mut i32, w: &mut io::Write) -> PrtResult<()> {
     if !tv.serialize_type_id(w)? {
         match *tv {
+            TypedValue::NOTHING => {
+                return Err(PrtError::ProtocolError(
+                    "Can't send TypedValue::NOTHING to Database".to_string(),
+                ))
+            }
             TypedValue::TINYINT(u) | TypedValue::N_TINYINT(Some(u)) => w.write_u8(u)?,
 
             TypedValue::SMALLINT(i) | TypedValue::N_SMALLINT(Some(i)) => {
@@ -371,6 +379,11 @@ pub fn serialize(tv: &TypedValue, data_pos: &mut i32, w: &mut io::Write) -> PrtR
 pub fn size(tv: &TypedValue) -> PrtResult<usize> {
     Ok(
         1 + match *tv {
+            TypedValue::NOTHING => {
+                return Err(PrtError::ProtocolError(
+                    "Can't send TypedValue::NOTHING to Database".to_string(),
+                ))
+            }
             TypedValue::BOOLEAN(_) |
             TypedValue::N_BOOLEAN(Some(_)) |
             TypedValue::TINYINT(_) |
@@ -500,6 +513,7 @@ fn serialize_clob_header(s_len: usize, data_pos: &mut i32, w: &mut io::Write) ->
 impl fmt::Display for TypedValue {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
+            TypedValue::NOTHING => write!(fmt, "Value already swapped out"),
             TypedValue::TINYINT(value) | TypedValue::N_TINYINT(Some(value)) => {
                 write!(fmt, "{}", value)
             }
@@ -851,16 +865,9 @@ pub mod factory {
             Ok(None)
         } else {
             let (length_c, length_b, locator_id, data) = parse_lob_2(rdr)?;
-            let char_count = util::count_from_iter(&mut data.iter())?;
-            Ok(Some(new_clob_from_db(
-                conn_ref,
-                is_last_data,
-                length_c,
-                length_b,
-                char_count,
-                locator_id,
-                data,
-            )))
+            Ok(Some(
+                new_clob_from_db(conn_ref, is_last_data, length_c, length_b, locator_id, data),
+            ))
         }
     }
 

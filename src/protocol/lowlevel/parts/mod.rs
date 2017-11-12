@@ -2,10 +2,11 @@ pub use protocol::protocol_error::{prot_err, PrtError, PrtResult};
 pub use protocol::lowlevel::util;
 
 pub mod authfield;
+pub mod blob_handle;
 pub mod client_info;
+pub mod clob_handle;
 pub mod connect_option;
 pub mod lob;
-pub mod lob_handles;
 pub mod longdate;
 pub mod option_value;
 pub mod output_parameters;

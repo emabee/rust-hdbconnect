@@ -1,8 +1,10 @@
 use protocol::lowlevel::conn_core::ConnCoreRef;
-use protocol::lowlevel::parts::lob_handles::{BlobHandle, ClobHandle};
+use protocol::lowlevel::parts::blob_handle::BlobHandle;
+use protocol::lowlevel::parts::clob_handle::ClobHandle;
 use protocol::protocol_error::{PrtError, PrtResult};
 
 use std::cell::RefCell;
+use std::io;
 
 /// BLOB implementation that is used within `TypedValue::BLOB`.
 ///
@@ -65,6 +67,26 @@ impl BLOB {
             BlobEnum::ToDB(vec) => Ok(vec),
         }
     }
+
+    /// Returns the maximum size of the internal buffers.
+    ///
+    /// Tests can verify that this value does not exceed `lob_read_size` + `buf.len()`.
+    pub fn max_size(&self) -> usize {
+        match self.0 {
+            BlobEnum::FromDB(ref handle) => handle.borrow().max_size(),
+            BlobEnum::ToDB(ref v) => v.len(),
+        }
+    }
+}
+
+// Support for BLOB streaming
+impl io::Read for BLOB {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        match self.0 {
+            BlobEnum::FromDB(ref blob_handle) => blob_handle.borrow_mut().read(buf),
+            BlobEnum::ToDB(ref v) => v.as_slice().read(buf),
+        }
+    }
 }
 
 // ////////////////////////////////////////////////////////////////////////////////////////
@@ -85,17 +107,11 @@ enum ClobEnum {
 }
 
 pub fn new_clob_from_db(conn_ref: &ConnCoreRef, is_data_complete: bool, length_c: u64,
-                        length_b: u64, char_count: u64, locator_id: u64, data: Vec<u8>)
+                        length_b: u64, locator_id: u64, data: Vec<u8>)
                         -> CLOB {
-    CLOB(ClobEnum::FromDB(RefCell::new(ClobHandle::new(
-        conn_ref,
-        is_data_complete,
-        length_c,
-        length_b,
-        char_count,
-        locator_id,
-        data,
-    ))))
+    CLOB(ClobEnum::FromDB(RefCell::new(
+        ClobHandle::new(conn_ref, is_data_complete, length_c, length_b, locator_id, data),
+    )))
 }
 
 /// Factory method for CLOBs that are to be sent to the database.
@@ -128,12 +144,32 @@ impl CLOB {
         }
     }
 
+    /// Returns the maximum size of the internal buffers.
+    ///
+    /// Tests can verify that this value does not exceed `lob_read_size` + `buf.len()`.
+    pub fn max_size(&self) -> usize {
+        match self.0 {
+            ClobEnum::FromDB(ref handle) => handle.borrow().max_size(),
+            ClobEnum::ToDB(ref s) => s.len(),
+        }
+    }
+
     /// Returns the contained String.
     pub fn into_string(self) -> PrtResult<String> {
         trace!("CLOB::into_string()");
         match self.0 {
             ClobEnum::FromDB(handle) => handle.into_inner().into_string(),
             ClobEnum::ToDB(s) => Ok(s),
+        }
+    }
+}
+
+// Support for CLOB streaming
+impl io::Read for CLOB {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        match self.0 {
+            ClobEnum::FromDB(ref clob_handle) => clob_handle.borrow_mut().read(buf),
+            ClobEnum::ToDB(ref s) => s.as_bytes().read(buf),
         }
     }
 }

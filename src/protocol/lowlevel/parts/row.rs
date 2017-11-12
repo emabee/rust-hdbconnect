@@ -1,12 +1,15 @@
 use serde;
 use serde_db::de::{DbValue, DeserializableRow};
 use std::fmt;
+use std::mem;
 use std::vec;
 use std::sync::Arc;
 
 use {HdbError, HdbResult};
 use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
 use protocol::lowlevel::parts::typed_value::TypedValue;
+use types::{BLOB, CLOB};
+use serde_db::de::ConversionError;
 
 /// A generic implementation of a single line of a `ResultSet`.
 #[derive(Clone, Debug)]
@@ -70,13 +73,43 @@ impl Row {
         Ok(DbValue::into_typed(DeserializableRow::pop(self).unwrap())?)
     }
 
-    /// Converts a copy of the field into a plain rust value.
-    pub fn field_as<'de, T>(&self, i: usize) -> HdbResult<T>
+    /// Swaps out a field and converts it into a plain rust value.
+    pub fn field_into<'de, T>(&mut self, i: usize) -> HdbResult<T>
     where
         T: serde::de::Deserialize<'de>,
     {
-        trace!("Row::field_as()");
-        Ok(DbValue::into_typed(self.cloned_value(i)?)?)
+        trace!("Row::field_into()");
+        let mut tmp = TypedValue::NOTHING;
+        mem::swap(&mut self.values[i], &mut tmp);
+        Ok(DbValue::into_typed(tmp)?)
+    }
+
+    /// Swaps out a field and converts it into a CLOB.
+    pub fn field_into_clob(&mut self, i: usize) -> HdbResult<CLOB> {
+        trace!("Row::field_into_clob()");
+        let mut tmp = TypedValue::NOTHING;
+        mem::swap(&mut self.values[i], &mut tmp);
+
+        match tmp {
+            TypedValue::CLOB(clob) | TypedValue::N_CLOB(Some(clob)) => Ok(clob),
+            tv => Err(HdbError::ConversionError(ConversionError::ValueType(
+                format!("The value {:?} cannot be converted into a CLOB", tv),
+            ))),
+        }
+    }
+
+    /// Swaps out a field and converts it into a BLOB.
+    pub fn field_into_blob(&mut self, i: usize) -> HdbResult<BLOB> {
+        trace!("Row::field_into_blob()");
+        let mut tmp = TypedValue::NOTHING;
+        mem::swap(&mut self.values[i], &mut tmp);
+
+        match tmp {
+            TypedValue::BLOB(blob) | TypedValue::N_BLOB(Some(blob)) => Ok(blob),
+            tv => Err(HdbError::ConversionError(ConversionError::ValueType(
+                format!("The value {:?} cannot be converted into a BLOB", tv),
+            ))),
+        }
     }
 
     /// Converts the Row into a rust value.

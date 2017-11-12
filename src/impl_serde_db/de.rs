@@ -100,6 +100,7 @@ impl DbValue for TypedValue {
             TypedValue::N_SHORTTEXT(None) |
             TypedValue::N_LONGDATE(None) => true,
 
+            TypedValue::NOTHING |
             TypedValue::N_TINYINT(Some(_)) |
             TypedValue::N_SMALLINT(Some(_)) |
             TypedValue::N_INT(Some(_)) |

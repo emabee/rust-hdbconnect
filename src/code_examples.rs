@@ -154,15 +154,15 @@
 //! # let my_statement = "SELECT foo FROM bar";
 //! # let resultset = connection.query(my_statement)?; // ResultSet
 //! for row in resultset {
-//!     let row:Row = row?;
+//!     let mut row:Row = row?;
 //! # #[allow(unused_variables)]
-//!     let f4: NaiveDateTime = row.field_as(3)?;
+//!     let f4: NaiveDateTime = row.field_into(3)?;
 //! # #[allow(unused_variables)]
-//!     let f1: String = row.field_as(0)?;
+//!     let f1: String = row.field_into(0)?;
 //! # #[allow(unused_variables)]
-//!     let f3: i32 = row.field_as(2)?;
+//!     let f3: i32 = row.field_into(2)?;
 //! # #[allow(unused_variables)]
-//!     let f2: Option<i32> = row.field_as(1)?;
+//!     let f2: Option<i32> = row.field_into(1)?;
 //! }
 //! # Ok(())
 //! # }
@@ -275,7 +275,7 @@
 //! You should use this flexibilty only if you know that the data never violates these boundaries.
 //!
 //!
-//! <b>5. LOBs</b>
+//! <b>5. Binary Values</b>
 //!
 //! So far, specialization support is not yet in rust stable. Without that, you  have to use
 //! [`serde_bytes::Bytes`](https://docs.serde.rs/serde_bytes/struct.Bytes.html) and
@@ -290,8 +290,26 @@
 //!
 //!
 //! ```ignore
-//! let bindata: ByteBuf = resultset.try_into()?;
+//! let bindata: ByteBuf = resultset.try_into()?; // single binary field
 //! let first_byte = bindata[0];
 //! ```
 //!
+//!
+//! <b>6. LOBs</b>
+//! Binary and Character LOBs can be treated like "normal" binary and String data, i.e.
+//! you can convert them with the methods described above into `ByteBuf` or String values.
+//!
+//! But of course you often do not want to materialize the complete "Large Object", especially
+//! if you just want to stream it into a writer.
+//!
+//! This can be easily accomplished as well:
+//!
+//! ```ignore
+//!     let mut resultset: hdbconnect::ResultSet = connection.query(query)?;
+//!     let mut clob: CLOB = resultset.pop_row().unwrap().field_into_clob(1)?;
+//!     io::copy(&mut clob, &mut writer)?;
+//! ```
+//!
+//! While being read by `io::copy()`, the CLOB will continuously fetch more data from the
+//! database until the complete CLOB was passed over.
 //!
