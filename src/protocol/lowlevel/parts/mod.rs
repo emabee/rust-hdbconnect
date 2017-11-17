@@ -6,6 +6,7 @@ pub mod blob_handle;
 pub mod client_info;
 pub mod clob_handle;
 pub mod connect_option;
+pub mod hdb_decimal;
 pub mod lob;
 pub mod longdate;
 pub mod option_value;

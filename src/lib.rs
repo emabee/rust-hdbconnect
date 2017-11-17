@@ -27,6 +27,8 @@ extern crate byteorder;
 extern crate chrono;
 extern crate crypto;
 extern crate hex;
+extern crate num;
+extern crate rust_decimal;
 
 #[macro_use]
 extern crate log;
@@ -79,6 +81,7 @@ pub mod metadata {
 ///
 pub mod types {
     pub use protocol::lowlevel::parts::lob::{new_clob_to_db, BLOB, CLOB};
+    pub use protocol::lowlevel::parts::hdb_decimal::HdbDecimal;
     pub use protocol::lowlevel::parts::longdate::LongDate;
 }
 pub use protocol::lowlevel::parts::typed_value::TypedValue as HdbValue;

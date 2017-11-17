@@ -81,6 +81,7 @@ impl DbValue for TypedValue {
             TypedValue::N_SMALLINT(None) |
             TypedValue::N_INT(None) |
             TypedValue::N_BIGINT(None) |
+            TypedValue::N_DECIMAL(None) |
             TypedValue::N_REAL(None) |
             TypedValue::N_DOUBLE(None) |
             TypedValue::N_CHAR(None) |
@@ -105,6 +106,7 @@ impl DbValue for TypedValue {
             TypedValue::N_SMALLINT(Some(_)) |
             TypedValue::N_INT(Some(_)) |
             TypedValue::N_BIGINT(Some(_)) |
+            TypedValue::N_DECIMAL(Some(_)) |
             TypedValue::N_REAL(Some(_)) |
             TypedValue::N_DOUBLE(Some(_)) |
             TypedValue::N_CHAR(Some(_)) |
@@ -127,6 +129,7 @@ impl DbValue for TypedValue {
             TypedValue::SMALLINT(_) |
             TypedValue::INT(_) |
             TypedValue::BIGINT(_) |
+            TypedValue::DECIMAL(_) |
             TypedValue::REAL(_) |
             TypedValue::DOUBLE(_) |
             TypedValue::CHAR(_) |
@@ -429,6 +432,10 @@ impl DbValueInto<String> for TypedValue {
 
             TypedValue::LONGDATE(ld) | TypedValue::N_LONGDATE(Some(ld)) => {
                 Ok(str_from_longdate(&ld))
+            }
+
+            TypedValue::DECIMAL(hdbdec) | TypedValue::N_DECIMAL(Some(hdbdec)) => {
+                Ok(format!("{}", hdbdec))
             }
 
             TypedValue::CLOB(clob) |

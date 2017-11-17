@@ -4,6 +4,7 @@ use protocol::lowlevel::{util, PrtError, PrtResult};
 use protocol::lowlevel::parts::type_id::*;
 use protocol::lowlevel::parts::lob::*;
 use protocol::lowlevel::parts::longdate::LongDate;
+use protocol::lowlevel::parts::hdb_decimal::{serialize_decimal, HdbDecimal};
 
 use byteorder::{LittleEndian, WriteBytesExt};
 use serde;
@@ -37,26 +38,26 @@ pub enum TypedValue {
     /// The minimum value is -9,223,372,036,854,775,808.
     /// The maximum value is 9,223,372,036,854,775,807.
     BIGINT(i64),
-    // / DECIMAL(p, s) is the SQL standard notation for fixed-point decimal.
-    // / "p" specifies precision or the number of total digits
-    // / (the sum of whole digits and fractional digits).
-    // / "s" denotes scale or the number of fractional digits.
-    // / If a column is defined as DECIMAL(5, 4) for example,
-    // / the numbers 3.14, 3.1415, 3.141592 are stored in the column as 3.1400, 3.1415, 3.1415,
-    // / retaining the specified precision(5) and scale(4).
-    // /
-    // / Precision p, can range from 1 to 38.
-    // / The scale can range from 0 to p.
-    // / If the scale is not specified, it defaults to 0.
-    // / If precision and scale are not specified, DECIMAL becomes a floating-point decimal number.
-    // / In this case, precision and scale can vary within the range 1 to 34 for precision
-    // / and -6,111 to 6,176 for scale, depending on the stored value.
-    // /
-    // / Examples:
-    // / 0.0000001234 (1234E-10) has precision 4 and scale 10.
-    // / 1.0000001234 (10000001234E-10) has precision 11 and scale 10.
-    // / The value 1234000000 (1234E6) has precision 4 and scale -6.
-    // DECIMAL = 5, 					// DECIMAL, and DECIMAL(p,s), 1
+    /// DECIMAL(p, s) is the SQL standard notation for fixed-point decimal.
+    /// "p" specifies precision or the number of total digits
+    /// (the sum of whole digits and fractional digits).
+    /// "s" denotes scale or the number of fractional digits.
+    /// If a column is defined as DECIMAL(5, 4) for example,
+    /// the numbers 3.14, 3.1415, 3.141592 are stored in the column as 3.1400, 3.1415, 3.1415,
+    /// retaining the specified precision(5) and scale(4).
+    ///
+    /// Precision p, can range from 1 to 38.
+    /// The scale can range from 0 to p.
+    /// If the scale is not specified, it defaults to 0.
+    /// If precision and scale are not specified, DECIMAL becomes a floating-point decimal number.
+    /// In this case, precision and scale can vary within the range 1 to 34 for precision
+    /// and -6,111 to 6,176 for scale, depending on the stored value.
+    ///
+    /// Examples:
+    /// 0.0000001234 (1234E-10) has precision 4 and scale 10.
+    /// 1.0000001234 (10000001234E-10) has precision 11 and scale 10.
+    /// The value 1234000000 (1234E6) has precision 4 and scale -6.
+    DECIMAL(HdbDecimal), // = 5, 					// DECIMAL, and DECIMAL(p,s), 1
     /// REAL stores a single-precision 32-bit floating-point number.
     REAL(f32),
     /// DOUBLE stores a double-precision 64-bit floating-point number.
@@ -131,7 +132,8 @@ pub enum TypedValue {
     N_INT(Option<i32>),
     /// Nullable variant of BIGINT.
     N_BIGINT(Option<i64>),
-    // N_DECIMAL = 5, 					// DECIMAL, and DECIMAL(p,s), 1
+    /// Nullable variant of DECIMAL
+    N_DECIMAL(Option<HdbDecimal>), // = 5, 					// DECIMAL, and DECIMAL(p,s), 1
     /// Nullable variant of REAL.
     N_REAL(Option<f32>),
     /// Nullable variant of DOUBLE.
@@ -219,7 +221,7 @@ impl TypedValue {
             TypedValue::SMALLINT(_) => TYPEID_SMALLINT,
             TypedValue::INT(_) => TYPEID_INT,
             TypedValue::BIGINT(_) => TYPEID_BIGINT,
-            // TypedValue::DECIMAL(_)          => TYPEID_DECIMAL,
+            TypedValue::DECIMAL(_) => TYPEID_DECIMAL,
             TypedValue::REAL(_) => TYPEID_REAL,
             TypedValue::DOUBLE(_) => TYPEID_DOUBLE,
             TypedValue::CHAR(_) => TYPEID_CHAR,
@@ -247,7 +249,7 @@ impl TypedValue {
             TypedValue::N_SMALLINT(_) => TYPEID_N_SMALLINT,
             TypedValue::N_INT(_) => TYPEID_N_INT,
             TypedValue::N_BIGINT(_) => TYPEID_N_BIGINT,
-            // TypedValue::N_DECIMAL(_)         => TYPEID_N_DECIMAL,
+            TypedValue::N_DECIMAL(_) => TYPEID_N_DECIMAL,
             TypedValue::N_REAL(_) => TYPEID_N_REAL,
             TypedValue::N_DOUBLE(_) => TYPEID_N_DOUBLE,
             TypedValue::N_CHAR(_) => TYPEID_N_CHAR,
@@ -300,6 +302,10 @@ pub fn serialize(tv: &TypedValue, data_pos: &mut i32, w: &mut io::Write) -> PrtR
                 w.write_i64::<LittleEndian>(i)?
             }
 
+            TypedValue::DECIMAL(ref dec) | TypedValue::N_DECIMAL(Some(ref dec)) => {
+                serialize_decimal(dec, w)?
+            }
+
             TypedValue::REAL(f) | TypedValue::N_REAL(Some(f)) => w.write_f32::<LittleEndian>(f)?,
 
             TypedValue::DOUBLE(f) | TypedValue::N_DOUBLE(Some(f)) => {
@@ -342,6 +348,7 @@ pub fn serialize(tv: &TypedValue, data_pos: &mut i32, w: &mut io::Write) -> PrtR
             TypedValue::N_SMALLINT(None) |
             TypedValue::N_INT(None) |
             TypedValue::N_BIGINT(None) |
+            TypedValue::N_DECIMAL(None) |
             TypedValue::N_REAL(None) |
             TypedValue::N_DOUBLE(None) |
             TypedValue::N_BOOLEAN(None) |
@@ -391,6 +398,8 @@ pub fn size(tv: &TypedValue) -> PrtResult<usize> {
 
             TypedValue::SMALLINT(_) | TypedValue::N_SMALLINT(Some(_)) => 2,
 
+            TypedValue::DECIMAL(_) | TypedValue::N_DECIMAL(Some(_)) => 16,
+
             TypedValue::INT(_) |
             TypedValue::N_INT(Some(_)) |
             TypedValue::REAL(_) |
@@ -430,6 +439,7 @@ pub fn size(tv: &TypedValue) -> PrtResult<usize> {
             TypedValue::N_SMALLINT(None) |
             TypedValue::N_INT(None) |
             TypedValue::N_BIGINT(None) |
+            TypedValue::N_DECIMAL(None) |
             TypedValue::N_REAL(None) |
             TypedValue::N_DOUBLE(None) |
             TypedValue::N_BOOLEAN(None) |
@@ -460,6 +470,7 @@ pub fn size(tv: &TypedValue) -> PrtResult<usize> {
         },
     )
 }
+
 
 
 pub fn string_length(s: &str) -> usize {
@@ -524,6 +535,9 @@ impl fmt::Display for TypedValue {
             TypedValue::BIGINT(value) | TypedValue::N_BIGINT(Some(value)) => {
                 write!(fmt, "{}", value)
             }
+            TypedValue::DECIMAL(ref value) | TypedValue::N_DECIMAL(Some(ref value)) => {
+                write!(fmt, "{}", value)
+            }
             TypedValue::REAL(value) | TypedValue::N_REAL(Some(value)) => write!(fmt, "{}", value),
             TypedValue::DOUBLE(value) | TypedValue::N_DOUBLE(Some(value)) => {
                 write!(fmt, "{}", value)
@@ -563,6 +577,7 @@ impl fmt::Display for TypedValue {
             TypedValue::N_SMALLINT(None) |
             TypedValue::N_INT(None) |
             TypedValue::N_BIGINT(None) |
+            TypedValue::N_DECIMAL(None) |
             TypedValue::N_REAL(None) |
             TypedValue::N_DOUBLE(None) |
             TypedValue::N_CHAR(None) |
@@ -587,6 +602,7 @@ impl fmt::Display for TypedValue {
 
 
 pub mod factory {
+    use protocol::lowlevel::parts::hdb_decimal::{parse_decimal, parse_nullable_decimal};
     use super::TypedValue;
     use super::super::{prot_err, util, PrtError, PrtResult};
     use super::super::lob::*;
@@ -622,7 +638,7 @@ pub mod factory {
                 ind_not_null(rdr)?;
                 rdr.read_i64::<LittleEndian>()?
             })),
-            // 5  => Ok(TypedValue::DECIMAL(
+            5 => Ok(TypedValue::DECIMAL(parse_decimal(rdr)?)),
             6 => Ok(TypedValue::REAL(parse_real(rdr)?)),
             7 => Ok(TypedValue::DOUBLE(parse_double(rdr)?)),
             8 => Ok(TypedValue::CHAR(parse_length_and_string(rdr)?)),
@@ -668,7 +684,7 @@ pub mod factory {
             } else {
                 Some(rdr.read_i64::<LittleEndian>()?)
             })),
-            // 133 => Ok(TypedValue::N_DECIMAL(
+            133 => Ok(TypedValue::N_DECIMAL(parse_nullable_decimal(rdr)?)),
             134 => Ok(TypedValue::N_REAL(parse_nullable_real(rdr)?)),
             135 => Ok(TypedValue::N_DOUBLE(parse_nullable_double(rdr)?)),
             136 => Ok(TypedValue::N_CHAR(parse_nullable_length_and_string(rdr)?)),
@@ -774,7 +790,6 @@ pub mod factory {
             }
         }
     }
-
 
     // ----- STRINGS and BINARIES ----------------------------------------------------------------
     pub fn parse_length_and_string(rdr: &mut io::BufRead) -> PrtResult<String> {

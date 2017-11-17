@@ -24,8 +24,6 @@ TODO
 
 
 LOBs
-    - Streaming-Interface anbieten, mit dem man ein DB-LOB lesen und
-      ohne volle Materialisierung zB in ein File schreiben kann
     - additional request-part LOBFLAGS
 
 - avoid sending fetchsize always
@@ -33,7 +31,6 @@ LOBs
     - SECONDDATE
     - DAYDATE
     - SECONDTIME
-    - DECIMAL -> should be based on https://github.com/rust-num/num/issues/8
     - SMALLDECIMAL  -> no docu found -> see sources?
 - size/length/padding in argument ??
 - allow setting the clientinfo stuff on the connection (or do it automatically?)

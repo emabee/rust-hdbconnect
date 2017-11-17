@@ -1,5 +1,6 @@
 use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, Timelike};
 
+use protocol::lowlevel::parts::hdb_decimal::HdbDecimal;
 use protocol::lowlevel::parts::longdate::LongDate;
 use protocol::lowlevel::parts::lob::new_blob_to_db;
 use protocol::lowlevel::parts::parameter_metadata::ParameterDescriptor;
@@ -7,7 +8,6 @@ use protocol::lowlevel::parts::typed_value::TypedValue;
 use protocol::lowlevel::parts::type_id::*;
 
 use serde_db::ser::{DbvFactory, SerializationError};
-
 use std::{i16, i32, i64, i8, u16, u32, u8};
 
 
@@ -318,6 +318,7 @@ impl DbvFactory for ParameterDescriptor {
             TYPEID_N_NCLOB |
             TYPEID_NCLOB |
             TYPEID_CLOB => TypedValue::STRING(s),
+            TYPEID_DECIMAL => TypedValue::DECIMAL(HdbDecimal::parse_from_str(value)?),
             TYPEID_LONGDATE => TypedValue::LONGDATE(longdate_from_str(value)?),
 
             _ => return Err(SerializationError::TypeMismatch("&str", self.descriptor())),
@@ -368,6 +369,8 @@ impl DbvFactory for ParameterDescriptor {
             TYPEID_INT => "INT",
             TYPEID_N_BIGINT => "Nullable BIGINT",
             TYPEID_BIGINT => "BIGINT",
+            TYPEID_N_DECIMAL => "Nullable DECIMAL",
+            TYPEID_DECIMAL => "DECIMAL",
             TYPEID_N_REAL => "Nullable REAL",
             TYPEID_REAL => "REAL",
             TYPEID_N_DOUBLE => "Nullable DOUBLE",
@@ -404,11 +407,10 @@ impl DbvFactory for ParameterDescriptor {
             TYPEID_SHORTTEXT => "SHORTTEXT",
             TYPEID_N_LONGDATE => "Nullable LONGDATE",
             TYPEID_LONGDATE => "LONGDATE",
-            i => return format!("no descriptor available for {}", i),
+            i => return format!("[no descriptor available for {}]", i),
         })
     }
 }
-
 
 // Serializes a date string into a `LongDate`.
 //
