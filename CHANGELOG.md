@@ -1,7 +1,7 @@
 # Changelog
 
-## [Unreleased]
-Increase support for stringified value representations.
+## [0.3.2] 2017-11-19
+Add support for stringified value representations.
 
 ## [0.3.1] 2017-11-17
 Add support for HANA's DECIMAL types.
