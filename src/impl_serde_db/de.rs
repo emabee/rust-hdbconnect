@@ -413,6 +413,12 @@ impl DbValueInto<String> for TypedValue {
     fn try_into(self) -> Result<String, ConversionError> {
         trace!("try_into -> String");
         match self {
+            TypedValue::TINYINT(i) | TypedValue::N_TINYINT(Some(i)) => Ok(format!("{}", i)),
+            TypedValue::SMALLINT(i) | TypedValue::N_SMALLINT(Some(i)) => Ok(format!("{}", i)),
+            TypedValue::INT(i) | TypedValue::N_INT(Some(i)) => Ok(format!("{}", i)),
+            TypedValue::BIGINT(i) | TypedValue::N_BIGINT(Some(i)) => Ok(format!("{}", i)),
+            TypedValue::REAL(f) | TypedValue::N_REAL(Some(f)) => Ok(format!("{}", f)),
+            TypedValue::DOUBLE(f) | TypedValue::N_DOUBLE(Some(f)) => Ok(format!("{}", f)),
             TypedValue::CHAR(s) |
             TypedValue::VARCHAR(s) |
             TypedValue::NCHAR(s) |

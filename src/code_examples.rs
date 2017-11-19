@@ -269,10 +269,13 @@
 //! * Vice versa, you can use an Option<code>&lt;field&gt;</code> as target structure,
 //!   even if the column is marked as NOT NULL.
 //!
-//! * Source and target integer types can be different from each other,
+//! * Source and target integer types can differ from each other,
 //!   as long as the concrete values can be assigned without loss.
 //!
-//! You should use this flexibilty only if you know that the data never violates these boundaries.
+//! * You can convert numeric values on-the-fly into default String representations.
+//!
+//! You should use this flexibility with some care though, errors are returned if the data
+//! violates the boundaries of the target values.
 //!
 //!
 //! <b>5. Binary Values</b>

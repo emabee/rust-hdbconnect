@@ -16,7 +16,7 @@ use std::mem;
 /// use hdbconnect::IntoConnectParams;
 /// let conn_params = "hdbsql://my_user:my_passwd@the_host:2222".into_connect_params().unwrap();
 /// ```
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug)]
 pub struct ConnectParams {
     hostname: String,
     port: u16,

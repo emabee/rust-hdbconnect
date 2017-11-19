@@ -63,7 +63,6 @@ fn evaluate_resultset(reconfiguration_handle: &mut ReconfigurationHandle,
     let insert_stmt_str = "insert into TEST_DECIMALS (F1, F2) values(?, ?)";
 
     // prepare & execute
-    reconfiguration_handle.set_new_spec(LogSpecification::parse("info"));
     let mut insert_stmt = connection.prepare(insert_stmt_str)?;
     insert_stmt.add_batch(&("75.53500", Decimal::from_f32(75.53500).unwrap()))?;
     insert_stmt.add_batch(&("87.65432", Decimal::from_f32(87.65432).unwrap()))?;
@@ -72,6 +71,10 @@ fn evaluate_resultset(reconfiguration_handle: &mut ReconfigurationHandle,
     insert_stmt.add_batch(&("-7.65432", Decimal::from_f32(-7.65432).unwrap()))?;
     insert_stmt.execute_batch()?;
 
+    reconfiguration_handle.set_new_spec( LogSpecification::parse("info"));
+    insert_stmt.add_batch(&("-0.05600", "-0.05600"))?;
+    insert_stmt.add_batch(&("-8.65432", "-8.65432"))?;
+    insert_stmt.execute_batch()?;
 
     info!("Read and verify decimals");
     let result: Vec<TestData> = connection.query("select * from TEST_DECIMALS")?.try_into()?;
@@ -79,6 +82,13 @@ fn evaluate_resultset(reconfiguration_handle: &mut ReconfigurationHandle,
         debug!("{}, {}", td.f1, td.f2);
         assert_eq!(td.f1, format!("{}", td.f2));
     }
+
+    let result: Vec<(String, String)> = connection.query("select * from TEST_DECIMALS")?.try_into()?;
+    for row in result {
+        debug!("{}, {}", row.0, row.1);
+        assert_eq!(row.0, row.1);
+    }
+
 
     Ok(())
 }

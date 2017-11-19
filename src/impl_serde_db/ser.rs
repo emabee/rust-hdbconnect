@@ -9,7 +9,7 @@ use protocol::lowlevel::parts::type_id::*;
 
 use serde_db::ser::{DbvFactory, SerializationError};
 use std::{i16, i32, i64, i8, u16, u32, u8};
-
+use std::str::FromStr;
 
 
 
@@ -304,8 +304,15 @@ impl DbvFactory for ParameterDescriptor {
         })
     }
     fn from_str(&self, value: &str) -> Result<TypedValue, SerializationError> {
-        let s = String::from(value);
+        let maperr1 = |_| SerializationError::TypeMismatch("&str", self.descriptor());
+        let maperr2 = |_| SerializationError::TypeMismatch("&str", self.descriptor());
         Ok(match self.value_type {
+            TYPEID_TINYINT => TypedValue::TINYINT(u8::from_str(value).map_err(maperr1)?),
+            TYPEID_SMALLINT => TypedValue::SMALLINT(i16::from_str(value).map_err(maperr1)?),
+            TYPEID_INT => TypedValue::INT(i32::from_str(value).map_err(maperr1)?),
+            TYPEID_BIGINT => TypedValue::BIGINT(i64::from_str(value).map_err(maperr1)?),
+            TYPEID_REAL => TypedValue::REAL(f32::from_str(value).map_err(maperr2)?),
+            TYPEID_DOUBLE => TypedValue::DOUBLE(f64::from_str(value).map_err(maperr2)?),
             TYPEID_CHAR |
             TYPEID_VARCHAR |
             TYPEID_NCHAR |
@@ -317,7 +324,7 @@ impl DbvFactory for ParameterDescriptor {
             TYPEID_N_CLOB |
             TYPEID_N_NCLOB |
             TYPEID_NCLOB |
-            TYPEID_CLOB => TypedValue::STRING(s),
+            TYPEID_CLOB => TypedValue::STRING(String::from(value)),
             TYPEID_DECIMAL => TypedValue::DECIMAL(HdbDecimal::parse_from_str(value)?),
             TYPEID_LONGDATE => TypedValue::LONGDATE(longdate_from_str(value)?),
 
