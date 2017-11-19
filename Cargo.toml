@@ -13,7 +13,7 @@ repository = "https://github.com/emabee/rust-hdbconnect"
 #readme = "..."
 
 [dependencies]
-bigint = "*"
+bigint = "^4.2.0"
 byteorder = "1.1"
 chrono = { version = "0.4", features = ["serde"] }
 hex = "0.2"
