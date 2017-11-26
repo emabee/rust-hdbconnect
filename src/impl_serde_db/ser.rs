@@ -3,9 +3,9 @@ use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, Timelike};
 use protocol::lowlevel::parts::hdb_decimal::HdbDecimal;
 use protocol::lowlevel::parts::longdate::LongDate;
 use protocol::lowlevel::parts::lob::new_blob_to_db;
-use protocol::lowlevel::parts::parameter_metadata::ParameterDescriptor;
+use protocol::lowlevel::parts::parameter_descriptor::ParameterDescriptor;
 use protocol::lowlevel::parts::typed_value::TypedValue;
-use protocol::lowlevel::parts::type_id::*;
+use protocol::lowlevel::parts::type_id;
 
 use serde_db::ser::{DbvFactory, SerializationError};
 use std::{i16, i32, i64, i8, u16, u32, u8};
@@ -17,256 +17,256 @@ impl DbvFactory for ParameterDescriptor {
     type DBV = TypedValue;
 
     fn from_bool(&self, value: bool) -> Result<TypedValue, SerializationError> {
-        Ok(match self.value_type {
-            TYPEID_BOOLEAN => TypedValue::BOOLEAN(value),
-            TYPEID_N_BOOLEAN => TypedValue::N_BOOLEAN(Some(value)),
+        Ok(match self.type_id() {
+            type_id::BOOLEAN => TypedValue::BOOLEAN(value),
+            type_id::N_BOOLEAN => TypedValue::N_BOOLEAN(Some(value)),
             _ => return Err(SerializationError::TypeMismatch("boolean", self.descriptor())),
         })
     }
 
     fn from_i8(&self, value: i8) -> Result<TypedValue, SerializationError> {
         let input_type = "i8";
-        Ok(match self.value_type {
-            TYPEID_TINYINT => if value >= 0 {
+        Ok(match self.type_id() {
+            type_id::TINYINT => if value >= 0 {
                 TypedValue::TINYINT(value as u8)
             } else {
                 return Err(SerializationError::RangeErr(input_type, self.descriptor()));
             },
-            TYPEID_N_TINYINT => if value >= 0 {
+            type_id::N_TINYINT => if value >= 0 {
                 TypedValue::N_TINYINT(Some(value as u8))
             } else {
                 return Err(SerializationError::RangeErr(input_type, self.descriptor()));
             },
-            TYPEID_SMALLINT => TypedValue::SMALLINT(i16::from(value)),
-            TYPEID_N_SMALLINT => TypedValue::N_SMALLINT(Some(i16::from(value))),
-            TYPEID_INT => TypedValue::INT(i32::from(value)),
-            TYPEID_N_INT => TypedValue::N_INT(Some(i32::from(value))),
-            TYPEID_BIGINT => TypedValue::BIGINT(i64::from(value)),
-            TYPEID_N_BIGINT => TypedValue::N_BIGINT(Some(i64::from(value))),
+            type_id::SMALLINT => TypedValue::SMALLINT(i16::from(value)),
+            type_id::N_SMALLINT => TypedValue::N_SMALLINT(Some(i16::from(value))),
+            type_id::INT => TypedValue::INT(i32::from(value)),
+            type_id::N_INT => TypedValue::N_INT(Some(i32::from(value))),
+            type_id::BIGINT => TypedValue::BIGINT(i64::from(value)),
+            type_id::N_BIGINT => TypedValue::N_BIGINT(Some(i64::from(value))),
             _ => return Err(SerializationError::TypeMismatch(input_type, self.descriptor())),
         })
     }
     fn from_i16(&self, value: i16) -> Result<TypedValue, SerializationError> {
         let input_type = "i16";
-        Ok(match self.value_type {
-            TYPEID_TINYINT => if (value >= 0) && (value <= i16::from(u8::MAX)) {
+        Ok(match self.type_id() {
+            type_id::TINYINT => if (value >= 0) && (value <= i16::from(u8::MAX)) {
                 TypedValue::TINYINT(value as u8)
             } else {
                 return Err(SerializationError::RangeErr(input_type, self.descriptor()));
             },
-            TYPEID_N_TINYINT => if (value >= 0) && (value <= i16::from(u8::MAX)) {
+            type_id::N_TINYINT => if (value >= 0) && (value <= i16::from(u8::MAX)) {
                 TypedValue::N_TINYINT(Some(value as u8))
             } else {
                 return Err(SerializationError::RangeErr(input_type, self.descriptor()));
             },
-            TYPEID_SMALLINT => TypedValue::SMALLINT(value),
-            TYPEID_N_SMALLINT => TypedValue::N_SMALLINT(Some(value)),
-            TYPEID_INT => TypedValue::INT(i32::from(value)),
-            TYPEID_N_INT => TypedValue::N_INT(Some(i32::from(value))),
-            TYPEID_BIGINT => TypedValue::BIGINT(i64::from(value)),
-            TYPEID_N_BIGINT => TypedValue::N_BIGINT(Some(i64::from(value))),
+            type_id::SMALLINT => TypedValue::SMALLINT(value),
+            type_id::N_SMALLINT => TypedValue::N_SMALLINT(Some(value)),
+            type_id::INT => TypedValue::INT(i32::from(value)),
+            type_id::N_INT => TypedValue::N_INT(Some(i32::from(value))),
+            type_id::BIGINT => TypedValue::BIGINT(i64::from(value)),
+            type_id::N_BIGINT => TypedValue::N_BIGINT(Some(i64::from(value))),
             _ => return Err(SerializationError::TypeMismatch(input_type, self.descriptor())),
         })
     }
     fn from_i32(&self, value: i32) -> Result<TypedValue, SerializationError> {
         let input_type = "i32";
-        Ok(match self.value_type {
-            TYPEID_TINYINT => if (value >= 0) && (value <= i32::from(u8::MAX)) {
+        Ok(match self.type_id() {
+            type_id::TINYINT => if (value >= 0) && (value <= i32::from(u8::MAX)) {
                 TypedValue::TINYINT(value as u8)
             } else {
                 return Err(SerializationError::RangeErr(input_type, self.descriptor()));
             },
-            TYPEID_N_TINYINT => if (value >= 0) && (value <= i32::from(u8::MAX)) {
+            type_id::N_TINYINT => if (value >= 0) && (value <= i32::from(u8::MAX)) {
                 TypedValue::N_TINYINT(Some(value as u8))
             } else {
                 return Err(SerializationError::RangeErr(input_type, self.descriptor()));
             },
-            TYPEID_SMALLINT => {
+            type_id::SMALLINT => {
                 if (value >= i32::from(i16::MIN)) && (value <= i32::from(i16::MAX)) {
                     TypedValue::SMALLINT(value as i16)
                 } else {
                     return Err(SerializationError::RangeErr(input_type, self.descriptor()));
                 }
             }
-            TYPEID_N_SMALLINT => {
+            type_id::N_SMALLINT => {
                 if (value >= i32::from(i16::MIN)) && (value <= i32::from(i16::MAX)) {
                     TypedValue::N_SMALLINT(Some(value as i16))
                 } else {
                     return Err(SerializationError::RangeErr(input_type, self.descriptor()));
                 }
             }
-            TYPEID_INT => TypedValue::INT(value),
-            TYPEID_N_INT => TypedValue::N_INT(Some(value)),
-            TYPEID_BIGINT => TypedValue::BIGINT(i64::from(value)),
-            TYPEID_N_BIGINT => TypedValue::N_BIGINT(Some(i64::from(value))),
+            type_id::INT => TypedValue::INT(value),
+            type_id::N_INT => TypedValue::N_INT(Some(value)),
+            type_id::BIGINT => TypedValue::BIGINT(i64::from(value)),
+            type_id::N_BIGINT => TypedValue::N_BIGINT(Some(i64::from(value))),
             _ => return Err(SerializationError::TypeMismatch(input_type, self.descriptor())),
         })
     }
     fn from_i64(&self, value: i64) -> Result<TypedValue, SerializationError> {
         let input_type = "i64";
-        Ok(match self.value_type {
-            TYPEID_TINYINT => if (value >= 0) && (value <= i64::from(u8::MAX)) {
+        Ok(match self.type_id() {
+            type_id::TINYINT => if (value >= 0) && (value <= i64::from(u8::MAX)) {
                 TypedValue::TINYINT(value as u8)
             } else {
                 return Err(SerializationError::RangeErr(input_type, self.descriptor()));
             },
-            TYPEID_N_TINYINT => if (value >= 0) && (value <= i64::from(u8::MAX)) {
+            type_id::N_TINYINT => if (value >= 0) && (value <= i64::from(u8::MAX)) {
                 TypedValue::N_TINYINT(Some(value as u8))
             } else {
                 return Err(SerializationError::RangeErr(input_type, self.descriptor()));
             },
-            TYPEID_SMALLINT => {
+            type_id::SMALLINT => {
                 if (value >= i64::from(i16::MIN)) && (value <= i64::from(i16::MAX)) {
                     TypedValue::SMALLINT(value as i16)
                 } else {
                     return Err(SerializationError::RangeErr(input_type, self.descriptor()));
                 }
             }
-            TYPEID_N_SMALLINT => {
+            type_id::N_SMALLINT => {
                 if (value >= i64::from(i16::MIN)) && (value <= i64::from(i16::MAX)) {
                     TypedValue::N_SMALLINT(Some(value as i16))
                 } else {
                     return Err(SerializationError::RangeErr(input_type, self.descriptor()));
                 }
             }
-            TYPEID_INT => if (value >= i64::from(i32::MIN)) && (value <= i64::from(i32::MAX)) {
+            type_id::INT => if (value >= i64::from(i32::MIN)) && (value <= i64::from(i32::MAX)) {
                 TypedValue::INT(value as i32)
             } else {
                 return Err(SerializationError::RangeErr(input_type, self.descriptor()));
             },
-            TYPEID_N_INT => if (value >= i64::from(i32::MIN)) && (value <= i64::from(i32::MAX)) {
+            type_id::N_INT => if (value >= i64::from(i32::MIN)) && (value <= i64::from(i32::MAX)) {
                 TypedValue::N_INT(Some(value as i32))
             } else {
                 return Err(SerializationError::RangeErr(input_type, self.descriptor()));
             },
-            TYPEID_BIGINT => TypedValue::BIGINT(value),
-            TYPEID_N_BIGINT => TypedValue::N_BIGINT(Some(value)),
-            TYPEID_LONGDATE => TypedValue::LONGDATE(LongDate(value)),
-            TYPEID_N_LONGDATE => TypedValue::N_LONGDATE(Some(LongDate(value))),
+            type_id::BIGINT => TypedValue::BIGINT(value),
+            type_id::N_BIGINT => TypedValue::N_BIGINT(Some(value)),
+            type_id::LONGDATE => TypedValue::LONGDATE(LongDate::new(value)),
+            type_id::N_LONGDATE => TypedValue::N_LONGDATE(Some(LongDate::new(value))),
             _ => return Err(SerializationError::TypeMismatch(input_type, self.descriptor())),
         })
     }
     fn from_u8(&self, value: u8) -> Result<TypedValue, SerializationError> {
         let input_type = "u8";
-        Ok(match self.value_type {
-            TYPEID_TINYINT => TypedValue::TINYINT(value),
-            TYPEID_N_TINYINT => TypedValue::N_TINYINT(Some(value)),
-            TYPEID_SMALLINT => TypedValue::SMALLINT(i16::from(value)),
-            TYPEID_N_SMALLINT => TypedValue::N_SMALLINT(Some(i16::from(value))),
-            TYPEID_INT => TypedValue::INT(i32::from(value)),
-            TYPEID_N_INT => TypedValue::N_INT(Some(i32::from(value))),
-            TYPEID_BIGINT => TypedValue::BIGINT(i64::from(value)),
-            TYPEID_N_BIGINT => TypedValue::N_BIGINT(Some(i64::from(value))),
+        Ok(match self.type_id() {
+            type_id::TINYINT => TypedValue::TINYINT(value),
+            type_id::N_TINYINT => TypedValue::N_TINYINT(Some(value)),
+            type_id::SMALLINT => TypedValue::SMALLINT(i16::from(value)),
+            type_id::N_SMALLINT => TypedValue::N_SMALLINT(Some(i16::from(value))),
+            type_id::INT => TypedValue::INT(i32::from(value)),
+            type_id::N_INT => TypedValue::N_INT(Some(i32::from(value))),
+            type_id::BIGINT => TypedValue::BIGINT(i64::from(value)),
+            type_id::N_BIGINT => TypedValue::N_BIGINT(Some(i64::from(value))),
             _ => return Err(SerializationError::TypeMismatch(input_type, self.descriptor())),
         })
     }
     fn from_u16(&self, value: u16) -> Result<TypedValue, SerializationError> {
         let input_type = "u16";
-        Ok(match self.value_type {
-            TYPEID_TINYINT => if value <= u16::from(u8::MAX) {
+        Ok(match self.type_id() {
+            type_id::TINYINT => if value <= u16::from(u8::MAX) {
                 TypedValue::TINYINT(value as u8)
             } else {
                 return Err(SerializationError::RangeErr(input_type, self.descriptor()));
             },
-            TYPEID_N_TINYINT => if value <= u16::from(u8::MAX) {
+            type_id::N_TINYINT => if value <= u16::from(u8::MAX) {
                 TypedValue::N_TINYINT(Some(value as u8))
             } else {
                 return Err(SerializationError::RangeErr(input_type, self.descriptor()));
             },
-            TYPEID_SMALLINT => if value <= i16::MAX as u16 {
+            type_id::SMALLINT => if value <= i16::MAX as u16 {
                 TypedValue::SMALLINT(value as i16)
             } else {
                 return Err(SerializationError::RangeErr(input_type, self.descriptor()));
             },
-            TYPEID_N_SMALLINT => if value <= i16::MAX as u16 {
+            type_id::N_SMALLINT => if value <= i16::MAX as u16 {
                 TypedValue::N_SMALLINT(Some(value as i16))
             } else {
                 return Err(SerializationError::RangeErr(input_type, self.descriptor()));
             },
-            TYPEID_INT => TypedValue::INT(i32::from(value)),
-            TYPEID_N_INT => TypedValue::N_INT(Some(i32::from(value))),
-            TYPEID_BIGINT => TypedValue::BIGINT(i64::from(value)),
-            TYPEID_N_BIGINT => TypedValue::N_BIGINT(Some(i64::from(value))),
+            type_id::INT => TypedValue::INT(i32::from(value)),
+            type_id::N_INT => TypedValue::N_INT(Some(i32::from(value))),
+            type_id::BIGINT => TypedValue::BIGINT(i64::from(value)),
+            type_id::N_BIGINT => TypedValue::N_BIGINT(Some(i64::from(value))),
             _ => return Err(SerializationError::TypeMismatch(input_type, self.descriptor())),
         })
     }
     fn from_u32(&self, value: u32) -> Result<TypedValue, SerializationError> {
         let input_type = "u32";
-        Ok(match self.value_type {
-            TYPEID_TINYINT => if value <= u32::from(u8::MAX) {
+        Ok(match self.type_id() {
+            type_id::TINYINT => if value <= u32::from(u8::MAX) {
                 TypedValue::TINYINT(value as u8)
             } else {
                 return Err(SerializationError::RangeErr(input_type, self.descriptor()));
             },
-            TYPEID_N_TINYINT => if value <= u32::from(u8::MAX) {
+            type_id::N_TINYINT => if value <= u32::from(u8::MAX) {
                 TypedValue::N_TINYINT(Some(value as u8))
             } else {
                 return Err(SerializationError::RangeErr(input_type, self.descriptor()));
             },
-            TYPEID_SMALLINT => if value <= i16::MAX as u32 {
+            type_id::SMALLINT => if value <= i16::MAX as u32 {
                 TypedValue::SMALLINT(value as i16)
             } else {
                 return Err(SerializationError::RangeErr(input_type, self.descriptor()));
             },
-            TYPEID_N_SMALLINT => if value <= i16::MAX as u32 {
+            type_id::N_SMALLINT => if value <= i16::MAX as u32 {
                 TypedValue::N_SMALLINT(Some(value as i16))
             } else {
                 return Err(SerializationError::RangeErr(input_type, self.descriptor()));
             },
-            TYPEID_INT => if value <= i32::MAX as u32 {
+            type_id::INT => if value <= i32::MAX as u32 {
                 TypedValue::INT(value as i32)
             } else {
                 return Err(SerializationError::RangeErr(input_type, self.descriptor()));
             },
-            TYPEID_N_INT => if value <= i32::MAX as u32 {
+            type_id::N_INT => if value <= i32::MAX as u32 {
                 TypedValue::N_INT(Some(value as i32))
             } else {
                 return Err(SerializationError::RangeErr(input_type, self.descriptor()));
             },
-            TYPEID_BIGINT => TypedValue::BIGINT(i64::from(value)),
-            TYPEID_N_BIGINT => TypedValue::N_BIGINT(Some(i64::from(value))),
+            type_id::BIGINT => TypedValue::BIGINT(i64::from(value)),
+            type_id::N_BIGINT => TypedValue::N_BIGINT(Some(i64::from(value))),
             _ => return Err(SerializationError::TypeMismatch(input_type, self.descriptor())),
         })
     }
     fn from_u64(&self, value: u64) -> Result<TypedValue, SerializationError> {
         let input_type = "u64";
-        Ok(match self.value_type {
-            TYPEID_TINYINT => if value <= u64::from(u8::MAX) {
+        Ok(match self.type_id() {
+            type_id::TINYINT => if value <= u64::from(u8::MAX) {
                 TypedValue::TINYINT(value as u8)
             } else {
                 return Err(SerializationError::RangeErr(input_type, self.descriptor()));
             },
-            TYPEID_N_TINYINT => if value <= u64::from(u8::MAX) {
+            type_id::N_TINYINT => if value <= u64::from(u8::MAX) {
                 TypedValue::N_TINYINT(Some(value as u8))
             } else {
                 return Err(SerializationError::RangeErr(input_type, self.descriptor()));
             },
-            TYPEID_SMALLINT => if value <= i16::MAX as u64 {
+            type_id::SMALLINT => if value <= i16::MAX as u64 {
                 TypedValue::SMALLINT(value as i16)
             } else {
                 return Err(SerializationError::RangeErr(input_type, self.descriptor()));
             },
-            TYPEID_N_SMALLINT => if value <= i16::MAX as u64 {
+            type_id::N_SMALLINT => if value <= i16::MAX as u64 {
                 TypedValue::N_SMALLINT(Some(value as i16))
             } else {
                 return Err(SerializationError::RangeErr(input_type, self.descriptor()));
             },
-            TYPEID_INT => if value <= i32::MAX as u64 {
+            type_id::INT => if value <= i32::MAX as u64 {
                 TypedValue::INT(value as i32)
             } else {
                 return Err(SerializationError::RangeErr(input_type, self.descriptor()));
             },
-            TYPEID_N_INT => if value <= i32::MAX as u64 {
+            type_id::N_INT => if value <= i32::MAX as u64 {
                 TypedValue::N_INT(Some(value as i32))
             } else {
                 return Err(SerializationError::RangeErr(input_type, self.descriptor()));
             },
-            TYPEID_BIGINT => if value <= i64::MAX as u64 {
+            type_id::BIGINT => if value <= i64::MAX as u64 {
                 TypedValue::BIGINT(value as i64)
             } else {
                 return Err(SerializationError::RangeErr(input_type, self.descriptor()));
             },
-            TYPEID_N_BIGINT => if value <= i64::MAX as u64 {
+            type_id::N_BIGINT => if value <= i64::MAX as u64 {
                 TypedValue::N_BIGINT(Some(value as i64))
             } else {
                 return Err(SerializationError::RangeErr(input_type, self.descriptor()));
@@ -275,145 +275,147 @@ impl DbvFactory for ParameterDescriptor {
         })
     }
     fn from_f32(&self, value: f32) -> Result<TypedValue, SerializationError> {
-        Ok(match self.value_type {
-            TYPEID_REAL => TypedValue::REAL(value),
-            TYPEID_N_REAL => TypedValue::N_REAL(Some(value)),
+        Ok(match self.type_id() {
+            type_id::REAL => TypedValue::REAL(value),
+            type_id::N_REAL => TypedValue::N_REAL(Some(value)),
+            type_id::DECIMAL => TypedValue::DECIMAL(HdbDecimal::from_f32(value)?),
+            type_id::N_DECIMAL => TypedValue::N_DECIMAL(Some(HdbDecimal::from_f32(value)?)),
             _ => return Err(SerializationError::TypeMismatch("f32", self.descriptor())),
         })
     }
     fn from_f64(&self, value: f64) -> Result<TypedValue, SerializationError> {
-        Ok(match self.value_type {
-            TYPEID_DOUBLE => TypedValue::DOUBLE(value),
-            TYPEID_N_DOUBLE => TypedValue::N_DOUBLE(Some(value)),
+        Ok(match self.type_id() {
+            type_id::DOUBLE => TypedValue::DOUBLE(value),
+            type_id::N_DOUBLE => TypedValue::N_DOUBLE(Some(value)),
             _ => return Err(SerializationError::TypeMismatch("f64", self.descriptor())),
         })
     }
     fn from_char(&self, value: char) -> Result<TypedValue, SerializationError> {
         let mut s = String::new();
         s.push(value);
-        Ok(match self.value_type {
-            TYPEID_CHAR |
-            TYPEID_VARCHAR |
-            TYPEID_NCHAR |
-            TYPEID_NVARCHAR |
-            TYPEID_STRING |
-            TYPEID_NSTRING |
-            TYPEID_TEXT |
-            TYPEID_SHORTTEXT => TypedValue::STRING(s),
+        Ok(match self.type_id() {
+            type_id::CHAR |
+            type_id::VARCHAR |
+            type_id::NCHAR |
+            type_id::NVARCHAR |
+            type_id::STRING |
+            type_id::NSTRING |
+            type_id::TEXT |
+            type_id::SHORTTEXT => TypedValue::STRING(s),
             _ => return Err(SerializationError::TypeMismatch("char", self.descriptor())),
         })
     }
     fn from_str(&self, value: &str) -> Result<TypedValue, SerializationError> {
         let maperr1 = |_| SerializationError::TypeMismatch("&str", self.descriptor());
         let maperr2 = |_| SerializationError::TypeMismatch("&str", self.descriptor());
-        Ok(match self.value_type {
-            TYPEID_TINYINT => TypedValue::TINYINT(u8::from_str(value).map_err(maperr1)?),
-            TYPEID_SMALLINT => TypedValue::SMALLINT(i16::from_str(value).map_err(maperr1)?),
-            TYPEID_INT => TypedValue::INT(i32::from_str(value).map_err(maperr1)?),
-            TYPEID_BIGINT => TypedValue::BIGINT(i64::from_str(value).map_err(maperr1)?),
-            TYPEID_REAL => TypedValue::REAL(f32::from_str(value).map_err(maperr2)?),
-            TYPEID_DOUBLE => TypedValue::DOUBLE(f64::from_str(value).map_err(maperr2)?),
-            TYPEID_CHAR |
-            TYPEID_VARCHAR |
-            TYPEID_NCHAR |
-            TYPEID_NVARCHAR |
-            TYPEID_STRING |
-            TYPEID_NSTRING |
-            TYPEID_TEXT |
-            TYPEID_SHORTTEXT |
-            TYPEID_N_CLOB |
-            TYPEID_N_NCLOB |
-            TYPEID_NCLOB |
-            TYPEID_CLOB => TypedValue::STRING(String::from(value)),
-            TYPEID_DECIMAL => TypedValue::DECIMAL(HdbDecimal::parse_from_str(value)?),
-            TYPEID_LONGDATE => TypedValue::LONGDATE(longdate_from_str(value)?),
+        Ok(match self.type_id() {
+            type_id::TINYINT => TypedValue::TINYINT(u8::from_str(value).map_err(maperr1)?),
+            type_id::SMALLINT => TypedValue::SMALLINT(i16::from_str(value).map_err(maperr1)?),
+            type_id::INT => TypedValue::INT(i32::from_str(value).map_err(maperr1)?),
+            type_id::BIGINT => TypedValue::BIGINT(i64::from_str(value).map_err(maperr1)?),
+            type_id::REAL => TypedValue::REAL(f32::from_str(value).map_err(maperr2)?),
+            type_id::DOUBLE => TypedValue::DOUBLE(f64::from_str(value).map_err(maperr2)?),
+            type_id::CHAR |
+            type_id::VARCHAR |
+            type_id::NCHAR |
+            type_id::NVARCHAR |
+            type_id::STRING |
+            type_id::NSTRING |
+            type_id::TEXT |
+            type_id::SHORTTEXT |
+            type_id::N_CLOB |
+            type_id::N_NCLOB |
+            type_id::NCLOB |
+            type_id::CLOB => TypedValue::STRING(String::from(value)),
+            type_id::DECIMAL => TypedValue::DECIMAL(HdbDecimal::parse_from_str(value)?),
+            type_id::LONGDATE => TypedValue::LONGDATE(longdate_from_str(value)?),
 
             _ => return Err(SerializationError::TypeMismatch("&str", self.descriptor())),
         })
     }
     fn from_bytes(&self, value: &[u8]) -> Result<TypedValue, SerializationError> {
-        Ok(match self.value_type {
-            TYPEID_BLOB => TypedValue::BLOB(new_blob_to_db((*value).to_vec())),
-            TYPEID_N_BLOB => TypedValue::N_BLOB(Some(new_blob_to_db((*value).to_vec()))),
+        Ok(match self.type_id() {
+            type_id::BLOB => TypedValue::BLOB(new_blob_to_db((*value).to_vec())),
+            type_id::N_BLOB => TypedValue::N_BLOB(Some(new_blob_to_db((*value).to_vec()))),
             _ => return Err(SerializationError::TypeMismatch("bytes", self.descriptor())),
         })
     }
     fn from_none(&self) -> Result<TypedValue, SerializationError> {
-        Ok(match self.value_type {
-            TYPEID_N_TINYINT => TypedValue::N_TINYINT(None),
-            TYPEID_N_SMALLINT => TypedValue::N_SMALLINT(None),
-            TYPEID_N_INT => TypedValue::N_INT(None),
-            TYPEID_N_BIGINT => TypedValue::N_BIGINT(None),
-            TYPEID_N_REAL => TypedValue::N_REAL(None),
-            TYPEID_N_DOUBLE => TypedValue::N_DOUBLE(None),
-            TYPEID_N_CHAR => TypedValue::N_CHAR(None),
-            TYPEID_N_VARCHAR => TypedValue::N_VARCHAR(None),
-            TYPEID_N_NCHAR => TypedValue::N_NCHAR(None),
-            TYPEID_N_NVARCHAR => TypedValue::N_NVARCHAR(None),
-            TYPEID_N_BINARY => TypedValue::N_BINARY(None),
-            TYPEID_N_VARBINARY => TypedValue::N_VARBINARY(None),
-            TYPEID_N_CLOB => TypedValue::N_CLOB(None),
-            TYPEID_N_NCLOB => TypedValue::N_NCLOB(None),
-            TYPEID_N_BLOB => TypedValue::N_BLOB(None),
-            TYPEID_N_BOOLEAN => TypedValue::N_BOOLEAN(None),
-            TYPEID_N_STRING => TypedValue::N_STRING(None),
-            TYPEID_N_NSTRING => TypedValue::N_NSTRING(None),
-            TYPEID_N_BSTRING => TypedValue::N_BSTRING(None),
-            TYPEID_N_TEXT => TypedValue::N_TEXT(None),
-            TYPEID_N_SHORTTEXT => TypedValue::N_SHORTTEXT(None),
-            TYPEID_N_LONGDATE => TypedValue::N_LONGDATE(None),
+        Ok(match self.type_id() {
+            type_id::N_TINYINT => TypedValue::N_TINYINT(None),
+            type_id::N_SMALLINT => TypedValue::N_SMALLINT(None),
+            type_id::N_INT => TypedValue::N_INT(None),
+            type_id::N_BIGINT => TypedValue::N_BIGINT(None),
+            type_id::N_REAL => TypedValue::N_REAL(None),
+            type_id::N_DOUBLE => TypedValue::N_DOUBLE(None),
+            type_id::N_CHAR => TypedValue::N_CHAR(None),
+            type_id::N_VARCHAR => TypedValue::N_VARCHAR(None),
+            type_id::N_NCHAR => TypedValue::N_NCHAR(None),
+            type_id::N_NVARCHAR => TypedValue::N_NVARCHAR(None),
+            type_id::N_BINARY => TypedValue::N_BINARY(None),
+            type_id::N_VARBINARY => TypedValue::N_VARBINARY(None),
+            type_id::N_CLOB => TypedValue::N_CLOB(None),
+            type_id::N_NCLOB => TypedValue::N_NCLOB(None),
+            type_id::N_BLOB => TypedValue::N_BLOB(None),
+            type_id::N_BOOLEAN => TypedValue::N_BOOLEAN(None),
+            type_id::N_STRING => TypedValue::N_STRING(None),
+            type_id::N_NSTRING => TypedValue::N_NSTRING(None),
+            type_id::N_BSTRING => TypedValue::N_BSTRING(None),
+            type_id::N_TEXT => TypedValue::N_TEXT(None),
+            type_id::N_SHORTTEXT => TypedValue::N_SHORTTEXT(None),
+            type_id::N_LONGDATE => TypedValue::N_LONGDATE(None),
             _ => return Err(SerializationError::TypeMismatch("none", self.descriptor())),
         })
     }
 
     fn descriptor(&self) -> String {
-        String::from(match self.value_type {
-            TYPEID_N_TINYINT => "Nullable TINYINT",
-            TYPEID_TINYINT => "TINYINT",
-            TYPEID_N_SMALLINT => "Nullable SMALLINT",
-            TYPEID_SMALLINT => "SMALLINT",
-            TYPEID_N_INT => "Nullable INT",
-            TYPEID_INT => "INT",
-            TYPEID_N_BIGINT => "Nullable BIGINT",
-            TYPEID_BIGINT => "BIGINT",
-            TYPEID_N_DECIMAL => "Nullable DECIMAL",
-            TYPEID_DECIMAL => "DECIMAL",
-            TYPEID_N_REAL => "Nullable REAL",
-            TYPEID_REAL => "REAL",
-            TYPEID_N_DOUBLE => "Nullable DOUBLE",
-            TYPEID_DOUBLE => "DOUBLE",
-            TYPEID_N_CHAR => "Nullable CHAR",
-            TYPEID_CHAR => "CHAR",
-            TYPEID_N_VARCHAR => "Nullable VARCHAR",
-            TYPEID_VARCHAR => "VARCHAR",
-            TYPEID_N_NCHAR => "Nullable NCHAR",
-            TYPEID_NCHAR => "NCHAR",
-            TYPEID_N_NVARCHAR => "Nullable NVARCHAR",
-            TYPEID_NVARCHAR => "NVARCHAR",
-            TYPEID_N_BINARY => "Nullable BINARY",
-            TYPEID_BINARY => "BINARY",
-            TYPEID_N_VARBINARY => "Nullable VARBINARY",
-            TYPEID_VARBINARY => "VARBINARY",
-            TYPEID_N_CLOB => "Nullable CLOB",
-            TYPEID_CLOB => "CLOB",
-            TYPEID_N_NCLOB => "Nullable NCLOB",
-            TYPEID_NCLOB => "NCLOB",
-            TYPEID_N_BLOB => "Nullable BLOB",
-            TYPEID_BLOB => "BLOB",
-            TYPEID_N_BOOLEAN => "Nullable BOOLEAN",
-            TYPEID_BOOLEAN => "BOOLEAN",
-            TYPEID_N_STRING => "Nullable STRING",
-            TYPEID_STRING => "STRING",
-            TYPEID_N_NSTRING => "Nullable NSTRING",
-            TYPEID_NSTRING => "NSTRING",
-            TYPEID_N_BSTRING => "Nullable BSTRING",
-            TYPEID_BSTRING => "BSTRING",
-            TYPEID_N_TEXT => "Nullable TEXT",
-            TYPEID_TEXT => "TEXT",
-            TYPEID_N_SHORTTEXT => "Nullable SHORTTEXT",
-            TYPEID_SHORTTEXT => "SHORTTEXT",
-            TYPEID_N_LONGDATE => "Nullable LONGDATE",
-            TYPEID_LONGDATE => "LONGDATE",
+        String::from(match self.type_id() {
+            type_id::N_TINYINT => "Nullable TINYINT",
+            type_id::TINYINT => "TINYINT",
+            type_id::N_SMALLINT => "Nullable SMALLINT",
+            type_id::SMALLINT => "SMALLINT",
+            type_id::N_INT => "Nullable INT",
+            type_id::INT => "INT",
+            type_id::N_BIGINT => "Nullable BIGINT",
+            type_id::BIGINT => "BIGINT",
+            type_id::N_DECIMAL => "Nullable DECIMAL",
+            type_id::DECIMAL => "DECIMAL",
+            type_id::N_REAL => "Nullable REAL",
+            type_id::REAL => "REAL",
+            type_id::N_DOUBLE => "Nullable DOUBLE",
+            type_id::DOUBLE => "DOUBLE",
+            type_id::N_CHAR => "Nullable CHAR",
+            type_id::CHAR => "CHAR",
+            type_id::N_VARCHAR => "Nullable VARCHAR",
+            type_id::VARCHAR => "VARCHAR",
+            type_id::N_NCHAR => "Nullable NCHAR",
+            type_id::NCHAR => "NCHAR",
+            type_id::N_NVARCHAR => "Nullable NVARCHAR",
+            type_id::NVARCHAR => "NVARCHAR",
+            type_id::N_BINARY => "Nullable BINARY",
+            type_id::BINARY => "BINARY",
+            type_id::N_VARBINARY => "Nullable VARBINARY",
+            type_id::VARBINARY => "VARBINARY",
+            type_id::N_CLOB => "Nullable CLOB",
+            type_id::CLOB => "CLOB",
+            type_id::N_NCLOB => "Nullable NCLOB",
+            type_id::NCLOB => "NCLOB",
+            type_id::N_BLOB => "Nullable BLOB",
+            type_id::BLOB => "BLOB",
+            type_id::N_BOOLEAN => "Nullable BOOLEAN",
+            type_id::BOOLEAN => "BOOLEAN",
+            type_id::N_STRING => "Nullable STRING",
+            type_id::STRING => "STRING",
+            type_id::N_NSTRING => "Nullable NSTRING",
+            type_id::NSTRING => "NSTRING",
+            type_id::N_BSTRING => "Nullable BSTRING",
+            type_id::BSTRING => "BSTRING",
+            type_id::N_TEXT => "Nullable TEXT",
+            type_id::TEXT => "TEXT",
+            type_id::N_SHORTTEXT => "Nullable SHORTTEXT",
+            type_id::SHORTTEXT => "SHORTTEXT",
+            type_id::N_LONGDATE => "Nullable LONGDATE",
+            type_id::LONGDATE => "LONGDATE",
             i => return format!("[no descriptor available for {}]", i),
         })
     }

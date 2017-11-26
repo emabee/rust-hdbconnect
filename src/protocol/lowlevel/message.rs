@@ -43,10 +43,10 @@ pub enum Message {
 // Packets having the same sequence number belong to one request/response pair.
 #[derive(Debug)]
 pub struct Request {
-    pub request_type: RequestType,
-    pub auto_commit: bool,
-    pub command_options: u8,
-    pub parts: Parts,
+    request_type: RequestType,
+    auto_commit: bool,
+    command_options: u8,
+    parts: Parts,
 }
 impl Request {
     pub fn new(conn_ref: &ConnCoreRef, request_type: RequestType, auto_commit: bool,
@@ -56,7 +56,7 @@ impl Request {
             request_type: request_type,
             auto_commit: auto_commit,
             command_options: command_options,
-            parts: Parts::new(),
+            parts: Parts::default(),
         };
         request.add_ssi(conn_ref)?;
         Ok(request)
@@ -67,7 +67,7 @@ impl Request {
             request_type: RequestType::Disconnect,
             auto_commit: false,
             command_options: 0,
-            parts: Parts::new(),
+            parts: Parts::default(),
         }
     }
 
@@ -80,10 +80,11 @@ impl Request {
 
         // digest parts, collect InternalReturnValues
         let mut int_return_values = Vec::<InternalReturnValue>::new();
-        reply.parts.0.reverse(); //digest the last part first
-        while let Some(part) = reply.parts.0.pop() {
-            debug!("digesting a part of kind {:?}", part.kind);
-            match part.arg {
+        reply.parts.reverse(); //digest the last part first
+        while let Some(part) = reply.parts.pop() {
+            let (kind, arg) = part.into_elements();
+            debug!("digesting a part of kind {:?}", kind);
+            match arg {
                 Argument::RowsAffected(vra) => {
                     int_return_values.push(InternalReturnValue::AffectedRows(vra));
                 }
@@ -93,7 +94,7 @@ impl Request {
                         stmt_ctx.statement_sequence_info
                     );
                     let mut guard = conn_ref.lock()?;
-                    (*guard).ssi = stmt_ctx.statement_sequence_info;
+                    (*guard).set_ssi(stmt_ctx.statement_sequence_info);
                     *acc_server_proc_time += match stmt_ctx.server_processing_time {
                         Some(OptionValue::INT(i)) => i,
                         _ => 0,
@@ -109,8 +110,8 @@ impl Request {
                 Argument::OutputParameters(op) => {
                     int_return_values.push(InternalReturnValue::OutputParameters(op));
                 }
-                Argument::ResultSetMetadata(rsm) => match reply.parts.0.pop() {
-                    Some(part) => match part.arg {
+                Argument::ResultSetMetadata(rsm) => match reply.parts.pop() {
+                    Some(part) => match *part.arg() {
                         Argument::ResultSetId(rs_id) => {
                             let rs = ResultSetFactory::resultset_new(
                                 Some(conn_ref),
@@ -125,7 +126,7 @@ impl Request {
                     },
                     _ => panic!("Missing required part ResultSetID"),
                 },
-                _ => warn!("send_and_get_response: found unexpected part of kind {:?}", part.kind),
+                _ => warn!("send_and_get_response: found unexpected part of kind {:?}", kind),
             }
         }
 
@@ -165,7 +166,7 @@ impl Request {
                                  send_and_get_response()", reply.type_);
                 error!("{}",s);
                 error!("Reply: {:?}",reply);
-                Err(HdbError::EvaluationError("send_and_get_response(): unexpected reply type"))
+                Err(HdbError::InternalEvaluationError("send_and_get_response(): unexpected reply type"))
             },
         }
     }
@@ -203,16 +204,16 @@ impl Request {
 
     fn add_ssi(&mut self, conn_ref: &ConnCoreRef) -> PrtResult<()> {
         let guard = conn_ref.lock()?;
-        match (*guard).ssi {
+        match *(*guard).ssi() {
             None => {}
             Some(ref ssi) => {
-                let mut stmt_ctx = StatementContext::new();
+                let mut stmt_ctx = StatementContext::default();
                 stmt_ctx.statement_sequence_info = Some(ssi.clone());
                 trace!(
                     "Sending StatementContext with sequence_info = {:?}",
                     stmt_ctx.statement_sequence_info
                 );
-                self.parts.0.push(
+                self.parts.push(
                     Part::new(PartKind::StatementContext, Argument::StatementContext(stmt_ctx)),
                 );
             }
@@ -226,9 +227,9 @@ impl Request {
         let mut guard = conn_ref.lock()?;
         let conn_core = &mut *guard;
         self.serialize_impl(
-            conn_core.session_id,
+            conn_core.session_id(),
             conn_core.next_seq_number(),
-            &mut conn_core.stream,
+            &mut conn_core.stream(),
         )
     }
 
@@ -260,7 +261,7 @@ impl Request {
         let size = self.seg_size()? as i32;
         w.write_i32::<LittleEndian>(size)?; // I4  Length including the header
         w.write_i32::<LittleEndian>(0)?; // I4 Offset within the message buffer
-        w.write_i16::<LittleEndian>(self.parts.0.len() as i16)?; //I2 Number of contained parts
+        w.write_i16::<LittleEndian>(self.parts.len() as i16)?; //I2 Number of contained parts
         w.write_i16::<LittleEndian>(1)?; // I2 Number of this segment, starting with 1
         w.write_i8(1)?; // I1 Segment kind: always 1 = Request
         w.write_i8(self.request_type.to_i8())?; // I1 "Message type"
@@ -273,7 +274,7 @@ impl Request {
         remaining_bufsize -= SEGMENT_HEADER_SIZE as u32;
         trace!("Headers are written");
         // PARTS
-        for part in &self.parts.0 {
+        for part in &(self.parts) {
             remaining_bufsize = part.serialize(remaining_bufsize, w)?;
         }
         trace!("Parts are written");
@@ -281,7 +282,7 @@ impl Request {
     }
 
     pub fn push(&mut self, part: Part) {
-        self.parts.0.push(part);
+        self.parts.push(part);
     }
 
     /// Length in bytes of the variable part of the message, i.e. total message without the header
@@ -294,7 +295,7 @@ impl Request {
 
     fn seg_size(&self) -> PrtResult<usize> {
         let mut len = SEGMENT_HEADER_SIZE;
-        for part in &self.parts.0 {
+        for part in &self.parts {
             len += part.size(true)?;
         }
         Ok(len)
@@ -304,19 +305,23 @@ impl Request {
 
 #[derive(Debug)]
 pub struct Reply {
-    pub session_id: i64,
-    pub type_: ReplyType,
+    session_id: i64,
+    type_: ReplyType,
     pub parts: Parts,
-    pub server_processing_time: Option<OptionValue>,
+    server_processing_time: Option<OptionValue>,
 }
 impl Reply {
     fn new(session_id: i64, type_: ReplyType) -> Reply {
         Reply {
             session_id: session_id,
             type_: type_,
-            parts: Parts::new(),
+            parts: Parts::default(),
             server_processing_time: None,
         }
+    }
+
+    pub fn session_id(&self) -> i64 {
+        self.session_id
     }
 
     /// parse a response from the stream, building a Reply object
@@ -329,7 +334,7 @@ impl Reply {
              -> PrtResult<Reply> {
         trace!("Reply::parse()");
         let mut guard = conn_ref.lock()?;
-        let stream = &mut (*guard).stream;
+        let stream = &mut (*guard).stream();
         let mut rdr = io::BufReader::new(stream);
 
         let (no_of_parts, msg) = parse_message_and_sequence_header(&mut rdr)?;
@@ -370,12 +375,14 @@ impl Reply {
 
     fn assert_no_error(&mut self) -> PrtResult<()> {
         let err_code = PartKind::Error.to_i8();
-        match self.parts.0.iter().position(|p| p.kind.to_i8() == err_code) {
+        match (&self.parts).into_iter()
+                           .position(|p| p.kind().to_i8() == err_code)
+        {
             None => Ok(()),
             Some(idx) => {
-                let err_part = self.parts.0.swap_remove(idx);
-                match err_part.arg {
-                    Argument::Error(vec) => {
+                let err_part = self.parts.swap_remove(idx);
+                match err_part.into_elements() {
+                    (_, Argument::Error(vec)) => {
                         let err = PrtError::DbMessage(vec);
                         debug!("{}", err);
                         Err(err)
@@ -387,15 +394,15 @@ impl Reply {
     }
 
     pub fn push(&mut self, part: Part) {
-        self.parts.0.push(part);
+        self.parts.push(part);
     }
 }
 impl Drop for Reply {
     fn drop(&mut self) {
-        for part in &self.parts.0 {
+        for part in &self.parts {
             warn!(
                 "reply is dropped, but not all parts were evaluated: part-kind = {:?}",
-                part.kind
+                part.kind()
             );
         }
     }
@@ -443,7 +450,7 @@ pub fn parse_message_and_sequence_header(rdr: &mut BufRead) -> PrtResult<(i16, M
                     request_type: request_type,
                     auto_commit: auto_commit,
                     command_options: command_options,
-                    parts: Parts::new(),
+                    parts: Parts::default(),
                 }),
             ))
         }

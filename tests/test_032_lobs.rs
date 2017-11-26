@@ -15,7 +15,7 @@ mod test_utils;
 
 use flexi_logger::{LogSpecification, Logger, ReconfigurationHandle};
 use hdbconnect::{Connection, HdbResult};
-use hdbconnect::types::{BLOB, CLOB};
+use hdbconnect::types::{BLob, CLob};
 use rand::{thread_rng, Rng};
 use serde_bytes::{ByteBuf, Bytes};
 use sha2::{Digest, Sha256};
@@ -124,7 +124,7 @@ fn test_blobs(connection: &mut Connection, logger_handle: &mut ReconfigurationHa
 
     let query = "select desc, bindata as BL1, bindata as BL2 from TEST_LOBS";
     let mut resultset: hdbconnect::ResultSet = connection.query(query)?;
-    let mut blob: BLOB = resultset.pop_row().unwrap().field_into_blob(1)?;
+    let mut blob: BLob = resultset.pop_row().unwrap().field_into_blob(1)?;
     let mut streamed = Vec::<u8>::new();
     io::copy(&mut blob, &mut streamed)?;
 
@@ -166,7 +166,8 @@ fn test_clobs(connection: &mut Connection, logger_handle: &mut ReconfigurationHa
     {
         let mut f = File::open("tests/blabla.txt").expect("file not found");
         let mut blabla = String::new();
-        f.read_to_string(&mut blabla).expect("something went wrong reading the file");
+        f.read_to_string(&mut blabla)
+         .expect("something went wrong reading the file");
         for _ in 0..3 {
             three_times_blabla.push_str(&blabla);
         }
@@ -179,8 +180,10 @@ fn test_clobs(connection: &mut Connection, logger_handle: &mut ReconfigurationHa
     // insert it into HANA
     let mut insert_stmt =
         connection.prepare("insert into TEST_LOBS (desc, chardata) values (?,?)")?;
+    logger_handle.set_new_spec(LogSpecification::parse("trace"));
     insert_stmt.add_batch(&("3x blabla", &three_times_blabla))?;
     insert_stmt.execute_batch()?;
+    logger_handle.set_new_spec(LogSpecification::parse("info"));
 
     // and read it back
     let before = connection.get_call_count()?;
@@ -226,7 +229,7 @@ fn test_clobs(connection: &mut Connection, logger_handle: &mut ReconfigurationHa
 
     let query = "select desc, chardata as CL1, chardata as CL2 from TEST_LOBS";
     let mut resultset: hdbconnect::ResultSet = connection.query(query)?;
-    let mut clob: CLOB = resultset.pop_row().unwrap().field_into_clob(1)?;
+    let mut clob: CLob = resultset.pop_row().unwrap().field_into_clob(1)?;
     let mut streamed = Vec::<u8>::new();
     io::copy(&mut clob, &mut streamed)?;
 

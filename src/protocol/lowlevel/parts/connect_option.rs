@@ -4,12 +4,9 @@ use super::option_value::OptionValue;
 use byteorder::{ReadBytesExt, WriteBytesExt};
 use std::io;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ConnectOptions(pub Vec<ConnectOption>);
 impl ConnectOptions {
-    pub fn new() -> ConnectOptions {
-        ConnectOptions(Vec::<ConnectOption>::new())
-    }
     pub fn push(&mut self, id: ConnectOptionId, value: OptionValue) {
         self.0.push(ConnectOption {
             id: id,

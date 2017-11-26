@@ -16,8 +16,8 @@ const PART_HEADER_SIZE: usize = 16;
 
 #[derive(Debug)]
 pub struct Part {
-    pub kind: PartKind, // FIXME can we remove this?
-    pub arg: Argument,  // a.k.a. part data, or part buffer :-(
+    kind: PartKind, // FIXME can we remove this?
+    arg: Argument,  // a.k.a. part data, or part buffer :-(
 }
 
 impl Part {
@@ -26,6 +26,15 @@ impl Part {
             kind: kind,
             arg: arg,
         }
+    }
+    pub fn kind(&self) -> &PartKind {
+        &self.kind
+    }
+    pub fn arg(&self) -> &Argument {
+        &self.arg
+    }
+    pub fn into_elements(self) -> (PartKind, Argument) {
+        (self.kind, self.arg)
     }
 
     pub fn serialize(&self, mut remaining_bufsize: u32, w: &mut io::Write) -> PrtResult<u32> {
@@ -116,12 +125,27 @@ fn parse_part_header(rdr: &mut io::BufRead) -> PrtResult<(PartKind, PartAttribut
 }
 
 
-#[derive(Debug)]
-pub struct Parts(pub Vec<Part>);
+#[derive(Debug, Default)]
+pub struct Parts(Vec<Part>);
 
 impl Parts {
-    pub fn new() -> Parts {
-        Parts(Vec::<Part>::new())
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn reverse(&mut self) {
+        self.0.reverse()
+    }
+
+    pub fn push(&mut self, part: Part) {
+        self.0.push(part)
+    }
+    pub fn pop(&mut self) -> Option<Part> {
+        self.0.pop()
     }
     pub fn pop_arg(&mut self) -> Option<Argument> {
         match self.0.pop() {
@@ -136,5 +160,24 @@ impl Parts {
             _ => return None,
         }
         Some(self.0.pop().unwrap().arg)
+    }
+    pub fn swap_remove(&mut self, index: usize) -> Part {
+        self.0.swap_remove(index)
+    }
+}
+
+impl IntoIterator for Parts {
+    type Item = Part;
+    type IntoIter = ::std::vec::IntoIter<Part>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a Parts {
+    type Item = &'a Part;
+    type IntoIter = ::std::slice::Iter<'a, Part>;
+    fn into_iter(self) -> Self::IntoIter {
+        (self.0).iter()
     }
 }

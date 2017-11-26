@@ -20,7 +20,6 @@ use rand::{thread_rng, Rng};
 use std::env;
 use std::io::{self, Read};
 use std::iter::repeat;
-use std::mem;
 
 use username;
 
@@ -41,9 +40,9 @@ pub fn user_pw(conn_ref: &ConnCoreRef, username: &str, password: &str) -> PrtRes
 fn auth1_request(conn_ref: &ConnCoreRef, chllng_sha256: &[u8], username: &str) -> PrtResult<Reply> {
     trace!("Entering auth1_request()");
     let mut auth_fields = Vec::<AuthField>::with_capacity(3);
-    auth_fields.push(AuthField(username.as_bytes().to_vec()));
-    auth_fields.push(AuthField(b"SCRAMSHA256".to_vec()));
-    auth_fields.push(AuthField(chllng_sha256.to_owned()));
+    auth_fields.push(AuthField::new(username.as_bytes().to_vec()));
+    auth_fields.push(AuthField::new(b"SCRAMSHA256".to_vec()));
+    auth_fields.push(AuthField::new(chllng_sha256.to_owned()));
 
     let part2 = Part::new(PartKind::Authentication, Argument::Auth(auth_fields));
 
@@ -58,12 +57,12 @@ fn auth2_request(conn_ref: &ConnCoreRef, client_proof: &[u8], username: &str) ->
     let mut request = Request::new(conn_ref, RequestType::Connect, true, 0)?;
 
     let mut auth_fields = Vec::<AuthField>::with_capacity(3);
-    auth_fields.push(AuthField(username.as_bytes().to_vec()));
-    auth_fields.push(AuthField(b"SCRAMSHA256".to_vec()));
-    auth_fields.push(AuthField(client_proof.to_owned()));
+    auth_fields.push(AuthField::new(username.as_bytes().to_vec()));
+    auth_fields.push(AuthField::new(b"SCRAMSHA256".to_vec()));
+    auth_fields.push(AuthField::new(client_proof.to_owned()));
     request.push(Part::new(PartKind::Authentication, Argument::Auth(auth_fields)));
 
-    let mut conn_opts = ConnectOptions::new();
+    let mut conn_opts = ConnectOptions::default();
     conn_opts.push(ConnectOptionId::CompleteArrayExecution, OptionValue::BOOLEAN(true));
     conn_opts.push(ConnectOptionId::DataFormatVersion2, OptionValue::INT(4));
     conn_opts.push(ConnectOptionId::DataFormatVersion, OptionValue::INT(1));
@@ -106,7 +105,7 @@ fn get_server_challenge(mut reply: Reply) -> PrtResult<Vec<u8>> {
     trace!("Entering get_server_challenge()");
     match reply.parts.pop_arg_if_kind(PartKind::Authentication) {
         Some(Argument::Auth(mut vec)) => {
-            let server_challenge = vec.remove(1).0;
+            let server_challenge = vec.remove(1).into_data();
             debug!("get_server_challenge(): returning {:?}", &server_challenge);
             Ok(server_challenge)
         }
@@ -118,32 +117,32 @@ fn evaluate_reply2(mut reply: Reply, conn_ref: &ConnCoreRef) -> PrtResult<()> {
     trace!("Entering evaluate_reply2()");
     let mut guard = conn_ref.lock()?;
     let conn_core = &mut *guard;
-    conn_core.session_id = reply.session_id;
+    conn_core.set_session_id(reply.session_id());
 
     match reply.parts.pop_arg_if_kind(PartKind::TopologyInformation) {
         Some(Argument::TopologyInformation(mut vec)) => {
-            mem::swap(&mut vec, &mut (conn_core.topology_attributes))
+            conn_core.swap_topology_attributes(&mut vec)
         }
         _ => return Err(prot_err("evaluate_reply2(): expected TopologyInformation part")),
     }
 
     match reply.parts.pop_arg_if_kind(PartKind::ConnectOptions) {
         Some(Argument::ConnectOptions(ConnectOptions(mut vec))) => {
-            mem::swap(&mut vec, &mut (conn_core.server_connect_options))
+            conn_core.swap_server_connect_options(&mut vec)
         }
         _ => return Err(prot_err("evaluate_reply2(): expected ConnectOptions part")),
     }
 
     let mut server_proof = Vec::<u8>::new();
-    debug!("parts before: {:?}", reply.parts.0);
+    debug!("parts before: {:?}", reply.parts);
     match reply.parts.pop_arg_if_kind(PartKind::Authentication) {
-        Some(Argument::Auth(mut vec)) => mem::swap(&mut vec[0].0, &mut server_proof),
+        Some(Argument::Auth(mut vec)) => vec[0].swap_data(&mut server_proof),
         _ => return Err(prot_err("evaluate_reply2(): expected Authentication part")),
     }
     // FIXME the server proof is not evaluated
 
-    conn_core.is_authenticated = true;
-    debug!("parts after: {:?}", reply.parts.0);
+    conn_core.set_is_authenticated(true);
+    debug!("parts after: {:?}", reply.parts);
     Ok(())
 }
 

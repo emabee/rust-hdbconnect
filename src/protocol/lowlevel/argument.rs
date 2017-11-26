@@ -237,7 +237,7 @@ impl Argument {
                 Argument::Command(s)
             }
             PartKind::ConnectOptions => {
-                let mut conn_opts = ConnectOptions::new();
+                let mut conn_opts = ConnectOptions::default();
                 for _ in 0..no_of_args {
                     let opt = ConnectOption::parse(rdr)?;
                     conn_opts.0.push(opt);

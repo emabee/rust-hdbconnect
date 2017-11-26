@@ -5,7 +5,9 @@ use {ConnectParams, Connection, HdbError};
 
 
 
-///
+/// Implementation of r2d2's
+/// [`ManageConnection`](https://docs.rs/r2d2/*/r2d2/trait.ManageConnection.html)
+/// interface.
 pub struct ConnectionManager {
     connect_params: ConnectParams,
 }

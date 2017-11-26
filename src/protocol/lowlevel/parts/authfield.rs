@@ -2,11 +2,24 @@ use super::{util, PrtError, PrtResult};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::io;
+use std::mem;
 
 #[derive(Debug)]
-pub struct AuthField(pub Vec<u8>);
+pub struct AuthField(Vec<u8>);
 
 impl AuthField {
+    pub fn new(vec: Vec<u8>) -> AuthField {
+        AuthField(vec)
+    }
+
+    pub fn into_data(self) -> Vec<u8> {
+        self.0
+    }
+
+    pub fn swap_data(&mut self, vec: &mut Vec<u8>) {
+        mem::swap(&mut self.0, vec);
+    }
+
     pub fn serialize(&self, w: &mut io::Write) -> PrtResult<()> {
         match self.0.len() {
             l if l <= 250_usize => w.write_u8(l as u8)?, // B1: length of value

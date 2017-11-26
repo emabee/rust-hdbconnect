@@ -31,12 +31,12 @@ impl DeserializableResultset for ResultSet {
 
     /// Returns the number of fields.
     fn number_of_fields(&self) -> usize {
-        ResultSet::number_of_fields(self)
+        ResultSet::metadata(self).number_of_fields()
     }
 
-    /// Returns the name of the column at the specified index
-    fn get_fieldname(&self, field_idx: usize) -> Option<&String> {
-        ResultSet::get_fieldname(self, field_idx)
+    /// Returns the name of the i'th column
+    fn get_fieldname(&self, i: usize) -> Option<&String> {
+        ResultSet::metadata(self).displayname(i).ok()
     }
 
     /// Fetches all not yet transported result lines from the server.
@@ -65,7 +65,7 @@ impl DeserializableRow for Row {
 
     // Returns the name of the column at the specified index.
     fn get_fieldname(&self, field_idx: usize) -> Option<&String> {
-        Row::get_fieldname(self, field_idx)
+        Row::get_fieldname(self, field_idx).ok()
     }
 
     // Reverses the order of the values.
@@ -376,15 +376,10 @@ impl DbValueInto<i64> for TypedValue {
     fn try_into(self) -> Result<i64, ConversionError> {
         match self {
             TypedValue::TINYINT(u) | TypedValue::N_TINYINT(Some(u)) => Ok(i64::from(u)),
-
             TypedValue::SMALLINT(i) | TypedValue::N_SMALLINT(Some(i)) => Ok(i64::from(i)),
-
             TypedValue::INT(i) | TypedValue::N_INT(Some(i)) => Ok(i64::from(i)),
-
-            TypedValue::BIGINT(i) |
-            TypedValue::N_BIGINT(Some(i)) |
-            TypedValue::LONGDATE(LongDate(i)) |
-            TypedValue::N_LONGDATE(Some(LongDate(i))) => Ok(i),
+            TypedValue::BIGINT(i) | TypedValue::N_BIGINT(Some(i)) => Ok(i),
+            TypedValue::LONGDATE(ld) | TypedValue::N_LONGDATE(Some(ld)) => Ok(*ld.ref_raw()),
 
             value => Err(wrong_type(&value, "i64")),
         }

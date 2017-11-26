@@ -5,8 +5,8 @@ use protocol::lowlevel::message::Request;
 use protocol::lowlevel::request_type::RequestType;
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::partkind::PartKind;
-use protocol::lowlevel::parts::parameter_metadata::{ParMode, ParameterDescriptor,
-                                                    ParameterMetadata};
+use protocol::lowlevel::parts::parameter_descriptor::{ParameterDescriptor, ParameterDirection};
+use protocol::lowlevel::parts::parameter_metadata::ParameterMetadata;
 use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
 use protocol::lowlevel::parts::parameters::{ParameterRow, Parameters};
 
@@ -16,8 +16,8 @@ use serde_db::ser::SerializationError;
 
 use std::mem;
 
-/// Allows injection-safe SQL execution and repeated calls with different parameters
-/// with as few roundtrips as possible.
+/// Allows injection-safe SQL execution and repeated calls of the same statement
+/// with different parameters with as few roundtrips as possible.
 pub struct PreparedStatement {
     conn_ref: ConnCoreRef,
     statement_id: u64,
@@ -30,6 +30,11 @@ pub struct PreparedStatement {
 }
 
 impl PreparedStatement {
+    /// Descriptors of the parameters of the prepared statement, if any.
+    pub fn parameter_descriptors(&self) -> Option<&Vec<ParameterDescriptor>> {
+        self.o_par_md.as_ref().map(|par_md| &par_md.descriptors)
+    }
+
     /// Converts the input into a row of parameters for the batch,
     /// if it is consistent with the metadata.
     pub fn add_batch<T: serde::ser::Serialize>(&mut self, input: &T) -> HdbResult<()> {
@@ -39,9 +44,11 @@ impl PreparedStatement {
                 // FIXME Do this only once per PreparedStatement, not per call to add_batch
                 let mut input_metadata = Vec::<ParameterDescriptor>::new();
                 for pd in &metadata.descriptors {
-                    match pd.mode {
-                        ParMode::IN | ParMode::INOUT => input_metadata.push((*pd).clone()),
-                        ParMode::OUT => {}
+                    match *pd.direction() {
+                        ParameterDirection::IN | ParameterDirection::INOUT => {
+                            input_metadata.push((*pd).clone())
+                        }
+                        ParameterDirection::OUT => {}
                     }
                 }
                 vec.push(ParameterRow::new(to_params(input, input_metadata)?));
@@ -144,7 +151,7 @@ pub mod factory {
         let mut o_par_md: Option<ParameterMetadata> = None;
         let mut o_rs_md: Option<ResultSetMetadata> = None;
 
-        while !reply.parts.0.is_empty() {
+        while !reply.parts.is_empty() {
             match reply.parts.pop_arg() {
                 Some(Argument::ParameterMetadata(par_md)) => {
                     o_par_md = Some(par_md);
@@ -182,7 +189,11 @@ pub mod factory {
 
         let statement_id = match o_stmt_id {
             Some(id) => id,
-            None => return Err(HdbError::EvaluationError("PreparedStatement needs a StatementId")),
+            None => {
+                return Err(
+                    HdbError::InternalEvaluationError("PreparedStatement needs a StatementId"),
+                )
+            }
         };
 
         debug!(

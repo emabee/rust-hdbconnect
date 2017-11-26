@@ -1,4 +1,4 @@
-//! Here are some code examples for the usage of this database driver.
+//! Code examples for the usage of this database driver.
 //!
 //! <b>1. Database connections</b>
 //!
@@ -216,6 +216,7 @@
 //! #[derive(Deserialize)]
 //! struct MyRow {/* ...*/}
 //!
+//! # #[allow(unused_variables)]
 //! let result: Vec<MyRow> = resultset.try_into()?;
 //! # Ok(())
 //! # }
