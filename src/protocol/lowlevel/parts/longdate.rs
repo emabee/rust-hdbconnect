@@ -15,7 +15,7 @@ const JGREG: i64 = 2_299_161;
 /// The type is used internally to implement serialization to the wire.
 /// It is agnostic of timezones.
 #[derive(Clone, Debug)]
-pub struct LongDate(pub i64);
+pub struct LongDate(i64);
 
 impl fmt::Display for LongDate {
     // The format chosen supports the conversion to chrono types.
@@ -43,6 +43,15 @@ impl cmp::PartialEq<LongDate> for LongDate {
 
 
 impl LongDate {
+    #[doc(hidden)]
+    pub fn new(raw: i64) -> LongDate {
+        LongDate(raw)
+    }
+    #[doc(hidden)]
+    pub fn ref_raw(&self) -> &i64 {
+        &self.0
+    }
+
     /// Factory method for LongDate with all fields.
     pub fn from_ymd_hms_n(y: i32, m: u32, d: u32, hour: u32, minute: u32, second: u32,
                           nanosecond: u32)

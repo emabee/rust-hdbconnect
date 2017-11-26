@@ -22,6 +22,8 @@ pub enum PrtError {
     ProtocolError(String),
     /// Error occured in thread synchronization.
     PoisonError(String),
+    /// Error likely caused by wrong user input.
+    UsageError(&'static str),
 }
 
 pub type PrtResult<T> = result::Result<T, PrtError>;
@@ -37,6 +39,7 @@ impl error::Error for PrtError {
             PrtError::IoError(ref error) => error.description(),
             PrtError::ProtocolError(ref s) | PrtError::PoisonError(ref s) => s,
             PrtError::DbMessage(_) => "HANA returned at least one error",
+            PrtError::UsageError(s) => s,
         }
     }
 
@@ -44,7 +47,10 @@ impl error::Error for PrtError {
         match *self {
             PrtError::Cesu8Error(ref error) => Some(error),
             PrtError::IoError(ref error) => Some(error),
-            PrtError::ProtocolError(_) | PrtError::DbMessage(_) | PrtError::PoisonError(_) => None,
+            PrtError::ProtocolError(_) |
+            PrtError::DbMessage(_) |
+            PrtError::PoisonError(_) |
+            PrtError::UsageError(_) => None,
         }
     }
 }
@@ -61,6 +67,7 @@ impl fmt::Display for PrtError {
                 }
                 Ok(())
             }
+            PrtError::UsageError(s) => write!(fmt, "{}", s),
         }
     }
 }

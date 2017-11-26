@@ -83,14 +83,9 @@ impl ResultSet {
         self.rows.reverse()
     }
 
-    /// Returns the number of fields
-    pub fn number_of_fields(&self) -> usize {
-        self.metadata.len()
-    }
-
-    /// Returns the name of the column at the specified index
-    pub fn get_fieldname(&self, field_idx: usize) -> Option<&String> {
-        self.metadata.get_fieldname(field_idx)
+    /// Access to metadata.
+    pub fn metadata(&self) -> &ResultSetMetadata {
+        &self.metadata
     }
 
     /// Fetches all not yet transported result lines from the server.
@@ -314,7 +309,7 @@ pub mod factory {
     }
 
 
-    /// Factory for `ResultSets`, only useful for tests.
+    #[doc(hidden)]
     pub fn new_for_tests(rsm: ResultSetMetadata, rows: Vec<Row>) -> ResultSet {
         ResultSet {
             core_ref: ResultSetCore::new_rs_ref(None, PartAttributes::new(0b_0000_0001), 0_u64),
@@ -405,7 +400,7 @@ pub mod factory {
 
     fn parse_rows(resultset: &mut ResultSet, no_of_rows: i32, rdr: &mut io::BufRead)
                   -> PrtResult<()> {
-        let no_of_cols = resultset.metadata.count();
+        let no_of_cols = resultset.metadata.number_of_fields();
         debug!("resultset::parse_rows() reading {} lines with {} columns", no_of_rows, no_of_cols);
 
         let guard = resultset.core_ref.lock()?;
@@ -414,30 +409,30 @@ pub mod factory {
             None => {
                 // cannot happen FIXME: make this more robust
             }
-            Some(ref conn_ref) => {
-                for r in 0..no_of_rows {
-                    // let mut row = Row { values: Vec::<TypedValue>::new() };
-                    let mut values = Vec::<TypedValue>::new();
-                    for c in 0..no_of_cols {
-                        let field_md = resultset.metadata.get_fieldmetadata(c as usize).unwrap();
-                        let typecode = field_md.value_type;
-                        let nullable = field_md.column_option.is_nullable();
-                        trace!(
-                            "Parsing row {}, column {}, typecode {}, nullable {}",
-                            r,
-                            c,
-                            typecode,
-                            nullable
-                        );
-                        let value =
-                            TypedValueFactory::parse_from_reply(typecode, nullable, conn_ref, rdr)?;
-                        trace!("Found value {:?}", value);
-                        values.push(value);
-                    }
-                    resultset.rows
-                             .push(Row::new(Arc::clone(&resultset.metadata), values));
+            Some(ref conn_ref) => for r in 0..no_of_rows {
+                let mut values = Vec::<TypedValue>::new();
+                for c in 0..no_of_cols {
+                    let typecode = resultset.metadata
+                                            .type_id(c)
+                                            .map_err(|_| prot_err("Not enough metadata"))?;
+                    let nullable: bool = resultset.metadata
+                                                  .nullable(c)
+                                                  .map_err(|_| prot_err("Not enough metadata"))?;
+                    trace!(
+                        "Parsing row {}, column {}, typecode {}, nullable {}",
+                        r,
+                        c,
+                        typecode,
+                        nullable
+                    );
+                    let value =
+                        TypedValueFactory::parse_from_reply(typecode, nullable, conn_ref, rdr)?;
+                    trace!("Found value {:?}", value);
+                    values.push(value);
                 }
-            }
+                resultset.rows
+                         .push(Row::new(Arc::clone(&resultset.metadata), values));
+            },
         }
         Ok(())
     }

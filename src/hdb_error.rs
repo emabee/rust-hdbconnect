@@ -26,8 +26,11 @@ pub enum HdbError {
     /// Error occured in deserialization of data structures into an application-defined structure.
     DeserializationError(DeserializationError),
 
+    /// Error occured while evaluating a HdbResponse object.
+    EvaluationError(String),
+
     /// Error occured in evaluation of a response from the DB.
-    EvaluationError(&'static str),
+    InternalEvaluationError(&'static str),
 
     /// Format error occured in communication setup.
     FmtError(fmt::Error),
@@ -56,9 +59,9 @@ impl error::Error for HdbError {
             HdbError::IoError(ref error) => error.description(),
             HdbError::FmtError(ref error) => error.description(),
             HdbError::ProtocolError(ref error) => error.description(),
-            HdbError::EvaluationError(s) => s,
+            HdbError::InternalEvaluationError(s) => s,
             HdbError::SerializationError(ref error) => error.description(),
-            HdbError::UsageError(ref s) => s,
+            HdbError::EvaluationError(ref s) | HdbError::UsageError(ref s) => s,
             HdbError::PoisonError(ref s) => s,
         }
     }
@@ -71,9 +74,10 @@ impl error::Error for HdbError {
             HdbError::FmtError(ref error) => Some(error),
             HdbError::ProtocolError(ref error) => Some(error),
             HdbError::SerializationError(ref error) => Some(error),
-            HdbError::UsageError(_) | HdbError::PoisonError(_) | HdbError::EvaluationError(_) => {
-                None
-            }
+            HdbError::UsageError(_) |
+            HdbError::PoisonError(_) |
+            HdbError::EvaluationError(_) |
+            HdbError::InternalEvaluationError(_) => None,
         }
     }
 }
@@ -86,9 +90,11 @@ impl fmt::Display for HdbError {
             HdbError::IoError(ref error) => write!(fmt, "{:?}", error),
             HdbError::FmtError(ref error) => write!(fmt, "{:?}", error),
             HdbError::ProtocolError(ref error) => write!(fmt, "{:?}", error),
-            HdbError::EvaluationError(s) => write!(fmt, "{:?}", s),
+            HdbError::InternalEvaluationError(s) => write!(fmt, "{:?}", s),
             HdbError::SerializationError(ref error) => write!(fmt, "{:?}", error),
-            HdbError::UsageError(ref s) => write!(fmt, "{:?}", s),
+            HdbError::EvaluationError(ref s) | HdbError::UsageError(ref s) => {
+                write!(fmt, "{:?}", s)
+            }
             HdbError::PoisonError(ref s) => write!(fmt, "{:?}", s),
         }
     }

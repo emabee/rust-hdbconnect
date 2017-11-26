@@ -1,7 +1,7 @@
 use HdbError;
 
 use protocol::lowlevel::{util, PrtError, PrtResult};
-use protocol::lowlevel::parts::type_id::*;
+use protocol::lowlevel::parts::type_id;
 use protocol::lowlevel::parts::lob::*;
 use protocol::lowlevel::parts::longdate::LongDate;
 use protocol::lowlevel::parts::hdb_decimal::{serialize_decimal, HdbDecimal};
@@ -23,18 +23,18 @@ const LENGTH_INDICATOR_NULL: u8 = 255;
 #[allow(non_camel_case_types)]
 #[derive(Clone, Debug)]
 pub enum TypedValue {
-    /// Internally swapped in where a real value is swapped out
+    /// Internally used only. Is swapped in where a real value (any of the others) is swapped out.
     NOTHING,
-    /// TINYINT stores an 8-bit unsigned integer.
+    /// Stores an 8-bit unsigned integer.
     /// The minimum value is 0. The maximum value is 255.
     TINYINT(u8),
-    /// SMALLINT stores a 16-bit signed integer.
+    /// Stores a 16-bit signed integer.
     /// The minimum value is -32,768. The maximum value is 32,767.
     SMALLINT(i16),
-    /// INT stores a 32-bit signed integer.
+    /// Stores a 32-bit signed integer.
     /// The minimum value is -2,147,483,648. The maximum value is 2,147,483,647.
     INT(i32),
-    /// BIGINT stores a 64-bit signed integer.
+    /// Stores a 64-bit signed integer.
     /// The minimum value is -9,223,372,036,854,775,808.
     /// The maximum value is 9,223,372,036,854,775,807.
     BIGINT(i64),
@@ -57,10 +57,10 @@ pub enum TypedValue {
     /// 0.0000001234 (1234E-10) has precision 4 and scale 10.
     /// 1.0000001234 (10000001234E-10) has precision 11 and scale 10.
     /// The value 1234000000 (1234E6) has precision 4 and scale -6.
-    DECIMAL(HdbDecimal), // = 5, 					// DECIMAL, and DECIMAL(p,s), 1
-    /// REAL stores a single-precision 32-bit floating-point number.
+    DECIMAL(HdbDecimal),
+    /// Stores a single-precision 32-bit floating-point number.
     REAL(f32),
-    /// DOUBLE stores a double-precision 64-bit floating-point number.
+    /// Stores a double-precision 64-bit floating-point number.
     /// The minimum value is -1.7976931348623157E308, the maximum value is 1.7976931348623157E308 .
     /// The smallest positive DOUBLE value is 2.2250738585072014E-308 and the
     /// largest negative DOUBLE value is -2.2250738585072014E-308.
@@ -216,63 +216,63 @@ impl TypedValue {
     /// hdb protocol uses ids < 128 for non-null values, and ids > 128 for null values
     fn type_id(&self) -> u8 {
         match *self {
-            TypedValue::NOTHING => TYPEID_NOTHING,
-            TypedValue::TINYINT(_) => TYPEID_TINYINT,
-            TypedValue::SMALLINT(_) => TYPEID_SMALLINT,
-            TypedValue::INT(_) => TYPEID_INT,
-            TypedValue::BIGINT(_) => TYPEID_BIGINT,
-            TypedValue::DECIMAL(_) => TYPEID_DECIMAL,
-            TypedValue::REAL(_) => TYPEID_REAL,
-            TypedValue::DOUBLE(_) => TYPEID_DOUBLE,
-            TypedValue::CHAR(_) => TYPEID_CHAR,
-            TypedValue::VARCHAR(_) => TYPEID_VARCHAR,
-            TypedValue::NCHAR(_) => TYPEID_NCHAR,
-            TypedValue::NVARCHAR(_) => TYPEID_NVARCHAR,
-            TypedValue::BINARY(_) => TYPEID_BINARY,
-            TypedValue::VARBINARY(_) => TYPEID_VARBINARY,
-            // TypedValue::TIMESTAMP(_)        => TYPEID_TIMESTAMP,
-            TypedValue::CLOB(_) => TYPEID_CLOB,
-            TypedValue::NCLOB(_) => TYPEID_NCLOB,
-            TypedValue::BLOB(_) => TYPEID_BLOB,
-            TypedValue::BOOLEAN(_) => TYPEID_BOOLEAN,
-            TypedValue::STRING(_) => TYPEID_STRING,
-            TypedValue::NSTRING(_) => TYPEID_NSTRING,
-            TypedValue::BSTRING(_) => TYPEID_BSTRING,
-            // TypedValue::SMALLDECIMAL(_)     => TYPEID_SMALLDECIMAL,
-            TypedValue::TEXT(_) => TYPEID_TEXT,
-            TypedValue::SHORTTEXT(_) => TYPEID_SHORTTEXT,
-            TypedValue::LONGDATE(_) => TYPEID_LONGDATE,
-            // TypedValue::SECONDDATE(_)       => TYPEID_SECONDDATE,
-            // TypedValue::DAYDATE(_)          => TYPEID_DAYDATE,
-            // TypedValue::SECONDTIME(_)       => TYPEID_SECONDTIME,
-            TypedValue::N_TINYINT(_) => TYPEID_N_TINYINT,
-            TypedValue::N_SMALLINT(_) => TYPEID_N_SMALLINT,
-            TypedValue::N_INT(_) => TYPEID_N_INT,
-            TypedValue::N_BIGINT(_) => TYPEID_N_BIGINT,
-            TypedValue::N_DECIMAL(_) => TYPEID_N_DECIMAL,
-            TypedValue::N_REAL(_) => TYPEID_N_REAL,
-            TypedValue::N_DOUBLE(_) => TYPEID_N_DOUBLE,
-            TypedValue::N_CHAR(_) => TYPEID_N_CHAR,
-            TypedValue::N_VARCHAR(_) => TYPEID_N_VARCHAR,
-            TypedValue::N_NCHAR(_) => TYPEID_N_NCHAR,
-            TypedValue::N_NVARCHAR(_) => TYPEID_N_NVARCHAR,
-            TypedValue::N_BINARY(_) => TYPEID_N_BINARY,
-            TypedValue::N_VARBINARY(_) => TYPEID_N_VARBINARY,
-            // TypedValue::N_TIMESTAMP(_)       => TYPEID_N_TIMESTAMP,
-            TypedValue::N_CLOB(_) => TYPEID_N_CLOB,
-            TypedValue::N_NCLOB(_) => TYPEID_N_NCLOB,
-            TypedValue::N_BLOB(_) => TYPEID_N_BLOB,
-            TypedValue::N_BOOLEAN(_) => TYPEID_N_BOOLEAN,
-            TypedValue::N_STRING(_) => TYPEID_N_STRING,
-            TypedValue::N_NSTRING(_) => TYPEID_N_NSTRING,
-            TypedValue::N_BSTRING(_) => TYPEID_N_BSTRING,
-            // TypedValue::N_SMALLDECIMAL(_)    => TYPEID_N_SMALLDECIMAL,
-            TypedValue::N_TEXT(_) => TYPEID_N_TEXT,
-            TypedValue::N_SHORTTEXT(_) => TYPEID_N_SHORTTEXT,
-            TypedValue::N_LONGDATE(_) => TYPEID_N_LONGDATE,
-            // TypedValue::N_SECONDDATE(_)      => TYPEID_N_SECONDDATE,
-            // TypedValue::N_DAYDATE(_)         => TYPEID_N_DAYDATE,
-            // TypedValue::N_SECONDTIME(_)      => TYPEID_N_SECONDTIME,
+            TypedValue::NOTHING => type_id::NOTHING,
+            TypedValue::TINYINT(_) => type_id::TINYINT,
+            TypedValue::SMALLINT(_) => type_id::SMALLINT,
+            TypedValue::INT(_) => type_id::INT,
+            TypedValue::BIGINT(_) => type_id::BIGINT,
+            TypedValue::DECIMAL(_) => type_id::DECIMAL,
+            TypedValue::REAL(_) => type_id::REAL,
+            TypedValue::DOUBLE(_) => type_id::DOUBLE,
+            TypedValue::CHAR(_) => type_id::CHAR,
+            TypedValue::VARCHAR(_) => type_id::VARCHAR,
+            TypedValue::NCHAR(_) => type_id::NCHAR,
+            TypedValue::NVARCHAR(_) => type_id::NVARCHAR,
+            TypedValue::BINARY(_) => type_id::BINARY,
+            TypedValue::VARBINARY(_) => type_id::VARBINARY,
+            // TypedValue::TIMESTAMP(_)        => type_id::TIMESTAMP,
+            TypedValue::CLOB(_) => type_id::CLOB,
+            TypedValue::NCLOB(_) => type_id::NCLOB,
+            TypedValue::BLOB(_) => type_id::BLOB,
+            TypedValue::BOOLEAN(_) => type_id::BOOLEAN,
+            TypedValue::STRING(_) => type_id::STRING,
+            TypedValue::NSTRING(_) => type_id::NSTRING,
+            TypedValue::BSTRING(_) => type_id::BSTRING,
+            // TypedValue::SMALLDECIMAL(_)     => type_id::SMALLDECIMAL,
+            TypedValue::TEXT(_) => type_id::TEXT,
+            TypedValue::SHORTTEXT(_) => type_id::SHORTTEXT,
+            TypedValue::LONGDATE(_) => type_id::LONGDATE,
+            // TypedValue::SECONDDATE(_)       => type_id::SECONDDATE,
+            // TypedValue::DAYDATE(_)          => type_id::DAYDATE,
+            // TypedValue::SECONDTIME(_)       => type_id::SECONDTIME,
+            TypedValue::N_TINYINT(_) => type_id::N_TINYINT,
+            TypedValue::N_SMALLINT(_) => type_id::N_SMALLINT,
+            TypedValue::N_INT(_) => type_id::N_INT,
+            TypedValue::N_BIGINT(_) => type_id::N_BIGINT,
+            TypedValue::N_DECIMAL(_) => type_id::N_DECIMAL,
+            TypedValue::N_REAL(_) => type_id::N_REAL,
+            TypedValue::N_DOUBLE(_) => type_id::N_DOUBLE,
+            TypedValue::N_CHAR(_) => type_id::N_CHAR,
+            TypedValue::N_VARCHAR(_) => type_id::N_VARCHAR,
+            TypedValue::N_NCHAR(_) => type_id::N_NCHAR,
+            TypedValue::N_NVARCHAR(_) => type_id::N_NVARCHAR,
+            TypedValue::N_BINARY(_) => type_id::N_BINARY,
+            TypedValue::N_VARBINARY(_) => type_id::N_VARBINARY,
+            // TypedValue::N_TIMESTAMP(_)       => type_id::N_TIMESTAMP,
+            TypedValue::N_CLOB(_) => type_id::N_CLOB,
+            TypedValue::N_NCLOB(_) => type_id::N_NCLOB,
+            TypedValue::N_BLOB(_) => type_id::N_BLOB,
+            TypedValue::N_BOOLEAN(_) => type_id::N_BOOLEAN,
+            TypedValue::N_STRING(_) => type_id::N_STRING,
+            TypedValue::N_NSTRING(_) => type_id::N_NSTRING,
+            TypedValue::N_BSTRING(_) => type_id::N_BSTRING,
+            // TypedValue::N_SMALLDECIMAL(_)    => type_id::N_SMALLDECIMAL,
+            TypedValue::N_TEXT(_) => type_id::N_TEXT,
+            TypedValue::N_SHORTTEXT(_) => type_id::N_SHORTTEXT,
+            TypedValue::N_LONGDATE(_) => type_id::N_LONGDATE,
+            // TypedValue::N_SECONDDATE(_)      => type_id::N_SECONDDATE,
+            // TypedValue::N_DAYDATE(_)         => type_id::N_DAYDATE,
+            // TypedValue::N_SECONDTIME(_)      => type_id::N_SECONDTIME,
         }
     }
 
@@ -315,8 +315,8 @@ pub fn serialize(tv: &TypedValue, data_pos: &mut i32, w: &mut io::Write) -> PrtR
             TypedValue::BOOLEAN(true) | TypedValue::N_BOOLEAN(Some(true)) => w.write_u8(1)?,
             TypedValue::BOOLEAN(false) | TypedValue::N_BOOLEAN(Some(false)) => w.write_u8(0)?,
 
-            TypedValue::LONGDATE(LongDate(i)) | TypedValue::N_LONGDATE(Some(LongDate(i))) => {
-                w.write_i64::<LittleEndian>(i)?
+            TypedValue::LONGDATE(ref ld) | TypedValue::N_LONGDATE(Some(ref ld)) => {
+                w.write_i64::<LittleEndian>(*ld.ref_raw())?
             }
 
             TypedValue::CLOB(ref clob) |
@@ -915,7 +915,7 @@ pub mod factory {
             LONGDATE_NULL_REPRESENTATION => {
                 Err(prot_err("Null value found for non-null longdate column"))
             }
-            _ => Ok(LongDate(i)),
+            _ => Ok(LongDate::new(i)),
         }
     }
 
@@ -923,7 +923,7 @@ pub mod factory {
         let i = rdr.read_i64::<LittleEndian>()?;
         match i {
             LONGDATE_NULL_REPRESENTATION => Ok(None),
-            _ => Ok(Some(LongDate(i))),
+            _ => Ok(Some(LongDate::new(i))),
         }
     }
 }

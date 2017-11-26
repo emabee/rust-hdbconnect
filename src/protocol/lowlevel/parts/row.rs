@@ -8,7 +8,7 @@ use std::sync::Arc;
 use {HdbError, HdbResult};
 use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
 use protocol::lowlevel::parts::typed_value::TypedValue;
-use types::{BLOB, CLOB};
+use protocol::lowlevel::parts::lob::{BLOB, CLOB};
 use serde_db::de::ConversionError;
 
 /// A generic implementation of a single line of a `ResultSet`.
@@ -44,10 +44,10 @@ impl Row {
         self.values.pop()
     }
 
-    /// Returns the name of the column at the specified index
-    pub fn get_fieldname(&self, field_idx: usize) -> Option<&String> {
+    /// Returns the name of the i'th column
+    pub fn get_fieldname(&self, i: usize) -> HdbResult<&String> {
         trace!("Row::get_fieldname()");
-        self.metadata.get_fieldname(field_idx)
+        self.metadata.displayname(i)
     }
 
     /// Reverses the order of the values

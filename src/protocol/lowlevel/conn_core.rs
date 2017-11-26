@@ -8,6 +8,7 @@ use protocol::lowlevel::parts::transactionflags::{TaFlagId, TransactionFlag};
 
 use std::sync::{Arc, Mutex};
 use std::io;
+use std::mem;
 use std::net::TcpStream;
 
 pub type ConnCoreRef = Arc<Mutex<ConnectionCore>>;
@@ -17,17 +18,17 @@ pub const DEFAULT_LOB_READ_LENGTH: i32 = 1_000_000;
 
 #[derive(Debug)]
 pub struct ConnectionCore {
-    pub is_authenticated: bool,
-    pub session_id: i64,
+    is_authenticated: bool,
+    session_id: i64,
     seq_number: i32,
     fetch_size: u32,
     lob_read_length: i32,
     transaction_state: TransactionState,
-    pub ssi: Option<OptionValue>, // Information on the statement sequence within the transaction
+    ssi: Option<OptionValue>, // Information on the statement sequence within the transaction
     // FIXME transmute into explicit structure; see also jdbc\EngineFeatures.java :
-    pub server_connect_options: Vec<ConnectOption>,
-    pub topology_attributes: Vec<TopologyAttr>,
-    pub stream: TcpStream,
+    server_connect_options: Vec<ConnectOption>,
+    topology_attributes: Vec<TopologyAttr>,
+    stream: TcpStream,
 }
 
 impl ConnectionCore {
@@ -49,14 +50,53 @@ impl ConnectionCore {
     pub fn get_fetch_size(&self) -> u32 {
         self.fetch_size
     }
+
     pub fn set_fetch_size(&mut self, fetch_size: u32) {
         self.fetch_size = fetch_size;
     }
+
     pub fn get_lob_read_length(&self) -> i32 {
         self.lob_read_length
     }
+
     pub fn set_lob_read_length(&mut self, lob_read_length: i32) {
         self.lob_read_length = lob_read_length;
+    }
+
+    pub fn set_session_id(&mut self, session_id: i64) {
+        self.session_id = session_id;
+    }
+
+    pub fn swap_topology_attributes(&mut self, vec: &mut Vec<TopologyAttr>) {
+        mem::swap(vec, &mut self.topology_attributes)
+    }
+
+    pub fn swap_server_connect_options(&mut self, vec: &mut Vec<ConnectOption>) {
+        mem::swap(vec, &mut self.server_connect_options)
+    }
+
+    pub fn is_authenticated(&self) -> bool {
+        self.is_authenticated
+    }
+
+    pub fn set_is_authenticated(&mut self, is_authenticated: bool) {
+        self.is_authenticated = is_authenticated;
+    }
+
+    pub fn ssi(&self) -> &Option<OptionValue> {
+        &self.ssi
+    }
+
+    pub fn set_ssi(&mut self, ssi: Option<OptionValue>) {
+        self.ssi = ssi;
+    }
+
+    pub fn session_id(&self) -> i64 {
+        self.session_id
+    }
+
+    pub fn stream(&mut self) -> &mut TcpStream {
+        &mut self.stream
     }
 
     pub fn next_seq_number(&mut self) -> i32 {

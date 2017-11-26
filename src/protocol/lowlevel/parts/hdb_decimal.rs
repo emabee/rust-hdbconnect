@@ -1,6 +1,6 @@
 use super::PrtResult;
 use byteorder::{ByteOrder, LittleEndian};
-use num::ToPrimitive;
+use num::{FromPrimitive, ToPrimitive};
 use num::bigint::{BigInt, Sign};
 use rust_decimal::Decimal;
 use std::fmt;
@@ -18,7 +18,7 @@ use serde_db::ser::SerializationError;
 //
 // The number represented is (10^EXPONENT)*MANTISSA.
 // It is expected that MANTISSA is not a multiple of 10
-/// Representation of a HANA DECIMAL.
+/// Representation of HANA's DECIMAL type.
 #[derive(Clone, Debug)]
 pub struct HdbDecimal {
     raw: [u8; 16],
@@ -49,9 +49,18 @@ impl HdbDecimal {
         Ok(result)
     }
 
-    /// Returns a `rust_decimal::Decimal` representation.
-    pub fn as_decimal(&self) -> Decimal {
-        self.clone().into_decimal()
+    /// Creates a HdbDecimal from a f32.
+    pub fn from_f32(f: f32) -> Result<HdbDecimal, SerializationError> {
+        HdbDecimal::from_decimal(Decimal::from_f32(f).ok_or_else(
+            || SerializationError::GeneralError("Cannot convert f32 to Decimal".to_string()),
+        )?)
+    }
+
+    /// Creates a HdbDecimal from a `rust_decimal::Decimal`.
+    pub fn from_decimal(decimal: Decimal) -> Result<HdbDecimal, SerializationError> {
+        // FIXME improve this: do bit shuffling rather than going through the String representation
+        let s = format!("{}", decimal);
+        HdbDecimal::parse_from_str(&s)
     }
 
     /// Converts into a `rust_decimal::Decimal` representation.
@@ -77,6 +86,11 @@ impl HdbDecimal {
             mantissa = mantissa.mul(BigInt::from(10_usize));
         }
         Decimal::new(mantissa.to_i64().unwrap(), exponent)
+    }
+
+    /// Returns a `rust_decimal::Decimal` representation.
+    pub fn as_decimal(&self) -> Decimal {
+        self.clone().into_decimal()
     }
 }
 

@@ -4,7 +4,7 @@ use super::option_value::OptionValue;
 use byteorder::{ReadBytesExt, WriteBytesExt};
 use std::io;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct StatementContext {
     pub statement_sequence_info: Option<OptionValue>,
     pub server_processing_time: Option<OptionValue>,
@@ -12,14 +12,6 @@ pub struct StatementContext {
 }
 
 impl StatementContext {
-    pub fn new() -> StatementContext {
-        StatementContext {
-            statement_sequence_info: None,
-            server_processing_time: None,
-            schema_name: None,
-        }
-    }
-
     pub fn serialize(&self, w: &mut io::Write) -> PrtResult<()> {
         match self.statement_sequence_info {
             Some(ref value) => {
@@ -63,7 +55,7 @@ impl StatementContext {
 
     pub fn parse(count: i32, rdr: &mut io::BufRead) -> PrtResult<StatementContext> {
         trace!("StatementContext::parse()");
-        let mut sc = StatementContext::new();
+        let mut sc = StatementContext::default();
         for _ in 0..count {
             let sc_id = ScId::from_i8(rdr.read_i8()?)?; // I1
             let value = OptionValue::parse(rdr)?;

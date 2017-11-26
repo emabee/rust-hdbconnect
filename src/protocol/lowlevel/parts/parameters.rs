@@ -38,13 +38,6 @@ impl ParameterRow {
                 TypedValue::BLOB(ref blob) | TypedValue::N_BLOB(Some(ref blob)) => {
                     util::serialize_bytes(blob.ref_to_bytes()?, w)?
                 }
-
-                TypedValue::CLOB(ref clob) |
-                TypedValue::N_CLOB(Some(ref clob)) |
-                TypedValue::NCLOB(ref clob) |
-                TypedValue::N_NCLOB(Some(ref clob)) => {
-                    util::serialize_bytes(clob.ref_to_string()?.as_bytes(), w)?
-                }
                 _ => {}
             }
         }
