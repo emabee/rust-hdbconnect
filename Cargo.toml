@@ -1,6 +1,6 @@
 [package]
 name = "hdbconnect"
-version = "0.4.1"
+version = "0.4.2"
 authors = ["emabee <meinolf.block@sap.com>"]
 description = "A pure rust driver for SAP HANA(TM)"
 documentation = "https://docs.rs/hdbconnect/"

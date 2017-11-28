@@ -2,6 +2,9 @@
 
 ## [Unreleased] 
 
+## [0.4.2] 
+Added missing docu for new methods that were introduced in 0.4.1
+
 ## [0.4.1]
 Corrected and extended the evaluation of ColumnOptions in resultset metadata and 
 ParameterOptions in parameter metadata

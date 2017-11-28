@@ -30,11 +30,11 @@ impl ParameterDescriptor {
         }
     }
 
-    // Returns true if the column can contain NULL values.
+    /// Returns true if the column can contain NULL values.
     pub fn is_nullable(&self) -> bool {
         (self.parameter_option & 0b_0000_0010_u8) != 0
     }
-    // Returns true if the column has a default value.
+    /// Returns true if the column has a default value.
     pub fn has_default(&self) -> bool {
         (self.parameter_option & 0b_0000_0100_u8) != 0
     }
@@ -45,11 +45,12 @@ impl ParameterDescriptor {
     //     (self.parameter_option & 0b_0001_0000_u8) != 0
     // }
 
-    // Returns true if the column is auto-incremented.
+    /// Returns true if the column is auto-incremented.
     pub fn is_auto_incremented(&self) -> bool {
         (self.parameter_option & 0b_0010_0000_u8) != 0
     }
     // 6 = ArrayType
+    /// Returns true if the parameter is of array type
     pub fn is_array_type(&self) -> bool {
         (self.parameter_option & 0b_0100_0000_u8) != 0
     }
