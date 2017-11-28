@@ -416,7 +416,7 @@ pub mod factory {
                                             .type_id(c)
                                             .map_err(|_| prot_err("Not enough metadata"))?;
                     let nullable: bool = resultset.metadata
-                                                  .nullable(c)
+                                                  .is_nullable(c)
                                                   .map_err(|_| prot_err("Not enough metadata"))?;
                     trace!(
                         "Parsing row {}, column {}, typecode {}, nullable {}",

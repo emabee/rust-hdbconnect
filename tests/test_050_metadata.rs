@@ -66,23 +66,34 @@ fn procedure(connection: &mut Connection) -> HdbResult<()> {
     let pd0 = op.parameter_descriptor(0)?;
     let pd1 = op.parameter_descriptor(1)?;
     debug!("op-md: {:?}", pd0);
-    assert_eq!(pd0.binding(), &ParameterBinding::Optional);
+    assert_eq!(pd0.binding(), ParameterBinding::Optional);
     assert_eq!(pd0.name().unwrap(), "INOUT_DECIMAL");
     assert_eq!(pd0.type_id(), 5);
     assert_eq!(pd0.scale(), 5);
     assert_eq!(pd0.precision(), 10);
-    assert_eq!(pd0.direction(), &ParameterDirection::INOUT);
+    assert_eq!(pd0.direction(), ParameterDirection::INOUT);
 
     debug!("op-md: {:?}", pd1);
-    assert_eq!(pd1.binding(), &ParameterBinding::Optional);
+    assert_eq!(pd1.binding(), ParameterBinding::Optional);
     assert_eq!(pd1.name().unwrap(), "OUT_STRING");
     assert_eq!(pd1.type_id(), 11);
     assert_eq!(pd1.scale(), 0);
     assert_eq!(pd1.precision(), 40);
-    assert_eq!(pd1.direction(), &ParameterDirection::OUT);
+    assert_eq!(pd1.direction(), ParameterDirection::OUT);
 
 
     let mut rs: ResultSet = response.get_resultset()?;
+    {
+        let rs_md = rs.metadata();
+        assert_eq!(rs_md.columnname(0)?, "I");
+        assert_eq!(rs_md.displayname(0)?, "I");
+        assert_eq!(rs_md.has_default(0)?, false);
+        assert_eq!(rs_md.is_array_type(0)?, false);
+        assert_eq!(rs_md.is_nullable(0)?, true);
+        assert_eq!(rs_md.is_readonly(0)?, false);
+        assert_eq!(rs_md.precision(0)?, 10);
+        assert_eq!(rs_md.scale(0)?, 0);
+    }
     let mut row: Row = rs.pop_row().unwrap();
     let value: i32 = row.field_into(0)?;
     assert_eq!(value, 42_i32);

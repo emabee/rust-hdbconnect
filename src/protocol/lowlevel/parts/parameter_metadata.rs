@@ -1,7 +1,6 @@
 use protocol::lowlevel::parts::parameter_descriptor::{parameter_descriptor_new,
                                                       parameter_descriptor_set_name,
                                                       ParameterDescriptor,
-                                                      parameter_binding_from_u8,
                                                       parameter_direction_from_u8};
 use super::{util, PrtResult};
 use byteorder::{LittleEndian, ReadBytesExt};
@@ -27,7 +26,7 @@ impl ParameterMetadata {
         let mut name_offsets = Vec::<u32>::new();
         for _ in 0..count {
             // 16 byte each
-            let option = parameter_binding_from_u8(rdr.read_u8()?)?;
+            let option = rdr.read_u8()?;
             let value_type = rdr.read_u8()?;
             let mode = parameter_direction_from_u8(rdr.read_u8()?)?;
             rdr.read_u8()?;

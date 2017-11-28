@@ -4,7 +4,7 @@ use super::{prot_err, PrtResult};
 #[derive(Clone, Debug)]
 pub struct ParameterDescriptor {
     // bit 0: mandatory; 1: optional, 2: has_default
-    binding: ParameterBinding,
+    parameter_option: u8,
     // type_id
     type_id: u8,
     // Scale of the parameter
@@ -18,9 +18,46 @@ pub struct ParameterDescriptor {
 }
 impl ParameterDescriptor {
     /// Describes whether a parameter can be NULL or not, or if it has a default value.
-    pub fn binding(&self) -> &ParameterBinding {
-        &self.binding
+    pub fn binding(&self) -> ParameterBinding {
+        if self.parameter_option & 0b_0000_0001_u8 != 0 {
+            ParameterBinding::Mandatory
+        } else if self.parameter_option & 0b_0000_0010_u8 != 0 {
+            ParameterBinding::Optional
+        } else {
+            // we do not check the third bit here,
+            // we rely on HANA sending exactly one of the first three bits as 1
+            ParameterBinding::HasDefault
+        }
     }
+
+    // Returns true if the column can contain NULL values.
+    pub fn is_nullable(&self) -> bool {
+        (self.parameter_option & 0b_0000_0010_u8) != 0
+    }
+    // Returns true if the column has a default value.
+    pub fn has_default(&self) -> bool {
+        (self.parameter_option & 0b_0000_0100_u8) != 0
+    }
+    // 3 = Escape_char
+    // ???
+    // //  Returns true if the column is readonly __ ?? can this be meaningful??
+    // pub fn is_readonly(&self) -> bool {
+    //     (self.parameter_option & 0b_0001_0000_u8) != 0
+    // }
+
+    // Returns true if the column is auto-incremented.
+    pub fn is_auto_incremented(&self) -> bool {
+        (self.parameter_option & 0b_0010_0000_u8) != 0
+    }
+    // 6 = ArrayType
+    pub fn is_array_type(&self) -> bool {
+        (self.parameter_option & 0b_0100_0000_u8) != 0
+    }
+
+
+
+
+
     /// Returns the id of the value type of the parameter.
     /// See also module [`type_id`](type_id/index.html).
     pub fn type_id(&self) -> u8 {
@@ -35,8 +72,8 @@ impl ParameterDescriptor {
         self.precision
     }
     /// Describes whether a parameter is used for input, output, or both.
-    pub fn direction(&self) -> &ParameterDirection {
-        &self.direction
+    pub fn direction(&self) -> ParameterDirection {
+        self.direction.clone()
     }
 
     /// Returns the name of the parameter.
@@ -45,11 +82,11 @@ impl ParameterDescriptor {
     }
 }
 
-pub fn parameter_descriptor_new(binding: ParameterBinding, type_id: u8,
+pub fn parameter_descriptor_new(parameter_option: u8, type_id: u8,
                                 direction: ParameterDirection, precision: u16, scale: u16)
                                 -> ParameterDescriptor {
     ParameterDescriptor {
-        binding: binding,
+        parameter_option: parameter_option,
         type_id: type_id,
         direction: direction,
         precision: precision,
@@ -72,27 +109,6 @@ pub enum ParameterBinding {
     /// Parameter has a defined DEFAULT value.
     HasDefault,
 }
-impl ParameterBinding {
-    /// check if the parameter is nullable
-    pub fn is_nullable(&self) -> bool {
-        match *self {
-            ParameterBinding::Optional => true,
-            _ => false,
-        }
-    }
-}
-
-pub fn parameter_binding_from_u8(val: u8) -> PrtResult<ParameterBinding> {
-    match val {
-        1 => Ok(ParameterBinding::Mandatory),
-        2 => Ok(ParameterBinding::Optional),
-        4 => Ok(ParameterBinding::HasDefault),
-        _ => {
-            Err(prot_err(&format!("ParameterBinding::from_u8() not implemented for value {}", val)))
-        }
-    }
-}
-
 
 /// Describes whether a parameter is used for input, output, or both.
 #[derive(Clone, Debug, PartialEq)]
@@ -105,6 +121,9 @@ pub enum ParameterDirection {
     OUT,
 }
 pub fn parameter_direction_from_u8(v: u8) -> PrtResult<ParameterDirection> {
+    // it's done with three bits where always exactly one is 1 and the others are 0;
+    // the other bits are not used,
+    // so we can avoid bit handling and do it the simple way
     match v {
         1 => Ok(ParameterDirection::IN),
         2 => Ok(ParameterDirection::INOUT),

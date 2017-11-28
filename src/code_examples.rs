@@ -199,8 +199,8 @@
 //! This option supports
 //! a variety of target data structures, depending on the concrete numbers of rows and columns.
 //!
-//! * You can always use a <code>Vec</code> of a struct or tuple that matches
-//!   the fields of the resultset.
+//! * You can always, and __most often want to__, use a <code>Vec</code> of a struct or
+//!   tuple that matches the fields of the resultset.
 //!
 //! ```rust,no_run
 //! # #[macro_use]

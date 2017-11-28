@@ -2,6 +2,13 @@
 
 ## [Unreleased] 
 
+## [0.4.1]
+Corrected and extended the evaluation of ColumnOptions in resultset metadata and 
+ParameterOptions in parameter metadata
+
+## [0.4.0] 
+Add access methods for metadata.
+
 ## [0.3.2] 2017-11-17
 Add support for stringified value representations.
 

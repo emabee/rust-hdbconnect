@@ -187,9 +187,9 @@ fn procedure_with_in_and_out_parameters(connection: &mut Connection) -> HdbResul
     let mut op = response.get_output_parameters()?;
     {
         let par_desc = op.parameter_descriptor(0)?;
-        assert_eq!(*par_desc.binding(), ParameterBinding::Optional);
+        assert_eq!(par_desc.binding(), ParameterBinding::Optional);
         assert_eq!(par_desc.type_id(), type_id::NVARCHAR);
-        assert_eq!(*par_desc.direction(), ParameterDirection::OUT);
+        assert_eq!(par_desc.direction(), ParameterDirection::OUT);
         assert_eq!(par_desc.name(), Some(&"SOME_STRING".to_string()));
     }
     let value: String = op.parameter_into(0)?;

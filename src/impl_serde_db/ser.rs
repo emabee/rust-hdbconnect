@@ -12,7 +12,7 @@ use std::{i16, i32, i64, i8, u16, u32, u8};
 use std::str::FromStr;
 
 
-
+#[doc(hidden)]
 impl DbvFactory for ParameterDescriptor {
     type DBV = TypedValue;
 

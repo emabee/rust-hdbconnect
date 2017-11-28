@@ -79,8 +79,28 @@ impl ResultSetMetadata {
     }
 
     /// True if column can contain NULL values.
-    pub fn nullable(&self, i: usize) -> HdbResult<bool> {
-        Ok(self.get(i)?.nullable())
+    pub fn is_nullable(&self, i: usize) -> HdbResult<bool> {
+        Ok(self.get(i)?.is_nullable())
+    }
+
+    /// Returns true if the column has a default value.
+    pub fn has_default(&self, i: usize) -> HdbResult<bool> {
+        Ok(self.get(i)?.has_default())
+    }
+    // 3 = Escape_char
+    // ???
+    ///  Returns true if the column is readonly.
+    pub fn is_readonly(&self, i: usize) -> HdbResult<bool> {
+        Ok(self.get(i)?.is_readonly())
+    }
+    /// Returns true if the column is auto-incremented.
+    pub fn is_auto_incremented(&self, i: usize) -> HdbResult<bool> {
+        Ok(self.get(i)?.is_auto_incremented())
+    }
+    // 6 = ArrayType
+    /// Returns true if the column is of array type.
+    pub fn is_array_type(&self, i: usize) -> HdbResult<bool> {
+        Ok(self.get(i)?.is_array_type())
     }
 
     /// Returns the id of the value type. See module `hdbconnect::metadata::type_id`.
@@ -120,29 +140,29 @@ pub fn parse(count: i32, arg_size: u32, rdr: &mut io::BufRead) -> PrtResult<Resu
     };
     trace!("Got count {}", count);
     for _ in 0..count {
-        let co = rdr.read_u8()?; // U1 (documented as I1)
-        let vt = rdr.read_u8()?; // I1
-        let sc = rdr.read_i16::<LittleEndian>()?; // I2
-        let pr = rdr.read_i16::<LittleEndian>()?; // I2
+        let column_options = rdr.read_u8()?; // U1 (documented as I1)
+        let type_id = rdr.read_u8()?; // I1
+        let scale = rdr.read_i16::<LittleEndian>()?; // I2
+        let precision = rdr.read_i16::<LittleEndian>()?; // I2
         rdr.read_i16::<LittleEndian>()?; // I2
-        let tn = rdr.read_u32::<LittleEndian>()?; // I4
-        rsm.add_to_names(tn);
-        let sn = rdr.read_u32::<LittleEndian>()?; // I4
-        rsm.add_to_names(sn);
-        let cn = rdr.read_u32::<LittleEndian>()?; // I4
-        rsm.add_to_names(cn);
-        let cdn = rdr.read_u32::<LittleEndian>()?; // I4
-        rsm.add_to_names(cdn);
+        let tablename = rdr.read_u32::<LittleEndian>()?; // I4
+        rsm.add_to_names(tablename);
+        let schemaname = rdr.read_u32::<LittleEndian>()?; // I4
+        rsm.add_to_names(schemaname);
+        let columnname = rdr.read_u32::<LittleEndian>()?; // I4
+        rsm.add_to_names(columnname);
+        let displayname = rdr.read_u32::<LittleEndian>()?; // I4
+        rsm.add_to_names(displayname);
 
         let fm = FieldMetadata {
-            nullable: Nullable::from_u8(co)?,
-            type_id: vt,
-            scale: sc,
-            precision: pr,
-            tablename_idx: tn,
-            schemaname_idx: sn,
-            columnname_idx: cn,
-            displayname_idx: cdn,
+            column_options: column_options,
+            type_id: type_id,
+            scale: scale,
+            precision: precision,
+            tablename_idx: tablename,
+            schemaname_idx: schemaname,
+            columnname_idx: columnname,
+            displayname_idx: displayname,
         };
         rsm.fields.push(fm);
     }
@@ -177,8 +197,16 @@ struct FieldMetadata {
     columnname_idx: u32,
     // Display name of a column.
     displayname_idx: u32,
-    // Whether the column can have NULL values.
-    nullable: Nullable,
+    // Column_options.
+    // Bit pattern:
+    // 0 = Mandatory
+    // 1 = Optional
+    // 2 = Default
+    // 3 = Escape_char
+    // 4 = Readonly
+    // 5 = Autoincrement
+    // 6 = ArrayType
+    column_options: u8,
     // The id of the value type.
     type_id: u8,
     // scale length (for some numeric types only).
@@ -187,26 +215,45 @@ struct FieldMetadata {
     precision: i16,
 }
 impl FieldMetadata {
-    /// Database schema.
+    // Database schema.
     pub fn schemaname_idx(&self) -> u32 {
         self.schemaname_idx
     }
-    /// Database table.
+    // Database table.
     pub fn tablename_idx(&self) -> u32 {
         self.tablename_idx
     }
-    /// Name of the column.
+    // Name of the column.
     pub fn columnname_idx(&self) -> u32 {
         self.columnname_idx
     }
-    /// Display name of a column.
+    // Display name of a column.
     pub fn displayname_idx(&self) -> u32 {
         self.displayname_idx
     }
-    /// Various column settings.
-    pub fn nullable(&self) -> bool {
-        self.nullable.0
+    // Returns true if the column can contain NULL values.
+    pub fn is_nullable(&self) -> bool {
+        (self.column_options & 0b_0000_0010_u8) != 0
     }
+    // Returns true if the column has a default value.
+    pub fn has_default(&self) -> bool {
+        (self.column_options & 0b_0000_0100_u8) != 0
+    }
+    // 3 = Escape_char
+    // ???
+    //  Returns true if the column is readonly
+    pub fn is_readonly(&self) -> bool {
+        (self.column_options & 0b_0001_0000_u8) != 0
+    }
+    // Returns true if the column is auto-incremented.
+    pub fn is_auto_incremented(&self) -> bool {
+        (self.column_options & 0b_0010_0000_u8) != 0
+    }
+    // 6 = ArrayType
+    pub fn is_array_type(&self) -> bool {
+        (self.column_options & 0b_0100_0000_u8) != 0
+    }
+
     /// The id of the value type.
     pub fn type_id(&self) -> u8 {
         self.type_id
@@ -218,21 +265,5 @@ impl FieldMetadata {
     /// Precision (for some numeric types only).
     pub fn precision(&self) -> i16 {
         self.precision
-    }
-}
-
-/// Describes whether the column can have NULL values.
-#[derive(Clone, Debug)]
-struct Nullable(bool);
-
-impl Nullable {
-    fn from_u8(val: u8) -> PrtResult<Nullable> {
-        match val {
-            1 => Ok(Nullable(false)),
-            2 => Ok(Nullable(true)),
-            _ => Err(PrtError::ProtocolError(
-                format!("ColumnOption::from_u8() not implemented for value {}", val),
-            )),
-        }
     }
 }

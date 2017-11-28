@@ -4,3 +4,4 @@ z_docs
 z_logs
 *.log
 db_access.json
+test_999_dummy.rs

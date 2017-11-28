@@ -59,7 +59,8 @@ impl fmt::Display for OutputParameters {
 pub mod factory {
     use super::OutputParameters;
     use protocol::lowlevel::{prot_err, PrtResult};
-    use protocol::lowlevel::parts::parameter_descriptor::{ParameterDescriptor, ParameterDirection};
+    use protocol::lowlevel::parts::parameter_descriptor::{ParameterBinding, ParameterDescriptor,
+                                                          ParameterDirection};
     use protocol::lowlevel::parts::parameter_metadata::ParameterMetadata;
     use protocol::lowlevel::parts::typed_value::TypedValue;
     use protocol::lowlevel::parts::typed_value::factory as TypedValueFactory;
@@ -82,10 +83,13 @@ pub mod factory {
         };
 
         for descriptor in &(par_md.descriptors) {
-            match *descriptor.direction() {
+            match descriptor.direction() {
                 ParameterDirection::INOUT | ParameterDirection::OUT => {
                     let typecode = descriptor.type_id();
-                    let nullable = descriptor.binding().is_nullable();
+                    let nullable = match descriptor.binding() {
+                        ParameterBinding::Optional => true,
+                        _ => false,
+                    };
                     trace!("Parsing value with typecode {}, nullable {}", typecode, nullable);
                     let value =
                         TypedValueFactory::parse_from_reply(typecode, nullable, conn_ref, rdr)?;

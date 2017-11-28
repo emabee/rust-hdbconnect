@@ -44,7 +44,7 @@ impl PreparedStatement {
                 // FIXME Do this only once per PreparedStatement, not per call to add_batch
                 let mut input_metadata = Vec::<ParameterDescriptor>::new();
                 for pd in &metadata.descriptors {
-                    match *pd.direction() {
+                    match pd.direction() {
                         ParameterDirection::IN | ParameterDirection::INOUT => {
                             input_metadata.push((*pd).clone())
                         }
