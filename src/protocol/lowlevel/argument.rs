@@ -8,9 +8,10 @@ use super::parts::authfield::AuthField;
 use super::parts::client_info::ClientInfo;
 use super::parts::connect_option::{ConnectOption, ConnectOptions};
 use super::parts::parameters::Parameters;
+use super::parts::parameter_descriptor::ParameterDescriptor;
+use super::parts::parameter_descriptor::factory as ParameterDescriptorFactory;
 use super::parts::output_parameters::OutputParameters;
 use super::parts::output_parameters::factory as OutputParametersFactory;
-use super::parts::parameter_metadata::ParameterMetadata;
 use super::parts::read_lob_reply::ReadLobReply;
 use super::parts::resultset::ResultSet;
 use super::parts::resultset::factory as ResultSetFactory;
@@ -35,7 +36,7 @@ pub enum Argument {
     Error(Vec<ServerError>),
     FetchSize(u32),
     OutputParameters(OutputParameters),
-    ParameterMetadata(ParameterMetadata),
+    ParameterMetadata(Vec<ParameterDescriptor>),
     Parameters(Parameters),
     // FIXME should be a separate struct:
     ReadLobRequest(u64, u64, i32), // locator, offset, length
@@ -207,7 +208,7 @@ impl Argument {
     #[allow(too_many_arguments)]
     pub fn parse(msg_type: MsgType, kind: PartKind, attributes: PartAttributes, no_of_args: i32,
                  arg_size: i32, parts: &mut Parts, o_conn_ref: Option<&ConnCoreRef>,
-                 rs_md: Option<&ResultSetMetadata>, par_md: Option<&ParameterMetadata>,
+                 rs_md: Option<&ResultSetMetadata>, par_md: Option<&Vec<ParameterDescriptor>>,
                  o_rs: &mut Option<&mut ResultSet>, rdr: &mut io::BufRead)
                  -> PrtResult<Argument> {
         trace!(
@@ -258,7 +259,7 @@ impl Argument {
                 return Err(prot_err("Cannot parse output parameters without metadata"));
             },
             PartKind::ParameterMetadata => Argument::ParameterMetadata(
-                ParameterMetadata::parse(no_of_args, arg_size as u32, rdr)?,
+                ParameterDescriptorFactory::parse(no_of_args, arg_size as u32, rdr)?,
             ),
             PartKind::ReadLobReply => {
                 let (locator, is_last_data, data) = ReadLobReply::parse(rdr)?;

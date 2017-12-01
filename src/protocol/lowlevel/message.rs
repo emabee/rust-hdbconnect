@@ -14,7 +14,7 @@ use super::part_attributes::PartAttributes;
 use super::partkind::PartKind;
 use super::parts::resultset::ResultSet;
 use super::parts::option_value::OptionValue;
-use super::parts::parameter_metadata::ParameterMetadata;
+use super::parts::parameter_descriptor::ParameterDescriptor;
 use super::parts::resultset_metadata::ResultSetMetadata;
 use super::parts::statement_context::StatementContext;
 use super::parts::resultset::factory as ResultSetFactory;
@@ -72,8 +72,9 @@ impl Request {
     }
 
     pub fn send_and_get_response(&mut self, rs_md: Option<&ResultSetMetadata>,
-                                 par_md: Option<&ParameterMetadata>, conn_ref: &ConnCoreRef,
-                                 expected_fc: Option<ReplyType>, acc_server_proc_time: &mut i32)
+                                 par_md: Option<&Vec<ParameterDescriptor>>,
+                                 conn_ref: &ConnCoreRef, expected_fc: Option<ReplyType>,
+                                 acc_server_proc_time: &mut i32)
                                  -> HdbResult<HdbResponse> {
         let mut reply =
             self.send_and_receive_detailed(rs_md, par_md, &mut None, conn_ref, expected_fc)?;
@@ -166,7 +167,8 @@ impl Request {
                                  send_and_get_response()", reply.type_);
                 error!("{}",s);
                 error!("Reply: {:?}",reply);
-                Err(HdbError::InternalEvaluationError("send_and_get_response(): unexpected reply type"))
+                Err(HdbError::InternalEvaluationError(
+                    "send_and_get_response(): unexpected reply type"))
             },
         }
     }
@@ -178,7 +180,7 @@ impl Request {
     }
 
     pub fn send_and_receive_detailed(&mut self, rs_md: Option<&ResultSetMetadata>,
-                                     par_md: Option<&ParameterMetadata>,
+                                     par_md: Option<&Vec<ParameterDescriptor>>,
                                      o_rs: &mut Option<&mut ResultSet>, conn_ref: &ConnCoreRef,
                                      expected_fc: Option<ReplyType>)
                                      -> PrtResult<Reply> {
@@ -329,7 +331,7 @@ impl Reply {
     /// `ResultSet` needs to be injected (and is extended and returned) in case of fetch requests
     /// `conn_ref` needs to be injected in case we get an incomplete resultset or lob
     /// (so that they later can fetch)
-    fn parse(rs_md: Option<&ResultSetMetadata>, par_md: Option<&ParameterMetadata>,
+    fn parse(rs_md: Option<&ResultSetMetadata>, par_md: Option<&Vec<ParameterDescriptor>>,
              o_rs: &mut Option<&mut ResultSet>, conn_ref: &ConnCoreRef)
              -> PrtResult<Reply> {
         trace!("Reply::parse()");

@@ -71,7 +71,7 @@ fn evaluate_resultset(reconfiguration_handle: &mut ReconfigurationHandle,
     insert_stmt.add_batch(&("-7.65432", Decimal::from_f32(-7.65432).unwrap()))?;
     insert_stmt.execute_batch()?;
 
-    reconfiguration_handle.set_new_spec( LogSpecification::parse("info"));
+    reconfiguration_handle.set_new_spec(LogSpecification::parse("info"));
     insert_stmt.add_batch(&("-0.05600", "-0.05600"))?;
     insert_stmt.add_batch(&("-8.65432", "-8.65432"))?;
     insert_stmt.execute_batch()?;
@@ -83,7 +83,8 @@ fn evaluate_resultset(reconfiguration_handle: &mut ReconfigurationHandle,
         assert_eq!(td.f1, format!("{}", td.f2));
     }
 
-    let result: Vec<(String, String)> = connection.query("select * from TEST_DECIMALS")?.try_into()?;
+    let result: Vec<(String, String)> =
+        connection.query("select * from TEST_DECIMALS")?.try_into()?;
     for row in result {
         debug!("{}, {}", row.0, row.1);
         assert_eq!(row.0, row.1);

@@ -43,29 +43,25 @@ impl ResultSetMetadata {
     }
 
     fn get(&self, index: usize) -> PrtResult<&FieldMetadata> {
-        self.fields
-            .get(index)
+        self.fields.get(index)
             .ok_or(PrtError::UsageError("schemaname(): invalid field index"))
     }
 
     /// Database schema of the i'th column in the resultset.
     pub fn schemaname(&self, i: usize) -> HdbResult<&String> {
-        Ok(self.names
-            .get(self.get(i)?.schemaname_idx() as usize)
+        Ok(self.names.get(self.get(i)?.schemaname_idx() as usize)
             .ok_or(PrtError::UsageError("get_fieldname(): invalid field index"))?)
     }
 
     /// Database table of the i'th column in the resultset.
     pub fn tablename(&self, i: usize) -> HdbResult<&String> {
-        Ok(self.names
-            .get(self.get(i)?.tablename_idx() as usize)
+        Ok(self.names.get(self.get(i)?.tablename_idx() as usize)
             .ok_or(PrtError::UsageError("tablename(): invalid field index"))?)
     }
 
     /// Name of the i'th column in the resultset.
     pub fn columnname(&self, i: usize) -> HdbResult<&String> {
-        Ok(self.names
-            .get(self.get(i)?.columnname_idx() as usize)
+        Ok(self.names.get(self.get(i)?.columnname_idx() as usize)
             .ok_or(PrtError::UsageError("columnname(): invalid field index"))?)
     }
 
@@ -73,8 +69,7 @@ impl ResultSetMetadata {
     /// Display name of the column.
     #[inline]
     pub fn displayname(&self, index: usize) -> HdbResult<&String> {
-        Ok(self.names
-            .get(self.get(index)?.displayname_idx() as usize)
+        Ok(self.names.get(self.get(index)?.displayname_idx() as usize)
             .ok_or(PrtError::UsageError("get_fieldname(): invalid field index"))?)
     }
 

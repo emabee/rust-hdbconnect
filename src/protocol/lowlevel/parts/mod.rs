@@ -13,7 +13,6 @@ pub mod option_value;
 pub mod output_parameters;
 pub mod parameters;
 pub mod parameter_descriptor;
-pub mod parameter_metadata;
 pub mod read_lob_reply;
 pub mod resultset;
 pub mod resultset_metadata;

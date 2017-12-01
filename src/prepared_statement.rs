@@ -5,8 +5,7 @@ use protocol::lowlevel::message::Request;
 use protocol::lowlevel::request_type::RequestType;
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::partkind::PartKind;
-use protocol::lowlevel::parts::parameter_descriptor::{ParameterDescriptor, ParameterDirection};
-use protocol::lowlevel::parts::parameter_metadata::ParameterMetadata;
+use protocol::lowlevel::parts::parameter_descriptor::ParameterDescriptor;
 use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
 use protocol::lowlevel::parts::parameters::{ParameterRow, Parameters};
 
@@ -23,8 +22,9 @@ pub struct PreparedStatement {
     statement_id: u64,
     auto_commit: bool,
     _o_table_location: Option<Vec<i32>>,
-    o_par_md: Option<ParameterMetadata>, // optional, because there will not always be parameters
-    o_rs_md: Option<ResultSetMetadata>,  // optional, because there will not always be a resultset
+    o_par_md: Option<Vec<ParameterDescriptor>>, // optional, there will not always be parameters
+    o_input_md: Option<Vec<ParameterDescriptor>>, // subset of input parameters
+    o_rs_md: Option<ResultSetMetadata>, // optional, because there will not always be a resultset
     o_batch: Option<Vec<ParameterRow>>,
     acc_server_proc_time: i32,
 }
@@ -32,26 +32,16 @@ pub struct PreparedStatement {
 impl PreparedStatement {
     /// Descriptors of the parameters of the prepared statement, if any.
     pub fn parameter_descriptors(&self) -> Option<&Vec<ParameterDescriptor>> {
-        self.o_par_md.as_ref().map(|par_md| &par_md.descriptors)
+        self.o_par_md.as_ref()
     }
 
     /// Converts the input into a row of parameters for the batch,
     /// if it is consistent with the metadata.
     pub fn add_batch<T: serde::ser::Serialize>(&mut self, input: &T) -> HdbResult<()> {
-        trace!("PreparedStatement::add_batch() called");
-        match (&(self.o_par_md), &mut (self.o_batch)) {
+        trace!("PreparedStatement::add_batch()");
+        match (&(self.o_input_md), &mut (self.o_batch)) {
             (&Some(ref metadata), &mut Some(ref mut vec)) => {
-                // FIXME Do this only once per PreparedStatement, not per call to add_batch
-                let mut input_metadata = Vec::<ParameterDescriptor>::new();
-                for pd in &metadata.descriptors {
-                    match pd.direction() {
-                        ParameterDirection::IN | ParameterDirection::INOUT => {
-                            input_metadata.push((*pd).clone())
-                        }
-                        ParameterDirection::OUT => {}
-                    }
-                }
-                vec.push(ParameterRow::new(to_params(input, input_metadata)?));
+                vec.push(ParameterRow::new(to_params(input, metadata)?));
                 Ok(())
             }
             (_, _) => {
@@ -63,13 +53,13 @@ impl PreparedStatement {
 
     /// Executes the statement with the collected batch, and clears the batch.
     pub fn execute_batch(&mut self) -> HdbResult<HdbResponse> {
+        trace!("PreparedStatement::execute_batch()");
         let mut request =
             Request::new(&(self.conn_ref), RequestType::Execute, self.auto_commit, 8_u8)?;
         request.push(Part::new(PartKind::StatementId, Argument::StatementId(self.statement_id)));
         if let Some(ref mut pars1) = self.o_batch {
             let mut pars2 = Vec::<ParameterRow>::new();
             mem::swap(pars1, &mut pars2);
-            debug!("pars: {:?}", pars2);
             request.push(
                 Part::new(PartKind::Parameters, Argument::Parameters(Parameters::new(pars2))),
             );
@@ -125,7 +115,7 @@ pub mod factory {
     use protocol::lowlevel::partkind::PartKind;
     use protocol::lowlevel::parts::option_value::OptionValue;
     use protocol::lowlevel::parts::parameters::ParameterRow;
-    use protocol::lowlevel::parts::parameter_metadata::ParameterMetadata;
+    use protocol::lowlevel::parts::parameter_descriptor::{ParameterDescriptor, ParameterDirection};
     use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
     use protocol::lowlevel::parts::statement_context::StatementContext;
     use protocol::lowlevel::parts::transactionflags::TransactionFlag;
@@ -148,7 +138,7 @@ pub mod factory {
         let mut o_ta_flags: Option<Vec<TransactionFlag>> = None;
         let mut o_stmt_ctx: Option<StatementContext> = None;
         let mut o_stmt_id: Option<u64> = None;
-        let mut o_par_md: Option<ParameterMetadata> = None;
+        let mut o_par_md: Option<Vec<ParameterDescriptor>> = None;
         let mut o_rs_md: Option<ResultSetMetadata> = None;
 
         while !reply.parts.is_empty() {
@@ -196,6 +186,26 @@ pub mod factory {
             }
         };
 
+        let o_input_md = if let Some(ref mut metadata) = o_par_md {
+            let mut input_metadata = Vec::<ParameterDescriptor>::new();
+            for pd in metadata {
+                match pd.direction() {
+                    ParameterDirection::IN | ParameterDirection::INOUT => {
+                        input_metadata.push((*pd).clone())
+                    }
+                    ParameterDirection::OUT => {}
+                }
+            }
+            if !input_metadata.is_empty() {
+                Some(input_metadata)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+
         debug!(
             "PreparedStatement created with auto_commit = {}, parameter_metadata = {:?}",
             auto_commit,
@@ -211,6 +221,7 @@ pub mod factory {
                 None => None,
             },
             o_par_md: o_par_md,
+            o_input_md: o_input_md,
             o_rs_md: o_rs_md,
             _o_table_location: o_table_location,
             acc_server_proc_time: acc_server_proc_time,

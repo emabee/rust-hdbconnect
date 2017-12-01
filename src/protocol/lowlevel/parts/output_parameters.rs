@@ -29,8 +29,7 @@ impl OutputParameters {
     /// Returns the descriptor for the i'th parameter.
     pub fn parameter_descriptor(&self, i: usize) -> HdbResult<&ParameterDescriptor> {
         trace!("OutputParameters::parameter_descriptor()");
-        self.metadata
-            .get(i)
+        self.metadata.get(i)
             .ok_or(HdbError::InternalEvaluationError("wrong index: no such parameter"))
     }
 }
@@ -61,14 +60,13 @@ pub mod factory {
     use protocol::lowlevel::{prot_err, PrtResult};
     use protocol::lowlevel::parts::parameter_descriptor::{ParameterBinding, ParameterDescriptor,
                                                           ParameterDirection};
-    use protocol::lowlevel::parts::parameter_metadata::ParameterMetadata;
     use protocol::lowlevel::parts::typed_value::TypedValue;
     use protocol::lowlevel::parts::typed_value::factory as TypedValueFactory;
     use protocol::lowlevel::conn_core::ConnCoreRef;
 
     use std::io;
 
-    pub fn parse(o_conn_ref: Option<&ConnCoreRef>, par_md: &ParameterMetadata,
+    pub fn parse(o_conn_ref: Option<&ConnCoreRef>, par_md: &[ParameterDescriptor],
                  rdr: &mut io::BufRead)
                  -> PrtResult<OutputParameters> {
         trace!("OutputParameters::parse()");
@@ -82,7 +80,7 @@ pub mod factory {
             values: Vec::<TypedValue>::new(),
         };
 
-        for descriptor in &(par_md.descriptors) {
+        for descriptor in par_md {
             match descriptor.direction() {
                 ParameterDirection::INOUT | ParameterDirection::OUT => {
                     let typecode = descriptor.type_id();

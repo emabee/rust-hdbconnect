@@ -36,14 +36,15 @@ fn impl_test_050_metadata() -> HdbResult<i32> {
     Ok(connection.get_call_count()?)
 }
 
+#[allow(unknown_lints)]
+#[allow(cyclomatic_complexity)]
 fn procedure(connection: &mut Connection) -> HdbResult<()> {
     info!("procedure(): run a sqlscript procedure with input parameters");
 
     test_utils::statement_ignore_err(connection, vec!["drop procedure TEST_MD_PARS"]);
     connection.multiple_statements(vec![
         "\
-        CREATE  PROCEDURE \
-        TEST_MD_PARS( \
+        CREATE  PROCEDURE TEST_MD_PARS( \
             IN in_int INT, \
             IN in_string NVARCHAR(20), \
             INOUT inout_decimal DECIMAL(10,5), \
@@ -83,22 +84,20 @@ fn procedure(connection: &mut Connection) -> HdbResult<()> {
 
 
     let mut rs: ResultSet = response.get_resultset()?;
-    {
-        let rs_md = rs.metadata();
-        assert_eq!(rs_md.columnname(0)?, "I");
-        assert_eq!(rs_md.displayname(0)?, "I");
-        assert_eq!(rs_md.has_default(0)?, false);
-        assert_eq!(rs_md.is_array_type(0)?, false);
-        assert_eq!(rs_md.is_nullable(0)?, true);
-        assert_eq!(rs_md.is_readonly(0)?, false);
-        assert_eq!(rs_md.precision(0)?, 10);
-        assert_eq!(rs_md.scale(0)?, 0);
-    }
     let mut row: Row = rs.pop_row().unwrap();
     let value: i32 = row.field_into(0)?;
     assert_eq!(value, 42_i32);
     let value: String = row.field_into(1)?;
     assert_eq!(&value, "is between 41 and 43");
 
+    let rs_md = rs.metadata();
+    assert_eq!(rs_md.columnname(0)?, "I");
+    assert_eq!(rs_md.displayname(0)?, "I");
+    assert_eq!(rs_md.has_default(0)?, false);
+    assert_eq!(rs_md.is_array_type(0)?, false);
+    assert_eq!(rs_md.is_nullable(0)?, true);
+    assert_eq!(rs_md.is_readonly(0)?, false);
+    assert_eq!(rs_md.precision(0)?, 10);
+    assert_eq!(rs_md.scale(0)?, 0);
     Ok(())
 }

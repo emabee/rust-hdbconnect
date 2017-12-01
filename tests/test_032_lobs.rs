@@ -25,7 +25,11 @@ use std::io::{self, Read};
 // cargo test test_032_lobs -- --nocapture
 #[test]
 pub fn test_032_lobs() {
-    let mut logger_handle = Logger::with_str("info").start_reconfigurable().unwrap();
+    let mut logger_handle = Logger::with_str("info").log_to_file()
+                                                    .duplicate_info()
+                                                    .print_message()
+                                                    .start_reconfigurable()
+                                                    .unwrap();
 
     match impl_test_032_lobs(&mut logger_handle) {
         Err(e) => {
@@ -39,8 +43,8 @@ pub fn test_032_lobs() {
 fn impl_test_032_lobs(logger_handle: &mut ReconfigurationHandle) -> HdbResult<i32> {
     let mut connection = test_utils::get_authenticated_connection()?;
 
-    test_blobs(&mut connection, logger_handle)?;
     test_clobs(&mut connection, logger_handle)?;
+    test_blobs(&mut connection, logger_handle)?;
 
     Ok(connection.get_call_count()?)
 }
@@ -166,8 +170,7 @@ fn test_clobs(connection: &mut Connection, logger_handle: &mut ReconfigurationHa
     {
         let mut f = File::open("tests/blabla.txt").expect("file not found");
         let mut blabla = String::new();
-        f.read_to_string(&mut blabla)
-         .expect("something went wrong reading the file");
+        f.read_to_string(&mut blabla).expect("something went wrong reading the file");
         for _ in 0..3 {
             three_times_blabla.push_str(&blabla);
         }

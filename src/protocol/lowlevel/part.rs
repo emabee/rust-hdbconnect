@@ -4,7 +4,7 @@ use super::conn_core::ConnCoreRef;
 use super::message::MsgType;
 use super::partkind::PartKind;
 use super::part_attributes::PartAttributes;
-use super::parts::parameter_metadata::ParameterMetadata;
+use super::parts::parameter_descriptor::ParameterDescriptor;
 use super::parts::resultset_metadata::ResultSetMetadata;
 use super::parts::resultset::ResultSet;
 
@@ -80,7 +80,7 @@ impl Part {
     ///
     pub fn parse(msg_type: MsgType, already_received_parts: &mut Parts,
                  o_conn_ref: Option<&ConnCoreRef>, rs_md: Option<&ResultSetMetadata>,
-                 par_md: Option<&ParameterMetadata>, o_rs: &mut Option<&mut ResultSet>,
+                 par_md: Option<&Vec<ParameterDescriptor>>, o_rs: &mut Option<&mut ResultSet>,
                  rdr: &mut io::BufRead)
                  -> PrtResult<Part> {
         trace!("Entering parse()");
