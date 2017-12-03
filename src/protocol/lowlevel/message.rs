@@ -133,9 +133,10 @@ impl Request {
 
         // re-pack InternalReturnValues into appropriate HdbResponse
         debug!("Building HdbResponse for a reply of type {:?}", reply.type_);
-        trace!("The found InternalReturnValue are: {:?}", int_return_values);
+        trace!("The found InternalReturnValues are: {:?}", int_return_values);
         match reply.type_ {
-            ReplyType::Select => HdbResponseFactory::resultset(int_return_values),
+            ReplyType::Select | 
+            ReplyType::SelectForUpdate => HdbResponseFactory::resultset(int_return_values),
 
             ReplyType::Ddl |
             ReplyType::Commit |
@@ -149,6 +150,7 @@ impl Request {
             ReplyType::DbProcedureCallWithResult =>
                 HdbResponseFactory::multiple_return_values(int_return_values),
 
+
             // dedicated ReplyTypes that are handled elsewhere and that
             // should not go through this method:
             ReplyType::Nil | ReplyType::Connect | ReplyType::Fetch | ReplyType::ReadLob |
@@ -159,7 +161,6 @@ impl Request {
             ReplyType::WriteLob |
 
             // FIXME: 4 ReplyTypes where it is unclear when they occur and what to return:
-            ReplyType::SelectForUpdate |
             ReplyType::Explain |
             ReplyType::XaStart |
             ReplyType::XaJoin => {

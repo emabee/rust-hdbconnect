@@ -215,7 +215,9 @@ pub mod factory {
     }
 
     pub fn success(mut int_return_values: Vec<InternalReturnValue>) -> HdbResult<HdbResponse> {
-        if int_return_values.len() > 1 {
+        if int_return_values.is_empty() {
+            return Ok(HdbResponse(vec![HdbReturnValue::Success]));
+        } else if int_return_values.len() > 1 {
             return Err(HdbError::InternalEvaluationError(
                 "found multiple InternalReturnValues, but only a single Success was expected",
             ));
