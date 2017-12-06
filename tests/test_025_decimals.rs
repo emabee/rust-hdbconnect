@@ -14,6 +14,7 @@ use flexi_logger::{LogSpecification, ReconfigurationHandle};
 use hdbconnect::{Connection, HdbResult};
 use num::FromPrimitive;
 use rust_decimal::Decimal;
+use num::cast::ToPrimitive;
 
 #[test] // cargo test --test test_025_decimals -- --nocapture
 pub fn test_025_decimals() {
@@ -42,7 +43,7 @@ fn evaluate_resultset(reconfiguration_handle: &mut ReconfigurationHandle,
     // prepare the db table
     test_utils::statement_ignore_err(connection, vec!["drop table TEST_DECIMALS"]);
     let stmts = vec![
-        "create table TEST_DECIMALS (f1 NVARCHAR(100) primary key, f2 DECIMAL(7,5))",
+        "create table TEST_DECIMALS (f1 NVARCHAR(100) primary key, f2 DECIMAL(7,5), f3 integer)",
         "insert into TEST_DECIMALS (f1, f2) values('0.00000', 0.000)",
         "insert into TEST_DECIMALS (f1, f2) values('0.00100', 0.001)",
         "insert into TEST_DECIMALS (f1, f2) values('-0.00100', -0.001)",
@@ -77,7 +78,8 @@ fn evaluate_resultset(reconfiguration_handle: &mut ReconfigurationHandle,
     insert_stmt.execute_batch()?;
 
     info!("Read and verify decimals");
-    let result: Vec<TestData> = connection.query("select * from TEST_DECIMALS")?.try_into()?;
+    let result: Vec<TestData> = connection.query("select f1, f2 from TEST_DECIMALS")?
+                                          .try_into()?;
     for td in result {
         debug!("{}, {}", td.f1, td.f2);
         assert_eq!(td.f1, format!("{}", td.f2));
@@ -90,6 +92,14 @@ fn evaluate_resultset(reconfiguration_handle: &mut ReconfigurationHandle,
         assert_eq!(row.0, row.1);
     }
 
+    let resultset = connection.query("select AVG(F3) from TEST_DECIMALS")?;
+    let mydata: Option<Decimal> = resultset.try_into()?;
+    assert_eq!(mydata, None);
+
+    let mydata: Option<Decimal> =
+        connection.query("select AVG(F2) from TEST_DECIMALS where f2 = '65.53500'")?
+                  .try_into()?;
+    assert_eq!(mydata.unwrap().to_i64(), Some(65));
 
     Ok(())
 }

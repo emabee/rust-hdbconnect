@@ -1,39 +1,47 @@
 use super::{PrtError, PrtResult};
 
+// Here we list all those parts that are or should be implemented by this driver.
+// ABAP related stuff and "reserved" numbers is omitted.
 #[derive(Debug, Clone, Copy)]
 pub enum PartKind {
-    Command,              // 3 // SQL Command Data
-    ResultSet,            // 5 // Tabular resultset data
-    Error,                // 6 // Error information
-    StatementId,          // 10 // Prepared statement identifier
-    TransactionId,        // 11 // Transaction identifier // FIXME is missing
-    RowsAffected,         // 12 // Number of affected rows of dml statement
-    ResultSetId,          // 13 // Identifier of resultset
-    TopologyInformation,  // 15 // Topology information
-    TableLocation,        // 16 // Location of table data
-    ReadLobRequest,       // 17 // Request data of READLOB message
-    ReadLobReply,         // 18 // Reply data of READLOB message
-    CommandInfo,          // 27 // Command information // FIXME is missing
-    WriteLobRequest,      // 28 // Request data of WRITELOB message // FIXME is missing
-    ClientContext, // 29 // Client context; PartKindEnum in api/Communication/Protocol/Layout.hpp
-    WriteLobReply, // 30 // Reply data of WRITELOB message // FIXME is missing
-    Parameters,    // 32 // Parameter data  // FIXME is missing
-    Authentication, // 33 // Authentication data
-    SessionContext, // 34 // Session context information  // FIXME is missing
-    StatementContext, // 39 // Statement visibility context
-    PartitionInformation, // 40 // Table partitioning information // FIXME is missing
-    OutputParameters, // 41 // Output parameter data
-    ConnectOptions, // 42 // Connect options
-    CommitOptions, // 43 // Commit options
-    FetchOptions,  // 44 // Fetch options
-    FetchSize,     // 45 // Number of rows to fetch
-    ParameterMetadata, // 47 // Parameter metadata (type and length information)
-    ResultSetMetadata, // 48 // Result set metadata (type, length , and name information)
-    FindLobRequest, // 49 // Request data of FINDLOB message // FIXME is missing
-    FindLobReply,  // 50 // Reply data of FINDLOB message // FIXME is missing
-    ClientInfo,    // 57 // Client information values
-    TransactionFlags, // 64 // Transaction handling flags
-    LobFlags,      // 68 // LOB flags // FIXME is missing
+    Command,               // 3 // SQL Command Data
+    ResultSet,             // 5 // Tabular resultset data
+    Error,                 // 6 // Error information
+    StatementId,           // 10 // Prepared statement identifier
+    TransactionId,         // 11 // Transaction identifier // FIXME is missing
+    RowsAffected,          // 12 // Number of affected rows of dml statement
+    ResultSetId,           // 13 // Identifier of resultset
+    TopologyInformation,   // 15 // Topology information
+    TableLocation,         // 16 // Location of table data
+    ReadLobRequest,        // 17 // Request data of READLOB message
+    ReadLobReply,          // 18 // Reply data of READLOB message
+    CommandInfo,           // 27 // Command information // FIXME is missing
+    WriteLobRequest,       // 28 // Request data of WRITELOB message // FIXME is missing
+    ClientContext,         // 29 // Client context; PartKindEnum in api/Comm../Prot../Layout.hpp
+    WriteLobReply,         // 30 // Reply data of WRITELOB message // FIXME is missing
+    Parameters,            // 32 // Parameter data  // FIXME is missing
+    Authentication,        // 33 // Authentication data
+    SessionContext,        // 34 // Session context information  // FIXME is missing
+    StatementContext,      // 39 // Statement visibility context
+    PartitionInformation,  // 40 // Table partitioning information // FIXME is missing
+    OutputParameters,      // 41 // Output parameter data
+    ConnectOptions,        // 42 // Connect options
+    CommitOptions,         // 43 // Commit options
+    FetchOptions,          // 44 // Fetch options
+    FetchSize,             // 45 // Number of rows to fetch
+    ParameterMetadata,     // 47 // Parameter metadata (type and length information)
+    ResultSetMetadata,     // 48 // Result set metadata (type, length , and name information)
+    FindLobRequest,        // 49 // Request data of FINDLOB message // FIXME is missing
+    FindLobReply,          // 50 // Reply data of FINDLOB message // FIXME is missing
+    ClientInfo,            // 57 // Client information values
+    TransactionFlags,      // 64 // Transaction handling flags
+    LobFlags,              // 68 // LOB flags // FIXME is missing
+    ResultsetOptions,      // 69 // Additional context data for result sets
+    XATransactionInfo,     // 70 // XA transaction information
+    SessionVariable,       // 71 // undocumented
+    WorkloadReplayContext, // 72 // undocumented
+    SQLReplyOptions,       // 73 // undocumented
+    PrintOptions,          // 74 // undocumented
 }
 impl PartKind {
     pub fn to_i8(&self) -> i8 {
@@ -70,6 +78,12 @@ impl PartKind {
             PartKind::ClientInfo => 57,
             PartKind::TransactionFlags => 64,
             PartKind::LobFlags => 68,
+            PartKind::ResultsetOptions => 69,
+            PartKind::XATransactionInfo => 70,
+            PartKind::SessionVariable => 71,
+            PartKind::WorkloadReplayContext => 72,
+            PartKind::SQLReplyOptions => 73,
+            PartKind::PrintOptions => 74,
         }
     }
 

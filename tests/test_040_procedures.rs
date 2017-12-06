@@ -58,6 +58,7 @@ fn very_simple_procedure(connection: &mut Connection) -> HdbResult<()> {
             END",
     ])?;
 
+    info!("CHECK");
     let mut response = connection.statement("call TEST_PROCEDURE")?;
     response.get_success()?;
     let _resultset = response.get_resultset()?;

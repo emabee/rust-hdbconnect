@@ -1,6 +1,8 @@
 use protocol::protocol_error::{PrtError, PrtResult};
 
-/// Identifies the nature of the statement or functionality that has been prepared or executed
+// Identifies the nature of the statement or functionality that has been prepared or executed.
+// Is documented as Function Code.
+// Irrelevant numbers (ABAP stuff, "reserved") are not listed.
 #[derive(Debug)]
 pub enum ReplyType {
     Nil,                       // Nil
@@ -24,6 +26,9 @@ pub enum ReplyType {
     FindLob,                   // FINDLOB message
     XaStart,                   // XA_START message
     XaJoin,                    // XA_JOIN message
+    XAControl,                 // undocumented
+    XAPrepare,                 // undocumented
+    XARecover,                 // undocumented
 }
 impl ReplyType {
     pub fn from_i16(val: i16) -> PrtResult<ReplyType> {
@@ -44,11 +49,17 @@ impl ReplyType {
             14 => Ok(ReplyType::Connect),
             15 => Ok(ReplyType::WriteLob),
             16 => Ok(ReplyType::ReadLob),
+            //17 -> Ping
             18 => Ok(ReplyType::Disconnect),
             19 => Ok(ReplyType::CloseCursor),
             20 => Ok(ReplyType::FindLob),
+            // 21 ABAPSTREAM
             22 => Ok(ReplyType::XaStart),
             23 => Ok(ReplyType::XaJoin),
+            // 24 -> ItabWrite
+            25 => Ok(ReplyType::XAControl),
+            26 => Ok(ReplyType::XAPrepare),
+            27 => Ok(ReplyType::XARecover),
             _ => Err(
                 PrtError::ProtocolError(format!("Invalid value for ReplyType detected: {}", val)),
             ),
@@ -78,6 +89,9 @@ impl ReplyType {
             ReplyType::FindLob => 20,
             ReplyType::XaStart => 22,
             ReplyType::XaJoin => 23,
+            ReplyType::XAControl => 25,
+            ReplyType::XAPrepare => 26,
+            ReplyType::XARecover => 27,
         }
     }
 }

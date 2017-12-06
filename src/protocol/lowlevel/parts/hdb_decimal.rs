@@ -35,16 +35,16 @@ impl HdbDecimal {
         let raw: [u8; 16] = decimal.serialize();
         let mantissa: &[u8] = &raw[4..16];
 
-        let mut bits = [0_u8; 16];
-        mantissa.iter().enumerate().for_each(|(i, b)| bits[i] = *b);
+        let mut bytes = [0_u8; 16];
+        mantissa.iter().enumerate().for_each(|(i, b)| bytes[i] = *b);
 
         let scale: u16 = (6176 - decimal.scale()) as u16;
-        LittleEndian::write_u16(&mut bits[14..16], scale * 2);
+        LittleEndian::write_u16(&mut bytes[14..16], scale * 2);
 
         if decimal.is_negative() {
-            bits[15] |= 0b_1000_0000_u8;
+            bytes[15] |= 0b_1000_0000_u8;
         }
-        let result = HdbDecimal { raw: bits };
+        let result = HdbDecimal { raw: bytes };
         trace!("result.as_decimal(): {}", result.as_decimal());
         Ok(result)
     }
@@ -101,15 +101,24 @@ impl fmt::Display for HdbDecimal {
 }
 
 pub fn parse_decimal(rdr: &mut io::BufRead) -> PrtResult<HdbDecimal> {
-    let mut vec: [u8; 16] = [0; 16];
-    rdr.read_exact(&mut vec[..])?;
-    Ok(HdbDecimal { raw: vec })
+    let mut bytes: [u8; 16] = [0; 16];
+    rdr.read_exact(&mut bytes[..])?;
+    Ok(HdbDecimal { raw: bytes })
 }
 
 pub fn parse_nullable_decimal(rdr: &mut io::BufRead) -> PrtResult<Option<HdbDecimal>> {
-    let mut vec: [u8; 16] = [0; 16];
-    rdr.read_exact(&mut vec[..])?;
-    Ok(Some(HdbDecimal { raw: vec }))
+    let mut bytes: [u8; 16] = [0; 16];
+    rdr.read_exact(&mut bytes[..])?;
+
+    if bytes[15] == 112 && bytes[14] == 0 && bytes[13] == 0 && bytes[12] == 0 && bytes[11] == 0
+        && bytes[10] == 0 && bytes[9] == 0 && bytes[8] == 0 && bytes[7] == 0 && bytes[6] == 0
+        && bytes[5] == 0 && bytes[4] == 0 && bytes[3] == 0 && bytes[2] == 0 && bytes[1] == 0
+        && bytes[0] == 0
+    {
+        Ok(None)
+    } else {
+        Ok(Some(HdbDecimal { raw: bytes }))
+    }
 }
 
 pub fn serialize_decimal(d: &HdbDecimal, w: &mut io::Write) -> PrtResult<()> {

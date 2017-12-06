@@ -1,7 +1,9 @@
 use protocol::protocol_error::{PrtError, PrtResult};
 
 
-/// Defines the action requested from the database server
+// Defines the action requested from the database server.
+// Is documented as Message Type.
+// Irrelevant RequestTypes (abap related, "reserved" stuff) are omitted.
 #[derive(Debug)]
 pub enum RequestType {
     DummyForReply,   // (Used for reply segments)
@@ -26,6 +28,13 @@ pub enum RequestType {
     FetchLast,       // Moves the cursor to the last row and fetches the data
     Disconnect,      // Disconnects session
     DbConnectInfo,   // Request/receive database connect information
+                     // MessageType_XOpen_XAStart      = 83,
+                     // MessageType_XOpen_XAEnd        = 84,
+                     // MessageType_XOpen_XAPrepare    = 85,
+                     // MessageType_XOpen_XACommit     = 86,
+                     // MessageType_XOpen_XARollback   = 87,
+                     // MessageType_XOpen_XARecover    = 88,
+                     // MessageType_XOpen_XAForget     = 89,
 }
 
 impl RequestType {

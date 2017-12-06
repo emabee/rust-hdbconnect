@@ -33,7 +33,6 @@ pub fn test_016_selectforupdate() {
 fn impl_test_016_selectforupdate(logger_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
     let mut connection = test_utils::get_authenticated_connection()?;
     prepare(&mut connection, logger_handle)?;
-    // simple_select_for_update(&mut connection, logger_handle)?;
     produce_conflict(&mut connection, logger_handle)?;
     info!("{} calls to DB were executed", connection.get_call_count()?);
     Ok(())
@@ -79,7 +78,7 @@ fn prepare(connection: &mut Connection, _logger_handle: &mut ReconfigurationHand
 
 fn produce_conflict(connection: &mut Connection, logger_handle: &mut ReconfigurationHandle)
                     -> HdbResult<()> {
-    logger_handle.set_new_spec(LogSpecification::parse("trace"));
+    logger_handle.set_new_spec(LogSpecification::parse("info"));
     connection.set_auto_commit(false);
 
     debug!("get two more connection");

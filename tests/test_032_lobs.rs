@@ -180,10 +180,8 @@ fn test_clobs(connection: &mut Connection, logger_handle: &mut ReconfigurationHa
     // insert it into HANA
     let mut insert_stmt =
         connection.prepare("insert into TEST_LOBS (desc, chardata) values (?,?)")?;
-    logger_handle.set_new_spec(LogSpecification::parse("trace"));
     insert_stmt.add_batch(&("3x blabla", &three_times_blabla))?;
     insert_stmt.execute_batch()?;
-    logger_handle.set_new_spec(LogSpecification::parse("info"));
 
     // and read it back
     let before = connection.get_call_count()?;

@@ -163,7 +163,10 @@ impl Request {
             // FIXME: 4 ReplyTypes where it is unclear when they occur and what to return:
             ReplyType::Explain |
             ReplyType::XaStart |
-            ReplyType::XaJoin => {
+            ReplyType::XaJoin |
+            ReplyType::XAControl |
+            ReplyType::XAPrepare |
+            ReplyType::XARecover => {
                 let s = format!("unexpected reply type {:?} in \
                                  send_and_get_response()", reply.type_);
                 error!("{}",s);
