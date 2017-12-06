@@ -1,5 +1,6 @@
 use {HdbError, HdbResult};
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
+use num::cast::ToPrimitive;
 use serde_db::de::{ConversionError, DbValue, DbValueInto, DeserializableResultset,
                    DeserializableRow, DeserializationError, DeserializationResult};
 use std::{i16, i32, i64, i8, u16, u32, u8};
@@ -194,6 +195,11 @@ impl DbValueInto<u8> for TypedValue {
                     Err(number_range(&i, "u8"))
                 }
             }
+            TypedValue::DECIMAL(hdbdecimal) | TypedValue::N_DECIMAL(Some(hdbdecimal)) => {
+                hdbdecimal.into_decimal()
+                          .to_u8()
+                          .ok_or_else(|| decimal_range("u8"))
+            }
 
             value => Err(wrong_type(&value, "u8")),
         }
@@ -227,6 +233,11 @@ impl DbValueInto<u16> for TypedValue {
                     Err(number_range(&i, "u16"))
                 }
             }
+            TypedValue::DECIMAL(hdbdecimal) | TypedValue::N_DECIMAL(Some(hdbdecimal)) => {
+                hdbdecimal.into_decimal()
+                          .to_u16()
+                          .ok_or_else(|| decimal_range("u16"))
+            }
 
             value => Err(wrong_type(&value, "u16")),
         }
@@ -258,6 +269,11 @@ impl DbValueInto<u32> for TypedValue {
                     Err(number_range(&i, "u32"))
                 }
             }
+            TypedValue::DECIMAL(hdbdecimal) | TypedValue::N_DECIMAL(Some(hdbdecimal)) => {
+                hdbdecimal.into_decimal()
+                          .to_u32()
+                          .ok_or_else(|| decimal_range("u32"))
+            }
 
             value => Err(wrong_type(&value, "u32")),
         }
@@ -288,6 +304,11 @@ impl DbValueInto<u64> for TypedValue {
                 Err(number_range(&i, "u64"))
             },
 
+            TypedValue::DECIMAL(hdbdecimal) | TypedValue::N_DECIMAL(Some(hdbdecimal)) => {
+                hdbdecimal.into_decimal()
+                          .to_u64()
+                          .ok_or_else(|| decimal_range("u64"))
+            }
             value => Err(wrong_type(&value, "u64")),
         }
     }
@@ -326,6 +347,11 @@ impl DbValueInto<i8> for TypedValue {
                     Err(number_range(&i, "i8"))
                 }
             }
+            TypedValue::DECIMAL(hdbdecimal) | TypedValue::N_DECIMAL(Some(hdbdecimal)) => {
+                hdbdecimal.into_decimal()
+                          .to_i8()
+                          .ok_or_else(|| decimal_range("i8"))
+            }
 
             value => Err(wrong_type(&value, "i8")),
         }
@@ -355,6 +381,11 @@ impl DbValueInto<i16> for TypedValue {
                     Err(number_range(&i, "i16"))
                 }
             }
+            TypedValue::DECIMAL(hdbdecimal) | TypedValue::N_DECIMAL(Some(hdbdecimal)) => {
+                hdbdecimal.into_decimal()
+                          .to_i16()
+                          .ok_or_else(|| decimal_range("i16"))
+            }
 
             value => Err(wrong_type(&value, "i16")),
         }
@@ -378,6 +409,11 @@ impl DbValueInto<i32> for TypedValue {
                     Err(number_range(&i, "i32"))
                 }
             }
+            TypedValue::DECIMAL(hdbdecimal) | TypedValue::N_DECIMAL(Some(hdbdecimal)) => {
+                hdbdecimal.into_decimal()
+                          .to_i32()
+                          .ok_or_else(|| decimal_range("i32"))
+            }
             value => Err(wrong_type(&value, "i32")),
         }
     }
@@ -392,7 +428,11 @@ impl DbValueInto<i64> for TypedValue {
             TypedValue::INT(i) | TypedValue::N_INT(Some(i)) => Ok(i64::from(i)),
             TypedValue::BIGINT(i) | TypedValue::N_BIGINT(Some(i)) => Ok(i),
             TypedValue::LONGDATE(ld) | TypedValue::N_LONGDATE(Some(ld)) => Ok(*ld.ref_raw()),
-
+            TypedValue::DECIMAL(hdbdecimal) | TypedValue::N_DECIMAL(Some(hdbdecimal)) => {
+                hdbdecimal.into_decimal()
+                          .to_i64()
+                          .ok_or_else(|| decimal_range("i64"))
+            }
             value => Err(wrong_type(&value, "i64")),
         }
     }
@@ -402,6 +442,11 @@ impl DbValueInto<i64> for TypedValue {
 impl DbValueInto<f32> for TypedValue {
     fn try_into(self) -> Result<f32, ConversionError> {
         match self {
+            TypedValue::DECIMAL(hdbdecimal) | TypedValue::N_DECIMAL(Some(hdbdecimal)) => {
+                hdbdecimal.into_decimal()
+                          .to_f32()
+                          .ok_or_else(|| decimal_range("f32"))
+            }
             TypedValue::REAL(f) | TypedValue::N_REAL(Some(f)) => Ok(f),
             value => Err(wrong_type(&value, "f32")),
         }
@@ -412,6 +457,11 @@ impl DbValueInto<f32> for TypedValue {
 impl DbValueInto<f64> for TypedValue {
     fn try_into(self) -> Result<f64, ConversionError> {
         match self {
+            TypedValue::DECIMAL(hdbdecimal) | TypedValue::N_DECIMAL(Some(hdbdecimal)) => {
+                hdbdecimal.into_decimal()
+                          .to_f64()
+                          .ok_or_else(|| decimal_range("f64"))
+            }
             TypedValue::DOUBLE(f) | TypedValue::N_DOUBLE(Some(f)) => Ok(f),
             value => Err(wrong_type(&value, "f64")),
         }
@@ -510,6 +560,12 @@ fn wrong_type(tv: &TypedValue, ovt: &str) -> ConversionError {
 fn number_range(value: &i64, ovt: &str) -> ConversionError {
     ConversionError::NumberRange(
         format!("The value {:?} exceeds the number range of type {}", value, ovt),
+    )
+}
+
+fn decimal_range(ovt: &str) -> ConversionError {
+    ConversionError::NumberRange(
+        format!("The given decimal value cannot be converted into a number of type {}", ovt),
     )
 }
 

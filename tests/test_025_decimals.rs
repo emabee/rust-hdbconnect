@@ -14,7 +14,6 @@ use flexi_logger::{LogSpecification, ReconfigurationHandle};
 use hdbconnect::{Connection, HdbResult};
 use num::FromPrimitive;
 use rust_decimal::Decimal;
-use num::cast::ToPrimitive;
 
 #[test] // cargo test --test test_025_decimals -- --nocapture
 pub fn test_025_decimals() {
@@ -96,10 +95,10 @@ fn evaluate_resultset(reconfiguration_handle: &mut ReconfigurationHandle,
     let mydata: Option<Decimal> = resultset.try_into()?;
     assert_eq!(mydata, None);
 
-    let mydata: Option<Decimal> =
+    let mydata: Option<i64> =
         connection.query("select AVG(F2) from TEST_DECIMALS where f2 = '65.53500'")?
                   .try_into()?;
-    assert_eq!(mydata.unwrap().to_i64(), Some(65));
+    assert_eq!(mydata, Some(65));
 
     Ok(())
 }
