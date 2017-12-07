@@ -21,10 +21,10 @@ pub fn test_025_decimals() {
 
     match impl_test_025_decimals(&mut reconfiguration_handle) {
         Err(e) => {
-            error!("impl_test_015_resultset() failed with {:?}", e);
+            error!("impl_test_025_decimals() failed with {:?}", e);
             assert!(false)
         }
-        Ok(_) => debug!("impl_test_015_resultset() ended successful"),
+        Ok(_) => debug!("impl_test_025_decimals() ended successful"),
     }
 }
 
@@ -65,10 +65,13 @@ fn evaluate_resultset(reconfiguration_handle: &mut ReconfigurationHandle,
     // prepare & execute
     let mut insert_stmt = connection.prepare(insert_stmt_str)?;
     insert_stmt.add_batch(&("75.53500", Decimal::from_f32(75.53500).unwrap()))?;
-    insert_stmt.add_batch(&("87.65432", Decimal::from_f32(87.65432).unwrap()))?;
-    insert_stmt.add_batch(&("0.00500", Decimal::from_f32(0.00500).unwrap()))?;
-    insert_stmt.add_batch(&("-0.00600", Decimal::from_f32(-0.00600).unwrap()))?;
-    insert_stmt.add_batch(&("-7.65432", Decimal::from_f32(-7.65432).unwrap()))?;
+    insert_stmt.add_batch(&("87.65432", 87.65432_f32))?;
+    insert_stmt.add_batch(&("0.00500", 0.005_f32))?;
+    insert_stmt.add_batch(&("-0.00600", -0.00600_f64))?;
+    insert_stmt.add_batch(&("-7.65432", -7.65432_f64))?;
+    insert_stmt.add_batch(&("99.00000", 99))?;
+    insert_stmt.add_batch(&("-50.00000", -50_i16))?;
+    insert_stmt.add_batch(&("22.00000", 22_i64))?;
     insert_stmt.execute_batch()?;
 
     reconfiguration_handle.set_new_spec(LogSpecification::parse("info"));
@@ -99,6 +102,16 @@ fn evaluate_resultset(reconfiguration_handle: &mut ReconfigurationHandle,
         connection.query("select AVG(F2) from TEST_DECIMALS where f2 = '65.53500'")?
                   .try_into()?;
     assert_eq!(mydata, Some(65));
+
+    // test failing conversion
+    let mydata: HdbResult<i8> = connection.query("select SUM(ABS(F2)) from TEST_DECIMALS")?
+                                          .try_into();
+    assert!(mydata.is_err());
+
+    // test working conversion
+    let mydata: i64 = connection.query("select SUM(ABS(F2)) from TEST_DECIMALS")?
+                                .try_into()?;
+    assert_eq!(mydata, 481);
 
     Ok(())
 }

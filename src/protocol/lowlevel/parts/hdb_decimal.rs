@@ -1,6 +1,6 @@
 use super::PrtResult;
 use byteorder::{ByteOrder, LittleEndian};
-use num::{FromPrimitive, ToPrimitive};
+use num::ToPrimitive;
 use num::bigint::{BigInt, Sign};
 use rust_decimal::Decimal;
 use std::fmt;
@@ -47,13 +47,6 @@ impl HdbDecimal {
         let result = HdbDecimal { raw: bytes };
         trace!("result.as_decimal(): {}", result.as_decimal());
         Ok(result)
-    }
-
-    /// Creates a HdbDecimal from a f32.
-    pub fn from_f32(f: f32) -> Result<HdbDecimal, SerializationError> {
-        HdbDecimal::from_decimal(Decimal::from_f32(f).ok_or_else(
-            || SerializationError::GeneralError("Cannot convert f32 to Decimal".to_string()),
-        )?)
     }
 
     /// Creates a HdbDecimal from a `rust_decimal::Decimal`.

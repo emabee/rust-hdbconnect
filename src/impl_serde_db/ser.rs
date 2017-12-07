@@ -7,6 +7,8 @@ use protocol::lowlevel::parts::parameter_descriptor::ParameterDescriptor;
 use protocol::lowlevel::parts::typed_value::TypedValue;
 use protocol::lowlevel::parts::type_id;
 
+use num::FromPrimitive;
+use rust_decimal::Decimal;
 use serde_db::ser::{DbvFactory, SerializationError};
 use std::{i16, i32, i64, i8, u16, u32, u8};
 use std::str::FromStr;
@@ -43,6 +45,12 @@ impl DbvFactory for ParameterDescriptor {
             type_id::N_INT => TypedValue::N_INT(Some(i32::from(value))),
             type_id::BIGINT => TypedValue::BIGINT(i64::from(value)),
             type_id::N_BIGINT => TypedValue::N_BIGINT(Some(i64::from(value))),
+            type_id::DECIMAL => TypedValue::DECIMAL(HdbDecimal::from_decimal(
+                Decimal::from_i8(value).ok_or_else(|| decimal_range(input_type))?,
+            )?),
+            type_id::N_DECIMAL => TypedValue::N_DECIMAL(Some(HdbDecimal::from_decimal(
+                Decimal::from_i8(value).ok_or_else(|| decimal_range(input_type))?,
+            )?)),
             _ => return Err(SerializationError::TypeMismatch(input_type, self.descriptor())),
         })
     }
@@ -65,6 +73,12 @@ impl DbvFactory for ParameterDescriptor {
             type_id::N_INT => TypedValue::N_INT(Some(i32::from(value))),
             type_id::BIGINT => TypedValue::BIGINT(i64::from(value)),
             type_id::N_BIGINT => TypedValue::N_BIGINT(Some(i64::from(value))),
+            type_id::DECIMAL => TypedValue::DECIMAL(HdbDecimal::from_decimal(
+                Decimal::from_i16(value).ok_or_else(|| decimal_range(input_type))?,
+            )?),
+            type_id::N_DECIMAL => TypedValue::N_DECIMAL(Some(HdbDecimal::from_decimal(
+                Decimal::from_i16(value).ok_or_else(|| decimal_range(input_type))?,
+            )?)),
             _ => return Err(SerializationError::TypeMismatch(input_type, self.descriptor())),
         })
     }
@@ -99,6 +113,12 @@ impl DbvFactory for ParameterDescriptor {
             type_id::N_INT => TypedValue::N_INT(Some(value)),
             type_id::BIGINT => TypedValue::BIGINT(i64::from(value)),
             type_id::N_BIGINT => TypedValue::N_BIGINT(Some(i64::from(value))),
+            type_id::DECIMAL => TypedValue::DECIMAL(HdbDecimal::from_decimal(
+                Decimal::from_i32(value).ok_or_else(|| decimal_range(input_type))?,
+            )?),
+            type_id::N_DECIMAL => TypedValue::N_DECIMAL(Some(HdbDecimal::from_decimal(
+                Decimal::from_i32(value).ok_or_else(|| decimal_range(input_type))?,
+            )?)),
             _ => return Err(SerializationError::TypeMismatch(input_type, self.descriptor())),
         })
     }
@@ -143,6 +163,12 @@ impl DbvFactory for ParameterDescriptor {
             type_id::N_BIGINT => TypedValue::N_BIGINT(Some(value)),
             type_id::LONGDATE => TypedValue::LONGDATE(LongDate::new(value)),
             type_id::N_LONGDATE => TypedValue::N_LONGDATE(Some(LongDate::new(value))),
+            type_id::DECIMAL => TypedValue::DECIMAL(HdbDecimal::from_decimal(
+                Decimal::from_i64(value).ok_or_else(|| decimal_range(input_type))?,
+            )?),
+            type_id::N_DECIMAL => TypedValue::N_DECIMAL(Some(HdbDecimal::from_decimal(
+                Decimal::from_i64(value).ok_or_else(|| decimal_range(input_type))?,
+            )?)),
             _ => return Err(SerializationError::TypeMismatch(input_type, self.descriptor())),
         })
     }
@@ -157,6 +183,12 @@ impl DbvFactory for ParameterDescriptor {
             type_id::N_INT => TypedValue::N_INT(Some(i32::from(value))),
             type_id::BIGINT => TypedValue::BIGINT(i64::from(value)),
             type_id::N_BIGINT => TypedValue::N_BIGINT(Some(i64::from(value))),
+            type_id::DECIMAL => TypedValue::DECIMAL(HdbDecimal::from_decimal(
+                Decimal::from_u8(value).ok_or_else(|| decimal_range(input_type))?,
+            )?),
+            type_id::N_DECIMAL => TypedValue::N_DECIMAL(Some(HdbDecimal::from_decimal(
+                Decimal::from_u8(value).ok_or_else(|| decimal_range(input_type))?,
+            )?)),
             _ => return Err(SerializationError::TypeMismatch(input_type, self.descriptor())),
         })
     }
@@ -187,6 +219,12 @@ impl DbvFactory for ParameterDescriptor {
             type_id::N_INT => TypedValue::N_INT(Some(i32::from(value))),
             type_id::BIGINT => TypedValue::BIGINT(i64::from(value)),
             type_id::N_BIGINT => TypedValue::N_BIGINT(Some(i64::from(value))),
+            type_id::DECIMAL => TypedValue::DECIMAL(HdbDecimal::from_decimal(
+                Decimal::from_u16(value).ok_or_else(|| decimal_range(input_type))?,
+            )?),
+            type_id::N_DECIMAL => TypedValue::N_DECIMAL(Some(HdbDecimal::from_decimal(
+                Decimal::from_u16(value).ok_or_else(|| decimal_range(input_type))?,
+            )?)),
             _ => return Err(SerializationError::TypeMismatch(input_type, self.descriptor())),
         })
     }
@@ -225,6 +263,12 @@ impl DbvFactory for ParameterDescriptor {
             },
             type_id::BIGINT => TypedValue::BIGINT(i64::from(value)),
             type_id::N_BIGINT => TypedValue::N_BIGINT(Some(i64::from(value))),
+            type_id::DECIMAL => TypedValue::DECIMAL(HdbDecimal::from_decimal(
+                Decimal::from_u32(value).ok_or_else(|| decimal_range(input_type))?,
+            )?),
+            type_id::N_DECIMAL => TypedValue::N_DECIMAL(Some(HdbDecimal::from_decimal(
+                Decimal::from_u32(value).ok_or_else(|| decimal_range(input_type))?,
+            )?)),
             _ => return Err(SerializationError::TypeMismatch(input_type, self.descriptor())),
         })
     }
@@ -271,22 +315,40 @@ impl DbvFactory for ParameterDescriptor {
             } else {
                 return Err(SerializationError::RangeErr(input_type, self.descriptor()));
             },
+            type_id::DECIMAL => TypedValue::DECIMAL(HdbDecimal::from_decimal(
+                Decimal::from_u64(value).ok_or_else(|| decimal_range(input_type))?,
+            )?),
+            type_id::N_DECIMAL => TypedValue::N_DECIMAL(Some(HdbDecimal::from_decimal(
+                Decimal::from_u64(value).ok_or_else(|| decimal_range(input_type))?,
+            )?)),
             _ => return Err(SerializationError::TypeMismatch(input_type, self.descriptor())),
         })
     }
     fn from_f32(&self, value: f32) -> Result<TypedValue, SerializationError> {
+        let input_type = "f32";
         Ok(match self.type_id() {
             type_id::REAL => TypedValue::REAL(value),
             type_id::N_REAL => TypedValue::N_REAL(Some(value)),
-            type_id::DECIMAL => TypedValue::DECIMAL(HdbDecimal::from_f32(value)?),
-            type_id::N_DECIMAL => TypedValue::N_DECIMAL(Some(HdbDecimal::from_f32(value)?)),
+            type_id::DECIMAL => TypedValue::DECIMAL(HdbDecimal::from_decimal(
+                Decimal::from_f32(value).ok_or_else(|| decimal_range(input_type))?,
+            )?),
+            type_id::N_DECIMAL => TypedValue::N_DECIMAL(Some(HdbDecimal::from_decimal(
+                Decimal::from_f32(value).ok_or_else(|| decimal_range(input_type))?,
+            )?)),
             _ => return Err(SerializationError::TypeMismatch("f32", self.descriptor())),
         })
     }
     fn from_f64(&self, value: f64) -> Result<TypedValue, SerializationError> {
+        let input_type = "f64";
         Ok(match self.type_id() {
             type_id::DOUBLE => TypedValue::DOUBLE(value),
             type_id::N_DOUBLE => TypedValue::N_DOUBLE(Some(value)),
+            type_id::DECIMAL => TypedValue::DECIMAL(HdbDecimal::from_decimal(
+                Decimal::from_f64(value).ok_or_else(|| decimal_range(input_type))?,
+            )?),
+            type_id::N_DECIMAL => TypedValue::N_DECIMAL(Some(HdbDecimal::from_decimal(
+                Decimal::from_f64(value).ok_or_else(|| decimal_range(input_type))?,
+            )?)),
             _ => return Err(SerializationError::TypeMismatch("f64", self.descriptor())),
         })
     }
@@ -534,4 +596,8 @@ fn from_utc_string(s: &str) -> Result<LongDate, ()> {
             Err(())
         }
     }
+}
+
+fn decimal_range(ovt: &'static str) -> SerializationError {
+    SerializationError::RangeErr(ovt, "Decimal".to_string())
 }
