@@ -1,6 +1,6 @@
 use super::PrtResult;
 use super::typed_value::{serialize_length_and_string, string_length};
-use super::typed_value::factory::parse_length_and_string;
+use super::typed_value::factory::parse_string;
 
 use std::collections::HashMap;
 use std::io::{BufRead, Write};
@@ -31,8 +31,8 @@ impl ClientInfo {
     pub fn parse_from_request(no_of_args: i32, rdr: &mut BufRead) -> PrtResult<ClientInfo> {
         let mut map = HashMap::new();
         for _ in 0..no_of_args {
-            let key = parse_length_and_string(rdr)?;
-            let value = parse_length_and_string(rdr)?;
+            let key = parse_string(rdr)?;
+            let value = parse_string(rdr)?;
             map.insert(key, value);
         }
         Ok(ClientInfo(map))

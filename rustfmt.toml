@@ -56,5 +56,3 @@
 # verbose                                       #  <boolean>                              Default: false          # Use verbose output
 # file_lines                                    #  <json>                                 Default: FileLines(None)# Lines to format; this is not supported in rustfmt.toml, and can only be specified via the --file-lines option
 # width_heuristics           Default: WidthHeuristics { fn_call_width: 60, struct_lit_width: 18, struct_variant_width: 35, array_width: 60, chain_width: 60, single_line_if_else_max_width: 50 } # 'small' heuristic values
-
-  width_heuristics = WidthHeuristics { fn_call_width =  60, struct_variant_width = 35, struct_lit_width = 18, array_width = 60, chain_width = 60, single_line_if_else_max_width = 50} # 'small' heuristic values
