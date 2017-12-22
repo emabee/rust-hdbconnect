@@ -21,6 +21,7 @@ use super::parts::server_error::ServerError;
 use super::parts::statement_context::StatementContext;
 use super::parts::topology_attribute::TopologyAttr;
 use super::parts::transactionflags::TransactionFlag;
+use super::parts::xat::XaTransaction;
 use super::util;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -51,27 +52,32 @@ pub enum Argument {
     TableLocation(Vec<i32>),
     TopologyInformation(Vec<TopologyAttr>),
     TransactionFlags(Vec<TransactionFlag>),
+    XaTransaction(XaTransaction),
 }
 
 impl Argument {
     // only called on output (serialize)
     pub fn count(&self) -> PrtResult<usize> {
         Ok(match *self {
-            Argument::Auth(_) |
-            Argument::Command(_) |
-            Argument::FetchSize(_) |
-            Argument::ResultSetId(_) |
-            Argument::StatementId(_) |
-            Argument::TopologyInformation(_) |
-            Argument::ReadLobRequest(_, _, _) => 1,
+            Argument::Auth(_)
+            | Argument::Command(_)
+            | Argument::FetchSize(_)
+            | Argument::ResultSetId(_)
+            | Argument::StatementId(_)
+            | Argument::TopologyInformation(_)
+            | Argument::ReadLobRequest(_, _, _) => 1,
             Argument::ClientInfo(ref client_info) => client_info.count(),
             Argument::ConnectOptions(ref opts) => opts.0.len(),
             Argument::Error(ref vec) => vec.len(),
             Argument::Parameters(ref pars) => pars.count(),
             Argument::StatementContext(ref sc) => sc.count(),
             Argument::TransactionFlags(ref opts) => opts.len(),
+            Argument::XaTransaction(ref xat) => xat.count(),
             ref a => {
-                return Err(PrtError::ProtocolError(format!("Argument::count() called on {:?}", a)));
+                return Err(PrtError::ProtocolError(format!(
+                    "Argument::count() called on {:?}",
+                    a
+                )));
             }
         })
     }
@@ -117,8 +123,12 @@ impl Argument {
             Argument::TransactionFlags(ref vec) => for opt in vec {
                 size += opt.size();
             },
-            ref a => {
-                return Err(PrtError::ProtocolError(format!("size() called on {:?}", a)));
+            Argument::XaTransaction(ref xat) => size += xat.size(),
+            ref arg => {
+                return Err(PrtError::ProtocolError(format!(
+                    "size() called on {:?}",
+                    arg
+                )));
             }
         }
         if with_padding {
@@ -189,8 +199,14 @@ impl Argument {
             Argument::TransactionFlags(ref vec) => for opt in vec {
                 opt.serialize(w)?;
             },
+            Argument::XaTransaction(ref xatid) => {
+                xatid.serialize(w)?;
+            }
             ref a => {
-                return Err(PrtError::ProtocolError(format!("serialize() called on {:?}", a)));
+                return Err(PrtError::ProtocolError(format!(
+                    "serialize() called on {:?}",
+                    a
+                )));
             }
         }
 
@@ -200,17 +216,30 @@ impl Argument {
             w.write_u8(0)?;
         }
 
-        trace!("remaining_bufsize: {}, size: {}, padsize: {}", remaining_bufsize, size, padsize);
+        trace!(
+            "remaining_bufsize: {}, size: {}, padsize: {}",
+            remaining_bufsize,
+            size,
+            padsize
+        );
         Ok(remaining_bufsize - size as u32 - padsize as u32)
     }
 
     #[allow(unknown_lints)]
     #[allow(too_many_arguments)]
-    pub fn parse(msg_type: MsgType, kind: PartKind, attributes: PartAttributes, no_of_args: i32,
-                 arg_size: i32, parts: &mut Parts, o_conn_ref: Option<&ConnCoreRef>,
-                 rs_md: Option<&ResultSetMetadata>, par_md: Option<&Vec<ParameterDescriptor>>,
-                 o_rs: &mut Option<&mut ResultSet>, rdr: &mut io::BufRead)
-                 -> PrtResult<Argument> {
+    pub fn parse(
+        msg_type: MsgType,
+        kind: PartKind,
+        attributes: PartAttributes,
+        no_of_args: i32,
+        arg_size: i32,
+        parts: &mut Parts,
+        o_conn_ref: Option<&ConnCoreRef>,
+        rs_md: Option<&ResultSetMetadata>,
+        par_md: Option<&Vec<ParameterDescriptor>>,
+        o_rs: &mut Option<&mut ResultSet>,
+        rdr: &mut io::BufRead,
+    ) -> PrtResult<Argument> {
         trace!(
             "Entering parse(no_of_args={}, msg_type = {:?}, kind={:?})",
             no_of_args,
@@ -311,9 +340,10 @@ impl Argument {
                 Argument::TransactionFlags(vec)
             }
             _ => {
-                return Err(PrtError::ProtocolError(
-                    format!("No handling implemented for received partkind value {}", kind.to_i8()),
-                ));
+                return Err(PrtError::ProtocolError(format!(
+                    "No handling implemented for received partkind value {}",
+                    kind.to_i8()
+                )));
             }
         };
 

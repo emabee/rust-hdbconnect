@@ -1,14 +1,14 @@
 use super::{prot_err, PrtError, PrtResult};
-use super::option_value::OptionValue;
+use super::prt_option_value::PrtOptionValue;
 
 use byteorder::{ReadBytesExt, WriteBytesExt};
 use std::io;
 
 #[derive(Debug, Default)]
 pub struct StatementContext {
-    pub statement_sequence_info: Option<OptionValue>,
-    pub server_processing_time: Option<OptionValue>,
-    pub schema_name: Option<OptionValue>,
+    pub statement_sequence_info: Option<PrtOptionValue>,
+    pub server_processing_time: Option<PrtOptionValue>,
+    pub schema_name: Option<PrtOptionValue>,
 }
 
 impl StatementContext {
@@ -19,9 +19,9 @@ impl StatementContext {
                 value.serialize(w)?;
                 Ok(())
             }
-            None => Err(
-                prot_err("StatementContext::serialize(): statement_sequence_info is not filled"),
-            ),
+            None => Err(prot_err(
+                "StatementContext::serialize(): statement_sequence_info is not filled",
+            )),
         }
     }
 
@@ -58,7 +58,7 @@ impl StatementContext {
         let mut sc = StatementContext::default();
         for _ in 0..count {
             let sc_id = ScId::from_i8(rdr.read_i8()?)?; // I1
-            let value = OptionValue::parse(rdr)?;
+            let value = PrtOptionValue::parse(rdr)?;
             match sc_id {
                 ScId::StatementSequenceInfo => sc.statement_sequence_info = Some(value),
                 ScId::ServerProcessingTime => sc.server_processing_time = Some(value),
@@ -69,7 +69,6 @@ impl StatementContext {
         Ok(sc)
     }
 }
-
 
 #[derive(Debug)]
 pub enum ScId {
@@ -91,7 +90,10 @@ impl ScId {
             1 => Ok(ScId::StatementSequenceInfo),
             2 => Ok(ScId::ServerProcessingTime),
             3 => Ok(ScId::SchemaName),
-            _ => Err(PrtError::ProtocolError(format!("Invalid value for ScId detected: {}", val))),
+            _ => Err(PrtError::ProtocolError(format!(
+                "Invalid value for ScId detected: {}",
+                val
+            ))),
         }
     }
 }

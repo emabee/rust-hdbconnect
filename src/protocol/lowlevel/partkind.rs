@@ -19,7 +19,7 @@ pub enum PartKind {
     WriteLobRequest,       // 28 // Request data of WRITELOB message // FIXME is missing
     ClientContext,         // 29 // Client context; PartKindEnum in api/Comm../Prot../Layout.hpp
     WriteLobReply,         // 30 // Reply data of WRITELOB message // FIXME is missing
-    Parameters,            // 32 // Parameter data  // FIXME is missing
+    Parameters,            // 32 // Parameter data
     Authentication,        // 33 // Authentication data
     SessionContext,        // 34 // Session context information  // FIXME is missing
     StatementContext,      // 39 // Statement visibility context
@@ -37,7 +37,7 @@ pub enum PartKind {
     TransactionFlags,      // 64 // Transaction handling flags
     LobFlags,              // 68 // LOB flags // FIXME is missing
     ResultsetOptions,      // 69 // Additional context data for result sets
-    XATransactionInfo,     // 70 // XA transaction information
+    XaTransaction,         // 70 // XA transaction information (XA transaction ID)
     SessionVariable,       // 71 // undocumented
     WorkloadReplayContext, // 72 // undocumented
     SQLReplyOptions,       // 73 // undocumented
@@ -79,7 +79,7 @@ impl PartKind {
             PartKind::TransactionFlags => 64,
             PartKind::LobFlags => 68,
             PartKind::ResultsetOptions => 69,
-            PartKind::XATransactionInfo => 70,
+            PartKind::XaTransaction => 70,
             PartKind::SessionVariable => 71,
             PartKind::WorkloadReplayContext => 72,
             PartKind::SQLReplyOptions => 73,
@@ -121,9 +121,11 @@ impl PartKind {
             57 => Ok(PartKind::ClientInfo),
             64 => Ok(PartKind::TransactionFlags),
             68 => Ok(PartKind::LobFlags),
-            _ => Err(
-                PrtError::ProtocolError(format!("Invalid value for PartKind detected: {}", val)),
-            ),
+            70 => Ok(PartKind::XaTransaction),
+            _ => Err(PrtError::ProtocolError(format!(
+                "Invalid value for PartKind detected: {}",
+                val
+            ))),
         }
     }
 }

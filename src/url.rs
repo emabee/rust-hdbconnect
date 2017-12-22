@@ -32,9 +32,15 @@ pub struct UserInfo {
 pub type Query = Vec<(String, String)>;
 
 impl Url {
-    pub fn new(scheme: String, user: Option<UserInfo>, host: String, port: Option<u16>,
-               path: String, query: Query, fragment: Option<String>)
-               -> Url {
+    pub fn new(
+        scheme: String,
+        user: Option<UserInfo>,
+        host: String,
+        port: Option<u16>,
+        path: String,
+        query: Query,
+        fragment: Option<String>,
+    ) -> Url {
         Url {
             scheme: scheme,
             user: user,
@@ -58,8 +64,15 @@ impl Url {
         // query and fragment
         let (query, fragment) = get_query_fragment(rest)?;
 
-        let url =
-            Url::new(scheme.to_owned(), userinfo, host.to_owned(), port, path, query, fragment);
+        let url = Url::new(
+            scheme.to_owned(),
+            userinfo,
+            host.to_owned(),
+            port,
+            path,
+            query,
+            fragment,
+        );
         Ok(url)
     }
 }
@@ -114,43 +127,26 @@ fn decode_inner(c: &str, full_url: bool) -> DecodeResult<String> {
                     '%' => {
                         let bytes = match (iter.next(), iter.next()) {
                             (Some(one), Some(two)) => [one, two],
-                            _ => return Err(
-                                "Malformed input: found '%' without two trailing bytes".to_owned(),
-                            ),
+                            _ => {
+                                return Err("Malformed input: found '%' without two trailing bytes"
+                                    .to_owned())
+                            }
                         };
 
                         let bytes_from_hex = match Vec::<u8>::from_hex(&bytes) {
                             Ok(b) => b,
                             _ => {
-                                return Err(
-                                    "Malformed input: found '%' followed by invalid hex  \
-                                     values. Character '%' must escaped."
-                                    .to_owned(),
-                                )
+                                return Err("Malformed input: found '%' followed by invalid hex  \
+                                            values. Character '%' must escaped."
+                                    .to_owned())
                             }
                         };
 
                         // Only decode some characters if full_url:
                         match bytes_from_hex[0] as char {
                             // gen-delims:
-                            ':' |
-                            '/' |
-                            '?' |
-                            '#' |
-                            '[' |
-                            ']' |
-                            '@' |
-                            '!' |
-                            '$' |
-                            '&' |
-                            '"' |
-                            '(' |
-                            ')' |
-                            '*' |
-                            '+' |
-                            ',' |
-                            ';' |
-                            '=' if full_url =>
+                            ':' | '/' | '?' | '#' | '[' | ']' | '@' | '!' | '$' | '&' | '"'
+                            | '(' | ')' | '*' | '+' | ',' | ';' | '=' if full_url =>
                             {
                                 out.push('%');
                                 out.push(bytes[0] as char);
@@ -258,23 +254,23 @@ fn get_authority(rawurl: &str) -> DecodeResult<(Option<UserInfo>, &str, Option<u
             'A'...'F' | 'a'...'f' => if input == Input::Digit {
                 input = Input::Hex;
             },
-            'G'...'Z' |
-            'g'...'z' |
-            '-' |
-            '.' |
-            '_' |
-            '~' |
-            '%' |
-            '&' |
-            '\'' |
-            '(' |
-            ')' |
-            '+' |
-            '!' |
-            '*' |
-            ',' |
-            ';' |
-            '=' => input = Input::Unreserved,
+            'G'...'Z'
+            | 'g'...'z'
+            | '-'
+            | '.'
+            | '_'
+            | '~'
+            | '%'
+            | '&'
+            | '\''
+            | '('
+            | ')'
+            | '+'
+            | '!'
+            | '*'
+            | ','
+            | ';'
+            | '=' => input = Input::Unreserved,
             ':' | '@' | '?' | '#' | '/' => {
                 // separators, don't change anything
             }
@@ -383,34 +379,33 @@ fn get_authority(rawurl: &str) -> DecodeResult<(Option<UserInfo>, &str, Option<u
     Ok((userinfo, host, port, rest))
 }
 
-
 // returns the path and unparsed part of url, or an error
 fn get_path(rawurl: &str, is_authority: bool) -> DecodeResult<(String, &str)> {
     let len = rawurl.len();
     let mut end = len;
     for (i, c) in rawurl.chars().enumerate() {
         match c {
-            'A'...'Z' |
-            'a'...'z' |
-            '0'...'9' |
-            '&' |
-            '\'' |
-            '(' |
-            ')' |
-            '.' |
-            '@' |
-            ':' |
-            '%' |
-            '/' |
-            '+' |
-            '!' |
-            '*' |
-            ',' |
-            ';' |
-            '=' |
-            '_' |
-            '-' |
-            '~' => continue,
+            'A'...'Z'
+            | 'a'...'z'
+            | '0'...'9'
+            | '&'
+            | '\''
+            | '('
+            | ')'
+            | '.'
+            | '@'
+            | ':'
+            | '%'
+            | '/'
+            | '+'
+            | '!'
+            | '*'
+            | ','
+            | ';'
+            | '='
+            | '_'
+            | '-'
+            | '~' => continue,
             '?' | '#' => {
                 end = i;
                 break;
@@ -439,7 +434,10 @@ fn get_query_fragment(rawurl: &str) -> DecodeResult<(Query, Option<String>)> {
     match before_fragment.chars().next() {
         Some('?') => Ok((query_from_str(&before_fragment[1..])?, fragment)),
         None => Ok((vec![], fragment)),
-        _ => Err(format!("Query didn't start with '?': '{}..'", before_fragment)),
+        _ => Err(format!(
+            "Query didn't start with '?': '{}..'",
+            before_fragment
+        )),
     }
 }
 

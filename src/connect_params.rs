@@ -3,7 +3,6 @@ use {HdbError, HdbResult};
 use url::{self, Url};
 use std::mem;
 
-
 /// An immutable struct with all information necessary to open a new connection
 /// to a HANA database.
 ///
@@ -90,9 +89,7 @@ impl IntoConnectParams for Url {
             host,
             port,
             user,
-            path: url::Path {
-                query: options, ..
-            },
+            path: url::Path { query: options, .. },
             ..
         } = self;
 
@@ -118,7 +115,6 @@ impl IntoConnectParams for Url {
         builder.build()
     }
 }
-
 
 /// A builder for `ConnectParams`.
 ///
@@ -185,7 +181,6 @@ impl ConnectParamsBuilder {
         self
     }
 
-
     /// Constructs a `ConnectParams` from the builder.
     pub fn build(&mut self) -> HdbResult<ConnectParams> {
         Ok(ConnectParams {
@@ -243,9 +238,7 @@ impl IntoConnectParamsBuilder for Url {
             host,
             port,
             user,
-            path: url::Path {
-                query: options, ..
-            },
+            path: url::Path { query: options, .. },
             ..
         } = self;
 
@@ -279,12 +272,13 @@ mod tests {
 
     #[test]
     fn test_oneliner() {
-        let connect_params: ConnectParams = ConnectParams::builder().hostname("abcd123")
-                                                                    .port(2222)
-                                                                    .dbuser("MEIER")
-                                                                    .password("schlau")
-                                                                    .build()
-                                                                    .unwrap();
+        let connect_params: ConnectParams = ConnectParams::builder()
+            .hostname("abcd123")
+            .port(2222)
+            .dbuser("MEIER")
+            .password("schlau")
+            .build()
+            .unwrap();
         assert_eq!("abcd123", connect_params.hostname());
         assert_eq!("MEIER", connect_params.dbuser());
         assert_eq!(2222, connect_params.port());
@@ -294,14 +288,16 @@ mod tests {
     fn test_reuse_builder() {
         let mut cp_builder: ConnectParamsBuilder = ConnectParams::builder();
         cp_builder.hostname("abcd123").port(2222);
-        let params1: ConnectParams = cp_builder.dbuser("MEIER")
-                                               .password("schlau")
-                                               .build()
-                                               .unwrap();
-        let params2: ConnectParams = cp_builder.dbuser("HALLODRI")
-                                               .password("kannnix")
-                                               .build()
-                                               .unwrap();
+        let params1: ConnectParams = cp_builder
+            .dbuser("MEIER")
+            .password("schlau")
+            .build()
+            .unwrap();
+        let params2: ConnectParams = cp_builder
+            .dbuser("HALLODRI")
+            .password("kannnix")
+            .build()
+            .unwrap();
 
         assert_eq!("abcd123", params1.hostname());
         assert_eq!("abcd123", params2.hostname());
@@ -313,8 +309,9 @@ mod tests {
 
     #[test]
     fn test_params_from_url() {
-        let params = "hdbsql://meier:schLau@abcd123:2222".into_connect_params()
-                                                         .unwrap();
+        let params = "hdbsql://meier:schLau@abcd123:2222"
+            .into_connect_params()
+            .unwrap();
 
         assert_eq!("meier", params.dbuser());
         assert_eq!("schLau", params.password());
@@ -323,11 +320,12 @@ mod tests {
     }
     #[test]
     fn test_builder_from_url() {
-        let params = "hdbsql://meier:schLau@abcd123:2222".into_connect_params_builder()
-                                                         .unwrap()
-                                                         .password("GanzArgSchlau")
-                                                         .build()
-                                                         .unwrap();
+        let params = "hdbsql://meier:schLau@abcd123:2222"
+            .into_connect_params_builder()
+            .unwrap()
+            .password("GanzArgSchlau")
+            .build()
+            .unwrap();
 
         assert_eq!("meier", params.dbuser());
         assert_eq!("GanzArgSchlau", params.password());

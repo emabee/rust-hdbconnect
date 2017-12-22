@@ -1,49 +1,60 @@
-verbose = false                             # Use verbose output
-skip_children = false                       # Don't reformat out of line modules
+# max_width                                     #  <unsigned integer>                     Default: 100            # Maximum width of each line
+# hard_tabs                                     #  <boolean>                              Default: false          # Use tab characters for indentation, spaces for alignment
+# tab_spaces                                    #  <unsigned integer>                     Default: 4              # Number of spaces per tab
+# newline_style                                 #  [Windows|Unix|Native]                  Default: Unix           # Unix or Windows line endings
+# indent_style                                  #  [Visual|Block]                         Default: Block          # How do we indent expressions or items.
+# use_small_heuristics                          #  <boolean>                              Default: true           # Whether to use different formatting for items and expressions if they satisfy a heuristic notion of 'small'.
+  format_strings= true                          #  <boolean>                              Default: false          # Format string literals where necessary
+  wrap_comments = true                          #  <boolean>                              Default: false          # Break comments to fit on the line
+  comment_width = 100                           #  <unsigned integer>                     Default: 80             # Maximum length of comments. No effect unless wrap_comments = true
+  normalize_comments = true                     #  <boolean>                              Default: false          # Convert /* */ comments to // comments where possible
+# empty_item_single_line                        #  <boolean>                              Default: true           # Put empty-body functions and impls on a single line
+# struct_lit_single_line                        #  <boolean>                              Default: true           # Put small struct literals on a single line
+# fn_single_line = true                         #  <boolean>                              Default: false          # Put single-expression functions on a single line
+# where_single_line                             #  <boolean>                              Default: false          # To force single line where layout
+# imports_indent                                #  [Visual|Block]                         Default: Visual         # Indent of imports
+# imports_layout                      #  [Vertical|Horizontal|HorizontalVertical|Mixed]   Default: Mixed          # Item layout inside a import block
+# reorder_extern_crates                         #  <boolean>                              Default: true           # Reorder extern crate statements alphabetically
+# reorder_extern_crates_in_group                #  <boolean>                              Default: true           # Reorder extern crate statements in group
+# reorder_imports                               #  <boolean>                              Default: false          # Reorder import statements alphabetically
+# reorder_imports_in_group                      #  <boolean>                              Default: false          # Reorder import statements in group
+# reorder_imported_names                        #  <boolean>                              Default: true           # Reorder lists of names in import statements alphabetically
+# binop_separator                               #  [Front|Back]                           Default: Front          # Where to put a binary operator when a binary expression goes multiline.
+# type_punctuation_density                      #  [Compressed|Wide]                      Default: Wide           # Determines if '+' or '=' are wrapped in spaces in the punctuation of types
+# space_before_colon                            #  <boolean>                              Default: false          # Leave a space before the colon
+# space_after_colon                             #  <boolean>                              Default: true           # Leave a space after the colon
+# spaces_around_ranges                          #  <boolean>                              Default: false          # Put spaces around the  .. and ... range operators
+# spaces_within_parens_and_brackets             #  <boolean>                              Default: false          # Put spaces within non-empty parentheses or brackets
+# combine_control_expr                          #  <boolean>                              Default: true           # Combine control expressions with function calls.
+# struct_field_align_threshold                  #  <unsigned integer>                     Default: 0              # Align struct fields if their diffs fits within threshold.
+# remove_blank_lines_at_start_or_end_of_block   #  <boolean>                              Default: true           # Remove blank lines at start or end of a block
+# same_line_attributes                          #  <boolean>                              Default: true           # Try to put attributes on the same line as fields and variants.
+# match_arm_blocks                              #  <boolean>                              Default: true           # Wrap the body of arms in blocks when it does not fit on the same line with the pattern of arms
+# force_multiline_blocks                        #  <boolean>                              Default: false          # Force multiline closure bodies and match arms to be wrapped in a block
+# fn_args_density                               #  [Compressed|Tall|Vertical]             Default: Tall           # Argument density in functions
+# brace_style                         #  [AlwaysNextLine|PreferSameLine|SameLineWhere]    Default: SameLineWhere  # Brace style for items
+# control_brace_style                 #  [AlwaysSameLine|ClosingNextLine|AlwaysNextLine]  Default: AlwaysSameLine # Brace style for control flow constructs
+# trailing_comma                                #  [Always|Never|Vertical]                Default: Vertical       # How to handle trailing commas for lists
+# trailing_semicolon                            #  <boolean>                              Default: true           # Add trailing semicolon after break, continue and return
+# match_block_trailing_comma                    #  <boolean>                              Default: false          # Put a trailing comma after a block based match arm (non-block arms are not affected)
+# blank_lines_upper_bound                       #  <unsigned integer>                     Default: 1              # Maximum number of blank lines which can be put between items.
+# blank_lines_lower_bound                       #  <unsigned integer>                     Default: 0              # Minimum number of blank lines which must be put between items.
+# merge_derives                                 #  <boolean>                              Default: true           # Merge multiple `#[derive(...)]` into a single one
+  use_try_shorthand = true                      #  <boolean>                              Default: false          # Replace uses of the try! macro by the ? shorthand
+# condense_wildcard_suffixes                    #  <boolean>                              Default: false          # Replace strings of _ wildcards by a single .. in tuple patterns
+# force_explicit_abi                            #  <boolean>                              Default: true           # Always print the abi for extern items
+# write_mode                #  [Replace|Overwrite|Display|Diff|Coverage|Plain|Checkstyle] Default: Overwrite      # Write Mode to use when none is supplied
+# color                                         #  [Always|Never|Auto]                    Default: Auto           # Color option to use when none is supplied
+# required_version                              #  <string>                               Default: "0.3.3"        # Require a specific version of rustfmt.
+# unstable_features                             #  <boolean>                              Default: false          # Enables unstable features. Only available on nightly channel
+# disable_all_formatting                        #  <boolean>                              Default: false          # Don't reformat anything
+# skip_children                                 #  <boolean>                              Default: false          # Don't reformat out of line modules
+# error_on_line_overflow                        #  <boolean>                              Default: true           # Error if unable to get all lines within max_width
+# error_on_unformatted                          #  <boolean>                              Default: false          # Error if unable to get comments or string literals within max_width, or they are left with trailing whitespaces
+# report_todo = "Always"                        #  [Always|Unnumbered|Never]              Default: Never          # Report all, none or unnumbered occurrences of TODO in source file comments
+# report_fixme = "Always"                       #  [Always|Unnumbered|Never]              Default: Never          # Report all, none or unnumbered occurrences of FIXME in source file comments
+# verbose                                       #  <boolean>                              Default: false          # Use verbose output
+# file_lines                                    #  <json>                                 Default: FileLines(None)# Lines to format; this is not supported in rustfmt.toml, and can only be specified via the --file-lines option
+# width_heuristics           Default: WidthHeuristics { fn_call_width: 60, struct_lit_width: 18, struct_variant_width: 35, array_width: 60, chain_width: 60, single_line_if_else_max_width: 50 } # 'small' heuristic values
 
-max_width = 100                             # (100) Maximum width of each line
-ideal_width = 100                           # (80) Ideal width of each line
-tab_spaces = 4                              # Number of spaces per tab
-fn_call_width = 100                         # (60) Maximum width of the args of a function call before falling back to vertical formatting
-struct_lit_width = 16                       # Maximum width in the body of a struct lit before falling back to vertical formatting
-newline_style = "Unix"                      # Unix or Windows line endings
-
-fn_brace_style = "SameLineWhere"            # [AlwaysNextLine|PreferSameLine|SameLineWhere] Brace style for functions
-item_brace_style = "SameLineWhere"          # [AlwaysNextLine|PreferSameLine|SameLineWhere] Brace style for structs and enums
-impl_empty_single_line = true               # Put empty-body implementations on a single line
-fn_empty_single_line = true                 # Put empty-body functions on a single line
-fn_single_line = false                      # (false) Put single-expression functions on a single line
-fn_return_indent = "WithArgs"               # [WithArgs|WithWhereClause] Location of return type in function declaration
-fn_args_paren_newline = true                # If function argument parenthesis goes on a newline
-fn_args_density = "Compressed"              # (Tall) [Compressed|Tall|CompressedIfEmpty] Argument density in functions
-fn_args_layout = "Visual"                   # (Visual) [Visual|Block] Layout of function arguments
-fn_arg_indent = "Visual"                    # [Inherit|Tabbed|Visual] Indent on function arguments
-type_punctuation_density = "Wide"           # [Compressed|Wide] Determines if '+' or '=' are wrapped in spaces in the punctuation of types
-where_density = "CompressedIfEmpty"         # [Compressed|Tall|CompressedIfEmpty] Density of a where clause
-where_indent = "Tabbed"                     # [Inherit|Tabbed|Visual] Indentation of a where clause
-where_layout = "Vertical"                   # [Vertical|Horizontal|HorizontalVertical|Mixed] Element layout inside a where clause
-where_pred_indent = "Visual"                # [Inherit|Tabbed|Visual] Indentation style of a where predicate
-where_trailing_comma = false                # Put a trailing comma on where clauses
-generics_indent = "Visual"                  # [Inherit|Tabbed|Visual] Indentation of generics
-struct_trailing_comma = "Vertical"          # [Always|Never|Vertical] If there is a trailing comma on structs
-struct_lit_trailing_comma = "Vertical"      # [Always|Never|Vertical] If there is a trailing comma on literal structs
-struct_lit_style = "Block"                  # [Visual|Block] Style of struct definition
-struct_lit_multiline_style = "PreferSingle" # [PreferSingle|ForceMulti] Multiline style on literal structs
-enum_trailing_comma = true                  # Put a trailing comma on enum declarations
-report_todo = "Never"                       # [Always|Unnumbered|Never] Report all, none or unnumbered occurrences of TODO in source file comments
-report_fixme = "Never"                      # [Always|Unnumbered|Never] Report all, none or unnumbered occurrences of FIXME in source file comments
-chain_base_indent = "Visual"                # [Inherit|Tabbed|Visual] Indent on chain base
-chain_indent = "Visual"                     # [Inherit|Tabbed|Visual] Indentation of chain
-reorder_imports = false                     # Reorder import statements alphabetically
-single_line_if_else = true                  # Put else on same line as closing brace for if statements
-format_strings = true                       # Format string literals where necessary
-force_format_strings = false                # Always format string literals
-chains_overflow_last = true                 # Allow last call in method chain to break the line
-take_source_hints = true                    # Retain some formatting characteristics from the source code
-hard_tabs = false                           # Use tab characters for indentation, spaces for alignment
-wrap_comments = false                       # Break comments to fit on the line
-normalise_comments = true                   # Convert /* */ comments to // comments where possible
-wrap_match_arms = true                      # Wrap multiline match arms in blocks
-match_block_trailing_comma = false          # Put a trailing comma after a block based match arm (non-block arms are not affected)
-match_wildcard_trailing_comma = true        # Put a trailing comma after a wildcard arm
-write_mode = "Overwrite"                    # (Replace) [Replace|Overwrite|Display|Diff|Coverage|Plain|Checkstyle] What Write Mode to use when none is supplied: Replace, Overwrite, Display, Diff, Coverage
+  width_heuristics = WidthHeuristics { fn_call_width =  60, struct_variant_width = 35, struct_lit_width = 18, array_width = 60, chain_width = 60, single_line_if_else_max_width = 50} # 'small' heuristic values

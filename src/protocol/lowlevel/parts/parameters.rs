@@ -45,7 +45,6 @@ impl ParameterRow {
     }
 }
 
-
 /// A PARAMETERS part contains input parameters.
 /// The argument count of the part defines how many rows of parameters are included.
 #[derive(Clone, Debug)]

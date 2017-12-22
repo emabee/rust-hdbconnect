@@ -9,8 +9,6 @@ use std::ops::Mul;
 use std::str::FromStr;
 use serde_db::ser::SerializationError;
 
-
-
 // SIGN           1-bit     (byte 15, highest bit)  Sign: 0 is positive, 1 is negative
 // EXPONENT      14-bit     (byte 14, above lowest bit; byte 15, below highest bit) Exponent,
 //                          biased with 6176, leading to a range -6143 to +6144
@@ -31,7 +29,11 @@ impl HdbDecimal {
                 "Cannot serialize decimal string to Decimal".to_string(),
             )
         })?;
-        trace!("HdbDecimal::from_str() called with: {}, converted to decimal {}", s, decimal);
+        trace!(
+            "HdbDecimal::from_str() called with: {}, converted to decimal {}",
+            s,
+            decimal
+        );
         let raw: [u8; 16] = decimal.serialize();
         let mantissa: &[u8] = &raw[4..16];
 

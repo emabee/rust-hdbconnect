@@ -1,5 +1,5 @@
 use super::{PrtError, PrtResult};
-use super::option_value::OptionValue;
+use super::prt_option_value::PrtOptionValue;
 
 use byteorder::{ReadBytesExt, WriteBytesExt};
 use std::io;
@@ -14,7 +14,7 @@ use std::io;
 #[derive(Clone, Debug)]
 pub struct TransactionFlag {
     pub id: TaFlagId,
-    pub value: OptionValue,
+    pub value: PrtOptionValue,
 }
 impl TransactionFlag {
     pub fn serialize(&self, w: &mut io::Write) -> PrtResult<()> {
@@ -28,14 +28,13 @@ impl TransactionFlag {
 
     pub fn parse(rdr: &mut io::BufRead) -> PrtResult<TransactionFlag> {
         let option_id = TaFlagId::from_i8(rdr.read_i8()?)?; // I1
-        let value = OptionValue::parse(rdr)?;
+        let value = PrtOptionValue::parse(rdr)?;
         Ok(TransactionFlag {
             id: option_id,
             value: value,
         })
     }
 }
-
 
 #[derive(Clone, Debug)]
 pub enum TaFlagId {
@@ -75,9 +74,10 @@ impl TaFlagId {
             6 => Ok(TaFlagId::SessionclosingTaError),
             7 => Ok(TaFlagId::ReadOnlyMode),
             8 => Ok(TaFlagId::Last),
-            _ => Err(PrtError::ProtocolError(
-                format!("Invalid value for TransactionFlag detected: {}", val),
-            )),
+            _ => Err(PrtError::ProtocolError(format!(
+                "Invalid value for TransactionFlag detected: {}",
+                val
+            ))),
         }
     }
 }

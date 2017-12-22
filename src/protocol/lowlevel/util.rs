@@ -4,7 +4,6 @@ use byteorder::WriteBytesExt;
 use std::io;
 use std::iter::repeat;
 
-
 /// Write a byte vec to a Write impl
 pub fn serialize_bytes(v: &[u8], w: &mut io::Write) -> PrtResult<()> {
     for b in v {
@@ -22,7 +21,6 @@ pub fn parse_bytes(len: usize, rdr: &mut io::BufRead) -> PrtResult<Vec<u8>> {
     }
     Ok(vec)
 }
-
 
 pub fn string_to_cesu8(s: &str) -> Vec<u8> {
     to_cesu8(s).to_vec()
@@ -47,7 +45,6 @@ pub fn cesu8_length(s: &str) -> usize {
     len
 }
 
-
 // ===== Stolen from crate cesu8, because the original used unstable features
 // Copyright 2012-2014 The Rust Project Developers and Eric Kidd.  See the
 // COPYRIGHT-RUST.txt file at the top-level directory of this distribution.
@@ -57,7 +54,6 @@ pub fn cesu8_length(s: &str) -> usize {
 // <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
 // option. This file may not be copied, modified, or distributed except
 // according to those terms.
-
 
 // ! A simple library implementing the [CESU-8 compatibility encoding
 // ! scheme](http://www.unicode.org/reports/tr26/tr26-2.html).  This is a
@@ -133,7 +129,6 @@ pub fn cesu8_length(s: &str) -> usize {
 // ! > * Add 0xDC00 to the low value to form the low surrogate: 0xDC00 +
 // ! >   0x0037 = 0xDC37.
 
-
 use std::borrow::Cow;
 use std::error::Error;
 use std::fmt;
@@ -166,8 +161,6 @@ static UTF8_CHAR_WIDTH: [u8; 256] = [
 pub fn utf8_char_width(b: u8) -> usize {
     UTF8_CHAR_WIDTH[b as usize] as usize
 }
-
-
 
 /// Mask of the value bits of a continuation byte.
 const CONT_MASK: u8 = 0b0011_1111u8;
@@ -309,10 +302,10 @@ pub fn decode_from_iter(decoded: &mut Vec<u8>, iter: &mut slice::Iter<u8>) -> (b
                     let third = next_cont!();
                     match (first, second) {
                         // These are valid UTF-8, so pass them through.
-                        (0xE0, 0xA0...0xBF) |
-                        (0xE1...0xEC, 0x80...0xBF) |
-                        (0xED, 0x80...0x9F) |
-                        (0xEE...0xEF, 0x80...0xBF) => {
+                        (0xE0, 0xA0...0xBF)
+                        | (0xE1...0xEC, 0x80...0xBF)
+                        | (0xED, 0x80...0x9F)
+                        | (0xEE...0xEF, 0x80...0xBF) => {
                             decoded.extend([first, second, third].iter().cloned());
                             byte_count += 3;
                         }
@@ -338,8 +331,6 @@ pub fn decode_from_iter(decoded: &mut Vec<u8>, iter: &mut slice::Iter<u8>) -> (b
         }
     }
 }
-
-
 
 /// Convert the two trailing bytes from a CESU-8 surrogate to a regular
 /// surrogate value.
@@ -458,10 +449,11 @@ fn get_hi_lo_surrogates(utf8_4: &[u8; 4]) -> (u16, u16) {
     assert!(high_surrogate_codepoint <= 0xFFFF_u32);
     assert!(low_surrogate_codepoint <= 0xFFFF_u32);
     // so both are 16 bit only
-    (high_surrogate_codepoint as u16, low_surrogate_codepoint as u16)
+    (
+        high_surrogate_codepoint as u16,
+        low_surrogate_codepoint as u16,
+    )
 }
-
-
 
 /// Check whether a Rust string contains valid CESU-8 data.
 pub fn is_valid_cesu8(text: &str) -> bool {

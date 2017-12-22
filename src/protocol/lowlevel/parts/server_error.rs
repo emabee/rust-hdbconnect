@@ -13,9 +13,14 @@ pub struct ServerError {
     pub text: String,
 }
 impl ServerError {
-    pub fn new(code: i32, position: i32, text_length: i32, severity: i8, sqlstate: Vec<u8>,
-               text: String)
-               -> ServerError {
+    pub fn new(
+        code: i32,
+        position: i32,
+        text_length: i32,
+        severity: i8,
+        sqlstate: Vec<u8>,
+        text: String,
+    ) -> ServerError {
         ServerError {
             code: code,
             position: position,
@@ -53,7 +58,6 @@ impl ServerError {
         let pad = arg_size - 4 - 4 - 4 - 1 - 5 - text_length;
         trace!("Skipping over {} padding bytes", pad);
         rdr.consume(pad as usize);
-
 
         let hdberr = ServerError::new(code, position, text_length, severity, sqlstate, text);
         debug!("parse(): found hdberr with {}", hdberr.textual_repr());

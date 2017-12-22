@@ -66,7 +66,6 @@ pub const LONGDATE: u8 = 61;
 // pub const SECONDTIME: u8       =  64;
 // 65 - 80: Reserved, do not use
 
-
 /// Nullable Variant of TINYINT
 pub const N_TINYINT: u8 = TINYINT + 128;
 /// Nullable Variant of SMALLINT

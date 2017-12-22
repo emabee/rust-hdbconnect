@@ -47,10 +47,10 @@ impl error::Error for PrtError {
         match *self {
             PrtError::Cesu8Error(ref error) => Some(error),
             PrtError::IoError(ref error) => Some(error),
-            PrtError::ProtocolError(_) |
-            PrtError::DbMessage(_) |
-            PrtError::PoisonError(_) |
-            PrtError::UsageError(_) => None,
+            PrtError::ProtocolError(_)
+            | PrtError::DbMessage(_)
+            | PrtError::PoisonError(_)
+            | PrtError::UsageError(_) => None,
         }
     }
 }

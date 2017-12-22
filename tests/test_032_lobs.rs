@@ -166,8 +166,7 @@ fn test_clobs(connection: &mut Connection, logger_handle: &mut ReconfigurationHa
     {
         let mut f = File::open("tests/blabla.txt").expect("file not found");
         let mut blabla = String::new();
-        f.read_to_string(&mut blabla)
-         .expect("something went wrong reading the file");
+        f.read_to_string(&mut blabla).expect("something went wrong reading the file");
         for _ in 0..3 {
             three_times_blabla.push_str(&blabla);
         }

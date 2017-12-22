@@ -15,15 +15,14 @@ use std::sync;
 /// Just for convenience.
 pub type HdbResult<T> = result::Result<T, HdbError>;
 
-
-
 /// Represents all possible errors that can occur in hdbconnect.
 #[derive(Debug)]
 pub enum HdbError {
     /// Conversion of single db value to rust type failed.
     ConversionError(ConversionError),
 
-    /// Error occured in deserialization of data structures into an application-defined structure.
+    /// Error occured in deserialization of data structures into an application-defined
+    /// structure.
     DeserializationError(DeserializationError),
 
     /// Error occured while evaluating a HdbResponse object.
@@ -74,10 +73,10 @@ impl error::Error for HdbError {
             HdbError::FmtError(ref error) => Some(error),
             HdbError::ProtocolError(ref error) => Some(error),
             HdbError::SerializationError(ref error) => Some(error),
-            HdbError::UsageError(_) |
-            HdbError::PoisonError(_) |
-            HdbError::EvaluationError(_) |
-            HdbError::InternalEvaluationError(_) => None,
+            HdbError::UsageError(_)
+            | HdbError::PoisonError(_)
+            | HdbError::EvaluationError(_)
+            | HdbError::InternalEvaluationError(_) => None,
         }
     }
 }

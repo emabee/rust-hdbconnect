@@ -16,8 +16,8 @@ const PART_HEADER_SIZE: usize = 16;
 
 #[derive(Debug)]
 pub struct Part {
-    kind: PartKind, // FIXME can we remove this?
-    arg: Argument,  // a.k.a. part data, or part buffer :-(
+    kind: PartKind,
+    arg: Argument, // a.k.a. part data, or part buffer :-(
 }
 
 impl Part {
@@ -40,9 +40,7 @@ impl Part {
     pub fn serialize(&self, mut remaining_bufsize: u32, w: &mut io::Write) -> PrtResult<u32> {
         debug!(
             "Serializing part of kind {:?} with remaining_bufsize {} (u32) = {} (i32)",
-            self.kind,
-            remaining_bufsize,
-            remaining_bufsize as i32
+            self.kind, remaining_bufsize, remaining_bufsize as i32
         );
         // PART HEADER 16 bytes
         w.write_i8(self.kind.to_i8())?; // I1 Nature of part data
@@ -57,7 +55,9 @@ impl Part {
                 w.write_i32::<LittleEndian>(i as i32)?; // I4 Number of elements in arg
             }
             _ => {
-                return Err(prot_err("argument count bigger than i32::MAX is not supported"));
+                return Err(prot_err(
+                    "argument count bigger than i32::MAX is not supported",
+                ));
             }
         }
         // I4 Length of args in bytes:
@@ -78,19 +78,20 @@ impl Part {
     }
 
     ///
-    pub fn parse(msg_type: MsgType, already_received_parts: &mut Parts,
-                 o_conn_ref: Option<&ConnCoreRef>, rs_md: Option<&ResultSetMetadata>,
-                 par_md: Option<&Vec<ParameterDescriptor>>, o_rs: &mut Option<&mut ResultSet>,
-                 rdr: &mut io::BufRead)
-                 -> PrtResult<Part> {
+    pub fn parse(
+        msg_type: MsgType,
+        already_received_parts: &mut Parts,
+        o_conn_ref: Option<&ConnCoreRef>,
+        rs_md: Option<&ResultSetMetadata>,
+        par_md: Option<&Vec<ParameterDescriptor>>,
+        o_rs: &mut Option<&mut ResultSet>,
+        rdr: &mut io::BufRead,
+    ) -> PrtResult<Part> {
         trace!("Entering parse()");
         let (kind, attributes, arg_size, no_of_args) = parse_part_header(rdr)?;
         debug!(
             "parse() found part of kind {:?} with attributes {:?}, arg_size {} and no_of_args {}",
-            kind,
-            attributes,
-            arg_size,
-            no_of_args
+            kind, attributes, arg_size, no_of_args
         );
         Ok(Part::new(
             kind,
@@ -123,7 +124,6 @@ fn parse_part_header(rdr: &mut io::BufRead) -> PrtResult<(PartKind, PartAttribut
     let no_of_args = max(i32::from(no_of_argsi16), no_of_argsi32);
     Ok((kind, attributes, arg_size, no_of_args))
 }
-
 
 #[derive(Debug, Default)]
 pub struct Parts(Vec<Part>);

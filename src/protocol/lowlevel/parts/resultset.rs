@@ -36,8 +36,11 @@ pub struct ResultSetCore {
 }
 
 impl ResultSetCore {
-    fn new_rs_ref(conn_ref: Option<&ConnCoreRef>, attrs: PartAttributes, rs_id: u64)
-                  -> Arc<Mutex<ResultSetCore>> {
+    fn new_rs_ref(
+        conn_ref: Option<&ConnCoreRef>,
+        attrs: PartAttributes,
+        rs_id: u64,
+    ) -> Arc<Mutex<ResultSetCore>> {
         Arc::new(Mutex::new(ResultSetCore {
             o_conn_ref: match conn_ref {
                 Some(conn_ref) => Some(Arc::clone(conn_ref)),
@@ -122,9 +125,15 @@ impl ResultSet {
         // build the request, provide resultset id, define FetchSize
         debug!("ResultSet::fetch_next() with fetch_size = {}", fetch_size);
         let command_options = 0;
-        let mut request = Request::new(&conn_ref, RequestType::FetchNext, true, command_options)?;
-        request.push(Part::new(PartKind::ResultSetId, Argument::ResultSetId(resultset_id)));
-        request.push(Part::new(PartKind::FetchSize, Argument::FetchSize(fetch_size)));
+        let mut request = Request::new(&conn_ref, RequestType::FetchNext, command_options)?;
+        request.push(Part::new(
+            PartKind::ResultSetId,
+            Argument::ResultSetId(resultset_id),
+        ));
+        request.push(Part::new(
+            PartKind::FetchSize,
+            Argument::FetchSize(fetch_size),
+        ));
 
         let mut reply = request.send_and_receive_detailed(
             None,
@@ -213,7 +222,7 @@ impl ResultSet {
     /// }
     /// let typed_result: Vec<MyStruct> = resultset.try_into()?;
     /// ```
-    ///
+    /// 
     pub fn try_into<'de, T>(mut self) -> HdbResult<T>
     where
         T: serde::de::Deserialize<'de>,
@@ -280,7 +289,7 @@ pub mod factory {
     use protocol::lowlevel::part::Parts;
     use protocol::lowlevel::part_attributes::PartAttributes;
     use protocol::lowlevel::partkind::PartKind;
-    use protocol::lowlevel::parts::option_value::OptionValue;
+    use protocol::lowlevel::parts::prt_option_value::PrtOptionValue;
     use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
     use protocol::lowlevel::parts::statement_context::StatementContext;
     use protocol::lowlevel::parts::typed_value::TypedValue;
@@ -288,11 +297,16 @@ pub mod factory {
     use std::io;
     use std::sync::Arc;
 
-    pub fn resultset_new(conn_ref: Option<&ConnCoreRef>, attrs: PartAttributes, rs_id: u64,
-                         rsm: ResultSetMetadata, o_stmt_ctx: Option<StatementContext>)
-                         -> ResultSet {
+    pub fn resultset_new(
+        conn_ref: Option<&ConnCoreRef>,
+        attrs: PartAttributes,
+        rs_id: u64,
+        rsm: ResultSetMetadata,
+        o_stmt_ctx: Option<StatementContext>,
+    ) -> ResultSet {
         let server_processing_time = match o_stmt_ctx {
-            Some(stmt_ctx) => if let Some(OptionValue::INT(i)) = stmt_ctx.server_processing_time {
+            Some(stmt_ctx) => if let Some(PrtOptionValue::INT(i)) = stmt_ctx.server_processing_time
+            {
                 i
             } else {
                 0
@@ -307,7 +321,6 @@ pub mod factory {
             acc_server_proc_time: server_processing_time,
         }
     }
-
 
     #[doc(hidden)]
     pub fn new_for_tests(rsm: ResultSetMetadata, rows: Vec<Row>) -> ResultSet {
@@ -335,10 +348,15 @@ pub mod factory {
     // For first resultset packets, we create and return a new ResultSet object
     // we expect the previous three parts to be
     // a matching ResultSetMetadata, a ResultSetId, and a StatementContext
-    pub fn parse(no_of_rows: i32, attributes: PartAttributes, parts: &mut Parts,
-                 o_conn_ref: Option<&ConnCoreRef>, rs_md: Option<&ResultSetMetadata>,
-                 o_rs: &mut Option<&mut ResultSet>, rdr: &mut io::BufRead)
-                 -> PrtResult<Option<ResultSet>> {
+    pub fn parse(
+        no_of_rows: i32,
+        attributes: PartAttributes,
+        parts: &mut Parts,
+        o_conn_ref: Option<&ConnCoreRef>,
+        rs_md: Option<&ResultSetMetadata>,
+        o_rs: &mut Option<&mut ResultSet>,
+        rdr: &mut io::BufRead,
+    ) -> PrtResult<Option<ResultSet>> {
         match *o_rs {
             None => {
                 // case a) or b)
@@ -346,9 +364,9 @@ pub mod factory {
                     Some(Argument::StatementContext(stmt_ctx)) => Some(stmt_ctx),
                     None => None,
                     _ => {
-                        return Err(
-                            prot_err("Inconsistent StatementContext part found for ResultSet"),
-                        )
+                        return Err(prot_err(
+                            "Inconsistent StatementContext part found for ResultSet",
+                        ))
                     }
                 };
 
@@ -375,15 +393,15 @@ pub mod factory {
             Some(ref mut fetching_resultset) => {
                 match parts.pop_arg_if_kind(PartKind::StatementContext) {
                     Some(Argument::StatementContext(stmt_ctx)) => {
-                        if let Some(OptionValue::INT(i)) = stmt_ctx.server_processing_time {
+                        if let Some(PrtOptionValue::INT(i)) = stmt_ctx.server_processing_time {
                             fetching_resultset.acc_server_proc_time += i;
                         }
                     }
                     None => {}
                     _ => {
-                        return Err(
-                            prot_err("Inconsistent StatementContext part found for ResultSet"),
-                        )
+                        return Err(prot_err(
+                            "Inconsistent StatementContext part found for ResultSet",
+                        ))
                     }
                 };
 
@@ -398,10 +416,16 @@ pub mod factory {
         }
     }
 
-    fn parse_rows(resultset: &mut ResultSet, no_of_rows: i32, rdr: &mut io::BufRead)
-                  -> PrtResult<()> {
+    fn parse_rows(
+        resultset: &mut ResultSet,
+        no_of_rows: i32,
+        rdr: &mut io::BufRead,
+    ) -> PrtResult<()> {
         let no_of_cols = resultset.metadata.number_of_fields();
-        debug!("resultset::parse_rows() reading {} lines with {} columns", no_of_rows, no_of_cols);
+        debug!(
+            "resultset::parse_rows() reading {} lines with {} columns",
+            no_of_rows, no_of_cols
+        );
 
         let guard = resultset.core_ref.lock()?;
         let rs_core = &*guard;
@@ -412,12 +436,14 @@ pub mod factory {
             Some(ref conn_ref) => for r in 0..no_of_rows {
                 let mut values = Vec::<TypedValue>::new();
                 for c in 0..no_of_cols {
-                    let typecode = resultset.metadata
-                                            .type_id(c)
-                                            .map_err(|_| prot_err("Not enough metadata"))?;
-                    let nullable: bool = resultset.metadata
-                                                  .is_nullable(c)
-                                                  .map_err(|_| prot_err("Not enough metadata"))?;
+                    let typecode = resultset
+                        .metadata
+                        .type_id(c)
+                        .map_err(|_| prot_err("Not enough metadata"))?;
+                    let nullable: bool = resultset
+                        .metadata
+                        .is_nullable(c)
+                        .map_err(|_| prot_err("Not enough metadata"))?;
                     trace!(
                         "Parsing row {}, column {}, typecode {}, nullable {}",
                         r,
@@ -430,8 +456,9 @@ pub mod factory {
                     trace!("Found value {:?}", value);
                     values.push(value);
                 }
-                resultset.rows
-                         .push(Row::new(Arc::clone(&resultset.metadata), values));
+                resultset
+                    .rows
+                    .push(Row::new(Arc::clone(&resultset.metadata), values));
             },
         }
         Ok(())

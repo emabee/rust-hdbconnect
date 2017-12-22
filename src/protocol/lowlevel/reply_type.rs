@@ -49,7 +49,7 @@ impl ReplyType {
             14 => Ok(ReplyType::Connect),
             15 => Ok(ReplyType::WriteLob),
             16 => Ok(ReplyType::ReadLob),
-            //17 -> Ping
+            // 17 -> Ping
             18 => Ok(ReplyType::Disconnect),
             19 => Ok(ReplyType::CloseCursor),
             20 => Ok(ReplyType::FindLob),
@@ -60,9 +60,10 @@ impl ReplyType {
             25 => Ok(ReplyType::XAControl),
             26 => Ok(ReplyType::XAPrepare),
             27 => Ok(ReplyType::XARecover),
-            _ => Err(
-                PrtError::ProtocolError(format!("Invalid value for ReplyType detected: {}", val)),
-            ),
+            _ => Err(PrtError::ProtocolError(format!(
+                "Invalid value for ReplyType detected: {}",
+                val
+            ))),
         }
     }
 

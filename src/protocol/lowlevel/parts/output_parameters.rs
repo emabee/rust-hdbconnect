@@ -29,8 +29,11 @@ impl OutputParameters {
     /// Returns the descriptor for the i'th parameter.
     pub fn parameter_descriptor(&self, i: usize) -> HdbResult<&ParameterDescriptor> {
         trace!("OutputParameters::parameter_descriptor()");
-        self.metadata.get(i)
-            .ok_or(HdbError::InternalEvaluationError("wrong index: no such parameter"))
+        self.metadata
+            .get(i)
+            .ok_or(HdbError::InternalEvaluationError(
+                "wrong index: no such parameter",
+            ))
     }
 }
 
@@ -39,7 +42,11 @@ impl fmt::Display for OutputParameters {
         // write a header
         writeln!(fmt, "").unwrap();
         for parameter_descriptor in &self.metadata {
-            write!(fmt, "{}, ", parameter_descriptor.name().unwrap_or(&String::new())).unwrap();
+            write!(
+                fmt,
+                "{}, ",
+                parameter_descriptor.name().unwrap_or(&String::new())
+            ).unwrap();
         }
         writeln!(fmt, "").unwrap();
 
@@ -53,8 +60,6 @@ impl fmt::Display for OutputParameters {
     }
 }
 
-
-
 pub mod factory {
     use super::OutputParameters;
     use protocol::lowlevel::{prot_err, PrtResult};
@@ -66,9 +71,11 @@ pub mod factory {
 
     use std::io;
 
-    pub fn parse(o_conn_ref: Option<&ConnCoreRef>, par_md: &[ParameterDescriptor],
-                 rdr: &mut io::BufRead)
-                 -> PrtResult<OutputParameters> {
+    pub fn parse(
+        o_conn_ref: Option<&ConnCoreRef>,
+        par_md: &[ParameterDescriptor],
+        rdr: &mut io::BufRead,
+    ) -> PrtResult<OutputParameters> {
         trace!("OutputParameters::parse()");
         let conn_ref = match o_conn_ref {
             Some(conn_ref) => conn_ref,
@@ -88,7 +95,11 @@ pub mod factory {
                         ParameterBinding::Optional => true,
                         _ => false,
                     };
-                    trace!("Parsing value with typecode {}, nullable {}", typecode, nullable);
+                    trace!(
+                        "Parsing value with typecode {}, nullable {}",
+                        typecode,
+                        nullable
+                    );
                     let value =
                         TypedValueFactory::parse_from_reply(typecode, nullable, conn_ref, rdr)?;
                     trace!("Found value {:?}", value);

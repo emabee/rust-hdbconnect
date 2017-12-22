@@ -55,10 +55,6 @@ impl ParameterDescriptor {
         (self.parameter_option & 0b_0100_0000_u8) != 0
     }
 
-
-
-
-
     /// Returns the id of the value type of the parameter.
     /// See also module [`type_id`](type_id/index.html).
     pub fn type_id(&self) -> u8 {
@@ -83,9 +79,13 @@ impl ParameterDescriptor {
     }
 }
 
-pub fn parameter_descriptor_new(parameter_option: u8, type_id: u8,
-                                direction: ParameterDirection, precision: u16, scale: u16)
-                                -> ParameterDescriptor {
+pub fn parameter_descriptor_new(
+    parameter_option: u8,
+    type_id: u8,
+    direction: ParameterDirection,
+    precision: u16,
+    scale: u16,
+) -> ParameterDescriptor {
     ParameterDescriptor {
         parameter_option: parameter_option,
         type_id: type_id,
@@ -129,10 +129,12 @@ pub fn parameter_direction_from_u8(v: u8) -> PrtResult<ParameterDirection> {
         1 => Ok(ParameterDirection::IN),
         2 => Ok(ParameterDirection::INOUT),
         4 => Ok(ParameterDirection::OUT),
-        _ => Err(prot_err(&format!("invalid value for ParameterDirection: {}", v))),
+        _ => Err(prot_err(&format!(
+            "invalid value for ParameterDirection: {}",
+            v
+        ))),
     }
 }
-
 
 pub mod factory {
     use super::{parameter_descriptor_new, parameter_descriptor_set_name, ParameterDescriptor,
@@ -142,8 +144,11 @@ pub mod factory {
     use std::io;
     use std::u32;
 
-    pub fn parse(count: i32, arg_size: u32, rdr: &mut io::BufRead)
-                 -> PrtResult<Vec<ParameterDescriptor>> {
+    pub fn parse(
+        count: i32,
+        arg_size: u32,
+        rdr: &mut io::BufRead,
+    ) -> PrtResult<Vec<ParameterDescriptor>> {
         let mut consumed = 0;
         let mut vec_pd = Vec::<ParameterDescriptor>::new();
         let mut name_offsets = Vec::<u32>::new();
@@ -159,7 +164,13 @@ pub mod factory {
             rdr.read_u32::<LittleEndian>()?;
             consumed += 16;
             assert!(arg_size >= consumed);
-            vec_pd.push(parameter_descriptor_new(option, value_type, mode, length, fraction));
+            vec_pd.push(parameter_descriptor_new(
+                option,
+                value_type,
+                mode,
+                length,
+                fraction,
+            ));
         }
         // read the parameter names
         for (mut descriptor, name_offset) in vec_pd.iter_mut().zip(name_offsets.iter()) {

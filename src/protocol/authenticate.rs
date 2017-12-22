@@ -8,7 +8,7 @@ use protocol::lowlevel::part::Part;
 use protocol::lowlevel::partkind::PartKind;
 use protocol::lowlevel::parts::authfield::AuthField;
 use protocol::lowlevel::parts::connect_option::{ConnectOptionId, ConnectOptions};
-use protocol::lowlevel::parts::option_value::OptionValue;
+use protocol::lowlevel::parts::prt_option_value::PrtOptionValue;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use crypto::hmac::Hmac;
@@ -46,7 +46,7 @@ fn auth1_request(conn_ref: &ConnCoreRef, chllng_sha256: &[u8], username: &str) -
 
     let part2 = Part::new(PartKind::Authentication, Argument::Auth(auth_fields));
 
-    let mut request = Request::new(conn_ref, RequestType::Authenticate, true, 0)?;
+    let mut request = Request::new(conn_ref, RequestType::Authenticate, 0)?;
     request.push(part2);
 
     request.send_and_receive(conn_ref, Some(ReplyType::Nil))
@@ -54,27 +54,57 @@ fn auth1_request(conn_ref: &ConnCoreRef, chllng_sha256: &[u8], username: &str) -
 
 fn auth2_request(conn_ref: &ConnCoreRef, client_proof: &[u8], username: &str) -> PrtResult<Reply> {
     trace!("Entering auth2_request()");
-    let mut request = Request::new(conn_ref, RequestType::Connect, true, 0)?;
+    let mut request = Request::new(conn_ref, RequestType::Connect, 0)?;
 
     let mut auth_fields = Vec::<AuthField>::with_capacity(3);
     auth_fields.push(AuthField::new(username.as_bytes().to_vec()));
     auth_fields.push(AuthField::new(b"SCRAMSHA256".to_vec()));
     auth_fields.push(AuthField::new(client_proof.to_owned()));
-    request.push(Part::new(PartKind::Authentication, Argument::Auth(auth_fields)));
+    request.push(Part::new(
+        PartKind::Authentication,
+        Argument::Auth(auth_fields),
+    ));
 
     let mut conn_opts = ConnectOptions::default();
-    conn_opts.push(ConnectOptionId::CompleteArrayExecution, OptionValue::BOOLEAN(true));
-    conn_opts.push(ConnectOptionId::DataFormatVersion2, OptionValue::INT(4));
-    conn_opts.push(ConnectOptionId::DataFormatVersion, OptionValue::INT(1));
-    conn_opts.push(ConnectOptionId::ClientLocale, OptionValue::STRING(get_locale()));
-    conn_opts.push(ConnectOptionId::EnableArrayType, OptionValue::BOOLEAN(true));
-    conn_opts.push(ConnectOptionId::DistributionEnabled, OptionValue::BOOLEAN(true));
-    conn_opts.push(ConnectOptionId::ClientDistributionMode, OptionValue::INT(3));
-    conn_opts.push(ConnectOptionId::SelectForUpdateSupported, OptionValue::BOOLEAN(true));
-    conn_opts.push(ConnectOptionId::DistributionProtocolVersion, OptionValue::INT(1));
-    conn_opts.push(ConnectOptionId::RowSlotImageParameter, OptionValue::BOOLEAN(true));
-    conn_opts.push(ConnectOptionId::OSUser, OptionValue::STRING(get_username()));
-    request.push(Part::new(PartKind::ConnectOptions, Argument::ConnectOptions(conn_opts)));
+    conn_opts.push(
+        ConnectOptionId::CompleteArrayExecution,
+        PrtOptionValue::BOOLEAN(true),
+    );
+    conn_opts.push(ConnectOptionId::DataFormatVersion2, PrtOptionValue::INT(4));
+    conn_opts.push(ConnectOptionId::DataFormatVersion, PrtOptionValue::INT(1));
+    conn_opts.push(
+        ConnectOptionId::ClientLocale,
+        PrtOptionValue::STRING(get_locale()),
+    );
+    conn_opts.push(
+        ConnectOptionId::EnableArrayType,
+        PrtOptionValue::BOOLEAN(true),
+    );
+    conn_opts.push(
+        ConnectOptionId::DistributionEnabled,
+        PrtOptionValue::BOOLEAN(true),
+    );
+    conn_opts.push(
+        ConnectOptionId::ClientDistributionMode,
+        PrtOptionValue::INT(3),
+    );
+    // conn_opts.push(ConnectOptionId::SelectForUpdateOK, PrtOptionValue::BOOLEAN(true));
+    conn_opts.push(
+        ConnectOptionId::DistributionProtocolVersion,
+        PrtOptionValue::INT(1),
+    );
+    conn_opts.push(
+        ConnectOptionId::RowSlotImageParameter,
+        PrtOptionValue::BOOLEAN(true),
+    );
+    conn_opts.push(
+        ConnectOptionId::OSUser,
+        PrtOptionValue::STRING(get_username()),
+    );
+    request.push(Part::new(
+        PartKind::ConnectOptions,
+        Argument::ConnectOptions(conn_opts),
+    ));
 
     request.send_and_receive(conn_ref, Some(ReplyType::Nil))
 }
@@ -109,7 +139,9 @@ fn get_server_challenge(mut reply: Reply) -> PrtResult<Vec<u8>> {
             debug!("get_server_challenge(): returning {:?}", &server_challenge);
             Ok(server_challenge)
         }
-        _ => Err(prot_err("get_server_challenge(): expected Authentication part")),
+        _ => Err(prot_err(
+            "get_server_challenge(): expected Authentication part",
+        )),
     }
 }
 
@@ -123,7 +155,11 @@ fn evaluate_reply2(mut reply: Reply, conn_ref: &ConnCoreRef) -> PrtResult<()> {
         Some(Argument::TopologyInformation(mut vec)) => {
             conn_core.swap_topology_attributes(&mut vec)
         }
-        _ => return Err(prot_err("evaluate_reply2(): expected TopologyInformation part")),
+        _ => {
+            return Err(prot_err(
+                "evaluate_reply2(): expected TopologyInformation part",
+            ))
+        }
     }
 
     match reply.parts.pop_arg_if_kind(PartKind::ConnectOptions) {
@@ -141,13 +177,16 @@ fn evaluate_reply2(mut reply: Reply, conn_ref: &ConnCoreRef) -> PrtResult<()> {
     }
     // FIXME the server proof is not evaluated
 
-    conn_core.set_is_authenticated(true);
+    conn_core.set_authenticated(true);
     debug!("parts after: {:?}", reply.parts);
     Ok(())
 }
 
-fn calculate_client_proof(server_challenge: Vec<u8>, client_challenge: &[u8], password: &str)
-                          -> PrtResult<Vec<u8>> {
+fn calculate_client_proof(
+    server_challenge: Vec<u8>,
+    client_challenge: &[u8],
+    password: &str,
+) -> PrtResult<Vec<u8>> {
     let client_proof_size = 32usize;
     trace!("Entering calculate_client_proof()");
     let (salts, srv_key) = get_salt_and_key(server_challenge).unwrap();
@@ -193,8 +232,12 @@ fn get_salt_and_key(server_challenge: Vec<u8>) -> PrtResult<(Vec<Vec<u8>>, Vec<u
     Ok((salts, key))
 }
 
-fn scramble(salt: &[u8], server_key: &[u8], client_key: &[u8], password: &str)
-            -> PrtResult<Vec<u8>> {
+fn scramble(
+    salt: &[u8],
+    server_key: &[u8],
+    client_key: &[u8],
+    password: &str,
+) -> PrtResult<Vec<u8>> {
     let length = salt.len() + server_key.len() + client_key.len();
     let mut msg = Vec::<u8>::with_capacity(length);
     for b in salt {
@@ -248,7 +291,6 @@ fn xor(a: &[u8], b: &[u8]) -> Vec<u8> {
     bytes
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::calculate_client_proof;
@@ -272,21 +314,35 @@ mod tests {
                                           \x7d\x81\x1a\xdb\x0d\x6f\xed\xa8\x87\x59\
                                           \xc2\x94\x06\x0d\xae\xab\x3f\x62\xea\x4b\
                                           \x16\x6a\xc9\x7e\xfc\x9a\x6b\xde\x4f\xe9\
-                                          \xe5\xda\xcc\xb5\x0a\xcf\xce\x56".to_vec();
+                                          \xe5\xda\xcc\xb5\x0a\xcf\xce\x56"
+            .to_vec();
         let password: &str = "manager";
         let correct_client_proof: Vec<u8> = b"\x00\x01\x20\x17\x26\x25\xab\x29\x71\xd8\
                                               \x58\x74\x32\x5d\x21\xbc\x3d\x68\x37\x71\
                                               \x80\x5c\x9a\xfe\x38\xd0\x95\x1d\xad\x46\
-                                              \x53\x00\x9c\xc9\x21".to_vec();
+                                              \x53\x00\x9c\xc9\x21"
+            .to_vec();
 
         trace!("----------------------------------------------------");
-        trace!("client_challenge ({} bytes): \n{:?}", &client_challenge.len(), &client_challenge);
-        trace!("server_challenge ({} bytes): \n{:?}", &server_challenge.len(), &server_challenge);
+        trace!(
+            "client_challenge ({} bytes): \n{:?}",
+            &client_challenge.len(),
+            &client_challenge
+        );
+        trace!(
+            "server_challenge ({} bytes): \n{:?}",
+            &server_challenge.len(),
+            &server_challenge
+        );
 
         let my_client_proof =
             calculate_client_proof(server_challenge, &client_challenge, password).unwrap();
 
-        trace!("my_client_proof ({} bytes): \n{:?}", &my_client_proof.len(), &my_client_proof);
+        trace!(
+            "my_client_proof ({} bytes): \n{:?}",
+            &my_client_proof.len(),
+            &my_client_proof
+        );
         trace!(
             "correct_client_proof ({} bytes): \n{:?}",
             &correct_client_proof.len(),

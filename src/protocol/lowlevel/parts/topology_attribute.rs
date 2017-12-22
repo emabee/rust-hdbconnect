@@ -1,5 +1,5 @@
 use super::{PrtError, PrtResult};
-use super::option_value::OptionValue;
+use super::prt_option_value::PrtOptionValue;
 
 use byteorder::{ReadBytesExt, WriteBytesExt};
 use std::io;
@@ -7,7 +7,7 @@ use std::io;
 #[derive(Clone, Debug)]
 pub struct TopologyAttr {
     pub id: TopologyAttrId,
-    pub value: OptionValue,
+    pub value: PrtOptionValue,
 }
 impl TopologyAttr {
     pub fn serialize(&self, w: &mut io::Write) -> PrtResult<()> {
@@ -21,7 +21,7 @@ impl TopologyAttr {
 
     pub fn parse(rdr: &mut io::BufRead) -> PrtResult<TopologyAttr> {
         let id = TopologyAttrId::from_i8(rdr.read_i8()?)?; // I1
-        let value = OptionValue::parse(rdr)?;
+        let value = PrtOptionValue::parse(rdr)?;
         Ok(TopologyAttr {
             id: id,
             value: value,
@@ -29,22 +29,22 @@ impl TopologyAttr {
     }
 }
 
-
 #[derive(Clone, Debug)]
 pub enum TopologyAttrId {
-    HostName,         // 1 // host name
-    HostPortNumber,   // 2 // port number
-    TenantName,       // 3 // tenant name
-    LoadFactor,       // 4 // load factor
-    VolumeID,         // 5 // volume id
-    IsMaster,         // 6 // master node in the system
-    IsCurrentSession, // 7 // marks this location as valid for current session connected
-    ServiceType,      // 8 // this server is normal index server not statserver/xsengine
-    // NetworkDomain_Deprecated,       // 9 // deprecated
-    IsStandby, /* 10 // standby server
-                *  AllIpAdresses_Deprecated,       // 11 // deprecated
-                *  AllHostNames_Deprecated,        // 12 // deprecated */
+    HostName,         //  1 // host name
+    HostPortNumber,   //  2 // port number
+    TenantName,       //  3 // tenant name
+    LoadFactor,       //  4 // load factor
+    VolumeID,         //  5 // volume id
+    IsMaster,         //  6 // master node in the system
+    IsCurrentSession, //  7 // marks this location as valid for current session connected
+    ServiceType,      //  8 // this server is normal index server not statserver/xsengine
+    IsStandby,        // 10 // standby server
 }
+// NetworkDomain,    //  9 // deprecated
+// AllIpAdresses,    // 11 // deprecated
+// AllHostNames,     // 12 // deprecated
+
 impl TopologyAttrId {
     fn to_i8(&self) -> i8 {
         match *self {
@@ -71,9 +71,10 @@ impl TopologyAttrId {
             7 => Ok(TopologyAttrId::IsCurrentSession),
             8 => Ok(TopologyAttrId::ServiceType),
             10 => Ok(TopologyAttrId::IsStandby),
-            _ => Err(PrtError::ProtocolError(
-                format!("Invalid value for TopologyAttrId detected: {}", val),
-            )),
+            _ => Err(PrtError::ProtocolError(format!(
+                "Invalid value for TopologyAttrId detected: {}",
+                val
+            ))),
         }
     }
 }

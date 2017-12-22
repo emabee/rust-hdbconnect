@@ -5,7 +5,7 @@ use protocol::lowlevel::parts::resultset::ResultSet;
 use std::fmt;
 
 /// Represents all possible non-error responses to a database command.
-///
+/// 
 #[derive(Debug)]
 pub struct HdbResponse(Vec<HdbReturnValue>);
 
@@ -40,7 +40,9 @@ impl HdbResponse {
 
     fn into_single_retval(mut self) -> HdbResult<HdbReturnValue> {
         if self.0.len() > 1 {
-            Err(HdbError::EvaluationError("Not a single HdbReturnValue".to_string()))
+            Err(HdbError::EvaluationError(
+                "Not a single HdbReturnValue".to_string(),
+            ))
         } else {
             self.0.pop().ok_or_else(|| {
                 HdbError::EvaluationError(
@@ -133,8 +135,6 @@ impl HdbResponse {
     }
 }
 
-
-
 impl fmt::Display for HdbResponse {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt::Display::fmt("HdbResponse [", fmt)?;
@@ -162,7 +162,9 @@ pub mod factory {
 
     pub fn resultset(mut int_return_values: Vec<InternalReturnValue>) -> HdbResult<HdbResponse> {
         if int_return_values.len() > 1 {
-            return Err(HdbError::InternalEvaluationError("Only a single ResultSet was expected"));
+            return Err(HdbError::InternalEvaluationError(
+                "Only a single ResultSet was expected",
+            ));
         }
         match int_return_values.pop() {
             Some(InternalReturnValue::ResultSet(rs)) => {
@@ -177,12 +179,13 @@ pub mod factory {
         }
     }
 
-    pub fn rows_affected(mut int_return_values: Vec<InternalReturnValue>)
-                         -> HdbResult<HdbResponse> {
+    pub fn rows_affected(
+        mut int_return_values: Vec<InternalReturnValue>,
+    ) -> HdbResult<HdbResponse> {
         if int_return_values.len() > 1 {
-            return Err(
-                HdbError::InternalEvaluationError("Only a single AffectedRows was expected"),
-            );
+            return Err(HdbError::InternalEvaluationError(
+                "Only a single AffectedRows was expected",
+            ));
         }
         match int_return_values.pop() {
             Some(InternalReturnValue::AffectedRows(vec_ra)) => {
@@ -226,8 +229,8 @@ pub mod factory {
             Some(InternalReturnValue::AffectedRows(mut vec_ra)) => {
                 if vec_ra.len() != 1 {
                     return Err(HdbError::InternalEvaluationError(
-                        "found no or multiple affected-row-counts, but only a single Success \
-                         was expected",
+                        "found no or multiple affected-row-counts, but only a single Success was \
+                         expected",
                     ));
                 }
                 match vec_ra.pop().unwrap() {
@@ -259,8 +262,9 @@ pub mod factory {
         }
     }
 
-    pub fn multiple_return_values(mut int_return_values: Vec<InternalReturnValue>)
-                                  -> HdbResult<HdbResponse> {
+    pub fn multiple_return_values(
+        mut int_return_values: Vec<InternalReturnValue>,
+    ) -> HdbResult<HdbResponse> {
         let mut vec_dbrv = Vec::<HdbReturnValue>::new();
         int_return_values.reverse();
         for irv in int_return_values {

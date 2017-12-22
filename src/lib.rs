@@ -90,3 +90,4 @@ pub mod types {
     pub use protocol::lowlevel::parts::longdate::LongDate;
 }
 pub use protocol::lowlevel::parts::typed_value::TypedValue as HdbValue;
+pub use protocol::lowlevel::parts::xat::{XatFlag, XatId};

@@ -2,7 +2,7 @@ use protocol::protocol_error::{prot_err, PrtResult};
 use protocol::lowlevel::message::{parse_message_and_sequence_header, Message, MsgType, Request};
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::parts::connect_option::ConnectOption;
-use protocol::lowlevel::parts::option_value::OptionValue;
+use protocol::lowlevel::parts::prt_option_value::PrtOptionValue;
 use protocol::lowlevel::parts::topology_attribute::TopologyAttr;
 use protocol::lowlevel::parts::transactionflags::{TaFlagId, TransactionFlag};
 
@@ -18,13 +18,16 @@ pub const DEFAULT_LOB_READ_LENGTH: i32 = 1_000_000;
 
 #[derive(Debug)]
 pub struct ConnectionCore {
-    is_authenticated: bool,
+    authenticated: bool,
     session_id: i64,
     seq_number: i32,
+    auto_commit: bool,
+    acc_server_proc_time: i32,
     fetch_size: u32,
     lob_read_length: i32,
     transaction_state: TransactionState,
-    ssi: Option<OptionValue>, // Information on the statement sequence within the transaction
+    distributed_connection_in_progress: bool,
+    ssi: Option<PrtOptionValue>, // Information on the statement sequence within the transaction
     // FIXME transmute into explicit structure; see also jdbc\EngineFeatures.java :
     server_connect_options: Vec<ConnectOption>,
     topology_attributes: Vec<TopologyAttr>,
@@ -34,12 +37,15 @@ pub struct ConnectionCore {
 impl ConnectionCore {
     pub fn new_ref(stream: TcpStream) -> ConnCoreRef {
         Arc::new(Mutex::new(ConnectionCore {
-            is_authenticated: false,
+            authenticated: false,
             session_id: 0,
             seq_number: 0,
+            auto_commit: true,
+            acc_server_proc_time: 0,
             fetch_size: DEFAULT_FETCH_SIZE,
             lob_read_length: DEFAULT_LOB_READ_LENGTH,
             transaction_state: TransactionState::Initial,
+            distributed_connection_in_progress: false,
             ssi: None,
             server_connect_options: Vec::<ConnectOption>::new(),
             topology_attributes: Vec::<TopologyAttr>::new(),
@@ -47,6 +53,17 @@ impl ConnectionCore {
         }))
     }
 
+    pub fn set_auto_commit(&mut self, ac: bool) {
+        self.auto_commit = ac;
+    }
+
+    pub fn is_auto_commit(&self) -> bool {
+        self.auto_commit
+    }
+
+    pub fn add_server_proc_time(&mut self, t: i32) {
+        self.acc_server_proc_time += t;
+    }
     pub fn get_fetch_size(&self) -> u32 {
         self.fetch_size
     }
@@ -76,18 +93,29 @@ impl ConnectionCore {
     }
 
     pub fn is_authenticated(&self) -> bool {
-        self.is_authenticated
+        self.authenticated
     }
 
-    pub fn set_is_authenticated(&mut self, is_authenticated: bool) {
-        self.is_authenticated = is_authenticated;
+    pub fn set_authenticated(&mut self, authenticated: bool) {
+        self.authenticated = authenticated;
     }
 
-    pub fn ssi(&self) -> &Option<OptionValue> {
+    pub fn is_distributed_connection_in_progress(&self) -> bool {
+        self.distributed_connection_in_progress
+    }
+
+    pub fn set_distributed_connection_in_progress(
+        &mut self,
+        distributed_connection_in_progress: bool,
+    ) {
+        self.distributed_connection_in_progress = distributed_connection_in_progress;
+    }
+
+    pub fn ssi(&self) -> &Option<PrtOptionValue> {
         &self.ssi
     }
 
-    pub fn set_ssi(&mut self, ssi: Option<OptionValue>) {
+    pub fn set_ssi(&mut self, ssi: Option<PrtOptionValue>) {
         self.ssi = ssi;
     }
 
@@ -109,25 +137,28 @@ impl ConnectionCore {
 
     pub fn set_transaction_state(&mut self, transaction_flag: TransactionFlag) -> PrtResult<()> {
         match (transaction_flag.id, transaction_flag.value) {
-            (TaFlagId::RolledBack, OptionValue::BOOLEAN(true)) => {
+            (TaFlagId::RolledBack, PrtOptionValue::BOOLEAN(true)) => {
                 self.transaction_state = TransactionState::RolledBack;
             }
-            (TaFlagId::Committed, OptionValue::BOOLEAN(true)) => {
+            (TaFlagId::Committed, PrtOptionValue::BOOLEAN(true)) => {
                 self.transaction_state = TransactionState::Committed;
             }
-            (TaFlagId::NewIsolationlevel, OptionValue::INT(i)) => {
+            (TaFlagId::NewIsolationlevel, PrtOptionValue::INT(i)) => {
                 self.transaction_state = TransactionState::OpenWithIsolationlevel(i);
             }
-            (TaFlagId::WriteTaStarted, OptionValue::BOOLEAN(true)) => {
+            (TaFlagId::WriteTaStarted, PrtOptionValue::BOOLEAN(true)) => {
                 self.transaction_state = TransactionState::OpenWithIsolationlevel(0);
             }
-            (TaFlagId::SessionclosingTaError, OptionValue::BOOLEAN(true)) => {
+            (TaFlagId::SessionclosingTaError, PrtOptionValue::BOOLEAN(true)) => {
                 return Err(prot_err("SessionclosingTaError received"));
             }
-            (TaFlagId::DdlCommitmodeChanged, OptionValue::BOOLEAN(true)) |
-            (TaFlagId::NoWriteTaStarted, OptionValue::BOOLEAN(true)) |
-            (TaFlagId::ReadOnlyMode, OptionValue::BOOLEAN(false)) => {}
-            (id, value) => warn!("unexpected transaction flag received: {:?} = {:?}", id, value),
+            (TaFlagId::DdlCommitmodeChanged, PrtOptionValue::BOOLEAN(true))
+            | (TaFlagId::NoWriteTaStarted, PrtOptionValue::BOOLEAN(true))
+            | (TaFlagId::ReadOnlyMode, PrtOptionValue::BOOLEAN(false)) => {}
+            (id, value) => warn!(
+                "unexpected transaction flag received: {:?} = {:?}",
+                id, value
+            ),
         };
         Ok(())
     }
@@ -137,7 +168,7 @@ impl Drop for ConnectionCore {
     // try to send a disconnect to the database, ignore all errors
     fn drop(&mut self) {
         trace!("Drop of ConnectionCore, session_id = {}", self.session_id);
-        if self.is_authenticated {
+        if self.authenticated {
             let request = Request::new_for_disconnect();
             match request.serialize_impl(self.session_id, self.next_seq_number(), &mut self.stream)
             {

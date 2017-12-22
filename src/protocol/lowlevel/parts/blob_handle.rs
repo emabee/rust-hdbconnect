@@ -21,9 +21,13 @@ pub struct BlobHandle {
     acc_server_proc_time: i32,
 }
 impl BlobHandle {
-    pub fn new(conn_ref: &ConnCoreRef, is_data_complete: bool, length_b: u64, locator_id: u64,
-               data: Vec<u8>)
-               -> BlobHandle {
+    pub fn new(
+        conn_ref: &ConnCoreRef,
+        is_data_complete: bool,
+        length_b: u64,
+        locator_id: u64,
+        data: Vec<u8>,
+    ) -> BlobHandle {
         trace!(
             "BlobHandle::new() with length_b = {}, is_data_complete = {}, data.length() = {}",
             length_b,
@@ -61,7 +65,10 @@ impl BlobHandle {
         self.acc_server_proc_time += server_processing_time;
         self.max_size = cmp::max(self.data.len(), self.max_size);
 
-        assert_eq!(self.is_data_complete, self.length_b == self.acc_byte_length as u64);
+        assert_eq!(
+            self.is_data_complete,
+            self.length_b == self.acc_byte_length as u64
+        );
         trace!(
             "After BlobHandle fetch: is_data_complete = {}, data.len() = {}",
             self.is_data_complete,
@@ -97,7 +104,8 @@ impl io::Read for BlobHandle {
         trace!("BlobHandle::read() with buf of len {}", buf.len());
 
         while !self.is_data_complete && (buf.len() > self.data.len()) {
-            self.fetch_next_chunk().map_err(|e| io::Error::new(io::ErrorKind::UnexpectedEof, e))?;
+            self.fetch_next_chunk()
+                .map_err(|e| io::Error::new(io::ErrorKind::UnexpectedEof, e))?;
         }
 
         let count = cmp::min(self.data.len(), buf.len());
@@ -107,7 +115,6 @@ impl io::Read for BlobHandle {
     }
 }
 
-
 ///////////////////////////////////////////////////////////////
 use protocol::protocol_error::prot_err;
 use protocol::lowlevel::argument::Argument;
@@ -115,12 +122,15 @@ use protocol::lowlevel::message::Request;
 use protocol::lowlevel::reply_type::ReplyType;
 use protocol::lowlevel::request_type::RequestType;
 use protocol::lowlevel::part::Part;
-use protocol::lowlevel::parts::option_value::OptionValue;
+use protocol::lowlevel::parts::prt_option_value::PrtOptionValue;
 use protocol::lowlevel::partkind::PartKind;
 
-pub fn fetch_a_lob_chunk(o_conn_ref: &Option<ConnCoreRef>, locator_id: u64, length_b: u64,
-                         data_len: u64)
-                         -> PrtResult<(Vec<u8>, bool, i32)> {
+pub fn fetch_a_lob_chunk(
+    o_conn_ref: &Option<ConnCoreRef>,
+    locator_id: u64,
+    length_b: u64,
+    data_len: u64,
+) -> PrtResult<(Vec<u8>, bool, i32)> {
     // build the request, provide StatementContext and length_to_read
     let (conn_ref, length_to_read) = match *o_conn_ref {
         None => {
@@ -136,7 +146,7 @@ pub fn fetch_a_lob_chunk(o_conn_ref: &Option<ConnCoreRef>, locator_id: u64, leng
             (conn_ref, length_to_read as i32)
         }
     };
-    let mut request = Request::new(conn_ref, RequestType::ReadLob, true, 0)?;
+    let mut request = Request::new(conn_ref, RequestType::ReadLob, 0)?;
 
     let offset = data_len + 1;
     request.push(Part::new(
@@ -156,7 +166,9 @@ pub fn fetch_a_lob_chunk(o_conn_ref: &Option<ConnCoreRef>, locator_id: u64, leng
     {
         Some(Argument::ReadLobReply(reply_locator_id, reply_is_last_data, reply_data)) => {
             if reply_locator_id != locator_id {
-                return Err(prot_err("lob::fetch_a_lob_chunk(): locator ids do not match"));
+                return Err(prot_err(
+                    "lob::fetch_a_lob_chunk(): locator ids do not match",
+                ));
             }
             (reply_data, reply_is_last_data)
         }
@@ -165,14 +177,18 @@ pub fn fetch_a_lob_chunk(o_conn_ref: &Option<ConnCoreRef>, locator_id: u64, leng
 
     let server_processing_time = match reply.parts.pop_arg_if_kind(PartKind::StatementContext) {
         Some(Argument::StatementContext(stmt_ctx)) => {
-            if let Some(OptionValue::INT(i)) = stmt_ctx.server_processing_time {
+            if let Some(PrtOptionValue::INT(i)) = stmt_ctx.server_processing_time {
                 i
             } else {
                 0
             }
         }
         None => 0,
-        _ => return Err(prot_err("Inconsistent StatementContext part found for ResultSet")),
+        _ => {
+            return Err(prot_err(
+                "Inconsistent StatementContext part found for ResultSet",
+            ))
+        }
     };
     Ok((reply_data, reply_is_last_data, server_processing_time))
 }

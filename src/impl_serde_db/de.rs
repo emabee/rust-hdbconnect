@@ -81,77 +81,77 @@ impl DeserializableRow for Row {
 impl DbValue for TypedValue {
     fn is_null(&self) -> bool {
         match *self {
-            TypedValue::N_TINYINT(None) |
-            TypedValue::N_SMALLINT(None) |
-            TypedValue::N_INT(None) |
-            TypedValue::N_BIGINT(None) |
-            TypedValue::N_DECIMAL(None) |
-            TypedValue::N_REAL(None) |
-            TypedValue::N_DOUBLE(None) |
-            TypedValue::N_CHAR(None) |
-            TypedValue::N_VARCHAR(None) |
-            TypedValue::N_NCHAR(None) |
-            TypedValue::N_NVARCHAR(None) |
-            TypedValue::N_BINARY(None) |
-            TypedValue::N_VARBINARY(None) |
-            TypedValue::N_CLOB(None) |
-            TypedValue::N_NCLOB(None) |
-            TypedValue::N_BLOB(None) |
-            TypedValue::N_BOOLEAN(None) |
-            TypedValue::N_STRING(None) |
-            TypedValue::N_NSTRING(None) |
-            TypedValue::N_BSTRING(None) |
-            TypedValue::N_TEXT(None) |
-            TypedValue::N_SHORTTEXT(None) |
-            TypedValue::N_LONGDATE(None) => true,
+            TypedValue::N_TINYINT(None)
+            | TypedValue::N_SMALLINT(None)
+            | TypedValue::N_INT(None)
+            | TypedValue::N_BIGINT(None)
+            | TypedValue::N_DECIMAL(None)
+            | TypedValue::N_REAL(None)
+            | TypedValue::N_DOUBLE(None)
+            | TypedValue::N_CHAR(None)
+            | TypedValue::N_VARCHAR(None)
+            | TypedValue::N_NCHAR(None)
+            | TypedValue::N_NVARCHAR(None)
+            | TypedValue::N_BINARY(None)
+            | TypedValue::N_VARBINARY(None)
+            | TypedValue::N_CLOB(None)
+            | TypedValue::N_NCLOB(None)
+            | TypedValue::N_BLOB(None)
+            | TypedValue::N_BOOLEAN(None)
+            | TypedValue::N_STRING(None)
+            | TypedValue::N_NSTRING(None)
+            | TypedValue::N_BSTRING(None)
+            | TypedValue::N_TEXT(None)
+            | TypedValue::N_SHORTTEXT(None)
+            | TypedValue::N_LONGDATE(None) => true,
 
-            TypedValue::NOTHING |
-            TypedValue::N_TINYINT(Some(_)) |
-            TypedValue::N_SMALLINT(Some(_)) |
-            TypedValue::N_INT(Some(_)) |
-            TypedValue::N_BIGINT(Some(_)) |
-            TypedValue::N_DECIMAL(Some(_)) |
-            TypedValue::N_REAL(Some(_)) |
-            TypedValue::N_DOUBLE(Some(_)) |
-            TypedValue::N_CHAR(Some(_)) |
-            TypedValue::N_VARCHAR(Some(_)) |
-            TypedValue::N_NCHAR(Some(_)) |
-            TypedValue::N_NVARCHAR(Some(_)) |
-            TypedValue::N_BINARY(Some(_)) |
-            TypedValue::N_VARBINARY(Some(_)) |
-            TypedValue::N_CLOB(Some(_)) |
-            TypedValue::N_NCLOB(Some(_)) |
-            TypedValue::N_BLOB(Some(_)) |
-            TypedValue::N_BOOLEAN(Some(_)) |
-            TypedValue::N_STRING(Some(_)) |
-            TypedValue::N_NSTRING(Some(_)) |
-            TypedValue::N_BSTRING(Some(_)) |
-            TypedValue::N_TEXT(Some(_)) |
-            TypedValue::N_SHORTTEXT(Some(_)) |
-            TypedValue::N_LONGDATE(Some(_)) |
-            TypedValue::TINYINT(_) |
-            TypedValue::SMALLINT(_) |
-            TypedValue::INT(_) |
-            TypedValue::BIGINT(_) |
-            TypedValue::DECIMAL(_) |
-            TypedValue::REAL(_) |
-            TypedValue::DOUBLE(_) |
-            TypedValue::CHAR(_) |
-            TypedValue::VARCHAR(_) |
-            TypedValue::NCHAR(_) |
-            TypedValue::NVARCHAR(_) |
-            TypedValue::BINARY(_) |
-            TypedValue::VARBINARY(_) |
-            TypedValue::CLOB(_) |
-            TypedValue::NCLOB(_) |
-            TypedValue::BLOB(_) |
-            TypedValue::BOOLEAN(_) |
-            TypedValue::STRING(_) |
-            TypedValue::NSTRING(_) |
-            TypedValue::BSTRING(_) |
-            TypedValue::TEXT(_) |
-            TypedValue::SHORTTEXT(_) |
-            TypedValue::LONGDATE(_) => false,
+            TypedValue::NOTHING
+            | TypedValue::N_TINYINT(Some(_))
+            | TypedValue::N_SMALLINT(Some(_))
+            | TypedValue::N_INT(Some(_))
+            | TypedValue::N_BIGINT(Some(_))
+            | TypedValue::N_DECIMAL(Some(_))
+            | TypedValue::N_REAL(Some(_))
+            | TypedValue::N_DOUBLE(Some(_))
+            | TypedValue::N_CHAR(Some(_))
+            | TypedValue::N_VARCHAR(Some(_))
+            | TypedValue::N_NCHAR(Some(_))
+            | TypedValue::N_NVARCHAR(Some(_))
+            | TypedValue::N_BINARY(Some(_))
+            | TypedValue::N_VARBINARY(Some(_))
+            | TypedValue::N_CLOB(Some(_))
+            | TypedValue::N_NCLOB(Some(_))
+            | TypedValue::N_BLOB(Some(_))
+            | TypedValue::N_BOOLEAN(Some(_))
+            | TypedValue::N_STRING(Some(_))
+            | TypedValue::N_NSTRING(Some(_))
+            | TypedValue::N_BSTRING(Some(_))
+            | TypedValue::N_TEXT(Some(_))
+            | TypedValue::N_SHORTTEXT(Some(_))
+            | TypedValue::N_LONGDATE(Some(_))
+            | TypedValue::TINYINT(_)
+            | TypedValue::SMALLINT(_)
+            | TypedValue::INT(_)
+            | TypedValue::BIGINT(_)
+            | TypedValue::DECIMAL(_)
+            | TypedValue::REAL(_)
+            | TypedValue::DOUBLE(_)
+            | TypedValue::CHAR(_)
+            | TypedValue::VARCHAR(_)
+            | TypedValue::NCHAR(_)
+            | TypedValue::NVARCHAR(_)
+            | TypedValue::BINARY(_)
+            | TypedValue::VARBINARY(_)
+            | TypedValue::CLOB(_)
+            | TypedValue::NCLOB(_)
+            | TypedValue::BLOB(_)
+            | TypedValue::BOOLEAN(_)
+            | TypedValue::STRING(_)
+            | TypedValue::NSTRING(_)
+            | TypedValue::BSTRING(_)
+            | TypedValue::TEXT(_)
+            | TypedValue::SHORTTEXT(_)
+            | TypedValue::LONGDATE(_) => false,
         }
     }
 }
@@ -195,11 +195,9 @@ impl DbValueInto<u8> for TypedValue {
                     Err(number_range(&i, "u8"))
                 }
             }
-            TypedValue::DECIMAL(hdbdecimal) | TypedValue::N_DECIMAL(Some(hdbdecimal)) => {
-                hdbdecimal.into_decimal()
-                          .to_u8()
-                          .ok_or_else(|| decimal_range("u8"))
-            }
+            TypedValue::DECIMAL(dec) | TypedValue::N_DECIMAL(Some(dec)) => dec.into_decimal()
+                .to_u8()
+                .ok_or_else(|| decimal_range("u8")),
 
             value => Err(wrong_type(&value, "u8")),
         }
@@ -233,11 +231,9 @@ impl DbValueInto<u16> for TypedValue {
                     Err(number_range(&i, "u16"))
                 }
             }
-            TypedValue::DECIMAL(hdbdecimal) | TypedValue::N_DECIMAL(Some(hdbdecimal)) => {
-                hdbdecimal.into_decimal()
-                          .to_u16()
-                          .ok_or_else(|| decimal_range("u16"))
-            }
+            TypedValue::DECIMAL(dec) | TypedValue::N_DECIMAL(Some(dec)) => dec.into_decimal()
+                .to_u16()
+                .ok_or_else(|| decimal_range("u16")),
 
             value => Err(wrong_type(&value, "u16")),
         }
@@ -269,11 +265,9 @@ impl DbValueInto<u32> for TypedValue {
                     Err(number_range(&i, "u32"))
                 }
             }
-            TypedValue::DECIMAL(hdbdecimal) | TypedValue::N_DECIMAL(Some(hdbdecimal)) => {
-                hdbdecimal.into_decimal()
-                          .to_u32()
-                          .ok_or_else(|| decimal_range("u32"))
-            }
+            TypedValue::DECIMAL(dec) | TypedValue::N_DECIMAL(Some(dec)) => dec.into_decimal()
+                .to_u32()
+                .ok_or_else(|| decimal_range("u32")),
 
             value => Err(wrong_type(&value, "u32")),
         }
@@ -304,11 +298,9 @@ impl DbValueInto<u64> for TypedValue {
                 Err(number_range(&i, "u64"))
             },
 
-            TypedValue::DECIMAL(hdbdecimal) | TypedValue::N_DECIMAL(Some(hdbdecimal)) => {
-                hdbdecimal.into_decimal()
-                          .to_u64()
-                          .ok_or_else(|| decimal_range("u64"))
-            }
+            TypedValue::DECIMAL(dec) | TypedValue::N_DECIMAL(Some(dec)) => dec.into_decimal()
+                .to_u64()
+                .ok_or_else(|| decimal_range("u64")),
             value => Err(wrong_type(&value, "u64")),
         }
     }
@@ -347,11 +339,9 @@ impl DbValueInto<i8> for TypedValue {
                     Err(number_range(&i, "i8"))
                 }
             }
-            TypedValue::DECIMAL(hdbdecimal) | TypedValue::N_DECIMAL(Some(hdbdecimal)) => {
-                hdbdecimal.into_decimal()
-                          .to_i8()
-                          .ok_or_else(|| decimal_range("i8"))
-            }
+            TypedValue::DECIMAL(dec) | TypedValue::N_DECIMAL(Some(dec)) => dec.into_decimal()
+                .to_i8()
+                .ok_or_else(|| decimal_range("i8")),
 
             value => Err(wrong_type(&value, "i8")),
         }
@@ -381,11 +371,9 @@ impl DbValueInto<i16> for TypedValue {
                     Err(number_range(&i, "i16"))
                 }
             }
-            TypedValue::DECIMAL(hdbdecimal) | TypedValue::N_DECIMAL(Some(hdbdecimal)) => {
-                hdbdecimal.into_decimal()
-                          .to_i16()
-                          .ok_or_else(|| decimal_range("i16"))
-            }
+            TypedValue::DECIMAL(dec) | TypedValue::N_DECIMAL(Some(dec)) => dec.into_decimal()
+                .to_i16()
+                .ok_or_else(|| decimal_range("i16")),
 
             value => Err(wrong_type(&value, "i16")),
         }
@@ -409,11 +397,9 @@ impl DbValueInto<i32> for TypedValue {
                     Err(number_range(&i, "i32"))
                 }
             }
-            TypedValue::DECIMAL(hdbdecimal) | TypedValue::N_DECIMAL(Some(hdbdecimal)) => {
-                hdbdecimal.into_decimal()
-                          .to_i32()
-                          .ok_or_else(|| decimal_range("i32"))
-            }
+            TypedValue::DECIMAL(dec) | TypedValue::N_DECIMAL(Some(dec)) => dec.into_decimal()
+                .to_i32()
+                .ok_or_else(|| decimal_range("i32")),
             value => Err(wrong_type(&value, "i32")),
         }
     }
@@ -428,11 +414,9 @@ impl DbValueInto<i64> for TypedValue {
             TypedValue::INT(i) | TypedValue::N_INT(Some(i)) => Ok(i64::from(i)),
             TypedValue::BIGINT(i) | TypedValue::N_BIGINT(Some(i)) => Ok(i),
             TypedValue::LONGDATE(ld) | TypedValue::N_LONGDATE(Some(ld)) => Ok(*ld.ref_raw()),
-            TypedValue::DECIMAL(hdbdecimal) | TypedValue::N_DECIMAL(Some(hdbdecimal)) => {
-                hdbdecimal.into_decimal()
-                          .to_i64()
-                          .ok_or_else(|| decimal_range("i64"))
-            }
+            TypedValue::DECIMAL(dec) | TypedValue::N_DECIMAL(Some(dec)) => dec.into_decimal()
+                .to_i64()
+                .ok_or_else(|| decimal_range("i64")),
             value => Err(wrong_type(&value, "i64")),
         }
     }
@@ -442,11 +426,9 @@ impl DbValueInto<i64> for TypedValue {
 impl DbValueInto<f32> for TypedValue {
     fn try_into(self) -> Result<f32, ConversionError> {
         match self {
-            TypedValue::DECIMAL(hdbdecimal) | TypedValue::N_DECIMAL(Some(hdbdecimal)) => {
-                hdbdecimal.into_decimal()
-                          .to_f32()
-                          .ok_or_else(|| decimal_range("f32"))
-            }
+            TypedValue::DECIMAL(dec) | TypedValue::N_DECIMAL(Some(dec)) => dec.into_decimal()
+                .to_f32()
+                .ok_or_else(|| decimal_range("f32")),
             TypedValue::REAL(f) | TypedValue::N_REAL(Some(f)) => Ok(f),
             value => Err(wrong_type(&value, "f32")),
         }
@@ -457,11 +439,9 @@ impl DbValueInto<f32> for TypedValue {
 impl DbValueInto<f64> for TypedValue {
     fn try_into(self) -> Result<f64, ConversionError> {
         match self {
-            TypedValue::DECIMAL(hdbdecimal) | TypedValue::N_DECIMAL(Some(hdbdecimal)) => {
-                hdbdecimal.into_decimal()
-                          .to_f64()
-                          .ok_or_else(|| decimal_range("f64"))
-            }
+            TypedValue::DECIMAL(dec) | TypedValue::N_DECIMAL(Some(dec)) => dec.into_decimal()
+                .to_f64()
+                .ok_or_else(|| decimal_range("f64")),
             TypedValue::DOUBLE(f) | TypedValue::N_DOUBLE(Some(f)) => Ok(f),
             value => Err(wrong_type(&value, "f64")),
         }
@@ -479,22 +459,22 @@ impl DbValueInto<String> for TypedValue {
             TypedValue::BIGINT(i) | TypedValue::N_BIGINT(Some(i)) => Ok(format!("{}", i)),
             TypedValue::REAL(f) | TypedValue::N_REAL(Some(f)) => Ok(format!("{}", f)),
             TypedValue::DOUBLE(f) | TypedValue::N_DOUBLE(Some(f)) => Ok(format!("{}", f)),
-            TypedValue::CHAR(s) |
-            TypedValue::VARCHAR(s) |
-            TypedValue::NCHAR(s) |
-            TypedValue::NVARCHAR(s) |
-            TypedValue::STRING(s) |
-            TypedValue::NSTRING(s) |
-            TypedValue::TEXT(s) |
-            TypedValue::SHORTTEXT(s) |
-            TypedValue::N_CHAR(Some(s)) |
-            TypedValue::N_VARCHAR(Some(s)) |
-            TypedValue::N_NCHAR(Some(s)) |
-            TypedValue::N_NVARCHAR(Some(s)) |
-            TypedValue::N_STRING(Some(s)) |
-            TypedValue::N_NSTRING(Some(s)) |
-            TypedValue::N_SHORTTEXT(Some(s)) |
-            TypedValue::N_TEXT(Some(s)) => Ok(s),
+            TypedValue::CHAR(s)
+            | TypedValue::VARCHAR(s)
+            | TypedValue::NCHAR(s)
+            | TypedValue::NVARCHAR(s)
+            | TypedValue::STRING(s)
+            | TypedValue::NSTRING(s)
+            | TypedValue::TEXT(s)
+            | TypedValue::SHORTTEXT(s)
+            | TypedValue::N_CHAR(Some(s))
+            | TypedValue::N_VARCHAR(Some(s))
+            | TypedValue::N_NCHAR(Some(s))
+            | TypedValue::N_NVARCHAR(Some(s))
+            | TypedValue::N_STRING(Some(s))
+            | TypedValue::N_NSTRING(Some(s))
+            | TypedValue::N_SHORTTEXT(Some(s))
+            | TypedValue::N_TEXT(Some(s)) => Ok(s),
 
             TypedValue::LONGDATE(ld) | TypedValue::N_LONGDATE(Some(ld)) => {
                 Ok(str_from_longdate(&ld))
@@ -504,10 +484,10 @@ impl DbValueInto<String> for TypedValue {
                 Ok(format!("{}", hdbdec))
             }
 
-            TypedValue::CLOB(clob) |
-            TypedValue::NCLOB(clob) |
-            TypedValue::N_CLOB(Some(clob)) |
-            TypedValue::N_NCLOB(Some(clob)) => Ok(clob.into_string()
+            TypedValue::CLOB(clob)
+            | TypedValue::NCLOB(clob)
+            | TypedValue::N_CLOB(Some(clob))
+            | TypedValue::N_NCLOB(Some(clob)) => Ok(clob.into_string()
                 .map_err(|e| ConversionError::Incomplete(e.description().to_owned()))?),
 
             value => Err(wrong_type(&value, "String")),
@@ -527,7 +507,9 @@ impl DbValueInto<NaiveDateTime> for TypedValue {
                     NaiveTime::from_hms_nano(h, min, s, f * 100),
                 ))
             }
-            _ => Err(ConversionError::ValueType("Not a LongDate value".to_owned())),
+            _ => Err(ConversionError::ValueType(
+                "Not a LongDate value".to_owned(),
+            )),
         }
     }
 }
@@ -539,36 +521,38 @@ impl DbValueInto<Vec<u8>> for TypedValue {
             TypedValue::BLOB(blob) | TypedValue::N_BLOB(Some(blob)) => Ok(blob.into_bytes()
                 .map_err(|e| ConversionError::Incomplete(e.description().to_owned()))?),
 
-            TypedValue::BINARY(v) |
-            TypedValue::VARBINARY(v) |
-            TypedValue::BSTRING(v) |
-            TypedValue::N_BINARY(Some(v)) |
-            TypedValue::N_VARBINARY(Some(v)) |
-            TypedValue::N_BSTRING(Some(v)) => Ok(v),
+            TypedValue::BINARY(v)
+            | TypedValue::VARBINARY(v)
+            | TypedValue::BSTRING(v)
+            | TypedValue::N_BINARY(Some(v))
+            | TypedValue::N_VARBINARY(Some(v))
+            | TypedValue::N_BSTRING(Some(v)) => Ok(v),
 
             value => Err(wrong_type(&value, "seq")),
         }
     }
 }
 
-
-
 fn wrong_type(tv: &TypedValue, ovt: &str) -> ConversionError {
-    ConversionError::ValueType(format!("The value {:?} cannot be converted into type {}", tv, ovt))
+    ConversionError::ValueType(format!(
+        "The value {:?} cannot be converted into type {}",
+        tv, ovt
+    ))
 }
 
 fn number_range(value: &i64, ovt: &str) -> ConversionError {
-    ConversionError::NumberRange(
-        format!("The value {:?} exceeds the number range of type {}", value, ovt),
-    )
+    ConversionError::NumberRange(format!(
+        "The value {:?} exceeds the number range of type {}",
+        value, ovt
+    ))
 }
 
 fn decimal_range(ovt: &str) -> ConversionError {
-    ConversionError::NumberRange(
-        format!("The given decimal value cannot be converted into a number of type {}", ovt),
-    )
+    ConversionError::NumberRange(format!(
+        "The given decimal value cannot be converted into a number of type {}",
+        ovt
+    ))
 }
-
 
 /// Deserializes a `LongDate` into a String format.
 fn str_from_longdate(ld: &LongDate) -> String {

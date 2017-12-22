@@ -24,13 +24,7 @@ impl fmt::Display for LongDate {
         write!(
             fmt,
             "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:07}",
-            year,
-            month,
-            day,
-            hour,
-            minute,
-            second,
-            fraction
+            year, month, day, hour, minute, second, fraction
         )
     }
 }
@@ -40,7 +34,6 @@ impl cmp::PartialEq<LongDate> for LongDate {
         self.0 == other.0
     }
 }
-
 
 impl LongDate {
     #[doc(hidden)]
@@ -53,9 +46,15 @@ impl LongDate {
     }
 
     /// Factory method for LongDate with all fields.
-    pub fn from_ymd_hms_n(y: i32, m: u32, d: u32, hour: u32, minute: u32, second: u32,
-                          nanosecond: u32)
-                          -> Result<LongDate, &'static str> {
+    pub fn from_ymd_hms_n(
+        y: i32,
+        m: u32,
+        d: u32,
+        hour: u32,
+        minute: u32,
+        second: u32,
+        nanosecond: u32,
+    ) -> Result<LongDate, &'static str> {
         if y < 1 || y > 9999 {
             return Err("Only years between 1 and 9999 are supported");
         }
@@ -74,8 +73,14 @@ impl LongDate {
     }
 
     /// Factory method for LongDate up to second precision.
-    pub fn from_ymd_hms(y: i32, m: u32, d: u32, hour: u32, minute: u32, second: u32)
-                        -> Result<LongDate, &'static str> {
+    pub fn from_ymd_hms(
+        y: i32,
+        m: u32,
+        d: u32,
+        hour: u32,
+        minute: u32,
+        second: u32,
+    ) -> Result<LongDate, &'static str> {
         LongDate::from_ymd_hms_n(y, m, d, hour, minute, second, 0)
     }
 
@@ -130,7 +135,6 @@ impl LongDate {
         (year, month, day, hour, minute, second, fraction)
     }
 }
-
 
 fn to_day_number(y: u32, m: u32, d: u32) -> i64 {
     let (yd, md) = to_day(m);

@@ -21,12 +21,20 @@ enum BlobEnum {
     ToDB(Vec<u8>),
 }
 
-pub fn new_blob_from_db(conn_ref: &ConnCoreRef, is_data_complete: bool, length_b: u64,
-                        locator_id: u64, data: Vec<u8>)
-                        -> BLOB {
-    BLOB(BlobEnum::FromDB(
-        RefCell::new(BlobHandle::new(conn_ref, is_data_complete, length_b, locator_id, data)),
-    ))
+pub fn new_blob_from_db(
+    conn_ref: &ConnCoreRef,
+    is_data_complete: bool,
+    length_b: u64,
+    locator_id: u64,
+    data: Vec<u8>,
+) -> BLOB {
+    BLOB(BlobEnum::FromDB(RefCell::new(BlobHandle::new(
+        conn_ref,
+        is_data_complete,
+        length_b,
+        locator_id,
+        data,
+    ))))
 }
 
 /// Factory method for BLOBs that are to be sent to the database.
@@ -52,9 +60,9 @@ impl BLOB {
     pub fn ref_to_bytes(&self) -> PrtResult<&Vec<u8>> {
         trace!("BLOB::ref_to_bytes()");
         match self.0 {
-            BlobEnum::FromDB(_) => {
-                Err(PrtError::ProtocolError("cannot serialize BlobHandle".to_string()))
-            }
+            BlobEnum::FromDB(_) => Err(PrtError::ProtocolError(
+                "cannot serialize BlobHandle".to_string(),
+            )),
             BlobEnum::ToDB(ref vec) => Ok(vec),
         }
     }
@@ -95,12 +103,22 @@ impl io::Read for BLOB {
 #[derive(Clone, Debug)]
 pub struct CLOB(RefCell<ClobHandle>);
 
-pub fn new_clob_from_db(conn_ref: &ConnCoreRef, is_data_complete: bool, length_c: u64,
-                        length_b: u64, locator_id: u64, data: Vec<u8>)
-                        -> CLOB {
-    CLOB(RefCell::new(
-        ClobHandle::new(conn_ref, is_data_complete, length_c, length_b, locator_id, data),
-    ))
+pub fn new_clob_from_db(
+    conn_ref: &ConnCoreRef,
+    is_data_complete: bool,
+    length_c: u64,
+    length_b: u64,
+    locator_id: u64,
+    data: Vec<u8>,
+) -> CLOB {
+    CLOB(RefCell::new(ClobHandle::new(
+        conn_ref,
+        is_data_complete,
+        length_c,
+        length_b,
+        locator_id,
+        data,
+    )))
 }
 
 impl CLOB {

@@ -1,6 +1,5 @@
 use protocol::protocol_error::{PrtError, PrtResult};
 
-
 // Defines the action requested from the database server.
 // Is documented as Message Type.
 // Irrelevant RequestTypes (abap related, "reserved" stuff) are omitted.
@@ -9,8 +8,8 @@ pub enum RequestType {
     DummyForReply,   // (Used for reply segments)
     ExecuteDirect,   // Directly execute SQL statement
     Prepare,         // Prepare an SQL statement
-    XaStart,         // Start a distributed transaction
-    XaJoin,          // Join a distributed transaction
+    OldXaStart,      // Start a distributed transaction
+    OldXaJoin,       // Join a distributed transaction
     Execute,         // Execute a previously prepared SQL statement
     ReadLob,         // Reads large object data
     WriteLob,        // Writes large object data
@@ -28,13 +27,13 @@ pub enum RequestType {
     FetchLast,       // Moves the cursor to the last row and fetches the data
     Disconnect,      // Disconnects session
     DbConnectInfo,   // Request/receive database connect information
-                     // MessageType_XOpen_XAStart      = 83,
-                     // MessageType_XOpen_XAEnd        = 84,
-                     // MessageType_XOpen_XAPrepare    = 85,
-                     // MessageType_XOpen_XACommit     = 86,
-                     // MessageType_XOpen_XARollback   = 87,
-                     // MessageType_XOpen_XARecover    = 88,
-                     // MessageType_XOpen_XAForget     = 89,
+    XAStart,         // = 83,
+    XAEnd,           // = 84,
+    XAPrepare,       // = 85,
+    XACommit,        // = 86,
+    XARollback,      // = 87,
+    XARecover,       // = 88,
+    XAForget,        // = 89,
 }
 
 impl RequestType {
@@ -43,8 +42,8 @@ impl RequestType {
             RequestType::DummyForReply => 1, // for test purposes only
             RequestType::ExecuteDirect => 2,
             RequestType::Prepare => 3,
-            RequestType::XaStart => 5,
-            RequestType::XaJoin => 6,
+            RequestType::OldXaStart => 5,
+            RequestType::OldXaJoin => 6,
             RequestType::Execute => 13,
             RequestType::ReadLob => 16,
             RequestType::WriteLob => 17,
@@ -62,6 +61,13 @@ impl RequestType {
             RequestType::FetchLast => 75,
             RequestType::Disconnect => 77,
             RequestType::DbConnectInfo => 82,
+            RequestType::XAStart => 83,
+            RequestType::XAEnd => 84,
+            RequestType::XAPrepare => 85,
+            RequestType::XACommit => 86,
+            RequestType::XARollback => 87,
+            RequestType::XARecover => 88,
+            RequestType::XAForget => 89,
         }
     }
 
@@ -70,8 +76,8 @@ impl RequestType {
             1 => Ok(RequestType::DummyForReply),
             2 => Ok(RequestType::ExecuteDirect),
             3 => Ok(RequestType::Prepare),
-            5 => Ok(RequestType::XaStart),
-            6 => Ok(RequestType::XaJoin),
+            5 => Ok(RequestType::OldXaStart),
+            6 => Ok(RequestType::OldXaJoin),
             13 => Ok(RequestType::Execute),
             16 => Ok(RequestType::ReadLob),
             17 => Ok(RequestType::WriteLob),
@@ -89,9 +95,18 @@ impl RequestType {
             75 => Ok(RequestType::FetchLast),
             77 => Ok(RequestType::Disconnect),
             82 => Ok(RequestType::DbConnectInfo),
-            _ => Err(
-                PrtError::ProtocolError(format!("Invalid value for RequestType detected: {}", val)),
-            ),
+            83 => Ok(RequestType::XAStart),
+            84 => Ok(RequestType::XAEnd),
+            85 => Ok(RequestType::XAPrepare),
+            86 => Ok(RequestType::XACommit),
+            87 => Ok(RequestType::XARollback),
+            88 => Ok(RequestType::XARecover),
+            89 => Ok(RequestType::XAForget),
+
+            _ => Err(PrtError::ProtocolError(format!(
+                "Invalid value for RequestType detected: {}",
+                val
+            ))),
         }
     }
 }

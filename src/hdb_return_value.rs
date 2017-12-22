@@ -46,14 +46,10 @@ impl HdbReturnValue {
     pub fn into_output_parameters(self) -> HdbResult<OutputParameters> {
         match self {
             HdbReturnValue::OutputParameters(op) => Ok(op),
-            _ => {
-                Err(
-                    HdbError::EvaluationError(
-                        "Wrong call to HdbReturnValue::into_output_parameters(): not \
-                         OutputParameters".to_string(),
-                    ),
-                )
-            }
+            _ => Err(HdbError::EvaluationError(
+                "Wrong call to HdbReturnValue::into_output_parameters(): not OutputParameters"
+                    .to_string(),
+            )),
         }
     }
 

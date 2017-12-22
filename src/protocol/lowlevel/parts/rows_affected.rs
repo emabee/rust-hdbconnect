@@ -32,9 +32,10 @@ impl fmt::Display for RowsAffected {
                 fmt,
                 "Command successfully executed but number of affected rows cannot be determined"
             )?,
-            RowsAffected::ExecutionFailed => {
-                writeln!(fmt, "Execution of statement or processing of row has failed")?
-            }
+            RowsAffected::ExecutionFailed => writeln!(
+                fmt,
+                "Execution of statement or processing of row has failed"
+            )?,
         }
         Ok(())
     }
