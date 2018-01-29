@@ -27,6 +27,7 @@
 extern crate byteorder;
 extern crate chrono;
 extern crate crypto;
+extern crate dist_tx;
 extern crate hex;
 extern crate num;
 extern crate rust_decimal;
@@ -54,6 +55,7 @@ mod impl_serde_db;
 mod prepared_statement;
 mod protocol;
 mod url;
+mod xa_impl;
 
 pub mod code_examples;
 
@@ -90,4 +92,3 @@ pub mod types {
     pub use protocol::lowlevel::parts::longdate::LongDate;
 }
 pub use protocol::lowlevel::parts::typed_value::TypedValue as HdbValue;
-pub use protocol::lowlevel::parts::xat::{XatFlag, XatId};

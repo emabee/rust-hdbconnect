@@ -13,19 +13,20 @@ repository = "https://github.com/emabee/rust-hdbconnect"
 #readme = "..."
 
 [dependencies]
-bigint = "^4.2.0"
 byteorder = "1.1"
 chrono = { version = "0.4", features = ["serde"] }
+# dist_tx = {path = "../dist_tx"}
+dist_tx = "0.1"
 hex = "0.2"
-log = "0.3"
+log = "0.4"
 num = "^0.1.40"
 r2d2 = "0.7"
 rand = "0.3"
 rust-crypto = "0.2"
-rust_decimal = "^0.6.1"
+rust_decimal = { version = "0.7", features = ["serde"] }
 serde = "1.0"
 serde_derive = "1.0"
-serde_db = "^0.4.0"
+serde_db = "^0.4.2"
 #serde_db = { path = "../serde_db" }
 serde_json = "1.0"
 username = "^0.2"

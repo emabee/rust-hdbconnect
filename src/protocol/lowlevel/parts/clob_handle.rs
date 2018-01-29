@@ -30,7 +30,7 @@ impl ClobHandle {
         length_c: u64,
         length_b: u64,
         locator_id: u64,
-        cesu8: Vec<u8>,
+        cesu8: &[u8],
     ) -> ClobHandle {
         let acc_byte_length = cesu8.len();
         let mut utf8 = Vec::<u8>::new();
@@ -79,7 +79,7 @@ impl ClobHandle {
             ));
         }
         let (mut reply_data, reply_is_last_data, server_processing_time) = fetch_a_lob_chunk(
-            &self.o_conn_ref,
+            &mut self.o_conn_ref,
             self.locator_id,
             self.length_b,
             self.acc_byte_length as u64,
@@ -93,7 +93,8 @@ impl ClobHandle {
         if !success && byte_count < self.buffer_cesu8.len() as u64 - 5 {
             error!(
                 "ClobHandle::fetch_next_chunk(): bad cesu8 at pos {} in part of CLOB: {:?}",
-                byte_count, self.buffer_cesu8
+                byte_count,
+                self.buffer_cesu8
             );
             return Err(PrtError::Cesu8Error(util::Cesu8DecodingError));
         }

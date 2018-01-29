@@ -1,7 +1,7 @@
 {
     "hostname": "hxehost",
     "port": 39013,
-    "dbuser": "FOO",
-    "password": "bar",
+    "dbuser": "SYSTEM",
+    "password": "PsWd102030",
     "options": []
 }

@@ -60,8 +60,9 @@ impl error::Error for HdbError {
             HdbError::ProtocolError(ref error) => error.description(),
             HdbError::InternalEvaluationError(s) => s,
             HdbError::SerializationError(ref error) => error.description(),
-            HdbError::EvaluationError(ref s) | HdbError::UsageError(ref s) => s,
-            HdbError::PoisonError(ref s) => s,
+            HdbError::EvaluationError(ref s)
+            | HdbError::UsageError(ref s)
+            | HdbError::PoisonError(ref s) => s,
         }
     }
 

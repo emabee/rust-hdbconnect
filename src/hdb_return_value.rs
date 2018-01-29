@@ -1,3 +1,4 @@
+use dist_tx::tm::XaTransactionId;
 use {HdbError, HdbResult};
 use protocol::lowlevel::parts::output_parameters::OutputParameters;
 use protocol::lowlevel::parts::resultset::ResultSet;
@@ -14,6 +15,8 @@ pub enum HdbReturnValue {
     OutputParameters(OutputParameters),
     // Indication that a db call was successful.
     Success,
+    // A list of `XaTransactionId`s.
+    XaTransactionIds(Vec<XaTransactionId>),
 }
 impl HdbReturnValue {
     // Turns itself into a single resultset.
@@ -72,6 +75,10 @@ impl HdbReturnValue {
             HdbReturnValue::ResultSet(_) => Err(HdbError::EvaluationError(
                 "Wrong call to HdbReturnValue::into_success(): is a ResultSet".to_string(),
             )),
+            HdbReturnValue::XaTransactionIds(_) => Err(HdbError::EvaluationError(
+                "Wrong call to HdbReturnValue::into_success(): is a list of XaTransactionIds"
+                    .to_string(),
+            )),
         }
     }
 
@@ -104,6 +111,7 @@ impl fmt::Display for HdbReturnValue {
                 fmt::Display::fmt("],\n", fmt)?
             }
             HdbReturnValue::Success => fmt::Display::fmt("Success,\n", fmt)?,
+            HdbReturnValue::XaTransactionIds(_) => fmt::Display::fmt("XaTransactionIds,\n", fmt)?,
         }
         Ok(())
     }

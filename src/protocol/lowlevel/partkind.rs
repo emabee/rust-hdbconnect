@@ -37,7 +37,7 @@ pub enum PartKind {
     TransactionFlags,      // 64 // Transaction handling flags
     LobFlags,              // 68 // LOB flags // FIXME is missing
     ResultsetOptions,      // 69 // Additional context data for result sets
-    XaTransaction,         // 70 // XA transaction information (XA transaction ID)
+    XatOptions,            // 70 // XA transaction information (XA transaction ID)
     SessionVariable,       // 71 // undocumented
     WorkloadReplayContext, // 72 // undocumented
     SQLReplyOptions,       // 73 // undocumented
@@ -79,7 +79,7 @@ impl PartKind {
             PartKind::TransactionFlags => 64,
             PartKind::LobFlags => 68,
             PartKind::ResultsetOptions => 69,
-            PartKind::XaTransaction => 70,
+            PartKind::XatOptions => 70,
             PartKind::SessionVariable => 71,
             PartKind::WorkloadReplayContext => 72,
             PartKind::SQLReplyOptions => 73,
@@ -121,11 +121,10 @@ impl PartKind {
             57 => Ok(PartKind::ClientInfo),
             64 => Ok(PartKind::TransactionFlags),
             68 => Ok(PartKind::LobFlags),
-            70 => Ok(PartKind::XaTransaction),
-            _ => Err(PrtError::ProtocolError(format!(
-                "Invalid value for PartKind detected: {}",
-                val
-            ))),
+            70 => Ok(PartKind::XatOptions),
+            _ => Err(PrtError::ProtocolError(
+                format!("Invalid value for PartKind detected: {}", val),
+            )),
         }
     }
 }

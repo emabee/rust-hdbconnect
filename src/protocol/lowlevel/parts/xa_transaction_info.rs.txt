@@ -1,0 +1,78 @@
+use super::PrtResult;
+use super::prt_option_value::PrtOptionValue;
+
+use byteorder::{ReadBytesExt, WriteBytesExt};
+use std::i8;
+use std::io;
+
+#[derive(Debug, Default)]
+pub struct XaTransactionInfos(pub Vec<XaTransactionInfo>);
+impl XaTransactionInfos {
+    pub fn push(&mut self, id: XaTransactionInfoId, value: PrtOptionValue) {
+        self.0.push(XaTransactionInfo {
+            id: id,
+            value: value,
+        });
+    }
+}
+
+#[derive(Debug)]
+pub struct XaTransactionInfo {
+    pub id: XaTransactionInfoId,
+    pub value: PrtOptionValue,
+}
+impl XaTransactionInfo {
+    pub fn serialize(&self, w: &mut io::Write) -> PrtResult<()> {
+        w.write_i8(self.id.to_i8())?; // I1
+        self.value.serialize(w)
+    }
+
+    pub fn size(&self) -> usize {
+        1 + self.value.size()
+    }
+
+    pub fn parse(rdr: &mut io::BufRead) -> PrtResult<XaTransactionInfo> {
+        let option_id = XaTransactionInfoId::from_i8(rdr.read_i8()?); // I1
+        let value = PrtOptionValue::parse(rdr)?;
+        Ok(XaTransactionInfo {
+            id: option_id,
+            value: value,
+        })
+    }
+}
+
+#[derive(Debug)]
+pub enum XaTransactionInfoId {
+    Flags,       // 1 // INT     (0x03) OPTION
+    ReturnCode,  // 2 // INT     (0x03) OPTION
+    OnePhase,    // 3 // BOOLEAN (0x1C) OPTION
+    NumberOfXID, // 4 // BIGINT  (0x04) OPTION
+    XIDList,     // 5 // BSTRING (0x21) OPTION
+    __Unexpected__,
+}
+impl XaTransactionInfoId {
+    fn to_i8(&self) -> i8 {
+        match *self {
+            XaTransactionInfoId::Flags => 1,
+            XaTransactionInfoId::ReturnCode => 2,
+            XaTransactionInfoId::OnePhase => 3,
+            XaTransactionInfoId::NumberOfXID => 4,
+            XaTransactionInfoId::XIDList => 5,
+            XaTransactionInfoId::__Unexpected__ => i8::MAX,
+        }
+    }
+
+    fn from_i8(val: i8) -> XaTransactionInfoId {
+        match val {
+            1 => XaTransactionInfoId::Flags,
+            2 => XaTransactionInfoId::ReturnCode,
+            3 => XaTransactionInfoId::OnePhase,
+            4 => XaTransactionInfoId::NumberOfXID,
+            5 => XaTransactionInfoId::XIDList,
+            val => {
+                warn!("Invalid value for XaTransactionInfoId received: {}", val);
+                XaTransactionInfoId::__Unexpected__
+            }
+        }
+    }
+}

@@ -47,8 +47,10 @@ struct TestData {
     #[serde(rename = "F4_DT")] f4: NaiveDateTime,
 }
 
-fn prepare(connection: &mut Connection, _logger_handle: &mut ReconfigurationHandle)
-           -> HdbResult<()> {
+fn prepare(
+    connection: &mut Connection,
+    _logger_handle: &mut ReconfigurationHandle,
+) -> HdbResult<()> {
     // prepare the db table
     test_utils::statement_ignore_err(connection, vec!["drop table TEST_SELFORUPDATE"]);
     let stmts = vec![
@@ -76,10 +78,12 @@ fn prepare(connection: &mut Connection, _logger_handle: &mut ReconfigurationHand
     Ok(())
 }
 
-fn produce_conflict(connection: &mut Connection, logger_handle: &mut ReconfigurationHandle)
-                    -> HdbResult<()> {
+fn produce_conflict(
+    connection: &mut Connection,
+    logger_handle: &mut ReconfigurationHandle,
+) -> HdbResult<()> {
     logger_handle.set_new_spec(LogSpecification::parse("info"));
-    connection.set_auto_commit(false);
+    connection.set_auto_commit(false)?;
 
     debug!("get two more connection");
     let mut connection2 = connection.spawn()?;
@@ -91,18 +95,21 @@ fn produce_conflict(connection: &mut Connection, logger_handle: &mut Reconfigura
     debug!("try conflicting update with second connection");
     thread::spawn(move || {
         debug!("conn2: select * for update");
-        connection2.query("select * from TEST_SELFORUPDATE where F1_S = 'Hello' for update")
-                   .unwrap();
-        connection2.dml("update TEST_SELFORUPDATE set F2_I = 2 where F1_S = 'Hello'")
-                   .unwrap();
+        connection2
+            .query("select * from TEST_SELFORUPDATE where F1_S = 'Hello' for update")
+            .unwrap();
+        connection2
+            .dml("update TEST_SELFORUPDATE set F2_I = 2 where F1_S = 'Hello'")
+            .unwrap();
         connection2.commit().unwrap();
     });
 
     debug!("do update with first connection");
     connection.dml("update TEST_SELFORUPDATE set F2_I = 1 where F1_S = 'Hello'")?;
 
-    let i: i32 = connection.query("select F2_I from TEST_SELFORUPDATE where F1_S = 'Hello'")?
-                           .try_into()?;
+    let i: i32 = connection
+        .query("select F2_I from TEST_SELFORUPDATE where F1_S = 'Hello'")?
+        .try_into()?;
     assert_eq!(i, 1);
 
     debug!("commit the change of the first connection");
@@ -114,8 +121,9 @@ fn produce_conflict(connection: &mut Connection, logger_handle: &mut Reconfigura
         "verify the change of the second connection is visible (because the other thread \
          had to wait with its update until the first was committed"
     );
-    let i: i32 = connection3.query("select F2_I from TEST_SELFORUPDATE where F1_S = 'Hello'")?
-                            .try_into()?;
+    let i: i32 = connection3
+        .query("select F2_I from TEST_SELFORUPDATE where F1_S = 'Hello'")?
+        .try_into()?;
     assert_eq!(i, 2);
 
     Ok(())

@@ -54,7 +54,7 @@ impl PreparedStatement {
     /// Executes the statement with the collected batch, and clears the batch.
     pub fn execute_batch(&mut self) -> HdbResult<HdbResponse> {
         trace!("PreparedStatement::execute_batch()");
-        let mut request = Request::new(&(self.conn_ref), RequestType::Execute, 8_u8)?;
+        let mut request = Request::new(RequestType::Execute, 8_u8)?;
         request.push(Part::new(
             PartKind::StatementId,
             Argument::StatementId(self.statement_id),
@@ -67,15 +67,13 @@ impl PreparedStatement {
                 Argument::Parameters(Parameters::new(pars2)),
             ));
         }
-        let rs_md = match self.o_rs_md {
-            Some(ref rs_md) => Some(rs_md),
-            None => None,
-        };
-        let par_md = match self.o_par_md {
-            Some(ref par_md) => Some(par_md),
-            None => None,
-        };
-        request.send_and_get_response(rs_md, par_md, &(self.conn_ref), None)
+
+        request.send_and_get_response(
+            self.o_rs_md.as_ref(),
+            self.o_par_md.as_ref(),
+            &mut (self.conn_ref),
+            None,
+        )
     }
 
     /// Sets the auto-commit of the prepared statement's connection for future calls.
@@ -89,14 +87,14 @@ impl PreparedStatement {
 impl Drop for PreparedStatement {
     /// Frees all server-side ressources that belong to this prepared statement.
     fn drop(&mut self) {
-        match Request::new(&(self.conn_ref), RequestType::DropStatementId, 0) {
+        match Request::new(RequestType::DropStatementId, 0) {
             Err(_) => {}
             Ok(mut request) => {
                 request.push(Part::new(
                     PartKind::StatementId,
                     Argument::StatementId(self.statement_id),
                 ));
-                if let Ok(mut reply) = request.send_and_receive(&(self.conn_ref), None) {
+                if let Ok(mut reply) = request.send_and_receive(&mut (self.conn_ref), None) {
                     reply.parts.pop_arg_if_kind(PartKind::StatementContext);
                 }
             }
@@ -114,24 +112,23 @@ pub mod factory {
     use protocol::lowlevel::partkind::PartKind;
     use protocol::lowlevel::parts::parameters::ParameterRow;
     use protocol::lowlevel::parts::parameter_descriptor::{ParameterDescriptor, ParameterDirection};
+    use protocol::lowlevel::parts::prt_option_value::PrtOptionValue;
     use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
-    use protocol::lowlevel::parts::statement_context::StatementContext;
     use protocol::lowlevel::parts::transactionflags::TransactionFlag;
     use super::PreparedStatement;
 
     /// Prepare a statement.
-    pub fn prepare(conn_ref: ConnCoreRef, stmt: String) -> HdbResult<PreparedStatement> {
+    pub fn prepare(mut conn_ref: ConnCoreRef, stmt: String) -> HdbResult<PreparedStatement> {
         let command_options: u8 = 8;
-        let mut request = Request::new(&conn_ref, RequestType::Prepare, command_options)?;
+        let mut request = Request::new(RequestType::Prepare, command_options)?;
         request.push(Part::new(PartKind::Command, Argument::Command(stmt)));
 
-        let mut reply = request.send_and_receive(&conn_ref, None)?;
+        let mut reply = request.send_and_receive(&mut conn_ref, None)?;
 
         // TableLocation, TransactionFlags, StatementContext,
         // StatementId, ParameterMetadata, ResultSetMetadata
         let mut o_table_location: Option<Vec<i32>> = None;
         let mut o_ta_flags: Option<Vec<TransactionFlag>> = None;
-        let mut o_stmt_ctx: Option<StatementContext> = None;
         let mut o_stmt_id: Option<u64> = None;
         let mut o_par_md: Option<Vec<ParameterDescriptor>> = None;
         let mut o_rs_md: Option<ResultSetMetadata> = None;
@@ -144,15 +141,19 @@ pub mod factory {
                 Some(Argument::StatementId(id)) => {
                     o_stmt_id = Some(id);
                 }
-                Some(Argument::StatementContext(stmt_ctx)) => {
-                    o_stmt_ctx = Some(stmt_ctx);
-                }
                 Some(Argument::TransactionFlags(vec)) => o_ta_flags = Some(vec),
                 Some(Argument::TableLocation(vec_i)) => {
                     o_table_location = Some(vec_i);
                 }
                 Some(Argument::ResultSetMetadata(rs_md)) => {
                     o_rs_md = Some(rs_md);
+                }
+
+                Some(Argument::StatementContext(stmt_ctx)) => {
+                    if let Some(PrtOptionValue::INT(i)) = stmt_ctx.server_processing_time {
+                        let mut guard = conn_ref.lock()?;
+                        (*guard).add_server_proc_time(i);
+                    }
                 }
                 x => warn!("prepare(): Unexpected reply part found {:?}", x),
             }

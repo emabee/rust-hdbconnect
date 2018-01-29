@@ -53,7 +53,7 @@ impl BlobHandle {
 
     fn fetch_next_chunk(&mut self) -> PrtResult<()> {
         let (mut reply_data, reply_is_last_data, server_processing_time) = fetch_a_lob_chunk(
-            &self.o_conn_ref,
+            &mut self.o_conn_ref,
             self.locator_id,
             self.length_b,
             self.acc_byte_length as u64,
@@ -126,69 +126,68 @@ use protocol::lowlevel::parts::prt_option_value::PrtOptionValue;
 use protocol::lowlevel::partkind::PartKind;
 
 pub fn fetch_a_lob_chunk(
-    o_conn_ref: &Option<ConnCoreRef>,
+    o_conn_ref: &mut Option<ConnCoreRef>,
     locator_id: u64,
     length_b: u64,
     data_len: u64,
 ) -> PrtResult<(Vec<u8>, bool, i32)> {
-    // build the request, provide StatementContext and length_to_read
-    let (conn_ref, length_to_read) = match *o_conn_ref {
-        None => {
-            return Err(prot_err(
-                "LOB is not complete, but fetching more chunks is no more possible (connection \
-                 not available)",
+    match *o_conn_ref {
+        None => Err(prot_err(
+            "Fetching more LOB chunks is no more possible (connection already closed)",
+        )),
+        Some(ref mut conn_ref) => {
+            // build the request, provide StatementContext and length_to_read
+            let mut request = Request::new(RequestType::ReadLob, 0)?;
+            let length_to_read = {
+                let guard = conn_ref.lock()?;
+                cmp::min((*guard).get_lob_read_length() as u64, length_b - data_len) as i32
+            };
+            let offset = data_len + 1;
+            request.push(Part::new(
+                PartKind::ReadLobRequest,
+                Argument::ReadLobRequest(locator_id, offset, length_to_read),
             ));
-        }
-        Some(ref conn_ref) => {
-            let guard = conn_ref.lock()?;
-            let length_to_read =
-                cmp::min((*guard).get_lob_read_length() as u64, length_b - data_len);
-            (conn_ref, length_to_read as i32)
-        }
-    };
-    let mut request = Request::new(conn_ref, RequestType::ReadLob, 0)?;
 
-    let offset = data_len + 1;
-    request.push(Part::new(
-        PartKind::ReadLobRequest,
-        Argument::ReadLobRequest(locator_id, offset, length_to_read),
-    ));
+            trace!(
+                "Sending ReadLobRequest with offset = {} and length_to_read = {}",
+                offset,
+                length_to_read
+            );
 
-    trace!(
-        "Sending ReadLobRequest with offset = {} and length_to_read = {}",
-        offset,
-        length_to_read
-    );
+            let mut reply = request.send_and_receive(conn_ref, Some(ReplyType::ReadLob))?;
 
-    let mut reply = request.send_and_receive(conn_ref, Some(ReplyType::ReadLob))?;
+            let (reply_data, reply_is_last_data) = match reply
+                .parts
+                .pop_arg_if_kind(PartKind::ReadLobReply)
+            {
+                Some(Argument::ReadLobReply(reply_locator_id, reply_is_last_data, reply_data)) => {
+                    if reply_locator_id != locator_id {
+                        return Err(prot_err(
+                            "lob::fetch_a_lob_chunk(): locator ids do not match",
+                        ));
+                    }
+                    (reply_data, reply_is_last_data)
+                }
+                _ => return Err(prot_err("No ReadLobReply part found")),
+            };
 
-    let (reply_data, reply_is_last_data) = match reply.parts.pop_arg_if_kind(PartKind::ReadLobReply)
-    {
-        Some(Argument::ReadLobReply(reply_locator_id, reply_is_last_data, reply_data)) => {
-            if reply_locator_id != locator_id {
-                return Err(prot_err(
-                    "lob::fetch_a_lob_chunk(): locator ids do not match",
-                ));
-            }
-            (reply_data, reply_is_last_data)
+            let server_processing_time =
+                match reply.parts.pop_arg_if_kind(PartKind::StatementContext) {
+                    Some(Argument::StatementContext(stmt_ctx)) => {
+                        if let Some(PrtOptionValue::INT(i)) = stmt_ctx.server_processing_time {
+                            i
+                        } else {
+                            0
+                        }
+                    }
+                    None => 0,
+                    _ => {
+                        return Err(prot_err(
+                            "Inconsistent StatementContext part found for ResultSet",
+                        ))
+                    }
+                };
+            Ok((reply_data, reply_is_last_data, server_processing_time))
         }
-        _ => return Err(prot_err("No ReadLobReply part found")),
-    };
-
-    let server_processing_time = match reply.parts.pop_arg_if_kind(PartKind::StatementContext) {
-        Some(Argument::StatementContext(stmt_ctx)) => {
-            if let Some(PrtOptionValue::INT(i)) = stmt_ctx.server_processing_time {
-                i
-            } else {
-                0
-            }
-        }
-        None => 0,
-        _ => {
-            return Err(prot_err(
-                "Inconsistent StatementContext part found for ResultSet",
-            ))
-        }
-    };
-    Ok((reply_data, reply_is_last_data, server_processing_time))
+    }
 }

@@ -1,6 +1,7 @@
 //! Since there is obviously no usecase for multiple segments in one request,
 //! we model message and segment together.
 //! But we differentiate explicitly between request messages and reply messages.
+use dist_tx::tm::XaTransactionId;
 use {HdbError, HdbResponse, HdbResult};
 use hdb_response::factory as HdbResponseFactory;
 use hdb_response::factory::InternalReturnValue;
@@ -43,33 +44,21 @@ pub enum Message {
 #[derive(Debug)]
 pub struct Request {
     request_type: RequestType,
-    auto_commit: bool,
     command_options: u8,
     parts: Parts,
 }
 impl Request {
-    pub fn new(
-        conn_ref: &ConnCoreRef,
-        request_type: RequestType,
-        command_options: u8,
-    ) -> PrtResult<Request> {
-        let mut request = Request {
+    pub fn new(request_type: RequestType, command_options: u8) -> PrtResult<Request> {
+        Ok(Request {
             request_type: request_type,
-            auto_commit: {
-                let guard = conn_ref.lock()?;
-                (*guard).is_auto_commit()
-            },
             command_options: command_options,
             parts: Parts::default(),
-        };
-        request.add_ssi(conn_ref)?;
-        Ok(request)
+        })
     }
 
     pub fn new_for_disconnect() -> Request {
         Request {
             request_type: RequestType::Disconnect,
-            auto_commit: false,
             command_options: 0,
             parts: Parts::default(),
         }
@@ -77,14 +66,14 @@ impl Request {
 
     pub fn send_and_get_response(
         &mut self,
-        rs_md: Option<&ResultSetMetadata>,
-        par_md: Option<&Vec<ParameterDescriptor>>,
-        conn_ref: &ConnCoreRef,
+        o_rs_md: Option<&ResultSetMetadata>,
+        o_par_md: Option<&Vec<ParameterDescriptor>>,
+        conn_ref: &mut ConnCoreRef,
         expected_reply_type: Option<ReplyType>,
     ) -> HdbResult<HdbResponse> {
         let mut reply = self.send_and_receive_detailed(
-            rs_md,
-            par_md,
+            o_rs_md,
+            o_par_md,
             &mut None,
             conn_ref,
             expected_reply_type,
@@ -106,7 +95,7 @@ impl Request {
                         stmt_ctx.statement_sequence_info
                     );
                     let mut guard = conn_ref.lock()?;
-                    (*guard).set_ssi(stmt_ctx.statement_sequence_info);
+                    (*guard).set_statement_sequence(stmt_ctx.statement_sequence_info);
                     (*guard).add_server_proc_time(match stmt_ctx.server_processing_time {
                         Some(PrtOptionValue::INT(i)) => i,
                         _ => 0,
@@ -138,6 +127,10 @@ impl Request {
                     },
                     _ => panic!("Missing required part ResultSetID"),
                 },
+                Argument::XatOptions(xat_options) => {
+                    let v_xatid : Vec<XaTransactionId> = xat_options.get_transactions()?;
+                    int_return_values.push(InternalReturnValue::XaTransactionIds(v_xatid));
+                },
                 _ => warn!(
                     "send_and_get_response: found unexpected part of kind {:?}",
                     kind
@@ -146,15 +139,16 @@ impl Request {
         }
 
         // re-pack InternalReturnValues into appropriate HdbResponse
-        debug!("Building HdbResponse for a reply of type {:?}", reply.type_);
+        debug!("Building HdbResponse for a reply of type {:?}", reply.replytype);
         trace!(
             "The found InternalReturnValues are: {:?}",
             int_return_values
         );
-        match reply.type_ {
+        match reply.replytype {
             ReplyType::Select |
             ReplyType::SelectForUpdate => HdbResponseFactory::resultset(int_return_values),
 
+            
             ReplyType::Ddl |
             ReplyType::Commit |
             ReplyType::Rollback => HdbResponseFactory::success(int_return_values),
@@ -167,7 +161,10 @@ impl Request {
             ReplyType::DbProcedureCallWithResult =>
                 HdbResponseFactory::multiple_return_values(int_return_values),
 
-
+            ReplyType::XAControl |
+            ReplyType::XARecover => 
+                HdbResponseFactory::xa_transaction_ids(int_return_values),
+            
             // dedicated ReplyTypes that are handled elsewhere and that
             // should not go through this method:
             ReplyType::Nil | ReplyType::Connect | ReplyType::Fetch | ReplyType::ReadLob |
@@ -181,11 +178,10 @@ impl Request {
             ReplyType::Explain |
             ReplyType::XaStart |
             ReplyType::XaJoin |
-            ReplyType::XAControl |
-            ReplyType::XAPrepare |
-            ReplyType::XARecover => {
-                let s = format!("unexpected reply type {:?} in \
-                                 send_and_get_response()", reply.type_);
+            ReplyType::XAPrepare => {
+                let s = format!(
+                    "unexpected reply type {:?} in send_and_get_response()", 
+                    reply.replytype);
                 error!("{}",s);
                 error!("Reply: {:?}",reply);
                 Err(HdbError::InternalEvaluationError(
@@ -197,7 +193,7 @@ impl Request {
     // simplified interface
     pub fn send_and_receive(
         &mut self,
-        conn_ref: &ConnCoreRef,
+        conn_ref: &mut ConnCoreRef,
         expected_reply_type: Option<ReplyType>,
     ) -> PrtResult<Reply> {
         self.send_and_receive_detailed(None, None, &mut None, conn_ref, expected_reply_type)
@@ -205,33 +201,25 @@ impl Request {
 
     pub fn send_and_receive_detailed(
         &mut self,
-        rs_md: Option<&ResultSetMetadata>,
-        par_md: Option<&Vec<ParameterDescriptor>>,
+        o_rs_md: Option<&ResultSetMetadata>,
+        o_par_md: Option<&Vec<ParameterDescriptor>>,
         o_rs: &mut Option<&mut ResultSet>,
-        conn_ref: &ConnCoreRef,
+        conn_ref: &mut ConnCoreRef,
         expected_reply_type: Option<ReplyType>,
     ) -> PrtResult<Reply> {
         trace!(
-            "Request::send_and_receive_detailed() with requestType = {:?}, auto_commit = {}",
+            "Request::send_and_receive_detailed() with requestType = {:?}",
             self.request_type,
-            self.auto_commit
         );
         let _start = Local::now();
+        self.add_statement_sequence(conn_ref)?;
 
         self.serialize(conn_ref)?;
 
-        let mut reply = Reply::parse(rs_md, par_md, o_rs, conn_ref)?;
-        reply.assert_no_error()?;
+        let mut reply = Reply::parse(o_rs_md, o_par_md, o_rs, conn_ref)?;
         reply.assert_expected_reply_type(expected_reply_type)?;
 
-        let mut acc_server_proc_time = 0;
-        if let Some(Argument::StatementContext(stmt_ctx)) =
-            reply.parts.pop_arg_if_kind(PartKind::StatementContext)
-        {
-            if let Some(PrtOptionValue::INT(i)) = stmt_ctx.server_processing_time {
-                acc_server_proc_time = i;
-            }
-        }
+        reply.assert_no_error()?;
 
         debug!(
             "Request::send_and_receive_detailed() took {} ms",
@@ -240,13 +228,13 @@ impl Request {
         Ok(reply)
     }
 
-    fn add_ssi(&mut self, conn_ref: &ConnCoreRef) -> PrtResult<()> {
+    fn add_statement_sequence(&mut self, conn_ref: &ConnCoreRef) -> PrtResult<()> {
         let guard = conn_ref.lock()?;
-        match *(*guard).ssi() {
+        match *(*guard).statement_sequence() {
             None => {}
-            Some(ref ssi) => {
+            Some(ref statement_sequence) => {
                 let mut stmt_ctx = StatementContext::default();
-                stmt_ctx.statement_sequence_info = Some(ssi.clone());
+                stmt_ctx.statement_sequence_info = Some(statement_sequence.clone());
                 trace!(
                     "Sending StatementContext with sequence_info = {:?}",
                     stmt_ctx.statement_sequence_info
@@ -260,13 +248,15 @@ impl Request {
         Ok(())
     }
 
-    fn serialize(&self, conn_ref: &ConnCoreRef) -> PrtResult<()> {
+    fn serialize(&self, conn_ref: &mut ConnCoreRef) -> PrtResult<()> {
         trace!("Entering Message::serialize()");
         let mut guard = conn_ref.lock()?;
+        let auto_commit_flag: i8 = if (*guard).is_auto_commit() {1} else {0};
         let conn_core = &mut *guard;
         self.serialize_impl(
             conn_core.session_id(),
             conn_core.next_seq_number(),
+            auto_commit_flag,
             &mut conn_core.stream(),
         )
     }
@@ -275,6 +265,7 @@ impl Request {
         &self,
         session_id: i64,
         seq_number: i32,
+        auto_commit_flag: i8,
         stream: &mut TcpStream,
     ) -> PrtResult<()> {
         let varpart_size = self.varpart_size()?;
@@ -298,18 +289,19 @@ impl Request {
         } // I1+ B[9]  unused
 
         // SEGMENT HEADER
+        let parts_len = self.parts.len() as i16;
         let size = self.seg_size()? as i32;
-        w.write_i32::<LittleEndian>(size)?; // I4  Length including the header
-        w.write_i32::<LittleEndian>(0)?; // I4 Offset within the message buffer
-        w.write_i16::<LittleEndian>(self.parts.len() as i16)?; // I2 Number of contained parts
-        w.write_i16::<LittleEndian>(1)?; // I2 Number of this segment, starting with 1
-        w.write_i8(1)?; // I1 Segment kind: always 1 = Request
-        w.write_i8(self.request_type.to_i8())?; // I1 "Message type"
-        w.write_i8(if self.auto_commit { 1 } else { 0 })?; // I1 auto_commit on/off
-        w.write_u8(self.command_options)?; // I1 Bit set for options
+        w.write_i32::<LittleEndian>(size)?;         // I4  Length including the header
+        w.write_i32::<LittleEndian>(0)?;            // I4 Offset within the message buffer
+        w.write_i16::<LittleEndian>(parts_len)?;    // I2 Number of contained parts
+        w.write_i16::<LittleEndian>(1)?;            // I2 Number of this segment, starting with 1
+        w.write_i8(1)?;                             // I1 Segment kind: always 1 = Request
+        w.write_i8(self.request_type.to_i8())?;     // I1 "Message type"
+        w.write_i8(auto_commit_flag)?;              // I1 auto_commit on/off
+        w.write_u8(self.command_options)?;          // I1 Bit set for options
         for _ in 0..8 {
             w.write_u8(0)?;
-        } // [B;8] Reserved, do not use
+        }                                           // [B;8] Reserved, do not use
 
         remaining_bufsize -= SEGMENT_HEADER_SIZE as u32;
         trace!("Headers are written");
@@ -346,15 +338,15 @@ impl Request {
 #[derive(Debug)]
 pub struct Reply {
     session_id: i64,
-    type_: ReplyType,
+    replytype: ReplyType,
     pub parts: Parts,
     server_processing_time: Option<PrtOptionValue>,
 }
 impl Reply {
-    fn new(session_id: i64, type_: ReplyType) -> Reply {
+    fn new(session_id: i64, replytype: ReplyType) -> Reply {
         Reply {
             session_id: session_id,
-            type_: type_,
+            replytype: replytype,
             parts: Parts::default(),
             server_processing_time: None,
         }
@@ -370,8 +362,8 @@ impl Reply {
     /// `conn_ref` needs to be injected in case we get an incomplete resultset or lob
     /// (so that they later can fetch)
     fn parse(
-        rs_md: Option<&ResultSetMetadata>,
-        par_md: Option<&Vec<ParameterDescriptor>>,
+        o_rs_md: Option<&ResultSetMetadata>,
+        o_par_md: Option<&Vec<ParameterDescriptor>>,
         o_rs: &mut Option<&mut ResultSet>,
         conn_ref: &ConnCoreRef,
     ) -> PrtResult<Reply> {
@@ -386,11 +378,11 @@ impl Reply {
             Message::Reply(mut msg) => {
                 for _ in 0..no_of_parts {
                     let part = Part::parse(
-                        MsgType::Reply,
+                        &MsgType::Reply,
                         &mut (msg.parts),
                         Some(conn_ref),
-                        rs_md,
-                        par_md,
+                        o_rs_md,
+                        o_par_md,
                         o_rs,
                         &mut rdr,
                     )?;
@@ -405,12 +397,12 @@ impl Reply {
         match expected_reply_type {
             None => Ok(()), // we had no clear expectation
             Some(fc) => {
-                if self.type_.to_i16() == fc.to_i16() {
+                if self.replytype.to_i16() == fc.to_i16() {
                     Ok(()) // we got what we expected
                 } else {
                     Err(PrtError::ProtocolError(format!(
                         "unexpected reply_type (function code) {:?}",
-                        self.type_
+                        self.replytype
                     )))
                 }
             }
@@ -428,7 +420,13 @@ impl Reply {
                 let err_part = self.parts.swap_remove(idx);
                 match err_part.into_elements() {
                     (_, Argument::Error(vec)) => {
+                        // FIXME NOW Differentiate!!
+                        // if there are only warnings (ServerError::severity = 0)
+                        // then do NOT abort but 
+                        // - write out warn!
+                        // - and return the warnings object in addition to the success object :-?
                         let err = PrtError::DbMessage(vec);
+                        self.parts.clear();
                         debug!("{}", err);
                         Err(err)
                     }
@@ -485,14 +483,13 @@ pub fn parse_message_and_sequence_header(rdr: &mut BufRead) -> PrtResult<(i16, M
         Kind::Request => {
             // only for read_wire
             let request_type = RequestType::from_i8(rdr.read_i8()?)?; // I1
-            let auto_commit = rdr.read_i8()? != 0_i8; // I1
+            let _auto_commit = rdr.read_i8()? != 0_i8; // I1
             let command_options = rdr.read_u8()?; // I1 command_options
             rdr.consume(8_usize); // B[8] reserved1
             Ok((
                 no_of_parts,
                 Message::Request(Request {
                     request_type: request_type,
-                    auto_commit: auto_commit,
                     command_options: command_options,
                     parts: Parts::default(),
                 }),

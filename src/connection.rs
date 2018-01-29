@@ -1,8 +1,8 @@
+use {HdbError, HdbResponse, HdbResult};
 use connect_params::ConnectParams;
 
 use prepared_statement::PreparedStatement;
 use prepared_statement::factory as PreparedStatementFactory;
-use {HdbError, HdbResponse, HdbResult};
 
 use protocol::authenticate;
 use protocol::lowlevel::argument::Argument;
@@ -13,9 +13,11 @@ use protocol::lowlevel::partkind::PartKind;
 use protocol::lowlevel::conn_core::{ConnCoreRef, ConnectionCore};
 use protocol::lowlevel::init;
 use protocol::lowlevel::parts::resultset::ResultSet;
-use protocol::lowlevel::parts::xat::{XaTransaction, XatFlag, XatId};
+use xa_impl::new_resource_manager;
 
 use chrono::Local;
+use dist_tx::rm::ResourceManager;
+use std::error::Error;
 use std::net::TcpStream;
 use std::fmt::Write;
 use std::sync::Arc;
@@ -63,10 +65,11 @@ impl Connection {
         };
         debug!(
             "connection to {} is initialized ({} µs)",
-            connect_string, delta
+            connect_string,
+            delta
         );
 
-        let conn = Connection {
+        let mut conn = Connection {
             params: params,
             major_product_version: major,
             minor_product_version: minor,
@@ -74,7 +77,11 @@ impl Connection {
             core: conn_ref,
         };
 
-        authenticate::user_pw(&(conn.core), conn.params.dbuser(), conn.params.password())?;
+        authenticate::user_pw(
+            &mut (conn.core),
+            conn.params.dbuser(),
+            conn.params.password(),
+        )?;
         let delta = match (Local::now().signed_duration_since(start)).num_microseconds() {
             Some(m) => m,
             None => -1,
@@ -87,6 +94,11 @@ impl Connection {
         Ok(conn)
     }
 
+    /// Returns the DB which was used to authenticate at HANA.
+    pub fn get_user(&self) -> &str {
+        self.params.dbuser()
+    }
+
     /// Returns the HANA's product version info.
     pub fn get_major_and_minor_product_version(&self) -> (i8, i16) {
         (self.major_product_version, self.minor_product_version)
@@ -94,40 +106,31 @@ impl Connection {
 
     /// Sets the connection's auto-commit behavior for future calls.
     pub fn set_auto_commit(&mut self, ac: bool) -> HdbResult<()> {
-        let mut guard = self.core.lock()?;
-        (*guard).set_auto_commit(ac);
-        Ok(())
+        Ok(self.core.lock()?.set_auto_commit(ac))
     }
 
     /// Returns the connection's auto-commit behavior.
     pub fn is_auto_commit(&self) -> HdbResult<bool> {
-        let guard = self.core.lock()?;
-        Ok((*guard).is_auto_commit())
+        Ok(self.core.lock()?.is_auto_commit())
     }
 
     /// Configures the connection's fetch size for future calls.
     pub fn set_fetch_size(&mut self, fetch_size: u32) -> HdbResult<()> {
-        let mut guard = self.core.lock()?;
-        (*guard).set_fetch_size(fetch_size);
-        Ok(())
+        Ok(self.core.lock()?.set_fetch_size(fetch_size))
     }
     /// Configures the connection's lob read length for future calls.
     pub fn get_lob_read_length(&self) -> HdbResult<i32> {
-        let guard = self.core.lock()?;
-        Ok((*guard).get_lob_read_length())
+        Ok(self.core.lock()?.get_lob_read_length())
     }
     /// Configures the connection's lob read length for future calls.
     pub fn set_lob_read_length(&mut self, lob_read_length: i32) -> HdbResult<()> {
-        let mut guard = self.core.lock()?;
-        (*guard).set_lob_read_length(lob_read_length);
-        Ok(())
+        Ok(self.core.lock()?.set_lob_read_length(lob_read_length))
     }
 
     /// Returns the number of roundtrips to the database that
     /// have been done through this connection.
     pub fn get_call_count(&self) -> HdbResult<i32> {
-        let guard = self.core.lock()?;
-        Ok((*guard).last_seq_number())
+        Ok(self.core.lock()?.last_seq_number())
     }
 
     /// Executes a statement on the database.
@@ -138,7 +141,7 @@ impl Connection {
     /// one of the methods query(), dml(), exec(), which have the
     /// adequate simple result type you usually want.
     pub fn statement(&mut self, stmt: &str) -> HdbResult<HdbResponse> {
-        execute(&self.core, String::from(stmt))
+        execute(&mut self.core, String::from(stmt))
     }
 
     /// Executes a statement and expects a single ResultSet.
@@ -163,8 +166,10 @@ impl Connection {
     /// Prepares a statement and returns a handle to it.
     /// Note that the handle keeps using the same connection.
     pub fn prepare(&self, stmt: &str) -> HdbResult<PreparedStatement> {
-        let stmt = PreparedStatementFactory::prepare(Arc::clone(&self.core), String::from(stmt))?;
-        Ok(stmt)
+        Ok(PreparedStatementFactory::prepare(
+            Arc::clone(&self.core),
+            String::from(stmt),
+        )?)
     }
 
     /// Commits the current transaction.
@@ -182,8 +187,7 @@ impl Connection {
         let mut other_conn = Connection::new(self.params.clone())?;
         other_conn.command_options = self.command_options;
         {
-            let guard = self.core.lock()?;
-            let core = &*guard;
+            let core = self.core.lock()?;
             other_conn.set_auto_commit(core.is_auto_commit())?;
             other_conn.set_fetch_size(core.get_fetch_size())?;
             other_conn.set_lob_read_length(core.get_lob_read_length())?;
@@ -194,7 +198,12 @@ impl Connection {
     /// Utility method to fire a couple of statements, ignoring errors and return values
     pub fn multiple_statements_ignore_err(&mut self, stmts: Vec<&str>) {
         for s in stmts {
-            let _ = self.statement(s);
+            debug!("multiple_statements_ignore_err: firing \"{}\"", s);
+            let result = self.statement(s);
+            match result {
+                Ok(_) => {}
+                Err(e) => info!("Error intentionally ignored: {}", e.description()),
+            }
         }
     }
 
@@ -207,162 +216,21 @@ impl Connection {
         Ok(())
     }
 
-    /// Starts work on behalf of a given transaction.
-    ///
-    /// # Arguments
-    ///
-    /// * `xid` - The id of the transaction.
-    /// * `flags` - One of NOFLAG, JOIN, RESUME.
-    pub fn xa_start(&mut self, id: &XatId, flag: XatFlag) -> HdbResult<()> {
-        debug!("connection::xa_start()");
-        match flag {
-            XatFlag::NOFLAG | XatFlag::JOIN | XatFlag::RESUME => {}
-            _ => {
-                return Err(HdbError::UsageError(format!(
-                    "Connection::xa_start(): Invalid transaction flag {:?}",
-                    flag
-                )))
-            }
-        }
-
-        // if (!m_xopenTransactionSupported) {
-        //     error().setRuntimeError(*this, SQLDBC_ERR_XA_TRANSACTION_UNSUPPORTED);
-        //     DBUG_RETURN(SQLDBC_NOT_OK);
-        // }
-
-        // if (self.isDistributedTransaction()) {
-        //     error().setRuntimeError(*this, SQLDBC_ERR_DISTRIBUTED_TRANSACTION_IN_PROGRESS);
-        //     DBUG_RETURN(SQLDBC_NOT_OK);
-        // }
-
-        // FIXME now: error if autocommit
-        // FIXME now: error if xopenTransactionInProgress
-
-        // FIXME later: xa seems only to work on primary!!
-        // ClientConnectionID ccid = getPrimaryConnection();
-
-        let mut xa_transaction = XaTransaction::new(id)?;
-        match flag {
-            XatFlag::NOFLAG => {}
-            _ => xa_transaction.set_flag(flag),
-        }
-
-        let conn_ref = &(self.core);
-        let command_options = 0b_1000;
-        let mut request = Request::new(conn_ref, RequestType::XAStart, command_options)?;
-        request.push(Part::new(
-            PartKind::XaTransaction,
-            Argument::XaTransaction(xa_transaction),
-        ));
-
-        let result = request.send_and_get_response(None, None, conn_ref, None);
-        info!("result: {:?}", result);
-        result?;
-        Ok(())
+    /// Returns an instance of HdbResourceManager that is based on this connection.
+    pub fn get_resource_manager(&self) -> Box<ResourceManager> {
+        Box::new(new_resource_manager(Arc::clone(&self.core)))
     }
-
-    // / @brief Ends work on behalf of a given transaction.
-    // /
-    // / @param xid The id of the transaction.
-    // / @param flags One of XA_TMSUCCESS, XA_TMFAIL, or XA_TMSUSPEND.
-    // / @return #SQLDBC_OK on success.
-    // /   #SQLDBC_NOT_OK if there was an error occured.
-    // /
-    // SQLDBC_Retcode xaEnd(const SQLDBC_Xid *xid, XatFlags flags);
-
-    // / @brief Prepare to commit the work done in the given transaction.
-    // /
-    // / @param xid The id of the transaction.
-    // / @return #SQLDBC_OK on success.
-    // /   #SQLDBC_NOT_OK if there was an error occured.
-    // SQLDBC_Retcode xaPrepare(const SQLDBC_Xid *xid);
-    // pub fn xa_prepare(&mut self, xatid: &XaTid) -> HdbResult<()> {
-    //     let conn_ref = &(self.core);
-    //     debug!("connection::xa_prepare()");
-    //     let command_options = 0b_1000;
-    //     let mut request =
-    //         Request::new(conn_ref, RequestType::XAPrepare, self.auto_commit, command_options)?;
-    //     request.push(Part::new(PartKind::XaTransaction,
-    // Argument::XaTransaction(xatid.clone())));
-    //     // request.push(Part::new(PartKind::Command, Argument::Command(stmt)));
-
-    //     let result = request.send_and_get_response(
-    //         None,
-    //         None,
-    //         conn_ref,
-    //         None,
-    //         &mut self.acc_server_proc_time,
-    //     );
-    //     info!("result: {:?}", result);
-    //     result?;
-    //     Ok(())
-    // }
-
-    // / @brief Commit the work done in the given transaction.
-    // /
-    // / @param xid The id of the transaction.
-    // / @param If true, a one-phase commit protocol is used to commit the work.
-    // / @return #SQLDBC_OK on success.
-    // /   #SQLDBC_NOT_OK if there was an error occured.
-    // SQLDBC_Retcode xaCommit(const SQLDBC_Xid *xid, SQLDBC_Bool onePhase);
-    // pub fn xa_commit(&mut self, xatid: &XaTid) -> HdbResult<()> {
-    //     let conn_ref = &(self.core);
-    //     debug!("connection::xa_commit()");
-    //     let command_options = 0b_1000;
-    //     let mut request =
-    //         Request::new(conn_ref, RequestType::XACommit, self.auto_commit, command_options)?;
-    //     request.push(Part::new(PartKind::XaTransaction,
-    // Argument::XaTransaction(xatid.clone())));
-    //     // request.push(Part::new(PartKind::Command, Argument::Command(stmt)));
-
-    //     let result = request.send_and_get_response(
-    //         None,
-    //         None,
-    //         conn_ref,
-    //         None,
-    //         &mut self.acc_server_proc_time,
-    //     );
-    //     info!("result: {:?}", result);
-    //     result?;
-    //     Ok(())
-    // }
-
-    // / @brief Rollback the work done in the given transaction.
-    // /
-    // / @param xid The id of the transaction.
-    // / @return #SQLDBC_OK on success.
-    // /   #SQLDBC_NOT_OK if there was an error occured.
-    // SQLDBC_Retcode xaRollback(const SQLDBC_Xid *xid);
-
-    // / @brief  Returns a list of transactions that are in a prepared or heuristically state.
-    // /
-    // / @param flags One of XA_TMSTARTRSCAN, XA_TMENDRSCAN, XA_TMNOFLAGS.
-    // / @param xidList The SQLDBC_XidList that contains the returned transactions.
-    // / @return #SQLDBC_OK on success.
-    // /   #SQLDBC_NOT_OK if there was an error occured.
-    // SQLDBC_Retcode xaRecover(XatFlags flags, SQLDBC_XidList* xidList);
-
-    // / @brief  Tells the server to forget about a heuristically completed transaction.
-    // /
-    // / @param xid The id of the transaction.
-    // / @return #SQLDBC_OK on success.
-    // /   #SQLDBC_NOT_OK if there was an error occured.
-    // SQLDBC_Retcode xaForget(const SQLDBC_Xid *xid);
 }
 
-fn execute(conn_ref: &ConnCoreRef, stmt: String) -> HdbResult<HdbResponse> {
+fn execute(conn_ref: &mut ConnCoreRef, stmt: String) -> HdbResult<HdbResponse> {
     debug!("connection::execute({})", stmt);
     let command_options = 0b_1000;
-    let fetch_size: u32 = {
-        let guard = conn_ref.lock()?;
-        (*guard).get_fetch_size()
-    };
-    let mut request = Request::new(conn_ref, RequestType::ExecuteDirect, command_options)?;
+    let fetch_size: u32 = { conn_ref.lock()?.get_fetch_size() };
+    let mut request = Request::new(RequestType::ExecuteDirect, command_options)?;
     request.push(Part::new(
         PartKind::FetchSize,
         Argument::FetchSize(fetch_size),
     ));
     request.push(Part::new(PartKind::Command, Argument::Command(stmt)));
-
     request.send_and_get_response(None, None, conn_ref, None)
 }

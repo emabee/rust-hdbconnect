@@ -5,12 +5,19 @@ TODO
     - newdb/orange/Interfaces/SQLDBC/impl/LongdateTranslator.cpp
     - newdb/orange/Interfaces/SQLDBC/impl/SeconddateTranslator.cpp
     - newdb/orange/Interfaces/SQLDBC/impl/DaydateTranslator.cpp
-    
+
+- replace rust_decimal with BigDecimal?
+
 - Transaction Handling
     * transactionflags
         - has ids 0..6
         - test_prepare: reply is dropped, but not all parts were evaluated:
           part-kind = TransactionFlags
+
+- StatementContext
+    assumption: 
+        should be handled generically, on low level; 
+        is used to support automatic reconnects!
 
 - Client Info:
     * (contains Application, ApplicationVersion, ApplicationSource, ApplicationUser)

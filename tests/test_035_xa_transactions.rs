@@ -1,16 +1,20 @@
 extern crate chrono;
+extern crate dist_tx;
 extern crate flexi_logger;
 extern crate hdbconnect;
 #[macro_use]
 extern crate log;
+extern crate rand;
 extern crate serde_json;
 
 mod test_utils;
 
-use hdbconnect::{Connection, HdbResult, XatFlag, XatId};
+#[allow(unused_imports)]
 use flexi_logger::{LogSpecification, ReconfigurationHandle};
+use hdbconnect::{Connection, HdbResult};
+use dist_tx::tm::*;
 
-//#[test] // cargo test --test test_035_xa_transactions -- --nocapture
+#[test] // cargo test --test test_035_xa_transactions -- --nocapture
 pub fn test_035_xa_transactions() {
     let mut log_handle = test_utils::init_logger("info");
 
@@ -23,7 +27,6 @@ pub fn test_035_xa_transactions() {
     }
 }
 
-// Test what?
 fn impl_test_035_xa_transactions(log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
     let mut connection = test_utils::get_authenticated_connection()?;
     prepare(&mut connection, log_handle)?;
@@ -36,19 +39,20 @@ fn impl_test_035_xa_transactions(log_handle: &mut ReconfigurationHandle) -> HdbR
 fn prepare(conn: &mut Connection, _log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
     info!("Prepare...");
     test_utils::statement_ignore_err(conn, vec!["drop table TEST_XA"]);
-    let stmts = vec![
-        "create table TEST_XA (f1 INT primary key, f2 NVARCHAR(20))",
-        "insert into TEST_XA (f1, f2) values(100, 'INITIAL')",
-        "insert into TEST_XA (f1, f2) values(101, 'INITIAL')",
-        "insert into TEST_XA (f1, f2) values(102, 'INITIAL')",
-        "insert into TEST_XA (f1, f2) values(103, 'INITIAL')",
-    ];
-    conn.multiple_statements(stmts)
+    conn.multiple_statements(vec![
+        "create column table TEST_XA (f1 INT primary key, f2 NVARCHAR(20))",
+        "insert into TEST_XA (f1, f2) values(-100, 'INITIAL')",
+        "insert into TEST_XA (f1, f2) values(-101, 'INITIAL')",
+        "insert into TEST_XA (f1, f2) values(-102, 'INITIAL')",
+        "insert into TEST_XA (f1, f2) values(-103, 'INITIAL')",
+    ])
 }
 
 // a) successful XA
-fn successful_xa(conn: &mut Connection, log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
+fn successful_xa(conn: &mut Connection, _log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
+    //_log_handle.set_new_spec(LogSpecification::parse("debug"));
     info!("Successful XA");
+
     // open two connections, auto_commit off
     let mut conn_a = conn.spawn()?;
     conn_a.set_auto_commit(false)?;
@@ -56,35 +60,51 @@ fn successful_xa(conn: &mut Connection, log_handle: &mut ReconfigurationHandle) 
     assert!(!conn_a.is_auto_commit()?);
     assert!(!conn_b.is_auto_commit()?);
 
-    log_handle.set_new_spec(LogSpecification::parse("debug"));
-    debug!("Use conn_a to insert a row, and conn_b to insert another row");
-    conn_a.dml("insert into TEST_XA (F1, F2) values (1,'SUCCESS')")?;
-    conn_b.dml("insert into TEST_XA (F1, F2) values (2,'SUCCESS')")?;
+    // instantiate a SimpleTransactionManager and register Resource Managers for the two connections
+    _log_handle.set_new_spec(LogSpecification::parse(
+        "info, dist_tx::tm::simple_transaction_manager = trace",
+    ));
+    let mut tm = SimpleTransactionManager::new("test_035_xa_transactions".to_owned());
+    tm.register(conn_a.get_resource_manager(), 22, true)
+        .unwrap();
+    tm.register(conn_b.get_resource_manager(), 44, true)
+        .unwrap();
 
-    debug!("verify with conn that both new lines are not yet visible");
-    let sum: Option<i32> = conn.query("SELECT SUM(F1) from TEST_XA where F2 = 'SUCCESS'")?
-        .try_into()?;
-    assert_eq!(sum, None);
+    // start ta
+    tm.start_transaction().unwrap();
 
-    debug!("xa_start on both, should be successful");
-    let xatid = XatId::new(1, vec![1_u8; 16], vec![1_u8; 16])?;
+    // do some inserts
+    conn_a.dml(&insert_stmt(1, "a"))?;
+    conn_b.dml(&insert_stmt(2, "b"))?;
 
-    log_handle.set_new_spec(LogSpecification::parse("trace"));
-    assert_eq!(conn_a.xa_start(&xatid, XatFlag::NOFLAG)?, ());
-    assert_eq!(conn_b.xa_start(&xatid, XatFlag::JOIN)?, ());
+    // verify with neutral conn that nothing is visible (count)
+    let count: u32 = conn.query("select count(*) from TEST_XA")?.try_into()?;
+    assert_eq!(count, 4 /* + 0 */);
 
-    // debug!("XA_commit on both, should be successful, too");
-    // assert_eq!(conn_a.xa_commit(&xatid)?, ());
-    // assert_eq!(conn_b.xa_commit(&xatid)?, ());
+    // verify that ta is not listed in server
+    // tbd
 
-    // verify with conn that both new lines were inserted
-    let sum: Option<i32> = conn.query("SELECT SUM(F1) from TEST_XA where F2 = 'SUCCESS'")?
-        .try_into()?;
-    assert_eq!(sum, Some(3));
+    // commit ta
+    tm.commit_transaction().unwrap();
+
+    // verify that stuff is now visible
+    let count: u32 = conn.query("select count(*) from TEST_XA")?.try_into()?;
+    assert_eq!(count, 4 + 2);
+
+    // verify that ta is not known anymore
+    // tbd
+
+
+    // add test for suspend/resume??
+    // add test for join
+    // add test for forget
+
     Ok(())
 }
 
-
+fn insert_stmt(i: u32, s: &'static str) -> String {
+    format!("insert into TEST_XA (f1, f2) values({}, '{}')", i, s)
+}
 
 // b) failing XA
 // use conn1 to insert a row

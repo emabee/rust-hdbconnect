@@ -21,7 +21,7 @@ use super::parts::server_error::ServerError;
 use super::parts::statement_context::StatementContext;
 use super::parts::topology_attribute::TopologyAttr;
 use super::parts::transactionflags::TransactionFlag;
-use super::parts::xat::XaTransaction;
+use super::parts::xat_options::XatOptions;
 use super::util;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -52,7 +52,7 @@ pub enum Argument {
     TableLocation(Vec<i32>),
     TopologyInformation(Vec<TopologyAttr>),
     TransactionFlags(Vec<TransactionFlag>),
-    XaTransaction(XaTransaction),
+    XatOptions(XatOptions),
 }
 
 impl Argument {
@@ -72,12 +72,11 @@ impl Argument {
             Argument::Parameters(ref pars) => pars.count(),
             Argument::StatementContext(ref sc) => sc.count(),
             Argument::TransactionFlags(ref opts) => opts.len(),
-            Argument::XaTransaction(ref xat) => xat.count(),
+            Argument::XatOptions(ref xat) => xat.count(),
             ref a => {
-                return Err(PrtError::ProtocolError(format!(
-                    "Argument::count() called on {:?}",
-                    a
-                )));
+                return Err(PrtError::ProtocolError(
+                    format!("Argument::count() called on {:?}", a),
+                ));
             }
         })
     }
@@ -123,12 +122,11 @@ impl Argument {
             Argument::TransactionFlags(ref vec) => for opt in vec {
                 size += opt.size();
             },
-            Argument::XaTransaction(ref xat) => size += xat.size(),
+            Argument::XatOptions(ref xat) => size += xat.size(),
             ref arg => {
-                return Err(PrtError::ProtocolError(format!(
-                    "size() called on {:?}",
-                    arg
-                )));
+                return Err(PrtError::ProtocolError(
+                    format!("size() called on {:?}", arg),
+                ));
             }
         }
         if with_padding {
@@ -199,14 +197,13 @@ impl Argument {
             Argument::TransactionFlags(ref vec) => for opt in vec {
                 opt.serialize(w)?;
             },
-            Argument::XaTransaction(ref xatid) => {
+            Argument::XatOptions(ref xatid) => {
                 xatid.serialize(w)?;
             }
             ref a => {
-                return Err(PrtError::ProtocolError(format!(
-                    "serialize() called on {:?}",
-                    a
-                )));
+                return Err(PrtError::ProtocolError(
+                    format!("serialize() called on {:?}", a),
+                ));
             }
         }
 
@@ -228,7 +225,7 @@ impl Argument {
     #[allow(unknown_lints)]
     #[allow(too_many_arguments)]
     pub fn parse(
-        msg_type: MsgType,
+        msg_type: &MsgType,
         kind: PartKind,
         attributes: PartAttributes,
         no_of_args: i32,
@@ -339,6 +336,7 @@ impl Argument {
                 }
                 Argument::TransactionFlags(vec)
             }
+            PartKind::XatOptions => Argument::XatOptions(XatOptions::parse(no_of_args, rdr)?),
             _ => {
                 return Err(PrtError::ProtocolError(format!(
                     "No handling implemented for received partkind value {}",

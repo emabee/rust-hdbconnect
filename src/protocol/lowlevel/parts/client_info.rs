@@ -39,8 +39,8 @@ impl ClientInfo {
     }
 
     #[allow(dead_code)] // FIXME (see info.txt)
-    pub fn set(&mut self, key: ClientInfoKey, value: String) {
-        match key {
+    pub fn set(&mut self, key: &ClientInfoKey, value: String) {
+        match *key {
             ClientInfoKey::Application => self.0.insert(String::from("APPLICATION"), value),
             ClientInfoKey::ApplicationVersion => {
                 self.0.insert(String::from("APPLICATIONVERSION"), value)

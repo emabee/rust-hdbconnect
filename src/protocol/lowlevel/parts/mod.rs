@@ -25,4 +25,4 @@ pub mod topology_attribute;
 pub mod transactionflags;
 pub mod type_id;
 pub mod typed_value;
-pub mod xat;
+pub mod xat_options;

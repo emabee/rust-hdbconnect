@@ -1,7 +1,8 @@
-use super::{PrtError, PrtResult};
+use super::PrtResult;
 use super::prt_option_value::PrtOptionValue;
 
 use byteorder::{ReadBytesExt, WriteBytesExt};
+use std::i8;
 use std::io;
 
 ///  The part is sent from the server to signal changes
@@ -27,7 +28,7 @@ impl TransactionFlag {
     }
 
     pub fn parse(rdr: &mut io::BufRead) -> PrtResult<TransactionFlag> {
-        let option_id = TaFlagId::from_i8(rdr.read_i8()?)?; // I1
+        let option_id = TaFlagId::from_i8(rdr.read_i8()?); // I1
         let value = PrtOptionValue::parse(rdr)?;
         Ok(TransactionFlag {
             id: option_id,
@@ -47,6 +48,7 @@ pub enum TaFlagId {
     SessionclosingTaError, // 6 // BOOL // The session must be terminated
     ReadOnlyMode,          // 7 // BOOL //
     Last,                  // 8 // BOOL //
+    __Unexpected__,
 }
 impl TaFlagId {
     fn to_i8(&self) -> i8 {
@@ -60,24 +62,25 @@ impl TaFlagId {
             TaFlagId::SessionclosingTaError => 6,
             TaFlagId::ReadOnlyMode => 7,
             TaFlagId::Last => 8,
+            TaFlagId::__Unexpected__ => i8::MAX,
         }
     }
 
-    fn from_i8(val: i8) -> PrtResult<TaFlagId> {
+    fn from_i8(val: i8) -> TaFlagId {
         match val {
-            0 => Ok(TaFlagId::RolledBack),
-            1 => Ok(TaFlagId::Committed),
-            2 => Ok(TaFlagId::NewIsolationlevel),
-            3 => Ok(TaFlagId::DdlCommitmodeChanged),
-            4 => Ok(TaFlagId::WriteTaStarted),
-            5 => Ok(TaFlagId::NoWriteTaStarted),
-            6 => Ok(TaFlagId::SessionclosingTaError),
-            7 => Ok(TaFlagId::ReadOnlyMode),
-            8 => Ok(TaFlagId::Last),
-            _ => Err(PrtError::ProtocolError(format!(
-                "Invalid value for TransactionFlag detected: {}",
-                val
-            ))),
+            0 => TaFlagId::RolledBack,
+            1 => TaFlagId::Committed,
+            2 => TaFlagId::NewIsolationlevel,
+            3 => TaFlagId::DdlCommitmodeChanged,
+            4 => TaFlagId::WriteTaStarted,
+            5 => TaFlagId::NoWriteTaStarted,
+            6 => TaFlagId::SessionclosingTaError,
+            7 => TaFlagId::ReadOnlyMode,
+            8 => TaFlagId::Last,
+            val => {
+                warn!("Invalid value for TaFlagId received: {}", val);
+                TaFlagId::__Unexpected__
+            }
         }
     }
 }

@@ -1,7 +1,8 @@
-use super::{PrtError, PrtResult};
+use super::PrtResult;
 use super::prt_option_value::PrtOptionValue;
 
 use byteorder::{ReadBytesExt, WriteBytesExt};
+use std::i8;
 use std::io;
 
 #[derive(Clone, Debug)]
@@ -20,7 +21,7 @@ impl TopologyAttr {
     }
 
     pub fn parse(rdr: &mut io::BufRead) -> PrtResult<TopologyAttr> {
-        let id = TopologyAttrId::from_i8(rdr.read_i8()?)?; // I1
+        let id = TopologyAttrId::from_i8(rdr.read_i8()?); // I1
         let value = PrtOptionValue::parse(rdr)?;
         Ok(TopologyAttr {
             id: id,
@@ -40,6 +41,8 @@ pub enum TopologyAttrId {
     IsCurrentSession, //  7 // marks this location as valid for current session connected
     ServiceType,      //  8 // this server is normal index server not statserver/xsengine
     IsStandby,        // 10 // standby server
+    SiteType,         // 13 // site type
+    __Unexpected__,
 }
 // NetworkDomain,    //  9 // deprecated
 // AllIpAdresses,    // 11 // deprecated
@@ -57,24 +60,27 @@ impl TopologyAttrId {
             TopologyAttrId::IsCurrentSession => 7,
             TopologyAttrId::ServiceType => 8,
             TopologyAttrId::IsStandby => 10,
+            TopologyAttrId::SiteType => 13,
+            TopologyAttrId::__Unexpected__ => i8::MAX,
         }
     }
 
-    fn from_i8(val: i8) -> PrtResult<TopologyAttrId> {
+    fn from_i8(val: i8) -> TopologyAttrId {
         match val {
-            1 => Ok(TopologyAttrId::HostName),
-            2 => Ok(TopologyAttrId::HostPortNumber),
-            3 => Ok(TopologyAttrId::TenantName),
-            4 => Ok(TopologyAttrId::LoadFactor),
-            5 => Ok(TopologyAttrId::VolumeID),
-            6 => Ok(TopologyAttrId::IsMaster),
-            7 => Ok(TopologyAttrId::IsCurrentSession),
-            8 => Ok(TopologyAttrId::ServiceType),
-            10 => Ok(TopologyAttrId::IsStandby),
-            _ => Err(PrtError::ProtocolError(format!(
-                "Invalid value for TopologyAttrId detected: {}",
-                val
-            ))),
+            1 => TopologyAttrId::HostName,
+            2 => TopologyAttrId::HostPortNumber,
+            3 => TopologyAttrId::TenantName,
+            4 => TopologyAttrId::LoadFactor,
+            5 => TopologyAttrId::VolumeID,
+            6 => TopologyAttrId::IsMaster,
+            7 => TopologyAttrId::IsCurrentSession,
+            8 => TopologyAttrId::ServiceType,
+            10 => TopologyAttrId::IsStandby,
+            13 => TopologyAttrId::SiteType,
+            val => {
+                warn!("Invalid value for TopologyAttrId received: {}", val);
+                TopologyAttrId::__Unexpected__
+            }
         }
     }
 }

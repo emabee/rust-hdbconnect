@@ -66,7 +66,7 @@ fn prepare_insert_statement(connection: &mut Connection) -> HdbResult<()> {
 
     // prepare & execute on first connection with auto_commit off,
     // rollback, do it again and commit
-    connection.set_auto_commit(false);
+    connection.set_auto_commit(false)?;
     let mut insert_stmt = connection.prepare(insert_stmt_str)?;
     insert_stmt.add_batch(&("conn1-rollback1", 45_i32))?;
     insert_stmt.add_batch(&("conn1-rollback2", 46_i32))?;

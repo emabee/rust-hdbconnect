@@ -43,7 +43,7 @@ impl HdbDecimal {
         let scale: u16 = (6176 - decimal.scale()) as u16;
         LittleEndian::write_u16(&mut bytes[14..16], scale * 2);
 
-        if decimal.is_negative() {
+        if decimal.is_sign_negative() {
             bytes[15] |= 0b_1000_0000_u8;
         }
         let result = HdbDecimal { raw: bytes };

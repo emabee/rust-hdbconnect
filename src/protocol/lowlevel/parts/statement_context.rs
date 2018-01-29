@@ -1,7 +1,8 @@
-use super::{prot_err, PrtError, PrtResult};
+use super::{prot_err, PrtResult};
 use super::prt_option_value::PrtOptionValue;
 
 use byteorder::{ReadBytesExt, WriteBytesExt};
+use std::i8;
 use std::io;
 
 #[derive(Debug, Default)]
@@ -9,13 +10,16 @@ pub struct StatementContext {
     pub statement_sequence_info: Option<PrtOptionValue>,
     pub server_processing_time: Option<PrtOptionValue>,
     pub schema_name: Option<PrtOptionValue>,
+    pub flag_set: Option<PrtOptionValue>,
+    pub query_rimeout: Option<PrtOptionValue>,
+    pub client_reconnection_wait_timeout: Option<PrtOptionValue>,
 }
 
 impl StatementContext {
     pub fn serialize(&self, w: &mut io::Write) -> PrtResult<()> {
         match self.statement_sequence_info {
             Some(ref value) => {
-                w.write_i8(ScId::StatementSequenceInfo.to_i8())?; // I1
+                w.write_i8(StatementContextId::StatementSequenceInfo.to_i8())?; // I1
                 value.serialize(w)?;
                 Ok(())
             }
@@ -57,12 +61,25 @@ impl StatementContext {
         trace!("StatementContext::parse()");
         let mut sc = StatementContext::default();
         for _ in 0..count {
-            let sc_id = ScId::from_i8(rdr.read_i8()?)?; // I1
+            let sc_id = StatementContextId::from_i8(rdr.read_i8()?); // I1
             let value = PrtOptionValue::parse(rdr)?;
             match sc_id {
-                ScId::StatementSequenceInfo => sc.statement_sequence_info = Some(value),
-                ScId::ServerProcessingTime => sc.server_processing_time = Some(value),
-                ScId::SchemaName => sc.schema_name = Some(value),
+                StatementContextId::StatementSequenceInfo => {
+                    sc.statement_sequence_info = Some(value)
+                }
+                StatementContextId::ServerProcessingTime => sc.server_processing_time = Some(value),
+                StatementContextId::SchemaName => sc.schema_name = Some(value),
+                StatementContextId::FlagSet => sc.flag_set = Some(value),
+                StatementContextId::QueryTimeout => sc.query_rimeout = Some(value),
+                StatementContextId::ClientReconnectionWaitTimeout => {
+                    sc.client_reconnection_wait_timeout = Some(value)
+                }
+                StatementContextId::__Unexpected__ => {
+                    warn!(
+                        "received value {:?} for unexpected StatementContextId",
+                        value
+                    );
+                }
             }
         }
         trace!("StatementContext::parse(): got {:?}", sc);
@@ -71,29 +88,40 @@ impl StatementContext {
 }
 
 #[derive(Debug)]
-pub enum ScId {
+pub enum StatementContextId {
     StatementSequenceInfo,
     ServerProcessingTime,
     SchemaName,
+    FlagSet,
+    QueryTimeout,
+    ClientReconnectionWaitTimeout,
+    __Unexpected__,
 }
-impl ScId {
+impl StatementContextId {
     pub fn to_i8(&self) -> i8 {
         match *self {
-            ScId::StatementSequenceInfo => 1,
-            ScId::ServerProcessingTime => 2,
-            ScId::SchemaName => 3,
+            StatementContextId::StatementSequenceInfo => 1,
+            StatementContextId::ServerProcessingTime => 2,
+            StatementContextId::SchemaName => 3,
+            StatementContextId::FlagSet => 4,
+            StatementContextId::QueryTimeout => 5,
+            StatementContextId::ClientReconnectionWaitTimeout => 6,
+            StatementContextId::__Unexpected__ => i8::MAX,
         }
     }
 
-    pub fn from_i8(val: i8) -> PrtResult<ScId> {
+    pub fn from_i8(val: i8) -> StatementContextId {
         match val {
-            1 => Ok(ScId::StatementSequenceInfo),
-            2 => Ok(ScId::ServerProcessingTime),
-            3 => Ok(ScId::SchemaName),
-            _ => Err(PrtError::ProtocolError(format!(
-                "Invalid value for ScId detected: {}",
-                val
-            ))),
+            1 => StatementContextId::StatementSequenceInfo,
+            2 => StatementContextId::ServerProcessingTime,
+            3 => StatementContextId::SchemaName,
+            4 => StatementContextId::FlagSet,
+            5 => StatementContextId::QueryTimeout,
+            6 => StatementContextId::ClientReconnectionWaitTimeout,
+            val => {
+                warn!("Invalid value for StatementContextId received: {}", val);
+                StatementContextId::__Unexpected__
+            }
         }
     }
 }

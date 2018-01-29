@@ -109,7 +109,7 @@ pub fn new_clob_from_db(
     length_c: u64,
     length_b: u64,
     locator_id: u64,
-    data: Vec<u8>,
+    data: &[u8],
 ) -> CLOB {
     CLOB(RefCell::new(ClobHandle::new(
         conn_ref,

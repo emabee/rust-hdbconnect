@@ -1,7 +1,8 @@
-use super::{PrtError, PrtResult};
+use super::PrtResult;
 use super::prt_option_value::PrtOptionValue;
 
 use byteorder::{ReadBytesExt, WriteBytesExt};
+use std::i8;
 use std::io;
 
 #[derive(Debug, Default)]
@@ -31,7 +32,7 @@ impl ConnectOption {
     }
 
     pub fn parse(rdr: &mut io::BufRead) -> PrtResult<ConnectOption> {
-        let option_id = ConnectOptionId::from_i8(rdr.read_i8()?)?; // I1
+        let option_id = ConnectOptionId::from_i8(rdr.read_i8()?); // I1
         let value = PrtOptionValue::parse(rdr)?;
         Ok(ConnectOption {
             id: option_id,
@@ -40,6 +41,7 @@ impl ConnectOption {
     }
 }
 
+// FIXME Don't use DataFormatVersion (12), use only DataFormatVersion2 (23) instead
 #[derive(Debug)]
 pub enum ConnectOptionId {
     ConnectionID,                 // 1 //
@@ -53,7 +55,7 @@ pub enum ConnectOptionId {
     CompleteDatatypeSupport,      // 9 // @deprecated All data types supported (always on)
     LargeNumberOfParametersOK,    // 10 // Number of parameters >32K is supported.
     SystemID,                     // 11 // SID of SAP HANA Database system (output only).
-    DataFormatVersion,            // 12 // Version of data format used in communication
+    DataFormatVersion,            // 12 // Version of data format used in communication:
     AbapVarcharMode,              // 13 // ABAP varchar mode (trim trailing blanks in strings)
     SelectForUpdateOK,            // 14 // SELECT FOR UPDATE function code understood by client
     ClientDistributionMode,       // 15 // client distribution mode
@@ -89,6 +91,11 @@ pub enum ConnectOptionId {
     DatabaseName,                 // 45 //
     BuildPlatform,                // 46 //
     ImplicitXASessionOK,          // 47 //
+
+    ClientSideColumnEncryptionVersion, // 48 // Version of clientside column encryption
+    CompressionLevelAndFlags,          // 49 // Network compression level and flags (hana2sp02)
+    ClientSideReExecutionSupported,    // 50 // Support csre for clientside encryption (hana2sp03)
+    __Unexpected__,
 }
 impl ConnectOptionId {
     fn to_i8(&self) -> i8 {
@@ -140,62 +147,66 @@ impl ConnectOptionId {
             ConnectOptionId::DatabaseName => 45,
             ConnectOptionId::BuildPlatform => 46,
             ConnectOptionId::ImplicitXASessionOK => 47,
+            ConnectOptionId::ClientSideColumnEncryptionVersion => 48,
+            ConnectOptionId::CompressionLevelAndFlags => 49,
+            ConnectOptionId::ClientSideReExecutionSupported => 50,
+            ConnectOptionId::__Unexpected__ => i8::MAX,
         }
     }
 
-    fn from_i8(val: i8) -> PrtResult<ConnectOptionId> {
+    fn from_i8(val: i8) -> ConnectOptionId {
         match val {
-            1 => Ok(ConnectOptionId::ConnectionID),
-            2 => Ok(ConnectOptionId::CompleteArrayExecution),
-            3 => Ok(ConnectOptionId::ClientLocale),
-            4 => Ok(ConnectOptionId::SupportsLargeBulkOperations),
-            5 => Ok(ConnectOptionId::DistributionEnabled),
-            6 => Ok(ConnectOptionId::PrimaryConnectionId),
-            7 => Ok(ConnectOptionId::PrimaryConnectionHost),
-            8 => Ok(ConnectOptionId::PrimaryConnectionPort),
-            9 => Ok(ConnectOptionId::CompleteDatatypeSupport),
-            10 => Ok(ConnectOptionId::LargeNumberOfParametersOK),
-            11 => Ok(ConnectOptionId::SystemID),
-            12 => Ok(ConnectOptionId::DataFormatVersion),
-            13 => Ok(ConnectOptionId::AbapVarcharMode),
-            14 => Ok(ConnectOptionId::SelectForUpdateOK),
-            15 => Ok(ConnectOptionId::ClientDistributionMode),
-            16 => Ok(ConnectOptionId::EngineDataFormatVersion),
-            17 => Ok(ConnectOptionId::DistributionProtocolVersion),
-            18 => Ok(ConnectOptionId::SplitBatchCommands),
-            19 => Ok(ConnectOptionId::UseTransactionFlagsOnly),
-            20 => Ok(ConnectOptionId::RowSlotImageParameter),
-            21 => Ok(ConnectOptionId::IgnoreUnknownParts),
-            22 => Ok(ConnectOptionId::TableOutputParMetadataOK),
-            23 => Ok(ConnectOptionId::DataFormatVersion2),
-            24 => Ok(ConnectOptionId::ItabParameter),
-            25 => Ok(ConnectOptionId::DescribeTableOutputParameter),
-            26 => Ok(ConnectOptionId::ColumnarResultSet),
-            27 => Ok(ConnectOptionId::ScrollableResultSet),
-            28 => Ok(ConnectOptionId::ClientInfoNullValueOK),
-            29 => Ok(ConnectOptionId::AssociatedConnectionID),
-            30 => Ok(ConnectOptionId::NonTransactionalPrepare),
-            31 => Ok(ConnectOptionId::FdaEnabled),
-            32 => Ok(ConnectOptionId::OSUser),
-            33 => Ok(ConnectOptionId::RowSlotImageResultSet),
-            34 => Ok(ConnectOptionId::Endianness),
-            35 => Ok(ConnectOptionId::UpdateTopologyAnwhere),
-            36 => Ok(ConnectOptionId::EnableArrayType),
-            37 => Ok(ConnectOptionId::ImplicitLobStreaming),
-            38 => Ok(ConnectOptionId::CachedViewProperty),
-            39 => Ok(ConnectOptionId::XOpenXAProtocolOK),
-            40 => Ok(ConnectOptionId::MasterCommitRedirectionOK),
-            41 => Ok(ConnectOptionId::ActiveActiveProtocolVersion),
-            42 => Ok(ConnectOptionId::ActiveActiveConnOriginSite),
-            43 => Ok(ConnectOptionId::QueryTimeoutOK),
-            44 => Ok(ConnectOptionId::FullVersionString),
-            45 => Ok(ConnectOptionId::DatabaseName),
-            46 => Ok(ConnectOptionId::BuildPlatform),
-            47 => Ok(ConnectOptionId::ImplicitXASessionOK),
-            _ => Err(PrtError::ProtocolError(format!(
-                "unknown value for ConnectOptionId detected: {}",
-                val
-            ))),
+            1 => ConnectOptionId::ConnectionID,
+            2 => ConnectOptionId::CompleteArrayExecution,
+            3 => ConnectOptionId::ClientLocale,
+            4 => ConnectOptionId::SupportsLargeBulkOperations,
+            5 => ConnectOptionId::DistributionEnabled,
+            6 => ConnectOptionId::PrimaryConnectionId,
+            7 => ConnectOptionId::PrimaryConnectionHost,
+            8 => ConnectOptionId::PrimaryConnectionPort,
+            9 => ConnectOptionId::CompleteDatatypeSupport,
+            10 => ConnectOptionId::LargeNumberOfParametersOK,
+            11 => ConnectOptionId::SystemID,
+            12 => ConnectOptionId::DataFormatVersion,
+            13 => ConnectOptionId::AbapVarcharMode,
+            14 => ConnectOptionId::SelectForUpdateOK,
+            15 => ConnectOptionId::ClientDistributionMode,
+            16 => ConnectOptionId::EngineDataFormatVersion,
+            17 => ConnectOptionId::DistributionProtocolVersion,
+            18 => ConnectOptionId::SplitBatchCommands,
+            19 => ConnectOptionId::UseTransactionFlagsOnly,
+            20 => ConnectOptionId::RowSlotImageParameter,
+            21 => ConnectOptionId::IgnoreUnknownParts,
+            22 => ConnectOptionId::TableOutputParMetadataOK,
+            23 => ConnectOptionId::DataFormatVersion2,
+            24 => ConnectOptionId::ItabParameter,
+            25 => ConnectOptionId::DescribeTableOutputParameter,
+            26 => ConnectOptionId::ColumnarResultSet,
+            27 => ConnectOptionId::ScrollableResultSet,
+            28 => ConnectOptionId::ClientInfoNullValueOK,
+            29 => ConnectOptionId::AssociatedConnectionID,
+            30 => ConnectOptionId::NonTransactionalPrepare,
+            31 => ConnectOptionId::FdaEnabled,
+            32 => ConnectOptionId::OSUser,
+            33 => ConnectOptionId::RowSlotImageResultSet,
+            34 => ConnectOptionId::Endianness,
+            35 => ConnectOptionId::UpdateTopologyAnwhere,
+            36 => ConnectOptionId::EnableArrayType,
+            37 => ConnectOptionId::ImplicitLobStreaming,
+            38 => ConnectOptionId::CachedViewProperty,
+            39 => ConnectOptionId::XOpenXAProtocolOK,
+            40 => ConnectOptionId::MasterCommitRedirectionOK,
+            41 => ConnectOptionId::ActiveActiveProtocolVersion,
+            42 => ConnectOptionId::ActiveActiveConnOriginSite,
+            43 => ConnectOptionId::QueryTimeoutOK,
+            44 => ConnectOptionId::FullVersionString,
+            45 => ConnectOptionId::DatabaseName,
+            46 => ConnectOptionId::BuildPlatform,
+            47 => ConnectOptionId::ImplicitXASessionOK,
+            val => {
+                warn!("Invalid value for ConnectOptionId received: {}", val);
+                ConnectOptionId::__Unexpected__
+            }
         }
     }
 }

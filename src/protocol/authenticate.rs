@@ -24,7 +24,7 @@ use std::iter::repeat;
 use username;
 
 /// authenticate with user and password, using the `scram_sha256` method
-pub fn user_pw(conn_ref: &ConnCoreRef, username: &str, password: &str) -> PrtResult<()> {
+pub fn user_pw(conn_ref: &mut ConnCoreRef, username: &str, password: &str) -> PrtResult<()> {
     trace!("Entering authenticate()");
 
     let client_challenge = create_client_challenge();
@@ -37,7 +37,11 @@ pub fn user_pw(conn_ref: &ConnCoreRef, username: &str, password: &str) -> PrtRes
     evaluate_reply2(reply2, conn_ref)
 }
 
-fn auth1_request(conn_ref: &ConnCoreRef, chllng_sha256: &[u8], username: &str) -> PrtResult<Reply> {
+fn auth1_request(
+    conn_ref: &mut ConnCoreRef,
+    chllng_sha256: &[u8],
+    username: &str,
+) -> PrtResult<Reply> {
     trace!("Entering auth1_request()");
     let mut auth_fields = Vec::<AuthField>::with_capacity(3);
     auth_fields.push(AuthField::new(username.as_bytes().to_vec()));
@@ -46,15 +50,19 @@ fn auth1_request(conn_ref: &ConnCoreRef, chllng_sha256: &[u8], username: &str) -
 
     let part2 = Part::new(PartKind::Authentication, Argument::Auth(auth_fields));
 
-    let mut request = Request::new(conn_ref, RequestType::Authenticate, 0)?;
+    let mut request = Request::new(RequestType::Authenticate, 0)?;
     request.push(part2);
 
     request.send_and_receive(conn_ref, Some(ReplyType::Nil))
 }
 
-fn auth2_request(conn_ref: &ConnCoreRef, client_proof: &[u8], username: &str) -> PrtResult<Reply> {
+fn auth2_request(
+    conn_ref: &mut ConnCoreRef,
+    client_proof: &[u8],
+    username: &str,
+) -> PrtResult<Reply> {
     trace!("Entering auth2_request()");
-    let mut request = Request::new(conn_ref, RequestType::Connect, 0)?;
+    let mut request = Request::new(RequestType::Connect, 0)?;
 
     let mut auth_fields = Vec::<AuthField>::with_capacity(3);
     auth_fields.push(AuthField::new(username.as_bytes().to_vec()));
@@ -70,8 +78,10 @@ fn auth2_request(conn_ref: &ConnCoreRef, client_proof: &[u8], username: &str) ->
         ConnectOptionId::CompleteArrayExecution,
         PrtOptionValue::BOOLEAN(true),
     );
+    // FIXME use DataFormatVersionEnum:
     conn_opts.push(ConnectOptionId::DataFormatVersion2, PrtOptionValue::INT(4));
-    conn_opts.push(ConnectOptionId::DataFormatVersion, PrtOptionValue::INT(1));
+    // FIXME remove this:
+    // conn_opts.push(ConnectOptionId::DataFormatVersion, PrtOptionValue::INT(1));
     conn_opts.push(
         ConnectOptionId::ClientLocale,
         PrtOptionValue::STRING(get_locale()),

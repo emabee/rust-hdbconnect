@@ -8,7 +8,7 @@ pub struct ServerError {
     pub code: i32,
     pub position: i32,
     pub text_length: i32,
-    pub severity: i8, // 0 = warning, 1 = error, 2 = fatal
+    pub severity: i8, // 0 = warning, 1 = error, 2 = fatal FIXME use enum
     pub sqlstate: Vec<u8>,
     pub text: String,
 }
@@ -60,11 +60,11 @@ impl ServerError {
         rdr.consume(pad as usize);
 
         let hdberr = ServerError::new(code, position, text_length, severity, sqlstate, text);
-        debug!("parse(): found hdberr with {}", hdberr.textual_repr());
+        debug!("parse(): found hdberr with {}", hdberr.to_string());
         Ok(hdberr)
     }
 
-    fn textual_repr(&self) -> String {
+    pub fn to_string(&self) -> String {
         let sev = match self.severity {
             0 => "warning",
             1 => "error",
@@ -84,12 +84,12 @@ impl ServerError {
 
 impl fmt::Display for ServerError {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "{}", self.textual_repr())
+        write!(fmt, "{}", self.to_string())
     }
 }
 
 impl fmt::Debug for ServerError {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "{}", self.textual_repr())
+        write!(fmt, "{}", self.to_string())
     }
 }

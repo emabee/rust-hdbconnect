@@ -26,8 +26,8 @@ pub struct ConnectionCore {
     fetch_size: u32,
     lob_read_length: i32,
     transaction_state: TransactionState,
-    distributed_connection_in_progress: bool,
-    ssi: Option<PrtOptionValue>, // Information on the statement sequence within the transaction
+    statement_sequence: Option<PrtOptionValue>, /* Information on the statement sequence within
+                                                 * the transaction */
     // FIXME transmute into explicit structure; see also jdbc\EngineFeatures.java :
     server_connect_options: Vec<ConnectOption>,
     topology_attributes: Vec<TopologyAttr>,
@@ -45,8 +45,7 @@ impl ConnectionCore {
             fetch_size: DEFAULT_FETCH_SIZE,
             lob_read_length: DEFAULT_LOB_READ_LENGTH,
             transaction_state: TransactionState::Initial,
-            distributed_connection_in_progress: false,
-            ssi: None,
+            statement_sequence: None,
             server_connect_options: Vec::<ConnectOption>::new(),
             topology_attributes: Vec::<TopologyAttr>::new(),
             stream: stream,
@@ -64,6 +63,11 @@ impl ConnectionCore {
     pub fn add_server_proc_time(&mut self, t: i32) {
         self.acc_server_proc_time += t;
     }
+
+    pub fn get_server_proc_time(&self) -> i32 {
+        self.acc_server_proc_time
+    }
+
     pub fn get_fetch_size(&self) -> u32 {
         self.fetch_size
     }
@@ -100,23 +104,12 @@ impl ConnectionCore {
         self.authenticated = authenticated;
     }
 
-    pub fn is_distributed_connection_in_progress(&self) -> bool {
-        self.distributed_connection_in_progress
+    pub fn statement_sequence(&self) -> &Option<PrtOptionValue> {
+        &self.statement_sequence
     }
 
-    pub fn set_distributed_connection_in_progress(
-        &mut self,
-        distributed_connection_in_progress: bool,
-    ) {
-        self.distributed_connection_in_progress = distributed_connection_in_progress;
-    }
-
-    pub fn ssi(&self) -> &Option<PrtOptionValue> {
-        &self.ssi
-    }
-
-    pub fn set_ssi(&mut self, ssi: Option<PrtOptionValue>) {
-        self.ssi = ssi;
+    pub fn set_statement_sequence(&mut self, statement_sequence: Option<PrtOptionValue>) {
+        self.statement_sequence = statement_sequence;
     }
 
     pub fn session_id(&self) -> i64 {
@@ -157,7 +150,8 @@ impl ConnectionCore {
             | (TaFlagId::ReadOnlyMode, PrtOptionValue::BOOLEAN(false)) => {}
             (id, value) => warn!(
                 "unexpected transaction flag received: {:?} = {:?}",
-                id, value
+                id,
+                value
             ),
         };
         Ok(())
@@ -170,8 +164,12 @@ impl Drop for ConnectionCore {
         trace!("Drop of ConnectionCore, session_id = {}", self.session_id);
         if self.authenticated {
             let request = Request::new_for_disconnect();
-            match request.serialize_impl(self.session_id, self.next_seq_number(), &mut self.stream)
-            {
+            match request.serialize_impl(
+                self.session_id,
+                self.next_seq_number(),
+                0,
+                &mut self.stream,
+            ) {
                 Ok(()) => {
                     trace!("Disconnect: request successfully sent");
                     let mut rdr = io::BufReader::new(&mut self.stream);
@@ -183,7 +181,7 @@ impl Drop for ConnectionCore {
                         if let Message::Reply(mut msg) = msg {
                             for _ in 0..no_of_parts {
                                 Part::parse(
-                                    MsgType::Reply,
+                                    &MsgType::Reply,
                                     &mut (msg.parts),
                                     None,
                                     None,

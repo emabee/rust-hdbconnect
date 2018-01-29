@@ -269,10 +269,12 @@ impl TypedValue {
             // TypedValue::N_SMALLDECIMAL(_)    => type_id::N_SMALLDECIMAL,
             TypedValue::N_TEXT(_) => type_id::N_TEXT,
             TypedValue::N_SHORTTEXT(_) => type_id::N_SHORTTEXT,
-            TypedValue::N_LONGDATE(_) => type_id::N_LONGDATE,
-            /* TypedValue::N_SECONDDATE(_)      => type_id::N_SECONDDATE,
-             * TypedValue::N_DAYDATE(_)         => type_id::N_DAYDATE,
-             * TypedValue::N_SECONDTIME(_)      => type_id::N_SECONDTIME, */
+            TypedValue::N_LONGDATE(_) => type_id::N_LONGDATE, /* TypedValue::N_SECONDDATE(_)
+                                                               * => type_id::N_SECONDDATE,
+                                                               * TypedValue::N_DAYDATE(_)
+                                                               * => type_id::N_DAYDATE,
+                                                               * TypedValue::N_SECONDTIME(_)
+                                                               * => type_id::N_SECONDTIME, */
         }
     }
 
@@ -898,7 +900,7 @@ pub mod factory {
                 length_c,
                 length_b,
                 locator_id,
-                data,
+                &data,
             )))
         }
     }

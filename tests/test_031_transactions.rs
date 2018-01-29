@@ -45,7 +45,8 @@ fn write1_read2(connection1: &mut Connection) -> HdbResult<()> {
     connection1.multiple_statements(stmts)?;
 
     let get_checksum = |conn: &mut Connection| {
-        let resultset = conn.query("select sum(nmbr) from TEST_TRANSACTIONS").unwrap();
+        let resultset = conn.query("select sum(nmbr) from TEST_TRANSACTIONS")
+            .unwrap();
         let checksum: usize = resultset.try_into().unwrap();
         checksum
     };
@@ -58,7 +59,7 @@ fn write1_read2(connection1: &mut Connection) -> HdbResult<()> {
     // read them also from a new connection
     assert_eq!(get_checksum(&mut connection2), 321);
 
-    connection1.set_auto_commit(false);
+    connection1.set_auto_commit(false)?;
 
     let mut prepared_statement1 =
         connection1.prepare("insert into TEST_TRANSACTIONS (strng,nmbr,dt) values(?,?,?)")?;

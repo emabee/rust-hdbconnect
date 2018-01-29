@@ -105,7 +105,7 @@ impl ResultSet {
 
     fn fetch_next(&mut self) -> PrtResult<()> {
         trace!("ResultSet::fetch_next()");
-        let (conn_ref, resultset_id, fetch_size) = {
+        let (mut conn_ref, resultset_id, fetch_size) = {
             // scope the borrow
             let guard = self.core_ref.lock()?;
             let rs_core = &*guard;
@@ -125,7 +125,7 @@ impl ResultSet {
         // build the request, provide resultset id, define FetchSize
         debug!("ResultSet::fetch_next() with fetch_size = {}", fetch_size);
         let command_options = 0;
-        let mut request = Request::new(&conn_ref, RequestType::FetchNext, command_options)?;
+        let mut request = Request::new(RequestType::FetchNext, command_options)?;
         request.push(Part::new(
             PartKind::ResultSetId,
             Argument::ResultSetId(resultset_id),
@@ -139,7 +139,7 @@ impl ResultSet {
             None,
             None,
             &mut Some(self),
-            &conn_ref,
+            &mut conn_ref,
             Some(ReplyType::Fetch),
         )?;
         reply.parts.pop_arg_if_kind(PartKind::ResultSet);
@@ -158,9 +158,11 @@ impl ResultSet {
         if (!rs_core.attributes.is_last_packet())
             && (rs_core.attributes.row_not_found() || rs_core.attributes.is_resultset_closed())
         {
-            Err(HdbError::ProtocolError(PrtError::ProtocolError(
-                String::from("ResultSet incomplete, but already closed on server"),
-            )))
+            Err(HdbError::ProtocolError(
+                PrtError::ProtocolError(String::from(
+                    "ResultSet incomplete, but already closed on server",
+                )),
+            ))
         } else {
             Ok(rs_core.attributes.is_last_packet())
         }
@@ -222,7 +224,7 @@ impl ResultSet {
     /// }
     /// let typed_result: Vec<MyStruct> = resultset.try_into()?;
     /// ```
-    /// 
+    ///
     pub fn try_into<'de, T>(mut self) -> HdbResult<T>
     where
         T: serde::de::Deserialize<'de>,
@@ -424,7 +426,8 @@ pub mod factory {
         let no_of_cols = resultset.metadata.number_of_fields();
         debug!(
             "resultset::parse_rows() reading {} lines with {} columns",
-            no_of_rows, no_of_cols
+            no_of_rows,
+            no_of_cols
         );
 
         let guard = resultset.core_ref.lock()?;

@@ -34,16 +34,17 @@ fn connect_successfully() {
 fn connect_wrong_password() -> HdbResult<()> {
     info!("test connect failure on wrong credentials");
     let start = Local::now();
-    let conn_params: ConnectParams =
-        test_utils::connect_params_builder_from_file()?.dbuser("bla")
-                                                       .password("blubber")
-                                                       .build()?;
+    let conn_params: ConnectParams = test_utils::connect_params_builder_from_file("db_access.json")?
+        .dbuser("bla")
+        .password("blubber")
+        .build()?;
     let err = Connection::new(conn_params).err().unwrap();
     info!(
         "connect with wrong password failed as expected, after {} µs with {}.",
-        Local::now().signed_duration_since(start)
-                    .num_microseconds()
-                    .unwrap(),
+        Local::now()
+            .signed_duration_since(start)
+            .num_microseconds()
+            .unwrap(),
         err.description()
     );
     Ok(())
@@ -81,8 +82,9 @@ fn impl_select_version_and_user(connection: &mut Connection) -> HdbResult<()> {
 
     assert_eq!(
         version_and_user.current_user,
-        test_utils::connect_params_builder_from_file()?.build()?
-                                                       .dbuser()
+        test_utils::connect_params_builder_from_file("db_access.json")?
+            .build()?
+            .dbuser()
     );
 
     debug!("VersionAndUser: {:?}", version_and_user);

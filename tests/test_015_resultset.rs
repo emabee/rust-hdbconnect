@@ -81,7 +81,13 @@ fn evaluate_resultset(connection: &mut Connection) -> HdbResult<()> {
     info!("Loop over rows (streaming support), convert row into struct");
     for row in connection.query("select * from TEST_RESULTSET")? {
         let td: TestData = row?.try_into()?;
-        debug!("Got struct with {}, {:?}, {}, {}", td.f1, td.f2, td.f3, td.f4);
+        debug!(
+            "Got struct with {}, {:?}, {}, {}",
+            td.f1,
+            td.f2,
+            td.f3,
+            td.f4
+        );
     }
 
     info!("Loop over rows, convert row into tuple (avoid defining a struct)");
@@ -104,7 +110,9 @@ fn evaluate_resultset(connection: &mut Connection) -> HdbResult<()> {
     //  .fold(...)
 
     info!("Convert a whole resultset into a Vec of structs");
-    let vtd: Vec<TestData> = connection.query("select * from TEST_RESULTSET")?.try_into()?;
+    let vtd: Vec<TestData> = connection
+        .query("select * from TEST_RESULTSET")?
+        .try_into()?;
     for td in vtd {
         debug!("Got {}, {:?}, {}, {}", td.f1, td.f2, td.f3, td.f4);
     }

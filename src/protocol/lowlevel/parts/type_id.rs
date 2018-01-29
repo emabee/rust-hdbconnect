@@ -40,7 +40,8 @@ pub const BOOLEAN: u8 = 28;
 pub const STRING: u8 = 29;
 /// NSTRING
 pub const NSTRING: u8 = 30;
-// BLOCATOR: 31, NLOCATOR: 32  FIXME not yet implemented
+// BLOCATOR: 31  FIXME not yet implemented
+// NLOCATOR: 32  FIXME not yet implemented
 /// BSTRING
 pub const BSTRING: u8 = 33;
 // 34 - 46: docu unclear, likely unused
@@ -58,13 +59,25 @@ pub const SHORTTEXT: u8 = 52;
 // 57 - 60: not documented
 /// LONGDATE
 pub const LONGDATE: u8 = 61;
-// / SECONDDATE FIXME
-// pub const SECONDDATE: u8       =  62;
-// / DAYDATE FIXME
-// pub const DAYDATE: u8          =  63;
-// / SECONDTIME FIXME
-// pub const SECONDTIME: u8       =  64;
+// pub const SECONDDATE: u8       =  62; // SECONDDATE FIXME
+// pub const DAYDATE: u8          =  63; // DAYDATE FIXME
+// pub const SECONDTIME: u8       =  64; // SECONDTIME FIXME
 // 65 - 80: Reserved, do not use
+
+// TypeCode_CLOCATOR                  =70,  // FIXME
+// TypeCode_BLOB_DISK_RESERVED        =71,  // FIXME
+// TypeCode_CLOB_DISK_RESERVED        =72,  // FIXME
+// TypeCode_NCLOB_DISK_RESERVE        =73,  // FIXME
+// TypeCode_ST_GEOMETRY               =74,  // FIXME
+// TypeCode_ST_POINT                  =75,  // FIXME
+// TypeCode_FIXED16                   =76,  // FIXME
+// TypeCode_ABAP_ITAB                 =77,  // FIXME
+// TypeCode_RECORD_ROW_STORE         = 78,  // FIXME
+// TypeCode_RECORD_COLUMN_STORE      = 79,  // FIXME
+// TypeCode_FIXED8                   = 81,  // FIXME
+// TypeCode_FIXED12                  = 82,  // FIXME
+// TypeCode_CIPHERTEXT               = 90,  // FIXME
+
 
 /// Nullable Variant of TINYINT
 pub const N_TINYINT: u8 = TINYINT + 128;
@@ -122,3 +135,19 @@ pub const N_LONGDATE: u8 = LONGDATE + 128;
 // pub const N_DAYDATE: u8         = DAYDATE + 128;
 // / Nullable Variant of SECONDTIME
 // pub const N_SECONDTIME: u8      = SECONDTIME + 128;
+
+// 65 - 80: Reserved, do not use
+
+// TypeCode_CLOCATOR                  =70 + 128,  // FIXME
+// TypeCode_BLOB_DISK_RESERVED        =71 + 128,  // FIXME
+// TypeCode_CLOB_DISK_RESERVED        =72 + 128,  // FIXME
+// TypeCode_NCLOB_DISK_RESERVE        =73 + 128,  // FIXME
+// TypeCode_ST_GEOMETRY               =74 + 128,  // FIXME
+// TypeCode_ST_POINT                  =75 + 128,  // FIXME
+// TypeCode_FIXED16                   =76 + 128,  // FIXME
+// TypeCode_ABAP_ITAB                 =77 + 128,  // FIXME
+// TypeCode_RECORD_ROW_STORE         = 78 + 128,  // FIXME
+// TypeCode_RECORD_COLUMN_STORE      = 79 + 128,  // FIXME
+// TypeCode_FIXED8                   = 81 + 128,  // FIXME
+// TypeCode_FIXED12                  = 82 + 128,  // FIXME
+// TypeCode_CIPHERTEXT               = 90 + 128,  // FIXME
