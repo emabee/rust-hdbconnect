@@ -94,7 +94,7 @@ impl CResourceManager for HdbResourceManager {
         let command_options = 0b_1000;
         let mut request = Request::new(RequestType::XARecover, command_options)?;
 
-        let mut xat_options = XatOptions::default()?;
+        let mut xat_options = XatOptions::default();
         xat_options.set_flags(flags);
         request.push(Part::new(
             PartKind::XatOptions,
@@ -174,7 +174,7 @@ impl HdbResourceManager {
             ));
         }
 
-        let mut xat_options = XatOptions::default()?;
+        let mut xat_options = XatOptions::default();
         xat_options.set_xatid(id);
         if !flags.is_empty() {
             xat_options.set_flags(flags);

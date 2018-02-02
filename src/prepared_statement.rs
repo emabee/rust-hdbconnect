@@ -112,9 +112,7 @@ pub mod factory {
     use protocol::lowlevel::partkind::PartKind;
     use protocol::lowlevel::parts::parameters::ParameterRow;
     use protocol::lowlevel::parts::parameter_descriptor::{ParameterDescriptor, ParameterDirection};
-    use protocol::lowlevel::parts::prt_option_value::PrtOptionValue;
     use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
-    use protocol::lowlevel::parts::transactionflags::TransactionFlag;
     use super::PreparedStatement;
 
     /// Prepare a statement.
@@ -128,7 +126,6 @@ pub mod factory {
         // TableLocation, TransactionFlags, StatementContext,
         // StatementId, ParameterMetadata, ResultSetMetadata
         let mut o_table_location: Option<Vec<i32>> = None;
-        let mut o_ta_flags: Option<Vec<TransactionFlag>> = None;
         let mut o_stmt_id: Option<u64> = None;
         let mut o_par_md: Option<Vec<ParameterDescriptor>> = None;
         let mut o_rs_md: Option<ResultSetMetadata> = None;
@@ -141,7 +138,10 @@ pub mod factory {
                 Some(Argument::StatementId(id)) => {
                     o_stmt_id = Some(id);
                 }
-                Some(Argument::TransactionFlags(vec)) => o_ta_flags = Some(vec),
+                Some(Argument::TransactionFlags(ref ta_flags)) => {
+                    let mut guard = conn_ref.lock()?;
+                    (*guard).update_session_state(ta_flags)?;
+                }
                 Some(Argument::TableLocation(vec_i)) => {
                     o_table_location = Some(vec_i);
                 }
@@ -150,19 +150,10 @@ pub mod factory {
                 }
 
                 Some(Argument::StatementContext(stmt_ctx)) => {
-                    if let Some(PrtOptionValue::INT(i)) = stmt_ctx.server_processing_time {
-                        let mut guard = conn_ref.lock()?;
-                        (*guard).add_server_proc_time(i);
-                    }
+                    let mut guard = conn_ref.lock()?;
+                    (*guard).add_server_proc_time(stmt_ctx.get_server_processing_time());
                 }
                 x => warn!("prepare(): Unexpected reply part found {:?}", x),
-            }
-        }
-
-        if let Some(vec) = o_ta_flags {
-            let mut guard = conn_ref.lock()?;
-            for ta_flag in vec {
-                (*guard).set_transaction_state(ta_flag)?;
             }
         }
 

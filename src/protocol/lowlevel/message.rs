@@ -14,7 +14,6 @@ use super::part::{Part, Parts};
 use super::part_attributes::PartAttributes;
 use super::partkind::PartKind;
 use super::parts::resultset::ResultSet;
-use super::parts::prt_option_value::PrtOptionValue;
 use super::parts::parameter_descriptor::ParameterDescriptor;
 use super::parts::resultset_metadata::ResultSetMetadata;
 use super::parts::statement_context::StatementContext;
@@ -92,18 +91,15 @@ impl Request {
                 Argument::StatementContext(stmt_ctx) => {
                     trace!(
                         "Received StatementContext with sequence_info = {:?}",
-                        stmt_ctx.statement_sequence_info
+                        stmt_ctx.get_statement_sequence_info()
                     );
                     let mut guard = conn_ref.lock()?;
-                    (*guard).set_statement_sequence(stmt_ctx.statement_sequence_info);
-                    (*guard).add_server_proc_time(match stmt_ctx.server_processing_time {
-                        Some(PrtOptionValue::INT(i)) => i,
-                        _ => 0,
-                    });
+                    (*guard).set_statement_sequence(stmt_ctx.get_statement_sequence_info());
+                    (*guard).add_server_proc_time(stmt_ctx.get_server_processing_time());
                 }
-                Argument::TransactionFlags(vec) => for ta_flag in vec {
+                Argument::TransactionFlags(ref ta_flags) =>  {
                     let mut guard = conn_ref.lock()?;
-                    (*guard).set_transaction_state(ta_flag)?;
+                    (*guard).update_session_state(ta_flags)?;
                 },
                 Argument::ResultSet(Some(rs)) => {
                     int_return_values.push(InternalReturnValue::ResultSet(rs));
@@ -232,13 +228,10 @@ impl Request {
         let guard = conn_ref.lock()?;
         match *(*guard).statement_sequence() {
             None => {}
-            Some(ref statement_sequence) => {
+            Some(ssi_value) => {
                 let mut stmt_ctx = StatementContext::default();
-                stmt_ctx.statement_sequence_info = Some(statement_sequence.clone());
-                trace!(
-                    "Sending StatementContext with sequence_info = {:?}",
-                    stmt_ctx.statement_sequence_info
-                );
+                stmt_ctx.set_statement_sequence_info(ssi_value);
+                trace!("Sending StatementContext with sequence_info = {:?}", ssi_value);
                 self.parts.push(Part::new(
                     PartKind::StatementContext,
                     Argument::StatementContext(stmt_ctx),
@@ -340,7 +333,6 @@ pub struct Reply {
     session_id: i64,
     replytype: ReplyType,
     pub parts: Parts,
-    server_processing_time: Option<PrtOptionValue>,
 }
 impl Reply {
     fn new(session_id: i64, replytype: ReplyType) -> Reply {
@@ -348,7 +340,6 @@ impl Reply {
             session_id: session_id,
             replytype: replytype,
             parts: Parts::default(),
-            server_processing_time: None,
         }
     }
 

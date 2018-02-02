@@ -1,5 +1,5 @@
 use super::PrtResult;
-use super::prt_option_value::PrtOptionValue;
+use super::option_value::OptionValue;
 
 use byteorder::{ReadBytesExt, WriteBytesExt};
 use std::i8;
@@ -8,7 +8,7 @@ use std::io;
 #[derive(Clone, Debug)]
 pub struct TopologyAttr {
     pub id: TopologyAttrId,
-    pub value: PrtOptionValue,
+    pub value: OptionValue,
 }
 impl TopologyAttr {
     pub fn serialize(&self, w: &mut io::Write) -> PrtResult<()> {
@@ -22,7 +22,7 @@ impl TopologyAttr {
 
     pub fn parse(rdr: &mut io::BufRead) -> PrtResult<TopologyAttr> {
         let id = TopologyAttrId::from_i8(rdr.read_i8()?); // I1
-        let value = PrtOptionValue::parse(rdr)?;
+        let value = OptionValue::parse(rdr)?;
         Ok(TopologyAttr {
             id: id,
             value: value,

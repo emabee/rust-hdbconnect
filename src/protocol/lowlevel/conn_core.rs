@@ -1,10 +1,10 @@
-use protocol::protocol_error::{prot_err, PrtResult};
 use protocol::lowlevel::message::{parse_message_and_sequence_header, Message, MsgType, Request};
 use protocol::lowlevel::part::Part;
-use protocol::lowlevel::parts::connect_option::ConnectOption;
-use protocol::lowlevel::parts::prt_option_value::PrtOptionValue;
+use protocol::lowlevel::parts::connect_options::ConnectOptions;
 use protocol::lowlevel::parts::topology_attribute::TopologyAttr;
-use protocol::lowlevel::parts::transactionflags::{TaFlagId, TransactionFlag};
+use protocol::lowlevel::parts::transactionflags::SessionState;
+use protocol::lowlevel::parts::transactionflags::TransactionFlags;
+use protocol::protocol_error::{prot_err, PrtResult};
 
 use std::sync::{Arc, Mutex};
 use std::io;
@@ -25,11 +25,11 @@ pub struct ConnectionCore {
     acc_server_proc_time: i32,
     fetch_size: u32,
     lob_read_length: i32,
-    transaction_state: TransactionState,
-    statement_sequence: Option<PrtOptionValue>, /* Information on the statement sequence within
-                                                 * the transaction */
+    session_state: SessionState,
+    statement_sequence: Option<i64>, /* Information on the statement sequence within
+                                      * the transaction */
     // FIXME transmute into explicit structure; see also jdbc\EngineFeatures.java :
-    server_connect_options: Vec<ConnectOption>,
+    server_connect_options: ConnectOptions,
     topology_attributes: Vec<TopologyAttr>,
     stream: TcpStream,
 }
@@ -44,9 +44,9 @@ impl ConnectionCore {
             acc_server_proc_time: 0,
             fetch_size: DEFAULT_FETCH_SIZE,
             lob_read_length: DEFAULT_LOB_READ_LENGTH,
-            transaction_state: TransactionState::Initial,
+            session_state: Default::default(),
             statement_sequence: None,
-            server_connect_options: Vec::<ConnectOption>::new(),
+            server_connect_options: ConnectOptions::default(),
             topology_attributes: Vec::<TopologyAttr>::new(),
             stream: stream,
         }))
@@ -92,8 +92,8 @@ impl ConnectionCore {
         mem::swap(vec, &mut self.topology_attributes)
     }
 
-    pub fn swap_server_connect_options(&mut self, vec: &mut Vec<ConnectOption>) {
-        mem::swap(vec, &mut self.server_connect_options)
+    pub fn swap_server_connect_options(&mut self, conn_opts: &mut ConnectOptions) {
+        mem::swap(conn_opts, &mut self.server_connect_options)
     }
 
     pub fn is_authenticated(&self) -> bool {
@@ -104,11 +104,11 @@ impl ConnectionCore {
         self.authenticated = authenticated;
     }
 
-    pub fn statement_sequence(&self) -> &Option<PrtOptionValue> {
+    pub fn statement_sequence(&self) -> &Option<i64> {
         &self.statement_sequence
     }
 
-    pub fn set_statement_sequence(&mut self, statement_sequence: Option<PrtOptionValue>) {
+    pub fn set_statement_sequence(&mut self, statement_sequence: Option<i64>) {
         self.statement_sequence = statement_sequence;
     }
 
@@ -128,33 +128,13 @@ impl ConnectionCore {
         self.seq_number
     }
 
-    pub fn set_transaction_state(&mut self, transaction_flag: TransactionFlag) -> PrtResult<()> {
-        match (transaction_flag.id, transaction_flag.value) {
-            (TaFlagId::RolledBack, PrtOptionValue::BOOLEAN(true)) => {
-                self.transaction_state = TransactionState::RolledBack;
-            }
-            (TaFlagId::Committed, PrtOptionValue::BOOLEAN(true)) => {
-                self.transaction_state = TransactionState::Committed;
-            }
-            (TaFlagId::NewIsolationlevel, PrtOptionValue::INT(i)) => {
-                self.transaction_state = TransactionState::OpenWithIsolationlevel(i);
-            }
-            (TaFlagId::WriteTaStarted, PrtOptionValue::BOOLEAN(true)) => {
-                self.transaction_state = TransactionState::OpenWithIsolationlevel(0);
-            }
-            (TaFlagId::SessionclosingTaError, PrtOptionValue::BOOLEAN(true)) => {
-                return Err(prot_err("SessionclosingTaError received"));
-            }
-            (TaFlagId::DdlCommitmodeChanged, PrtOptionValue::BOOLEAN(true))
-            | (TaFlagId::NoWriteTaStarted, PrtOptionValue::BOOLEAN(true))
-            | (TaFlagId::ReadOnlyMode, PrtOptionValue::BOOLEAN(false)) => {}
-            (id, value) => warn!(
-                "unexpected transaction flag received: {:?} = {:?}",
-                id,
-                value
-            ),
-        };
-        Ok(())
+    pub fn update_session_state(&mut self, ta_flags: &TransactionFlags) -> PrtResult<()> {
+        ta_flags.update_session_state(&mut self.session_state);
+        if self.session_state.dead {
+            Err(prot_err("SessionclosingTaError received")) // FIXME this is not a protocol error
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -200,12 +180,4 @@ impl Drop for ConnectionCore {
             }
         }
     }
-}
-
-#[derive(Debug)]
-pub enum TransactionState {
-    Initial,
-    RolledBack,
-    Committed,
-    OpenWithIsolationlevel(i32),
 }

@@ -7,8 +7,7 @@ use protocol::lowlevel::request_type::RequestType;
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::partkind::PartKind;
 use protocol::lowlevel::parts::authfield::AuthField;
-use protocol::lowlevel::parts::connect_option::{ConnectOptionId, ConnectOptions};
-use protocol::lowlevel::parts::prt_option_value::PrtOptionValue;
+use protocol::lowlevel::parts::connect_options::ConnectOptions;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use crypto::hmac::Hmac;
@@ -73,47 +72,21 @@ fn auth2_request(
         Argument::Auth(auth_fields),
     ));
 
-    let mut conn_opts = ConnectOptions::default();
-    conn_opts.push(
-        ConnectOptionId::CompleteArrayExecution,
-        PrtOptionValue::BOOLEAN(true),
-    );
-    // FIXME use DataFormatVersionEnum:
-    conn_opts.push(ConnectOptionId::DataFormatVersion2, PrtOptionValue::INT(4));
-    // FIXME remove this:
-    // conn_opts.push(ConnectOptionId::DataFormatVersion, PrtOptionValue::INT(1));
-    conn_opts.push(
-        ConnectOptionId::ClientLocale,
-        PrtOptionValue::STRING(get_locale()),
-    );
-    conn_opts.push(
-        ConnectOptionId::EnableArrayType,
-        PrtOptionValue::BOOLEAN(true),
-    );
-    conn_opts.push(
-        ConnectOptionId::DistributionEnabled,
-        PrtOptionValue::BOOLEAN(true),
-    );
-    conn_opts.push(
-        ConnectOptionId::ClientDistributionMode,
-        PrtOptionValue::INT(3),
-    );
-    // conn_opts.push(ConnectOptionId::SelectForUpdateOK, PrtOptionValue::BOOLEAN(true));
-    conn_opts.push(
-        ConnectOptionId::DistributionProtocolVersion,
-        PrtOptionValue::INT(1),
-    );
-    conn_opts.push(
-        ConnectOptionId::RowSlotImageParameter,
-        PrtOptionValue::BOOLEAN(true),
-    );
-    conn_opts.push(
-        ConnectOptionId::OSUser,
-        PrtOptionValue::STRING(get_username()),
-    );
     request.push(Part::new(
         PartKind::ConnectOptions,
-        Argument::ConnectOptions(conn_opts),
+        Argument::ConnectOptions(
+            ConnectOptions::default()
+                .set_complete_array_execution(true)
+                .set_dataformat_version2(4)
+                .set_client_locale(get_locale())
+                .set_enable_array_type(true)
+                .set_distribution_enabled(true)
+                .set_client_distribution_mode(3)
+                .set_select_for_update_ok(true)
+                .set_distribution_protocol_version(1)
+                .set_row_slot_image_parameter(true)
+                .set_os_user(get_username()),
+        ),
     ));
 
     request.send_and_receive(conn_ref, Some(ReplyType::Nil))
@@ -173,8 +146,8 @@ fn evaluate_reply2(mut reply: Reply, conn_ref: &ConnCoreRef) -> PrtResult<()> {
     }
 
     match reply.parts.pop_arg_if_kind(PartKind::ConnectOptions) {
-        Some(Argument::ConnectOptions(ConnectOptions(mut vec))) => {
-            conn_core.swap_server_connect_options(&mut vec)
+        Some(Argument::ConnectOptions(ref mut conn_opts)) => {
+            conn_core.swap_server_connect_options(conn_opts)
         }
         _ => return Err(prot_err("evaluate_reply2(): expected ConnectOptions part")),
     }

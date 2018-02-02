@@ -6,7 +6,7 @@ use super::partkind::PartKind;
 use super::part::Parts;
 use super::parts::authfield::AuthField;
 use super::parts::client_info::ClientInfo;
-use super::parts::connect_option::{ConnectOption, ConnectOptions};
+use super::parts::connect_options::ConnectOptions;
 use super::parts::parameters::Parameters;
 use super::parts::parameter_descriptor::ParameterDescriptor;
 use super::parts::parameter_descriptor::factory as ParameterDescriptorFactory;
@@ -20,7 +20,7 @@ use super::parts::rows_affected::RowsAffected;
 use super::parts::server_error::ServerError;
 use super::parts::statement_context::StatementContext;
 use super::parts::topology_attribute::TopologyAttr;
-use super::parts::transactionflags::TransactionFlag;
+use super::parts::transactionflags::TransactionFlags;
 use super::parts::xat_options::XatOptions;
 use super::util;
 
@@ -51,7 +51,7 @@ pub enum Argument {
     StatementId(u64),
     TableLocation(Vec<i32>),
     TopologyInformation(Vec<TopologyAttr>),
-    TransactionFlags(Vec<TransactionFlag>),
+    TransactionFlags(TransactionFlags),
     XatOptions(XatOptions),
 }
 
@@ -67,11 +67,11 @@ impl Argument {
             | Argument::TopologyInformation(_)
             | Argument::ReadLobRequest(_, _, _) => 1,
             Argument::ClientInfo(ref client_info) => client_info.count(),
-            Argument::ConnectOptions(ref opts) => opts.0.len(),
+            Argument::ConnectOptions(ref opts) => opts.count(),
             Argument::Error(ref vec) => vec.len(),
             Argument::Parameters(ref pars) => pars.count(),
             Argument::StatementContext(ref sc) => sc.count(),
-            Argument::TransactionFlags(ref opts) => opts.len(),
+            Argument::TransactionFlags(ref opts) => opts.count(),
             Argument::XatOptions(ref xat) => xat.count(),
             ref a => {
                 return Err(PrtError::ProtocolError(
@@ -97,9 +97,7 @@ impl Argument {
             Argument::Command(ref s) => {
                 size += util::string_to_cesu8(s).len();
             }
-            Argument::ConnectOptions(ConnectOptions(ref vec)) => for opt in vec {
-                size += opt.size();
-            },
+            Argument::ConnectOptions(ref conn_opts) => size += conn_opts.size(),
             Argument::Error(ref vec) => for server_error in vec {
                 size += server_error.size();
             },
@@ -119,9 +117,7 @@ impl Argument {
                     size += attr.size();
                 }
             }
-            Argument::TransactionFlags(ref vec) => for opt in vec {
-                size += opt.size();
-            },
+            Argument::TransactionFlags(ref taflags) => size += taflags.size(),
             Argument::XatOptions(ref xat) => size += xat.size(),
             ref arg => {
                 return Err(PrtError::ProtocolError(
@@ -154,9 +150,7 @@ impl Argument {
                     w.write_u8(b)?;
                 }
             }
-            Argument::ConnectOptions(ConnectOptions(ref vec)) => for opt in vec {
-                opt.serialize(w)?;
-            },
+            Argument::ConnectOptions(ref conn_opts) => conn_opts.serialize(w)?,
             Argument::Error(ref vec) => for server_error in vec {
                 server_error.serialize(w)?;
             },
@@ -185,21 +179,15 @@ impl Argument {
             Argument::StatementId(stmt_id) => {
                 w.write_u64::<LittleEndian>(stmt_id)?;
             }
-            Argument::StatementContext(ref sc) => {
-                sc.serialize(w)?;
-            }
+            Argument::StatementContext(ref sc) => sc.serialize(w)?,
             Argument::TopologyInformation(ref vec) => {
                 w.write_i16::<LittleEndian>(vec.len() as i16)?;
                 for topo_attr in vec {
                     topo_attr.serialize(w)?;
                 }
             }
-            Argument::TransactionFlags(ref vec) => for opt in vec {
-                opt.serialize(w)?;
-            },
-            Argument::XatOptions(ref xatid) => {
-                xatid.serialize(w)?;
-            }
+            Argument::TransactionFlags(ref taflags) => taflags.serialize(w)?,
+            Argument::XatOptions(ref xatid) => xatid.serialize(w)?,
             ref a => {
                 return Err(PrtError::ProtocolError(
                     format!("serialize() called on {:?}", a),
@@ -264,12 +252,7 @@ impl Argument {
                 Argument::Command(s)
             }
             PartKind::ConnectOptions => {
-                let mut conn_opts = ConnectOptions::default();
-                for _ in 0..no_of_args {
-                    let opt = ConnectOption::parse(rdr)?;
-                    conn_opts.0.push(opt);
-                }
-                Argument::ConnectOptions(conn_opts)
+                Argument::ConnectOptions(ConnectOptions::parse(no_of_args, rdr)?)
             }
             PartKind::Error => {
                 let mut vec = Vec::<ServerError>::new();
@@ -329,12 +312,7 @@ impl Argument {
                 Argument::TopologyInformation(vec)
             }
             PartKind::TransactionFlags => {
-                let mut vec = Vec::<TransactionFlag>::new();
-                for _ in 0..no_of_args {
-                    let opt = TransactionFlag::parse(rdr)?;
-                    vec.push(opt);
-                }
-                Argument::TransactionFlags(vec)
+                Argument::TransactionFlags(TransactionFlags::parse(no_of_args, rdr)?)
             }
             PartKind::XatOptions => Argument::XatOptions(XatOptions::parse(no_of_args, rdr)?),
             _ => {

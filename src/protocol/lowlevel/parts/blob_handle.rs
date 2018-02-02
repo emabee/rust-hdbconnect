@@ -122,7 +122,6 @@ use protocol::lowlevel::message::Request;
 use protocol::lowlevel::reply_type::ReplyType;
 use protocol::lowlevel::request_type::RequestType;
 use protocol::lowlevel::part::Part;
-use protocol::lowlevel::parts::prt_option_value::PrtOptionValue;
 use protocol::lowlevel::partkind::PartKind;
 
 pub fn fetch_a_lob_chunk(
@@ -171,22 +170,18 @@ pub fn fetch_a_lob_chunk(
                 _ => return Err(prot_err("No ReadLobReply part found")),
             };
 
-            let server_processing_time =
-                match reply.parts.pop_arg_if_kind(PartKind::StatementContext) {
-                    Some(Argument::StatementContext(stmt_ctx)) => {
-                        if let Some(PrtOptionValue::INT(i)) = stmt_ctx.server_processing_time {
-                            i
-                        } else {
-                            0
-                        }
-                    }
-                    None => 0,
-                    _ => {
-                        return Err(prot_err(
-                            "Inconsistent StatementContext part found for ResultSet",
-                        ))
-                    }
-                };
+            let server_processing_time = match reply
+                .parts
+                .pop_arg_if_kind(PartKind::StatementContext)
+            {
+                Some(Argument::StatementContext(stmt_ctx)) => stmt_ctx.get_server_processing_time(),
+                None => 0,
+                _ => {
+                    return Err(prot_err(
+                        "Inconsistent StatementContext part found for ResultSet",
+                    ))
+                }
+            };
             Ok((reply_data, reply_is_last_data, server_processing_time))
         }
     }

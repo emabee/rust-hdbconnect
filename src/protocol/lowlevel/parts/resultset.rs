@@ -291,7 +291,6 @@ pub mod factory {
     use protocol::lowlevel::part::Parts;
     use protocol::lowlevel::part_attributes::PartAttributes;
     use protocol::lowlevel::partkind::PartKind;
-    use protocol::lowlevel::parts::prt_option_value::PrtOptionValue;
     use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
     use protocol::lowlevel::parts::statement_context::StatementContext;
     use protocol::lowlevel::parts::typed_value::TypedValue;
@@ -307,12 +306,7 @@ pub mod factory {
         o_stmt_ctx: Option<StatementContext>,
     ) -> ResultSet {
         let server_processing_time = match o_stmt_ctx {
-            Some(stmt_ctx) => if let Some(PrtOptionValue::INT(i)) = stmt_ctx.server_processing_time
-            {
-                i
-            } else {
-                0
-            },
+            Some(stmt_ctx) => stmt_ctx.get_server_processing_time(),
             None => 0,
         };
 
@@ -395,9 +389,8 @@ pub mod factory {
             Some(ref mut fetching_resultset) => {
                 match parts.pop_arg_if_kind(PartKind::StatementContext) {
                     Some(Argument::StatementContext(stmt_ctx)) => {
-                        if let Some(PrtOptionValue::INT(i)) = stmt_ctx.server_processing_time {
-                            fetching_resultset.acc_server_proc_time += i;
-                        }
+                        fetching_resultset.acc_server_proc_time +=
+                            stmt_ctx.get_server_processing_time();
                     }
                     None => {}
                     _ => {
