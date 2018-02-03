@@ -15,13 +15,13 @@ pub enum PartKind {
     TableLocation,         // 16 // Location of table data
     ReadLobRequest,        // 17 // Request data of READLOB message
     ReadLobReply,          // 18 // Reply data of READLOB message
-    CommandInfo,           // 27 // Command information // FIXME is missing
+    CommandInfo,           // 27 // Command information
     WriteLobRequest,       // 28 // Request data of WRITELOB message // FIXME is missing
     ClientContext,         // 29 // Client context; PartKindEnum in api/Comm../Prot../Layout.hpp
     WriteLobReply,         // 30 // Reply data of WRITELOB message // FIXME is missing
     Parameters,            // 32 // Parameter data
     Authentication,        // 33 // Authentication data
-    SessionContext,        // 34 // Session context information  // FIXME is missing
+    SessionContext,        // 34 // Session context information
     StatementContext,      // 39 // Statement visibility context
     PartitionInformation,  // 40 // Table partitioning information // FIXME is missing
     OutputParameters,      // 41 // Output parameter data
@@ -35,7 +35,7 @@ pub enum PartKind {
     FindLobReply,          // 50 // Reply data of FINDLOB message // FIXME is missing
     ClientInfo,            // 57 // Client information values
     TransactionFlags,      // 64 // Transaction handling flags
-    LobFlags,              // 68 // LOB flags // FIXME is missing
+    LobFlags,              // 68 // LOB flags
     ResultsetOptions,      // 69 // Additional context data for result sets
     XatOptions,            // 70 // XA transaction information (XA transaction ID)
     SessionVariable,       // 71 // undocumented
@@ -121,7 +121,13 @@ impl PartKind {
             57 => Ok(PartKind::ClientInfo),
             64 => Ok(PartKind::TransactionFlags),
             68 => Ok(PartKind::LobFlags),
+            69 => Ok(PartKind::ResultsetOptions),
             70 => Ok(PartKind::XatOptions),
+            71 => Ok(PartKind::SessionVariable),
+            72 => Ok(PartKind::WorkloadReplayContext),
+            73 => Ok(PartKind::SQLReplyOptions),
+            74 => Ok(PartKind::PrintOptions),
+
             _ => Err(PrtError::ProtocolError(
                 format!("Invalid value for PartKind detected: {}", val),
             )),

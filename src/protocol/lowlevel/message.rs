@@ -28,12 +28,6 @@ const MESSAGE_HEADER_SIZE: u32 = 32;
 const SEGMENT_HEADER_SIZE: usize = 24; // same for in and out
 
 #[derive(Debug)]
-pub enum MsgType {
-    // Request,              // only required for read_wire
-    Reply,
-}
-
-#[derive(Debug)]
 pub enum Message {
     Request(Request),
     Reply(Reply),
@@ -369,7 +363,6 @@ impl Reply {
             Message::Reply(mut msg) => {
                 for _ in 0..no_of_parts {
                     let part = Part::parse(
-                        &MsgType::Reply,
                         &mut (msg.parts),
                         Some(conn_ref),
                         o_rs_md,

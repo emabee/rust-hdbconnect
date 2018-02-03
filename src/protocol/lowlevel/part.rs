@@ -1,7 +1,6 @@
 use super::{prot_err, PrtResult};
 use super::argument::Argument;
 use super::conn_core::ConnCoreRef;
-use super::message::MsgType;
 use super::partkind::PartKind;
 use super::part_attributes::PartAttributes;
 use super::parts::parameter_descriptor::ParameterDescriptor;
@@ -81,7 +80,6 @@ impl Part {
 
     ///
     pub fn parse(
-        msg_type: &MsgType,
         already_received_parts: &mut Parts,
         o_conn_ref: Option<&ConnCoreRef>,
         rs_md: Option<&ResultSetMetadata>,
@@ -101,7 +99,6 @@ impl Part {
         Ok(Part::new(
             kind,
             Argument::parse(
-                msg_type,
                 kind,
                 attributes,
                 no_of_args,

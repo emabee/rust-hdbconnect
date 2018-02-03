@@ -1,4 +1,4 @@
-use protocol::lowlevel::message::{parse_message_and_sequence_header, Message, MsgType, Request};
+use protocol::lowlevel::message::{parse_message_and_sequence_header, Message, Request};
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::parts::connect_options::ConnectOptions;
 use protocol::lowlevel::parts::topology_attribute::TopologyAttr;
@@ -161,7 +161,6 @@ impl Drop for ConnectionCore {
                         if let Message::Reply(mut msg) = msg {
                             for _ in 0..no_of_parts {
                                 Part::parse(
-                                    &MsgType::Reply,
                                     &mut (msg.parts),
                                     None,
                                     None,

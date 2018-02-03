@@ -1,6 +1,10 @@
+use protocol::lowlevel::parts::commit_options::CommitOptions;
+use protocol::lowlevel::parts::fetch_options::FetchOptions;
+use protocol::lowlevel::parts::lob_flags::LobFlags;
+use protocol::lowlevel::parts::session_context::SessionContext;
+use protocol::lowlevel::parts::command_info::CommandInfo;
 use super::{prot_err, PrtError, PrtResult};
 use super::conn_core::ConnCoreRef;
-use super::message::MsgType;
 use super::part_attributes::PartAttributes;
 use super::partkind::PartKind;
 use super::part::Parts;
@@ -33,9 +37,13 @@ pub enum Argument {
     Auth(Vec<AuthField>),
     ClientInfo(ClientInfo),
     Command(String),
+    CommandInfo(CommandInfo),
+    CommitOptions(CommitOptions),
     ConnectOptions(ConnectOptions),
     Error(Vec<ServerError>),
+    FetchOptions(FetchOptions),
     FetchSize(u32),
+    LobFlags(LobFlags),
     OutputParameters(OutputParameters),
     ParameterMetadata(Vec<ParameterDescriptor>),
     Parameters(Parameters),
@@ -47,6 +55,7 @@ pub enum Argument {
     ResultSetId(u64),
     ResultSetMetadata(ResultSetMetadata),
     RowsAffected(Vec<RowsAffected>),
+    SessionContext(SessionContext),
     StatementContext(StatementContext),
     StatementId(u64),
     TableLocation(Vec<i32>),
@@ -67,9 +76,14 @@ impl Argument {
             | Argument::TopologyInformation(_)
             | Argument::ReadLobRequest(_, _, _) => 1,
             Argument::ClientInfo(ref client_info) => client_info.count(),
+            Argument::CommandInfo(ref opts) => opts.count(),
+            Argument::CommitOptions(ref opts) => opts.count(),
             Argument::ConnectOptions(ref opts) => opts.count(),
             Argument::Error(ref vec) => vec.len(),
+            Argument::FetchOptions(ref opts) => opts.count(),
+            Argument::LobFlags(ref opts) => opts.count(),
             Argument::Parameters(ref pars) => pars.count(),
+            Argument::SessionContext(ref opts) => opts.count(),
             Argument::StatementContext(ref sc) => sc.count(),
             Argument::TransactionFlags(ref opts) => opts.count(),
             Argument::XatOptions(ref xat) => xat.count(),
@@ -91,26 +105,24 @@ impl Argument {
                     size += field.size();
                 }
             }
-            Argument::ClientInfo(ref client_info) => {
-                size += client_info.size();
-            }
-            Argument::Command(ref s) => {
-                size += util::string_to_cesu8(s).len();
-            }
+            Argument::ClientInfo(ref client_info) => size += client_info.size(),
+            Argument::Command(ref s) => size += util::string_to_cesu8(s).len(),
+            Argument::CommandInfo(ref opts) => size += opts.size(),
+            Argument::CommitOptions(ref opts) => size += opts.size(),
             Argument::ConnectOptions(ref conn_opts) => size += conn_opts.size(),
             Argument::Error(ref vec) => for server_error in vec {
                 size += server_error.size();
             },
+            Argument::FetchOptions(ref opts) => size += opts.size(),
             Argument::FetchSize(_) => size += 4,
-            Argument::Parameters(ref pars) => {
-                size += pars.size()?;
-            }
+            Argument::LobFlags(ref opts) => size += opts.size(),
+            Argument::Parameters(ref pars) => size += pars.size()?,
             Argument::ReadLobRequest(_, _, _) => size += 24,
             Argument::ResultSetId(_) => size += 8,
             Argument::StatementId(_) => size += 8,
-            Argument::StatementContext(ref sc) => {
-                size += sc.size();
-            }
+            Argument::StatementContext(ref sc) => size += sc.size(),
+
+            Argument::SessionContext(ref opts) => size += opts.size(),
             Argument::TopologyInformation(ref vec) => {
                 size += 2;
                 for attr in vec {
@@ -119,6 +131,7 @@ impl Argument {
             }
             Argument::TransactionFlags(ref taflags) => size += taflags.size(),
             Argument::XatOptions(ref xat) => size += xat.size(),
+
             ref arg => {
                 return Err(PrtError::ProtocolError(
                     format!("size() called on {:?}", arg),
@@ -150,13 +163,18 @@ impl Argument {
                     w.write_u8(b)?;
                 }
             }
+            Argument::CommandInfo(ref opts) => opts.serialize(w)?,
+            Argument::CommitOptions(ref opts) => opts.serialize(w)?,
             Argument::ConnectOptions(ref conn_opts) => conn_opts.serialize(w)?,
+
             Argument::Error(ref vec) => for server_error in vec {
                 server_error.serialize(w)?;
             },
             Argument::FetchSize(fs) => {
                 w.write_u32::<LittleEndian>(fs)?;
             }
+            Argument::FetchOptions(ref opts) => opts.serialize(w)?,
+            Argument::LobFlags(ref opts) => opts.serialize(w)?,
             Argument::Parameters(ref parameters) => {
                 parameters.serialize(w)?;
             }
@@ -176,6 +194,7 @@ impl Argument {
             Argument::ResultSetId(rs_id) => {
                 w.write_u64::<LittleEndian>(rs_id)?;
             }
+            Argument::SessionContext(ref opts) => opts.serialize(w)?,
             Argument::StatementId(stmt_id) => {
                 w.write_u64::<LittleEndian>(stmt_id)?;
             }
@@ -213,7 +232,6 @@ impl Argument {
     #[allow(unknown_lints)]
     #[allow(too_many_arguments)]
     pub fn parse(
-        msg_type: &MsgType,
         kind: PartKind,
         attributes: PartAttributes,
         no_of_args: i32,
@@ -225,12 +243,7 @@ impl Argument {
         o_rs: &mut Option<&mut ResultSet>,
         rdr: &mut io::BufRead,
     ) -> PrtResult<Argument> {
-        trace!(
-            "Entering parse(no_of_args={}, msg_type = {:?}, kind={:?})",
-            no_of_args,
-            msg_type,
-            kind
-        );
+        trace!("Entering parse(no_of_args={}, kind={:?})", no_of_args, kind);
 
         let arg = match kind {
             PartKind::Authentication => {
@@ -251,6 +264,7 @@ impl Argument {
                 let s = util::cesu8_to_string(&bytes)?;
                 Argument::Command(s)
             }
+            PartKind::CommandInfo => Argument::CommandInfo(CommandInfo::parse(no_of_args, rdr)?),
             PartKind::ConnectOptions => {
                 Argument::ConnectOptions(ConnectOptions::parse(no_of_args, rdr)?)
             }
@@ -295,6 +309,9 @@ impl Argument {
                 Argument::StatementContext(StatementContext::parse(no_of_args, rdr)?)
             }
             PartKind::StatementId => Argument::StatementId(rdr.read_u64::<LittleEndian>()?),
+            PartKind::SessionContext => {
+                Argument::SessionContext(SessionContext::parse(no_of_args, rdr)?)
+            }
             PartKind::TableLocation => {
                 let mut vec = Vec::<i32>::new();
                 for _ in 0..no_of_args {
