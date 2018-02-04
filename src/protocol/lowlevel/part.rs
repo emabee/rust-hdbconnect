@@ -161,12 +161,16 @@ impl Parts {
     }
     pub fn pop_arg_if_kind(&mut self, kind: PartKind) -> Option<Argument> {
         match self.0.last() {
-            Some(part) if part.kind.to_i8() == kind.to_i8() => {}
-            // escape the borrow
+            Some(part) if part.kind.to_i8() == kind.to_i8() => { /* escape the borrow check */ }
             _ => return None,
         }
         Some(self.0.pop().unwrap().arg)
     }
+
+    pub fn drop_args_of_kind(&mut self, kind: PartKind) {
+        self.0.retain(|part| part.kind.to_i8() != kind.to_i8());
+    }
+
     pub fn swap_remove(&mut self, index: usize) -> Part {
         self.0.swap_remove(index)
     }

@@ -16,7 +16,7 @@ repository = "https://github.com/emabee/rust-hdbconnect"
 byteorder = "1.1"
 chrono = { version = "0.4", features = ["serde"] }
 # dist_tx = {path = "../dist_tx"}
-dist_tx = "0.1"
+dist_tx = "0.2"
 hex = "0.2"
 log = "0.4"
 num = "^0.1.40"

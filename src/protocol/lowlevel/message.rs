@@ -1,7 +1,6 @@
 //! Since there is obviously no usecase for multiple segments in one request,
 //! we model message and segment together.
 //! But we differentiate explicitly between request messages and reply messages.
-use dist_tx::tm::XaTransactionId;
 use {HdbError, HdbResponse, HdbResult};
 use hdb_response::factory as HdbResponseFactory;
 use hdb_response::factory::InternalReturnValue;
@@ -117,10 +116,6 @@ impl Request {
                     },
                     _ => panic!("Missing required part ResultSetID"),
                 },
-                Argument::XatOptions(xat_options) => {
-                    let v_xatid : Vec<XaTransactionId> = xat_options.get_transactions()?;
-                    int_return_values.push(InternalReturnValue::XaTransactionIds(v_xatid));
-                },
                 _ => warn!(
                     "send_and_get_response: found unexpected part of kind {:?}",
                     kind
@@ -151,14 +146,12 @@ impl Request {
             ReplyType::DbProcedureCallWithResult =>
                 HdbResponseFactory::multiple_return_values(int_return_values),
 
-            ReplyType::XAControl |
-            ReplyType::XARecover => 
-                HdbResponseFactory::xa_transaction_ids(int_return_values),
             
             // dedicated ReplyTypes that are handled elsewhere and that
             // should not go through this method:
             ReplyType::Nil | ReplyType::Connect | ReplyType::Fetch | ReplyType::ReadLob |
             ReplyType::CloseCursor | ReplyType::Disconnect |
+            ReplyType::XAControl | ReplyType::XARecover |
 
             // FIXME: 2 ReplyTypes that occur only in not yet implemented calls:
             ReplyType::FindLob |

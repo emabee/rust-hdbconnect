@@ -123,8 +123,9 @@ pub mod factory {
 
         let mut reply = request.send_and_receive(&mut conn_ref, None)?;
 
-        // TableLocation, TransactionFlags, StatementContext,
-        // StatementId, ParameterMetadata, ResultSetMetadata
+        // ParameterMetadata, ResultSetMetadata
+        // StatementContext, StatementId,
+        // TableLocation, TransactionFlags,
         let mut o_table_location: Option<Vec<i32>> = None;
         let mut o_stmt_id: Option<u64> = None;
         let mut o_par_md: Option<Vec<ParameterDescriptor>> = None;

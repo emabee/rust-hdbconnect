@@ -1,3 +1,4 @@
+use dist_tx::rm::RmRc;
 use protocol::lowlevel::parts::option_part::OptionPart;
 use protocol::lowlevel::parts::option_part::OptionId;
 use protocol::lowlevel::parts::option_value::OptionValue;
@@ -30,6 +31,17 @@ impl XatOptions {
 
     pub fn set_onephase(&mut self, one_phase: bool) {
         self.insert(XatOptionId::OnePhase, OptionValue::BOOLEAN(one_phase));
+    }
+
+    pub fn get_returncode(&self) -> Option<RmRc> {
+        for (id, value) in self.iter() {
+            if let XatOptionId::Returncode = *id {
+                if let OptionValue::INT(ref number) = *value {
+                    return Some(RmRc::from_i32(*number));
+                }
+            }
+        }
+        return None;
     }
 
     pub fn get_transactions(&self) -> PrtResult<Vec<XaTransactionId>> {

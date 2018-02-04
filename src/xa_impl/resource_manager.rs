@@ -1,6 +1,5 @@
-use hdb_return_value::HdbReturnValue;
-use hdb_response::HdbResponse;
 use hdb_error::HdbResult;
+use protocol::lowlevel::message::Reply;
 use HdbError;
 use protocol::lowlevel::argument::Argument;
 use protocol::lowlevel::conn_core::ConnCoreRef;
@@ -9,7 +8,7 @@ use protocol::lowlevel::request_type::RequestType;
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::partkind::PartKind;
 use protocol::lowlevel::parts::xat_options::XatOptions;
-use dist_tx::rm::{CResourceManager, CRmWrapper, Flags, Kind, RmError, RmResult};
+use dist_tx::rm::{CResourceManager, CRmWrapper, ErrorCode, Flags, RmError, RmRc, RmResult};
 use dist_tx::tm::XaTransactionId;
 use protocol::protocol_error::PrtError;
 
@@ -30,7 +29,7 @@ pub fn new_resource_manager(core: ConnCoreRef) -> CRmWrapper<HdbResourceManager>
 }
 
 impl CResourceManager for HdbResourceManager {
-    fn start(&mut self, id: &XaTransactionId, flags: Flags) -> RmResult<()> {
+    fn start(&mut self, id: &XaTransactionId, flags: Flags) -> RmResult<RmRc> {
         debug!("CResourceManager::start()");
         if !flags.contains_only(Flags::JOIN | Flags::RESUME) {
             return Err(usage_error("start", flags));
@@ -43,46 +42,39 @@ impl CResourceManager for HdbResourceManager {
         // FIXME later: xa seems only to work on primary!!
         // ClientConnectionID ccid = getPrimaryConnection();
 
-        self.xa_send_receive(RequestType::XAStart, id, flags)?;
-        Ok(())
+        self.xa_send_receive(RequestType::XAStart, id, flags)
     }
 
-    fn end(&mut self, id: &XaTransactionId, flags: Flags) -> RmResult<()> {
+    fn end(&mut self, id: &XaTransactionId, flags: Flags) -> RmResult<RmRc> {
         debug!("CResourceManager::end()");
         if !flags.contains_only(Flags::SUCCESS | Flags::FAIL | Flags::SUSPEND) {
             return Err(usage_error("end", flags));
         }
 
-        self.xa_send_receive(RequestType::XAEnd, id, flags)?;
-        Ok(())
+        self.xa_send_receive(RequestType::XAEnd, id, flags)
     }
 
-    fn prepare(&mut self, id: &XaTransactionId) -> RmResult<()> {
+    fn prepare(&mut self, id: &XaTransactionId) -> RmResult<RmRc> {
         debug!("CResourceManager::prepare()");
-        self.xa_send_receive(RequestType::XAPrepare, id, Flags::empty())?;
-        Ok(())
+        self.xa_send_receive(RequestType::XAPrepare, id, Flags::empty())
     }
 
-    fn commit(&mut self, id: &XaTransactionId, flags: Flags) -> RmResult<()> {
+    fn commit(&mut self, id: &XaTransactionId, flags: Flags) -> RmResult<RmRc> {
         debug!("CResourceManager::commit()");
         if !flags.contains_only(Flags::ONE_PHASE) {
             return Err(usage_error("commit", flags));
         }
-
-        self.xa_send_receive(RequestType::XACommit, id, flags)?;
-        Ok(())
+        self.xa_send_receive(RequestType::XACommit, id, flags)
     }
 
-    fn rollback(&mut self, id: &XaTransactionId) -> RmResult<()> {
+    fn rollback(&mut self, id: &XaTransactionId) -> RmResult<RmRc> {
         debug!("CResourceManager::rollback()");
-        self.xa_send_receive(RequestType::XARollback, id, Flags::empty())?;
-        Ok(())
+        self.xa_send_receive(RequestType::XARollback, id, Flags::empty())
     }
 
-    fn forget(&mut self, id: &XaTransactionId) -> RmResult<()> {
+    fn forget(&mut self, id: &XaTransactionId) -> RmResult<RmRc> {
         debug!("CResourceManager::forget()");
-        self.xa_send_receive(RequestType::XAForget, id, Flags::empty())?;
-        Ok(())
+        self.xa_send_receive(RequestType::XAForget, id, Flags::empty())
     }
 
     fn recover(&mut self, flags: Flags) -> RmResult<Vec<XaTransactionId>> {
@@ -101,15 +93,20 @@ impl CResourceManager for HdbResourceManager {
             Argument::XatOptions(xat_options),
         ));
 
-        let result: HdbResponse =
-            request.send_and_get_response(None, None, &mut (self.core), None)?;
-        let retval: HdbReturnValue = result.into_single_retval()?;
-        if let HdbReturnValue::XaTransactionIds(vec_xatid) = retval {
-            return Ok(vec_xatid);
+        let mut reply: Reply = request.send_and_receive(&mut (self.core), None)?;
+        while !reply.parts.is_empty() {
+            reply.parts.drop_args_of_kind(PartKind::StatementContext);
+            match reply.parts.pop_arg() {
+                Some(Argument::XatOptions(xat_options)) => {
+                    return Ok(xat_options.get_transactions()?);
+                }
+                Some(part) => warn!("recover: found unexpected part {:?}", part),
+                None => panic!("recover: found None part"),
+            }
         }
 
         Err(RmError::new(
-            Kind::ProtocolError,
+            ErrorCode::ProtocolError,
             "recover did not get a list of xids, not even an empty one".to_owned(),
         ))
     }
@@ -118,7 +115,7 @@ impl CResourceManager for HdbResourceManager {
 
 fn usage_error(method: &'static str, flags: Flags) -> RmError {
     RmError::new(
-        Kind::ProtocolError,
+        ErrorCode::ProtocolError,
         format!(
             "CResourceManager::{}(): Invalid transaction flags {:?}",
             method,
@@ -128,15 +125,15 @@ fn usage_error(method: &'static str, flags: Flags) -> RmError {
 }
 
 // only few seem to be used by HANA
-fn kind_from_code(code: i32) -> Kind {
+fn error_code_from_hana_code(code: i32) -> ErrorCode {
     match code {
-        210 => Kind::DuplicateTransactionId,
-        211 => Kind::InvalidArguments,
-        212 => Kind::InvalidTransactionId,
-        214 => Kind::ProtocolError,
-        215 => Kind::RmError,
-        216 => Kind::RmFailure,
-        i => Kind::UnknownErrorCode(i),
+        210 => ErrorCode::DuplicateTransactionId,
+        211 => ErrorCode::InvalidArguments,
+        212 => ErrorCode::InvalidTransactionId,
+        214 => ErrorCode::ProtocolError,
+        215 => ErrorCode::RmError,
+        216 => ErrorCode::RmFailure,
+        i => ErrorCode::UnknownErrorCode(i),
     }
 }
 
@@ -146,20 +143,20 @@ impl HdbResourceManager {
         request_type: RequestType,
         id: &XaTransactionId,
         flag: Flags,
-    ) -> RmResult<()> {
-        match self.xa_send_receive_impl(request_type, id, flag) {
-            Ok(_) => Ok(()),
-            Err(hdb_error) => {
-                if let HdbError::ProtocolError(ref prt_error) = hdb_error {
-                    if let PrtError::DbMessage(ref v) = *prt_error {
-                        if v.len() == 1 {
-                            return Err(RmError::new(kind_from_code(v[0].code), v[0].text.clone()));
-                        }
+    ) -> RmResult<RmRc> {
+        self.xa_send_receive_impl(request_type, id, flag)
+            .map(|opt| opt.unwrap_or(RmRc::Ok))
+            .map_err(|hdb_error| {
+                if let HdbError::ProtocolError(PrtError::DbMessage(ref v)) = hdb_error {
+                    if v.len() == 1 {
+                        return RmError::new(
+                            error_code_from_hana_code(v[0].code),
+                            v[0].text.clone(),
+                        );
                     }
                 };
-                Err(From::<HdbError>::from(hdb_error))
-            }
-        }
+                From::<HdbError>::from(hdb_error)
+            })
     }
 
     fn xa_send_receive_impl(
@@ -167,7 +164,7 @@ impl HdbResourceManager {
         request_type: RequestType,
         id: &XaTransactionId,
         flags: Flags,
-    ) -> HdbResult<HdbResponse> {
+    ) -> HdbResult<Option<RmRc>> {
         if self.core.lock()?.is_auto_commit() {
             return Err(HdbError::UsageError(
                 "xa_*() not possible, connection is set to auto_commit".to_string(),
@@ -187,7 +184,16 @@ impl HdbResourceManager {
             Argument::XatOptions(xat_options),
         ));
 
-        let conn_ref = &mut (self.core);
-        request.send_and_get_response(None, None, conn_ref, None)
+        let mut reply = request.send_and_receive(&mut (self.core), None)?;
+
+        reply.parts.drop_args_of_kind(PartKind::StatementContext);
+        match reply.parts.pop_arg_if_kind(PartKind::XatOptions) {
+            Some(Argument::XatOptions(xat_options)) => {
+                debug!("received xat_options: {:?}", xat_options);
+                return Ok(xat_options.get_returncode());
+            }
+            _ => {}
+        }
+        Ok(None)
     }
 }
