@@ -41,7 +41,7 @@ impl XatOptions {
                 }
             }
         }
-        return None;
+        None
     }
 
     pub fn get_transactions(&self) -> PrtResult<Vec<XaTransactionId>> {

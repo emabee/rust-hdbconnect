@@ -138,6 +138,7 @@ impl Request {
             ReplyType::Commit |
             ReplyType::Rollback => HdbResponseFactory::success(int_return_values),
 
+            ReplyType::Nil | 
             ReplyType::Insert |
             ReplyType::Update |
             ReplyType::Delete => HdbResponseFactory::rows_affected(int_return_values),
@@ -149,7 +150,7 @@ impl Request {
             
             // dedicated ReplyTypes that are handled elsewhere and that
             // should not go through this method:
-            ReplyType::Nil | ReplyType::Connect | ReplyType::Fetch | ReplyType::ReadLob |
+            ReplyType::Connect | ReplyType::Fetch | ReplyType::ReadLob |
             ReplyType::CloseCursor | ReplyType::Disconnect |
             ReplyType::XAControl | ReplyType::XARecover |
 
@@ -163,12 +164,12 @@ impl Request {
             ReplyType::XaJoin |
             ReplyType::XAPrepare => {
                 let s = format!(
-                    "unexpected reply type {:?} in send_and_get_response()", 
-                    reply.replytype);
+                    "unexpected reply type {:?} in send_and_get_response(), \
+                     with these internal return values: {:?}", 
+                    reply.replytype, int_return_values);
                 error!("{}",s);
                 error!("Reply: {:?}",reply);
-                Err(HdbError::InternalEvaluationError(
-                    "send_and_get_response(): unexpected reply type"))
+                Err(HdbError::EvaluationError(s))
             },
         }
     }
@@ -477,7 +478,7 @@ pub fn parse_message_and_sequence_header(rdr: &mut BufRead) -> PrtResult<(i16, M
             let rt = ReplyType::from_i16(rdr.read_i16::<LittleEndian>()?)?; // I2
             rdr.consume(8_usize); // B[8] reserved3
             debug!(
-                "Reply::parse(): found reply of type {:?} and seg_kind {:?} for session_id {}",
+                "Reply::parse(): got reply of type {:?} and seg_kind {:?} for session_id {}",
                 rt, seg_kind, session_id
             );
             Ok((no_of_parts, Message::Reply(Reply::new(session_id, rt))))

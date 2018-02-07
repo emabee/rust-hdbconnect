@@ -1,6 +1,6 @@
 [package]
 name = "hdbconnect"
-version = "0.4.7"
+version = "0.4.8"
 authors = ["emabee <meinolf.block@sap.com>"]
 description = "A pure rust driver for SAP HANA(TM)"
 documentation = "https://docs.rs/hdbconnect/"
@@ -15,7 +15,7 @@ repository = "https://github.com/emabee/rust-hdbconnect"
 [dependencies]
 byteorder = "1.1"
 chrono = { version = "0.4", features = ["serde"] }
-# dist_tx = {path = "../dist_tx"}
+#dist_tx = {path = "../dist_tx"}
 dist_tx = "0.2"
 hex = "0.2"
 log = "0.4"
@@ -26,7 +26,7 @@ rust-crypto = "0.2"
 rust_decimal = { version = "0.7", features = ["serde"] }
 serde = "1.0"
 serde_derive = "1.0"
-serde_db = "^0.4.2"
+serde_db = "0.4"
 #serde_db = { path = "../serde_db" }
 serde_json = "1.0"
 username = "^0.2"
@@ -35,4 +35,5 @@ vec_map = "0.8"
 [dev-dependencies]
 serde_bytes = "0.10"
 flexi_logger = "0.6"
+# flexi_logger = {path = "../flexi_logger"}
 sha2 = "0.6"

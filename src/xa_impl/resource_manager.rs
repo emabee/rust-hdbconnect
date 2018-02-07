@@ -187,12 +187,11 @@ impl HdbResourceManager {
         let mut reply = request.send_and_receive(&mut (self.core), None)?;
 
         reply.parts.drop_args_of_kind(PartKind::StatementContext);
-        match reply.parts.pop_arg_if_kind(PartKind::XatOptions) {
-            Some(Argument::XatOptions(xat_options)) => {
-                debug!("received xat_options: {:?}", xat_options);
-                return Ok(xat_options.get_returncode());
-            }
-            _ => {}
+        if let Some(Argument::XatOptions(xat_options)) =
+            reply.parts.pop_arg_if_kind(PartKind::XatOptions)
+        {
+            debug!("received xat_options: {:?}", xat_options);
+            return Ok(xat_options.get_returncode());
         }
         Ok(None)
     }

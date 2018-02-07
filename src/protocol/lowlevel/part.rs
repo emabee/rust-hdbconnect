@@ -37,23 +37,18 @@ impl Part {
     }
 
     pub fn serialize(&self, mut remaining_bufsize: u32, w: &mut io::Write) -> PrtResult<u32> {
-        debug!(
-            "Serializing part of kind {:?} with remaining_bufsize {} (u32) = {} (i32)",
-            self.kind,
-            remaining_bufsize,
-            remaining_bufsize as i32
-        );
+        debug!("Serializing part of kind {:?}", self.kind);
         // PART HEADER 16 bytes
-        w.write_i8(self.kind.to_i8())?; // I1 Nature of part data
+        w.write_i8(self.kind.to_i8())?;
         w.write_u8(0)?; // U1 Attributes not used in requests
         match self.arg.count()? {
             i if i < i16::MAX as usize => {
-                w.write_i16::<LittleEndian>(i as i16)?; // I2 Number of elements in arg
-                w.write_i32::<LittleEndian>(0)?; // I4 Number of elements in arg
+                w.write_i16::<LittleEndian>(i as i16)?;
+                w.write_i32::<LittleEndian>(0)?;
             }
             i if i <= i32::MAX as usize => {
-                w.write_i16::<LittleEndian>(-1)?; // I2 Number of elements in arg
-                w.write_i32::<LittleEndian>(i as i32)?; // I4 Number of elements in arg
+                w.write_i16::<LittleEndian>(-1)?;
+                w.write_i32::<LittleEndian>(i as i32)?;
             }
             _ => {
                 return Err(prot_err(
@@ -61,9 +56,7 @@ impl Part {
                 ));
             }
         }
-        // I4 Length of args in bytes:
         w.write_i32::<LittleEndian>(self.arg.size(false)? as i32)?;
-        // I4 Length remaining without this part:
         w.write_i32::<LittleEndian>(remaining_bufsize as i32)?;
 
         remaining_bufsize -= PART_HEADER_SIZE as u32;
