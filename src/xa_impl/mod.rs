@@ -1,8 +1,8 @@
 //! Handle for dealing with XA transactions.
 
-mod resource_manager;
+mod c_resource_manager;
 
-pub use self::resource_manager::{new_resource_manager, HdbResourceManager};
+pub use self::c_resource_manager::{new_resource_manager, HdbCResourceManager};
 
 use hdb_error::HdbError;
 use protocol::protocol_error::PrtError;

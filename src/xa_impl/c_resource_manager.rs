@@ -16,19 +16,19 @@ use protocol::protocol_error::PrtError;
 /// Handle for dealing with distributed transactions that is to be used by a transaction manager.
 ///
 /// Is based on the connection from which it is obtained
-/// (see [`Connection::get_xa_resource_manager`](
-/// ../struct.Connection.html#method.get_xa_resource_manager)).
+/// (see [`Connection::get_resource_manager`](
+/// ../struct.Connection.html#method.get_resource_manager)).
 ///
 #[derive(Debug)]
-pub struct HdbResourceManager {
+pub struct HdbCResourceManager {
     core: ConnCoreRef,
 }
 
-pub fn new_resource_manager(core: ConnCoreRef) -> CRmWrapper<HdbResourceManager> {
-    CRmWrapper(HdbResourceManager { core: core })
+pub fn new_resource_manager(core: ConnCoreRef) -> CRmWrapper<HdbCResourceManager> {
+    CRmWrapper(HdbCResourceManager { core: core })
 }
 
-impl CResourceManager for HdbResourceManager {
+impl CResourceManager for HdbCResourceManager {
     fn start(&mut self, id: &XaTransactionId, flags: Flags) -> RmResult<RmRc> {
         debug!("CResourceManager::start()");
         if !flags.contains_only(Flags::JOIN | Flags::RESUME) {
@@ -78,7 +78,7 @@ impl CResourceManager for HdbResourceManager {
     }
 
     fn recover(&mut self, flags: Flags) -> RmResult<Vec<XaTransactionId>> {
-        debug!("HdbResourceManager::recover()");
+        debug!("HdbCResourceManager::recover()");
         if !flags.contains_only(Flags::START_RECOVERY_SCAN | Flags::END_RECOVERY_SCAN) {
             return Err(usage_error("recover", flags));
         }
@@ -137,7 +137,7 @@ fn error_code_from_hana_code(code: i32) -> ErrorCode {
     }
 }
 
-impl HdbResourceManager {
+impl HdbCResourceManager {
     fn xa_send_receive(
         &mut self,
         request_type: RequestType,

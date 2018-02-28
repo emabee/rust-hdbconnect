@@ -1,6 +1,6 @@
 [package]
 name = "hdbconnect"
-version = "0.4.8"
+version = "0.4.9"
 authors = ["emabee <meinolf.block@sap.com>"]
 description = "A pure rust driver for SAP HANA(TM)"
 documentation = "https://docs.rs/hdbconnect/"
@@ -34,6 +34,6 @@ vec_map = "0.8"
 
 [dev-dependencies]
 serde_bytes = "0.10"
-flexi_logger = "0.6"
+flexi_logger = "0.7"
 # flexi_logger = {path = "../flexi_logger"}
 sha2 = "0.6"

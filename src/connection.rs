@@ -216,7 +216,8 @@ impl Connection {
         Ok(())
     }
 
-    /// Returns an instance of HdbResourceManager that is based on this connection.
+    /// Returns an implementation of `dist_tx::rm::ResourceManager` that is based on this
+    /// connection.
     pub fn get_resource_manager(&self) -> Box<ResourceManager> {
         Box::new(new_resource_manager(Arc::clone(&self.core)))
     }

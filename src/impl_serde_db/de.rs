@@ -528,7 +528,24 @@ impl DbValueInto<Vec<u8>> for TypedValue {
             | TypedValue::N_VARBINARY(Some(v))
             | TypedValue::N_BSTRING(Some(v)) => Ok(v),
 
-            value => Err(wrong_type(&value, "seq")),
+            TypedValue::CHAR(s)
+            | TypedValue::VARCHAR(s)
+            | TypedValue::NCHAR(s)
+            | TypedValue::NVARCHAR(s)
+            | TypedValue::STRING(s)
+            | TypedValue::NSTRING(s)
+            | TypedValue::TEXT(s)
+            | TypedValue::SHORTTEXT(s)
+            | TypedValue::N_CHAR(Some(s))
+            | TypedValue::N_VARCHAR(Some(s))
+            | TypedValue::N_NCHAR(Some(s))
+            | TypedValue::N_NVARCHAR(Some(s))
+            | TypedValue::N_STRING(Some(s))
+            | TypedValue::N_NSTRING(Some(s))
+            | TypedValue::N_SHORTTEXT(Some(s))
+            | TypedValue::N_TEXT(Some(s)) => Ok(s.into_bytes()),
+
+            value => Err(wrong_type(&value, "Vec<u8>")),
         }
     }
 }
