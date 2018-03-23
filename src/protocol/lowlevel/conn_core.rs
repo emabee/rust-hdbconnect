@@ -26,9 +26,7 @@ pub struct ConnectionCore {
     fetch_size: u32,
     lob_read_length: i32,
     session_state: SessionState,
-    statement_sequence: Option<i64>, /* Information on the statement sequence within
-                                      * the transaction */
-    // FIXME transmute into explicit structure; see also jdbc\EngineFeatures.java :
+    statement_sequence: Option<i64>, // statement sequence within the transaction
     server_connect_options: ConnectOptions,
     topology_attributes: Vec<TopologyAttr>,
     stream: TcpStream,
@@ -131,7 +129,7 @@ impl ConnectionCore {
     pub fn update_session_state(&mut self, ta_flags: &TransactionFlags) -> PrtResult<()> {
         ta_flags.update_session_state(&mut self.session_state);
         if self.session_state.dead {
-            Err(prot_err("SessionclosingTaError received")) // FIXME this is not a protocol error
+            Err(prot_err("SessionclosingTaError received"))
         } else {
             Ok(())
         }

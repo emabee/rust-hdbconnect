@@ -11,10 +11,9 @@ mod test_utils;
 
 use chrono::NaiveDateTime;
 use hdbconnect::{Connection, HdbResult};
-use flexi_logger::{LogSpecification, Logger, ReconfigurationHandle};
+use flexi_logger::{Logger, ReconfigurationHandle};
 use std::thread;
 use std::time::Duration;
-
 
 #[test] // cargo test --test test_016_selectforupdate -- --nocapture
 pub fn test_016_selectforupdate() {
@@ -52,7 +51,7 @@ fn prepare(
     _logger_handle: &mut ReconfigurationHandle,
 ) -> HdbResult<()> {
     // prepare the db table
-    test_utils::statement_ignore_err(connection, vec!["drop table TEST_SELFORUPDATE"]);
+    connection.multiple_statements_ignore_err(vec!["drop table TEST_SELFORUPDATE"]);
     let stmts = vec![
         "create table TEST_SELFORUPDATE ( f1_s NVARCHAR(100) primary key, f2_i INT, f3_i \
          INT not null, f4_dt LONGDATE)",
@@ -70,9 +69,7 @@ fn prepare(
         connection.dml(&format!(
             "insert into TEST_SELFORUPDATE (f1_s, f2_i, f3_i, \
              f4_dt) values('{}', {}, {},'01.01.1900')",
-            i,
-            i,
-            i
+            i, i, i
         ))?;
     }
     Ok(())
@@ -82,7 +79,7 @@ fn produce_conflict(
     connection: &mut Connection,
     logger_handle: &mut ReconfigurationHandle,
 ) -> HdbResult<()> {
-    logger_handle.set_new_spec(LogSpecification::parse("info"));
+    logger_handle.parse_new_spec("info");
     connection.set_auto_commit(false)?;
 
     debug!("get two more connection");

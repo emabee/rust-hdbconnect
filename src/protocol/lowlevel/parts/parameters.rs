@@ -25,9 +25,9 @@ impl ParameterRow {
     }
 
     pub fn serialize(&self, w: &mut io::Write) -> PrtResult<()> {
-        // FIXME must it be 1?
         let mut data_pos = 0_i32;
-        // serialize the values (LOBs only serialize their header, the data follow below)
+        // serialize the values (LOBs only serialize their header, the data follow
+        // below)
         for value in &(self.values) {
             typed_value_serialize(value, &mut data_pos, w)?;
         }

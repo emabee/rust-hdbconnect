@@ -9,7 +9,7 @@ use std::path::Path;
 use std::fs::File;
 
 pub fn init_logger(log_spec: &str) -> ReconfigurationHandle {
-    Logger::with_str(log_spec)
+    Logger::with_env_or_str(log_spec)
         .start_reconfigurable()
         .unwrap_or_else(|e| panic!("Logger initialization failed with {}", e))
 }
@@ -36,12 +36,4 @@ pub fn get_authenticated_connection() -> HdbResult<Connection> {
 pub fn get_system_connection() -> HdbResult<Connection> {
     let params = connect_params_builder_from_file("db_access_system.json")?.build()?;
     Connection::new(params)
-}
-
-pub fn statement_ignore_err(connection: &mut Connection, stmts: Vec<&str>) {
-    for s in stmts {
-        match connection.statement(s) {
-            _ => {}
-        }
-    }
 }

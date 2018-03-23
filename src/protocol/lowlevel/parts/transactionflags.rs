@@ -73,8 +73,7 @@ impl TransactionFlags {
                 (id, value) => {
                     warn!(
                         "unexpected transaction flag ignored: {:?} = {:?}",
-                        id,
-                        value
+                        id, value
                     );
                 }
             }

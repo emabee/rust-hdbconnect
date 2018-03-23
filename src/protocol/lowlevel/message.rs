@@ -40,20 +40,16 @@ pub struct Request {
     parts: Parts,
 }
 impl Request {
-    pub fn new(request_type: RequestType, command_options: u8) -> PrtResult<Request> {
-        Ok(Request {
+    pub fn new(request_type: RequestType, command_options: u8) -> Request {
+        Request {
             request_type: request_type,
             command_options: command_options,
             parts: Parts::default(),
-        })
+        }
     }
 
     pub fn new_for_disconnect() -> Request {
-        Request {
-            request_type: RequestType::Disconnect,
-            command_options: 0,
-            parts: Parts::default(),
-        }
+        Request::new(RequestType::Disconnect, 0)
     }
 
     pub fn send_and_get_response(
@@ -90,10 +86,10 @@ impl Request {
                     (*guard).set_statement_sequence(stmt_ctx.get_statement_sequence_info());
                     (*guard).add_server_proc_time(stmt_ctx.get_server_processing_time());
                 }
-                Argument::TransactionFlags(ref ta_flags) =>  {
+                Argument::TransactionFlags(ref ta_flags) => {
                     let mut guard = conn_ref.lock()?;
                     (*guard).update_session_state(ta_flags)?;
-                },
+                }
                 Argument::ResultSet(Some(rs)) => {
                     int_return_values.push(InternalReturnValue::ResultSet(rs));
                 }
@@ -124,7 +120,10 @@ impl Request {
         }
 
         // re-pack InternalReturnValues into appropriate HdbResponse
-        debug!("Building HdbResponse for a reply of type {:?}", reply.replytype);
+        debug!(
+            "Building HdbResponse for a reply of type {:?}",
+            reply.replytype
+        );
         trace!(
             "The found InternalReturnValues are: {:?}",
             int_return_values
@@ -219,7 +218,10 @@ impl Request {
             Some(ssi_value) => {
                 let mut stmt_ctx = StatementContext::default();
                 stmt_ctx.set_statement_sequence_info(ssi_value);
-                trace!("Sending StatementContext with sequence_info = {:?}", ssi_value);
+                trace!(
+                    "Sending StatementContext with sequence_info = {:?}",
+                    ssi_value
+                );
                 self.parts.push(Part::new(
                     PartKind::StatementContext,
                     Argument::StatementContext(stmt_ctx),
@@ -229,10 +231,12 @@ impl Request {
         Ok(())
     }
 
+    // FIXME: this should be a method on the ConnectionCore, with the request as
+    // argument
     fn serialize(&self, conn_ref: &mut ConnCoreRef) -> PrtResult<()> {
         trace!("Entering Message::serialize()");
         let mut guard = conn_ref.lock()?;
-        let auto_commit_flag: i8 = if (*guard).is_auto_commit() {1} else {0};
+        let auto_commit_flag: i8 = if (*guard).is_auto_commit() { 1 } else { 0 };
         let conn_core = &mut *guard;
         self.serialize_impl(
             conn_core.session_id(),
@@ -272,17 +276,17 @@ impl Request {
         // SEGMENT HEADER
         let parts_len = self.parts.len() as i16;
         let size = self.seg_size()? as i32;
-        w.write_i32::<LittleEndian>(size)?;         // I4  Length including the header
-        w.write_i32::<LittleEndian>(0)?;            // I4 Offset within the message buffer
-        w.write_i16::<LittleEndian>(parts_len)?;    // I2 Number of contained parts
-        w.write_i16::<LittleEndian>(1)?;            // I2 Number of this segment, starting with 1
-        w.write_i8(1)?;                             // I1 Segment kind: always 1 = Request
-        w.write_i8(self.request_type.to_i8())?;     // I1 "Message type"
-        w.write_i8(auto_commit_flag)?;              // I1 auto_commit on/off
-        w.write_u8(self.command_options)?;          // I1 Bit set for options
+        w.write_i32::<LittleEndian>(size)?; // I4  Length including the header
+        w.write_i32::<LittleEndian>(0)?; // I4 Offset within the message buffer
+        w.write_i16::<LittleEndian>(parts_len)?; // I2 Number of contained parts
+        w.write_i16::<LittleEndian>(1)?; // I2 Number of this segment, starting with 1
+        w.write_i8(1)?; // I1 Segment kind: always 1 = Request
+        w.write_i8(self.request_type.to_i8())?; // I1 "Message type"
+        w.write_i8(auto_commit_flag)?; // I1 auto_commit on/off
+        w.write_u8(self.command_options)?; // I1 Bit set for options
         for _ in 0..8 {
             w.write_u8(0)?;
-        }                                           // [B;8] Reserved, do not use
+        } // [B;8] Reserved, do not use
 
         remaining_bufsize -= SEGMENT_HEADER_SIZE as u32;
         trace!("Headers are written");
@@ -400,7 +404,7 @@ impl Reply {
                     (_, Argument::Error(vec)) => {
                         // FIXME NOW Differentiate!!
                         // if there are only warnings (ServerError::severity = 0)
-                        // then do NOT abort but 
+                        // then do NOT abort but
                         // - write out warn!
                         // - and return the warnings object in addition to the success object :-?
                         let err = PrtError::DbMessage(vec);

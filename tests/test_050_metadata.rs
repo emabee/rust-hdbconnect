@@ -4,7 +4,6 @@ extern crate hdbconnect;
 #[macro_use]
 extern crate log;
 
-
 extern crate serde_json;
 
 mod test_utils;
@@ -24,7 +23,6 @@ pub fn test_050_metadata() {
     }
 }
 
-
 // Test procedures.
 // Various procedures from very simple to pretty complex are tested.
 fn impl_test_050_metadata() -> HdbResult<i32> {
@@ -41,20 +39,20 @@ fn impl_test_050_metadata() -> HdbResult<i32> {
 fn procedure(connection: &mut Connection) -> HdbResult<()> {
     info!("procedure(): run a sqlscript procedure with input parameters");
 
-    test_utils::statement_ignore_err(connection, vec!["drop procedure TEST_MD_PARS"]);
+    connection.multiple_statements_ignore_err(vec!["drop procedure TEST_MD_PARS"]);
     connection.multiple_statements(vec![
         "\
-        CREATE  PROCEDURE TEST_MD_PARS( \
-            IN in_int INT, \
-            IN in_string NVARCHAR(20), \
-            INOUT inout_decimal DECIMAL(10,5), \
-            OUT out_string NVARCHAR(40) \
-            ) \
-        AS BEGIN \
-            SELECT in_int AS \"I\", in_string AS \"A\" FROM DUMMY; \
-            inout_decimal = inout_decimal * inout_decimal; \
-            out_string = 'some output parameter'; \
-        END;",
+         CREATE  PROCEDURE TEST_MD_PARS( \
+         IN in_int INT, \
+         IN in_string NVARCHAR(20), \
+         INOUT inout_decimal DECIMAL(10,5), \
+         OUT out_string NVARCHAR(40) \
+         ) \
+         AS BEGIN \
+         SELECT in_int AS \"I\", in_string AS \"A\" FROM DUMMY; \
+         inout_decimal = inout_decimal * inout_decimal; \
+         out_string = 'some output parameter'; \
+         END;",
     ])?;
 
     let mut prepared_stmt = connection.prepare("call TEST_MD_PARS(?,?,?,?)")?;
@@ -81,7 +79,6 @@ fn procedure(connection: &mut Connection) -> HdbResult<()> {
     assert_eq!(pd1.scale(), 0);
     assert_eq!(pd1.precision(), 40);
     assert_eq!(pd1.direction(), ParameterDirection::OUT);
-
 
     let mut rs: ResultSet = response.get_resultset()?;
     let mut row: Row = rs.pop_row().unwrap();

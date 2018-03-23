@@ -8,6 +8,12 @@ TODO
 
 - replace rust_decimal with BigDecimal?
 
+- go with failure crate once it's 1.0 (March 15)
+    https://air.mozilla.org/bay-area-rust-meetup-november-2017/
+    https://boats.gitlab.io/failure/intro.html
+    https://docs.rs/failure/
+    
+
 - Transaction Handling
     * transactionflags
         - has ids 0..6
@@ -29,9 +35,13 @@ TODO
     - additional options in session_context
     - additional part CLIENTDISTRIBUTIONMODE
 
-
 LOBs
-    - additional request-part LOBFLAGS
+    - add findlob and writelob and additional request-part LOBFLAGS
+      see also 
+        - https://docs.oracle.com/javase/7/docs/api/java/sql/Blob.html
+        - https://docs.oracle.com/javase/7/docs/api/java/sql/Clob.html
+        - https://docs.oracle.com/javase/7/docs/api/java/sql/NClob.html
+        - https://docs.oracle.com/javase/tutorial/jdbc/basics/blob.html
 
 - avoid sending fetchsize always
 - implement missing types

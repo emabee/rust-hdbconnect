@@ -54,7 +54,7 @@ impl PreparedStatement {
     /// Executes the statement with the collected batch, and clears the batch.
     pub fn execute_batch(&mut self) -> HdbResult<HdbResponse> {
         trace!("PreparedStatement::execute_batch()");
-        let mut request = Request::new(RequestType::Execute, 8_u8)?;
+        let mut request = Request::new(RequestType::Execute, 8_u8);
         request.push(Part::new(
             PartKind::StatementId,
             Argument::StatementId(self.statement_id),
@@ -76,7 +76,8 @@ impl PreparedStatement {
         )
     }
 
-    /// Sets the auto-commit of the prepared statement's connection for future calls.
+    /// Sets the auto-commit of the prepared statement's connection for future
+    /// calls.
     pub fn set_auto_commit(&mut self, ac: bool) -> HdbResult<()> {
         let mut guard = self.conn_ref.lock()?;
         (*guard).set_auto_commit(ac);
@@ -87,17 +88,13 @@ impl PreparedStatement {
 impl Drop for PreparedStatement {
     /// Frees all server-side ressources that belong to this prepared statement.
     fn drop(&mut self) {
-        match Request::new(RequestType::DropStatementId, 0) {
-            Err(_) => {}
-            Ok(mut request) => {
-                request.push(Part::new(
-                    PartKind::StatementId,
-                    Argument::StatementId(self.statement_id),
-                ));
-                if let Ok(mut reply) = request.send_and_receive(&mut (self.conn_ref), None) {
-                    reply.parts.pop_arg_if_kind(PartKind::StatementContext);
-                }
-            }
+        let mut request = Request::new(RequestType::DropStatementId, 0);
+        request.push(Part::new(
+            PartKind::StatementId,
+            Argument::StatementId(self.statement_id),
+        ));
+        if let Ok(mut reply) = request.send_and_receive(&mut (self.conn_ref), None) {
+            reply.parts.pop_arg_if_kind(PartKind::StatementContext);
         }
     }
 }
@@ -118,7 +115,7 @@ pub mod factory {
     /// Prepare a statement.
     pub fn prepare(mut conn_ref: ConnCoreRef, stmt: String) -> HdbResult<PreparedStatement> {
         let command_options: u8 = 8;
-        let mut request = Request::new(RequestType::Prepare, command_options)?;
+        let mut request = Request::new(RequestType::Prepare, command_options);
         request.push(Part::new(PartKind::Command, Argument::Command(stmt)));
 
         let mut reply = request.send_and_receive(&mut conn_ref, None)?;

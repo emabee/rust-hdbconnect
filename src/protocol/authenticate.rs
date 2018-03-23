@@ -49,7 +49,7 @@ fn auth1_request(
 
     let part2 = Part::new(PartKind::Authentication, Argument::Auth(auth_fields));
 
-    let mut request = Request::new(RequestType::Authenticate, 0)?;
+    let mut request = Request::new(RequestType::Authenticate, 0);
     request.push(part2);
 
     request.send_and_receive(conn_ref, Some(ReplyType::Nil))
@@ -61,7 +61,7 @@ fn auth2_request(
     username: &str,
 ) -> PrtResult<Reply> {
     trace!("Entering auth2_request()");
-    let mut request = Request::new(RequestType::Connect, 0)?;
+    let mut request = Request::new(RequestType::Connect, 0);
 
     let mut auth_fields = Vec::<AuthField>::with_capacity(3);
     auth_fields.push(AuthField::new(username.as_bytes().to_vec()));

@@ -1,3 +1,4 @@
+use protocol::lowlevel::parts::blob_handle::ReadLobRequest;
 use protocol::lowlevel::parts::commit_options::CommitOptions;
 use protocol::lowlevel::parts::fetch_options::FetchOptions;
 use protocol::lowlevel::parts::lob_flags::LobFlags;
@@ -47,10 +48,8 @@ pub enum Argument {
     OutputParameters(OutputParameters),
     ParameterMetadata(Vec<ParameterDescriptor>),
     Parameters(Parameters),
-    // FIXME should be a separate struct:
-    ReadLobRequest(u64, u64, i32), // locator, offset, length
-    // FIXME should be a separate struct:
-    ReadLobReply(u64, bool, Vec<u8>), // locator, is_last_data, data
+    ReadLobRequest(ReadLobRequest),
+    ReadLobReply(ReadLobReply),
     ResultSet(Option<ResultSet>),
     ResultSetId(u64),
     ResultSetMetadata(ResultSetMetadata),
@@ -74,7 +73,7 @@ impl Argument {
             | Argument::ResultSetId(_)
             | Argument::StatementId(_)
             | Argument::TopologyInformation(_)
-            | Argument::ReadLobRequest(_, _, _) => 1,
+            | Argument::ReadLobRequest(_) => 1,
             Argument::ClientInfo(ref client_info) => client_info.count(),
             Argument::CommandInfo(ref opts) => opts.count(),
             Argument::CommitOptions(ref opts) => opts.count(),
@@ -88,9 +87,10 @@ impl Argument {
             Argument::TransactionFlags(ref opts) => opts.count(),
             Argument::XatOptions(ref xat) => xat.count(),
             ref a => {
-                return Err(PrtError::ProtocolError(
-                    format!("Argument::count() called on {:?}", a),
-                ));
+                return Err(PrtError::ProtocolError(format!(
+                    "Argument::count() called on {:?}",
+                    a
+                )));
             }
         })
     }
@@ -117,7 +117,7 @@ impl Argument {
             Argument::FetchSize(_) => size += 4,
             Argument::LobFlags(ref opts) => size += opts.size(),
             Argument::Parameters(ref pars) => size += pars.size()?,
-            Argument::ReadLobRequest(_, _, _) => size += 24,
+            Argument::ReadLobRequest(_) => size += 24,
             Argument::ResultSetId(_) => size += 8,
             Argument::StatementId(_) => size += 8,
             Argument::StatementContext(ref sc) => size += sc.size(),
@@ -133,9 +133,10 @@ impl Argument {
             Argument::XatOptions(ref xat) => size += xat.size(),
 
             ref arg => {
-                return Err(PrtError::ProtocolError(
-                    format!("size() called on {:?}", arg),
-                ));
+                return Err(PrtError::ProtocolError(format!(
+                    "size() called on {:?}",
+                    arg
+                )));
             }
         }
         if with_padding {
@@ -178,17 +179,11 @@ impl Argument {
             Argument::Parameters(ref parameters) => {
                 parameters.serialize(w)?;
             }
-            Argument::ReadLobRequest(ref locator_id, ref offset, ref length_to_read) => {
-                trace!(
-                    "argument::serialize() ReadLobRequest for locator_id {}, offset {}, \
-                     length_to_read {}",
-                    locator_id,
-                    offset,
-                    length_to_read
-                );
-                w.write_u64::<LittleEndian>(*locator_id)?;
-                w.write_u64::<LittleEndian>(*offset)?;
-                w.write_i32::<LittleEndian>(*length_to_read)?;
+            Argument::ReadLobRequest(ref read_lob_request) => {
+                trace!("argument::serialize() {:?}", read_lob_request);
+                w.write_u64::<LittleEndian>(read_lob_request.locator_id())?;
+                w.write_u64::<LittleEndian>(read_lob_request.offset())?;
+                w.write_i32::<LittleEndian>(read_lob_request.length_to_read())?;
                 w.write_u32::<LittleEndian>(0_u32)?; // FILLER
             }
             Argument::ResultSetId(rs_id) => {
@@ -208,9 +203,10 @@ impl Argument {
             Argument::TransactionFlags(ref taflags) => taflags.serialize(w)?,
             Argument::XatOptions(ref xatid) => xatid.serialize(w)?,
             ref a => {
-                return Err(PrtError::ProtocolError(
-                    format!("serialize() called on {:?}", a),
-                ));
+                return Err(PrtError::ProtocolError(format!(
+                    "serialize() called on {:?}",
+                    a
+                )));
             }
         }
 
@@ -285,8 +281,7 @@ impl Argument {
                 ParameterDescriptorFactory::parse(no_of_args, arg_size as u32, rdr)?,
             ),
             PartKind::ReadLobReply => {
-                let (locator, is_last_data, data) = ReadLobReply::parse(rdr)?;
-                Argument::ReadLobReply(locator, is_last_data, data)
+                Argument::ReadLobReply(ReadLobReply::parse(rdr)?)
             }
             PartKind::ResultSet => {
                 let rs = ResultSetFactory::parse(

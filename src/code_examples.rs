@@ -184,8 +184,8 @@
 //! # let resultset = connection.query(my_statement)?; // ResultSet
 //! #[derive(Deserialize)]
 //! struct TestData {/* ...*/}
-//!
-//! for row in connection.query("select * from TEST_RESULTSET")? {
+//! let qry = "select * from TEST_RESULTSET";
+//! for row in connection.query(qry)? {
 //!     let td: TestData = row?.try_into()?;
 //! }
 //! # Ok(())
@@ -211,13 +211,12 @@
 //! # fn foo() -> HdbResult<()> {
 //! # let params = "hdbsql://my_user:my_passwd@the_host:2222".into_connect_params()?;
 //! # let mut connection = Connection::new(params)?;
-//! # let my_statement = "SELECT foo FROM bar";
-//! # let resultset = connection.query(my_statement)?; // ResultSet
+//! # let qry = "select * from TEST_RESULTSET";
 //! #[derive(Deserialize)]
 //! struct MyRow {/* ...*/}
 //!
 //! # #[allow(unused_variables)]
-//! let result: Vec<MyRow> = resultset.try_into()?;
+//! let result: Vec<MyRow> = connection.query(qry)?.try_into()?;
 //! # Ok(())
 //! # }
 //! ```
@@ -236,10 +235,9 @@
 //!   # let params = "hdbsql://my_user:my_passwd@the_host:2222".into_connect_params()?;
 //!   # let mut connection = Connection::new(params)?;
 //!   # let my_statement = "SELECT foo FROM bar";
-//!   # let resultset = connection.query(my_statement)?; // ResultSet
 //!   # #[derive(Deserialize)]
 //!   # struct MyRow {/* ...*/}
-//!   let result: MyRow = resultset.try_into()?;
+//!   let result: MyRow = connection.query(qry)?.try_into()?;
 //!   # Ok(())
 //!   # }
 //!   ```
@@ -250,14 +248,14 @@
 //!   If a plain rust type is used, you don't even need to derive Deserialize:
 //!
 //!   ```ignore
-//!   let result: Vec<u32> = resultset.try_into()?;
+//!   let result: Vec<u32> = connection.query(qry)?.try_into()?;
 //!   ```
 //!
 //! * If the resultset contains only a single value (one row with one column),
 //!   then you can also deserialize into a plain <code>field</code>:
 //!
 //!   ```ignore
-//!   let result: u32 = resultset.try_into()?;
+//!   let result: u32 = connection.query(qry)?.try_into()?;
 //!   ```
 //!
 //! <b>4. Deserialization of field values</b>

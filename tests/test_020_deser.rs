@@ -25,7 +25,6 @@ pub fn deser() {
     }
 }
 
-
 // Test the graceful conversion during deserialization,
 // in regards to nullable fields, and to simplified result structures
 fn impl_deser() -> HdbResult<i32> {
@@ -43,7 +42,6 @@ fn impl_deser() -> HdbResult<i32> {
     Ok(connection.get_call_count()?)
 }
 
-
 #[derive(Deserialize, Debug)]
 struct TS<S, I, D> {
     #[serde(rename = "F1_S")] f1_s: S,
@@ -51,11 +49,9 @@ struct TS<S, I, D> {
     #[serde(rename = "F3_D")] f3_d: D,
 }
 
-
-
 fn deser_option_into_option(connection: &mut Connection) -> HdbResult<()> {
     info!("deserialize Option values into Option values, test null and not-null values");
-    test_utils::statement_ignore_err(connection, vec!["drop table TEST_DESER_OPT_OPT"]);
+    connection.multiple_statements_ignore_err(vec!["drop table TEST_DESER_OPT_OPT"]);
     let stmts = vec![
         "create table TEST_DESER_OPT_OPT (f1_s NVARCHAR(10), f2_i INT, f3_d LONGDATE)",
         "insert into TEST_DESER_OPT_OPT (f1_s) values('hello')",
@@ -75,7 +71,7 @@ fn deser_option_into_option(connection: &mut Connection) -> HdbResult<()> {
 
 fn deser_plain_into_plain(connection: &mut Connection) -> HdbResult<()> {
     info!("deserialize plain values into plain values");
-    test_utils::statement_ignore_err(connection, vec!["drop table TEST_DESER_PLAIN_PLAIN"]);
+    connection.multiple_statements_ignore_err(vec!["drop table TEST_DESER_PLAIN_PLAIN"]);
     let stmts = vec![
         "create table TEST_DESER_PLAIN_PLAIN (F1_S NVARCHAR(10) not null, F2_I INT \
          not null, F3_D LONGDATE not null)",
@@ -96,7 +92,7 @@ fn deser_plain_into_plain(connection: &mut Connection) -> HdbResult<()> {
 
 fn deser_plain_into_option(connection: &mut Connection) -> HdbResult<()> {
     info!("deserialize plain values into Option values");
-    test_utils::statement_ignore_err(connection, vec!["drop table TEST_DESER_PLAIN_OPT"]);
+    connection.multiple_statements_ignore_err(vec!["drop table TEST_DESER_PLAIN_OPT"]);
     let stmts = vec![
         "create table TEST_DESER_PLAIN_OPT (F1_S NVARCHAR(10) not null, F2_I INT not \
          null, F3_D LONGDATE not null)",
@@ -120,7 +116,7 @@ fn deser_option_into_plain(connection: &mut Connection) -> HdbResult<()> {
         "deserialize Option values into plain values, test not-null values; test that null values \
          fail"
     );
-    test_utils::statement_ignore_err(connection, vec!["drop table TEST_DESER_OPT_PLAIN"]);
+    connection.multiple_statements_ignore_err(vec!["drop table TEST_DESER_OPT_PLAIN"]);
     let stmts = vec![
         "create table TEST_DESER_OPT_PLAIN (F1_S NVARCHAR(10), F2_I INT, F3_D \
          LONGDATE)",
@@ -159,7 +155,7 @@ fn deser_singleline_into_struct(connection: &mut Connection) -> HdbResult<()> {
         "deserialize a single-line resultset into a struct; test that this is not possible with \
          multi-line resultsets"
     );
-    test_utils::statement_ignore_err(connection, vec!["drop table TEST_DESER_SINGLE_LINE"]);
+    connection.multiple_statements_ignore_err(vec!["drop table TEST_DESER_SINGLE_LINE"]);
     let stmts = vec![
         "create table TEST_DESER_SINGLE_LINE (F1_S NVARCHAR(10), F2_I INT, F3_D \
          LONGDATE)",
@@ -191,7 +187,7 @@ fn deser_singlevalue_into_plain(connection: &mut Connection) -> HdbResult<()> {
         "deserialize a single-value resultset into a plain field; test that this is not possible \
          with multi-line or multi-column resultsets"
     );
-    test_utils::statement_ignore_err(connection, vec!["drop table TEST_DESER_SINGLE_VALUE"]);
+    connection.multiple_statements_ignore_err(vec!["drop table TEST_DESER_SINGLE_VALUE"]);
     let stmts = vec![
         "create table TEST_DESER_SINGLE_VALUE (F1_S NVARCHAR(10), F2_I INT, F3_D \
          LONGDATE)",
@@ -229,7 +225,7 @@ fn deser_singlecolumn_into_vec(connection: &mut Connection) -> HdbResult<()> {
          resultsets fail"
     );
 
-    test_utils::statement_ignore_err(connection, vec!["drop table TEST_DESER_SINGLE_COL"]);
+    connection.multiple_statements_ignore_err(vec!["drop table TEST_DESER_SINGLE_COL"]);
     let stmts = vec![
         "create table TEST_DESER_SINGLE_COL (F1_S NVARCHAR(10), F2_I int)",
         "insert into TEST_DESER_SINGLE_COL (F1_S, F2_I) values('hello', 0)",

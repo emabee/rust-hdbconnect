@@ -47,8 +47,9 @@ fn test_date_io(_loghandle: &mut ReconfigurationHandle) -> HdbResult<i32> {
     ];
     for i in 0..5 {
         assert_eq!(
-            naive_datetime_values[i].format("%Y-%m-%d %H:%M:%S.%f")
-                                    .to_string(),
+            naive_datetime_values[i]
+                .format("%Y-%m-%d %H:%M:%S.%f")
+                .to_string(),
             string_values[i]
         );
     }
@@ -58,9 +59,12 @@ fn test_date_io(_loghandle: &mut ReconfigurationHandle) -> HdbResult<i32> {
     // Insert the data such that the conversion "String -> LongDate" is done on the
     // server side (we assume that this conversion is error-free).
     let insert_stmt = |n, d| {
-        format!("insert into TEST_DATE_SERIALIZATION (number,mydate) values({}, '{}')", n, d)
+        format!(
+            "insert into TEST_DATE_SERIALIZATION (number,mydate) values({}, '{}')",
+            n, d
+        )
     };
-    test_utils::statement_ignore_err(&mut connection, vec!["drop table TEST_DATE_SERIALIZATION"]);
+    connection.multiple_statements_ignore_err(vec!["drop table TEST_DATE_SERIALIZATION"]);
     connection.multiple_statements(vec![
         "create table TEST_DATE_SERIALIZATION \
          (number INT primary key, mydate LONGDATE \
@@ -87,7 +91,8 @@ fn test_date_io(_loghandle: &mut ReconfigurationHandle) -> HdbResult<i32> {
         info!("test the conversion DateTime<Utc> -> DB");
         let utc2: DateTime<Utc> = DateTime::from_utc(naive_datetime_values[2], Utc);
         let utc3: DateTime<Utc> = DateTime::from_utc(naive_datetime_values[3], Utc);
-        // Enforce that UTC timestamps values are converted here in the client to the DB type:
+        // Enforce that UTC timestamps values are converted here in the client to the
+        // DB type:
         prep_stmt.add_batch(&(utc2, utc3))?;
         let typed_result: i32 = prep_stmt.execute_batch()?.into_resultset()?.try_into()?;
         assert_eq!(typed_result, 31_i32);
@@ -107,11 +112,12 @@ fn test_date_io(_loghandle: &mut ReconfigurationHandle) -> HdbResult<i32> {
         info!("prove that '' is the same as '0001-01-01 00:00:00.000000000'");
         let rows_affected = connection.dml(&insert_stmt(77, ""))?;
         assert_eq!(rows_affected, 1);
-        let dates: Vec<NaiveDateTime> = connection.query(
-            "select mydate from TEST_DATE_SERIALIZATION \
-             where number = 77 or number = 13",
-        )?
-                                                  .try_into()?;
+        let dates: Vec<NaiveDateTime> = connection
+            .query(
+                "select mydate from TEST_DATE_SERIALIZATION \
+                 where number = 77 or number = 13",
+            )?
+            .try_into()?;
         assert_eq!(dates.len(), 2);
         for date in dates {
             assert_eq!(date, naive_datetime_values[0]);

@@ -57,15 +57,16 @@ impl ConnectOptions {
     }
 }
 
-
 // CONNECTIONID
 // This field contains the connection ID.
 // It is filled by the server when the connection is established.
-// This number can be used in DISCONNECT/KILL commands for command or session cancellation.
+// This number can be used in DISCONNECT/KILL commands for command or session
+// cancellation.
 
 // COMPLETEARRAYEXECUTION
 // This field is set if array commands continue to process remaining input
-// when detecting an error in an input row. Always set for current client and server.
+// when detecting an error in an input row. Always set for current client and
+// server.
 
 // CLIENTLOCALE
 // The session locale can be set by the client.
@@ -81,93 +82,106 @@ impl ConnectOptions {
 // so that it does not contain an alias name of the database server.
 
 // SYSTEMID
-// This option is set by the server and filled with the SAPSYSTEMNAME of the connected instance
-// for tracing and supportability purposes.
+// This option is set by the server and filled with the SAPSYSTEMNAME of the
+// connected instance for tracing and supportability purposes.
 
-// FIXME Don't use DataFormatVersion (12), use only DataFormatVersion2 (23) instead
+// Don't use DataFormatVersion (12), use only DataFormatVersion2 (23) instead
 
 // DATAFORMATVERSION2
 // The client indicates this set of understood type codes and field formats.
-// The server then defines the value according to its own capabilities, and sends it back.
-// The following values are supported:
-// 1 Baseline data type support for SAP HANA SPS 02. Deprecated, do not use.
+// The server then defines the value according to its own capabilities, and
+// sends it back. The following values are supported:
+// 1 Baseline data type support for SAP HANA SPS 0
+// 2. Deprecated, do not use.
 // 3 Extended data type support: Deprecated, do not use.
 //   (ALPHANUM, TEXT, SHORTTEXT, LONGDATE, SECONDDATE, DAYDATE, SECONDTIME
 //   supported without translation.)
 //
 // 4 Baseline data type support format for SAP HANA SPS 06.
-//   (Support for ALPHANUM, TEXT, SHORTTEXT, LONGDATE, SECONDDATE, DAYDATE, and SECONDTIME.)
+//   (Support for ALPHANUM, TEXT, SHORTTEXT, LONGDATE, SECONDDATE, DAYDATE, and
+//   SECONDTIME.)
 // 6 Send data type BINTEXT to client.
 
 // ABAPVARCHARMODE
 
 // This field is set by the client to indicate that the connection should honor
 // the ABAP character handling, that is:
-// * Trailing space of character parameters and column values is not significant.
+// * Trailing space of character parameters and column values is not
+//   significant.
 // * Trailing space in character literals is not relevant.
-//   For example, the character literal '' is identical to the character literal' '.
+//   For example, the character literal '' is identical to the character
+//   literal ' '.
 
 // SELECTFORUPDATESUPPORTED
 // This field is set by the client to indicate that the client is able to handle
 // the special function code for SELECT … FOR UPDATE commands.
 
 // CLIENTDISTRIBUTIONMODE
-// This field is set by the client to indicate the mode for handling statement routing
-// and client distribution. The server sets this field to the appropriate support level
-// depending on the client value and its own configuration.
+// This field is set by the client to indicate the mode for handling statement
+// routing and client distribution. The server sets this field to the
+// appropriate support level depending on the client value and its own
+// configuration.
 //
 // The following values are supported:
-// 0 OFF, no routing or distributed transaction handling is done.
-// 1 CONNECTION, client can connect to any (master/slave) server in the topology,
-//   and connections are ena­bled, such that the connection load on the nodes is balanced.
-// 2 STATEMENT, server returns information about which node is preferred for executing
-//   the statement, cli­ents execute on that node, if possible.
-// 3 STATEMENT_CONNECTION, both STATEMENT and CONNECTION level
+//
+//   0 OFF          no routing or distributed transaction handling is done.
+//   1 CONNECTION   client can connect to any (master/slave) server in the
+//                  topology, and connections are ena­bled, such that the
+//                  connection load on the nodes is balanced.
+//   2 STATEMENT    server returns information about which node is preferred
+//                  for executing the statement, cli­ents execute on that node,
+//                  if possible.
+//   3 STATEMENT_CONNECTION  both STATEMENT and CONNECTION level
 
 // ENGINEDATAFORMATVERSION
 // The server sets this field to the maximum version it is able to support.
 // The possible values correspond to the DATAFORMATVERSION flag.
 
 // DISTRIBUTIONPROTOCOLVERSION
-// This field is set by the client and indicates the support level in the protocol for
-// distribution features. The server may choose to disable distribution if the support level
-// is not sufficient for the handling.
+// This field is set by the client and indicates the support level in the
+// protocol for distribution features. The server may choose to disable
+// distribution if the support level is not sufficient for the handling.
 //  0 Baseline version
-//  1 Client handles statement sequence number information (statement context part handling).
-// CLIENTDISTRIBUTIONMODE is OFF if a value less than one (<1) is returned by the server.
+//  1 Client handles statement sequence number information (statement context
+// part handling). CLIENTDISTRIBUTIONMODE is OFF if a value less than 1
+// is returned by the server.
 
 // SPLITBATCHCOMMANDS
 // This field is sent by the client and returned by the server
-// if configuration allows splitting batch (array) commands for parallel execution.
+// if configuration allows splitting batch (array) commands for parallel
+// execution.
 
 // USETRANSACTIONFLAGSONLY
-// This field is sent by the server to indicate the client should gather the state of the
-// current transaction only from the TRANSACTIONFLAGS command, not from the nature of the
-// command (DDL, UPDATE, and so on).
+// This field is sent by the server to indicate the client should gather the
+// state of the current transaction only from the TRANSACTIONFLAGS command, not
+// from the nature of the command (DDL, UPDATE, and so on).
 
 // IGNOREUNKNOWNPARTS
-// This field is sent by the server to indicate it ignores unknown parts of the communication
-// protocol instead of raising a fatal error.
+// This field is sent by the server to indicate it ignores unknown parts of the
+// communication protocol instead of raising a fatal error.
 
 // TABLEOUTPUTPARAMETER
-// This field is sent by the client to indicate that it understands output parameters
-// described by type code TABLE in result sets.
+// This field is sent by the client to indicate that it understands output
+// parameters described by type code TABLE in result sets.
 
 // ITABPARAMETER
-// This field is sent by the server to signal it understands ABAP ITAB parameters
-// of SQL statements (For-All-Entries Optimization).
+// This field is sent by the server to signal it understands ABAP ITAB
+// parameters of SQL statements (For-All-Entries Optimization).
 
 // DESCRIBETABLEOUTPUTPARAMETER
-// This field is sent by the client to request that table output parameter metadata is included
-// in the parameter metadata of a CALL statement. The returned type of the table output
-// parameter is either STRING or TABLE, depending on the TABLEOUTPUTPARAMETER connect option.
+// This field is sent by the client to request that table output parameter
+// metadata is included in the parameter metadata of a CALL statement. The
+// returned type of the table output parameter is either STRING or TABLE,
+// depending on the TABLEOUTPUTPARAMETER connect option.
 
 // IMPLICITLOBSTREAMING
 // This field is sent by the client and indicates whether the server supports
-// implicit LOB streaming even though auto-commit is on instead of raising an error.
+// implicit LOB streaming even though auto-commit is on instead of raising an
+// error.
 
-// The following table further illustrates the use of the connect options. An option can depend on:
-// * Client parameters (set in client to change server behavior)
+// The following table further illustrates the use of the connect options. An
+// option can depend on:
+//  * Client parameters (set in client to change server behavior)
 //      CLIENTLOCALE
 //      DATAFORMATVERSION
 //      ABAPVARCHARMODE
@@ -176,7 +190,8 @@ impl ConnectOptions {
 // * Server parameters (set in server configuration to enable/disable)
 //      LARGENUMBEROFPARAMETERSSUPPORT
 //      ITABPARAMETER
-// * Server and client version (if a feature needs to be in sync between client and server)
+// * Server and client version
+//   (if a feature needs to be in sync between client and server)
 //      CLIENTDISTRIBUTIONMODE
 //      SPLITBATCHCOMMANDS
 // * Unclear:
@@ -189,7 +204,6 @@ impl ConnectOptions {
 //      DISTRIBUTIONPROTOCOLVERSION
 //      USETRANSACTIONFLAGSONLY
 //      IGNOREUNKNOWNPARTS
-
 
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub enum ConnOptId {

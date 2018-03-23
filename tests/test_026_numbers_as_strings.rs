@@ -6,7 +6,7 @@ extern crate serde_json;
 
 mod test_utils;
 
-use flexi_logger::{LogSpecification, ReconfigurationHandle};
+use flexi_logger::ReconfigurationHandle;
 use hdbconnect::{Connection, HdbResult};
 
 #[test] // cargo test --test test_026_numbers_as_strings -- --nocapture
@@ -23,30 +23,29 @@ pub fn test_026_numbers_as_strings() {
 }
 
 // Test the various ways to evaluate a resultset
-fn impl_test_026_numbers_as_strings(reconfiguration_handle: &mut ReconfigurationHandle)
-                                    -> HdbResult<()> {
+fn impl_test_026_numbers_as_strings(
+    reconfiguration_handle: &mut ReconfigurationHandle,
+) -> HdbResult<()> {
     let mut connection = test_utils::get_authenticated_connection()?;
     evaluate_resultset(reconfiguration_handle, &mut connection)?;
     info!("{} calls to DB were executed", connection.get_call_count()?);
     Ok(())
 }
 
-fn evaluate_resultset(reconfiguration_handle: &mut ReconfigurationHandle,
-                      connection: &mut Connection)
-                      -> HdbResult<()> {
+fn evaluate_resultset(
+    reconfiguration_handle: &mut ReconfigurationHandle,
+    connection: &mut Connection,
+) -> HdbResult<()> {
     info!("Read and write integer variables as numeric values and as Strings");
     // prepare the db table
-    test_utils::statement_ignore_err(
-        connection,
-        vec!["drop table TEST_INTEGERS", "drop table TEST_FLOATS"],
-    );
+    connection
+        .multiple_statements_ignore_err(vec!["drop table TEST_INTEGERS", "drop table TEST_FLOATS"]);
     let stmts = vec![
         "create table TEST_INTEGERS (f1 NVARCHAR(100) primary key, f2 TINYINT, f3 SMALLINT, f4 \
          INTEGER, f5 BIGINT)",
         "create table TEST_FLOATS (f1 NVARCHAR(100) primary key, f2 REAL, F3 DOUBLE)",
     ];
     connection.multiple_statements(stmts)?;
-
 
     // test integers
     let mut insert_stmt =
@@ -55,7 +54,7 @@ fn evaluate_resultset(reconfiguration_handle: &mut ReconfigurationHandle,
     insert_stmt.add_batch(&("88", "88", "88", "88", "88"))?;
     insert_stmt.execute_batch()?;
 
-    reconfiguration_handle.set_new_spec(LogSpecification::parse("info"));
+    reconfiguration_handle.parse_new_spec("info");
 
     let _result: Vec<(String, i8, i16, i32, i64)> =
         connection.query("select * from TEST_INTEGERS")?.try_into()?;
@@ -76,7 +75,7 @@ fn evaluate_resultset(reconfiguration_handle: &mut ReconfigurationHandle,
     insert_stmt.add_batch(&("456.123", "456.123", "456.123"))?;
     insert_stmt.execute_batch()?;
 
-    reconfiguration_handle.set_new_spec(LogSpecification::parse("info"));
+    reconfiguration_handle.parse_new_spec("info");
     let _result: Vec<(String, f32, f64)> =
         connection.query("select * from TEST_FLOATS")?.try_into()?;
 
@@ -86,7 +85,6 @@ fn evaluate_resultset(reconfiguration_handle: &mut ReconfigurationHandle,
         assert_eq!(row.0, row.1);
         assert_eq!(row.0, row.2);
     }
-
 
     Ok(())
 }

@@ -41,7 +41,7 @@ fn impl_test_035_xa_transactions(log_handle: &mut ReconfigurationHandle) -> HdbR
 // prepare the db table
 fn prepare(conn: &mut Connection, _log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
     info!("Prepare...");
-    test_utils::statement_ignore_err(conn, vec!["drop table TEST_XA"]);
+    conn.multiple_statements_ignore_err(vec!["drop table TEST_XA"]);
     conn.multiple_statements(vec![
         "create column table TEST_XA (f1 INT primary key, f2 NVARCHAR(20))",
         "insert into TEST_XA (f1, f2) values(-100, 'INITIAL')",

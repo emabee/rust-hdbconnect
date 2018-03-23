@@ -2,7 +2,7 @@ use {HdbError, HdbResult};
 use protocol::lowlevel::{prot_err, PrtError, PrtResult};
 use protocol::lowlevel::argument::Argument;
 use protocol::lowlevel::conn_core::ConnCoreRef;
-use protocol::lowlevel::message::Request;
+use protocol::lowlevel::message::{parse_message_and_sequence_header, Message, Request};
 use protocol::lowlevel::reply_type::ReplyType;
 use protocol::lowlevel::request_type::RequestType;
 use protocol::lowlevel::part::Part;
@@ -14,6 +14,7 @@ use serde_db::de::DeserializableResultset;
 
 use serde;
 use std::fmt;
+use std::io;
 use std::sync::{Arc, Mutex};
 
 /// Contains the result of a database read command, including the describing metadata.
@@ -30,28 +31,69 @@ pub struct ResultSet {
 
 #[derive(Debug)]
 pub struct ResultSetCore {
-    o_conn_ref: Option<ConnCoreRef>,
+    o_conn_core: Option<ConnCoreRef>,
     attributes: PartAttributes,
     resultset_id: u64,
 }
 
 impl ResultSetCore {
     fn new_rs_ref(
-        conn_ref: Option<&ConnCoreRef>,
-        attrs: PartAttributes,
-        rs_id: u64,
+        conn_core: Option<&ConnCoreRef>,
+        attributes: PartAttributes,
+        resultset_id: u64,
     ) -> Arc<Mutex<ResultSetCore>> {
         Arc::new(Mutex::new(ResultSetCore {
-            o_conn_ref: match conn_ref {
-                Some(conn_ref) => Some(Arc::clone(conn_ref)),
-                None => None,
-            },
-            attributes: attrs,
-            resultset_id: rs_id,
+            o_conn_core: conn_core.map(|cr| Arc::clone(cr)),
+            attributes,
+            resultset_id,
         }))
     }
-    // FIXME implement DROP as send a request of type CLOSERESULTSET in case
-    // the resultset is not yet closed (RESULTSETCLOSED)
+}
+impl Drop for ResultSetCore {
+    // inform the server in case the resultset is not yet closed, ignore all errors
+    fn drop(&mut self) {
+        let rs_id = self.resultset_id;
+        trace!("ResultSetCore::drop(), resultset_id {}", rs_id);
+        if !self.attributes.is_resultset_closed() {
+            if let Some(ref conn_core) = self.o_conn_core {
+                if let Ok(mut conn_guard) = conn_core.lock() {
+                    let session_id = (*conn_guard).session_id();
+                    let next_seq_number = (*conn_guard).next_seq_number();
+                    let stream = &mut (*conn_guard).stream();
+
+                    let mut request = Request::new(RequestType::CloseResultSet, 0);
+                    request.push(Part::new(
+                        PartKind::ResultSetId,
+                        Argument::ResultSetId(rs_id),
+                    ));
+                    match request.serialize_impl(session_id, next_seq_number, 0, stream) {
+                        Ok(()) => {
+                            let mut rdr = io::BufReader::new(stream);
+                            if let Ok((no_of_parts, msg)) =
+                                parse_message_and_sequence_header(&mut rdr)
+                            {
+                                if let Message::Reply(mut msg) = msg {
+                                    for _ in 0..no_of_parts {
+                                        Part::parse(
+                                            &mut (msg.parts),
+                                            None,
+                                            None,
+                                            None,
+                                            &mut None,
+                                            &mut rdr,
+                                        ).ok();
+                                    }
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            error!("CloseResultSet request failed with {:?}", e);
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 impl ResultSet {
@@ -105,27 +147,27 @@ impl ResultSet {
 
     fn fetch_next(&mut self) -> PrtResult<()> {
         trace!("ResultSet::fetch_next()");
-        let (mut conn_ref, resultset_id, fetch_size) = {
+        let (mut conn_core, resultset_id, fetch_size) = {
             // scope the borrow
             let guard = self.core_ref.lock()?;
             let rs_core = &*guard;
-            let conn_ref = match rs_core.o_conn_ref {
+            let conn_core = match rs_core.o_conn_core {
                 Some(ref cr) => Arc::clone(cr),
                 None => {
                     return Err(prot_err("Fetch no more possible"));
                 }
             };
             let fetch_size = {
-                let guard = conn_ref.lock()?;
+                let guard = conn_core.lock()?;
                 (*guard).get_fetch_size()
             };
-            (conn_ref, rs_core.resultset_id, fetch_size)
+            (conn_core, rs_core.resultset_id, fetch_size)
         };
 
         // build the request, provide resultset id, define FetchSize
         debug!("ResultSet::fetch_next() with fetch_size = {}", fetch_size);
         let command_options = 0;
-        let mut request = Request::new(RequestType::FetchNext, command_options)?;
+        let mut request = Request::new(RequestType::FetchNext, command_options);
         request.push(Part::new(
             PartKind::ResultSetId,
             Argument::ResultSetId(resultset_id),
@@ -139,7 +181,7 @@ impl ResultSet {
             None,
             None,
             &mut Some(self),
-            &mut conn_ref,
+            &mut conn_core,
             Some(ReplyType::Fetch),
         )?;
         reply.parts.pop_arg_if_kind(PartKind::ResultSet);
@@ -147,7 +189,7 @@ impl ResultSet {
         let mut guard = self.core_ref.lock()?;
         let rs_core = &mut *guard;
         if rs_core.attributes.is_last_packet() {
-            rs_core.o_conn_ref = None;
+            rs_core.o_conn_core = None;
         }
         Ok(())
     }
@@ -158,11 +200,9 @@ impl ResultSet {
         if (!rs_core.attributes.is_last_packet())
             && (rs_core.attributes.row_not_found() || rs_core.attributes.is_resultset_closed())
         {
-            Err(HdbError::ProtocolError(
-                PrtError::ProtocolError(String::from(
-                    "ResultSet incomplete, but already closed on server",
-                )),
-            ))
+            Err(HdbError::ProtocolError(PrtError::ProtocolError(
+                String::from("ResultSet incomplete, but already closed on server"),
+            )))
         } else {
             Ok(rs_core.attributes.is_last_packet())
         }
@@ -224,13 +264,12 @@ impl ResultSet {
     /// }
     /// let typed_result: Vec<MyStruct> = resultset.try_into()?;
     /// ```
-    ///
-    pub fn try_into<'de, T>(mut self) -> HdbResult<T>
+    /// 
+    pub fn try_into<'de, T>(self) -> HdbResult<T>
     where
         T: serde::de::Deserialize<'de>,
     {
         trace!("Resultset::try_into()");
-        self.fetch_all()?;
         Ok(DeserializableResultset::into_typed(self)?)
     }
 }
@@ -299,7 +338,7 @@ pub mod factory {
     use std::sync::Arc;
 
     pub fn resultset_new(
-        conn_ref: Option<&ConnCoreRef>,
+        conn_core: Option<&ConnCoreRef>,
         attrs: PartAttributes,
         rs_id: u64,
         rsm: ResultSetMetadata,
@@ -311,7 +350,7 @@ pub mod factory {
         };
 
         ResultSet {
-            core_ref: ResultSetCore::new_rs_ref(conn_ref, attrs, rs_id),
+            core_ref: ResultSetCore::new_rs_ref(conn_core, attrs, rs_id),
             metadata: Arc::new(rsm),
             rows: Vec::<Row>::new(),
             acc_server_proc_time: server_processing_time,
@@ -331,12 +370,12 @@ pub mod factory {
     // resultsets can be part of the response in three cases which differ
     // in regard to metadata handling:
     //
-    // a) a response to a plain "execute" will contain the metadata in one of the other parts;
-    //    the metadata parameter will thus have the variant None
+    // a) a response to a plain "execute" will contain the metadata in one of the
+    // other parts;    the metadata parameter will thus have the variant None
     //
     // b) a response to an "execute prepared" will only contain data;
-    //    the metadata had beeen returned already to the "prepare" call, and are provided
-    //    with parameter metadata
+    // the metadata had beeen returned already to the "prepare" call, and are
+    // provided    with parameter metadata
     //
     // c) a response to a "fetch more lines" is triggered from an older resultset
     //    which already has its metadata
@@ -348,7 +387,7 @@ pub mod factory {
         no_of_rows: i32,
         attributes: PartAttributes,
         parts: &mut Parts,
-        o_conn_ref: Option<&ConnCoreRef>,
+        o_conn_core: Option<&ConnCoreRef>,
         rs_md: Option<&ResultSetMetadata>,
         o_rs: &mut Option<&mut ResultSet>,
         rdr: &mut io::BufRead,
@@ -381,7 +420,7 @@ pub mod factory {
                 };
 
                 let mut result =
-                    resultset_new(o_conn_ref, attributes, rs_id, rs_metadata, o_stmt_ctx);
+                    resultset_new(o_conn_core, attributes, rs_id, rs_metadata, o_stmt_ctx);
                 parse_rows(&mut result, no_of_rows, rdr)?;
                 Ok(Some(result))
             }
@@ -419,17 +458,13 @@ pub mod factory {
         let no_of_cols = resultset.metadata.number_of_fields();
         debug!(
             "resultset::parse_rows() reading {} lines with {} columns",
-            no_of_rows,
-            no_of_cols
+            no_of_rows, no_of_cols
         );
 
         let guard = resultset.core_ref.lock()?;
         let rs_core = &*guard;
-        match rs_core.o_conn_ref {
-            None => {
-                // cannot happen FIXME: make this more robust
-            }
-            Some(ref conn_ref) => for r in 0..no_of_rows {
+        if let Some(ref conn_core) = rs_core.o_conn_core {
+            for r in 0..no_of_rows {
                 let mut values = Vec::<TypedValue>::new();
                 for c in 0..no_of_cols {
                     let typecode = resultset
@@ -448,14 +483,14 @@ pub mod factory {
                         nullable
                     );
                     let value =
-                        TypedValueFactory::parse_from_reply(typecode, nullable, conn_ref, rdr)?;
+                        TypedValueFactory::parse_from_reply(typecode, nullable, conn_core, rdr)?;
                     trace!("Found value {:?}", value);
                     values.push(value);
                 }
                 resultset
                     .rows
                     .push(Row::new(Arc::clone(&resultset.metadata), values));
-            },
+            }
         }
         Ok(())
     }

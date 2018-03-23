@@ -42,7 +42,7 @@ fn evaluate_resultset(
     connection: &mut Connection,
 ) -> HdbResult<()> {
     // prepare the db table
-    test_utils::statement_ignore_err(connection, vec!["drop table TEST_DECIMALS"]);
+    connection.multiple_statements_ignore_err(vec!["drop table TEST_DECIMALS"]);
     let stmts = vec![
         "create table TEST_DECIMALS (f1 NVARCHAR(100) primary key, f2 DECIMAL(7,5), f3 integer)",
         "insert into TEST_DECIMALS (f1, f2) values('0.00000', 0.000)",

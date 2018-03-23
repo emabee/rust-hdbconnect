@@ -12,13 +12,12 @@ use dist_tx::rm::{CResourceManager, CRmWrapper, ErrorCode, Flags, RmError, RmRc,
 use dist_tx::tm::XaTransactionId;
 use protocol::protocol_error::PrtError;
 
-
 /// Handle for dealing with distributed transactions that is to be used by a transaction manager.
 ///
 /// Is based on the connection from which it is obtained
 /// (see [`Connection::get_resource_manager`](
 /// ../struct.Connection.html#method.get_resource_manager)).
-///
+/// 
 #[derive(Debug)]
 pub struct HdbCResourceManager {
     core: ConnCoreRef,
@@ -84,7 +83,7 @@ impl CResourceManager for HdbCResourceManager {
         }
 
         let command_options = 0b_1000;
-        let mut request = Request::new(RequestType::XARecover, command_options)?;
+        let mut request = Request::new(RequestType::XARecover, command_options);
 
         let mut xat_options = XatOptions::default();
         xat_options.set_flags(flags);
@@ -112,14 +111,12 @@ impl CResourceManager for HdbCResourceManager {
     }
 }
 
-
 fn usage_error(method: &'static str, flags: Flags) -> RmError {
     RmError::new(
         ErrorCode::ProtocolError,
         format!(
             "CResourceManager::{}(): Invalid transaction flags {:?}",
-            method,
-            flags
+            method, flags
         ),
     )
 }
@@ -178,7 +175,7 @@ impl HdbCResourceManager {
         }
 
         let command_options = 0b_1000;
-        let mut request = Request::new(request_type, command_options)?;
+        let mut request = Request::new(request_type, command_options);
         request.push(Part::new(
             PartKind::XatOptions,
             Argument::XatOptions(xat_options),

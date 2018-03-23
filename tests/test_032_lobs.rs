@@ -13,7 +13,7 @@ extern crate sha2;
 
 mod test_utils;
 
-use flexi_logger::{LogSpecification, Logger, ReconfigurationHandle};
+use flexi_logger::{Logger, ReconfigurationHandle};
 use hdbconnect::{Connection, HdbResult};
 use hdbconnect::types::{BLob, CLob};
 use rand::{thread_rng, Rng};
@@ -45,12 +45,14 @@ fn impl_test_032_lobs(logger_handle: &mut ReconfigurationHandle) -> HdbResult<i3
     Ok(connection.get_call_count()?)
 }
 
-fn test_blobs(connection: &mut Connection, logger_handle: &mut ReconfigurationHandle)
-              -> HdbResult<()> {
+fn test_blobs(
+    connection: &mut Connection,
+    logger_handle: &mut ReconfigurationHandle,
+) -> HdbResult<()> {
     info!("create a 5MB BLOB in the database, and read it in various ways");
     connection.set_lob_read_length(1_000_000)?;
 
-    test_utils::statement_ignore_err(connection, vec!["drop table TEST_LOBS"]);
+    connection.multiple_statements_ignore_err(vec!["drop table TEST_LOBS"]);
     let stmts = vec![
         "create table TEST_LOBS (desc NVARCHAR(10) not null, bindata BLOB)",
     ];
@@ -59,8 +61,8 @@ fn test_blobs(connection: &mut Connection, logger_handle: &mut ReconfigurationHa
     #[derive(Serialize, Deserialize, Debug, PartialEq)]
     struct MyData {
         #[serde(rename = "DESC")] desc: String,
-        #[serde(rename = "BL1")] bytes: ByteBuf, //Vec<u8>,
-        #[serde(rename = "BL2")] o_bytes: Option<ByteBuf>, //Option<Vec<u8>>,
+        #[serde(rename = "BL1")] bytes: ByteBuf, // Vec<u8>,
+        #[serde(rename = "BL2")] o_bytes: Option<ByteBuf>, // Option<Vec<u8>>,
     }
 
     const SIZE: usize = 5 * 1024 * 1024;
@@ -115,12 +117,11 @@ fn test_blobs(connection: &mut Connection, logger_handle: &mut ReconfigurationHa
     );
     assert_eq!(mydata, second);
 
-
     // stream a blob from the database into a sink
     info!("read big blob in streaming fashion");
 
     connection.set_lob_read_length(200_000)?;
-    logger_handle.set_new_spec(LogSpecification::parse("info"));
+    logger_handle.parse_new_spec("info");
 
     let query = "select desc, bindata as BL1, bindata as BL2 from TEST_LOBS";
     let mut resultset: hdbconnect::ResultSet = connection.query(query)?;
@@ -141,12 +142,14 @@ fn test_blobs(connection: &mut Connection, logger_handle: &mut ReconfigurationHa
     Ok(())
 }
 
-fn test_clobs(connection: &mut Connection, logger_handle: &mut ReconfigurationHandle)
-              -> HdbResult<()> {
+fn test_clobs(
+    connection: &mut Connection,
+    logger_handle: &mut ReconfigurationHandle,
+) -> HdbResult<()> {
     info!("create a big CLOB in the database, and read it in various ways");
     connection.set_lob_read_length(1_000_000)?;
 
-    test_utils::statement_ignore_err(connection, vec!["drop table TEST_LOBS"]);
+    connection.multiple_statements_ignore_err(vec!["drop table TEST_LOBS"]);
     let stmts = vec![
         "create table TEST_LOBS (desc NVARCHAR(10) not null, chardata CLOB)",
     ];
@@ -159,14 +162,15 @@ fn test_clobs(connection: &mut Connection, logger_handle: &mut ReconfigurationHa
         #[serde(rename = "CL2")] o_s: Option<String>,
     }
 
-    logger_handle.set_new_spec(LogSpecification::parse("info"));
+    logger_handle.parse_new_spec("info");
 
     // create big random String data
     let mut three_times_blabla = String::new();
     {
         let mut f = File::open("tests/blabla.txt").expect("file not found");
         let mut blabla = String::new();
-        f.read_to_string(&mut blabla).expect("something went wrong reading the file");
+        f.read_to_string(&mut blabla)
+            .expect("something went wrong reading the file");
         for _ in 0..3 {
             three_times_blabla.push_str(&blabla);
         }
@@ -222,7 +226,7 @@ fn test_clobs(connection: &mut Connection, logger_handle: &mut ReconfigurationHa
     debug!("read big clob in streaming fashion");
 
     connection.set_lob_read_length(200_000)?;
-    logger_handle.set_new_spec(LogSpecification::parse("info"));
+    logger_handle.parse_new_spec("info");
 
     let query = "select desc, chardata as CL1, chardata as CL2 from TEST_LOBS";
     let mut resultset: hdbconnect::ResultSet = connection.query(query)?;
@@ -235,7 +239,6 @@ fn test_clobs(connection: &mut Connection, logger_handle: &mut ReconfigurationHa
     hasher.input(&streamed);
     let fingerprint4 = hasher.result();
     assert_eq!(fingerprint1, fingerprint4);
-
 
     debug!("clob.max_size(): {}", clob.max_size());
     // io::copy works with 8MB, if we have less, we fetch 200_000:

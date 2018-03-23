@@ -35,7 +35,7 @@ fn write1_read2(connection1: &mut Connection) -> HdbResult<()> {
     info!(
         "verify that we can read uncommitted data in same connection, but not on other connection"
     );
-    test_utils::statement_ignore_err(connection1, vec!["drop table TEST_TRANSACTIONS"]);
+    connection1.multiple_statements_ignore_err(vec!["drop table TEST_TRANSACTIONS"]);
     let stmts = vec![
         "create table TEST_TRANSACTIONS (strng NVARCHAR(100) primary key, nmbr INT, dt LONGDATE)",
         "insert into TEST_TRANSACTIONS (strng,nmbr,dt) values('Hello',1,'01.01.1900')",

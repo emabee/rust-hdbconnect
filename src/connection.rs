@@ -65,8 +65,7 @@ impl Connection {
         };
         debug!(
             "connection to {} is initialized ({} µs)",
-            connect_string,
-            delta
+            connect_string, delta
         );
 
         let mut conn = Connection {
@@ -182,7 +181,8 @@ impl Connection {
         self.statement("rollback")?.into_success()
     }
 
-    /// Creates a new connection object with the same settings and authentication.
+    /// Creates a new connection object with the same settings and
+    /// authentication.
     pub fn spawn(&self) -> HdbResult<Connection> {
         let mut other_conn = Connection::new(self.params.clone())?;
         other_conn.command_options = self.command_options;
@@ -195,7 +195,8 @@ impl Connection {
         Ok(other_conn)
     }
 
-    /// Utility method to fire a couple of statements, ignoring errors and return values
+    /// Utility method to fire a couple of statements, ignoring errors and
+    /// return values
     pub fn multiple_statements_ignore_err(&mut self, stmts: Vec<&str>) {
         for s in stmts {
             debug!("multiple_statements_ignore_err: firing \"{}\"", s);
@@ -227,7 +228,7 @@ fn execute(conn_ref: &mut ConnCoreRef, stmt: String) -> HdbResult<HdbResponse> {
     debug!("connection::execute({})", stmt);
     let command_options = 0b_1000;
     let fetch_size: u32 = { conn_ref.lock()?.get_fetch_size() };
-    let mut request = Request::new(RequestType::ExecuteDirect, command_options)?;
+    let mut request = Request::new(RequestType::ExecuteDirect, command_options);
     request.push(Part::new(
         PartKind::FetchSize,
         Argument::FetchSize(fetch_size),

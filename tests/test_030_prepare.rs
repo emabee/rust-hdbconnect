@@ -24,7 +24,6 @@ pub fn test_030_prepare() {
     }
 }
 
-
 // Test prepared statements, transactional correctness,
 // incl. parameter serialization (and resultset deserialization)
 fn impl_test_030_prepare() -> HdbResult<i32> {
@@ -39,7 +38,7 @@ fn prepare_insert_statement(connection: &mut Connection) -> HdbResult<()> {
     info!(
         "test statement preparation and transactional correctness (auto_commit on/off, rollbacks)"
     );
-    test_utils::statement_ignore_err(connection, vec!["drop table TEST_PREPARE"]);
+    connection.multiple_statements_ignore_err(vec!["drop table TEST_PREPARE"]);
     let stmts = vec!["create table TEST_PREPARE (F1_S NVARCHAR(20), F2_I INT)"];
     connection.multiple_statements(stmts)?;
 
@@ -78,7 +77,6 @@ fn prepare_insert_statement(connection: &mut Connection) -> HdbResult<()> {
     insert_stmt.add_batch(&("conn1-commit2", 46_i32))?;
     insert_stmt.execute_batch()?;
     connection.commit()?;
-
 
     // prepare, execute batch, rollback in new spawn
     let mut connection3 = connection.spawn()?;

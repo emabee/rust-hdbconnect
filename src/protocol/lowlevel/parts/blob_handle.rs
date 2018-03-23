@@ -124,6 +124,23 @@ use protocol::lowlevel::request_type::RequestType;
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::partkind::PartKind;
 
+#[derive(Debug)]
+pub struct ReadLobRequest {
+    locator_id: u64,
+    offset: u64,
+    length_to_read: i32,
+}
+impl ReadLobRequest {
+    pub fn locator_id(&self) -> u64 {
+        self.locator_id
+    }
+    pub fn offset(&self) -> u64 {
+        self.offset
+    }
+    pub fn length_to_read(&self) -> i32 {
+        self.length_to_read
+    }
+}
 pub fn fetch_a_lob_chunk(
     o_conn_ref: &mut Option<ConnCoreRef>,
     locator_id: u64,
@@ -136,7 +153,7 @@ pub fn fetch_a_lob_chunk(
         )),
         Some(ref mut conn_ref) => {
             // build the request, provide StatementContext and length_to_read
-            let mut request = Request::new(RequestType::ReadLob, 0)?;
+            let mut request = Request::new(RequestType::ReadLob, 0);
             let length_to_read = {
                 let guard = conn_ref.lock()?;
                 cmp::min((*guard).get_lob_read_length() as u64, length_b - data_len) as i32
@@ -144,7 +161,11 @@ pub fn fetch_a_lob_chunk(
             let offset = data_len + 1;
             request.push(Part::new(
                 PartKind::ReadLobRequest,
-                Argument::ReadLobRequest(locator_id, offset, length_to_read),
+                Argument::ReadLobRequest(ReadLobRequest {
+                    locator_id: locator_id,
+                    offset: offset,
+                    length_to_read: length_to_read,
+                }),
             ));
 
             trace!(
@@ -155,20 +176,18 @@ pub fn fetch_a_lob_chunk(
 
             let mut reply = request.send_and_receive(conn_ref, Some(ReplyType::ReadLob))?;
 
-            let (reply_data, reply_is_last_data) = match reply
-                .parts
-                .pop_arg_if_kind(PartKind::ReadLobReply)
-            {
-                Some(Argument::ReadLobReply(reply_locator_id, reply_is_last_data, reply_data)) => {
-                    if reply_locator_id != locator_id {
-                        return Err(prot_err(
-                            "lob::fetch_a_lob_chunk(): locator ids do not match",
-                        ));
+            let (reply_data, reply_is_last_data) =
+                match reply.parts.pop_arg_if_kind(PartKind::ReadLobReply) {
+                    Some(Argument::ReadLobReply(read_lob_reply)) => {
+                        if *read_lob_reply.locator_id() != locator_id {
+                            return Err(prot_err(
+                                "lob::fetch_a_lob_chunk(): locator ids do not match",
+                            ));
+                        }
+                        read_lob_reply.into_data_and_last()
                     }
-                    (reply_data, reply_is_last_data)
-                }
-                _ => return Err(prot_err("No ReadLobReply part found")),
-            };
+                    _ => return Err(prot_err("No ReadLobReply part found")),
+                };
 
             let server_processing_time = match reply
                 .parts
