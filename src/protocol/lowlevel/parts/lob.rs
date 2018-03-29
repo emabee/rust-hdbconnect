@@ -1,4 +1,4 @@
-use protocol::lowlevel::conn_core::ConnCoreRef;
+use protocol::lowlevel::conn_core::AmConnCore;
 use protocol::lowlevel::parts::blob_handle::BlobHandle;
 use protocol::lowlevel::parts::clob_handle::ClobHandle;
 use protocol::protocol_error::{PrtError, PrtResult};
@@ -22,14 +22,14 @@ enum BlobEnum {
 }
 
 pub fn new_blob_from_db(
-    conn_ref: &ConnCoreRef,
+    am_conn_core: &AmConnCore,
     is_data_complete: bool,
     length_b: u64,
     locator_id: u64,
     data: Vec<u8>,
 ) -> BLOB {
     BLOB(BlobEnum::FromDB(RefCell::new(BlobHandle::new(
-        conn_ref,
+        am_conn_core,
         is_data_complete,
         length_b,
         locator_id,
@@ -99,12 +99,13 @@ impl io::Read for BLOB {
 
 // ////////////////////////////////////////////////////////////////////////////////////////
 
-/// CLOB implementation that is used with `TypedValue::CLOB` and `TypedValue::NCLOB`.
+/// CLOB implementation that is used with `TypedValue::CLOB` and
+/// `TypedValue::NCLOB`.
 #[derive(Clone, Debug)]
 pub struct CLOB(RefCell<ClobHandle>);
 
 pub fn new_clob_from_db(
-    conn_ref: &ConnCoreRef,
+    am_conn_core: &AmConnCore,
     is_data_complete: bool,
     length_c: u64,
     length_b: u64,
@@ -112,7 +113,7 @@ pub fn new_clob_from_db(
     data: &[u8],
 ) -> CLOB {
     CLOB(RefCell::new(ClobHandle::new(
-        conn_ref,
+        am_conn_core,
         is_data_complete,
         length_c,
         length_b,

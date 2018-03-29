@@ -1,7 +1,7 @@
 use {HdbError, HdbResult};
 use protocol::lowlevel::{prot_err, PrtError, PrtResult};
 use protocol::lowlevel::argument::Argument;
-use protocol::lowlevel::conn_core::ConnCoreRef;
+use protocol::lowlevel::conn_core::AmConnCore;
 use protocol::lowlevel::message::{parse_message_and_sequence_header, Message, Request};
 use protocol::lowlevel::reply_type::ReplyType;
 use protocol::lowlevel::request_type::RequestType;
@@ -31,19 +31,19 @@ pub struct ResultSet {
 
 #[derive(Debug)]
 pub struct ResultSetCore {
-    o_conn_core: Option<ConnCoreRef>,
+    o_am_conn_core: Option<AmConnCore>,
     attributes: PartAttributes,
     resultset_id: u64,
 }
 
 impl ResultSetCore {
-    fn new_rs_ref(
-        conn_core: Option<&ConnCoreRef>,
+    fn new_am_rscore(
+        am_conn_core: &AmConnCore,
         attributes: PartAttributes,
         resultset_id: u64,
     ) -> Arc<Mutex<ResultSetCore>> {
         Arc::new(Mutex::new(ResultSetCore {
-            o_conn_core: conn_core.map(|cr| Arc::clone(cr)),
+            o_am_conn_core: Some(Arc::clone(am_conn_core)),
             attributes,
             resultset_id,
         }))
@@ -55,7 +55,7 @@ impl Drop for ResultSetCore {
         let rs_id = self.resultset_id;
         trace!("ResultSetCore::drop(), resultset_id {}", rs_id);
         if !self.attributes.is_resultset_closed() {
-            if let Some(ref conn_core) = self.o_conn_core {
+            if let Some(ref conn_core) = self.o_am_conn_core {
                 if let Ok(mut conn_guard) = conn_core.lock() {
                     let session_id = (*conn_guard).session_id();
                     let next_seq_number = (*conn_guard).next_seq_number();
@@ -151,7 +151,7 @@ impl ResultSet {
             // scope the borrow
             let guard = self.core_ref.lock()?;
             let rs_core = &*guard;
-            let conn_core = match rs_core.o_conn_core {
+            let conn_core = match rs_core.o_am_conn_core {
                 Some(ref cr) => Arc::clone(cr),
                 None => {
                     return Err(prot_err("Fetch no more possible"));
@@ -189,7 +189,7 @@ impl ResultSet {
         let mut guard = self.core_ref.lock()?;
         let rs_core = &mut *guard;
         if rs_core.attributes.is_last_packet() {
-            rs_core.o_conn_core = None;
+            rs_core.o_am_conn_core = None;
         }
         Ok(())
     }
@@ -326,7 +326,7 @@ pub mod factory {
     use super::{ResultSet, ResultSetCore, Row};
     use protocol::protocol_error::{prot_err, PrtResult};
     use protocol::lowlevel::argument::Argument;
-    use protocol::lowlevel::conn_core::ConnCoreRef;
+    use protocol::lowlevel::conn_core::AmConnCore;
     use protocol::lowlevel::part::Parts;
     use protocol::lowlevel::part_attributes::PartAttributes;
     use protocol::lowlevel::partkind::PartKind;
@@ -338,7 +338,7 @@ pub mod factory {
     use std::sync::Arc;
 
     pub fn resultset_new(
-        conn_core: Option<&ConnCoreRef>,
+        am_conn_core: &AmConnCore,
         attrs: PartAttributes,
         rs_id: u64,
         rsm: ResultSetMetadata,
@@ -350,20 +350,10 @@ pub mod factory {
         };
 
         ResultSet {
-            core_ref: ResultSetCore::new_rs_ref(conn_core, attrs, rs_id),
+            core_ref: ResultSetCore::new_am_rscore(am_conn_core, attrs, rs_id),
             metadata: Arc::new(rsm),
             rows: Vec::<Row>::new(),
             acc_server_proc_time: server_processing_time,
-        }
-    }
-
-    #[doc(hidden)]
-    pub fn new_for_tests(rsm: ResultSetMetadata, rows: Vec<Row>) -> ResultSet {
-        ResultSet {
-            core_ref: ResultSetCore::new_rs_ref(None, PartAttributes::new(0b_0000_0001), 0_u64),
-            metadata: Arc::new(rsm),
-            rows: rows,
-            acc_server_proc_time: 0,
         }
     }
 
@@ -371,23 +361,23 @@ pub mod factory {
     // in regard to metadata handling:
     //
     // a) a response to a plain "execute" will contain the metadata in one of the
-    // other parts;    the metadata parameter will thus have the variant None
+    //    other parts; the metadata parameter will thus have the variant None
     //
     // b) a response to an "execute prepared" will only contain data;
-    // the metadata had beeen returned already to the "prepare" call, and are
-    // provided    with parameter metadata
+    //    the metadata had beeen returned already to the "prepare" call, and are
+    //    provided with parameter metadata
     //
     // c) a response to a "fetch more lines" is triggered from an older resultset
     //    which already has its metadata
     //
-    // For first resultset packets, we create and return a new ResultSet object
-    // we expect the previous three parts to be
-    // a matching ResultSetMetadata, a ResultSetId, and a StatementContext
+    // For first resultset packets, we create and return a new ResultSet object.
+    // We then expect the previous three parts to be
+    // a matching ResultSetMetadata, a ResultSetId, and a StatementContext.
     pub fn parse(
         no_of_rows: i32,
         attributes: PartAttributes,
         parts: &mut Parts,
-        o_conn_core: Option<&ConnCoreRef>,
+        am_conn_core: &AmConnCore,
         rs_md: Option<&ResultSetMetadata>,
         o_rs: &mut Option<&mut ResultSet>,
         rdr: &mut io::BufRead,
@@ -420,7 +410,7 @@ pub mod factory {
                 };
 
                 let mut result =
-                    resultset_new(o_conn_core, attributes, rs_id, rs_metadata, o_stmt_ctx);
+                    resultset_new(am_conn_core, attributes, rs_id, rs_metadata, o_stmt_ctx);
                 parse_rows(&mut result, no_of_rows, rdr)?;
                 Ok(Some(result))
             }
@@ -463,7 +453,7 @@ pub mod factory {
 
         let guard = resultset.core_ref.lock()?;
         let rs_core = &*guard;
-        if let Some(ref conn_core) = rs_core.o_conn_core {
+        if let Some(ref am_conn_core) = rs_core.o_am_conn_core {
             for r in 0..no_of_rows {
                 let mut values = Vec::<TypedValue>::new();
                 for c in 0..no_of_cols {
@@ -483,7 +473,7 @@ pub mod factory {
                         nullable
                     );
                     let value =
-                        TypedValueFactory::parse_from_reply(typecode, nullable, conn_core, rdr)?;
+                        TypedValueFactory::parse_from_reply(typecode, nullable, am_conn_core, rdr)?;
                     trace!("Found value {:?}", value);
                     values.push(value);
                 }

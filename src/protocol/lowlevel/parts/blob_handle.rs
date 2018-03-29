@@ -1,5 +1,5 @@
 use protocol::protocol_error::PrtResult;
-use protocol::lowlevel::conn_core::ConnCoreRef;
+use protocol::lowlevel::conn_core::AmConnCore;
 
 use std::cmp;
 use std::io::{self, Write};
@@ -11,7 +11,7 @@ use std::sync::Arc;
 /// necessary controls to support fetching remaining data on demand.
 #[derive(Clone, Debug)]
 pub struct BlobHandle {
-    o_conn_ref: Option<ConnCoreRef>,
+    o_am_conn_core: Option<AmConnCore>,
     is_data_complete: bool,
     length_b: u64,
     locator_id: u64,
@@ -22,7 +22,7 @@ pub struct BlobHandle {
 }
 impl BlobHandle {
     pub fn new(
-        conn_ref: &ConnCoreRef,
+        am_conn_core: &AmConnCore,
         is_data_complete: bool,
         length_b: u64,
         locator_id: u64,
@@ -35,7 +35,7 @@ impl BlobHandle {
             data.len()
         );
         BlobHandle {
-            o_conn_ref: Some(Arc::clone(conn_ref)),
+            o_am_conn_core: Some(Arc::clone(am_conn_core)),
             length_b: length_b,
             is_data_complete: is_data_complete,
             locator_id: locator_id,
@@ -53,7 +53,7 @@ impl BlobHandle {
 
     fn fetch_next_chunk(&mut self) -> PrtResult<()> {
         let (mut reply_data, reply_is_last_data, server_processing_time) = fetch_a_lob_chunk(
-            &mut self.o_conn_ref,
+            &mut self.o_am_conn_core,
             self.locator_id,
             self.length_b,
             self.acc_byte_length as u64,
@@ -142,20 +142,20 @@ impl ReadLobRequest {
     }
 }
 pub fn fetch_a_lob_chunk(
-    o_conn_ref: &mut Option<ConnCoreRef>,
+    o_am_conn_core: &mut Option<AmConnCore>,
     locator_id: u64,
     length_b: u64,
     data_len: u64,
 ) -> PrtResult<(Vec<u8>, bool, i32)> {
-    match *o_conn_ref {
+    match *o_am_conn_core {
         None => Err(prot_err(
             "Fetching more LOB chunks is no more possible (connection already closed)",
         )),
-        Some(ref mut conn_ref) => {
+        Some(ref mut am_conn_core) => {
             // build the request, provide StatementContext and length_to_read
             let mut request = Request::new(RequestType::ReadLob, 0);
             let length_to_read = {
-                let guard = conn_ref.lock()?;
+                let guard = am_conn_core.lock()?;
                 cmp::min((*guard).get_lob_read_length() as u64, length_b - data_len) as i32
             };
             let offset = data_len + 1;
@@ -174,7 +174,7 @@ pub fn fetch_a_lob_chunk(
                 length_to_read
             );
 
-            let mut reply = request.send_and_receive(conn_ref, Some(ReplyType::ReadLob))?;
+            let mut reply = request.send_and_receive(am_conn_core, Some(ReplyType::ReadLob))?;
 
             let (reply_data, reply_is_last_data) =
                 match reply.parts.pop_arg_if_kind(PartKind::ReadLobReply) {

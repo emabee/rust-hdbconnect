@@ -71,8 +71,8 @@
 //! # fn foo() -> HdbResult<()> {
 //! # let params = "hdbsql://my_user:my_passwd@the_host:2222".into_connect_params()?;
 //! # let mut connection = Connection::new(params)?;
-//! let my_statement = "SELECT foo FROM bar";
-//! let resultset = connection.query(my_statement)?; // ResultSet
+//! let qry = "SELECT foo FROM bar";
+//! let resultset = connection.query(qry)?; // ResultSet
 //! # Ok(())
 //! # }
 //! ```
@@ -119,8 +119,8 @@
 //! # fn foo() -> HdbResult<()> {
 //! # let params = "hdbsql://my_user:my_passwd@the_host:2222".into_connect_params()?;
 //! # let mut connection = Connection::new(params)?;
-//! # let my_statement = "SELECT foo FROM bar";
-//! # let resultset = connection.query(my_statement)?; // ResultSet
+//! # let qry = "SELECT foo FROM bar";
+//! # let resultset = connection.query(qry)?; // ResultSet
 //! for row in resultset {
 //!     let row = row?;
 //!     // now you have a real row
@@ -151,8 +151,8 @@
 //! # fn foo() -> HdbResult<()> {
 //! # let params = "hdbsql://my_user:my_passwd@the_host:2222".into_connect_params()?;
 //! # let mut connection = Connection::new(params)?;
-//! # let my_statement = "SELECT foo FROM bar";
-//! # let resultset = connection.query(my_statement)?; // ResultSet
+//! # let qry = "SELECT foo FROM bar";
+//! # let resultset = connection.query(qry)?; // ResultSet
 //! for row in resultset {
 //!     let mut row:Row = row?;
 //! # #[allow(unused_variables)]
@@ -180,8 +180,8 @@
 //! # fn foo() -> HdbResult<()> {
 //! # let params = "hdbsql://my_user:my_passwd@the_host:2222".into_connect_params()?;
 //! # let mut connection = Connection::new(params)?;
-//! # let my_statement = "SELECT foo FROM bar";
-//! # let resultset = connection.query(my_statement)?; // ResultSet
+//! # let qry = "SELECT foo FROM bar";
+//! # let resultset = connection.query(qry)?; // ResultSet
 //! #[derive(Deserialize)]
 //! struct TestData {/* ...*/}
 //! let qry = "select * from TEST_RESULTSET";
@@ -234,7 +234,7 @@
 //!   # fn foo() -> HdbResult<()> {
 //!   # let params = "hdbsql://my_user:my_passwd@the_host:2222".into_connect_params()?;
 //!   # let mut connection = Connection::new(params)?;
-//!   # let my_statement = "SELECT foo FROM bar";
+//!   # let qry = "SELECT foo FROM bar";
 //!   # #[derive(Deserialize)]
 //!   # struct MyRow {/* ...*/}
 //!   let result: MyRow = connection.query(qry)?.try_into()?;

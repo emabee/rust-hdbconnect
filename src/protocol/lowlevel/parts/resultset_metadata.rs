@@ -13,16 +13,6 @@ pub struct ResultSetMetadata {
     names: VecMap<String>,
 }
 impl ResultSetMetadata {
-    /// Factory method for ResultSetMetadata, only useful for tests.
-    #[allow(dead_code)]
-    #[doc(hidden)]
-    pub fn new_for_tests() -> ResultSetMetadata {
-        ResultSetMetadata {
-            fields: Vec::<FieldMetadata>::new(),
-            names: VecMap::<String>::new(),
-        }
-    }
-
     /// Returns the number of fields.
     pub fn number_of_fields(&self) -> usize {
         self.fields.len()
@@ -69,7 +59,8 @@ impl ResultSetMetadata {
             .ok_or(PrtError::UsageError("columnname(): invalid field index"))?)
     }
 
-    // For large resultsets, this method will be called very often - is caching meaningful?
+    // For large resultsets, this method will be called very often - is caching
+    // meaningful?
     /// Display name of the column.
     #[inline]
     pub fn displayname(&self, index: usize) -> HdbResult<&String> {
@@ -103,7 +94,8 @@ impl ResultSetMetadata {
         Ok(self.get(i)?.is_array_type())
     }
 
-    /// Returns the id of the value type. See module `hdbconnect::metadata::type_id`.
+    /// Returns the id of the value type. See module
+    /// `hdbconnect::metadata::type_id`.
     pub fn type_id(&self, i: usize) -> HdbResult<u8> {
         Ok(self.get(i)?.type_id())
     }
@@ -119,7 +111,8 @@ impl ResultSetMetadata {
     }
 }
 
-// this just writes a headline with field names as it is handy in Display for ResultSet
+// this just writes a headline with field names as it is handy in Display for
+// ResultSet
 impl fmt::Display for ResultSetMetadata {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         writeln!(fmt, "").unwrap();

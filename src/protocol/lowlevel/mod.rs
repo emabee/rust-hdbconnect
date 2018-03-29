@@ -1,7 +1,7 @@
 pub use protocol::protocol_error::{prot_err, PrtError, PrtResult};
 
 pub mod argument;
-pub mod init;
+pub mod initial_request;
 pub mod conn_core;
 pub mod message;
 pub mod part;

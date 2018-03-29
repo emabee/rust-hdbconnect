@@ -1,6 +1,6 @@
 use protocol::protocol_error::{PrtError, PrtResult};
 use protocol::lowlevel::util;
-use protocol::lowlevel::conn_core::ConnCoreRef;
+use protocol::lowlevel::conn_core::AmConnCore;
 use super::blob_handle::fetch_a_lob_chunk;
 use std::cmp::max;
 use std::io::{self, Write};
@@ -12,7 +12,7 @@ use std::sync::Arc;
 /// necessary controls to support fetching remaining data on demand.
 #[derive(Clone, Debug)]
 pub struct ClobHandle {
-    o_conn_ref: Option<ConnCoreRef>,
+    o_am_conn_core: Option<AmConnCore>,
     is_data_complete: bool,
     length_c: u64,
     length_b: u64,
@@ -25,7 +25,7 @@ pub struct ClobHandle {
 }
 impl ClobHandle {
     pub fn new(
-        conn_ref: &ConnCoreRef,
+        am_conn_core: &AmConnCore,
         is_data_complete: bool,
         length_c: u64,
         length_b: u64,
@@ -40,7 +40,7 @@ impl ClobHandle {
         }
         let (_u, c) = cesu8.split_at(byte_count as usize);
         let clob_handle = ClobHandle {
-            o_conn_ref: Some(Arc::clone(conn_ref)),
+            o_am_conn_core: Some(Arc::clone(am_conn_core)),
             length_c: length_c,
             length_b: length_b,
             is_data_complete: is_data_complete,
@@ -79,7 +79,7 @@ impl ClobHandle {
             ));
         }
         let (mut reply_data, reply_is_last_data, server_processing_time) = fetch_a_lob_chunk(
-            &mut self.o_conn_ref,
+            &mut self.o_am_conn_core,
             self.locator_id,
             self.length_b,
             self.acc_byte_length as u64,
@@ -93,13 +93,13 @@ impl ClobHandle {
         if !success && byte_count < self.buffer_cesu8.len() as u64 - 5 {
             error!(
                 "ClobHandle::fetch_next_chunk(): bad cesu8 at pos {} in part of CLOB: {:?}",
-                byte_count,
-                self.buffer_cesu8
+                byte_count, self.buffer_cesu8
             );
             return Err(PrtError::Cesu8Error(util::Cesu8DecodingError));
         }
 
-        // cut off the big first part (in most cases all) of buffer_cesu8, and retain just the rest
+        // cut off the big first part (in most cases all) of buffer_cesu8, and retain
+        // just the rest
         self.buffer_cesu8.drain(0..byte_count as usize);
         self.is_data_complete = reply_is_last_data;
         self.acc_server_proc_time += server_processing_time;

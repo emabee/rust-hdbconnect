@@ -5,7 +5,7 @@ use {HdbError, HdbResponse, HdbResult};
 use hdb_response::factory as HdbResponseFactory;
 use hdb_response::factory::InternalReturnValue;
 use super::{prot_err, PrtError, PrtResult};
-use super::conn_core::ConnCoreRef;
+use super::conn_core::AmConnCore;
 use super::argument::Argument;
 use super::reply_type::ReplyType;
 use super::request_type::RequestType;
@@ -15,6 +15,7 @@ use super::partkind::PartKind;
 use super::parts::resultset::ResultSet;
 use super::parts::parameter_descriptor::ParameterDescriptor;
 use super::parts::resultset_metadata::ResultSetMetadata;
+use super::parts::server_error::{ServerError, Severity};
 use super::parts::statement_context::StatementContext;
 use super::parts::resultset::factory as ResultSetFactory;
 
@@ -56,14 +57,14 @@ impl Request {
         &mut self,
         o_rs_md: Option<&ResultSetMetadata>,
         o_par_md: Option<&Vec<ParameterDescriptor>>,
-        conn_ref: &mut ConnCoreRef,
+        am_conn_core: &mut AmConnCore,
         expected_reply_type: Option<ReplyType>,
     ) -> HdbResult<HdbResponse> {
         let mut reply = self.send_and_receive_detailed(
             o_rs_md,
             o_par_md,
             &mut None,
-            conn_ref,
+            am_conn_core,
             expected_reply_type,
         )?;
 
@@ -82,12 +83,12 @@ impl Request {
                         "Received StatementContext with sequence_info = {:?}",
                         stmt_ctx.get_statement_sequence_info()
                     );
-                    let mut guard = conn_ref.lock()?;
+                    let mut guard = am_conn_core.lock()?;
                     (*guard).set_statement_sequence(stmt_ctx.get_statement_sequence_info());
                     (*guard).add_server_proc_time(stmt_ctx.get_server_processing_time());
                 }
                 Argument::TransactionFlags(ref ta_flags) => {
-                    let mut guard = conn_ref.lock()?;
+                    let mut guard = am_conn_core.lock()?;
                     (*guard).update_session_state(ta_flags)?;
                 }
                 Argument::ResultSet(Some(rs)) => {
@@ -100,7 +101,7 @@ impl Request {
                     Some(part) => match *part.arg() {
                         Argument::ResultSetId(rs_id) => {
                             let rs = ResultSetFactory::resultset_new(
-                                Some(conn_ref),
+                                am_conn_core,
                                 PartAttributes::new(0b_0000_0100),
                                 rs_id,
                                 rsm,
@@ -176,10 +177,10 @@ impl Request {
     // simplified interface
     pub fn send_and_receive(
         &mut self,
-        conn_ref: &mut ConnCoreRef,
+        am_conn_core: &mut AmConnCore,
         expected_reply_type: Option<ReplyType>,
     ) -> PrtResult<Reply> {
-        self.send_and_receive_detailed(None, None, &mut None, conn_ref, expected_reply_type)
+        self.send_and_receive_detailed(None, None, &mut None, am_conn_core, expected_reply_type)
     }
 
     pub fn send_and_receive_detailed(
@@ -187,7 +188,7 @@ impl Request {
         o_rs_md: Option<&ResultSetMetadata>,
         o_par_md: Option<&Vec<ParameterDescriptor>>,
         o_rs: &mut Option<&mut ResultSet>,
-        conn_ref: &mut ConnCoreRef,
+        am_conn_core: &mut AmConnCore,
         expected_reply_type: Option<ReplyType>,
     ) -> PrtResult<Reply> {
         trace!(
@@ -195,14 +196,14 @@ impl Request {
             self.request_type,
         );
         let _start = Local::now();
-        self.add_statement_sequence(conn_ref)?;
+        self.add_statement_sequence(am_conn_core)?;
 
-        self.serialize(conn_ref)?;
+        self.serialize(am_conn_core)?;
 
-        let mut reply = Reply::parse(o_rs_md, o_par_md, o_rs, conn_ref)?;
+        let mut reply = Reply::parse(o_rs_md, o_par_md, o_rs, am_conn_core)?;
         reply.assert_expected_reply_type(expected_reply_type)?;
 
-        reply.assert_no_error()?;
+        reply.assert_no_error(am_conn_core)?;
 
         debug!(
             "Request::send_and_receive_detailed() took {} ms",
@@ -211,8 +212,8 @@ impl Request {
         Ok(reply)
     }
 
-    fn add_statement_sequence(&mut self, conn_ref: &ConnCoreRef) -> PrtResult<()> {
-        let guard = conn_ref.lock()?;
+    fn add_statement_sequence(&mut self, am_conn_core: &AmConnCore) -> PrtResult<()> {
+        let guard = am_conn_core.lock()?;
         match *(*guard).statement_sequence() {
             None => {}
             Some(ssi_value) => {
@@ -233,9 +234,9 @@ impl Request {
 
     // FIXME: this should be a method on the ConnectionCore, with the request as
     // argument
-    fn serialize(&self, conn_ref: &mut ConnCoreRef) -> PrtResult<()> {
+    fn serialize(&self, am_conn_core: &mut AmConnCore) -> PrtResult<()> {
         trace!("Entering Message::serialize()");
-        let mut guard = conn_ref.lock()?;
+        let mut guard = am_conn_core.lock()?;
         let auto_commit_flag: i8 = if (*guard).is_auto_commit() { 1 } else { 0 };
         let conn_core = &mut *guard;
         self.serialize_impl(
@@ -342,16 +343,16 @@ impl Reply {
     /// parse a response from the stream, building a Reply object
     /// `ResultSetMetadata` need to be injected in case of execute calls of prepared statements
     /// `ResultSet` needs to be injected (and is extended and returned) in case of fetch requests
-    /// `conn_ref` needs to be injected in case we get an incomplete resultset or lob
+    /// `am_conn_core` needs to be injected in case we get an incomplete resultset or lob
     /// (so that they later can fetch)
     fn parse(
         o_rs_md: Option<&ResultSetMetadata>,
         o_par_md: Option<&Vec<ParameterDescriptor>>,
         o_rs: &mut Option<&mut ResultSet>,
-        conn_ref: &ConnCoreRef,
+        am_conn_core: &AmConnCore,
     ) -> PrtResult<Reply> {
         trace!("Reply::parse()");
-        let mut guard = conn_ref.lock()?;
+        let mut guard = am_conn_core.lock()?;
         let stream = &mut (*guard).stream();
         let mut rdr = io::BufReader::new(stream);
 
@@ -362,7 +363,7 @@ impl Reply {
                 for _ in 0..no_of_parts {
                     let part = Part::parse(
                         &mut (msg.parts),
-                        Some(conn_ref),
+                        Some(am_conn_core),
                         o_rs_md,
                         o_par_md,
                         o_rs,
@@ -391,7 +392,9 @@ impl Reply {
         }
     }
 
-    fn assert_no_error(&mut self) -> PrtResult<()> {
+    fn assert_no_error(&mut self, am_conn_core: &mut AmConnCore) -> PrtResult<()> {
+        let mut guard = am_conn_core.lock()?;
+        (*guard).warnings.clear();
         let err_code = PartKind::Error.to_i8();
         match (&self.parts)
             .into_iter()
@@ -402,15 +405,22 @@ impl Reply {
                 let err_part = self.parts.swap_remove(idx);
                 match err_part.into_elements() {
                     (_, Argument::Error(vec)) => {
-                        // FIXME NOW Differentiate!!
-                        // if there are only warnings (ServerError::severity = 0)
-                        // then do NOT abort but
-                        // - write out warn!
-                        // - and return the warnings object in addition to the success object :-?
-                        let err = PrtError::DbMessage(vec);
-                        self.parts.clear();
-                        debug!("{}", err);
-                        Err(err)
+                        // warnings are filtered out and added
+                        let mut errors: Vec<ServerError> = vec.into_iter()
+                            .filter_map(|se| match se.severity() {
+                                Severity::Warning => {
+                                    (*guard).warnings.push(se);
+                                    None
+                                }
+                                _ => Some(se),
+                            })
+                            .collect();
+                        if errors.is_empty() {
+                            Ok(())
+                        } else {
+                            self.parts.clear();
+                            Err(PrtError::DbMessage(errors))
+                        }
                     }
                     _ => Err(prot_err("assert_no_error: inconsistent error part found")),
                 }

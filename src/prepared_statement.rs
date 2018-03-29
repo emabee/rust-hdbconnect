@@ -1,5 +1,5 @@
 use {HdbError, HdbResponse, HdbResult};
-use protocol::lowlevel::conn_core::ConnCoreRef;
+use protocol::lowlevel::conn_core::AmConnCore;
 use protocol::lowlevel::argument::Argument;
 use protocol::lowlevel::message::Request;
 use protocol::lowlevel::request_type::RequestType;
@@ -18,7 +18,7 @@ use std::mem;
 /// Allows injection-safe SQL execution and repeated calls of the same statement
 /// with different parameters with as few roundtrips as possible.
 pub struct PreparedStatement {
-    conn_ref: ConnCoreRef,
+    am_conn_core: AmConnCore,
     statement_id: u64,
     _o_table_location: Option<Vec<i32>>,
     o_par_md: Option<Vec<ParameterDescriptor>>,
@@ -71,7 +71,7 @@ impl PreparedStatement {
         request.send_and_get_response(
             self.o_rs_md.as_ref(),
             self.o_par_md.as_ref(),
-            &mut (self.conn_ref),
+            &mut (self.am_conn_core),
             None,
         )
     }
@@ -79,7 +79,7 @@ impl PreparedStatement {
     /// Sets the auto-commit of the prepared statement's connection for future
     /// calls.
     pub fn set_auto_commit(&mut self, ac: bool) -> HdbResult<()> {
-        let mut guard = self.conn_ref.lock()?;
+        let mut guard = self.am_conn_core.lock()?;
         (*guard).set_auto_commit(ac);
         Ok(())
     }
@@ -93,7 +93,7 @@ impl Drop for PreparedStatement {
             PartKind::StatementId,
             Argument::StatementId(self.statement_id),
         ));
-        if let Ok(mut reply) = request.send_and_receive(&mut (self.conn_ref), None) {
+        if let Ok(mut reply) = request.send_and_receive(&mut (self.am_conn_core), None) {
             reply.parts.pop_arg_if_kind(PartKind::StatementContext);
         }
     }
@@ -101,7 +101,7 @@ impl Drop for PreparedStatement {
 
 pub mod factory {
     use {HdbError, HdbResult};
-    use protocol::lowlevel::conn_core::ConnCoreRef;
+    use protocol::lowlevel::conn_core::AmConnCore;
     use protocol::lowlevel::argument::Argument;
     use protocol::lowlevel::message::Request;
     use protocol::lowlevel::request_type::RequestType;
@@ -113,12 +113,12 @@ pub mod factory {
     use super::PreparedStatement;
 
     /// Prepare a statement.
-    pub fn prepare(mut conn_ref: ConnCoreRef, stmt: String) -> HdbResult<PreparedStatement> {
+    pub fn prepare(mut am_conn_core: AmConnCore, stmt: String) -> HdbResult<PreparedStatement> {
         let command_options: u8 = 8;
         let mut request = Request::new(RequestType::Prepare, command_options);
         request.push(Part::new(PartKind::Command, Argument::Command(stmt)));
 
-        let mut reply = request.send_and_receive(&mut conn_ref, None)?;
+        let mut reply = request.send_and_receive(&mut am_conn_core, None)?;
 
         // ParameterMetadata, ResultSetMetadata
         // StatementContext, StatementId,
@@ -137,7 +137,7 @@ pub mod factory {
                     o_stmt_id = Some(id);
                 }
                 Some(Argument::TransactionFlags(ref ta_flags)) => {
-                    let mut guard = conn_ref.lock()?;
+                    let mut guard = am_conn_core.lock()?;
                     (*guard).update_session_state(ta_flags)?;
                 }
                 Some(Argument::TableLocation(vec_i)) => {
@@ -148,7 +148,7 @@ pub mod factory {
                 }
 
                 Some(Argument::StatementContext(stmt_ctx)) => {
-                    let mut guard = conn_ref.lock()?;
+                    let mut guard = am_conn_core.lock()?;
                     (*guard).add_server_proc_time(stmt_ctx.get_server_processing_time());
                 }
                 x => warn!("prepare(): Unexpected reply part found {:?}", x),
@@ -189,15 +189,15 @@ pub mod factory {
         );
 
         Ok(PreparedStatement {
-            conn_ref: conn_ref,
-            statement_id: statement_id,
+            am_conn_core,
+            statement_id,
             o_batch: match o_par_md {
                 Some(_) => Some(Vec::<ParameterRow>::new()),
                 None => None,
             },
-            o_par_md: o_par_md,
-            o_input_md: o_input_md,
-            o_rs_md: o_rs_md,
+            o_par_md,
+            o_input_md,
+            o_rs_md,
             _o_table_location: o_table_location,
         })
     }

@@ -1,17 +1,28 @@
 use super::{util, PrtResult};
 
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use byteorder::{LittleEndian, ReadBytesExt};
 use std::fmt;
 use std::io;
 
 /// Severity of a server message
+#[derive(Clone, Debug)]
 pub enum Severity {
+    /// An additional warning is sent from the server to the client,
+    /// along with the regular response.
     Warning,
+    /// The request sent to the server could not be ansered, although the
+    /// database works correctly.
     Error,
+    /// The request sent to the server could not be ansered because the
+    /// database does not work correctly.
     Fatal,
+
+    /// The request sent to the server could not be answered, for an unknown
+    /// reason.
     __UNKNOWN__(i8),
 }
 impl Severity {
+    #[doc(hidden)]
     pub fn from_i8(i: i8) -> Severity {
         match i {
             0 => Severity::Warning,
@@ -20,6 +31,7 @@ impl Severity {
             i => Severity::__UNKNOWN__(i),
         }
     }
+    /// Returns the number encoding of the severity.
     pub fn to_i8(&self) -> i8 {
         match *self {
             Severity::Warning => 0,
@@ -41,21 +53,44 @@ impl fmt::Display for Severity {
     }
 }
 
+/// Describes an error that is reported from the database.
 pub struct ServerError {
-    pub code: i32,
-    pub position: i32,
-    pub text_length: i32,
-    pub severity: Severity,
-    pub sqlstate: Vec<u8>,
-    pub text: String,
+    code: i32,
+    position: i32,
+    severity: Severity,
+    sqlstate: Vec<u8>,
+    text: String,
 }
 const BASE_SIZE: usize = 4 + 4 + 4 + 1 + 5;
 
 impl ServerError {
+    /// Returns the error code.
+    pub fn code(&self) -> i32 {
+        self.code
+    }
+    /// Returns the position in the line where the error occured.
+    pub fn position(&self) -> i32 {
+        self.position
+    }
+    /// Returns the Severity of the error.
+    pub fn severity(&self) -> Severity {
+        self.severity.clone()
+    }
+    /// Returns the SQL state of the error.
+    pub fn sqlstate(&self) -> Vec<u8> {
+        self.sqlstate.clone()
+    }
+    /// Returns the description of the error.
+    pub fn text(&self) -> String {
+        self.text.clone()
+    }
+}
+
+#[doc(hidden)]
+impl ServerError {
     pub fn new(
         code: i32,
         position: i32,
-        text_length: i32,
         severity: Severity,
         sqlstate: Vec<u8>,
         text: String,
@@ -63,7 +98,6 @@ impl ServerError {
         ServerError {
             code: code,
             position: position,
-            text_length: text_length,
             severity: severity,
             sqlstate: sqlstate,
             text: text,
@@ -72,18 +106,6 @@ impl ServerError {
 
     pub fn size(&self) -> usize {
         BASE_SIZE + self.text.len()
-    }
-
-    pub fn serialize(&self, w: &mut io::Write) -> PrtResult<()> {
-        w.write_i32::<LittleEndian>(self.code)?;
-        w.write_i32::<LittleEndian>(self.position)?;
-        w.write_i32::<LittleEndian>(self.text_length)?;
-        w.write_i8(self.severity.to_i8())?;
-        for b in &self.sqlstate {
-            w.write_u8(*b)?
-        }
-        util::serialize_bytes(&util::string_to_cesu8(&(self.text)), w)?;
-        Ok(())
     }
 
     pub fn parse(arg_size: i32, rdr: &mut io::BufRead) -> PrtResult<ServerError> {
@@ -98,7 +120,7 @@ impl ServerError {
         trace!("Skipping over {} padding bytes", pad);
         rdr.consume(pad as usize);
 
-        let hdberr = ServerError::new(code, position, text_length, severity, sqlstate, text);
+        let hdberr = ServerError::new(code, position, severity, sqlstate, text);
         debug!("parse(): found hdberr with {}", hdberr.to_string());
         Ok(hdberr)
     }

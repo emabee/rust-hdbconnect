@@ -1,3 +1,6 @@
+use protocol::lowlevel::parts::server_error::ServerError;
+use hdb_error::HdbResult;
+use protocol::lowlevel::initial_request;
 use protocol::lowlevel::message::{parse_message_and_sequence_header, Message, Request};
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::parts::connect_options::ConnectOptions;
@@ -11,7 +14,7 @@ use std::io;
 use std::mem;
 use std::net::TcpStream;
 
-pub type ConnCoreRef = Arc<Mutex<ConnectionCore>>;
+pub type AmConnCore = Arc<Mutex<ConnectionCore>>;
 
 pub const DEFAULT_FETCH_SIZE: u32 = 32;
 pub const DEFAULT_LOB_READ_LENGTH: i32 = 1_000_000;
@@ -20,6 +23,9 @@ pub const DEFAULT_LOB_READ_LENGTH: i32 = 1_000_000;
 pub struct ConnectionCore {
     authenticated: bool,
     session_id: i64,
+    major_product_version: i8,
+    minor_product_version: i16,
+    command_options: u8,
     seq_number: i32,
     auto_commit: bool,
     acc_server_proc_time: i32,
@@ -29,25 +35,38 @@ pub struct ConnectionCore {
     statement_sequence: Option<i64>, // statement sequence within the transaction
     server_connect_options: ConnectOptions,
     topology_attributes: Vec<TopologyAttr>,
+    pub warnings: Vec<ServerError>,
     stream: TcpStream,
 }
 
 impl ConnectionCore {
-    pub fn new_ref(stream: TcpStream) -> ConnCoreRef {
-        Arc::new(Mutex::new(ConnectionCore {
+    pub fn initialize(mut tcp_stream: TcpStream) -> HdbResult<AmConnCore> {
+        let (major_product_version, minor_product_version) =
+            initial_request::send_and_receive(&mut tcp_stream)?;
+        const HOLD_OVER_COMMIT: u8 = 8;
+
+        Ok(Arc::new(Mutex::new(ConnectionCore {
             authenticated: false,
             session_id: 0,
             seq_number: 0,
+            command_options: HOLD_OVER_COMMIT,
             auto_commit: true,
             acc_server_proc_time: 0,
             fetch_size: DEFAULT_FETCH_SIZE,
             lob_read_length: DEFAULT_LOB_READ_LENGTH,
+            major_product_version,
+            minor_product_version,
             session_state: Default::default(),
             statement_sequence: None,
             server_connect_options: ConnectOptions::default(),
             topology_attributes: Vec::<TopologyAttr>::new(),
-            stream: stream,
-        }))
+            warnings: Vec::<ServerError>::new(),
+            stream: tcp_stream,
+        })))
+    }
+
+    pub fn get_major_and_minor_product_version(&self) -> (i8, i16) {
+        (self.major_product_version, self.minor_product_version)
     }
 
     pub fn set_auto_commit(&mut self, ac: bool) {
@@ -132,6 +151,16 @@ impl ConnectionCore {
             Err(prot_err("SessionclosingTaError received"))
         } else {
             Ok(())
+        }
+    }
+
+    pub fn pop_warnings(&mut self) -> HdbResult<Option<Vec<ServerError>>> {
+        if self.warnings.is_empty() {
+            Ok(None)
+        } else {
+            let mut v = Vec::<ServerError>::new();
+            mem::swap(&mut v, &mut self.warnings);
+            Ok(Some(v))
         }
     }
 }

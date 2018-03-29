@@ -1,6 +1,6 @@
 use super::{prot_err, PrtResult};
 use super::argument::Argument;
-use super::conn_core::ConnCoreRef;
+use super::conn_core::AmConnCore;
 use super::partkind::PartKind;
 use super::part_attributes::PartAttributes;
 use super::parts::parameter_descriptor::ParameterDescriptor;
@@ -74,7 +74,7 @@ impl Part {
     ///
     pub fn parse(
         already_received_parts: &mut Parts,
-        o_conn_ref: Option<&ConnCoreRef>,
+        o_am_conn_core: Option<&AmConnCore>,
         rs_md: Option<&ResultSetMetadata>,
         par_md: Option<&Vec<ParameterDescriptor>>,
         o_rs: &mut Option<&mut ResultSet>,
@@ -84,10 +84,7 @@ impl Part {
         let (kind, attributes, arg_size, no_of_args) = parse_part_header(rdr)?;
         debug!(
             "parse() found part of kind {:?} with attributes {:?}, arg_size {} and no_of_args {}",
-            kind,
-            attributes,
-            arg_size,
-            no_of_args
+            kind, attributes, arg_size, no_of_args
         );
         Ok(Part::new(
             kind,
@@ -97,7 +94,7 @@ impl Part {
                 no_of_args,
                 arg_size,
                 already_received_parts,
-                o_conn_ref,
+                o_am_conn_core,
                 rs_md,
                 par_md,
                 o_rs,

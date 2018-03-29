@@ -1,6 +1,6 @@
 use protocol::protocol_error::{prot_err, PrtResult};
 use protocol::lowlevel::argument::Argument;
-use protocol::lowlevel::conn_core::ConnCoreRef;
+use protocol::lowlevel::conn_core::AmConnCore;
 use protocol::lowlevel::message::{Reply, Request};
 use protocol::lowlevel::reply_type::ReplyType;
 use protocol::lowlevel::request_type::RequestType;
@@ -23,21 +23,21 @@ use std::iter::repeat;
 use username;
 
 /// authenticate with user and password, using the `scram_sha256` method
-pub fn user_pw(conn_ref: &mut ConnCoreRef, username: &str, password: &str) -> PrtResult<()> {
+pub fn user_pw(am_conn_core: &mut AmConnCore, username: &str, password: &str) -> PrtResult<()> {
     trace!("Entering authenticate()");
 
     let client_challenge = create_client_challenge();
-    let reply1 = auth1_request(conn_ref, &client_challenge, username)?;
+    let reply1 = auth1_request(am_conn_core, &client_challenge, username)?;
     let server_challenge: Vec<u8> = get_server_challenge(reply1)?;
 
     let client_proof = calculate_client_proof(server_challenge, &client_challenge, password)?;
 
-    let reply2 = auth2_request(conn_ref, &client_proof, username)?;
-    evaluate_reply2(reply2, conn_ref)
+    let reply2 = auth2_request(am_conn_core, &client_proof, username)?;
+    evaluate_reply2(reply2, am_conn_core)
 }
 
 fn auth1_request(
-    conn_ref: &mut ConnCoreRef,
+    am_conn_core: &mut AmConnCore,
     chllng_sha256: &[u8],
     username: &str,
 ) -> PrtResult<Reply> {
@@ -52,11 +52,11 @@ fn auth1_request(
     let mut request = Request::new(RequestType::Authenticate, 0);
     request.push(part2);
 
-    request.send_and_receive(conn_ref, Some(ReplyType::Nil))
+    request.send_and_receive(am_conn_core, Some(ReplyType::Nil))
 }
 
 fn auth2_request(
-    conn_ref: &mut ConnCoreRef,
+    am_conn_core: &mut AmConnCore,
     client_proof: &[u8],
     username: &str,
 ) -> PrtResult<Reply> {
@@ -89,7 +89,7 @@ fn auth2_request(
         ),
     ));
 
-    request.send_and_receive(conn_ref, Some(ReplyType::Nil))
+    request.send_and_receive(am_conn_core, Some(ReplyType::Nil))
 }
 
 fn get_locale() -> String {
@@ -128,9 +128,9 @@ fn get_server_challenge(mut reply: Reply) -> PrtResult<Vec<u8>> {
     }
 }
 
-fn evaluate_reply2(mut reply: Reply, conn_ref: &ConnCoreRef) -> PrtResult<()> {
+fn evaluate_reply2(mut reply: Reply, am_conn_core: &AmConnCore) -> PrtResult<()> {
     trace!("Entering evaluate_reply2()");
-    let mut guard = conn_ref.lock()?;
+    let mut guard = am_conn_core.lock()?;
     let conn_core = &mut *guard;
     conn_core.set_session_id(reply.session_id());
 

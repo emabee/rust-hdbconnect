@@ -67,20 +67,19 @@ pub mod factory {
                                                           ParameterDirection};
     use protocol::lowlevel::parts::typed_value::TypedValue;
     use protocol::lowlevel::parts::typed_value::factory as TypedValueFactory;
-    use protocol::lowlevel::conn_core::ConnCoreRef;
+    use protocol::lowlevel::conn_core::AmConnCore;
 
     use std::io;
 
     pub fn parse(
-        o_conn_ref: Option<&ConnCoreRef>,
+        o_am_conn_core: Option<&AmConnCore>,
         par_md: &[ParameterDescriptor],
         rdr: &mut io::BufRead,
     ) -> PrtResult<OutputParameters> {
         trace!("OutputParameters::parse()");
-        let conn_ref = match o_conn_ref {
-            Some(conn_ref) => conn_ref,
-            None => return Err(prot_err("Cannot parse output parameters without conn_ref")),
-        };
+        let am_conn_core = o_am_conn_core.ok_or(prot_err(
+            "Cannot parse output parameters without am_conn_core",
+        ))?;
 
         let mut output_pars = OutputParameters {
             metadata: Vec::<ParameterDescriptor>::new(),
@@ -101,7 +100,7 @@ pub mod factory {
                         nullable
                     );
                     let value =
-                        TypedValueFactory::parse_from_reply(typecode, nullable, conn_ref, rdr)?;
+                        TypedValueFactory::parse_from_reply(typecode, nullable, am_conn_core, rdr)?;
                     trace!("Found value {:?}", value);
                     output_pars.metadata.push(descriptor.clone());
                     output_pars.values.push(value);

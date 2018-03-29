@@ -2,7 +2,7 @@ use hdb_error::HdbResult;
 use protocol::lowlevel::message::Reply;
 use HdbError;
 use protocol::lowlevel::argument::Argument;
-use protocol::lowlevel::conn_core::ConnCoreRef;
+use protocol::lowlevel::conn_core::AmConnCore;
 use protocol::lowlevel::message::Request;
 use protocol::lowlevel::request_type::RequestType;
 use protocol::lowlevel::part::Part;
@@ -20,11 +20,11 @@ use protocol::protocol_error::PrtError;
 /// 
 #[derive(Debug)]
 pub struct HdbCResourceManager {
-    core: ConnCoreRef,
+    am_conn_core: AmConnCore,
 }
 
-pub fn new_resource_manager(core: ConnCoreRef) -> CRmWrapper<HdbCResourceManager> {
-    CRmWrapper(HdbCResourceManager { core: core })
+pub fn new_resource_manager(am_conn_core: AmConnCore) -> CRmWrapper<HdbCResourceManager> {
+    CRmWrapper(HdbCResourceManager { am_conn_core })
 }
 
 impl CResourceManager for HdbCResourceManager {
@@ -92,7 +92,7 @@ impl CResourceManager for HdbCResourceManager {
             Argument::XatOptions(xat_options),
         ));
 
-        let mut reply: Reply = request.send_and_receive(&mut (self.core), None)?;
+        let mut reply: Reply = request.send_and_receive(&mut (self.am_conn_core), None)?;
         while !reply.parts.is_empty() {
             reply.parts.drop_args_of_kind(PartKind::StatementContext);
             match reply.parts.pop_arg() {
@@ -147,8 +147,8 @@ impl HdbCResourceManager {
                 if let HdbError::ProtocolError(PrtError::DbMessage(ref v)) = hdb_error {
                     if v.len() == 1 {
                         return RmError::new(
-                            error_code_from_hana_code(v[0].code),
-                            v[0].text.clone(),
+                            error_code_from_hana_code(v[0].code()),
+                            v[0].text().clone(),
                         );
                     }
                 };
@@ -162,7 +162,7 @@ impl HdbCResourceManager {
         id: &XaTransactionId,
         flags: Flags,
     ) -> HdbResult<Option<RmRc>> {
-        if self.core.lock()?.is_auto_commit() {
+        if self.am_conn_core.lock()?.is_auto_commit() {
             return Err(HdbError::UsageError(
                 "xa_*() not possible, connection is set to auto_commit".to_string(),
             ));
@@ -181,7 +181,7 @@ impl HdbCResourceManager {
             Argument::XatOptions(xat_options),
         ));
 
-        let mut reply = request.send_and_receive(&mut (self.core), None)?;
+        let mut reply = request.send_and_receive(&mut (self.am_conn_core), None)?;
 
         reply.parts.drop_args_of_kind(PartKind::StatementContext);
         if let Some(Argument::XatOptions(xat_options)) =

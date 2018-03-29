@@ -5,7 +5,7 @@ use protocol::lowlevel::parts::lob_flags::LobFlags;
 use protocol::lowlevel::parts::session_context::SessionContext;
 use protocol::lowlevel::parts::command_info::CommandInfo;
 use super::{prot_err, PrtError, PrtResult};
-use super::conn_core::ConnCoreRef;
+use super::conn_core::AmConnCore;
 use super::part_attributes::PartAttributes;
 use super::partkind::PartKind;
 use super::part::Parts;
@@ -168,9 +168,6 @@ impl Argument {
             Argument::CommitOptions(ref opts) => opts.serialize(w)?,
             Argument::ConnectOptions(ref conn_opts) => conn_opts.serialize(w)?,
 
-            Argument::Error(ref vec) => for server_error in vec {
-                server_error.serialize(w)?;
-            },
             Argument::FetchSize(fs) => {
                 w.write_u32::<LittleEndian>(fs)?;
             }
@@ -233,9 +230,9 @@ impl Argument {
         no_of_args: i32,
         arg_size: i32,
         parts: &mut Parts,
-        o_conn_ref: Option<&ConnCoreRef>,
-        rs_md: Option<&ResultSetMetadata>,
-        par_md: Option<&Vec<ParameterDescriptor>>,
+        o_am_conn_core: Option<&AmConnCore>,
+        o_rs_md: Option<&ResultSetMetadata>,
+        o_par_md: Option<&Vec<ParameterDescriptor>>,
         o_rs: &mut Option<&mut ResultSet>,
         rdr: &mut io::BufRead,
     ) -> PrtResult<Argument> {
@@ -272,24 +269,26 @@ impl Argument {
                 }
                 Argument::Error(vec)
             }
-            PartKind::OutputParameters => if let Some(par_md) = par_md {
-                Argument::OutputParameters(OutputParametersFactory::parse(o_conn_ref, par_md, rdr)?)
+            PartKind::OutputParameters => if let Some(par_md) = o_par_md {
+                Argument::OutputParameters(OutputParametersFactory::parse(
+                    o_am_conn_core,
+                    par_md,
+                    rdr,
+                )?)
             } else {
                 return Err(prot_err("Cannot parse output parameters without metadata"));
             },
             PartKind::ParameterMetadata => Argument::ParameterMetadata(
                 ParameterDescriptorFactory::parse(no_of_args, arg_size as u32, rdr)?,
             ),
-            PartKind::ReadLobReply => {
-                Argument::ReadLobReply(ReadLobReply::parse(rdr)?)
-            }
+            PartKind::ReadLobReply => Argument::ReadLobReply(ReadLobReply::parse(rdr)?),
             PartKind::ResultSet => {
                 let rs = ResultSetFactory::parse(
                     no_of_args,
                     attributes,
                     parts,
-                    o_conn_ref,
-                    rs_md,
+                    o_am_conn_core.ok_or(prot_err("ResultSet parsing requires a conn_core"))?,
+                    o_rs_md,
                     o_rs,
                     rdr,
                 )?;

@@ -4,8 +4,8 @@
 //! to simplify the data exchange between application code
 //! and the driver, both for input parameters to prepared statements
 //! and for results that are returned from the database.
-//! There is no need to iterate over a resultset by rows and columns!
-//!
+//! There is no need to iterate over a resultset by rows and columns, just assign query results
+//! directly to rust structures that fit the data semantics.
 //! This approach allows, in contrast to many ORM mapping variants, using
 //! the full flexibility of SQL (projection lists, all kinds of joins, unions, etc, etc).
 //! Whatever query you need, you just use it, and whatever result structure you need,
@@ -67,13 +67,12 @@ pub use hdb_response::HdbResponse;
 pub use protocol::lowlevel::parts::output_parameters::OutputParameters;
 pub use protocol::lowlevel::parts::resultset::ResultSet;
 pub use protocol::lowlevel::parts::row::Row;
+pub use protocol::lowlevel::parts::server_error::{ServerError, Severity};
 pub use hdb_error::{HdbError, HdbResult};
 
 pub use protocol::lowlevel::parts::parameter_descriptor::{ParameterBinding, ParameterDescriptor,
                                                           ParameterDirection};
 pub use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
-
-pub use protocol::lowlevel::parts::resultset::factory::new_for_tests as new_resultset_for_tests;
 
 /// Constants for the IDs of the data types being used by HANA.
 pub mod type_id {

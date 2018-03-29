@@ -1,3 +1,4 @@
+use protocol::lowlevel::parts::server_error::ServerError;
 use {HdbError, HdbResponse, HdbResult};
 use connect_params::ConnectParams;
 
@@ -10,8 +11,7 @@ use protocol::lowlevel::message::Request;
 use protocol::lowlevel::request_type::RequestType;
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::partkind::PartKind;
-use protocol::lowlevel::conn_core::{ConnCoreRef, ConnectionCore};
-use protocol::lowlevel::init;
+use protocol::lowlevel::conn_core::{AmConnCore, ConnectionCore};
 use protocol::lowlevel::parts::resultset::ResultSet;
 use xa_impl::new_resource_manager;
 
@@ -21,8 +21,6 @@ use std::error::Error;
 use std::net::TcpStream;
 use std::fmt::Write;
 use std::sync::Arc;
-
-const HOLD_OVER_COMMIT: u8 = 8;
 
 /// Connection object.
 ///
@@ -38,10 +36,7 @@ const HOLD_OVER_COMMIT: u8 = 8;
 #[derive(Debug)]
 pub struct Connection {
     params: ConnectParams,
-    major_product_version: i8,
-    minor_product_version: i16,
-    command_options: u8,
-    core: ConnCoreRef,
+    am_conn_core: AmConnCore,
 }
 impl Connection {
     /// Factory method for authenticated connections.
@@ -53,44 +48,33 @@ impl Connection {
         write!(connect_string, "{}:{}", params.hostname(), params.port())?;
 
         trace!("Connecting to \"{}\"", connect_string);
-        let mut tcp_stream = TcpStream::connect(&connect_string as &str)?;
+        let tcp_stream = TcpStream::connect(&connect_string as &str)?;
         trace!("tcp_stream is open");
 
-        let (major, minor) = init::send_and_receive(&mut tcp_stream)?;
-
-        let conn_ref = ConnectionCore::new_ref(tcp_stream);
-        let delta = match (Local::now().signed_duration_since(start)).num_microseconds() {
-            Some(m) => m,
-            None => -1,
-        };
+        let mut am_conn_core = ConnectionCore::initialize(tcp_stream)?;
         debug!(
             "connection to {} is initialized ({} µs)",
-            connect_string, delta
+            connect_string,
+            Local::now()
+                .signed_duration_since(start)
+                .num_microseconds()
+                .unwrap_or(-1)
         );
 
-        let mut conn = Connection {
-            params: params,
-            major_product_version: major,
-            minor_product_version: minor,
-            command_options: HOLD_OVER_COMMIT,
-            core: conn_ref,
-        };
+        authenticate::user_pw(&mut (am_conn_core), params.dbuser(), params.password())?;
 
-        authenticate::user_pw(
-            &mut (conn.core),
-            conn.params.dbuser(),
-            conn.params.password(),
-        )?;
-        let delta = match (Local::now().signed_duration_since(start)).num_microseconds() {
-            Some(m) => m,
-            None => -1,
-        };
         debug!(
             "user \"{}\" successfully logged on ({} µs)",
-            conn.params.dbuser(),
-            delta
+            params.dbuser(),
+            Local::now()
+                .signed_duration_since(start)
+                .num_microseconds()
+                .unwrap_or(-1)
         );
-        Ok(conn)
+        Ok(Connection {
+            params,
+            am_conn_core: am_conn_core,
+        })
     }
 
     /// Returns the DB which was used to authenticate at HANA.
@@ -99,37 +83,41 @@ impl Connection {
     }
 
     /// Returns the HANA's product version info.
-    pub fn get_major_and_minor_product_version(&self) -> (i8, i16) {
-        (self.major_product_version, self.minor_product_version)
+    pub fn get_major_and_minor_product_version(&self) -> HdbResult<(i8, i16)> {
+        Ok(self.am_conn_core
+            .lock()?
+            .get_major_and_minor_product_version())
     }
 
     /// Sets the connection's auto-commit behavior for future calls.
     pub fn set_auto_commit(&mut self, ac: bool) -> HdbResult<()> {
-        Ok(self.core.lock()?.set_auto_commit(ac))
+        Ok(self.am_conn_core.lock()?.set_auto_commit(ac))
     }
 
     /// Returns the connection's auto-commit behavior.
     pub fn is_auto_commit(&self) -> HdbResult<bool> {
-        Ok(self.core.lock()?.is_auto_commit())
+        Ok(self.am_conn_core.lock()?.is_auto_commit())
     }
 
     /// Configures the connection's fetch size for future calls.
     pub fn set_fetch_size(&mut self, fetch_size: u32) -> HdbResult<()> {
-        Ok(self.core.lock()?.set_fetch_size(fetch_size))
+        Ok(self.am_conn_core.lock()?.set_fetch_size(fetch_size))
     }
     /// Configures the connection's lob read length for future calls.
     pub fn get_lob_read_length(&self) -> HdbResult<i32> {
-        Ok(self.core.lock()?.get_lob_read_length())
+        Ok(self.am_conn_core.lock()?.get_lob_read_length())
     }
     /// Configures the connection's lob read length for future calls.
     pub fn set_lob_read_length(&mut self, lob_read_length: i32) -> HdbResult<()> {
-        Ok(self.core.lock()?.set_lob_read_length(lob_read_length))
+        Ok(self.am_conn_core
+            .lock()?
+            .set_lob_read_length(lob_read_length))
     }
 
     /// Returns the number of roundtrips to the database that
     /// have been done through this connection.
     pub fn get_call_count(&self) -> HdbResult<i32> {
-        Ok(self.core.lock()?.last_seq_number())
+        Ok(self.am_conn_core.lock()?.last_seq_number())
     }
 
     /// Executes a statement on the database.
@@ -140,7 +128,7 @@ impl Connection {
     /// one of the methods query(), dml(), exec(), which have the
     /// adequate simple result type you usually want.
     pub fn statement(&mut self, stmt: &str) -> HdbResult<HdbResponse> {
-        execute(&mut self.core, String::from(stmt))
+        execute(&mut self.am_conn_core, String::from(stmt))
     }
 
     /// Executes a statement and expects a single ResultSet.
@@ -166,7 +154,7 @@ impl Connection {
     /// Note that the handle keeps using the same connection.
     pub fn prepare(&self, stmt: &str) -> HdbResult<PreparedStatement> {
         Ok(PreparedStatementFactory::prepare(
-            Arc::clone(&self.core),
+            Arc::clone(&self.am_conn_core),
             String::from(stmt),
         )?)
     }
@@ -185,12 +173,11 @@ impl Connection {
     /// authentication.
     pub fn spawn(&self) -> HdbResult<Connection> {
         let mut other_conn = Connection::new(self.params.clone())?;
-        other_conn.command_options = self.command_options;
         {
-            let core = self.core.lock()?;
-            other_conn.set_auto_commit(core.is_auto_commit())?;
-            other_conn.set_fetch_size(core.get_fetch_size())?;
-            other_conn.set_lob_read_length(core.get_lob_read_length())?;
+            let am_conn_core = self.am_conn_core.lock()?;
+            other_conn.set_auto_commit(am_conn_core.is_auto_commit())?;
+            other_conn.set_fetch_size(am_conn_core.get_fetch_size())?;
+            other_conn.set_lob_read_length(am_conn_core.get_lob_read_length())?;
         }
         Ok(other_conn)
     }
@@ -217,22 +204,28 @@ impl Connection {
         Ok(())
     }
 
+    /// Returns warnings that were returned from the server since the last call to this
+    /// method.
+    pub fn pop_warnings(&self) -> HdbResult<Option<Vec<ServerError>>> {
+        self.am_conn_core.lock()?.pop_warnings()
+    }
+
     /// Returns an implementation of `dist_tx::rm::ResourceManager` that is based on this
     /// connection.
     pub fn get_resource_manager(&self) -> Box<ResourceManager> {
-        Box::new(new_resource_manager(Arc::clone(&self.core)))
+        Box::new(new_resource_manager(Arc::clone(&self.am_conn_core)))
     }
 }
 
-fn execute(conn_ref: &mut ConnCoreRef, stmt: String) -> HdbResult<HdbResponse> {
+fn execute(am_conn_core: &mut AmConnCore, stmt: String) -> HdbResult<HdbResponse> {
     debug!("connection::execute({})", stmt);
     let command_options = 0b_1000;
-    let fetch_size: u32 = { conn_ref.lock()?.get_fetch_size() };
+    let fetch_size: u32 = { am_conn_core.lock()?.get_fetch_size() };
     let mut request = Request::new(RequestType::ExecuteDirect, command_options);
     request.push(Part::new(
         PartKind::FetchSize,
         Argument::FetchSize(fetch_size),
     ));
     request.push(Part::new(PartKind::Command, Argument::Command(stmt)));
-    request.send_and_get_response(None, None, conn_ref, None)
+    request.send_and_get_response(None, None, am_conn_core, None)
 }

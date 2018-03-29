@@ -96,7 +96,8 @@ pub enum TypedValue {
     BLOB(BLOB),
     /// BOOLEAN stores boolean values, which are TRUE or FALSE.
     BOOLEAN(bool),
-    /// The DB returns all Strings as type STRING, independent of the concrete column type.
+    /// The DB returns all Strings as type STRING, independent of the concrete
+    /// column type.
     STRING(String),
     /// Likely not used?
     NSTRING(String),
@@ -213,7 +214,8 @@ impl TypedValue {
         Ok(is_null)
     }
 
-    /// hdb protocol uses ids < 128 for non-null values, and ids > 128 for null values
+    /// hdb protocol uses ids < 128 for non-null values, and ids > 128 for null
+    /// values
     fn type_id(&self) -> u8 {
         match *self {
             TypedValue::NOTHING => type_id::NOTHING,
@@ -388,92 +390,90 @@ pub fn serialize(tv: &TypedValue, data_pos: &mut i32, w: &mut io::Write) -> PrtR
 
 // is used to calculate the argument size (in serialize)
 pub fn size(tv: &TypedValue) -> PrtResult<usize> {
-    Ok(
-        1 + match *tv {
-            TypedValue::NOTHING => {
-                return Err(PrtError::ProtocolError(
-                    "Can't send TypedValue::NOTHING to Database".to_string(),
-                ))
-            }
-            TypedValue::BOOLEAN(_)
-            | TypedValue::N_BOOLEAN(Some(_))
-            | TypedValue::TINYINT(_)
-            | TypedValue::N_TINYINT(Some(_)) => 1,
+    Ok(1 + match *tv {
+        TypedValue::NOTHING => {
+            return Err(PrtError::ProtocolError(
+                "Can't send TypedValue::NOTHING to Database".to_string(),
+            ))
+        }
+        TypedValue::BOOLEAN(_)
+        | TypedValue::N_BOOLEAN(Some(_))
+        | TypedValue::TINYINT(_)
+        | TypedValue::N_TINYINT(Some(_)) => 1,
 
-            TypedValue::SMALLINT(_) | TypedValue::N_SMALLINT(Some(_)) => 2,
+        TypedValue::SMALLINT(_) | TypedValue::N_SMALLINT(Some(_)) => 2,
 
-            TypedValue::DECIMAL(_) | TypedValue::N_DECIMAL(Some(_)) => 16,
+        TypedValue::DECIMAL(_) | TypedValue::N_DECIMAL(Some(_)) => 16,
 
-            TypedValue::INT(_)
-            | TypedValue::N_INT(Some(_))
-            | TypedValue::REAL(_)
-            | TypedValue::N_REAL(Some(_)) => 4,
+        TypedValue::INT(_)
+        | TypedValue::N_INT(Some(_))
+        | TypedValue::REAL(_)
+        | TypedValue::N_REAL(Some(_)) => 4,
 
-            TypedValue::BIGINT(_)
-            | TypedValue::N_BIGINT(Some(_))
-            | TypedValue::DOUBLE(_)
-            | TypedValue::N_DOUBLE(Some(_))
-            | TypedValue::LONGDATE(_)
-            | TypedValue::N_LONGDATE(Some(_)) => 8,
+        TypedValue::BIGINT(_)
+        | TypedValue::N_BIGINT(Some(_))
+        | TypedValue::DOUBLE(_)
+        | TypedValue::N_DOUBLE(Some(_))
+        | TypedValue::LONGDATE(_)
+        | TypedValue::N_LONGDATE(Some(_)) => 8,
 
-            TypedValue::CLOB(ref clob)
-            | TypedValue::N_CLOB(Some(ref clob))
-            | TypedValue::NCLOB(ref clob)
-            | TypedValue::N_NCLOB(Some(ref clob)) => 9 + clob.len()?,
+        TypedValue::CLOB(ref clob)
+        | TypedValue::N_CLOB(Some(ref clob))
+        | TypedValue::NCLOB(ref clob)
+        | TypedValue::N_NCLOB(Some(ref clob)) => 9 + clob.len()?,
 
-            TypedValue::BLOB(ref blob) | TypedValue::N_BLOB(Some(ref blob)) => 9 + blob.len()?,
+        TypedValue::BLOB(ref blob) | TypedValue::N_BLOB(Some(ref blob)) => 9 + blob.len()?,
 
-            TypedValue::STRING(ref s)
-            | TypedValue::N_STRING(Some(ref s))
-            | TypedValue::NSTRING(ref s)
-            | TypedValue::N_NSTRING(Some(ref s))
-            | TypedValue::TEXT(ref s)
-            | TypedValue::N_TEXT(Some(ref s))
-            | TypedValue::SHORTTEXT(ref s)
-            | TypedValue::N_SHORTTEXT(Some(ref s)) => string_length(s),
+        TypedValue::STRING(ref s)
+        | TypedValue::N_STRING(Some(ref s))
+        | TypedValue::NSTRING(ref s)
+        | TypedValue::N_NSTRING(Some(ref s))
+        | TypedValue::TEXT(ref s)
+        | TypedValue::N_TEXT(Some(ref s))
+        | TypedValue::SHORTTEXT(ref s)
+        | TypedValue::N_SHORTTEXT(Some(ref s)) => string_length(s),
 
-            TypedValue::BINARY(ref v)
-            | TypedValue::N_BINARY(Some(ref v))
-            | TypedValue::VARBINARY(ref v)
-            | TypedValue::N_VARBINARY(Some(ref v))
-            | TypedValue::BSTRING(ref v)
-            | TypedValue::N_BSTRING(Some(ref v)) => v.len() + 2,
+        TypedValue::BINARY(ref v)
+        | TypedValue::N_BINARY(Some(ref v))
+        | TypedValue::VARBINARY(ref v)
+        | TypedValue::N_VARBINARY(Some(ref v))
+        | TypedValue::BSTRING(ref v)
+        | TypedValue::N_BSTRING(Some(ref v)) => v.len() + 2,
 
-            TypedValue::N_TINYINT(None)
-            | TypedValue::N_SMALLINT(None)
-            | TypedValue::N_INT(None)
-            | TypedValue::N_BIGINT(None)
-            | TypedValue::N_DECIMAL(None)
-            | TypedValue::N_REAL(None)
-            | TypedValue::N_DOUBLE(None)
-            | TypedValue::N_BOOLEAN(None)
-            | TypedValue::N_LONGDATE(None)
-            | TypedValue::N_CLOB(None)
-            | TypedValue::N_NCLOB(None)
-            | TypedValue::N_BLOB(None)
-            | TypedValue::N_BINARY(None)
-            | TypedValue::N_VARBINARY(None)
-            | TypedValue::N_BSTRING(None)
-            | TypedValue::N_STRING(None)
-            | TypedValue::N_NSTRING(None)
-            | TypedValue::N_TEXT(None)
-            | TypedValue::N_SHORTTEXT(None) => 0,
+        TypedValue::N_TINYINT(None)
+        | TypedValue::N_SMALLINT(None)
+        | TypedValue::N_INT(None)
+        | TypedValue::N_BIGINT(None)
+        | TypedValue::N_DECIMAL(None)
+        | TypedValue::N_REAL(None)
+        | TypedValue::N_DOUBLE(None)
+        | TypedValue::N_BOOLEAN(None)
+        | TypedValue::N_LONGDATE(None)
+        | TypedValue::N_CLOB(None)
+        | TypedValue::N_NCLOB(None)
+        | TypedValue::N_BLOB(None)
+        | TypedValue::N_BINARY(None)
+        | TypedValue::N_VARBINARY(None)
+        | TypedValue::N_BSTRING(None)
+        | TypedValue::N_STRING(None)
+        | TypedValue::N_NSTRING(None)
+        | TypedValue::N_TEXT(None)
+        | TypedValue::N_SHORTTEXT(None) => 0,
 
-            TypedValue::CHAR(_)
-            | TypedValue::VARCHAR(_)
-            | TypedValue::NCHAR(_)
-            | TypedValue::NVARCHAR(_)
-            | TypedValue::N_CHAR(_)
-            | TypedValue::N_VARCHAR(_)
-            | TypedValue::N_NCHAR(_)
-            | TypedValue::N_NVARCHAR(_) => {
-                return Err(PrtError::ProtocolError(format!(
-                    "TypedValue::size() not implemented for type code {}",
-                    tv.type_id()
-                )))
-            }
-        },
-    )
+        TypedValue::CHAR(_)
+        | TypedValue::VARCHAR(_)
+        | TypedValue::NCHAR(_)
+        | TypedValue::NVARCHAR(_)
+        | TypedValue::N_CHAR(_)
+        | TypedValue::N_VARCHAR(_)
+        | TypedValue::N_NCHAR(_)
+        | TypedValue::N_NVARCHAR(_) => {
+            return Err(PrtError::ProtocolError(format!(
+                "TypedValue::size() not implemented for type code {}",
+                tv.type_id()
+            )))
+        }
+    })
 }
 
 pub fn string_length(s: &str) -> usize {
@@ -608,7 +608,7 @@ pub mod factory {
     use super::super::{prot_err, util, PrtError, PrtResult};
     use super::super::lob::*;
     use super::super::longdate::LongDate;
-    use protocol::lowlevel::conn_core::ConnCoreRef;
+    use protocol::lowlevel::conn_core::AmConnCore;
     use byteorder::{LittleEndian, ReadBytesExt};
     use std::io;
     use std::iter::repeat;
@@ -617,13 +617,14 @@ pub mod factory {
     pub fn parse_from_reply(
         p_typecode: u8,
         nullable: bool,
-        conn_ref: &ConnCoreRef,
+        am_conn_core: &AmConnCore,
         rdr: &mut io::BufRead,
     ) -> PrtResult<TypedValue> {
         // here p_typecode is always < 127
         // the flag nullable from the metadata governs our behavior:
-        // if it is true, we return types with typecode above 128, which use Option<type>,
-        // if it is false, we return types with the original typecode, which use plain values
+        // if it is true, we return types with typecode above 128, which use
+        // Option<type>, if it is false, we return types with the original
+        // typecode, which use plain values
         let typecode = p_typecode + if nullable { 128 } else { 0 };
         match typecode {
             1 => Ok(TypedValue::TINYINT({
@@ -653,9 +654,9 @@ pub mod factory {
             13 => Ok(TypedValue::VARBINARY(parse_binary(rdr)?)),
             // 16 => Ok(TypedValue::TIMESTAMP(
             // FIXME improve error handling:
-            25 => Ok(TypedValue::CLOB(parse_clob(conn_ref, rdr)?)),
-            26 => Ok(TypedValue::NCLOB(parse_clob(conn_ref, rdr)?)),
-            27 => Ok(TypedValue::BLOB(parse_blob(conn_ref, rdr)?)),
+            25 => Ok(TypedValue::CLOB(parse_clob(am_conn_core, rdr)?)),
+            26 => Ok(TypedValue::NCLOB(parse_clob(am_conn_core, rdr)?)),
+            27 => Ok(TypedValue::BLOB(parse_blob(am_conn_core, rdr)?)),
             28 => Ok(TypedValue::BOOLEAN(rdr.read_u8()? > 0)),
             29 => Ok(TypedValue::STRING(parse_string(rdr)?)),
             30 => Ok(TypedValue::NSTRING(parse_string(rdr)?)),
@@ -698,11 +699,12 @@ pub mod factory {
             140 => Ok(TypedValue::N_BINARY(parse_nullable_binary(rdr)?)),
             141 => Ok(TypedValue::N_VARBINARY(parse_nullable_binary(rdr)?)),
             // 144 => Ok(TypedValue::N_TIMESTAMP(
-            153 => Ok(TypedValue::N_CLOB(parse_nullable_clob(conn_ref, rdr)?)),
-            154 => Ok(TypedValue::N_NCLOB(parse_nullable_clob(conn_ref, rdr)?)),
-            155 => Ok(TypedValue::N_BLOB(
-                parse_nullable_blob_from_reply(conn_ref, rdr)?,
-            )),
+            153 => Ok(TypedValue::N_CLOB(parse_nullable_clob(am_conn_core, rdr)?)),
+            154 => Ok(TypedValue::N_NCLOB(parse_nullable_clob(am_conn_core, rdr)?)),
+            155 => Ok(TypedValue::N_BLOB(parse_nullable_blob_from_reply(
+                am_conn_core,
+                rdr,
+            )?)),
             156 => Ok(TypedValue::N_BOOLEAN(if ind_null(rdr)? {
                 None
             } else {
@@ -725,7 +727,8 @@ pub mod factory {
         }
     }
 
-    // reads the nullindicator and returns Ok(true) if it has value 0 or Ok(false) otherwise
+    // reads the nullindicator and returns Ok(true) if it has value 0 or Ok(false)
+    // otherwise
     fn ind_null(rdr: &mut io::BufRead) -> PrtResult<bool> {
         Ok(rdr.read_u8()? == 0)
     }
@@ -795,7 +798,8 @@ pub mod factory {
         }
     }
 
-    // ----- STRINGS and BINARIES ----------------------------------------------------------------
+    // ----- STRINGS and BINARIES
+    // ----------------------------------------------------------------
     pub fn parse_string(rdr: &mut io::BufRead) -> PrtResult<String> {
         match util::cesu8_to_string(&parse_binary(rdr)?) {
             Ok(s) => Ok(s),
@@ -813,9 +817,10 @@ pub mod factory {
             super::LENGTH_INDICATOR_2BYTE => rdr.read_i16::<LittleEndian>()? as usize, // I2
             super::LENGTH_INDICATOR_4BYTE => rdr.read_i32::<LittleEndian>()? as usize, // I4
             l => {
-                return Err(PrtError::ProtocolError(
-                    format!("Invalid value in length indicator: {}", l),
-                ));
+                return Err(PrtError::ProtocolError(format!(
+                    "Invalid value in length indicator: {}",
+                    l
+                )));
             }
         };
         util::parse_bytes(len, rdr) // B (varying)
@@ -841,9 +846,10 @@ pub mod factory {
             super::LENGTH_INDICATOR_4BYTE => rdr.read_i32::<LittleEndian>()? as usize, // I4
             super::LENGTH_INDICATOR_NULL => return Ok(None),
             l => {
-                return Err(PrtError::ProtocolError(
-                    format!("Invalid value in length indicator: {}", l),
-                ))
+                return Err(PrtError::ProtocolError(format!(
+                    "Invalid value in length indicator: {}",
+                    l
+                )))
             }
         };
         Ok(Some(util::parse_bytes(len, rdr)?)) // B (varying)
@@ -852,15 +858,15 @@ pub mod factory {
     // ----- BLOBS and CLOBS
     // ===
     // regular parse
-    pub fn parse_blob(conn_ref: &ConnCoreRef, rdr: &mut io::BufRead) -> PrtResult<BLOB> {
-        match parse_nullable_blob_from_reply(conn_ref, rdr)? {
+    pub fn parse_blob(am_conn_core: &AmConnCore, rdr: &mut io::BufRead) -> PrtResult<BLOB> {
+        match parse_nullable_blob_from_reply(am_conn_core, rdr)? {
             Some(blob) => Ok(blob),
             None => Err(prot_err("Null value found for non-null blob column")),
         }
     }
 
     pub fn parse_nullable_blob_from_reply(
-        conn_ref: &ConnCoreRef,
+        am_conn_core: &AmConnCore,
         rdr: &mut io::BufRead,
     ) -> PrtResult<Option<BLOB>> {
         let (is_null, is_last_data) = parse_lob_1(rdr)?;
@@ -869,7 +875,7 @@ pub mod factory {
         } else {
             let (_, length_b, locator_id, data) = parse_lob_2(rdr)?;
             Ok(Some(new_blob_from_db(
-                conn_ref,
+                am_conn_core,
                 is_last_data,
                 length_b,
                 locator_id,
@@ -878,15 +884,15 @@ pub mod factory {
         }
     }
 
-    pub fn parse_clob(conn_ref: &ConnCoreRef, rdr: &mut io::BufRead) -> PrtResult<CLOB> {
-        match parse_nullable_clob(conn_ref, rdr)? {
+    pub fn parse_clob(am_conn_core: &AmConnCore, rdr: &mut io::BufRead) -> PrtResult<CLOB> {
+        match parse_nullable_clob(am_conn_core, rdr)? {
             Some(clob) => Ok(clob),
             None => Err(prot_err("Null value found for non-null clob column")),
         }
     }
 
     pub fn parse_nullable_clob(
-        conn_ref: &ConnCoreRef,
+        am_conn_core: &AmConnCore,
         rdr: &mut io::BufRead,
     ) -> PrtResult<Option<CLOB>> {
         let (is_null, is_last_data) = parse_lob_1(rdr)?;
@@ -895,7 +901,7 @@ pub mod factory {
         } else {
             let (length_c, length_b, locator_id, data) = parse_lob_2(rdr)?;
             Ok(Some(new_clob_from_db(
-                conn_ref,
+                am_conn_core,
                 is_last_data,
                 length_c,
                 length_b,
@@ -924,7 +930,8 @@ pub mod factory {
         Ok((length_c, length_b, locator_id, data))
     }
 
-    // -----  LongDates --------------------------------------------------------------------------
+    // -----  LongDates
+    // --------------------------------------------------------------------------
     // SECONDDATE_NULL_REPRESENTATION:
     const LONGDATE_NULL_REPRESENTATION: i64 = 3_155_380_704_000_000_001_i64;
     fn parse_longdate(rdr: &mut io::BufRead) -> PrtResult<LongDate> {
