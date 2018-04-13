@@ -41,14 +41,12 @@ impl HdbResponse {
     /// Turns itself into a single return value, if there is one any only one.
     pub fn into_single_retval(mut self) -> HdbResult<HdbReturnValue> {
         if self.0.len() > 1 {
-            Err(HdbError::EvaluationError(
+            Err(HdbError::Evaluation(
                 "Not a single HdbReturnValue".to_string(),
             ))
         } else {
             self.0.pop().ok_or_else(|| {
-                HdbError::EvaluationError(
-                    "expected a single HdbReturnValue, found none".to_string(),
-                )
+                HdbError::Evaluation("expected a single HdbReturnValue, found none".to_string())
             })
         }
     }
@@ -86,7 +84,8 @@ impl HdbResponse {
         None
     }
 
-    /// Returns the next set of affected rows counters, or an error if there is none.
+    /// Returns the next set of affected rows counters, or an error if there is
+    /// none.
     pub fn get_affected_rows(&mut self) -> HdbResult<Vec<usize>> {
         if let Some(i) = self.find_affected_rows() {
             return self.0.remove(i).into_affected_rows();
@@ -133,7 +132,7 @@ impl HdbResponse {
             });
         }
         errmsg.push_str("]");
-        HdbError::EvaluationError(errmsg)
+        HdbError::Evaluation(errmsg)
     }
 }
 
@@ -164,19 +163,19 @@ pub mod factory {
 
     pub fn resultset(mut int_return_values: Vec<InternalReturnValue>) -> HdbResult<HdbResponse> {
         if int_return_values.len() > 1 {
-            return Err(HdbError::InternalEvaluationError(
-                "Only a single ResultSet was expected",
+            return Err(HdbError::Impl(
+                "Only a single ResultSet was expected".to_owned(),
             ));
         }
         match int_return_values.pop() {
             Some(InternalReturnValue::ResultSet(rs)) => {
                 Ok(HdbResponse(vec![HdbReturnValue::ResultSet(rs)]))
             }
-            None => Err(HdbError::InternalEvaluationError(
-                "Nothing found, but a single Resultset was expected",
+            None => Err(HdbError::Impl(
+                "Nothing found, but a single Resultset was expected".to_owned(),
             )),
-            _ => Err(HdbError::InternalEvaluationError(
-                "Wrong HdbReturnValue, a single Resultset was expected",
+            _ => Err(HdbError::Impl(
+                "Wrong HdbReturnValue, a single Resultset was expected".to_owned(),
             )),
         }
     }
@@ -185,8 +184,8 @@ pub mod factory {
         mut int_return_values: Vec<InternalReturnValue>,
     ) -> HdbResult<HdbResponse> {
         if int_return_values.len() > 1 {
-            return Err(HdbError::InternalEvaluationError(
-                "Only a single AffectedRows was expected",
+            return Err(HdbError::Impl(
+                "Only a single AffectedRows was expected".to_owned(),
             ));
         }
         match int_return_values.pop() {
@@ -197,24 +196,22 @@ pub mod factory {
                         RowsAffected::Count(i) => vec_i.push(i),
                         RowsAffected::SuccessNoInfo => vec_i.push(0),
                         RowsAffected::ExecutionFailed => {
-                            return Err(HdbError::InternalEvaluationError(
-                                "Found unexpected returnvalue ExecutionFailed",
+                            return Err(HdbError::Impl(
+                                "Found unexpected returnvalue ExecutionFailed".to_owned(),
                             ));
                         }
                     }
                 }
                 Ok(HdbResponse(vec![HdbReturnValue::AffectedRows(vec_i)]))
             }
-            Some(InternalReturnValue::OutputParameters(_)) => {
-                Err(HdbError::InternalEvaluationError(
-                    "Found OutputParameters, but a single AffectedRows was expected",
-                ))
-            }
-            Some(InternalReturnValue::ResultSet(_)) => Err(HdbError::InternalEvaluationError(
-                "Found ResultSet, but a single AffectedRows was expected",
+            Some(InternalReturnValue::OutputParameters(_)) => Err(HdbError::Impl(
+                "Found OutputParameters, but a single AffectedRows was expected".to_owned(),
             )),
-            None => Err(HdbError::InternalEvaluationError(
-                "Nothing found, but a single AffectedRows was expected",
+            Some(InternalReturnValue::ResultSet(_)) => Err(HdbError::Impl(
+                "Found ResultSet, but a single AffectedRows was expected".to_owned(),
+            )),
+            None => Err(HdbError::Impl(
+                "Nothing found, but a single AffectedRows was expected".to_owned(),
             )),
         }
     }
@@ -223,43 +220,44 @@ pub mod factory {
         if int_return_values.is_empty() {
             return Ok(HdbResponse(vec![HdbReturnValue::Success]));
         } else if int_return_values.len() > 1 {
-            return Err(HdbError::InternalEvaluationError(
-                "found multiple InternalReturnValues, but only a single Success was expected",
+            return Err(HdbError::Impl(
+                "found multiple InternalReturnValues, but only a single Success was expected"
+                    .to_owned(),
             ));
         }
         match int_return_values.pop() {
             Some(InternalReturnValue::AffectedRows(mut vec_ra)) => {
                 if vec_ra.len() != 1 {
-                    return Err(HdbError::InternalEvaluationError(
+                    return Err(HdbError::Impl(
                         "found no or multiple affected-row-counts, but only a single Success was \
-                         expected",
+                         expected"
+                            .to_owned(),
                     ));
                 }
                 match vec_ra.pop().unwrap() {
                     RowsAffected::Count(i) => if i > 0 {
-                        Err(HdbError::InternalEvaluationError(
+                        Err(HdbError::Impl(
                             "found an affected-row-count > 0, but only a single Success was \
-                             expected",
+                             expected"
+                                .to_owned(),
                         ))
                     } else {
                         Ok(HdbResponse(vec![HdbReturnValue::Success]))
                     },
                     RowsAffected::SuccessNoInfo => Ok(HdbResponse(vec![HdbReturnValue::Success])),
-                    RowsAffected::ExecutionFailed => Err(HdbError::InternalEvaluationError(
-                        "Found unexpected returnvalue ExecutionFailed",
+                    RowsAffected::ExecutionFailed => Err(HdbError::Impl(
+                        "Found unexpected returnvalue ExecutionFailed".to_owned(),
                     )),
                 }
             }
-            Some(InternalReturnValue::OutputParameters(_)) => {
-                Err(HdbError::InternalEvaluationError(
-                    "Found OutputParameters, but a single Success was expected",
-                ))
-            }
-            Some(InternalReturnValue::ResultSet(_)) => Err(HdbError::InternalEvaluationError(
-                "Found ResultSet, but a single Success was expected",
+            Some(InternalReturnValue::OutputParameters(_)) => Err(HdbError::Impl(
+                "Found OutputParameters, but a single Success was expected".to_owned(),
             )),
-            None => Err(HdbError::InternalEvaluationError(
-                "Nothing found, but a single Success was expected",
+            Some(InternalReturnValue::ResultSet(_)) => Err(HdbError::Impl(
+                "Found ResultSet, but a single Success was expected".to_owned(),
+            )),
+            None => Err(HdbError::Impl(
+                "Nothing found, but a single Success was expected".to_owned(),
             )),
         }
     }
@@ -278,8 +276,8 @@ pub mod factory {
                             RowsAffected::Count(i) => vec_i.push(i),
                             RowsAffected::SuccessNoInfo => vec_i.push(0),
                             RowsAffected::ExecutionFailed => {
-                                return Err(HdbError::InternalEvaluationError(
-                                    "Found unexpected returnvalue 'ExecutionFailed'",
+                                return Err(HdbError::Impl(
+                                    "Found unexpected returnvalue 'ExecutionFailed'".to_owned(),
                                 ));
                             }
                         }

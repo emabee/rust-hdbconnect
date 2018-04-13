@@ -42,10 +42,10 @@ impl Url {
         fragment: Option<String>,
     ) -> Url {
         Url {
-            scheme: scheme,
-            user: user,
-            host: host,
-            port: port,
+            scheme,
+            user,
+            host,
+            port,
             path: Path::new(path, query, fragment),
         }
     }
@@ -80,9 +80,9 @@ impl Url {
 impl Path {
     pub fn new(path: String, query: Query, fragment: Option<String>) -> Path {
         Path {
-            path: path,
-            query: query,
-            fragment: fragment,
+            path,
+            query,
+            fragment,
         }
     }
 
@@ -93,9 +93,9 @@ impl Path {
         let (query, fragment) = get_query_fragment(rest)?;
 
         Ok(Path {
-            path: path,
-            query: query,
-            fragment: fragment,
+            path,
+            query,
+            fragment,
         })
     }
 }
@@ -103,10 +103,7 @@ impl Path {
 impl UserInfo {
     #[inline]
     pub fn new(user: String, pass: Option<String>) -> UserInfo {
-        UserInfo {
-            user: user,
-            pass: pass,
-        }
+        UserInfo { user, pass }
     }
 }
 
@@ -355,14 +352,14 @@ fn get_authority(rawurl: &str) -> DecodeResult<(Option<UserInfo>, &str, Option<u
                 return Err("Non-digit characters in port.".to_owned());
             }
             host = &rawurl[begin..pos];
-            port = Some(&rawurl[pos + 1..end]);
+            port = Some(&rawurl[(pos + 1)..end]);
         }
         State::Ip6Host | State::InHost | State::Start => host = &rawurl[begin..end],
         State::InPort => {
             if input != Input::Digit {
                 return Err("Non-digit characters in port.".to_owned());
             }
-            port = Some(&rawurl[pos + 1..end]);
+            port = Some(&rawurl[(pos + 1)..end]);
         }
     }
 

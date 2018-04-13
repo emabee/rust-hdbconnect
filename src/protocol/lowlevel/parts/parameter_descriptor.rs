@@ -1,4 +1,4 @@
-use super::{prot_err, PrtResult};
+use {HdbError, HdbResult};
 
 /// Metadata for a parameter.
 #[derive(Clone, Debug)]
@@ -17,7 +17,8 @@ pub struct ParameterDescriptor {
     name: Option<String>,
 }
 impl ParameterDescriptor {
-    /// Describes whether a parameter can be NULL or not, or if it has a default value.
+    /// Describes whether a parameter can be NULL or not, or if it has a
+    /// default value.
     pub fn binding(&self) -> ParameterBinding {
         if self.parameter_option & 0b_0000_0001_u8 != 0 {
             ParameterBinding::Mandatory
@@ -87,11 +88,11 @@ pub fn parameter_descriptor_new(
     scale: u16,
 ) -> ParameterDescriptor {
     ParameterDescriptor {
-        parameter_option: parameter_option,
-        type_id: type_id,
-        direction: direction,
-        precision: precision,
-        scale: scale,
+        parameter_option,
+        type_id,
+        direction,
+        precision,
+        scale,
         name: None,
     }
 }
@@ -100,7 +101,8 @@ pub fn parameter_descriptor_set_name(pd: &mut ParameterDescriptor, name: String)
     pd.name = Some(name);
 }
 
-/// Describes whether a parameter is Nullable or not or if it has a default value.
+/// Describes whether a parameter is Nullable or not or if it has a default
+/// value.
 #[derive(Clone, Debug, PartialEq)]
 pub enum ParameterBinding {
     /// Parameter is nullable (can be set to NULL).
@@ -121,7 +123,7 @@ pub enum ParameterDirection {
     /// output parameter
     OUT,
 }
-pub fn parameter_direction_from_u8(v: u8) -> PrtResult<ParameterDirection> {
+pub fn parameter_direction_from_u8(v: u8) -> HdbResult<ParameterDirection> {
     // it's done with three bits where always exactly one is 1 and the others are 0;
     // the other bits are not used,
     // so we can avoid bit handling and do it the simple way
@@ -129,7 +131,7 @@ pub fn parameter_direction_from_u8(v: u8) -> PrtResult<ParameterDirection> {
         1 => Ok(ParameterDirection::IN),
         2 => Ok(ParameterDirection::INOUT),
         4 => Ok(ParameterDirection::OUT),
-        _ => Err(prot_err(&format!(
+        _ => Err(HdbError::impl_(&format!(
             "invalid value for ParameterDirection: {}",
             v
         ))),
@@ -139,7 +141,8 @@ pub fn parameter_direction_from_u8(v: u8) -> PrtResult<ParameterDirection> {
 pub mod factory {
     use super::{parameter_descriptor_new, parameter_descriptor_set_name, ParameterDescriptor,
                 parameter_direction_from_u8};
-    use protocol::lowlevel::{util, PrtResult};
+    use protocol::lowlevel::cesu8;
+    use HdbResult;
     use byteorder::{LittleEndian, ReadBytesExt};
     use std::io;
     use std::u32;
@@ -148,7 +151,7 @@ pub mod factory {
         count: i32,
         arg_size: u32,
         rdr: &mut io::BufRead,
-    ) -> PrtResult<Vec<ParameterDescriptor>> {
+    ) -> HdbResult<Vec<ParameterDescriptor>> {
         let mut consumed = 0;
         let mut vec_pd = Vec::<ParameterDescriptor>::new();
         let mut name_offsets = Vec::<u32>::new();
@@ -176,7 +179,7 @@ pub mod factory {
         for (mut descriptor, name_offset) in vec_pd.iter_mut().zip(name_offsets.iter()) {
             if name_offset != &u32::MAX {
                 let length = rdr.read_u8()?;
-                let name = util::cesu8_to_string(&util::parse_bytes(length as usize, rdr)?)?;
+                let name = cesu8::cesu8_to_string(&cesu8::parse_bytes(length as usize, rdr)?)?;
                 parameter_descriptor_set_name(&mut descriptor, name);
                 consumed += 1 + u32::from(length);
                 assert!(arg_size >= consumed);

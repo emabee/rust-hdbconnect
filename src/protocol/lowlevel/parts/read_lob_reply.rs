@@ -1,4 +1,5 @@
-use super::{util, PrtResult};
+use HdbResult;
+use protocol::lowlevel::cesu8;
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::io::BufRead;
@@ -19,17 +20,17 @@ impl ReadLobReply {
 }
 
 impl ReadLobReply {
-    pub fn parse(rdr: &mut BufRead) -> PrtResult<ReadLobReply> {
+    pub fn parse(rdr: &mut BufRead) -> HdbResult<ReadLobReply> {
         let locator_id = rdr.read_u64::<LittleEndian>()?; // I8
         let options = rdr.read_u8()?; // I1
         let is_last_data = (options & 0b_100_u8) != 0;
         let chunk_length = rdr.read_i32::<LittleEndian>()?; // I4
         rdr.consume(3); // B3 (filler)
-        let data = util::parse_bytes(chunk_length as usize, rdr)?; // B[chunk_length]
+        let data = cesu8::parse_bytes(chunk_length as usize, rdr)?; // B[chunk_length]
         Ok(ReadLobReply {
-            locator_id: locator_id,
-            is_last_data: is_last_data,
-            data: data,
+            locator_id,
+            is_last_data,
+            data,
         })
     }
 }

@@ -1,19 +1,10 @@
 use protocol::lowlevel::parts::option_part::OptionPart;
 use protocol::lowlevel::parts::option_part::OptionId;
-// use protocol::lowlevel::parts::option_value::OptionValue;
 
 use std::u8;
 
-// An Options part that is used for describing the connection's capabilities.
+// An Options part that provides source and line information.
 pub type CommandInfo = OptionPart<CommandInfoId>;
-
-impl CommandInfo {
-    // pub fn set_foo(mut self, b: bool) -> CommandInfo {
-    //     self.insert(CommandInfoId::Foo, OptionValue::BOOLEAN(b));
-    //     self
-    // }
-}
-
 
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub enum CommandInfoId {

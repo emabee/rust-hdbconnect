@@ -1,7 +1,7 @@
-use super::{PrtError, PrtResult};
+use {HdbError, HdbResult};
 
-// Here we list all those parts that are or should be implemented by this driver.
-// ABAP related stuff and "reserved" numbers is omitted.
+// Here we list all those parts that are or should be implemented by this
+// driver. ABAP related stuff and "reserved" numbers is omitted.
 #[derive(Debug, Clone, Copy)]
 pub enum PartKind {
     Command,               // 3 // SQL Command Data
@@ -87,7 +87,7 @@ impl PartKind {
         }
     }
 
-    pub fn from_i8(val: i8) -> PrtResult<PartKind> {
+    pub fn from_i8(val: i8) -> HdbResult<PartKind> {
         match val {
             3 => Ok(PartKind::Command),
             5 => Ok(PartKind::ResultSet),
@@ -128,9 +128,10 @@ impl PartKind {
             73 => Ok(PartKind::SQLReplyOptions),
             74 => Ok(PartKind::PrintOptions),
 
-            _ => Err(PrtError::ProtocolError(
-                format!("Invalid value for PartKind detected: {}", val),
-            )),
+            _ => Err(HdbError::Impl(format!(
+                "Invalid value for PartKind detected: {}",
+                val
+            ))),
         }
     }
 }

@@ -1,13 +1,12 @@
-use protocol::lowlevel::parts::server_error::ServerError;
-use hdb_error::HdbResult;
+use {HdbError, HdbResult};
 use protocol::lowlevel::initial_request;
 use protocol::lowlevel::message::{parse_message_and_sequence_header, Message, Request};
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::parts::connect_options::ConnectOptions;
+use protocol::lowlevel::parts::server_error::ServerError;
 use protocol::lowlevel::parts::topology_attribute::TopologyAttr;
 use protocol::lowlevel::parts::transactionflags::SessionState;
 use protocol::lowlevel::parts::transactionflags::TransactionFlags;
-use protocol::protocol_error::{prot_err, PrtResult};
 
 use std::sync::{Arc, Mutex};
 use std::io;
@@ -145,10 +144,10 @@ impl ConnectionCore {
         self.seq_number
     }
 
-    pub fn update_session_state(&mut self, ta_flags: &TransactionFlags) -> PrtResult<()> {
+    pub fn update_session_state(&mut self, ta_flags: &TransactionFlags) -> HdbResult<()> {
         ta_flags.update_session_state(&mut self.session_state);
         if self.session_state.dead {
-            Err(prot_err("SessionclosingTaError received"))
+            Err(HdbError::Impl("SessionclosingTaError received".to_owned()))
         } else {
             Ok(())
         }

@@ -63,17 +63,21 @@ fn evaluate_resultset(
 
     #[derive(Deserialize)]
     struct TestData {
-        #[serde(rename = "F1_S")] f1: String,
-        #[serde(rename = "F2_I")] f2: Option<i32>,
-        #[serde(rename = "F3_I")] f3: i32,
-        #[serde(rename = "F4_DT")] f4: NaiveDateTime,
+        #[serde(rename = "F1_S")]
+        f1: String,
+        #[serde(rename = "F2_I")]
+        f2: Option<i32>,
+        #[serde(rename = "F3_I")]
+        f3: i32,
+        #[serde(rename = "F4_DT")]
+        f4: NaiveDateTime,
     };
 
     let stmt = "select * from TEST_RESULTSET";
 
     {
         let _tmp = connection.query(stmt)?;
-        log_handle.parse_new_spec("trace");
+        // log_handle.parse_new_spec("trace");
         info!("After query");
     }
     info!("After drop");

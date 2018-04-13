@@ -1,12 +1,10 @@
-use dist_tx::rm::RmRc;
-use protocol::lowlevel::parts::option_part::OptionPart;
-use protocol::lowlevel::parts::option_part::OptionId;
+use HdbResult;
+
+use protocol::lowlevel::parts::option_part::{OptionId, OptionPart};
 use protocol::lowlevel::parts::option_value::OptionValue;
-use protocol::lowlevel::parts::PrtResult;
 
-use dist_tx::rm::Flags;
+use dist_tx::rm::{Flags, RmRc};
 use dist_tx::tm::XaTransactionId;
-
 use std::u8;
 
 // An Options part that is used in XA related requests and responses.
@@ -44,7 +42,7 @@ impl XatOptions {
         None
     }
 
-    pub fn get_transactions(&self) -> PrtResult<Vec<XaTransactionId>> {
+    pub fn get_transactions(&self) -> HdbResult<Vec<XaTransactionId>> {
         let mut xid_count = 0;
         for (id, value) in self.iter() {
             if let XatOptionId::NumberOfXid = *id {
@@ -67,7 +65,6 @@ impl XatOptions {
         Ok(Vec::<XaTransactionId>::new())
     }
 }
-
 
 // XaTransactionOptionsEnum
 #[derive(Debug, Eq, PartialEq, Hash)]

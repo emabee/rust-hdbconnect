@@ -44,7 +44,7 @@ impl PreparedStatement {
             }
             (_, _) => {
                 let s = "no metadata in add_batch()";
-                Err(HdbError::SerializationError(
+                Err(HdbError::Serialization(
                     SerializationError::StructuralMismatch(s),
                 ))
             }
@@ -158,8 +158,8 @@ pub mod factory {
         let statement_id = match o_stmt_id {
             Some(id) => id,
             None => {
-                return Err(HdbError::InternalEvaluationError(
-                    "PreparedStatement needs a StatementId",
+                return Err(HdbError::Impl(
+                    "PreparedStatement needs a StatementId".to_owned(),
                 ))
             }
         };

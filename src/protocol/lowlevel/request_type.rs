@@ -1,4 +1,4 @@
-use protocol::protocol_error::{PrtError, PrtResult};
+use {HdbError, HdbResult};
 
 // Defines the action requested from the database server.
 // Is documented as Message Type.
@@ -71,7 +71,7 @@ impl RequestType {
         }
     }
 
-    pub fn from_i8(val: i8) -> PrtResult<RequestType> {
+    pub fn from_i8(val: i8) -> HdbResult<RequestType> {
         match val {
             1 => Ok(RequestType::DummyForReply),
             2 => Ok(RequestType::ExecuteDirect),
@@ -103,8 +103,8 @@ impl RequestType {
             88 => Ok(RequestType::XARecover),
             89 => Ok(RequestType::XAForget),
 
-            _ => Err(PrtError::ProtocolError(format!(
-                "Invalid value for RequestType detected: {}",
+            _ => Err(HdbError::Impl(format!(
+                "Unexpected value {} for RequestType detected",
                 val
             ))),
         }

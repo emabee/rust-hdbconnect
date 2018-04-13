@@ -1,19 +1,11 @@
 use protocol::lowlevel::parts::option_part::OptionPart;
 use protocol::lowlevel::parts::option_part::OptionId;
-// use protocol::lowlevel::parts::option_value::OptionValue;
 
 use std::u8;
 
-// An Options part that is used for describing the connection's capabilities.
+// An Options part that is used to differentiate between primary and secondary
+// connections.
 pub type SessionContext = OptionPart<SessionContextId>;
-
-impl SessionContext {
-    // pub fn set_foo(mut self, b: bool) -> SessionContext {
-    //     self.insert(SessionContextId::Foo, OptionValue::BOOLEAN(b));
-    //     self
-    // }
-}
-
 
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub enum SessionContextId {

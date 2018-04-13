@@ -1,4 +1,4 @@
-use protocol::protocol_error::{prot_err, PrtResult};
+use hdb_error::{HdbError, HdbResult};
 use protocol::lowlevel::argument::Argument;
 use protocol::lowlevel::conn_core::AmConnCore;
 use protocol::lowlevel::message::{Reply, Request};
@@ -23,7 +23,7 @@ use std::iter::repeat;
 use username;
 
 /// authenticate with user and password, using the `scram_sha256` method
-pub fn user_pw(am_conn_core: &mut AmConnCore, username: &str, password: &str) -> PrtResult<()> {
+pub fn user_pw(am_conn_core: &mut AmConnCore, username: &str, password: &str) -> HdbResult<()> {
     trace!("Entering authenticate()");
 
     let client_challenge = create_client_challenge();
@@ -40,7 +40,7 @@ fn auth1_request(
     am_conn_core: &mut AmConnCore,
     chllng_sha256: &[u8],
     username: &str,
-) -> PrtResult<Reply> {
+) -> HdbResult<Reply> {
     trace!("Entering auth1_request()");
     let mut auth_fields = Vec::<AuthField>::with_capacity(3);
     auth_fields.push(AuthField::new(username.as_bytes().to_vec()));
@@ -59,7 +59,7 @@ fn auth2_request(
     am_conn_core: &mut AmConnCore,
     client_proof: &[u8],
     username: &str,
-) -> PrtResult<Reply> {
+) -> HdbResult<Reply> {
     trace!("Entering auth2_request()");
     let mut request = Request::new(RequestType::Connect, 0);
 
@@ -114,7 +114,7 @@ fn create_client_challenge() -> Vec<u8> {
     client_challenge.to_vec()
 }
 
-fn get_server_challenge(mut reply: Reply) -> PrtResult<Vec<u8>> {
+fn get_server_challenge(mut reply: Reply) -> HdbResult<Vec<u8>> {
     trace!("Entering get_server_challenge()");
     match reply.parts.pop_arg_if_kind(PartKind::Authentication) {
         Some(Argument::Auth(mut vec)) => {
@@ -122,13 +122,13 @@ fn get_server_challenge(mut reply: Reply) -> PrtResult<Vec<u8>> {
             debug!("get_server_challenge(): returning {:?}", &server_challenge);
             Ok(server_challenge)
         }
-        _ => Err(prot_err(
-            "get_server_challenge(): expected Authentication part",
+        _ => Err(HdbError::Impl(
+            "get_server_challenge(): expected Authentication part".to_owned(),
         )),
     }
 }
 
-fn evaluate_reply2(mut reply: Reply, am_conn_core: &AmConnCore) -> PrtResult<()> {
+fn evaluate_reply2(mut reply: Reply, am_conn_core: &AmConnCore) -> HdbResult<()> {
     trace!("Entering evaluate_reply2()");
     let mut guard = am_conn_core.lock()?;
     let conn_core = &mut *guard;
@@ -139,8 +139,8 @@ fn evaluate_reply2(mut reply: Reply, am_conn_core: &AmConnCore) -> PrtResult<()>
             conn_core.swap_topology_attributes(&mut vec)
         }
         _ => {
-            return Err(prot_err(
-                "evaluate_reply2(): expected TopologyInformation part",
+            return Err(HdbError::Impl(
+                "evaluate_reply2(): expected TopologyInformation part".to_owned(),
             ))
         }
     }
@@ -149,14 +149,22 @@ fn evaluate_reply2(mut reply: Reply, am_conn_core: &AmConnCore) -> PrtResult<()>
         Some(Argument::ConnectOptions(ref mut conn_opts)) => {
             conn_core.swap_server_connect_options(conn_opts)
         }
-        _ => return Err(prot_err("evaluate_reply2(): expected ConnectOptions part")),
+        _ => {
+            return Err(HdbError::Impl(
+                "evaluate_reply2(): expected ConnectOptions part".to_owned(),
+            ))
+        }
     }
 
     let mut server_proof = Vec::<u8>::new();
     debug!("parts before: {:?}", reply.parts);
     match reply.parts.pop_arg_if_kind(PartKind::Authentication) {
         Some(Argument::Auth(mut vec)) => vec[0].swap_data(&mut server_proof),
-        _ => return Err(prot_err("evaluate_reply2(): expected Authentication part")),
+        _ => {
+            return Err(HdbError::Impl(
+                "evaluate_reply2(): expected Authentication part".to_owned(),
+            ))
+        }
     }
     // FIXME the server proof is not evaluated
 
@@ -169,7 +177,7 @@ fn calculate_client_proof(
     server_challenge: Vec<u8>,
     client_challenge: &[u8],
     password: &str,
-) -> PrtResult<Vec<u8>> {
+) -> HdbResult<Vec<u8>> {
     let client_proof_size = 32usize;
     trace!("Entering calculate_client_proof()");
     let (salts, srv_key) = get_salt_and_key(server_challenge).unwrap();
@@ -192,7 +200,7 @@ fn calculate_client_proof(
 
 /// `Server_challenge` is structured itself into fieldcount and fields
 /// the last field is taken as key, all the previous fields are salt (usually 1)
-fn get_salt_and_key(server_challenge: Vec<u8>) -> PrtResult<(Vec<Vec<u8>>, Vec<u8>)> {
+fn get_salt_and_key(server_challenge: Vec<u8>) -> HdbResult<(Vec<Vec<u8>>, Vec<u8>)> {
     trace!("Entering get_salt_and_key()");
     let mut rdr = io::Cursor::new(server_challenge);
     let fieldcount = rdr.read_i16::<LittleEndian>().unwrap(); // I2
@@ -220,7 +228,7 @@ fn scramble(
     server_key: &[u8],
     client_key: &[u8],
     password: &str,
-) -> PrtResult<Vec<u8>> {
+) -> HdbResult<Vec<u8>> {
     let length = salt.len() + server_key.len() + client_key.len();
     let mut msg = Vec::<u8>::with_capacity(length);
     for b in salt {

@@ -1,5 +1,12 @@
-use protocol::protocol_error::PrtResult;
+///////////////////////////////////////////////////////////////
+use {HdbError, HdbResult};
+use protocol::lowlevel::argument::Argument;
 use protocol::lowlevel::conn_core::AmConnCore;
+use protocol::lowlevel::message::Request;
+use protocol::lowlevel::part::Part;
+use protocol::lowlevel::partkind::PartKind;
+use protocol::lowlevel::reply_type::ReplyType;
+use protocol::lowlevel::request_type::RequestType;
 
 use std::cmp;
 use std::io::{self, Write};
@@ -36,22 +43,22 @@ impl BlobHandle {
         );
         BlobHandle {
             o_am_conn_core: Some(Arc::clone(am_conn_core)),
-            length_b: length_b,
-            is_data_complete: is_data_complete,
-            locator_id: locator_id,
+            length_b,
+            is_data_complete,
+            locator_id,
             max_size: data.len(),
             acc_byte_length: data.len(),
-            data: data,
+            data,
             acc_server_proc_time: 0,
         }
     }
 
-    pub fn len(&mut self) -> PrtResult<usize> {
+    pub fn len(&mut self) -> HdbResult<usize> {
         self.fetch_all()?;
         Ok(self.data.len())
     }
 
-    fn fetch_next_chunk(&mut self) -> PrtResult<()> {
+    fn fetch_next_chunk(&mut self) -> HdbResult<()> {
         let (mut reply_data, reply_is_last_data, server_processing_time) = fetch_a_lob_chunk(
             &mut self.o_am_conn_core,
             self.locator_id,
@@ -78,7 +85,7 @@ impl BlobHandle {
     }
 
     /// Converts a BLOB into a Vec<u8> containing its data.
-    fn fetch_all(&mut self) -> PrtResult<()> {
+    fn fetch_all(&mut self) -> HdbResult<()> {
         trace!("BlobHandle::fetch_all()");
         while !self.is_data_complete {
             self.fetch_next_chunk()?;
@@ -91,7 +98,7 @@ impl BlobHandle {
     }
 
     /// Converts a BLOB into a Vec<u8> containing its data.
-    pub fn into_bytes(mut self) -> PrtResult<Vec<u8>> {
+    pub fn into_bytes(mut self) -> HdbResult<Vec<u8>> {
         trace!("BlobHandle::into_bytes()");
         self.fetch_all()?;
         Ok(self.data)
@@ -115,15 +122,6 @@ impl io::Read for BlobHandle {
     }
 }
 
-///////////////////////////////////////////////////////////////
-use protocol::protocol_error::prot_err;
-use protocol::lowlevel::argument::Argument;
-use protocol::lowlevel::message::Request;
-use protocol::lowlevel::reply_type::ReplyType;
-use protocol::lowlevel::request_type::RequestType;
-use protocol::lowlevel::part::Part;
-use protocol::lowlevel::partkind::PartKind;
-
 #[derive(Debug)]
 pub struct ReadLobRequest {
     locator_id: u64,
@@ -146,10 +144,10 @@ pub fn fetch_a_lob_chunk(
     locator_id: u64,
     length_b: u64,
     data_len: u64,
-) -> PrtResult<(Vec<u8>, bool, i32)> {
+) -> HdbResult<(Vec<u8>, bool, i32)> {
     match *o_am_conn_core {
-        None => Err(prot_err(
-            "Fetching more LOB chunks is no more possible (connection already closed)",
+        None => Err(HdbError::Impl(
+            "Fetching more LOB chunks is no more possible (connection already closed)".to_owned(),
         )),
         Some(ref mut am_conn_core) => {
             // build the request, provide StatementContext and length_to_read
@@ -162,9 +160,9 @@ pub fn fetch_a_lob_chunk(
             request.push(Part::new(
                 PartKind::ReadLobRequest,
                 Argument::ReadLobRequest(ReadLobRequest {
-                    locator_id: locator_id,
-                    offset: offset,
-                    length_to_read: length_to_read,
+                    locator_id,
+                    offset,
+                    length_to_read,
                 }),
             ));
 
@@ -180,13 +178,13 @@ pub fn fetch_a_lob_chunk(
                 match reply.parts.pop_arg_if_kind(PartKind::ReadLobReply) {
                     Some(Argument::ReadLobReply(read_lob_reply)) => {
                         if *read_lob_reply.locator_id() != locator_id {
-                            return Err(prot_err(
-                                "lob::fetch_a_lob_chunk(): locator ids do not match",
+                            return Err(HdbError::Impl(
+                                "lob::fetch_a_lob_chunk(): locator ids do not match".to_owned(),
                             ));
                         }
                         read_lob_reply.into_data_and_last()
                     }
-                    _ => return Err(prot_err("No ReadLobReply part found")),
+                    _ => return Err(HdbError::Impl("No ReadLobReply part found".to_owned())),
                 };
 
             let server_processing_time = match reply
@@ -196,8 +194,8 @@ pub fn fetch_a_lob_chunk(
                 Some(Argument::StatementContext(stmt_ctx)) => stmt_ctx.get_server_processing_time(),
                 None => 0,
                 _ => {
-                    return Err(prot_err(
-                        "Inconsistent StatementContext part found for ResultSet",
+                    return Err(HdbError::Impl(
+                        "Inconsistent StatementContext part found for ResultSet".to_owned(),
                     ))
                 }
             };

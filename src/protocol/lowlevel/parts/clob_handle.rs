@@ -1,7 +1,7 @@
-use protocol::protocol_error::{PrtError, PrtResult};
-use protocol::lowlevel::util;
+use {HdbError, HdbResult};
+use protocol::lowlevel::cesu8;
 use protocol::lowlevel::conn_core::AmConnCore;
-use super::blob_handle::fetch_a_lob_chunk;
+use protocol::lowlevel::parts::blob_handle::fetch_a_lob_chunk;
 use std::cmp::max;
 use std::io::{self, Write};
 use std::sync::Arc;
@@ -34,21 +34,21 @@ impl ClobHandle {
     ) -> ClobHandle {
         let acc_byte_length = cesu8.len();
         let mut utf8 = Vec::<u8>::new();
-        let (success, _, byte_count) = util::decode_from_iter(&mut utf8, &mut cesu8.iter());
+        let (success, _, byte_count) = cesu8::decode_from_iter(&mut utf8, &mut cesu8.iter());
         if !success && byte_count < cesu8.len() as u64 - 5 {
             error!("ClobHandle::new() bad cesu8 in first part of CLOB");
         }
         let (_u, c) = cesu8.split_at(byte_count as usize);
         let clob_handle = ClobHandle {
             o_am_conn_core: Some(Arc::clone(am_conn_core)),
-            length_c: length_c,
-            length_b: length_b,
-            is_data_complete: is_data_complete,
-            locator_id: locator_id,
+            length_c,
+            length_b,
+            is_data_complete,
+            locator_id,
             buffer_cesu8: Vec::<u8>::from(c),
             max_size: utf8.len() + c.len(),
-            utf8: utf8,
-            acc_byte_length: acc_byte_length,
+            utf8,
+            acc_byte_length,
             acc_server_proc_time: 0,
         };
         trace!(
@@ -64,19 +64,17 @@ impl ClobHandle {
         clob_handle
     }
 
-    pub fn len(&mut self) -> PrtResult<usize> {
+    pub fn len(&mut self) -> HdbResult<usize> {
         Ok(self.length_b as usize)
     }
 
-    fn fetch_next_chunk(&mut self) -> PrtResult<()> {
+    fn fetch_next_chunk(&mut self) -> HdbResult<()> {
         trace!(
             "ClobHandle.fetch_next_chunk(), utf8.len() = {}",
             self.utf8.len()
         );
         if self.is_data_complete {
-            return Err(PrtError::ProtocolError(
-                "fetch_next_chunk: clob already complete".to_string(),
-            ));
+            return Err(HdbError::impl_("fetch_next_chunk: clob already complete"));
         }
         let (mut reply_data, reply_is_last_data, server_processing_time) = fetch_a_lob_chunk(
             &mut self.o_am_conn_core,
@@ -88,14 +86,14 @@ impl ClobHandle {
         self.acc_byte_length += reply_data.len();
         self.buffer_cesu8.append(&mut reply_data);
         let (success, _, byte_count) =
-            util::decode_from_iter(&mut self.utf8, &mut self.buffer_cesu8.iter());
+            cesu8::decode_from_iter(&mut self.utf8, &mut self.buffer_cesu8.iter());
 
         if !success && byte_count < self.buffer_cesu8.len() as u64 - 5 {
             error!(
                 "ClobHandle::fetch_next_chunk(): bad cesu8 at pos {} in part of CLOB: {:?}",
                 byte_count, self.buffer_cesu8
             );
-            return Err(PrtError::Cesu8Error(util::Cesu8DecodingError));
+            return Err(HdbError::Cesu8(cesu8::Cesu8DecodingError));
         }
 
         // cut off the big first part (in most cases all) of buffer_cesu8, and retain
@@ -112,7 +110,7 @@ impl ClobHandle {
         Ok(())
     }
 
-    fn load_complete(&mut self) -> PrtResult<()> {
+    fn load_complete(&mut self) -> HdbResult<()> {
         trace!("ClobHandle::load_complete()");
         while !self.is_data_complete {
             self.fetch_next_chunk()?;
@@ -125,10 +123,10 @@ impl ClobHandle {
     }
 
     /// Converts a ClobHandle into a String containing its data.
-    pub fn into_string(mut self) -> PrtResult<String> {
+    pub fn into_string(mut self) -> HdbResult<String> {
         trace!("ClobHandle::into_string()");
         self.load_complete()?;
-        String::from_utf8(self.utf8).map_err(|_| PrtError::Cesu8Error(util::Cesu8DecodingError))
+        String::from_utf8(self.utf8).map_err(|_| HdbError::Cesu8(cesu8::Cesu8DecodingError))
     }
 }
 
@@ -147,7 +145,7 @@ impl io::Read for ClobHandle {
             self.utf8.len()
         } else {
             let mut tmp = buf.len();
-            while !util::is_utf8_char_start(self.utf8[tmp]) {
+            while !cesu8::is_utf8_char_start(self.utf8[tmp]) {
                 tmp -= 1;
             }
             tmp

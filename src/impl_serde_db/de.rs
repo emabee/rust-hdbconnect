@@ -501,10 +501,10 @@ impl DbValueInto<NaiveDateTime> for TypedValue {
         trace!("try_into -> NaiveDateTime");
         match self {
             TypedValue::LONGDATE(ld) | TypedValue::N_LONGDATE(Some(ld)) => {
-                let (y, m, d, h, min, s, f) = ld.as_ymd_hms_f();
+                let (year, month, day, hour, min, sec, frac) = ld.as_ymd_hms_f();
                 Ok(NaiveDateTime::new(
-                    NaiveDate::from_ymd(y, m, d),
-                    NaiveTime::from_hms_nano(h, min, s, f * 100),
+                    NaiveDate::from_ymd(year, month, day),
+                    NaiveTime::from_hms_nano(hour, min, sec, frac * 100),
                 ))
             }
             _ => Err(ConversionError::ValueType(

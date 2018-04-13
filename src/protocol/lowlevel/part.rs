@@ -1,4 +1,4 @@
-use super::{prot_err, PrtResult};
+use {HdbError, HdbResult};
 use super::argument::Argument;
 use super::conn_core::AmConnCore;
 use super::partkind::PartKind;
@@ -21,10 +21,7 @@ pub struct Part {
 
 impl Part {
     pub fn new(kind: PartKind, arg: Argument) -> Part {
-        Part {
-            kind: kind,
-            arg: arg,
-        }
+        Part { kind, arg }
     }
     pub fn kind(&self) -> &PartKind {
         &self.kind
@@ -36,7 +33,7 @@ impl Part {
         (self.kind, self.arg)
     }
 
-    pub fn serialize(&self, mut remaining_bufsize: u32, w: &mut io::Write) -> PrtResult<u32> {
+    pub fn serialize(&self, mut remaining_bufsize: u32, w: &mut io::Write) -> HdbResult<u32> {
         debug!("Serializing part of kind {:?}", self.kind);
         // PART HEADER 16 bytes
         w.write_i8(self.kind.to_i8())?;
@@ -51,8 +48,8 @@ impl Part {
                 w.write_i32::<LittleEndian>(i as i32)?;
             }
             _ => {
-                return Err(prot_err(
-                    "argument count bigger than i32::MAX is not supported",
+                return Err(HdbError::Impl(
+                    "argument count bigger than i32::MAX is not supported".to_owned(),
                 ));
             }
         }
@@ -65,7 +62,7 @@ impl Part {
         Ok(remaining_bufsize)
     }
 
-    pub fn size(&self, with_padding: bool) -> PrtResult<usize> {
+    pub fn size(&self, with_padding: bool) -> HdbResult<usize> {
         let result = PART_HEADER_SIZE + self.arg.size(with_padding)?;
         trace!("Part_size = {}", result);
         Ok(result)
@@ -79,7 +76,7 @@ impl Part {
         par_md: Option<&Vec<ParameterDescriptor>>,
         o_rs: &mut Option<&mut ResultSet>,
         rdr: &mut io::BufRead,
-    ) -> PrtResult<Part> {
+    ) -> HdbResult<Part> {
         trace!("Entering parse()");
         let (kind, attributes, arg_size, no_of_args) = parse_part_header(rdr)?;
         debug!(
@@ -104,7 +101,7 @@ impl Part {
     }
 }
 
-fn parse_part_header(rdr: &mut io::BufRead) -> PrtResult<(PartKind, PartAttributes, i32, i32)> {
+fn parse_part_header(rdr: &mut io::BufRead) -> HdbResult<(PartKind, PartAttributes, i32, i32)> {
     // PART HEADER: 16 bytes
     let kind = PartKind::from_i8(rdr.read_i8()?)?; // I1
     let attributes = PartAttributes::new(rdr.read_u8()?); // U1 (documented as I1)

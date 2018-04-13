@@ -31,9 +31,7 @@ impl OutputParameters {
         trace!("OutputParameters::parameter_descriptor()");
         self.metadata
             .get(i)
-            .ok_or(HdbError::InternalEvaluationError(
-                "wrong index: no such parameter",
-            ))
+            .ok_or_else(|| HdbError::usage_("wrong index: no such parameter"))
     }
 }
 
@@ -61,8 +59,8 @@ impl fmt::Display for OutputParameters {
 }
 
 pub mod factory {
+    use {HdbError, HdbResult};
     use super::OutputParameters;
-    use protocol::lowlevel::{prot_err, PrtResult};
     use protocol::lowlevel::parts::parameter_descriptor::{ParameterBinding, ParameterDescriptor,
                                                           ParameterDirection};
     use protocol::lowlevel::parts::typed_value::TypedValue;
@@ -75,11 +73,10 @@ pub mod factory {
         o_am_conn_core: Option<&AmConnCore>,
         par_md: &[ParameterDescriptor],
         rdr: &mut io::BufRead,
-    ) -> PrtResult<OutputParameters> {
+    ) -> HdbResult<OutputParameters> {
         trace!("OutputParameters::parse()");
-        let am_conn_core = o_am_conn_core.ok_or(prot_err(
-            "Cannot parse output parameters without am_conn_core",
-        ))?;
+        let am_conn_core = o_am_conn_core
+            .ok_or_else(|| HdbError::impl_("Cannot parse output parameters without am_conn_core"))?;
 
         let mut output_pars = OutputParameters {
             metadata: Vec::<ParameterDescriptor>::new(),

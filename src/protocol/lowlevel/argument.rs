@@ -1,10 +1,11 @@
+use {HdbError, HdbResult};
+use protocol::lowlevel::cesu8;
 use protocol::lowlevel::parts::blob_handle::ReadLobRequest;
 use protocol::lowlevel::parts::commit_options::CommitOptions;
 use protocol::lowlevel::parts::fetch_options::FetchOptions;
 use protocol::lowlevel::parts::lob_flags::LobFlags;
 use protocol::lowlevel::parts::session_context::SessionContext;
 use protocol::lowlevel::parts::command_info::CommandInfo;
-use super::{prot_err, PrtError, PrtResult};
 use super::conn_core::AmConnCore;
 use super::part_attributes::PartAttributes;
 use super::partkind::PartKind;
@@ -27,7 +28,6 @@ use super::parts::statement_context::StatementContext;
 use super::parts::topology_attribute::TopologyAttr;
 use super::parts::transactionflags::TransactionFlags;
 use super::parts::xat_options::XatOptions;
-use super::util;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::io;
@@ -65,7 +65,7 @@ pub enum Argument {
 
 impl Argument {
     // only called on output (serialize)
-    pub fn count(&self) -> PrtResult<usize> {
+    pub fn count(&self) -> HdbResult<usize> {
         Ok(match *self {
             Argument::Auth(_)
             | Argument::Command(_)
@@ -87,7 +87,7 @@ impl Argument {
             Argument::TransactionFlags(ref opts) => opts.count(),
             Argument::XatOptions(ref xat) => xat.count(),
             ref a => {
-                return Err(PrtError::ProtocolError(format!(
+                return Err(HdbError::Impl(format!(
                     "Argument::count() called on {:?}",
                     a
                 )));
@@ -96,7 +96,7 @@ impl Argument {
     }
 
     // only called on output (serialize)
-    pub fn size(&self, with_padding: bool) -> PrtResult<usize> {
+    pub fn size(&self, with_padding: bool) -> HdbResult<usize> {
         let mut size = 0usize;
         match *self {
             Argument::Auth(ref vec) => {
@@ -106,7 +106,7 @@ impl Argument {
                 }
             }
             Argument::ClientInfo(ref client_info) => size += client_info.size(),
-            Argument::Command(ref s) => size += util::string_to_cesu8(s).len(),
+            Argument::Command(ref s) => size += cesu8::string_to_cesu8(s).len(),
             Argument::CommandInfo(ref opts) => size += opts.size(),
             Argument::CommitOptions(ref opts) => size += opts.size(),
             Argument::ConnectOptions(ref conn_opts) => size += conn_opts.size(),
@@ -133,7 +133,7 @@ impl Argument {
             Argument::XatOptions(ref xat) => size += xat.size(),
 
             ref arg => {
-                return Err(PrtError::ProtocolError(format!(
+                return Err(HdbError::Impl(format!(
                     "size() called on {:?}",
                     arg
                 )));
@@ -147,7 +147,7 @@ impl Argument {
     }
 
     /// Serialize to byte stream
-    pub fn serialize(&self, remaining_bufsize: u32, w: &mut io::Write) -> PrtResult<u32> {
+    pub fn serialize(&self, remaining_bufsize: u32, w: &mut io::Write) -> HdbResult<u32> {
         match *self {
             Argument::Auth(ref vec) => {
                 w.write_i16::<LittleEndian>(vec.len() as i16)?;
@@ -159,7 +159,7 @@ impl Argument {
                 client_info.serialize(w)?;
             }
             Argument::Command(ref s) => {
-                let vec = util::string_to_cesu8(s);
+                let vec = cesu8::string_to_cesu8(s);
                 for b in vec {
                     w.write_u8(b)?;
                 }
@@ -200,7 +200,7 @@ impl Argument {
             Argument::TransactionFlags(ref taflags) => taflags.serialize(w)?,
             Argument::XatOptions(ref xatid) => xatid.serialize(w)?,
             ref a => {
-                return Err(PrtError::ProtocolError(format!(
+                return Err(HdbError::Impl(format!(
                     "serialize() called on {:?}",
                     a
                 )));
@@ -235,7 +235,7 @@ impl Argument {
         o_par_md: Option<&Vec<ParameterDescriptor>>,
         o_rs: &mut Option<&mut ResultSet>,
         rdr: &mut io::BufRead,
-    ) -> PrtResult<Argument> {
+    ) -> HdbResult<Argument> {
         trace!("Entering parse(no_of_args={}, kind={:?})", no_of_args, kind);
 
         let arg = match kind {
@@ -253,8 +253,8 @@ impl Argument {
                 Argument::ClientInfo(client_info)
             }
             PartKind::Command => {
-                let bytes = util::parse_bytes(arg_size as usize, rdr)?;
-                let s = util::cesu8_to_string(&bytes)?;
+                let bytes = cesu8::parse_bytes(arg_size as usize, rdr)?;
+                let s = cesu8::cesu8_to_string(&bytes)?;
                 Argument::Command(s)
             }
             PartKind::CommandInfo => Argument::CommandInfo(CommandInfo::parse(no_of_args, rdr)?),
@@ -276,7 +276,8 @@ impl Argument {
                     rdr,
                 )?)
             } else {
-                return Err(prot_err("Cannot parse output parameters without metadata"));
+                return Err(HdbError::Impl(
+                    "Cannot parse output parameters without metadata".to_owned()));
             },
             PartKind::ParameterMetadata => Argument::ParameterMetadata(
                 ParameterDescriptorFactory::parse(no_of_args, arg_size as u32, rdr)?,
@@ -287,7 +288,8 @@ impl Argument {
                     no_of_args,
                     attributes,
                     parts,
-                    o_am_conn_core.ok_or(prot_err("ResultSet parsing requires a conn_core"))?,
+                    o_am_conn_core.ok_or_else(|| HdbError::impl_(
+                        "ResultSet parsing requires a conn_core"))?,
                     o_rs_md,
                     o_rs,
                     rdr,
@@ -327,7 +329,7 @@ impl Argument {
             }
             PartKind::XatOptions => Argument::XatOptions(XatOptions::parse(no_of_args, rdr)?),
             _ => {
-                return Err(PrtError::ProtocolError(format!(
+                return Err(HdbError::Impl(format!(
                     "No handling implemented for received partkind value {}",
                     kind.to_i8()
                 )));

@@ -1,6 +1,3 @@
-pub use protocol::protocol_error::{prot_err, PrtError, PrtResult};
-pub use protocol::lowlevel::util;
-
 pub mod authfield;
 pub mod blob_handle;
 pub mod client_info;

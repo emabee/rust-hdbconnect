@@ -1,19 +1,11 @@
-use protocol::lowlevel::parts::option_part::OptionPart;
-use protocol::lowlevel::parts::option_part::OptionId;
-// use protocol::lowlevel::parts::option_value::OptionValue;
+use protocol::lowlevel::parts::option_part::{OptionId, OptionPart};
 
 use std::u8;
 
-// An Options part that is used for describing the connection's capabilities.
+// The part is sent from the client to signal whether the implicit LOB
+// streaming is started so that the server does not commit the current
+// transaction even with auto-commit on while LOB streaming (really??).
 pub type LobFlags = OptionPart<LobFlagsId>;
-
-impl LobFlags {
-    // pub fn set_foo(mut self, b: bool) -> LobFlags {
-    //     self.insert(LobFlagsId::Foo, OptionValue::BOOLEAN(b));
-    //     self
-    // }
-}
-
 
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub enum LobFlagsId {

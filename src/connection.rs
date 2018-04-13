@@ -29,8 +29,10 @@ use std::sync::Arc;
 /// # Example
 ///
 /// ```ignore
-/// use hdbconnect::{Connection,IntoConnectParams};
-/// let params = "hdbsql://my_user:my_passwd@the_host:2222".into_connect_params().unwrap();
+/// use hdbconnect::{Connection, IntoConnectParams};
+/// let params = "hdbsql://my_user:my_passwd@the_host:2222"
+///     .into_connect_params()
+///     .unwrap();
 /// let mut connection = Connection::new(params).unwrap();
 /// ```
 #[derive(Debug)]
@@ -38,6 +40,8 @@ pub struct Connection {
     params: ConnectParams,
     am_conn_core: AmConnCore,
 }
+#[allow(unknown_lints)]
+#[allow(unit_arg)]
 impl Connection {
     /// Factory method for authenticated connections.
     pub fn new(params: ConnectParams) -> HdbResult<Connection> {
@@ -61,7 +65,9 @@ impl Connection {
                 .unwrap_or(-1)
         );
 
-        authenticate::user_pw(&mut (am_conn_core), params.dbuser(), params.password())?;
+        let a = authenticate::user_pw(&mut (am_conn_core), params.dbuser(), params.password());
+        debug!("auth: {:?}", a);
+        a?;
 
         debug!(
             "user \"{}\" successfully logged on ({} µs)",
@@ -73,7 +79,7 @@ impl Connection {
         );
         Ok(Connection {
             params,
-            am_conn_core: am_conn_core,
+            am_conn_core,
         })
     }
 
@@ -140,7 +146,7 @@ impl Connection {
         let vec = &(self.statement(stmt)?.into_affected_rows()?);
         match vec.len() {
             1 => Ok(vec[0]),
-            _ => Err(HdbError::UsageError(
+            _ => Err(HdbError::Usage(
                 "number of affected-rows-counts <> 1".to_owned(),
             )),
         }

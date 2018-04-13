@@ -1,8 +1,7 @@
+use {HdbError, HdbResult};
 use protocol::lowlevel::conn_core::AmConnCore;
 use protocol::lowlevel::parts::blob_handle::BlobHandle;
 use protocol::lowlevel::parts::clob_handle::ClobHandle;
-use protocol::protocol_error::{PrtError, PrtResult};
-
 use std::cell::RefCell;
 use std::io;
 
@@ -44,7 +43,7 @@ pub fn new_blob_to_db(vec: Vec<u8>) -> BLOB {
 
 impl BLOB {
     /// Length of contained data.
-    pub fn len(&self) -> PrtResult<usize> {
+    pub fn len(&self) -> HdbResult<usize> {
         match self.0 {
             BlobEnum::FromDB(ref handle) => handle.borrow_mut().len(),
             BlobEnum::ToDB(ref vec) => Ok(vec.len()),
@@ -52,23 +51,21 @@ impl BLOB {
     }
 
     /// Is container empty
-    pub fn is_empty(&self) -> PrtResult<bool> {
+    pub fn is_empty(&self) -> HdbResult<bool> {
         Ok(self.len()? == 0)
     }
 
     /// Ref to the contained Vec<u8>.
-    pub fn ref_to_bytes(&self) -> PrtResult<&Vec<u8>> {
+    pub fn ref_to_bytes(&self) -> HdbResult<&Vec<u8>> {
         trace!("BLOB::ref_to_bytes()");
         match self.0 {
-            BlobEnum::FromDB(_) => Err(PrtError::ProtocolError(
-                "cannot serialize BlobHandle".to_string(),
-            )),
+            BlobEnum::FromDB(_) => Err(HdbError::impl_("cannot serialize BlobHandle")),
             BlobEnum::ToDB(ref vec) => Ok(vec),
         }
     }
 
     /// Converts into the contained Vec<u8>.
-    pub fn into_bytes(self) -> PrtResult<Vec<u8>> {
+    pub fn into_bytes(self) -> HdbResult<Vec<u8>> {
         trace!("BLOB::into_bytes()");
         match self.0 {
             BlobEnum::FromDB(handle) => handle.into_inner().into_bytes(),
@@ -124,12 +121,12 @@ pub fn new_clob_from_db(
 
 impl CLOB {
     /// Length of contained String
-    pub fn len(&self) -> PrtResult<usize> {
+    pub fn len(&self) -> HdbResult<usize> {
         self.0.borrow_mut().len()
     }
 
     /// Is container empty
-    pub fn is_empty(&self) -> PrtResult<bool> {
+    pub fn is_empty(&self) -> HdbResult<bool> {
         Ok(self.len()? == 0)
     }
 
@@ -141,7 +138,7 @@ impl CLOB {
     }
 
     /// Returns the contained String.
-    pub fn into_string(self) -> PrtResult<String> {
+    pub fn into_string(self) -> HdbResult<String> {
         trace!("CLOB::into_string()");
         self.0.into_inner().into_string()
     }

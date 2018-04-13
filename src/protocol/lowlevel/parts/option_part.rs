@@ -1,8 +1,8 @@
+use HdbResult;
 use std::collections::hash_map::Iter;
 use std::hash::Hash;
 use std::collections::HashMap;
-use super::PrtResult;
-use super::option_value::OptionValue;
+use protocol::lowlevel::parts::option_value::OptionValue;
 
 use std::io;
 use byteorder::{ReadBytesExt, WriteBytesExt};
@@ -48,7 +48,7 @@ impl<T: OptionId<T> + Eq + PartialEq + Hash> OptionPart<T> {
         self.0.iter()
     }
 
-    pub fn serialize(&self, w: &mut io::Write) -> PrtResult<()> {
+    pub fn serialize(&self, w: &mut io::Write) -> HdbResult<()> {
         for (id, value) in &self.0 {
             w.write_u8(id.to_u8())?;
             value.serialize(w)?;
@@ -56,7 +56,7 @@ impl<T: OptionId<T> + Eq + PartialEq + Hash> OptionPart<T> {
         Ok(())
     }
 
-    pub fn parse(count: i32, rdr: &mut io::BufRead) -> PrtResult<OptionPart<T>> {
+    pub fn parse(count: i32, rdr: &mut io::BufRead) -> HdbResult<OptionPart<T>> {
         let mut result = OptionPart::default();
         for _ in 0..count {
             let id = T::from_u8(rdr.read_u8()?);

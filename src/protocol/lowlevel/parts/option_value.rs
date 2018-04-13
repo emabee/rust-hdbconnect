@@ -1,4 +1,5 @@
-use super::{util, PrtError, PrtResult};
+use {HdbError, HdbResult};
+use protocol::lowlevel::cesu8;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::io;
@@ -15,7 +16,7 @@ pub enum OptionValue {
 }
 
 impl OptionValue {
-    pub fn serialize(&self, w: &mut io::Write) -> PrtResult<()> {
+    pub fn serialize(&self, w: &mut io::Write) -> HdbResult<()> {
         w.write_u8(self.type_id())?; // I1
         match *self {
             // variable
@@ -34,7 +35,7 @@ impl OptionValue {
             OptionValue::INT(_) => 4,
             OptionValue::BIGINT(_) | OptionValue::DOUBLE(_) => 8,
             OptionValue::BOOLEAN(_) => 1,
-            OptionValue::STRING(ref s) => util::cesu8_length(s) + 2,
+            OptionValue::STRING(ref s) => cesu8::cesu8_length(s) + 2,
             OptionValue::BSTRING(ref v) => v.len() + 2,
         }
     }
@@ -50,12 +51,12 @@ impl OptionValue {
         }
     }
 
-    pub fn parse(rdr: &mut io::BufRead) -> PrtResult<OptionValue> {
+    pub fn parse(rdr: &mut io::BufRead) -> HdbResult<OptionValue> {
         let value_type = rdr.read_u8()?; // U1
         OptionValue::parse_value(value_type, rdr)
     }
 
-    fn parse_value(typecode: u8, rdr: &mut io::BufRead) -> PrtResult<OptionValue> {
+    fn parse_value(typecode: u8, rdr: &mut io::BufRead) -> HdbResult<OptionValue> {
         match typecode {
             3 => Ok(OptionValue::INT(rdr.read_i32::<LittleEndian>()?)), // I4
             4 => Ok(OptionValue::BIGINT(rdr.read_i64::<LittleEndian>()?)), // I8
@@ -63,7 +64,7 @@ impl OptionValue {
             28 => Ok(OptionValue::BOOLEAN(rdr.read_u8()? > 0)),         // B1
             29 => Ok(OptionValue::STRING(parse_length_and_string(rdr)?)),
             33 => Ok(OptionValue::BSTRING(parse_length_and_binary(rdr)?)),
-            _ => Err(PrtError::ProtocolError(format!(
+            _ => Err(HdbError::Impl(format!(
                 "OptionValue::parse_value() not implemented for type code {}",
                 typecode
             ))),
@@ -71,20 +72,20 @@ impl OptionValue {
     }
 }
 
-fn serialize_length_and_string(s: &str, w: &mut io::Write) -> PrtResult<()> {
-    serialize_length_and_bytes(&util::string_to_cesu8(s), w)
+fn serialize_length_and_string(s: &str, w: &mut io::Write) -> HdbResult<()> {
+    serialize_length_and_bytes(&cesu8::string_to_cesu8(s), w)
 }
 
-fn serialize_length_and_bytes(v: &[u8], w: &mut io::Write) -> PrtResult<()> {
+fn serialize_length_and_bytes(v: &[u8], w: &mut io::Write) -> HdbResult<()> {
     w.write_i16::<LittleEndian>(v.len() as i16)?; // I2: length of value
-    util::serialize_bytes(v, w) // B (varying)
+    cesu8::serialize_bytes(v, w) // B (varying)
 }
 
-fn parse_length_and_string(rdr: &mut io::BufRead) -> PrtResult<String> {
-    Ok(util::cesu8_to_string(&parse_length_and_binary(rdr)?)?)
+fn parse_length_and_string(rdr: &mut io::BufRead) -> HdbResult<String> {
+    Ok(cesu8::cesu8_to_string(&parse_length_and_binary(rdr)?)?)
 }
 
-fn parse_length_and_binary(rdr: &mut io::BufRead) -> PrtResult<Vec<u8>> {
+fn parse_length_and_binary(rdr: &mut io::BufRead) -> HdbResult<Vec<u8>> {
     let len = rdr.read_i16::<LittleEndian>()? as usize; // I2: length of value
-    util::parse_bytes(len, rdr) // B (varying)
+    cesu8::parse_bytes(len, rdr) // B (varying)
 }

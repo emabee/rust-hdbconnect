@@ -25,31 +25,33 @@ impl HdbReturnValue {
     pub fn into_resultset(self) -> HdbResult<ResultSet> {
         match self {
             HdbReturnValue::ResultSet(rs) => Ok(rs),
-            _ => Err(HdbError::EvaluationError(
+            _ => Err(HdbError::Evaluation(
                 "HdbReturnValue::into_resultset(): not  a ResultSet".to_string(),
             )),
         }
     }
 
-    // Turns itself into a Vector of numbers (each number representing a number of affected rows).
+    // Turns itself into a Vector of numbers (each number representing a number of
+    // affected rows).
     //
     // If this cannot be done without loss of information, an error is returned.
     pub fn into_affected_rows(self) -> HdbResult<Vec<usize>> {
         match self {
             HdbReturnValue::AffectedRows(array) => Ok(array),
-            _ => Err(HdbError::EvaluationError(
+            _ => Err(HdbError::Evaluation(
                 "Wrong call to HdbReturnValue::into_affected_rows(): not AffectedRows".to_string(),
             )),
         }
     }
 
-    // Turns itself into a Vector of numbers (each number representing a number of affected rows).
+    // Turns itself into a Vector of numbers (each number representing a number of
+    // affected rows).
     //
     // If this cannot be done without loss of information, an error is returned.
     pub fn into_output_parameters(self) -> HdbResult<OutputParameters> {
         match self {
             HdbReturnValue::OutputParameters(op) => Ok(op),
-            _ => Err(HdbError::EvaluationError(
+            _ => Err(HdbError::Evaluation(
                 "Wrong call to HdbReturnValue::into_output_parameters(): not OutputParameters"
                     .to_string(),
             )),
@@ -65,17 +67,17 @@ impl HdbReturnValue {
             HdbReturnValue::AffectedRows(_) => if self.is_success() {
                 Ok(())
             } else {
-                Err(HdbError::EvaluationError(
+                Err(HdbError::Evaluation(
                     "Wrong call to HdbReturnValue::into_success(): non-zero AffectRows".to_string(),
                 ))
             },
-            HdbReturnValue::OutputParameters(_) => Err(HdbError::EvaluationError(
+            HdbReturnValue::OutputParameters(_) => Err(HdbError::Evaluation(
                 "Wrong call to HdbReturnValue::into_success(): is OutputParameters".to_string(),
             )),
-            HdbReturnValue::ResultSet(_) => Err(HdbError::EvaluationError(
+            HdbReturnValue::ResultSet(_) => Err(HdbError::Evaluation(
                 "Wrong call to HdbReturnValue::into_success(): is a ResultSet".to_string(),
             )),
-            HdbReturnValue::XaTransactionIds(_) => Err(HdbError::EvaluationError(
+            HdbReturnValue::XaTransactionIds(_) => Err(HdbError::Evaluation(
                 "Wrong call to HdbReturnValue::into_success(): is a list of XaTransactionIds"
                     .to_string(),
             )),

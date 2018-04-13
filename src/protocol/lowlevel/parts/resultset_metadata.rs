@@ -1,5 +1,6 @@
-use HdbResult;
-use super::{prot_err, util, PrtError, PrtResult};
+use {HdbError, HdbResult};
+use protocol::lowlevel::cesu8;
+
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::fmt;
 use std::io;
@@ -32,31 +33,31 @@ impl ResultSetMetadata {
         }
     }
 
-    fn get(&self, index: usize) -> PrtResult<&FieldMetadata> {
+    fn get(&self, index: usize) -> HdbResult<&FieldMetadata> {
         self.fields
             .get(index)
-            .ok_or(PrtError::UsageError("schemaname(): invalid field index"))
+            .ok_or_else(|| HdbError::usage_("schemaname(): invalid field index"))
     }
 
     /// Database schema of the i'th column in the resultset.
     pub fn schemaname(&self, i: usize) -> HdbResult<&String> {
         Ok(self.names
             .get(self.get(i)?.schemaname_idx() as usize)
-            .ok_or(PrtError::UsageError("get_fieldname(): invalid field index"))?)
+            .ok_or_else(|| HdbError::usage_("get_fieldname(): invalid field index"))?)
     }
 
     /// Database table of the i'th column in the resultset.
     pub fn tablename(&self, i: usize) -> HdbResult<&String> {
         Ok(self.names
             .get(self.get(i)?.tablename_idx() as usize)
-            .ok_or(PrtError::UsageError("tablename(): invalid field index"))?)
+            .ok_or_else(|| HdbError::usage_("tablename(): invalid field index"))?)
     }
 
     /// Name of the i'th column in the resultset.
     pub fn columnname(&self, i: usize) -> HdbResult<&String> {
         Ok(self.names
             .get(self.get(i)?.columnname_idx() as usize)
-            .ok_or(PrtError::UsageError("columnname(): invalid field index"))?)
+            .ok_or_else(|| HdbError::usage_("columnname(): invalid field index"))?)
     }
 
     // For large resultsets, this method will be called very often - is caching
@@ -66,7 +67,7 @@ impl ResultSetMetadata {
     pub fn displayname(&self, index: usize) -> HdbResult<&String> {
         Ok(self.names
             .get(self.get(index)?.displayname_idx() as usize)
-            .ok_or(PrtError::UsageError("get_fieldname(): invalid field index"))?)
+            .ok_or_else(|| HdbError::usage_("get_fieldname(): invalid field index"))?)
     }
 
     /// True if column can contain NULL values.
@@ -126,7 +127,7 @@ impl fmt::Display for ResultSetMetadata {
     }
 }
 
-pub fn parse(count: i32, arg_size: u32, rdr: &mut io::BufRead) -> PrtResult<ResultSetMetadata> {
+pub fn parse(count: i32, arg_size: u32, rdr: &mut io::BufRead) -> HdbResult<ResultSetMetadata> {
     let mut rsm = ResultSetMetadata {
         fields: Vec::<FieldMetadata>::new(),
         names: VecMap::<String>::new(),
@@ -138,24 +139,24 @@ pub fn parse(count: i32, arg_size: u32, rdr: &mut io::BufRead) -> PrtResult<Resu
         let scale = rdr.read_i16::<LittleEndian>()?; // I2
         let precision = rdr.read_i16::<LittleEndian>()?; // I2
         rdr.read_i16::<LittleEndian>()?; // I2
-        let tablename = rdr.read_u32::<LittleEndian>()?; // I4
-        rsm.add_to_names(tablename);
-        let schemaname = rdr.read_u32::<LittleEndian>()?; // I4
-        rsm.add_to_names(schemaname);
-        let columnname = rdr.read_u32::<LittleEndian>()?; // I4
-        rsm.add_to_names(columnname);
-        let displayname = rdr.read_u32::<LittleEndian>()?; // I4
-        rsm.add_to_names(displayname);
+        let tablename_idx = rdr.read_u32::<LittleEndian>()?; // I4
+        rsm.add_to_names(tablename_idx);
+        let schemaname_idx = rdr.read_u32::<LittleEndian>()?; // I4
+        rsm.add_to_names(schemaname_idx);
+        let columnname_idx = rdr.read_u32::<LittleEndian>()?; // I4
+        rsm.add_to_names(columnname_idx);
+        let displayname_idx = rdr.read_u32::<LittleEndian>()?; // I4
+        rsm.add_to_names(displayname_idx);
 
         let fm = FieldMetadata {
-            column_options: column_options,
-            type_id: type_id,
-            scale: scale,
-            precision: precision,
-            tablename_idx: tablename,
-            schemaname_idx: schemaname,
-            columnname_idx: columnname,
-            displayname_idx: displayname,
+            column_options,
+            type_id,
+            scale,
+            precision,
+            tablename_idx,
+            schemaname_idx,
+            columnname_idx,
+            displayname_idx,
         };
         rsm.fields.push(fm);
     }
@@ -171,11 +172,13 @@ pub fn parse(count: i32, arg_size: u32, rdr: &mut io::BufRead) -> PrtResult<Resu
     );
     for _ in 0..rsm.names.len() {
         if offset >= limit {
-            return Err(prot_err("Error in reading ResultSetMetadata"));
-        };
+            return Err(HdbError::Impl(
+                "Error in reading ResultSetMetadata".to_owned(),
+            ));
+        }
         let nl = rdr.read_u8()?; // UI1
-        let buffer: Vec<u8> = util::parse_bytes(nl as usize, rdr)?; // variable
-        let name = util::cesu8_to_string(&buffer)?;
+        let buffer: Vec<u8> = cesu8::parse_bytes(nl as usize, rdr)?; // variable
+        let name = cesu8::cesu8_to_string(&buffer)?;
         trace!("offset = {}, name = {}", offset, name);
         rsm.names.insert(offset as usize, name);
         offset += u32::from(nl) + 1;

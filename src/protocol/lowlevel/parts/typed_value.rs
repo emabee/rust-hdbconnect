@@ -1,10 +1,9 @@
-use HdbError;
-
-use protocol::lowlevel::{util, PrtError, PrtResult};
-use protocol::lowlevel::parts::type_id;
+use {HdbError, HdbResult};
+use protocol::lowlevel::cesu8;
+use protocol::lowlevel::parts::hdb_decimal::{serialize_decimal, HdbDecimal};
 use protocol::lowlevel::parts::lob::*;
 use protocol::lowlevel::parts::longdate::LongDate;
-use protocol::lowlevel::parts::hdb_decimal::{serialize_decimal, HdbDecimal};
+use protocol::lowlevel::parts::type_id;
 
 use byteorder::{LittleEndian, WriteBytesExt};
 use serde;
@@ -180,7 +179,7 @@ pub enum TypedValue {
 }
 
 impl TypedValue {
-    fn serialize_type_id(&self, w: &mut io::Write) -> PrtResult<bool> {
+    fn serialize_type_id(&self, w: &mut io::Write) -> HdbResult<bool> {
         let is_null = match *self {
             TypedValue::N_TINYINT(None)
             | TypedValue::N_SMALLINT(None)
@@ -286,11 +285,11 @@ impl TypedValue {
     }
 }
 
-pub fn serialize(tv: &TypedValue, data_pos: &mut i32, w: &mut io::Write) -> PrtResult<()> {
+pub fn serialize(tv: &TypedValue, data_pos: &mut i32, w: &mut io::Write) -> HdbResult<()> {
     if !tv.serialize_type_id(w)? {
         match *tv {
             TypedValue::NOTHING => {
-                return Err(PrtError::ProtocolError(
+                return Err(HdbError::Impl(
                     "Can't send TypedValue::NOTHING to Database".to_string(),
                 ))
             }
@@ -378,7 +377,7 @@ pub fn serialize(tv: &TypedValue, data_pos: &mut i32, w: &mut io::Write) -> PrtR
             | TypedValue::N_VARCHAR(_)
             | TypedValue::NVARCHAR(_)
             | TypedValue::N_NVARCHAR(_) => {
-                return Err(PrtError::ProtocolError(format!(
+                return Err(HdbError::Impl(format!(
                     "TypedValue::serialize() not implemented for type code {}",
                     tv.type_id()
                 )))
@@ -389,10 +388,10 @@ pub fn serialize(tv: &TypedValue, data_pos: &mut i32, w: &mut io::Write) -> PrtR
 }
 
 // is used to calculate the argument size (in serialize)
-pub fn size(tv: &TypedValue) -> PrtResult<usize> {
+pub fn size(tv: &TypedValue) -> HdbResult<usize> {
     Ok(1 + match *tv {
         TypedValue::NOTHING => {
-            return Err(PrtError::ProtocolError(
+            return Err(HdbError::Impl(
                 "Can't send TypedValue::NOTHING to Database".to_string(),
             ))
         }
@@ -468,7 +467,7 @@ pub fn size(tv: &TypedValue) -> PrtResult<usize> {
         | TypedValue::N_VARCHAR(_)
         | TypedValue::N_NCHAR(_)
         | TypedValue::N_NVARCHAR(_) => {
-            return Err(PrtError::ProtocolError(format!(
+            return Err(HdbError::Impl(format!(
                 "TypedValue::size() not implemented for type code {}",
                 tv.type_id()
             )))
@@ -477,18 +476,18 @@ pub fn size(tv: &TypedValue) -> PrtResult<usize> {
 }
 
 pub fn string_length(s: &str) -> usize {
-    match util::cesu8_length(s) {
+    match cesu8::cesu8_length(s) {
         clen if clen <= MAX_1_BYTE_LENGTH as usize => 1 + clen,
         clen if clen <= MAX_2_BYTE_LENGTH as usize => 3 + clen,
         clen => 5 + clen,
     }
 }
 
-pub fn serialize_length_and_string(s: &str, w: &mut io::Write) -> PrtResult<()> {
-    serialize_length_and_bytes(&util::string_to_cesu8(s), w)
+pub fn serialize_length_and_string(s: &str, w: &mut io::Write) -> HdbResult<()> {
+    serialize_length_and_bytes(&cesu8::string_to_cesu8(s), w)
 }
 
-fn serialize_length_and_bytes(v: &[u8], w: &mut io::Write) -> PrtResult<()> {
+fn serialize_length_and_bytes(v: &[u8], w: &mut io::Write) -> HdbResult<()> {
     match v.len() {
         l if l <= MAX_1_BYTE_LENGTH as usize => {
             w.write_u8(l as u8)?; // B1           LENGTH OF VALUE
@@ -502,10 +501,10 @@ fn serialize_length_and_bytes(v: &[u8], w: &mut io::Write) -> PrtResult<()> {
             w.write_i32::<LittleEndian>(l as i32)?; // I4           LENGTH OF VALUE
         }
     }
-    util::serialize_bytes(v, w) // B variable   VALUE BYTES
+    cesu8::serialize_bytes(v, w) // B variable   VALUE BYTES
 }
 
-fn serialize_blob_header(v_len: usize, data_pos: &mut i32, w: &mut io::Write) -> PrtResult<()> {
+fn serialize_blob_header(v_len: usize, data_pos: &mut i32, w: &mut io::Write) -> HdbResult<()> {
     // bit 0: not used; bit 1: data is included; bit 2: no more data remaining
     w.write_u8(0b_110_u8)?; // I1           Bit set for options
     w.write_i32::<LittleEndian>(v_len as i32)?; // I4           LENGTH OF VALUE
@@ -514,7 +513,7 @@ fn serialize_blob_header(v_len: usize, data_pos: &mut i32, w: &mut io::Write) ->
     Ok(())
 }
 
-fn serialize_clob_header(s_len: usize, data_pos: &mut i32, w: &mut io::Write) -> PrtResult<()> {
+fn serialize_clob_header(s_len: usize, data_pos: &mut i32, w: &mut io::Write) -> HdbResult<()> {
     // bit 0: not used; bit 1: data is included; bit 2: no more data remaining
     w.write_u8(0b_110_u8)?; // I1           Bit set for options
     w.write_i32::<LittleEndian>(s_len as i32)?; // I4           LENGTH OF VALUE
@@ -603,9 +602,10 @@ impl fmt::Display for TypedValue {
 }
 
 pub mod factory {
+    use {HdbError, HdbResult};
+    use protocol::lowlevel::cesu8;
     use protocol::lowlevel::parts::hdb_decimal::{parse_decimal, parse_nullable_decimal};
     use super::TypedValue;
-    use super::super::{prot_err, util, PrtError, PrtResult};
     use super::super::lob::*;
     use super::super::longdate::LongDate;
     use protocol::lowlevel::conn_core::AmConnCore;
@@ -619,7 +619,7 @@ pub mod factory {
         nullable: bool,
         am_conn_core: &AmConnCore,
         rdr: &mut io::BufRead,
-    ) -> PrtResult<TypedValue> {
+    ) -> HdbResult<TypedValue> {
         // here p_typecode is always < 127
         // the flag nullable from the metadata governs our behavior:
         // if it is true, we return types with typecode above 128, which use
@@ -720,7 +720,7 @@ pub mod factory {
             // 190 => Ok(TypedValue::N_SECONDDATE(
             // 191 => Ok(TypedValue::N_DAYDATE(
             // 192 => Ok(TypedValue::N_SECONDTIME(
-            _ => Err(PrtError::ProtocolError(format!(
+            _ => Err(HdbError::Impl(format!(
                 "TypedValue::parse_from_reply() not implemented for type code {}",
                 typecode
             ))),
@@ -729,26 +729,30 @@ pub mod factory {
 
     // reads the nullindicator and returns Ok(true) if it has value 0 or Ok(false)
     // otherwise
-    fn ind_null(rdr: &mut io::BufRead) -> PrtResult<bool> {
+    fn ind_null(rdr: &mut io::BufRead) -> HdbResult<bool> {
         Ok(rdr.read_u8()? == 0)
     }
 
     // reads the nullindicator and throws an error if it has value 0
-    fn ind_not_null(rdr: &mut io::BufRead) -> PrtResult<()> {
+    fn ind_not_null(rdr: &mut io::BufRead) -> HdbResult<()> {
         if ind_null(rdr)? {
-            Err(prot_err("null value returned for not-null column"))
+            Err(HdbError::Impl(
+                "null value returned for not-null column".to_owned(),
+            ))
         } else {
             Ok(())
         }
     }
 
-    fn parse_real(rdr: &mut io::BufRead) -> PrtResult<f32> {
+    fn parse_real(rdr: &mut io::BufRead) -> HdbResult<f32> {
         let mut vec: Vec<u8> = repeat(0u8).take(4).collect();
         rdr.read_exact(&mut vec[..])?;
         let mut r = io::Cursor::new(&vec);
         let tmp = r.read_u32::<LittleEndian>()?;
         match tmp {
-            u32::MAX => Err(prot_err("Unexpected NULL Value in parse_real()")),
+            u32::MAX => Err(HdbError::Impl(
+                "Unexpected NULL Value in parse_real()".to_owned(),
+            )),
             _ => {
                 r.set_position(0);
                 Ok(r.read_f32::<LittleEndian>()?)
@@ -756,7 +760,7 @@ pub mod factory {
         }
     }
 
-    fn parse_nullable_real(rdr: &mut io::BufRead) -> PrtResult<Option<f32>> {
+    fn parse_nullable_real(rdr: &mut io::BufRead) -> HdbResult<Option<f32>> {
         let mut vec: Vec<u8> = repeat(0u8).take(4).collect();
         rdr.read_exact(&mut vec[..])?;
         let mut r = io::Cursor::new(&vec);
@@ -770,13 +774,15 @@ pub mod factory {
         }
     }
 
-    fn parse_double(rdr: &mut io::BufRead) -> PrtResult<f64> {
+    fn parse_double(rdr: &mut io::BufRead) -> HdbResult<f64> {
         let mut vec: Vec<u8> = repeat(0u8).take(8).collect();
         rdr.read_exact(&mut vec[..])?;
         let mut r = io::Cursor::new(&vec);
         let tmp = r.read_u64::<LittleEndian>()?;
         match tmp {
-            u64::MAX => Err(prot_err("Unexpected NULL Value in parse_double()")),
+            u64::MAX => Err(HdbError::Impl(
+                "Unexpected NULL Value in parse_double()".to_owned(),
+            )),
             _ => {
                 r.set_position(0);
                 Ok(r.read_f64::<LittleEndian>()?)
@@ -784,7 +790,7 @@ pub mod factory {
         }
     }
 
-    fn parse_nullable_double(rdr: &mut io::BufRead) -> PrtResult<Option<f64>> {
+    fn parse_nullable_double(rdr: &mut io::BufRead) -> HdbResult<Option<f64>> {
         let mut vec: Vec<u8> = repeat(0u8).take(8).collect();
         rdr.read_exact(&mut vec[..])?;
         let mut r = io::Cursor::new(&vec);
@@ -800,8 +806,8 @@ pub mod factory {
 
     // ----- STRINGS and BINARIES
     // ----------------------------------------------------------------
-    pub fn parse_string(rdr: &mut io::BufRead) -> PrtResult<String> {
-        match util::cesu8_to_string(&parse_binary(rdr)?) {
+    pub fn parse_string(rdr: &mut io::BufRead) -> HdbResult<String> {
+        match cesu8::cesu8_to_string(&parse_binary(rdr)?) {
             Ok(s) => Ok(s),
             Err(e) => {
                 error!("cesu-8 problem occured in typed_value:parse_string()");
@@ -810,35 +816,35 @@ pub mod factory {
         }
     }
 
-    fn parse_binary(rdr: &mut io::BufRead) -> PrtResult<Vec<u8>> {
+    fn parse_binary(rdr: &mut io::BufRead) -> HdbResult<Vec<u8>> {
         let l8 = rdr.read_u8()?; // B1
         let len = match l8 {
             l if l <= super::MAX_1_BYTE_LENGTH => l8 as usize,
             super::LENGTH_INDICATOR_2BYTE => rdr.read_i16::<LittleEndian>()? as usize, // I2
             super::LENGTH_INDICATOR_4BYTE => rdr.read_i32::<LittleEndian>()? as usize, // I4
             l => {
-                return Err(PrtError::ProtocolError(format!(
+                return Err(HdbError::Impl(format!(
                     "Invalid value in length indicator: {}",
                     l
                 )));
             }
         };
-        util::parse_bytes(len, rdr) // B (varying)
+        cesu8::parse_bytes(len, rdr) // B (varying)
     }
 
-    fn parse_nullable_string(rdr: &mut io::BufRead) -> PrtResult<Option<String>> {
+    fn parse_nullable_string(rdr: &mut io::BufRead) -> HdbResult<Option<String>> {
         match parse_nullable_binary(rdr)? {
-            Some(vec) => match util::cesu8_to_string(&vec) {
+            Some(vec) => match cesu8::cesu8_to_string(&vec) {
                 Ok(s) => Ok(Some(s)),
-                Err(_) => Err(prot_err(
-                    "cesu-8 problem occured in typed_value:parse_string()",
+                Err(_) => Err(HdbError::Impl(
+                    "cesu-8 problem occured in typed_value:parse_string()".to_owned(),
                 )),
             },
             None => Ok(None),
         }
     }
 
-    fn parse_nullable_binary(rdr: &mut io::BufRead) -> PrtResult<Option<Vec<u8>>> {
+    fn parse_nullable_binary(rdr: &mut io::BufRead) -> HdbResult<Option<Vec<u8>>> {
         let l8 = rdr.read_u8()?; // B1
         let len = match l8 {
             l if l <= super::MAX_1_BYTE_LENGTH => l8 as usize,
@@ -846,29 +852,31 @@ pub mod factory {
             super::LENGTH_INDICATOR_4BYTE => rdr.read_i32::<LittleEndian>()? as usize, // I4
             super::LENGTH_INDICATOR_NULL => return Ok(None),
             l => {
-                return Err(PrtError::ProtocolError(format!(
+                return Err(HdbError::Impl(format!(
                     "Invalid value in length indicator: {}",
                     l
                 )))
             }
         };
-        Ok(Some(util::parse_bytes(len, rdr)?)) // B (varying)
+        Ok(Some(cesu8::parse_bytes(len, rdr)?)) // B (varying)
     }
 
     // ----- BLOBS and CLOBS
     // ===
     // regular parse
-    pub fn parse_blob(am_conn_core: &AmConnCore, rdr: &mut io::BufRead) -> PrtResult<BLOB> {
+    pub fn parse_blob(am_conn_core: &AmConnCore, rdr: &mut io::BufRead) -> HdbResult<BLOB> {
         match parse_nullable_blob_from_reply(am_conn_core, rdr)? {
             Some(blob) => Ok(blob),
-            None => Err(prot_err("Null value found for non-null blob column")),
+            None => Err(HdbError::Impl(
+                "Null value found for non-null blob column".to_owned(),
+            )),
         }
     }
 
     pub fn parse_nullable_blob_from_reply(
         am_conn_core: &AmConnCore,
         rdr: &mut io::BufRead,
-    ) -> PrtResult<Option<BLOB>> {
+    ) -> HdbResult<Option<BLOB>> {
         let (is_null, is_last_data) = parse_lob_1(rdr)?;
         if is_null {
             Ok(None)
@@ -884,17 +892,19 @@ pub mod factory {
         }
     }
 
-    pub fn parse_clob(am_conn_core: &AmConnCore, rdr: &mut io::BufRead) -> PrtResult<CLOB> {
+    pub fn parse_clob(am_conn_core: &AmConnCore, rdr: &mut io::BufRead) -> HdbResult<CLOB> {
         match parse_nullable_clob(am_conn_core, rdr)? {
             Some(clob) => Ok(clob),
-            None => Err(prot_err("Null value found for non-null clob column")),
+            None => Err(HdbError::Impl(
+                "Null value found for non-null clob column".to_owned(),
+            )),
         }
     }
 
     pub fn parse_nullable_clob(
         am_conn_core: &AmConnCore,
         rdr: &mut io::BufRead,
-    ) -> PrtResult<Option<CLOB>> {
+    ) -> HdbResult<Option<CLOB>> {
         let (is_null, is_last_data) = parse_lob_1(rdr)?;
         if is_null {
             Ok(None)
@@ -911,7 +921,7 @@ pub mod factory {
         }
     }
 
-    fn parse_lob_1(rdr: &mut io::BufRead) -> PrtResult<(bool, bool)> {
+    fn parse_lob_1(rdr: &mut io::BufRead) -> HdbResult<(bool, bool)> {
         rdr.consume(1); // let data_type = rdr.read_u8()?; // I1  "type of data": unclear
         let options = rdr.read_u8()?; // I1
         let is_null = (options & 0b_1_u8) != 0;
@@ -919,13 +929,13 @@ pub mod factory {
         Ok((is_null, is_last_data))
     }
 
-    fn parse_lob_2(rdr: &mut io::BufRead) -> PrtResult<(u64, u64, u64, Vec<u8>)> {
+    fn parse_lob_2(rdr: &mut io::BufRead) -> HdbResult<(u64, u64, u64, Vec<u8>)> {
         rdr.consume(2); // U2 (filler)
         let length_c = rdr.read_u64::<LittleEndian>()?; // I8
         let length_b = rdr.read_u64::<LittleEndian>()?; // I8
         let locator_id = rdr.read_u64::<LittleEndian>()?; // I8
         let chunk_length = rdr.read_i32::<LittleEndian>()?; // I4
-        let data = util::parse_bytes(chunk_length as usize, rdr)?; // B[chunk_length]
+        let data = cesu8::parse_bytes(chunk_length as usize, rdr)?; // B[chunk_length]
         trace!("Got LOB locator {}", locator_id);
         Ok((length_c, length_b, locator_id, data))
     }
@@ -934,17 +944,17 @@ pub mod factory {
     // --------------------------------------------------------------------------
     // SECONDDATE_NULL_REPRESENTATION:
     const LONGDATE_NULL_REPRESENTATION: i64 = 3_155_380_704_000_000_001_i64;
-    fn parse_longdate(rdr: &mut io::BufRead) -> PrtResult<LongDate> {
+    fn parse_longdate(rdr: &mut io::BufRead) -> HdbResult<LongDate> {
         let i = rdr.read_i64::<LittleEndian>()?;
         match i {
-            LONGDATE_NULL_REPRESENTATION => {
-                Err(prot_err("Null value found for non-null longdate column"))
-            }
+            LONGDATE_NULL_REPRESENTATION => Err(HdbError::Impl(
+                "Null value found for non-null longdate column".to_owned(),
+            )),
             _ => Ok(LongDate::new(i)),
         }
     }
 
-    fn parse_nullable_longdate(rdr: &mut io::BufRead) -> PrtResult<Option<LongDate>> {
+    fn parse_nullable_longdate(rdr: &mut io::BufRead) -> HdbResult<Option<LongDate>> {
         let i = rdr.read_i64::<LittleEndian>()?;
         match i {
             LONGDATE_NULL_REPRESENTATION => Ok(None),

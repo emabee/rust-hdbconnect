@@ -4,7 +4,6 @@
 use {HdbError, HdbResponse, HdbResult};
 use hdb_response::factory as HdbResponseFactory;
 use hdb_response::factory::InternalReturnValue;
-use super::{prot_err, PrtError, PrtResult};
 use super::conn_core::AmConnCore;
 use super::argument::Argument;
 use super::reply_type::ReplyType;
@@ -43,8 +42,8 @@ pub struct Request {
 impl Request {
     pub fn new(request_type: RequestType, command_options: u8) -> Request {
         Request {
-            request_type: request_type,
-            command_options: command_options,
+            request_type,
+            command_options,
             parts: Parts::default(),
         }
     }
@@ -169,7 +168,7 @@ impl Request {
                     reply.replytype, int_return_values);
                 error!("{}",s);
                 error!("Reply: {:?}",reply);
-                Err(HdbError::EvaluationError(s))
+                Err(HdbError::Evaluation(s))
             },
         }
     }
@@ -179,7 +178,7 @@ impl Request {
         &mut self,
         am_conn_core: &mut AmConnCore,
         expected_reply_type: Option<ReplyType>,
-    ) -> PrtResult<Reply> {
+    ) -> HdbResult<Reply> {
         self.send_and_receive_detailed(None, None, &mut None, am_conn_core, expected_reply_type)
     }
 
@@ -190,7 +189,7 @@ impl Request {
         o_rs: &mut Option<&mut ResultSet>,
         am_conn_core: &mut AmConnCore,
         expected_reply_type: Option<ReplyType>,
-    ) -> PrtResult<Reply> {
+    ) -> HdbResult<Reply> {
         trace!(
             "Request::send_and_receive_detailed() with requestType = {:?}",
             self.request_type,
@@ -202,7 +201,8 @@ impl Request {
 
         let mut reply = Reply::parse(o_rs_md, o_par_md, o_rs, am_conn_core)?;
         reply.assert_expected_reply_type(expected_reply_type)?;
-
+        // FIXME digest StatementContext and TransactionFlags here,
+        // so that they are not ignored in case of errors
         reply.assert_no_error(am_conn_core)?;
 
         debug!(
@@ -212,7 +212,7 @@ impl Request {
         Ok(reply)
     }
 
-    fn add_statement_sequence(&mut self, am_conn_core: &AmConnCore) -> PrtResult<()> {
+    fn add_statement_sequence(&mut self, am_conn_core: &AmConnCore) -> HdbResult<()> {
         let guard = am_conn_core.lock()?;
         match *(*guard).statement_sequence() {
             None => {}
@@ -234,7 +234,7 @@ impl Request {
 
     // FIXME: this should be a method on the ConnectionCore, with the request as
     // argument
-    fn serialize(&self, am_conn_core: &mut AmConnCore) -> PrtResult<()> {
+    fn serialize(&self, am_conn_core: &mut AmConnCore) -> HdbResult<()> {
         trace!("Entering Message::serialize()");
         let mut guard = am_conn_core.lock()?;
         let auto_commit_flag: i8 = if (*guard).is_auto_commit() { 1 } else { 0 };
@@ -253,7 +253,7 @@ impl Request {
         seq_number: i32,
         auto_commit_flag: i8,
         stream: &mut TcpStream,
-    ) -> PrtResult<()> {
+    ) -> HdbResult<()> {
         let varpart_size = self.varpart_size()?;
         let total_size = MESSAGE_HEADER_SIZE + varpart_size;
         trace!("Writing Message with total size {}", total_size);
@@ -305,14 +305,14 @@ impl Request {
 
     /// Length in bytes of the variable part of the message, i.e. total message without the
     /// header
-    fn varpart_size(&self) -> PrtResult<u32> {
+    fn varpart_size(&self) -> HdbResult<u32> {
         let mut len = 0_u32;
         len += self.seg_size()? as u32;
         trace!("varpart_size = {}", len);
         Ok(len)
     }
 
-    fn seg_size(&self) -> PrtResult<usize> {
+    fn seg_size(&self) -> HdbResult<usize> {
         let mut len = SEGMENT_HEADER_SIZE;
         for part in &self.parts {
             len += part.size(true)?;
@@ -330,8 +330,8 @@ pub struct Reply {
 impl Reply {
     fn new(session_id: i64, replytype: ReplyType) -> Reply {
         Reply {
-            session_id: session_id,
-            replytype: replytype,
+            session_id,
+            replytype,
             parts: Parts::default(),
         }
     }
@@ -350,7 +350,7 @@ impl Reply {
         o_par_md: Option<&Vec<ParameterDescriptor>>,
         o_rs: &mut Option<&mut ResultSet>,
         am_conn_core: &AmConnCore,
-    ) -> PrtResult<Reply> {
+    ) -> HdbResult<Reply> {
         trace!("Reply::parse()");
         let mut guard = am_conn_core.lock()?;
         let stream = &mut (*guard).stream();
@@ -358,7 +358,7 @@ impl Reply {
 
         let (no_of_parts, msg) = parse_message_and_sequence_header(&mut rdr)?;
         match msg {
-            Message::Request(_) => Err(prot_err("Reply::parse() found Request")),
+            Message::Request(_) => Err(HdbError::Impl("Reply::parse() found Request".to_owned())),
             Message::Reply(mut msg) => {
                 for _ in 0..no_of_parts {
                     let part = Part::parse(
@@ -376,14 +376,14 @@ impl Reply {
         }
     }
 
-    fn assert_expected_reply_type(&self, expected_reply_type: Option<ReplyType>) -> PrtResult<()> {
+    fn assert_expected_reply_type(&self, expected_reply_type: Option<ReplyType>) -> HdbResult<()> {
         match expected_reply_type {
             None => Ok(()), // we had no clear expectation
             Some(fc) => {
                 if self.replytype.to_i16() == fc.to_i16() {
                     Ok(()) // we got what we expected
                 } else {
-                    Err(PrtError::ProtocolError(format!(
+                    Err(HdbError::Impl(format!(
                         "unexpected reply_type (function code) {:?}",
                         self.replytype
                     )))
@@ -392,7 +392,7 @@ impl Reply {
         }
     }
 
-    fn assert_no_error(&mut self, am_conn_core: &mut AmConnCore) -> PrtResult<()> {
+    fn assert_no_error(&mut self, am_conn_core: &mut AmConnCore) -> HdbResult<()> {
         let mut guard = am_conn_core.lock()?;
         (*guard).warnings.clear();
         let err_code = PartKind::Error.to_i8();
@@ -417,12 +417,17 @@ impl Reply {
                             .collect();
                         if errors.is_empty() {
                             Ok(())
+                        } else if errors.len() == 1 {
+                            Err(HdbError::DbError(errors.remove(0)))
                         } else {
+                            // FIXME is this appropriate?
                             self.parts.clear();
-                            Err(PrtError::DbMessage(errors))
+                            Err(HdbError::MultipleDbErrors(errors))
                         }
                     }
-                    _ => Err(prot_err("assert_no_error: inconsistent error part found")),
+                    _ => Err(HdbError::Impl(
+                        "assert_no_error: inconsistent error part found".to_owned(),
+                    )),
                 }
             }
         }
@@ -444,7 +449,7 @@ impl Drop for Reply {
 }
 
 ///
-pub fn parse_message_and_sequence_header(rdr: &mut BufRead) -> PrtResult<(i16, Message)> {
+pub fn parse_message_and_sequence_header(rdr: &mut BufRead) -> HdbResult<(i16, Message)> {
     // MESSAGE HEADER: 32 bytes
     let session_id: i64 = rdr.read_i64::<LittleEndian>()?; // I8
     let packet_seq_number: i32 = rdr.read_i32::<LittleEndian>()?; // I4
@@ -481,8 +486,8 @@ pub fn parse_message_and_sequence_header(rdr: &mut BufRead) -> PrtResult<(i16, M
             Ok((
                 no_of_parts,
                 Message::Request(Request {
-                    request_type: request_type,
-                    command_options: command_options,
+                    request_type,
+                    command_options,
                     parts: Parts::default(),
                 }),
             ))
@@ -508,12 +513,12 @@ enum Kind {
     Error,
 }
 impl Kind {
-    fn from_i8(val: i8) -> PrtResult<Kind> {
+    fn from_i8(val: i8) -> HdbResult<Kind> {
         match val {
             1 => Ok(Kind::Request),
             2 => Ok(Kind::Reply),
             5 => Ok(Kind::Error),
-            _ => Err(prot_err(&format!(
+            _ => Err(HdbError::Impl(format!(
                 "Invalid value for message::Kind::from_i8() detected: {}",
                 val
             ))),

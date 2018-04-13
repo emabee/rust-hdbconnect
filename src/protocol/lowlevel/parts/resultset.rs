@@ -1,5 +1,4 @@
 use {HdbError, HdbResult};
-use protocol::lowlevel::{prot_err, PrtError, PrtResult};
 use protocol::lowlevel::argument::Argument;
 use protocol::lowlevel::conn_core::AmConnCore;
 use protocol::lowlevel::message::{parse_message_and_sequence_header, Message, Request};
@@ -10,9 +9,9 @@ use protocol::lowlevel::part_attributes::PartAttributes;
 use protocol::lowlevel::partkind::PartKind;
 use protocol::lowlevel::parts::row::Row;
 use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
-use serde_db::de::DeserializableResultset;
 
 use serde;
+use serde_db::de::DeserializableResultset;
 use std::fmt;
 use std::io;
 use std::sync::{Arc, Mutex};
@@ -145,7 +144,7 @@ impl ResultSet {
         Ok(())
     }
 
-    fn fetch_next(&mut self) -> PrtResult<()> {
+    fn fetch_next(&mut self) -> HdbResult<()> {
         trace!("ResultSet::fetch_next()");
         let (mut conn_core, resultset_id, fetch_size) = {
             // scope the borrow
@@ -154,7 +153,7 @@ impl ResultSet {
             let conn_core = match rs_core.o_am_conn_core {
                 Some(ref cr) => Arc::clone(cr),
                 None => {
-                    return Err(prot_err("Fetch no more possible"));
+                    return Err(HdbError::impl_("Fetch no more possible"));
                 }
             };
             let fetch_size = {
@@ -200,9 +199,9 @@ impl ResultSet {
         if (!rs_core.attributes.is_last_packet())
             && (rs_core.attributes.row_not_found() || rs_core.attributes.is_resultset_closed())
         {
-            Err(HdbError::ProtocolError(PrtError::ProtocolError(
-                String::from("ResultSet incomplete, but already closed on server"),
-            )))
+            Err(HdbError::impl_(
+                "ResultSet attributes inconsistent: incomplete, but already closed on server",
+            ))
         } else {
             Ok(rs_core.attributes.is_last_packet())
         }
@@ -264,7 +263,7 @@ impl ResultSet {
     /// }
     /// let typed_result: Vec<MyStruct> = resultset.try_into()?;
     /// ```
-    /// 
+    ///
     pub fn try_into<'de, T>(self) -> HdbResult<T>
     where
         T: serde::de::Deserialize<'de>,
@@ -324,7 +323,7 @@ impl Iterator for RowIterator {
 
 pub mod factory {
     use super::{ResultSet, ResultSetCore, Row};
-    use protocol::protocol_error::{prot_err, PrtResult};
+    use {HdbError, HdbResult};
     use protocol::lowlevel::argument::Argument;
     use protocol::lowlevel::conn_core::AmConnCore;
     use protocol::lowlevel::part::Parts;
@@ -381,7 +380,7 @@ pub mod factory {
         rs_md: Option<&ResultSetMetadata>,
         o_rs: &mut Option<&mut ResultSet>,
         rdr: &mut io::BufRead,
-    ) -> PrtResult<Option<ResultSet>> {
+    ) -> HdbResult<Option<ResultSet>> {
         match *o_rs {
             None => {
                 // case a) or b)
@@ -389,7 +388,7 @@ pub mod factory {
                     Some(Argument::StatementContext(stmt_ctx)) => Some(stmt_ctx),
                     None => None,
                     _ => {
-                        return Err(prot_err(
+                        return Err(HdbError::impl_(
                             "Inconsistent StatementContext part found for ResultSet",
                         ))
                     }
@@ -397,16 +396,20 @@ pub mod factory {
 
                 let rs_id = match parts.pop_arg() {
                     Some(Argument::ResultSetId(rs_id)) => rs_id,
-                    _ => return Err(prot_err("No ResultSetId part found for ResultSet")),
+                    _ => return Err(HdbError::impl_("No ResultSetId part found for ResultSet")),
                 };
 
                 let rs_metadata = match parts.pop_arg_if_kind(PartKind::ResultSetMetadata) {
                     Some(Argument::ResultSetMetadata(rsmd)) => rsmd,
                     None => match rs_md {
                         Some(rs_md) => rs_md.clone(),
-                        _ => return Err(prot_err("No metadata provided for ResultSet")),
+                        _ => return Err(HdbError::impl_("No metadata provided for ResultSet")),
                     },
-                    _ => return Err(prot_err("Inconsistent metadata part found for ResultSet")),
+                    _ => {
+                        return Err(HdbError::impl_(
+                            "Inconsistent metadata part found for ResultSet",
+                        ))
+                    }
                 };
 
                 let mut result =
@@ -423,7 +426,7 @@ pub mod factory {
                     }
                     None => {}
                     _ => {
-                        return Err(prot_err(
+                        return Err(HdbError::impl_(
                             "Inconsistent StatementContext part found for ResultSet",
                         ))
                     }
@@ -444,7 +447,7 @@ pub mod factory {
         resultset: &mut ResultSet,
         no_of_rows: i32,
         rdr: &mut io::BufRead,
-    ) -> PrtResult<()> {
+    ) -> HdbResult<()> {
         let no_of_cols = resultset.metadata.number_of_fields();
         debug!(
             "resultset::parse_rows() reading {} lines with {} columns",
@@ -460,11 +463,11 @@ pub mod factory {
                     let typecode = resultset
                         .metadata
                         .type_id(c)
-                        .map_err(|_| prot_err("Not enough metadata"))?;
+                        .map_err(|_| HdbError::impl_("Not enough metadata"))?;
                     let nullable: bool = resultset
                         .metadata
                         .is_nullable(c)
-                        .map_err(|_| prot_err("Not enough metadata"))?;
+                        .map_err(|_| HdbError::impl_("Not enough metadata"))?;
                     trace!(
                         "Parsing row {}, column {}, typecode {}, nullable {}",
                         r,

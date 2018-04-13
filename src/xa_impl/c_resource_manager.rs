@@ -10,14 +10,13 @@ use protocol::lowlevel::partkind::PartKind;
 use protocol::lowlevel::parts::xat_options::XatOptions;
 use dist_tx::rm::{CResourceManager, CRmWrapper, ErrorCode, Flags, RmError, RmRc, RmResult};
 use dist_tx::tm::XaTransactionId;
-use protocol::protocol_error::PrtError;
 
 /// Handle for dealing with distributed transactions that is to be used by a transaction manager.
 ///
 /// Is based on the connection from which it is obtained
 /// (see [`Connection::get_resource_manager`](
 /// ../struct.Connection.html#method.get_resource_manager)).
-/// 
+///
 #[derive(Debug)]
 pub struct HdbCResourceManager {
     am_conn_core: AmConnCore,
@@ -144,13 +143,14 @@ impl HdbCResourceManager {
         self.xa_send_receive_impl(request_type, id, flag)
             .map(|opt| opt.unwrap_or(RmRc::Ok))
             .map_err(|hdb_error| {
-                if let HdbError::ProtocolError(PrtError::DbMessage(ref v)) = hdb_error {
-                    if v.len() == 1 {
-                        return RmError::new(
-                            error_code_from_hana_code(v[0].code()),
-                            v[0].text().clone(),
-                        );
-                    }
+                if let HdbError::DbError(ref se) = hdb_error {
+                    return RmError::new(error_code_from_hana_code(se.code()), se.text().clone());
+                } else if let HdbError::MultipleDbErrors(ref v) = hdb_error {
+                    // FIXME use all texts, not just the first
+                    return RmError::new(
+                        error_code_from_hana_code(v[0].code()),
+                        v[0].text().clone(),
+                    );
                 };
                 From::<HdbError>::from(hdb_error)
             })
@@ -163,7 +163,7 @@ impl HdbCResourceManager {
         flags: Flags,
     ) -> HdbResult<Option<RmRc>> {
         if self.am_conn_core.lock()?.is_auto_commit() {
-            return Err(HdbError::UsageError(
+            return Err(HdbError::Usage(
                 "xa_*() not possible, connection is set to auto_commit".to_string(),
             ));
         }

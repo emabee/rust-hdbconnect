@@ -13,31 +13,32 @@ extern crate serde_json;
 mod test_utils;
 
 use chrono::Local;
-use std::error::Error;
 use hdbconnect::{ConnectParams, Connection, HdbResult};
 
-
-// cargo test test_connect -- --nocapture
+// cargo test test_010_connect -- --nocapture
 #[test]
-pub fn test_connect() {
-    test_utils::init_logger("info"); // info,test_connect=debug,hdbconnect::rs_serde=trace
+pub fn test_010_connect() {
+    test_utils::init_logger("info");
+
     connect_successfully();
-    connect_wrong_password().ok();
+    connect_wrong_password();
     connect_and_select();
 }
 
 fn connect_successfully() {
     info!("test a successful connection");
-    test_utils::get_authenticated_connection().ok();
+    test_utils::get_authenticated_connection().unwrap();
 }
 
-fn connect_wrong_password() -> HdbResult<()> {
+fn connect_wrong_password() {
     info!("test connect failure on wrong credentials");
     let start = Local::now();
-    let conn_params: ConnectParams = test_utils::connect_params_builder_from_file("db_access.json")?
+    let conn_params: ConnectParams = test_utils::connect_params_builder_from_file("db_access.json")
+        .unwrap()
         .dbuser("bla")
         .password("blubber")
-        .build()?;
+        .build()
+        .unwrap();
     let err = Connection::new(conn_params).err().unwrap();
     info!(
         "connect with wrong password failed as expected, after {} µs with {}.",
@@ -45,16 +46,15 @@ fn connect_wrong_password() -> HdbResult<()> {
             .signed_duration_since(start)
             .num_microseconds()
             .unwrap(),
-        err.description()
+        err
     );
-    Ok(())
 }
 
 fn connect_and_select() {
     info!("test a successful connection and do some simple selects");
     match impl_connect_and_select() {
         Err(e) => {
-            error!("connect_and_select() failed with {:?}", e);
+            error!("connect_and_select() failed with {}", e);
             assert!(false);
         }
         Ok(i) => info!("connect_and_select(): {} calls to DB were executed", i),
@@ -74,8 +74,7 @@ fn impl_select_version_and_user(connection: &mut Connection) -> HdbResult<()> {
         current_user: String,
     }
 
-    let stmt =
-        "SELECT VERSION as \"version\", CURRENT_USER as \"current_user\" FROM SYS.M_DATABASE";
+    let stmt = r#"SELECT VERSION as "version", CURRENT_USER as "current_user" FROM SYS.M_DATABASE"#;
     debug!("calling connection.query(SELECT VERSION as ...)");
     let resultset = connection.query(stmt)?;
     let version_and_user: VersionAndUser = resultset.try_into()?;

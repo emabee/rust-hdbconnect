@@ -1,5 +1,6 @@
 TODO
 - add support for TLS
+- cleanup traces: do never print password and related info
 
 - data types
     - newdb/orange/Interfaces/SQLDBC/impl/LongdateTranslator.cpp
@@ -13,6 +14,9 @@ TODO
     https://boats.gitlab.io/failure/intro.html
     https://docs.rs/failure/
     
+- provide a function to explain the value of ServerError::code, based on information in 
+  https://explore.me.sap.corp/orange/orange/ptime/common/tolerance/ptime_error_code.h.html and 
+  https://explore.me.sap.corp/orange/orange/ptime/common/tolerance/ptime_error_code.cc.html
 
 - Transaction Handling
     * transactionflags

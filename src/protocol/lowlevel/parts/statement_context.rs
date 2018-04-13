@@ -1,9 +1,10 @@
+use protocol::lowlevel::parts::option_part::{OptionId, OptionPart};
 use protocol::lowlevel::parts::option_value::OptionValue;
-use protocol::lowlevel::parts::option_part::OptionPart;
-use protocol::lowlevel::parts::option_part::OptionId;
 
 use std::u8;
 
+// An options part that is populated from previously received statement context
+// information. The binary option content is opaque to the client.
 pub type StatementContext = OptionPart<StatementContextId>;
 
 impl StatementContext {

@@ -1,18 +1,18 @@
-use super::PrtResult;
+use HdbResult;
 use byteorder::{ByteOrder, LittleEndian};
 use num::ToPrimitive;
 use num::bigint::{BigInt, Sign};
 use rust_decimal::Decimal;
+use serde_db::ser::SerializationError;
 use std::fmt;
 use std::io;
 use std::ops::Mul;
 use std::str::FromStr;
-use serde_db::ser::SerializationError;
 
-// SIGN           1-bit     (byte 15, highest bit)  Sign: 0 is positive, 1 is negative
-// EXPONENT      14-bit     (byte 14, above lowest bit; byte 15, below highest bit) Exponent,
-//                          biased with 6176, leading to a range -6143 to +6144
-// MANTISSA     113-bit     Integer mantissa
+// SIGN           1-bit     (byte 15, highest bit)  Sign: 0 is positive, 1 is
+// negative EXPONENT      14-bit     (byte 14, above lowest bit; byte 15, below
+// highest bit) Exponent, biased with 6176, leading to
+// a range -6143 to +6144 MANTISSA     113-bit     Integer mantissa
 //
 // The number represented is (10^EXPONENT)*MANTISSA.
 // It is expected that MANTISSA is not a multiple of 10
@@ -53,7 +53,8 @@ impl HdbDecimal {
 
     /// Creates a HdbDecimal from a `rust_decimal::Decimal`.
     pub fn from_decimal(decimal: Decimal) -> Result<HdbDecimal, SerializationError> {
-        // FIXME improve this: do bit shuffling rather than going through the String representation
+        // FIXME improve this: do bit shuffling rather than going through the String
+        // representation
         let s = format!("{}", decimal);
         HdbDecimal::parse_from_str(&s)
     }
@@ -95,13 +96,13 @@ impl fmt::Display for HdbDecimal {
     }
 }
 
-pub fn parse_decimal(rdr: &mut io::BufRead) -> PrtResult<HdbDecimal> {
+pub fn parse_decimal(rdr: &mut io::BufRead) -> HdbResult<HdbDecimal> {
     let mut bytes: [u8; 16] = [0; 16];
     rdr.read_exact(&mut bytes[..])?;
     Ok(HdbDecimal { raw: bytes })
 }
 
-pub fn parse_nullable_decimal(rdr: &mut io::BufRead) -> PrtResult<Option<HdbDecimal>> {
+pub fn parse_nullable_decimal(rdr: &mut io::BufRead) -> HdbResult<Option<HdbDecimal>> {
     let mut bytes: [u8; 16] = [0; 16];
     rdr.read_exact(&mut bytes[..])?;
 
@@ -116,7 +117,7 @@ pub fn parse_nullable_decimal(rdr: &mut io::BufRead) -> PrtResult<Option<HdbDeci
     }
 }
 
-pub fn serialize_decimal(d: &HdbDecimal, w: &mut io::Write) -> PrtResult<()> {
+pub fn serialize_decimal(d: &HdbDecimal, w: &mut io::Write) -> HdbResult<()> {
     w.write_all(&d.raw)?;
     Ok(())
 }

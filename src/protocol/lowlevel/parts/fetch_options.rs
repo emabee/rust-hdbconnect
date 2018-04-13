@@ -1,19 +1,11 @@
 use protocol::lowlevel::parts::option_part::OptionPart;
 use protocol::lowlevel::parts::option_part::OptionId;
-// use protocol::lowlevel::parts::option_value::OptionValue;
 
 use std::u8;
 
-// An Options part that is used for describing the connection's capabilities.
+// An Options part that is used by the client when fetching resultset lines;
+// the RESULTSETPOS field can be used to skip over entries.
 pub type FetchOptions = OptionPart<FetchOptionsId>;
-
-impl FetchOptions {
-    // pub fn set_foo(mut self, b: bool) -> FetchOptions {
-    //     self.insert(FetchOptionsId::Foo, OptionValue::BOOLEAN(b));
-    //     self
-    // }
-}
-
 
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub enum FetchOptionsId {

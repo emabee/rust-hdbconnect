@@ -13,7 +13,9 @@ use std::mem;
 ///
 /// ```
 /// use hdbconnect::IntoConnectParams;
-/// let conn_params = "hdbsql://my_user:my_passwd@the_host:2222".into_connect_params().unwrap();
+/// let conn_params = "hdbsql://my_user:my_passwd@the_host:2222"
+///     .into_connect_params()
+///     .unwrap();
 /// ```
 #[derive(Clone, Debug)]
 pub struct ConnectParams {
@@ -72,7 +74,7 @@ impl<'a> IntoConnectParams for &'a str {
     fn into_connect_params(self) -> HdbResult<ConnectParams> {
         match Url::parse(self) {
             Ok(url) => url.into_connect_params(),
-            Err(_) => Err(HdbError::UsageError("url parse error".to_owned())),
+            Err(_) => Err(HdbError::Usage("url parse error".to_owned())),
         }
     }
 }
@@ -186,26 +188,27 @@ impl ConnectParamsBuilder {
         Ok(ConnectParams {
             hostname: match self.hostname {
                 Some(ref s) => s.clone(),
-                None => return Err(HdbError::UsageError("hostname is missing".to_owned())),
+                None => return Err(HdbError::Usage("hostname is missing".to_owned())),
             },
             port: match self.port {
                 Some(p) => p,
-                None => return Err(HdbError::UsageError("port is missing".to_owned())),
+                None => return Err(HdbError::Usage("port is missing".to_owned())),
             },
             dbuser: match self.dbuser {
                 Some(_) => self.dbuser.take().unwrap(),
-                None => return Err(HdbError::UsageError("dbuser is missing".to_owned())),
+                None => return Err(HdbError::Usage("dbuser is missing".to_owned())),
             },
             password: match self.password {
                 Some(_) => self.password.take().unwrap(),
-                None => return Err(HdbError::UsageError("password is missing".to_owned())),
+                None => return Err(HdbError::Usage("password is missing".to_owned())),
             },
             options: mem::replace(&mut self.options, vec![]),
         })
     }
 }
 
-/// A trait implemented by types that can be converted into a `ConnectParamsBuilder`.
+/// A trait implemented by types that can be converted into a
+/// `ConnectParamsBuilder`.
 pub trait IntoConnectParamsBuilder {
     /// Consumes the builder and produces a `ConnectParams`.
     fn into_connect_params_builder(self) -> HdbResult<ConnectParamsBuilder>;
@@ -221,7 +224,7 @@ impl<'a> IntoConnectParamsBuilder for &'a str {
     fn into_connect_params_builder(self) -> HdbResult<ConnectParamsBuilder> {
         match Url::parse(self) {
             Ok(url) => url.into_connect_params_builder(),
-            Err(_) => Err(HdbError::UsageError("url parse error".to_owned())),
+            Err(_) => Err(HdbError::Usage("url parse error".to_owned())),
         }
     }
 }

@@ -1,5 +1,5 @@
-use super::PrtResult;
-use super::option_value::OptionValue;
+use HdbResult;
+use protocol::lowlevel::parts::option_value::OptionValue;
 
 use byteorder::{ReadBytesExt, WriteBytesExt};
 use std::i8;
@@ -11,7 +11,7 @@ pub struct TopologyAttr {
     pub value: OptionValue,
 }
 impl TopologyAttr {
-    pub fn serialize(&self, w: &mut io::Write) -> PrtResult<()> {
+    pub fn serialize(&self, w: &mut io::Write) -> HdbResult<()> {
         w.write_i8(self.id.to_i8())?; // I1
         self.value.serialize(w)
     }
@@ -20,13 +20,10 @@ impl TopologyAttr {
         1 + self.value.size()
     }
 
-    pub fn parse(rdr: &mut io::BufRead) -> PrtResult<TopologyAttr> {
+    pub fn parse(rdr: &mut io::BufRead) -> HdbResult<TopologyAttr> {
         let id = TopologyAttrId::from_i8(rdr.read_i8()?); // I1
         let value = OptionValue::parse(rdr)?;
-        Ok(TopologyAttr {
-            id: id,
-            value: value,
-        })
+        Ok(TopologyAttr { id, value })
     }
 }
 

@@ -1,15 +1,14 @@
-use serde;
-use serde_db::de::{DbValue, DeserializableRow};
-use std::fmt;
-use std::mem;
-use std::vec;
-use std::sync::Arc;
-
 use {HdbError, HdbResult};
 use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
 use protocol::lowlevel::parts::typed_value::TypedValue;
 use protocol::lowlevel::parts::lob::{BLOB, CLOB};
-use serde_db::de::ConversionError;
+
+use serde;
+use serde_db::de::{ConversionError, DbValue, DeserializableRow};
+use std::fmt;
+use std::mem;
+use std::vec;
+use std::sync::Arc;
 
 /// A generic implementation of a single line of a `ResultSet`.
 #[derive(Clone, Debug)]
@@ -21,10 +20,7 @@ pub struct Row {
 impl Row {
     /// Factory for row.
     pub fn new(metadata: Arc<ResultSetMetadata>, values: Vec<TypedValue>) -> Row {
-        Row {
-            metadata: metadata,
-            values: values,
-        }
+        Row { metadata, values }
     }
 
     /// Returns the length of the row.
@@ -59,9 +55,10 @@ impl Row {
     /// Returns a clone of the ith value.
     pub fn cloned_value(&self, i: usize) -> HdbResult<TypedValue> {
         trace!("Row::cloned_value()");
-        self.values.get(i).cloned().ok_or_else(|| {
-            HdbError::UsageError("element with index {} does not exist".to_owned())
-        })
+        self.values
+            .get(i)
+            .cloned()
+            .ok_or_else(|| HdbError::Usage("element with index {} does not exist".to_owned()))
     }
 
     /// Pops and converts the last field into a plain rust value.
@@ -80,7 +77,7 @@ impl Row {
     {
         trace!("Row::field_into()");
         if let TypedValue::NOTHING = self.values[i] {
-            Err(HdbError::UsageError(
+            Err(HdbError::Usage(
                 "Row::field_into() called on Null value".to_owned(),
             ))
         } else {
@@ -113,12 +110,10 @@ impl Row {
 
         match tmp {
             TypedValue::CLOB(clob) | TypedValue::N_CLOB(Some(clob)) => Ok(clob),
-            tv => Err(HdbError::ConversionError(
-                ConversionError::ValueType(format!(
-                    "The value {:?} cannot be converted into a CLOB",
-                    tv
-                )),
-            )),
+            tv => Err(HdbError::Conversion(ConversionError::ValueType(format!(
+                "The value {:?} cannot be converted into a CLOB",
+                tv
+            )))),
         }
     }
 
@@ -130,12 +125,10 @@ impl Row {
 
         match tmp {
             TypedValue::BLOB(blob) | TypedValue::N_BLOB(Some(blob)) => Ok(blob),
-            tv => Err(HdbError::ConversionError(
-                ConversionError::ValueType(format!(
-                    "The value {:?} cannot be converted into a BLOB",
-                    tv
-                )),
-            )),
+            tv => Err(HdbError::Conversion(ConversionError::ValueType(format!(
+                "The value {:?} cannot be converted into a BLOB",
+                tv
+            )))),
         }
     }
 

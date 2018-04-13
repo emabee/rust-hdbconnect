@@ -1,8 +1,9 @@
 use serde_db::de::{ConversionError, DeserializationError};
 use serde_db::ser::SerializationError;
-use protocol::protocol_error::PrtError;
+use protocol::lowlevel::cesu8::Cesu8DecodingError;
 use protocol::lowlevel::conn_core::ConnectionCore;
 use protocol::lowlevel::parts::resultset::ResultSetCore;
+use protocol::lowlevel::parts::server_error::ServerError;
 
 use std::error::{self, Error};
 use std::fmt;
@@ -18,66 +19,85 @@ pub type HdbResult<T> = result::Result<T, HdbError>;
 /// Represents all possible errors that can occur in hdbconnect.
 #[derive(Debug)]
 pub enum HdbError {
+    // FIXME subsume into Deserialization??
     /// Conversion of single db value to rust type failed.
-    ConversionError(ConversionError),
+    Conversion(ConversionError),
 
     /// Error occured in deserialization of data structures into an application-defined
     /// structure.
-    DeserializationError(DeserializationError),
+    Deserialization(DeserializationError),
 
-    /// Error occured while evaluating a HdbResponse object.
-    EvaluationError(String),
+    /// Database server responded with an error.
+    DbError(ServerError),
 
-    /// Error occured in evaluation of a response from the DB.
-    InternalEvaluationError(&'static str),
+    /// Database server responded with an error.
+    MultipleDbErrors(Vec<ServerError>),
 
-    /// Format error occured in communication setup.
-    FmtError(fmt::Error),
+    /// Some error occured while reading CESU-8.
+    Cesu8(Cesu8DecodingError),
 
-    /// IO error occured in communication setup.
-    IoError(io::Error),
+    /// IO error occured in communication with the database.
+    Io(io::Error),
 
-    /// Error occured in communication with the database.
-    ProtocolError(PrtError),
-
-    /// Error occured in serialization of rust data into values for the database.
-    SerializationError(SerializationError),
-
-    /// Error due to wrong usage of API.
-    UsageError(String),
+    /// Missing or wrong implementation of HANA's wire protocol.
+    Impl(String),
 
     /// Error occured in thread synchronization.
-    PoisonError(String),
+    Poison(String),
+
+    // FIXME remove?? subsume into Deserialization??
+    /// Error occured while evaluating a HdbResponse object.
+    Evaluation(String),
+
+    /// Error occured in serialization of rust data into values for the
+    /// database.
+    Serialization(SerializationError),
+
+    /// Error due to wrong usage of API.
+    Usage(String),
+}
+
+impl HdbError {
+    #[doc(hidden)]
+    pub fn impl_<S: AsRef<str>>(s: S) -> HdbError {
+        HdbError::Impl(s.as_ref().to_owned())
+    }
+    #[doc(hidden)]
+    pub fn usage_<S: AsRef<str>>(s: S) -> HdbError {
+        HdbError::Usage(s.as_ref().to_owned())
+    }
 }
 
 impl error::Error for HdbError {
     fn description(&self) -> &str {
         match *self {
-            HdbError::ConversionError(_) => "Conversion of database type to rust type failed",
-            HdbError::DeserializationError(ref error) => error.description(),
-            HdbError::IoError(ref error) => error.description(),
-            HdbError::FmtError(ref error) => error.description(),
-            HdbError::ProtocolError(ref error) => error.description(),
-            HdbError::InternalEvaluationError(s) => s,
-            HdbError::SerializationError(ref error) => error.description(),
-            HdbError::EvaluationError(ref s)
-            | HdbError::UsageError(ref s)
-            | HdbError::PoisonError(ref s) => s,
+            HdbError::DbError(_) => "Error from database server",
+            HdbError::MultipleDbErrors(_) => "Multiple errors from database server",
+            HdbError::Conversion(_) => "Conversion of database type to rust type failed",
+            HdbError::Deserialization(ref e) => e.description(),
+            HdbError::Cesu8(ref e) => e.description(),
+            HdbError::Io(ref e) => e.description(),
+            HdbError::Serialization(ref e) => e.description(),
+            HdbError::Impl(ref s)
+            | HdbError::Evaluation(ref s)
+            | HdbError::Usage(ref s)
+            | HdbError::Poison(ref s) => s,
         }
     }
 
     fn cause(&self) -> Option<&error::Error> {
         match *self {
-            HdbError::ConversionError(ref error) => Some(error),
-            HdbError::DeserializationError(ref error) => Some(error),
-            HdbError::IoError(ref error) => Some(error),
-            HdbError::FmtError(ref error) => Some(error),
-            HdbError::ProtocolError(ref error) => Some(error),
-            HdbError::SerializationError(ref error) => Some(error),
-            HdbError::UsageError(_)
-            | HdbError::PoisonError(_)
-            | HdbError::EvaluationError(_)
-            | HdbError::InternalEvaluationError(_) => None,
+            HdbError::Cesu8(ref e) => Some(e),
+            HdbError::Conversion(ref error) => Some(error),
+            HdbError::Deserialization(ref error) => Some(error),
+            HdbError::Io(ref error) => Some(error),
+            HdbError::Serialization(ref error) => Some(error),
+            HdbError::Impl(_)
+            | HdbError::DbError(_)
+            | HdbError::MultipleDbErrors(_)
+            | HdbError::Usage(_)
+            | HdbError::Poison(_)
+            | HdbError::Evaluation(_) => None,
         }
     }
 }
@@ -85,71 +105,71 @@ impl error::Error for HdbError {
 impl fmt::Display for HdbError {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            HdbError::ConversionError(ref e) => write!(fmt, "{}", e),
-            HdbError::DeserializationError(ref error) => write!(fmt, "{:?}", error),
-            HdbError::IoError(ref error) => write!(fmt, "{:?}", error),
-            HdbError::FmtError(ref error) => write!(fmt, "{:?}", error),
-            HdbError::ProtocolError(ref error) => write!(fmt, "{:?}", error),
-            HdbError::InternalEvaluationError(s) => write!(fmt, "{:?}", s),
-            HdbError::SerializationError(ref error) => write!(fmt, "{:?}", error),
-            HdbError::EvaluationError(ref s) | HdbError::UsageError(ref s) => {
+            HdbError::Cesu8(ref e) => write!(fmt, "{}", e),
+            HdbError::Conversion(ref e) => write!(fmt, "{}", e),
+            HdbError::Deserialization(ref error) => write!(fmt, "{:?}", error),
+            HdbError::Io(ref error) => write!(fmt, "{:?}", error),
+            HdbError::Impl(ref error) => write!(fmt, "{:?}", error),
+            HdbError::Serialization(ref error) => write!(fmt, "{:?}", error),
+            HdbError::Evaluation(ref s) | HdbError::Usage(ref s) | HdbError::Poison(ref s) => {
                 write!(fmt, "{:?}", s)
             }
-            HdbError::PoisonError(ref s) => write!(fmt, "{:?}", s),
+            HdbError::DbError(ref se) => write!(fmt, "{:?}", se),
+            HdbError::MultipleDbErrors(ref vec) => write!(fmt, "{:?}", vec[0]),
         }
     }
 }
 
 impl From<ConversionError> for HdbError {
     fn from(error: ConversionError) -> HdbError {
-        HdbError::ConversionError(error)
+        HdbError::Conversion(error)
     }
 }
 
 impl From<DeserializationError> for HdbError {
     fn from(error: DeserializationError) -> HdbError {
-        HdbError::DeserializationError(error)
+        HdbError::Deserialization(error)
     }
 }
 
 impl From<SerializationError> for HdbError {
     fn from(error: SerializationError) -> HdbError {
-        HdbError::SerializationError(error)
-    }
-}
-
-impl From<PrtError> for HdbError {
-    fn from(error: PrtError) -> HdbError {
-        HdbError::ProtocolError(error)
+        HdbError::Serialization(error)
     }
 }
 
 impl From<String> for HdbError {
     fn from(s: String) -> HdbError {
-        HdbError::UsageError(s)
+        HdbError::Usage(s)
     }
 }
 
 impl From<io::Error> for HdbError {
     fn from(error: io::Error) -> HdbError {
-        HdbError::IoError(error)
+        HdbError::Io(error)
     }
 }
 
 impl From<fmt::Error> for HdbError {
     fn from(error: fmt::Error) -> HdbError {
-        HdbError::FmtError(error)
+        HdbError::Usage(error.description().to_owned())
+    }
+}
+
+impl From<Cesu8DecodingError> for HdbError {
+    fn from(error: Cesu8DecodingError) -> HdbError {
+        HdbError::Cesu8(error)
     }
 }
 
 impl<'a> From<sync::PoisonError<sync::MutexGuard<'a, ConnectionCore>>> for HdbError {
     fn from(error: sync::PoisonError<sync::MutexGuard<'a, ConnectionCore>>) -> HdbError {
-        HdbError::PoisonError(error.description().to_owned())
+        HdbError::Poison(error.description().to_owned())
     }
 }
 
 impl<'a> From<sync::PoisonError<sync::MutexGuard<'a, ResultSetCore>>> for HdbError {
     fn from(error: sync::PoisonError<sync::MutexGuard<'a, ResultSetCore>>) -> HdbError {
-        HdbError::PoisonError(error.description().to_owned())
+        HdbError::Poison(error.description().to_owned())
     }
 }

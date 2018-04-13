@@ -1,4 +1,5 @@
-use super::{util, PrtResult};
+use HdbResult;
+use protocol::lowlevel::cesu8;
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::fmt;
@@ -10,11 +11,10 @@ pub enum Severity {
     /// An additional warning is sent from the server to the client,
     /// along with the regular response.
     Warning,
-    /// The request sent to the server could not be ansered, although the
-    /// database works correctly.
+    /// The request sent to the server was not correct or could not be answered
+    /// correctly.
     Error,
-    /// The request sent to the server could not be ansered because the
-    /// database does not work correctly.
+    /// A fatal, session-terminating error occured.
     Fatal,
 
     /// The request sent to the server could not be answered, for an unknown
@@ -96,11 +96,11 @@ impl ServerError {
         text: String,
     ) -> ServerError {
         ServerError {
-            code: code,
-            position: position,
-            severity: severity,
-            sqlstate: sqlstate,
-            text: text,
+            code,
+            position,
+            severity,
+            sqlstate,
+            text,
         }
     }
 
@@ -108,14 +108,14 @@ impl ServerError {
         BASE_SIZE + self.text.len()
     }
 
-    pub fn parse(arg_size: i32, rdr: &mut io::BufRead) -> PrtResult<ServerError> {
+    pub fn parse(arg_size: i32, rdr: &mut io::BufRead) -> HdbResult<ServerError> {
         let code = rdr.read_i32::<LittleEndian>()?; // I4
         let position = rdr.read_i32::<LittleEndian>()?; // I4
         let text_length = rdr.read_i32::<LittleEndian>()?; // I4
         let severity = Severity::from_i8(rdr.read_i8()?); // I1
-        let sqlstate = util::parse_bytes(5_usize, rdr)?; // B5
-        let bytes = util::parse_bytes(text_length as usize, rdr)?; // B[text_length]
-        let text = util::cesu8_to_string(&bytes)?;
+        let sqlstate = cesu8::parse_bytes(5_usize, rdr)?; // B5
+        let bytes = cesu8::parse_bytes(text_length as usize, rdr)?; // B[text_length]
+        let text = cesu8::cesu8_to_string(&bytes)?;
         let pad = arg_size - BASE_SIZE as i32 - text_length;
         trace!("Skipping over {} padding bytes", pad);
         rdr.consume(pad as usize);
@@ -139,7 +139,14 @@ impl ServerError {
 
 impl fmt::Display for ServerError {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "{}", self.to_string())
+        write!(
+            fmt,
+            r#"code: {}, sql state: {}, position: {}, msg: "{}""#,
+            self.code,
+            String::from_utf8_lossy(&self.sqlstate),
+            self.position(),
+            self.text
+        )
     }
 }
 

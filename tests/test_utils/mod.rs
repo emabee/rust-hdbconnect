@@ -21,9 +21,7 @@ pub fn connect_params_builder_from_file(s: &'static str) -> HdbResult<ConnectPar
         Ok(cpb) => Ok(cpb),
         Err(e) => {
             println!("{:?}", e);
-            Err(HdbError::UsageError(
-                "Cannot read db_access.json".to_owned(),
-            ))
+            Err(HdbError::Usage("Cannot read db_access.json".to_owned()))
         }
     }
 }

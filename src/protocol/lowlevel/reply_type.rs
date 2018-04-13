@@ -1,7 +1,7 @@
-use protocol::protocol_error::{PrtError, PrtResult};
+use {HdbError, HdbResult};
 
-// Identifies the nature of the statement or functionality that has been prepared or executed.
-// Is documented as Function Code.
+// Identifies the nature of the statement or functionality that has been
+// prepared or executed. Is documented as Function Code.
 // Irrelevant numbers (ABAP stuff, "reserved") are not listed.
 #[derive(Debug)]
 pub enum ReplyType {
@@ -31,7 +31,7 @@ pub enum ReplyType {
     XARecover,                 // undocumented
 }
 impl ReplyType {
-    pub fn from_i16(val: i16) -> PrtResult<ReplyType> {
+    pub fn from_i16(val: i16) -> HdbResult<ReplyType> {
         match val {
             0 => Ok(ReplyType::Nil),
             1 => Ok(ReplyType::Ddl),
@@ -60,8 +60,8 @@ impl ReplyType {
             25 => Ok(ReplyType::XAControl),
             26 => Ok(ReplyType::XAPrepare),
             27 => Ok(ReplyType::XARecover),
-            _ => Err(PrtError::ProtocolError(format!(
-                "Invalid value for ReplyType detected: {}",
+            _ => Err(HdbError::Impl(format!(
+                "found unexpected value {} for ReplyType",
                 val
             ))),
         }

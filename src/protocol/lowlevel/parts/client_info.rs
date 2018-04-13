@@ -1,4 +1,4 @@
-use super::PrtResult;
+use HdbResult;
 use super::typed_value::{serialize_length_and_string, string_length};
 use super::typed_value::factory::parse_string;
 
@@ -9,7 +9,7 @@ use std::io::{BufRead, Write};
 pub struct ClientInfo(HashMap<String, String>);
 
 impl ClientInfo {
-    pub fn serialize(&self, w: &mut Write) -> PrtResult<()> {
+    pub fn serialize(&self, w: &mut Write) -> HdbResult<()> {
         for (key, value) in &self.0 {
             serialize_length_and_string(key, w)?;
             serialize_length_and_string(value, w)?;
@@ -28,7 +28,7 @@ impl ClientInfo {
         self.0.len()
     }
 
-    pub fn parse_from_request(no_of_args: i32, rdr: &mut BufRead) -> PrtResult<ClientInfo> {
+    pub fn parse_from_request(no_of_args: i32, rdr: &mut BufRead) -> HdbResult<ClientInfo> {
         let mut map = HashMap::new();
         for _ in 0..no_of_args {
             let key = parse_string(rdr)?;

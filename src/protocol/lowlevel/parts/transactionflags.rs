@@ -1,6 +1,5 @@
+use protocol::lowlevel::parts::option_part::{OptionId, OptionPart};
 use protocol::lowlevel::parts::option_value::OptionValue;
-use protocol::lowlevel::parts::option_part::OptionPart;
-use protocol::lowlevel::parts::option_part::OptionId;
 
 use std::u8;
 

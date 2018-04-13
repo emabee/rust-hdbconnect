@@ -1,5 +1,5 @@
-use protocol::lowlevel::util;
-use super::PrtResult;
+use HdbResult;
+use protocol::lowlevel::cesu8;
 use super::typed_value::TypedValue;
 use super::typed_value::size as typed_value_size;
 use super::typed_value::serialize as typed_value_serialize;
@@ -16,7 +16,7 @@ impl ParameterRow {
         ParameterRow { values: vtv }
     }
 
-    pub fn size(&self) -> PrtResult<usize> {
+    pub fn size(&self) -> HdbResult<usize> {
         let mut size = 0;
         for value in &(self.values) {
             size += typed_value_size(value)?;
@@ -24,7 +24,7 @@ impl ParameterRow {
         Ok(size)
     }
 
-    pub fn serialize(&self, w: &mut io::Write) -> PrtResult<()> {
+    pub fn serialize(&self, w: &mut io::Write) -> HdbResult<()> {
         let mut data_pos = 0_i32;
         // serialize the values (LOBs only serialize their header, the data follow
         // below)
@@ -36,7 +36,7 @@ impl ParameterRow {
         for value in &(self.values) {
             match *value {
                 TypedValue::BLOB(ref blob) | TypedValue::N_BLOB(Some(ref blob)) => {
-                    util::serialize_bytes(blob.ref_to_bytes()?, w)?
+                    cesu8::serialize_bytes(blob.ref_to_bytes()?, w)?
                 }
                 _ => {}
             }
@@ -53,10 +53,10 @@ pub struct Parameters {
 }
 impl Parameters {
     pub fn new(rows: Vec<ParameterRow>) -> Parameters {
-        Parameters { rows: rows }
+        Parameters { rows }
     }
 
-    pub fn serialize(&self, w: &mut io::Write) -> PrtResult<()> {
+    pub fn serialize(&self, w: &mut io::Write) -> HdbResult<()> {
         for row in &self.rows {
             row.serialize(w)?;
         }
@@ -67,7 +67,7 @@ impl Parameters {
         self.rows.len()
     }
 
-    pub fn size(&self) -> PrtResult<usize> {
+    pub fn size(&self) -> HdbResult<usize> {
         let mut size = 0;
         for row in &self.rows {
             size += row.size()?;

@@ -1,10 +1,10 @@
-use protocol::lowlevel::parts::option_part::OptionPart;
-use protocol::lowlevel::parts::option_part::OptionId;
+use protocol::lowlevel::parts::option_part::{OptionId, OptionPart};
 use protocol::lowlevel::parts::option_value::OptionValue;
 
 use std::u8;
 
 // An Options part that is used for describing the connection's capabilities.
+// It is used both in requests and replies.
 pub type ConnectOptions = OptionPart<ConnOptId>;
 
 impl ConnectOptions {

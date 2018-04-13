@@ -1,11 +1,11 @@
-use super::PrtResult;
+use HdbResult;
 
 use byteorder::WriteBytesExt;
 use std::io;
 use std::iter::repeat;
 
 /// Write a byte vec to a Write impl
-pub fn serialize_bytes(v: &[u8], w: &mut io::Write) -> PrtResult<()> {
+pub fn serialize_bytes(v: &[u8], w: &mut io::Write) -> HdbResult<()> {
     for b in v {
         w.write_u8(*b)?;
     }
@@ -13,7 +13,7 @@ pub fn serialize_bytes(v: &[u8], w: &mut io::Write) -> PrtResult<()> {
 }
 
 /// Read n bytes from a `BufRead`, return as Vec<u8>
-pub fn parse_bytes(len: usize, rdr: &mut io::BufRead) -> PrtResult<Vec<u8>> {
+pub fn parse_bytes(len: usize, rdr: &mut io::BufRead) -> HdbResult<Vec<u8>> {
     let mut vec: Vec<u8> = repeat(0u8).take(len).collect();
     let mut read = 0;
     while read < len {
@@ -26,7 +26,7 @@ pub fn string_to_cesu8(s: &str) -> Vec<u8> {
     to_cesu8(s).to_vec()
 }
 
-pub fn cesu8_to_string(v: &[u8]) -> PrtResult<String> {
+pub fn cesu8_to_string(v: &[u8]) -> HdbResult<String> {
     let cow = from_cesu8(v)?;
     Ok(String::from(&*cow))
 }
@@ -257,24 +257,28 @@ pub fn decode_from_iter(decoded: &mut Vec<u8>, iter: &mut slice::Iter<u8>) -> (b
     let mut byte_count = 0;
 
     macro_rules! err {
-        () => { return (false, char_count, byte_count) }
+        () => {
+            return (false, char_count, byte_count);
+        };
     }
     macro_rules! next {
         () => {
             match iter.next() {
                 Some(a) => *a,
                 // We needed data, but there was none: error!
-                None => err!()
+                None => err!(),
             }
-        }
+        };
     }
     macro_rules! next_cont {
-        () => {
-            {
-                let byte = next!();
-                if (byte) & !CONT_MASK == TAG_CONT_U8 { byte } else { err!() }
+        () => {{
+            let byte = next!();
+            if (byte) & !CONT_MASK == TAG_CONT_U8 {
+                byte
+            } else {
+                err!()
             }
-        }
+        }};
     }
 
     loop {
