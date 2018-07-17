@@ -1,14 +1,14 @@
-use {HdbError, HdbResult};
+use protocol::lowlevel::parts::lob::{BLOB, CLOB};
 use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
 use protocol::lowlevel::parts::typed_value::TypedValue;
-use protocol::lowlevel::parts::lob::{BLOB, CLOB};
+use {HdbError, HdbResult};
 
 use serde;
 use serde_db::de::{ConversionError, DbValue, DeserializableRow};
 use std::fmt;
 use std::mem;
-use std::vec;
 use std::sync::Arc;
+use std::vec;
 
 /// A generic implementation of a single line of a `ResultSet`.
 #[derive(Clone, Debug)]
@@ -155,7 +155,6 @@ impl IntoIterator for Row {
 impl fmt::Display for Row {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         for v in &self.values {
-            // fmt::Display::fmt(&v, fmt)?;
             write!(fmt, "{}, ", &v)?;
         }
         Ok(())

@@ -168,7 +168,7 @@ impl Request {
                     reply.replytype, int_return_values);
                 error!("{}",s);
                 error!("Reply: {:?}",reply);
-                Err(HdbError::Evaluation(s))
+                Err(HdbError::impl_(s))
             },
         }
     }

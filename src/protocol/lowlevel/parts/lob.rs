@@ -1,9 +1,9 @@
-use {HdbError, HdbResult};
 use protocol::lowlevel::conn_core::AmConnCore;
 use protocol::lowlevel::parts::blob_handle::BlobHandle;
 use protocol::lowlevel::parts::clob_handle::ClobHandle;
 use std::cell::RefCell;
 use std::io;
+use {HdbError, HdbResult};
 
 /// BLOB implementation that is used within `TypedValue::BLOB`.
 ///
@@ -43,16 +43,24 @@ pub fn new_blob_to_db(vec: Vec<u8>) -> BLOB {
 
 impl BLOB {
     /// Length of contained data.
-    pub fn len(&self) -> HdbResult<usize> {
+    pub fn len_alldata(&self) -> usize {
         match self.0 {
-            BlobEnum::FromDB(ref handle) => handle.borrow_mut().len(),
-            BlobEnum::ToDB(ref vec) => Ok(vec.len()),
+            BlobEnum::FromDB(ref handle) => handle.borrow_mut().len_alldata() as usize,
+            BlobEnum::ToDB(ref vec) => vec.len(),
+        }
+    }
+
+    /// Length of read data.
+    pub fn len_readdata(&self) -> usize {
+        match self.0 {
+            BlobEnum::FromDB(ref handle) => handle.borrow_mut().len_readdata() as usize,
+            BlobEnum::ToDB(ref vec) => vec.len(),
         }
     }
 
     /// Is container empty
     pub fn is_empty(&self) -> HdbResult<bool> {
-        Ok(self.len()? == 0)
+        Ok(self.len_alldata() == 0)
     }
 
     /// Ref to the contained Vec<u8>.
@@ -75,7 +83,8 @@ impl BLOB {
 
     /// Returns the maximum size of the internal buffers.
     ///
-    /// Tests can verify that this value does not exceed `lob_read_size` + `buf.len()`.
+    /// Tests can verify that this value does not exceed `lob_read_size` +
+    /// `buf.len()`.
     pub fn max_size(&self) -> usize {
         match self.0 {
             BlobEnum::FromDB(ref handle) => handle.borrow().max_size(),
@@ -132,7 +141,8 @@ impl CLOB {
 
     /// Returns the maximum size of the internal buffers.
     ///
-    /// Tests can verify that this value does not exceed `lob_read_size` + `buf.len()`.
+    /// Tests can verify that this value does not exceed `lob_read_size` +
+    /// `buf.len()`.
     pub fn max_size(&self) -> usize {
         self.0.borrow().max_size()
     }

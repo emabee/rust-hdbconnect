@@ -60,6 +60,7 @@ fn test_011_invalid_password_impl() -> HdbResult<()> {
     debug!("select from dummy -> ensure getting the right error");
     let result = doedel_conn.query("select 1 from dummy");
     if let Err(HdbError::DbError(ref server_error)) = result {
+        debug!("Got this server error: {:?}", server_error);
         assert_eq!(
             server_error.code(),
             414,

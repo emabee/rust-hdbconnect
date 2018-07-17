@@ -1,5 +1,5 @@
+use protocol::lowlevel::{cesu8, util};
 use {HdbError, HdbResult};
-use protocol::lowlevel::cesu8;
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::fmt;
@@ -177,7 +177,7 @@ pub fn parse(count: i32, arg_size: u32, rdr: &mut io::BufRead) -> HdbResult<Resu
             ));
         }
         let nl = rdr.read_u8()?; // UI1
-        let buffer: Vec<u8> = cesu8::parse_bytes(nl as usize, rdr)?; // variable
+        let buffer: Vec<u8> = util::parse_bytes(nl as usize, rdr)?; // variable
         let name = cesu8::cesu8_to_string(&buffer)?;
         trace!("offset = {}, name = {}", offset, name);
         rsm.names.insert(offset as usize, name);

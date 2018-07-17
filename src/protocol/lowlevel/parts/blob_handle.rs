@@ -1,5 +1,4 @@
 ///////////////////////////////////////////////////////////////
-use {HdbError, HdbResult};
 use protocol::lowlevel::argument::Argument;
 use protocol::lowlevel::conn_core::AmConnCore;
 use protocol::lowlevel::message::Request;
@@ -7,6 +6,7 @@ use protocol::lowlevel::part::Part;
 use protocol::lowlevel::partkind::PartKind;
 use protocol::lowlevel::reply_type::ReplyType;
 use protocol::lowlevel::request_type::RequestType;
+use {HdbError, HdbResult};
 
 use std::cmp;
 use std::io::{self, Write};
@@ -53,9 +53,12 @@ impl BlobHandle {
         }
     }
 
-    pub fn len(&mut self) -> HdbResult<usize> {
-        self.fetch_all()?;
-        Ok(self.data.len())
+    pub fn len_alldata(&mut self) -> u64 {
+        self.length_b
+    }
+
+    pub fn len_readdata(&mut self) -> usize {
+        self.data.len()
     }
 
     fn fetch_next_chunk(&mut self) -> HdbResult<()> {

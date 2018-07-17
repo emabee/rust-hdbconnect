@@ -1,27 +1,5 @@
 use HdbResult;
 
-use byteorder::WriteBytesExt;
-use std::io;
-use std::iter::repeat;
-
-/// Write a byte vec to a Write impl
-pub fn serialize_bytes(v: &[u8], w: &mut io::Write) -> HdbResult<()> {
-    for b in v {
-        w.write_u8(*b)?;
-    }
-    Ok(())
-}
-
-/// Read n bytes from a `BufRead`, return as Vec<u8>
-pub fn parse_bytes(len: usize, rdr: &mut io::BufRead) -> HdbResult<Vec<u8>> {
-    let mut vec: Vec<u8> = repeat(0u8).take(len).collect();
-    let mut read = 0;
-    while read < len {
-        read += rdr.read(&mut vec[read..])?;
-    }
-    Ok(vec)
-}
-
 pub fn string_to_cesu8(s: &str) -> Vec<u8> {
     to_cesu8(s).to_vec()
 }
@@ -33,7 +11,8 @@ pub fn cesu8_to_string(v: &[u8]) -> HdbResult<String> {
 
 /// cesu-8 is identical to utf-8, except for high code points
 /// which consume 4 bytes in utf-8 and 6 in cesu-8;
-/// the first byte of such a code point in utf8 has the bit pattern 11110xxx (240 -247)
+/// the first byte of such a code point in utf8 has the bit pattern 11110xxx
+/// (240 -247)
 pub fn cesu8_length(s: &str) -> usize {
     let mut len = s.len();
     for b in s.as_bytes() {
@@ -204,7 +183,7 @@ impl fmt::Display for Cesu8DecodingError {
 // / assert_eq!(Cow::Borrowed("\u{10401}"),
 // /            from_cesu8(data).unwrap());
 // / ```
-pub fn from_cesu8(bytes: &[u8]) -> Result<Cow<str>, Cesu8DecodingError> {
+fn from_cesu8(bytes: &[u8]) -> Result<Cow<str>, Cesu8DecodingError> {
     match str::from_utf8(bytes) {
         Ok(str) => Ok(Cow::Borrowed(str)),
         _ => {
@@ -215,11 +194,11 @@ pub fn from_cesu8(bytes: &[u8]) -> Result<Cow<str>, Cesu8DecodingError> {
                 assert!(str::from_utf8(&decoded[..]).is_ok());
                 Ok(Cow::Owned(unsafe {
                     let s = String::from_utf8_unchecked(decoded);
-                    trace!("util::from_cesu8(): {}", s);
+                    trace!("cesu8::from_cesu8(): {}", s);
                     (s)
                 }))
             } else {
-                debug!("util::from_cesu8() failed for {:?}", bytes);
+                debug!("cesu8::from_cesu8() failed for {:?}", bytes);
                 Err(Cesu8DecodingError)
             }
         }

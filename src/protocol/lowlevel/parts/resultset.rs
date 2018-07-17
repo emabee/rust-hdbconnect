@@ -1,14 +1,14 @@
-use {HdbError, HdbResult};
 use protocol::lowlevel::argument::Argument;
 use protocol::lowlevel::conn_core::AmConnCore;
 use protocol::lowlevel::message::{parse_message_and_sequence_header, Message, Request};
-use protocol::lowlevel::reply_type::ReplyType;
-use protocol::lowlevel::request_type::RequestType;
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::part_attributes::PartAttributes;
 use protocol::lowlevel::partkind::PartKind;
-use protocol::lowlevel::parts::row::Row;
 use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
+use protocol::lowlevel::parts::row::Row;
+use protocol::lowlevel::reply_type::ReplyType;
+use protocol::lowlevel::request_type::RequestType;
+use {HdbError, HdbResult};
 
 use serde;
 use serde_db::de::DeserializableResultset;
@@ -16,10 +16,12 @@ use std::fmt;
 use std::io;
 use std::sync::{Arc, Mutex};
 
-/// Contains the result of a database read command, including the describing metadata.
+/// Contains the result of a database read command, including the describing
+/// metadata.
 ///
-/// In most cases, you will want to use the powerful method [`try_into`](#method.try_into)
-/// to convert the data from the generic format into your application specific format.
+/// In most cases, you will want to use the powerful method
+/// [`try_into`](#method.try_into) to convert the data from the generic format
+/// into your application specific format.
 #[derive(Debug)]
 pub struct ResultSet {
     core_ref: Arc<Mutex<ResultSetCore>>,
@@ -218,43 +220,50 @@ impl ResultSet {
     /// serde::Deserialize. The implementation of this function uses serde_db.
     /// See [there](https://docs.rs/serde_db/) for more details.
     ///
-    /// A resultset is essentially a two-dimensional structure, given as a list of rows
-    /// (a <code>Vec&lt;Row&gt;</code>),
-    /// where each row is a list of fields (a <code>Vec&lt;TypedValue&gt;</code>);
-    /// the name of each field is given in the metadata of the resultset.
+    /// A resultset is essentially a two-dimensional structure, given as a list
+    /// of rows (a <code>Vec&lt;Row&gt;</code>),
+    /// where each row is a list of fields (a
+    /// <code>Vec&lt;TypedValue&gt;</code>); the name of each field is
+    /// given in the metadata of the resultset.
     ///
-    /// The method supports a variety of target data structures, with the only strong limitation
-    /// that no data loss is supported.
+    /// The method supports a variety of target data structures, with the only
+    /// strong limitation that no data loss is supported.
     ///
-    /// * It depends on the dimension of the resultset what target data structure
-    ///   you can choose for deserialization:
+    /// * It depends on the dimension of the resultset what target data
+    /// structure   you can choose for deserialization:
     ///
     ///     * You can always use a <code>Vec&lt;line_struct&gt;</code>, where
     ///       <code>line_struct</code> matches the field list of the resultset.
     ///
-    ///     * If the resultset contains only a single line (e.g. because you specified
-    ///       TOP 1 in your select),
-    ///       then you can optionally choose to deserialize into a plain <code>line_struct</code>.
+    /// * If the resultset contains only a single line (e.g. because you
+    /// specified       TOP 1 in your select),
+    /// then you can optionally choose to deserialize into a plain
+    /// <code>line_struct</code>.
     ///
-    ///     * If the resultset contains only a single column, then you can optionally choose to
-    ///       deserialize into a <code>Vec&lt;plain_field&gt;</code>.
+    /// * If the resultset contains only a single column, then you can
+    /// optionally choose to deserialize into a
+    /// <code>Vec&lt;plain_field&gt;</code>.
     ///
-    ///     * If the resultset contains only a single value (one row with one column),
-    ///       then you can optionally choose to deserialize into a plain <code>line_struct</code>,
-    ///       or a <code>Vec&lt;plain_field&gt;</code>, or a plain variable.
+    /// * If the resultset contains only a single value (one row with one
+    /// column), then you can optionally choose to deserialize into a
+    /// plain <code>line_struct</code>, or a
+    /// <code>Vec&lt;plain_field&gt;</code>, or a plain variable.
     ///
-    /// * Also the translation of the individual field values provides a lot of flexibility.
-    ///   You can e.g. convert values from a nullable column into a plain field,
-    ///   provided that no NULL values are given in the resultset.
+    /// * Also the translation of the individual field values provides a lot of
+    /// flexibility. You can e.g. convert values from a nullable column
+    /// into a plain field, provided that no NULL values are given in the
+    /// resultset.
     ///
-    ///   Vice versa, you always can use an Option<code>&lt;plain_field&gt;</code>,
-    ///   even if the column is marked as NOT NULL.
+    /// Vice versa, you always can use an
+    /// Option<code>&lt;plain_field&gt;</code>, even if the column is
+    /// marked as NOT NULL.
     ///
-    /// * Similarly, integer types can differ, as long as the concrete values can
-    ///   be assigned without loss.
+    /// * Similarly, integer types can differ, as long as the concrete values
+    /// can   be assigned without loss.
     ///
-    /// Note that you need to specify the type of your target variable explicitly, so that
-    /// <code>try_into()</code> can derive the type it needs to serialize into:
+    /// Note that you need to specify the type of your target variable
+    /// explicitly, so that <code>try_into()</code> can derive the type it
+    /// needs to serialize into:
     ///
     /// ```ignore
     /// #[derive(Deserialize)]
@@ -290,7 +299,7 @@ impl IntoIterator for ResultSet {
     type IntoIter = RowIterator;
 
     fn into_iter(self) -> Self::IntoIter {
-        RowIterator { rs: self }
+        RowIterator::new(self)
     }
 }
 
@@ -298,12 +307,17 @@ pub struct RowIterator {
     rs: ResultSet,
 }
 impl RowIterator {
+    fn new(mut rs: ResultSet) -> RowIterator {
+        rs.reverse_rows();
+        RowIterator { rs: rs }
+    }
     fn next_int(&mut self) -> HdbResult<Option<Row>> {
         if self.rs.rows.is_empty() {
             if self.rs.is_complete()? {
                 return Ok(None);
             } else {
                 self.rs.fetch_next()?;
+                self.rs.reverse_rows();
             }
         }
         Ok(self.rs.rows.pop())
@@ -323,7 +337,6 @@ impl Iterator for RowIterator {
 
 pub mod factory {
     use super::{ResultSet, ResultSetCore, Row};
-    use {HdbError, HdbResult};
     use protocol::lowlevel::argument::Argument;
     use protocol::lowlevel::conn_core::AmConnCore;
     use protocol::lowlevel::part::Parts;
@@ -331,10 +344,11 @@ pub mod factory {
     use protocol::lowlevel::partkind::PartKind;
     use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
     use protocol::lowlevel::parts::statement_context::StatementContext;
-    use protocol::lowlevel::parts::typed_value::TypedValue;
     use protocol::lowlevel::parts::typed_value::factory as TypedValueFactory;
+    use protocol::lowlevel::parts::typed_value::TypedValue;
     use std::io;
     use std::sync::Arc;
+    use {HdbError, HdbResult};
 
     pub fn resultset_new(
         am_conn_core: &AmConnCore,
@@ -477,12 +491,11 @@ pub mod factory {
                     );
                     let value =
                         TypedValueFactory::parse_from_reply(typecode, nullable, am_conn_core, rdr)?;
-                    trace!("Found value {:?}", value);
                     values.push(value);
                 }
-                resultset
-                    .rows
-                    .push(Row::new(Arc::clone(&resultset.metadata), values));
+                let row = Row::new(Arc::clone(&resultset.metadata), values);
+                trace!("parse_rows(): Found row {}", row);
+                resultset.rows.push(row);
             }
         }
         Ok(())

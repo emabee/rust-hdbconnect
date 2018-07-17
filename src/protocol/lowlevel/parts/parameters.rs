@@ -1,8 +1,8 @@
-use HdbResult;
-use protocol::lowlevel::cesu8;
-use super::typed_value::TypedValue;
-use super::typed_value::size as typed_value_size;
 use super::typed_value::serialize as typed_value_serialize;
+use super::typed_value::size as typed_value_size;
+use super::typed_value::TypedValue;
+use protocol::lowlevel::util;
+use HdbResult;
 
 use std::io;
 
@@ -36,7 +36,7 @@ impl ParameterRow {
         for value in &(self.values) {
             match *value {
                 TypedValue::BLOB(ref blob) | TypedValue::N_BLOB(Some(ref blob)) => {
-                    cesu8::serialize_bytes(blob.ref_to_bytes()?, w)?
+                    util::serialize_bytes(blob.ref_to_bytes()?, w)?
                 }
                 _ => {}
             }
@@ -46,7 +46,8 @@ impl ParameterRow {
 }
 
 /// A PARAMETERS part contains input parameters.
-/// The argument count of the part defines how many rows of parameters are included.
+/// The argument count of the part defines how many rows of parameters are
+/// included.
 #[derive(Clone, Debug)]
 pub struct Parameters {
     rows: Vec<ParameterRow>,

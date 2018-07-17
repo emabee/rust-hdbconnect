@@ -139,13 +139,13 @@ pub fn parameter_direction_from_u8(v: u8) -> HdbResult<ParameterDirection> {
 }
 
 pub mod factory {
-    use super::{parameter_descriptor_new, parameter_descriptor_set_name, ParameterDescriptor,
-                parameter_direction_from_u8};
-    use protocol::lowlevel::cesu8;
-    use HdbResult;
+    use super::{parameter_descriptor_new, parameter_descriptor_set_name,
+                parameter_direction_from_u8, ParameterDescriptor};
     use byteorder::{LittleEndian, ReadBytesExt};
+    use protocol::lowlevel::{cesu8, util};
     use std::io;
     use std::u32;
+    use HdbResult;
 
     pub fn parse(
         count: i32,
@@ -168,18 +168,14 @@ pub mod factory {
             consumed += 16;
             assert!(arg_size >= consumed);
             vec_pd.push(parameter_descriptor_new(
-                option,
-                value_type,
-                mode,
-                length,
-                fraction,
+                option, value_type, mode, length, fraction,
             ));
         }
         // read the parameter names
         for (mut descriptor, name_offset) in vec_pd.iter_mut().zip(name_offsets.iter()) {
             if name_offset != &u32::MAX {
                 let length = rdr.read_u8()?;
-                let name = cesu8::cesu8_to_string(&cesu8::parse_bytes(length as usize, rdr)?)?;
+                let name = cesu8::cesu8_to_string(&util::parse_bytes(length as usize, rdr)?)?;
                 parameter_descriptor_set_name(&mut descriptor, name);
                 consumed += 1 + u32::from(length);
                 assert!(arg_size >= consumed);

@@ -1,25 +1,25 @@
+use connect_params::ConnectParams;
 use protocol::lowlevel::parts::server_error::ServerError;
 use {HdbError, HdbResponse, HdbResult};
-use connect_params::ConnectParams;
 
-use prepared_statement::PreparedStatement;
 use prepared_statement::factory as PreparedStatementFactory;
+use prepared_statement::PreparedStatement;
 
 use protocol::authenticate;
 use protocol::lowlevel::argument::Argument;
+use protocol::lowlevel::conn_core::{AmConnCore, ConnectionCore};
 use protocol::lowlevel::message::Request;
-use protocol::lowlevel::request_type::RequestType;
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::partkind::PartKind;
-use protocol::lowlevel::conn_core::{AmConnCore, ConnectionCore};
 use protocol::lowlevel::parts::resultset::ResultSet;
+use protocol::lowlevel::request_type::RequestType;
 use xa_impl::new_resource_manager;
 
 use chrono::Local;
 use dist_tx::rm::ResourceManager;
 use std::error::Error;
-use std::net::TcpStream;
 use std::fmt::Write;
+use std::net::TcpStream;
 use std::sync::Arc;
 
 /// Connection object.
@@ -190,10 +190,10 @@ impl Connection {
 
     /// Utility method to fire a couple of statements, ignoring errors and
     /// return values
-    pub fn multiple_statements_ignore_err(&mut self, stmts: Vec<&str>) {
+    pub fn multiple_statements_ignore_err<S: AsRef<str>>(&mut self, stmts: Vec<S>) {
         for s in stmts {
-            debug!("multiple_statements_ignore_err: firing \"{}\"", s);
-            let result = self.statement(s);
+            debug!("multiple_statements_ignore_err: firing \"{}\"", s.as_ref());
+            let result = self.statement(s.as_ref());
             match result {
                 Ok(_) => {}
                 Err(e) => info!("Error intentionally ignored: {}", e.description()),
@@ -201,23 +201,23 @@ impl Connection {
         }
     }
 
-    /// Utility method to fire a couple of statements, ignoring their return values;
-    /// the method returns with the first error, or with  ()
-    pub fn multiple_statements(&mut self, stmts: Vec<&str>) -> HdbResult<()> {
+    /// Utility method to fire a couple of statements, ignoring their return
+    /// values; the method returns with the first error, or with  ()
+    pub fn multiple_statements<S: AsRef<str>>(&mut self, stmts: Vec<S>) -> HdbResult<()> {
         for s in stmts {
-            self.statement(s)?;
+            self.statement(s.as_ref())?;
         }
         Ok(())
     }
 
-    /// Returns warnings that were returned from the server since the last call to this
-    /// method.
+    /// Returns warnings that were returned from the server since the last call
+    /// to this method.
     pub fn pop_warnings(&self) -> HdbResult<Option<Vec<ServerError>>> {
         self.am_conn_core.lock()?.pop_warnings()
     }
 
-    /// Returns an implementation of `dist_tx::rm::ResourceManager` that is based on this
-    /// connection.
+    /// Returns an implementation of `dist_tx::rm::ResourceManager` that is
+    /// based on this connection.
     pub fn get_resource_manager(&self) -> Box<ResourceManager> {
         Box::new(new_resource_manager(Arc::clone(&self.am_conn_core)))
     }

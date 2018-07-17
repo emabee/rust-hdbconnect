@@ -1,5 +1,5 @@
+use protocol::lowlevel::util;
 use {HdbError, HdbResult};
-use protocol::lowlevel::cesu8;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::io;
@@ -35,7 +35,7 @@ impl AuthField {
                 )));
             }
         }
-        cesu8::serialize_bytes(&self.0, w) // B (varying) value
+        util::serialize_bytes(&self.0, w) // B (varying) value
     }
 
     pub fn size(&self) -> usize {
@@ -56,6 +56,6 @@ impl AuthField {
             }
             _ => {}
         }
-        Ok(AuthField(cesu8::parse_bytes(len, rdr)?))
+        Ok(AuthField(util::parse_bytes(len, rdr)?))
     }
 }

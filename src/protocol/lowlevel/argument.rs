@@ -1,26 +1,18 @@
-use {HdbError, HdbResult};
-use protocol::lowlevel::cesu8;
-use protocol::lowlevel::parts::blob_handle::ReadLobRequest;
-use protocol::lowlevel::parts::commit_options::CommitOptions;
-use protocol::lowlevel::parts::fetch_options::FetchOptions;
-use protocol::lowlevel::parts::lob_flags::LobFlags;
-use protocol::lowlevel::parts::session_context::SessionContext;
-use protocol::lowlevel::parts::command_info::CommandInfo;
 use super::conn_core::AmConnCore;
+use super::part::Parts;
 use super::part_attributes::PartAttributes;
 use super::partkind::PartKind;
-use super::part::Parts;
 use super::parts::authfield::AuthField;
 use super::parts::client_info::ClientInfo;
 use super::parts::connect_options::ConnectOptions;
-use super::parts::parameters::Parameters;
-use super::parts::parameter_descriptor::ParameterDescriptor;
-use super::parts::parameter_descriptor::factory as ParameterDescriptorFactory;
-use super::parts::output_parameters::OutputParameters;
 use super::parts::output_parameters::factory as OutputParametersFactory;
+use super::parts::output_parameters::OutputParameters;
+use super::parts::parameter_descriptor::factory as ParameterDescriptorFactory;
+use super::parts::parameter_descriptor::ParameterDescriptor;
+use super::parts::parameters::Parameters;
 use super::parts::read_lob_reply::ReadLobReply;
-use super::parts::resultset::ResultSet;
 use super::parts::resultset::factory as ResultSetFactory;
+use super::parts::resultset::ResultSet;
 use super::parts::resultset_metadata::{self, ResultSetMetadata};
 use super::parts::rows_affected::RowsAffected;
 use super::parts::server_error::ServerError;
@@ -28,6 +20,15 @@ use super::parts::statement_context::StatementContext;
 use super::parts::topology_attribute::TopologyAttr;
 use super::parts::transactionflags::TransactionFlags;
 use super::parts::xat_options::XatOptions;
+use protocol::lowlevel::cesu8;
+use protocol::lowlevel::parts::blob_handle::ReadLobRequest;
+use protocol::lowlevel::parts::command_info::CommandInfo;
+use protocol::lowlevel::parts::commit_options::CommitOptions;
+use protocol::lowlevel::parts::fetch_options::FetchOptions;
+use protocol::lowlevel::parts::lob_flags::LobFlags;
+use protocol::lowlevel::parts::session_context::SessionContext;
+use protocol::lowlevel::util;
+use {HdbError, HdbResult};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::io;
@@ -133,10 +134,7 @@ impl Argument {
             Argument::XatOptions(ref xat) => size += xat.size(),
 
             ref arg => {
-                return Err(HdbError::Impl(format!(
-                    "size() called on {:?}",
-                    arg
-                )));
+                return Err(HdbError::Impl(format!("size() called on {:?}", arg)));
             }
         }
         if with_padding {
@@ -200,10 +198,7 @@ impl Argument {
             Argument::TransactionFlags(ref taflags) => taflags.serialize(w)?,
             Argument::XatOptions(ref xatid) => xatid.serialize(w)?,
             ref a => {
-                return Err(HdbError::Impl(format!(
-                    "serialize() called on {:?}",
-                    a
-                )));
+                return Err(HdbError::Impl(format!("serialize() called on {:?}", a)));
             }
         }
 
@@ -253,7 +248,7 @@ impl Argument {
                 Argument::ClientInfo(client_info)
             }
             PartKind::Command => {
-                let bytes = cesu8::parse_bytes(arg_size as usize, rdr)?;
+                let bytes = util::parse_bytes(arg_size as usize, rdr)?;
                 let s = cesu8::cesu8_to_string(&bytes)?;
                 Argument::Command(s)
             }
@@ -277,7 +272,8 @@ impl Argument {
                 )?)
             } else {
                 return Err(HdbError::Impl(
-                    "Cannot parse output parameters without metadata".to_owned()));
+                    "Cannot parse output parameters without metadata".to_owned(),
+                ));
             },
             PartKind::ParameterMetadata => Argument::ParameterMetadata(
                 ParameterDescriptorFactory::parse(no_of_args, arg_size as u32, rdr)?,
@@ -288,8 +284,8 @@ impl Argument {
                     no_of_args,
                     attributes,
                     parts,
-                    o_am_conn_core.ok_or_else(|| HdbError::impl_(
-                        "ResultSet parsing requires a conn_core"))?,
+                    o_am_conn_core
+                        .ok_or_else(|| HdbError::impl_("ResultSet parsing requires a conn_core"))?,
                     o_rs_md,
                     o_rs,
                     rdr,
@@ -297,9 +293,11 @@ impl Argument {
                 Argument::ResultSet(rs)
             }
             PartKind::ResultSetId => Argument::ResultSetId(rdr.read_u64::<LittleEndian>()?),
-            PartKind::ResultSetMetadata => Argument::ResultSetMetadata(
-                resultset_metadata::parse(no_of_args, arg_size as u32, rdr)?,
-            ),
+            PartKind::ResultSetMetadata => Argument::ResultSetMetadata(resultset_metadata::parse(
+                no_of_args,
+                arg_size as u32,
+                rdr,
+            )?),
             PartKind::RowsAffected => Argument::RowsAffected(RowsAffected::parse(no_of_args, rdr)?),
             PartKind::StatementContext => {
                 Argument::StatementContext(StatementContext::parse(no_of_args, rdr)?)

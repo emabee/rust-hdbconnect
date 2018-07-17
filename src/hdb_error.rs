@@ -19,7 +19,7 @@ pub type HdbResult<T> = result::Result<T, HdbError>;
 /// Represents all possible errors that can occur in hdbconnect.
 #[derive(Debug)]
 pub enum HdbError {
-    // FIXME subsume into Deserialization??
+    // FIXME subsume into Deserialization?? -> has to be done in serde_db!
     /// Conversion of single db value to rust type failed.
     Conversion(ConversionError),
 
@@ -36,18 +36,17 @@ pub enum HdbError {
     /// Some error occured while reading CESU-8.
     Cesu8(Cesu8DecodingError),
 
-    /// IO error occured in communication with the database.
-    Io(io::Error),
+    /// Error occured while evaluating a HdbResponse object.
+    Evaluation(String),
 
     /// Missing or wrong implementation of HANA's wire protocol.
     Impl(String),
 
+    /// IO error occured in communication with the database.
+    Io(io::Error),
+
     /// Error occured in thread synchronization.
     Poison(String),
-
-    // FIXME remove?? subsume into Deserialization??
-    /// Error occured while evaluating a HdbResponse object.
-    Evaluation(String),
 
     /// Error occured in serialization of rust data into values for the
     /// database.

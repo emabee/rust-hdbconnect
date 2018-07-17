@@ -1,5 +1,5 @@
+use protocol::lowlevel::{cesu8,util};
 use HdbResult;
-use protocol::lowlevel::cesu8;
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::fmt;
@@ -113,8 +113,8 @@ impl ServerError {
         let position = rdr.read_i32::<LittleEndian>()?; // I4
         let text_length = rdr.read_i32::<LittleEndian>()?; // I4
         let severity = Severity::from_i8(rdr.read_i8()?); // I1
-        let sqlstate = cesu8::parse_bytes(5_usize, rdr)?; // B5
-        let bytes = cesu8::parse_bytes(text_length as usize, rdr)?; // B[text_length]
+        let sqlstate = util::parse_bytes(5_usize, rdr)?; // B5
+        let bytes = util::parse_bytes(text_length as usize, rdr)?; // B[text_length]
         let text = cesu8::cesu8_to_string(&bytes)?;
         let pad = arg_size - BASE_SIZE as i32 - text_length;
         trace!("Skipping over {} padding bytes", pad);

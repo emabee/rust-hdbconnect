@@ -10,8 +10,8 @@ extern crate serde_json;
 mod test_utils;
 
 use chrono::NaiveDateTime;
-use hdbconnect::{Connection, HdbResult};
 use flexi_logger::ReconfigurationHandle;
+use hdbconnect::{Connection, HdbResult};
 
 #[test] // cargo test --test test_015_resultset -- --nocapture
 pub fn test_015_resultset() {
@@ -29,8 +29,12 @@ pub fn test_015_resultset() {
 // Test the various ways to evaluate a resultset
 fn impl_test_015_resultset(log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
     let mut connection = test_utils::get_authenticated_connection()?;
+
     evaluate_resultset(log_handle, &mut connection)?;
+    verify_row_ordering(log_handle, &mut connection)?;
+
     info!("{} calls to DB were executed", connection.get_call_count()?);
+
     Ok(())
 }
 
@@ -38,6 +42,7 @@ fn evaluate_resultset(
     log_handle: &mut ReconfigurationHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
+    info!("evaluate_resultset");
     // prepare the db table
     connection.multiple_statements_ignore_err(vec!["drop table TEST_RESULTSET"]);
     let stmts = vec![
@@ -125,6 +130,60 @@ fn evaluate_resultset(
     let vtd: Vec<TestData> = connection.query(stmt)?.try_into()?;
     for td in vtd {
         debug!("Got {}, {:?}, {}, {}", td.f1, td.f2, td.f3, td.f4);
+    }
+
+    Ok(())
+}
+
+fn verify_row_ordering(
+    log_handle: &mut ReconfigurationHandle,
+    connection: &mut Connection,
+) -> HdbResult<()> {
+    log_handle.parse_new_spec("info, test_015_resultset = debug, hdbconnect::protocol::lowlevel::parts::resultset = debug");
+    info!("verify_row_ordering");
+    // prepare the db table
+    connection.multiple_statements_ignore_err(vec!["drop table TEST_ROW_ORDERING"]);
+    connection.multiple_statements(vec![
+        "create table TEST_ROW_ORDERING ( f1 INT primary key, f2 INT)",
+    ])?;
+    let mut insert_stmt = connection.prepare("insert into TEST_ROW_ORDERING (f1, f2) values(?,?)")?;
+
+    for i in 0..3000 {
+        insert_stmt.add_batch(&(i, i))?;
+    }
+    insert_stmt.execute_batch()?;
+
+    let stmt = "select * from TEST_ROW_ORDERING order by f1 asc";
+
+    for fs in [10, 100, 1000, 2000].into_iter() {
+        debug!("verify_row_ordering with fetch_size {}", *fs);
+        connection.set_fetch_size(*fs).unwrap();
+        for (index, row) in connection.query(stmt)?.into_iter().enumerate() {
+            let (f1, f2): (usize, usize) = row?.try_into()?;
+            if index % 100 == 0 {
+                debug!("pass 1, {}", index);
+            };
+            assert_eq!(index, f1);
+            assert_eq!(index, f2);
+        }
+
+        for (index, row) in connection.query(stmt)?.into_iter().enumerate() {
+            if index % 100 == 0 {
+                debug!("pass 2, {}", index);
+            }
+            let mut row = row?;
+            assert_eq!(index, row.field_into::<usize>(0)?);
+            assert_eq!(index, row.field_into::<usize>(1)?);
+        }
+
+        let result: Vec<(usize, usize)> = connection.query(stmt)?.try_into()?;
+        for (index, (f1, f2)) in result.into_iter().enumerate() {
+            if index % 100 == 0 {
+                debug!("pass 3, {}", index);
+            }
+            assert_eq!(index, f1);
+            assert_eq!(index, f2);
+        }
     }
 
     Ok(())

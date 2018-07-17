@@ -1,16 +1,16 @@
-use {HdbError, HdbResult};
-use protocol::lowlevel::cesu8;
 use protocol::lowlevel::parts::hdb_decimal::{serialize_decimal, HdbDecimal};
 use protocol::lowlevel::parts::lob::*;
 use protocol::lowlevel::parts::longdate::LongDate;
 use protocol::lowlevel::parts::type_id;
+use protocol::lowlevel::{cesu8, util};
+use {HdbError, HdbResult};
 
 use byteorder::{LittleEndian, WriteBytesExt};
 use serde;
 use serde_db::de::DbValue;
 use std::fmt;
-use std::io;
 use std::i16;
+use std::io;
 
 const MAX_1_BYTE_LENGTH: u8 = 245;
 const MAX_2_BYTE_LENGTH: i16 = i16::MAX;
@@ -22,8 +22,8 @@ const LENGTH_INDICATOR_NULL: u8 = 255;
 #[allow(non_camel_case_types)]
 #[derive(Clone, Debug)]
 pub enum TypedValue {
-    /// Internally used only. Is swapped in where a real value (any of the others) is swapped
-    /// out.
+    /// Internally used only. Is swapped in where a real value (any of the
+    /// others) is swapped out.
     NOTHING,
     /// Stores an 8-bit unsigned integer.
     /// The minimum value is 0. The maximum value is 255.
@@ -43,15 +43,16 @@ pub enum TypedValue {
     /// (the sum of whole digits and fractional digits).
     /// "s" denotes scale or the number of fractional digits.
     /// If a column is defined as DECIMAL(5, 4) for example,
-    /// the numbers 3.14, 3.1415, 3.141592 are stored in the column as 3.1400, 3.1415, 3.1415,
-    /// retaining the specified precision(5) and scale(4).
+    /// the numbers 3.14, 3.1415, 3.141592 are stored in the column as 3.1400,
+    /// 3.1415, 3.1415, retaining the specified precision(5) and scale(4).
     ///
     /// Precision p, can range from 1 to 38.
     /// The scale can range from 0 to p.
     /// If the scale is not specified, it defaults to 0.
-    /// If precision and scale are not specified, DECIMAL becomes a floating-point decimal number.
-    /// In this case, precision and scale can vary within the range 1 to 34 for precision
-    /// and -6,111 to 6,176 for scale, depending on the stored value.
+    /// If precision and scale are not specified, DECIMAL becomes a
+    /// floating-point decimal number. In this case, precision and scale
+    /// can vary within the range 1 to 34 for precision and -6,111 to 6,176
+    /// for scale, depending on the stored value.
     ///
     /// Examples:
     /// 0.0000001234 (1234E-10) has precision 4 and scale 10.
@@ -61,31 +62,35 @@ pub enum TypedValue {
     /// Stores a single-precision 32-bit floating-point number.
     REAL(f32),
     /// Stores a double-precision 64-bit floating-point number.
-    /// The minimum value is -1.7976931348623157E308, the maximum value is 1.7976931348623157E308 .
-    /// The smallest positive DOUBLE value is 2.2250738585072014E-308 and the
-    /// largest negative DOUBLE value is -2.2250738585072014E-308.
+    /// The minimum value is -1.7976931348623157E308, the maximum value is
+    /// 1.7976931348623157E308 . The smallest positive DOUBLE value is
+    /// 2.2250738585072014E-308 and the largest negative DOUBLE value is
+    /// -2.2250738585072014E-308.
     DOUBLE(f64),
     /// Fixed-length character String, only ASCII-7 allowed.
     CHAR(String),
     /// The VARCHAR(n) data type specifies a variable-length character string,
-    /// where n indicates the maximum length in bytes and is an integer between 1 and 5000.
-    /// If the VARCHAR(n) data type is used in a DML query, for example CAST (A as VARCHAR(n)),
-    /// <n> indicates the maximum length of the string in characters.
-    /// SAP recommends using VARCHAR with ASCII characters based strings only.
-    /// For data containing other characters, SAP recommends using the NVARCHAR
-    /// data type instead.
+    /// where n indicates the maximum length in bytes and is an integer between
+    /// 1 and 5000. If the VARCHAR(n) data type is used in a DML query, for
+    /// example CAST (A as VARCHAR(n)), <n> indicates the maximum length of
+    /// the string in characters. SAP recommends using VARCHAR with ASCII
+    /// characters based strings only. For data containing other
+    /// characters, SAP recommends using the NVARCHAR data type instead.
     VARCHAR(String),
     /// Fixed-length character string.
     NCHAR(String),
-    /// The NVARCHAR(n) data type specifies a variable-length Unicode character set string,
-    /// where <n> indicates the maximum length in characters and is an integer between 1 and 5000.
+    /// The NVARCHAR(n) data type specifies a variable-length Unicode character
+    /// set string, where <n> indicates the maximum length in characters
+    /// and is an integer between 1 and 5000.
     NVARCHAR(String),
-    /// The BINARY(n) data type is used to store binary data of a specified length in bytes,
-    /// where n indicates the fixed length and is an integer between 1 and 5000.
+    /// The BINARY(n) data type is used to store binary data of a specified
+    /// length in bytes, where n indicates the fixed length and is an
+    /// integer between 1 and 5000.
     BINARY(Vec<u8>),
     /// The VARBINARY(n) data type is used to store binary data of a specified
     /// maximum length in bytes,
-    /// where n indicates the maximum length and is an integer between 1 and 5000.
+    /// where n indicates the maximum length and is an integer between 1 and
+    /// 5000.
     VARBINARY(Vec<u8>),
     /// The CLOB data type is used to store a large ASCII character string.
     CLOB(CLOB),
@@ -116,7 +121,8 @@ pub enum TypedValue {
     // SMALLDECIMAL = 47, 				// SMALLDECIMAL data type, -
     /// The TEXT data type enables text search features.
     /// This data type can be defined for column tables, but not for row tables.
-    /// This is not a standalone SQL-Type. Selecting a TEXT column yields a column of type NCLOB.
+    /// This is not a standalone SQL-Type. Selecting a TEXT column yields a
+    /// column of type NCLOB.
     TEXT(String),
     /// Similar to TEXT.
     SHORTTEXT(String),
@@ -330,7 +336,7 @@ pub fn serialize(tv: &TypedValue, data_pos: &mut i32, w: &mut io::Write) -> HdbR
             }
 
             TypedValue::BLOB(ref blob) | TypedValue::N_BLOB(Some(ref blob)) => {
-                serialize_blob_header(blob.len()?, data_pos, w)?
+                serialize_blob_header(blob.len_alldata(), data_pos, w)?
             }
 
             TypedValue::STRING(ref s)
@@ -421,7 +427,7 @@ pub fn size(tv: &TypedValue) -> HdbResult<usize> {
         | TypedValue::NCLOB(ref clob)
         | TypedValue::N_NCLOB(Some(ref clob)) => 9 + clob.len()?,
 
-        TypedValue::BLOB(ref blob) | TypedValue::N_BLOB(Some(ref blob)) => 9 + blob.len()?,
+        TypedValue::BLOB(ref blob) | TypedValue::N_BLOB(Some(ref blob)) => 9 + blob.len_alldata(),
 
         TypedValue::STRING(ref s)
         | TypedValue::N_STRING(Some(ref s))
@@ -501,7 +507,7 @@ fn serialize_length_and_bytes(v: &[u8], w: &mut io::Write) -> HdbResult<()> {
             w.write_i32::<LittleEndian>(l as i32)?; // I4           LENGTH OF VALUE
         }
     }
-    cesu8::serialize_bytes(v, w) // B variable   VALUE BYTES
+    util::serialize_bytes(v, w) // B variable   VALUE BYTES
 }
 
 fn serialize_blob_header(v_len: usize, data_pos: &mut i32, w: &mut io::Write) -> HdbResult<()> {
@@ -560,12 +566,17 @@ impl fmt::Display for TypedValue {
             | TypedValue::SHORTTEXT(ref value)
             | TypedValue::N_SHORTTEXT(Some(ref value)) => write!(fmt, "\"{}\"", value),
             TypedValue::BINARY(_) | TypedValue::N_BINARY(Some(_)) => write!(fmt, "<BINARY>"),
-            TypedValue::VARBINARY(_) | TypedValue::N_VARBINARY(Some(_)) => {
-                write!(fmt, "<VARBINARY>")
+            TypedValue::VARBINARY(ref vec) | TypedValue::N_VARBINARY(Some(ref vec)) => {
+                write!(fmt, "<VARBINARY length = {}>", vec.len())
             }
             TypedValue::CLOB(_) | TypedValue::N_CLOB(Some(_)) => write!(fmt, "<CLOB>"),
             TypedValue::NCLOB(_) | TypedValue::N_NCLOB(Some(_)) => write!(fmt, "<NCLOB>"),
-            TypedValue::BLOB(_) | TypedValue::N_BLOB(Some(_)) => write!(fmt, "<BLOB>"),
+            TypedValue::BLOB(ref blob) | TypedValue::N_BLOB(Some(ref blob)) => write!(
+                fmt,
+                "<BLOB length = {}, read = {}>",
+                blob.len_alldata(),
+                blob.len_readdata()
+            ),
             TypedValue::BOOLEAN(value) | TypedValue::N_BOOLEAN(Some(value)) => {
                 write!(fmt, "{}", value)
             }
@@ -602,17 +613,17 @@ impl fmt::Display for TypedValue {
 }
 
 pub mod factory {
-    use {HdbError, HdbResult};
-    use protocol::lowlevel::cesu8;
-    use protocol::lowlevel::parts::hdb_decimal::{parse_decimal, parse_nullable_decimal};
-    use super::TypedValue;
     use super::super::lob::*;
     use super::super::longdate::LongDate;
-    use protocol::lowlevel::conn_core::AmConnCore;
+    use super::TypedValue;
     use byteorder::{LittleEndian, ReadBytesExt};
+    use protocol::lowlevel::conn_core::AmConnCore;
+    use protocol::lowlevel::parts::hdb_decimal::{parse_decimal, parse_nullable_decimal};
+    use protocol::lowlevel::{cesu8, util};
     use std::io;
     use std::iter::repeat;
     use std::{u32, u64};
+    use {HdbError, HdbResult};
 
     pub fn parse_from_reply(
         p_typecode: u8,
@@ -829,7 +840,9 @@ pub mod factory {
                 )));
             }
         };
-        cesu8::parse_bytes(len, rdr) // B (varying)
+        let result = util::parse_bytes(len, rdr)?; // B (varying)
+        trace!("parse_binary(): read_bytes = {:?}", result);
+        Ok(result)
     }
 
     fn parse_nullable_string(rdr: &mut io::BufRead) -> HdbResult<Option<String>> {
@@ -858,7 +871,9 @@ pub mod factory {
                 )))
             }
         };
-        Ok(Some(cesu8::parse_bytes(len, rdr)?)) // B (varying)
+        let result = util::parse_bytes(len, rdr)?;
+        trace!("parse_nullable_binary(): read_bytes = {:?}", result);
+        Ok(Some(result)) // B (varying)
     }
 
     // ----- BLOBS and CLOBS
@@ -935,7 +950,7 @@ pub mod factory {
         let length_b = rdr.read_u64::<LittleEndian>()?; // I8
         let locator_id = rdr.read_u64::<LittleEndian>()?; // I8
         let chunk_length = rdr.read_i32::<LittleEndian>()?; // I4
-        let data = cesu8::parse_bytes(chunk_length as usize, rdr)?; // B[chunk_length]
+        let data = util::parse_bytes(chunk_length as usize, rdr)?; // B[chunk_length]
         trace!("Got LOB locator {}", locator_id);
         Ok((length_c, length_b, locator_id, data))
     }

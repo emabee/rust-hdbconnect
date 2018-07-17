@@ -1,5 +1,5 @@
+use protocol::lowlevel::{cesu8, util};
 use {HdbError, HdbResult};
-use protocol::lowlevel::cesu8;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::io;
@@ -78,7 +78,7 @@ fn serialize_length_and_string(s: &str, w: &mut io::Write) -> HdbResult<()> {
 
 fn serialize_length_and_bytes(v: &[u8], w: &mut io::Write) -> HdbResult<()> {
     w.write_i16::<LittleEndian>(v.len() as i16)?; // I2: length of value
-    cesu8::serialize_bytes(v, w) // B (varying)
+    util::serialize_bytes(v, w) // B (varying)
 }
 
 fn parse_length_and_string(rdr: &mut io::BufRead) -> HdbResult<String> {
@@ -87,5 +87,5 @@ fn parse_length_and_string(rdr: &mut io::BufRead) -> HdbResult<String> {
 
 fn parse_length_and_binary(rdr: &mut io::BufRead) -> HdbResult<Vec<u8>> {
     let len = rdr.read_i16::<LittleEndian>()? as usize; // I2: length of value
-    cesu8::parse_bytes(len, rdr) // B (varying)
+    util::parse_bytes(len, rdr) // B (varying)
 }
