@@ -38,7 +38,7 @@ impl OutputParameters {
 impl fmt::Display for OutputParameters {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         // write a header
-        writeln!(fmt, "").unwrap();
+        writeln!(fmt).unwrap();
         for parameter_descriptor in &self.metadata {
             write!(
                 fmt,
@@ -46,33 +46,34 @@ impl fmt::Display for OutputParameters {
                 parameter_descriptor.name().unwrap_or(&String::new())
             ).unwrap();
         }
-        writeln!(fmt, "").unwrap();
+        writeln!(fmt).unwrap();
 
         // write the data
         for value in &self.values {
             fmt::Display::fmt(&value, fmt).unwrap(); // write the value
             write!(fmt, ", ").unwrap();
         }
-        writeln!(fmt, "").unwrap();
+        writeln!(fmt).unwrap();
         Ok(())
     }
 }
 
 pub mod factory {
-    use {HdbError, HdbResult};
     use super::OutputParameters;
+    use protocol::lowlevel::conn_core::AmConnCore;
     use protocol::lowlevel::parts::parameter_descriptor::{ParameterBinding, ParameterDescriptor,
                                                           ParameterDirection};
-    use protocol::lowlevel::parts::typed_value::TypedValue;
     use protocol::lowlevel::parts::typed_value::factory as TypedValueFactory;
-    use protocol::lowlevel::conn_core::AmConnCore;
+    use protocol::lowlevel::parts::typed_value::TypedValue;
+    use std::net::TcpStream;
+    use {HdbError, HdbResult};
 
     use std::io;
 
     pub fn parse(
         o_am_conn_core: Option<&AmConnCore>,
         par_md: &[ParameterDescriptor],
-        rdr: &mut io::BufRead,
+        rdr: &mut io::BufReader<TcpStream>,
     ) -> HdbResult<OutputParameters> {
         trace!("OutputParameters::parse()");
         let am_conn_core = o_am_conn_core

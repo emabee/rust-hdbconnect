@@ -1,6 +1,7 @@
 use protocol::lowlevel::argument::Argument;
 use protocol::lowlevel::conn_core::AmConnCore;
-use protocol::lowlevel::message::{parse_message_and_sequence_header, Message, Request};
+use protocol::lowlevel::message::{parse_message_and_sequence_header, Message, Request,
+                                  SkipLastSpace};
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::part_attributes::PartAttributes;
 use protocol::lowlevel::partkind::PartKind;
@@ -8,12 +9,12 @@ use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
 use protocol::lowlevel::parts::row::Row;
 use protocol::lowlevel::reply_type::ReplyType;
 use protocol::lowlevel::request_type::RequestType;
+use protocol::lowlevel::util;
 use {HdbError, HdbResult};
 
 use serde;
 use serde_db::de::DeserializableResultset;
 use std::fmt;
-use std::io;
 use std::sync::{Arc, Mutex};
 
 /// Contains the result of a database read command, including the describing
@@ -49,10 +50,8 @@ impl ResultSetCore {
             resultset_id,
         }))
     }
-}
-impl Drop for ResultSetCore {
-    // inform the server in case the resultset is not yet closed, ignore all errors
-    fn drop(&mut self) {
+
+    fn drop_impl(&mut self) -> HdbResult<()> {
         let rs_id = self.resultset_id;
         trace!("ResultSetCore::drop(), resultset_id {}", rs_id);
         if !self.attributes.is_resultset_closed() {
@@ -60,39 +59,43 @@ impl Drop for ResultSetCore {
                 if let Ok(mut conn_guard) = conn_core.lock() {
                     let session_id = (*conn_guard).session_id();
                     let next_seq_number = (*conn_guard).next_seq_number();
-                    let stream = &mut (*conn_guard).stream();
 
                     let mut request = Request::new(RequestType::CloseResultSet, 0);
                     request.push(Part::new(
                         PartKind::ResultSetId,
                         Argument::ResultSetId(rs_id),
                     ));
-                    match request.serialize_impl(session_id, next_seq_number, 0, stream) {
-                        Ok(()) => {
-                            let mut rdr = io::BufReader::new(stream);
-                            if let Ok((no_of_parts, msg)) =
-                                parse_message_and_sequence_header(&mut rdr)
-                            {
-                                if let Message::Reply(mut msg) = msg {
-                                    for _ in 0..no_of_parts {
-                                        Part::parse(
-                                            &mut (msg.parts),
-                                            None,
-                                            None,
-                                            None,
-                                            &mut None,
-                                            &mut rdr,
-                                        ).ok();
-                                    }
-                                }
+
+                    request.serialize_impl(session_id, next_seq_number, 0, (*conn_guard).writer())?;
+
+                    let rdr = (*conn_guard).reader();
+                    if let Ok((no_of_parts, msg)) = parse_message_and_sequence_header(rdr) {
+                        if let Message::Reply(mut msg) = msg {
+                            for _i in 0..no_of_parts {
+                                let (_, pad) = Part::parse(
+                                    &mut (msg.parts),
+                                    None,
+                                    None,
+                                    None,
+                                    &mut None,
+                                    rdr,
+                                )?;
+                                util::skip_bytes(pad, rdr)?;
                             }
-                        }
-                        Err(e) => {
-                            error!("CloseResultSet request failed with {:?}", e);
                         }
                     }
                 }
             }
+        }
+        Ok(())
+    }
+}
+
+impl Drop for ResultSetCore {
+    // inform the server in case the resultset is not yet closed, ignore all errors
+    fn drop(&mut self) {
+        if let Err(e) = self.drop_impl() {
+            error!("CloseResultSet request failed with {:?}", e);
         }
     }
 }
@@ -184,6 +187,7 @@ impl ResultSet {
             &mut Some(self),
             &mut conn_core,
             Some(ReplyType::Fetch),
+            SkipLastSpace::No,
         )?;
         reply.parts.pop_arg_if_kind(PartKind::ResultSet);
 
@@ -285,10 +289,10 @@ impl ResultSet {
 impl fmt::Display for ResultSet {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt::Display::fmt(&self.metadata, fmt).unwrap(); // write a header
-        writeln!(fmt, "").unwrap();
+        writeln!(fmt).unwrap();
         for row in &self.rows {
             fmt::Display::fmt(&row, fmt).unwrap(); // write the data
-            writeln!(fmt, "").unwrap();
+            writeln!(fmt).unwrap();
         }
         Ok(())
     }
@@ -309,7 +313,7 @@ pub struct RowIterator {
 impl RowIterator {
     fn new(mut rs: ResultSet) -> RowIterator {
         rs.reverse_rows();
-        RowIterator { rs: rs }
+        RowIterator { rs }
     }
     fn next_int(&mut self) -> HdbResult<Option<Row>> {
         if self.rs.rows.is_empty() {
@@ -347,6 +351,7 @@ pub mod factory {
     use protocol::lowlevel::parts::typed_value::factory as TypedValueFactory;
     use protocol::lowlevel::parts::typed_value::TypedValue;
     use std::io;
+    use std::net::TcpStream;
     use std::sync::Arc;
     use {HdbError, HdbResult};
 
@@ -393,7 +398,7 @@ pub mod factory {
         am_conn_core: &AmConnCore,
         rs_md: Option<&ResultSetMetadata>,
         o_rs: &mut Option<&mut ResultSet>,
-        rdr: &mut io::BufRead,
+        rdr: &mut io::BufReader<TcpStream>,
     ) -> HdbResult<Option<ResultSet>> {
         match *o_rs {
             None => {
@@ -460,7 +465,7 @@ pub mod factory {
     fn parse_rows(
         resultset: &mut ResultSet,
         no_of_rows: i32,
-        rdr: &mut io::BufRead,
+        rdr: &mut io::BufReader<TcpStream>,
     ) -> HdbResult<()> {
         let no_of_cols = resultset.metadata.number_of_fields();
         debug!(
@@ -473,6 +478,7 @@ pub mod factory {
         if let Some(ref am_conn_core) = rs_core.o_am_conn_core {
             for r in 0..no_of_rows {
                 let mut values = Vec::<TypedValue>::new();
+                trace!("Parsing row {}", r,);
                 for c in 0..no_of_cols {
                     let typecode = resultset
                         .metadata
@@ -491,6 +497,10 @@ pub mod factory {
                     );
                     let value =
                         TypedValueFactory::parse_from_reply(typecode, nullable, am_conn_core, rdr)?;
+                    debug!(
+                        "Parsed row {}, column {}, value {}, typecode {}, nullable {}",
+                        r, c, value, typecode, nullable,
+                    );
                     values.push(value);
                 }
                 let row = Row::new(Arc::clone(&resultset.metadata), values);

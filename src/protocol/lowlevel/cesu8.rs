@@ -391,7 +391,7 @@ pub fn to_cesu8(text: &str) -> Cow<[u8]> {
                     for (ref mut place, data) in utf8.as_mut().iter().zip(bytes[i..i + 4].iter()) {
                         *place = data;
                     }
-                    let (hi, lo) = get_hi_lo_surrogates(&utf8);
+                    let (hi, lo) = get_hi_lo_surrogates(utf8);
                     encoded.extend(enc_surrogate(hi).iter().cloned());
                     encoded.extend(enc_surrogate(lo).iter().cloned());
                 }
@@ -402,7 +402,7 @@ pub fn to_cesu8(text: &str) -> Cow<[u8]> {
     }
 }
 
-fn get_hi_lo_surrogates(utf8_4: &[u8; 4]) -> (u16, u16) {
+fn get_hi_lo_surrogates(utf8_4: [u8; 4]) -> (u16, u16) {
     // UTF-8 4-byte value to codepoint(u32)
     assert!(utf8_4[0] >= 240);
     assert!(utf8_4[1] >= 128);

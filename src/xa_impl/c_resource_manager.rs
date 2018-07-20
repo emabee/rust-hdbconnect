@@ -1,17 +1,17 @@
+use dist_tx::rm::{CResourceManager, CRmWrapper, ErrorCode, Flags, RmError, RmRc, RmResult};
+use dist_tx::tm::XaTransactionId;
 use hdb_error::HdbResult;
-use protocol::lowlevel::message::Reply;
-use HdbError;
 use protocol::lowlevel::argument::Argument;
 use protocol::lowlevel::conn_core::AmConnCore;
-use protocol::lowlevel::message::Request;
-use protocol::lowlevel::request_type::RequestType;
+use protocol::lowlevel::message::{Reply, Request, SkipLastSpace};
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::partkind::PartKind;
 use protocol::lowlevel::parts::xat_options::XatOptions;
-use dist_tx::rm::{CResourceManager, CRmWrapper, ErrorCode, Flags, RmError, RmRc, RmResult};
-use dist_tx::tm::XaTransactionId;
+use protocol::lowlevel::request_type::RequestType;
+use HdbError;
 
-/// Handle for dealing with distributed transactions that is to be used by a transaction manager.
+/// Handle for dealing with distributed transactions that is to be used by a
+/// transaction manager.
 ///
 /// Is based on the connection from which it is obtained
 /// (see [`Connection::get_resource_manager`](
@@ -91,7 +91,8 @@ impl CResourceManager for HdbCResourceManager {
             Argument::XatOptions(xat_options),
         ));
 
-        let mut reply: Reply = request.send_and_receive(&mut (self.am_conn_core), None)?;
+        let mut reply: Reply =
+            request.send_and_receive(&mut (self.am_conn_core), None, SkipLastSpace::Hard)?;
         while !reply.parts.is_empty() {
             reply.parts.drop_args_of_kind(PartKind::StatementContext);
             match reply.parts.pop_arg() {
@@ -181,7 +182,8 @@ impl HdbCResourceManager {
             Argument::XatOptions(xat_options),
         ));
 
-        let mut reply = request.send_and_receive(&mut (self.am_conn_core), None)?;
+        let mut reply =
+            request.send_and_receive(&mut (self.am_conn_core), None, SkipLastSpace::Hard)?;
 
         reply.parts.drop_args_of_kind(PartKind::StatementContext);
         if let Some(Argument::XatOptions(xat_options)) =

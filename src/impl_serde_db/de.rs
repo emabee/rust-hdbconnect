@@ -1,10 +1,10 @@
-use {HdbError, HdbResult};
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use num::cast::ToPrimitive;
 use serde_db::de::{ConversionError, DbValue, DbValueInto, DeserializableResultset,
                    DeserializableRow, DeserializationError, DeserializationResult};
-use std::{i16, i32, i64, i8, u16, u32, u8};
 use std::error::Error;
+use std::{i16, i32, i64, i8, u16, u32, u8};
+use {HdbError, HdbResult};
 
 use protocol::lowlevel::parts::longdate::LongDate;
 use protocol::lowlevel::parts::resultset::ResultSet;
@@ -176,7 +176,7 @@ impl DbValueInto<u8> for TypedValue {
                 if (i >= 0) && (i <= i16::from(u8::MAX)) {
                     Ok(i as u8)
                 } else {
-                    Err(number_range(&(i64::from(i)), "u8"))
+                    Err(number_range(i64::from(i), "u8"))
                 }
             }
 
@@ -184,7 +184,7 @@ impl DbValueInto<u8> for TypedValue {
                 if (i >= 0) && (i <= i32::from(u8::MAX)) {
                     Ok(i as u8)
                 } else {
-                    Err(number_range(&(i64::from(i)), "u8"))
+                    Err(number_range(i64::from(i), "u8"))
                 }
             }
 
@@ -192,7 +192,7 @@ impl DbValueInto<u8> for TypedValue {
                 if (i >= 0) && (i <= i64::from(u8::MAX)) {
                     Ok(i as u8)
                 } else {
-                    Err(number_range(&i, "u8"))
+                    Err(number_range(i, "u8"))
                 }
             }
             TypedValue::DECIMAL(dec) | TypedValue::N_DECIMAL(Some(dec)) => dec.into_decimal()
@@ -213,14 +213,14 @@ impl DbValueInto<u16> for TypedValue {
             TypedValue::SMALLINT(i) | TypedValue::N_SMALLINT(Some(i)) => if i >= 0 {
                 Ok(i as u16)
             } else {
-                Err(number_range(&(i64::from(i)), "u16"))
+                Err(number_range(i64::from(i), "u16"))
             },
 
             TypedValue::INT(i) | TypedValue::N_INT(Some(i)) => {
                 if (i >= 0) && (i <= i32::from(u16::MAX)) {
                     Ok(i as u16)
                 } else {
-                    Err(number_range(&(i64::from(i)), "u16"))
+                    Err(number_range(i64::from(i), "u16"))
                 }
             }
 
@@ -228,7 +228,7 @@ impl DbValueInto<u16> for TypedValue {
                 if (i >= 0) && (i <= i64::from(u16::MAX)) {
                     Ok(i as u16)
                 } else {
-                    Err(number_range(&i, "u16"))
+                    Err(number_range(i, "u16"))
                 }
             }
             TypedValue::DECIMAL(dec) | TypedValue::N_DECIMAL(Some(dec)) => dec.into_decimal()
@@ -249,20 +249,20 @@ impl DbValueInto<u32> for TypedValue {
             TypedValue::SMALLINT(i) | TypedValue::N_SMALLINT(Some(i)) => if i >= 0 {
                 Ok(i as u32)
             } else {
-                Err(number_range(&(i64::from(i)), "u32"))
+                Err(number_range(i64::from(i), "u32"))
             },
 
             TypedValue::INT(i) | TypedValue::N_INT(Some(i)) => if i >= 0 {
                 Ok(i as u32)
             } else {
-                Err(number_range(&(i64::from(i)), "u32"))
+                Err(number_range(i64::from(i), "u32"))
             },
 
             TypedValue::BIGINT(i) | TypedValue::N_BIGINT(Some(i)) => {
                 if (i >= 0) && (i <= i64::from(u32::MAX)) {
                     Ok(i as u32)
                 } else {
-                    Err(number_range(&i, "u32"))
+                    Err(number_range(i, "u32"))
                 }
             }
             TypedValue::DECIMAL(dec) | TypedValue::N_DECIMAL(Some(dec)) => dec.into_decimal()
@@ -283,19 +283,19 @@ impl DbValueInto<u64> for TypedValue {
             TypedValue::SMALLINT(i) | TypedValue::N_SMALLINT(Some(i)) => if i >= 0 {
                 Ok(i as u64)
             } else {
-                Err(number_range(&(i64::from(i)), "u64"))
+                Err(number_range(i64::from(i), "u64"))
             },
 
             TypedValue::INT(i) | TypedValue::N_INT(Some(i)) => if i >= 0 {
                 Ok(i as u64)
             } else {
-                Err(number_range(&(i64::from(i)), "u64"))
+                Err(number_range(i64::from(i), "u64"))
             },
 
             TypedValue::BIGINT(i) | TypedValue::N_BIGINT(Some(i)) => if i >= 0 {
                 Ok(i as u64)
             } else {
-                Err(number_range(&i, "u64"))
+                Err(number_range(i, "u64"))
             },
 
             TypedValue::DECIMAL(dec) | TypedValue::N_DECIMAL(Some(dec)) => dec.into_decimal()
@@ -313,14 +313,14 @@ impl DbValueInto<i8> for TypedValue {
             TypedValue::TINYINT(u) | TypedValue::N_TINYINT(Some(u)) => if u <= i8::MAX as u8 {
                 Ok(u as i8)
             } else {
-                Err(number_range(&(i64::from(u)), "i8"))
+                Err(number_range(i64::from(u), "i8"))
             },
 
             TypedValue::SMALLINT(i) | TypedValue::N_SMALLINT(Some(i)) => {
                 if (i >= i16::from(i8::MIN)) && (i <= i16::from(i8::MAX)) {
                     Ok(i as i8)
                 } else {
-                    Err(number_range(&(i64::from(i)), "i8"))
+                    Err(number_range(i64::from(i), "i8"))
                 }
             }
 
@@ -328,7 +328,7 @@ impl DbValueInto<i8> for TypedValue {
                 if (i >= i32::from(i8::MIN)) && (i <= i32::from(i8::MAX)) {
                     Ok(i as i8)
                 } else {
-                    Err(number_range(&(i64::from(i)), "i8"))
+                    Err(number_range(i64::from(i), "i8"))
                 }
             }
 
@@ -336,7 +336,7 @@ impl DbValueInto<i8> for TypedValue {
                 if (i >= i64::from(i8::MIN)) && (i <= i64::from(i8::MAX)) {
                     Ok(i as i8)
                 } else {
-                    Err(number_range(&i, "i8"))
+                    Err(number_range(i, "i8"))
                 }
             }
             TypedValue::DECIMAL(dec) | TypedValue::N_DECIMAL(Some(dec)) => dec.into_decimal()
@@ -360,7 +360,7 @@ impl DbValueInto<i16> for TypedValue {
                 if (i >= i32::from(i16::MIN)) && (i <= i32::from(i16::MAX)) {
                     Ok(i as i16)
                 } else {
-                    Err(number_range(&(i64::from(i)), "i16"))
+                    Err(number_range(i64::from(i), "i16"))
                 }
             }
 
@@ -368,7 +368,7 @@ impl DbValueInto<i16> for TypedValue {
                 if (i >= i64::from(i16::MIN)) && (i <= i64::from(i16::MAX)) {
                     Ok(i as i16)
                 } else {
-                    Err(number_range(&i, "i16"))
+                    Err(number_range(i, "i16"))
                 }
             }
             TypedValue::DECIMAL(dec) | TypedValue::N_DECIMAL(Some(dec)) => dec.into_decimal()
@@ -394,7 +394,7 @@ impl DbValueInto<i32> for TypedValue {
                 if (i >= i64::from(i32::MIN)) && (i <= i64::from(i32::MAX)) {
                     Ok(i as i32)
                 } else {
-                    Err(number_range(&i, "i32"))
+                    Err(number_range(i, "i32"))
                 }
             }
             TypedValue::DECIMAL(dec) | TypedValue::N_DECIMAL(Some(dec)) => dec.into_decimal()
@@ -557,7 +557,7 @@ fn wrong_type(tv: &TypedValue, ovt: &str) -> ConversionError {
     ))
 }
 
-fn number_range(value: &i64, ovt: &str) -> ConversionError {
+fn number_range(value: i64, ovt: &str) -> ConversionError {
     ConversionError::NumberRange(format!(
         "The value {:?} exceeds the number range of type {}",
         value, ovt

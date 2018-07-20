@@ -1,4 +1,3 @@
-use {HdbError, HdbResult};
 use protocol::lowlevel::initial_request;
 use protocol::lowlevel::message::{parse_message_and_sequence_header, Message, Request};
 use protocol::lowlevel::part::Part;
@@ -7,11 +6,13 @@ use protocol::lowlevel::parts::server_error::ServerError;
 use protocol::lowlevel::parts::topology_attribute::TopologyAttr;
 use protocol::lowlevel::parts::transactionflags::SessionState;
 use protocol::lowlevel::parts::transactionflags::TransactionFlags;
+use protocol::lowlevel::util;
+use {HdbError, HdbResult};
 
-use std::sync::{Arc, Mutex};
 use std::io;
 use std::mem;
 use std::net::TcpStream;
+use std::sync::{Arc, Mutex};
 
 pub type AmConnCore = Arc<Mutex<ConnectionCore>>;
 
@@ -35,7 +36,8 @@ pub struct ConnectionCore {
     server_connect_options: ConnectOptions,
     topology_attributes: Vec<TopologyAttr>,
     pub warnings: Vec<ServerError>,
-    stream: TcpStream,
+    writer: io::BufWriter<TcpStream>,
+    reader: io::BufReader<TcpStream>,
 }
 
 impl ConnectionCore {
@@ -60,7 +62,8 @@ impl ConnectionCore {
             server_connect_options: ConnectOptions::default(),
             topology_attributes: Vec::<TopologyAttr>::new(),
             warnings: Vec::<ServerError>::new(),
-            stream: tcp_stream,
+            writer: io::BufWriter::with_capacity(20_480_usize, tcp_stream.try_clone()?),
+            reader: io::BufReader::new(tcp_stream),
         })))
     }
 
@@ -132,8 +135,12 @@ impl ConnectionCore {
         self.session_id
     }
 
-    pub fn stream(&mut self) -> &mut TcpStream {
-        &mut self.stream
+    pub fn reader(&mut self) -> &mut io::BufReader<TcpStream> {
+        &mut self.reader
+    }
+
+    pub fn writer(&mut self) -> &mut io::BufWriter<TcpStream> {
+        &mut self.writer
     }
 
     pub fn next_seq_number(&mut self) -> i32 {
@@ -162,47 +169,43 @@ impl ConnectionCore {
             Ok(Some(v))
         }
     }
+
+    fn drop_impl(&mut self) -> HdbResult<()> {
+        trace!("Drop of ConnectionCore, session_id = {}", self.session_id);
+        if self.authenticated {
+            let request = Request::new_for_disconnect();
+            request.serialize_impl(self.session_id, self.next_seq_number(), 0, &mut self.writer)?;
+            trace!("Disconnect: request successfully sent");
+            if let Ok((no_of_parts, msg)) = parse_message_and_sequence_header(&mut self.reader) {
+                trace!(
+                    "Disconnect: response header parsed, now parsing {} parts",
+                    no_of_parts
+                );
+                if let Message::Reply(mut msg) = msg {
+                    for _ in 0..no_of_parts {
+                        let (_, padsize) = Part::parse(
+                            &mut (msg.parts),
+                            None,
+                            None,
+                            None,
+                            &mut None,
+                            &mut self.reader,
+                        )?;
+                        util::skip_bytes(padsize, &mut self.reader)?;
+                    }
+                }
+            }
+            trace!("Disconnect: response successfully parsed");
+        }
+        Ok(())
+    }
 }
 
 impl Drop for ConnectionCore {
     // try to send a disconnect to the database, ignore all errors
     fn drop(&mut self) {
-        trace!("Drop of ConnectionCore, session_id = {}", self.session_id);
-        if self.authenticated {
-            let request = Request::new_for_disconnect();
-            match request.serialize_impl(
-                self.session_id,
-                self.next_seq_number(),
-                0,
-                &mut self.stream,
-            ) {
-                Ok(()) => {
-                    trace!("Disconnect: request successfully sent");
-                    let mut rdr = io::BufReader::new(&mut self.stream);
-                    if let Ok((no_of_parts, msg)) = parse_message_and_sequence_header(&mut rdr) {
-                        trace!(
-                            "Disconnect: response header parsed, now parsing {} parts",
-                            no_of_parts
-                        );
-                        if let Message::Reply(mut msg) = msg {
-                            for _ in 0..no_of_parts {
-                                Part::parse(
-                                    &mut (msg.parts),
-                                    None,
-                                    None,
-                                    None,
-                                    &mut None,
-                                    &mut rdr,
-                                ).ok();
-                            }
-                        }
-                    }
-                    trace!("Disconnect: response successfully parsed");
-                }
-                Err(e) => {
-                    trace!("Disconnect request failed with {:?}", e);
-                }
-            }
+        if let Err(e) = self.drop_impl() {
+            error!("Disconnect request failed with {:?}", e);
         }
     }
 }

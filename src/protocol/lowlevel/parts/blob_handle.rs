@@ -1,7 +1,7 @@
 ///////////////////////////////////////////////////////////////
 use protocol::lowlevel::argument::Argument;
 use protocol::lowlevel::conn_core::AmConnCore;
-use protocol::lowlevel::message::Request;
+use protocol::lowlevel::message::{Request, SkipLastSpace};
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::partkind::PartKind;
 use protocol::lowlevel::reply_type::ReplyType;
@@ -175,7 +175,11 @@ pub fn fetch_a_lob_chunk(
                 length_to_read
             );
 
-            let mut reply = request.send_and_receive(am_conn_core, Some(ReplyType::ReadLob))?;
+            let mut reply = request.send_and_receive(
+                am_conn_core,
+                Some(ReplyType::ReadLob),
+                SkipLastSpace::No,
+            )?;
 
             let (reply_data, reply_is_last_data) =
                 match reply.parts.pop_arg_if_kind(PartKind::ReadLobReply) {

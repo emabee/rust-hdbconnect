@@ -2,14 +2,45 @@
 
 ## [Unreleased] 
 
-## [0.4.2] 
+## [0.5.0] 
+Revise error handling (-> version bump)
+Fix issue with large queries
+Fix incorrect row order
+
+## [0.4.10] 2018-03-29
+Add handling for warnings from the server
+
+Implement Drop for ResultSetCore
+
+
+## [0.4.9] 2018-02-28
+Minor improvements around XA
+
+## [0.4.7] 2018-02-04
+Implement some missing option parts
+
+Update to dist_tx 0.2
+
+## [0.4.6] 2018-01-29
+Support distributed transactions
+
+## [0.4.5] 2017-12-07
+Support  Deserialization for DECIMAL types
+
+## [0.4.4] 2017-12-03
+Support "select for update"
+
+## [0.4.3] 2017-12-01
+Update to serde_db 0.4
+
+## [0.4.2] 2017-11-28
 Added missing docu for new methods that were introduced in 0.4.1
 
-## [0.4.1]
-Corrected and extended the evaluation of ColumnOptions in resultset metadata and 
+## [0.4.1] 2017-11-28
+Correct and extend the evaluation of ColumnOptions in resultset metadata and 
 ParameterOptions in parameter metadata
 
-## [0.4.0] 
+## [0.4.0] 2017-11-26
 Add access methods for metadata.
 
 ## [0.3.2] 2017-11-17

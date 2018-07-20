@@ -8,7 +8,7 @@ use prepared_statement::PreparedStatement;
 use protocol::authenticate;
 use protocol::lowlevel::argument::Argument;
 use protocol::lowlevel::conn_core::{AmConnCore, ConnectionCore};
-use protocol::lowlevel::message::Request;
+use protocol::lowlevel::message::{Request, SkipLastSpace};
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::partkind::PartKind;
 use protocol::lowlevel::parts::resultset::ResultSet;
@@ -233,5 +233,5 @@ fn execute(am_conn_core: &mut AmConnCore, stmt: String) -> HdbResult<HdbResponse
         Argument::FetchSize(fetch_size),
     ));
     request.push(Part::new(PartKind::Command, Argument::Command(stmt)));
-    request.send_and_get_response(None, None, am_conn_core, None)
+    request.send_and_get_response(None, None, am_conn_core, None, SkipLastSpace::Soft)
 }

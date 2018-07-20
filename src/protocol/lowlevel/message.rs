@@ -1,26 +1,27 @@
 //! Since there is obviously no usecase for multiple segments in one request,
 //! we model message and segment together.
 //! But we differentiate explicitly between request messages and reply messages.
-use {HdbError, HdbResponse, HdbResult};
-use hdb_response::factory as HdbResponseFactory;
-use hdb_response::factory::InternalReturnValue;
-use super::conn_core::AmConnCore;
 use super::argument::Argument;
-use super::reply_type::ReplyType;
-use super::request_type::RequestType;
+use super::conn_core::AmConnCore;
 use super::part::{Part, Parts};
 use super::part_attributes::PartAttributes;
 use super::partkind::PartKind;
-use super::parts::resultset::ResultSet;
 use super::parts::parameter_descriptor::ParameterDescriptor;
+use super::parts::resultset::factory as ResultSetFactory;
+use super::parts::resultset::ResultSet;
 use super::parts::resultset_metadata::ResultSetMetadata;
 use super::parts::server_error::{ServerError, Severity};
 use super::parts::statement_context::StatementContext;
-use super::parts::resultset::factory as ResultSetFactory;
+use super::reply_type::ReplyType;
+use super::request_type::RequestType;
+use super::util;
+use hdb_response::factory as HdbResponseFactory;
+use hdb_response::factory::InternalReturnValue;
+use {HdbError, HdbResponse, HdbResult};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use chrono::Local;
-use std::io::{self, BufRead};
+use std::io::{self, BufRead, Write};
 use std::net::TcpStream;
 
 const MESSAGE_HEADER_SIZE: u32 = 32;
@@ -58,6 +59,7 @@ impl Request {
         o_par_md: Option<&Vec<ParameterDescriptor>>,
         am_conn_core: &mut AmConnCore,
         expected_reply_type: Option<ReplyType>,
+        skip: SkipLastSpace,
     ) -> HdbResult<HdbResponse> {
         let mut reply = self.send_and_receive_detailed(
             o_rs_md,
@@ -65,6 +67,7 @@ impl Request {
             &mut None,
             am_conn_core,
             expected_reply_type,
+            skip,
         )?;
 
         // digest parts, collect InternalReturnValues
@@ -178,8 +181,16 @@ impl Request {
         &mut self,
         am_conn_core: &mut AmConnCore,
         expected_reply_type: Option<ReplyType>,
+        skip: SkipLastSpace,
     ) -> HdbResult<Reply> {
-        self.send_and_receive_detailed(None, None, &mut None, am_conn_core, expected_reply_type)
+        self.send_and_receive_detailed(
+            None,
+            None,
+            &mut None,
+            am_conn_core,
+            expected_reply_type,
+            skip,
+        )
     }
 
     pub fn send_and_receive_detailed(
@@ -189,6 +200,7 @@ impl Request {
         o_rs: &mut Option<&mut ResultSet>,
         am_conn_core: &mut AmConnCore,
         expected_reply_type: Option<ReplyType>,
+        skip: SkipLastSpace,
     ) -> HdbResult<Reply> {
         trace!(
             "Request::send_and_receive_detailed() with requestType = {:?}",
@@ -199,7 +211,7 @@ impl Request {
 
         self.serialize(am_conn_core)?;
 
-        let mut reply = Reply::parse(o_rs_md, o_par_md, o_rs, am_conn_core)?;
+        let mut reply = Reply::parse(o_rs_md, o_par_md, o_rs, am_conn_core, skip)?;
         reply.assert_expected_reply_type(expected_reply_type)?;
         // FIXME digest StatementContext and TransactionFlags here,
         // so that they are not ignored in case of errors
@@ -243,7 +255,7 @@ impl Request {
             conn_core.session_id(),
             conn_core.next_seq_number(),
             auto_commit_flag,
-            &mut conn_core.stream(),
+            &mut conn_core.writer(),
         )
     }
 
@@ -252,14 +264,13 @@ impl Request {
         session_id: i64,
         seq_number: i32,
         auto_commit_flag: i8,
-        stream: &mut TcpStream,
+        w: &mut io::BufWriter<TcpStream>,
     ) -> HdbResult<()> {
         let varpart_size = self.varpart_size()?;
         let total_size = MESSAGE_HEADER_SIZE + varpart_size;
         trace!("Writing Message with total size {}", total_size);
         let mut remaining_bufsize = total_size - MESSAGE_HEADER_SIZE;
 
-        let w = &mut io::BufWriter::with_capacity(total_size as usize, stream);
         debug!(
             "Request::serialize() for session_id = {}, seq_number = {}, request_type = {:?}",
             session_id, seq_number, self.request_type
@@ -295,6 +306,7 @@ impl Request {
         for part in &(self.parts) {
             remaining_bufsize = part.serialize(remaining_bufsize, w)?;
         }
+        w.flush()?;
         trace!("Parts are written");
         Ok(())
     }
@@ -303,8 +315,8 @@ impl Request {
         self.parts.push(part);
     }
 
-    /// Length in bytes of the variable part of the message, i.e. total message without the
-    /// header
+    /// Length in bytes of the variable part of the message, i.e. total message
+    /// without the header
     fn varpart_size(&self) -> HdbResult<u32> {
         let mut len = 0_u32;
         len += self.seg_size()? as u32;
@@ -341,35 +353,49 @@ impl Reply {
     }
 
     /// parse a response from the stream, building a Reply object
-    /// `ResultSetMetadata` need to be injected in case of execute calls of prepared statements
-    /// `ResultSet` needs to be injected (and is extended and returned) in case of fetch requests
-    /// `am_conn_core` needs to be injected in case we get an incomplete resultset or lob
+    /// `ResultSetMetadata` need to be injected in case of execute calls of
+    /// prepared statements `ResultSet` needs to be injected (and is
+    /// extended and returned) in case of fetch requests `am_conn_core`
+    /// needs to be injected in case we get an incomplete resultset or lob
     /// (so that they later can fetch)
     fn parse(
         o_rs_md: Option<&ResultSetMetadata>,
         o_par_md: Option<&Vec<ParameterDescriptor>>,
         o_rs: &mut Option<&mut ResultSet>,
         am_conn_core: &AmConnCore,
+        skip: SkipLastSpace,
     ) -> HdbResult<Reply> {
         trace!("Reply::parse()");
         let mut guard = am_conn_core.lock()?;
-        let stream = &mut (*guard).stream();
-        let mut rdr = io::BufReader::new(stream);
 
-        let (no_of_parts, msg) = parse_message_and_sequence_header(&mut rdr)?;
+        let rdr = (*guard).reader();
+        trace!("Reply::parse(): got the reader");
+
+        let (no_of_parts, msg) = parse_message_and_sequence_header(rdr)?;
+        trace!("Reply::parse(): parsed the header");
         match msg {
             Message::Request(_) => Err(HdbError::Impl("Reply::parse() found Request".to_owned())),
             Message::Reply(mut msg) => {
-                for _ in 0..no_of_parts {
-                    let part = Part::parse(
+                for i in 0..no_of_parts {
+                    let (part, padsize) = Part::parse(
                         &mut (msg.parts),
                         Some(am_conn_core),
                         o_rs_md,
                         o_par_md,
                         o_rs,
-                        &mut rdr,
+                        rdr,
                     )?;
                     msg.push(part);
+
+                    if i < no_of_parts - 1 {
+                        util::skip_bytes(padsize, rdr)?;
+                    } else {
+                        match skip {
+                            SkipLastSpace::Soft => util::dont_use_soft_consume_bytes(padsize, rdr)?,
+                            SkipLastSpace::Hard => util::skip_bytes(padsize, rdr)?,
+                            SkipLastSpace::No => {}
+                        }
+                    }
                 }
                 Ok(msg)
             }
@@ -437,6 +463,14 @@ impl Reply {
         self.parts.push(part);
     }
 }
+
+#[derive(Clone, Copy)]
+pub enum SkipLastSpace {
+    Hard,
+    Soft,
+    No,
+}
+
 impl Drop for Reply {
     fn drop(&mut self) {
         for part in &self.parts {
@@ -458,7 +492,7 @@ pub fn parse_message_and_sequence_header(rdr: &mut BufRead) -> HdbResult<(i16, M
     let no_of_segs = rdr.read_i16::<LittleEndian>()?; // I2
     assert_eq!(no_of_segs, 1);
 
-    rdr.consume(10usize); // (I1 + B[9])
+    util::skip_bytes(10, rdr)?; // (I1 + B[9])
 
     // SEGMENT HEADER: 24 bytes
     rdr.read_i32::<LittleEndian>()?; // I4 seg_size
@@ -482,7 +516,7 @@ pub fn parse_message_and_sequence_header(rdr: &mut BufRead) -> HdbResult<(i16, M
             let request_type = RequestType::from_i8(rdr.read_i8()?)?; // I1
             let _auto_commit = rdr.read_i8()? != 0_i8; // I1
             let command_options = rdr.read_u8()?; // I1 command_options
-            rdr.consume(8_usize); // B[8] reserved1
+            util::skip_bytes(8, rdr)?; // B[8] reserved1
             Ok((
                 no_of_parts,
                 Message::Request(Request {
@@ -493,9 +527,9 @@ pub fn parse_message_and_sequence_header(rdr: &mut BufRead) -> HdbResult<(i16, M
             ))
         }
         Kind::Reply | Kind::Error => {
-            rdr.consume(1_usize); // I1 reserved2
+            util::skip_bytes(1, rdr)?; // I1 reserved2
             let rt = ReplyType::from_i16(rdr.read_i16::<LittleEndian>()?)?; // I2
-            rdr.consume(8_usize); // B[8] reserved3
+            util::skip_bytes(8, rdr)?; // B[8] reserved3
             debug!(
                 "Reply::parse(): got reply of type {:?} and seg_kind {:?} for session_id {}",
                 rt, seg_kind, session_id

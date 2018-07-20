@@ -1,15 +1,16 @@
-use {HdbError, HdbResult};
 use super::argument::Argument;
 use super::conn_core::AmConnCore;
-use super::partkind::PartKind;
 use super::part_attributes::PartAttributes;
+use super::partkind::PartKind;
 use super::parts::parameter_descriptor::ParameterDescriptor;
-use super::parts::resultset_metadata::ResultSetMetadata;
 use super::parts::resultset::ResultSet;
+use super::parts::resultset_metadata::ResultSetMetadata;
+use std::net::TcpStream;
+use {HdbError, HdbResult};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::cmp::max;
-use std::{io, i16, i32};
+use std::{i16, i32, io};
 
 const PART_HEADER_SIZE: usize = 16;
 
@@ -75,29 +76,27 @@ impl Part {
         rs_md: Option<&ResultSetMetadata>,
         par_md: Option<&Vec<ParameterDescriptor>>,
         o_rs: &mut Option<&mut ResultSet>,
-        rdr: &mut io::BufRead,
-    ) -> HdbResult<Part> {
+        rdr: &mut io::BufReader<TcpStream>,
+    ) -> HdbResult<(Part, usize)> {
         trace!("Entering parse()");
         let (kind, attributes, arg_size, no_of_args) = parse_part_header(rdr)?;
         debug!(
             "parse() found part of kind {:?} with attributes {:?}, arg_size {} and no_of_args {}",
             kind, attributes, arg_size, no_of_args
         );
-        Ok(Part::new(
+        let (arg, padsize) = Argument::parse(
             kind,
-            Argument::parse(
-                kind,
-                attributes,
-                no_of_args,
-                arg_size,
-                already_received_parts,
-                o_am_conn_core,
-                rs_md,
-                par_md,
-                o_rs,
-                rdr,
-            )?,
-        ))
+            attributes,
+            no_of_args,
+            arg_size,
+            already_received_parts,
+            o_am_conn_core,
+            rs_md,
+            par_md,
+            o_rs,
+            rdr,
+        )?;
+        Ok((Part::new(kind, arg), padsize))
     }
 }
 

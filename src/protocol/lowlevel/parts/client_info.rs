@@ -1,15 +1,17 @@
-use HdbResult;
-use super::typed_value::{serialize_length_and_string, string_length};
 use super::typed_value::factory::parse_string;
+use super::typed_value::{serialize_length_and_string, string_length};
+
+use HdbResult;
 
 use std::collections::HashMap;
-use std::io::{BufRead, Write};
+use std::io;
+use std::net::TcpStream;
 
 #[derive(Debug)]
 pub struct ClientInfo(HashMap<String, String>);
 
 impl ClientInfo {
-    pub fn serialize(&self, w: &mut Write) -> HdbResult<()> {
+    pub fn serialize(&self, w: &mut io::Write) -> HdbResult<()> {
         for (key, value) in &self.0 {
             serialize_length_and_string(key, w)?;
             serialize_length_and_string(value, w)?;
@@ -28,7 +30,10 @@ impl ClientInfo {
         self.0.len()
     }
 
-    pub fn parse_from_request(no_of_args: i32, rdr: &mut BufRead) -> HdbResult<ClientInfo> {
+    pub fn parse_from_request(
+        no_of_args: i32,
+        rdr: &mut io::BufReader<TcpStream>,
+    ) -> HdbResult<ClientInfo> {
         let mut map = HashMap::new();
         for _ in 0..no_of_args {
             let key = parse_string(rdr)?;

@@ -28,6 +28,7 @@ use protocol::lowlevel::parts::fetch_options::FetchOptions;
 use protocol::lowlevel::parts::lob_flags::LobFlags;
 use protocol::lowlevel::parts::session_context::SessionContext;
 use protocol::lowlevel::util;
+use std::net::TcpStream;
 use {HdbError, HdbResult};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -229,8 +230,8 @@ impl Argument {
         o_rs_md: Option<&ResultSetMetadata>,
         o_par_md: Option<&Vec<ParameterDescriptor>>,
         o_rs: &mut Option<&mut ResultSet>,
-        rdr: &mut io::BufRead,
-    ) -> HdbResult<Argument> {
+        rdr: &mut io::BufReader<TcpStream>,
+    ) -> HdbResult<(Argument, usize)> {
         trace!("Entering parse(no_of_args={}, kind={:?})", no_of_args, kind);
 
         let arg = match kind {
@@ -334,10 +335,7 @@ impl Argument {
             }
         };
 
-        let pad = padsize(arg_size as usize);
-        trace!("Skipping over {} padding bytes", pad);
-        rdr.consume(pad);
-        Ok(arg)
+        Ok((arg, padsize(arg_size as usize)))
     }
 }
 

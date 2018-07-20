@@ -1,18 +1,18 @@
 use hdb_error::{HdbError, HdbResult};
 use protocol::lowlevel::argument::Argument;
 use protocol::lowlevel::conn_core::AmConnCore;
-use protocol::lowlevel::message::{Reply, Request};
-use protocol::lowlevel::reply_type::ReplyType;
-use protocol::lowlevel::request_type::RequestType;
+use protocol::lowlevel::message::{Reply, Request, SkipLastSpace};
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::partkind::PartKind;
 use protocol::lowlevel::parts::authfield::AuthField;
 use protocol::lowlevel::parts::connect_options::ConnectOptions;
+use protocol::lowlevel::reply_type::ReplyType;
+use protocol::lowlevel::request_type::RequestType;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use crypto::digest::Digest;
 use crypto::hmac::Hmac;
 use crypto::mac::Mac;
-use crypto::digest::Digest;
 use crypto::sha2::Sha256;
 use rand::{thread_rng, Rng};
 
@@ -52,7 +52,7 @@ fn auth1_request(
     let mut request = Request::new(RequestType::Authenticate, 0);
     request.push(part2);
 
-    request.send_and_receive(am_conn_core, Some(ReplyType::Nil))
+    request.send_and_receive(am_conn_core, Some(ReplyType::Nil), SkipLastSpace::Hard)
 }
 
 fn auth2_request(
@@ -89,7 +89,7 @@ fn auth2_request(
         ),
     ));
 
-    request.send_and_receive(am_conn_core, Some(ReplyType::Nil))
+    request.send_and_receive(am_conn_core, Some(ReplyType::Nil), SkipLastSpace::Hard)
 }
 
 fn get_locale() -> String {

@@ -1,13 +1,13 @@
-use {HdbError, HdbResponse, HdbResult};
-use protocol::lowlevel::conn_core::AmConnCore;
 use protocol::lowlevel::argument::Argument;
-use protocol::lowlevel::message::Request;
-use protocol::lowlevel::request_type::RequestType;
+use protocol::lowlevel::conn_core::AmConnCore;
+use protocol::lowlevel::message::{Request, SkipLastSpace};
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::partkind::PartKind;
 use protocol::lowlevel::parts::parameter_descriptor::ParameterDescriptor;
-use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
 use protocol::lowlevel::parts::parameters::{ParameterRow, Parameters};
+use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
+use protocol::lowlevel::request_type::RequestType;
+use {HdbError, HdbResponse, HdbResult};
 
 use serde;
 use serde_db::ser::to_params;
@@ -73,6 +73,8 @@ impl PreparedStatement {
             self.o_par_md.as_ref(),
             &mut (self.am_conn_core),
             None,
+            // NO fails, Hard hangs :-(
+            SkipLastSpace::Soft,
         )
     }
 
@@ -93,24 +95,26 @@ impl Drop for PreparedStatement {
             PartKind::StatementId,
             Argument::StatementId(self.statement_id),
         ));
-        if let Ok(mut reply) = request.send_and_receive(&mut (self.am_conn_core), None) {
+        if let Ok(mut reply) =
+            request.send_and_receive(&mut (self.am_conn_core), None, SkipLastSpace::Hard)
+        {
             reply.parts.pop_arg_if_kind(PartKind::StatementContext);
         }
     }
 }
 
 pub mod factory {
-    use {HdbError, HdbResult};
-    use protocol::lowlevel::conn_core::AmConnCore;
+    use super::PreparedStatement;
     use protocol::lowlevel::argument::Argument;
-    use protocol::lowlevel::message::Request;
-    use protocol::lowlevel::request_type::RequestType;
+    use protocol::lowlevel::conn_core::AmConnCore;
+    use protocol::lowlevel::message::{Request, SkipLastSpace};
     use protocol::lowlevel::part::Part;
     use protocol::lowlevel::partkind::PartKind;
-    use protocol::lowlevel::parts::parameters::ParameterRow;
     use protocol::lowlevel::parts::parameter_descriptor::{ParameterDescriptor, ParameterDirection};
+    use protocol::lowlevel::parts::parameters::ParameterRow;
     use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
-    use super::PreparedStatement;
+    use protocol::lowlevel::request_type::RequestType;
+    use {HdbError, HdbResult};
 
     /// Prepare a statement.
     pub fn prepare(mut am_conn_core: AmConnCore, stmt: String) -> HdbResult<PreparedStatement> {
@@ -118,7 +122,7 @@ pub mod factory {
         let mut request = Request::new(RequestType::Prepare, command_options);
         request.push(Part::new(PartKind::Command, Argument::Command(stmt)));
 
-        let mut reply = request.send_and_receive(&mut am_conn_core, None)?;
+        let mut reply = request.send_and_receive(&mut am_conn_core, None, SkipLastSpace::Soft)?;
 
         // ParameterMetadata, ResultSetMetadata
         // StatementContext, StatementId,

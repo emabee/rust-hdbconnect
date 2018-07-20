@@ -116,7 +116,7 @@ impl ResultSetMetadata {
 // ResultSet
 impl fmt::Display for ResultSetMetadata {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(fmt, "").unwrap();
+        writeln!(fmt).unwrap();
         for field_metadata in &self.fields {
             match self.names.get(field_metadata.displayname_idx as usize) {
                 Some(fieldname) => write!(fmt, "{}, ", fieldname).unwrap(),

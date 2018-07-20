@@ -139,7 +139,7 @@ fn verify_row_ordering(
     log_handle: &mut ReconfigurationHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
-    log_handle.parse_new_spec("info, test_015_resultset = debug, hdbconnect::protocol::lowlevel::parts::resultset = debug");
+    log_handle.parse_new_spec("info, test_015_resultset = info");
     info!("verify_row_ordering");
     // prepare the db table
     connection.multiple_statements_ignore_err(vec!["drop table TEST_ROW_ORDERING"]);

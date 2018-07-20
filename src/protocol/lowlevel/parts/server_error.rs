@@ -1,4 +1,4 @@
-use protocol::lowlevel::{cesu8,util};
+use protocol::lowlevel::{cesu8, util};
 use HdbResult;
 
 use byteorder::{LittleEndian, ReadBytesExt};
@@ -117,8 +117,7 @@ impl ServerError {
         let bytes = util::parse_bytes(text_length as usize, rdr)?; // B[text_length]
         let text = cesu8::cesu8_to_string(&bytes)?;
         let pad = arg_size - BASE_SIZE as i32 - text_length;
-        trace!("Skipping over {} padding bytes", pad);
-        rdr.consume(pad as usize);
+        util::skip_bytes(pad as usize, rdr)?;
 
         let hdberr = ServerError::new(code, position, severity, sqlstate, text);
         debug!("parse(): found hdberr with {}", hdberr.to_string());

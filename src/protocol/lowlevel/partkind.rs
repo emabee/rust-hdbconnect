@@ -44,8 +44,8 @@ pub enum PartKind {
     PrintOptions,          // 74 // undocumented
 }
 impl PartKind {
-    pub fn to_i8(&self) -> i8 {
-        match *self {
+    pub fn to_i8(self) -> i8 {
+        match self {
             PartKind::Command => 3,
             PartKind::ResultSet => 5,
             PartKind::Error => 6,

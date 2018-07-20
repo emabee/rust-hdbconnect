@@ -9,10 +9,10 @@ extern crate serde_json;
 
 mod test_utils;
 
+use dist_tx::tm::*;
 #[allow(unused_imports)]
 use flexi_logger::ReconfigurationHandle;
 use hdbconnect::{Connection, HdbResult};
-use dist_tx::tm::*;
 
 #[test] // cargo test --test test_035_xa_transactions -- --nocapture
 pub fn test_035_xa_transactions() {

@@ -25,7 +25,7 @@ impl ReadLobReply {
         let options = rdr.read_u8()?; // I1
         let is_last_data = (options & 0b_100_u8) != 0;
         let chunk_length = rdr.read_i32::<LittleEndian>()?; // I4
-        rdr.consume(3); // B3 (filler)
+        util::skip_bytes(3, rdr)?; // B3 (filler)
         let data = util::parse_bytes(chunk_length as usize, rdr)?; // B[chunk_length]
         Ok(ReadLobReply {
             locator_id,

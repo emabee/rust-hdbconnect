@@ -1,8 +1,8 @@
+use protocol::lowlevel::util;
 use HdbResult;
 
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::io;
-use std::io::BufRead;
 use std::net::TcpStream;
 
 pub fn send_and_receive(stream: &mut TcpStream) -> HdbResult<(i8, i16)> {
@@ -35,7 +35,7 @@ pub fn send_and_receive(stream: &mut TcpStream) -> HdbResult<(i8, i16)> {
         let mut rdr = io::BufReader::new(stream);
         let major_product_version = rdr.read_i8()?;
         let minor_product_version = rdr.read_i16::<LittleEndian>()?;
-        rdr.consume(5); // ignore the rest (04:01:00:00:00)?
+        util::skip_bytes(5, &mut rdr)?; // ignore the rest (04:01:00:00:00)?
         debug!("successfully initialized");
         Ok((major_product_version, minor_product_version))
     }
