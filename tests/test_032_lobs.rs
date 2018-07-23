@@ -14,9 +14,9 @@ extern crate sha2;
 mod test_utils;
 
 use flexi_logger::{Logger, ReconfigurationHandle};
-use hdbconnect::{Connection, HdbResult};
 use hdbconnect::types::{BLob, CLob};
-use rand::{thread_rng, Rng};
+use hdbconnect::{Connection, HdbResult};
+use rand::{thread_rng, RngCore};
 use serde_bytes::{ByteBuf, Bytes};
 use sha2::{Digest, Sha256};
 use std::fs::File;
@@ -53,16 +53,17 @@ fn test_blobs(
     connection.set_lob_read_length(1_000_000)?;
 
     connection.multiple_statements_ignore_err(vec!["drop table TEST_LOBS"]);
-    let stmts = vec![
-        "create table TEST_LOBS (desc NVARCHAR(10) not null, bindata BLOB)",
-    ];
+    let stmts = vec!["create table TEST_LOBS (desc NVARCHAR(10) not null, bindata BLOB)"];
     connection.multiple_statements(stmts)?;
 
     #[derive(Serialize, Deserialize, Debug, PartialEq)]
     struct MyData {
-        #[serde(rename = "DESC")] desc: String,
-        #[serde(rename = "BL1")] bytes: ByteBuf, // Vec<u8>,
-        #[serde(rename = "BL2")] o_bytes: Option<ByteBuf>, // Option<Vec<u8>>,
+        #[serde(rename = "DESC")]
+        desc: String,
+        #[serde(rename = "BL1")]
+        bytes: ByteBuf, // Vec<u8>,
+        #[serde(rename = "BL2")]
+        o_bytes: Option<ByteBuf>, // Option<Vec<u8>>,
     }
 
     const SIZE: usize = 5 * 1024 * 1024;
@@ -150,16 +151,17 @@ fn test_clobs(
     connection.set_lob_read_length(1_000_000)?;
 
     connection.multiple_statements_ignore_err(vec!["drop table TEST_LOBS"]);
-    let stmts = vec![
-        "create table TEST_LOBS (desc NVARCHAR(10) not null, chardata CLOB)",
-    ];
+    let stmts = vec!["create table TEST_LOBS (desc NVARCHAR(10) not null, chardata CLOB)"];
     connection.multiple_statements(stmts)?;
 
     #[derive(Serialize, Deserialize, Debug, PartialEq)]
     struct MyData {
-        #[serde(rename = "DESC")] desc: String,
-        #[serde(rename = "CL1")] s: String,
-        #[serde(rename = "CL2")] o_s: Option<String>,
+        #[serde(rename = "DESC")]
+        desc: String,
+        #[serde(rename = "CL1")]
+        s: String,
+        #[serde(rename = "CL2")]
+        o_s: Option<String>,
     }
 
     logger_handle.parse_new_spec("info");

@@ -14,7 +14,7 @@ use crypto::digest::Digest;
 use crypto::hmac::Hmac;
 use crypto::mac::Mac;
 use crypto::sha2::Sha256;
-use rand::{thread_rng, Rng};
+use rand::{thread_rng, RngCore};
 
 use std::env;
 use std::io::{self, Read};
@@ -42,15 +42,17 @@ fn auth1_request(
     username: &str,
 ) -> HdbResult<Reply> {
     trace!("Entering auth1_request()");
+    let mut request = Request::new(RequestType::Authenticate, 0);
+    // FIXME add clientcontext
+
     let mut auth_fields = Vec::<AuthField>::with_capacity(3);
     auth_fields.push(AuthField::new(username.as_bytes().to_vec()));
     auth_fields.push(AuthField::new(b"SCRAMSHA256".to_vec()));
     auth_fields.push(AuthField::new(chllng_sha256.to_owned()));
-
-    let part2 = Part::new(PartKind::Authentication, Argument::Auth(auth_fields));
-
-    let mut request = Request::new(RequestType::Authenticate, 0);
-    request.push(part2);
+    request.push(Part::new(
+        PartKind::Authentication,
+        Argument::Auth(auth_fields),
+    ));
 
     request.send_and_receive(am_conn_core, Some(ReplyType::Nil), SkipLastSpace::Hard)
 }
@@ -117,8 +119,8 @@ fn create_client_challenge() -> Vec<u8> {
 fn get_server_challenge(mut reply: Reply) -> HdbResult<Vec<u8>> {
     trace!("Entering get_server_challenge()");
     match reply.parts.pop_arg_if_kind(PartKind::Authentication) {
-        Some(Argument::Auth(mut vec)) => {
-            let server_challenge = vec.remove(1).into_data();
+        Some(Argument::Auth(mut auth_fields)) => {
+            let server_challenge = auth_fields.remove(1).into_data(); // FIXME remove can panic
             debug!("get_server_challenge(): returning {:?}", &server_challenge);
             Ok(server_challenge)
         }

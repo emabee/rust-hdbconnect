@@ -1,10 +1,13 @@
 # Changelog
 
 ## [Unreleased] 
+Update to rustc 127.1, and to current versions of used libs
 
-## [0.5.0] 
+## [0.5.0] 2018-07-20
 Revise error handling (-> version bump)
+
 Fix issue with large queries
+
 Fix incorrect row order
 
 ## [0.4.10] 2018-03-29

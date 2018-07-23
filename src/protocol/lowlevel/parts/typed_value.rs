@@ -665,7 +665,6 @@ pub mod factory {
             12 => Ok(TypedValue::BINARY(parse_binary(rdr)?)),
             13 => Ok(TypedValue::VARBINARY(parse_binary(rdr)?)),
             // 16 => Ok(TypedValue::TIMESTAMP(
-            // FIXME improve error handling:
             25 => Ok(TypedValue::CLOB(parse_clob(am_conn_core, rdr)?)),
             26 => Ok(TypedValue::NCLOB(parse_clob(am_conn_core, rdr)?)),
             27 => Ok(TypedValue::BLOB(parse_blob(am_conn_core, rdr)?)),
