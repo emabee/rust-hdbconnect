@@ -4,12 +4,13 @@
 //! to simplify the data exchange between application code
 //! and the driver, both for input parameters to prepared statements
 //! and for results that are returned from the database.
-//! There is no need to iterate over a resultset by rows and columns, just assign query results
-//! directly to rust structures that fit the data semantics.
-//! This approach allows, in contrast to many ORM mapping variants, using
-//! the full flexibility of SQL (projection lists, all kinds of joins, unions, etc, etc).
-//! Whatever query you need, you just use it, and whatever result structure you need,
-//! you just use a corresponding rust structure into which you deserialize the data.
+//! There is no need to iterate over a resultset by rows and columns, just
+//! assign query results directly to rust structures that fit the data
+//! semantics. This approach allows, in contrast to many ORM mapping variants,
+//! using the full flexibility of SQL (projection lists, all kinds of joins,
+//! unions, etc, etc). Whatever query you need, you just use it, and whatever
+//! result structure you need, you just use a corresponding rust structure into
+//! which you deserialize the data.
 //!
 //! See
 //! [code examples](code_examples/index.html)
@@ -45,12 +46,13 @@ extern crate serde_derive;
 extern crate username;
 extern crate vec_map;
 
+mod authenticate;
 mod connect_params;
 mod connection;
 mod connection_manager;
+mod hdb_error;
 mod hdb_response;
 mod hdb_return_value;
-mod hdb_error;
 mod impl_serde_db;
 mod prepared_statement;
 mod protocol;
@@ -59,19 +61,20 @@ mod xa_impl;
 
 pub mod code_examples;
 
-pub use connection_manager::ConnectionManager;
-pub use connection::Connection;
 pub use connect_params::{ConnectParams, ConnectParamsBuilder, IntoConnectParams};
-pub use prepared_statement::PreparedStatement;
+pub use connection::Connection;
+pub use connection_manager::ConnectionManager;
+pub use hdb_error::{HdbError, HdbResult};
 pub use hdb_response::HdbResponse;
+pub use prepared_statement::PreparedStatement;
 pub use protocol::lowlevel::parts::output_parameters::OutputParameters;
 pub use protocol::lowlevel::parts::resultset::ResultSet;
 pub use protocol::lowlevel::parts::row::Row;
 pub use protocol::lowlevel::parts::server_error::{ServerError, Severity};
-pub use hdb_error::{HdbError, HdbResult};
 
-pub use protocol::lowlevel::parts::parameter_descriptor::{ParameterBinding, ParameterDescriptor,
-                                                          ParameterDirection};
+pub use protocol::lowlevel::parts::parameter_descriptor::{
+    ParameterBinding, ParameterDescriptor, ParameterDirection,
+};
 pub use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
 
 /// Constants for the IDs of the data types being used by HANA.
@@ -79,15 +82,16 @@ pub mod type_id {
     pub use protocol::lowlevel::parts::type_id::*;
 }
 
-/// Non-standard types that are used within the [`HdbValue`](enum.HdbValue.html)s
-/// in a [`ResultSet`](struct.ResultSet.html).
+/// Non-standard types that are used within the
+/// [`HdbValue`](enum.HdbValue.html)s in a [`ResultSet`](struct.ResultSet.html).
 ///
-/// A `ResultSet` contains a sequence of Rows, each row is a sequence of `HdbValue`s.
-/// Some of the `HdbValue`s are implemented using `LongDate`, BLOB, etc.
+/// A `ResultSet` contains a sequence of Rows, each row is a sequence of
+/// `HdbValue`s. Some of the `HdbValue`s are implemented using `LongDate`,
+/// BLOB, etc.
 pub mod types {
+    pub use protocol::lowlevel::parts::hdb_decimal::HdbDecimal;
     pub use protocol::lowlevel::parts::lob::BLOB as BLob;
     pub use protocol::lowlevel::parts::lob::CLOB as CLob;
-    pub use protocol::lowlevel::parts::hdb_decimal::HdbDecimal;
     pub use protocol::lowlevel::parts::longdate::LongDate;
 }
 pub use protocol::lowlevel::parts::typed_value::TypedValue as HdbValue;

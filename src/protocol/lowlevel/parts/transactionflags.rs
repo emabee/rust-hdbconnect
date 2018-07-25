@@ -1,15 +1,14 @@
 use protocol::lowlevel::parts::option_part::{OptionId, OptionPart};
 use protocol::lowlevel::parts::option_value::OptionValue;
 
-use std::u8;
-
 /// The part is sent from the server to signal
 ///
 /// * changes of the current transaction status
 ///   (committed, rolled back, start of a write transaction), and
 /// * changes of the general session state
-///   (transaction isolation level has changed, DDL statements are automatically committed or not,
-///    it has become impossible to continue processing the session)
+/// (transaction isolation level has changed, DDL statements are
+/// automatically committed or not, it has become impossible to continue
+/// processing the session)
 pub type TransactionFlags = OptionPart<TaFlagId>;
 
 #[derive(Debug)]
@@ -91,7 +90,7 @@ pub enum TaFlagId {
     SessionclosingTaError, // 6 // BOOL // The session must be terminated
     ReadOnlyMode,          // 7 // BOOL //
     Last,                  // 8 // BOOL //
-    __Unexpected__,
+    __Unexpected__(u8),
 }
 impl OptionId<TaFlagId> for TaFlagId {
     fn to_u8(&self) -> u8 {
@@ -105,7 +104,7 @@ impl OptionId<TaFlagId> for TaFlagId {
             TaFlagId::SessionclosingTaError => 6,
             TaFlagId::ReadOnlyMode => 7,
             TaFlagId::Last => 8,
-            TaFlagId::__Unexpected__ => u8::MAX,
+            TaFlagId::__Unexpected__(val) => val,
         }
     }
 
@@ -122,7 +121,7 @@ impl OptionId<TaFlagId> for TaFlagId {
             8 => TaFlagId::Last,
             val => {
                 warn!("Invalid value for TaFlagId received: {}", val);
-                TaFlagId::__Unexpected__
+                TaFlagId::__Unexpected__(val)
             }
         }
     }

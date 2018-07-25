@@ -8,7 +8,7 @@ repository = "https://github.com/emabee/rust-hdbconnect"
 documentation = "https://docs.rs/hdbconnect/"
 
 description = "A pure rust driver for SAP HANA(TM)"
-keywords = ["relational", "database", "driver", "in-memory", "serde", "HANA"]
+keywords = ["relational", "database", "driver", "serde", "HANA"]
 categories = ["Database interfaces"]
 
 

@@ -1,7 +1,5 @@
-use protocol::lowlevel::parts::option_part::OptionPart;
 use protocol::lowlevel::parts::option_part::OptionId;
-
-use std::u8;
+use protocol::lowlevel::parts::option_part::OptionPart;
 
 // An Options part that is used by the client to specify HOLDCURSORSOVERCOMMIT.
 // If HOLDCURSORSOVERCOMMIT is set by the client on commit,
@@ -11,14 +9,14 @@ pub type CommitOptions = OptionPart<CommitOptionsId>;
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub enum CommitOptionsId {
     HoldCursorOverCommit, // 1 // BOOLEAN // Hold cursors
-    __Unexpected__,
+    __Unexpected__(u8),
 }
 
 impl OptionId<CommitOptionsId> for CommitOptionsId {
     fn to_u8(&self) -> u8 {
         match *self {
             CommitOptionsId::HoldCursorOverCommit => 1,
-            CommitOptionsId::__Unexpected__ => u8::MAX,
+            CommitOptionsId::__Unexpected__(val) => val,
         }
     }
 
@@ -27,7 +25,7 @@ impl OptionId<CommitOptionsId> for CommitOptionsId {
             1 => CommitOptionsId::HoldCursorOverCommit,
             val => {
                 warn!("Unsupported value for CommitOptionsId received: {}", val);
-                CommitOptionsId::__Unexpected__
+                CommitOptionsId::__Unexpected__(val)
             }
         }
     }

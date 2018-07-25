@@ -5,7 +5,7 @@ use {HdbError, HdbResponse, HdbResult};
 use prepared_statement::factory as PreparedStatementFactory;
 use prepared_statement::PreparedStatement;
 
-use protocol::authenticate;
+use authenticate;
 use protocol::lowlevel::argument::Argument;
 use protocol::lowlevel::conn_core::{AmConnCore, ConnectionCore};
 use protocol::lowlevel::message::{Request, SkipLastSpace};
@@ -65,7 +65,7 @@ impl Connection {
                 .unwrap_or(-1)
         );
 
-        let a = authenticate::user_pw(&mut (am_conn_core), params.dbuser(), params.password());
+        let a = authenticate::authenticate(&mut (am_conn_core), params.dbuser(), params.password());
         debug!("auth: {:?}", a);
         a?;
 

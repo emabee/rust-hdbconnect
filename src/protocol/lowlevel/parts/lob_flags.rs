@@ -1,7 +1,5 @@
 use protocol::lowlevel::parts::option_part::{OptionId, OptionPart};
 
-use std::u8;
-
 // The part is sent from the client to signal whether the implicit LOB
 // streaming is started so that the server does not commit the current
 // transaction even with auto-commit on while LOB streaming (really??).
@@ -10,14 +8,14 @@ pub type LobFlags = OptionPart<LobFlagsId>;
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub enum LobFlagsId {
     ImplicitStreaming, // 0 // BOOL // The implicit streaming has been started.
-    __Unexpected__,
+    __Unexpected__(u8),
 }
 
 impl OptionId<LobFlagsId> for LobFlagsId {
     fn to_u8(&self) -> u8 {
         match *self {
             LobFlagsId::ImplicitStreaming => 0,
-            LobFlagsId::__Unexpected__ => u8::MAX,
+            LobFlagsId::__Unexpected__(val) => val,
         }
     }
 
@@ -26,7 +24,7 @@ impl OptionId<LobFlagsId> for LobFlagsId {
             0 => LobFlagsId::ImplicitStreaming,
             val => {
                 warn!("Unsupported value for LobFlagsId received: {}", val);
-                LobFlagsId::__Unexpected__
+                LobFlagsId::__Unexpected__(val)
             }
         }
     }

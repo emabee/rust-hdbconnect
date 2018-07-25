@@ -1,7 +1,5 @@
-use protocol::lowlevel::parts::option_part::OptionPart;
 use protocol::lowlevel::parts::option_part::OptionId;
-
-use std::u8;
+use protocol::lowlevel::parts::option_part::OptionPart;
 
 // An Options part that is used by the client when fetching resultset lines;
 // the RESULTSETPOS field can be used to skip over entries.
@@ -10,14 +8,14 @@ pub type FetchOptions = OptionPart<FetchOptionsId>;
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub enum FetchOptionsId {
     ResultsetPosition, // 1 // INT // Position for Fetch
-    __Unexpected__,
+    __Unexpected__(u8),
 }
 
 impl OptionId<FetchOptionsId> for FetchOptionsId {
     fn to_u8(&self) -> u8 {
         match *self {
             FetchOptionsId::ResultsetPosition => 1,
-            FetchOptionsId::__Unexpected__ => u8::MAX,
+            FetchOptionsId::__Unexpected__(val) => val,
         }
     }
 
@@ -26,7 +24,7 @@ impl OptionId<FetchOptionsId> for FetchOptionsId {
             1 => FetchOptionsId::ResultsetPosition,
             val => {
                 warn!("Unsupported value for FetchOptionsId received: {}", val);
-                FetchOptionsId::__Unexpected__
+                FetchOptionsId::__Unexpected__(val)
             }
         }
     }

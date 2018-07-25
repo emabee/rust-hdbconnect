@@ -17,7 +17,7 @@ use super::parts::resultset_metadata::{self, ResultSetMetadata};
 use super::parts::rows_affected::RowsAffected;
 use super::parts::server_error::ServerError;
 use super::parts::statement_context::StatementContext;
-use super::parts::topology_attribute::TopologyAttr;
+use super::parts::topology::Topology;
 use super::parts::transactionflags::TransactionFlags;
 use super::parts::xat_options::XatOptions;
 use protocol::lowlevel::cesu8;
@@ -60,7 +60,7 @@ pub enum Argument {
     StatementContext(StatementContext),
     StatementId(u64),
     TableLocation(Vec<i32>),
-    TopologyInformation(Vec<TopologyAttr>),
+    TopologyInformation(Topology),
     TransactionFlags(TransactionFlags),
     XatOptions(XatOptions),
 }
@@ -125,12 +125,7 @@ impl Argument {
             Argument::StatementContext(ref sc) => size += sc.size(),
 
             Argument::SessionContext(ref opts) => size += opts.size(),
-            Argument::TopologyInformation(ref vec) => {
-                size += 2;
-                for attr in vec {
-                    size += attr.size();
-                }
-            }
+            Argument::TopologyInformation(ref topology) => size += topology.size(),
             Argument::TransactionFlags(ref taflags) => size += taflags.size(),
             Argument::XatOptions(ref xat) => size += xat.size(),
 
@@ -190,12 +185,6 @@ impl Argument {
                 w.write_u64::<LittleEndian>(stmt_id)?;
             }
             Argument::StatementContext(ref sc) => sc.serialize(w)?,
-            Argument::TopologyInformation(ref vec) => {
-                w.write_i16::<LittleEndian>(vec.len() as i16)?;
-                for topo_attr in vec {
-                    topo_attr.serialize(w)?;
-                }
-            }
             Argument::TransactionFlags(ref taflags) => taflags.serialize(w)?,
             Argument::XatOptions(ref xatid) => xatid.serialize(w)?,
             ref a => {
@@ -315,13 +304,7 @@ impl Argument {
                 Argument::TableLocation(vec)
             }
             PartKind::TopologyInformation => {
-                let field_count = rdr.read_i16::<LittleEndian>()? as usize; // I2
-                let mut vec = Vec::<TopologyAttr>::with_capacity(field_count);
-                for _ in 0..field_count {
-                    let info = TopologyAttr::parse(rdr)?;
-                    vec.push(info);
-                }
-                Argument::TopologyInformation(vec)
+                Argument::TopologyInformation(Topology::parse(no_of_args, rdr)?)
             }
             PartKind::TransactionFlags => {
                 Argument::TransactionFlags(TransactionFlags::parse(no_of_args, rdr)?)

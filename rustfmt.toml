@@ -7,7 +7,7 @@
 format_strings = true                           #  <boolean>                              Default: false          # Format string literals where necessary
 wrap_comments = true                            #  <boolean>                              Default: false          # Break comments to fit on the line
 comment_width = 100                             #  <unsigned integer>                     Default: 80             # Maximum length of comments. No effect unless wrap_comments = true
-normalize_comments = true                       #  <boolean>                              Default: false          # Convert /* */ comments to // comments where possible
+normalize_comments = false                      #  <boolean>                              Default: false          # Convert /* */ comments to // comments where possible
 # empty_item_single_line                        #  <boolean>                              Default: true           # Put empty-body functions and impls on a single line
 # struct_lit_single_line                        #  <boolean>                              Default: true           # Put small struct literals on a single line
 # fn_single_line = true                         #  <boolean>                              Default: false          # Put single-expression functions on a single line

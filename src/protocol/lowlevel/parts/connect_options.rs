@@ -1,8 +1,6 @@
 use protocol::lowlevel::parts::option_part::{OptionId, OptionPart};
 use protocol::lowlevel::parts::option_value::OptionValue;
 
-use std::u8;
-
 // An Options part that is used for describing the connection's capabilities.
 // It is used both in requests and replies.
 pub type ConnectOptions = OptionPart<ConnOptId>;
@@ -258,7 +256,10 @@ pub enum ConnOptId {
     ClientSideColumnEncryptionVersion, // 48 // Version of clientside column encryption
     CompressionLevelAndFlags,          // 49 // Network compression level and flags (hana2sp02)
     ClientSideReExecutionSupported,    // 50 // Support csre for clientside encryption (hana2sp03)
-    __Unexpected__,
+    ClientReconnectWaitTimeout,        // 51 // Client reconnection wait timeout
+    OriginalAnchorConnectionID,        // 52 // ... to notify client's reconnect
+    FlagSet1,                          // 53 // Flags for aggregating several options
+    __Unexpected__(u8),
 }
 
 impl OptionId<ConnOptId> for ConnOptId {
@@ -314,7 +315,11 @@ impl OptionId<ConnOptId> for ConnOptId {
             ConnOptId::ClientSideColumnEncryptionVersion => 48,
             ConnOptId::CompressionLevelAndFlags => 49,
             ConnOptId::ClientSideReExecutionSupported => 50,
-            ConnOptId::__Unexpected__ => u8::MAX,
+
+            ConnOptId::ClientReconnectWaitTimeout => 51,
+            ConnOptId::OriginalAnchorConnectionID => 52,
+            ConnOptId::FlagSet1 => 53,
+            ConnOptId::__Unexpected__(n) => n,
         }
     }
 
@@ -367,9 +372,16 @@ impl OptionId<ConnOptId> for ConnOptId {
             45 => ConnOptId::DatabaseName,
             46 => ConnOptId::BuildPlatform,
             47 => ConnOptId::ImplicitXASessionOK,
+            48 => ConnOptId::ClientSideColumnEncryptionVersion,
+            49 => ConnOptId::CompressionLevelAndFlags,
+            50 => ConnOptId::ClientSideReExecutionSupported,
+
+            51 => ConnOptId::ClientReconnectWaitTimeout,
+            52 => ConnOptId::OriginalAnchorConnectionID,
+            53 => ConnOptId::FlagSet1,
             val => {
                 warn!("Unsupported value for ConnOptId received: {}", val);
-                ConnOptId::__Unexpected__
+                ConnOptId::__Unexpected__(val)
             }
         }
     }

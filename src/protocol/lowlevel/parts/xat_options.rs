@@ -5,7 +5,6 @@ use protocol::lowlevel::parts::option_value::OptionValue;
 
 use dist_tx::rm::{Flags, RmRc};
 use dist_tx::tm::XaTransactionId;
-use std::u8;
 
 // An Options part that is used in XA related requests and responses.
 pub type XatOptions = OptionPart<XatOptionId>;
@@ -74,7 +73,7 @@ pub enum XatOptionId {
     OnePhase,    // BOOLEAN (0x1C) OPTION
     NumberOfXid, // BIGINT  (0x04) OPTION
     XidList,     // BSTRING (0x21) OPTION
-    __Unexpected__,
+    __Unexpected__(u8),
 }
 
 impl OptionId<XatOptionId> for XatOptionId {
@@ -87,7 +86,7 @@ impl OptionId<XatOptionId> for XatOptionId {
             5 => XatOptionId::XidList,
             val => {
                 warn!("Unsupported value for XatOptionId received: {}", val);
-                XatOptionId::__Unexpected__
+                XatOptionId::__Unexpected__(val)
             }
         }
     }
@@ -99,7 +98,7 @@ impl OptionId<XatOptionId> for XatOptionId {
             XatOptionId::OnePhase => 3,
             XatOptionId::NumberOfXid => 4,
             XatOptionId::XidList => 5,
-            XatOptionId::__Unexpected__ => u8::MAX,
+            XatOptionId::__Unexpected__(val) => val,
         }
     }
 }

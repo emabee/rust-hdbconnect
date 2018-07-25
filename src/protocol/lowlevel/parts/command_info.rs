@@ -1,7 +1,5 @@
-use protocol::lowlevel::parts::option_part::OptionPart;
 use protocol::lowlevel::parts::option_part::OptionId;
-
-use std::u8;
+use protocol::lowlevel::parts::option_part::OptionPart;
 
 // An Options part that provides source and line information.
 pub type CommandInfo = OptionPart<CommandInfoId>;
@@ -10,7 +8,7 @@ pub type CommandInfo = OptionPart<CommandInfoId>;
 pub enum CommandInfoId {
     LineNumber,   // 1 // INT     // Line number in source
     SourceModule, // 2 // STRING  // Name of source module
-    __Unexpected__,
+    __Unexpected__(u8),
 }
 
 impl OptionId<CommandInfoId> for CommandInfoId {
@@ -18,7 +16,7 @@ impl OptionId<CommandInfoId> for CommandInfoId {
         match *self {
             CommandInfoId::LineNumber => 1,
             CommandInfoId::SourceModule => 2,
-            CommandInfoId::__Unexpected__ => u8::MAX,
+            CommandInfoId::__Unexpected__(val) => val,
         }
     }
 
@@ -28,7 +26,7 @@ impl OptionId<CommandInfoId> for CommandInfoId {
             2 => CommandInfoId::SourceModule,
             val => {
                 warn!("Unsupported value for CommandInfoId received: {}", val);
-                CommandInfoId::__Unexpected__
+                CommandInfoId::__Unexpected__(val)
             }
         }
     }

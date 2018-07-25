@@ -3,7 +3,7 @@ use protocol::lowlevel::message::{parse_message_and_sequence_header, Message, Re
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::parts::connect_options::ConnectOptions;
 use protocol::lowlevel::parts::server_error::ServerError;
-use protocol::lowlevel::parts::topology_attribute::TopologyAttr;
+use protocol::lowlevel::parts::topology::Topology;
 use protocol::lowlevel::parts::transactionflags::SessionState;
 use protocol::lowlevel::parts::transactionflags::TransactionFlags;
 use protocol::lowlevel::util;
@@ -34,7 +34,7 @@ pub struct ConnectionCore {
     session_state: SessionState,
     statement_sequence: Option<i64>, // statement sequence within the transaction
     server_connect_options: ConnectOptions,
-    topology_attributes: Vec<TopologyAttr>,
+    topology: Option<Topology>,
     pub warnings: Vec<ServerError>,
     writer: io::BufWriter<TcpStream>,
     reader: io::BufReader<TcpStream>,
@@ -60,7 +60,7 @@ impl ConnectionCore {
             session_state: Default::default(),
             statement_sequence: None,
             server_connect_options: ConnectOptions::default(),
-            topology_attributes: Vec::<TopologyAttr>::new(),
+            topology: None,
             warnings: Vec::<ServerError>::new(),
             writer: io::BufWriter::with_capacity(20_480_usize, tcp_stream.try_clone()?),
             reader: io::BufReader::new(tcp_stream),
@@ -107,8 +107,8 @@ impl ConnectionCore {
         self.session_id = session_id;
     }
 
-    pub fn swap_topology_attributes(&mut self, vec: &mut Vec<TopologyAttr>) {
-        mem::swap(vec, &mut self.topology_attributes)
+    pub fn set_topology(&mut self, topology: Topology) {
+        self.topology = Some(topology);
     }
 
     pub fn swap_server_connect_options(&mut self, conn_opts: &mut ConnectOptions) {

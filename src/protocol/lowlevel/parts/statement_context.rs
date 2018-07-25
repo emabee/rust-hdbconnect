@@ -1,8 +1,6 @@
 use protocol::lowlevel::parts::option_part::{OptionId, OptionPart};
 use protocol::lowlevel::parts::option_value::OptionValue;
 
-use std::u8;
-
 // An options part that is populated from previously received statement context
 // information. The binary option content is opaque to the client.
 pub type StatementContext = OptionPart<StatementContextId>;
@@ -31,14 +29,16 @@ impl StatementContext {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
-//  FlagSet,                       // 4 // INT  // Unused?
 pub enum StatementContextId {
     StatementSequenceInfo,         // 1 // BIGINT?
     ServerProcessingTime,          // 2 // INT
     SchemaName,                    // 3 // STRING
+    FlagSet,                       // 4 // INT
     QueryTimeout,                  // 5 // BIGINT
     ClientReconnectionWaitTimeout, // 6 // INT
-    __Unexpected__,
+    ServerCPUTime,                 // 7 //
+    ServerMemoryUsage,             // 8 //
+    __Unexpected__(u8),
 }
 impl OptionId<StatementContextId> for StatementContextId {
     fn to_u8(&self) -> u8 {
@@ -46,9 +46,12 @@ impl OptionId<StatementContextId> for StatementContextId {
             StatementContextId::StatementSequenceInfo => 1,
             StatementContextId::ServerProcessingTime => 2,
             StatementContextId::SchemaName => 3,
+            StatementContextId::FlagSet => 4,
             StatementContextId::QueryTimeout => 5,
             StatementContextId::ClientReconnectionWaitTimeout => 6,
-            StatementContextId::__Unexpected__ => u8::MAX,
+            StatementContextId::ServerCPUTime => 7,
+            StatementContextId::ServerMemoryUsage => 8,
+            StatementContextId::__Unexpected__(val) => val,
         }
     }
 
@@ -57,11 +60,14 @@ impl OptionId<StatementContextId> for StatementContextId {
             1 => StatementContextId::StatementSequenceInfo,
             2 => StatementContextId::ServerProcessingTime,
             3 => StatementContextId::SchemaName,
+            4 => StatementContextId::FlagSet,
             5 => StatementContextId::QueryTimeout,
             6 => StatementContextId::ClientReconnectionWaitTimeout,
+            7 => StatementContextId::ServerCPUTime,
+            8 => StatementContextId::ServerMemoryUsage,
             val => {
-                warn!("Invalid value for StatementContextId received: {}", val);
-                StatementContextId::__Unexpected__
+                warn!("Unknown value for StatementContextId received: {}", val);
+                StatementContextId::__Unexpected__(val)
             }
         }
     }

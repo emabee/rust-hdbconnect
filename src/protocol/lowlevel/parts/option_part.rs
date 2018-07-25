@@ -1,11 +1,11 @@
-use HdbResult;
-use std::collections::hash_map::Iter;
-use std::hash::Hash;
-use std::collections::HashMap;
 use protocol::lowlevel::parts::option_value::OptionValue;
+use std::collections::hash_map::Iter;
+use std::collections::HashMap;
+use std::hash::Hash;
+use HdbResult;
 
-use std::io;
 use byteorder::{ReadBytesExt, WriteBytesExt};
+use std::io;
 
 pub trait OptionId<T: OptionId<T>> {
     fn from_u8(i: u8) -> T;
@@ -61,6 +61,7 @@ impl<T: OptionId<T> + Eq + PartialEq + Hash> OptionPart<T> {
         for _ in 0..count {
             let id = T::from_u8(rdr.read_u8()?);
             let value = OptionValue::parse(rdr)?;
+            trace!("Parsed Option id = {:?}, value = {:?}", id.to_u8(), value);
             result.0.insert(id, value);
         }
         Ok(result)

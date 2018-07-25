@@ -1,7 +1,11 @@
 # Changelog
 
 ## [Unreleased] 
+
+## [0.5.1] 2018-07-25
 Update to rustc 127.1, and to current versions of used libs
+
+Fix topology part implementation (did not work with sacale-out topology)
 
 ## [0.5.0] 2018-07-20
 Revise error handling (-> version bump)

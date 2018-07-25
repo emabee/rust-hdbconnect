@@ -21,7 +21,7 @@ use {HdbError, HdbResponse, HdbResult};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use chrono::Local;
-use std::io::{self, BufRead, Write};
+use std::io::{self, BufReader, Write};
 use std::net::TcpStream;
 
 const MESSAGE_HEADER_SIZE: u32 = 32;
@@ -366,13 +366,12 @@ impl Reply {
         skip: SkipLastSpace,
     ) -> HdbResult<Reply> {
         trace!("Reply::parse()");
+
         let mut guard = am_conn_core.lock()?;
-
         let rdr = (*guard).reader();
-        trace!("Reply::parse(): got the reader");
-
         let (no_of_parts, msg) = parse_message_and_sequence_header(rdr)?;
         trace!("Reply::parse(): parsed the header");
+
         match msg {
             Message::Request(_) => Err(HdbError::Impl("Reply::parse() found Request".to_owned())),
             Message::Reply(mut msg) => {
@@ -483,8 +482,17 @@ impl Drop for Reply {
 }
 
 ///
-pub fn parse_message_and_sequence_header(rdr: &mut BufRead) -> HdbResult<(i16, Message)> {
+pub fn parse_message_and_sequence_header(
+    rdr: &mut BufReader<TcpStream>,
+) -> HdbResult<(i16, Message)> {
     // MESSAGE HEADER: 32 bytes
+    // {
+    //     let buf = rdr.fill_buf()?;
+    //     trace!(
+    //         "parse_message_and_sequence_header: buffer is \'{:?}\'",
+    //         buf.to_vec()
+    //     );
+    // }
     let session_id: i64 = rdr.read_i64::<LittleEndian>()?; // I8
     let packet_seq_number: i32 = rdr.read_i32::<LittleEndian>()?; // I4
     let varpart_size: u32 = rdr.read_u32::<LittleEndian>()?; // UI4  not needed?

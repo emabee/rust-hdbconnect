@@ -1,7 +1,5 @@
-use protocol::lowlevel::parts::option_part::OptionPart;
 use protocol::lowlevel::parts::option_part::OptionId;
-
-use std::u8;
+use protocol::lowlevel::parts::option_part::OptionPart;
 
 // An Options part that is used to differentiate between primary and secondary
 // connections.
@@ -15,7 +13,7 @@ pub enum SessionContextId {
     MasterConnectionID,    // 4 // INT     // Connection ID of transaction master
     MasterHostname,        // 5 // STRING  // Host name of transaction master connection host
     MasterHostPortNumber,  // 6 // INT     // Number of SQL port for transaction master connection
-    __Unexpected__,
+    __Unexpected__(u8),
 }
 
 impl OptionId<SessionContextId> for SessionContextId {
@@ -27,7 +25,7 @@ impl OptionId<SessionContextId> for SessionContextId {
             SessionContextId::MasterConnectionID => 4,
             SessionContextId::MasterHostname => 5,
             SessionContextId::MasterHostPortNumber => 6,
-            SessionContextId::__Unexpected__ => u8::MAX,
+            SessionContextId::__Unexpected__(val) => val,
         }
     }
 
@@ -41,7 +39,7 @@ impl OptionId<SessionContextId> for SessionContextId {
             6 => SessionContextId::MasterHostPortNumber,
             val => {
                 warn!("Unsupported value for SessionContextId received: {}", val);
-                SessionContextId::__Unexpected__
+                SessionContextId::__Unexpected__(val)
             }
         }
     }
