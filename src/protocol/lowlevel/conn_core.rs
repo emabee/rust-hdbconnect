@@ -1,6 +1,7 @@
 use protocol::lowlevel::initial_request;
 use protocol::lowlevel::message::{parse_message_and_sequence_header, Message, Request};
 use protocol::lowlevel::part::Part;
+use protocol::lowlevel::parts::client_info::ClientInfo;
 use protocol::lowlevel::parts::connect_options::ConnectOptions;
 use protocol::lowlevel::parts::server_error::ServerError;
 use protocol::lowlevel::parts::topology::Topology;
@@ -25,6 +26,7 @@ pub struct ConnectionCore {
     session_id: i64,
     major_product_version: i8,
     minor_product_version: i16,
+    client_info: ClientInfo,
     command_options: u8,
     seq_number: i32,
     auto_commit: bool,
@@ -57,6 +59,7 @@ impl ConnectionCore {
             lob_read_length: DEFAULT_LOB_READ_LENGTH,
             major_product_version,
             minor_product_version,
+            client_info: Default::default(),
             session_state: Default::default(),
             statement_sequence: None,
             connect_options: Default::default(),
@@ -65,6 +68,26 @@ impl ConnectionCore {
             writer: io::BufWriter::with_capacity(20_480_usize, tcp_stream.try_clone()?),
             reader: io::BufReader::new(tcp_stream),
         })))
+    }
+
+    pub fn set_client_info(
+        &mut self,
+        application: &str,
+        application_version: &str,
+        application_source: &str,
+        application_user: &str,
+    ) -> HdbResult<()> {
+        self.client_info.set_application(application);
+        self.client_info
+            .set_application_version(application_version);
+        self.client_info.set_application_source(application_source);
+        self.client_info.set_application_user(application_user);
+        Ok(())
+    }
+
+    pub fn get_client_info(&self) -> ClientInfo {
+        debug!("cloning client info");
+        self.client_info.clone()
     }
 
     pub fn get_major_and_minor_product_version(&self) -> (i8, i16) {

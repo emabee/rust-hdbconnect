@@ -135,6 +135,22 @@ impl Connection {
         Ok(self.am_conn_core.lock()?.last_seq_number())
     }
 
+    /// Sets client information into session variables on the server.
+    pub fn set_client_info(
+        &self,
+        application: &str,
+        application_version: &str,
+        application_source: &str,
+        application_user: &str,
+    ) -> HdbResult<()> {
+        self.am_conn_core.lock()?.set_client_info(
+            application,
+            application_version,
+            application_source,
+            application_user,
+        )
+    }
+
     /// Executes a statement on the database.
     ///
     /// This generic method can handle all kinds of calls,
@@ -241,6 +257,11 @@ fn execute(am_conn_core: &mut AmConnCore, stmt: String) -> HdbResult<HdbResponse
         PartKind::FetchSize,
         Argument::FetchSize(fetch_size),
     ));
+    request.push(Part::new(
+        PartKind::ClientInfo,
+        Argument::ClientInfo(am_conn_core.lock()?.get_client_info()),
+    ));
+
     request.push(Part::new(PartKind::Command, Argument::Command(stmt)));
     request.send_and_get_response(None, None, am_conn_core, None, SkipLastSpace::Soft)
 }

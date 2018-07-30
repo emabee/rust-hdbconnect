@@ -1,6 +1,9 @@
 # Changelog
 
 ## [Unreleased] 
+
+Add support for client info (= session context)
+
 Fix key words
 
 Prepare for ensuring the buffer is empty after parsing a reply

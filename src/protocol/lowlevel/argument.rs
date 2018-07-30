@@ -233,10 +233,6 @@ impl Argument {
                 }
                 Argument::Auth(vec)
             }
-            PartKind::ClientInfo => {
-                let client_info = ClientInfo::parse_from_request(no_of_args, rdr)?;
-                Argument::ClientInfo(client_info)
-            }
             PartKind::Command => {
                 let bytes = util::parse_bytes(arg_size as usize, rdr)?;
                 let s = cesu8::cesu8_to_string(&bytes)?;

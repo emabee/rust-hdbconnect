@@ -18,12 +18,13 @@ use hdbconnect::{ConnectParams, Connection, HdbResult};
 // cargo test test_010_connect -- --nocapture
 #[test]
 pub fn test_010_connect() {
-    test_utils::init_logger("test_010_connect = info, hdbconnect = info");
+    test_utils::init_logger("test_010_connect = info, hdbconnect = info, hdbconnect::protocol::lowlevel::conn_core = debug");
 
     connect_successfully();
     connect_wrong_password();
     connect_and_select_1().unwrap();
     connect_and_select_2().unwrap();
+    client_info().unwrap();
 }
 
 fn connect_successfully() {
@@ -97,5 +98,58 @@ fn select_version_and_user(connection: &mut Connection) -> HdbResult<()> {
     );
 
     debug!("VersionAndUser: {:?}", version_and_user);
+    Ok(())
+}
+
+fn client_info() -> HdbResult<()> {
+    info!("client info");
+    let mut connection = test_utils::get_authenticated_connection().unwrap();
+
+    #[allow(non_snake_case)]
+    #[derive(Eq, PartialEq, Serialize, Deserialize, Debug)]
+    struct SessCtx {
+        KEY: String,
+        VALUE: String,
+    }
+
+    let stmt = r#"SELECT KEY, VALUE FROM M_SESSION_CONTEXT ORDER BY KEY"#;
+
+    let result: Vec<SessCtx> = connection.query(stmt)?.try_into()?;
+    info!("result: {:?}", result);
+
+    connection.set_client_info("Abbligation", "AbbVersion", "AbbSource", "AbbUser")?;
+
+    let result: Vec<SessCtx> = connection.query(stmt)?.try_into()?;
+    info!("result: {:?}", result);
+
+    assert_eq!(
+        result[0],
+        SessCtx {
+            KEY: "APPLICATION".to_string(),
+            VALUE: "Abbligation".to_string()
+        }
+    );
+    assert_eq!(
+        result[3],
+        SessCtx {
+            KEY: "APPLICATIONVERSION".to_string(),
+            VALUE: "AbbVersion".to_string()
+        }
+    );
+    assert_eq!(
+        result[1],
+        SessCtx {
+            KEY: "APPLICATIONSOURCE".to_string(),
+            VALUE: "AbbSource".to_string()
+        }
+    );
+    assert_eq!(
+        result[2],
+        SessCtx {
+            KEY: "APPLICATIONUSER".to_string(),
+            VALUE: "AbbUser".to_string()
+        }
+    );
+
     Ok(())
 }
