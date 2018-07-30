@@ -33,7 +33,7 @@ pub struct ConnectionCore {
     lob_read_length: i32,
     session_state: SessionState,
     statement_sequence: Option<i64>, // statement sequence within the transaction
-    server_connect_options: ConnectOptions,
+    connect_options: ConnectOptions,
     topology: Option<Topology>,
     pub warnings: Vec<ServerError>,
     writer: io::BufWriter<TcpStream>,
@@ -59,7 +59,7 @@ impl ConnectionCore {
             minor_product_version,
             session_state: Default::default(),
             statement_sequence: None,
-            server_connect_options: ConnectOptions::default(),
+            connect_options: Default::default(),
             topology: None,
             warnings: Vec::<ServerError>::new(),
             writer: io::BufWriter::with_capacity(20_480_usize, tcp_stream.try_clone()?),
@@ -111,8 +111,9 @@ impl ConnectionCore {
         self.topology = Some(topology);
     }
 
-    pub fn swap_server_connect_options(&mut self, conn_opts: &mut ConnectOptions) {
-        mem::swap(conn_opts, &mut self.server_connect_options)
+    pub fn transfer_server_connect_options(&mut self, conn_opts: ConnectOptions) -> HdbResult<()> {
+        self.connect_options
+            .transfer_server_connect_options(conn_opts)
     }
 
     pub fn is_authenticated(&self) -> bool {
@@ -160,6 +161,25 @@ impl ConnectionCore {
         }
     }
 
+    pub fn get_database_name(&self) -> &str {
+        self.connect_options
+            .get_database_name()
+            .map(|s| s.as_ref())
+            .unwrap_or("")
+    }
+    pub fn get_system_id(&self) -> &str {
+        self.connect_options
+            .get_system_id()
+            .map(|s| s.as_ref())
+            .unwrap_or("")
+    }
+    pub fn get_full_version_string(&self) -> &str {
+        self.connect_options
+            .get_full_version_string()
+            .map(|s| s.as_ref())
+            .unwrap_or("")
+    }
+
     pub fn pop_warnings(&mut self) -> HdbResult<Option<Vec<ServerError>>> {
         if self.warnings.is_empty() {
             Ok(None)
@@ -174,6 +194,7 @@ impl ConnectionCore {
         trace!("Drop of ConnectionCore, session_id = {}", self.session_id);
         if self.authenticated {
             let request = Request::new_for_disconnect();
+            // request.push()
             request.serialize_impl(self.session_id, self.next_seq_number(), 0, &mut self.writer)?;
             trace!("Disconnect: request successfully sent");
             if let Ok((no_of_parts, msg)) = parse_message_and_sequence_header(&mut self.reader) {
@@ -183,7 +204,7 @@ impl ConnectionCore {
                 );
                 if let Message::Reply(mut msg) = msg {
                     for _ in 0..no_of_parts {
-                        let (_, padsize) = Part::parse(
+                        let (part, padsize) = Part::parse(
                             &mut (msg.parts),
                             None,
                             None,
@@ -192,6 +213,7 @@ impl ConnectionCore {
                             &mut self.reader,
                         )?;
                         util::skip_bytes(padsize, &mut self.reader)?;
+                        debug!("Drop of connection: got Part {:?}", part);
                     }
                 }
             }

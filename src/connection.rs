@@ -65,18 +65,27 @@ impl Connection {
                 .unwrap_or(-1)
         );
 
-        let a = authenticate::authenticate(&mut (am_conn_core), params.dbuser(), params.password());
-        debug!("auth: {:?}", a);
-        a?;
-
-        debug!(
-            "user \"{}\" successfully logged on ({} µs)",
+        authenticate::authenticate(
+            &mut (am_conn_core),
             params.dbuser(),
-            Local::now()
-                .signed_duration_since(start)
-                .num_microseconds()
-                .unwrap_or(-1)
-        );
+            params.password(),
+            params.clientlocale(),
+        )?;
+
+        {
+            let guard = am_conn_core.lock()?;
+            debug!(
+                "user \"{}\" successfully logged on ({} µs) to {} of {} (HANA version: {})",
+                params.dbuser(),
+                Local::now()
+                    .signed_duration_since(start)
+                    .num_microseconds()
+                    .unwrap_or(-1),
+                guard.get_database_name(),
+                guard.get_system_id(),
+                guard.get_full_version_string()
+            );
+        }
         Ok(Connection {
             params,
             am_conn_core,

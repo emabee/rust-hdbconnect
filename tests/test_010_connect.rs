@@ -18,11 +18,12 @@ use hdbconnect::{ConnectParams, Connection, HdbResult};
 // cargo test test_010_connect -- --nocapture
 #[test]
 pub fn test_010_connect() {
-    test_utils::init_logger("info, test_010_connect = info");
+    test_utils::init_logger("test_010_connect = info, hdbconnect = info");
 
     connect_successfully();
     connect_wrong_password();
-    connect_and_select();
+    connect_and_select_1().unwrap();
+    connect_and_select_2().unwrap();
 }
 
 fn connect_successfully() {
@@ -50,24 +51,33 @@ fn connect_wrong_password() {
     );
 }
 
-fn connect_and_select() {
-    info!("test a successful connection and do some simple selects");
-    match impl_connect_and_select() {
-        Err(e) => {
-            error!("connect_and_select() failed with {}", e);
-            assert!(false);
-        }
-        Ok(i) => info!("connect_and_select(): {} calls to DB were executed", i),
-    }
+fn connect_and_select_1() -> HdbResult<()> {
+    info!("test a successful connection and do some simple selects with explicit clientlocale");
+    let conn_params: ConnectParams = test_utils::connect_params_builder_from_file("db_access.json")
+        .unwrap()
+        .clientlocale("en_US")
+        .build()
+        .unwrap();
+    let mut connection = Connection::new(conn_params)?;
+    select_version_and_user(&mut connection)?;
+    debug!("{} calls to DB were executed", connection.get_call_count()?);
+    Ok(())
 }
 
-fn impl_connect_and_select() -> HdbResult<i32> {
-    let mut connection = test_utils::get_authenticated_connection()?;
-    impl_select_version_and_user(&mut connection)?;
-    Ok(connection.get_call_count()?)
+fn connect_and_select_2() -> HdbResult<()> {
+    info!("test a successful connection and do some simple selects with client locale from env");
+    let conn_params: ConnectParams = test_utils::connect_params_builder_from_file("db_access.json")
+        .unwrap()
+        .clientlocale_from_env_lang()
+        .build()
+        .unwrap();
+    let mut connection = Connection::new(conn_params)?;
+    select_version_and_user(&mut connection)?;
+    debug!("{} calls to DB were executed", connection.get_call_count()?);
+    Ok(())
 }
 
-fn impl_select_version_and_user(connection: &mut Connection) -> HdbResult<()> {
+fn select_version_and_user(connection: &mut Connection) -> HdbResult<()> {
     #[derive(Serialize, Deserialize, Debug)]
     struct VersionAndUser {
         version: Option<String>,
@@ -80,7 +90,7 @@ fn impl_select_version_and_user(connection: &mut Connection) -> HdbResult<()> {
     let version_and_user: VersionAndUser = resultset.try_into()?;
 
     assert_eq!(
-        version_and_user.current_user,
+        &version_and_user.current_user,
         test_utils::connect_params_builder_from_file("db_access.json")?
             .build()?
             .dbuser()

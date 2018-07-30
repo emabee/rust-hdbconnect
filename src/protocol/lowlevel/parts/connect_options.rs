@@ -1,3 +1,4 @@
+use hdb_error::HdbResult;
 use protocol::lowlevel::parts::option_part::{OptionId, OptionPart};
 use protocol::lowlevel::parts::option_value::OptionValue;
 
@@ -5,177 +6,403 @@ use protocol::lowlevel::parts::option_value::OptionValue;
 // It is used both in requests and replies.
 pub type ConnectOptions = OptionPart<ConnOptId>;
 
+// Methods to send information to the server.
 impl ConnectOptions {
-    pub fn set_complete_array_execution(mut self, b: bool) -> ConnectOptions {
-        self.insert(ConnOptId::CompleteArrayExecution, OptionValue::BOOLEAN(b));
+    pub fn for_server(locale: &Option<String>, os_user: String) -> ConnectOptions {
+        ConnectOptions::default()
+            .set_complete_array_execution(true)
+            .set_dataformat_version2(4)
+            .set_client_locale(locale)
+            .set_enable_array_type(true)
+            .set_distribution_enabled(true)
+            .set_client_distribution_mode(0)
+            .set_select_for_update_ok(true)
+            .set_distribution_protocol_version(1)
+            .set_row_slot_image_parameter(true)
+            .set_os_user(os_user)
+    }
+
+    fn set_complete_array_execution(mut self, b: bool) -> ConnectOptions {
+        self.set_to_server(ConnOptId::CompleteArrayExecution, OptionValue::BOOLEAN(b));
         self
     }
-    pub fn set_dataformat_version2(mut self, v: i32) -> ConnectOptions {
-        self.insert(ConnOptId::DataFormatVersion2, OptionValue::INT(v));
-        self
-    }
-    pub fn set_client_locale(mut self, s: String) -> ConnectOptions {
-        self.insert(ConnOptId::ClientLocale, OptionValue::STRING(s));
+    fn set_dataformat_version2(mut self, v: i32) -> ConnectOptions {
+        self.set_to_server(ConnOptId::DataFormatVersion2, OptionValue::INT(v));
         self
     }
 
-    pub fn set_enable_array_type(mut self, b: bool) -> ConnectOptions {
-        self.insert(ConnOptId::EnableArrayType, OptionValue::BOOLEAN(b));
+    // The client locale is set by the client and used in language-dependent
+    // handling within the SAP HANA database calculation engine.
+    fn set_client_locale(mut self, s: &Option<String>) -> ConnectOptions {
+        match s {
+            Some(s) => {
+                self.set_to_server(ConnOptId::ClientLocale, OptionValue::STRING(s.to_string()));
+            }
+            None => {}
+        }
         self
     }
 
-    pub fn set_distribution_enabled(mut self, b: bool) -> ConnectOptions {
-        self.insert(ConnOptId::DistributionEnabled, OptionValue::BOOLEAN(b));
+    fn set_enable_array_type(mut self, b: bool) -> ConnectOptions {
+        self.set_to_server(ConnOptId::EnableArrayType, OptionValue::BOOLEAN(b));
         self
     }
 
-    pub fn set_client_distribution_mode(mut self, v: i32) -> ConnectOptions {
-        self.insert(ConnOptId::ClientDistributionMode, OptionValue::INT(v));
+    fn set_distribution_enabled(mut self, b: bool) -> ConnectOptions {
+        self.set_to_server(ConnOptId::DistributionEnabled, OptionValue::BOOLEAN(b));
         self
     }
 
-    pub fn set_select_for_update_ok(mut self, b: bool) -> ConnectOptions {
-        self.insert(ConnOptId::SelectForUpdateOK, OptionValue::BOOLEAN(b));
+    fn set_client_distribution_mode(mut self, v: i32) -> ConnectOptions {
+        self.set_to_server(ConnOptId::ClientDistributionMode, OptionValue::INT(v));
         self
     }
 
-    pub fn set_distribution_protocol_version(mut self, v: i32) -> ConnectOptions {
-        self.insert(ConnOptId::DistributionProtocolVersion, OptionValue::INT(v));
+    fn set_select_for_update_ok(mut self, b: bool) -> ConnectOptions {
+        self.set_to_server(ConnOptId::SelectForUpdateOK, OptionValue::BOOLEAN(b));
         self
     }
 
-    pub fn set_row_slot_image_parameter(mut self, b: bool) -> ConnectOptions {
-        self.insert(ConnOptId::RowSlotImageParameter, OptionValue::BOOLEAN(b));
+    fn set_distribution_protocol_version(mut self, v: i32) -> ConnectOptions {
+        self.set_to_server(ConnOptId::DistributionProtocolVersion, OptionValue::INT(v));
         self
     }
 
-    pub fn set_os_user(mut self, s: String) -> ConnectOptions {
-        self.insert(ConnOptId::OSUser, OptionValue::STRING(s));
+    fn set_row_slot_image_parameter(mut self, b: bool) -> ConnectOptions {
+        self.set_to_server(ConnOptId::RowSlotImageParameter, OptionValue::BOOLEAN(b));
         self
+    }
+
+    fn set_os_user(mut self, s: String) -> ConnectOptions {
+        self.set_to_server(ConnOptId::OSUser, OptionValue::STRING(s));
+        self
+    }
+    fn set_to_server(&mut self, id: ConnOptId, value: OptionValue) -> Option<OptionValue> {
+        debug!("Sending ConnectionOption to server: {:?} = {:?}", id, value);
+        self.set_value(id, value)
     }
 }
 
-// CONNECTIONID
-// This field contains the connection ID.
-// It is filled by the server when the connection is established.
-// This number can be used in DISCONNECT/KILL commands for command or session
-// cancellation.
+// Methods to handle info we got from the server
+impl ConnectOptions {
+    // Transfer server ConnectOptions from other to self
+    pub fn transfer_server_connect_options(&mut self, other: ConnectOptions) -> HdbResult<()> {
+        for (k, v) in other {
+            match k {
+                ConnOptId::ConnectionID => {
+                    self.set_fromserver(ConnOptId::ConnectionID, v);
+                }
+                ConnOptId::SystemID => {
+                    self.set_fromserver(ConnOptId::SystemID, v);
+                }
+                ConnOptId::DatabaseName => {
+                    self.set_fromserver(ConnOptId::DatabaseName, v);
+                }
+                ConnOptId::FullVersionString => {
+                    self.set_fromserver(ConnOptId::FullVersionString, v);
+                }
+                ConnOptId::BuildPlatform => {
+                    self.set_fromserver(ConnOptId::BuildPlatform, v);
+                }
+                ConnOptId::Endianness => {
+                    self.set_fromserver(ConnOptId::Endianness, v);
+                }
+                ConnOptId::EngineDataFormatVersion => {
+                    self.set_fromserver(ConnOptId::EngineDataFormatVersion, v);
+                }
+                ConnOptId::DataFormatVersion => {
+                    self.set_fromserver(ConnOptId::DataFormatVersion, v);
+                }
+                ConnOptId::DataFormatVersion2 => {
+                    self.set_fromserver(ConnOptId::DataFormatVersion2, v);
+                }
+                ConnOptId::NonTransactionalPrepare => {
+                    self.set_fromserver(ConnOptId::NonTransactionalPrepare, v);
+                }
+                ConnOptId::SupportsLargeBulkOperations => {
+                    self.set_fromserver(ConnOptId::SupportsLargeBulkOperations, v);
+                }
+                ConnOptId::ActiveActiveProtocolVersion => {
+                    self.set_fromserver(ConnOptId::ActiveActiveProtocolVersion, v);
+                }
+                ConnOptId::ImplicitLobStreaming => {
+                    self.set_fromserver(ConnOptId::ImplicitLobStreaming, v);
+                }
+                ConnOptId::CompleteArrayExecution => {
+                    self.set_fromserver(ConnOptId::CompleteArrayExecution, v);
+                }
+                ConnOptId::QueryTimeoutOK => {
+                    self.set_fromserver(ConnOptId::QueryTimeoutOK, v);
+                }
+                ConnOptId::UseTransactionFlagsOnly => {
+                    self.set_fromserver(ConnOptId::UseTransactionFlagsOnly, v);
+                }
+                ConnOptId::IgnoreUnknownParts => {
+                    self.set_fromserver(ConnOptId::IgnoreUnknownParts, v);
+                }
+                ConnOptId::SplitBatchCommands => {
+                    self.set_fromserver(ConnOptId::SplitBatchCommands, v);
+                }
+                ConnOptId::FdaEnabled => {
+                    self.set_fromserver(ConnOptId::FdaEnabled, v);
+                }
+                ConnOptId::ItabParameter => {
+                    self.set_fromserver(ConnOptId::ItabParameter, v);
+                }
+                ConnOptId::ClientDistributionMode => {
+                    self.set_fromserver(ConnOptId::ClientDistributionMode, v);
+                }
+                ConnOptId::ClientInfoNullValueOK => {
+                    self.set_fromserver(ConnOptId::ClientInfoNullValueOK, v);
+                }
+                _ => {
+                    error!("Unexpected ConnectOption coming from server");
+                }
+            };
+        }
+        Ok(())
+    }
+    fn set_fromserver(&mut self, id: ConnOptId, value: OptionValue) -> Option<OptionValue> {
+        debug!("Got ConnectionOption from server: {:?} = {:?}", id, value);
+        self.set_value(id, value)
+    }
 
-// COMPLETEARRAYEXECUTION
-// This field is set if array commands continue to process remaining input
-// when detecting an error in an input row. Always set for current client and
-// server.
+    fn get_integer(&self, id: &ConnOptId, s: &str) -> Option<&i32> {
+        match self.get_value(id) {
+            Some(&OptionValue::INT(ref i)) => Some(i),
+            None => None,
+            Some(ref ov) => {
+                error!("{} with unexpected value type: {:?}", s, ov);
+                None
+            }
+        }
+    }
+    fn get_string(&self, id: &ConnOptId, s: &str) -> Option<&String> {
+        match self.get_value(id) {
+            Some(&OptionValue::STRING(ref s)) => Some(s),
+            None => None,
+            Some(ref ov) => {
+                error!("{} with unexpected value type: {:?}", s, ov);
+                None
+            }
+        }
+    }
+    fn get_bool(&self, id: &ConnOptId, s: &str) -> Option<&bool> {
+        match self.get_value(id) {
+            Some(&OptionValue::BOOLEAN(ref b)) => Some(b),
+            None => None,
+            Some(ref ov) => {
+                error!("{} with unexpected value type: {:?}", s, ov);
+                None
+            }
+        }
+    }
 
-// CLIENTLOCALE
-// The session locale can be set by the client.
-// The locale is used in language-dependent handling within the SAP
-// HANA database calculation engine.
+    // The connection ID is filled by the server when the connection is established.
+    // It can be used in DISCONNECT/KILL commands for command or session
+    // cancellation.
+    pub fn get_connection_id(&self) -> Option<&i32> {
+        self.get_integer(&ConnOptId::ConnectionID, "ConnectionID")
+    }
 
-// SUPPORTSLARGEBULKOPERATIONS
-// This field is set by the server to process array commands.
+    // The SystemID is set by the server with the SAPSYSTEMNAME of the
+    // connected instance (for tracing and supportability purposes).
+    pub fn get_system_id(&self) -> Option<&String> {
+        self.get_string(&ConnOptId::SystemID, "SystemID")
+    }
 
-// LARGENUMBEROFPARAMETERSSUPPORT
-// This field contains the host name of the server, without any domain part.
-// It is filled by the server with the host name it resolves,
-// so that it does not contain an alias name of the database server.
+    // (MDC) Database name.
+    pub fn get_database_name(&self) -> Option<&String> {
+        self.get_string(&ConnOptId::DatabaseName, "DatabaseName")
+    }
 
-// SYSTEMID
-// This option is set by the server and filled with the SAPSYSTEMNAME of the
-// connected instance for tracing and supportability purposes.
+    // Full version string.
+    pub fn get_full_version_string(&self) -> Option<&String> {
+        self.get_string(&ConnOptId::FullVersionString, "FullVersionString")
+    }
 
-// Don't use DataFormatVersion (12), use only DataFormatVersion2 (23) instead
+    // Build platform.
+    pub fn get_build_platform(&self) -> Option<&i32> {
+        self.get_integer(&ConnOptId::BuildPlatform, "BuildPlatform")
+    }
 
-// DATAFORMATVERSION2
-// The client indicates this set of understood type codes and field formats.
-// The server then defines the value according to its own capabilities, and
-// sends it back. The following values are supported:
-// 1 Baseline data type support for SAP HANA SPS 0
-// 2. Deprecated, do not use.
-// 3 Extended data type support: Deprecated, do not use.
-//   (ALPHANUM, TEXT, SHORTTEXT, LONGDATE, SECONDDATE, DAYDATE, SECONDTIME
-//   supported without translation.)
-//
-// 4 Baseline data type support format for SAP HANA SPS 06.
-//   (Support for ALPHANUM, TEXT, SHORTTEXT, LONGDATE, SECONDDATE, DAYDATE, and
-//   SECONDTIME.)
-// 6 Send data type BINTEXT to client.
+    // Endianness.
+    pub fn get_endianness(&self) -> Option<&i32> {
+        self.get_integer(&ConnOptId::Endianness, "Endianness")
+    }
 
-// ABAPVARCHARMODE
+    // `EngineDataFormatVersion` is set by the server to the maximum version it is
+    // able to support. The possible values correspond to the `DataFormatVersion`.
+    pub fn get_engine_dataformat_version(&self) -> Option<&i32> {
+        self.get_integer(
+            &ConnOptId::EngineDataFormatVersion,
+            "EngineDataFormatVersion",
+        )
+    }
 
-// This field is set by the client to indicate that the connection should honor
-// the ABAP character handling, that is:
-// * Trailing space of character parameters and column values is not
-//   significant.
-// * Trailing space in character literals is not relevant.
-//   For example, the character literal '' is identical to the character
-//   literal ' '.
+    // DataFormatVersion.
+    pub fn get_dataformat_version(&self) -> Option<&i32> {
+        self.get_integer(&ConnOptId::DataFormatVersion, "DataFormatVersion")
+    }
 
-// SELECTFORUPDATESUPPORTED
-// This field is set by the client to indicate that the client is able to handle
-// the special function code for SELECT … FOR UPDATE commands.
+    // DataFormatVersion2.
+    // Don't use DataFormatVersion (12), use only DataFormatVersion2 (23) instead
+    // The client indicates this set of understood type codes and field formats.
+    // The server then defines the value according to its own capabilities, and
+    // sends it back. The following values are supported:
+    // 1 Baseline data type support for SAP HANA SPS 0
+    // 2. Deprecated, do not use.
+    // 3 Extended data type support: Deprecated, do not use.
+    //   (ALPHANUM, TEXT, SHORTTEXT, LONGDATE, SECONDDATE, DAYDATE, SECONDTIME
+    //   supported without translation.)
+    //
+    // 4 Baseline data type support format for SAP HANA SPS 06.
+    //   (Support for ALPHANUM, TEXT, SHORTTEXT, LONGDATE, SECONDDATE, DAYDATE, and
+    //   SECONDTIME.)
+    // 6 Send data type BINTEXT to client.
 
-// CLIENTDISTRIBUTIONMODE
-// This field is set by the client to indicate the mode for handling statement
-// routing and client distribution. The server sets this field to the
-// appropriate support level depending on the client value and its own
-// configuration.
-//
-// The following values are supported:
-//
-//   0 OFF          no routing or distributed transaction handling is done.
-//   1 CONNECTION   client can connect to any (master/slave) server in the
-//                  topology, and connections are ena­bled, such that the
-//                  connection load on the nodes is balanced.
-//   2 STATEMENT    server returns information about which node is preferred
-//                  for executing the statement, cli­ents execute on that node,
-//                  if possible.
-//   3 STATEMENT_CONNECTION  both STATEMENT and CONNECTION level
+    pub fn get_dataformat_version2(&self) -> Option<&i32> {
+        self.get_integer(&ConnOptId::DataFormatVersion2, "DataFormatVersion2")
+    }
 
-// ENGINEDATAFORMATVERSION
-// The server sets this field to the maximum version it is able to support.
-// The possible values correspond to the DATAFORMATVERSION flag.
+    // NonTransactionalPrepare
+    pub fn get_nontransactional_prepare(&self) -> Option<&bool> {
+        self.get_bool(
+            &ConnOptId::NonTransactionalPrepare,
+            "NonTransactionalPrepare",
+        )
+    }
 
-// DISTRIBUTIONPROTOCOLVERSION
-// This field is set by the client and indicates the support level in the
-// protocol for distribution features. The server may choose to disable
-// distribution if the support level is not sufficient for the handling.
-//  0 Baseline version
-//  1 Client handles statement sequence number information (statement context
-// part handling). CLIENTDISTRIBUTIONMODE is OFF if a value less than 1
-// is returned by the server.
+    // Is set by the server to indicate that it can process array commands.
+    pub fn get_supports_large_bulk_operations(&self) -> Option<&bool> {
+        self.get_bool(
+            &ConnOptId::SupportsLargeBulkOperations,
+            "SupportsLargeBulkOperations",
+        )
+    }
 
-// SPLITBATCHCOMMANDS
-// This field is sent by the client and returned by the server
-// if configuration allows splitting batch (array) commands for parallel
-// execution.
+    // ActiveActiveProtocolVersion.
+    pub fn get_activeactive_protocolversion(&self) -> Option<&i32> {
+        self.get_integer(
+            &ConnOptId::ActiveActiveProtocolVersion,
+            "ActiveActiveProtocolVersion",
+        )
+    }
 
-// USETRANSACTIONFLAGSONLY
-// This field is sent by the server to indicate the client should gather the
-// state of the current transaction only from the TRANSACTIONFLAGS command, not
-// from the nature of the command (DDL, UPDATE, and so on).
+    // Is set by the server to indicate that it supports implicit LOB streaming
+    // even though auto-commit is on instead of raising an error.
+    pub fn get_implicit_lob_streaming(&self) -> Option<&bool> {
+        self.get_bool(&ConnOptId::ImplicitLobStreaming, "ImplicitLobStreaming")
+    }
 
-// IGNOREUNKNOWNPARTS
-// This field is sent by the server to indicate it ignores unknown parts of the
-// communication protocol instead of raising a fatal error.
+    // Is set to true if array commands continue to process remaining input
+    // when detecting an error in an input row.
+    pub fn get_complete_array_execution(&self) -> Option<&bool> {
+        self.get_bool(&ConnOptId::CompleteArrayExecution, "CompleteArrayExecution")
+    }
 
-// TABLEOUTPUTPARAMETER
-// This field is sent by the client to indicate that it understands output
-// parameters described by type code TABLE in result sets.
+    // Is set by the server
+    pub fn get_query_timeout_ok(&self) -> Option<&bool> {
+        self.get_bool(&ConnOptId::QueryTimeoutOK, "QueryTimeoutOK")
+    }
 
-// ITABPARAMETER
-// This field is sent by the server to signal it understands ABAP ITAB
-// parameters of SQL statements (For-All-Entries Optimization).
+    // Is set by the server to indicate the client should gather the
+    // state of the current transaction only from the TRANSACTIONFLAGS command, not
+    // from the nature of the command (DDL, UPDATE, and so on).
+    pub fn get_use_transaction_flags_only(&self) -> Option<&bool> {
+        self.get_bool(
+            &ConnOptId::UseTransactionFlagsOnly,
+            "UseTransactionFlagsOnly",
+        )
+    }
 
-// DESCRIBETABLEOUTPUTPARAMETER
-// This field is sent by the client to request that table output parameter
-// metadata is included in the parameter metadata of a CALL statement. The
-// returned type of the table output parameter is either STRING or TABLE,
-// depending on the TABLEOUTPUTPARAMETER connect option.
+    // Value 1 is sent by the server to indicate it ignores unknown parts of the
+    // communication protocol instead of raising a fatal error.
+    pub fn get_ignore_unknown_parts(&self) -> Option<&i32> {
+        self.get_integer(&ConnOptId::IgnoreUnknownParts, "IgnoreUnknownParts")
+    }
 
-// IMPLICITLOBSTREAMING
-// This field is sent by the client and indicates whether the server supports
-// implicit LOB streaming even though auto-commit is on instead of raising an
-// error.
+    // Is sent by the client and returned by the server if configuration allows
+    // splitting batch (array) commands for parallel execution.
+    pub fn get_split_batch_commands(&self) -> Option<&bool> {
+        self.get_bool(&ConnOptId::SplitBatchCommands, "SplitBatchCommands")
+    }
+
+    // Set by the server to signal it understands FDA extensions.
+    pub fn get_fda_enabled(&self) -> Option<&bool> {
+        self.get_bool(&ConnOptId::FdaEnabled, "FdaEnabled")
+    }
+
+    // Set by the server to signal it understands ABAP ITAB
+    // parameters of SQL statements (For-All-Entries Optimization).
+    pub fn get_itab_parameter(&self) -> Option<&bool> {
+        self.get_bool(&ConnOptId::ItabParameter, "ItabParameter")
+    }
+
+    // This field is set by the client to indicate the mode for handling statement
+    // routing and client distribution. The server sets this field to the
+    // appropriate support level depending on the client value and its own
+    // configuration.
+    //
+    // The following values are supported:
+    //
+    //   0 OFF          no routing or distributed transaction handling is done.
+    //   1 CONNECTION   client can connect to any (master/slave) server in the
+    //                  topology, and connections are ena­bled, such that the
+    //                  connection load on the nodes is balanced.
+    //   2 STATEMENT    server returns information about which node is preferred
+    //                  for executing the statement, cli­ents execute on that node,
+    //                  if possible.
+    //   3 STATEMENT_CONNECTION  both STATEMENT and CONNECTION level
+    pub fn get_client_distribution_mode(&self) -> Option<&i32> {
+        self.get_integer(&ConnOptId::ClientDistributionMode, "ClientDistributionMode")
+    }
+
+    pub fn get_clientinfo_nullvalue_ok(&self) -> Option<&bool> {
+        self.get_bool(&ConnOptId::ClientInfoNullValueOK, "ClientInfoNullValueOK")
+    }
+
+    // SO FAR UNUSED
+    // {
+
+    // AbapVarcharMode is set by the client to indicate that the connection should
+    // honor the ABAP character handling, that is:
+    // * Trailing space of character parameters and column values is not
+    //   significant.
+    // * Trailing space in character literals is not relevant.
+    //   For example, the character literal '' is identical to the character
+    //   literal ' '.
+
+    // SelectForUpdateOK is set by the client to indicate that the client is able
+    // to handle the special function code for SELECT … FOR UPDATE commands.
+
+    // DistributionProtocolVersion is set by the client to indicate the support
+    // level in the protocol for distribution features. The server may choose
+    // to disable distribution if the support level is not sufficient for the
+    // handling.
+    //
+    //  0 Baseline version
+    //  1 Client handles statement sequence number information (statement context
+    // part handling). ClientDistributionMode is OFF if a value less than 1
+    // is returned by the server.
+
+    // UseTransactionFlagsOnly is sent by the server to indicate the client should
+    // gather the state of the current transaction only from the
+    // TRANSACTIONFLAGS command, not from the nature of the command (DDL,
+    // UPDATE, and so on).
+
+    // TableOutputParMetadataOK
+    // This field is sent by the client to indicate that it understands output
+    // parameters described by type code TABLE in result sets.
+
+    // DescribeTableOutputParameter
+    // This field is sent by the client to request that table output parameter
+    // metadata is included in the parameter metadata of a CALL statement. The
+    // returned type of the table output parameter is either STRING or TABLE,
+    // depending on the TABLEOUTPUTPARAMETER connect option.
+
+    // }
+}
 
 // The following table further illustrates the use of the connect options. An
 // option can depend on:

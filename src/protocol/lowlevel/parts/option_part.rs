@@ -1,4 +1,5 @@
 use protocol::lowlevel::parts::option_value::OptionValue;
+use std::collections::hash_map::IntoIter;
 use std::collections::hash_map::Iter;
 use std::collections::HashMap;
 use std::hash::Hash;
@@ -15,15 +16,13 @@ pub trait OptionId<T: OptionId<T>> {
 #[derive(Debug)]
 pub struct OptionPart<T: OptionId<T> + Eq + PartialEq + Hash>(HashMap<T, OptionValue>);
 
-impl<T: OptionId<T> + Eq + PartialEq + Hash> OptionPart<T> {
-    pub fn default() -> OptionPart<T> {
+impl<T: OptionId<T> + Eq + PartialEq + Hash> Default for OptionPart<T> {
+    fn default() -> OptionPart<T> {
         OptionPart(HashMap::new())
     }
+}
 
-    pub fn insert(&mut self, id: T, value: OptionValue) -> Option<OptionValue> {
-        self.0.insert(id, value)
-    }
-
+impl<T: OptionId<T> + Eq + PartialEq + Hash> OptionPart<T> {
     pub fn set_value(&mut self, id: T, value: OptionValue) -> Option<OptionValue> {
         self.0.insert(id, value)
     }
@@ -65,5 +64,17 @@ impl<T: OptionId<T> + Eq + PartialEq + Hash> OptionPart<T> {
             result.0.insert(id, value);
         }
         Ok(result)
+    }
+}
+
+impl<T> IntoIterator for OptionPart<T>
+where
+    T: OptionId<T> + Eq + PartialEq + Hash,
+{
+    type Item = (T, OptionValue);
+    type IntoIter = IntoIter<T, OptionValue>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
     }
 }

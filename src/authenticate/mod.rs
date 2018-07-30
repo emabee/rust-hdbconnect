@@ -15,10 +15,15 @@ use protocol::lowlevel::parts::authfield::AuthField;
 use protocol::lowlevel::parts::connect_options::ConnectOptions;
 use protocol::lowlevel::reply_type::ReplyType;
 use protocol::lowlevel::request_type::RequestType;
-use std::env;
+use secstr::SecStr;
 use username;
 
-pub fn authenticate(am_conn_core: &mut AmConnCore, db_user: &str, password: &str) -> HdbResult<()> {
+pub fn authenticate(
+    am_conn_core: &mut AmConnCore,
+    db_user: &str,
+    password: &SecStr,
+    clientlocale: &Option<String>,
+) -> HdbResult<()> {
     trace!("authenticate()");
 
     let authenticators: Vec<Box<dyn Authenticator>> = vec![
@@ -73,19 +78,7 @@ pub fn authenticate(am_conn_core: &mut AmConnCore, db_user: &str, password: &str
 
     request2.push(Part::new(
         PartKind::ConnectOptions,
-        Argument::ConnectOptions(
-            ConnectOptions::default()
-                .set_complete_array_execution(true)
-                .set_dataformat_version2(4)
-                .set_client_locale(get_locale())
-                .set_enable_array_type(true)
-                .set_distribution_enabled(true)
-                .set_client_distribution_mode(3)
-                .set_select_for_update_ok(true)
-                .set_distribution_protocol_version(1)
-                .set_row_slot_image_parameter(true)
-                .set_os_user(get_os_user()),
-        ),
+        Argument::ConnectOptions(ConnectOptions::for_server(clientlocale, get_os_user())),
     ));
 
     let reply2 =
@@ -121,15 +114,6 @@ fn evaluate_reply1(mut reply: Reply) -> HdbResult<(String, Vec<u8>)> {
     }
 }
 
-fn get_locale() -> String {
-    let locale = match env::var("LANG") {
-        Ok(l) => l,
-        Err(_) => String::from("en_US"),
-    };
-    debug!("Using locale {}", locale);
-    locale
-}
-
 fn get_os_user() -> String {
     let os_user = username::get_user_name().unwrap_or_default();
     debug!("Username: {}", os_user);
@@ -152,8 +136,8 @@ fn evaluate_reply2(mut reply: Reply, am_conn_core: &AmConnCore) -> HdbResult<Vec
     }
 
     match reply.parts.pop_arg_if_kind(PartKind::ConnectOptions) {
-        Some(Argument::ConnectOptions(ref mut conn_opts)) => {
-            conn_core.swap_server_connect_options(conn_opts)
+        Some(Argument::ConnectOptions(conn_opts)) => {
+            conn_core.transfer_server_connect_options(conn_opts)?
         }
         _ => {
             return Err(HdbError::Impl(

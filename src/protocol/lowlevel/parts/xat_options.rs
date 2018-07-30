@@ -11,23 +11,23 @@ pub type XatOptions = OptionPart<XatOptionId>;
 
 impl XatOptions {
     pub fn set_xatid(&mut self, xat_id: &XaTransactionId) {
-        self.insert(XatOptionId::NumberOfXid, OptionValue::BIGINT(1));
-        self.insert(
+        self.set_value(XatOptionId::NumberOfXid, OptionValue::BIGINT(1));
+        self.set_value(
             XatOptionId::XidList,
             OptionValue::BSTRING(xat_id.as_bytes(true).unwrap(/* FIXME */)),
         );
     }
 
     pub fn set_flags(&mut self, flag: Flags) {
-        self.insert(XatOptionId::Flags, OptionValue::INT(flag.bits() as i32));
+        self.set_value(XatOptionId::Flags, OptionValue::INT(flag.bits() as i32));
     }
 
     pub fn set_count(&mut self, count: i64) {
-        self.insert(XatOptionId::NumberOfXid, OptionValue::BIGINT(count));
+        self.set_value(XatOptionId::NumberOfXid, OptionValue::BIGINT(count));
     }
 
     pub fn set_onephase(&mut self, one_phase: bool) {
-        self.insert(XatOptionId::OnePhase, OptionValue::BOOLEAN(one_phase));
+        self.set_value(XatOptionId::OnePhase, OptionValue::BOOLEAN(one_phase));
     }
 
     pub fn get_returncode(&self) -> Option<RmRc> {

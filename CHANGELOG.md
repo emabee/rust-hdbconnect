@@ -1,6 +1,15 @@
 # Changelog
 
 ## [Unreleased] 
+Fix key words
+
+Prepare for ensuring the buffer is empty after parsing a reply
+
+Improve handling of connect_options
+
+Handle clientlocale through conn_params
+
+Introduce SecStr for password handling 
 
 ## [0.5.1] 2018-07-25
 Update to rustc 127.1, and to current versions of used libs

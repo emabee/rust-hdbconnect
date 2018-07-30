@@ -1,13 +1,16 @@
 //! Connection parameters
-use {HdbError, HdbResult};
-use url::{self, Url};
+use secstr::SecStr;
+use std::env;
 use std::mem;
+use url::{self, Url};
+use {HdbError, HdbResult};
 
 /// An immutable struct with all information necessary to open a new connection
 /// to a HANA database.
 ///
-/// An instance of `ConnectParams` can be created either programmatically with the builder,
-/// or implicitly using the trait `IntoConnectParams` and its implementations.
+/// An instance of `ConnectParams` can be created either programmatically with
+/// the builder, or implicitly using the trait `IntoConnectParams` and its
+/// implementations.
 ///
 /// # Example
 ///
@@ -22,7 +25,8 @@ pub struct ConnectParams {
     hostname: String,
     port: u16,
     dbuser: String,
-    password: String,
+    password: SecStr,
+    clientlocale: Option<String>,
     options: Vec<(String, String)>,
 }
 
@@ -43,13 +47,18 @@ impl ConnectParams {
     }
 
     /// The database user.
-    pub fn dbuser(&self) -> &str {
+    pub fn dbuser(&self) -> &String {
         &self.dbuser
     }
 
     /// The password.
-    pub fn password(&self) -> &str {
+    pub fn password(&self) -> &SecStr {
         &self.password
+    }
+
+    /// The client locale.
+    pub fn clientlocale(&self) -> &Option<String> {
+        &self.clientlocale
     }
 
     /// Options to be passed to HANA.
@@ -138,6 +147,7 @@ pub struct ConnectParamsBuilder {
     port: Option<u16>,
     dbuser: Option<String>,
     password: Option<String>,
+    clientlocale: Option<String>,
     options: Vec<(String, String)>,
 }
 
@@ -149,6 +159,7 @@ impl ConnectParamsBuilder {
             port: None,
             dbuser: None,
             password: None,
+            clientlocale: None,
             options: vec![],
         }
     }
@@ -177,6 +188,22 @@ impl ConnectParamsBuilder {
         self
     }
 
+    /// Sets the client locale.
+    pub fn clientlocale<P: AsRef<str>>(&mut self, cl: P) -> &mut ConnectParamsBuilder {
+        self.clientlocale = Some(cl.as_ref().to_owned());
+        self
+    }
+
+    /// Sets the client locale from the value of the environment variable LANG
+    pub fn clientlocale_from_env_lang(&mut self) -> &mut ConnectParamsBuilder {
+        self.clientlocale = match env::var("LANG") {
+            Ok(l) => Some(l),
+            Err(_) => None,
+        };
+
+        self
+    }
+
     /// Adds a runtime parameter.
     pub fn option<'a>(&'a mut self, name: &str, value: &str) -> &'a mut ConnectParamsBuilder {
         self.options.push((name.to_string(), value.to_string()));
@@ -199,8 +226,12 @@ impl ConnectParamsBuilder {
                 None => return Err(HdbError::Usage("dbuser is missing".to_owned())),
             },
             password: match self.password {
-                Some(_) => self.password.take().unwrap(),
+                Some(_) => SecStr::from(self.password.take().unwrap()),
                 None => return Err(HdbError::Usage("password is missing".to_owned())),
+            },
+            clientlocale: match self.clientlocale {
+                Some(_) => Some(self.clientlocale.take().unwrap()),
+                None => None,
             },
             options: mem::replace(&mut self.options, vec![]),
         })
@@ -270,8 +301,8 @@ impl IntoConnectParamsBuilder for Url {
 
 #[cfg(test)]
 mod tests {
-    use {ConnectParams, ConnectParamsBuilder};
     use connect_params::{IntoConnectParams, IntoConnectParamsBuilder};
+    use {ConnectParams, ConnectParamsBuilder};
 
     #[test]
     fn test_oneliner() {
@@ -305,9 +336,9 @@ mod tests {
         assert_eq!("abcd123", params1.hostname());
         assert_eq!("abcd123", params2.hostname());
         assert_eq!("MEIER", params1.dbuser());
-        assert_eq!("schlau", params1.password());
+        assert_eq!(b"schlau", params1.password().unsecure());
         assert_eq!("HALLODRI", params2.dbuser());
-        assert_eq!("kannnix", params2.password());
+        assert_eq!(b"kannnix", params2.password().unsecure());
     }
 
     #[test]
@@ -317,7 +348,7 @@ mod tests {
             .unwrap();
 
         assert_eq!("meier", params.dbuser());
-        assert_eq!("schLau", params.password());
+        assert_eq!(b"schLau", params.password().unsecure());
         assert_eq!("abcd123", params.hostname());
         assert_eq!(2222, params.port());
     }
@@ -331,7 +362,7 @@ mod tests {
             .unwrap();
 
         assert_eq!("meier", params.dbuser());
-        assert_eq!("GanzArgSchlau", params.password());
+        assert_eq!(b"GanzArgSchlau", params.password().unsecure());
         assert_eq!("abcd123", params.hostname());
         assert_eq!(2222, params.port());
     }

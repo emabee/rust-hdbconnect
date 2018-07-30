@@ -6,6 +6,7 @@ use crypto::mac::Mac;
 use crypto::sha2::Sha256;
 use hdb_error::HdbResult;
 use rand::{thread_rng, RngCore};
+use secstr::SecStr;
 use std::io::{self, Read};
 use std::iter::repeat;
 
@@ -32,7 +33,7 @@ impl Authenticator for ScramPbkdf2Sha256 {
     fn client_challenge(&self) -> &[u8] {
         &(self.client_challenge)
     }
-    fn client_proof(&self, server_challenge: Vec<u8>, password: &str) -> HdbResult<Vec<u8>> {
+    fn client_proof(&self, server_challenge: Vec<u8>, password: &SecStr) -> HdbResult<Vec<u8>> {
         let client_proof_size = 32usize;
         trace!("Entering calculate_client_proof()");
         let (salts, srv_key) = get_salt_and_key(server_challenge).unwrap();
@@ -83,7 +84,7 @@ fn scramble(
     salt: &[u8],
     server_key: &[u8],
     client_key: &[u8],
-    password: &str,
+    password: &SecStr,
 ) -> HdbResult<Vec<u8>> {
     let length = salt.len() + server_key.len() + client_key.len();
     let mut msg = Vec::<u8>::with_capacity(length);
@@ -100,7 +101,7 @@ fn scramble(
     }
     trace!("salt + server_key + client_key: \n{:?}", msg);
 
-    let tmp = &hmac(&password.as_bytes().to_vec(), salt);
+    let tmp = &hmac(&password.unsecure().to_vec(), salt);
     trace!("tmp = hmac(password, salt): \n{:?}", tmp);
 
     let key: &Vec<u8> = &sha256(tmp);

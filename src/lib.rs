@@ -23,6 +23,7 @@
 //! some date/time/timestamp datatypes are missing, SSL is not yet supported.
 //!
 
+// #![feature(bufreader_buffer)]
 #![warn(missing_docs)]
 
 extern crate byteorder;
@@ -38,6 +39,8 @@ extern crate log;
 
 extern crate r2d2;
 extern crate rand;
+
+extern crate secstr;
 
 extern crate serde;
 extern crate serde_db;

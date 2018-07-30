@@ -10,6 +10,7 @@ pub mod hdb_decimal;
 pub mod lob;
 pub mod lob_flags;
 pub mod longdate;
+pub mod multiline_option_part;
 pub mod option_part;
 pub mod option_value;
 pub mod output_parameters;

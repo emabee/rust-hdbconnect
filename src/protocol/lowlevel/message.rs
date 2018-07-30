@@ -15,14 +15,13 @@ use super::parts::statement_context::StatementContext;
 use super::reply_type::ReplyType;
 use super::request_type::RequestType;
 use super::util;
-use hdb_response::factory as HdbResponseFactory;
-use hdb_response::factory::InternalReturnValue;
-use {HdbError, HdbResponse, HdbResult};
-
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use chrono::Local;
+use hdb_response::factory as HdbResponseFactory;
+use hdb_response::factory::InternalReturnValue;
 use std::io::{self, BufReader, Write};
 use std::net::TcpStream;
+use {HdbError, HdbResponse, HdbResult};
 
 const MESSAGE_HEADER_SIZE: u32 = 32;
 const SEGMENT_HEADER_SIZE: usize = 24; // same for in and out
@@ -229,7 +228,7 @@ impl Request {
         match *(*guard).statement_sequence() {
             None => {}
             Some(ssi_value) => {
-                let mut stmt_ctx = StatementContext::default();
+                let mut stmt_ctx: StatementContext = Default::default();
                 stmt_ctx.set_statement_sequence_info(ssi_value);
                 trace!(
                     "Sending StatementContext with sequence_info = {:?}",
@@ -358,6 +357,8 @@ impl Reply {
     /// extended and returned) in case of fetch requests `am_conn_core`
     /// needs to be injected in case we get an incomplete resultset or lob
     /// (so that they later can fetch)
+    #[allow(unknown_lints)]
+    #[allow(let_and_return)]
     fn parse(
         o_rs_md: Option<&ResultSetMetadata>,
         o_par_md: Option<&Vec<ParameterDescriptor>>,
@@ -369,6 +370,42 @@ impl Reply {
 
         let mut guard = am_conn_core.lock()?;
         let rdr = (*guard).reader();
+
+        let result = Reply::parse_impl(o_rs_md, o_par_md, o_rs, am_conn_core, rdr, skip);
+
+        // Make sure that here (after parsing) the buffer is empty
+        // The following only works with nightly, because `.buffer()`
+        // is on its way, but not yet in stable (https://github.com/rust-lang/rust/pull/49139)
+        // and needs additionally to activate line 26 in lib.rs
+        #[cfg(feature = "check_buffer")]
+        {
+            use std::io::BufRead;
+
+            let buf_len = {
+                let buf = rdr.buffer();
+                if !buf.is_empty() {
+                    error!(
+                        "Buffer is not empty after Reply::parse() \'{:?}\'",
+                        buf.to_vec()
+                    );
+                } else {
+                    info!("Buffer is empty");
+                }
+                buf.len()
+            };
+            rdr.consume(buf_len);
+        }
+        result
+    }
+
+    fn parse_impl(
+        o_rs_md: Option<&ResultSetMetadata>,
+        o_par_md: Option<&Vec<ParameterDescriptor>>,
+        o_rs: &mut Option<&mut ResultSet>,
+        am_conn_core: &AmConnCore,
+        rdr: &mut BufReader<TcpStream>,
+        skip: SkipLastSpace,
+    ) -> HdbResult<Reply> {
         let (no_of_parts, msg) = parse_message_and_sequence_header(rdr)?;
         trace!("Reply::parse(): parsed the header");
 

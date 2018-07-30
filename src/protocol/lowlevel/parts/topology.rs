@@ -1,9 +1,7 @@
-use byteorder::{LittleEndian, ReadBytesExt};
+use protocol::lowlevel::parts::multiline_option_part::MultilineOptionPart;
 use protocol::lowlevel::parts::option_part::OptionId;
-use protocol::lowlevel::parts::option_part::OptionPart;
-use std::io;
-use std::net::TcpStream;
-use HdbResult;
+
+pub type Topology = MultilineOptionPart<TopologyAttrId>;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum TopologyAttrId {
@@ -57,29 +55,6 @@ impl OptionId<TopologyAttrId> for TopologyAttrId {
                 TopologyAttrId::__Unexpected__(val)
             }
         }
-    }
-}
-
-type TopologyHost = OptionPart<TopologyAttrId>;
-
-#[derive(Debug)]
-pub struct Topology(Vec<TopologyHost>);
-impl Topology {
-    pub fn parse(no_of_hosts: i32, rdr: &mut io::BufReader<TcpStream>) -> HdbResult<Topology> {
-        let mut hosts = Vec::<TopologyHost>::new();
-        for _ in 0..no_of_hosts {
-            let field_count = rdr.read_i16::<LittleEndian>()?; // I2
-            hosts.push(TopologyHost::parse(i32::from(field_count), rdr)?);
-        }
-        Ok(Topology(hosts))
-    }
-
-    pub fn size(&self) -> usize {
-        let mut size = 0;
-        for host in &(self.0) {
-            size += 2 + host.size();
-        }
-        size
     }
 }
 
