@@ -18,13 +18,14 @@ use hdbconnect::{ConnectParams, Connection, HdbResult};
 // cargo test test_010_connect -- --nocapture
 #[test]
 pub fn test_010_connect() {
-    test_utils::init_logger("test_010_connect = info, hdbconnect = info, hdbconnect::protocol::lowlevel::conn_core = debug");
+    test_utils::init_logger("test_010_connect = info, hdbconnect = info");
 
     connect_successfully();
     connect_wrong_password();
     connect_and_select_1().unwrap();
     connect_and_select_2().unwrap();
     client_info().unwrap();
+    command_info().unwrap();
 }
 
 fn connect_successfully() {
@@ -101,27 +102,37 @@ fn select_version_and_user(connection: &mut Connection) -> HdbResult<()> {
     Ok(())
 }
 
+#[allow(non_snake_case)]
+#[derive(Eq, PartialEq, Serialize, Deserialize, Debug)]
+struct SessCtx {
+    KEY: String,
+    VALUE: String,
+}
+
 fn client_info() -> HdbResult<()> {
     info!("client info");
     let mut connection = test_utils::get_authenticated_connection().unwrap();
 
-    #[allow(non_snake_case)]
-    #[derive(Eq, PartialEq, Serialize, Deserialize, Debug)]
-    struct SessCtx {
-        KEY: String,
-        VALUE: String,
-    }
-
     let stmt = r#"SELECT KEY, VALUE FROM M_SESSION_CONTEXT ORDER BY KEY"#;
 
-    let result: Vec<SessCtx> = connection.query(stmt)?.try_into()?;
-    info!("result: {:?}", result);
+    let _result: Vec<SessCtx> = connection.query(stmt)?.try_into()?;
 
     connection.set_client_info("Abbligation", "AbbVersion", "AbbSource", "AbbUser")?;
 
+    // make sure it is set ...
     let result: Vec<SessCtx> = connection.query(stmt)?.try_into()?;
-    info!("result: {:?}", result);
+    check_result(&result);
 
+    // ... and remains set
+    let _result: Vec<SessCtx> = connection.query(stmt)?.try_into()?;
+    let _result: Vec<SessCtx> = connection.query(stmt)?.try_into()?;
+    let result: Vec<SessCtx> = connection.query(stmt)?.try_into()?;
+    check_result(&result);
+
+    Ok(())
+}
+
+fn check_result(result: &[SessCtx]) {
     assert_eq!(
         result[0],
         SessCtx {
@@ -149,6 +160,26 @@ fn client_info() -> HdbResult<()> {
             KEY: "APPLICATIONUSER".to_string(),
             VALUE: "AbbUser".to_string()
         }
+    );
+}
+
+fn command_info() -> HdbResult<()> {
+    info!("command info");
+    let mut connection = test_utils::get_authenticated_connection().unwrap();
+
+    let stmt = r#"SELECT KEY, VALUE FROM M_SESSION_CONTEXT ORDER BY KEY"#;
+
+    let _result: Vec<SessCtx> = connection
+        .execute_with_debuginfo(stmt, "BLABLA", 4711)?
+        .into_resultset()?
+        .try_into()?;
+
+    let stmt = r#"SELECT KEY, NONSENSE FROM M_SESSION_CONTEXT ORDER BY KEY"#;
+
+    assert!(
+        connection
+            .execute_with_debuginfo(stmt, "BLABLA", 4711)
+            .is_err()
     );
 
     Ok(())

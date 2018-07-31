@@ -1,4 +1,5 @@
 use connect_params::ConnectParams;
+use protocol::lowlevel::parts::command_info::CommandInfo;
 use protocol::lowlevel::parts::server_error::ServerError;
 use {HdbError, HdbResponse, HdbResult};
 
@@ -136,6 +137,17 @@ impl Connection {
     }
 
     /// Sets client information into session variables on the server.
+    ///
+    /// Example:
+    ///
+    /// ```ignore
+    /// connection.set_client_info(
+    ///     "MyApp",
+    ///     "5.3.23",
+    ///     "update_customer.rs",
+    ///     "K2209657"
+    /// )?;
+    /// ```
     pub fn set_client_info(
         &self,
         application: &str,
@@ -159,7 +171,7 @@ impl Connection {
     /// one of the methods query(), dml(), exec(), which have the
     /// adequate simple result type you usually want.
     pub fn statement(&mut self, stmt: &str) -> HdbResult<HdbResponse> {
-        execute(&mut self.am_conn_core, String::from(stmt))
+        execute(&mut self.am_conn_core, String::from(stmt), None)
     }
 
     /// Executes a statement and expects a single ResultSet.
@@ -246,9 +258,28 @@ impl Connection {
     pub fn get_resource_manager(&self) -> Box<ResourceManager> {
         Box::new(new_resource_manager(Arc::clone(&self.am_conn_core)))
     }
+
+    /// Tools like debuggers can provide additional information while stepping
+    /// through a source
+    pub fn execute_with_debuginfo(
+        &mut self,
+        stmt: &str,
+        module: &str,
+        line: i32,
+    ) -> HdbResult<HdbResponse> {
+        execute(
+            &mut self.am_conn_core,
+            String::from(stmt),
+            Some(CommandInfo::new(line, module)),
+        )
+    }
 }
 
-fn execute(am_conn_core: &mut AmConnCore, stmt: String) -> HdbResult<HdbResponse> {
+fn execute(
+    am_conn_core: &mut AmConnCore,
+    stmt: String,
+    o_ci: Option<CommandInfo>,
+) -> HdbResult<HdbResponse> {
     debug!("connection::execute({})", stmt);
     let command_options = 0b_1000;
     let fetch_size: u32 = { am_conn_core.lock()?.get_fetch_size() };
@@ -257,10 +288,18 @@ fn execute(am_conn_core: &mut AmConnCore, stmt: String) -> HdbResult<HdbResponse
         PartKind::FetchSize,
         Argument::FetchSize(fetch_size),
     ));
-    request.push(Part::new(
-        PartKind::ClientInfo,
-        Argument::ClientInfo(am_conn_core.lock()?.get_client_info()),
-    ));
+    if let Option::Some(ci) = o_ci {
+        request.push(Part::new(PartKind::CommandInfo, Argument::CommandInfo(ci)));
+    }
+    {
+        let mut guard = am_conn_core.lock()?;
+        if guard.is_client_info_touched() {
+            request.push(Part::new(
+                PartKind::ClientInfo,
+                Argument::ClientInfo(guard.get_client_info_for_sending()),
+            ));
+        }
+    }
 
     request.push(Part::new(PartKind::Command, Argument::Command(stmt)));
     request.send_and_get_response(None, None, am_conn_core, None, SkipLastSpace::Soft)

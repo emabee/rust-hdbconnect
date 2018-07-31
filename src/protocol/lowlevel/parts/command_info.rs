@@ -1,8 +1,21 @@
 use protocol::lowlevel::parts::option_part::OptionId;
 use protocol::lowlevel::parts::option_part::OptionPart;
+use protocol::lowlevel::parts::option_value::OptionValue;
 
 // An Options part that provides source and line information.
 pub type CommandInfo = OptionPart<CommandInfoId>;
+
+impl CommandInfo {
+    pub fn new(linenumber: i32, module: &str) -> CommandInfo {
+        let mut ci: CommandInfo = Default::default();
+        ci.set_value(CommandInfoId::LineNumber, OptionValue::INT(linenumber));
+        ci.set_value(
+            CommandInfoId::SourceModule,
+            OptionValue::STRING(module.to_string()),
+        );
+        ci
+    }
+}
 
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub enum CommandInfoId {

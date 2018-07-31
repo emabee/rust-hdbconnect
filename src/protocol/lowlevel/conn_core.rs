@@ -27,6 +27,7 @@ pub struct ConnectionCore {
     major_product_version: i8,
     minor_product_version: i16,
     client_info: ClientInfo,
+    client_info_touched: bool,
     command_options: u8,
     seq_number: i32,
     auto_commit: bool,
@@ -60,6 +61,7 @@ impl ConnectionCore {
             major_product_version,
             minor_product_version,
             client_info: Default::default(),
+            client_info_touched: false,
             session_state: Default::default(),
             statement_sequence: None,
             connect_options: Default::default(),
@@ -82,11 +84,16 @@ impl ConnectionCore {
             .set_application_version(application_version);
         self.client_info.set_application_source(application_source);
         self.client_info.set_application_user(application_user);
+        self.client_info_touched = true;
         Ok(())
     }
 
-    pub fn get_client_info(&self) -> ClientInfo {
-        debug!("cloning client info");
+    pub fn is_client_info_touched(&self) -> bool {
+        self.client_info_touched
+    }
+    pub fn get_client_info_for_sending(&mut self) -> ClientInfo {
+        debug!("cloning client info for sending");
+        self.client_info_touched = false;
         self.client_info.clone()
     }
 
