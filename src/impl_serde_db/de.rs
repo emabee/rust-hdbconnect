@@ -1,15 +1,17 @@
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use num::cast::ToPrimitive;
-use serde_db::de::{ConversionError, DbValue, DbValueInto, DeserializableResultset,
-                   DeserializableRow, DeserializationError, DeserializationResult};
+use serde_db::de::{
+    ConversionError, DbValue, DbValueInto, DeserializableResultset, DeserializableRow,
+    DeserializationError, DeserializationResult,
+};
 use std::error::Error;
 use std::{i16, i32, i64, i8, u16, u32, u8};
 use {HdbError, HdbResult};
 
-use protocol::lowlevel::parts::longdate::LongDate;
-use protocol::lowlevel::parts::resultset::ResultSet;
-use protocol::lowlevel::parts::row::Row;
-use protocol::lowlevel::parts::typed_value::TypedValue;
+use protocol::parts::longdate::LongDate;
+use protocol::parts::resultset::ResultSet;
+use protocol::parts::row::Row;
+use protocol::parts::typed_value::TypedValue;
 
 #[doc(hidden)]
 impl DeserializableResultset for ResultSet {

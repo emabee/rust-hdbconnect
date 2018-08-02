@@ -1,6 +1,6 @@
 use hdb_return_value::HdbReturnValue;
-use protocol::lowlevel::parts::output_parameters::OutputParameters;
-use protocol::lowlevel::parts::resultset::ResultSet;
+use protocol::parts::output_parameters::OutputParameters;
+use protocol::parts::resultset::ResultSet;
 use std::fmt;
 use {HdbError, HdbResult};
 
@@ -178,9 +178,9 @@ impl fmt::Display for HdbResponse {
 
 pub mod factory {
     use super::{HdbResponse, HdbReturnValue};
-    use protocol::lowlevel::parts::output_parameters::OutputParameters;
-    use protocol::lowlevel::parts::resultset::ResultSet;
-    use protocol::lowlevel::parts::rows_affected::RowsAffected;
+    use protocol::parts::output_parameters::OutputParameters;
+    use protocol::parts::resultset::ResultSet;
+    use protocol::parts::rows_affected::RowsAffected;
     use {HdbError, HdbResult};
 
     #[derive(Debug)]

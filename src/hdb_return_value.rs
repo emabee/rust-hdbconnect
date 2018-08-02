@@ -1,6 +1,6 @@
 use dist_tx::tm::XaTransactionId;
-use protocol::lowlevel::parts::output_parameters::OutputParameters;
-use protocol::lowlevel::parts::resultset::ResultSet;
+use protocol::parts::output_parameters::OutputParameters;
+use protocol::parts::resultset::ResultSet;
 use std::fmt;
 use {HdbError, HdbResult};
 

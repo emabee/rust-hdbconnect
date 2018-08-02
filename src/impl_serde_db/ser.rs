@@ -1,11 +1,11 @@
 use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, Timelike};
-use protocol::lowlevel::lob::blob::new_blob_to_db;
+use protocol::lob::blob::new_blob_to_db;
 
-use protocol::lowlevel::parts::hdb_decimal::HdbDecimal;
-use protocol::lowlevel::parts::longdate::LongDate;
-use protocol::lowlevel::parts::parameter_descriptor::ParameterDescriptor;
-use protocol::lowlevel::parts::type_id;
-use protocol::lowlevel::parts::typed_value::TypedValue;
+use protocol::parts::hdb_decimal::HdbDecimal;
+use protocol::parts::longdate::LongDate;
+use protocol::parts::parameter_descriptor::ParameterDescriptor;
+use protocol::parts::type_id;
+use protocol::parts::typed_value::TypedValue;
 
 use num::FromPrimitive;
 use rust_decimal::Decimal;

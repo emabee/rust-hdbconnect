@@ -1,28 +1,28 @@
 // #![cfg(test)]
 //
-// use protocol::lowlevel::message::{Message,Metadata, MsgType,parse_message_and_sequence_header};
-// use protocol::lowlevel::argument::Argument;
-// use protocol::lowlevel::part::Part;
-// use protocol::lowlevel::partkind::PartKind;
+// use protocol::message::{Message,Metadata,
+// MsgType,parse_message_and_sequence_header}; use protocol::argument::Argument;
+// use protocol::part::Part;
+// use protocol::partkind::PartKind;
 //
 // use flexi_logger;
 // use std::fs::File;
 // use std::io::{Cursor,BufRead,BufReader};
 //
-// // uncomment the next line, and then: cargo test --test read_wire -- --nocapture
-// //#[test]
+// // uncomment the next line, and then: cargo test --test read_wire --
+// --nocapture //#[test]
 // pub fn read_wire() {
 //     use flexi_logger::{LogConfig,detailed_format};
-//     // hdbconnect::protocol::lowlevel::resultset::deserialize=info,\
-//     // hdbconnect::protocol::lowlevel::resultset=debug,\
+//     // hdbconnect::protocol::resultset::deserialize=info,\
+//     // hdbconnect::protocol::resultset=debug,\
 //     flexi_logger::init(
 //         LogConfig {
 //             log_to_file: true,
 //             format: detailed_format,
 //             .. LogConfig::new()
 //         },
-//         // hdbconnect::protocol::lowlevel::message=trace,\
-//         // hdbconnect::protocol::lowlevel::part=trace,\
+//         // hdbconnect::protocol::message=trace,\
+//         // hdbconnect::protocol::part=trace,\
 //         Some("trace,\
 //         ".to_string())
 //     ).unwrap();
@@ -43,8 +43,8 @@
 //             // line contains the encoded bytes, encoded as ab:cd: etc
 //             let mut reader = BufReader::new(Cursor::new(to_bytes(line)));
 //
-//             let (no_of_parts, msg) = parse_message_and_sequence_header(&mut reader).unwrap();
-//             match msg {
+// let (no_of_parts, msg) = parse_message_and_sequence_header(&mut
+// reader).unwrap();             match msg {
 //                 Message::Request(mut request) => {
 //                     for _ in 0..no_of_parts {
 //                         let part = Part::parse(
@@ -70,8 +70,8 @@
 //                             &mut reader
 //                         ) {
 //                             Ok(part) => reply.push(part),
-//                             Err(e) => reply.push(Part::new(PartKind::Error, Argument::Dummy(e))),
-//                         }
+// Err(e) => reply.push(Part::new(PartKind::Error,
+// Argument::Dummy(e))),                         }
 //                     }
 //                     println!("reply = {:?}", reply);
 //                 },

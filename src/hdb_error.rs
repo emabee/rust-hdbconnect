@@ -1,9 +1,9 @@
+use protocol::cesu8::Cesu8DecodingError;
+use protocol::conn_core::ConnectionCore;
+use protocol::parts::resultset::ResultSetCore;
+use protocol::parts::server_error::ServerError;
 use serde_db::de::{ConversionError, DeserializationError};
 use serde_db::ser::SerializationError;
-use protocol::lowlevel::cesu8::Cesu8DecodingError;
-use protocol::lowlevel::conn_core::ConnectionCore;
-use protocol::lowlevel::parts::resultset::ResultSetCore;
-use protocol::lowlevel::parts::server_error::ServerError;
 
 use std::error::{self, Error};
 use std::fmt;
@@ -23,8 +23,8 @@ pub enum HdbError {
     /// Conversion of single db value to rust type failed.
     Conversion(ConversionError),
 
-    /// Error occured in deserialization of data structures into an application-defined
-    /// structure.
+    /// Error occured in deserialization of data structures into an
+    /// application-defined structure.
     Deserialization(DeserializationError),
 
     /// Database server responded with an error.

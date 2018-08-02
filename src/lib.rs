@@ -71,19 +71,19 @@ pub use hdb_error::{HdbError, HdbResult};
 pub use hdb_response::HdbResponse;
 pub use hdb_return_value::HdbReturnValue;
 pub use prepared_statement::PreparedStatement;
-pub use protocol::lowlevel::parts::output_parameters::OutputParameters;
-pub use protocol::lowlevel::parts::resultset::ResultSet;
-pub use protocol::lowlevel::parts::row::Row;
-pub use protocol::lowlevel::parts::server_error::{ServerError, Severity};
+pub use protocol::parts::output_parameters::OutputParameters;
+pub use protocol::parts::resultset::ResultSet;
+pub use protocol::parts::row::Row;
+pub use protocol::parts::server_error::{ServerError, Severity};
 
-pub use protocol::lowlevel::parts::parameter_descriptor::{
+pub use protocol::parts::parameter_descriptor::{
     ParameterBinding, ParameterDescriptor, ParameterDirection,
 };
-pub use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
+pub use protocol::parts::resultset_metadata::ResultSetMetadata;
 
 /// Constants for the IDs of the data types being used by HANA.
 pub mod type_id {
-    pub use protocol::lowlevel::parts::type_id::*;
+    pub use protocol::parts::type_id::*;
 }
 
 /// Non-standard types that are used within the
@@ -93,9 +93,9 @@ pub mod type_id {
 /// `HdbValue`s. Some of the `HdbValue`s are implemented using `LongDate`,
 /// BLOB, etc.
 pub mod types {
-    pub use protocol::lowlevel::lob::blob::BLOB as BLob;
-    pub use protocol::lowlevel::lob::clob::CLOB as CLob;
-    pub use protocol::lowlevel::parts::hdb_decimal::HdbDecimal;
-    pub use protocol::lowlevel::parts::longdate::LongDate;
+    pub use protocol::lob::blob::BLOB as BLob;
+    pub use protocol::lob::clob::CLOB as CLob;
+    pub use protocol::parts::hdb_decimal::HdbDecimal;
+    pub use protocol::parts::longdate::LongDate;
 }
-pub use protocol::lowlevel::parts::typed_value::TypedValue as HdbValue;
+pub use protocol::parts::typed_value::TypedValue as HdbValue;

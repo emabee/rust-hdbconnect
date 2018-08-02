@@ -1,13 +1,13 @@
-use protocol::lowlevel::argument::Argument;
-use protocol::lowlevel::conn_core::AmConnCore;
-use protocol::lowlevel::part::Part;
-use protocol::lowlevel::partkind::PartKind;
-use protocol::lowlevel::parts::parameter_descriptor::ParameterDescriptor;
-use protocol::lowlevel::parts::parameters::{ParameterRow, Parameters};
-use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
-use protocol::lowlevel::reply::SkipLastSpace;
-use protocol::lowlevel::request::Request;
-use protocol::lowlevel::request_type::RequestType;
+use protocol::argument::Argument;
+use protocol::conn_core::AmConnCore;
+use protocol::part::Part;
+use protocol::partkind::PartKind;
+use protocol::parts::parameter_descriptor::ParameterDescriptor;
+use protocol::parts::parameters::{ParameterRow, Parameters};
+use protocol::parts::resultset_metadata::ResultSetMetadata;
+use protocol::reply::SkipLastSpace;
+use protocol::request::Request;
+use protocol::request_type::RequestType;
 use {HdbError, HdbResponse, HdbResult};
 
 use serde;
@@ -108,18 +108,16 @@ impl Drop for PreparedStatement {
 
 pub mod factory {
     use super::PreparedStatement;
-    use protocol::lowlevel::argument::Argument;
-    use protocol::lowlevel::conn_core::AmConnCore;
-    use protocol::lowlevel::part::Part;
-    use protocol::lowlevel::partkind::PartKind;
-    use protocol::lowlevel::parts::parameter_descriptor::{
-        ParameterDescriptor, ParameterDirection,
-    };
-    use protocol::lowlevel::parts::parameters::ParameterRow;
-    use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
-    use protocol::lowlevel::reply::SkipLastSpace;
-    use protocol::lowlevel::request::Request;
-    use protocol::lowlevel::request_type::RequestType;
+    use protocol::argument::Argument;
+    use protocol::conn_core::AmConnCore;
+    use protocol::part::Part;
+    use protocol::partkind::PartKind;
+    use protocol::parts::parameter_descriptor::{ParameterDescriptor, ParameterDirection};
+    use protocol::parts::parameters::ParameterRow;
+    use protocol::parts::resultset_metadata::ResultSetMetadata;
+    use protocol::reply::SkipLastSpace;
+    use protocol::request::Request;
+    use protocol::request_type::RequestType;
     use {HdbError, HdbResult};
 
     /// Prepare a statement.

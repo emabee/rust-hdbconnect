@@ -1,14 +1,14 @@
 use dist_tx::rm::{CResourceManager, CRmWrapper, ErrorCode, Flags, RmError, RmRc, RmResult};
 use dist_tx::tm::XaTransactionId;
 use hdb_error::HdbResult;
-use protocol::lowlevel::argument::Argument;
-use protocol::lowlevel::conn_core::AmConnCore;
-use protocol::lowlevel::part::Part;
-use protocol::lowlevel::partkind::PartKind;
-use protocol::lowlevel::parts::xat_options::XatOptions;
-use protocol::lowlevel::reply::{Reply, SkipLastSpace};
-use protocol::lowlevel::request::Request;
-use protocol::lowlevel::request_type::RequestType;
+use protocol::argument::Argument;
+use protocol::conn_core::AmConnCore;
+use protocol::part::Part;
+use protocol::partkind::PartKind;
+use protocol::parts::xat_options::XatOptions;
+use protocol::reply::{Reply, SkipLastSpace};
+use protocol::request::Request;
+use protocol::request_type::RequestType;
 use HdbError;
 
 /// Handle for dealing with distributed transactions that is to be used by a

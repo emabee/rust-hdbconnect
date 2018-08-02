@@ -1,21 +1,21 @@
 use connect_params::ConnectParams;
-use protocol::lowlevel::parts::command_info::CommandInfo;
-use protocol::lowlevel::parts::server_error::ServerError;
-use protocol::lowlevel::server_resource_consumption_info::ServerResourceConsumptionInfo;
+use protocol::parts::command_info::CommandInfo;
+use protocol::parts::server_error::ServerError;
+use protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
 use {HdbError, HdbResponse, HdbResult};
 
 use prepared_statement::factory as PreparedStatementFactory;
 use prepared_statement::PreparedStatement;
 
 use authenticate;
-use protocol::lowlevel::argument::Argument;
-use protocol::lowlevel::conn_core::{AmConnCore, ConnectionCore};
-use protocol::lowlevel::part::Part;
-use protocol::lowlevel::partkind::PartKind;
-use protocol::lowlevel::parts::resultset::ResultSet;
-use protocol::lowlevel::reply::SkipLastSpace;
-use protocol::lowlevel::request::Request;
-use protocol::lowlevel::request_type::RequestType;
+use protocol::argument::Argument;
+use protocol::conn_core::{AmConnCore, ConnectionCore};
+use protocol::part::Part;
+use protocol::partkind::PartKind;
+use protocol::parts::resultset::ResultSet;
+use protocol::reply::SkipLastSpace;
+use protocol::request::Request;
+use protocol::request_type::RequestType;
 use xa_impl::new_resource_manager;
 
 use chrono::Local;
