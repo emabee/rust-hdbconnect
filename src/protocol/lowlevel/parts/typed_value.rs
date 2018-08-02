@@ -1,5 +1,6 @@
+use protocol::lowlevel::lob::blob::BLOB;
+use protocol::lowlevel::lob::clob::CLOB;
 use protocol::lowlevel::parts::hdb_decimal::{serialize_decimal, HdbDecimal};
-use protocol::lowlevel::parts::lob::*;
 use protocol::lowlevel::parts::longdate::LongDate;
 use protocol::lowlevel::parts::type_id;
 use protocol::lowlevel::{cesu8, util};
@@ -613,12 +614,15 @@ impl fmt::Display for TypedValue {
 }
 
 pub mod factory {
-    use super::super::lob::*;
-    use super::super::longdate::LongDate;
     use super::TypedValue;
     use byteorder::{LittleEndian, ReadBytesExt};
     use protocol::lowlevel::conn_core::AmConnCore;
+    use protocol::lowlevel::lob::blob::new_blob_from_db;
+    use protocol::lowlevel::lob::blob::BLOB;
+    use protocol::lowlevel::lob::clob::new_clob_from_db;
+    use protocol::lowlevel::lob::clob::CLOB;
     use protocol::lowlevel::parts::hdb_decimal::{parse_decimal, parse_nullable_decimal};
+    use protocol::lowlevel::parts::longdate::LongDate;
     use protocol::lowlevel::{cesu8, util};
     use std::io;
     use std::iter::repeat;

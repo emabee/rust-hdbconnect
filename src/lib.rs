@@ -69,6 +69,7 @@ pub use connection::Connection;
 pub use connection_manager::ConnectionManager;
 pub use hdb_error::{HdbError, HdbResult};
 pub use hdb_response::HdbResponse;
+pub use hdb_return_value::HdbReturnValue;
 pub use prepared_statement::PreparedStatement;
 pub use protocol::lowlevel::parts::output_parameters::OutputParameters;
 pub use protocol::lowlevel::parts::resultset::ResultSet;
@@ -92,9 +93,9 @@ pub mod type_id {
 /// `HdbValue`s. Some of the `HdbValue`s are implemented using `LongDate`,
 /// BLOB, etc.
 pub mod types {
+    pub use protocol::lowlevel::lob::blob::BLOB as BLob;
+    pub use protocol::lowlevel::lob::clob::CLOB as CLob;
     pub use protocol::lowlevel::parts::hdb_decimal::HdbDecimal;
-    pub use protocol::lowlevel::parts::lob::BLOB as BLob;
-    pub use protocol::lowlevel::parts::lob::CLOB as CLob;
     pub use protocol::lowlevel::parts::longdate::LongDate;
 }
 pub use protocol::lowlevel::parts::typed_value::TypedValue as HdbValue;

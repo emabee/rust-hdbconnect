@@ -21,11 +21,11 @@ use super::parts::topology::Topology;
 use super::parts::transactionflags::TransactionFlags;
 use super::parts::xat_options::XatOptions;
 use protocol::lowlevel::cesu8;
-use protocol::lowlevel::parts::blob_handle::ReadLobRequest;
 use protocol::lowlevel::parts::command_info::CommandInfo;
 use protocol::lowlevel::parts::commit_options::CommitOptions;
 use protocol::lowlevel::parts::fetch_options::FetchOptions;
 use protocol::lowlevel::parts::lob_flags::LobFlags;
+use protocol::lowlevel::parts::read_lob_request::ReadLobRequest;
 use protocol::lowlevel::parts::session_context::SessionContext;
 use protocol::lowlevel::util;
 use std::net::TcpStream;
@@ -119,7 +119,7 @@ impl Argument {
             Argument::FetchSize(_) => size += 4,
             Argument::LobFlags(ref opts) => size += opts.size(),
             Argument::Parameters(ref pars) => size += pars.size()?,
-            Argument::ReadLobRequest(_) => size += 24,
+            Argument::ReadLobRequest(ref r) => size += r.size(),
             Argument::ResultSetId(_) => size += 8,
             Argument::StatementId(_) => size += 8,
             Argument::StatementContext(ref sc) => size += sc.size(),
@@ -170,13 +170,7 @@ impl Argument {
             Argument::Parameters(ref parameters) => {
                 parameters.serialize(w)?;
             }
-            Argument::ReadLobRequest(ref read_lob_request) => {
-                trace!("argument::serialize() {:?}", read_lob_request);
-                w.write_u64::<LittleEndian>(read_lob_request.locator_id())?;
-                w.write_u64::<LittleEndian>(read_lob_request.offset())?;
-                w.write_i32::<LittleEndian>(read_lob_request.length_to_read())?;
-                w.write_u32::<LittleEndian>(0_u32)?; // FILLER
-            }
+            Argument::ReadLobRequest(ref r) => r.serialize(w)?,
             Argument::ResultSetId(rs_id) => {
                 w.write_u64::<LittleEndian>(rs_id)?;
             }

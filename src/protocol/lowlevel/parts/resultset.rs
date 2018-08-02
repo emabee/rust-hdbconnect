@@ -1,14 +1,15 @@
 use protocol::lowlevel::argument::Argument;
 use protocol::lowlevel::conn_core::AmConnCore;
-use protocol::lowlevel::message::{parse_message_and_sequence_header, Message, Request,
-                                  SkipLastSpace};
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::part_attributes::PartAttributes;
 use protocol::lowlevel::partkind::PartKind;
 use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
 use protocol::lowlevel::parts::row::Row;
+use protocol::lowlevel::reply::{parse_message_and_sequence_header, SkipLastSpace};
 use protocol::lowlevel::reply_type::ReplyType;
+use protocol::lowlevel::request::Request;
 use protocol::lowlevel::request_type::RequestType;
+use protocol::lowlevel::server_resource_consumption_info::ServerResourceConsumptionInfo;
 use protocol::lowlevel::util;
 use {HdbError, HdbResult};
 
@@ -28,7 +29,7 @@ pub struct ResultSet {
     core_ref: Arc<Mutex<ResultSetCore>>,
     metadata: Arc<ResultSetMetadata>,
     rows: Vec<Row>,
-    acc_server_proc_time: i32,
+    server_resource_consumption_info: ServerResourceConsumptionInfo,
 }
 
 #[derive(Debug)]
@@ -69,19 +70,11 @@ impl ResultSetCore {
                     request.serialize_impl(session_id, next_seq_number, 0, (*conn_guard).writer())?;
 
                     let rdr = (*conn_guard).reader();
-                    if let Ok((no_of_parts, msg)) = parse_message_and_sequence_header(rdr) {
-                        if let Message::Reply(mut msg) = msg {
-                            for _i in 0..no_of_parts {
-                                let (_, pad) = Part::parse(
-                                    &mut (msg.parts),
-                                    None,
-                                    None,
-                                    None,
-                                    &mut None,
-                                    rdr,
-                                )?;
-                                util::skip_bytes(pad, rdr)?;
-                            }
+                    if let Ok((no_of_parts, mut reply)) = parse_message_and_sequence_header(rdr) {
+                        for _i in 0..no_of_parts {
+                            let (_, pad) =
+                                Part::parse(&mut (reply.parts), None, None, None, &mut None, rdr)?;
+                            util::skip_bytes(pad, rdr)?;
                         }
                     }
                 }
@@ -181,7 +174,7 @@ impl ResultSet {
             Argument::FetchSize(fetch_size),
         ));
 
-        let mut reply = request.send_and_receive_detailed(
+        let mut reply = request.send_and_get_reply(
             None,
             None,
             &mut Some(self),
@@ -216,8 +209,15 @@ impl ResultSet {
     /// Returns the accumulated server processing time
     /// of the calls that produced this resultset, i.e.
     /// the initial call and potentially a subsequent number of fetches.
+    #[deprecated]
     pub fn accumulated_server_processing_time(&self) -> i32 {
-        self.acc_server_proc_time
+        self.server_resource_consumption_info.acc_server_proc_time
+    }
+
+    /// Returns information about the server's resource consumption for this
+    /// resultset
+    pub fn server_resource_consumption_info(&self) -> ServerResourceConsumptionInfo {
+        self.server_resource_consumption_info.clone()
     }
 
     /// Translates a generic resultset into a given rust type that implements
@@ -350,6 +350,7 @@ pub mod factory {
     use protocol::lowlevel::parts::statement_context::StatementContext;
     use protocol::lowlevel::parts::typed_value::factory as TypedValueFactory;
     use protocol::lowlevel::parts::typed_value::TypedValue;
+    use protocol::lowlevel::server_resource_consumption_info::ServerResourceConsumptionInfo;
     use std::io;
     use std::net::TcpStream;
     use std::sync::Arc;
@@ -362,16 +363,22 @@ pub mod factory {
         rsm: ResultSetMetadata,
         o_stmt_ctx: Option<StatementContext>,
     ) -> ResultSet {
-        let server_processing_time = match o_stmt_ctx {
-            Some(stmt_ctx) => stmt_ctx.get_server_processing_time(),
-            None => 0,
-        };
+        let mut server_resource_consumption_info: ServerResourceConsumptionInfo =
+            Default::default();
+
+        if let Some(stmt_ctx) = o_stmt_ctx {
+            server_resource_consumption_info.update(
+                stmt_ctx.get_server_processing_time(),
+                stmt_ctx.get_server_cpu_time(),
+                stmt_ctx.get_server_memory_usage(),
+            );
+        }
 
         ResultSet {
             core_ref: ResultSetCore::new_am_rscore(am_conn_core, attrs, rs_id),
             metadata: Arc::new(rsm),
             rows: Vec::<Row>::new(),
-            acc_server_proc_time: server_processing_time,
+            server_resource_consumption_info,
         }
     }
 
@@ -440,8 +447,11 @@ pub mod factory {
             Some(ref mut fetching_resultset) => {
                 match parts.pop_arg_if_kind(PartKind::StatementContext) {
                     Some(Argument::StatementContext(stmt_ctx)) => {
-                        fetching_resultset.acc_server_proc_time +=
-                            stmt_ctx.get_server_processing_time();
+                        fetching_resultset.server_resource_consumption_info.update(
+                            stmt_ctx.get_server_processing_time(),
+                            stmt_ctx.get_server_cpu_time(),
+                            stmt_ctx.get_server_memory_usage(),
+                        );
                     }
                     None => {}
                     _ => {

@@ -1,44 +1,73 @@
-use {HdbError, HdbResult};
-use protocol::lowlevel::parts::output_parameters::OutputParameters;
 use hdb_return_value::HdbReturnValue;
+use protocol::lowlevel::parts::output_parameters::OutputParameters;
 use protocol::lowlevel::parts::resultset::ResultSet;
 use std::fmt;
+use {HdbError, HdbResult};
 
 /// Represents all possible non-error responses to a database command.
+///
+/// Technically, it is a list of single database response values, each of which
+/// can be
+///
+/// * a resultset of a query
+/// * a list of numbers of affected rows
+/// * values of output parameters of a procedure call
+/// * just an indication that a db call was successful
+/// * a list of `XaTransactionId`s
+///
+/// Typically, i.e. in all simple cases, you just have a single database
+/// response value, and can use the respective `into_` message to convert the
+/// HdbResponse directly into this single value, whose type is predetermined by
+/// the nature of the database call.
+///
+/// Procedure calls e.g. belong to the more complex cases where the database
+/// response can consist of e.g. multiple result sets. In this case, you need
+/// to evaluate the HdbResponse using the `get_` methods.
 ///
 #[derive(Debug)]
 pub struct HdbResponse(Vec<HdbReturnValue>);
 
 impl HdbResponse {
+    /// Returns the number of contained single return values.
+    pub fn count(&self) -> usize {
+        self.0.len()
+    }
+
     /// Turns itself into a single resultset.
     ///
-    /// If this cannot be done without loss of information, an error is returned.
+    /// If this cannot be done without loss of information, an error is
+    /// returned.
     pub fn into_resultset(self) -> HdbResult<ResultSet> {
         self.into_single_retval()?.into_resultset()
     }
 
-    /// Turns itself into a Vector of numbers (each number representing a number of affected rows).
+    /// Turns itself into a Vector of numbers (each number representing a
+    /// number of affected rows).
     ///
-    /// If this cannot be done without loss of information, an error is returned.
+    /// If this cannot be done without loss of information, an error is
+    /// returned.
     pub fn into_affected_rows(self) -> HdbResult<Vec<usize>> {
         self.into_single_retval()?.into_affected_rows()
     }
 
-    /// Turns itself into a Vector of numbers (each number representing a number of affected rows).
+    /// Turns itself into a Vector of numbers (each number representing a
+    /// number of affected rows).
     ///
-    /// If this cannot be done without loss of information, an error is returned.
+    /// If this cannot be done without loss of information, an error is
+    /// returned.
     pub fn into_output_parameters(self) -> HdbResult<OutputParameters> {
         self.into_single_retval()?.into_output_parameters()
     }
 
     /// Turns itself into (), if the statement had returned successfully.
     ///
-    /// If this cannot be done without loss of information, an error is returned.
+    /// If this cannot be done without loss of information, an error is
+    /// returned.
     pub fn into_success(self) -> HdbResult<()> {
         self.into_single_retval()?.into_success()
     }
 
-    /// Turns itself into a single return value, if there is one any only one.
+    /// Turns itself into a single return value, if there is exactly one.
     pub fn into_single_retval(mut self) -> HdbResult<HdbReturnValue> {
         if self.0.len() > 1 {
             Err(HdbError::Evaluation(
@@ -51,8 +80,8 @@ impl HdbResponse {
         }
     }
 
-    /// Returns () if a successful execution was signaled by the database explicitly,
-    /// or an error otherwise.
+    /// Returns () if a successful execution was signaled by the database
+    /// explicitly, or an error otherwise.
     pub fn get_success(&mut self) -> HdbResult<()> {
         if let Some(i) = self.find_success() {
             return self.0.remove(i).into_success();
@@ -149,10 +178,10 @@ impl fmt::Display for HdbResponse {
 
 pub mod factory {
     use super::{HdbResponse, HdbReturnValue};
-    use {HdbError, HdbResult};
+    use protocol::lowlevel::parts::output_parameters::OutputParameters;
     use protocol::lowlevel::parts::resultset::ResultSet;
     use protocol::lowlevel::parts::rows_affected::RowsAffected;
-    use protocol::lowlevel::parts::output_parameters::OutputParameters;
+    use {HdbError, HdbResult};
 
     #[derive(Debug)]
     pub enum InternalReturnValue {

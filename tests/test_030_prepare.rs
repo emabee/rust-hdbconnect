@@ -44,8 +44,10 @@ fn prepare_insert_statement(connection: &mut Connection) -> HdbResult<()> {
 
     #[derive(Deserialize, Debug)]
     struct TestStruct {
-        #[serde(rename = "F1_S")] f1_s: Option<String>,
-        #[serde(rename = "F2_I")] f2_i: Option<i32>,
+        #[serde(rename = "F1_S")]
+        f1_s: Option<String>,
+        #[serde(rename = "F2_I")]
+        f2_i: Option<i32>,
     }
 
     let insert_stmt_str = "insert into TEST_PREPARE (F1_S, F2_I) values(?, ?)";
@@ -61,16 +63,27 @@ fn prepare_insert_statement(connection: &mut Connection) -> HdbResult<()> {
     let mut insert_stmt2 = connection2.prepare(insert_stmt_str)?;
     insert_stmt2.add_batch(&("conn2-auto1", 45_i32))?;
     insert_stmt2.add_batch(&("conn2-auto2", 46_i32))?;
-    insert_stmt2.execute_batch()?;
+    let affrows = insert_stmt2.execute_batch()?.into_affected_rows();
+    debug!("affected rows: {:?}", affrows);
 
     // prepare & execute on first connection with auto_commit off,
     // rollback, do it again and commit
     connection.set_auto_commit(false)?;
+    let count = connection.get_call_count()?;
     let mut insert_stmt = connection.prepare(insert_stmt_str)?;
     insert_stmt.add_batch(&("conn1-rollback1", 45_i32))?;
     insert_stmt.add_batch(&("conn1-rollback2", 46_i32))?;
     insert_stmt.add_batch(&("conn1-rollback3", 47_i32))?;
-    insert_stmt.execute_batch()?;
+    insert_stmt.add_batch(&("conn1-rollback4", 48_i32))?;
+    insert_stmt.add_batch(&("conn1-rollback5", 49_i32))?;
+    insert_stmt.add_batch(&("conn1-rollback6", 50_i32))?;
+    let affrows = insert_stmt.execute_batch()?.into_affected_rows();
+    debug!(
+        "affected rows: {:?}, callcount: {}",
+        affrows,
+        connection.get_call_count()? - count
+    );
+    assert_eq!(connection.get_call_count()? - count, 2);
     connection.rollback()?;
 
     insert_stmt.add_batch(&("conn1-commit1", 45_i32))?;

@@ -20,10 +20,24 @@ impl StatementContext {
         );
     }
 
-    pub fn get_server_processing_time(&self) -> i32 {
+    pub fn get_server_processing_time(&self) -> Option<i32> {
         match self.get_value(&StatementContextId::ServerProcessingTime) {
-            Some(&OptionValue::INT(value)) => value,
-            _ => 0,
+            Some(&OptionValue::INT(value)) => Some(value),
+            _ => None,
+        }
+    }
+
+    pub fn get_server_cpu_time(&self) -> Option<i32> {
+        match self.get_value(&StatementContextId::ServerCPUTime) {
+            Some(&OptionValue::INT(value)) => Some(value),
+            _ => None,
+        }
+    }
+
+    pub fn get_server_memory_usage(&self) -> Option<i32> {
+        match self.get_value(&StatementContextId::ServerMemoryUsage) {
+            Some(&OptionValue::INT(value)) => Some(value),
+            _ => None,
         }
     }
 }

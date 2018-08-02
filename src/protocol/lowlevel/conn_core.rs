@@ -1,12 +1,15 @@
 use protocol::lowlevel::initial_request;
-use protocol::lowlevel::message::{parse_message_and_sequence_header, Message, Request};
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::parts::client_info::ClientInfo;
 use protocol::lowlevel::parts::connect_options::ConnectOptions;
 use protocol::lowlevel::parts::server_error::ServerError;
+use protocol::lowlevel::parts::statement_context::StatementContext;
 use protocol::lowlevel::parts::topology::Topology;
 use protocol::lowlevel::parts::transactionflags::SessionState;
 use protocol::lowlevel::parts::transactionflags::TransactionFlags;
+use protocol::lowlevel::reply::parse_message_and_sequence_header;
+use protocol::lowlevel::request::Request;
+use protocol::lowlevel::server_resource_consumption_info::ServerResourceConsumptionInfo;
 use protocol::lowlevel::util;
 use {HdbError, HdbResult};
 
@@ -31,7 +34,7 @@ pub struct ConnectionCore {
     command_options: u8,
     seq_number: i32,
     auto_commit: bool,
-    acc_server_proc_time: i32,
+    server_resource_consumption_info: ServerResourceConsumptionInfo,
     fetch_size: u32,
     lob_read_length: i32,
     session_state: SessionState,
@@ -55,7 +58,7 @@ impl ConnectionCore {
             seq_number: 0,
             command_options: HOLD_OVER_COMMIT,
             auto_commit: true,
-            acc_server_proc_time: 0,
+            server_resource_consumption_info: Default::default(),
             fetch_size: DEFAULT_FETCH_SIZE,
             lob_read_length: DEFAULT_LOB_READ_LENGTH,
             major_product_version,
@@ -97,6 +100,26 @@ impl ConnectionCore {
         self.client_info.clone()
     }
 
+    pub fn evaluate_statement_context(&mut self, stmt_ctx: &StatementContext) -> HdbResult<()> {
+        trace!(
+            "Received StatementContext with sequence_info = {:?}",
+            stmt_ctx.get_statement_sequence_info()
+        );
+        self.set_statement_sequence(stmt_ctx.get_statement_sequence_info());
+        self.server_resource_consumption_info.update(
+            stmt_ctx.get_server_processing_time(),
+            stmt_ctx.get_server_cpu_time(),
+            stmt_ctx.get_server_memory_usage(),
+        );
+        // FIXME do not ignore the other content of StatementContext
+        // StatementContextId::SchemaName => 3,
+        // StatementContextId::FlagSet => 4,
+        // StatementContextId::QueryTimeout => 5,
+        // StatementContextId::ClientReconnectionWaitTimeout => 6,
+
+        Ok(())
+    }
+
     pub fn get_major_and_minor_product_version(&self) -> (i8, i16) {
         (self.major_product_version, self.minor_product_version)
     }
@@ -109,12 +132,13 @@ impl ConnectionCore {
         self.auto_commit
     }
 
-    pub fn add_server_proc_time(&mut self, t: i32) {
-        self.acc_server_proc_time += t;
+    pub fn server_resource_consumption_info(&self) -> &ServerResourceConsumptionInfo {
+        &self.server_resource_consumption_info
     }
 
+    #[deprecated]
     pub fn get_server_proc_time(&self) -> i32 {
-        self.acc_server_proc_time
+        self.server_resource_consumption_info.acc_server_proc_time
     }
 
     pub fn get_fetch_size(&self) -> u32 {
@@ -158,7 +182,7 @@ impl ConnectionCore {
         &self.statement_sequence
     }
 
-    pub fn set_statement_sequence(&mut self, statement_sequence: Option<i64>) {
+    fn set_statement_sequence(&mut self, statement_sequence: Option<i64>) {
         self.statement_sequence = statement_sequence;
     }
 
@@ -182,7 +206,7 @@ impl ConnectionCore {
         self.seq_number
     }
 
-    pub fn update_session_state(&mut self, ta_flags: &TransactionFlags) -> HdbResult<()> {
+    pub fn evaluate_ta_flags(&mut self, ta_flags: &TransactionFlags) -> HdbResult<()> {
         ta_flags.update_session_state(&mut self.session_state);
         if self.session_state.dead {
             Err(HdbError::Impl("SessionclosingTaError received".to_owned()))
@@ -227,24 +251,24 @@ impl ConnectionCore {
             // request.push()
             request.serialize_impl(self.session_id, self.next_seq_number(), 0, &mut self.writer)?;
             trace!("Disconnect: request successfully sent");
-            if let Ok((no_of_parts, msg)) = parse_message_and_sequence_header(&mut self.reader) {
+            if let Ok((no_of_parts, mut reply)) =
+                parse_message_and_sequence_header(&mut self.reader)
+            {
                 trace!(
                     "Disconnect: response header parsed, now parsing {} parts",
                     no_of_parts
                 );
-                if let Message::Reply(mut msg) = msg {
-                    for _ in 0..no_of_parts {
-                        let (part, padsize) = Part::parse(
-                            &mut (msg.parts),
-                            None,
-                            None,
-                            None,
-                            &mut None,
-                            &mut self.reader,
-                        )?;
-                        util::skip_bytes(padsize, &mut self.reader)?;
-                        debug!("Drop of connection: got Part {:?}", part);
-                    }
+                for _ in 0..no_of_parts {
+                    let (part, padsize) = Part::parse(
+                        &mut (reply.parts),
+                        None,
+                        None,
+                        None,
+                        &mut None,
+                        &mut self.reader,
+                    )?;
+                    util::skip_bytes(padsize, &mut self.reader)?;
+                    debug!("Drop of connection: got Part {:?}", part);
                 }
             }
             trace!("Disconnect: response successfully parsed");

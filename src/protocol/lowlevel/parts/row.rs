@@ -1,4 +1,5 @@
-use protocol::lowlevel::parts::lob::{BLOB, CLOB};
+use protocol::lowlevel::lob::blob::BLOB;
+use protocol::lowlevel::lob::clob::CLOB;
 use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
 use protocol::lowlevel::parts::typed_value::TypedValue;
 use {HdbError, HdbResult};

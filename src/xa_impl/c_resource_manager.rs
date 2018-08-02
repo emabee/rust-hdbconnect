@@ -3,10 +3,11 @@ use dist_tx::tm::XaTransactionId;
 use hdb_error::HdbResult;
 use protocol::lowlevel::argument::Argument;
 use protocol::lowlevel::conn_core::AmConnCore;
-use protocol::lowlevel::message::{Reply, Request, SkipLastSpace};
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::partkind::PartKind;
 use protocol::lowlevel::parts::xat_options::XatOptions;
+use protocol::lowlevel::reply::{Reply, SkipLastSpace};
+use protocol::lowlevel::request::Request;
 use protocol::lowlevel::request_type::RequestType;
 use HdbError;
 
@@ -91,8 +92,11 @@ impl CResourceManager for HdbCResourceManager {
             Argument::XatOptions(xat_options),
         ));
 
-        let mut reply: Reply =
-            request.send_and_receive(&mut (self.am_conn_core), None, SkipLastSpace::Hard)?;
+        let mut reply: Reply = request.send_and_get_reply_simplified(
+            &mut (self.am_conn_core),
+            None,
+            SkipLastSpace::Hard,
+        )?;
         while !reply.parts.is_empty() {
             reply.parts.drop_args_of_kind(PartKind::StatementContext);
             match reply.parts.pop_arg() {
@@ -182,8 +186,11 @@ impl HdbCResourceManager {
             Argument::XatOptions(xat_options),
         ));
 
-        let mut reply =
-            request.send_and_receive(&mut (self.am_conn_core), None, SkipLastSpace::Hard)?;
+        let mut reply = request.send_and_get_reply_simplified(
+            &mut (self.am_conn_core),
+            None,
+            SkipLastSpace::Hard,
+        )?;
 
         reply.parts.drop_args_of_kind(PartKind::StatementContext);
         if let Some(Argument::XatOptions(xat_options)) =

@@ -1,11 +1,12 @@
 use protocol::lowlevel::argument::Argument;
 use protocol::lowlevel::conn_core::AmConnCore;
-use protocol::lowlevel::message::{Request, SkipLastSpace};
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::partkind::PartKind;
 use protocol::lowlevel::parts::parameter_descriptor::ParameterDescriptor;
 use protocol::lowlevel::parts::parameters::{ParameterRow, Parameters};
 use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
+use protocol::lowlevel::reply::SkipLastSpace;
+use protocol::lowlevel::request::Request;
 use protocol::lowlevel::request_type::RequestType;
 use {HdbError, HdbResponse, HdbResult};
 
@@ -68,7 +69,7 @@ impl PreparedStatement {
             ));
         }
 
-        request.send_and_get_response(
+        request.send_and_get_hdbresponse(
             self.o_rs_md.as_ref(),
             self.o_par_md.as_ref(),
             &mut (self.am_conn_core),
@@ -95,9 +96,11 @@ impl Drop for PreparedStatement {
             PartKind::StatementId,
             Argument::StatementId(self.statement_id),
         ));
-        if let Ok(mut reply) =
-            request.send_and_receive(&mut (self.am_conn_core), None, SkipLastSpace::Hard)
-        {
+        if let Ok(mut reply) = request.send_and_get_reply_simplified(
+            &mut (self.am_conn_core),
+            None,
+            SkipLastSpace::Hard,
+        ) {
             reply.parts.pop_arg_if_kind(PartKind::StatementContext);
         }
     }
@@ -107,12 +110,15 @@ pub mod factory {
     use super::PreparedStatement;
     use protocol::lowlevel::argument::Argument;
     use protocol::lowlevel::conn_core::AmConnCore;
-    use protocol::lowlevel::message::{Request, SkipLastSpace};
     use protocol::lowlevel::part::Part;
     use protocol::lowlevel::partkind::PartKind;
-    use protocol::lowlevel::parts::parameter_descriptor::{ParameterDescriptor, ParameterDirection};
+    use protocol::lowlevel::parts::parameter_descriptor::{
+        ParameterDescriptor, ParameterDirection,
+    };
     use protocol::lowlevel::parts::parameters::ParameterRow;
     use protocol::lowlevel::parts::resultset_metadata::ResultSetMetadata;
+    use protocol::lowlevel::reply::SkipLastSpace;
+    use protocol::lowlevel::request::Request;
     use protocol::lowlevel::request_type::RequestType;
     use {HdbError, HdbResult};
 
@@ -122,7 +128,8 @@ pub mod factory {
         let mut request = Request::new(RequestType::Prepare, command_options);
         request.push(Part::new(PartKind::Command, Argument::Command(stmt)));
 
-        let mut reply = request.send_and_receive(&mut am_conn_core, None, SkipLastSpace::Soft)?;
+        let mut reply =
+            request.send_and_get_reply_simplified(&mut am_conn_core, None, SkipLastSpace::Soft)?;
 
         // ParameterMetadata, ResultSetMetadata
         // StatementContext, StatementId,
@@ -142,7 +149,7 @@ pub mod factory {
                 }
                 Some(Argument::TransactionFlags(ref ta_flags)) => {
                     let mut guard = am_conn_core.lock()?;
-                    (*guard).update_session_state(ta_flags)?;
+                    (*guard).evaluate_ta_flags(ta_flags)?;
                 }
                 Some(Argument::TableLocation(vec_i)) => {
                     o_table_location = Some(vec_i);
@@ -151,9 +158,9 @@ pub mod factory {
                     o_rs_md = Some(rs_md);
                 }
 
-                Some(Argument::StatementContext(stmt_ctx)) => {
+                Some(Argument::StatementContext(ref stmt_ctx)) => {
                     let mut guard = am_conn_core.lock()?;
-                    (*guard).add_server_proc_time(stmt_ctx.get_server_processing_time());
+                    (*guard).evaluate_statement_context(stmt_ctx)?;
                 }
                 x => warn!("prepare(): Unexpected reply part found {:?}", x),
             }

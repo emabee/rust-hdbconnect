@@ -1,6 +1,7 @@
 use connect_params::ConnectParams;
 use protocol::lowlevel::parts::command_info::CommandInfo;
 use protocol::lowlevel::parts::server_error::ServerError;
+use protocol::lowlevel::server_resource_consumption_info::ServerResourceConsumptionInfo;
 use {HdbError, HdbResponse, HdbResult};
 
 use prepared_statement::factory as PreparedStatementFactory;
@@ -9,10 +10,11 @@ use prepared_statement::PreparedStatement;
 use authenticate;
 use protocol::lowlevel::argument::Argument;
 use protocol::lowlevel::conn_core::{AmConnCore, ConnectionCore};
-use protocol::lowlevel::message::{Request, SkipLastSpace};
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::partkind::PartKind;
 use protocol::lowlevel::parts::resultset::ResultSet;
+use protocol::lowlevel::reply::SkipLastSpace;
+use protocol::lowlevel::request::Request;
 use protocol::lowlevel::request_type::RequestType;
 use xa_impl::new_resource_manager;
 
@@ -128,6 +130,14 @@ impl Connection {
         Ok(self.am_conn_core
             .lock()?
             .set_lob_read_length(lob_read_length))
+    }
+
+    ///
+    pub fn get_server_resource_consumption_info(&self) -> HdbResult<ServerResourceConsumptionInfo> {
+        Ok(self.am_conn_core
+            .lock()?
+            .server_resource_consumption_info()
+            .clone())
     }
 
     /// Returns the number of roundtrips to the database that
@@ -302,5 +312,5 @@ fn execute(
     }
 
     request.push(Part::new(PartKind::Command, Argument::Command(stmt)));
-    request.send_and_get_response(None, None, am_conn_core, None, SkipLastSpace::Soft)
+    request.send_and_get_hdbresponse(None, None, am_conn_core, None, SkipLastSpace::Soft)
 }

@@ -8,12 +8,13 @@ use self::scram_sha256::ScramSha256;
 use hdb_error::{HdbError, HdbResult};
 use protocol::lowlevel::argument::Argument;
 use protocol::lowlevel::conn_core::AmConnCore;
-use protocol::lowlevel::message::{Reply, Request, SkipLastSpace};
 use protocol::lowlevel::part::Part;
 use protocol::lowlevel::partkind::PartKind;
 use protocol::lowlevel::parts::authfield::AuthField;
 use protocol::lowlevel::parts::connect_options::ConnectOptions;
+use protocol::lowlevel::reply::{Reply, SkipLastSpace};
 use protocol::lowlevel::reply_type::ReplyType;
+use protocol::lowlevel::request::Request;
 use protocol::lowlevel::request_type::RequestType;
 use secstr::SecStr;
 use username;
@@ -49,8 +50,11 @@ pub fn authenticate(
         Argument::Auth(auth_fields),
     ));
 
-    let reply1 =
-        request1.send_and_receive(am_conn_core, Some(ReplyType::Nil), SkipLastSpace::Hard)?;
+    let reply1 = request1.send_and_get_reply_simplified(
+        am_conn_core,
+        Some(ReplyType::Nil),
+        SkipLastSpace::Hard,
+    )?;
 
     let (authenticator_name, server_challenge_data): (String, Vec<u8>) = evaluate_reply1(reply1)?;
 
@@ -81,8 +85,11 @@ pub fn authenticate(
         Argument::ConnectOptions(ConnectOptions::for_server(clientlocale, get_os_user())),
     ));
 
-    let reply2 =
-        request2.send_and_receive(am_conn_core, Some(ReplyType::Nil), SkipLastSpace::Hard)?;
+    let reply2 = request2.send_and_get_reply_simplified(
+        am_conn_core,
+        Some(ReplyType::Nil),
+        SkipLastSpace::Hard,
+    )?;
     let _server_proof = evaluate_reply2(reply2, am_conn_core)?;
     // FIXME the server proof is not evaluated
 
