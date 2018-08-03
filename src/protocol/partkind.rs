@@ -17,7 +17,7 @@ pub enum PartKind {
     ReadLobReply,          // 18 // Reply data of READLOB message
     CommandInfo,           // 27 // Command information
     WriteLobRequest,       // 28 // Request data of WRITELOB message // FIXME is missing
-    ClientContext,         // 29 // Client context; PartKindEnum in api/Comm../Prot../Layout.hpp
+    ClientContext,         // 29 // Client context
     WriteLobReply,         // 30 // Reply data of WRITELOB message // FIXME is missing
     Parameters,            // 32 // Parameter data
     Authentication,        // 33 // Authentication data

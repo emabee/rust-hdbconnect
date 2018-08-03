@@ -11,6 +11,7 @@ use protocol::conn_core::AmConnCore;
 use protocol::part::Part;
 use protocol::partkind::PartKind;
 use protocol::parts::authfield::AuthField;
+use protocol::parts::client_context::ClientContext;
 use protocol::parts::connect_options::ConnectOptions;
 use protocol::reply::{Reply, SkipLastSpace};
 use protocol::reply_type::ReplyType;
@@ -34,7 +35,10 @@ pub fn authenticate(
     ];
 
     let mut request1 = Request::new(RequestType::Authenticate, 0);
-    // FIXME add clientcontext
+    request1.push(Part::new(
+        PartKind::ClientContext,
+        Argument::ClientContext(ClientContext::new()),
+    ));
 
     let mut auth_fields = Vec::<AuthField>::with_capacity(4);
     auth_fields.push(AuthField::new(db_user.as_bytes().to_vec()));

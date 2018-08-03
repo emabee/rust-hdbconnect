@@ -29,7 +29,7 @@ pub fn skip_bytes(n: usize, rdr: &mut io::BufRead) -> HdbResult<()> {
     Ok(())
 }
 
-// FIXME
+// FIXME dont_use_soft_consume_bytes
 pub fn dont_use_soft_consume_bytes(n: usize, rdr: &mut io::BufRead) -> HdbResult<()> {
     trace!("Maybe skipping over {} padding bytes", n);
     rdr.consume(n);

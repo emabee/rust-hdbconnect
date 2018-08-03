@@ -21,6 +21,7 @@ use super::parts::topology::Topology;
 use super::parts::transactionflags::TransactionFlags;
 use super::parts::xat_options::XatOptions;
 use protocol::cesu8;
+use protocol::parts::client_context::ClientContext;
 use protocol::parts::command_info::CommandInfo;
 use protocol::parts::commit_options::CommitOptions;
 use protocol::parts::fetch_options::FetchOptions;
@@ -36,8 +37,8 @@ use std::io;
 
 #[derive(Debug)]
 pub enum Argument {
-    // Dummy(PrtError),                    // only for read_wire
     Auth(Vec<AuthField>),
+    ClientContext(ClientContext),
     ClientInfo(ClientInfo),
     Command(String),
     CommandInfo(CommandInfo),
@@ -70,6 +71,7 @@ impl Argument {
     pub fn count(&self) -> HdbResult<usize> {
         Ok(match *self {
             Argument::Auth(_)
+            | Argument::ClientContext(_)
             | Argument::Command(_)
             | Argument::FetchSize(_)
             | Argument::ResultSetId(_)
@@ -107,6 +109,7 @@ impl Argument {
                     size += field.size();
                 }
             }
+            Argument::ClientContext(ref opts) => size += opts.size(),
             Argument::ClientInfo(ref client_info) => size += client_info.size(),
             Argument::Command(ref s) => size += cesu8::string_to_cesu8(s).len(),
             Argument::CommandInfo(ref opts) => size += opts.size(),
@@ -149,6 +152,7 @@ impl Argument {
                     field.serialize(w)?;
                 }
             }
+            Argument::ClientContext(ref opts) => opts.serialize(w)?,
             Argument::ClientInfo(ref client_info) => {
                 client_info.serialize(w)?;
             }

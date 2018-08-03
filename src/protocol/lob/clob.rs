@@ -69,7 +69,7 @@ impl io::Read for CLOB {
 /// a database connection and the
 /// necessary controls to support fetching remaining data on demand.
 #[derive(Clone, Debug)]
-pub struct ClobHandle {
+struct ClobHandle {
     o_am_conn_core: Option<AmConnCore>,
     is_data_complete: bool,
     length_c: u64,

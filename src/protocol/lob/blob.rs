@@ -111,7 +111,7 @@ impl io::Read for BLOB {
 /// so we carry internally a database connection and the
 /// necessary controls to support fetching remaining data on demand.
 #[derive(Clone, Debug)]
-pub struct BlobHandle {
+struct BlobHandle {
     o_am_conn_core: Option<AmConnCore>,
     is_data_complete: bool,
     length_b: u64,
