@@ -49,7 +49,7 @@ extern crate serde_derive;
 extern crate username;
 extern crate vec_map;
 
-mod authenticate;
+mod authentication;
 mod connect_params;
 mod connection;
 mod connection_manager;

@@ -22,9 +22,7 @@ pub fn test_011_invalid_password() {
 fn test_011_invalid_password_impl() -> HdbResult<()> {
     info!("test warnings");
 
-    let mut conn = Connection::new(test_utils::connect_params_builder_from_file(
-        "db_access_system.json",
-    )?.build()?)?;
+    let mut conn = test_utils::get_system_connection()?;
 
     // drop user DOEDEL, and recreate it with need to set password
     conn.multiple_statements_ignore_err(vec![
@@ -50,7 +48,7 @@ fn test_011_invalid_password_impl() -> HdbResult<()> {
 
     // logon as DOEDEL
     debug!("DOEDEL connects ...");
-    let conn_params: ConnectParams = test_utils::connect_params_builder_from_file("db_access.json")?
+    let conn_params: ConnectParams = test_utils::get_std_connect_params_builder()?
         .dbuser("DOEDEL")
         .password("Doebcd1234")
         .build()?;

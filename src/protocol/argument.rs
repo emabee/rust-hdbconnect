@@ -2,7 +2,7 @@ use super::conn_core::AmConnCore;
 use super::part::Parts;
 use super::part_attributes::PartAttributes;
 use super::partkind::PartKind;
-use super::parts::authfield::AuthField;
+use super::parts::authfields::AuthFields;
 use super::parts::client_info::ClientInfo;
 use super::parts::connect_options::ConnectOptions;
 use super::parts::output_parameters::factory as OutputParametersFactory;
@@ -37,7 +37,7 @@ use std::io;
 
 #[derive(Debug)]
 pub enum Argument {
-    Auth(Vec<AuthField>),
+    Auth(AuthFields),
     ClientContext(ClientContext),
     ClientInfo(ClientInfo),
     Command(String),
@@ -103,12 +103,7 @@ impl Argument {
     pub fn size(&self, with_padding: bool) -> HdbResult<usize> {
         let mut size = 0usize;
         match *self {
-            Argument::Auth(ref vec) => {
-                size += 2;
-                for field in vec {
-                    size += field.size();
-                }
-            }
+            Argument::Auth(ref af) => size += af.size(),
             Argument::ClientContext(ref opts) => size += opts.size(),
             Argument::ClientInfo(ref client_info) => size += client_info.size(),
             Argument::Command(ref s) => size += cesu8::string_to_cesu8(s).len(),
@@ -146,12 +141,7 @@ impl Argument {
     /// Serialize to byte stream
     pub fn serialize(&self, remaining_bufsize: u32, w: &mut io::Write) -> HdbResult<u32> {
         match *self {
-            Argument::Auth(ref vec) => {
-                w.write_i16::<LittleEndian>(vec.len() as i16)?;
-                for field in vec {
-                    field.serialize(w)?;
-                }
-            }
+            Argument::Auth(ref af) => af.serialize(w)?,
             Argument::ClientContext(ref opts) => opts.serialize(w)?,
             Argument::ClientInfo(ref client_info) => {
                 client_info.serialize(w)?;
@@ -222,15 +212,7 @@ impl Argument {
         trace!("Entering parse(no_of_args={}, kind={:?})", no_of_args, kind);
 
         let arg = match kind {
-            PartKind::Authentication => {
-                let field_count = rdr.read_i16::<LittleEndian>()? as usize; // I2
-                let mut vec = Vec::<AuthField>::with_capacity(field_count);
-                for _ in 0..field_count {
-                    let field = AuthField::parse(rdr)?;
-                    vec.push(field);
-                }
-                Argument::Auth(vec)
-            }
+            PartKind::Authentication => Argument::Auth(AuthFields::parse(rdr)?),
             PartKind::Command => {
                 let bytes = util::parse_bytes(arg_size as usize, rdr)?;
                 let s = cesu8::cesu8_to_string(&bytes)?;

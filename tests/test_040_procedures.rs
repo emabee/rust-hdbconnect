@@ -8,8 +8,9 @@ extern crate serde_json;
 
 mod test_utils;
 
-use hdbconnect::{type_id, Connection, HdbResult, ParameterBinding, ParameterDirection, ResultSet,
-                 Row};
+use hdbconnect::{
+    type_id, Connection, HdbResult, ParameterBinding, ParameterDirection, ResultSet, Row,
+};
 
 #[test] // cargo test test_040_procedures -- --nocapture
 pub fn test_040_procedures() {
@@ -56,7 +57,6 @@ fn very_simple_procedure(connection: &mut Connection) -> HdbResult<()> {
          END",
     ])?;
 
-    info!("CHECK");
     let mut response = connection.statement("call TEST_PROCEDURE")?;
     response.get_success()?;
     let _resultset = response.get_resultset()?;

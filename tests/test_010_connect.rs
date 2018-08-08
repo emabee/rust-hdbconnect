@@ -18,13 +18,13 @@ use hdbconnect::{ConnectParams, Connection, HdbResult};
 // cargo test test_010_connect -- --nocapture
 #[test]
 pub fn test_010_connect() {
-    test_utils::init_logger("test_010_connect = info, hdbconnect = info");
+    test_utils::init_logger("test_010_connect = info, hdbconnect::authentication = debug");
 
     connect_successfully();
     connect_wrong_password();
     connect_and_select_1().unwrap();
     connect_and_select_2().unwrap();
-    client_info().unwrap();
+    // client_info().unwrap();
     command_info().unwrap();
 }
 
@@ -36,7 +36,7 @@ fn connect_successfully() {
 fn connect_wrong_password() {
     info!("test connect failure on wrong credentials");
     let start = Local::now();
-    let conn_params: ConnectParams = test_utils::connect_params_builder_from_file("db_access.json")
+    let conn_params: ConnectParams = test_utils::get_std_connect_params_builder()
         .unwrap()
         .dbuser("bla")
         .password("blubber")
@@ -55,7 +55,7 @@ fn connect_wrong_password() {
 
 fn connect_and_select_1() -> HdbResult<()> {
     info!("test a successful connection and do some simple selects with explicit clientlocale");
-    let conn_params: ConnectParams = test_utils::connect_params_builder_from_file("db_access.json")
+    let conn_params: ConnectParams = test_utils::get_std_connect_params_builder()
         .unwrap()
         .clientlocale("en_US")
         .build()
@@ -68,7 +68,7 @@ fn connect_and_select_1() -> HdbResult<()> {
 
 fn connect_and_select_2() -> HdbResult<()> {
     info!("test a successful connection and do some simple selects with client locale from env");
-    let conn_params: ConnectParams = test_utils::connect_params_builder_from_file("db_access.json")
+    let conn_params: ConnectParams = test_utils::get_std_connect_params_builder()
         .unwrap()
         .clientlocale_from_env_lang()
         .build()
@@ -93,7 +93,7 @@ fn select_version_and_user(connection: &mut Connection) -> HdbResult<()> {
 
     assert_eq!(
         &version_and_user.current_user,
-        test_utils::connect_params_builder_from_file("db_access.json")?
+        test_utils::get_std_connect_params_builder()?
             .build()?
             .dbuser()
     );
@@ -109,59 +109,60 @@ struct SessCtx {
     VALUE: String,
 }
 
-fn client_info() -> HdbResult<()> {
-    info!("client info");
-    let mut connection = test_utils::get_authenticated_connection().unwrap();
+// fn client_info() -> HdbResult<()> {
+//     info!("client info");
+//     let mut connection = test_utils::get_authenticated_connection().unwrap();
 
-    let stmt = r#"SELECT KEY, VALUE FROM M_SESSION_CONTEXT ORDER BY KEY"#;
+//     let stmt = r#"SELECT KEY, VALUE FROM M_SESSION_CONTEXT ORDER BY KEY"#;
 
-    let _result: Vec<SessCtx> = connection.query(stmt)?.try_into()?;
+//     let _result: Vec<SessCtx> = connection.query(stmt)?.try_into()?;
 
-    connection.set_client_info("Abbligation", "AbbVersion", "AbbSource", "AbbUser")?;
+// connection.set_client_info("Abbligation", "AbbVersion", "AbbSource",
+// "AbbUser")?;
 
-    // make sure it is set ...
-    let result: Vec<SessCtx> = connection.query(stmt)?.try_into()?;
-    check_result(&result);
+//     // make sure it is set ...
+//     let result: Vec<SessCtx> = connection.query(stmt)?.try_into()?;
+//     check_result(&result);
 
-    // ... and remains set
-    let _result: Vec<SessCtx> = connection.query(stmt)?.try_into()?;
-    let _result: Vec<SessCtx> = connection.query(stmt)?.try_into()?;
-    let result: Vec<SessCtx> = connection.query(stmt)?.try_into()?;
-    check_result(&result);
+//     // ... and remains set
+//     let _result: Vec<SessCtx> = connection.query(stmt)?.try_into()?;
+//     let _result: Vec<SessCtx> = connection.query(stmt)?.try_into()?;
+//     let result: Vec<SessCtx> = connection.query(stmt)?.try_into()?;
+//     check_result(&result);
 
-    Ok(())
-}
+//     Ok(())
+// }
 
-fn check_result(result: &[SessCtx]) {
-    assert_eq!(
-        result[0],
-        SessCtx {
-            KEY: "APPLICATION".to_string(),
-            VALUE: "Abbligation".to_string()
-        }
-    );
-    assert_eq!(
-        result[3],
-        SessCtx {
-            KEY: "APPLICATIONVERSION".to_string(),
-            VALUE: "AbbVersion".to_string()
-        }
-    );
-    assert_eq!(
-        result[1],
-        SessCtx {
-            KEY: "APPLICATIONSOURCE".to_string(),
-            VALUE: "AbbSource".to_string()
-        }
-    );
-    assert_eq!(
-        result[2],
-        SessCtx {
-            KEY: "APPLICATIONUSER".to_string(),
-            VALUE: "AbbUser".to_string()
-        }
-    );
-}
+// fn check_result(result: &[SessCtx]) {
+//     assert_eq!(
+//         result[0],
+//         SessCtx {
+//             KEY: "APPLICATION".to_string(),
+//             VALUE: "Abbligation".to_string()
+//         }
+//     );
+//     assert_eq!(
+//         result[3],
+//         SessCtx {
+//             KEY: "APPLICATIONVERSION".to_string(),
+//             VALUE: "AbbVersion".to_string()
+//         }
+//     );
+//     assert_eq!(
+//         result[1],
+//         SessCtx {
+//             KEY: "APPLICATIONSOURCE".to_string(),
+//             VALUE: "AbbSource".to_string()
+//         }
+//     );
+//     assert_eq!(
+//         result[2],
+//         SessCtx {
+//             KEY: "APPLICATIONUSER".to_string(),
+//             VALUE: "AbbUser".to_string()
+//         }
+//     );
+// }
 
 fn command_info() -> HdbResult<()> {
     info!("command info");

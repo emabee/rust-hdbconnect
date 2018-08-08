@@ -1,4 +1,4 @@
-pub mod authfield;
+pub mod authfields;
 pub mod client_context;
 pub mod client_info;
 pub mod command_info;

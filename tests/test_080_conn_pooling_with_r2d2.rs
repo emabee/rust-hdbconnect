@@ -14,7 +14,7 @@ use std::time::Duration;
 fn test_080_conn_pooling_with_r2d2() {
     test_utils::init_logger("test_080_conn_pooling_with_r2d2 = info");
 
-    let conn_params = test_utils::connect_params_builder_from_file("db_access.json")
+    let conn_params = test_utils::get_std_connect_params_builder()
         .unwrap()
         .build()
         .unwrap();

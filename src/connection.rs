@@ -7,7 +7,7 @@ use {HdbError, HdbResponse, HdbResult};
 use prepared_statement::factory as PreparedStatementFactory;
 use prepared_statement::PreparedStatement;
 
-use authenticate;
+use authentication;
 use protocol::argument::Argument;
 use protocol::conn_core::{AmConnCore, ConnectionCore};
 use protocol::part::Part;
@@ -68,7 +68,7 @@ impl Connection {
                 .unwrap_or(-1)
         );
 
-        authenticate::authenticate(
+        authentication::authenticate(
             &mut (am_conn_core),
             params.dbuser(),
             params.password(),
@@ -239,11 +239,11 @@ impl Connection {
     /// return values
     pub fn multiple_statements_ignore_err<S: AsRef<str>>(&mut self, stmts: Vec<S>) {
         for s in stmts {
-            debug!("multiple_statements_ignore_err: firing \"{}\"", s.as_ref());
+            trace!("multiple_statements_ignore_err: firing \"{}\"", s.as_ref());
             let result = self.statement(s.as_ref());
             match result {
                 Ok(_) => {}
-                Err(e) => info!("Error intentionally ignored: {}", e.description()),
+                Err(e) => debug!("Error intentionally ignored: {}", e.description()),
             }
         }
     }

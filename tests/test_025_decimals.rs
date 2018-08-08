@@ -58,8 +58,10 @@ fn evaluate_resultset(
 
     #[derive(Deserialize)]
     struct TestData {
-        #[serde(rename = "F1")] f1: String,
-        #[serde(rename = "F2")] f2: Decimal,
+        #[serde(rename = "F1")]
+        f1: String,
+        #[serde(rename = "F2")]
+        f2: Decimal,
     };
 
     let insert_stmt_str = "insert into TEST_DECIMALS (F1, F2) values(?, ?)";
