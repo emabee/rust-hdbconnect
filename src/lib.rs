@@ -26,13 +26,13 @@
 // #![feature(bufreader_buffer)]
 #![warn(missing_docs)]
 
+extern crate bigdecimal;
 extern crate byteorder;
 extern crate chrono;
 extern crate crypto;
 extern crate dist_tx;
 extern crate hex;
 extern crate num;
-extern crate rust_decimal;
 
 #[macro_use]
 extern crate log;
@@ -95,7 +95,6 @@ pub mod type_id {
 pub mod types {
     pub use protocol::lob::blob::BLOB as BLob;
     pub use protocol::lob::clob::CLOB as CLob;
-    pub use protocol::parts::hdb_decimal::HdbDecimal;
     pub use protocol::parts::longdate::LongDate;
 }
 pub use protocol::parts::typed_value::TypedValue as HdbValue;

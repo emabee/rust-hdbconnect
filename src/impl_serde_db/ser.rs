@@ -1,14 +1,13 @@
 use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, Timelike};
 use protocol::lob::blob::new_blob_to_db;
 
-use protocol::parts::hdb_decimal::HdbDecimal;
 use protocol::parts::longdate::LongDate;
 use protocol::parts::parameter_descriptor::ParameterDescriptor;
 use protocol::parts::type_id;
 use protocol::parts::typed_value::TypedValue;
 
-use num::FromPrimitive;
-use rust_decimal::Decimal;
+use bigdecimal::BigDecimal;
+use bigdecimal::FromPrimitive;
 use serde_db::ser::{DbvFactory, SerializationError};
 use std::str::FromStr;
 use std::{i16, i32, i64, i8, u16, u32, u8};
@@ -49,14 +48,12 @@ impl DbvFactory for ParameterDescriptor {
             type_id::N_INT => TypedValue::N_INT(Some(i32::from(value))),
             type_id::BIGINT => TypedValue::BIGINT(i64::from(value)),
             type_id::N_BIGINT => TypedValue::N_BIGINT(Some(i64::from(value))),
-            type_id::DECIMAL => {
-                TypedValue::DECIMAL(HdbDecimal::from_decimal(
-                    Decimal::from_i8(value).ok_or_else(|| decimal_range(input_type))?
-                )?)
-            }
-            type_id::N_DECIMAL => TypedValue::N_DECIMAL(Some(HdbDecimal::from_decimal(
-                Decimal::from_i8(value).ok_or_else(|| decimal_range(input_type))?,
-            )?)),
+            type_id::DECIMAL => TypedValue::DECIMAL(
+                BigDecimal::from_i8(value).ok_or_else(|| decimal_range(input_type))?,
+            ),
+            type_id::N_DECIMAL => TypedValue::N_DECIMAL(Some(
+                BigDecimal::from_i8(value).ok_or_else(|| decimal_range(input_type))?,
+            )),
             _ => {
                 return Err(SerializationError::TypeMismatch(
                     input_type,
@@ -84,14 +81,12 @@ impl DbvFactory for ParameterDescriptor {
             type_id::N_INT => TypedValue::N_INT(Some(i32::from(value))),
             type_id::BIGINT => TypedValue::BIGINT(i64::from(value)),
             type_id::N_BIGINT => TypedValue::N_BIGINT(Some(i64::from(value))),
-            type_id::DECIMAL => {
-                TypedValue::DECIMAL(HdbDecimal::from_decimal(
-                    Decimal::from_i16(value).ok_or_else(|| decimal_range(input_type))?
-                )?)
-            }
-            type_id::N_DECIMAL => TypedValue::N_DECIMAL(Some(HdbDecimal::from_decimal(
-                Decimal::from_i16(value).ok_or_else(|| decimal_range(input_type))?,
-            )?)),
+            type_id::DECIMAL => TypedValue::DECIMAL(
+                BigDecimal::from_i16(value).ok_or_else(|| decimal_range(input_type))?,
+            ),
+            type_id::N_DECIMAL => TypedValue::N_DECIMAL(Some(
+                BigDecimal::from_i16(value).ok_or_else(|| decimal_range(input_type))?,
+            )),
             _ => {
                 return Err(SerializationError::TypeMismatch(
                     input_type,
@@ -131,14 +126,12 @@ impl DbvFactory for ParameterDescriptor {
             type_id::N_INT => TypedValue::N_INT(Some(value)),
             type_id::BIGINT => TypedValue::BIGINT(i64::from(value)),
             type_id::N_BIGINT => TypedValue::N_BIGINT(Some(i64::from(value))),
-            type_id::DECIMAL => {
-                TypedValue::DECIMAL(HdbDecimal::from_decimal(
-                    Decimal::from_i32(value).ok_or_else(|| decimal_range(input_type))?
-                )?)
-            }
-            type_id::N_DECIMAL => TypedValue::N_DECIMAL(Some(HdbDecimal::from_decimal(
-                Decimal::from_i32(value).ok_or_else(|| decimal_range(input_type))?,
-            )?)),
+            type_id::DECIMAL => TypedValue::DECIMAL(
+                BigDecimal::from_i32(value).ok_or_else(|| decimal_range(input_type))?,
+            ),
+            type_id::N_DECIMAL => TypedValue::N_DECIMAL(Some(
+                BigDecimal::from_i32(value).ok_or_else(|| decimal_range(input_type))?,
+            )),
             _ => {
                 return Err(SerializationError::TypeMismatch(
                     input_type,
@@ -188,14 +181,12 @@ impl DbvFactory for ParameterDescriptor {
             type_id::N_BIGINT => TypedValue::N_BIGINT(Some(value)),
             type_id::LONGDATE => TypedValue::LONGDATE(LongDate::new(value)),
             type_id::N_LONGDATE => TypedValue::N_LONGDATE(Some(LongDate::new(value))),
-            type_id::DECIMAL => {
-                TypedValue::DECIMAL(HdbDecimal::from_decimal(
-                    Decimal::from_i64(value).ok_or_else(|| decimal_range(input_type))?
-                )?)
-            }
-            type_id::N_DECIMAL => TypedValue::N_DECIMAL(Some(HdbDecimal::from_decimal(
-                Decimal::from_i64(value).ok_or_else(|| decimal_range(input_type))?,
-            )?)),
+            type_id::DECIMAL => TypedValue::DECIMAL(
+                BigDecimal::from_i64(value).ok_or_else(|| decimal_range(input_type))?,
+            ),
+            type_id::N_DECIMAL => TypedValue::N_DECIMAL(Some(
+                BigDecimal::from_i64(value).ok_or_else(|| decimal_range(input_type))?,
+            )),
             _ => {
                 return Err(SerializationError::TypeMismatch(
                     input_type,
@@ -215,14 +206,12 @@ impl DbvFactory for ParameterDescriptor {
             type_id::N_INT => TypedValue::N_INT(Some(i32::from(value))),
             type_id::BIGINT => TypedValue::BIGINT(i64::from(value)),
             type_id::N_BIGINT => TypedValue::N_BIGINT(Some(i64::from(value))),
-            type_id::DECIMAL => {
-                TypedValue::DECIMAL(HdbDecimal::from_decimal(
-                    Decimal::from_u8(value).ok_or_else(|| decimal_range(input_type))?
-                )?)
-            }
-            type_id::N_DECIMAL => TypedValue::N_DECIMAL(Some(HdbDecimal::from_decimal(
-                Decimal::from_u8(value).ok_or_else(|| decimal_range(input_type))?,
-            )?)),
+            type_id::DECIMAL => TypedValue::DECIMAL(
+                BigDecimal::from_u8(value).ok_or_else(|| decimal_range(input_type))?,
+            ),
+            type_id::N_DECIMAL => TypedValue::N_DECIMAL(Some(
+                BigDecimal::from_u8(value).ok_or_else(|| decimal_range(input_type))?,
+            )),
             _ => {
                 return Err(SerializationError::TypeMismatch(
                     input_type,
@@ -258,14 +247,12 @@ impl DbvFactory for ParameterDescriptor {
             type_id::N_INT => TypedValue::N_INT(Some(i32::from(value))),
             type_id::BIGINT => TypedValue::BIGINT(i64::from(value)),
             type_id::N_BIGINT => TypedValue::N_BIGINT(Some(i64::from(value))),
-            type_id::DECIMAL => {
-                TypedValue::DECIMAL(HdbDecimal::from_decimal(
-                    Decimal::from_u16(value).ok_or_else(|| decimal_range(input_type))?
-                )?)
-            }
-            type_id::N_DECIMAL => TypedValue::N_DECIMAL(Some(HdbDecimal::from_decimal(
-                Decimal::from_u16(value).ok_or_else(|| decimal_range(input_type))?,
-            )?)),
+            type_id::DECIMAL => TypedValue::DECIMAL(
+                BigDecimal::from_u16(value).ok_or_else(|| decimal_range(input_type))?,
+            ),
+            type_id::N_DECIMAL => TypedValue::N_DECIMAL(Some(
+                BigDecimal::from_u16(value).ok_or_else(|| decimal_range(input_type))?,
+            )),
             _ => {
                 return Err(SerializationError::TypeMismatch(
                     input_type,
@@ -309,14 +296,12 @@ impl DbvFactory for ParameterDescriptor {
             },
             type_id::BIGINT => TypedValue::BIGINT(i64::from(value)),
             type_id::N_BIGINT => TypedValue::N_BIGINT(Some(i64::from(value))),
-            type_id::DECIMAL => {
-                TypedValue::DECIMAL(HdbDecimal::from_decimal(
-                    Decimal::from_u32(value).ok_or_else(|| decimal_range(input_type))?
-                )?)
-            }
-            type_id::N_DECIMAL => TypedValue::N_DECIMAL(Some(HdbDecimal::from_decimal(
-                Decimal::from_u32(value).ok_or_else(|| decimal_range(input_type))?,
-            )?)),
+            type_id::DECIMAL => TypedValue::DECIMAL(
+                BigDecimal::from_u32(value).ok_or_else(|| decimal_range(input_type))?,
+            ),
+            type_id::N_DECIMAL => TypedValue::N_DECIMAL(Some(
+                BigDecimal::from_u32(value).ok_or_else(|| decimal_range(input_type))?,
+            )),
             _ => {
                 return Err(SerializationError::TypeMismatch(
                     input_type,
@@ -368,14 +353,12 @@ impl DbvFactory for ParameterDescriptor {
             } else {
                 return Err(SerializationError::RangeErr(input_type, self.descriptor()));
             },
-            type_id::DECIMAL => {
-                TypedValue::DECIMAL(HdbDecimal::from_decimal(
-                    Decimal::from_u64(value).ok_or_else(|| decimal_range(input_type))?
-                )?)
-            }
-            type_id::N_DECIMAL => TypedValue::N_DECIMAL(Some(HdbDecimal::from_decimal(
-                Decimal::from_u64(value).ok_or_else(|| decimal_range(input_type))?,
-            )?)),
+            type_id::DECIMAL => TypedValue::DECIMAL(
+                BigDecimal::from_u64(value).ok_or_else(|| decimal_range(input_type))?,
+            ),
+            type_id::N_DECIMAL => TypedValue::N_DECIMAL(Some(
+                BigDecimal::from_u64(value).ok_or_else(|| decimal_range(input_type))?,
+            )),
             _ => {
                 return Err(SerializationError::TypeMismatch(
                     input_type,
@@ -389,14 +372,12 @@ impl DbvFactory for ParameterDescriptor {
         Ok(match self.type_id() {
             type_id::REAL => TypedValue::REAL(value),
             type_id::N_REAL => TypedValue::N_REAL(Some(value)),
-            type_id::DECIMAL => {
-                TypedValue::DECIMAL(HdbDecimal::from_decimal(
-                    Decimal::from_f32(value).ok_or_else(|| decimal_range(input_type))?
-                )?)
-            }
-            type_id::N_DECIMAL => TypedValue::N_DECIMAL(Some(HdbDecimal::from_decimal(
-                Decimal::from_f32(value).ok_or_else(|| decimal_range(input_type))?,
-            )?)),
+            type_id::DECIMAL => TypedValue::DECIMAL(
+                BigDecimal::from_f32(value).ok_or_else(|| decimal_range(input_type))?,
+            ),
+            type_id::N_DECIMAL => TypedValue::N_DECIMAL(Some(
+                BigDecimal::from_f32(value).ok_or_else(|| decimal_range(input_type))?,
+            )),
             _ => return Err(SerializationError::TypeMismatch("f32", self.descriptor())),
         })
     }
@@ -405,14 +386,12 @@ impl DbvFactory for ParameterDescriptor {
         Ok(match self.type_id() {
             type_id::DOUBLE => TypedValue::DOUBLE(value),
             type_id::N_DOUBLE => TypedValue::N_DOUBLE(Some(value)),
-            type_id::DECIMAL => {
-                TypedValue::DECIMAL(HdbDecimal::from_decimal(
-                    Decimal::from_f64(value).ok_or_else(|| decimal_range(input_type))?
-                )?)
-            }
-            type_id::N_DECIMAL => TypedValue::N_DECIMAL(Some(HdbDecimal::from_decimal(
-                Decimal::from_f64(value).ok_or_else(|| decimal_range(input_type))?,
-            )?)),
+            type_id::DECIMAL => TypedValue::DECIMAL(
+                BigDecimal::from_f64(value).ok_or_else(|| decimal_range(input_type))?,
+            ),
+            type_id::N_DECIMAL => TypedValue::N_DECIMAL(Some(
+                BigDecimal::from_f64(value).ok_or_else(|| decimal_range(input_type))?,
+            )),
             _ => return Err(SerializationError::TypeMismatch("f64", self.descriptor())),
         })
     }
@@ -434,6 +413,7 @@ impl DbvFactory for ParameterDescriptor {
     fn from_str(&self, value: &str) -> Result<TypedValue, SerializationError> {
         let maperr1 = |_| SerializationError::TypeMismatch("&str", self.descriptor());
         let maperr2 = |_| SerializationError::TypeMismatch("&str", self.descriptor());
+        let maperr3 = |_| SerializationError::TypeMismatch("&str", self.descriptor());
         Ok(match self.type_id() {
             type_id::TINYINT => TypedValue::TINYINT(u8::from_str(value).map_err(maperr1)?),
             type_id::SMALLINT => TypedValue::SMALLINT(i16::from_str(value).map_err(maperr1)?),
@@ -453,7 +433,7 @@ impl DbvFactory for ParameterDescriptor {
             | type_id::N_NCLOB
             | type_id::NCLOB
             | type_id::CLOB => TypedValue::STRING(String::from(value)),
-            type_id::DECIMAL => TypedValue::DECIMAL(HdbDecimal::parse_from_str(value)?),
+            type_id::DECIMAL => TypedValue::DECIMAL(BigDecimal::from_str(value).map_err(maperr3)?),
             type_id::LONGDATE => TypedValue::LONGDATE(longdate_from_str(value)?),
 
             _ => return Err(SerializationError::TypeMismatch("&str", self.descriptor())),

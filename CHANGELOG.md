@@ -2,9 +2,16 @@
 
 ## [Unreleased] 
 
+## [0.6.0]  2018-08-10
+
+Replace usage of rust_decimal with BigDecimal and fix insufficient decimal handling, 
+remove HdbDecimal from API (reason for version bump)
+
+Add support for new authentication variant
+
 Add support for client info (= session context)
 
-Fix key words
+Fix key words in Cargo.toml
 
 Prepare for ensuring the buffer is empty after parsing a reply
 

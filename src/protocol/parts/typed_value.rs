@@ -1,6 +1,7 @@
+use bigdecimal::BigDecimal;
 use protocol::lob::blob::BLOB;
 use protocol::lob::clob::CLOB;
-use protocol::parts::hdb_decimal::{serialize_decimal, HdbDecimal};
+use protocol::parts::hdb_decimal::serialize_decimal;
 use protocol::parts::longdate::LongDate;
 use protocol::parts::type_id;
 use protocol::{cesu8, util};
@@ -59,7 +60,7 @@ pub enum TypedValue {
     /// 0.0000001234 (1234E-10) has precision 4 and scale 10.
     /// 1.0000001234 (10000001234E-10) has precision 11 and scale 10.
     /// The value 1234000000 (1234E6) has precision 4 and scale -6.
-    DECIMAL(HdbDecimal),
+    DECIMAL(BigDecimal),
     /// Stores a single-precision 32-bit floating-point number.
     REAL(f32),
     /// Stores a double-precision 64-bit floating-point number.
@@ -141,7 +142,7 @@ pub enum TypedValue {
     /// Nullable variant of BIGINT.
     N_BIGINT(Option<i64>),
     /// Nullable variant of DECIMAL
-    N_DECIMAL(Option<HdbDecimal>), // = 5, 					// DECIMAL, and DECIMAL(p,s), 1
+    N_DECIMAL(Option<BigDecimal>), // = 5, 					// DECIMAL, and DECIMAL(p,s), 1
     /// Nullable variant of REAL.
     N_REAL(Option<f32>),
     /// Nullable variant of DOUBLE.
@@ -312,8 +313,8 @@ pub fn serialize(tv: &TypedValue, data_pos: &mut i32, w: &mut io::Write) -> HdbR
                 w.write_i64::<LittleEndian>(i)?
             }
 
-            TypedValue::DECIMAL(ref dec) | TypedValue::N_DECIMAL(Some(ref dec)) => {
-                serialize_decimal(dec, w)?
+            TypedValue::DECIMAL(ref bigdec) | TypedValue::N_DECIMAL(Some(ref bigdec)) => {
+                serialize_decimal(bigdec, w)?
             }
 
             TypedValue::REAL(f) | TypedValue::N_REAL(Some(f)) => w.write_f32::<LittleEndian>(f)?,
@@ -565,7 +566,7 @@ impl fmt::Display for TypedValue {
             | TypedValue::TEXT(ref value)
             | TypedValue::N_TEXT(Some(ref value))
             | TypedValue::SHORTTEXT(ref value)
-            | TypedValue::N_SHORTTEXT(Some(ref value)) => write!(fmt, "\"{}\"", value),
+            | TypedValue::N_SHORTTEXT(Some(ref value)) => write!(fmt, "{}", value),
             TypedValue::BINARY(_) | TypedValue::N_BINARY(Some(_)) => write!(fmt, "<BINARY>"),
             TypedValue::VARBINARY(ref vec) | TypedValue::N_VARBINARY(Some(ref vec)) => {
                 write!(fmt, "<VARBINARY length = {}>", vec.len())

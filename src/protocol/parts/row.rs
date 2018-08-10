@@ -63,7 +63,7 @@ impl Row {
     }
 
     /// Pops and converts the last field into a plain rust value.
-    pub fn pop_into<'de, T>(&mut self) -> Result<T, <Row as DeserializableRow>::E>
+    pub fn pop_into<'de, T>(&mut self) -> HdbResult<T>
     where
         T: serde::de::Deserialize<'de>,
     {

@@ -23,7 +23,7 @@ num = "0.2"
 r2d2 = "0.8"
 rand = "0.5"
 rust-crypto = "0.2"
-rust_decimal = { version = "0.9", features = ["serde"] }
+bigdecimal = {version = "0.0.14", features = ["serde"]}
 secstr = "0.3"
 serde = "1.0"
 serde_derive = "1.0"

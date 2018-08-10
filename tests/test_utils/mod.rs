@@ -35,7 +35,8 @@ pub fn get_system_connect_params_builder() -> HdbResult<ConnectParamsBuilder> {
 }
 
 fn get_version() -> &'static str {
-    "2_3"
+    "2_0"
+    // "2_3"
 }
 
 fn connect_params_builder_from_file(s: &str) -> HdbResult<ConnectParamsBuilder> {
