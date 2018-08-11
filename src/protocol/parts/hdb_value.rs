@@ -23,7 +23,7 @@ const LENGTH_INDICATOR_NULL: u8 = 255;
 /// Enum for all supported database value types.
 #[allow(non_camel_case_types)]
 #[derive(Clone, Debug)]
-pub enum TypedValue {
+pub enum HdbValue {
     /// Internally used only. Is swapped in where a real value (any of the
     /// others) is swapped out.
     NOTHING,
@@ -186,30 +186,30 @@ pub enum TypedValue {
     N_LONGDATE(Option<LongDate>),
 }
 
-impl TypedValue {
+impl HdbValue {
     fn serialize_type_id(&self, w: &mut io::Write) -> HdbResult<bool> {
         let is_null = match *self {
-            TypedValue::N_TINYINT(None)
-            | TypedValue::N_SMALLINT(None)
-            | TypedValue::N_INT(None)
-            | TypedValue::N_BIGINT(None)
-            | TypedValue::N_REAL(None)
-            | TypedValue::N_BOOLEAN(None)
-            | TypedValue::N_LONGDATE(None)
-            | TypedValue::N_CLOB(None)
-            | TypedValue::N_NCLOB(None)
-            | TypedValue::N_BLOB(None)
-            | TypedValue::N_CHAR(None)
-            | TypedValue::N_VARCHAR(None)
-            | TypedValue::N_NCHAR(None)
-            | TypedValue::N_NVARCHAR(None)
-            | TypedValue::N_STRING(None)
-            | TypedValue::N_NSTRING(None)
-            | TypedValue::N_TEXT(None)
-            | TypedValue::N_SHORTTEXT(None)
-            | TypedValue::N_BINARY(None)
-            | TypedValue::N_VARBINARY(None)
-            | TypedValue::N_BSTRING(None) => true,
+            HdbValue::N_TINYINT(None)
+            | HdbValue::N_SMALLINT(None)
+            | HdbValue::N_INT(None)
+            | HdbValue::N_BIGINT(None)
+            | HdbValue::N_REAL(None)
+            | HdbValue::N_BOOLEAN(None)
+            | HdbValue::N_LONGDATE(None)
+            | HdbValue::N_CLOB(None)
+            | HdbValue::N_NCLOB(None)
+            | HdbValue::N_BLOB(None)
+            | HdbValue::N_CHAR(None)
+            | HdbValue::N_VARCHAR(None)
+            | HdbValue::N_NCHAR(None)
+            | HdbValue::N_NVARCHAR(None)
+            | HdbValue::N_STRING(None)
+            | HdbValue::N_NSTRING(None)
+            | HdbValue::N_TEXT(None)
+            | HdbValue::N_SHORTTEXT(None)
+            | HdbValue::N_BINARY(None)
+            | HdbValue::N_VARBINARY(None)
+            | HdbValue::N_BSTRING(None) => true,
             _ => false,
         };
 
@@ -225,65 +225,65 @@ impl TypedValue {
     /// values
     fn type_id(&self) -> u8 {
         match *self {
-            TypedValue::NOTHING => type_id::NOTHING,
-            TypedValue::TINYINT(_) => type_id::TINYINT,
-            TypedValue::SMALLINT(_) => type_id::SMALLINT,
-            TypedValue::INT(_) => type_id::INT,
-            TypedValue::BIGINT(_) => type_id::BIGINT,
-            TypedValue::DECIMAL(_) => type_id::DECIMAL,
-            TypedValue::REAL(_) => type_id::REAL,
-            TypedValue::DOUBLE(_) => type_id::DOUBLE,
-            TypedValue::CHAR(_) => type_id::CHAR,
-            TypedValue::VARCHAR(_) => type_id::VARCHAR,
-            TypedValue::NCHAR(_) => type_id::NCHAR,
-            TypedValue::NVARCHAR(_) => type_id::NVARCHAR,
-            TypedValue::BINARY(_) => type_id::BINARY,
-            TypedValue::VARBINARY(_) => type_id::VARBINARY,
-            // TypedValue::TIMESTAMP(_)        => type_id::TIMESTAMP,
-            TypedValue::CLOB(_) => type_id::CLOB,
-            TypedValue::NCLOB(_) => type_id::NCLOB,
-            TypedValue::BLOB(_) => type_id::BLOB,
-            TypedValue::BOOLEAN(_) => type_id::BOOLEAN,
-            TypedValue::STRING(_) => type_id::STRING,
-            TypedValue::NSTRING(_) => type_id::NSTRING,
-            TypedValue::BSTRING(_) => type_id::BSTRING,
-            // TypedValue::SMALLDECIMAL(_)     => type_id::SMALLDECIMAL,
-            TypedValue::TEXT(_) => type_id::TEXT,
-            TypedValue::SHORTTEXT(_) => type_id::SHORTTEXT,
-            TypedValue::LONGDATE(_) => type_id::LONGDATE,
-            // TypedValue::SECONDDATE(_)       => type_id::SECONDDATE,
-            // TypedValue::DAYDATE(_)          => type_id::DAYDATE,
-            // TypedValue::SECONDTIME(_)       => type_id::SECONDTIME,
-            TypedValue::N_TINYINT(_) => type_id::N_TINYINT,
-            TypedValue::N_SMALLINT(_) => type_id::N_SMALLINT,
-            TypedValue::N_INT(_) => type_id::N_INT,
-            TypedValue::N_BIGINT(_) => type_id::N_BIGINT,
-            TypedValue::N_DECIMAL(_) => type_id::N_DECIMAL,
-            TypedValue::N_REAL(_) => type_id::N_REAL,
-            TypedValue::N_DOUBLE(_) => type_id::N_DOUBLE,
-            TypedValue::N_CHAR(_) => type_id::N_CHAR,
-            TypedValue::N_VARCHAR(_) => type_id::N_VARCHAR,
-            TypedValue::N_NCHAR(_) => type_id::N_NCHAR,
-            TypedValue::N_NVARCHAR(_) => type_id::N_NVARCHAR,
-            TypedValue::N_BINARY(_) => type_id::N_BINARY,
-            TypedValue::N_VARBINARY(_) => type_id::N_VARBINARY,
-            // TypedValue::N_TIMESTAMP(_)       => type_id::N_TIMESTAMP,
-            TypedValue::N_CLOB(_) => type_id::N_CLOB,
-            TypedValue::N_NCLOB(_) => type_id::N_NCLOB,
-            TypedValue::N_BLOB(_) => type_id::N_BLOB,
-            TypedValue::N_BOOLEAN(_) => type_id::N_BOOLEAN,
-            TypedValue::N_STRING(_) => type_id::N_STRING,
-            TypedValue::N_NSTRING(_) => type_id::N_NSTRING,
-            TypedValue::N_BSTRING(_) => type_id::N_BSTRING,
-            // TypedValue::N_SMALLDECIMAL(_)    => type_id::N_SMALLDECIMAL,
-            TypedValue::N_TEXT(_) => type_id::N_TEXT,
-            TypedValue::N_SHORTTEXT(_) => type_id::N_SHORTTEXT,
-            TypedValue::N_LONGDATE(_) => type_id::N_LONGDATE, /* TypedValue::N_SECONDDATE(_)
-                                                               * => type_id::N_SECONDDATE,
-                                                               * TypedValue::N_DAYDATE(_)
-                                                               * => type_id::N_DAYDATE,
-                                                               * TypedValue::N_SECONDTIME(_)
-                                                               * => type_id::N_SECONDTIME, */
+            HdbValue::NOTHING => type_id::NOTHING,
+            HdbValue::TINYINT(_) => type_id::TINYINT,
+            HdbValue::SMALLINT(_) => type_id::SMALLINT,
+            HdbValue::INT(_) => type_id::INT,
+            HdbValue::BIGINT(_) => type_id::BIGINT,
+            HdbValue::DECIMAL(_) => type_id::DECIMAL,
+            HdbValue::REAL(_) => type_id::REAL,
+            HdbValue::DOUBLE(_) => type_id::DOUBLE,
+            HdbValue::CHAR(_) => type_id::CHAR,
+            HdbValue::VARCHAR(_) => type_id::VARCHAR,
+            HdbValue::NCHAR(_) => type_id::NCHAR,
+            HdbValue::NVARCHAR(_) => type_id::NVARCHAR,
+            HdbValue::BINARY(_) => type_id::BINARY,
+            HdbValue::VARBINARY(_) => type_id::VARBINARY,
+            // HdbValue::TIMESTAMP(_)        => type_id::TIMESTAMP,
+            HdbValue::CLOB(_) => type_id::CLOB,
+            HdbValue::NCLOB(_) => type_id::NCLOB,
+            HdbValue::BLOB(_) => type_id::BLOB,
+            HdbValue::BOOLEAN(_) => type_id::BOOLEAN,
+            HdbValue::STRING(_) => type_id::STRING,
+            HdbValue::NSTRING(_) => type_id::NSTRING,
+            HdbValue::BSTRING(_) => type_id::BSTRING,
+            // HdbValue::SMALLDECIMAL(_)     => type_id::SMALLDECIMAL,
+            HdbValue::TEXT(_) => type_id::TEXT,
+            HdbValue::SHORTTEXT(_) => type_id::SHORTTEXT,
+            HdbValue::LONGDATE(_) => type_id::LONGDATE,
+            // HdbValue::SECONDDATE(_)       => type_id::SECONDDATE,
+            // HdbValue::DAYDATE(_)          => type_id::DAYDATE,
+            // HdbValue::SECONDTIME(_)       => type_id::SECONDTIME,
+            HdbValue::N_TINYINT(_) => type_id::N_TINYINT,
+            HdbValue::N_SMALLINT(_) => type_id::N_SMALLINT,
+            HdbValue::N_INT(_) => type_id::N_INT,
+            HdbValue::N_BIGINT(_) => type_id::N_BIGINT,
+            HdbValue::N_DECIMAL(_) => type_id::N_DECIMAL,
+            HdbValue::N_REAL(_) => type_id::N_REAL,
+            HdbValue::N_DOUBLE(_) => type_id::N_DOUBLE,
+            HdbValue::N_CHAR(_) => type_id::N_CHAR,
+            HdbValue::N_VARCHAR(_) => type_id::N_VARCHAR,
+            HdbValue::N_NCHAR(_) => type_id::N_NCHAR,
+            HdbValue::N_NVARCHAR(_) => type_id::N_NVARCHAR,
+            HdbValue::N_BINARY(_) => type_id::N_BINARY,
+            HdbValue::N_VARBINARY(_) => type_id::N_VARBINARY,
+            // HdbValue::N_TIMESTAMP(_)       => type_id::N_TIMESTAMP,
+            HdbValue::N_CLOB(_) => type_id::N_CLOB,
+            HdbValue::N_NCLOB(_) => type_id::N_NCLOB,
+            HdbValue::N_BLOB(_) => type_id::N_BLOB,
+            HdbValue::N_BOOLEAN(_) => type_id::N_BOOLEAN,
+            HdbValue::N_STRING(_) => type_id::N_STRING,
+            HdbValue::N_NSTRING(_) => type_id::N_NSTRING,
+            HdbValue::N_BSTRING(_) => type_id::N_BSTRING,
+            // HdbValue::N_SMALLDECIMAL(_)    => type_id::N_SMALLDECIMAL,
+            HdbValue::N_TEXT(_) => type_id::N_TEXT,
+            HdbValue::N_SHORTTEXT(_) => type_id::N_SHORTTEXT,
+            HdbValue::N_LONGDATE(_) => type_id::N_LONGDATE, /* HdbValue::N_SECONDDATE(_)
+                                                             * => type_id::N_SECONDDATE,
+                                                             * HdbValue::N_DAYDATE(_)
+                                                             * => type_id::N_DAYDATE,
+                                                             * HdbValue::N_SECONDTIME(_)
+                                                             * => type_id::N_SECONDTIME, */
         }
     }
 
@@ -293,100 +293,94 @@ impl TypedValue {
     }
 }
 
-pub fn serialize(tv: &TypedValue, data_pos: &mut i32, w: &mut io::Write) -> HdbResult<()> {
+pub fn serialize(tv: &HdbValue, data_pos: &mut i32, w: &mut io::Write) -> HdbResult<()> {
     if !tv.serialize_type_id(w)? {
         match *tv {
-            TypedValue::NOTHING => {
+            HdbValue::NOTHING => {
                 return Err(HdbError::Impl(
-                    "Can't send TypedValue::NOTHING to Database".to_string(),
+                    "Can't send HdbValue::NOTHING to Database".to_string(),
                 ))
             }
-            TypedValue::TINYINT(u) | TypedValue::N_TINYINT(Some(u)) => w.write_u8(u)?,
+            HdbValue::TINYINT(u) | HdbValue::N_TINYINT(Some(u)) => w.write_u8(u)?,
 
-            TypedValue::SMALLINT(i) | TypedValue::N_SMALLINT(Some(i)) => {
+            HdbValue::SMALLINT(i) | HdbValue::N_SMALLINT(Some(i)) => {
                 w.write_i16::<LittleEndian>(i)?
             }
 
-            TypedValue::INT(i) | TypedValue::N_INT(Some(i)) => w.write_i32::<LittleEndian>(i)?,
+            HdbValue::INT(i) | HdbValue::N_INT(Some(i)) => w.write_i32::<LittleEndian>(i)?,
 
-            TypedValue::BIGINT(i) | TypedValue::N_BIGINT(Some(i)) => {
-                w.write_i64::<LittleEndian>(i)?
-            }
+            HdbValue::BIGINT(i) | HdbValue::N_BIGINT(Some(i)) => w.write_i64::<LittleEndian>(i)?,
 
-            TypedValue::DECIMAL(ref bigdec) | TypedValue::N_DECIMAL(Some(ref bigdec)) => {
+            HdbValue::DECIMAL(ref bigdec) | HdbValue::N_DECIMAL(Some(ref bigdec)) => {
                 serialize_decimal(bigdec, w)?
             }
 
-            TypedValue::REAL(f) | TypedValue::N_REAL(Some(f)) => w.write_f32::<LittleEndian>(f)?,
+            HdbValue::REAL(f) | HdbValue::N_REAL(Some(f)) => w.write_f32::<LittleEndian>(f)?,
 
-            TypedValue::DOUBLE(f) | TypedValue::N_DOUBLE(Some(f)) => {
-                w.write_f64::<LittleEndian>(f)?
-            }
+            HdbValue::DOUBLE(f) | HdbValue::N_DOUBLE(Some(f)) => w.write_f64::<LittleEndian>(f)?,
 
-            TypedValue::BOOLEAN(true) | TypedValue::N_BOOLEAN(Some(true)) => w.write_u8(1)?,
-            TypedValue::BOOLEAN(false) | TypedValue::N_BOOLEAN(Some(false)) => w.write_u8(0)?,
+            HdbValue::BOOLEAN(true) | HdbValue::N_BOOLEAN(Some(true)) => w.write_u8(1)?,
+            HdbValue::BOOLEAN(false) | HdbValue::N_BOOLEAN(Some(false)) => w.write_u8(0)?,
 
-            TypedValue::LONGDATE(ref ld) | TypedValue::N_LONGDATE(Some(ref ld)) => {
+            HdbValue::LONGDATE(ref ld) | HdbValue::N_LONGDATE(Some(ref ld)) => {
                 w.write_i64::<LittleEndian>(*ld.ref_raw())?
             }
 
-            TypedValue::CLOB(ref clob)
-            | TypedValue::N_CLOB(Some(ref clob))
-            | TypedValue::NCLOB(ref clob)
-            | TypedValue::N_NCLOB(Some(ref clob)) => {
-                serialize_clob_header(clob.len()?, data_pos, w)?
-            }
+            HdbValue::CLOB(ref clob)
+            | HdbValue::N_CLOB(Some(ref clob))
+            | HdbValue::NCLOB(ref clob)
+            | HdbValue::N_NCLOB(Some(ref clob)) => serialize_clob_header(clob.len()?, data_pos, w)?,
 
-            TypedValue::BLOB(ref blob) | TypedValue::N_BLOB(Some(ref blob)) => {
+            HdbValue::BLOB(ref blob) | HdbValue::N_BLOB(Some(ref blob)) => {
                 serialize_blob_header(blob.len_alldata(), data_pos, w)?
             }
 
-            TypedValue::STRING(ref s)
-            | TypedValue::NSTRING(ref s)
-            | TypedValue::TEXT(ref s)
-            | TypedValue::SHORTTEXT(ref s)
-            | TypedValue::N_STRING(Some(ref s))
-            | TypedValue::N_NSTRING(Some(ref s))
-            | TypedValue::N_TEXT(Some(ref s))
-            | TypedValue::N_SHORTTEXT(Some(ref s)) => serialize_length_and_string(s, w)?,
+            HdbValue::STRING(ref s)
+            | HdbValue::NSTRING(ref s)
+            | HdbValue::TEXT(ref s)
+            | HdbValue::SHORTTEXT(ref s)
+            | HdbValue::N_STRING(Some(ref s))
+            | HdbValue::N_NSTRING(Some(ref s))
+            | HdbValue::N_TEXT(Some(ref s))
+            | HdbValue::N_SHORTTEXT(Some(ref s)) => serialize_length_and_string(s, w)?,
 
-            TypedValue::BINARY(ref v)
-            | TypedValue::VARBINARY(ref v)
-            | TypedValue::BSTRING(ref v)
-            | TypedValue::N_BINARY(Some(ref v))
-            | TypedValue::N_VARBINARY(Some(ref v))
-            | TypedValue::N_BSTRING(Some(ref v)) => serialize_length_and_bytes(v, w)?,
+            HdbValue::BINARY(ref v)
+            | HdbValue::VARBINARY(ref v)
+            | HdbValue::BSTRING(ref v)
+            | HdbValue::N_BINARY(Some(ref v))
+            | HdbValue::N_VARBINARY(Some(ref v))
+            | HdbValue::N_BSTRING(Some(ref v)) => serialize_length_and_bytes(v, w)?,
 
-            TypedValue::N_TINYINT(None)
-            | TypedValue::N_SMALLINT(None)
-            | TypedValue::N_INT(None)
-            | TypedValue::N_BIGINT(None)
-            | TypedValue::N_DECIMAL(None)
-            | TypedValue::N_REAL(None)
-            | TypedValue::N_DOUBLE(None)
-            | TypedValue::N_BOOLEAN(None)
-            | TypedValue::N_LONGDATE(None)
-            | TypedValue::N_STRING(None)
-            | TypedValue::N_NSTRING(None)
-            | TypedValue::N_TEXT(None)
-            | TypedValue::N_SHORTTEXT(None)
-            | TypedValue::N_CLOB(None)
-            | TypedValue::N_NCLOB(None)
-            | TypedValue::N_BLOB(None)
-            | TypedValue::N_BINARY(None)
-            | TypedValue::N_VARBINARY(None)
-            | TypedValue::N_BSTRING(None) => {}
+            HdbValue::N_TINYINT(None)
+            | HdbValue::N_SMALLINT(None)
+            | HdbValue::N_INT(None)
+            | HdbValue::N_BIGINT(None)
+            | HdbValue::N_DECIMAL(None)
+            | HdbValue::N_REAL(None)
+            | HdbValue::N_DOUBLE(None)
+            | HdbValue::N_BOOLEAN(None)
+            | HdbValue::N_LONGDATE(None)
+            | HdbValue::N_STRING(None)
+            | HdbValue::N_NSTRING(None)
+            | HdbValue::N_TEXT(None)
+            | HdbValue::N_SHORTTEXT(None)
+            | HdbValue::N_CLOB(None)
+            | HdbValue::N_NCLOB(None)
+            | HdbValue::N_BLOB(None)
+            | HdbValue::N_BINARY(None)
+            | HdbValue::N_VARBINARY(None)
+            | HdbValue::N_BSTRING(None) => {}
 
-            TypedValue::CHAR(_)
-            | TypedValue::N_CHAR(_)
-            | TypedValue::NCHAR(_)
-            | TypedValue::N_NCHAR(_)
-            | TypedValue::VARCHAR(_)
-            | TypedValue::N_VARCHAR(_)
-            | TypedValue::NVARCHAR(_)
-            | TypedValue::N_NVARCHAR(_) => {
+            HdbValue::CHAR(_)
+            | HdbValue::N_CHAR(_)
+            | HdbValue::NCHAR(_)
+            | HdbValue::N_NCHAR(_)
+            | HdbValue::VARCHAR(_)
+            | HdbValue::N_VARCHAR(_)
+            | HdbValue::NVARCHAR(_)
+            | HdbValue::N_NVARCHAR(_) => {
                 return Err(HdbError::Impl(format!(
-                    "TypedValue::serialize() not implemented for type code {}",
+                    "HdbValue::serialize() not implemented for type code {}",
                     tv.type_id()
                 )))
             }
@@ -396,87 +390,87 @@ pub fn serialize(tv: &TypedValue, data_pos: &mut i32, w: &mut io::Write) -> HdbR
 }
 
 // is used to calculate the argument size (in serialize)
-pub fn size(tv: &TypedValue) -> HdbResult<usize> {
+pub fn size(tv: &HdbValue) -> HdbResult<usize> {
     Ok(1 + match *tv {
-        TypedValue::NOTHING => {
+        HdbValue::NOTHING => {
             return Err(HdbError::Impl(
-                "Can't send TypedValue::NOTHING to Database".to_string(),
+                "Can't send HdbValue::NOTHING to Database".to_string(),
             ))
         }
-        TypedValue::BOOLEAN(_)
-        | TypedValue::N_BOOLEAN(Some(_))
-        | TypedValue::TINYINT(_)
-        | TypedValue::N_TINYINT(Some(_)) => 1,
+        HdbValue::BOOLEAN(_)
+        | HdbValue::N_BOOLEAN(Some(_))
+        | HdbValue::TINYINT(_)
+        | HdbValue::N_TINYINT(Some(_)) => 1,
 
-        TypedValue::SMALLINT(_) | TypedValue::N_SMALLINT(Some(_)) => 2,
+        HdbValue::SMALLINT(_) | HdbValue::N_SMALLINT(Some(_)) => 2,
 
-        TypedValue::DECIMAL(_) | TypedValue::N_DECIMAL(Some(_)) => 16,
+        HdbValue::DECIMAL(_) | HdbValue::N_DECIMAL(Some(_)) => 16,
 
-        TypedValue::INT(_)
-        | TypedValue::N_INT(Some(_))
-        | TypedValue::REAL(_)
-        | TypedValue::N_REAL(Some(_)) => 4,
+        HdbValue::INT(_)
+        | HdbValue::N_INT(Some(_))
+        | HdbValue::REAL(_)
+        | HdbValue::N_REAL(Some(_)) => 4,
 
-        TypedValue::BIGINT(_)
-        | TypedValue::N_BIGINT(Some(_))
-        | TypedValue::DOUBLE(_)
-        | TypedValue::N_DOUBLE(Some(_))
-        | TypedValue::LONGDATE(_)
-        | TypedValue::N_LONGDATE(Some(_)) => 8,
+        HdbValue::BIGINT(_)
+        | HdbValue::N_BIGINT(Some(_))
+        | HdbValue::DOUBLE(_)
+        | HdbValue::N_DOUBLE(Some(_))
+        | HdbValue::LONGDATE(_)
+        | HdbValue::N_LONGDATE(Some(_)) => 8,
 
-        TypedValue::CLOB(ref clob)
-        | TypedValue::N_CLOB(Some(ref clob))
-        | TypedValue::NCLOB(ref clob)
-        | TypedValue::N_NCLOB(Some(ref clob)) => 9 + clob.len()?,
+        HdbValue::CLOB(ref clob)
+        | HdbValue::N_CLOB(Some(ref clob))
+        | HdbValue::NCLOB(ref clob)
+        | HdbValue::N_NCLOB(Some(ref clob)) => 9 + clob.len()?,
 
-        TypedValue::BLOB(ref blob) | TypedValue::N_BLOB(Some(ref blob)) => 9 + blob.len_alldata(),
+        HdbValue::BLOB(ref blob) | HdbValue::N_BLOB(Some(ref blob)) => 9 + blob.len_alldata(),
 
-        TypedValue::STRING(ref s)
-        | TypedValue::N_STRING(Some(ref s))
-        | TypedValue::NSTRING(ref s)
-        | TypedValue::N_NSTRING(Some(ref s))
-        | TypedValue::TEXT(ref s)
-        | TypedValue::N_TEXT(Some(ref s))
-        | TypedValue::SHORTTEXT(ref s)
-        | TypedValue::N_SHORTTEXT(Some(ref s)) => string_length(s),
+        HdbValue::STRING(ref s)
+        | HdbValue::N_STRING(Some(ref s))
+        | HdbValue::NSTRING(ref s)
+        | HdbValue::N_NSTRING(Some(ref s))
+        | HdbValue::TEXT(ref s)
+        | HdbValue::N_TEXT(Some(ref s))
+        | HdbValue::SHORTTEXT(ref s)
+        | HdbValue::N_SHORTTEXT(Some(ref s)) => string_length(s),
 
-        TypedValue::BINARY(ref v)
-        | TypedValue::N_BINARY(Some(ref v))
-        | TypedValue::VARBINARY(ref v)
-        | TypedValue::N_VARBINARY(Some(ref v))
-        | TypedValue::BSTRING(ref v)
-        | TypedValue::N_BSTRING(Some(ref v)) => v.len() + 2,
+        HdbValue::BINARY(ref v)
+        | HdbValue::N_BINARY(Some(ref v))
+        | HdbValue::VARBINARY(ref v)
+        | HdbValue::N_VARBINARY(Some(ref v))
+        | HdbValue::BSTRING(ref v)
+        | HdbValue::N_BSTRING(Some(ref v)) => v.len() + 2,
 
-        TypedValue::N_TINYINT(None)
-        | TypedValue::N_SMALLINT(None)
-        | TypedValue::N_INT(None)
-        | TypedValue::N_BIGINT(None)
-        | TypedValue::N_DECIMAL(None)
-        | TypedValue::N_REAL(None)
-        | TypedValue::N_DOUBLE(None)
-        | TypedValue::N_BOOLEAN(None)
-        | TypedValue::N_LONGDATE(None)
-        | TypedValue::N_CLOB(None)
-        | TypedValue::N_NCLOB(None)
-        | TypedValue::N_BLOB(None)
-        | TypedValue::N_BINARY(None)
-        | TypedValue::N_VARBINARY(None)
-        | TypedValue::N_BSTRING(None)
-        | TypedValue::N_STRING(None)
-        | TypedValue::N_NSTRING(None)
-        | TypedValue::N_TEXT(None)
-        | TypedValue::N_SHORTTEXT(None) => 0,
+        HdbValue::N_TINYINT(None)
+        | HdbValue::N_SMALLINT(None)
+        | HdbValue::N_INT(None)
+        | HdbValue::N_BIGINT(None)
+        | HdbValue::N_DECIMAL(None)
+        | HdbValue::N_REAL(None)
+        | HdbValue::N_DOUBLE(None)
+        | HdbValue::N_BOOLEAN(None)
+        | HdbValue::N_LONGDATE(None)
+        | HdbValue::N_CLOB(None)
+        | HdbValue::N_NCLOB(None)
+        | HdbValue::N_BLOB(None)
+        | HdbValue::N_BINARY(None)
+        | HdbValue::N_VARBINARY(None)
+        | HdbValue::N_BSTRING(None)
+        | HdbValue::N_STRING(None)
+        | HdbValue::N_NSTRING(None)
+        | HdbValue::N_TEXT(None)
+        | HdbValue::N_SHORTTEXT(None) => 0,
 
-        TypedValue::CHAR(_)
-        | TypedValue::VARCHAR(_)
-        | TypedValue::NCHAR(_)
-        | TypedValue::NVARCHAR(_)
-        | TypedValue::N_CHAR(_)
-        | TypedValue::N_VARCHAR(_)
-        | TypedValue::N_NCHAR(_)
-        | TypedValue::N_NVARCHAR(_) => {
+        HdbValue::CHAR(_)
+        | HdbValue::VARCHAR(_)
+        | HdbValue::NCHAR(_)
+        | HdbValue::NVARCHAR(_)
+        | HdbValue::N_CHAR(_)
+        | HdbValue::N_VARCHAR(_)
+        | HdbValue::N_NCHAR(_)
+        | HdbValue::N_NVARCHAR(_) => {
             return Err(HdbError::Impl(format!(
-                "TypedValue::size() not implemented for type code {}",
+                "HdbValue::size() not implemented for type code {}",
                 tv.type_id()
             )))
         }
@@ -530,92 +524,84 @@ fn serialize_clob_header(s_len: usize, data_pos: &mut i32, w: &mut io::Write) ->
     Ok(())
 }
 
-impl fmt::Display for TypedValue {
+impl fmt::Display for HdbValue {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            TypedValue::NOTHING => write!(fmt, "Value already swapped out"),
-            TypedValue::TINYINT(value) | TypedValue::N_TINYINT(Some(value)) => {
+            HdbValue::NOTHING => write!(fmt, "Value already swapped out"),
+            HdbValue::TINYINT(value) | HdbValue::N_TINYINT(Some(value)) => write!(fmt, "{}", value),
+            HdbValue::SMALLINT(value) | HdbValue::N_SMALLINT(Some(value)) => {
                 write!(fmt, "{}", value)
             }
-            TypedValue::SMALLINT(value) | TypedValue::N_SMALLINT(Some(value)) => {
+            HdbValue::INT(value) | HdbValue::N_INT(Some(value)) => write!(fmt, "{}", value),
+            HdbValue::BIGINT(value) | HdbValue::N_BIGINT(Some(value)) => write!(fmt, "{}", value),
+            HdbValue::DECIMAL(ref value) | HdbValue::N_DECIMAL(Some(ref value)) => {
                 write!(fmt, "{}", value)
             }
-            TypedValue::INT(value) | TypedValue::N_INT(Some(value)) => write!(fmt, "{}", value),
-            TypedValue::BIGINT(value) | TypedValue::N_BIGINT(Some(value)) => {
-                write!(fmt, "{}", value)
-            }
-            TypedValue::DECIMAL(ref value) | TypedValue::N_DECIMAL(Some(ref value)) => {
-                write!(fmt, "{}", value)
-            }
-            TypedValue::REAL(value) | TypedValue::N_REAL(Some(value)) => write!(fmt, "{}", value),
-            TypedValue::DOUBLE(value) | TypedValue::N_DOUBLE(Some(value)) => {
-                write!(fmt, "{}", value)
-            }
-            TypedValue::CHAR(ref value)
-            | TypedValue::N_CHAR(Some(ref value))
-            | TypedValue::VARCHAR(ref value)
-            | TypedValue::N_VARCHAR(Some(ref value))
-            | TypedValue::NCHAR(ref value)
-            | TypedValue::N_NCHAR(Some(ref value))
-            | TypedValue::NVARCHAR(ref value)
-            | TypedValue::N_NVARCHAR(Some(ref value))
-            | TypedValue::STRING(ref value)
-            | TypedValue::N_STRING(Some(ref value))
-            | TypedValue::NSTRING(ref value)
-            | TypedValue::N_NSTRING(Some(ref value))
-            | TypedValue::TEXT(ref value)
-            | TypedValue::N_TEXT(Some(ref value))
-            | TypedValue::SHORTTEXT(ref value)
-            | TypedValue::N_SHORTTEXT(Some(ref value)) => write!(fmt, "{}", value),
-            TypedValue::BINARY(_) | TypedValue::N_BINARY(Some(_)) => write!(fmt, "<BINARY>"),
-            TypedValue::VARBINARY(ref vec) | TypedValue::N_VARBINARY(Some(ref vec)) => {
+            HdbValue::REAL(value) | HdbValue::N_REAL(Some(value)) => write!(fmt, "{}", value),
+            HdbValue::DOUBLE(value) | HdbValue::N_DOUBLE(Some(value)) => write!(fmt, "{}", value),
+            HdbValue::CHAR(ref value)
+            | HdbValue::N_CHAR(Some(ref value))
+            | HdbValue::VARCHAR(ref value)
+            | HdbValue::N_VARCHAR(Some(ref value))
+            | HdbValue::NCHAR(ref value)
+            | HdbValue::N_NCHAR(Some(ref value))
+            | HdbValue::NVARCHAR(ref value)
+            | HdbValue::N_NVARCHAR(Some(ref value))
+            | HdbValue::STRING(ref value)
+            | HdbValue::N_STRING(Some(ref value))
+            | HdbValue::NSTRING(ref value)
+            | HdbValue::N_NSTRING(Some(ref value))
+            | HdbValue::TEXT(ref value)
+            | HdbValue::N_TEXT(Some(ref value))
+            | HdbValue::SHORTTEXT(ref value)
+            | HdbValue::N_SHORTTEXT(Some(ref value)) => write!(fmt, "{}", value),
+            HdbValue::BINARY(_) | HdbValue::N_BINARY(Some(_)) => write!(fmt, "<BINARY>"),
+            HdbValue::VARBINARY(ref vec) | HdbValue::N_VARBINARY(Some(ref vec)) => {
                 write!(fmt, "<VARBINARY length = {}>", vec.len())
             }
-            TypedValue::CLOB(_) | TypedValue::N_CLOB(Some(_)) => write!(fmt, "<CLOB>"),
-            TypedValue::NCLOB(_) | TypedValue::N_NCLOB(Some(_)) => write!(fmt, "<NCLOB>"),
-            TypedValue::BLOB(ref blob) | TypedValue::N_BLOB(Some(ref blob)) => write!(
+            HdbValue::CLOB(_) | HdbValue::N_CLOB(Some(_)) => write!(fmt, "<CLOB>"),
+            HdbValue::NCLOB(_) | HdbValue::N_NCLOB(Some(_)) => write!(fmt, "<NCLOB>"),
+            HdbValue::BLOB(ref blob) | HdbValue::N_BLOB(Some(ref blob)) => write!(
                 fmt,
                 "<BLOB length = {}, read = {}>",
                 blob.len_alldata(),
                 blob.len_readdata()
             ),
-            TypedValue::BOOLEAN(value) | TypedValue::N_BOOLEAN(Some(value)) => {
-                write!(fmt, "{}", value)
-            }
-            TypedValue::BSTRING(_) | TypedValue::N_BSTRING(Some(_)) => write!(fmt, "<BSTRING>"),
-            TypedValue::LONGDATE(ref value) | TypedValue::N_LONGDATE(Some(ref value)) => {
+            HdbValue::BOOLEAN(value) | HdbValue::N_BOOLEAN(Some(value)) => write!(fmt, "{}", value),
+            HdbValue::BSTRING(_) | HdbValue::N_BSTRING(Some(_)) => write!(fmt, "<BSTRING>"),
+            HdbValue::LONGDATE(ref value) | HdbValue::N_LONGDATE(Some(ref value)) => {
                 write!(fmt, "{}", value)
             }
 
-            TypedValue::N_TINYINT(None)
-            | TypedValue::N_SMALLINT(None)
-            | TypedValue::N_INT(None)
-            | TypedValue::N_BIGINT(None)
-            | TypedValue::N_DECIMAL(None)
-            | TypedValue::N_REAL(None)
-            | TypedValue::N_DOUBLE(None)
-            | TypedValue::N_CHAR(None)
-            | TypedValue::N_VARCHAR(None)
-            | TypedValue::N_NCHAR(None)
-            | TypedValue::N_NVARCHAR(None)
-            | TypedValue::N_BINARY(None)
-            | TypedValue::N_VARBINARY(None)
-            | TypedValue::N_CLOB(None)
-            | TypedValue::N_NCLOB(None)
-            | TypedValue::N_BLOB(None)
-            | TypedValue::N_BOOLEAN(None)
-            | TypedValue::N_STRING(None)
-            | TypedValue::N_NSTRING(None)
-            | TypedValue::N_BSTRING(None)
-            | TypedValue::N_TEXT(None)
-            | TypedValue::N_SHORTTEXT(None)
-            | TypedValue::N_LONGDATE(None) => write!(fmt, "<NULL>"),
+            HdbValue::N_TINYINT(None)
+            | HdbValue::N_SMALLINT(None)
+            | HdbValue::N_INT(None)
+            | HdbValue::N_BIGINT(None)
+            | HdbValue::N_DECIMAL(None)
+            | HdbValue::N_REAL(None)
+            | HdbValue::N_DOUBLE(None)
+            | HdbValue::N_CHAR(None)
+            | HdbValue::N_VARCHAR(None)
+            | HdbValue::N_NCHAR(None)
+            | HdbValue::N_NVARCHAR(None)
+            | HdbValue::N_BINARY(None)
+            | HdbValue::N_VARBINARY(None)
+            | HdbValue::N_CLOB(None)
+            | HdbValue::N_NCLOB(None)
+            | HdbValue::N_BLOB(None)
+            | HdbValue::N_BOOLEAN(None)
+            | HdbValue::N_STRING(None)
+            | HdbValue::N_NSTRING(None)
+            | HdbValue::N_BSTRING(None)
+            | HdbValue::N_TEXT(None)
+            | HdbValue::N_SHORTTEXT(None)
+            | HdbValue::N_LONGDATE(None) => write!(fmt, "<NULL>"),
         }
     }
 }
 
 pub mod factory {
-    use super::TypedValue;
+    use super::HdbValue;
     use byteorder::{LittleEndian, ReadBytesExt};
     use protocol::conn_core::AmConnCore;
     use protocol::lob::blob::new_blob_from_db;
@@ -636,7 +622,7 @@ pub mod factory {
         nullable: bool,
         am_conn_core: &AmConnCore,
         rdr: &mut io::BufReader<TcpStream>,
-    ) -> HdbResult<TypedValue> {
+    ) -> HdbResult<HdbValue> {
         // here p_typecode is always < 127
         // the flag nullable from the metadata governs our behavior:
         // if it is true, we return types with typecode above 128, which use
@@ -644,100 +630,100 @@ pub mod factory {
         // typecode, which use plain values
         let typecode = p_typecode + if nullable { 128 } else { 0 };
         match typecode {
-            1 => Ok(TypedValue::TINYINT({
+            1 => Ok(HdbValue::TINYINT({
                 ind_not_null(rdr)?;
                 rdr.read_u8()?
             })),
-            2 => Ok(TypedValue::SMALLINT({
+            2 => Ok(HdbValue::SMALLINT({
                 ind_not_null(rdr)?;
                 rdr.read_i16::<LittleEndian>()?
             })),
-            3 => Ok(TypedValue::INT({
+            3 => Ok(HdbValue::INT({
                 ind_not_null(rdr)?;
                 rdr.read_i32::<LittleEndian>()?
             })),
-            4 => Ok(TypedValue::BIGINT({
+            4 => Ok(HdbValue::BIGINT({
                 ind_not_null(rdr)?;
                 rdr.read_i64::<LittleEndian>()?
             })),
-            5 => Ok(TypedValue::DECIMAL(parse_decimal(rdr)?)),
-            6 => Ok(TypedValue::REAL(parse_real(rdr)?)),
-            7 => Ok(TypedValue::DOUBLE(parse_double(rdr)?)),
-            8 => Ok(TypedValue::CHAR(parse_string(rdr)?)),
-            9 => Ok(TypedValue::VARCHAR(parse_string(rdr)?)),
-            10 => Ok(TypedValue::NCHAR(parse_string(rdr)?)),
-            11 => Ok(TypedValue::NVARCHAR(parse_string(rdr)?)),
-            12 => Ok(TypedValue::BINARY(parse_binary(rdr)?)),
-            13 => Ok(TypedValue::VARBINARY(parse_binary(rdr)?)),
-            // 16 => Ok(TypedValue::TIMESTAMP(
-            25 => Ok(TypedValue::CLOB(parse_clob(am_conn_core, rdr)?)),
-            26 => Ok(TypedValue::NCLOB(parse_clob(am_conn_core, rdr)?)),
-            27 => Ok(TypedValue::BLOB(parse_blob(am_conn_core, rdr)?)),
-            28 => Ok(TypedValue::BOOLEAN(rdr.read_u8()? > 0)),
-            29 => Ok(TypedValue::STRING(parse_string(rdr)?)),
-            30 => Ok(TypedValue::NSTRING(parse_string(rdr)?)),
-            33 => Ok(TypedValue::BSTRING(parse_binary(rdr)?)),
-            // 47 => Ok(TypedValue::SMALLDECIMAL(
-            51 => Ok(TypedValue::TEXT(parse_string(rdr)?)),
-            52 => Ok(TypedValue::SHORTTEXT(parse_string(rdr)?)),
-            61 => Ok(TypedValue::LONGDATE(parse_longdate(rdr)?)),
-            // 62 => Ok(TypedValue::SECONDDATE(
-            // 63 => Ok(TypedValue::DAYDATE(
-            // 64 => Ok(TypedValue::SECONDTIME(
-            129 => Ok(TypedValue::N_TINYINT(if ind_null(rdr)? {
+            5 => Ok(HdbValue::DECIMAL(parse_decimal(rdr)?)),
+            6 => Ok(HdbValue::REAL(parse_real(rdr)?)),
+            7 => Ok(HdbValue::DOUBLE(parse_double(rdr)?)),
+            8 => Ok(HdbValue::CHAR(parse_string(rdr)?)),
+            9 => Ok(HdbValue::VARCHAR(parse_string(rdr)?)),
+            10 => Ok(HdbValue::NCHAR(parse_string(rdr)?)),
+            11 => Ok(HdbValue::NVARCHAR(parse_string(rdr)?)),
+            12 => Ok(HdbValue::BINARY(parse_binary(rdr)?)),
+            13 => Ok(HdbValue::VARBINARY(parse_binary(rdr)?)),
+            // 16 => Ok(HdbValue::TIMESTAMP(
+            25 => Ok(HdbValue::CLOB(parse_clob(am_conn_core, rdr)?)),
+            26 => Ok(HdbValue::NCLOB(parse_clob(am_conn_core, rdr)?)),
+            27 => Ok(HdbValue::BLOB(parse_blob(am_conn_core, rdr)?)),
+            28 => Ok(HdbValue::BOOLEAN(rdr.read_u8()? > 0)),
+            29 => Ok(HdbValue::STRING(parse_string(rdr)?)),
+            30 => Ok(HdbValue::NSTRING(parse_string(rdr)?)),
+            33 => Ok(HdbValue::BSTRING(parse_binary(rdr)?)),
+            // 47 => Ok(HdbValue::SMALLDECIMAL(
+            51 => Ok(HdbValue::TEXT(parse_string(rdr)?)),
+            52 => Ok(HdbValue::SHORTTEXT(parse_string(rdr)?)),
+            61 => Ok(HdbValue::LONGDATE(parse_longdate(rdr)?)),
+            // 62 => Ok(HdbValue::SECONDDATE(
+            // 63 => Ok(HdbValue::DAYDATE(
+            // 64 => Ok(HdbValue::SECONDTIME(
+            129 => Ok(HdbValue::N_TINYINT(if ind_null(rdr)? {
                 None
             } else {
                 Some(rdr.read_u8()?)
             })),
 
-            130 => Ok(TypedValue::N_SMALLINT(if ind_null(rdr)? {
+            130 => Ok(HdbValue::N_SMALLINT(if ind_null(rdr)? {
                 None
             } else {
                 Some(rdr.read_i16::<LittleEndian>()?)
             })),
-            131 => Ok(TypedValue::N_INT(if ind_null(rdr)? {
+            131 => Ok(HdbValue::N_INT(if ind_null(rdr)? {
                 None
             } else {
                 Some(rdr.read_i32::<LittleEndian>()?)
             })),
-            132 => Ok(TypedValue::N_BIGINT(if ind_null(rdr)? {
+            132 => Ok(HdbValue::N_BIGINT(if ind_null(rdr)? {
                 None
             } else {
                 Some(rdr.read_i64::<LittleEndian>()?)
             })),
-            133 => Ok(TypedValue::N_DECIMAL(parse_nullable_decimal(rdr)?)),
-            134 => Ok(TypedValue::N_REAL(parse_nullable_real(rdr)?)),
-            135 => Ok(TypedValue::N_DOUBLE(parse_nullable_double(rdr)?)),
-            136 => Ok(TypedValue::N_CHAR(parse_nullable_string(rdr)?)),
-            137 => Ok(TypedValue::N_VARCHAR(parse_nullable_string(rdr)?)),
-            138 => Ok(TypedValue::N_NCHAR(parse_nullable_string(rdr)?)),
-            139 => Ok(TypedValue::N_NVARCHAR(parse_nullable_string(rdr)?)),
-            140 => Ok(TypedValue::N_BINARY(parse_nullable_binary(rdr)?)),
-            141 => Ok(TypedValue::N_VARBINARY(parse_nullable_binary(rdr)?)),
-            // 144 => Ok(TypedValue::N_TIMESTAMP(
-            153 => Ok(TypedValue::N_CLOB(parse_nullable_clob(am_conn_core, rdr)?)),
-            154 => Ok(TypedValue::N_NCLOB(parse_nullable_clob(am_conn_core, rdr)?)),
-            155 => Ok(TypedValue::N_BLOB(parse_nullable_blob_from_reply(
+            133 => Ok(HdbValue::N_DECIMAL(parse_nullable_decimal(rdr)?)),
+            134 => Ok(HdbValue::N_REAL(parse_nullable_real(rdr)?)),
+            135 => Ok(HdbValue::N_DOUBLE(parse_nullable_double(rdr)?)),
+            136 => Ok(HdbValue::N_CHAR(parse_nullable_string(rdr)?)),
+            137 => Ok(HdbValue::N_VARCHAR(parse_nullable_string(rdr)?)),
+            138 => Ok(HdbValue::N_NCHAR(parse_nullable_string(rdr)?)),
+            139 => Ok(HdbValue::N_NVARCHAR(parse_nullable_string(rdr)?)),
+            140 => Ok(HdbValue::N_BINARY(parse_nullable_binary(rdr)?)),
+            141 => Ok(HdbValue::N_VARBINARY(parse_nullable_binary(rdr)?)),
+            // 144 => Ok(HdbValue::N_TIMESTAMP(
+            153 => Ok(HdbValue::N_CLOB(parse_nullable_clob(am_conn_core, rdr)?)),
+            154 => Ok(HdbValue::N_NCLOB(parse_nullable_clob(am_conn_core, rdr)?)),
+            155 => Ok(HdbValue::N_BLOB(parse_nullable_blob_from_reply(
                 am_conn_core,
                 rdr,
             )?)),
-            156 => Ok(TypedValue::N_BOOLEAN(if ind_null(rdr)? {
+            156 => Ok(HdbValue::N_BOOLEAN(if ind_null(rdr)? {
                 None
             } else {
                 Some(rdr.read_u8()? > 0)
             })),
-            157 => Ok(TypedValue::N_STRING(parse_nullable_string(rdr)?)),
-            158 => Ok(TypedValue::N_NSTRING(parse_nullable_string(rdr)?)),
-            161 => Ok(TypedValue::N_BSTRING(parse_nullable_binary(rdr)?)),
-            // 175 => Ok(TypedValue::N_SMALLDECIMAL(
-            179 => Ok(TypedValue::N_TEXT(parse_nullable_string(rdr)?)),
-            180 => Ok(TypedValue::N_SHORTTEXT(parse_nullable_string(rdr)?)),
-            189 => Ok(TypedValue::N_LONGDATE(parse_nullable_longdate(rdr)?)),
-            // 190 => Ok(TypedValue::N_SECONDDATE(
-            // 191 => Ok(TypedValue::N_DAYDATE(
-            // 192 => Ok(TypedValue::N_SECONDTIME(
+            157 => Ok(HdbValue::N_STRING(parse_nullable_string(rdr)?)),
+            158 => Ok(HdbValue::N_NSTRING(parse_nullable_string(rdr)?)),
+            161 => Ok(HdbValue::N_BSTRING(parse_nullable_binary(rdr)?)),
+            // 175 => Ok(HdbValue::N_SMALLDECIMAL(
+            179 => Ok(HdbValue::N_TEXT(parse_nullable_string(rdr)?)),
+            180 => Ok(HdbValue::N_SHORTTEXT(parse_nullable_string(rdr)?)),
+            189 => Ok(HdbValue::N_LONGDATE(parse_nullable_longdate(rdr)?)),
+            // 190 => Ok(HdbValue::N_SECONDDATE(
+            // 191 => Ok(HdbValue::N_DAYDATE(
+            // 192 => Ok(HdbValue::N_SECONDTIME(
             _ => Err(HdbError::Impl(format!(
-                "TypedValue::parse_from_reply() not implemented for type code {}",
+                "HdbValue::parse_from_reply() not implemented for type code {}",
                 typecode
             ))),
         }
@@ -826,7 +812,7 @@ pub mod factory {
         match cesu8::cesu8_to_string(&parse_binary(rdr)?) {
             Ok(s) => Ok(s),
             Err(e) => {
-                error!("cesu-8 problem occured in typed_value:parse_string()");
+                error!("cesu-8 problem occured in hdb_value:parse_string()");
                 Err(e)
             }
         }
@@ -855,7 +841,7 @@ pub mod factory {
             Some(vec) => match cesu8::cesu8_to_string(&vec) {
                 Ok(s) => Ok(Some(s)),
                 Err(_) => Err(HdbError::Impl(
-                    "cesu-8 problem occured in typed_value:parse_string()".to_owned(),
+                    "cesu-8 problem occured in hdb_value:parse_string()".to_owned(),
                 )),
             },
             None => Ok(None),

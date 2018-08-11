@@ -15,7 +15,7 @@ use hdbconnect::{ConnectParams, Connection, HdbError, HdbResult};
 // cargo test test_011_invalid_password -- --nocapture
 #[test]
 pub fn test_011_invalid_password() {
-    test_utils::init_logger("info,test_011_invalid_password=debug");
+    test_utils::init_logger("info,test_011_invalid_password=info");
     test_011_invalid_password_impl().unwrap();
 }
 
@@ -34,15 +34,13 @@ fn test_011_invalid_password_impl() -> HdbResult<()> {
         "create user DOEDEL password \"Doebcd1234\"",
     ]);
 
-    let minimal_password_length: String = conn.query(
-        "select value from M_PASSWORD_POLICY where property = 'minimal_password_length'",
-    )?
+    let minimal_password_length: String = conn
+        .query("select value from M_PASSWORD_POLICY where property = 'minimal_password_length'")?
         .try_into()?;
     assert_eq!(minimal_password_length, "8");
 
-    let force_first_password_change: String = conn.query(
-        "select value from M_PASSWORD_POLICY where property = 'force_first_password_change'",
-    )?
+    let force_first_password_change: String = conn
+        .query("select value from M_PASSWORD_POLICY where property = 'force_first_password_change'")?
         .try_into()?;
     assert_eq!(force_first_password_change, "true");
 

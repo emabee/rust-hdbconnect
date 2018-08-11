@@ -8,10 +8,10 @@ use std::error::Error;
 use std::{i16, i32, i64, i8, u16, u32, u8};
 use {HdbError, HdbResult};
 
+use protocol::parts::hdb_value::HdbValue;
 use protocol::parts::longdate::LongDate;
 use protocol::parts::resultset::ResultSet;
 use protocol::parts::row::Row;
-use protocol::parts::typed_value::TypedValue;
 
 #[doc(hidden)]
 impl DeserializableResultset for ResultSet {
@@ -55,7 +55,7 @@ impl DeserializableResultset for ResultSet {
 
 #[doc(hidden)]
 impl DeserializableRow for Row {
-    type V = TypedValue;
+    type V = HdbValue;
     type E = HdbError;
 
     // Returns the length of the row.
@@ -64,7 +64,7 @@ impl DeserializableRow for Row {
     }
 
     // Removes and returns the last value.
-    fn pop(&mut self) -> Option<TypedValue> {
+    fn pop(&mut self) -> Option<HdbValue> {
         Row::pop(self)
     }
 
@@ -80,101 +80,101 @@ impl DeserializableRow for Row {
 }
 
 #[doc(hidden)]
-impl DbValue for TypedValue {
+impl DbValue for HdbValue {
     fn is_null(&self) -> bool {
         match *self {
-            TypedValue::N_TINYINT(None)
-            | TypedValue::N_SMALLINT(None)
-            | TypedValue::N_INT(None)
-            | TypedValue::N_BIGINT(None)
-            | TypedValue::N_DECIMAL(None)
-            | TypedValue::N_REAL(None)
-            | TypedValue::N_DOUBLE(None)
-            | TypedValue::N_CHAR(None)
-            | TypedValue::N_VARCHAR(None)
-            | TypedValue::N_NCHAR(None)
-            | TypedValue::N_NVARCHAR(None)
-            | TypedValue::N_BINARY(None)
-            | TypedValue::N_VARBINARY(None)
-            | TypedValue::N_CLOB(None)
-            | TypedValue::N_NCLOB(None)
-            | TypedValue::N_BLOB(None)
-            | TypedValue::N_BOOLEAN(None)
-            | TypedValue::N_STRING(None)
-            | TypedValue::N_NSTRING(None)
-            | TypedValue::N_BSTRING(None)
-            | TypedValue::N_TEXT(None)
-            | TypedValue::N_SHORTTEXT(None)
-            | TypedValue::N_LONGDATE(None) => true,
+            HdbValue::N_TINYINT(None)
+            | HdbValue::N_SMALLINT(None)
+            | HdbValue::N_INT(None)
+            | HdbValue::N_BIGINT(None)
+            | HdbValue::N_DECIMAL(None)
+            | HdbValue::N_REAL(None)
+            | HdbValue::N_DOUBLE(None)
+            | HdbValue::N_CHAR(None)
+            | HdbValue::N_VARCHAR(None)
+            | HdbValue::N_NCHAR(None)
+            | HdbValue::N_NVARCHAR(None)
+            | HdbValue::N_BINARY(None)
+            | HdbValue::N_VARBINARY(None)
+            | HdbValue::N_CLOB(None)
+            | HdbValue::N_NCLOB(None)
+            | HdbValue::N_BLOB(None)
+            | HdbValue::N_BOOLEAN(None)
+            | HdbValue::N_STRING(None)
+            | HdbValue::N_NSTRING(None)
+            | HdbValue::N_BSTRING(None)
+            | HdbValue::N_TEXT(None)
+            | HdbValue::N_SHORTTEXT(None)
+            | HdbValue::N_LONGDATE(None) => true,
 
-            TypedValue::NOTHING
-            | TypedValue::N_TINYINT(Some(_))
-            | TypedValue::N_SMALLINT(Some(_))
-            | TypedValue::N_INT(Some(_))
-            | TypedValue::N_BIGINT(Some(_))
-            | TypedValue::N_DECIMAL(Some(_))
-            | TypedValue::N_REAL(Some(_))
-            | TypedValue::N_DOUBLE(Some(_))
-            | TypedValue::N_CHAR(Some(_))
-            | TypedValue::N_VARCHAR(Some(_))
-            | TypedValue::N_NCHAR(Some(_))
-            | TypedValue::N_NVARCHAR(Some(_))
-            | TypedValue::N_BINARY(Some(_))
-            | TypedValue::N_VARBINARY(Some(_))
-            | TypedValue::N_CLOB(Some(_))
-            | TypedValue::N_NCLOB(Some(_))
-            | TypedValue::N_BLOB(Some(_))
-            | TypedValue::N_BOOLEAN(Some(_))
-            | TypedValue::N_STRING(Some(_))
-            | TypedValue::N_NSTRING(Some(_))
-            | TypedValue::N_BSTRING(Some(_))
-            | TypedValue::N_TEXT(Some(_))
-            | TypedValue::N_SHORTTEXT(Some(_))
-            | TypedValue::N_LONGDATE(Some(_))
-            | TypedValue::TINYINT(_)
-            | TypedValue::SMALLINT(_)
-            | TypedValue::INT(_)
-            | TypedValue::BIGINT(_)
-            | TypedValue::DECIMAL(_)
-            | TypedValue::REAL(_)
-            | TypedValue::DOUBLE(_)
-            | TypedValue::CHAR(_)
-            | TypedValue::VARCHAR(_)
-            | TypedValue::NCHAR(_)
-            | TypedValue::NVARCHAR(_)
-            | TypedValue::BINARY(_)
-            | TypedValue::VARBINARY(_)
-            | TypedValue::CLOB(_)
-            | TypedValue::NCLOB(_)
-            | TypedValue::BLOB(_)
-            | TypedValue::BOOLEAN(_)
-            | TypedValue::STRING(_)
-            | TypedValue::NSTRING(_)
-            | TypedValue::BSTRING(_)
-            | TypedValue::TEXT(_)
-            | TypedValue::SHORTTEXT(_)
-            | TypedValue::LONGDATE(_) => false,
+            HdbValue::NOTHING
+            | HdbValue::N_TINYINT(Some(_))
+            | HdbValue::N_SMALLINT(Some(_))
+            | HdbValue::N_INT(Some(_))
+            | HdbValue::N_BIGINT(Some(_))
+            | HdbValue::N_DECIMAL(Some(_))
+            | HdbValue::N_REAL(Some(_))
+            | HdbValue::N_DOUBLE(Some(_))
+            | HdbValue::N_CHAR(Some(_))
+            | HdbValue::N_VARCHAR(Some(_))
+            | HdbValue::N_NCHAR(Some(_))
+            | HdbValue::N_NVARCHAR(Some(_))
+            | HdbValue::N_BINARY(Some(_))
+            | HdbValue::N_VARBINARY(Some(_))
+            | HdbValue::N_CLOB(Some(_))
+            | HdbValue::N_NCLOB(Some(_))
+            | HdbValue::N_BLOB(Some(_))
+            | HdbValue::N_BOOLEAN(Some(_))
+            | HdbValue::N_STRING(Some(_))
+            | HdbValue::N_NSTRING(Some(_))
+            | HdbValue::N_BSTRING(Some(_))
+            | HdbValue::N_TEXT(Some(_))
+            | HdbValue::N_SHORTTEXT(Some(_))
+            | HdbValue::N_LONGDATE(Some(_))
+            | HdbValue::TINYINT(_)
+            | HdbValue::SMALLINT(_)
+            | HdbValue::INT(_)
+            | HdbValue::BIGINT(_)
+            | HdbValue::DECIMAL(_)
+            | HdbValue::REAL(_)
+            | HdbValue::DOUBLE(_)
+            | HdbValue::CHAR(_)
+            | HdbValue::VARCHAR(_)
+            | HdbValue::NCHAR(_)
+            | HdbValue::NVARCHAR(_)
+            | HdbValue::BINARY(_)
+            | HdbValue::VARBINARY(_)
+            | HdbValue::CLOB(_)
+            | HdbValue::NCLOB(_)
+            | HdbValue::BLOB(_)
+            | HdbValue::BOOLEAN(_)
+            | HdbValue::STRING(_)
+            | HdbValue::NSTRING(_)
+            | HdbValue::BSTRING(_)
+            | HdbValue::TEXT(_)
+            | HdbValue::SHORTTEXT(_)
+            | HdbValue::LONGDATE(_) => false,
         }
     }
 }
 
 #[doc(hidden)]
-impl DbValueInto<bool> for TypedValue {
+impl DbValueInto<bool> for HdbValue {
     fn try_into(self) -> Result<bool, ConversionError> {
         match self {
-            TypedValue::BOOLEAN(b) | TypedValue::N_BOOLEAN(Some(b)) => Ok(b),
+            HdbValue::BOOLEAN(b) | HdbValue::N_BOOLEAN(Some(b)) => Ok(b),
             value => Err(wrong_type(&value, "bool")),
         }
     }
 }
 
 #[doc(hidden)]
-impl DbValueInto<u8> for TypedValue {
+impl DbValueInto<u8> for HdbValue {
     fn try_into(self) -> Result<u8, ConversionError> {
         match self {
-            TypedValue::TINYINT(u) | TypedValue::N_TINYINT(Some(u)) => Ok(u),
+            HdbValue::TINYINT(u) | HdbValue::N_TINYINT(Some(u)) => Ok(u),
 
-            TypedValue::SMALLINT(i) | TypedValue::N_SMALLINT(Some(i)) => {
+            HdbValue::SMALLINT(i) | HdbValue::N_SMALLINT(Some(i)) => {
                 if (i >= 0) && (i <= i16::from(u8::MAX)) {
                     Ok(i as u8)
                 } else {
@@ -182,7 +182,7 @@ impl DbValueInto<u8> for TypedValue {
                 }
             }
 
-            TypedValue::INT(i) | TypedValue::N_INT(Some(i)) => {
+            HdbValue::INT(i) | HdbValue::N_INT(Some(i)) => {
                 if (i >= 0) && (i <= i32::from(u8::MAX)) {
                     Ok(i as u8)
                 } else {
@@ -190,14 +190,14 @@ impl DbValueInto<u8> for TypedValue {
                 }
             }
 
-            TypedValue::BIGINT(i) | TypedValue::N_BIGINT(Some(i)) => {
+            HdbValue::BIGINT(i) | HdbValue::N_BIGINT(Some(i)) => {
                 if (i >= 0) && (i <= i64::from(u8::MAX)) {
                     Ok(i as u8)
                 } else {
                     Err(number_range(i, "u8"))
                 }
             }
-            TypedValue::DECIMAL(bigdec) | TypedValue::N_DECIMAL(Some(bigdec)) => {
+            HdbValue::DECIMAL(bigdec) | HdbValue::N_DECIMAL(Some(bigdec)) => {
                 bigdec.to_u8().ok_or_else(|| decimal_range("u8"))
             }
             value => Err(wrong_type(&value, "u8")),
@@ -206,18 +206,18 @@ impl DbValueInto<u8> for TypedValue {
 }
 
 #[doc(hidden)]
-impl DbValueInto<u16> for TypedValue {
+impl DbValueInto<u16> for HdbValue {
     fn try_into(self) -> Result<u16, ConversionError> {
         match self {
-            TypedValue::TINYINT(u) | TypedValue::N_TINYINT(Some(u)) => Ok(u16::from(u)),
+            HdbValue::TINYINT(u) | HdbValue::N_TINYINT(Some(u)) => Ok(u16::from(u)),
 
-            TypedValue::SMALLINT(i) | TypedValue::N_SMALLINT(Some(i)) => if i >= 0 {
+            HdbValue::SMALLINT(i) | HdbValue::N_SMALLINT(Some(i)) => if i >= 0 {
                 Ok(i as u16)
             } else {
                 Err(number_range(i64::from(i), "u16"))
             },
 
-            TypedValue::INT(i) | TypedValue::N_INT(Some(i)) => {
+            HdbValue::INT(i) | HdbValue::N_INT(Some(i)) => {
                 if (i >= 0) && (i <= i32::from(u16::MAX)) {
                     Ok(i as u16)
                 } else {
@@ -225,14 +225,14 @@ impl DbValueInto<u16> for TypedValue {
                 }
             }
 
-            TypedValue::BIGINT(i) | TypedValue::N_BIGINT(Some(i)) => {
+            HdbValue::BIGINT(i) | HdbValue::N_BIGINT(Some(i)) => {
                 if (i >= 0) && (i <= i64::from(u16::MAX)) {
                     Ok(i as u16)
                 } else {
                     Err(number_range(i, "u16"))
                 }
             }
-            TypedValue::DECIMAL(bigdec) | TypedValue::N_DECIMAL(Some(bigdec)) => {
+            HdbValue::DECIMAL(bigdec) | HdbValue::N_DECIMAL(Some(bigdec)) => {
                 bigdec.to_u16().ok_or_else(|| decimal_range("u16"))
             }
             value => Err(wrong_type(&value, "u16")),
@@ -241,31 +241,31 @@ impl DbValueInto<u16> for TypedValue {
 }
 
 #[doc(hidden)]
-impl DbValueInto<u32> for TypedValue {
+impl DbValueInto<u32> for HdbValue {
     fn try_into(self) -> Result<u32, ConversionError> {
         match self {
-            TypedValue::TINYINT(u) | TypedValue::N_TINYINT(Some(u)) => Ok(u32::from(u)),
+            HdbValue::TINYINT(u) | HdbValue::N_TINYINT(Some(u)) => Ok(u32::from(u)),
 
-            TypedValue::SMALLINT(i) | TypedValue::N_SMALLINT(Some(i)) => if i >= 0 {
+            HdbValue::SMALLINT(i) | HdbValue::N_SMALLINT(Some(i)) => if i >= 0 {
                 Ok(i as u32)
             } else {
                 Err(number_range(i64::from(i), "u32"))
             },
 
-            TypedValue::INT(i) | TypedValue::N_INT(Some(i)) => if i >= 0 {
+            HdbValue::INT(i) | HdbValue::N_INT(Some(i)) => if i >= 0 {
                 Ok(i as u32)
             } else {
                 Err(number_range(i64::from(i), "u32"))
             },
 
-            TypedValue::BIGINT(i) | TypedValue::N_BIGINT(Some(i)) => {
+            HdbValue::BIGINT(i) | HdbValue::N_BIGINT(Some(i)) => {
                 if (i >= 0) && (i <= i64::from(u32::MAX)) {
                     Ok(i as u32)
                 } else {
                     Err(number_range(i, "u32"))
                 }
             }
-            TypedValue::DECIMAL(bigdec) | TypedValue::N_DECIMAL(Some(bigdec)) => {
+            HdbValue::DECIMAL(bigdec) | HdbValue::N_DECIMAL(Some(bigdec)) => {
                 bigdec.to_u32().ok_or_else(|| decimal_range("u32"))
             }
             value => Err(wrong_type(&value, "u32")),
@@ -274,30 +274,30 @@ impl DbValueInto<u32> for TypedValue {
 }
 
 #[doc(hidden)]
-impl DbValueInto<u64> for TypedValue {
+impl DbValueInto<u64> for HdbValue {
     fn try_into(self) -> Result<u64, ConversionError> {
         match self {
-            TypedValue::TINYINT(u) | TypedValue::N_TINYINT(Some(u)) => Ok(u64::from(u)),
+            HdbValue::TINYINT(u) | HdbValue::N_TINYINT(Some(u)) => Ok(u64::from(u)),
 
-            TypedValue::SMALLINT(i) | TypedValue::N_SMALLINT(Some(i)) => if i >= 0 {
+            HdbValue::SMALLINT(i) | HdbValue::N_SMALLINT(Some(i)) => if i >= 0 {
                 Ok(i as u64)
             } else {
                 Err(number_range(i64::from(i), "u64"))
             },
 
-            TypedValue::INT(i) | TypedValue::N_INT(Some(i)) => if i >= 0 {
+            HdbValue::INT(i) | HdbValue::N_INT(Some(i)) => if i >= 0 {
                 Ok(i as u64)
             } else {
                 Err(number_range(i64::from(i), "u64"))
             },
 
-            TypedValue::BIGINT(i) | TypedValue::N_BIGINT(Some(i)) => if i >= 0 {
+            HdbValue::BIGINT(i) | HdbValue::N_BIGINT(Some(i)) => if i >= 0 {
                 Ok(i as u64)
             } else {
                 Err(number_range(i, "u64"))
             },
 
-            TypedValue::DECIMAL(bigdec) | TypedValue::N_DECIMAL(Some(bigdec)) => {
+            HdbValue::DECIMAL(bigdec) | HdbValue::N_DECIMAL(Some(bigdec)) => {
                 bigdec.to_u64().ok_or_else(|| decimal_range("u64"))
             }
             value => Err(wrong_type(&value, "u64")),
@@ -306,16 +306,16 @@ impl DbValueInto<u64> for TypedValue {
 }
 
 #[doc(hidden)]
-impl DbValueInto<i8> for TypedValue {
+impl DbValueInto<i8> for HdbValue {
     fn try_into(self) -> Result<i8, ConversionError> {
         match self {
-            TypedValue::TINYINT(u) | TypedValue::N_TINYINT(Some(u)) => if u <= i8::MAX as u8 {
+            HdbValue::TINYINT(u) | HdbValue::N_TINYINT(Some(u)) => if u <= i8::MAX as u8 {
                 Ok(u as i8)
             } else {
                 Err(number_range(i64::from(u), "i8"))
             },
 
-            TypedValue::SMALLINT(i) | TypedValue::N_SMALLINT(Some(i)) => {
+            HdbValue::SMALLINT(i) | HdbValue::N_SMALLINT(Some(i)) => {
                 if (i >= i16::from(i8::MIN)) && (i <= i16::from(i8::MAX)) {
                     Ok(i as i8)
                 } else {
@@ -323,7 +323,7 @@ impl DbValueInto<i8> for TypedValue {
                 }
             }
 
-            TypedValue::INT(i) | TypedValue::N_INT(Some(i)) => {
+            HdbValue::INT(i) | HdbValue::N_INT(Some(i)) => {
                 if (i >= i32::from(i8::MIN)) && (i <= i32::from(i8::MAX)) {
                     Ok(i as i8)
                 } else {
@@ -331,14 +331,14 @@ impl DbValueInto<i8> for TypedValue {
                 }
             }
 
-            TypedValue::BIGINT(i) | TypedValue::N_BIGINT(Some(i)) => {
+            HdbValue::BIGINT(i) | HdbValue::N_BIGINT(Some(i)) => {
                 if (i >= i64::from(i8::MIN)) && (i <= i64::from(i8::MAX)) {
                     Ok(i as i8)
                 } else {
                     Err(number_range(i, "i8"))
                 }
             }
-            TypedValue::DECIMAL(bigdec) | TypedValue::N_DECIMAL(Some(bigdec)) => {
+            HdbValue::DECIMAL(bigdec) | HdbValue::N_DECIMAL(Some(bigdec)) => {
                 bigdec.to_i8().ok_or_else(|| decimal_range("i8"))
             }
             value => Err(wrong_type(&value, "i8")),
@@ -347,14 +347,14 @@ impl DbValueInto<i8> for TypedValue {
 }
 
 #[doc(hidden)]
-impl DbValueInto<i16> for TypedValue {
+impl DbValueInto<i16> for HdbValue {
     fn try_into(self) -> Result<i16, ConversionError> {
         match self {
-            TypedValue::TINYINT(u) | TypedValue::N_TINYINT(Some(u)) => Ok(i16::from(u)),
+            HdbValue::TINYINT(u) | HdbValue::N_TINYINT(Some(u)) => Ok(i16::from(u)),
 
-            TypedValue::SMALLINT(i) | TypedValue::N_SMALLINT(Some(i)) => Ok(i),
+            HdbValue::SMALLINT(i) | HdbValue::N_SMALLINT(Some(i)) => Ok(i),
 
-            TypedValue::INT(i) | TypedValue::N_INT(Some(i)) => {
+            HdbValue::INT(i) | HdbValue::N_INT(Some(i)) => {
                 if (i >= i32::from(i16::MIN)) && (i <= i32::from(i16::MAX)) {
                     Ok(i as i16)
                 } else {
@@ -362,14 +362,14 @@ impl DbValueInto<i16> for TypedValue {
                 }
             }
 
-            TypedValue::BIGINT(i) | TypedValue::N_BIGINT(Some(i)) => {
+            HdbValue::BIGINT(i) | HdbValue::N_BIGINT(Some(i)) => {
                 if (i >= i64::from(i16::MIN)) && (i <= i64::from(i16::MAX)) {
                     Ok(i as i16)
                 } else {
                     Err(number_range(i, "i16"))
                 }
             }
-            TypedValue::DECIMAL(dec) | TypedValue::N_DECIMAL(Some(dec)) => {
+            HdbValue::DECIMAL(dec) | HdbValue::N_DECIMAL(Some(dec)) => {
                 dec.to_i16().ok_or_else(|| decimal_range("i16"))
             }
             value => Err(wrong_type(&value, "i16")),
@@ -378,23 +378,23 @@ impl DbValueInto<i16> for TypedValue {
 }
 
 #[doc(hidden)]
-impl DbValueInto<i32> for TypedValue {
+impl DbValueInto<i32> for HdbValue {
     fn try_into(self) -> Result<i32, ConversionError> {
         match self {
-            TypedValue::TINYINT(u) | TypedValue::N_TINYINT(Some(u)) => Ok(i32::from(u)),
+            HdbValue::TINYINT(u) | HdbValue::N_TINYINT(Some(u)) => Ok(i32::from(u)),
 
-            TypedValue::SMALLINT(i) | TypedValue::N_SMALLINT(Some(i)) => Ok(i32::from(i)),
+            HdbValue::SMALLINT(i) | HdbValue::N_SMALLINT(Some(i)) => Ok(i32::from(i)),
 
-            TypedValue::INT(i) | TypedValue::N_INT(Some(i)) => Ok(i),
+            HdbValue::INT(i) | HdbValue::N_INT(Some(i)) => Ok(i),
 
-            TypedValue::BIGINT(i) | TypedValue::N_BIGINT(Some(i)) => {
+            HdbValue::BIGINT(i) | HdbValue::N_BIGINT(Some(i)) => {
                 if (i >= i64::from(i32::MIN)) && (i <= i64::from(i32::MAX)) {
                     Ok(i as i32)
                 } else {
                     Err(number_range(i, "i32"))
                 }
             }
-            TypedValue::DECIMAL(bigdec) | TypedValue::N_DECIMAL(Some(bigdec)) => {
+            HdbValue::DECIMAL(bigdec) | HdbValue::N_DECIMAL(Some(bigdec)) => {
                 bigdec.to_i32().ok_or_else(|| decimal_range("i32"))
             }
             value => Err(wrong_type(&value, "i32")),
@@ -403,15 +403,15 @@ impl DbValueInto<i32> for TypedValue {
 }
 
 #[doc(hidden)]
-impl DbValueInto<i64> for TypedValue {
+impl DbValueInto<i64> for HdbValue {
     fn try_into(self) -> Result<i64, ConversionError> {
         match self {
-            TypedValue::TINYINT(u) | TypedValue::N_TINYINT(Some(u)) => Ok(i64::from(u)),
-            TypedValue::SMALLINT(i) | TypedValue::N_SMALLINT(Some(i)) => Ok(i64::from(i)),
-            TypedValue::INT(i) | TypedValue::N_INT(Some(i)) => Ok(i64::from(i)),
-            TypedValue::BIGINT(i) | TypedValue::N_BIGINT(Some(i)) => Ok(i),
-            TypedValue::LONGDATE(ld) | TypedValue::N_LONGDATE(Some(ld)) => Ok(*ld.ref_raw()),
-            TypedValue::DECIMAL(bigdec) | TypedValue::N_DECIMAL(Some(bigdec)) => {
+            HdbValue::TINYINT(u) | HdbValue::N_TINYINT(Some(u)) => Ok(i64::from(u)),
+            HdbValue::SMALLINT(i) | HdbValue::N_SMALLINT(Some(i)) => Ok(i64::from(i)),
+            HdbValue::INT(i) | HdbValue::N_INT(Some(i)) => Ok(i64::from(i)),
+            HdbValue::BIGINT(i) | HdbValue::N_BIGINT(Some(i)) => Ok(i),
+            HdbValue::LONGDATE(ld) | HdbValue::N_LONGDATE(Some(ld)) => Ok(*ld.ref_raw()),
+            HdbValue::DECIMAL(bigdec) | HdbValue::N_DECIMAL(Some(bigdec)) => {
                 bigdec.to_i64().ok_or_else(|| decimal_range("i64"))
             }
             value => Err(wrong_type(&value, "i64")),
@@ -420,71 +420,69 @@ impl DbValueInto<i64> for TypedValue {
 }
 
 #[doc(hidden)]
-impl DbValueInto<f32> for TypedValue {
+impl DbValueInto<f32> for HdbValue {
     fn try_into(self) -> Result<f32, ConversionError> {
         match self {
-            TypedValue::DECIMAL(bigdec) | TypedValue::N_DECIMAL(Some(bigdec)) => {
+            HdbValue::DECIMAL(bigdec) | HdbValue::N_DECIMAL(Some(bigdec)) => {
                 bigdec.to_f32().ok_or_else(|| decimal_range("f32"))
             }
-            TypedValue::REAL(f) | TypedValue::N_REAL(Some(f)) => Ok(f),
+            HdbValue::REAL(f) | HdbValue::N_REAL(Some(f)) => Ok(f),
             value => Err(wrong_type(&value, "f32")),
         }
     }
 }
 
 #[doc(hidden)]
-impl DbValueInto<f64> for TypedValue {
+impl DbValueInto<f64> for HdbValue {
     fn try_into(self) -> Result<f64, ConversionError> {
         match self {
-            TypedValue::DECIMAL(bigdec) | TypedValue::N_DECIMAL(Some(bigdec)) => {
+            HdbValue::DECIMAL(bigdec) | HdbValue::N_DECIMAL(Some(bigdec)) => {
                 bigdec.to_f64().ok_or_else(|| decimal_range("f64"))
             }
-            TypedValue::DOUBLE(f) | TypedValue::N_DOUBLE(Some(f)) => Ok(f),
+            HdbValue::DOUBLE(f) | HdbValue::N_DOUBLE(Some(f)) => Ok(f),
             value => Err(wrong_type(&value, "f64")),
         }
     }
 }
 
 #[doc(hidden)]
-impl DbValueInto<String> for TypedValue {
+impl DbValueInto<String> for HdbValue {
     fn try_into(self) -> Result<String, ConversionError> {
         trace!("try_into -> String");
         match self {
-            TypedValue::TINYINT(i) | TypedValue::N_TINYINT(Some(i)) => Ok(format!("{}", i)),
-            TypedValue::SMALLINT(i) | TypedValue::N_SMALLINT(Some(i)) => Ok(format!("{}", i)),
-            TypedValue::INT(i) | TypedValue::N_INT(Some(i)) => Ok(format!("{}", i)),
-            TypedValue::BIGINT(i) | TypedValue::N_BIGINT(Some(i)) => Ok(format!("{}", i)),
-            TypedValue::REAL(f) | TypedValue::N_REAL(Some(f)) => Ok(format!("{}", f)),
-            TypedValue::DOUBLE(f) | TypedValue::N_DOUBLE(Some(f)) => Ok(format!("{}", f)),
-            TypedValue::CHAR(s)
-            | TypedValue::VARCHAR(s)
-            | TypedValue::NCHAR(s)
-            | TypedValue::NVARCHAR(s)
-            | TypedValue::STRING(s)
-            | TypedValue::NSTRING(s)
-            | TypedValue::TEXT(s)
-            | TypedValue::SHORTTEXT(s)
-            | TypedValue::N_CHAR(Some(s))
-            | TypedValue::N_VARCHAR(Some(s))
-            | TypedValue::N_NCHAR(Some(s))
-            | TypedValue::N_NVARCHAR(Some(s))
-            | TypedValue::N_STRING(Some(s))
-            | TypedValue::N_NSTRING(Some(s))
-            | TypedValue::N_SHORTTEXT(Some(s))
-            | TypedValue::N_TEXT(Some(s)) => Ok(s),
+            HdbValue::TINYINT(i) | HdbValue::N_TINYINT(Some(i)) => Ok(format!("{}", i)),
+            HdbValue::SMALLINT(i) | HdbValue::N_SMALLINT(Some(i)) => Ok(format!("{}", i)),
+            HdbValue::INT(i) | HdbValue::N_INT(Some(i)) => Ok(format!("{}", i)),
+            HdbValue::BIGINT(i) | HdbValue::N_BIGINT(Some(i)) => Ok(format!("{}", i)),
+            HdbValue::REAL(f) | HdbValue::N_REAL(Some(f)) => Ok(format!("{}", f)),
+            HdbValue::DOUBLE(f) | HdbValue::N_DOUBLE(Some(f)) => Ok(format!("{}", f)),
+            HdbValue::CHAR(s)
+            | HdbValue::VARCHAR(s)
+            | HdbValue::NCHAR(s)
+            | HdbValue::NVARCHAR(s)
+            | HdbValue::STRING(s)
+            | HdbValue::NSTRING(s)
+            | HdbValue::TEXT(s)
+            | HdbValue::SHORTTEXT(s)
+            | HdbValue::N_CHAR(Some(s))
+            | HdbValue::N_VARCHAR(Some(s))
+            | HdbValue::N_NCHAR(Some(s))
+            | HdbValue::N_NVARCHAR(Some(s))
+            | HdbValue::N_STRING(Some(s))
+            | HdbValue::N_NSTRING(Some(s))
+            | HdbValue::N_SHORTTEXT(Some(s))
+            | HdbValue::N_TEXT(Some(s)) => Ok(s),
 
-            TypedValue::LONGDATE(ld) | TypedValue::N_LONGDATE(Some(ld)) => {
-                Ok(str_from_longdate(&ld))
-            }
+            HdbValue::LONGDATE(ld) | HdbValue::N_LONGDATE(Some(ld)) => Ok(str_from_longdate(&ld)),
 
-            TypedValue::DECIMAL(hdbdec) | TypedValue::N_DECIMAL(Some(hdbdec)) => {
+            HdbValue::DECIMAL(hdbdec) | HdbValue::N_DECIMAL(Some(hdbdec)) => {
                 Ok(format!("{}", hdbdec))
             }
 
-            TypedValue::CLOB(clob)
-            | TypedValue::NCLOB(clob)
-            | TypedValue::N_CLOB(Some(clob))
-            | TypedValue::N_NCLOB(Some(clob)) => Ok(clob
+            HdbValue::CLOB(clob)
+            | HdbValue::NCLOB(clob)
+            | HdbValue::N_CLOB(Some(clob))
+            | HdbValue::N_NCLOB(Some(clob)) => Ok(clob
                 .into_string()
                 .map_err(|e| ConversionError::Incomplete(e.description().to_owned()))?),
 
@@ -494,11 +492,11 @@ impl DbValueInto<String> for TypedValue {
 }
 
 #[doc(hidden)]
-impl DbValueInto<NaiveDateTime> for TypedValue {
+impl DbValueInto<NaiveDateTime> for HdbValue {
     fn try_into(self) -> Result<NaiveDateTime, ConversionError> {
         trace!("try_into -> NaiveDateTime");
         match self {
-            TypedValue::LONGDATE(ld) | TypedValue::N_LONGDATE(Some(ld)) => {
+            HdbValue::LONGDATE(ld) | HdbValue::N_LONGDATE(Some(ld)) => {
                 let (year, month, day, hour, min, sec, frac) = ld.as_ymd_hms_f();
                 Ok(NaiveDateTime::new(
                     NaiveDate::from_ymd(year, month, day),
@@ -513,43 +511,43 @@ impl DbValueInto<NaiveDateTime> for TypedValue {
 }
 
 #[doc(hidden)]
-impl DbValueInto<Vec<u8>> for TypedValue {
+impl DbValueInto<Vec<u8>> for HdbValue {
     fn try_into(self) -> Result<Vec<u8>, ConversionError> {
         match self {
-            TypedValue::BLOB(blob) | TypedValue::N_BLOB(Some(blob)) => Ok(blob
+            HdbValue::BLOB(blob) | HdbValue::N_BLOB(Some(blob)) => Ok(blob
                 .into_bytes()
                 .map_err(|e| ConversionError::Incomplete(e.description().to_owned()))?),
 
-            TypedValue::BINARY(v)
-            | TypedValue::VARBINARY(v)
-            | TypedValue::BSTRING(v)
-            | TypedValue::N_BINARY(Some(v))
-            | TypedValue::N_VARBINARY(Some(v))
-            | TypedValue::N_BSTRING(Some(v)) => Ok(v),
+            HdbValue::BINARY(v)
+            | HdbValue::VARBINARY(v)
+            | HdbValue::BSTRING(v)
+            | HdbValue::N_BINARY(Some(v))
+            | HdbValue::N_VARBINARY(Some(v))
+            | HdbValue::N_BSTRING(Some(v)) => Ok(v),
 
-            TypedValue::CHAR(s)
-            | TypedValue::VARCHAR(s)
-            | TypedValue::NCHAR(s)
-            | TypedValue::NVARCHAR(s)
-            | TypedValue::STRING(s)
-            | TypedValue::NSTRING(s)
-            | TypedValue::TEXT(s)
-            | TypedValue::SHORTTEXT(s)
-            | TypedValue::N_CHAR(Some(s))
-            | TypedValue::N_VARCHAR(Some(s))
-            | TypedValue::N_NCHAR(Some(s))
-            | TypedValue::N_NVARCHAR(Some(s))
-            | TypedValue::N_STRING(Some(s))
-            | TypedValue::N_NSTRING(Some(s))
-            | TypedValue::N_SHORTTEXT(Some(s))
-            | TypedValue::N_TEXT(Some(s)) => Ok(s.into_bytes()),
+            HdbValue::CHAR(s)
+            | HdbValue::VARCHAR(s)
+            | HdbValue::NCHAR(s)
+            | HdbValue::NVARCHAR(s)
+            | HdbValue::STRING(s)
+            | HdbValue::NSTRING(s)
+            | HdbValue::TEXT(s)
+            | HdbValue::SHORTTEXT(s)
+            | HdbValue::N_CHAR(Some(s))
+            | HdbValue::N_VARCHAR(Some(s))
+            | HdbValue::N_NCHAR(Some(s))
+            | HdbValue::N_NVARCHAR(Some(s))
+            | HdbValue::N_STRING(Some(s))
+            | HdbValue::N_NSTRING(Some(s))
+            | HdbValue::N_SHORTTEXT(Some(s))
+            | HdbValue::N_TEXT(Some(s)) => Ok(s.into_bytes()),
 
             value => Err(wrong_type(&value, "Vec<u8>")),
         }
     }
 }
 
-fn wrong_type(tv: &TypedValue, ovt: &str) -> ConversionError {
+fn wrong_type(tv: &HdbValue, ovt: &str) -> ConversionError {
     ConversionError::ValueType(format!(
         "The value {:?} cannot be converted into type {}",
         tv, ovt

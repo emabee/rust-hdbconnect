@@ -1,6 +1,6 @@
-use super::typed_value::serialize as typed_value_serialize;
-use super::typed_value::size as typed_value_size;
-use super::typed_value::TypedValue;
+use super::hdb_value::serialize as hdb_value_serialize;
+use super::hdb_value::size as hdb_value_size;
+use super::hdb_value::HdbValue;
 use protocol::util;
 use HdbResult;
 
@@ -9,17 +9,17 @@ use std::io;
 /// A single row of parameters; batches can consist of many such rows
 #[derive(Default, Debug, Clone)]
 pub struct ParameterRow {
-    pub values: Vec<TypedValue>,
+    pub values: Vec<HdbValue>,
 }
 impl ParameterRow {
-    pub fn new(vtv: Vec<TypedValue>) -> ParameterRow {
+    pub fn new(vtv: Vec<HdbValue>) -> ParameterRow {
         ParameterRow { values: vtv }
     }
 
     pub fn size(&self) -> HdbResult<usize> {
         let mut size = 0;
         for value in &(self.values) {
-            size += typed_value_size(value)?;
+            size += hdb_value_size(value)?;
         }
         Ok(size)
     }
@@ -29,13 +29,13 @@ impl ParameterRow {
         // serialize the values (LOBs only serialize their header, the data follow
         // below)
         for value in &(self.values) {
-            typed_value_serialize(value, &mut data_pos, w)?;
+            hdb_value_serialize(value, &mut data_pos, w)?;
         }
 
         // serialize LOB data
         for value in &(self.values) {
             match *value {
-                TypedValue::BLOB(ref blob) | TypedValue::N_BLOB(Some(ref blob)) => {
+                HdbValue::BLOB(ref blob) | HdbValue::N_BLOB(Some(ref blob)) => {
                     util::serialize_bytes(blob.ref_to_bytes()?, w)?
                 }
                 _ => {}

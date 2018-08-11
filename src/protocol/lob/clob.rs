@@ -8,8 +8,8 @@ use std::io::{self, Write};
 use std::sync::Arc;
 use {HdbError, HdbResult};
 
-/// CLOB implementation that is used with `TypedValue::CLOB` and
-/// `TypedValue::NCLOB`.
+/// CLOB implementation that is used with `HdbValue::CLOB` and
+/// `HdbValue::NCLOB`.
 #[derive(Clone, Debug)]
 pub struct CLOB(RefCell<ClobHandle>);
 

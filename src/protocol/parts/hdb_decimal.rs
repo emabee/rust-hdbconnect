@@ -159,7 +159,7 @@ mod tests {
 
     #[test]
     fn test_all() {
-        flexi_logger::Logger::with_str("debug").start().unwrap();
+        flexi_logger::Logger::with_str("info").start().unwrap();
 
         str_2_big_2_hdb_2_big("1234.56780000");
         str_2_big_2_hdb_2_big("1234.5678");

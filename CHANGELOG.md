@@ -2,8 +2,10 @@
 
 ## [Unreleased] 
 
-## [0.6.0]  2018-08-10
+## [0.6.0]  2018-08-11
+Minor internal updates.
 
+## [0.5.2 (was meant to be released as 0.6.0)]  2018-08-10
 Replace usage of rust_decimal with BigDecimal and fix insufficient decimal handling, 
 remove HdbDecimal from API (reason for version bump)
 

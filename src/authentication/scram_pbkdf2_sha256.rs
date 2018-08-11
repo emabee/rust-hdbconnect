@@ -81,7 +81,10 @@ impl Authenticator for ScramPbkdf2Sha256 {
             }
         }
 
-        Err(HdbError::Impl("Server proof failed".to_string()))
+        Err(HdbError::Impl(
+            "Server proof failed - this can indicate a severe security issue with the server!"
+                .to_string(),
+        ))
     }
 }
 

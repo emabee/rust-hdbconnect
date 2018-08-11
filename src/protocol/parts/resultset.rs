@@ -206,14 +206,6 @@ impl ResultSet {
         }
     }
 
-    /// Returns the accumulated server processing time
-    /// of the calls that produced this resultset, i.e.
-    /// the initial call and potentially a subsequent number of fetches.
-    #[deprecated]
-    pub fn accumulated_server_processing_time(&self) -> i32 {
-        self.server_resource_consumption_info.acc_server_proc_time
-    }
-
     /// Returns information about the server's resource consumption for this
     /// resultset
     pub fn server_resource_consumption_info(&self) -> ServerResourceConsumptionInfo {
@@ -227,7 +219,7 @@ impl ResultSet {
     /// A resultset is essentially a two-dimensional structure, given as a list
     /// of rows (a <code>Vec&lt;Row&gt;</code>),
     /// where each row is a list of fields (a
-    /// <code>Vec&lt;TypedValue&gt;</code>); the name of each field is
+    /// <code>Vec&lt;HdbValue&gt;</code>); the name of each field is
     /// given in the metadata of the resultset.
     ///
     /// The method supports a variety of target data structures, with the only
@@ -346,10 +338,10 @@ pub mod factory {
     use protocol::part::Parts;
     use protocol::part_attributes::PartAttributes;
     use protocol::partkind::PartKind;
+    use protocol::parts::hdb_value::factory as HdbValueFactory;
+    use protocol::parts::hdb_value::HdbValue;
     use protocol::parts::resultset_metadata::ResultSetMetadata;
     use protocol::parts::statement_context::StatementContext;
-    use protocol::parts::typed_value::factory as TypedValueFactory;
-    use protocol::parts::typed_value::TypedValue;
     use protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
     use std::io;
     use std::net::TcpStream;
@@ -487,7 +479,7 @@ pub mod factory {
         let rs_core = &*guard;
         if let Some(ref am_conn_core) = rs_core.o_am_conn_core {
             for r in 0..no_of_rows {
-                let mut values = Vec::<TypedValue>::new();
+                let mut values = Vec::<HdbValue>::new();
                 trace!("Parsing row {}", r,);
                 for c in 0..no_of_cols {
                     let typecode = resultset
@@ -506,7 +498,7 @@ pub mod factory {
                         nullable
                     );
                     let value =
-                        TypedValueFactory::parse_from_reply(typecode, nullable, am_conn_core, rdr)?;
+                        HdbValueFactory::parse_from_reply(typecode, nullable, am_conn_core, rdr)?;
                     debug!(
                         "Parsed row {}, column {}, value {}, typecode {}, nullable {}",
                         r, c, value, typecode, nullable,

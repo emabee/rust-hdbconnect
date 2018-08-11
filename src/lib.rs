@@ -86,15 +86,5 @@ pub mod type_id {
     pub use protocol::parts::type_id::*;
 }
 
-/// Non-standard types that are used within the
-/// [`HdbValue`](enum.HdbValue.html)s in a [`ResultSet`](struct.ResultSet.html).
-///
-/// A `ResultSet` contains a sequence of Rows, each row is a sequence of
-/// `HdbValue`s. Some of the `HdbValue`s are implemented using `LongDate`,
-/// BLOB, etc.
-pub mod types {
-    pub use protocol::lob::blob::BLOB as BLob;
-    pub use protocol::lob::clob::CLOB as CLob;
-    pub use protocol::parts::longdate::LongDate;
-}
-pub use protocol::parts::typed_value::TypedValue as HdbValue;
+pub mod types;
+pub use protocol::parts::hdb_value::HdbValue;

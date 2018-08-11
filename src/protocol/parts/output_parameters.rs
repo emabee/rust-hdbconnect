@@ -1,7 +1,7 @@
 use {HdbError, HdbResult};
 
+use protocol::parts::hdb_value::HdbValue;
 use protocol::parts::parameter_descriptor::ParameterDescriptor;
-use protocol::parts::typed_value::TypedValue;
 use serde;
 use serde_db::de::DbValue;
 use std::fmt;
@@ -11,7 +11,7 @@ use std::mem;
 #[derive(Clone, Debug)]
 pub struct OutputParameters {
     metadata: Vec<ParameterDescriptor>,
-    values: Vec<TypedValue>,
+    values: Vec<HdbValue>,
 }
 
 impl OutputParameters {
@@ -21,7 +21,7 @@ impl OutputParameters {
         T: serde::de::Deserialize<'de>,
     {
         trace!("OutputParameters::parameter_into()");
-        let mut tmp = TypedValue::NOTHING;
+        let mut tmp = HdbValue::NOTHING;
         mem::swap(&mut self.values[i], &mut tmp);
         Ok(DbValue::into_typed(tmp)?)
     }
@@ -61,11 +61,11 @@ impl fmt::Display for OutputParameters {
 pub mod factory {
     use super::OutputParameters;
     use protocol::conn_core::AmConnCore;
+    use protocol::parts::hdb_value::factory as HdbValueFactory;
+    use protocol::parts::hdb_value::HdbValue;
     use protocol::parts::parameter_descriptor::{
         ParameterBinding, ParameterDescriptor, ParameterDirection,
     };
-    use protocol::parts::typed_value::factory as TypedValueFactory;
-    use protocol::parts::typed_value::TypedValue;
     use std::net::TcpStream;
     use {HdbError, HdbResult};
 
@@ -82,7 +82,7 @@ pub mod factory {
 
         let mut output_pars = OutputParameters {
             metadata: Vec::<ParameterDescriptor>::new(),
-            values: Vec::<TypedValue>::new(),
+            values: Vec::<HdbValue>::new(),
         };
 
         for descriptor in par_md {
@@ -99,7 +99,7 @@ pub mod factory {
                         nullable
                     );
                     let value =
-                        TypedValueFactory::parse_from_reply(typecode, nullable, am_conn_core, rdr)?;
+                        HdbValueFactory::parse_from_reply(typecode, nullable, am_conn_core, rdr)?;
                     trace!("Found value {:?}", value);
                     output_pars.metadata.push(descriptor.clone());
                     output_pars.values.push(value);

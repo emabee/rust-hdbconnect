@@ -1,7 +1,7 @@
 use protocol::lob::blob::BLOB;
 use protocol::lob::clob::CLOB;
+use protocol::parts::hdb_value::HdbValue;
 use protocol::parts::resultset_metadata::ResultSetMetadata;
-use protocol::parts::typed_value::TypedValue;
 use {HdbError, HdbResult};
 
 use serde;
@@ -15,12 +15,12 @@ use std::vec;
 #[derive(Clone, Debug)]
 pub struct Row {
     metadata: Arc<ResultSetMetadata>,
-    values: Vec<TypedValue>,
+    values: Vec<HdbValue>,
 }
 
 impl Row {
     /// Factory for row.
-    pub fn new(metadata: Arc<ResultSetMetadata>, values: Vec<TypedValue>) -> Row {
+    pub fn new(metadata: Arc<ResultSetMetadata>, values: Vec<HdbValue>) -> Row {
         Row { metadata, values }
     }
 
@@ -36,7 +36,7 @@ impl Row {
     }
 
     /// Removes and returns the last value.
-    pub fn pop(&mut self) -> Option<TypedValue> {
+    pub fn pop(&mut self) -> Option<HdbValue> {
         trace!("Row::pop()");
         self.values.pop()
     }
@@ -54,7 +54,7 @@ impl Row {
     }
 
     /// Returns a clone of the ith value.
-    pub fn cloned_value(&self, i: usize) -> HdbResult<TypedValue> {
+    pub fn cloned_value(&self, i: usize) -> HdbResult<HdbValue> {
         trace!("Row::cloned_value()");
         self.values
             .get(i)
@@ -77,12 +77,12 @@ impl Row {
         T: serde::de::Deserialize<'de>,
     {
         trace!("Row::field_into()");
-        if let TypedValue::NOTHING = self.values[i] {
+        if let HdbValue::NOTHING = self.values[i] {
             Err(HdbError::Usage(
                 "Row::field_into() called on Null value".to_owned(),
             ))
         } else {
-            let mut tmp = TypedValue::NOTHING;
+            let mut tmp = HdbValue::NOTHING;
             mem::swap(&mut self.values[i], &mut tmp);
             Ok(DbValue::into_typed(tmp)?)
         }
@@ -97,7 +97,7 @@ impl Row {
         if self.values[i].is_null() {
             Ok(None)
         } else {
-            let mut tmp = TypedValue::NOTHING;
+            let mut tmp = HdbValue::NOTHING;
             mem::swap(&mut self.values[i], &mut tmp);
             Ok(Some(DbValue::into_typed(tmp)?))
         }
@@ -106,11 +106,11 @@ impl Row {
     /// Swaps out a field and converts it into a CLOB.
     pub fn field_into_clob(&mut self, i: usize) -> HdbResult<CLOB> {
         trace!("Row::field_into_clob()");
-        let mut tmp = TypedValue::NOTHING;
+        let mut tmp = HdbValue::NOTHING;
         mem::swap(&mut self.values[i], &mut tmp);
 
         match tmp {
-            TypedValue::CLOB(clob) | TypedValue::N_CLOB(Some(clob)) => Ok(clob),
+            HdbValue::CLOB(clob) | HdbValue::N_CLOB(Some(clob)) => Ok(clob),
             tv => Err(HdbError::Conversion(ConversionError::ValueType(format!(
                 "The value {:?} cannot be converted into a CLOB",
                 tv
@@ -121,11 +121,11 @@ impl Row {
     /// Swaps out a field and converts it into a BLOB.
     pub fn field_into_blob(&mut self, i: usize) -> HdbResult<BLOB> {
         trace!("Row::field_into_blob()");
-        let mut tmp = TypedValue::NOTHING;
+        let mut tmp = HdbValue::NOTHING;
         mem::swap(&mut self.values[i], &mut tmp);
 
         match tmp {
-            TypedValue::BLOB(blob) | TypedValue::N_BLOB(Some(blob)) => Ok(blob),
+            HdbValue::BLOB(blob) | HdbValue::N_BLOB(Some(blob)) => Ok(blob),
             tv => Err(HdbError::Conversion(ConversionError::ValueType(format!(
                 "The value {:?} cannot be converted into a BLOB",
                 tv
@@ -144,8 +144,8 @@ impl Row {
 }
 
 impl IntoIterator for Row {
-    type Item = TypedValue;
-    type IntoIter = vec::IntoIter<TypedValue>;
+    type Item = HdbValue;
+    type IntoIter = vec::IntoIter<HdbValue>;
 
     fn into_iter(self) -> Self::IntoIter {
         trace!("<Row as IntoIterator>::into_iter()");

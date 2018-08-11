@@ -1,4 +1,4 @@
-use super::typed_value::{serialize_length_and_string, string_length};
+use super::hdb_value::{serialize_length_and_string, string_length};
 
 use HdbResult;
 

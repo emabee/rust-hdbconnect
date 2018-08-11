@@ -8,7 +8,7 @@ use std::cmp;
 use std::io::{self, Write};
 use std::sync::Arc;
 
-/// BLOB implementation that is used within `TypedValue::BLOB`.
+/// BLOB implementation that is used within `HdbValue::BLOB`.
 ///
 /// BLOB comes in two flavors, depending on
 /// whether we read it from the database or write it to the database.

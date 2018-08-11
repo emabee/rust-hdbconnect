@@ -23,8 +23,8 @@ pub fn authenticate(
     // Propose some authenticators...
     let authenticators: Vec<Box<dyn Authenticator>> = vec![
         // Cookie,  Gss, Saml, SapLogon, Jwt, Ldap,
-        ScramPbkdf2Sha256::new(),
         ScramSha256::new(),
+        ScramPbkdf2Sha256::new(),
     ];
 
     // ...with the first request.
