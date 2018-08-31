@@ -299,6 +299,7 @@ impl IntoIterator for ResultSet {
     }
 }
 
+#[derive(Debug)]
 pub struct RowIterator {
     rs: ResultSet,
 }

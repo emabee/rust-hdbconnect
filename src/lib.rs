@@ -25,6 +25,7 @@
 
 // #![feature(bufreader_buffer)]
 #![warn(missing_docs)]
+#![deny(missing_debug_implementations)]
 
 extern crate bigdecimal;
 extern crate byteorder;

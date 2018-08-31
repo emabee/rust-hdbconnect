@@ -13,7 +13,7 @@ extern crate sha2;
 
 mod test_utils;
 
-use flexi_logger::{Logger, ReconfigurationHandle};
+use flexi_logger::ReconfigurationHandle;
 use hdbconnect::types::{BLob, CLob};
 use hdbconnect::{Connection, HdbResult};
 use rand::{thread_rng, RngCore};
@@ -25,7 +25,7 @@ use std::io::{self, Read};
 // cargo test test_032_lobs -- --nocapture
 #[test]
 pub fn test_032_lobs() {
-    let mut logger_handle = Logger::with_str("info").start_reconfigurable().unwrap();
+    let mut logger_handle = test_utils::init_logger("info");
 
     match impl_test_032_lobs(&mut logger_handle) {
         Err(e) => {

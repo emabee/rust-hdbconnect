@@ -10,14 +10,14 @@ extern crate serde_json;
 mod test_utils;
 
 use chrono::NaiveDateTime;
+use flexi_logger::ReconfigurationHandle;
 use hdbconnect::{Connection, HdbResult};
-use flexi_logger::{Logger, ReconfigurationHandle};
 use std::thread;
 use std::time::Duration;
 
 #[test] // cargo test --test test_016_selectforupdate -- --nocapture
 pub fn test_016_selectforupdate() {
-    let mut logger_handle = Logger::with_str("info").start_reconfigurable().unwrap();
+    let mut logger_handle = test_utils::init_logger("info");
 
     match impl_test_016_selectforupdate(&mut logger_handle) {
         Err(e) => {
@@ -40,10 +40,14 @@ fn impl_test_016_selectforupdate(logger_handle: &mut ReconfigurationHandle) -> H
 #[allow(dead_code)]
 #[derive(Deserialize)]
 struct TestData {
-    #[serde(rename = "F1_S")] f1: String,
-    #[serde(rename = "F2_I")] f2: Option<i32>,
-    #[serde(rename = "F3_I")] f3: i32,
-    #[serde(rename = "F4_DT")] f4: NaiveDateTime,
+    #[serde(rename = "F1_S")]
+    f1: String,
+    #[serde(rename = "F2_I")]
+    f2: Option<i32>,
+    #[serde(rename = "F3_I")]
+    f3: i32,
+    #[serde(rename = "F4_DT")]
+    f4: NaiveDateTime,
 }
 
 fn prepare(

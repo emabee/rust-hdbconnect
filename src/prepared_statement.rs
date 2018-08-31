@@ -18,6 +18,7 @@ use std::mem;
 
 /// Allows injection-safe SQL execution and repeated calls of the same statement
 /// with different parameters with as few roundtrips as possible.
+#[derive(Debug)]
 pub struct PreparedStatement {
     am_conn_core: AmConnCore,
     statement_id: u64,

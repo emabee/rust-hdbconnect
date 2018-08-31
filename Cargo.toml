@@ -38,6 +38,7 @@ serde_bytes = "0.10"
 flexi_logger = "0.9"
 # flexi_logger = {path = "../flexi_logger"}
 sha2 = "0.7"
+version-sync = "0.5"
 
 [features]
 default = []

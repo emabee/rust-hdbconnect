@@ -25,12 +25,12 @@ pub fn get_system_connection() -> HdbResult<Connection> {
 }
 
 pub fn get_std_connect_params_builder() -> HdbResult<ConnectParamsBuilder> {
-    let filename = format!("db_access_{}.json", get_version());
+    let filename = format!("./.private/db_access_{}.json", get_version());
     connect_params_builder_from_file(filename.as_ref())
 }
 
 pub fn get_system_connect_params_builder() -> HdbResult<ConnectParamsBuilder> {
-    let filename = format!("db_access_system_{}.json", get_version());
+    let filename = format!("./.private/db_access_system_{}.json", get_version());
     connect_params_builder_from_file(filename.as_ref())
 }
 

@@ -1,8 +1,5 @@
+.private
 .vscode
 target
-z_docs
-z_logs
-*.log
-db_access.json
-test_999_dummy.rs
 examples/_*.rs
+Z_TMP
