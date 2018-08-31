@@ -1,4 +1,3 @@
-use protocol::initial_request;
 use protocol::part::Part;
 use protocol::parts::client_info::ClientInfo;
 use protocol::parts::connect_options::ConnectOptions;
@@ -11,8 +10,12 @@ use protocol::reply::parse_message_and_sequence_header;
 use protocol::request::Request;
 use protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
 use protocol::util;
+use stream::connect_params::ConnectParams;
+use stream::initial_request;
 use {HdbError, HdbResult};
 
+use chrono::Local;
+use std::fmt::Write;
 use std::io;
 use std::mem;
 use std::net::TcpStream;
@@ -22,13 +25,12 @@ pub type AmConnCore = Arc<Mutex<ConnectionCore>>;
 
 pub const DEFAULT_FETCH_SIZE: u32 = 32;
 pub const DEFAULT_LOB_READ_LENGTH: i32 = 1_000_000;
+const HOLD_OVER_COMMIT: u8 = 8;
 
 #[derive(Debug)]
 pub struct ConnectionCore {
     authenticated: bool,
     session_id: i64,
-    major_product_version: i8,
-    minor_product_version: i16,
     client_info: ClientInfo,
     client_info_touched: bool,
     command_options: u8,
@@ -47,10 +49,25 @@ pub struct ConnectionCore {
 }
 
 impl ConnectionCore {
-    pub fn initialize(mut tcp_stream: TcpStream) -> HdbResult<AmConnCore> {
-        let (major_product_version, minor_product_version) =
-            initial_request::send_and_receive(&mut tcp_stream)?;
-        const HOLD_OVER_COMMIT: u8 = 8;
+    pub fn initialize(params: &ConnectParams) -> HdbResult<AmConnCore> {
+        let start = Local::now();
+
+        let mut connect_string = String::with_capacity(200);
+        write!(connect_string, "{}:{}", params.hostname(), params.port())?;
+        trace!("Connecting to \"{}\"", connect_string);
+        let tcp_stream = TcpStream::connect(&connect_string as &str)?;
+        trace!(
+            "tcp_stream to {} is initialized ({} µs)",
+            connect_string,
+            Local::now()
+                .signed_duration_since(start)
+                .num_microseconds()
+                .unwrap_or(-1)
+        );
+
+        let mut writer = io::BufWriter::with_capacity(20_480_usize, tcp_stream.try_clone()?);
+        let mut reader = io::BufReader::new(tcp_stream.try_clone()?);
+        initial_request::send_and_receive(&mut writer, &mut reader)?;
 
         Ok(Arc::new(Mutex::new(ConnectionCore {
             authenticated: false,
@@ -61,8 +78,6 @@ impl ConnectionCore {
             server_resource_consumption_info: Default::default(),
             fetch_size: DEFAULT_FETCH_SIZE,
             lob_read_length: DEFAULT_LOB_READ_LENGTH,
-            major_product_version,
-            minor_product_version,
             client_info: Default::default(),
             client_info_touched: false,
             session_state: Default::default(),
@@ -70,8 +85,8 @@ impl ConnectionCore {
             connect_options: Default::default(),
             topology: None,
             warnings: Vec::<ServerError>::new(),
-            writer: io::BufWriter::with_capacity(20_480_usize, tcp_stream.try_clone()?),
-            reader: io::BufReader::new(tcp_stream),
+            writer,
+            reader,
         })))
     }
 
@@ -118,10 +133,6 @@ impl ConnectionCore {
         // StatementContextId::ClientReconnectionWaitTimeout => 6,
 
         Ok(())
-    }
-
-    pub fn get_major_and_minor_product_version(&self) -> (i8, i16) {
-        (self.major_product_version, self.minor_product_version)
     }
 
     pub fn set_auto_commit(&mut self, ac: bool) {

@@ -2,7 +2,6 @@
 //! we model message and segment together.
 //! But we differentiate explicitly between request messages and reply messages.
 use super::argument::Argument;
-use super::conn_core::AmConnCore;
 use super::part::{Part, Parts};
 use super::partkind::PartKind;
 use super::parts::parameter_descriptor::ParameterDescriptor;
@@ -17,6 +16,7 @@ use protocol::reply::Reply;
 use protocol::reply::SkipLastSpace;
 use std::io::{self, Write};
 use std::net::TcpStream;
+use stream::conn_core::AmConnCore;
 use {HdbResponse, HdbResult};
 
 const MESSAGE_HEADER_SIZE: u32 = 32;

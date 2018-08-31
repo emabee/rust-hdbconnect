@@ -3,8 +3,8 @@ use authentication::authenticator::Authenticator;
 use authentication::scram_pbkdf2_sha256::ScramPbkdf2Sha256;
 use authentication::scram_sha256::ScramSha256;
 use hdb_error::HdbResult;
-use protocol::conn_core::AmConnCore;
 use secstr::SecStr;
+use stream::conn_core::AmConnCore;
 
 // Do the authentication.
 //

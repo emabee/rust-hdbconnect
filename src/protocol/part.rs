@@ -1,11 +1,11 @@
 use super::argument::Argument;
-use super::conn_core::AmConnCore;
 use super::part_attributes::PartAttributes;
 use super::partkind::PartKind;
 use super::parts::parameter_descriptor::ParameterDescriptor;
 use super::parts::resultset::ResultSet;
 use super::parts::resultset_metadata::ResultSetMetadata;
 use std::net::TcpStream;
+use stream::conn_core::AmConnCore;
 use {HdbError, HdbResult};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};

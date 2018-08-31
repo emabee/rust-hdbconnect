@@ -603,7 +603,6 @@ impl fmt::Display for HdbValue {
 pub mod factory {
     use super::HdbValue;
     use byteorder::{LittleEndian, ReadBytesExt};
-    use protocol::conn_core::AmConnCore;
     use protocol::lob::blob::new_blob_from_db;
     use protocol::lob::blob::BLOB;
     use protocol::lob::clob::new_clob_from_db;
@@ -615,6 +614,7 @@ pub mod factory {
     use std::iter::repeat;
     use std::net::TcpStream;
     use std::{u32, u64};
+    use stream::conn_core::AmConnCore;
     use {HdbError, HdbResult};
 
     pub fn parse_from_reply(

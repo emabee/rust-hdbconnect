@@ -301,7 +301,7 @@ impl IntoConnectParamsBuilder for Url {
 
 #[cfg(test)]
 mod tests {
-    use connect_params::{IntoConnectParams, IntoConnectParamsBuilder};
+    use stream::connect_params::{IntoConnectParams, IntoConnectParamsBuilder};
     use {ConnectParams, ConnectParamsBuilder};
 
     #[test]

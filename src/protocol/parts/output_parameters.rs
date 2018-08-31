@@ -60,13 +60,13 @@ impl fmt::Display for OutputParameters {
 
 pub mod factory {
     use super::OutputParameters;
-    use protocol::conn_core::AmConnCore;
     use protocol::parts::hdb_value::factory as HdbValueFactory;
     use protocol::parts::hdb_value::HdbValue;
     use protocol::parts::parameter_descriptor::{
         ParameterBinding, ParameterDescriptor, ParameterDirection,
     };
     use std::net::TcpStream;
+    use stream::conn_core::AmConnCore;
     use {HdbError, HdbResult};
 
     use std::io;

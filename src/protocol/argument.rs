@@ -1,4 +1,3 @@
-use super::conn_core::AmConnCore;
 use super::part::Parts;
 use super::part_attributes::PartAttributes;
 use super::partkind::PartKind;
@@ -30,6 +29,7 @@ use protocol::parts::read_lob_request::ReadLobRequest;
 use protocol::parts::session_context::SessionContext;
 use protocol::util;
 use std::net::TcpStream;
+use stream::conn_core::AmConnCore;
 use {HdbError, HdbResult};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};

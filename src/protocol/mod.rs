@@ -1,7 +1,5 @@
 pub mod argument;
 pub mod cesu8;
-pub mod conn_core;
-pub mod initial_request;
 pub mod lob;
 pub mod part;
 pub mod part_attributes;

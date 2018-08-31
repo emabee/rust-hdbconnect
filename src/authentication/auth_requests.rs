@@ -2,7 +2,6 @@ use super::authenticator::Authenticator;
 
 use hdb_error::{HdbError, HdbResult};
 use protocol::argument::Argument;
-use protocol::conn_core::AmConnCore;
 use protocol::part::Part;
 use protocol::partkind::PartKind;
 use protocol::parts::authfields::AuthFields;
@@ -13,6 +12,7 @@ use protocol::reply_type::ReplyType;
 use protocol::request::Request;
 use protocol::request_type::RequestType;
 use secstr::SecStr;
+use stream::conn_core::AmConnCore;
 use username;
 
 pub fn first_auth_request(

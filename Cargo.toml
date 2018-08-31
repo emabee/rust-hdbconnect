@@ -1,6 +1,6 @@
 [package]
 name = "hdbconnect"
-version = "0.6.0"
+version = "0.7.0-tls-1"
 authors = ["emabee <meinolf.block@sap.com>"]
 license = "MIT/Apache-2.0"
 readme = "README.md"
@@ -11,6 +11,9 @@ description = "A pure rust driver for SAP HANA(TM)"
 keywords = ["relational", "database", "driver", "serde", "HANA"]
 categories = ["database"]
 
+[features]
+default = []
+tls = ["rustls"]
 
 [dependencies]
 byteorder = "1.2"
@@ -23,23 +26,21 @@ num = "0.2"
 r2d2 = "0.8"
 rand = "0.5"
 rust-crypto = "0.2"
+rustls = {version = "0.13", optional = true}
 bigdecimal = {version = "0.0.14", features = ["serde"]}
 secstr = "0.3"
 serde = "1.0"
 serde_derive = "1.0"
-serde_db = "0.4"
 #serde_db = { path = "../serde_db" }
+serde_db = "0.4"
 serde_json = "1.0"
 username = "0.2"
 vec_map = "0.8"
 
 [dev-dependencies]
 serde_bytes = "0.10"
-flexi_logger = "0.9"
 # flexi_logger = {path = "../flexi_logger"}
+flexi_logger = "0.9"
 sha2 = "0.7"
 version-sync = "0.5"
 
-[features]
-default = []
-check_buffer = [] 

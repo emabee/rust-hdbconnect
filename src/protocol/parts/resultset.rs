@@ -1,5 +1,5 @@
 use protocol::argument::Argument;
-use protocol::conn_core::AmConnCore;
+use stream::conn_core::AmConnCore;
 use protocol::part::Part;
 use protocol::part_attributes::PartAttributes;
 use protocol::partkind::PartKind;
@@ -335,7 +335,7 @@ impl Iterator for RowIterator {
 pub mod factory {
     use super::{ResultSet, ResultSetCore, Row};
     use protocol::argument::Argument;
-    use protocol::conn_core::AmConnCore;
+    use stream::conn_core::AmConnCore;
     use protocol::part::Parts;
     use protocol::part_attributes::PartAttributes;
     use protocol::partkind::PartKind;

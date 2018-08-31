@@ -1,7 +1,7 @@
-use connect_params::ConnectParams;
 use protocol::parts::command_info::CommandInfo;
 use protocol::parts::server_error::ServerError;
 use protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
+use stream::connect_params::ConnectParams;
 use {HdbError, HdbResponse, HdbResult};
 
 use prepared_statement::factory as PreparedStatementFactory;
@@ -9,20 +9,18 @@ use prepared_statement::PreparedStatement;
 
 use authentication;
 use protocol::argument::Argument;
-use protocol::conn_core::{AmConnCore, ConnectionCore};
 use protocol::part::Part;
 use protocol::partkind::PartKind;
 use protocol::parts::resultset::ResultSet;
 use protocol::reply::SkipLastSpace;
 use protocol::request::Request;
 use protocol::request_type::RequestType;
+use stream::conn_core::{AmConnCore, ConnectionCore};
 use xa_impl::new_resource_manager;
 
 use chrono::Local;
 use dist_tx::rm::ResourceManager;
 use std::error::Error;
-use std::fmt::Write;
-use std::net::TcpStream;
 use std::sync::Arc;
 
 /// Connection object.
@@ -50,23 +48,7 @@ impl Connection {
     pub fn new(params: ConnectParams) -> HdbResult<Connection> {
         trace!("Entering connect()");
         let start = Local::now();
-
-        let mut connect_string = String::with_capacity(200);
-        write!(connect_string, "{}:{}", params.hostname(), params.port())?;
-
-        trace!("Connecting to \"{}\"", connect_string);
-        let tcp_stream = TcpStream::connect(&connect_string as &str)?;
-        trace!("tcp_stream is open");
-
-        let mut am_conn_core = ConnectionCore::initialize(tcp_stream)?;
-        debug!(
-            "connection to {} is initialized ({} µs)",
-            connect_string,
-            Local::now()
-                .signed_duration_since(start)
-                .num_microseconds()
-                .unwrap_or(-1)
-        );
+        let mut am_conn_core = ConnectionCore::initialize(&params)?;
 
         authentication::authenticate(
             &mut (am_conn_core),
@@ -100,13 +82,6 @@ impl Connection {
         self.params.dbuser()
     }
 
-    /// Returns the HANA's product version info.
-    pub fn get_major_and_minor_product_version(&self) -> HdbResult<(i8, i16)> {
-        Ok(self.am_conn_core
-            .lock()?
-            .get_major_and_minor_product_version())
-    }
-
     /// Sets the connection's auto-commit behavior for future calls.
     pub fn set_auto_commit(&mut self, ac: bool) -> HdbResult<()> {
         Ok(self.am_conn_core.lock()?.set_auto_commit(ac))
@@ -127,14 +102,16 @@ impl Connection {
     }
     /// Configures the connection's lob read length for future calls.
     pub fn set_lob_read_length(&mut self, lob_read_length: i32) -> HdbResult<()> {
-        Ok(self.am_conn_core
+        Ok(self
+            .am_conn_core
             .lock()?
             .set_lob_read_length(lob_read_length))
     }
 
     ///
     pub fn get_server_resource_consumption_info(&self) -> HdbResult<ServerResourceConsumptionInfo> {
-        Ok(self.am_conn_core
+        Ok(self
+            .am_conn_core
             .lock()?
             .server_resource_consumption_info()
             .clone())

@@ -2,13 +2,13 @@ use dist_tx::rm::{CResourceManager, CRmWrapper, ErrorCode, Flags, RmError, RmRc,
 use dist_tx::tm::XaTransactionId;
 use hdb_error::HdbResult;
 use protocol::argument::Argument;
-use protocol::conn_core::AmConnCore;
 use protocol::part::Part;
 use protocol::partkind::PartKind;
 use protocol::parts::xat_options::XatOptions;
 use protocol::reply::{Reply, SkipLastSpace};
 use protocol::request::Request;
 use protocol::request_type::RequestType;
+use stream::conn_core::AmConnCore;
 use HdbError;
 
 /// Handle for dealing with distributed transactions that is to be used by a

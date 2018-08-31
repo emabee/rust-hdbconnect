@@ -1,7 +1,7 @@
-use protocol::conn_core::AmConnCore;
 use protocol::lob::fetch_a_lob_chunk::fetch_a_lob_chunk;
 use protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
 use std::cell::RefCell;
+use stream::conn_core::AmConnCore;
 use {HdbError, HdbResult};
 
 use std::cmp;
