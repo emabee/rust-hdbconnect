@@ -53,7 +53,7 @@ impl ConnectionCore {
         let start = Local::now();
 
         let mut connect_string = String::with_capacity(200);
-        write!(connect_string, "{}:{}", params.hostname(), params.port())?;
+        write!(connect_string, "{}:{}", params.host(), params.port())?;
         trace!("Connecting to \"{}\"", connect_string);
         let tcp_stream = TcpStream::connect(&connect_string as &str)?;
         trace!(

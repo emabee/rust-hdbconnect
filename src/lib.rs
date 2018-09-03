@@ -47,8 +47,19 @@ extern crate serde;
 extern crate serde_db;
 #[macro_use]
 extern crate serde_derive;
+extern crate url;
 extern crate username;
 extern crate vec_map;
+
+#[cfg(feature = "tls")]
+extern crate rustls;
+
+#[cfg(feature = "tls")]
+extern crate regex;
+#[cfg(feature = "tls")]
+extern crate webpki;
+#[cfg(feature = "tls")]
+extern crate webpki_roots;
 
 mod authentication;
 mod connection;
@@ -59,7 +70,6 @@ mod impl_serde_db;
 mod prepared_statement;
 mod protocol;
 mod stream;
-mod url;
 mod xa_impl;
 
 pub mod code_examples;

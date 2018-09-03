@@ -18,7 +18,7 @@ use hdbconnect::{ConnectParams, Connection, HdbResult};
 // cargo test test_010_connect -- --nocapture
 #[test]
 pub fn test_010_connect() {
-    test_utils::init_logger("test_010_connect = info, hdbconnect::authentication = info");
+    test_utils::init_logger("test_010_connect = info, hdbconnect = info");
 
     connect_successfully();
     connect_wrong_password();

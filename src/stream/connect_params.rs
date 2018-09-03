@@ -1,8 +1,9 @@
 //! Connection parameters
 use secstr::SecStr;
 use std::env;
+use std::fmt::Debug;
 use std::mem;
-use url::{self, Url};
+use url::{Host, Url};
 use {HdbError, HdbResult};
 
 /// An immutable struct with all information necessary to open a new connection
@@ -22,7 +23,7 @@ use {HdbError, HdbResult};
 /// ```
 #[derive(Clone, Debug)]
 pub struct ConnectParams {
-    hostname: String,
+    host: Host,
     port: u16,
     dbuser: String,
     password: SecStr,
@@ -37,8 +38,8 @@ impl ConnectParams {
     }
 
     /// The target host.
-    pub fn hostname(&self) -> &String {
-        &self.hostname
+    pub fn host(&self) -> &Host {
+        &self.host
     }
 
     /// The target port.
@@ -96,33 +97,27 @@ impl IntoConnectParams for String {
 
 impl IntoConnectParams for Url {
     fn into_connect_params(self) -> HdbResult<ConnectParams> {
-        let Url {
-            host,
-            port,
-            user,
-            path: url::Path { query: options, .. },
-            ..
-        } = self;
-
         let mut builder = ConnectParams::builder();
 
-        if let Some(port) = port {
+        if let Some(port) = self.port() {
             builder.port(port);
         }
 
-        if let Some(info) = user {
-            builder.dbuser(&info.user);
-            if let Some(pass) = info.pass.as_ref().map(|p| &**p) {
-                builder.password(pass);
-            }
+        if !self.username().is_empty() {
+            builder.dbuser(self.username());
+        }
+        if let Some(pass) = self.password() {
+            builder.password(pass);
         }
 
-        for (name, value) in options {
+        for (name, value) in self.query_pairs() {
             builder.option(&name, &value);
         }
 
-        let host = url::decode_component(&host)?;
-        builder.hostname(host);
+        if let Some(host) = self.host() {
+            builder.host(host.to_string());
+        }
+
         builder.build()
     }
 }
@@ -134,7 +129,7 @@ impl IntoConnectParams for Url {
 /// ```
 /// use hdbconnect::ConnectParams;
 /// let connect_params = ConnectParams::builder()
-///     .hostname("abcd123")
+///     .host("abcd123")
 ///     .port(2222)
 ///     .dbuser("MEIER")
 ///     .password("schlau")
@@ -164,9 +159,10 @@ impl ConnectParamsBuilder {
         }
     }
 
-    /// Sets the hostname.
-    pub fn hostname<H: AsRef<str>>(&mut self, hostname: H) -> &mut ConnectParamsBuilder {
-        self.hostname = Some(hostname.as_ref().to_owned());
+    /// Sets the host.
+    pub fn host<H: AsRef<str> + Debug>(&mut self, host: H) -> &mut ConnectParamsBuilder {
+        info!("cpb.host: called with {:?}", host);
+        self.hostname = Some(host.as_ref().to_owned());
         self
     }
 
@@ -212,10 +208,13 @@ impl ConnectParamsBuilder {
 
     /// Constructs a `ConnectParams` from the builder.
     pub fn build(&mut self) -> HdbResult<ConnectParams> {
+        info!("ConnectParamsBuilder: {:?}", self);
         Ok(ConnectParams {
-            hostname: match self.hostname {
-                Some(ref s) => s.clone(),
-                None => return Err(HdbError::Usage("hostname is missing".to_owned())),
+            host: match self.hostname {
+                Some(ref s) => {
+                    Host::parse(s).map_err(|_| HdbError::Usage(format!("bad host: {}", s)))?
+                }
+                None => return Err(HdbError::Usage("host is missing".to_owned())),
             },
             port: match self.port {
                 Some(p) => p,
@@ -268,33 +267,26 @@ impl IntoConnectParamsBuilder for String {
 
 impl IntoConnectParamsBuilder for Url {
     fn into_connect_params_builder(self) -> HdbResult<ConnectParamsBuilder> {
-        let Url {
-            host,
-            port,
-            user,
-            path: url::Path { query: options, .. },
-            ..
-        } = self;
-
         let mut builder = ConnectParams::builder();
 
-        if let Some(port) = port {
+        if let Some(port) = self.port() {
             builder.port(port);
         }
 
-        if let Some(info) = user {
-            builder.dbuser(&info.user);
-            if let Some(pass) = info.pass.as_ref().map(|p| &**p) {
-                builder.password(pass);
-            }
+        if !self.username().is_empty() {
+            builder.dbuser(self.username());
+        }
+        if let Some(pass) = self.password() {
+            builder.password(pass);
         }
 
-        for (name, value) in options {
+        for (name, value) in self.query_pairs() {
             builder.option(&name, &value);
         }
 
-        let host = url::decode_component(&host)?;
-        builder.hostname(host);
+        if let Some(host) = self.host() {
+            builder.host(host.to_string());
+        }
         Ok(builder)
     }
 }
@@ -307,13 +299,13 @@ mod tests {
     #[test]
     fn test_oneliner() {
         let connect_params: ConnectParams = ConnectParams::builder()
-            .hostname("abcd123")
+            .host("abcd123")
             .port(2222)
             .dbuser("MEIER")
             .password("schlau")
             .build()
             .unwrap();
-        assert_eq!("abcd123", connect_params.hostname());
+        assert_eq!("abcd123", connect_params.host().to_string());
         assert_eq!("MEIER", connect_params.dbuser());
         assert_eq!(2222, connect_params.port());
     }
@@ -321,7 +313,7 @@ mod tests {
     #[test]
     fn test_reuse_builder() {
         let mut cp_builder: ConnectParamsBuilder = ConnectParams::builder();
-        cp_builder.hostname("abcd123").port(2222);
+        cp_builder.host("abcd123").port(2222);
         let params1: ConnectParams = cp_builder
             .dbuser("MEIER")
             .password("schlau")
@@ -333,8 +325,8 @@ mod tests {
             .build()
             .unwrap();
 
-        assert_eq!("abcd123", params1.hostname());
-        assert_eq!("abcd123", params2.hostname());
+        assert_eq!("abcd123", params1.host().to_string());
+        assert_eq!("abcd123", params2.host().to_string());
         assert_eq!("MEIER", params1.dbuser());
         assert_eq!(b"schlau", params1.password().unsecure());
         assert_eq!("HALLODRI", params2.dbuser());
@@ -349,7 +341,7 @@ mod tests {
 
         assert_eq!("meier", params.dbuser());
         assert_eq!(b"schLau", params.password().unsecure());
-        assert_eq!("abcd123", params.hostname());
+        assert_eq!("abcd123", params.host().to_string());
         assert_eq!(2222, params.port());
     }
     #[test]
@@ -363,7 +355,7 @@ mod tests {
 
         assert_eq!("meier", params.dbuser());
         assert_eq!(b"GanzArgSchlau", params.password().unsecure());
-        assert_eq!("abcd123", params.hostname());
+        assert_eq!("abcd123", params.host().to_string());
         assert_eq!(2222, params.port());
     }
 }
