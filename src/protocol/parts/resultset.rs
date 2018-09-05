@@ -1,5 +1,4 @@
 use protocol::argument::Argument;
-use stream::conn_core::AmConnCore;
 use protocol::part::Part;
 use protocol::part_attributes::PartAttributes;
 use protocol::partkind::PartKind;
@@ -11,6 +10,7 @@ use protocol::request::Request;
 use protocol::request_type::RequestType;
 use protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
 use protocol::util;
+use stream::conn_core::AmConnCore;
 use {HdbError, HdbResult};
 
 use serde;
@@ -67,9 +67,14 @@ impl ResultSetCore {
                         Argument::ResultSetId(rs_id),
                     ));
 
-                    request.serialize_impl(session_id, next_seq_number, 0, (*conn_guard).writer())?;
+                    request.serialize_impl(
+                        session_id,
+                        next_seq_number,
+                        0,
+                        &mut *((*conn_guard).writer().borrow_mut()),
+                    )?;
 
-                    let rdr = (*conn_guard).reader();
+                    let rdr = &mut *((*conn_guard).reader().borrow_mut());
                     if let Ok((no_of_parts, mut reply)) = parse_message_and_sequence_header(rdr) {
                         for _i in 0..no_of_parts {
                             let (_, pad) =
@@ -335,7 +340,6 @@ impl Iterator for RowIterator {
 pub mod factory {
     use super::{ResultSet, ResultSetCore, Row};
     use protocol::argument::Argument;
-    use stream::conn_core::AmConnCore;
     use protocol::part::Parts;
     use protocol::part_attributes::PartAttributes;
     use protocol::partkind::PartKind;
@@ -345,8 +349,8 @@ pub mod factory {
     use protocol::parts::statement_context::StatementContext;
     use protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
     use std::io;
-    use std::net::TcpStream;
     use std::sync::Arc;
+    use stream::conn_core::AmConnCore;
     use {HdbError, HdbResult};
 
     pub fn resultset_new(
@@ -398,7 +402,7 @@ pub mod factory {
         am_conn_core: &AmConnCore,
         rs_md: Option<&ResultSetMetadata>,
         o_rs: &mut Option<&mut ResultSet>,
-        rdr: &mut io::BufReader<TcpStream>,
+        rdr: &mut io::BufRead,
     ) -> HdbResult<Option<ResultSet>> {
         match *o_rs {
             None => {
@@ -468,7 +472,7 @@ pub mod factory {
     fn parse_rows(
         resultset: &mut ResultSet,
         no_of_rows: i32,
-        rdr: &mut io::BufReader<TcpStream>,
+        rdr: &mut io::BufRead,
     ) -> HdbResult<()> {
         let no_of_cols = resultset.metadata.number_of_fields();
         debug!(

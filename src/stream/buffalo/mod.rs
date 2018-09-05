@@ -1,7 +1,5 @@
 #[cfg(feature = "tls")]
-mod buffalo;
-#[cfg(feature = "tls")]
-mod configuration;
+pub mod buffalo;
 mod plain_connection;
 #[cfg(feature = "tls")]
 mod tls_connection;

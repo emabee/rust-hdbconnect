@@ -16,8 +16,7 @@ use super::util;
 use byteorder::{LittleEndian, ReadBytesExt};
 use hdb_response::factory as HdbResponseFactory;
 use hdb_response::factory::InternalReturnValue;
-use std::io::BufReader;
-use std::net::TcpStream;
+use std::io;
 use {HdbError, HdbResponse, HdbResult};
 
 #[derive(Debug)]
@@ -58,7 +57,7 @@ impl Reply {
         trace!("Reply::parse()");
 
         let mut conn_core = am_conn_core.lock()?;
-        let rdr = (*conn_core).reader();
+        let rdr = &mut *((*conn_core).reader().borrow_mut());
 
         let reply = Reply::parse_impl(o_rs_md, o_par_md, o_rs, am_conn_core, rdr, skip)?;
 
@@ -94,7 +93,7 @@ impl Reply {
         o_par_md: Option<&Vec<ParameterDescriptor>>,
         o_rs: &mut Option<&mut ResultSet>,
         am_conn_core: &AmConnCore,
-        rdr: &mut BufReader<TcpStream>,
+        rdr: &mut io::BufRead,
         skip: SkipLastSpace,
     ) -> HdbResult<Reply> {
         let (no_of_parts, mut reply) = parse_message_and_sequence_header(rdr)?;
@@ -321,7 +320,7 @@ impl Drop for Reply {
 
 ///
 pub fn parse_message_and_sequence_header(
-    rdr: &mut BufReader<TcpStream>,
+    rdr: &mut io::BufRead,
 ) -> HdbResult<(i16, Reply)> {
     // MESSAGE HEADER: 32 bytes
     let session_id: i64 = rdr.read_i64::<LittleEndian>()?; // I8

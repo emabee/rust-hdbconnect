@@ -1,18 +1,17 @@
 use rustls::{ClientSession, Session};
-use std::fmt::Debug;
 use std::io::{self, Read};
 use std::net::TcpStream;
-use std::net::ToSocketAddrs;
 use std::sync::{Arc, Mutex};
-use stream::buffalo::configuration::Configuration;
+use stream::connect_params::ConnectParams;
 
+#[derive(Debug)]
 pub struct TlsStream {
     tcpstream: TcpStream,
     tlsclient: Arc<Mutex<ClientSession>>,
 }
 impl TlsStream {
-    pub fn new<A: ToSocketAddrs + Debug>(config: &Configuration<A>) -> io::Result<TlsStream> {
-        let (tcpstream, tlsclient) = connect_tcp(config)?;
+    pub fn new(params: &ConnectParams) -> io::Result<TlsStream> {
+        let (tcpstream, tlsclient) = connect_tcp(params)?;
         Ok(TlsStream {
             tcpstream,
             tlsclient: Arc::new(Mutex::new(tlsclient)),
@@ -80,13 +79,11 @@ impl TlsStream {
     }
 }
 
-fn connect_tcp<A: ToSocketAddrs + Debug>(
-    config: &Configuration<A>,
-) -> io::Result<(TcpStream, ClientSession)> {
-    debug!("connect_tcp(): Connecting to \"{:?}\"", config.addr());
+fn connect_tcp(params: &ConnectParams) -> io::Result<(TcpStream, ClientSession)> {
+    debug!("connect_tcp(): Connecting to \"{:?}\"", params.addr());
 
-    let tcpstream = TcpStream::connect(config.addr())?;
-    let tlsclient = ClientSession::new(&config.tls_config(), *config.host());
+    let tcpstream = TcpStream::connect(params.addr())?;
+    let tlsclient = ClientSession::new(&params.tls_config()?, params.dns_name_ref());
 
     Ok((tcpstream, tlsclient))
 }

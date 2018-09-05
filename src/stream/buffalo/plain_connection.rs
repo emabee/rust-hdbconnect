@@ -1,41 +1,37 @@
 use std::cell::RefCell;
-use std::fmt::Debug;
 use std::io;
-use std::net::{TcpStream, ToSocketAddrs};
-use std::ops::Deref;
+use std::net::TcpStream;
+use stream::connect_params::ConnectParams;
 
-pub struct PlainConnection<A: ToSocketAddrs + Debug> {
-    addr: Box<A>,
+#[derive(Debug)]
+pub struct PlainConnection {
+    params: ConnectParams,
     reader: RefCell<io::BufReader<TcpStream>>,
     writer: RefCell<io::BufWriter<TcpStream>>,
 }
 
-impl<A: ToSocketAddrs + Debug> PlainConnection<A> {
+impl PlainConnection {
     /// Returns an initialized plain tcp connection
-    pub fn new(addr: A) -> io::Result<(PlainConnection<A>)> {
-        let tcpstream = TcpStream::connect(&addr)?;
-        let conn = PlainConnection {
-            addr: Box::new(addr),
+    pub fn new(params: ConnectParams) -> io::Result<(PlainConnection)> {
+        let tcpstream = TcpStream::connect(params.addr())?;
+        Ok(PlainConnection {
+            params,
             writer: RefCell::new(io::BufWriter::new(tcpstream.try_clone()?)),
             reader: RefCell::new(io::BufReader::new(tcpstream)),
-        };
-
-        Ok(conn)
+        })
     }
 
-    pub fn writer(&self, reconnect: bool) -> io::Result<&RefCell<io::Write>> {
-        if reconnect {
-            self.reconnect().unwrap();
-        }
-        Ok(&self.writer)
+    pub fn writer(&self) -> &RefCell<io::Write> {
+        &self.writer
     }
 
     pub fn reader(&self) -> &RefCell<io::BufRead> {
         &self.reader
     }
 
+    #[allow(dead_code)]
     pub fn reconnect(&self) -> io::Result<()> {
-        let tcpstream = TcpStream::connect(self.addr.deref())?;
+        let tcpstream = TcpStream::connect(self.params.addr())?;
         self.writer
             .replace(io::BufWriter::new(tcpstream.try_clone()?));
         self.reader.replace(io::BufReader::new(tcpstream));

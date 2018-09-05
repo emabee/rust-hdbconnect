@@ -28,7 +28,6 @@ use protocol::parts::lob_flags::LobFlags;
 use protocol::parts::read_lob_request::ReadLobRequest;
 use protocol::parts::session_context::SessionContext;
 use protocol::util;
-use std::net::TcpStream;
 use stream::conn_core::AmConnCore;
 use {HdbError, HdbResult};
 
@@ -207,7 +206,7 @@ impl Argument {
         o_rs_md: Option<&ResultSetMetadata>,
         o_par_md: Option<&Vec<ParameterDescriptor>>,
         o_rs: &mut Option<&mut ResultSet>,
-        rdr: &mut io::BufReader<TcpStream>,
+        rdr: &mut io::BufRead,
     ) -> HdbResult<(Argument, usize)> {
         trace!("Entering parse(no_of_args={}, kind={:?})", no_of_args, kind);
 

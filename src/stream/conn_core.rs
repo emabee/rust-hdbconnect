@@ -10,15 +10,14 @@ use protocol::reply::parse_message_and_sequence_header;
 use protocol::request::Request;
 use protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
 use protocol::util;
+use std::cell::RefCell;
+use stream::buffalo::Buffalo;
 use stream::connect_params::ConnectParams;
 use stream::initial_request;
 use {HdbError, HdbResult};
 
-use chrono::Local;
-use std::fmt::Write;
 use std::io;
 use std::mem;
-use std::net::TcpStream;
 use std::sync::{Arc, Mutex};
 
 pub type AmConnCore = Arc<Mutex<ConnectionCore>>;
@@ -44,30 +43,14 @@ pub struct ConnectionCore {
     connect_options: ConnectOptions,
     topology: Option<Topology>,
     pub warnings: Vec<ServerError>,
-    writer: io::BufWriter<TcpStream>,
-    reader: io::BufReader<TcpStream>,
+    buffalo: Buffalo,
 }
 
 impl ConnectionCore {
-    pub fn initialize(params: &ConnectParams) -> HdbResult<AmConnCore> {
-        let start = Local::now();
+    pub fn initialize(params: ConnectParams) -> HdbResult<AmConnCore> {
+        let mut buffalo = Buffalo::new(params)?;
 
-        let mut connect_string = String::with_capacity(200);
-        write!(connect_string, "{}:{}", params.host(), params.port())?;
-        trace!("Connecting to \"{}\"", connect_string);
-        let tcp_stream = TcpStream::connect(&connect_string as &str)?;
-        trace!(
-            "tcp_stream to {} is initialized ({} µs)",
-            connect_string,
-            Local::now()
-                .signed_duration_since(start)
-                .num_microseconds()
-                .unwrap_or(-1)
-        );
-
-        let mut writer = io::BufWriter::with_capacity(20_480_usize, tcp_stream.try_clone()?);
-        let mut reader = io::BufReader::new(tcp_stream.try_clone()?);
-        initial_request::send_and_receive(&mut writer, &mut reader)?;
+        initial_request::send_and_receive(&mut buffalo)?;
 
         Ok(Arc::new(Mutex::new(ConnectionCore {
             authenticated: false,
@@ -85,8 +68,7 @@ impl ConnectionCore {
             connect_options: Default::default(),
             topology: None,
             warnings: Vec::<ServerError>::new(),
-            writer,
-            reader,
+            buffalo,
         })))
     }
 
@@ -201,12 +183,12 @@ impl ConnectionCore {
         self.session_id
     }
 
-    pub fn reader(&mut self) -> &mut io::BufReader<TcpStream> {
-        &mut self.reader
+    pub fn reader(&self) -> &RefCell<io::BufRead> {
+        self.buffalo.reader()
     }
 
-    pub fn writer(&mut self) -> &mut io::BufWriter<TcpStream> {
-        &mut self.writer
+    pub fn writer(&self) -> &RefCell<io::Write> {
+        self.buffalo.writer()
     }
 
     pub fn next_seq_number(&mut self) -> i32 {
@@ -259,30 +241,37 @@ impl ConnectionCore {
         trace!("Drop of ConnectionCore, session_id = {}", self.session_id);
         if self.authenticated {
             let request = Request::new_for_disconnect();
-            // request.push()
-            request.serialize_impl(self.session_id, self.next_seq_number(), 0, &mut self.writer)?;
-            trace!("Disconnect: request successfully sent");
-            if let Ok((no_of_parts, mut reply)) =
-                parse_message_and_sequence_header(&mut self.reader)
             {
-                trace!(
-                    "Disconnect: response header parsed, now parsing {} parts",
-                    no_of_parts
-                );
-                for _ in 0..no_of_parts {
-                    let (part, padsize) = Part::parse(
-                        &mut (reply.parts),
-                        None,
-                        None,
-                        None,
-                        &mut None,
-                        &mut self.reader,
-                    )?;
-                    util::skip_bytes(padsize, &mut self.reader)?;
-                    debug!("Drop of connection: got Part {:?}", part);
-                }
+                let nsn = self.next_seq_number();
+                let mut writer = self.buffalo.writer().borrow_mut();
+                request.serialize_impl(self.session_id, nsn, 0, &mut *writer)?;
+                writer.flush()?;
+                trace!("Disconnect: request successfully sent");
             }
-            trace!("Disconnect: response successfully parsed");
+            {
+                let mut reader = self.buffalo.reader().borrow_mut();
+                if let Ok((no_of_parts, mut reply)) =
+                    parse_message_and_sequence_header(&mut *reader)
+                {
+                    trace!(
+                        "Disconnect: response header parsed, now parsing {} parts",
+                        no_of_parts
+                    );
+                    for _ in 0..no_of_parts {
+                        let (part, padsize) = Part::parse(
+                            &mut (reply.parts),
+                            None,
+                            None,
+                            None,
+                            &mut None,
+                            &mut *reader,
+                        )?;
+                        util::skip_bytes(padsize, &mut *reader)?;
+                        debug!("Drop of connection: got Part {:?}", part);
+                    }
+                }
+                trace!("Disconnect: response successfully parsed");
+            }
         }
         Ok(())
     }

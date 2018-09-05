@@ -65,7 +65,6 @@ pub mod factory {
     use protocol::parts::parameter_descriptor::{
         ParameterBinding, ParameterDescriptor, ParameterDirection,
     };
-    use std::net::TcpStream;
     use stream::conn_core::AmConnCore;
     use {HdbError, HdbResult};
 
@@ -74,7 +73,7 @@ pub mod factory {
     pub fn parse(
         o_am_conn_core: Option<&AmConnCore>,
         par_md: &[ParameterDescriptor],
-        rdr: &mut io::BufReader<TcpStream>,
+        rdr: &mut io::BufRead,
     ) -> HdbResult<OutputParameters> {
         trace!("OutputParameters::parse()");
         let am_conn_core = o_am_conn_core

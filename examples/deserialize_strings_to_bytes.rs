@@ -8,26 +8,17 @@ extern crate serde_derive;
 extern crate serde_json;
 
 use flexi_logger::Logger;
-use hdbconnect::{ConnectParamsBuilder, Connection, HdbError, HdbResult};
+use hdbconnect::{ConnectParams, Connection, HdbResult, IntoConnectParams};
 use serde_bytes::ByteBuf;
-use std::io::BufReader;
-use std::path::Path;
-use std::fs::File;
+use std::fs::read_to_string;
 
-pub fn connect_params_builder_from_file(s: &'static str) -> HdbResult<ConnectParamsBuilder> {
-    let path = Path::new(s);
-    let reader = BufReader::new(File::open(&path)?);
-    match serde_json::from_reader(reader) {
-        Ok(cpb) => Ok(cpb),
-        Err(e) => {
-            println!("{:?}", e);
-            Err(HdbError::Usage("Cannot read db_access.json".to_owned()))
-        }
-    }
+pub fn connect_params_from_file(s: &'static str) -> HdbResult<ConnectParams> {
+    let url = read_to_string(s)?;
+    url.into_connect_params()
 }
 
 fn get_authenticated_connection() -> HdbResult<Connection> {
-    let params = connect_params_builder_from_file("db_access.json")?.build()?;
+    let params = connect_params_from_file("db_access.json")?;
     Connection::new(params)
 }
 

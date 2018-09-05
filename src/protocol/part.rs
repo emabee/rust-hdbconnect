@@ -4,7 +4,6 @@ use super::partkind::PartKind;
 use super::parts::parameter_descriptor::ParameterDescriptor;
 use super::parts::resultset::ResultSet;
 use super::parts::resultset_metadata::ResultSetMetadata;
-use std::net::TcpStream;
 use stream::conn_core::AmConnCore;
 use {HdbError, HdbResult};
 
@@ -76,7 +75,7 @@ impl Part {
         rs_md: Option<&ResultSetMetadata>,
         par_md: Option<&Vec<ParameterDescriptor>>,
         o_rs: &mut Option<&mut ResultSet>,
-        rdr: &mut io::BufReader<TcpStream>,
+        rdr: &mut io::BufRead,
     ) -> HdbResult<(Part, usize)> {
         trace!("Entering parse()");
         let (kind, attributes, arg_size, no_of_args) = parse_part_header(rdr)?;

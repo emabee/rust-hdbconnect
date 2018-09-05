@@ -13,7 +13,7 @@ extern crate serde_json;
 mod test_utils;
 
 use chrono::Local;
-use hdbconnect::{ConnectParams, Connection, HdbResult};
+use hdbconnect::{ConnectParams, Connection, HdbResult, IntoConnectParams};
 
 // cargo test test_010_connect -- --nocapture
 #[test]
@@ -36,12 +36,10 @@ fn connect_successfully() {
 fn connect_wrong_password() {
     info!("test connect failure on wrong credentials");
     let start = Local::now();
-    let conn_params: ConnectParams = test_utils::get_std_connect_params_builder()
-        .unwrap()
-        .dbuser("bla")
-        .password("blubber")
-        .build()
-        .unwrap();
+    let conn_params: ConnectParams =
+        test_utils::get_wrong_connect_params(None, Some("blabla")).unwrap();
+    assert_eq!(conn_params.password().unsecure(), b"blabla");
+
     let err = Connection::new(conn_params).err().unwrap();
     info!(
         "connect with wrong password failed as expected, after {} µs with {}.",
@@ -55,11 +53,12 @@ fn connect_wrong_password() {
 
 fn connect_and_select_1() -> HdbResult<()> {
     info!("test a successful connection and do some simple selects with explicit clientlocale");
-    let conn_params: ConnectParams = test_utils::get_std_connect_params_builder()
-        .unwrap()
-        .clientlocale("en_US")
-        .build()
-        .unwrap();
+
+    let mut url = test_utils::get_std_connect_url()?;
+    url.push_str("?client_locale=en_US");
+    let conn_params = url.into_connect_params()?;
+    assert_eq!(conn_params.clientlocale().as_ref().unwrap(), "en_US");
+
     let mut connection = Connection::new(conn_params)?;
     select_version_and_user(&mut connection)?;
     debug!("{} calls to DB were executed", connection.get_call_count()?);
@@ -68,11 +67,12 @@ fn connect_and_select_1() -> HdbResult<()> {
 
 fn connect_and_select_2() -> HdbResult<()> {
     info!("test a successful connection and do some simple selects with client locale from env");
-    let conn_params: ConnectParams = test_utils::get_std_connect_params_builder()
-        .unwrap()
-        .clientlocale_from_env_lang()
-        .build()
-        .unwrap();
+
+    let mut url = test_utils::get_std_connect_url()?;
+    url.push_str("?client_locale_from_env=1");
+    let conn_params: ConnectParams = url.into_connect_params()?;
+    assert!(conn_params.clientlocale().is_some());
+
     let mut connection = Connection::new(conn_params)?;
     select_version_and_user(&mut connection)?;
     debug!("{} calls to DB were executed", connection.get_call_count()?);
@@ -93,9 +93,7 @@ fn select_version_and_user(connection: &mut Connection) -> HdbResult<()> {
 
     assert_eq!(
         &version_and_user.current_user,
-        test_utils::get_std_connect_params_builder()?
-            .build()?
-            .dbuser()
+        test_utils::get_std_connect_params()?.dbuser()
     );
 
     debug!("VersionAndUser: {:?}", version_and_user);

@@ -14,8 +14,7 @@ use byteorder::{LittleEndian, WriteBytesExt};
 use chrono::Local;
 use protocol::reply::Reply;
 use protocol::reply::SkipLastSpace;
-use std::io::{self, Write};
-use std::net::TcpStream;
+use std::io;
 use stream::conn_core::AmConnCore;
 use {HdbResponse, HdbResult};
 
@@ -148,12 +147,9 @@ impl Request {
         let mut guard = am_conn_core.lock()?;
         let auto_commit_flag: i8 = if (*guard).is_auto_commit() { 1 } else { 0 };
         let conn_core = &mut *guard;
-        self.serialize_impl(
-            conn_core.session_id(),
-            conn_core.next_seq_number(),
-            auto_commit_flag,
-            &mut conn_core.writer(),
-        )
+        let nsn = conn_core.next_seq_number();
+        let writer = &mut *(conn_core.writer().borrow_mut());
+        self.serialize_impl(conn_core.session_id(), nsn, auto_commit_flag, writer)
     }
 
     pub fn serialize_impl(
@@ -161,7 +157,7 @@ impl Request {
         session_id: i64,
         seq_number: i32,
         auto_commit_flag: i8,
-        w: &mut io::BufWriter<TcpStream>,
+        w: &mut io::Write,
     ) -> HdbResult<()> {
         let varpart_size = self.varpart_size()?;
         let total_size = MESSAGE_HEADER_SIZE + varpart_size;

@@ -14,10 +14,7 @@ use std::time::Duration;
 fn test_080_conn_pooling_with_r2d2() {
     test_utils::init_logger("test_080_conn_pooling_with_r2d2 = info");
 
-    let conn_params = test_utils::get_std_connect_params_builder()
-        .unwrap()
-        .build()
-        .unwrap();
+    let conn_params = test_utils::get_std_connect_params().unwrap();
     let manager = ConnectionManager::new(&conn_params);
     let pool = r2d2::Pool::builder().max_size(15).build(manager).unwrap();
 

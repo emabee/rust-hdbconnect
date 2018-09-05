@@ -5,7 +5,7 @@ A pure rust SQL driver for SAP HANA(TM).
 Add hdbconnect to the dependencies section in your project's `Cargo.toml`, with
 ```toml
 [dependencies]
-hdbconnect = "0.6"
+hdbconnect = "0.7.*"
 ```
 
 and add this to your crate root:

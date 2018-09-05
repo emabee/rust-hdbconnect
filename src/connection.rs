@@ -48,7 +48,8 @@ impl Connection {
     pub fn new(params: ConnectParams) -> HdbResult<Connection> {
         trace!("Entering connect()");
         let start = Local::now();
-        let mut am_conn_core = ConnectionCore::initialize(&params)?;
+
+        let mut am_conn_core = ConnectionCore::initialize(params.clone())?;
 
         authentication::authenticate(
             &mut (am_conn_core),
@@ -75,11 +76,6 @@ impl Connection {
             params,
             am_conn_core,
         })
-    }
-
-    /// Returns the DB which was used to authenticate at HANA.
-    pub fn get_user(&self) -> &str {
-        self.params.dbuser()
     }
 
     /// Sets the connection's auto-commit behavior for future calls.

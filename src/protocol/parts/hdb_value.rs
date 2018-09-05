@@ -612,7 +612,6 @@ pub mod factory {
     use protocol::{cesu8, util};
     use std::io;
     use std::iter::repeat;
-    use std::net::TcpStream;
     use std::{u32, u64};
     use stream::conn_core::AmConnCore;
     use {HdbError, HdbResult};
@@ -621,7 +620,7 @@ pub mod factory {
         p_typecode: u8,
         nullable: bool,
         am_conn_core: &AmConnCore,
-        rdr: &mut io::BufReader<TcpStream>,
+        rdr: &mut io::BufRead,
     ) -> HdbResult<HdbValue> {
         // here p_typecode is always < 127
         // the flag nullable from the metadata governs our behavior:
@@ -808,7 +807,7 @@ pub mod factory {
 
     // ----- STRINGS and BINARIES
     // ----------------------------------------------------------------
-    pub fn parse_string(rdr: &mut io::BufReader<TcpStream>) -> HdbResult<String> {
+    pub fn parse_string(rdr: &mut io::BufRead) -> HdbResult<String> {
         match cesu8::cesu8_to_string(&parse_binary(rdr)?) {
             Ok(s) => Ok(s),
             Err(e) => {
@@ -818,7 +817,7 @@ pub mod factory {
         }
     }
 
-    fn parse_binary(rdr: &mut io::BufReader<TcpStream>) -> HdbResult<Vec<u8>> {
+    fn parse_binary(rdr: &mut io::BufRead) -> HdbResult<Vec<u8>> {
         let l8 = rdr.read_u8()?; // B1
         let len = match l8 {
             l if l <= super::MAX_1_BYTE_LENGTH => l8 as usize,
@@ -870,10 +869,7 @@ pub mod factory {
     // ----- BLOBS and CLOBS
     // ===
     // regular parse
-    pub fn parse_blob(
-        am_conn_core: &AmConnCore,
-        rdr: &mut io::BufReader<TcpStream>,
-    ) -> HdbResult<BLOB> {
+    pub fn parse_blob(am_conn_core: &AmConnCore, rdr: &mut io::BufRead) -> HdbResult<BLOB> {
         match parse_nullable_blob_from_reply(am_conn_core, rdr)? {
             Some(blob) => Ok(blob),
             None => Err(HdbError::Impl(
@@ -884,7 +880,7 @@ pub mod factory {
 
     pub fn parse_nullable_blob_from_reply(
         am_conn_core: &AmConnCore,
-        rdr: &mut io::BufReader<TcpStream>,
+        rdr: &mut io::BufRead,
     ) -> HdbResult<Option<BLOB>> {
         let (is_null, is_data_included, is_last_data) = parse_lob_1(rdr)?;
         if is_null {
@@ -901,10 +897,7 @@ pub mod factory {
         }
     }
 
-    pub fn parse_clob(
-        am_conn_core: &AmConnCore,
-        rdr: &mut io::BufReader<TcpStream>,
-    ) -> HdbResult<CLOB> {
+    pub fn parse_clob(am_conn_core: &AmConnCore, rdr: &mut io::BufRead) -> HdbResult<CLOB> {
         match parse_nullable_clob(am_conn_core, rdr)? {
             Some(clob) => Ok(clob),
             None => Err(HdbError::Impl(
@@ -915,7 +908,7 @@ pub mod factory {
 
     pub fn parse_nullable_clob(
         am_conn_core: &AmConnCore,
-        rdr: &mut io::BufReader<TcpStream>,
+        rdr: &mut io::BufRead,
     ) -> HdbResult<Option<CLOB>> {
         let (is_null, is_data_included, is_last_data) = parse_lob_1(rdr)?;
         if is_null {
@@ -933,7 +926,7 @@ pub mod factory {
         }
     }
 
-    fn parse_lob_1(rdr: &mut io::BufReader<TcpStream>) -> HdbResult<(bool, bool, bool)> {
+    fn parse_lob_1(rdr: &mut io::BufRead) -> HdbResult<(bool, bool, bool)> {
         let _data_type = rdr.read_u8()?; // I1
         let options = rdr.read_u8()?; // I1
         let is_null = (options & 0b_1_u8) != 0;

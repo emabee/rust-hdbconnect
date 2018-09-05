@@ -10,7 +10,7 @@ extern crate serde_json;
 
 mod test_utils;
 
-use hdbconnect::{ConnectParams, Connection, HdbError, HdbResult};
+use hdbconnect::{Connection, HdbError, HdbResult};
 
 // cargo test test_011_invalid_password -- --nocapture
 #[test]
@@ -46,10 +46,12 @@ fn test_011_invalid_password_impl() -> HdbResult<()> {
 
     // logon as DOEDEL
     debug!("DOEDEL connects ...");
-    let conn_params: ConnectParams = test_utils::get_std_connect_params_builder()?
-        .dbuser("DOEDEL")
-        .password("Doebcd1234")
-        .build()?;
+    let conn_params =
+        test_utils::get_wrong_connect_params(Some("DOEDEL"), Some("Doebcd1234")).unwrap();
+
+    assert_eq!(conn_params.dbuser(), "DOEDEL");
+    assert_eq!(conn_params.password().unsecure(), b"Doebcd1234");
+
     let mut doedel_conn = Connection::new(conn_params)?;
     debug!("DOEDEL is connected");
 

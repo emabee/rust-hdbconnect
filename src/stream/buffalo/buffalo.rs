@@ -1,44 +1,46 @@
+use chrono::Local;
 use std::cell::RefCell;
-use std::fmt::Debug;
 use std::io;
-use std::net::ToSocketAddrs;
 use stream::buffalo::plain_connection::PlainConnection;
 use stream::buffalo::tls_connection::TlsConnection;
-use webpki::TLSServerTrustAnchors;
+use stream::connect_params::ConnectParams;
 
 /// A buffered tcp connection, with or without TLS.
-///
-pub enum Buffalo<'a, A: ToSocketAddrs + Debug> {
+#[derive(Debug)]
+pub enum Buffalo {
     /// A buffered tcp connection without TLS.
-    Plain(PlainConnection<A>),
+    Plain(PlainConnection),
     /// A buffered tcp connection with TLS.
-    Secure(TlsConnection<'a, A>),
+    Secure(TlsConnection),
 }
-impl<'a, A: ToSocketAddrs + Debug> Buffalo<'a, A> {
+impl Buffalo {
     /// Constructs a buffered tcp connection, with or without TLS,
-    /// depending on whether trust_anchors is Some(..). or None.
-    pub fn new(
-        addr: A,
-        s_host: &'a str,
-        trust_anchors: Option<&'a TLSServerTrustAnchors>,
-    ) -> io::Result<Buffalo<'a, A>> {
-        match trust_anchors {
-            Some(ta) => {
-                let conn = TlsConnection::new(addr, s_host, ta)?;
-                Ok(Buffalo::Secure(conn))
-            }
-            None => {
-                let conn = PlainConnection::new(addr)?;
-                Ok(Buffalo::Plain(conn))
-            }
-        }
+    /// depending on the given connect parameters.
+    pub fn new(params: ConnectParams) -> io::Result<Buffalo> {
+        let start = Local::now();
+        trace!("Connecting to {:?})", params.addr());
+
+        let buffalo = if params.options().is_empty() {
+            Buffalo::Plain(PlainConnection::new(params)?)
+        } else {
+            Buffalo::Secure(TlsConnection::new(params)?)
+        };
+        trace!(
+            "Connection of type {} is initialized ({} µs)",
+            buffalo.s_type(),
+            Local::now()
+                .signed_duration_since(start)
+                .num_microseconds()
+                .unwrap_or(-1)
+        );
+        Ok(buffalo)
     }
 
     /// Provides access to the writer half.
-    pub fn writer(&self, reconnect: bool) -> io::Result<&RefCell<io::Write>> {
+    pub fn writer(&self) -> &RefCell<io::Write> {
         match self {
-            Buffalo::Plain(pc) => pc.writer(reconnect),
-            Buffalo::Secure(sc) => sc.writer(reconnect),
+            Buffalo::Plain(pc) => pc.writer(),
+            Buffalo::Secure(sc) => sc.writer(),
         }
     }
 
@@ -47,6 +49,14 @@ impl<'a, A: ToSocketAddrs + Debug> Buffalo<'a, A> {
         match self {
             Buffalo::Plain(pc) => pc.reader(),
             Buffalo::Secure(sc) => sc.reader(),
+        }
+    }
+
+    /// Returns a descriptor of the chosen type
+    pub fn s_type(&self) -> &'static str {
+        match self {
+            Buffalo::Plain(_) => "plain tcp",
+            Buffalo::Secure(_) => "tls",
         }
     }
 }

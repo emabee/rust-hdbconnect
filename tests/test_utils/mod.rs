@@ -2,11 +2,9 @@
 #![allow(dead_code)]
 
 use flexi_logger::{Logger, ReconfigurationHandle};
-use hdbconnect::{ConnectParamsBuilder, Connection, HdbError, HdbResult};
-use serde_json;
-use std::fs::File;
-use std::io::BufReader;
-use std::path::Path;
+use hdbconnect::{ConnectParams, IntoConnectParams};
+use hdbconnect::{Connection, HdbResult};
+use std::fs::read_to_string;
 
 pub fn init_logger(log_spec: &str) -> ReconfigurationHandle {
     Logger::with_env_or_str(log_spec)
@@ -15,23 +13,37 @@ pub fn init_logger(log_spec: &str) -> ReconfigurationHandle {
 }
 
 pub fn get_authenticated_connection() -> HdbResult<Connection> {
-    let params = get_std_connect_params_builder()?.build()?;
+    let params = get_std_connect_params()?;
     Connection::new(params)
 }
 
 pub fn get_system_connection() -> HdbResult<Connection> {
-    let params = get_system_connect_params_builder()?.build()?;
+    let params = get_system_connect_params()?;
     Connection::new(params)
 }
 
-pub fn get_std_connect_params_builder() -> HdbResult<ConnectParamsBuilder> {
-    let filename = format!("./.private/db_access_{}.json", get_version());
-    connect_params_builder_from_file(filename.as_ref())
+pub fn get_std_connect_params() -> HdbResult<ConnectParams> {
+    let filename = format!("./.private/db_{}_std.url", get_version());
+    connect_params_from_file(filename.as_ref())
 }
 
-pub fn get_system_connect_params_builder() -> HdbResult<ConnectParamsBuilder> {
-    let filename = format!("./.private/db_access_system_{}.json", get_version());
-    connect_params_builder_from_file(filename.as_ref())
+pub fn get_system_connect_params() -> HdbResult<ConnectParams> {
+    let filename = format!("./.private/db_{}_system.url", get_version());
+    connect_params_from_file(filename.as_ref())
+}
+
+pub fn get_wrong_connect_params(user: Option<&str>, pw: Option<&str>) -> HdbResult<ConnectParams> {
+    let mut url = get_std_connect_url()?;
+    let sep1 = url.find("://").unwrap();
+    let sep3 = url[sep1 + 3..].find("@").unwrap();
+    let sep2 = url[sep1 + 3..sep3].find(":").unwrap();
+    if let Some(pw) = pw {
+        url.replace_range((sep1 + 3 + sep2 + 1)..(sep1 + 3 + sep3), pw);
+    }
+    if let Some(u) = user {
+        url.replace_range((sep1 + 3)..(sep1 + 3 + sep2), u);
+    }
+    url.into_connect_params()
 }
 
 fn get_version() -> &'static str {
@@ -39,14 +51,12 @@ fn get_version() -> &'static str {
     "2_3"
 }
 
-fn connect_params_builder_from_file(s: &str) -> HdbResult<ConnectParamsBuilder> {
-    let path = Path::new(s);
-    let reader = BufReader::new(File::open(&path)?);
-    match serde_json::from_reader(reader) {
-        Ok(cpb) => Ok(cpb),
-        Err(e) => {
-            println!("{:?}", e);
-            Err(HdbError::Usage("Cannot read db_access.json".to_owned()))
-        }
-    }
+fn connect_params_from_file(s: &str) -> HdbResult<ConnectParams> {
+    let url = read_to_string(s)?;
+    url.into_connect_params()
+}
+
+pub fn get_std_connect_url() -> HdbResult<String> {
+    let s = format!("./.private/db_{}_std.url", get_version());
+    Ok(read_to_string(s)?)
 }
