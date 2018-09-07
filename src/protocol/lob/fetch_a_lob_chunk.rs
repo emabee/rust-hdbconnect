@@ -1,3 +1,4 @@
+use conn_core::AmConnCore;
 use protocol::argument::Argument;
 use protocol::part::Part;
 use protocol::partkind::PartKind;
@@ -8,7 +9,6 @@ use protocol::request::Request;
 use protocol::request_type::RequestType;
 use protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
 use std::cmp;
-use stream::conn_core::AmConnCore;
 use {HdbError, HdbResult};
 
 pub fn fetch_a_lob_chunk(

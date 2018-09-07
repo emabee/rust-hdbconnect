@@ -2,9 +2,9 @@ use authentication::auth_requests::{first_auth_request, second_auth_request};
 use authentication::authenticator::Authenticator;
 use authentication::scram_pbkdf2_sha256::ScramPbkdf2Sha256;
 use authentication::scram_sha256::ScramSha256;
+use conn_core::AmConnCore;
 use hdb_error::HdbResult;
 use secstr::SecStr;
-use stream::conn_core::AmConnCore;
 
 // Do the authentication.
 //

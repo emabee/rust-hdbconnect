@@ -1,13 +1,18 @@
+use conn_core::buffalo::tls_stream::TlsStream;
+use conn_core::connect_params::ConnectParams;
 use std::cell::RefCell;
+use std::fmt;
 use std::io;
-use stream::buffalo::tls_stream::TlsStream;
-use stream::connect_params::ConnectParams;
 
-#[derive(Debug)]
 pub struct TlsConnection {
     params: ConnectParams,
     reader: RefCell<io::BufReader<TlsStream>>,
     writer: RefCell<io::BufWriter<TlsStream>>,
+}
+impl fmt::Debug for TlsConnection {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(f, "TlsConnection {{params: {:?}, ... }}", &self.params)
+    }
 }
 impl TlsConnection {
     pub fn new(params: ConnectParams) -> io::Result<(TlsConnection)> {

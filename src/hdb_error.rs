@@ -1,9 +1,9 @@
+use conn_core::ConnectionCore;
 use protocol::cesu8::Cesu8DecodingError;
 use protocol::parts::resultset::ResultSetCore;
 use protocol::parts::server_error::ServerError;
 use serde_db::de::{ConversionError, DeserializationError};
 use serde_db::ser::SerializationError;
-use stream::conn_core::ConnectionCore;
 
 use std::error::{self, Error};
 use std::fmt;

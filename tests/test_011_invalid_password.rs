@@ -14,12 +14,8 @@ use hdbconnect::{Connection, HdbError, HdbResult};
 
 // cargo test test_011_invalid_password -- --nocapture
 #[test]
-pub fn test_011_invalid_password() {
+pub fn test_011_invalid_password() -> HdbResult<()> {
     test_utils::init_logger("info,test_011_invalid_password=info");
-    test_011_invalid_password_impl().unwrap();
-}
-
-fn test_011_invalid_password_impl() -> HdbResult<()> {
     info!("test warnings");
 
     let mut conn = test_utils::get_system_connection()?;

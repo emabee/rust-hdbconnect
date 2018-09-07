@@ -2,7 +2,7 @@
 //! we model message and segment together.
 //! But we differentiate explicitly between request messages and reply messages.
 use super::argument::Argument;
-use stream::conn_core::AmConnCore;
+use conn_core::AmConnCore;
 use super::part::{Part, Parts};
 use super::part_attributes::PartAttributes;
 use super::partkind::PartKind;

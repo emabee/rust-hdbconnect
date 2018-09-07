@@ -1,13 +1,14 @@
+use conn_core::connect_params::ConnectParams;
 use protocol::parts::command_info::CommandInfo;
 use protocol::parts::server_error::ServerError;
 use protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
-use stream::connect_params::ConnectParams;
 use {HdbError, HdbResponse, HdbResult};
 
 use prepared_statement::factory as PreparedStatementFactory;
 use prepared_statement::PreparedStatement;
 
 use authentication;
+use conn_core::{AmConnCore, ConnectionCore};
 use protocol::argument::Argument;
 use protocol::part::Part;
 use protocol::partkind::PartKind;
@@ -15,7 +16,6 @@ use protocol::parts::resultset::ResultSet;
 use protocol::reply::SkipLastSpace;
 use protocol::request::Request;
 use protocol::request_type::RequestType;
-use stream::conn_core::{AmConnCore, ConnectionCore};
 use xa_impl::new_resource_manager;
 
 use chrono::Local;

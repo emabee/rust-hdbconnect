@@ -1,7 +1,7 @@
+use conn_core::connect_params::ConnectParams;
 use std::cell::RefCell;
 use std::io;
 use std::net::TcpStream;
-use stream::connect_params::ConnectParams;
 
 #[derive(Debug)]
 pub struct PlainConnection {

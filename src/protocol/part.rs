@@ -4,7 +4,7 @@ use super::partkind::PartKind;
 use super::parts::parameter_descriptor::ParameterDescriptor;
 use super::parts::resultset::ResultSet;
 use super::parts::resultset_metadata::ResultSetMetadata;
-use stream::conn_core::AmConnCore;
+use conn_core::AmConnCore;
 use {HdbError, HdbResult};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};

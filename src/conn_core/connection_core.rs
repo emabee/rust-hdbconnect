@@ -1,3 +1,6 @@
+use conn_core::buffalo::Buffalo;
+use conn_core::connect_params::ConnectParams;
+use conn_core::initial_request;
 use protocol::part::Part;
 use protocol::parts::client_info::ClientInfo;
 use protocol::parts::connect_options::ConnectOptions;
@@ -11,9 +14,6 @@ use protocol::request::Request;
 use protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
 use protocol::util;
 use std::cell::RefCell;
-use stream::buffalo::Buffalo;
-use stream::connect_params::ConnectParams;
-use stream::initial_request;
 use {HdbError, HdbResult};
 
 use std::io;

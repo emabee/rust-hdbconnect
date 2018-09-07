@@ -60,12 +60,12 @@ impl fmt::Display for OutputParameters {
 
 pub mod factory {
     use super::OutputParameters;
+    use conn_core::AmConnCore;
     use protocol::parts::hdb_value::factory as HdbValueFactory;
     use protocol::parts::hdb_value::HdbValue;
     use protocol::parts::parameter_descriptor::{
         ParameterBinding, ParameterDescriptor, ParameterDirection,
     };
-    use stream::conn_core::AmConnCore;
     use {HdbError, HdbResult};
 
     use std::io;

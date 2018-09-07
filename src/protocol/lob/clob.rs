@@ -1,3 +1,4 @@
+use conn_core::AmConnCore;
 use protocol::cesu8;
 use protocol::lob::fetch_a_lob_chunk::fetch_a_lob_chunk;
 use protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
@@ -5,7 +6,6 @@ use std::cell::RefCell;
 use std::cmp::max;
 use std::io::{self, Write};
 use std::sync::Arc;
-use stream::conn_core::AmConnCore;
 use {HdbError, HdbResult};
 
 /// CLOB implementation that is used with `HdbValue::CLOB` and

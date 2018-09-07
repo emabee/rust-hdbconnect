@@ -1,5 +1,5 @@
+use conn_core::AmConnCore;
 use protocol::argument::Argument;
-use stream::conn_core::AmConnCore;
 use protocol::part::Part;
 use protocol::partkind::PartKind;
 use protocol::parts::parameter_descriptor::ParameterDescriptor;
@@ -109,8 +109,8 @@ impl Drop for PreparedStatement {
 
 pub mod factory {
     use super::PreparedStatement;
+    use conn_core::AmConnCore;
     use protocol::argument::Argument;
-    use stream::conn_core::AmConnCore;
     use protocol::part::Part;
     use protocol::partkind::PartKind;
     use protocol::parts::parameter_descriptor::{ParameterDescriptor, ParameterDirection};

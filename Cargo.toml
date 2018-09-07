@@ -1,6 +1,6 @@
 [package]
 name = "hdbconnect"
-version = "0.7.0-tls-1"
+version = "0.7.0-tls-2"
 authors = ["emabee <meinolf.block@sap.com>"]
 license = "MIT/Apache-2.0"
 readme = "README.md"
@@ -12,7 +12,7 @@ keywords = ["relational", "database", "driver", "serde", "HANA"]
 categories = ["database"]
 
 [features]
-default = ["tls"]
+default = []
 tls = ["rustls","regex","webpki","webpki-roots"]
 
 [dependencies]

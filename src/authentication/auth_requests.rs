@@ -1,5 +1,6 @@
 use super::authenticator::Authenticator;
 
+use conn_core::AmConnCore;
 use hdb_error::{HdbError, HdbResult};
 use protocol::argument::Argument;
 use protocol::part::Part;
@@ -12,7 +13,6 @@ use protocol::reply_type::ReplyType;
 use protocol::request::Request;
 use protocol::request_type::RequestType;
 use secstr::SecStr;
-use stream::conn_core::AmConnCore;
 use username;
 
 pub fn first_auth_request(
@@ -85,6 +85,7 @@ pub fn second_auth_request(
         Argument::Auth(auth_fields),
     ));
 
+    // how about e.g. TABLEOUTPUTPARAMETER and DESCRIBETABLEOUTPUTPARAMETER?
     request2.push(Part::new(
         PartKind::ConnectOptions,
         Argument::ConnectOptions(ConnectOptions::for_server(clientlocale, get_os_user())),

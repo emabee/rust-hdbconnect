@@ -60,19 +60,22 @@ extern crate webpki;
 extern crate webpki_roots;
 
 mod authentication;
+mod conn_core;
 mod connection;
+mod connection_manager;
 mod hdb_error;
 mod hdb_response;
 mod hdb_return_value;
 mod impl_serde_db;
 mod prepared_statement;
 mod protocol;
-mod stream;
 mod xa_impl;
 
 pub mod code_examples;
 
+pub use conn_core::connect_params::{ConnectParams, IntoConnectParams};
 pub use connection::Connection;
+pub use connection_manager::ConnectionManager;
 pub use hdb_error::{HdbError, HdbResult};
 pub use hdb_response::HdbResponse;
 pub use hdb_return_value::HdbReturnValue;
@@ -81,8 +84,6 @@ pub use protocol::parts::output_parameters::OutputParameters;
 pub use protocol::parts::resultset::ResultSet;
 pub use protocol::parts::row::Row;
 pub use protocol::parts::server_error::{ServerError, Severity};
-pub use stream::connect_params::{ConnectParams, IntoConnectParams};
-pub use stream::connection_manager::ConnectionManager;
 
 pub use protocol::parts::parameter_descriptor::{
     ParameterBinding, ParameterDescriptor, ParameterDirection,

@@ -28,7 +28,7 @@ use protocol::parts::lob_flags::LobFlags;
 use protocol::parts::read_lob_request::ReadLobRequest;
 use protocol::parts::session_context::SessionContext;
 use protocol::util;
-use stream::conn_core::AmConnCore;
+use conn_core::AmConnCore;
 use {HdbError, HdbResult};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};

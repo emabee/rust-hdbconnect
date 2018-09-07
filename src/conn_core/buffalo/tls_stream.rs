@@ -1,26 +1,31 @@
+use conn_core::connect_params::ConnectParams;
+use rustls::ClientConfig;
 use rustls::{ClientSession, Session};
+use std::fs::File;
 use std::io::{self, Read};
 use std::net::TcpStream;
 use std::sync::{Arc, Mutex};
-use stream::connect_params::ConnectParams;
+use webpki::DNSNameRef;
 
-#[derive(Debug)]
 pub struct TlsStream {
     tcpstream: TcpStream,
-    tlsclient: Arc<Mutex<ClientSession>>,
+    tlsconfig: Arc<ClientConfig>,
+    tlssession: Arc<Mutex<ClientSession>>,
 }
 impl TlsStream {
     pub fn new(params: &ConnectParams) -> io::Result<TlsStream> {
-        let (tcpstream, tlsclient) = connect_tcp(params)?;
+        let (tcpstream, tlsconfig, tlssession) = connect_tcp(params)?;
         Ok(TlsStream {
             tcpstream,
-            tlsclient: Arc::new(Mutex::new(tlsclient)),
+            tlsconfig,
+            tlssession: Arc::new(Mutex::new(tlssession)),
         })
     }
     pub fn try_clone(&self) -> io::Result<TlsStream> {
         Ok(TlsStream {
             tcpstream: self.tcpstream.try_clone()?,
-            tlsclient: Arc::clone(&self.tlsclient),
+            tlsconfig: Arc::clone(&self.tlsconfig),
+            tlssession: Arc::clone(&self.tlssession),
         })
     }
 
@@ -31,38 +36,38 @@ impl TlsStream {
         buf: Option<&mut [u8]>,
     ) -> io::Result<usize> {
         debug!("transfer(): enter");
-        let mut tlsclient = self.tlsclient.lock().unwrap();
+        let mut tlssession = self.tlssession.lock().unwrap();
         loop {
             trace!("transfer(): loop");
-            while tlsclient.wants_write() {
-                let count = tlsclient.write_tls(&mut self.tcpstream)?;
+            while tlssession.wants_write() {
+                let count = tlssession.write_tls(&mut self.tcpstream)?;
                 trace!("transfer(): wrote tls ({})", count);
             }
 
-            if is_handshaking && !tlsclient.is_handshaking() {
+            if is_handshaking && !tlssession.is_handshaking() {
                 trace!("Handshake complete");
                 is_handshaking = false;
 
-                match tlsclient.get_protocol_version() {
+                match tlssession.get_protocol_version() {
                     Some(protocol) => debug!("Protocol {:?} negotiated", protocol),
                     None => debug!("No TLS Protocol negotiated"),
                 }
                 if let Some(request) = req {
                     trace!("transfer(): writing");
-                    io::Write::write_all(&mut *tlsclient, request)?;
-                    let count = tlsclient.write_tls(&mut self.tcpstream)?;
+                    io::Write::write_all(&mut *tlssession, request)?;
+                    let count = tlssession.write_tls(&mut self.tcpstream)?;
                     trace!("transfer(): wrote tls ({})", count);
                 }
             }
 
-            if tlsclient.wants_read() {
-                let count = tlsclient.read_tls(&mut self.tcpstream)?;
+            if tlssession.wants_read() {
+                let count = tlssession.read_tls(&mut self.tcpstream)?;
                 trace!("transfer(): read_tls() -> {}", count);
                 if count == 0 {
                     break;
                 }
 
-                if let Err(err) = tlsclient.process_new_packets() {
+                if let Err(err) = tlssession.process_new_packets() {
                     return Err(io::Error::new(io::ErrorKind::Other, err));
                 }
             } else {
@@ -70,7 +75,7 @@ impl TlsStream {
             }
         }
         if let Some(buffer) = buf {
-            let read_bytes = tlsclient.read(&mut buffer[..])?;
+            let read_bytes = tlssession.read(&mut buffer[..])?;
             trace!("transfer(): read_bytes = {}", read_bytes);
             Ok(read_bytes)
         } else {
@@ -79,13 +84,42 @@ impl TlsStream {
     }
 }
 
-fn connect_tcp(params: &ConnectParams) -> io::Result<(TcpStream, ClientSession)> {
+fn connect_tcp(
+    params: &ConnectParams,
+) -> io::Result<(TcpStream, Arc<ClientConfig>, ClientSession)> {
     debug!("connect_tcp(): Connecting to \"{:?}\"", params.addr());
 
     let tcpstream = TcpStream::connect(params.addr())?;
-    let tlsclient = ClientSession::new(&params.tls_config()?, params.dns_name_ref());
 
-    Ok((tcpstream, tlsclient))
+    let mut config = ClientConfig::new();
+    let trust_anchor_file = params
+        .trust_anchor_file()
+        .ok_or_else(|| (io::Error::new(io::ErrorKind::Other, "No trust anchor provided")))?;
+    debug!("Trust anchor file = {}", trust_anchor_file);
+    let mut rd = io::BufReader::new(File::open(trust_anchor_file)?);
+    let (n_ok, n_err) = config.root_store.add_pem_file(&mut rd).unwrap();
+    if n_ok == 0 {
+        return Err(io::Error::new(
+            io::ErrorKind::Other,
+            "None of the provided trust anchors was accepted",
+        ));
+    }
+    if n_err > 0 {
+        warn!("Not all provided trust anchors were accepted");
+    }
+    let tlsconfig = Arc::new(config);
+
+    let tlssession = ClientSession::new(
+        &tlsconfig,
+        DNSNameRef::try_from_ascii_str(params.host()).map_err(|_| {
+            io::Error::new(
+                io::ErrorKind::Other,
+                format!("Cannot use {} for DNSNameRef", params.host()),
+            )
+        })?,
+    );
+
+    Ok((tcpstream, tlsconfig, tlssession))
 }
 
 impl io::Write for TlsStream {

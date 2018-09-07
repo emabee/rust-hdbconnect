@@ -1,5 +1,5 @@
+use conn_core::buffalo::Buffalo;
 use protocol::util;
-use stream::buffalo::buffalo::Buffalo;
 use HdbResult;
 
 use byteorder::{BigEndian, WriteBytesExt};
@@ -32,8 +32,10 @@ pub fn send_and_receive(buffalo: &mut Buffalo) -> HdbResult<()> {
         w.flush()?;
     }
 
-    let r = &mut *(buffalo.reader().borrow_mut());
-    util::skip_bytes(8, r)?; // ignore the response content
+    {
+        let r = &mut *(buffalo.reader().borrow_mut());
+        util::skip_bytes(8, r)?; // ignore the response content
+    }
     debug!("successfully initialized");
     Ok(())
 }

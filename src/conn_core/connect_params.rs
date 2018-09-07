@@ -1,20 +1,40 @@
 //! Connection parameters
-use rustls::ClientConfig;
 use secstr::SecStr;
 use std::env;
 use std::fmt;
-use std::io;
-use std::sync::Arc;
+use std::fs;
+use std::path::Path;
 use url::Url;
-use webpki::DNSNameRef;
 use {HdbError, HdbResult};
 
 /// An immutable struct with all information necessary to open a new connection
 /// to a HANA database.
 ///
-/// An instance of `ConnectParams` can be created either programmatically with
-/// the builder, or implicitly using the trait `IntoConnectParams` and its
-/// implementations.
+/// An instance of `ConnectParams` can be created from a url (represented as `String` or as `Url`)
+/// either using the trait `IntoConnectParams` and its implementations, or with the shortcut
+/// `ConnectParams::from_file`.
+///
+/// The URL is supposed to have the form
+///
+/// ```text
+/// <scheme>://<username>:<password>@<host>:<port>[<options>]
+/// ```
+/// where
+/// > `<scheme>` = `hdbsql` | `hdbsqls`  
+/// > `<username>` = the name of the DB user to log on  
+/// > `<password>` = the password of the DB user  
+/// > `<host>` = the host where HANA can be found  
+/// > `<port>` = the port at which HANA can be found on `<host>`  
+/// > `<options>` = `?<key> = <value> [{&<key> = <value>}]`
+///
+/// Special option keys are:
+/// > `client_locale`: `<value>` is used to specify the client's locale
+/// > `client_locale_from_env`: if `<value>` is 1, the client's locale is read
+/// from the environment variabe LANG  
+/// > `tls_trust_anchor_file`: the `<value>` points to file that contains the server's certificates
+///
+/// The client locale is used in language-dependent handling within the SAP HANA
+/// database calculation engine.
 ///
 /// # Example
 ///
@@ -26,39 +46,44 @@ use {HdbError, HdbResult};
 /// ```
 #[derive(Clone)]
 pub struct ConnectParams {
+    #[cfg(feature = "tls")]
+    use_tls: bool,
     host: String,
     addr: String,
     dbuser: String,
     password: SecStr,
     clientlocale: Option<String>,
-    tls_config: Option<Arc<ClientConfig>>,
+    trust_anchor_file: Option<String>,
     options: Vec<(String, String)>,
 }
 impl ConnectParams {
-    // /// Returns a new builder for ConnectParams.
-    // pub fn builder() -> ConnectParamsBuilder {
-    //     ConnectParamsBuilder::new()
-    // }
+    /// Reads a url from the given file and converts it into `ConnectParams`.
+    pub fn from_file<P: AsRef<Path>>(path: P) -> HdbResult<ConnectParams> {
+        fs::read_to_string(path)?.into_connect_params()
+    }
+
+    /// The trust_anchor_file.
+    pub fn trust_anchor_file(&self) -> Option<&str> {
+        self.trust_anchor_file.as_ref().map(|s| s.as_ref())
+    }
+
+    /// The host.
+    pub fn host(&self) -> &str {
+        &self.host
+    }
 
     /// The socket address.
     pub fn addr(&self) -> &str {
         &self.addr
     }
 
-    /// The tls_configuration.
-    pub fn tls_config(&self) -> io::Result<Arc<ClientConfig>> {
-        match self.tls_config {
-            Some(ref acc) => Ok(Arc::clone(acc)),
-            None => Err(io::Error::from(
-                io::ErrorKind::Other,
-                // "No tls config available for plain connections".to_owned(),
-            )),
-        }
-    }
+    /// Whether TLS or a plain TCP connection is to be used.
+    pub fn use_tls(&self) -> bool {
+        #[cfg(feature = "tls")]
+        return self.use_tls;
 
-    /// The dns_name_ref.
-    pub fn dns_name_ref(&self) -> DNSNameRef {
-        DNSNameRef::try_from_ascii_str(&self.host).unwrap()
+        #[cfg(not(feature = "tls"))]
+        return false;
     }
 
     /// The database user.
@@ -121,12 +146,6 @@ impl IntoConnectParams for String {
 
 impl IntoConnectParams for Url {
     fn into_connect_params(self) -> HdbResult<ConnectParams> {
-        let tls = match self.scheme() {
-            "hdbsql" => false,
-            "hdbsqls" => true,
-            s => return Err(HdbError::Usage(format!("Unknown protocol {}", s))),
-        };
-
         let host: String = match self.host_str() {
             Some("") | None => return Err(HdbError::Usage("host is missing".to_owned())),
             Some(host) => host.to_string(),
@@ -147,12 +166,30 @@ impl IntoConnectParams for Url {
             Some(s) => s.to_string(),
         });
 
-        let tls_config = if tls {
-            Some(Arc::new(ClientConfig::new()))
-        } else {
-            None
+        #[cfg(feature = "tls")]
+        let use_tls = match self.scheme() {
+            "hdbsql" => false,
+            "hdbsqls" => true,
+            s => {
+                return Err(HdbError::Usage(format!(
+                    "Unknown protocol '{}'; only 'hdbsql' and 'hdbsqls' are supported",
+                    s
+                )))
+            }
         };
 
+        #[cfg(not(feature = "tls"))]
+        {
+            if self.scheme() != "hdbsql" {
+                return Err(HdbError::Usage(format!(
+                    "Unknown protocol '{}'; only 'hdbsql' is supported; \
+                     for 'hdbsqls' the feature 'tls' must be used when compiling hdbconnect",
+                    self.scheme()
+                )));
+            }
+        }
+
+        let mut trust_anchor_file = None;
         let mut clientlocale = None;
         let mut options = Vec::<(String, String)>::new();
         for (name, value) in self.query_pairs() {
@@ -164,18 +201,21 @@ impl IntoConnectParams for Url {
                         Err(_) => None,
                     };
                 }
+                "tls_trust_anchor_file" => trust_anchor_file = Some(value.to_string()),
                 _ => options.push((name.to_string(), value.to_string())),
             }
         }
 
         Ok(ConnectParams {
+            #[cfg(feature = "tls")]
+            use_tls,
             addr: format!("{}:{}", host, port),
             host,
             dbuser,
             password,
             clientlocale,
+            trust_anchor_file,
             options,
-            tls_config,
         })
     }
 }

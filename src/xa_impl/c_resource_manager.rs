@@ -1,3 +1,4 @@
+use conn_core::AmConnCore;
 use dist_tx::rm::{CResourceManager, CRmWrapper, ErrorCode, Flags, RmError, RmRc, RmResult};
 use dist_tx::tm::XaTransactionId;
 use hdb_error::HdbResult;
@@ -8,7 +9,6 @@ use protocol::parts::xat_options::XatOptions;
 use protocol::reply::{Reply, SkipLastSpace};
 use protocol::request::Request;
 use protocol::request_type::RequestType;
-use stream::conn_core::AmConnCore;
 use HdbError;
 
 /// Handle for dealing with distributed transactions that is to be used by a

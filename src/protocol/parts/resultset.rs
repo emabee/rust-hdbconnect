@@ -1,3 +1,4 @@
+use conn_core::AmConnCore;
 use protocol::argument::Argument;
 use protocol::part::Part;
 use protocol::part_attributes::PartAttributes;
@@ -10,7 +11,6 @@ use protocol::request::Request;
 use protocol::request_type::RequestType;
 use protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
 use protocol::util;
-use stream::conn_core::AmConnCore;
 use {HdbError, HdbResult};
 
 use serde;
@@ -339,6 +339,7 @@ impl Iterator for RowIterator {
 
 pub mod factory {
     use super::{ResultSet, ResultSetCore, Row};
+    use conn_core::AmConnCore;
     use protocol::argument::Argument;
     use protocol::part::Parts;
     use protocol::part_attributes::PartAttributes;
@@ -350,7 +351,6 @@ pub mod factory {
     use protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
     use std::io;
     use std::sync::Arc;
-    use stream::conn_core::AmConnCore;
     use {HdbError, HdbResult};
 
     pub fn resultset_new(
