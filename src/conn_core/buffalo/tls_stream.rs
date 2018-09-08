@@ -1,9 +1,10 @@
 use conn_core::connect_params::ConnectParams;
 use rustls::ClientConfig;
 use rustls::{ClientSession, Session};
-use std::fs::File;
+use std::fs::{read_dir, File};
 use std::io::{self, Read};
 use std::net::TcpStream;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use webpki::DNSNameRef;
 
@@ -92,21 +93,43 @@ fn connect_tcp(
     let tcpstream = TcpStream::connect(params.addr())?;
 
     let mut config = ClientConfig::new();
-    let trust_anchor_file = params
-        .trust_anchor_file()
-        .ok_or_else(|| (io::Error::new(io::ErrorKind::Other, "No trust anchor provided")))?;
-    debug!("Trust anchor file = {}", trust_anchor_file);
-    let mut rd = io::BufReader::new(File::open(trust_anchor_file)?);
-    let (n_ok, n_err) = config.root_store.add_pem_file(&mut rd).unwrap();
-    if n_ok == 0 {
+    let trust_anchor_dir = params
+        .trust_anchor_dir()
+        .ok_or_else(|| (io::Error::new(io::ErrorKind::Other, "No trust anchors provided")))?;
+    debug!("Trust anchor directory = {}", trust_anchor_dir);
+
+    let trust_anchor_files: Vec<PathBuf> = read_dir(trust_anchor_dir)?
+        .filter_map(|r_dir_entry| r_dir_entry.ok())
+        .filter(|dir_entry| {
+            dir_entry.file_type().is_ok() && dir_entry.file_type().unwrap().is_file()
+        })
+        .filter(|dir_entry| {
+            let path = dir_entry.path();
+            let ext = path.extension();
+            ext.is_some() && ext.unwrap() == "pem"
+        })
+        .map(|dir_entry| dir_entry.path())
+        .collect();
+
+    let mut t_ok = 0;
+    let mut t_err = 0;
+    for trust_anchor_file in trust_anchor_files {
+        trace!("Trying trust anchor file {:?}", trust_anchor_file);
+        let mut rd = io::BufReader::new(File::open(trust_anchor_file)?);
+        let (n_ok, n_err) = config.root_store.add_pem_file(&mut rd).unwrap();
+        t_ok += n_ok;
+        t_err += n_err;
+    }
+    if t_ok == 0 {
         return Err(io::Error::new(
             io::ErrorKind::Other,
             "None of the provided trust anchors was accepted",
         ));
     }
-    if n_err > 0 {
+    if t_err > 0 {
         warn!("Not all provided trust anchors were accepted");
     }
+
     let tlsconfig = Arc::new(config);
 
     let tlssession = ClientSession::new(

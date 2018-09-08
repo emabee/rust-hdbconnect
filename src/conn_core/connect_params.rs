@@ -30,8 +30,9 @@ use {HdbError, HdbResult};
 /// Special option keys are:
 /// > `client_locale`: `<value>` is used to specify the client's locale
 /// > `client_locale_from_env`: if `<value>` is 1, the client's locale is read
-/// from the environment variabe LANG  
-/// > `tls_trust_anchor_file`: the `<value>` points to file that contains the server's certificates
+///   from the environment variabe LANG  
+/// > `tls_trust_anchor_dir`: the `<value>` points to a folder with pem files that contain
+///   the server's certificates; all pem files in that folder are evaluated
 ///
 /// The client locale is used in language-dependent handling within the SAP HANA
 /// database calculation engine.
@@ -53,7 +54,7 @@ pub struct ConnectParams {
     dbuser: String,
     password: SecStr,
     clientlocale: Option<String>,
-    trust_anchor_file: Option<String>,
+    trust_anchor_dir: Option<String>,
     options: Vec<(String, String)>,
 }
 impl ConnectParams {
@@ -62,9 +63,9 @@ impl ConnectParams {
         fs::read_to_string(path)?.into_connect_params()
     }
 
-    /// The trust_anchor_file.
-    pub fn trust_anchor_file(&self) -> Option<&str> {
-        self.trust_anchor_file.as_ref().map(|s| s.as_ref())
+    /// The trust_anchor_dir.
+    pub fn trust_anchor_dir(&self) -> Option<&str> {
+        self.trust_anchor_dir.as_ref().map(|s| s.as_ref())
     }
 
     /// The host.
@@ -189,7 +190,7 @@ impl IntoConnectParams for Url {
             }
         }
 
-        let mut trust_anchor_file = None;
+        let mut trust_anchor_dir = None;
         let mut clientlocale = None;
         let mut options = Vec::<(String, String)>::new();
         for (name, value) in self.query_pairs() {
@@ -201,7 +202,7 @@ impl IntoConnectParams for Url {
                         Err(_) => None,
                     };
                 }
-                "tls_trust_anchor_file" => trust_anchor_file = Some(value.to_string()),
+                "tls_trust_anchor_dir" => trust_anchor_dir = Some(value.to_string()),
                 _ => options.push((name.to_string(), value.to_string())),
             }
         }
@@ -214,7 +215,7 @@ impl IntoConnectParams for Url {
             dbuser,
             password,
             clientlocale,
-            trust_anchor_file,
+            trust_anchor_dir,
             options,
         })
     }

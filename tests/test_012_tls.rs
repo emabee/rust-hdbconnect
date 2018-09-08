@@ -22,7 +22,7 @@ fn test_012_tls() -> HdbResult<()> {
 
     let mut url = test_utils::get_std_connect_url()?;
     url = url.replace("hdbsql", "hdbsqls");
-    url.push_str("?tls_trust_anchor_file=.%2F.private%2Ftest_012_tls_trust_anchor.pem");
+    url.push_str("?tls_trust_anchor_dir=.%2F.private");
     debug!("url = {}", url);
 
     if cfg!(feature = "tls") {
