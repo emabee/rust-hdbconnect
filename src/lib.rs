@@ -73,7 +73,7 @@ mod xa_impl;
 
 pub mod code_examples;
 
-pub use conn_core::connect_params::{ConnectParams, IntoConnectParams};
+pub use conn_core::connect_params::{ConnectParams, ConnectParamsBuilder, IntoConnectParams};
 pub use connection::Connection;
 pub use connection_manager::ConnectionManager;
 pub use hdb_error::{HdbError, HdbResult};
