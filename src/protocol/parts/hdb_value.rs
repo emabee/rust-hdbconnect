@@ -48,8 +48,7 @@ pub enum HdbValue {
     /// the numbers 3.14, 3.1415, 3.141592 are stored in the column as 3.1400,
     /// 3.1415, 3.1415, retaining the specified precision(5) and scale(4).
     ///
-    /// Precision p, can range from 1 to 38.
-    /// The scale can range from 0 to p.
+    /// Precision p can range from 1 to 38, scale s can range from 0 to p.
     /// If the scale is not specified, it defaults to 0.
     /// If precision and scale are not specified, DECIMAL becomes a
     /// floating-point decimal number. In this case, precision and scale
@@ -109,18 +108,18 @@ pub enum HdbValue {
     NSTRING(String),
     /// The DB returns all binary values as type BSTRING.
     BSTRING(Vec<u8>),
-    // / The SMALLDECIMAL is a floating-point decimal number.
-    // / The precision and scale can vary within the range 1~16 for precision
-    // / and -369~368 for scale,
-    // / depending on the stored value. SMALLDECIMAL is only supported on column store.
-    // / DECIMAL and SMALLDECIMAL are floating-point types.
-    // / For instance, a decimal column can store any of 3.14, 3.1415, 3.141592
-    // / whilst maintaining their precision.
-    // / DECIMAL(p, s) is the SQL standard notation for fixed-point decimal.
-    // / 3.14, 3.1415, 3.141592 are stored in a decimal(5, 4) column as 3.1400,
-    // / 3.1415, 3.1415 for example,
-    // / retaining the specified precision(5) and scale(4).
-    // SMALLDECIMAL = 47, 				// SMALLDECIMAL data type, -
+    /// The SMALLDECIMAL is a floating-point decimal number.
+    /// The precision and scale can vary within the range 1~16 for precision
+    /// and -369~368 for scale, depending on the stored value.  
+    /// SMALLDECIMAL is only supported on the HANA column store.
+    /// DECIMAL and SMALLDECIMAL are floating-point types.
+    /// For instance, a decimal column can store any of 3.14, 3.1415, 3.141592
+    /// whilst maintaining their precision.
+    /// DECIMAL(p, s) is the SQL standard notation for fixed-point decimal.
+    /// 3.14, 3.1415, 3.141592 are stored in a decimal(5, 4) column as 3.1400,
+    /// 3.1415, 3.1415 for example,
+    /// retaining the specified precision(5) and scale(4).
+    SMALLDECIMAL(BigDecimal),
     /// The TEXT data type enables text search features.
     /// This data type can be defined for column tables, but not for row tables.
     /// This is not a standalone SQL-Type. Selecting a TEXT column yields a
@@ -141,8 +140,8 @@ pub enum HdbValue {
     N_INT(Option<i32>),
     /// Nullable variant of BIGINT.
     N_BIGINT(Option<i64>),
-    /// Nullable variant of DECIMAL
-    N_DECIMAL(Option<BigDecimal>), // = 5, 					// DECIMAL, and DECIMAL(p,s), 1
+    /// Nullable variant of DECIMAL and DECIMAL(p,s).
+    N_DECIMAL(Option<BigDecimal>),
     /// Nullable variant of REAL.
     N_REAL(Option<f32>),
     /// Nullable variant of DOUBLE.
@@ -173,7 +172,8 @@ pub enum HdbValue {
     N_NSTRING(Option<String>),
     /// Nullable variant of BSTRING.
     N_BSTRING(Option<Vec<u8>>),
-    // N_SMALLDECIMAL = 47, 			// SMALLDECIMAL data type, -
+    /// Nullable variant of SMALLDECIMAL.
+    N_SMALLDECIMAL(Option<BigDecimal>),
     /// Nullable variant of TEXT.
     N_TEXT(Option<String>),
     /// Nullable variant of SHORTTEXT.
@@ -247,7 +247,7 @@ impl HdbValue {
             HdbValue::STRING(_) => type_id::STRING,
             HdbValue::NSTRING(_) => type_id::NSTRING,
             HdbValue::BSTRING(_) => type_id::BSTRING,
-            // HdbValue::SMALLDECIMAL(_)     => type_id::SMALLDECIMAL,
+            HdbValue::SMALLDECIMAL(_) => type_id::SMALLDECIMAL,
             HdbValue::TEXT(_) => type_id::TEXT,
             HdbValue::SHORTTEXT(_) => type_id::SHORTTEXT,
             HdbValue::LONGDATE(_) => type_id::LONGDATE,
@@ -275,7 +275,7 @@ impl HdbValue {
             HdbValue::N_STRING(_) => type_id::N_STRING,
             HdbValue::N_NSTRING(_) => type_id::N_NSTRING,
             HdbValue::N_BSTRING(_) => type_id::N_BSTRING,
-            // HdbValue::N_SMALLDECIMAL(_)    => type_id::N_SMALLDECIMAL,
+            HdbValue::N_SMALLDECIMAL(_) => type_id::N_SMALLDECIMAL,
             HdbValue::N_TEXT(_) => type_id::N_TEXT,
             HdbValue::N_SHORTTEXT(_) => type_id::N_SHORTTEXT,
             HdbValue::N_LONGDATE(_) => type_id::N_LONGDATE, /* HdbValue::N_SECONDDATE(_)
@@ -311,9 +311,10 @@ pub fn serialize(tv: &HdbValue, data_pos: &mut i32, w: &mut io::Write) -> HdbRes
 
             HdbValue::BIGINT(i) | HdbValue::N_BIGINT(Some(i)) => w.write_i64::<LittleEndian>(i)?,
 
-            HdbValue::DECIMAL(ref bigdec) | HdbValue::N_DECIMAL(Some(ref bigdec)) => {
-                serialize_decimal(bigdec, w)?
-            }
+            HdbValue::DECIMAL(ref bigdec)
+            | HdbValue::N_DECIMAL(Some(ref bigdec))
+            | HdbValue::SMALLDECIMAL(ref bigdec)
+            | HdbValue::N_SMALLDECIMAL(Some(ref bigdec)) => serialize_decimal(bigdec, w)?,
 
             HdbValue::REAL(f) | HdbValue::N_REAL(Some(f)) => w.write_f32::<LittleEndian>(f)?,
 
@@ -356,6 +357,7 @@ pub fn serialize(tv: &HdbValue, data_pos: &mut i32, w: &mut io::Write) -> HdbRes
             | HdbValue::N_INT(None)
             | HdbValue::N_BIGINT(None)
             | HdbValue::N_DECIMAL(None)
+            | HdbValue::N_SMALLDECIMAL(None)
             | HdbValue::N_REAL(None)
             | HdbValue::N_DOUBLE(None)
             | HdbValue::N_BOOLEAN(None)
@@ -404,7 +406,10 @@ pub fn size(tv: &HdbValue) -> HdbResult<usize> {
 
         HdbValue::SMALLINT(_) | HdbValue::N_SMALLINT(Some(_)) => 2,
 
-        HdbValue::DECIMAL(_) | HdbValue::N_DECIMAL(Some(_)) => 16,
+        HdbValue::DECIMAL(_)
+        | HdbValue::N_DECIMAL(Some(_))
+        | HdbValue::SMALLDECIMAL(_)
+        | HdbValue::N_SMALLDECIMAL(Some(_)) => 16,
 
         HdbValue::INT(_)
         | HdbValue::N_INT(Some(_))
@@ -446,6 +451,7 @@ pub fn size(tv: &HdbValue) -> HdbResult<usize> {
         | HdbValue::N_INT(None)
         | HdbValue::N_BIGINT(None)
         | HdbValue::N_DECIMAL(None)
+        | HdbValue::N_SMALLDECIMAL(None)
         | HdbValue::N_REAL(None)
         | HdbValue::N_DOUBLE(None)
         | HdbValue::N_BOOLEAN(None)
@@ -534,9 +540,10 @@ impl fmt::Display for HdbValue {
             }
             HdbValue::INT(value) | HdbValue::N_INT(Some(value)) => write!(fmt, "{}", value),
             HdbValue::BIGINT(value) | HdbValue::N_BIGINT(Some(value)) => write!(fmt, "{}", value),
-            HdbValue::DECIMAL(ref value) | HdbValue::N_DECIMAL(Some(ref value)) => {
-                write!(fmt, "{}", value)
-            }
+            HdbValue::DECIMAL(ref value)
+            | HdbValue::N_DECIMAL(Some(ref value))
+            | HdbValue::SMALLDECIMAL(ref value)
+            | HdbValue::N_SMALLDECIMAL(Some(ref value)) => write!(fmt, "{}", value),
             HdbValue::REAL(value) | HdbValue::N_REAL(Some(value)) => write!(fmt, "{}", value),
             HdbValue::DOUBLE(value) | HdbValue::N_DOUBLE(Some(value)) => write!(fmt, "{}", value),
             HdbValue::CHAR(ref value)
@@ -578,6 +585,7 @@ impl fmt::Display for HdbValue {
             | HdbValue::N_INT(None)
             | HdbValue::N_BIGINT(None)
             | HdbValue::N_DECIMAL(None)
+            | HdbValue::N_SMALLDECIMAL(None)
             | HdbValue::N_REAL(None)
             | HdbValue::N_DOUBLE(None)
             | HdbValue::N_CHAR(None)

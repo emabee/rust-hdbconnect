@@ -45,8 +45,8 @@ pub const NSTRING: u8 = 30;
 /// BSTRING
 pub const BSTRING: u8 = 33;
 // 34 - 46: docu unclear, likely unused
-// / SMALLDECIMAL
-// pub const SMALLDECIMAL: u8     =  47;
+/// SMALLDECIMAL
+pub const SMALLDECIMAL: u8 = 47;
 // 48, 49: ABAP only?
 // ARRAY: 50  FIXME not yet implemented
 /// TEXT
@@ -77,7 +77,6 @@ pub const LONGDATE: u8 = 61;
 // TypeCode_FIXED8                   = 81,  // FIXME
 // TypeCode_FIXED12                  = 82,  // FIXME
 // TypeCode_CIPHERTEXT               = 90,  // FIXME
-
 
 /// Nullable Variant of TINYINT
 pub const N_TINYINT: u8 = TINYINT + 128;
@@ -121,8 +120,8 @@ pub const N_STRING: u8 = STRING + 128;
 pub const N_NSTRING: u8 = NSTRING + 128;
 /// Nullable Variant of BSTRING
 pub const N_BSTRING: u8 = BSTRING + 128;
-// / Nullable Variant of SMALLDECIMAL
-// pub const N_SMALLDECIMAL: u8    = SMALLDECIMAL + 128;
+/// Nullable Variant of SMALLDECIMAL
+pub const N_SMALLDECIMAL: u8 = SMALLDECIMAL + 128;
 /// Nullable Variant of TEXT
 pub const N_TEXT: u8 = TEXT + 128;
 /// Nullable Variant of SHORTTEXT
