@@ -59,7 +59,8 @@ pub const SHORTTEXT: u8 = 52;
 // 57 - 60: not documented
 /// LONGDATE
 pub const LONGDATE: u8 = 61;
-// pub const SECONDDATE: u8       =  62; // SECONDDATE FIXME
+/// SECONDDATE
+pub const SECONDDATE: u8 = 62;
 // pub const DAYDATE: u8          =  63; // DAYDATE FIXME
 // pub const SECONDTIME: u8       =  64; // SECONDTIME FIXME
 // 65 - 80: Reserved, do not use
@@ -128,8 +129,8 @@ pub const N_TEXT: u8 = TEXT + 128;
 pub const N_SHORTTEXT: u8 = SHORTTEXT + 128;
 /// Nullable Variant of LONGDATE
 pub const N_LONGDATE: u8 = LONGDATE + 128;
-// / Nullable Variant of SECONDDATE
-// pub const N_SECONDDATE: u8      = SECONDDATE + 128;
+/// Nullable Variant of SECONDDATE
+pub const N_SECONDDATE: u8 = SECONDDATE + 128;
 // / Nullable Variant of DAYDATE
 // pub const N_DAYDATE: u8         = DAYDATE + 128;
 // / Nullable Variant of SECONDTIME

@@ -12,6 +12,7 @@ use protocol::parts::hdb_value::HdbValue;
 use protocol::parts::longdate::LongDate;
 use protocol::parts::resultset::ResultSet;
 use protocol::parts::row::Row;
+use protocol::parts::seconddate::SecondDate;
 
 #[doc(hidden)]
 impl DeserializableResultset for ResultSet {
@@ -106,7 +107,8 @@ impl DbValue for HdbValue {
             | HdbValue::N_BSTRING(None)
             | HdbValue::N_TEXT(None)
             | HdbValue::N_SHORTTEXT(None)
-            | HdbValue::N_LONGDATE(None) => true,
+            | HdbValue::N_LONGDATE(None)
+            | HdbValue::N_SECONDDATE(None) => true,
 
             HdbValue::NOTHING
             | HdbValue::N_TINYINT(Some(_))
@@ -133,6 +135,7 @@ impl DbValue for HdbValue {
             | HdbValue::N_TEXT(Some(_))
             | HdbValue::N_SHORTTEXT(Some(_))
             | HdbValue::N_LONGDATE(Some(_))
+            | HdbValue::N_SECONDDATE(Some(_))
             | HdbValue::TINYINT(_)
             | HdbValue::SMALLINT(_)
             | HdbValue::INT(_)
@@ -156,7 +159,8 @@ impl DbValue for HdbValue {
             | HdbValue::BSTRING(_)
             | HdbValue::TEXT(_)
             | HdbValue::SHORTTEXT(_)
-            | HdbValue::LONGDATE(_) => false,
+            | HdbValue::LONGDATE(_)
+            | HdbValue::SECONDDATE(_) => false,
         }
     }
 }
@@ -414,6 +418,7 @@ impl DbValueInto<i64> for HdbValue {
             HdbValue::INT(i) | HdbValue::N_INT(Some(i)) => Ok(i64::from(i)),
             HdbValue::BIGINT(i) | HdbValue::N_BIGINT(Some(i)) => Ok(i),
             HdbValue::LONGDATE(ld) | HdbValue::N_LONGDATE(Some(ld)) => Ok(*ld.ref_raw()),
+            HdbValue::SECONDDATE(sd) | HdbValue::N_SECONDDATE(Some(sd)) => Ok(*sd.ref_raw()),
             HdbValue::DECIMAL(bigdec) | HdbValue::N_DECIMAL(Some(bigdec)) => {
                 bigdec.to_i64().ok_or_else(|| decimal_range("i64"))
             }
@@ -477,6 +482,9 @@ impl DbValueInto<String> for HdbValue {
             | HdbValue::N_TEXT(Some(s)) => Ok(s),
 
             HdbValue::LONGDATE(ld) | HdbValue::N_LONGDATE(Some(ld)) => Ok(str_from_longdate(&ld)),
+            HdbValue::SECONDDATE(sd) | HdbValue::N_SECONDDATE(Some(sd)) => {
+                Ok(str_from_seconddate(&sd))
+            }
 
             HdbValue::DECIMAL(hdbdec) | HdbValue::N_DECIMAL(Some(hdbdec)) => {
                 Ok(format!("{}", hdbdec))
@@ -506,8 +514,15 @@ impl DbValueInto<NaiveDateTime> for HdbValue {
                     NaiveTime::from_hms_nano(hour, min, sec, frac * 100),
                 ))
             }
+            HdbValue::SECONDDATE(sd) | HdbValue::N_SECONDDATE(Some(sd)) => {
+                let (year, month, day, hour, min, sec) = sd.as_ymd_hms();
+                Ok(NaiveDateTime::new(
+                    NaiveDate::from_ymd(year, month, day),
+                    NaiveTime::from_hms(hour, min, sec),
+                ))
+            }
             _ => Err(ConversionError::ValueType(
-                "Not a LongDate value".to_owned(),
+                "Not a LongDate or SecondDate value".to_owned(),
             )),
         }
     }
@@ -574,4 +589,9 @@ fn decimal_range(ovt: &str) -> ConversionError {
 /// Deserializes a `LongDate` into a String format.
 fn str_from_longdate(ld: &LongDate) -> String {
     format!("{}", ld)
+}
+
+/// Deserializes a `SecondDate` into a String format.
+fn str_from_seconddate(sd: &SecondDate) -> String {
+    format!("{}", sd)
 }

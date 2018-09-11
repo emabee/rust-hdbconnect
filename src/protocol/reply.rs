@@ -183,9 +183,9 @@ impl Reply {
                             }
                             debug!("Reply::handle_db_error(): {:?}", retval);
                         }
-                        _ => warn!(
-                            "Reply::handle_db_error(): ignoring unexpected part of kind {:?}",
-                            kind
+                        arg => warn!(
+                            "Reply::handle_db_error(): ignoring unexpected part of kind {:?}, arg = {:?}",
+                            kind, arg
                         ),
                     }
                 }
@@ -243,8 +243,9 @@ impl Reply {
                     int_return_values.push(InternalReturnValue::AffectedRows(vra));
                 }
                 _ => warn!(
-                    "Reply::into_hdbresponse(): ignoring unexpected part of kind {:?}",
-                    kind
+                    "Reply::into_hdbresponse(): \
+                     ignoring unexpected part of kind {:?}, , arg = {:?}, reply-type is {:?}",
+                    kind, arg, self.replytype
                 ),
             }
         }

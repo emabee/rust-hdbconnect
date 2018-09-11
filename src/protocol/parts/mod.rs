@@ -21,6 +21,7 @@ pub mod resultset;
 pub mod resultset_metadata;
 pub mod row;
 pub mod rows_affected;
+pub mod seconddate;
 pub mod server_error;
 pub mod session_context;
 pub mod statement_context;
