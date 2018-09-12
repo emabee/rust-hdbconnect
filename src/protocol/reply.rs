@@ -217,6 +217,9 @@ impl Reply {
                 Argument::OutputParameters(op) => {
                     int_return_values.push(InternalReturnValue::OutputParameters(op));
                 }
+                Argument::ParameterMetadata(pm) => {
+                    int_return_values.push(InternalReturnValue::ParameterMetadata(pm));
+                }
                 Argument::ResultSet(Some(rs)) => {
                     int_return_values.push(InternalReturnValue::ResultSet(rs));
                 }

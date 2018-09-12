@@ -1,5 +1,6 @@
 use hdb_return_value::HdbReturnValue;
 use protocol::parts::output_parameters::OutputParameters;
+use protocol::parts::parameter_descriptor::ParameterDescriptor;
 use protocol::parts::resultset::ResultSet;
 use std::fmt;
 use {HdbError, HdbResult};
@@ -25,18 +26,20 @@ use {HdbError, HdbResult};
 /// to evaluate the HdbResponse using the `get_` methods.
 ///
 #[derive(Debug)]
-pub struct HdbResponse(Vec<HdbReturnValue>);
+pub struct HdbResponse {
+    data: Vec<HdbReturnValue>,
+    metadata: Option<Vec<ParameterDescriptor>>,
+}
 
 impl HdbResponse {
     /// Returns the number of contained single return values.
     pub fn count(&self) -> usize {
-        self.0.len()
+        self.data.len()
     }
 
     /// Turns itself into a single resultset.
     ///
-    /// If this cannot be done without loss of information, an error is
-    /// returned.
+    /// If this cannot be done without loss of information, an error is returned.
     pub fn into_resultset(self) -> HdbResult<ResultSet> {
         self.into_single_retval()?.into_resultset()
     }
@@ -44,8 +47,7 @@ impl HdbResponse {
     /// Turns itself into a Vector of numbers (each number representing a
     /// number of affected rows).
     ///
-    /// If this cannot be done without loss of information, an error is
-    /// returned.
+    /// If this cannot be done without loss of information, an error is returned.
     pub fn into_affected_rows(self) -> HdbResult<Vec<usize>> {
         self.into_single_retval()?.into_affected_rows()
     }
@@ -53,28 +55,26 @@ impl HdbResponse {
     /// Turns itself into a Vector of numbers (each number representing a
     /// number of affected rows).
     ///
-    /// If this cannot be done without loss of information, an error is
-    /// returned.
+    /// If this cannot be done without loss of information, an error is returned.
     pub fn into_output_parameters(self) -> HdbResult<OutputParameters> {
         self.into_single_retval()?.into_output_parameters()
     }
 
     /// Turns itself into (), if the statement had returned successfully.
     ///
-    /// If this cannot be done without loss of information, an error is
-    /// returned.
+    /// If this cannot be done without loss of information, an error is returned.
     pub fn into_success(self) -> HdbResult<()> {
         self.into_single_retval()?.into_success()
     }
 
     /// Turns itself into a single return value, if there is exactly one.
     pub fn into_single_retval(mut self) -> HdbResult<HdbReturnValue> {
-        if self.0.len() > 1 {
+        if self.data.len() > 1 {
             Err(HdbError::Evaluation(
                 "Not a single HdbReturnValue".to_string(),
             ))
         } else {
-            self.0.pop().ok_or_else(|| {
+            self.data.pop().ok_or_else(|| {
                 HdbError::Evaluation("expected a single HdbReturnValue, found none".to_string())
             })
         }
@@ -84,12 +84,12 @@ impl HdbResponse {
     /// explicitly, or an error otherwise.
     pub fn get_success(&mut self) -> HdbResult<()> {
         if let Some(i) = self.find_success() {
-            return self.0.remove(i).into_success();
+            return self.data.remove(i).into_success();
         }
         Err(self.get_err("success"))
     }
     fn find_success(&self) -> Option<usize> {
-        for (i, rt) in self.0.iter().enumerate().rev() {
+        for (i, rt) in self.data.iter().enumerate().rev() {
             if rt.is_success() {
                 return Some(i);
             }
@@ -100,12 +100,12 @@ impl HdbResponse {
     /// Returns the next `ResultSet`, or an error if there is none.
     pub fn get_resultset(&mut self) -> HdbResult<ResultSet> {
         if let Some(i) = self.find_resultset() {
-            return self.0.remove(i).into_resultset();
+            return self.data.remove(i).into_resultset();
         }
         Err(self.get_err("resultset"))
     }
     fn find_resultset(&self) -> Option<usize> {
-        for (i, rt) in self.0.iter().enumerate().rev() {
+        for (i, rt) in self.data.iter().enumerate().rev() {
             if let HdbReturnValue::ResultSet(_) = *rt {
                 return Some(i);
             }
@@ -113,16 +113,26 @@ impl HdbResponse {
         None
     }
 
+    /// Returns the next `ParameterDescriptor`, or an error if there is none.
+    pub fn get_parameter_descriptor(&mut self) -> HdbResult<ParameterDescriptor> {
+        if let Some(ref mut md) = self.metadata {
+            if !md.is_empty() {
+                return Ok(md.remove(0));
+            }
+        }
+        Err(self.get_err("parameter descriptor"))
+    }
+
     /// Returns the next set of affected rows counters, or an error if there is
     /// none.
     pub fn get_affected_rows(&mut self) -> HdbResult<Vec<usize>> {
         if let Some(i) = self.find_affected_rows() {
-            return self.0.remove(i).into_affected_rows();
+            return self.data.remove(i).into_affected_rows();
         }
         Err(self.get_err("affected_rows"))
     }
     fn find_affected_rows(&self) -> Option<usize> {
-        for (i, rt) in self.0.iter().enumerate().rev() {
+        for (i, rt) in self.data.iter().enumerate().rev() {
             if let HdbReturnValue::AffectedRows(_) = *rt {
                 return Some(i);
             }
@@ -133,12 +143,12 @@ impl HdbResponse {
     /// Returns the next `OutputParameters`, or an error if there is none.
     pub fn get_output_parameters(&mut self) -> HdbResult<OutputParameters> {
         if let Some(i) = self.find_output_parameters() {
-            return self.0.remove(i).into_output_parameters();
+            return self.data.remove(i).into_output_parameters();
         }
         Err(self.get_err("output_parameters"))
     }
     fn find_output_parameters(&self) -> Option<usize> {
-        for (i, rt) in self.0.iter().enumerate().rev() {
+        for (i, rt) in self.data.iter().enumerate().rev() {
             if let HdbReturnValue::OutputParameters(_) = *rt {
                 return Some(i);
             }
@@ -151,7 +161,7 @@ impl HdbResponse {
         errmsg.push_str("No ");
         errmsg.push_str(type_s);
         errmsg.push_str(" found in this HdbResponse [");
-        for rt in &self.0 {
+        for rt in &self.data {
             errmsg.push_str(match *rt {
                 HdbReturnValue::ResultSet(_) => "ResultSet, ",
                 HdbReturnValue::AffectedRows(_) => "AffectedRows, ",
@@ -167,11 +177,14 @@ impl HdbResponse {
 
 impl fmt::Display for HdbResponse {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt("HdbResponse [", fmt)?;
-        for dbretval in &self.0 {
-            fmt::Display::fmt(dbretval, fmt)?;
+        write!(fmt, "HdbResponse [")?;
+        for dbretval in &self.data {
+            write!(fmt, "{}, ", dbretval)?;
         }
-        fmt::Display::fmt("]", fmt)?;
+        for pm in &self.metadata {
+            write!(fmt, "{:?}, ", pm)?;
+        }
+        write!(fmt, "]")?;
         Ok(())
     }
 }
@@ -179,6 +192,7 @@ impl fmt::Display for HdbResponse {
 pub mod factory {
     use super::{HdbResponse, HdbReturnValue};
     use protocol::parts::output_parameters::OutputParameters;
+    use protocol::parts::parameter_descriptor::ParameterDescriptor;
     use protocol::parts::resultset::ResultSet;
     use protocol::parts::rows_affected::RowsAffected;
     use {HdbError, HdbResult};
@@ -188,25 +202,61 @@ pub mod factory {
         ResultSet(ResultSet),
         AffectedRows(Vec<RowsAffected>),
         OutputParameters(OutputParameters),
+        ParameterMetadata(Vec<ParameterDescriptor>),
     }
 
     pub fn resultset(mut int_return_values: Vec<InternalReturnValue>) -> HdbResult<HdbResponse> {
-        if int_return_values.len() > 1 {
+        let mut rs_count = 0;
+        let mut pm_count = 0;
+        if int_return_values
+            .iter()
+            .filter(|irv| match irv {
+                InternalReturnValue::ResultSet(_) => {
+                    rs_count += 1;
+                    false
+                }
+                InternalReturnValue::ParameterMetadata(_) => {
+                    pm_count += 1;
+                    false
+                }
+                _ => true,
+            })
+            .count() > 0
+        {
             return Err(HdbError::Impl(
-                "Only a single ResultSet was expected".to_owned(),
+                "resultset(): Unexpected InternalReturnValue(s) received".to_owned(),
             ));
         }
-        match int_return_values.pop() {
-            Some(InternalReturnValue::ResultSet(rs)) => {
-                Ok(HdbResponse(vec![HdbReturnValue::ResultSet(rs)]))
-            }
-            None => Err(HdbError::Impl(
-                "Nothing found, but a single Resultset was expected".to_owned(),
-            )),
-            _ => Err(HdbError::Impl(
-                "Wrong HdbReturnValue, a single Resultset was expected".to_owned(),
-            )),
+
+        if rs_count > 1 || pm_count > 1 {
+            return Err(HdbError::Impl(
+                "resultset(): too many InternalReturnValue(s) of expected types received"
+                    .to_owned(),
+            ));
         }
+        Ok(match (int_return_values.pop(), int_return_values.pop()) {
+            (Some(InternalReturnValue::ResultSet(rs)), None) => HdbResponse {
+                data: vec![HdbReturnValue::ResultSet(rs)],
+                metadata: None,
+            },
+
+            (
+                Some(InternalReturnValue::ResultSet(rs)),
+                Some(InternalReturnValue::ParameterMetadata(pm)),
+            )
+            | (
+                Some(InternalReturnValue::ParameterMetadata(pm)),
+                Some(InternalReturnValue::ResultSet(rs)),
+            ) => HdbResponse {
+                data: vec![HdbReturnValue::ResultSet(rs)],
+                metadata: Some(pm),
+            },
+            (None, None) | (_, _) => {
+                return Err(HdbError::Impl(
+                    "Nothing found, but a single Resultset was expected".to_owned(),
+                ))
+            }
+        })
     }
 
     pub fn rows_affected(
@@ -231,10 +281,16 @@ pub mod factory {
                         }
                     }
                 }
-                Ok(HdbResponse(vec![HdbReturnValue::AffectedRows(vec_i)]))
+                Ok(HdbResponse {
+                    data: vec![HdbReturnValue::AffectedRows(vec_i)],
+                    metadata: None,
+                })
             }
             Some(InternalReturnValue::OutputParameters(_)) => Err(HdbError::Impl(
                 "Found OutputParameters, but a single AffectedRows was expected".to_owned(),
+            )),
+            Some(InternalReturnValue::ParameterMetadata(_)) => Err(HdbError::Impl(
+                "Found ParameterMetadata, but a single AffectedRows was expected".to_owned(),
             )),
             Some(InternalReturnValue::ResultSet(_)) => Err(HdbError::Impl(
                 "Found ResultSet, but a single AffectedRows was expected".to_owned(),
@@ -247,7 +303,10 @@ pub mod factory {
 
     pub fn success(mut int_return_values: Vec<InternalReturnValue>) -> HdbResult<HdbResponse> {
         if int_return_values.is_empty() {
-            return Ok(HdbResponse(vec![HdbReturnValue::Success]));
+            return Ok(HdbResponse {
+                data: vec![HdbReturnValue::Success],
+                metadata: None,
+            });
         } else if int_return_values.len() > 1 {
             return Err(HdbError::Impl(
                 "found multiple InternalReturnValues, but only a single Success was expected"
@@ -271,9 +330,15 @@ pub mod factory {
                                 .to_owned(),
                         ))
                     } else {
-                        Ok(HdbResponse(vec![HdbReturnValue::Success]))
+                        Ok(HdbResponse {
+                            data: vec![HdbReturnValue::Success],
+                            metadata: None,
+                        })
                     },
-                    RowsAffected::SuccessNoInfo => Ok(HdbResponse(vec![HdbReturnValue::Success])),
+                    RowsAffected::SuccessNoInfo => Ok(HdbResponse {
+                        data: vec![HdbReturnValue::Success],
+                        metadata: None,
+                    }),
                     RowsAffected::ExecutionFailed => Err(HdbError::Impl(
                         "Found unexpected returnvalue ExecutionFailed".to_owned(),
                     )),
@@ -281,6 +346,9 @@ pub mod factory {
             }
             Some(InternalReturnValue::OutputParameters(_)) => Err(HdbError::Impl(
                 "Found OutputParameters, but a single Success was expected".to_owned(),
+            )),
+            Some(InternalReturnValue::ParameterMetadata(_)) => Err(HdbError::Impl(
+                "Found ParameterMetadata, but a single Success was expected".to_owned(),
             )),
             Some(InternalReturnValue::ResultSet(_)) => Err(HdbError::Impl(
                 "Found ResultSet, but a single Success was expected".to_owned(),
@@ -295,6 +363,7 @@ pub mod factory {
         mut int_return_values: Vec<InternalReturnValue>,
     ) -> HdbResult<HdbResponse> {
         let mut vec_dbrv = Vec::<HdbReturnValue>::new();
+        let mut pardescs: Option<Vec<ParameterDescriptor>> = None;
         int_return_values.reverse();
         for irv in int_return_values {
             match irv {
@@ -316,11 +385,17 @@ pub mod factory {
                 InternalReturnValue::OutputParameters(op) => {
                     vec_dbrv.push(HdbReturnValue::OutputParameters(op));
                 }
+                InternalReturnValue::ParameterMetadata(pm) => {
+                    pardescs = Some(pm);
+                }
                 InternalReturnValue::ResultSet(rs) => {
                     vec_dbrv.push(HdbReturnValue::ResultSet(rs));
                 }
             }
         }
-        Ok(HdbResponse(vec_dbrv))
+        Ok(HdbResponse {
+            data: vec_dbrv,
+            metadata: pardescs,
+        })
     }
 }

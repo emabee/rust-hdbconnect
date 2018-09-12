@@ -38,22 +38,21 @@ impl OutputParameters {
 impl fmt::Display for OutputParameters {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         // write a header
-        writeln!(fmt).unwrap();
+        writeln!(fmt)?;
         for parameter_descriptor in &self.metadata {
             write!(
                 fmt,
                 "{}, ",
                 parameter_descriptor.name().unwrap_or(&String::new())
-            ).unwrap();
+            )?;
         }
-        writeln!(fmt).unwrap();
+        writeln!(fmt)?;
 
         // write the data
         for value in &self.values {
-            fmt::Display::fmt(&value, fmt).unwrap(); // write the value
-            write!(fmt, ", ").unwrap();
+            write!(fmt, "{}, ", &value)?; // write the value
         }
-        writeln!(fmt).unwrap();
+        writeln!(fmt)?;
         Ok(())
     }
 }

@@ -101,24 +101,11 @@ impl HdbReturnValue {
 impl fmt::Display for HdbReturnValue {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            HdbReturnValue::AffectedRows(ref vec) => {
-                fmt::Display::fmt("AffectedRows ", fmt)?;
-                fmt::Debug::fmt(vec, fmt)?;
-                fmt::Display::fmt(",\n", fmt)?
-            }
-            HdbReturnValue::OutputParameters(ref op) => {
-                fmt::Display::fmt("OutputParameters [", fmt)?;
-                fmt::Display::fmt(op, fmt)?;
-                fmt::Display::fmt("],\n", fmt)?
-            }
-            HdbReturnValue::ResultSet(ref rs) => {
-                fmt::Display::fmt("ResultSet [", fmt)?;
-                fmt::Display::fmt(rs, fmt)?;
-                fmt::Display::fmt("],\n", fmt)?
-            }
-            HdbReturnValue::Success => fmt::Display::fmt("Success,\n", fmt)?,
-            HdbReturnValue::XaTransactionIds(_) => fmt::Display::fmt("XaTransactionIds,\n", fmt)?,
+            HdbReturnValue::AffectedRows(ref vec) => write!(fmt, "AffectedRows {:?},\n", vec),
+            HdbReturnValue::OutputParameters(ref op) => write!(fmt, "OutputParameters [{}],\n", op),
+            HdbReturnValue::ResultSet(ref rs) => write!(fmt, "ResultSet [{}],\n", rs),
+            HdbReturnValue::Success => write!(fmt, "Success,\n"),
+            HdbReturnValue::XaTransactionIds(_) => write!(fmt, "XaTransactionIds,\n"),
         }
-        Ok(())
     }
 }

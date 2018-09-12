@@ -285,11 +285,9 @@ impl ResultSet {
 
 impl fmt::Display for ResultSet {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(&self.metadata, fmt).unwrap(); // write a header
-        writeln!(fmt).unwrap();
+        writeln!(fmt, "{}\n", &self.metadata)?; // write a header
         for row in &self.rows {
-            fmt::Display::fmt(&row, fmt).unwrap(); // write the data
-            writeln!(fmt).unwrap();
+            writeln!(fmt, "{}\n", &row)?; // write the data
         }
         Ok(())
     }

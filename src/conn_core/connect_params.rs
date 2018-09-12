@@ -60,6 +60,11 @@ pub struct ConnectParams {
     options: Vec<(String, String)>,
 }
 impl ConnectParams {
+    /// Returns a new builder for ConnectParams.
+    pub fn builder() -> ConnectParamsBuilder {
+        ConnectParamsBuilder::new()
+    }
+
     /// Reads a url from the given file and converts it into `ConnectParams`.
     pub fn from_file<P: AsRef<Path>>(path: P) -> HdbResult<ConnectParams> {
         fs::read_to_string(path)?.into_connect_params()

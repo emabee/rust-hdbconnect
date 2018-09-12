@@ -13,7 +13,7 @@ use hdbconnect::HdbResult;
 
 #[test] // cargo test --test test_021_date_serialization
 pub fn test_021_date_serialization() {
-    let mut loghandle = test_utils::init_logger("test_021_date_serialization=info");
+    let mut loghandle = test_utils::init_logger("info, test_021_date_serialization=debug");
 
     match test_date_io(&mut loghandle) {
         Err(e) => {
@@ -66,9 +66,7 @@ fn test_date_io(_loghandle: &mut ReconfigurationHandle) -> HdbResult<i32> {
     };
     connection.multiple_statements_ignore_err(vec!["drop table TEST_DATE_SERIALIZATION"]);
     connection.multiple_statements(vec![
-        "create table TEST_DATE_SERIALIZATION \
-         (number INT primary key, mydate LONGDATE \
-         not null)",
+        "create table TEST_DATE_SERIALIZATION (number INT primary key, mydate LONGDATE not null)",
         &insert_stmt(13, string_values[0]),
         &insert_stmt(14, string_values[1]),
         &insert_stmt(15, string_values[2]),
@@ -79,20 +77,29 @@ fn test_date_io(_loghandle: &mut ReconfigurationHandle) -> HdbResult<i32> {
     {
         info!("test the conversion NaiveDateTime -> DB");
         let mut prep_stmt = connection.prepare(
-            "select sum(number) from TEST_DATE_SERIALIZATION \
-             where mydate = ? or mydate = ?",
+            "select sum(number) from TEST_DATE_SERIALIZATION where mydate = ? or mydate = ?",
         )?;
-        // Enforce that NaiveDateTime values are converted in the client (with serde)
-        // to the DB type:
+
+        // Enforce that NaiveDateTime values are converted in the client (with serde) to the DB type:
         prep_stmt.add_batch(&(naive_datetime_values[2], naive_datetime_values[3]))?;
-        let typed_result: i32 = prep_stmt.execute_batch()?.into_resultset()?.try_into()?;
+        let mut response = prep_stmt.execute_batch()?;
+        debug!(
+            "Parameter Descriptor: {:?}",
+            response.get_parameter_descriptor()?
+        );
+        debug!(
+            "Parameter Descriptor: {:?}",
+            response.get_parameter_descriptor()?
+        );
+        assert!(response.get_parameter_descriptor().is_err());
+        let typed_result: i32 = response.into_resultset()?.try_into()?;
         assert_eq!(typed_result, 31_i32);
 
         info!("test the conversion DateTime<Utc> -> DB");
         let utc2: DateTime<Utc> = DateTime::from_utc(naive_datetime_values[2], Utc);
         let utc3: DateTime<Utc> = DateTime::from_utc(naive_datetime_values[3], Utc);
-        // Enforce that UTC timestamps values are converted here in the client to the
-        // DB type:
+
+        // Enforce that UTC timestamps values are converted here in the client to the DB type:
         prep_stmt.add_batch(&(utc2, utc3))?;
         let typed_result: i32 = prep_stmt.execute_batch()?.into_resultset()?.try_into()?;
         assert_eq!(typed_result, 31_i32);
