@@ -1,13 +1,14 @@
 use bigdecimal::BigDecimal;
-use protocol::lob::blob::BLOB;
-use protocol::lob::clob::CLOB;
-use protocol::parts::daydate::DayDate;
-use protocol::parts::hdb_decimal::serialize_decimal;
-use protocol::parts::longdate::LongDate;
-use protocol::parts::seconddate::SecondDate;
-use protocol::parts::secondtime::SecondTime;
 use protocol::parts::type_id;
 use protocol::{cesu8, util};
+use types::BLob;
+use types::CLob;
+use types::DayDate;
+use types::LongDate;
+use types::SecondDate;
+use types::SecondTime;
+use types_impl::hdb_decimal::serialize_decimal;
+use types_impl::lob::{serialize_blob_header, serialize_clob_header};
 use {HdbError, HdbResult};
 
 use byteorder::{LittleEndian, WriteBytesExt};
@@ -93,15 +94,14 @@ pub enum HdbValue {
     BINARY(Vec<u8>),
     /// The VARBINARY(n) data type is used to store binary data of a specified
     /// maximum length in bytes,
-    /// where n indicates the maximum length and is an integer between 1 and
-    /// 5000.
+    /// where n indicates the maximum length and is an integer between 1 and 5000.
     VARBINARY(Vec<u8>),
     /// The CLOB data type is used to store a large ASCII character string.
-    CLOB(CLOB),
+    CLOB(CLob),
     /// The NCLOB data type is used to store a large Unicode string.
-    NCLOB(CLOB),
+    NCLOB(CLob),
     /// The BLOB data type is used to store a large binary string.
-    BLOB(BLOB),
+    BLOB(BLob),
     /// BOOLEAN stores boolean values, which are TRUE or FALSE.
     BOOLEAN(bool),
     /// The DB returns all Strings as type STRING, independent of the concrete
@@ -165,11 +165,11 @@ pub enum HdbValue {
     /// Nullable variant of VARBINARY.
     N_VARBINARY(Option<Vec<u8>>),
     /// Nullable variant of CLOB.
-    N_CLOB(Option<CLOB>),
+    N_CLOB(Option<CLob>),
     /// Nullable variant of NCLOB.
-    N_NCLOB(Option<CLOB>),
+    N_NCLOB(Option<CLob>),
     /// Nullable variant of BLOB.
-    N_BLOB(Option<BLOB>),
+    N_BLOB(Option<BLob>),
     /// Nullable variant of BOOLEAN.
     N_BOOLEAN(Option<bool>),
     /// Nullable variant of STRING.
@@ -541,24 +541,6 @@ fn serialize_length_and_bytes(v: &[u8], w: &mut io::Write) -> HdbResult<()> {
     util::serialize_bytes(v, w) // B variable   VALUE BYTES
 }
 
-fn serialize_blob_header(v_len: usize, data_pos: &mut i32, w: &mut io::Write) -> HdbResult<()> {
-    // bit 0: not used; bit 1: data is included; bit 2: no more data remaining
-    w.write_u8(0b_110_u8)?; // I1           Bit set for options
-    w.write_i32::<LittleEndian>(v_len as i32)?; // I4           LENGTH OF VALUE
-    w.write_i32::<LittleEndian>(*data_pos as i32)?; // I4           position
-    *data_pos += v_len as i32;
-    Ok(())
-}
-
-fn serialize_clob_header(s_len: usize, data_pos: &mut i32, w: &mut io::Write) -> HdbResult<()> {
-    // bit 0: not used; bit 1: data is included; bit 2: no more data remaining
-    w.write_u8(0b_110_u8)?; // I1           Bit set for options
-    w.write_i32::<LittleEndian>(s_len as i32)?; // I4           LENGTH OF VALUE
-    w.write_i32::<LittleEndian>(*data_pos as i32)?; // I4           position
-    *data_pos += s_len as i32;
-    Ok(())
-}
-
 impl fmt::Display for HdbValue {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
@@ -651,22 +633,20 @@ impl fmt::Display for HdbValue {
 
 pub mod factory {
     use super::HdbValue;
-    use byteorder::{LittleEndian, ReadBytesExt};
     use conn_core::AmConnCore;
-    use protocol::lob::blob::new_blob_from_db;
-    use protocol::lob::blob::BLOB;
-    use protocol::lob::clob::new_clob_from_db;
-    use protocol::lob::clob::CLOB;
-    use protocol::parts::daydate::{parse_daydate, parse_nullable_daydate};
-    use protocol::parts::hdb_decimal::{parse_decimal, parse_nullable_decimal};
-    use protocol::parts::longdate::{parse_longdate, parse_nullable_longdate};
-    use protocol::parts::seconddate::{parse_nullable_seconddate, parse_seconddate};
-    use protocol::parts::secondtime::{parse_nullable_secondtime, parse_secondtime};
     use protocol::{cesu8, util};
+    use types_impl::daydate::{parse_daydate, parse_nullable_daydate};
+    use types_impl::hdb_decimal::{parse_decimal, parse_nullable_decimal};
+    use types_impl::lob::{parse_blob, parse_clob, parse_nullable_blob, parse_nullable_clob};
+    use types_impl::longdate::{parse_longdate, parse_nullable_longdate};
+    use types_impl::seconddate::{parse_nullable_seconddate, parse_seconddate};
+    use types_impl::secondtime::{parse_nullable_secondtime, parse_secondtime};
+    use {HdbError, HdbResult};
+
+    use byteorder::{LittleEndian, ReadBytesExt};
     use std::io;
     use std::iter::repeat;
     use std::{u32, u64};
-    use {HdbError, HdbResult};
 
     pub fn parse_from_reply(
         p_typecode: u8,
@@ -754,10 +734,7 @@ pub mod factory {
             // 144 => Ok(HdbValue::N_TIMESTAMP(
             153 => Ok(HdbValue::N_CLOB(parse_nullable_clob(am_conn_core, rdr)?)),
             154 => Ok(HdbValue::N_NCLOB(parse_nullable_clob(am_conn_core, rdr)?)),
-            155 => Ok(HdbValue::N_BLOB(parse_nullable_blob_from_reply(
-                am_conn_core,
-                rdr,
-            )?)),
+            155 => Ok(HdbValue::N_BLOB(parse_nullable_blob(am_conn_core, rdr)?)),
             156 => Ok(HdbValue::N_BOOLEAN(if ind_null(rdr)? {
                 None
             } else {
@@ -916,93 +893,5 @@ pub mod factory {
         let result = util::parse_bytes(len, rdr)?;
         trace!("parse_nullable_binary(): read_bytes = {:?}", result);
         Ok(Some(result)) // B (varying)
-    }
-
-    // ----- BLOBS and CLOBS
-    // ===
-    // regular parse
-    pub fn parse_blob(am_conn_core: &AmConnCore, rdr: &mut io::BufRead) -> HdbResult<BLOB> {
-        match parse_nullable_blob_from_reply(am_conn_core, rdr)? {
-            Some(blob) => Ok(blob),
-            None => Err(HdbError::Impl(
-                "Null value found for non-null blob column".to_owned(),
-            )),
-        }
-    }
-
-    pub fn parse_nullable_blob_from_reply(
-        am_conn_core: &AmConnCore,
-        rdr: &mut io::BufRead,
-    ) -> HdbResult<Option<BLOB>> {
-        let (is_null, is_data_included, is_last_data) = parse_lob_1(rdr)?;
-        if is_null {
-            Ok(None)
-        } else {
-            let (_, length_b, locator_id, data) = parse_lob_2(rdr, is_data_included)?;
-            Ok(Some(new_blob_from_db(
-                am_conn_core,
-                is_last_data,
-                length_b,
-                locator_id,
-                data,
-            )))
-        }
-    }
-
-    pub fn parse_clob(am_conn_core: &AmConnCore, rdr: &mut io::BufRead) -> HdbResult<CLOB> {
-        match parse_nullable_clob(am_conn_core, rdr)? {
-            Some(clob) => Ok(clob),
-            None => Err(HdbError::Impl(
-                "Null value found for non-null clob column".to_owned(),
-            )),
-        }
-    }
-
-    pub fn parse_nullable_clob(
-        am_conn_core: &AmConnCore,
-        rdr: &mut io::BufRead,
-    ) -> HdbResult<Option<CLOB>> {
-        let (is_null, is_data_included, is_last_data) = parse_lob_1(rdr)?;
-        if is_null {
-            Ok(None)
-        } else {
-            let (length_c, length_b, locator_id, data) = parse_lob_2(rdr, is_data_included)?;
-            Ok(Some(new_clob_from_db(
-                am_conn_core,
-                is_last_data,
-                length_c,
-                length_b,
-                locator_id,
-                &data,
-            )))
-        }
-    }
-
-    fn parse_lob_1(rdr: &mut io::BufRead) -> HdbResult<(bool, bool, bool)> {
-        let _data_type = rdr.read_u8()?; // I1
-        let options = rdr.read_u8()?; // I1
-        let is_null = (options & 0b_1_u8) != 0;
-        let is_data_included = (options & 0b_10_u8) != 0;
-        let is_last_data = (options & 0b_100_u8) != 0;
-        Ok((is_null, is_data_included, is_last_data))
-    }
-
-    fn parse_lob_2(
-        rdr: &mut io::BufRead,
-        is_data_included: bool,
-    ) -> HdbResult<(u64, u64, u64, Vec<u8>)> {
-        util::skip_bytes(2, rdr)?; // U2 (filler)
-        let length_c = rdr.read_u64::<LittleEndian>()?; // I8
-        let length_b = rdr.read_u64::<LittleEndian>()?; // I8
-        let locator_id = rdr.read_u64::<LittleEndian>()?; // I8
-        let chunk_length = rdr.read_u32::<LittleEndian>()?; // I4
-
-        if is_data_included {
-            let data = util::parse_bytes(chunk_length as usize, rdr)?; // B[chunk_length]
-            trace!("Got LOB locator {}", locator_id);
-            Ok((length_c, length_b, locator_id, data))
-        } else {
-            Ok((length_c, length_b, locator_id, Vec::<u8>::new()))
-        }
     }
 }

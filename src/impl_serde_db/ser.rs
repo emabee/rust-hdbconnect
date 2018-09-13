@@ -1,13 +1,13 @@
 use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, NaiveTime, Timelike};
-use protocol::lob::blob::new_blob_to_db;
+use types_impl::lob::new_blob_to_db;
 
-use protocol::parts::daydate::DayDate;
 use protocol::parts::hdb_value::HdbValue;
-use protocol::parts::longdate::LongDate;
 use protocol::parts::parameter_descriptor::ParameterDescriptor;
-use protocol::parts::seconddate::SecondDate;
-use protocol::parts::secondtime::SecondTime;
 use protocol::parts::type_id;
+use types::DayDate;
+use types::LongDate;
+use types::SecondDate;
+use types::SecondTime;
 
 use bigdecimal::BigDecimal;
 use bigdecimal::FromPrimitive;

@@ -1,7 +1,7 @@
-use protocol::lob::blob::BLOB;
-use protocol::lob::clob::CLOB;
 use protocol::parts::hdb_value::HdbValue;
 use protocol::parts::resultset_metadata::ResultSetMetadata;
+use types::BLob;
+use types::CLob;
 use {HdbError, HdbResult};
 
 use serde;
@@ -104,7 +104,7 @@ impl Row {
     }
 
     /// Swaps out a field and converts it into a CLOB.
-    pub fn field_into_clob(&mut self, i: usize) -> HdbResult<CLOB> {
+    pub fn field_into_clob(&mut self, i: usize) -> HdbResult<CLob> {
         trace!("Row::field_into_clob()");
         let mut tmp = HdbValue::NOTHING;
         mem::swap(&mut self.values[i], &mut tmp);
@@ -118,8 +118,8 @@ impl Row {
         }
     }
 
-    /// Swaps out a field and converts it into a BLOB.
-    pub fn field_into_blob(&mut self, i: usize) -> HdbResult<BLOB> {
+    /// Swaps out a field and converts it into a BLob.
+    pub fn field_into_blob(&mut self, i: usize) -> HdbResult<BLob> {
         trace!("Row::field_into_blob()");
         let mut tmp = HdbValue::NOTHING;
         mem::swap(&mut self.values[i], &mut tmp);

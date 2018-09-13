@@ -2,6 +2,9 @@
 
 ## [Unreleased] 
 
+## [0.7.1]  2018-09-13
+Add missing HANA data types: SECONDTIME, DAYDATE, SECONDDATE, SMALLDECIMAL.
+
 ## [0.7.0]  2018-09-08
 Add feature "tls" - implementation pretty complete, but completely untested.
 

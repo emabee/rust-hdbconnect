@@ -1,6 +1,6 @@
+use super::fetch_a_lob_chunk;
 use conn_core::AmConnCore;
 use protocol::cesu8;
-use protocol::lob::fetch_a_lob_chunk::fetch_a_lob_chunk;
 use protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
 use std::cell::RefCell;
 use std::cmp::max;
@@ -8,10 +8,9 @@ use std::io::{self, Write};
 use std::sync::Arc;
 use {HdbError, HdbResult};
 
-/// CLOB implementation that is used with `HdbValue::CLOB` and
-/// `HdbValue::NCLOB`.
+/// CLob implementation that is used with `HdbValue::CLOB` and `HdbValue::NCLOB`.
 #[derive(Clone, Debug)]
-pub struct CLOB(RefCell<ClobHandle>);
+pub struct CLob(RefCell<CLobHandle>);
 
 pub fn new_clob_from_db(
     am_conn_core: &AmConnCore,
@@ -20,8 +19,8 @@ pub fn new_clob_from_db(
     length_b: u64,
     locator_id: u64,
     data: &[u8],
-) -> CLOB {
-    CLOB(RefCell::new(ClobHandle::new(
+) -> CLob {
+    CLob(RefCell::new(CLobHandle::new(
         am_conn_core,
         is_data_complete,
         length_c,
@@ -31,7 +30,7 @@ pub fn new_clob_from_db(
     )))
 }
 
-impl CLOB {
+impl CLob {
     /// Length of contained String
     pub fn len(&self) -> HdbResult<usize> {
         self.0.borrow_mut().len()
@@ -52,24 +51,24 @@ impl CLOB {
 
     /// Returns the contained String.
     pub fn into_string(self) -> HdbResult<String> {
-        trace!("CLOB::into_string()");
+        trace!("CLob::into_string()");
         self.0.into_inner().into_string()
     }
 }
 
-// Support for CLOB streaming
-impl io::Read for CLOB {
+// Support for CLob streaming
+impl io::Read for CLob {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.0.borrow_mut().read(buf)
     }
 }
 
-/// `ClobHandle` is used for CLOBs and NCLOBs that we receive from the database.
-/// The data are often not transferred completely, so we carry internally
-/// a database connection and the
-/// necessary controls to support fetching remaining data on demand.
+// `CLobHandle` is used for CLOBs and NCLOBs that we receive from the database.
+// The data are often not transferred completely, so we carry internally
+// a database connection and the
+// necessary controls to support fetching remaining data on demand.
 #[derive(Clone, Debug)]
-struct ClobHandle {
+struct CLobHandle {
     o_am_conn_core: Option<AmConnCore>,
     is_data_complete: bool,
     length_c: u64,
@@ -81,7 +80,7 @@ struct ClobHandle {
     acc_byte_length: usize,
     server_resource_consumption_info: ServerResourceConsumptionInfo,
 }
-impl ClobHandle {
+impl CLobHandle {
     pub fn new(
         am_conn_core: &AmConnCore,
         is_data_complete: bool,
@@ -89,15 +88,15 @@ impl ClobHandle {
         length_b: u64,
         locator_id: u64,
         cesu8: &[u8],
-    ) -> ClobHandle {
+    ) -> CLobHandle {
         let acc_byte_length = cesu8.len();
         let mut utf8 = Vec::<u8>::new();
         let (success, _, byte_count) = cesu8::decode_from_iter(&mut utf8, &mut cesu8.iter());
         if !success && byte_count < cesu8.len() as u64 - 5 {
-            error!("ClobHandle::new() bad cesu8 in first part of CLOB");
+            error!("CLobHandle::new() bad cesu8 in first part of CLob");
         }
         let (_u, c) = cesu8.split_at(byte_count as usize);
-        let clob_handle = ClobHandle {
+        let clob_handle = CLobHandle {
             o_am_conn_core: Some(Arc::clone(am_conn_core)),
             length_c,
             length_b,
@@ -110,7 +109,7 @@ impl ClobHandle {
             server_resource_consumption_info: Default::default(),
         };
         trace!(
-            "ClobHandle::new() with: is_data_complete = {}, length_c = {}, length_b = {}, \
+            "CLobHandle::new() with: is_data_complete = {}, length_c = {}, length_b = {}, \
              locator_id = {}, buffer_cesu8.len() = {}, utf8.len() = {}",
             clob_handle.is_data_complete,
             clob_handle.length_c,
@@ -128,7 +127,7 @@ impl ClobHandle {
 
     fn fetch_next_chunk(&mut self) -> HdbResult<()> {
         trace!(
-            "ClobHandle.fetch_next_chunk(), utf8.len() = {}",
+            "CLobHandle.fetch_next_chunk(), utf8.len() = {}",
             self.utf8.len()
         );
         if self.is_data_complete {
@@ -149,7 +148,7 @@ impl ClobHandle {
 
         if !success && byte_count < self.buffer_cesu8.len() as u64 - 5 {
             error!(
-                "ClobHandle::fetch_next_chunk(): bad cesu8 at pos {} in part of CLOB: {:?}",
+                "CLobHandle::fetch_next_chunk(): bad cesu8 at pos {} in part of CLOB: {:?}",
                 byte_count, self.buffer_cesu8
             );
             return Err(HdbError::Cesu8(cesu8::Cesu8DecodingError));
@@ -169,7 +168,7 @@ impl ClobHandle {
     }
 
     fn load_complete(&mut self) -> HdbResult<()> {
-        trace!("ClobHandle::load_complete()");
+        trace!("CLobHandle::load_complete()");
         while !self.is_data_complete {
             self.fetch_next_chunk()?;
         }
@@ -180,18 +179,18 @@ impl ClobHandle {
         self.max_size
     }
 
-    /// Converts a ClobHandle into a String containing its data.
+    /// Converts a CLobHandle into a String containing its data.
     pub fn into_string(mut self) -> HdbResult<String> {
-        trace!("ClobHandle::into_string()");
+        trace!("CLobHandle::into_string()");
         self.load_complete()?;
         String::from_utf8(self.utf8).map_err(|_| HdbError::Cesu8(cesu8::Cesu8DecodingError))
     }
 }
 
 // Support for CLOB streaming
-impl io::Read for ClobHandle {
+impl io::Read for CLobHandle {
     fn read(&mut self, mut buf: &mut [u8]) -> io::Result<usize> {
-        trace!("ClobHandle::read() with buf of len {}", buf.len());
+        trace!("CLobHandle::read() with buf of len {}", buf.len());
 
         while !self.is_data_complete && (buf.len() > self.utf8.len()) {
             self.fetch_next_chunk()

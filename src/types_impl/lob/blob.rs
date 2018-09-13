@@ -1,25 +1,20 @@
-use protocol::lob::fetch_a_lob_chunk::fetch_a_lob_chunk;
+use super::fetch_a_lob_chunk;
+use conn_core::AmConnCore;
 use protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
 use std::cell::RefCell;
-use conn_core::AmConnCore;
 use {HdbError, HdbResult};
 
 use std::cmp;
 use std::io::{self, Write};
 use std::sync::Arc;
 
-/// BLOB implementation that is used within `HdbValue::BLOB`.
-///
-/// BLOB comes in two flavors, depending on
-/// whether we read it from the database or write it to the database.
+/// BLob implementation that is used within `HdbValue::BLOB`.
 #[derive(Clone, Debug)]
-pub struct BLOB(BlobEnum);
+pub struct BLob(BLobEnum);
 
 #[derive(Clone, Debug)]
-enum BlobEnum {
-    /// A BlobHandle represents a CLOB that was read from the database.
-    FromDB(RefCell<BlobHandle>),
-    /// A mere newtype-struct around the data.
+enum BLobEnum {
+    FromDB(RefCell<BLobHandle>),
     ToDB(Vec<u8>),
 }
 
@@ -29,8 +24,8 @@ pub fn new_blob_from_db(
     length_b: u64,
     locator_id: u64,
     data: Vec<u8>,
-) -> BLOB {
-    BLOB(BlobEnum::FromDB(RefCell::new(BlobHandle::new(
+) -> BLob {
+    BLob(BLobEnum::FromDB(RefCell::new(BLobHandle::new(
         am_conn_core,
         is_data_complete,
         length_b,
@@ -39,25 +34,25 @@ pub fn new_blob_from_db(
     ))))
 }
 
-/// Factory method for BLOBs that are to be sent to the database.
-pub fn new_blob_to_db(vec: Vec<u8>) -> BLOB {
-    BLOB(BlobEnum::ToDB(vec))
+// Factory method for BLobs that are to be sent to the database.
+pub fn new_blob_to_db(vec: Vec<u8>) -> BLob {
+    BLob(BLobEnum::ToDB(vec))
 }
 
-impl BLOB {
+impl BLob {
     /// Length of contained data.
     pub fn len_alldata(&self) -> usize {
         match self.0 {
-            BlobEnum::FromDB(ref handle) => handle.borrow_mut().len_alldata() as usize,
-            BlobEnum::ToDB(ref vec) => vec.len(),
+            BLobEnum::FromDB(ref handle) => handle.borrow_mut().len_alldata() as usize,
+            BLobEnum::ToDB(ref vec) => vec.len(),
         }
     }
 
     /// Length of read data.
     pub fn len_readdata(&self) -> usize {
         match self.0 {
-            BlobEnum::FromDB(ref handle) => handle.borrow_mut().len_readdata() as usize,
-            BlobEnum::ToDB(ref vec) => vec.len(),
+            BLobEnum::FromDB(ref handle) => handle.borrow_mut().len_readdata() as usize,
+            BLobEnum::ToDB(ref vec) => vec.len(),
         }
     }
 
@@ -68,19 +63,19 @@ impl BLOB {
 
     /// Ref to the contained Vec<u8>.
     pub fn ref_to_bytes(&self) -> HdbResult<&Vec<u8>> {
-        trace!("BLOB::ref_to_bytes()");
+        trace!("BLob::ref_to_bytes()");
         match self.0 {
-            BlobEnum::FromDB(_) => Err(HdbError::impl_("cannot serialize BlobHandle")),
-            BlobEnum::ToDB(ref vec) => Ok(vec),
+            BLobEnum::FromDB(_) => Err(HdbError::impl_("cannot serialize BLobHandle")),
+            BLobEnum::ToDB(ref vec) => Ok(vec),
         }
     }
 
     /// Converts into the contained Vec<u8>.
     pub fn into_bytes(self) -> HdbResult<Vec<u8>> {
-        trace!("BLOB::into_bytes()");
+        trace!("BLob::into_bytes()");
         match self.0 {
-            BlobEnum::FromDB(handle) => handle.into_inner().into_bytes(),
-            BlobEnum::ToDB(vec) => Ok(vec),
+            BLobEnum::FromDB(handle) => handle.into_inner().into_bytes(),
+            BLobEnum::ToDB(vec) => Ok(vec),
         }
     }
 
@@ -90,28 +85,28 @@ impl BLOB {
     /// `buf.len()`.
     pub fn max_size(&self) -> usize {
         match self.0 {
-            BlobEnum::FromDB(ref handle) => handle.borrow().max_size(),
-            BlobEnum::ToDB(ref v) => v.len(),
+            BLobEnum::FromDB(ref handle) => handle.borrow().max_size(),
+            BLobEnum::ToDB(ref v) => v.len(),
         }
     }
 }
 
-// Support for BLOB streaming
-impl io::Read for BLOB {
+// Support for BLob streaming
+impl io::Read for BLob {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         match self.0 {
-            BlobEnum::FromDB(ref blob_handle) => blob_handle.borrow_mut().read(buf),
-            BlobEnum::ToDB(ref v) => v.as_slice().read(buf),
+            BLobEnum::FromDB(ref blob_handle) => blob_handle.borrow_mut().read(buf),
+            BLobEnum::ToDB(ref v) => v.as_slice().read(buf),
         }
     }
 }
 
-/// `BlobHandle` is used for BLOBs that we receive from the database.
-/// The data are often not transferred completely,
-/// so we carry internally a database connection and the
-/// necessary controls to support fetching remaining data on demand.
+// `BLobHandle` is used for BLobs that we receive from the database.
+// The data are often not transferred completely,
+// so we carry internally a database connection and the
+// necessary controls to support fetching remaining data on demand.
 #[derive(Clone, Debug)]
-struct BlobHandle {
+struct BLobHandle {
     o_am_conn_core: Option<AmConnCore>,
     is_data_complete: bool,
     length_b: u64,
@@ -121,21 +116,21 @@ struct BlobHandle {
     acc_byte_length: usize,
     server_resource_consumption_info: ServerResourceConsumptionInfo,
 }
-impl BlobHandle {
+impl BLobHandle {
     pub fn new(
         am_conn_core: &AmConnCore,
         is_data_complete: bool,
         length_b: u64,
         locator_id: u64,
         data: Vec<u8>,
-    ) -> BlobHandle {
+    ) -> BLobHandle {
         trace!(
-            "BlobHandle::new() with length_b = {}, is_data_complete = {}, data.length() = {}",
+            "BLobHandle::new() with length_b = {}, is_data_complete = {}, data.length() = {}",
             length_b,
             is_data_complete,
             data.len()
         );
-        BlobHandle {
+        BLobHandle {
             o_am_conn_core: Some(Arc::clone(am_conn_core)),
             length_b,
             is_data_complete,
@@ -174,16 +169,16 @@ impl BlobHandle {
             self.length_b == self.acc_byte_length as u64
         );
         trace!(
-            "After BlobHandle fetch: is_data_complete = {}, data.len() = {}",
+            "After BLobHandle fetch: is_data_complete = {}, data.len() = {}",
             self.is_data_complete,
             self.data.len()
         );
         Ok(())
     }
 
-    /// Converts a BLOB into a Vec<u8> containing its data.
+    /// Converts a BLob into a Vec<u8> containing its data.
     fn fetch_all(&mut self) -> HdbResult<()> {
-        trace!("BlobHandle::fetch_all()");
+        trace!("BLobHandle::fetch_all()");
         while !self.is_data_complete {
             self.fetch_next_chunk()?;
         }
@@ -194,18 +189,18 @@ impl BlobHandle {
         self.max_size
     }
 
-    /// Converts a BLOB into a Vec<u8> containing its data.
+    /// Converts a BLob into a Vec<u8> containing its data.
     pub fn into_bytes(mut self) -> HdbResult<Vec<u8>> {
-        trace!("BlobHandle::into_bytes()");
+        trace!("BLobHandle::into_bytes()");
         self.fetch_all()?;
         Ok(self.data)
     }
 }
 
 // Support for streaming
-impl io::Read for BlobHandle {
+impl io::Read for BLobHandle {
     fn read(&mut self, mut buf: &mut [u8]) -> io::Result<usize> {
-        trace!("BlobHandle::read() with buf of len {}", buf.len());
+        trace!("BLobHandle::read() with buf of len {}", buf.len());
 
         while !self.is_data_complete && (buf.len() > self.data.len()) {
             self.fetch_next_chunk()
