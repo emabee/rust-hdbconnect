@@ -1,7 +1,5 @@
 # Changelog
 
-## [Unreleased] 
-
 ## [0.7.1]  2018-09-13
 Add missing HANA data types: SECONDTIME, DAYDATE, SECONDDATE, SMALLDECIMAL.
 
