@@ -1,9 +1,11 @@
 use bigdecimal::BigDecimal;
 use protocol::lob::blob::BLOB;
 use protocol::lob::clob::CLOB;
+use protocol::parts::daydate::DayDate;
 use protocol::parts::hdb_decimal::serialize_decimal;
 use protocol::parts::longdate::LongDate;
 use protocol::parts::seconddate::SecondDate;
+use protocol::parts::secondtime::SecondTime;
 use protocol::parts::type_id;
 use protocol::{cesu8, util};
 use {HdbError, HdbResult};
@@ -132,8 +134,10 @@ pub enum HdbValue {
     LONGDATE(LongDate),
     /// TIMESTAMP with second precision.
     SECONDDATE(SecondDate),
-    //  DAYDATE = 63, 					// DATE data type, 3
-    //  SECONDTIME = 64, 				// TIME data type, 3
+    /// DATE.
+    DAYDATE(DayDate),
+    /// TIME.
+    SECONDTIME(SecondTime),
     /// Nullable variant of TINYINT.
     N_TINYINT(Option<u8>),
     /// Nullable variant of SMALLINT.
@@ -182,8 +186,10 @@ pub enum HdbValue {
     N_SHORTTEXT(Option<String>),
     /// Nullable variant of SECONDDATE.
     N_SECONDDATE(Option<SecondDate>),
-    // N_DAYDATE = 63, 				    // DATE data type, 3
-    // N_SECONDTIME = 64, 				// TIME data type, 3
+    /// Nullable variant of DAYDATE.
+    N_DAYDATE(Option<DayDate>),
+    /// Nullable variant of SECONDTIME.
+    N_SECONDTIME(Option<SecondTime>),
     /// Nullable variant of LONGDATE.
     N_LONGDATE(Option<LongDate>),
 }
@@ -254,8 +260,8 @@ impl HdbValue {
             HdbValue::SHORTTEXT(_) => type_id::SHORTTEXT,
             HdbValue::LONGDATE(_) => type_id::LONGDATE,
             HdbValue::SECONDDATE(_) => type_id::SECONDDATE,
-            // HdbValue::DAYDATE(_)          => type_id::DAYDATE,
-            // HdbValue::SECONDTIME(_)       => type_id::SECONDTIME,
+            HdbValue::DAYDATE(_) => type_id::DAYDATE,
+            HdbValue::SECONDTIME(_) => type_id::SECONDTIME,
             HdbValue::N_TINYINT(_) => type_id::N_TINYINT,
             HdbValue::N_SMALLINT(_) => type_id::N_SMALLINT,
             HdbValue::N_INT(_) => type_id::N_INT,
@@ -282,8 +288,8 @@ impl HdbValue {
             HdbValue::N_SHORTTEXT(_) => type_id::N_SHORTTEXT,
             HdbValue::N_LONGDATE(_) => type_id::N_LONGDATE,
             HdbValue::N_SECONDDATE(_) => type_id::N_SECONDDATE,
-            // HdbValue::N_DAYDATE(_) => type_id::N_DAYDATE,
-            // HdbValue::N_SECONDTIME(_) => type_id::N_SECONDTIME,
+            HdbValue::N_DAYDATE(_) => type_id::N_DAYDATE,
+            HdbValue::N_SECONDTIME(_) => type_id::N_SECONDTIME,
         }
     }
 
@@ -331,6 +337,13 @@ pub fn serialize(tv: &HdbValue, data_pos: &mut i32, w: &mut io::Write) -> HdbRes
                 w.write_i64::<LittleEndian>(*sd.ref_raw())?
             }
 
+            HdbValue::DAYDATE(ref dd) | HdbValue::N_DAYDATE(Some(ref dd)) => {
+                w.write_i32::<LittleEndian>(*dd.ref_raw())?
+            }
+            HdbValue::SECONDTIME(ref st) | HdbValue::N_SECONDTIME(Some(ref st)) => {
+                w.write_u32::<LittleEndian>(*st.ref_raw())?
+            }
+
             HdbValue::CLOB(ref clob)
             | HdbValue::N_CLOB(Some(ref clob))
             | HdbValue::NCLOB(ref clob)
@@ -367,6 +380,8 @@ pub fn serialize(tv: &HdbValue, data_pos: &mut i32, w: &mut io::Write) -> HdbRes
             | HdbValue::N_BOOLEAN(None)
             | HdbValue::N_LONGDATE(None)
             | HdbValue::N_SECONDDATE(None)
+            | HdbValue::N_DAYDATE(None)
+            | HdbValue::N_SECONDTIME(None)
             | HdbValue::N_STRING(None)
             | HdbValue::N_NSTRING(None)
             | HdbValue::N_TEXT(None)
@@ -419,7 +434,11 @@ pub fn size(tv: &HdbValue) -> HdbResult<usize> {
         HdbValue::INT(_)
         | HdbValue::N_INT(Some(_))
         | HdbValue::REAL(_)
-        | HdbValue::N_REAL(Some(_)) => 4,
+        | HdbValue::N_REAL(Some(_))
+        | HdbValue::DAYDATE(_)
+        | HdbValue::N_DAYDATE(Some(_))
+        | HdbValue::SECONDTIME(_)
+        | HdbValue::N_SECONDTIME(Some(_)) => 4,
 
         HdbValue::BIGINT(_)
         | HdbValue::N_BIGINT(Some(_))
@@ -464,6 +483,8 @@ pub fn size(tv: &HdbValue) -> HdbResult<usize> {
         | HdbValue::N_BOOLEAN(None)
         | HdbValue::N_LONGDATE(None)
         | HdbValue::N_SECONDDATE(None)
+        | HdbValue::N_DAYDATE(None)
+        | HdbValue::N_SECONDTIME(None)
         | HdbValue::N_CLOB(None)
         | HdbValue::N_NCLOB(None)
         | HdbValue::N_BLOB(None)
@@ -590,6 +611,12 @@ impl fmt::Display for HdbValue {
             HdbValue::SECONDDATE(ref value) | HdbValue::N_SECONDDATE(Some(ref value)) => {
                 write!(fmt, "{}", value)
             }
+            HdbValue::DAYDATE(ref value) | HdbValue::N_DAYDATE(Some(ref value)) => {
+                write!(fmt, "{}", value)
+            }
+            HdbValue::SECONDTIME(ref value) | HdbValue::N_SECONDTIME(Some(ref value)) => {
+                write!(fmt, "{}", value)
+            }
 
             HdbValue::N_TINYINT(None)
             | HdbValue::N_SMALLINT(None)
@@ -615,7 +642,9 @@ impl fmt::Display for HdbValue {
             | HdbValue::N_TEXT(None)
             | HdbValue::N_SHORTTEXT(None)
             | HdbValue::N_LONGDATE(None)
-            | HdbValue::N_SECONDDATE(None) => write!(fmt, "<NULL>"),
+            | HdbValue::N_SECONDDATE(None)
+            | HdbValue::N_DAYDATE(None)
+            | HdbValue::N_SECONDTIME(None) => write!(fmt, "<NULL>"),
         }
     }
 }
@@ -628,9 +657,11 @@ pub mod factory {
     use protocol::lob::blob::BLOB;
     use protocol::lob::clob::new_clob_from_db;
     use protocol::lob::clob::CLOB;
+    use protocol::parts::daydate::{parse_daydate, parse_nullable_daydate};
     use protocol::parts::hdb_decimal::{parse_decimal, parse_nullable_decimal};
-    use protocol::parts::longdate::LongDate;
-    use protocol::parts::seconddate::SecondDate;
+    use protocol::parts::longdate::{parse_longdate, parse_nullable_longdate};
+    use protocol::parts::seconddate::{parse_nullable_seconddate, parse_seconddate};
+    use protocol::parts::secondtime::{parse_nullable_secondtime, parse_secondtime};
     use protocol::{cesu8, util};
     use std::io;
     use std::iter::repeat;
@@ -688,8 +719,8 @@ pub mod factory {
             52 => Ok(HdbValue::SHORTTEXT(parse_string(rdr)?)),
             61 => Ok(HdbValue::LONGDATE(parse_longdate(rdr)?)),
             62 => Ok(HdbValue::SECONDDATE(parse_seconddate(rdr)?)),
-            // 63 => Ok(HdbValue::DAYDATE(
-            // 64 => Ok(HdbValue::SECONDTIME(
+            63 => Ok(HdbValue::DAYDATE(parse_daydate(rdr)?)),
+            64 => Ok(HdbValue::SECONDTIME(parse_secondtime(rdr)?)),
             129 => Ok(HdbValue::N_TINYINT(if ind_null(rdr)? {
                 None
             } else {
@@ -740,8 +771,8 @@ pub mod factory {
             180 => Ok(HdbValue::N_SHORTTEXT(parse_nullable_string(rdr)?)),
             189 => Ok(HdbValue::N_LONGDATE(parse_nullable_longdate(rdr)?)),
             190 => Ok(HdbValue::N_SECONDDATE(parse_nullable_seconddate(rdr)?)),
-            // 191 => Ok(HdbValue::N_DAYDATE(
-            // 192 => Ok(HdbValue::N_SECONDTIME(
+            191 => Ok(HdbValue::N_DAYDATE(parse_nullable_daydate(rdr)?)),
+            192 => Ok(HdbValue::N_SECONDTIME(parse_nullable_secondtime(rdr)?)),
             _ => Err(HdbError::Impl(format!(
                 "HdbValue::parse_from_reply() not implemented for type code {}",
                 typecode
@@ -972,46 +1003,6 @@ pub mod factory {
             Ok((length_c, length_b, locator_id, data))
         } else {
             Ok((length_c, length_b, locator_id, Vec::<u8>::new()))
-        }
-    }
-
-    // -----  LongDates ----------------------------------------------------------
-    const LONGDATE_NULL_REPRESENTATION: i64 = 3_155_380_704_000_000_001;
-    fn parse_longdate(rdr: &mut io::BufRead) -> HdbResult<LongDate> {
-        let i = rdr.read_i64::<LittleEndian>()?;
-        match i {
-            LONGDATE_NULL_REPRESENTATION => Err(HdbError::Impl(
-                "Null value found for non-null longdate column".to_owned(),
-            )),
-            _ => Ok(LongDate::new(i)),
-        }
-    }
-
-    fn parse_nullable_longdate(rdr: &mut io::BufRead) -> HdbResult<Option<LongDate>> {
-        let i = rdr.read_i64::<LittleEndian>()?;
-        match i {
-            LONGDATE_NULL_REPRESENTATION => Ok(None),
-            _ => Ok(Some(LongDate::new(i))),
-        }
-    }
-
-    // -----  SecondDates ----------------------------------------------------------
-    const SECONDDATE_NULL_REPRESENTATION: i64 = 315_538_070_401;
-    fn parse_seconddate(rdr: &mut io::BufRead) -> HdbResult<SecondDate> {
-        let i = rdr.read_i64::<LittleEndian>()?;
-        match i {
-            SECONDDATE_NULL_REPRESENTATION => Err(HdbError::Impl(
-                "Null value found for non-null longdate column".to_owned(),
-            )),
-            _ => Ok(SecondDate::new(i)),
-        }
-    }
-
-    fn parse_nullable_seconddate(rdr: &mut io::BufRead) -> HdbResult<Option<SecondDate>> {
-        let i = rdr.read_i64::<LittleEndian>()?;
-        match i {
-            SECONDDATE_NULL_REPRESENTATION => Ok(None),
-            _ => Ok(Some(SecondDate::new(i))),
         }
     }
 }

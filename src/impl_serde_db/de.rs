@@ -5,14 +5,12 @@ use serde_db::de::{
     DeserializationError, DeserializationResult,
 };
 use std::error::Error;
-use std::{i16, i32, i64, i8, u16, u32, u8};
+use std::{fmt, i16, i32, i64, i8, u16, u32, u8};
 use {HdbError, HdbResult};
 
 use protocol::parts::hdb_value::HdbValue;
-use protocol::parts::longdate::LongDate;
 use protocol::parts::resultset::ResultSet;
 use protocol::parts::row::Row;
-use protocol::parts::seconddate::SecondDate;
 
 #[doc(hidden)]
 impl DeserializableResultset for ResultSet {
@@ -108,7 +106,9 @@ impl DbValue for HdbValue {
             | HdbValue::N_TEXT(None)
             | HdbValue::N_SHORTTEXT(None)
             | HdbValue::N_LONGDATE(None)
-            | HdbValue::N_SECONDDATE(None) => true,
+            | HdbValue::N_SECONDDATE(None)
+            | HdbValue::N_DAYDATE(None)
+            | HdbValue::N_SECONDTIME(None) => true,
 
             HdbValue::NOTHING
             | HdbValue::N_TINYINT(Some(_))
@@ -136,6 +136,8 @@ impl DbValue for HdbValue {
             | HdbValue::N_SHORTTEXT(Some(_))
             | HdbValue::N_LONGDATE(Some(_))
             | HdbValue::N_SECONDDATE(Some(_))
+            | HdbValue::N_DAYDATE(Some(_))
+            | HdbValue::N_SECONDTIME(Some(_))
             | HdbValue::TINYINT(_)
             | HdbValue::SMALLINT(_)
             | HdbValue::INT(_)
@@ -160,7 +162,9 @@ impl DbValue for HdbValue {
             | HdbValue::TEXT(_)
             | HdbValue::SHORTTEXT(_)
             | HdbValue::LONGDATE(_)
-            | HdbValue::SECONDDATE(_) => false,
+            | HdbValue::SECONDDATE(_)
+            | HdbValue::DAYDATE(_)
+            | HdbValue::SECONDTIME(_) => false,
         }
     }
 }
@@ -481,10 +485,11 @@ impl DbValueInto<String> for HdbValue {
             | HdbValue::N_SHORTTEXT(Some(s))
             | HdbValue::N_TEXT(Some(s)) => Ok(s),
 
-            HdbValue::LONGDATE(ld) | HdbValue::N_LONGDATE(Some(ld)) => Ok(str_from_longdate(&ld)),
-            HdbValue::SECONDDATE(sd) | HdbValue::N_SECONDDATE(Some(sd)) => {
-                Ok(str_from_seconddate(&sd))
-            }
+            HdbValue::LONGDATE(ld) | HdbValue::N_LONGDATE(Some(ld)) => Ok(str_from(&ld)),
+            HdbValue::SECONDDATE(sd) | HdbValue::N_SECONDDATE(Some(sd)) => Ok(str_from(&sd)),
+
+            HdbValue::DAYDATE(date) | HdbValue::N_DAYDATE(Some(date)) => Ok(str_from(&date)),
+            HdbValue::SECONDTIME(time) | HdbValue::N_SECONDTIME(Some(time)) => Ok(str_from(&time)),
 
             HdbValue::DECIMAL(hdbdec) | HdbValue::N_DECIMAL(Some(hdbdec)) => {
                 Ok(format!("{}", hdbdec))
@@ -587,11 +592,6 @@ fn decimal_range(ovt: &str) -> ConversionError {
 }
 
 /// Deserializes a `LongDate` into a String format.
-fn str_from_longdate(ld: &LongDate) -> String {
-    format!("{}", ld)
-}
-
-/// Deserializes a `SecondDate` into a String format.
-fn str_from_seconddate(sd: &SecondDate) -> String {
-    format!("{}", sd)
+fn str_from<T: fmt::Display>(t: &T) -> String {
+    format!("{}", t)
 }

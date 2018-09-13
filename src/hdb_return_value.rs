@@ -101,11 +101,11 @@ impl HdbReturnValue {
 impl fmt::Display for HdbReturnValue {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            HdbReturnValue::AffectedRows(ref vec) => write!(fmt, "AffectedRows {:?},\n", vec),
-            HdbReturnValue::OutputParameters(ref op) => write!(fmt, "OutputParameters [{}],\n", op),
-            HdbReturnValue::ResultSet(ref rs) => write!(fmt, "ResultSet [{}],\n", rs),
-            HdbReturnValue::Success => write!(fmt, "Success,\n"),
-            HdbReturnValue::XaTransactionIds(_) => write!(fmt, "XaTransactionIds,\n"),
+            HdbReturnValue::AffectedRows(ref vec) => writeln!(fmt, "AffectedRows {:?},", vec),
+            HdbReturnValue::OutputParameters(ref op) => writeln!(fmt, "OutputParameters [{}],", op),
+            HdbReturnValue::ResultSet(ref rs) => writeln!(fmt, "ResultSet [{}],", rs),
+            HdbReturnValue::Success => writeln!(fmt, "Success,"),
+            HdbReturnValue::XaTransactionIds(_) => writeln!(fmt, "XaTransactionIds,<"),
         }
     }
 }

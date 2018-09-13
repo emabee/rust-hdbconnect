@@ -61,8 +61,10 @@ pub const SHORTTEXT: u8 = 52;
 pub const LONGDATE: u8 = 61;
 /// SECONDDATE
 pub const SECONDDATE: u8 = 62;
-// pub const DAYDATE: u8          =  63; // DAYDATE FIXME
-// pub const SECONDTIME: u8       =  64; // SECONDTIME FIXME
+/// DAYDATE
+pub const DAYDATE: u8 = 63;
+/// SECONDTIME
+pub const SECONDTIME: u8 = 64;
 // 65 - 80: Reserved, do not use
 
 // TypeCode_CLOCATOR                  =70,  // FIXME
@@ -131,10 +133,10 @@ pub const N_SHORTTEXT: u8 = SHORTTEXT + 128;
 pub const N_LONGDATE: u8 = LONGDATE + 128;
 /// Nullable Variant of SECONDDATE
 pub const N_SECONDDATE: u8 = SECONDDATE + 128;
-// / Nullable Variant of DAYDATE
-// pub const N_DAYDATE: u8         = DAYDATE + 128;
-// / Nullable Variant of SECONDTIME
-// pub const N_SECONDTIME: u8      = SECONDTIME + 128;
+/// Nullable Variant of DAYDATE
+pub const N_DAYDATE: u8 = DAYDATE + 128;
+/// Nullable Variant of SECONDTIME
+pub const N_SECONDTIME: u8 = SECONDTIME + 128;
 
 // 65 - 80: Reserved, do not use
 

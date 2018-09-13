@@ -1,10 +1,12 @@
-use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, Timelike};
+use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, NaiveTime, Timelike};
 use protocol::lob::blob::new_blob_to_db;
 
+use protocol::parts::daydate::DayDate;
 use protocol::parts::hdb_value::HdbValue;
 use protocol::parts::longdate::LongDate;
 use protocol::parts::parameter_descriptor::ParameterDescriptor;
 use protocol::parts::seconddate::SecondDate;
+use protocol::parts::secondtime::SecondTime;
 use protocol::parts::type_id;
 
 use bigdecimal::BigDecimal;
@@ -133,6 +135,10 @@ impl DbvFactory for ParameterDescriptor {
             type_id::N_DECIMAL => HdbValue::N_DECIMAL(Some(
                 BigDecimal::from_i32(value).ok_or_else(|| decimal_range(input_type))?,
             )),
+            type_id::DAYDATE => HdbValue::DAYDATE(DayDate::new(value)),
+            type_id::N_DAYDATE => HdbValue::N_DAYDATE(Some(DayDate::new(value))),
+            type_id::SECONDTIME => HdbValue::SECONDTIME(SecondTime::new(value)),
+            type_id::N_SECONDTIME => HdbValue::N_SECONDTIME(Some(SecondTime::new(value))),
             _ => {
                 return Err(SerializationError::TypeMismatch(
                     input_type,
@@ -439,6 +445,8 @@ impl DbvFactory for ParameterDescriptor {
             type_id::DECIMAL => HdbValue::DECIMAL(BigDecimal::from_str(value).map_err(maperr3)?),
             type_id::LONGDATE => HdbValue::LONGDATE(longdate_from_str(value)?),
             type_id::SECONDDATE => HdbValue::SECONDDATE(seconddate_from_str(value)?),
+            type_id::DAYDATE => HdbValue::DAYDATE(daydate_from_str(value)?),
+            type_id::SECONDTIME => HdbValue::SECONDTIME(secondtime_from_str(value)?),
 
             _ => return Err(SerializationError::TypeMismatch("&str", self.descriptor())),
         })
@@ -475,6 +483,8 @@ impl DbvFactory for ParameterDescriptor {
             type_id::N_SHORTTEXT => HdbValue::N_SHORTTEXT(None),
             type_id::N_LONGDATE => HdbValue::N_LONGDATE(None),
             type_id::N_SECONDDATE => HdbValue::N_SECONDDATE(None),
+            type_id::N_DAYDATE => HdbValue::N_DAYDATE(None),
+            type_id::N_SECONDTIME => HdbValue::N_SECONDTIME(None),
             _ => return Err(SerializationError::TypeMismatch("none", self.descriptor())),
         })
     }
@@ -529,6 +539,10 @@ impl DbvFactory for ParameterDescriptor {
             type_id::LONGDATE => "LONGDATE",
             type_id::N_SECONDDATE => "Nullable SECONDDATE",
             type_id::SECONDDATE => "SECONDDATE",
+            type_id::N_DAYDATE => "Nullable DAYDATE",
+            type_id::DAYDATE => "DAYDATE",
+            type_id::N_SECONDTIME => "Nullable SECONDTIME",
+            type_id::SECONDTIME => "SECONDTIME",
             i => return format!("[no descriptor available for {}]", i),
         })
     }
@@ -542,10 +556,10 @@ fn longdate_from_str(s: &str) -> Result<LongDate, SerializationError> {
     #[allow(unknown_lints)]
     #[allow(type_complexity)]
     let funcs: Vec<fn(&str) -> Result<LongDate, ()>> = vec![
-        long_from_naivedt_string_full,
-        long_from_naivedt_string_second,
-        long_from_naivedt_string_day,
-        long_from_utc_string,
+        longdate_from_naivedt_string_full,
+        longdate_from_naivedt_string_second,
+        longdate_from_naivedt_string_day,
+        longdate_from_utc_string,
     ];
 
     for func in funcs {
@@ -558,31 +572,8 @@ fn longdate_from_str(s: &str) -> Result<LongDate, SerializationError> {
     ))
 }
 
-// Serializes a date string into a `SecondDate`.
-//
-// Chrono types serialize as formatted Strings. We try to parse such a string
-// to convert back into the type we had originally, and construct a `LongDate`.
-fn seconddate_from_str(s: &str) -> Result<SecondDate, SerializationError> {
-    #[allow(unknown_lints)]
-    #[allow(type_complexity)]
-    let funcs: Vec<fn(&str) -> Result<SecondDate, ()>> = vec![
-        second_from_naivedt_string_second,
-        second_from_naivedt_string_day,
-        second_from_utc_string,
-    ];
-
-    for func in funcs {
-        if let Ok(seconddate) = func(s) {
-            return Ok(seconddate);
-        }
-    }
-    Err(SerializationError::GeneralError(
-        "Cannot serialize date-string to SecondDate".to_string(),
-    ))
-}
-
 // 2012-02-02T02:02:02.200
-fn long_from_naivedt_string_full(s: &str) -> Result<LongDate, ()> {
+fn longdate_from_naivedt_string_full(s: &str) -> Result<LongDate, ()> {
     trace!("from_naivedt_string_full");
     match NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S%.f") {
         Ok(ndt_parsed) => {
@@ -608,7 +599,7 @@ fn long_from_naivedt_string_full(s: &str) -> Result<LongDate, ()> {
     }
 }
 
-fn long_from_naivedt_string_second(s: &str) -> Result<LongDate, ()> {
+fn longdate_from_naivedt_string_second(s: &str) -> Result<LongDate, ()> {
     trace!("from_naivedt_string_second");
     match NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S") {
         Ok(ndt_parsed) => {
@@ -633,7 +624,7 @@ fn long_from_naivedt_string_second(s: &str) -> Result<LongDate, ()> {
     }
 }
 
-fn long_from_naivedt_string_day(s: &str) -> Result<LongDate, ()> {
+fn longdate_from_naivedt_string_day(s: &str) -> Result<LongDate, ()> {
     trace!("from_naivedt_string_day with {}", s);
     match NaiveDate::parse_from_str(s, "%Y-%m-%d") {
         Ok(ndt_parsed) => {
@@ -653,7 +644,7 @@ fn long_from_naivedt_string_day(s: &str) -> Result<LongDate, ()> {
 }
 
 // 2012-02-02T02:02:02.200Z
-fn long_from_utc_string(s: &str) -> Result<LongDate, ()> {
+fn longdate_from_utc_string(s: &str) -> Result<LongDate, ()> {
     trace!("from_utc_string");
     match DateTime::parse_from_rfc3339(s) {
         Ok(dt) => {
@@ -678,7 +669,30 @@ fn long_from_utc_string(s: &str) -> Result<LongDate, ()> {
     }
 }
 
-fn second_from_naivedt_string_second(s: &str) -> Result<SecondDate, ()> {
+// Serializes a date string into a `SecondDate`.
+//
+// Chrono types serialize as formatted Strings. We try to parse such a string
+// to convert back into the type we had originally, and construct a `SecondDate`.
+fn seconddate_from_str(s: &str) -> Result<SecondDate, SerializationError> {
+    #[allow(unknown_lints)]
+    #[allow(type_complexity)]
+    let funcs: Vec<fn(&str) -> Result<SecondDate, ()>> = vec![
+        seconddate_from_naivedt_string_second,
+        seconddate_from_naivedt_string_day,
+        seconddate_from_utc_string,
+    ];
+
+    for func in funcs {
+        if let Ok(seconddate) = func(s) {
+            return Ok(seconddate);
+        }
+    }
+    Err(SerializationError::GeneralError(
+        "Cannot serialize date-string to SecondDate".to_string(),
+    ))
+}
+
+fn seconddate_from_naivedt_string_second(s: &str) -> Result<SecondDate, ()> {
     trace!("from_naivedt_string_second");
     match NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S") {
         Ok(ndt_parsed) => {
@@ -703,7 +717,7 @@ fn second_from_naivedt_string_second(s: &str) -> Result<SecondDate, ()> {
     }
 }
 
-fn second_from_naivedt_string_day(s: &str) -> Result<SecondDate, ()> {
+fn seconddate_from_naivedt_string_day(s: &str) -> Result<SecondDate, ()> {
     trace!("from_naivedt_string_day with {}", s);
     match NaiveDate::parse_from_str(s, "%Y-%m-%d") {
         Ok(ndt_parsed) => {
@@ -723,8 +737,8 @@ fn second_from_naivedt_string_day(s: &str) -> Result<SecondDate, ()> {
 }
 
 // 2012-02-02T02:02:02.200Z
-fn second_from_utc_string(s: &str) -> Result<SecondDate, ()> {
-    trace!("second_from_utc_string");
+fn seconddate_from_utc_string(s: &str) -> Result<SecondDate, ()> {
+    trace!("seconddate_from_utc_string");
     match DateTime::parse_from_rfc3339(s) {
         Ok(dt) => {
             trace!("DateTime::parse_from_rfc3339(s): {}", dt);
@@ -738,6 +752,84 @@ fn second_from_utc_string(s: &str) -> Result<SecondDate, ()> {
                 ndt.second(),
             ).or(Err(()))?;
             trace!("DateTime::parse_from_rfc3339(): OK with sd = {}", sd);
+            Ok(sd)
+        }
+        Err(e) => {
+            trace!("{:?}", e);
+            Err(())
+        }
+    }
+}
+
+// Serializes a date string into a `DayDate`.
+//
+// Chrono types serialize as formatted Strings. We try to parse such a string
+// to convert back into the type we had originally, and construct a `DayDate`.
+fn daydate_from_str(s: &str) -> Result<DayDate, SerializationError> {
+    #[allow(unknown_lints)]
+    #[allow(type_complexity)]
+    let funcs: Vec<fn(&str) -> Result<DayDate, ()>> = vec![daydate_from_naivedt_string_day];
+
+    for func in funcs {
+        if let Ok(daydate) = func(s) {
+            return Ok(daydate);
+        }
+    }
+    Err(SerializationError::GeneralError(
+        "Cannot serialize date-string to DayDate".to_string(),
+    ))
+}
+
+fn daydate_from_naivedt_string_day(s: &str) -> Result<DayDate, ()> {
+    trace!("from_naivedt_string_day with {}", s);
+    match NaiveDate::parse_from_str(s, "%Y-%m-%d") {
+        Ok(ndt_parsed) => {
+            let dd = DayDate::from_ymd(ndt_parsed.year(), ndt_parsed.month(), ndt_parsed.day())
+                .or(Err(()))?;
+            trace!(
+                "NaiveDateTime::from_naivedt_string_day(): OK with dd = {}",
+                dd
+            );
+            Ok(dd)
+        }
+        Err(e) => {
+            trace!("{:?}", e);
+            Err(())
+        }
+    }
+}
+
+// Serializes a date string into a `SecondTime`.
+//
+// Chrono types serialize as formatted Strings. We try to parse such a string
+// to convert back into the type we had originally, and construct a `SecondTime`.
+fn secondtime_from_str(s: &str) -> Result<SecondTime, SerializationError> {
+    #[allow(unknown_lints)]
+    #[allow(type_complexity)]
+    let funcs: Vec<fn(&str) -> Result<SecondTime, ()>> =
+        vec![secondtime_from_naivedt_string_second];
+
+    for func in funcs {
+        if let Ok(secondtime) = func(s) {
+            return Ok(secondtime);
+        }
+    }
+    Err(SerializationError::GeneralError(
+        "Cannot serialize date-string to SecondTime".to_string(),
+    ))
+}
+
+fn secondtime_from_naivedt_string_second(s: &str) -> Result<SecondTime, ()> {
+    trace!("secondtime_from_naivedt_string_second");
+    match NaiveTime::parse_from_str(s, "%H:%M:%S") {
+        Ok(ndt_parsed) => {
+            let sd =
+                SecondTime::from_hms(ndt_parsed.hour(), ndt_parsed.minute(), ndt_parsed.second())
+                    .or(Err(()))?;
+            trace!(
+                "secondtime_from_naivedt_string_second(): OK with sd = {}",
+                sd
+            );
             Ok(sd)
         }
         Err(e) => {

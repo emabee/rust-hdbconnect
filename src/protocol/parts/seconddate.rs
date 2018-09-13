@@ -1,5 +1,10 @@
+use byteorder::{LittleEndian, ReadBytesExt};
 use std::cmp;
 use std::fmt;
+use std::io;
+use {HdbError, HdbResult};
+
+const NULL_REPRESENTATION: i64 = 315_538_070_401;
 
 const SECOND_FACTOR: i64 = 1;
 const MINUTE_FACTOR: i64 = 60;
@@ -147,5 +152,23 @@ fn to_day(m: u32) -> (i32, i32) {
         11 => (0, 245),
         12 => (0, 275),
         _ => panic!("unexpected value m = {} in to_day()", m),
+    }
+}
+
+pub fn parse_seconddate(rdr: &mut io::BufRead) -> HdbResult<SecondDate> {
+    let i = rdr.read_i64::<LittleEndian>()?;
+    match i {
+        NULL_REPRESENTATION => Err(HdbError::Impl(
+            "Null value found for non-null longdate column".to_owned(),
+        )),
+        _ => Ok(SecondDate::new(i)),
+    }
+}
+
+pub fn parse_nullable_seconddate(rdr: &mut io::BufRead) -> HdbResult<Option<SecondDate>> {
+    let i = rdr.read_i64::<LittleEndian>()?;
+    match i {
+        NULL_REPRESENTATION => Ok(None),
+        _ => Ok(Some(SecondDate::new(i))),
     }
 }

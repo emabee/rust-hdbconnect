@@ -1,5 +1,10 @@
+use byteorder::{LittleEndian, ReadBytesExt};
 use std::cmp;
 use std::fmt;
+use std::io;
+use {HdbError, HdbResult};
+
+const NULL_REPRESENTATION: i64 = 3_155_380_704_000_000_001;
 
 const SECOND_FACTOR: i64 = 10_000_000;
 const MINUTE_FACTOR: i64 = 600_000_000; // 10_000_000 * 60;
@@ -66,8 +71,11 @@ impl LongDate {
         }
 
         Ok(LongDate(
-            1 + to_day_number(y as u32, m, d) * DAY_FACTOR + i64::from(hour) * HOUR_FACTOR
-                + i64::from(minute) * MINUTE_FACTOR + i64::from(second) * SECOND_FACTOR
+            1
+                + to_day_number(y as u32, m, d) * DAY_FACTOR
+                + i64::from(hour) * HOUR_FACTOR
+                + i64::from(minute) * MINUTE_FACTOR
+                + i64::from(second) * SECOND_FACTOR
                 + i64::from(nanosecond) / 100,
         ))
     }
@@ -160,5 +168,23 @@ fn to_day(m: u32) -> (i32, i32) {
         11 => (0, 245),
         12 => (0, 275),
         _ => panic!("unexpected value m = {} in to_day()", m),
+    }
+}
+
+pub fn parse_longdate(rdr: &mut io::BufRead) -> HdbResult<LongDate> {
+    let i = rdr.read_i64::<LittleEndian>()?;
+    match i {
+        NULL_REPRESENTATION => Err(HdbError::Impl(
+            "Null value found for non-null longdate column".to_owned(),
+        )),
+        _ => Ok(LongDate::new(i)),
+    }
+}
+
+pub fn parse_nullable_longdate(rdr: &mut io::BufRead) -> HdbResult<Option<LongDate>> {
+    let i = rdr.read_i64::<LittleEndian>()?;
+    match i {
+        NULL_REPRESENTATION => Ok(None),
+        _ => Ok(Some(LongDate::new(i))),
     }
 }

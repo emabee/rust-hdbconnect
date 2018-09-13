@@ -332,7 +332,13 @@ pub fn parse_message_and_sequence_header(
     let varpart_size: u32 = rdr.read_u32::<LittleEndian>()?; // UI4  not needed?
     let remaining_bufsize: u32 = rdr.read_u32::<LittleEndian>()?; // UI4  not needed?
     let no_of_segs = rdr.read_i16::<LittleEndian>()?; // I2
-    assert_eq!(no_of_segs, 1);
+    if no_of_segs == 0 {
+        return Err(HdbError::Impl("empty response (is ok for drop connection)".to_owned()));
+    }
+
+    if no_of_segs > 1 {
+        return Err(HdbError::Impl(format!("no_of_segs = {} != 1",no_of_segs)));
+    }
 
     util::skip_bytes(10, rdr)?; // (I1 + B[9])
 

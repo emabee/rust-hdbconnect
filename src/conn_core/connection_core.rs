@@ -250,27 +250,30 @@ impl ConnectionCore {
             }
             {
                 let mut reader = self.buffalo.reader().borrow_mut();
-                if let Ok((no_of_parts, mut reply)) =
-                    parse_message_and_sequence_header(&mut *reader)
-                {
-                    trace!(
-                        "Disconnect: response header parsed, now parsing {} parts",
-                        no_of_parts
-                    );
-                    for _ in 0..no_of_parts {
-                        let (part, padsize) = Part::parse(
-                            &mut (reply.parts),
-                            None,
-                            None,
-                            None,
-                            &mut None,
-                            &mut *reader,
-                        )?;
-                        util::skip_bytes(padsize, &mut *reader)?;
-                        debug!("Drop of connection: got Part {:?}", part);
+                match parse_message_and_sequence_header(&mut *reader) {
+                    Ok((no_of_parts, mut reply)) => {
+                        trace!(
+                            "Disconnect: response header parsed, now parsing {} parts",
+                            no_of_parts
+                        );
+                        for _ in 0..no_of_parts {
+                            let (part, padsize) = Part::parse(
+                                &mut (reply.parts),
+                                None,
+                                None,
+                                None,
+                                &mut None,
+                                &mut *reader,
+                            )?;
+                            util::skip_bytes(padsize, &mut *reader)?;
+                            debug!("Drop of connection: got Part {:?}", part);
+                        }
+                        trace!("Disconnect: response successfully parsed");
+                    }
+                    Err(e) => {
+                        trace!("Disconnect: could not parse response due to {:?}", e);
                     }
                 }
-                trace!("Disconnect: response successfully parsed");
             }
         }
         Ok(())
