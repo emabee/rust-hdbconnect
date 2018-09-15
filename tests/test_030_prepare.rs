@@ -13,7 +13,7 @@ use hdbconnect::{Connection, HdbResult};
 
 #[test] // cargo test --test test_030_prepare -- --nocapture
 pub fn test_030_prepare() {
-    test_utils::init_logger("test_030_prepare=info");
+    test_utils::init_logger("test_030_prepare=info, hdbconnect=info");
 
     match impl_test_030_prepare() {
         Err(e) => {
@@ -100,7 +100,8 @@ fn prepare_insert_statement(connection: &mut Connection) -> HdbResult<()> {
     insert_stmt3.execute_batch()?;
     connection3.rollback()?;
 
-    let typed_result: Vec<TestStruct> = connection.query("select * from TEST_PREPARE")?.try_into()?;
+    let typed_result: Vec<TestStruct> =
+        connection.query("select * from TEST_PREPARE")?.try_into()?;
     assert_eq!(typed_result.len(), 6);
     for ts in typed_result {
         let s = ts.f1_s.as_ref().unwrap();

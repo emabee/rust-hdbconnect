@@ -6,5 +6,6 @@ mod buffalo;
 pub mod connect_params;
 mod connection_core;
 mod initial_request;
+mod session_state;
 
 pub use self::connection_core::{AmConnCore, ConnectionCore};

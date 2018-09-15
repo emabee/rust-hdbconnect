@@ -162,7 +162,7 @@ impl Reply {
                         Argument::StatementContext(ref stmt_ctx) => {
                             (*conn_core).evaluate_statement_context(stmt_ctx)?;
                         }
-                        Argument::TransactionFlags(ref ta_flags) => {
+                        Argument::TransactionFlags(ta_flags) => {
                             (*conn_core).evaluate_ta_flags(ta_flags)?;
                         }
                         Argument::Error(vec) => {
@@ -210,7 +210,7 @@ impl Reply {
                 Argument::StatementContext(ref stmt_ctx) => {
                     (*conn_core).evaluate_statement_context(stmt_ctx)?;
                 }
-                Argument::TransactionFlags(ref ta_flags) => {
+                Argument::TransactionFlags(ta_flags) => {
                     (*conn_core).evaluate_ta_flags(ta_flags)?;
                 }
 

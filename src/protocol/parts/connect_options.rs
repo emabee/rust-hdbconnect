@@ -89,71 +89,29 @@ impl ConnectOptions {
     pub fn transfer_server_connect_options(&mut self, other: ConnectOptions) -> HdbResult<()> {
         for (k, v) in other {
             match k {
-                ConnOptId::ConnectionID => {
-                    self.set_fromserver(ConnOptId::ConnectionID, v);
-                }
-                ConnOptId::SystemID => {
-                    self.set_fromserver(ConnOptId::SystemID, v);
-                }
-                ConnOptId::DatabaseName => {
-                    self.set_fromserver(ConnOptId::DatabaseName, v);
-                }
-                ConnOptId::FullVersionString => {
-                    self.set_fromserver(ConnOptId::FullVersionString, v);
-                }
-                ConnOptId::BuildPlatform => {
-                    self.set_fromserver(ConnOptId::BuildPlatform, v);
-                }
-                ConnOptId::Endianness => {
-                    self.set_fromserver(ConnOptId::Endianness, v);
-                }
-                ConnOptId::EngineDataFormatVersion => {
-                    self.set_fromserver(ConnOptId::EngineDataFormatVersion, v);
-                }
-                ConnOptId::DataFormatVersion => {
-                    self.set_fromserver(ConnOptId::DataFormatVersion, v);
-                }
-                ConnOptId::DataFormatVersion2 => {
-                    self.set_fromserver(ConnOptId::DataFormatVersion2, v);
-                }
-                ConnOptId::NonTransactionalPrepare => {
-                    self.set_fromserver(ConnOptId::NonTransactionalPrepare, v);
-                }
-                ConnOptId::SupportsLargeBulkOperations => {
-                    self.set_fromserver(ConnOptId::SupportsLargeBulkOperations, v);
-                }
-                ConnOptId::ActiveActiveProtocolVersion => {
-                    self.set_fromserver(ConnOptId::ActiveActiveProtocolVersion, v);
-                }
-                ConnOptId::ImplicitLobStreaming => {
-                    self.set_fromserver(ConnOptId::ImplicitLobStreaming, v);
-                }
-                ConnOptId::CompleteArrayExecution => {
-                    self.set_fromserver(ConnOptId::CompleteArrayExecution, v);
-                }
-                ConnOptId::QueryTimeoutOK => {
-                    self.set_fromserver(ConnOptId::QueryTimeoutOK, v);
-                }
-                ConnOptId::UseTransactionFlagsOnly => {
-                    self.set_fromserver(ConnOptId::UseTransactionFlagsOnly, v);
-                }
-                ConnOptId::IgnoreUnknownParts => {
-                    self.set_fromserver(ConnOptId::IgnoreUnknownParts, v);
-                }
-                ConnOptId::SplitBatchCommands => {
-                    self.set_fromserver(ConnOptId::SplitBatchCommands, v);
-                }
-                ConnOptId::FdaEnabled => {
-                    self.set_fromserver(ConnOptId::FdaEnabled, v);
-                }
-                ConnOptId::ItabParameter => {
-                    self.set_fromserver(ConnOptId::ItabParameter, v);
-                }
-                ConnOptId::ClientDistributionMode => {
-                    self.set_fromserver(ConnOptId::ClientDistributionMode, v);
-                }
-                ConnOptId::ClientInfoNullValueOK => {
-                    self.set_fromserver(ConnOptId::ClientInfoNullValueOK, v);
+                ConnOptId::ConnectionID
+                | ConnOptId::SystemID
+                | ConnOptId::DatabaseName
+                | ConnOptId::FullVersionString
+                | ConnOptId::BuildPlatform
+                | ConnOptId::Endianness
+                | ConnOptId::EngineDataFormatVersion
+                | ConnOptId::DataFormatVersion
+                | ConnOptId::DataFormatVersion2
+                | ConnOptId::NonTransactionalPrepare
+                | ConnOptId::SupportsLargeBulkOperations
+                | ConnOptId::ActiveActiveProtocolVersion
+                | ConnOptId::ImplicitLobStreaming
+                | ConnOptId::CompleteArrayExecution
+                | ConnOptId::QueryTimeoutOK
+                | ConnOptId::UseTransactionFlagsOnly
+                | ConnOptId::IgnoreUnknownParts
+                | ConnOptId::SplitBatchCommands
+                | ConnOptId::FdaEnabled
+                | ConnOptId::ItabParameter
+                | ConnOptId::ClientDistributionMode
+                | ConnOptId::ClientInfoNullValueOK => {
+                    self.set_fromserver(k, v);
                 }
                 _ => {
                     error!("Unexpected ConnectOption coming from server");

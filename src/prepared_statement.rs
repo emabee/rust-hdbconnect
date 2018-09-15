@@ -146,7 +146,7 @@ pub mod factory {
                 Some(Argument::StatementId(id)) => {
                     o_stmt_id = Some(id);
                 }
-                Some(Argument::TransactionFlags(ref ta_flags)) => {
+                Some(Argument::TransactionFlags(ta_flags)) => {
                     let mut guard = am_conn_core.lock()?;
                     (*guard).evaluate_ta_flags(ta_flags)?;
                 }

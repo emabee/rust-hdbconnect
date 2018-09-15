@@ -1,13 +1,13 @@
 use conn_core::buffalo::Buffalo;
 use conn_core::connect_params::ConnectParams;
 use conn_core::initial_request;
+use conn_core::session_state::SessionState;
 use protocol::part::Part;
 use protocol::parts::client_info::ClientInfo;
 use protocol::parts::connect_options::ConnectOptions;
 use protocol::parts::server_error::ServerError;
 use protocol::parts::statement_context::StatementContext;
 use protocol::parts::topology::Topology;
-use protocol::parts::transactionflags::SessionState;
 use protocol::parts::transactionflags::TransactionFlags;
 use protocol::reply::parse_message_and_sequence_header;
 use protocol::request::Request;
@@ -199,8 +199,8 @@ impl ConnectionCore {
         self.seq_number
     }
 
-    pub fn evaluate_ta_flags(&mut self, ta_flags: &TransactionFlags) -> HdbResult<()> {
-        ta_flags.update_session_state(&mut self.session_state);
+    pub fn evaluate_ta_flags(&mut self, ta_flags: TransactionFlags) -> HdbResult<()> {
+        self.session_state.update(ta_flags);
         if self.session_state.dead {
             Err(HdbError::Impl("SessionclosingTaError received".to_owned()))
         } else {
