@@ -59,6 +59,7 @@ pub enum Argument {
     SessionContext(SessionContext),
     StatementContext(StatementContext),
     StatementId(u64),
+    PartitionInformation,
     TableLocation(Vec<i32>),
     TopologyInformation(Topology),
     TransactionFlags(TransactionFlags),
@@ -280,6 +281,10 @@ impl Argument {
             }
             PartKind::TopologyInformation => {
                 Argument::TopologyInformation(Topology::parse(no_of_args, rdr)?)
+            }
+            PartKind::PartitionInformation => {
+                let _ignore_res = util::parse_bytes(arg_size as usize, rdr)?;
+                Argument::PartitionInformation
             }
             PartKind::TransactionFlags => {
                 Argument::TransactionFlags(TransactionFlags::parse(no_of_args, rdr)?)
