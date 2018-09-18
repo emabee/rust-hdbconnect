@@ -102,9 +102,7 @@ impl Request {
         let _start = Local::now();
         self.add_statement_sequence(am_conn_core)?;
 
-        self.serialize(am_conn_core)?;
-
-        let mut reply = Reply::parse(
+        let mut reply = self.handshake(
             o_rs_md,
             o_par_md,
             o_rs,
@@ -112,6 +110,7 @@ impl Request {
             expected_reply_type,
             skip,
         )?;
+
         reply.handle_db_error(am_conn_core)?;
 
         debug!(
@@ -141,18 +140,37 @@ impl Request {
         Ok(())
     }
 
-    // Write the request to the wire
-    fn serialize(&self, am_conn_core: &mut AmConnCore) -> HdbResult<()> {
+    // Do the handshake
+    fn handshake(
+        &self,
+        o_rs_md: Option<&ResultSetMetadata>,
+        o_par_md: Option<&Vec<ParameterDescriptor>>,
+        o_rs: &mut Option<&mut ResultSet>,
+        am_conn_core: &AmConnCore,
+        expected_reply_type: Option<ReplyType>,
+        skip: SkipLastSpace,
+    ) -> HdbResult<Reply> {
         trace!("Entering Message::serialize()");
         let mut guard = am_conn_core.lock()?;
         let auto_commit_flag: i8 = if (*guard).is_auto_commit() { 1 } else { 0 };
         let conn_core = &mut *guard;
         let nsn = conn_core.next_seq_number();
-        let writer = &mut *(conn_core.writer().borrow_mut());
-        self.serialize_impl(conn_core.session_id(), nsn, auto_commit_flag, writer)
+        {
+            let writer = &mut *(conn_core.writer().borrow_mut());
+            self.serialize(conn_core.session_id(), nsn, auto_commit_flag, writer)?;
+        }
+        Reply::parse(
+            o_rs_md,
+            o_par_md,
+            o_rs,
+            conn_core,
+            am_conn_core,
+            expected_reply_type,
+            skip,
+        )
     }
 
-    pub fn serialize_impl(
+    pub fn serialize(
         &self,
         session_id: i64,
         seq_number: i32,

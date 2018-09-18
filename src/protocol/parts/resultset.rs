@@ -67,7 +67,7 @@ impl ResultSetCore {
                         Argument::ResultSetId(rs_id),
                     ));
 
-                    request.serialize_impl(
+                    request.serialize(
                         session_id,
                         next_seq_number,
                         0,

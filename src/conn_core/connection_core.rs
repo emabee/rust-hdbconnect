@@ -244,7 +244,7 @@ impl ConnectionCore {
             {
                 let nsn = self.next_seq_number();
                 let mut writer = self.buffalo.writer().borrow_mut();
-                request.serialize_impl(self.session_id, nsn, 0, &mut *writer)?;
+                request.serialize(self.session_id, nsn, 0, &mut *writer)?;
                 writer.flush()?;
                 trace!("Disconnect: request successfully sent");
             }
