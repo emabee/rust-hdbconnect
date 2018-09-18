@@ -5,11 +5,17 @@ use conn_core::session_state::SessionState;
 use protocol::part::Part;
 use protocol::parts::client_info::ClientInfo;
 use protocol::parts::connect_options::ConnectOptions;
+use protocol::parts::parameter_descriptor::ParameterDescriptor;
+use protocol::parts::resultset::ResultSet;
+use protocol::parts::resultset_metadata::ResultSetMetadata;
 use protocol::parts::server_error::ServerError;
 use protocol::parts::statement_context::StatementContext;
 use protocol::parts::topology::Topology;
 use protocol::parts::transactionflags::TransactionFlags;
 use protocol::reply::parse_message_and_sequence_header;
+use protocol::reply::Reply;
+use protocol::reply::SkipLastSpace;
+use protocol::reply_type::ReplyType;
 use protocol::request::Request;
 use protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
 use protocol::util;
@@ -183,11 +189,11 @@ impl ConnectionCore {
         self.session_id
     }
 
-    pub fn reader(&self) -> &RefCell<io::BufRead> {
+    fn reader(&self) -> &RefCell<io::BufRead> {
         self.buffalo.reader()
     }
 
-    pub fn writer(&self) -> &RefCell<io::Write> {
+    fn writer(&self) -> &RefCell<io::Write> {
         self.buffalo.writer()
     }
 
@@ -234,6 +240,39 @@ impl ConnectionCore {
             let mut v = Vec::<ServerError>::new();
             mem::swap(&mut v, &mut self.warnings);
             Ok(Some(v))
+        }
+    }
+
+    #[allow(too_many_arguments)]
+    pub fn roundtrip(
+        &mut self,
+        request: Request,
+        am_conn_core: &AmConnCore,
+        o_rs_md: Option<&ResultSetMetadata>,
+        o_par_md: Option<&Vec<ParameterDescriptor>>,
+        o_rs: &mut Option<&mut ResultSet>,
+        expected_reply_type: Option<ReplyType>,
+        skip: SkipLastSpace,
+    ) -> HdbResult<Reply> {
+        trace!("ConnectionCore::roundtrip()");
+        let auto_commit_flag: i8 = if self.is_auto_commit() { 1 } else { 0 };
+        let nsn = self.next_seq_number();
+        {
+            let writer = &mut *(self.writer().borrow_mut());
+            request.serialize(self.session_id(), nsn, auto_commit_flag, writer)?;
+        }
+        {
+            let rdr = &mut *(self.reader().borrow_mut());
+
+            Reply::parse(
+                o_rs_md,
+                o_par_md,
+                o_rs,
+                am_conn_core,
+                expected_reply_type,
+                skip,
+                rdr,
+            )
         }
     }
 

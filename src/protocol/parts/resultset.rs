@@ -5,12 +5,11 @@ use protocol::part_attributes::PartAttributes;
 use protocol::partkind::PartKind;
 use protocol::parts::resultset_metadata::ResultSetMetadata;
 use protocol::parts::row::Row;
-use protocol::reply::{parse_message_and_sequence_header, SkipLastSpace};
+use protocol::reply::SkipLastSpace;
 use protocol::reply_type::ReplyType;
 use protocol::request::Request;
 use protocol::request_type::RequestType;
 use protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
-use protocol::util;
 use {HdbError, HdbResult};
 
 use serde;
@@ -58,30 +57,22 @@ impl ResultSetCore {
         if !self.attributes.is_resultset_closed() {
             if let Some(ref conn_core) = self.o_am_conn_core {
                 if let Ok(mut conn_guard) = conn_core.lock() {
-                    let session_id = (*conn_guard).session_id();
-                    let next_seq_number = (*conn_guard).next_seq_number();
-
                     let mut request = Request::new(RequestType::CloseResultSet, 0);
                     request.push(Part::new(
                         PartKind::ResultSetId,
                         Argument::ResultSetId(rs_id),
                     ));
 
-                    request.serialize(
-                        session_id,
-                        next_seq_number,
-                        0,
-                        &mut *((*conn_guard).writer().borrow_mut()),
-                    )?;
-
-                    let rdr = &mut *((*conn_guard).reader().borrow_mut());
-                    if let Ok((no_of_parts, mut reply)) = parse_message_and_sequence_header(rdr) {
-                        for _i in 0..no_of_parts {
-                            let (_, pad) =
-                                Part::parse(&mut (reply.parts), None, None, None, &mut None, rdr)?;
-                            util::skip_bytes(pad, rdr)?;
-                        }
-                    }
+                    conn_guard
+                        .roundtrip(
+                            request,
+                            conn_core,
+                            None,
+                            None,
+                            &mut None,
+                            None,
+                            SkipLastSpace::Hard,
+                        ).ok();
                 }
             }
         }

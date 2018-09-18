@@ -26,6 +26,14 @@ pub fn test_031_transactions() {
 // Test what?
 fn impl_test_031_transactions() -> HdbResult<()> {
     let mut connection = test_utils::get_authenticated_connection()?;
+
+    // SET TRANSACTION ISOLATION LEVEL { READ COMMITTED | REPEATABLE READ | SERIALIZABLE }
+
+    // SET TRANSACTION { READ ONLY | READ WRITE }
+
+    // SET TRANSACTION LOCK WAIT TIMEOUT <unsigned_integer> // (milliseconds)
+    // let result = conn.exec("SET TRANSACTION LOCK WAIT TIMEOUT 3000")?; // (milliseconds)
+
     write1_read2(&mut connection)?;
     debug!("{} calls to DB were executed", connection.get_call_count()?);
     Ok(())
@@ -45,7 +53,8 @@ fn write1_read2(connection1: &mut Connection) -> HdbResult<()> {
     connection1.multiple_statements(stmts)?;
 
     let get_checksum = |conn: &mut Connection| {
-        let resultset = conn.query("select sum(nmbr) from TEST_TRANSACTIONS")
+        let resultset = conn
+            .query("select sum(nmbr) from TEST_TRANSACTIONS")
             .unwrap();
         let checksum: usize = resultset.try_into().unwrap();
         checksum
@@ -78,14 +87,14 @@ fn write1_read2(connection1: &mut Connection) -> HdbResult<()> {
     connection1.rollback()?;
     assert_eq!(get_checksum(connection1), 321);
 
+    // add and read the new lines from connection1
     prepared_statement1.add_batch(&("who", 4000, NaiveDate::from_ymd(1903, 1, 1)))?;
     prepared_statement1.add_batch(&("added", 50_000, NaiveDate::from_ymd(1903, 1, 1)))?;
     prepared_statement1.add_batch(&("this?", 600_000, NaiveDate::from_ymd(1903, 1, 1)))?;
     prepared_statement1.execute_batch()?;
-    // read the new lines from connection1
     assert_eq!(get_checksum(connection1), 654_321);
 
-    // read the new lines from connection2
+    // fail to read the new lines from connection2
     assert_eq!(get_checksum(&mut connection2), 321);
 
     // after commit, read the new lines also from connection2

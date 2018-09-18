@@ -19,6 +19,7 @@ use super::parts::statement_context::StatementContext;
 use super::parts::topology::Topology;
 use super::parts::transactionflags::TransactionFlags;
 use super::parts::xat_options::XatOptions;
+use conn_core::AmConnCore;
 use protocol::cesu8;
 use protocol::parts::client_context::ClientContext;
 use protocol::parts::command_info::CommandInfo;
@@ -28,7 +29,6 @@ use protocol::parts::lob_flags::LobFlags;
 use protocol::parts::read_lob_request::ReadLobRequest;
 use protocol::parts::session_context::SessionContext;
 use protocol::util;
-use conn_core::AmConnCore;
 use {HdbError, HdbResult};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -194,7 +194,6 @@ impl Argument {
         Ok(remaining_bufsize - size as u32 - padsize as u32)
     }
 
-    #[allow(unknown_lints)]
     #[allow(too_many_arguments)]
     pub fn parse(
         kind: PartKind,

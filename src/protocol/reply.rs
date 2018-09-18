@@ -1,7 +1,6 @@
 //! Since there is obviously no usecase for multiple segments in one request,
 //! we model message and segment together.
 //! But we differentiate explicitly between request messages and reply messages.
-use conn_core::ConnectionCore;
 use super::argument::Argument;
 use conn_core::AmConnCore;
 use super::part::{Part, Parts};
@@ -51,15 +50,12 @@ impl Reply {
         o_rs_md: Option<&ResultSetMetadata>,
         o_par_md: Option<&Vec<ParameterDescriptor>>,
         o_rs: &mut Option<&mut ResultSet>,
-        conn_core: &mut ConnectionCore,
         am_conn_core: &AmConnCore,
         expected_reply_type: Option<ReplyType>,
         skip: SkipLastSpace,
+        rdr: &mut io::BufRead,
     ) -> HdbResult<Reply> {
         trace!("Reply::parse()");
-
-        let rdr = &mut *((*conn_core).reader().borrow_mut());
-
         let reply = Reply::parse_impl(o_rs_md, o_par_md, o_rs, am_conn_core, rdr, skip)?;
 
         // Make sure that here (after parsing) the buffer is empty
@@ -305,7 +301,7 @@ impl Reply {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum SkipLastSpace {
     Hard,
     Soft,

@@ -50,7 +50,7 @@ impl Request {
 // Methods for sending the request
 impl Request {
     pub fn send_and_get_hdbresponse(
-        &mut self,
+        self,
         o_rs_md: Option<&ResultSetMetadata>,
         o_par_md: Option<&Vec<ParameterDescriptor>>,
         am_conn_core: &mut AmConnCore,
@@ -71,7 +71,7 @@ impl Request {
 
     // simplified interface
     pub fn send_and_get_reply_simplified(
-        &mut self,
+        self,
         am_conn_core: &mut AmConnCore,
         expected_reply_type: Option<ReplyType>,
         skip: SkipLastSpace,
@@ -87,7 +87,7 @@ impl Request {
     }
 
     pub fn send_and_get_reply(
-        &mut self,
+        mut self,
         o_rs_md: Option<&ResultSetMetadata>,
         o_par_md: Option<&Vec<ParameterDescriptor>>,
         o_rs: &mut Option<&mut ResultSet>,
@@ -102,7 +102,7 @@ impl Request {
         let _start = Local::now();
         self.add_statement_sequence(am_conn_core)?;
 
-        let mut reply = self.handshake(
+        let mut reply = self.roundtrip(
             o_rs_md,
             o_par_md,
             o_rs,
@@ -140,9 +140,8 @@ impl Request {
         Ok(())
     }
 
-    // Do the handshake
-    fn handshake(
-        &self,
+    fn roundtrip(
+        self,
         o_rs_md: Option<&ResultSetMetadata>,
         o_par_md: Option<&Vec<ParameterDescriptor>>,
         o_rs: &mut Option<&mut ResultSet>,
@@ -150,28 +149,21 @@ impl Request {
         expected_reply_type: Option<ReplyType>,
         skip: SkipLastSpace,
     ) -> HdbResult<Reply> {
-        trace!("Entering Message::serialize()");
-        let mut guard = am_conn_core.lock()?;
-        let auto_commit_flag: i8 = if (*guard).is_auto_commit() { 1 } else { 0 };
-        let conn_core = &mut *guard;
-        let nsn = conn_core.next_seq_number();
-        {
-            let writer = &mut *(conn_core.writer().borrow_mut());
-            self.serialize(conn_core.session_id(), nsn, auto_commit_flag, writer)?;
-        }
-        Reply::parse(
+        trace!("request::roundtrip()");
+        let mut conn_core = am_conn_core.lock()?;
+        conn_core.roundtrip(
+            self,
+            am_conn_core,
             o_rs_md,
             o_par_md,
             o_rs,
-            conn_core,
-            am_conn_core,
             expected_reply_type,
             skip,
         )
     }
 
     pub fn serialize(
-        &self,
+        self,
         session_id: i64,
         seq_number: i32,
         auto_commit_flag: i8,
@@ -179,7 +171,7 @@ impl Request {
     ) -> HdbResult<()> {
         let varpart_size = self.varpart_size()?;
         let total_size = MESSAGE_HEADER_SIZE + varpart_size;
-        trace!("Writing Message with total size {}", total_size);
+        trace!("Writing request with total size {}", total_size);
         let mut remaining_bufsize = total_size - MESSAGE_HEADER_SIZE;
 
         debug!(
