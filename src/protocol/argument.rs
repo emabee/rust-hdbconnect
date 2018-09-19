@@ -7,6 +7,7 @@ use super::parts::connect_options::ConnectOptions;
 use super::parts::output_parameters::factory as OutputParametersFactory;
 use super::parts::output_parameters::OutputParameters;
 use super::parts::parameter_descriptor::factory as ParameterDescriptorFactory;
+use super::parts::partiton_information::PartitionInformation;
 use super::parts::parameter_descriptor::ParameterDescriptor;
 use super::parts::parameters::Parameters;
 use super::parts::read_lob_reply::ReadLobReply;
@@ -59,7 +60,7 @@ pub enum Argument {
     SessionContext(SessionContext),
     StatementContext(StatementContext),
     StatementId(u64),
-    PartitionInformation,
+    PartitionInformation(PartitionInformation),
     TableLocation(Vec<i32>),
     TopologyInformation(Topology),
     TransactionFlags(TransactionFlags),
@@ -283,8 +284,7 @@ impl Argument {
                 Argument::TopologyInformation(Topology::parse(no_of_args, rdr)?)
             }
             PartKind::PartitionInformation => {
-                let _ignore_res = util::parse_bytes(arg_size as usize, rdr)?;
-                Argument::PartitionInformation
+                Argument::PartitionInformation(PartitionInformation::parse(rdr)?)
             }
             PartKind::TransactionFlags => {
                 Argument::TransactionFlags(TransactionFlags::parse(no_of_args, rdr)?)

@@ -34,6 +34,7 @@ extern crate crypto;
 extern crate dist_tx;
 extern crate hex;
 extern crate num;
+extern crate cesu8;
 
 #[macro_use]
 extern crate log;
