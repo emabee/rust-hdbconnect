@@ -1,6 +1,6 @@
 [package]
 name = "hdbconnect"
-version = "0.7.1"
+version = "0.7.2"
 authors = ["emabee <meinolf.block@sap.com>","Pascal Seitz <pascal.seitz@gmail.com>"]
 license = "MIT/Apache-2.0"
 readme = "README.md"
@@ -19,6 +19,7 @@ tls = ["rustls","regex","webpki","webpki-roots"]
 bigdecimal = {version = "0.0.14", features = ["serde"]}
 byteorder = "1.2"
 chrono = { version = "0.4", features = ["serde"] }
+cesu8 = "1.1"
 #dist_tx = {path = "../dist_tx"}
 dist_tx = "0.2"
 hex = "0.3"
@@ -40,7 +41,6 @@ username = "0.2"
 vec_map = "0.8"
 webpki = {version = "0.18", optional = true}
 webpki-roots = {version = "0.15", optional = true}
-cesu8 = "1.1.0"
 
 [dev-dependencies]
 serde_bytes = "0.10"

@@ -1,9 +1,7 @@
-use cesu8::Cesu8DecodingError;
 use super::fetch_a_lob_chunk;
 use conn_core::AmConnCore;
-use protocol;
-use cesu8;
 use protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
+use protocol::util;
 use std::cell::RefCell;
 use std::cmp::max;
 use std::io::{self, Write};
@@ -77,7 +75,7 @@ struct CLobHandle {
     length_b: u64,
     locator_id: u64,
     buffer_cesu8: Vec<u8>,
-    utf8: Vec<u8>,
+    utf8: String,
     max_size: usize,
     acc_byte_length: usize,
     server_resource_consumption_info: ServerResourceConsumptionInfo,
@@ -92,20 +90,16 @@ impl CLobHandle {
         cesu8: &[u8],
     ) -> CLobHandle {
         let acc_byte_length = cesu8.len();
-        let mut utf8 = Vec::<u8>::new();
-        let (success, byte_count) = protocol::cesu8::decode_from_iter(&mut utf8, &mut cesu8.iter());
-        if !success && byte_count < cesu8.len() as u64 - 5 {
-            error!("CLobHandle::new() bad cesu8 in first part of CLob");
-        }
-        let (_u, c) = cesu8.split_at(byte_count as usize);
+
+        let (utf8, buffer_cesu8) = util::to_string_and_tail(cesu8).unwrap(/* yes */);
         let clob_handle = CLobHandle {
             o_am_conn_core: Some(Arc::clone(am_conn_core)),
             length_c,
             length_b,
             is_data_complete,
             locator_id,
-            buffer_cesu8: Vec::<u8>::from(c),
-            max_size: utf8.len() + c.len(),
+            max_size: utf8.len() + buffer_cesu8.len(),
+            buffer_cesu8,
             utf8,
             acc_byte_length,
             server_resource_consumption_info: Default::default(),
@@ -145,20 +139,10 @@ impl CLobHandle {
 
         self.acc_byte_length += reply_data.len();
         self.buffer_cesu8.append(&mut reply_data);
-        let (success, byte_count) =
-            protocol::cesu8::decode_from_iter(&mut self.utf8, &mut self.buffer_cesu8.iter());
+        let (utf8, buffer) = util::to_string_and_tail(&self.buffer_cesu8)?;
 
-        if !success && byte_count < self.buffer_cesu8.len() as u64 - 5 {
-            error!(
-                "CLobHandle::fetch_next_chunk(): bad cesu8 at pos {} in part of CLOB: {:?}",
-                byte_count, self.buffer_cesu8
-            );
-            return Err(HdbError::Cesu8(cesu8::Cesu8DecodingError));
-        }
-
-        // cut off the big first part (in most cases all) of buffer_cesu8, and retain
-        // just the rest
-        self.buffer_cesu8.drain(0..byte_count as usize);
+        self.utf8.push_str(&utf8);
+        self.buffer_cesu8 = buffer;
         self.is_data_complete = reply_is_last_data;
         self.max_size = max(self.utf8.len() + self.buffer_cesu8.len(), self.max_size);
 
@@ -185,7 +169,7 @@ impl CLobHandle {
     pub fn into_string(mut self) -> HdbResult<String> {
         trace!("CLobHandle::into_string()");
         self.load_complete()?;
-        String::from_utf8(self.utf8).map_err(|_| HdbError::Cesu8(cesu8::Cesu8DecodingError))
+        Ok(self.utf8)
     }
 }
 
@@ -204,13 +188,13 @@ impl io::Read for CLobHandle {
             self.utf8.len()
         } else {
             let mut tmp = buf.len();
-            while !protocol::cesu8::is_utf8_char_start(self.utf8[tmp]) {
+            while !util::is_utf8_char_start(self.utf8.as_bytes()[tmp]) {
                 tmp -= 1;
             }
             tmp
         };
 
-        buf.write_all(&self.utf8[0..count])?;
+        buf.write_all(&self.utf8.as_bytes()[0..count])?;
         self.utf8.drain(0..count);
         Ok(count)
     }

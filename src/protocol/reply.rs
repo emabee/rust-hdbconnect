@@ -22,7 +22,7 @@ use {HdbError, HdbResponse, HdbResult};
 #[derive(Debug)]
 pub struct Reply {
     session_id: i64,
-    replytype: ReplyType,
+    pub replytype: ReplyType,
     pub parts: Parts,
 }
 impl Reply {
@@ -312,8 +312,8 @@ impl Drop for Reply {
     fn drop(&mut self) {
         for part in &self.parts {
             warn!(
-                "reply is dropped, but not all parts were evaluated: part-kind = {:?}",
-                part.kind()
+                "reply of type {:?} is dropped, but not all parts were evaluated: part-kind = {:?}",
+                self.replytype, part.kind()
             );
         }
     }

@@ -1,5 +1,5 @@
-use conn_core::ConnectionCore;
 use cesu8::Cesu8DecodingError;
+use conn_core::ConnectionCore;
 use protocol::parts::resultset::ResultSetCore;
 use protocol::parts::server_error::ServerError;
 use serde_db::de::{ConversionError, DeserializationError};

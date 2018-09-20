@@ -1,7 +1,8 @@
-use protocol::{cesu8, util};
+use protocol::util;
 use {HdbError, HdbResult};
 
 use byteorder::{LittleEndian, ReadBytesExt};
+use cesu8;
 use std::fmt;
 use std::io;
 use std::u32;
@@ -41,21 +42,24 @@ impl ResultSetMetadata {
 
     /// Database schema of the i'th column in the resultset.
     pub fn schemaname(&self, i: usize) -> HdbResult<&String> {
-        Ok(self.names
+        Ok(self
+            .names
             .get(self.get(i)?.schemaname_idx() as usize)
             .ok_or_else(|| HdbError::usage_("get_fieldname(): invalid field index"))?)
     }
 
     /// Database table of the i'th column in the resultset.
     pub fn tablename(&self, i: usize) -> HdbResult<&String> {
-        Ok(self.names
+        Ok(self
+            .names
             .get(self.get(i)?.tablename_idx() as usize)
             .ok_or_else(|| HdbError::usage_("tablename(): invalid field index"))?)
     }
 
     /// Name of the i'th column in the resultset.
     pub fn columnname(&self, i: usize) -> HdbResult<&String> {
-        Ok(self.names
+        Ok(self
+            .names
             .get(self.get(i)?.columnname_idx() as usize)
             .ok_or_else(|| HdbError::usage_("columnname(): invalid field index"))?)
     }
@@ -65,7 +69,8 @@ impl ResultSetMetadata {
     /// Display name of the column.
     #[inline]
     pub fn displayname(&self, index: usize) -> HdbResult<&String> {
-        Ok(self.names
+        Ok(self
+            .names
             .get(self.get(index)?.displayname_idx() as usize)
             .ok_or_else(|| HdbError::usage_("get_fieldname(): invalid field index"))?)
     }
@@ -178,9 +183,9 @@ pub fn parse(count: i32, arg_size: u32, rdr: &mut io::BufRead) -> HdbResult<Resu
         }
         let nl = rdr.read_u8()?; // UI1
         let buffer: Vec<u8> = util::parse_bytes(nl as usize, rdr)?; // variable
-        let name = cesu8::cesu8_to_string(&buffer)?;
+        let name = cesu8::from_cesu8(&buffer)?;
         trace!("offset = {}, name = {}", offset, name);
-        rsm.names.insert(offset as usize, name);
+        rsm.names.insert(offset as usize, name.to_string());
         offset += u32::from(nl) + 1;
     }
     Ok(rsm)

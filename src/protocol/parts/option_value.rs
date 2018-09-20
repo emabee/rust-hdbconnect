@@ -1,4 +1,5 @@
-use protocol::{cesu8, util};
+use cesu8;
+use protocol::util;
 use {HdbError, HdbResult};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -35,7 +36,7 @@ impl OptionValue {
             OptionValue::INT(_) => 4,
             OptionValue::BIGINT(_) | OptionValue::DOUBLE(_) => 8,
             OptionValue::BOOLEAN(_) => 1,
-            OptionValue::STRING(ref s) => cesu8::cesu8_length(s) + 2,
+            OptionValue::STRING(ref s) => util::cesu8_length(s) + 2,
             OptionValue::BSTRING(ref v) => v.len() + 2,
         }
     }
@@ -73,7 +74,7 @@ impl OptionValue {
 }
 
 fn serialize_length_and_string(s: &str, w: &mut io::Write) -> HdbResult<()> {
-    serialize_length_and_bytes(&cesu8::string_to_cesu8(s), w)
+    serialize_length_and_bytes(&cesu8::to_cesu8(s), w)
 }
 
 fn serialize_length_and_bytes(v: &[u8], w: &mut io::Write) -> HdbResult<()> {
@@ -82,7 +83,7 @@ fn serialize_length_and_bytes(v: &[u8], w: &mut io::Write) -> HdbResult<()> {
 }
 
 fn parse_length_and_string(rdr: &mut io::BufRead) -> HdbResult<String> {
-    Ok(cesu8::cesu8_to_string(&parse_length_and_binary(rdr)?)?)
+    Ok(cesu8::from_cesu8(&parse_length_and_binary(rdr)?)?.to_string())
 }
 
 fn parse_length_and_binary(rdr: &mut io::BufRead) -> HdbResult<Vec<u8>> {

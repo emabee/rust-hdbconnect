@@ -243,6 +243,7 @@ impl ConnectionCore {
         }
     }
 
+    #[allow(unknown_lints)]
     #[allow(too_many_arguments)]
     pub fn roundtrip(
         &mut self,
@@ -254,7 +255,7 @@ impl ConnectionCore {
         expected_reply_type: Option<ReplyType>,
         skip: SkipLastSpace,
     ) -> HdbResult<Reply> {
-        trace!("ConnectionCore::roundtrip()");
+        let request_type = request.request_type.clone();
         let auto_commit_flag: i8 = if self.is_auto_commit() { 1 } else { 0 };
         let nsn = self.next_seq_number();
         {
@@ -264,7 +265,7 @@ impl ConnectionCore {
         {
             let rdr = &mut *(self.reader().borrow_mut());
 
-            Reply::parse(
+            let reply = Reply::parse(
                 o_rs_md,
                 o_par_md,
                 o_rs,
@@ -272,7 +273,14 @@ impl ConnectionCore {
                 expected_reply_type,
                 skip,
                 rdr,
-            )
+            )?;
+            trace!(
+                "ConnectionCore::roundtrip(): request type {:?}, reply type {:?}",
+                request_type,
+                reply.replytype
+            );
+
+            Ok(reply)
         }
     }
 

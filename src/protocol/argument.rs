@@ -21,7 +21,6 @@ use super::parts::topology::Topology;
 use super::parts::transactionflags::TransactionFlags;
 use super::parts::xat_options::XatOptions;
 use conn_core::AmConnCore;
-use protocol::cesu8;
 use protocol::parts::client_context::ClientContext;
 use protocol::parts::command_info::CommandInfo;
 use protocol::parts::commit_options::CommitOptions;
@@ -33,6 +32,7 @@ use protocol::util;
 use {HdbError, HdbResult};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use cesu8;
 use std::io;
 
 #[derive(Debug)]
@@ -107,7 +107,7 @@ impl Argument {
             Argument::Auth(ref af) => size += af.size(),
             Argument::ClientContext(ref opts) => size += opts.size(),
             Argument::ClientInfo(ref client_info) => size += client_info.size(),
-            Argument::Command(ref s) => size += cesu8::string_to_cesu8(s).len(),
+            Argument::Command(ref s) => size += cesu8::to_cesu8(s).len(),
             Argument::CommandInfo(ref opts) => size += opts.size(),
             Argument::CommitOptions(ref opts) => size += opts.size(),
             Argument::ConnectOptions(ref conn_opts) => size += conn_opts.size(),
@@ -148,9 +148,8 @@ impl Argument {
                 client_info.serialize(w)?;
             }
             Argument::Command(ref s) => {
-                let vec = cesu8::string_to_cesu8(s);
-                for b in vec {
-                    w.write_u8(b)?;
+                for b in cesu8::to_cesu8(s).iter() {
+                    w.write_u8(*b)?;
                 }
             }
             Argument::CommandInfo(ref opts) => opts.serialize(w)?,
@@ -196,6 +195,7 @@ impl Argument {
         Ok(remaining_bufsize - size as u32 - padsize as u32)
     }
 
+    #[allow(unknown_lints)]
     #[allow(too_many_arguments)]
     pub fn parse(
         kind: PartKind,
@@ -215,8 +215,7 @@ impl Argument {
             PartKind::Authentication => Argument::Auth(AuthFields::parse(rdr)?),
             PartKind::Command => {
                 let bytes = util::parse_bytes(arg_size as usize, rdr)?;
-                let s = cesu8::cesu8_to_string(&bytes)?;
-                Argument::Command(s)
+                Argument::Command(cesu8::from_cesu8(&bytes)?.to_owned().to_string())
             }
             PartKind::CommandInfo => Argument::CommandInfo(CommandInfo::parse(no_of_args, rdr)?),
             PartKind::ConnectOptions => {

@@ -63,16 +63,23 @@ impl ResultSetCore {
                         Argument::ResultSetId(rs_id),
                     ));
 
-                    conn_guard
-                        .roundtrip(
-                            request,
-                            conn_core,
-                            None,
-                            None,
-                            &mut None,
-                            None,
-                            SkipLastSpace::Hard,
-                        ).ok();
+                    if let Ok(mut reply) = conn_guard.roundtrip(
+                        request,
+                        conn_core,
+                        None,
+                        None,
+                        &mut None,
+                        None,
+                        SkipLastSpace::Hard,
+                    ) {
+                        let _ = reply.parts.pop_arg_if_kind(PartKind::StatementContext);
+                        for part in &reply.parts {
+                            warn!(
+                                "CloseResultSet got a reply with a part of kind {:?}",
+                                part.kind()
+                            );
+                        }
+                    }
                 }
             }
         }

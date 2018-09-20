@@ -144,7 +144,8 @@ pub mod factory {
         ParameterDescriptor,
     };
     use byteorder::{LittleEndian, ReadBytesExt};
-    use protocol::{cesu8, util};
+    use cesu8;
+    use protocol::util;
     use std::io;
     use std::u32;
     use HdbResult;
@@ -177,7 +178,8 @@ pub mod factory {
         for (mut descriptor, name_offset) in vec_pd.iter_mut().zip(name_offsets.iter()) {
             if name_offset != &u32::MAX {
                 let length = rdr.read_u8()?;
-                let name = cesu8::cesu8_to_string(&util::parse_bytes(length as usize, rdr)?)?;
+                let name =
+                    cesu8::from_cesu8(&util::parse_bytes(length as usize, rdr)?)?.to_string();
                 parameter_descriptor_set_name(&mut descriptor, name);
                 consumed += 1 + u32::from(length);
                 assert!(arg_size >= consumed);

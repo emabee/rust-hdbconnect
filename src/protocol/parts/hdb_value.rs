@@ -1,6 +1,6 @@
 use bigdecimal::BigDecimal;
 use protocol::parts::type_id;
-use protocol::{cesu8, util};
+use protocol::util;
 use types::BLob;
 use types::CLob;
 use types::DayDate;
@@ -12,6 +12,7 @@ use types_impl::lob::{serialize_blob_header, serialize_clob_header};
 use {HdbError, HdbResult};
 
 use byteorder::{LittleEndian, WriteBytesExt};
+use cesu8;
 use serde;
 use serde_db::de::DbValue;
 use std::fmt;
@@ -513,7 +514,7 @@ pub fn size(tv: &HdbValue) -> HdbResult<usize> {
 }
 
 pub fn string_length(s: &str) -> usize {
-    match cesu8::cesu8_length(s) {
+    match util::cesu8_length(s) {
         clen if clen <= MAX_1_BYTE_LENGTH as usize => 1 + clen,
         clen if clen <= MAX_2_BYTE_LENGTH as usize => 3 + clen,
         clen => 5 + clen,
@@ -521,7 +522,7 @@ pub fn string_length(s: &str) -> usize {
 }
 
 pub fn serialize_length_and_string(s: &str, w: &mut io::Write) -> HdbResult<()> {
-    serialize_length_and_bytes(&cesu8::string_to_cesu8(s), w)
+    serialize_length_and_bytes(&cesu8::to_cesu8(s), w)
 }
 
 fn serialize_length_and_bytes(v: &[u8], w: &mut io::Write) -> HdbResult<()> {
@@ -634,7 +635,7 @@ impl fmt::Display for HdbValue {
 pub mod factory {
     use super::HdbValue;
     use conn_core::AmConnCore;
-    use protocol::{cesu8, util};
+    use protocol::util;
     use types_impl::daydate::{parse_daydate, parse_nullable_daydate};
     use types_impl::hdb_decimal::{parse_decimal, parse_nullable_decimal};
     use types_impl::lob::{parse_blob, parse_clob, parse_nullable_blob, parse_nullable_clob};
@@ -644,6 +645,7 @@ pub mod factory {
     use {HdbError, HdbResult};
 
     use byteorder::{LittleEndian, ReadBytesExt};
+    use cesu8;
     use std::io;
     use std::iter::repeat;
     use std::{u32, u64};
@@ -837,13 +839,7 @@ pub mod factory {
     // ----- STRINGS and BINARIES
     // ----------------------------------------------------------------
     pub fn parse_string(rdr: &mut io::BufRead) -> HdbResult<String> {
-        match cesu8::cesu8_to_string(&parse_binary(rdr)?) {
-            Ok(s) => Ok(s),
-            Err(e) => {
-                error!("cesu-8 problem occured in hdb_value:parse_string()");
-                Err(e)
-            }
-        }
+        Ok(cesu8::from_cesu8(&parse_binary(rdr)?)?.to_string())
     }
 
     fn parse_binary(rdr: &mut io::BufRead) -> HdbResult<Vec<u8>> {
@@ -866,12 +862,7 @@ pub mod factory {
 
     fn parse_nullable_string(rdr: &mut io::BufRead) -> HdbResult<Option<String>> {
         match parse_nullable_binary(rdr)? {
-            Some(vec) => match cesu8::cesu8_to_string(&vec) {
-                Ok(s) => Ok(Some(s)),
-                Err(_) => Err(HdbError::Impl(
-                    "cesu-8 problem occured in hdb_value:parse_string()".to_owned(),
-                )),
-            },
+            Some(vec) => Ok(Some(cesu8::from_cesu8(&vec)?.to_string())),
             None => Ok(None),
         }
     }

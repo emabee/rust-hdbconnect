@@ -25,7 +25,7 @@ use std::io::{self, Read};
 // cargo test test_032_lobs -- --nocapture
 #[test]
 pub fn test_032_lobs() {
-    let mut logger_handle = test_utils::init_logger("info");
+    let mut logger_handle = test_utils::init_logger("info, test_032_lobs = info");
 
     match impl_test_032_lobs(&mut logger_handle) {
         Err(e) => {
@@ -47,7 +47,7 @@ fn impl_test_032_lobs(logger_handle: &mut ReconfigurationHandle) -> HdbResult<i3
 
 fn test_blobs(
     connection: &mut Connection,
-    logger_handle: &mut ReconfigurationHandle,
+    _logger_handle: &mut ReconfigurationHandle,
 ) -> HdbResult<()> {
     info!("create a 5MB BLOB in the database, and read it in various ways");
     connection.set_lob_read_length(1_000_000)?;
@@ -79,7 +79,8 @@ fn test_blobs(
     let fingerprint1 = hasher.result();
 
     // insert it into HANA
-    let mut insert_stmt = connection.prepare("insert into TEST_LOBS (desc, bindata) values (?,?)")?;
+    let mut insert_stmt =
+        connection.prepare("insert into TEST_LOBS (desc, bindata) values (?,?)")?;
     insert_stmt.add_batch(&("5MB", Bytes::new(&*raw_data)))?;
     insert_stmt.execute_batch()?;
 
@@ -122,7 +123,6 @@ fn test_blobs(
     info!("read big blob in streaming fashion");
 
     connection.set_lob_read_length(200_000)?;
-    logger_handle.parse_new_spec("info");
 
     let query = "select desc, bindata as BL1, bindata as BL2 from TEST_LOBS";
     let mut resultset: hdbconnect::ResultSet = connection.query(query)?;
@@ -145,9 +145,11 @@ fn test_blobs(
 
 fn test_clobs(
     connection: &mut Connection,
-    logger_handle: &mut ReconfigurationHandle,
+    _logger_handle: &mut ReconfigurationHandle,
 ) -> HdbResult<()> {
     info!("create a big CLOB in the database, and read it in various ways");
+
+    debug!("setup...");
     connection.set_lob_read_length(1_000_000)?;
 
     connection.multiple_statements_ignore_err(vec!["drop table TEST_LOBS"]);
@@ -164,9 +166,7 @@ fn test_clobs(
         o_s: Option<String>,
     }
 
-    logger_handle.parse_new_spec("info");
-
-    // create big random String data
+    debug!("create big random String data");
     let mut three_times_blabla = String::new();
     {
         let mut f = File::open("tests/blabla.txt").expect("file not found");
@@ -182,16 +182,18 @@ fn test_clobs(
     hasher.input(three_times_blabla.as_bytes());
     let fingerprint1 = hasher.result();
 
-    // insert it into HANA
+    debug!("insert it into HANA");
     let mut insert_stmt =
         connection.prepare("insert into TEST_LOBS (desc, chardata) values (?,?)")?;
     insert_stmt.add_batch(&("3x blabla", &three_times_blabla))?;
     insert_stmt.execute_batch()?;
 
-    // and read it back
+    debug!("and read it back");
     let before = connection.get_call_count()?;
     let query = "select desc, chardata as CL1, chardata as CL2 from TEST_LOBS";
     let resultset = connection.query(query)?;
+    debug!("and convert it into a rust struct");
+
     let mydata: MyData = resultset.try_into()?;
     debug!(
         "reading two big CLOB with lob-read-length {} required {} roundtrips",
@@ -228,7 +230,6 @@ fn test_clobs(
     debug!("read big clob in streaming fashion");
 
     connection.set_lob_read_length(200_000)?;
-    logger_handle.parse_new_spec("info");
 
     let query = "select desc, chardata as CL1, chardata as CL2 from TEST_LOBS";
     let mut resultset: hdbconnect::ResultSet = connection.query(query)?;

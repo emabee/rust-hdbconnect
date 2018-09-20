@@ -1,7 +1,8 @@
-use protocol::{cesu8, util};
+use protocol::util;
 use HdbResult;
 
 use byteorder::{LittleEndian, ReadBytesExt};
+use cesu8;
 use std::fmt;
 use std::io;
 
@@ -115,11 +116,11 @@ impl ServerError {
         let severity = Severity::from_i8(rdr.read_i8()?); // I1
         let sqlstate = util::parse_bytes(5_usize, rdr)?; // B5
         let bytes = util::parse_bytes(text_length as usize, rdr)?; // B[text_length]
-        let text = cesu8::cesu8_to_string(&bytes)?;
+        let text = cesu8::from_cesu8(&bytes)?;
         let pad = arg_size - BASE_SIZE as i32 - text_length;
         util::skip_bytes(pad as usize, rdr)?;
 
-        let hdberr = ServerError::new(code, position, severity, sqlstate, text);
+        let hdberr = ServerError::new(code, position, severity, sqlstate, text.to_string());
         debug!("parse(): found hdberr with {}", hdberr.to_string());
         Ok(hdberr)
     }
