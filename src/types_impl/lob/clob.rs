@@ -1,6 +1,8 @@
+use cesu8::Cesu8DecodingError;
 use super::fetch_a_lob_chunk;
 use conn_core::AmConnCore;
-use protocol::cesu8;
+use protocol;
+use cesu8;
 use protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
 use std::cell::RefCell;
 use std::cmp::max;
@@ -91,7 +93,7 @@ impl CLobHandle {
     ) -> CLobHandle {
         let acc_byte_length = cesu8.len();
         let mut utf8 = Vec::<u8>::new();
-        let (success, _, byte_count) = cesu8::decode_from_iter(&mut utf8, &mut cesu8.iter());
+        let (success, byte_count) = protocol::cesu8::decode_from_iter(&mut utf8, &mut cesu8.iter());
         if !success && byte_count < cesu8.len() as u64 - 5 {
             error!("CLobHandle::new() bad cesu8 in first part of CLob");
         }
@@ -143,8 +145,8 @@ impl CLobHandle {
 
         self.acc_byte_length += reply_data.len();
         self.buffer_cesu8.append(&mut reply_data);
-        let (success, _, byte_count) =
-            cesu8::decode_from_iter(&mut self.utf8, &mut self.buffer_cesu8.iter());
+        let (success, byte_count) =
+            protocol::cesu8::decode_from_iter(&mut self.utf8, &mut self.buffer_cesu8.iter());
 
         if !success && byte_count < self.buffer_cesu8.len() as u64 - 5 {
             error!(
@@ -202,7 +204,7 @@ impl io::Read for CLobHandle {
             self.utf8.len()
         } else {
             let mut tmp = buf.len();
-            while !cesu8::is_utf8_char_start(self.utf8[tmp]) {
+            while !protocol::cesu8::is_utf8_char_start(self.utf8[tmp]) {
                 tmp -= 1;
             }
             tmp
