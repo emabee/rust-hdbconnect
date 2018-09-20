@@ -11,6 +11,7 @@ pub mod multiline_option_part;
 pub mod option_part;
 pub mod option_value;
 pub mod output_parameters;
+pub mod partiton_information;
 pub mod parameter_descriptor;
 pub mod parameters;
 pub mod read_lob_reply;

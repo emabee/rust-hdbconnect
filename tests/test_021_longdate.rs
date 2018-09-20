@@ -131,7 +131,7 @@ fn test_longdate(_loghandle: &mut ReconfigurationHandle) -> HdbResult<i32> {
         assert_eq!(rows_affected, 1);
 
         let date: Option<NaiveDateTime> = connection
-            .query("select mydate from TEST_DAYDATE where number = 2350")?
+            .query("select mydate from TEST_LONGDATE where number = 2350")?
             .try_into()?;
         trace!("query sent");
         assert_eq!(date, None);

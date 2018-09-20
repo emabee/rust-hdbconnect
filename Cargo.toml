@@ -1,7 +1,7 @@
 [package]
 name = "hdbconnect"
 version = "0.7.1"
-authors = ["emabee <meinolf.block@sap.com>"]
+authors = ["emabee <meinolf.block@sap.com>","Pascal Seitz <pascal.seitz@gmail.com>"]
 license = "MIT/Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/emabee/rust-hdbconnect"
@@ -40,6 +40,7 @@ username = "0.2"
 vec_map = "0.8"
 webpki = {version = "0.18", optional = true}
 webpki-roots = {version = "0.15", optional = true}
+cesu8 = "1.1.0"
 
 [dev-dependencies]
 serde_bytes = "0.10"

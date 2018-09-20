@@ -1,5 +1,7 @@
 use HdbResult;
 
+use cesu8::{from_cesu8, to_cesu8};
+
 pub fn string_to_cesu8(s: &str) -> Vec<u8> {
     to_cesu8(s).to_vec()
 }
@@ -108,10 +110,6 @@ pub fn cesu8_length(s: &str) -> usize {
 // ! > * Add 0xDC00 to the low value to form the low surrogate: 0xDC00 +
 // ! >   0x0037 = 0xDC37.
 
-use std::borrow::Cow;
-use std::error::Error;
-use std::fmt;
-use std::result::Result;
 use std::slice;
 use std::str;
 
@@ -146,98 +144,13 @@ const CONT_MASK: u8 = 0b0011_1111u8;
 /// Value of the tag bits (tag mask is !`CONT_MASK`) of a continuation byte.
 const TAG_CONT_U8: u8 = 0b1000_0000u8;
 
-/// The CESU-8 data could not be decoded as valid UTF-8 data.
-#[derive(Clone, Copy, Debug)]
-pub struct Cesu8DecodingError;
-
-impl Error for Cesu8DecodingError {
-    fn description(&self) -> &str {
-        "decoding error"
-    }
-    fn cause(&self) -> Option<&Error> {
-        None
-    }
-}
-
-impl fmt::Display for Cesu8DecodingError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "could not convert CESU-8 data to UTF-8")
-    }
-}
-
-// / Convert CESU-8 data to a Rust string, re-encoding only if necessary.
-// / Returns an error if the data cannot be represented as valid UTF-8.
-// /
-// / ```
-// / use std::borrow::Cow;
-// / use cesu8::from_cesu8;
-// /
-// / // This string is valid as UTF-8 or CESU-8, so it doesn't change,
-// / // and we can convert it without allocating memory.
-// / assert_eq!(Cow::Borrowed("aé日"),
-// /            from_cesu8("aé日".as_bytes()).unwrap());
-// /
-// / // This string is CESU-8 data containing a 6-byte surrogate pair,
-// / // which becomes a 4-byte UTF-8 string.
-// / let data = &[0xED, 0xA0, 0x81, 0xED, 0xB0, 0x81];
-// / assert_eq!(Cow::Borrowed("\u{10401}"),
-// /            from_cesu8(data).unwrap());
-// / ```
-fn from_cesu8(bytes: &[u8]) -> Result<Cow<str>, Cesu8DecodingError> {
-    match str::from_utf8(bytes) {
-        Ok(str) => Ok(Cow::Borrowed(str)),
-        _ => {
-            let mut decoded = Vec::with_capacity(bytes.len());
-            let (success, _, _) = decode_from_iter(&mut decoded, &mut bytes.iter());
-            if success {
-                // We can remove this assertion if we trust our decoder.
-                assert!(str::from_utf8(&decoded[..]).is_ok());
-                Ok(Cow::Owned(unsafe {
-                    let s = String::from_utf8_unchecked(decoded);
-                    trace!("cesu8::from_cesu8(): {}", s);
-                    (s)
-                }))
-            } else {
-                debug!("cesu8::from_cesu8() failed for {:?}", bytes);
-                Err(Cesu8DecodingError)
-            }
-        }
-    }
-}
-
-#[test]
-fn test_from_cesu8() {
-    info!("minimalistic test of cesu8 decoder");
-    // The surrogate-encoded character below is from the ICU library's
-    // icu/source/test/testdata/conversion.txt test case.
-    let data = &[0x4D, 0xE6, 0x97, 0xA5, 0xED, 0xA0, 0x81, 0xED, 0xB0, 0x81];
-    assert_eq!(Cow::Borrowed("M日\u{10401}"), from_cesu8(data).unwrap());
-
-    // We used to have test data from the CESU-8 specification, but when we
-    // worked it through manually, we got the wrong answer:
-    //
-    // Input: [0xED, 0xAE, 0x80, 0xED, 0xB0, 0x80]
-    // Binary: 11101101 10101110 10000000 11101101 10110000 10000000
-    //
-    // 0b1101_101110_000000 -> 0xDB80
-    // 0b1101_110000_000000 -> 0xDC00
-    //
-    // ((0xDB80 - 0xD800) << 10) | (0xDC00 - 0xDC00) -> 0xE0000
-    // 0x10000 + 0xE0000 -> 0xF0000
-    //
-    // The spec claims that we are supposed to get 0x10000, not 0xF0000.
-    // Since I can't reconcile this example data with the text of the
-    // specification, I decided to use a test character from ICU instead.
-}
-
 // Our internal decoder, based on Rust's is_utf8 implementation.
-pub fn decode_from_iter(decoded: &mut Vec<u8>, iter: &mut slice::Iter<u8>) -> (bool, u64, u64) {
-    let mut char_count = 0;
+pub fn decode_from_iter(decoded: &mut Vec<u8>, iter: &mut slice::Iter<u8>) -> (bool, u64) {
     let mut byte_count = 0;
 
     macro_rules! err {
         () => {
-            return (false, char_count, byte_count);
+            return (false, byte_count);
         };
     }
     macro_rules! next {
@@ -265,10 +178,9 @@ pub fn decode_from_iter(decoded: &mut Vec<u8>, iter: &mut slice::Iter<u8>) -> (b
             Some(&b) => b,
             // We're at the end of the iterator and a codepoint boundary at
             // the same time, so this string is valid.
-            None => return (true, char_count, byte_count),
+            None => return (true, byte_count),
         };
-        char_count += 1;
-        if first < 127 {
+        if first < 128 {
             // Pass ASCII through directly.
             decoded.push(first);
             byte_count += 1;
@@ -340,127 +252,6 @@ fn dec_surrogates(second: u8, third: u8, fifth: u8, sixth: u8) -> [u8; 4] {
         TAG_CONT_U8 | ((c & 0b0_0011_1111_0000_0000_0000) >> 12) as u8,
         TAG_CONT_U8 | ((c & 0b0_0000_0000_1111_1100_0000) >> 6) as u8,
         TAG_CONT_U8 | (c & 0b0_0000_0000_0000_0011_1111) as u8,
-    ]
-}
-
-// / Convert a Rust `&str` to CESU-8 bytes.
-// /
-// / ```
-// / use std::borrow::Cow;
-// / use cesu8::to_cesu8;
-// /
-// / // This string is valid as UTF-8 or CESU-8, so it doesn't change,
-// / // and we can convert it without allocating memory.
-// / assert_eq!(Cow::Borrowed("aé日".as_bytes()), to_cesu8("aé日"));
-// /
-// / // This string is a 4-byte UTF-8 string, which becomes a 6-byte CESU-8
-// / // vector.
-// / assert_eq!(Cow::Borrowed(&[0xED, 0xA0, 0x81, 0xED, 0xB0, 0x81]),
-// /            to_cesu8("\u{10401}"));
-// / ```
-pub fn to_cesu8(text: &str) -> Cow<[u8]> {
-    if is_valid_cesu8(text) {
-        Cow::Borrowed(text.as_bytes())
-    } else {
-        let bytes = text.as_bytes();
-        let mut encoded = Vec::with_capacity((bytes.len() + bytes.len()) >> 2);
-        let mut i = 0;
-        while i < bytes.len() {
-            let b = bytes[i];
-            if b < 128 {
-                // Pass ASCII through quickly.
-                encoded.push(b);
-                i += 1;
-            } else {
-                // Figure out how many bytes we need for this character.
-                let w = utf8_char_width(b);
-                assert!(w <= 4);
-                assert!(i + w <= bytes.len());
-                if w != 4 {
-                    // Pass through short UTF-8 sequences unmodified.
-                    encoded.extend(bytes[i..i + w].iter().cloned());
-                } else {
-                    // Encode 4-byte sequences as 6 bytes.
-                    // let s = unsafe { str::from_utf8_unchecked(&bytes[i..i+w]) };
-                    // for u in s.utf16_units() {
-                    //     encoded.extend(enc_surrogate(u).iter().cloned());
-                    // }
-                    // we have the four UTF-8 bytes (in &bytes[i..i+w]) and have to convert
-                    // them to two surrogates
-                    let mut utf8 = [0_u8; 4];
-                    for (ref mut place, data) in utf8.as_mut().iter().zip(bytes[i..i + 4].iter()) {
-                        *place = data;
-                    }
-                    let (hi, lo) = get_hi_lo_surrogates(utf8);
-                    encoded.extend(enc_surrogate(hi).iter().cloned());
-                    encoded.extend(enc_surrogate(lo).iter().cloned());
-                }
-                i += w;
-            }
-        }
-        Cow::Owned(encoded)
-    }
-}
-
-fn get_hi_lo_surrogates(utf8_4: [u8; 4]) -> (u16, u16) {
-    // UTF-8 4-byte value to codepoint(u32)
-    assert!(utf8_4[0] >= 240);
-    assert!(utf8_4[1] >= 128);
-    assert!(utf8_4[2] >= 128);
-    assert!(utf8_4[3] >= 128);
-    let codepoint: u32 = (u32::from(utf8_4[0] & 0b0000_0111_u8) << 24)
-        + (u32::from(utf8_4[1] & 0b0011_1111_u8) << 16)
-        + (u32::from(utf8_4[2] & 0b0011_1111_u8) << 8)
-        + u32::from(utf8_4[3] & 0b0011_1111_u8);
-
-    // High Surrogates: U+D800–U+DBFF = 55296 - 56319 (1024 values)
-    // Low Surrogates:  U+DC00–U+DFFF = 56320 - 57343 (1024 values)
-
-    // Codepoint to surrogate pair:
-    //  0x010000 is subtracted from the code point,
-    // leaving a 20-bit number in the range 0..0x0FFFFF.
-    // The top ten bits (a number in the range 0..0x03FF)
-    // are added to 0xD800 to give the first 16-bit code unit
-    // or high surrogate, which will be in the range 0xD800..0xDBFF.
-    // The low ten bits (also in the range 0..0x03FF)
-    // are added to 0xDC00 to give the second 16-bit code unit
-    // or low surrogate, which will be in the range 0xDC00..0xDFFF.
-    let tmp: u32 = codepoint - 0x01_0000_u32; // = codepoint - 1.048.576
-    assert!(tmp < 1_048_575_u32);
-    let high_surrogate_codepoint = ((tmp & 0b1111_1111_1100_0000_0000_u32) >> 10) + 0xD800_u32;
-    let low_surrogate_codepoint = (tmp & 0b0000_0000_0011_1111_1111_u32) + 0xDC00_u32;
-    assert!(high_surrogate_codepoint <= 0xFFFF_u32);
-    assert!(low_surrogate_codepoint <= 0xFFFF_u32);
-    // so both are 16 bit only
-    (
-        high_surrogate_codepoint as u16,
-        low_surrogate_codepoint as u16,
-    )
-}
-
-/// Check whether a Rust string contains valid CESU-8 data.
-pub fn is_valid_cesu8(text: &str) -> bool {
-    // We rely on the fact that Rust strings are guaranteed to be valid
-    // UTF-8.
-    for b in text.bytes() {
-        if (b & !CONT_MASK) == TAG_CONT_U8 {
-            continue;
-        }
-        if utf8_char_width(b) > 3 {
-            return false;
-        }
-    }
-    true
-}
-
-/// Encode a single surrogate as CESU-8.
-fn enc_surrogate(surrogate: u16) -> [u8; 3] {
-    assert!(0xD800 <= surrogate && surrogate <= 0xDFFF);
-    // 1110xxxx 10xxxxxx 10xxxxxx
-    [
-        0b1110_0000 | ((surrogate & 0b1111_0000_0000_0000) >> 12) as u8,
-        TAG_CONT_U8 | ((surrogate & 0b0000_1111_1100_0000) >> 6) as u8,
-        TAG_CONT_U8 | (surrogate & 0b0000_0000_0011_1111) as u8,
     ]
 }
 
