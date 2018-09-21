@@ -70,6 +70,10 @@ fn test_longdate(_loghandle: &mut ReconfigurationHandle) -> HdbResult<i32> {
         &insert_stmt(17, string_values[4]),
     ])?;
 
+    let mut prepared_stmt = connection.prepare("insert into TEST_LONGDATE (number,mydate)  values(?, ?)").unwrap();
+    prepared_stmt.add_batch(&(&18, &"2018-09-20 17:31:41")).unwrap();
+    prepared_stmt.execute_batch().unwrap();
+
     {
         info!("test the conversion NaiveDateTime -> DB");
         let mut prep_stmt = connection
