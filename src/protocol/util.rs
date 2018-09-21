@@ -65,6 +65,28 @@ pub fn is_utf8_char_start(b: u8) -> bool {
     }
 }
 
+pub fn count_1_2_3_sequence_starts(cesu8: &[u8]) -> usize {
+    cesu8.iter().filter(|b|is_utf8_char_start(**b)).count()
+}
+
+pub fn to_string_and_surrogate(cesu8: &[u8]) -> HdbResult<(String,Option<[u8;3]>)> {
+        let (utf8, buffer_cesu8) = to_string_and_tail(cesu8).unwrap(/* yes */);
+        let surrogate_buf = match buffer_cesu8.len() {
+            0 => None,
+            3 => {
+                debug!("to_string_and_surrogate() found a split surrogate pair");
+                let mut buffer = [0_u8; 3];
+                buffer[0] = buffer_cesu8[0];
+                buffer[1] = buffer_cesu8[1];
+                buffer[2] = buffer_cesu8[2];
+                Some(buffer)
+            }
+            _ => panic!("Unexpected buffer_cesu8 = {:?}", buffer_cesu8),
+        };
+    Ok((utf8, surrogate_buf))
+}
+
+
 pub fn to_string_and_tail(cesu8: &[u8]) -> HdbResult<(String, Vec<u8>)> {
     let cesu8_length = cesu8.len();
     let start = match cesu8_length {

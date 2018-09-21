@@ -1,13 +1,14 @@
 // advisable because not all test modules use all functions of this module:
 #![allow(dead_code)]
 
-use flexi_logger::{Logger, ReconfigurationHandle};
+use flexi_logger::{opt_format, Logger, ReconfigurationHandle};
 use hdbconnect::{ConnectParams, IntoConnectParams};
 use hdbconnect::{Connection, HdbResult};
 use std::fs::read_to_string;
 
 pub fn init_logger(log_spec: &str) -> ReconfigurationHandle {
     Logger::with_env_or_str(log_spec)
+        .format(opt_format)
         .start_reconfigurable()
         .unwrap_or_else(|e| panic!("Logger initialization failed with {}", e))
 }

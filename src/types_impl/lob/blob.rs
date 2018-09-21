@@ -1,7 +1,7 @@
-use super::fetch_a_lob_chunk;
 use conn_core::AmConnCore;
 use protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
 use std::cell::RefCell;
+use types_impl::lob::fetch_a_byte_lob_chunk;
 use {HdbError, HdbResult};
 
 use std::cmp;
@@ -151,7 +151,7 @@ impl BLobHandle {
     }
 
     fn fetch_next_chunk(&mut self) -> HdbResult<()> {
-        let (mut reply_data, reply_is_last_data) = fetch_a_lob_chunk(
+        let (mut reply_data, reply_is_last_data) = fetch_a_byte_lob_chunk(
             &mut self.o_am_conn_core,
             self.locator_id,
             self.length_b,
@@ -169,7 +169,7 @@ impl BLobHandle {
             self.length_b == self.acc_byte_length as u64
         );
         trace!(
-            "After BLobHandle fetch: is_data_complete = {}, data.len() = {}",
+            "fetch_next_chunk: is_data_complete = {}, data.len() = {}",
             self.is_data_complete,
             self.data.len()
         );
@@ -177,8 +177,8 @@ impl BLobHandle {
     }
 
     /// Converts a BLob into a Vec<u8> containing its data.
-    fn fetch_all(&mut self) -> HdbResult<()> {
-        trace!("BLobHandle::fetch_all()");
+    fn load_complete(&mut self) -> HdbResult<()> {
+        trace!("load_complete()");
         while !self.is_data_complete {
             self.fetch_next_chunk()?;
         }
@@ -191,8 +191,8 @@ impl BLobHandle {
 
     /// Converts a BLob into a Vec<u8> containing its data.
     pub fn into_bytes(mut self) -> HdbResult<Vec<u8>> {
-        trace!("BLobHandle::into_bytes()");
-        self.fetch_all()?;
+        trace!("into_bytes()");
+        self.load_complete()?;
         Ok(self.data)
     }
 }

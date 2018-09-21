@@ -1,6 +1,6 @@
 [package]
 name = "hdbconnect"
-version = "0.7.2"
+version = "0.7.3"
 authors = ["emabee <meinolf.block@sap.com>","Pascal Seitz <pascal.seitz@gmail.com>"]
 license = "MIT/Apache-2.0"
 readme = "README.md"

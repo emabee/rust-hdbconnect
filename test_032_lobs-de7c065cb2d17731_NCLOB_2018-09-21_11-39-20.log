@@ -1,0 +1,37 @@
+INFO [test_032_lobs] create a big NCLOB in the database, and read it in various ways
+DEBUG [test_032_lobs] setup...
+DEBUG [test_032_lobs] create big random String data
+DEBUG [test_032_lobs] insert it into HANA
+DEBUG [test_032_lobs] and read it back
+DEBUG [hdbconnect::types_impl::lob::clob]  FIXME first cesu8.len() = 1796
+DEBUG [hdbconnect::types_impl::lob::clob]  FIXME last ten bytes: [206, 177, 206, 189, 33, 32, 206, 148, 206, 184]
+DEBUG [hdbconnect::types_impl::lob::clob] CLobHandle::new() with: is_data_complete = false, length_c = 2143584, length_b = 3000831, locator_id = 859848157691904, buffer_cesu8.len() = 0, utf8.len() = 1796
+DEBUG [hdbconnect::types_impl::lob::clob]  FIXME first cesu8.len() = 1796
+DEBUG [hdbconnect::types_impl::lob::clob]  FIXME last ten bytes: [206, 177, 206, 189, 33, 32, 206, 148, 206, 184]
+DEBUG [hdbconnect::types_impl::lob::clob] CLobHandle::new() with: is_data_complete = false, length_c = 2143584, length_b = 3000831, locator_id = 859848157691905, buffer_cesu8.len() = 0, utf8.len() = 1796
+DEBUG [test_032_lobs] and convert it into a rust struct
+DEBUG [hdbconnect::types_impl::lob::clob] CLobHandle.fetch_next_chunk(), utf8.len() = 1796
+DEBUG [hdbconnect::types_impl::lob::clob]  FIXME reply_data.len() = 1396695
+DEBUG [hdbconnect::types_impl::lob::clob] CLobHandle.fetch_next_chunk(), utf8.len() = 1398491
+DEBUG [hdbconnect::types_impl::lob::clob]  FIXME reply_data.len() = 1051184
+DEBUG [hdbconnect::types_impl::lob::clob]  FIXME is_data_complete: true,
+                    length_c: 2143584,
+                    length_b: 3000831,
+                    acc_byte_length: 2449675, 
+                    utf8_length: 2449675 bytes,
+                    utf_char_count: 1746117
+DEBUG [hdbconnect::types_impl::lob::clob]  FIXME buffer.len() = 0
+DEBUG [hdbconnect::types_impl::lob::clob] full_cesu8.len() = 2449675
+DEBUG [hdbconnect::types_impl::lob::clob] CLobHandle.fetch_next_chunk(), utf8.len() = 1796
+DEBUG [hdbconnect::types_impl::lob::clob]  FIXME reply_data.len() = 1396695
+DEBUG [hdbconnect::types_impl::lob::clob] CLobHandle.fetch_next_chunk(), utf8.len() = 1398491
+DEBUG [hdbconnect::types_impl::lob::clob]  FIXME reply_data.len() = 1051184
+DEBUG [hdbconnect::types_impl::lob::clob]  FIXME is_data_complete: true,
+                    length_c: 2143584,
+                    length_b: 3000831,
+                    acc_byte_length: 2449675, 
+                    utf8_length: 2449675 bytes,
+                    utf_char_count: 1746117
+DEBUG [hdbconnect::types_impl::lob::clob]  FIXME buffer.len() = 0
+DEBUG [hdbconnect::types_impl::lob::clob] full_cesu8.len() = 2449675
+DEBUG [test_032_lobs] reading two big CLOB with lob-read-length 1000000 required 6 roundtrips

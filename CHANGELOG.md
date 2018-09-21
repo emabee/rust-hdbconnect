@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.3]  2018-09-21
+
+Add implementation for NCLOB.
+
 ## [0.7.2]  2018-09-20
 
 Add implementation for PartitionInformation.

@@ -1,4 +1,3 @@
-use super::fetch_a_byte_lob_chunk;
 use conn_core::AmConnCore;
 use protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
 use protocol::util;
@@ -6,25 +5,22 @@ use std::cell::RefCell;
 use std::cmp::max;
 use std::io::{self, Write};
 use std::sync::Arc;
+use types_impl::lob::fetch_a_char_lob_chunk;
 use {HdbError, HdbResult};
 
-/// CLob implementation that is used with `HdbValue::CLOB`.
-///
-/// CLOB fields are supposed to only store ASCII7, but HANA doesn't check this.
-/// So the implementation is a mixture of BLOB implementation (the protocol counts bytes, not chars)
-/// and NCLOB implementation (the exposed data are chars, not bytes).
+/// NCLob implementation that is used with `HdbValue::NCLOB`.
 #[derive(Clone, Debug)]
-pub struct CLob(RefCell<CLobHandle>);
+pub struct NCLob(RefCell<NCLobHandle>);
 
-pub fn new_clob_from_db(
+pub fn new_nclob_from_db(
     am_conn_core: &AmConnCore,
     is_data_complete: bool,
     length_c: u64,
     length_b: u64,
     locator_id: u64,
     data: &[u8],
-) -> CLob {
-    CLob(RefCell::new(CLobHandle::new(
+) -> NCLob {
+    NCLob(RefCell::new(NCLobHandle::new(
         am_conn_core,
         is_data_complete,
         length_c,
@@ -34,7 +30,7 @@ pub fn new_clob_from_db(
     )))
 }
 
-impl CLob {
+impl NCLob {
     /// Length of contained String
     pub fn len(&self) -> HdbResult<usize> {
         self.0.borrow_mut().len()
@@ -46,45 +42,43 @@ impl CLob {
     }
 
     /// Returns the maximum size of the internal buffers.
-    ///
-    /// Tests can verify that this value does not exceed `lob_read_size` +
-    /// `buf.len()`.
     pub fn max_size(&self) -> usize {
         self.0.borrow().max_size()
     }
 
     /// Returns the contained String.
     pub fn into_string(self) -> HdbResult<String> {
-        trace!("CLob::into_string()");
+        trace!("NCLob::into_string()");
         self.0.into_inner().into_string()
     }
 }
 
-// Support for CLob streaming
-impl io::Read for CLob {
+// Support for NCLob streaming
+impl io::Read for NCLob {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.0.borrow_mut().read(buf)
     }
 }
 
-// `CLobHandle` is used for CLOBs and NCLOBs that we receive from the database.
+// `NCLobHandle` is used for CLOBs and NCLOBs that we receive from the database.
 // The data are often not transferred completely, so we carry internally
 // a database connection and the
 // necessary controls to support fetching remaining data on demand.
 #[derive(Clone, Debug)]
-struct CLobHandle {
+struct NCLobHandle {
     o_am_conn_core: Option<AmConnCore>,
     is_data_complete: bool,
     length_c: u64,
     length_b: u64,
     locator_id: u64,
-    buffer_cesu8: Vec<u8>,
+    surrogate_buf: Option<[u8; 3]>,
     utf8: String,
     max_size: usize,
     acc_byte_length: usize,
+    acc_char_length: usize,
     server_resource_consumption_info: ServerResourceConsumptionInfo,
 }
-impl CLobHandle {
+impl NCLobHandle {
     pub fn new(
         am_conn_core: &AmConnCore,
         is_data_complete: bool,
@@ -92,33 +86,37 @@ impl CLobHandle {
         length_b: u64,
         locator_id: u64,
         cesu8: &[u8],
-    ) -> CLobHandle {
+    ) -> NCLobHandle {
         let acc_byte_length = cesu8.len();
+        let acc_char_length = util::count_1_2_3_sequence_starts(cesu8);
 
-        let (utf8, buffer_cesu8) = util::to_string_and_tail(cesu8).unwrap(/* yes */);
-        let clob_handle = CLobHandle {
+        let (utf8, surrogate_buf) = util::to_string_and_surrogate(cesu8).unwrap(/* yes */);
+
+        let nclob_handle = NCLobHandle {
             o_am_conn_core: Some(Arc::clone(am_conn_core)),
             length_c,
             length_b,
             is_data_complete,
             locator_id,
-            max_size: utf8.len() + buffer_cesu8.len(),
-            buffer_cesu8,
+            max_size: utf8.len() + if surrogate_buf.is_some() { 3 } else { 0 },
+            surrogate_buf,
             utf8,
             acc_byte_length,
+            acc_char_length,
             server_resource_consumption_info: Default::default(),
         };
+
         debug!(
-            "CLobHandle::new() with: is_data_complete = {}, length_c = {}, length_b = {}, \
-             locator_id = {}, buffer_cesu8.len() = {}, utf8.len() = {}",
-            clob_handle.is_data_complete,
-            clob_handle.length_c,
-            clob_handle.length_b,
-            clob_handle.locator_id,
-            clob_handle.buffer_cesu8.len(),
-            clob_handle.utf8.len()
+            "new() with: is_data_complete = {}, length_c = {}, length_b = {}, \
+             locator_id = {}, surrogate_buf = {:?}, utf8.len() = {}",
+            nclob_handle.is_data_complete,
+            nclob_handle.length_c,
+            nclob_handle.length_b,
+            nclob_handle.locator_id,
+            nclob_handle.surrogate_buf,
+            nclob_handle.utf8.len()
         );
-        clob_handle
+        nclob_handle
     }
 
     pub fn len(&mut self) -> HdbResult<usize> {
@@ -126,35 +124,53 @@ impl CLobHandle {
     }
 
     fn fetch_next_chunk(&mut self) -> HdbResult<()> {
-        debug!("fetch_next_chunk(): utf8.len() = {}", self.utf8.len());
         if self.is_data_complete {
             return Err(HdbError::impl_("fetch_next_chunk(): already complete"));
         }
-        let (mut reply_data, reply_is_last_data) = fetch_a_byte_lob_chunk(
+
+        let (mut reply_data, reply_is_last_data) = fetch_a_char_lob_chunk(
             &mut self.o_am_conn_core,
             self.locator_id,
-            self.length_b,
-            self.acc_byte_length as u64,
+            self.length_c,
+            self.acc_char_length as u64,
             &mut self.server_resource_consumption_info,
         )?;
 
-        debug!("reply_data.len() = {}", reply_data.len());
+        debug!("fetch_next_chunk(): got {} bytes", reply_data.len());
 
         self.acc_byte_length += reply_data.len();
-        self.buffer_cesu8.append(&mut reply_data);
-        let (utf8, buffer) = util::to_string_and_tail(&self.buffer_cesu8)?;
+        self.acc_char_length += util::count_1_2_3_sequence_starts(&reply_data);
+
+        let (utf8, surrogate_buf) = match self.surrogate_buf {
+            Some(ref buf) => {
+                let mut temp = buf.to_vec();
+                temp.append(&mut reply_data);
+                util::to_string_and_surrogate(&temp).unwrap(/* yes */)
+            }
+            None => util::to_string_and_surrogate(&reply_data).unwrap(/* yes */),
+        };
 
         self.utf8.push_str(&utf8);
-        self.buffer_cesu8 = buffer;
+        self.surrogate_buf = surrogate_buf;
         self.is_data_complete = reply_is_last_data;
-        self.max_size = max(self.utf8.len() + self.buffer_cesu8.len(), self.max_size);
+        self.max_size = max(
+            self.utf8.len() + if self.surrogate_buf.is_some() { 3 } else { 0 },
+            self.max_size,
+        );
 
         if self.is_data_complete {
             if self.length_b != self.acc_byte_length as u64 {
-                warn!(
-                    "is_data_complete: {}, length_b: {}, acc_byte_length: {}",
-                    self.is_data_complete, self.length_b, self.acc_byte_length,
+                debug!(
+                    "fetch_next_chunk(): is_data_complete = {}, length_c = {}, length_b = {}, \
+                     locator_id = {}, surrogate_buf = {:?}, utf8.len() = {}",
+                    self.is_data_complete,
+                    self.length_c,
+                    self.length_b,
+                    self.locator_id,
+                    self.surrogate_buf,
+                    self.utf8.len()
                 );
+                trace!("utf8: {:?}", self.utf8);
             }
             assert_eq!(self.length_b, self.acc_byte_length as u64);
         } else {
@@ -175,18 +191,18 @@ impl CLobHandle {
         self.max_size
     }
 
-    /// Converts a CLobHandle into a String containing its data.
+    /// Converts a NCLobHandle into a String containing its data.
     pub fn into_string(mut self) -> HdbResult<String> {
-        trace!("CLobHandle::into_string()");
+        trace!("into_string()");
         self.load_complete()?;
         Ok(self.utf8)
     }
 }
 
 // Support for CLOB streaming
-impl io::Read for CLobHandle {
+impl io::Read for NCLobHandle {
     fn read(&mut self, mut buf: &mut [u8]) -> io::Result<usize> {
-        trace!("CLobHandle::read() with buf of len {}", buf.len());
+        trace!("read() with buf of len {}", buf.len());
 
         while !self.is_data_complete && (buf.len() > self.utf8.len()) {
             self.fetch_next_chunk()

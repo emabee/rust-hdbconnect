@@ -1,7 +1,6 @@
 use protocol::parts::hdb_value::HdbValue;
 use protocol::parts::resultset_metadata::ResultSetMetadata;
-use types::BLob;
-use types::CLob;
+use types::{BLob, CLob, NCLob};
 use {HdbError, HdbResult};
 
 use serde;
@@ -100,6 +99,21 @@ impl Row {
             let mut tmp = HdbValue::NOTHING;
             mem::swap(&mut self.values[i], &mut tmp);
             Ok(Some(DbValue::into_typed(tmp)?))
+        }
+    }
+
+    /// Swaps out a field and converts it into a CLOB.
+    pub fn field_into_nclob(&mut self, i: usize) -> HdbResult<NCLob> {
+        trace!("Row::field_into_nclob()");
+        let mut tmp = HdbValue::NOTHING;
+        mem::swap(&mut self.values[i], &mut tmp);
+
+        match tmp {
+            HdbValue::NCLOB(nclob) | HdbValue::N_NCLOB(Some(nclob)) => Ok(nclob),
+            tv => Err(HdbError::Conversion(ConversionError::ValueType(format!(
+                "The value {:?} cannot be converted into a CLOB",
+                tv
+            )))),
         }
     }
 

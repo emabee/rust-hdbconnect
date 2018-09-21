@@ -5,10 +5,11 @@ use types::BLob;
 use types::CLob;
 use types::DayDate;
 use types::LongDate;
+use types::NCLob;
 use types::SecondDate;
 use types::SecondTime;
 use types_impl::hdb_decimal::serialize_decimal;
-use types_impl::lob::{serialize_blob_header, serialize_clob_header};
+use types_impl::lob::{serialize_blob_header, serialize_clob_header, serialize_nclob_header};
 use {HdbError, HdbResult};
 
 use byteorder::{LittleEndian, WriteBytesExt};
@@ -100,7 +101,7 @@ pub enum HdbValue {
     /// The CLOB data type is used to store a large ASCII character string.
     CLOB(CLob),
     /// The NCLOB data type is used to store a large Unicode string.
-    NCLOB(CLob),
+    NCLOB(NCLob),
     /// The BLOB data type is used to store a large binary string.
     BLOB(BLob),
     /// BOOLEAN stores boolean values, which are TRUE or FALSE.
@@ -168,7 +169,7 @@ pub enum HdbValue {
     /// Nullable variant of CLOB.
     N_CLOB(Option<CLob>),
     /// Nullable variant of NCLOB.
-    N_NCLOB(Option<CLob>),
+    N_NCLOB(Option<NCLob>),
     /// Nullable variant of BLOB.
     N_BLOB(Option<BLob>),
     /// Nullable variant of BOOLEAN.
@@ -345,10 +346,13 @@ pub fn serialize(tv: &HdbValue, data_pos: &mut i32, w: &mut io::Write) -> HdbRes
                 w.write_u32::<LittleEndian>(*st.ref_raw())?
             }
 
-            HdbValue::CLOB(ref clob)
-            | HdbValue::N_CLOB(Some(ref clob))
-            | HdbValue::NCLOB(ref clob)
-            | HdbValue::N_NCLOB(Some(ref clob)) => serialize_clob_header(clob.len()?, data_pos, w)?,
+            HdbValue::CLOB(ref clob) | HdbValue::N_CLOB(Some(ref clob)) => {
+                serialize_clob_header(clob.len()?, data_pos, w)?
+            }
+
+            HdbValue::NCLOB(ref nclob) | HdbValue::N_NCLOB(Some(ref nclob)) => {
+                serialize_nclob_header(nclob.len()?, data_pos, w)?
+            }
 
             HdbValue::BLOB(ref blob) | HdbValue::N_BLOB(Some(ref blob)) => {
                 serialize_blob_header(blob.len_alldata(), data_pos, w)?
@@ -450,10 +454,9 @@ pub fn size(tv: &HdbValue) -> HdbResult<usize> {
         | HdbValue::SECONDDATE(_)
         | HdbValue::N_SECONDDATE(Some(_)) => 8,
 
-        HdbValue::CLOB(ref clob)
-        | HdbValue::N_CLOB(Some(ref clob))
-        | HdbValue::NCLOB(ref clob)
-        | HdbValue::N_NCLOB(Some(ref clob)) => 9 + clob.len()?,
+        HdbValue::CLOB(ref clob) | HdbValue::N_CLOB(Some(ref clob)) => 9 + clob.len()?,
+
+        HdbValue::NCLOB(ref nclob) | HdbValue::N_NCLOB(Some(ref nclob)) => 9 + nclob.len()?,
 
         HdbValue::BLOB(ref blob) | HdbValue::N_BLOB(Some(ref blob)) => 9 + blob.len_alldata(),
 
@@ -638,7 +641,8 @@ pub mod factory {
     use protocol::util;
     use types_impl::daydate::{parse_daydate, parse_nullable_daydate};
     use types_impl::hdb_decimal::{parse_decimal, parse_nullable_decimal};
-    use types_impl::lob::{parse_blob, parse_clob, parse_nullable_blob, parse_nullable_clob};
+    use types_impl::lob::{parse_blob, parse_clob, parse_nclob};
+    use types_impl::lob::{parse_nullable_blob, parse_nullable_clob, parse_nullable_nclob};
     use types_impl::longdate::{parse_longdate, parse_nullable_longdate};
     use types_impl::seconddate::{parse_nullable_seconddate, parse_seconddate};
     use types_impl::secondtime::{parse_nullable_secondtime, parse_secondtime};
@@ -690,7 +694,7 @@ pub mod factory {
             13 => Ok(HdbValue::VARBINARY(parse_binary(rdr)?)),
             // 16 => Ok(HdbValue::TIMESTAMP(
             25 => Ok(HdbValue::CLOB(parse_clob(am_conn_core, rdr)?)),
-            26 => Ok(HdbValue::NCLOB(parse_clob(am_conn_core, rdr)?)),
+            26 => Ok(HdbValue::NCLOB(parse_nclob(am_conn_core, rdr)?)),
             27 => Ok(HdbValue::BLOB(parse_blob(am_conn_core, rdr)?)),
             28 => Ok(HdbValue::BOOLEAN(rdr.read_u8()? > 0)),
             29 => Ok(HdbValue::STRING(parse_string(rdr)?)),
@@ -735,7 +739,7 @@ pub mod factory {
             141 => Ok(HdbValue::N_VARBINARY(parse_nullable_binary(rdr)?)),
             // 144 => Ok(HdbValue::N_TIMESTAMP(
             153 => Ok(HdbValue::N_CLOB(parse_nullable_clob(am_conn_core, rdr)?)),
-            154 => Ok(HdbValue::N_NCLOB(parse_nullable_clob(am_conn_core, rdr)?)),
+            154 => Ok(HdbValue::N_NCLOB(parse_nullable_nclob(am_conn_core, rdr)?)),
             155 => Ok(HdbValue::N_BLOB(parse_nullable_blob(am_conn_core, rdr)?)),
             156 => Ok(HdbValue::N_BOOLEAN(if ind_null(rdr)? {
                 None

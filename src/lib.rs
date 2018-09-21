@@ -107,6 +107,7 @@ mod types_impl;
 pub mod types {
     pub use types_impl::lob::BLob;
     pub use types_impl::lob::CLob;
+    pub use types_impl::lob::NCLob;
 
     pub use types_impl::daydate::DayDate;
     pub use types_impl::longdate::LongDate;

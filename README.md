@@ -1,8 +1,11 @@
 # hdbconnect
+
 A pure rust SQL driver for SAP HANA(TM).
 
-# Usage
+## Usage
+
 Add hdbconnect to the dependencies section in your project's `Cargo.toml`, with
+
 ```toml
 [dependencies]
 hdbconnect = "0.7.*"
@@ -14,10 +17,11 @@ and add this to your crate root:
 extern crate hdbconnect;
 ```
 
-Assume you have a HANA (e.g. a HANA Express) accessible at port 30333 on host `hxehost`, 
+Assume you have a HANA (e.g. a HANA Express) accessible at port 30333 on host `hxehost`,
 and you can log on to it as user `HORST` with password `SECRET`.
 
 Then a first simple test might look like this:
+
 ```rust
 use hdbconnect::{Connection, HdbResult, IntoConnectParams};
 
@@ -52,12 +56,12 @@ pub fn main() -> HdbResult<()> {
 }
 ```
 
-# Documentation
-See https://docs.rs/hdbconnect/ for the full functionality of hdbconnect.
+## Documentation
 
-There you also find more code examples, e.g. 
-in the description of module `code_examples`.
+See <https://docs.rs/hdbconnect/> for the full functionality of hdbconnect.
 
-# Versions
+There you also find more code examples, e.g. in the description of module `code_examples`.
+
+## Versions
+
 See the [change log](https://github.com/emabee/rust-hdbconnect/blob/master/CHANGELOG.md).
-

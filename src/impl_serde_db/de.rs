@@ -495,10 +495,11 @@ impl DbValueInto<String> for HdbValue {
                 Ok(format!("{}", hdbdec))
             }
 
-            HdbValue::CLOB(clob)
-            | HdbValue::NCLOB(clob)
-            | HdbValue::N_CLOB(Some(clob))
-            | HdbValue::N_NCLOB(Some(clob)) => Ok(clob
+            HdbValue::CLOB(clob) | HdbValue::N_CLOB(Some(clob)) => Ok(clob
+                .into_string()
+                .map_err(|e| ConversionError::Incomplete(e.description().to_owned()))?),
+
+            HdbValue::NCLOB(nclob) | HdbValue::N_NCLOB(Some(nclob)) => Ok(nclob
                 .into_string()
                 .map_err(|e| ConversionError::Incomplete(e.description().to_owned()))?),
 
