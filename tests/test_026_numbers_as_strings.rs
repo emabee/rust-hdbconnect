@@ -10,24 +10,13 @@ use flexi_logger::ReconfigurationHandle;
 use hdbconnect::{Connection, HdbResult};
 
 #[test] // cargo test --test test_026_numbers_as_strings -- --nocapture
-pub fn test_026_numbers_as_strings() {
-    let mut reconfiguration_handle = test_utils::init_logger("info");
+pub fn test_026_numbers_as_strings() -> HdbResult<()> {
+    let mut reconfiguration_handle =
+        test_utils::init_logger("info, test_026_numbers_as_strings = info");
 
-    match impl_test_026_numbers_as_strings(&mut reconfiguration_handle) {
-        Err(e) => {
-            error!("impl_test_015_resultset() failed with {:?}", e);
-            assert!(false)
-        }
-        Ok(_) => debug!("impl_test_015_resultset() ended successful"),
-    }
-}
-
-// Test the various ways to evaluate a resultset
-fn impl_test_026_numbers_as_strings(
-    reconfiguration_handle: &mut ReconfigurationHandle,
-) -> HdbResult<()> {
     let mut connection = test_utils::get_authenticated_connection()?;
-    evaluate_resultset(reconfiguration_handle, &mut connection)?;
+    evaluate_resultset(&mut reconfiguration_handle, &mut connection)?;
+
     info!("{} calls to DB were executed", connection.get_call_count()?);
     Ok(())
 }
@@ -37,7 +26,7 @@ fn evaluate_resultset(
     connection: &mut Connection,
 ) -> HdbResult<()> {
     info!("Read and write integer variables as numeric values and as Strings");
-    // prepare the db table
+    debug!("prepare the db table");
     connection
         .multiple_statements_ignore_err(vec!["drop table TEST_INTEGERS", "drop table TEST_FLOATS"]);
     let stmts = vec![
@@ -47,20 +36,20 @@ fn evaluate_resultset(
     ];
     connection.multiple_statements(stmts)?;
 
-    // test integers
-    let mut insert_stmt =
-        connection.prepare("insert into TEST_INTEGERS (f1, f2, f3, f4, f5) values(?, ?, ?, ?, ?)")?;
+    debug!("test integers");
+    let mut insert_stmt = connection
+        .prepare("insert into TEST_INTEGERS (f1, f2, f3, f4, f5) values(?, ?, ?, ?, ?)")?;
     insert_stmt.add_batch(&("123", 123_i8, 123_i16, 123_i32, 123_i64))?;
     insert_stmt.add_batch(&("88", "88", "88", "88", "88"))?;
     insert_stmt.execute_batch()?;
 
-    reconfiguration_handle.parse_new_spec("info");
+    let _result: Vec<(String, i8, i16, i32, i64)> = connection
+        .query("select * from TEST_INTEGERS")?
+        .try_into()?;
 
-    let _result: Vec<(String, i8, i16, i32, i64)> =
-        connection.query("select * from TEST_INTEGERS")?.try_into()?;
-
-    let result: Vec<(String, String, String, String, String)> =
-        connection.query("select * from TEST_INTEGERS")?.try_into()?;
+    let result: Vec<(String, String, String, String, String)> = connection
+        .query("select * from TEST_INTEGERS")?
+        .try_into()?;
     for row in result {
         assert_eq!(row.0, row.1);
         assert_eq!(row.0, row.2);
@@ -68,7 +57,7 @@ fn evaluate_resultset(
         assert_eq!(row.0, row.4);
     }
 
-    // test floats
+    debug!("test floats");
     let mut insert_stmt =
         connection.prepare("insert into TEST_FLOATS (f1, f2, f3) values(?, ?, ?)")?;
     insert_stmt.add_batch(&("123.456", 123.456_f32, 123.456_f64))?;

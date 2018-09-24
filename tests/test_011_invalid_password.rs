@@ -20,7 +20,7 @@ pub fn test_011_invalid_password() -> HdbResult<()> {
 
     let mut conn = test_utils::get_system_connection()?;
 
-    // drop user DOEDEL, and recreate it with need to set password
+    debug!("drop user DOEDEL, and recreate it with need to set password");
     conn.multiple_statements_ignore_err(vec![
         "drop user DOEDEL",
         "ALTER SYSTEM ALTER CONFIGURATION ('nameserver.ini', 'system') \
@@ -36,12 +36,12 @@ pub fn test_011_invalid_password() -> HdbResult<()> {
     assert_eq!(minimal_password_length, "8");
 
     let force_first_password_change: String = conn
-        .query("select value from M_PASSWORD_POLICY where property = 'force_first_password_change'")?
-        .try_into()?;
+        .query(
+            "select value from M_PASSWORD_POLICY where property = 'force_first_password_change'",
+        )?.try_into()?;
     assert_eq!(force_first_password_change, "true");
 
-    // logon as DOEDEL
-    debug!("DOEDEL connects ...");
+    debug!("logon as DOEDEL");
     let conn_params =
         test_utils::get_wrong_connect_params(Some("DOEDEL"), Some("Doebcd1234")).unwrap();
 

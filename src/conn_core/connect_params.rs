@@ -29,7 +29,7 @@ use {HdbError, HdbResult};
 /// > `<options>` = `?<key> = <value> [{&<key> = <value>}]`
 ///
 /// Special option keys are:
-/// > `client_locale`: `<value>` is used to specify the client's locale
+/// > `client_locale`: `<value>` is used to specify the client's locale  
 /// > `client_locale_from_env`: if `<value>` is 1, the client's locale is read
 ///   from the environment variabe LANG  
 /// > `tls_trust_anchor_dir`: the `<value>` points to a folder with pem files that contain
@@ -48,14 +48,14 @@ use {HdbError, HdbResult};
 /// ```
 #[derive(Clone)]
 pub struct ConnectParams {
-    #[cfg(feature = "tls")]
+    #[cfg(feature = "alpha_tls")]
     use_tls: bool,
     host: String,
     addr: String,
     dbuser: String,
     password: SecStr,
     clientlocale: Option<String>,
-    #[cfg(feature = "tls")]
+    #[cfg(feature = "alpha_tls")]
     trust_anchor_dir: Option<String>,
     options: Vec<(String, String)>,
 }
@@ -71,7 +71,7 @@ impl ConnectParams {
     }
 
     /// The trust_anchor_dir.
-    #[cfg(feature = "tls")]
+    #[cfg(feature = "alpha_tls")]
     pub fn trust_anchor_dir(&self) -> Option<&str> {
         self.trust_anchor_dir.as_ref().map(|s| s.as_ref())
     }
@@ -88,10 +88,10 @@ impl ConnectParams {
 
     /// Whether TLS or a plain TCP connection is to be used.
     pub fn use_tls(&self) -> bool {
-        #[cfg(feature = "tls")]
+        #[cfg(feature = "alpha_tls")]
         return self.use_tls;
 
-        #[cfg(not(feature = "tls"))]
+        #[cfg(not(feature = "alpha_tls"))]
         return false;
     }
 
@@ -175,7 +175,7 @@ impl IntoConnectParams for Url {
             Some(s) => s.to_string(),
         });
 
-        #[cfg(feature = "tls")]
+        #[cfg(feature = "alpha_tls")]
         let use_tls = match self.scheme() {
             "hdbsql" => false,
             "hdbsqls" => true,
@@ -187,7 +187,7 @@ impl IntoConnectParams for Url {
             }
         };
 
-        #[cfg(not(feature = "tls"))]
+        #[cfg(not(feature = "alpha_tls"))]
         {
             if self.scheme() != "hdbsql" {
                 return Err(HdbError::Usage(format!(
@@ -198,7 +198,7 @@ impl IntoConnectParams for Url {
             }
         }
 
-        #[cfg(feature = "tls")]
+        #[cfg(feature = "alpha_tls")]
         let mut trust_anchor_dir = None;
         let mut clientlocale = None;
         let mut options = Vec::<(String, String)>::new();
@@ -211,21 +211,21 @@ impl IntoConnectParams for Url {
                         Err(_) => None,
                     };
                 }
-                #[cfg(feature = "tls")]
+                #[cfg(feature = "alpha_tls")]
                 "tls_trust_anchor_dir" => trust_anchor_dir = Some(value.to_string()),
                 _ => options.push((name.to_string(), value.to_string())),
             }
         }
 
         Ok(ConnectParams {
-            #[cfg(feature = "tls")]
+            #[cfg(feature = "alpha_tls")]
             use_tls,
             addr: format!("{}:{}", host, port),
             host,
             dbuser,
             password,
             clientlocale,
-            #[cfg(feature = "tls")]
+            #[cfg(feature = "alpha_tls")]
             trust_anchor_dir,
             options,
         })
@@ -253,7 +253,7 @@ pub struct ConnectParamsBuilder {
     dbuser: Option<String>,
     password: Option<String>,
     clientlocale: Option<String>,
-    #[cfg(feature = "tls")]
+    #[cfg(feature = "alpha_tls")]
     trust_anchor_dir: Option<String>,
     options: Vec<(String, String)>,
 }
@@ -267,7 +267,7 @@ impl ConnectParamsBuilder {
             dbuser: None,
             password: None,
             clientlocale: None,
-            #[cfg(feature = "tls")]
+            #[cfg(feature = "alpha_tls")]
             trust_anchor_dir: None,
             options: vec![],
         }
@@ -315,7 +315,7 @@ impl ConnectParamsBuilder {
 
     /// Enforces the usage of TLS for the connection to the database and requires a
     /// filesystem folder with pem files to validate the server.
-    #[cfg(feature = "tls")]
+    #[cfg(feature = "alpha_tls")]
     pub fn use_tls(&mut self, trust_anchor_dir: String) -> &mut ConnectParamsBuilder {
         self.trust_anchor_dir = Some(trust_anchor_dir);
         self
@@ -359,10 +359,10 @@ impl ConnectParamsBuilder {
             },
             options: mem::replace(&mut self.options, vec![]),
 
-            #[cfg(feature = "tls")]
+            #[cfg(feature = "alpha_tls")]
             use_tls: self.trust_anchor_dir.is_some(),
 
-            #[cfg(feature = "tls")]
+            #[cfg(feature = "alpha_tls")]
             trust_anchor_dir: match self.trust_anchor_dir {
                 Some(ref s) => Some(s.clone()),
                 None => None,

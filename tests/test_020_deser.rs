@@ -12,22 +12,13 @@ mod test_utils;
 use chrono::NaiveDateTime;
 use hdbconnect::{Connection, HdbResult};
 
-#[test] // cargo test --test test_020_deser -- --nocapture
-pub fn deser() {
-    test_utils::init_logger("test_020_deser=info");
-
-    match impl_deser() {
-        Err(e) => {
-            error!("impl_deser() failed with {:?}", e);
-            assert!(false)
-        }
-        Ok(i) => info!("{} calls to DB were executed", i),
-    }
-}
-
 // Test the graceful conversion during deserialization,
 // in regards to nullable fields, and to simplified result structures
-fn impl_deser() -> HdbResult<i32> {
+
+#[test] // cargo test --test test_020_deser -- --nocapture
+pub fn deser() -> HdbResult<()> {
+    test_utils::init_logger("test_020_deser=info");
+
     let mut connection = test_utils::get_authenticated_connection()?;
 
     deser_option_into_option(&mut connection)?;
@@ -39,14 +30,18 @@ fn impl_deser() -> HdbResult<i32> {
     deser_singlecolumn_into_vec(&mut connection)?;
     deser_singlevalue_into_plain(&mut connection)?;
 
-    Ok(connection.get_call_count()?)
+    info!("{} calls to DB were executed", connection.get_call_count()?);
+    Ok(())
 }
 
 #[derive(Deserialize, Debug)]
 struct TS<S, I, D> {
-    #[serde(rename = "F1_S")] f1_s: S,
-    #[serde(rename = "F2_I")] f2_i: I,
-    #[serde(rename = "F3_D")] f3_d: D,
+    #[serde(rename = "F1_S")]
+    f1_s: S,
+    #[serde(rename = "F2_I")]
+    f2_i: I,
+    #[serde(rename = "F3_D")]
+    f3_d: D,
 }
 
 fn deser_option_into_option(connection: &mut Connection) -> HdbResult<()> {

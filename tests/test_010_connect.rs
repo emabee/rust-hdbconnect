@@ -14,18 +14,20 @@ mod test_utils;
 
 use chrono::Local;
 use hdbconnect::{ConnectParams, Connection, HdbResult, IntoConnectParams};
+use std::env;
 
 // cargo test test_010_connect -- --nocapture
 #[test]
-pub fn test_010_connect() {
+pub fn test_010_connect() -> HdbResult<()> {
     test_utils::init_logger("test_010_connect = info, hdbconnect = info");
 
     connect_successfully();
     connect_wrong_password();
-    connect_and_select_1().unwrap();
-    connect_and_select_2().unwrap();
-    // client_info().unwrap();
-    command_info().unwrap();
+    connect_and_select_with_explicit_clientlocale()?;
+    connect_and_select_with_clientlocale_from_env()?;
+    client_info()?;
+    command_info()?;
+    Ok(())
 }
 
 fn connect_successfully() {
@@ -51,8 +53,8 @@ fn connect_wrong_password() {
     );
 }
 
-fn connect_and_select_1() -> HdbResult<()> {
-    info!("test a successful connection and do some simple selects with explicit clientlocale");
+fn connect_and_select_with_explicit_clientlocale() -> HdbResult<()> {
+    info!("connect and do some simple select with explicit clientlocale");
 
     let mut url = test_utils::get_std_connect_url()?;
     url.push_str("?client_locale=en_US");
@@ -65,8 +67,11 @@ fn connect_and_select_1() -> HdbResult<()> {
     Ok(())
 }
 
-fn connect_and_select_2() -> HdbResult<()> {
-    info!("test a successful connection and do some simple selects with client locale from env");
+fn connect_and_select_with_clientlocale_from_env() -> HdbResult<()> {
+    info!("connect and do some simple select with clientlocale from env");
+    if env::var("LANG").is_err() {
+        env::set_var("LANG", "en_US.UTF-8");
+    }
 
     let mut url = test_utils::get_std_connect_url()?;
     url.push_str("?client_locale_from_env=1");
@@ -106,61 +111,44 @@ struct SessCtx {
     KEY: String,
     VALUE: String,
 }
+impl SessCtx {
+    fn new(key: &str, value: &str) -> SessCtx {
+        SessCtx {
+            KEY: key.to_string(),
+            VALUE: value.to_string(),
+        }
+    }
+}
 
-// fn client_info() -> HdbResult<()> {
-//     info!("client info");
-//     let mut connection = test_utils::get_authenticated_connection().unwrap();
+fn client_info() -> HdbResult<()> {
+    info!("client info");
+    let mut connection = test_utils::get_authenticated_connection().unwrap();
 
-//     let stmt = r#"SELECT KEY, VALUE FROM M_SESSION_CONTEXT ORDER BY KEY"#;
+    let stmt = r#"SELECT KEY, VALUE FROM M_SESSION_CONTEXT ORDER BY KEY"#;
 
-//     let _result: Vec<SessCtx> = connection.query(stmt)?.try_into()?;
+    let _result: Vec<SessCtx> = connection.query(stmt)?.try_into()?;
 
-// connection.set_client_info("Abbligation", "AbbVersion", "AbbSource",
-// "AbbUser")?;
+    connection.set_client_info("AppName", "AppVersion", "AppSource", "AppUser")?;
 
-//     // make sure it is set ...
-//     let result: Vec<SessCtx> = connection.query(stmt)?.try_into()?;
-//     check_result(&result);
+    // make sure it is set ...
+    let result: Vec<SessCtx> = connection.query(stmt)?.try_into()?;
+    check_result(&result);
 
-//     // ... and remains set
-//     let _result: Vec<SessCtx> = connection.query(stmt)?.try_into()?;
-//     let _result: Vec<SessCtx> = connection.query(stmt)?.try_into()?;
-//     let result: Vec<SessCtx> = connection.query(stmt)?.try_into()?;
-//     check_result(&result);
+    // ... and remains set
+    let _result: Vec<SessCtx> = connection.query(stmt)?.try_into()?;
+    let _result: Vec<SessCtx> = connection.query(stmt)?.try_into()?;
+    let result: Vec<SessCtx> = connection.query(stmt)?.try_into()?;
+    check_result(&result);
 
-//     Ok(())
-// }
+    Ok(())
+}
 
-// fn check_result(result: &[SessCtx]) {
-//     assert_eq!(
-//         result[0],
-//         SessCtx {
-//             KEY: "APPLICATION".to_string(),
-//             VALUE: "Abbligation".to_string()
-//         }
-//     );
-//     assert_eq!(
-//         result[3],
-//         SessCtx {
-//             KEY: "APPLICATIONVERSION".to_string(),
-//             VALUE: "AbbVersion".to_string()
-//         }
-//     );
-//     assert_eq!(
-//         result[1],
-//         SessCtx {
-//             KEY: "APPLICATIONSOURCE".to_string(),
-//             VALUE: "AbbSource".to_string()
-//         }
-//     );
-//     assert_eq!(
-//         result[2],
-//         SessCtx {
-//             KEY: "APPLICATIONUSER".to_string(),
-//             VALUE: "AbbUser".to_string()
-//         }
-//     );
-// }
+fn check_result(result: &[SessCtx]) {
+    assert_eq!(result[0], SessCtx::new("APPLICATION", "AppName"));
+    assert_eq!(result[3], SessCtx::new("APPLICATIONVERSION", "AppVersion"));
+    assert_eq!(result[1], SessCtx::new("APPLICATIONSOURCE", "AppSource"));
+    assert_eq!(result[2], SessCtx::new("APPLICATIONUSER", "AppUser"));
+}
 
 fn command_info() -> HdbResult<()> {
     info!("command info");

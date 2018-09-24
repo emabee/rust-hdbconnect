@@ -13,7 +13,8 @@ categories = ["database"]
 
 [features]
 default = []
-tls = ["rustls","regex","webpki","webpki-roots"]
+alpha_tls = ["rustls","regex","webpki","webpki-roots"]
+alpha_routing = []
 
 [dependencies]
 bigdecimal = {version = "0.0.14", features = ["serde"]}

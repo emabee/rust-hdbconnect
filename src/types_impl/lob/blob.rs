@@ -1,7 +1,7 @@
 use conn_core::AmConnCore;
 use protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
 use std::cell::RefCell;
-use types_impl::lob::fetch_a_byte_lob_chunk;
+use types_impl::lob::fetch_a_lob_chunk;
 use {HdbError, HdbResult};
 
 use std::cmp;
@@ -151,7 +151,7 @@ impl BLobHandle {
     }
 
     fn fetch_next_chunk(&mut self) -> HdbResult<()> {
-        let (mut reply_data, reply_is_last_data) = fetch_a_byte_lob_chunk(
+        let (mut reply_data, reply_is_last_data) = fetch_a_lob_chunk(
             &mut self.o_am_conn_core,
             self.locator_id,
             self.length_b,

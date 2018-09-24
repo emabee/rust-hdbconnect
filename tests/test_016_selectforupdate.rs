@@ -3,58 +3,35 @@ extern crate flexi_logger;
 extern crate hdbconnect;
 #[macro_use]
 extern crate log;
-#[macro_use]
-extern crate serde_derive;
 extern crate serde_json;
 
 mod test_utils;
 
-use chrono::NaiveDateTime;
 use flexi_logger::ReconfigurationHandle;
 use hdbconnect::{Connection, HdbResult};
 use std::thread;
 use std::time::Duration;
 
 #[test] // cargo test --test test_016_selectforupdate -- --nocapture
-pub fn test_016_selectforupdate() {
-    let mut logger_handle = test_utils::init_logger("info");
+pub fn test_016_selectforupdate() -> HdbResult<()> {
+    let mut logger_handle = test_utils::init_logger("info, test_016_selectforupdate = info");
 
-    match impl_test_016_selectforupdate(&mut logger_handle) {
-        Err(e) => {
-            error!("impl_test_016_selectforupdate() failed with {:?}", e);
-            assert!(false)
-        }
-        Ok(_) => debug!("impl_test_016_selectforupdate() ended successful"),
-    }
-}
-
-// Test the various ways to evaluate a resultset
-fn impl_test_016_selectforupdate(logger_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
     let mut connection = test_utils::get_authenticated_connection()?;
-    prepare(&mut connection, logger_handle)?;
-    produce_conflict(&mut connection, logger_handle)?;
-    info!("{} calls to DB were executed", connection.get_call_count()?);
-    Ok(())
-}
 
-#[allow(dead_code)]
-#[derive(Deserialize)]
-struct TestData {
-    #[serde(rename = "F1_S")]
-    f1: String,
-    #[serde(rename = "F2_I")]
-    f2: Option<i32>,
-    #[serde(rename = "F3_I")]
-    f3: i32,
-    #[serde(rename = "F4_DT")]
-    f4: NaiveDateTime,
+    prepare(&mut connection, &mut logger_handle)?;
+    produce_conflicts(&mut connection, &mut logger_handle)?;
+
+    info!("{} calls to DB were executed", connection.get_call_count()?);
+
+    Ok(())
 }
 
 fn prepare(
     connection: &mut Connection,
     _logger_handle: &mut ReconfigurationHandle,
 ) -> HdbResult<()> {
-    // prepare the db table
+    info!("prepare");
+    debug!("prepare the db table");
     connection.multiple_statements_ignore_err(vec!["drop table TEST_SELFORUPDATE"]);
     let stmts = vec![
         "create table TEST_SELFORUPDATE ( f1_s NVARCHAR(100) primary key, f2_i INT, f3_i \
@@ -68,7 +45,7 @@ fn prepare(
     ];
     connection.multiple_statements(stmts)?;
 
-    // insert some mass data
+    debug!("insert some mass data");
     for i in 100..200 {
         connection.dml(&format!(
             "insert into TEST_SELFORUPDATE (f1_s, f2_i, f3_i, \
@@ -79,14 +56,14 @@ fn prepare(
     Ok(())
 }
 
-fn produce_conflict(
+fn produce_conflicts(
     connection: &mut Connection,
-    logger_handle: &mut ReconfigurationHandle,
+    _logger_handle: &mut ReconfigurationHandle,
 ) -> HdbResult<()> {
-    logger_handle.parse_new_spec("info");
+    info!("verify that locking with 'select for update' works");
     connection.set_auto_commit(false)?;
 
-    debug!("get two more connection");
+    debug!("get two more connections");
     let mut connection2 = connection.spawn()?;
     let mut connection3 = connection.spawn()?;
 
@@ -105,7 +82,7 @@ fn produce_conflict(
         connection2.commit().unwrap();
     });
 
-    debug!("do update with first connection");
+    debug!("do new update with first connection");
     connection.dml("update TEST_SELFORUPDATE set F2_I = 1 where F1_S = 'Hello'")?;
 
     let i: i32 = connection

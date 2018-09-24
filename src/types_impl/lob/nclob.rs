@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::cmp::max;
 use std::io::{self, Write};
 use std::sync::Arc;
-use types_impl::lob::fetch_a_char_lob_chunk;
+use types_impl::lob::fetch_a_lob_chunk;
 use {HdbError, HdbResult};
 
 /// NCLob implementation that is used with `HdbValue::NCLOB`.
@@ -128,7 +128,7 @@ impl NCLobHandle {
             return Err(HdbError::impl_("fetch_next_chunk(): already complete"));
         }
 
-        let (mut reply_data, reply_is_last_data) = fetch_a_char_lob_chunk(
+        let (mut reply_data, reply_is_last_data) = fetch_a_lob_chunk(
             &mut self.o_am_conn_core,
             self.locator_id,
             self.length_c,

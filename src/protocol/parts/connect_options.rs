@@ -9,17 +9,24 @@ pub type ConnectOptions = OptionPart<ConnOptId>;
 // Methods to send information to the server.
 impl ConnectOptions {
     pub fn for_server(locale: &Option<String>, os_user: String) -> ConnectOptions {
-        ConnectOptions::default()
+        let connopts = ConnectOptions::default()
             .set_complete_array_execution(true)
             .set_dataformat_version2(4)
             .set_client_locale(locale)
             .set_enable_array_type(true)
-            .set_distribution_enabled(true)
-            .set_client_distribution_mode(0)
             .set_select_for_update_ok(true)
-            .set_distribution_protocol_version(1)
             .set_row_slot_image_parameter(true)
-            .set_os_user(os_user)
+            .set_os_user(os_user);
+        if cfg!(feature = "alpha_routing") {
+            warn!("Feature alpha_routing is active!");
+            connopts
+                .set_distribution_enabled(true)
+                .set_client_distribution_mode(0)
+                .set_distribution_protocol_version(1)
+        } else {
+            debug!("Feature alpha_routing not is active.");
+            connopts
+        }
     }
 
     fn set_complete_array_execution(mut self, b: bool) -> ConnectOptions {

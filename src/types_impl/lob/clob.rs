@@ -1,4 +1,4 @@
-use super::fetch_a_byte_lob_chunk;
+use super::fetch_a_lob_chunk;
 use conn_core::AmConnCore;
 use protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
 use protocol::util;
@@ -130,7 +130,7 @@ impl CLobHandle {
         if self.is_data_complete {
             return Err(HdbError::impl_("fetch_next_chunk(): already complete"));
         }
-        let (mut reply_data, reply_is_last_data) = fetch_a_byte_lob_chunk(
+        let (mut reply_data, reply_is_last_data) = fetch_a_lob_chunk(
             &mut self.o_am_conn_core,
             self.locator_id,
             self.length_b,
