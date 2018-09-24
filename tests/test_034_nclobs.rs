@@ -27,17 +27,12 @@ pub fn test_034_nclobs() -> HdbResult<()> {
         "info, test_034_nclobs = info, hdbconnect::types_impl::lob::nclob = info",
     );
 
-    let count = impl_test_034_nclobs(&mut loghandle)?;
-    info!("{} calls to DB were executed", count);
-    Ok(())
-}
-
-fn impl_test_034_nclobs(logger_handle: &mut ReconfigurationHandle) -> HdbResult<i32> {
     let mut connection = test_utils::get_authenticated_connection()?;
 
-    test_nclobs(&mut connection, logger_handle)?;
+    test_nclobs(&mut connection, &mut loghandle)?;
 
-    Ok(connection.get_call_count()?)
+    info!("{} calls to DB were executed", connection.get_call_count()?);
+    Ok(())
 }
 
 fn test_nclobs(
@@ -50,7 +45,7 @@ fn test_nclobs(
     connection.set_lob_read_length(1_000_000)?;
 
     connection.multiple_statements_ignore_err(vec!["drop table TEST_NCLOBS"]);
-    let stmts = vec!["create table TEST_NCLOBS (desc NVARCHAR(10) not null, chardata NCLOB)"];
+    let stmts = vec!["create table TEST_NCLOBS (desc NVARCHAR(20) not null, chardata NCLOB)"];
     connection.multiple_statements(stmts)?;
 
     #[derive(Serialize, Deserialize, Debug, PartialEq)]
@@ -64,25 +59,25 @@ fn test_nclobs(
     }
 
     debug!("create big random String data");
-    let mut three_times_blabla = String::new();
+    let mut fifty_times_smp_blabla = String::new();
     {
-        let mut f = File::open("tests/blabla.txt").expect("file not found");
+        let mut f = File::open("tests/smp-blabla.txt").expect("file not found");
         let mut blabla = String::new();
         f.read_to_string(&mut blabla)
             .expect("something went wrong reading the file");
-        for _ in 0..3 {
-            three_times_blabla.push_str(&blabla);
+        for _ in 0..50 {
+            fifty_times_smp_blabla.push_str(&blabla);
         }
     }
 
     let mut hasher = Sha256::default();
-    hasher.input(three_times_blabla.as_bytes());
+    hasher.input(fifty_times_smp_blabla.as_bytes());
     let fingerprint1 = hasher.result();
 
     debug!("insert it into HANA");
     let mut insert_stmt =
         connection.prepare("insert into TEST_NCLOBS (desc, chardata) values (?,?)")?;
-    insert_stmt.add_batch(&("3x blabla", &three_times_blabla))?;
+    insert_stmt.add_batch(&("50x smp-blabla", &fifty_times_smp_blabla))?;
     insert_stmt.execute_batch()?;
 
     debug!("and read it back");
@@ -99,7 +94,7 @@ fn test_nclobs(
     );
 
     // verify we get in both cases the same blabla back
-    assert_eq!(three_times_blabla.len(), mydata.s.len());
+    assert_eq!(fifty_times_smp_blabla.len(), mydata.s.len());
 
     let mut hasher = Sha256::default();
     hasher.input(mydata.s.as_bytes());
@@ -112,7 +107,7 @@ fn test_nclobs(
     assert_eq!(fingerprint1, fingerprint3);
 
     // try again with smaller lob-read-length
-    connection.set_lob_read_length(200_000)?;
+    connection.set_lob_read_length(5_000)?;
     let before = connection.get_call_count()?;
     let resultset = connection.query(query)?;
     let second: MyData = resultset.try_into()?;
@@ -134,7 +129,7 @@ fn test_nclobs(
     let mut streamed = Vec::<u8>::new();
     io::copy(&mut nclob, &mut streamed)?;
 
-    assert_eq!(three_times_blabla.len(), streamed.len());
+    assert_eq!(fifty_times_smp_blabla.len(), streamed.len());
     let mut hasher = Sha256::default();
     hasher.input(&streamed);
     let fingerprint4 = hasher.result();

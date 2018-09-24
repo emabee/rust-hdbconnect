@@ -1,7 +1,0 @@
-{
-    "hostname": "hxehost",
-    "port": 39013,
-    "dbuser": "FOO",
-    "password": "bar",
-    "options": []
-}

@@ -13,7 +13,7 @@ use hdbconnect::HdbResult;
 
 #[test] // cargo test --test test_021_longdate
 pub fn test_021_longdate() -> HdbResult<()> {
-    let mut loghandle = test_utils::init_logger("info,test_021_longdate=trace");
+    let mut loghandle = test_utils::init_logger("info,test_021_longdate=info");
 
     let count = test_longdate(&mut loghandle)?;
     info!("longdate: {} calls to DB were executed", count);
@@ -70,8 +70,12 @@ fn test_longdate(_loghandle: &mut ReconfigurationHandle) -> HdbResult<i32> {
         &insert_stmt(17, string_values[4]),
     ])?;
 
-    let mut prepared_stmt = connection.prepare("insert into TEST_LONGDATE (number,mydate)  values(?, ?)").unwrap();
-    prepared_stmt.add_batch(&(&18, &"2018-09-20 17:31:41")).unwrap();
+    let mut prepared_stmt = connection
+        .prepare("insert into TEST_LONGDATE (number,mydate)  values(?, ?)")
+        .unwrap();
+    prepared_stmt
+        .add_batch(&(&18, &"2018-09-20 17:31:41"))
+        .unwrap();
     prepared_stmt.execute_batch().unwrap();
 
     {

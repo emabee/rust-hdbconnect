@@ -575,7 +575,8 @@ fn longdate_from_str(s: &str) -> Result<LongDate, SerializationError> {
 // 2012-02-02T02:02:02.200
 fn longdate_from_naivedt_string_full(s: &str) -> Result<LongDate, ()> {
     trace!("from_naivedt_string_full");
-    let res = NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S%.f").or_else(|_|NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S%.f"));
+    let res = NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S%.f")
+        .or_else(|_| NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S%.f"));
     match res {
         Ok(ndt_parsed) => {
             let ld = LongDate::from_ymd_hms_n(
@@ -594,7 +595,7 @@ fn longdate_from_naivedt_string_full(s: &str) -> Result<LongDate, ()> {
             Ok(ld)
         }
         Err(e) => {
-            error!("{:?}", e);
+            debug!("{:?}", e);
             Err(())
         }
     }
@@ -602,7 +603,8 @@ fn longdate_from_naivedt_string_full(s: &str) -> Result<LongDate, ()> {
 
 fn longdate_from_naivedt_string_second(s: &str) -> Result<LongDate, ()> {
     trace!("from_naivedt_string_second");
-    let res = NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S").or_else(|_|NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S"));
+    let res = NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S")
+        .or_else(|_| NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S"));
     match res {
         Ok(ndt_parsed) => {
             let ld = LongDate::from_ymd_hms(
@@ -620,7 +622,7 @@ fn longdate_from_naivedt_string_second(s: &str) -> Result<LongDate, ()> {
             Ok(ld)
         }
         Err(e) => {
-            error!("{:?}", e);
+            debug!("{:?}", e);
             Err(())
         }
     }
@@ -639,7 +641,7 @@ fn longdate_from_naivedt_string_day(s: &str) -> Result<LongDate, ()> {
             Ok(ld)
         }
         Err(e) => {
-            error!("{:?}", e);
+            debug!("{:?}", e);
             Err(())
         }
     }
@@ -665,7 +667,7 @@ fn longdate_from_utc_string(s: &str) -> Result<LongDate, ()> {
             Ok(ld)
         }
         Err(e) => {
-            error!("{:?}", e);
+            debug!("{:?}", e);
             Err(())
         }
     }
@@ -713,7 +715,7 @@ fn seconddate_from_naivedt_string_second(s: &str) -> Result<SecondDate, ()> {
             Ok(sd)
         }
         Err(e) => {
-            error!("{:?}", e);
+            debug!("{:?}", e);
             Err(())
         }
     }
@@ -732,7 +734,7 @@ fn seconddate_from_naivedt_string_day(s: &str) -> Result<SecondDate, ()> {
             Ok(sd)
         }
         Err(e) => {
-            error!("{:?}", e);
+            debug!("{:?}", e);
             Err(())
         }
     }
@@ -757,7 +759,7 @@ fn seconddate_from_utc_string(s: &str) -> Result<SecondDate, ()> {
             Ok(sd)
         }
         Err(e) => {
-            error!("{:?}", e);
+            debug!("{:?}", e);
             Err(())
         }
     }
@@ -795,7 +797,7 @@ fn daydate_from_naivedt_string_day(s: &str) -> Result<DayDate, ()> {
             Ok(dd)
         }
         Err(e) => {
-            error!("{:?}", e);
+            debug!("{:?}", e);
             Err(())
         }
     }
@@ -835,7 +837,7 @@ fn secondtime_from_naivedt_string_second(s: &str) -> Result<SecondTime, ()> {
             Ok(sd)
         }
         Err(e) => {
-            error!("{:?}", e);
+            debug!("{:?}", e);
             Err(())
         }
     }

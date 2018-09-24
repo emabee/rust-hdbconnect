@@ -13,7 +13,7 @@ use hdbconnect::HdbResult;
 
 #[test] // cargo test --test test_022_seconddate
 pub fn test_022_seconddate() -> HdbResult<()> {
-    let mut loghandle = test_utils::init_logger("info,test_022_seconddate=trace");
+    let mut loghandle = test_utils::init_logger("info,test_022_seconddate=info");
 
     let i = test_seconddate(&mut loghandle)?;
     info!("seconddate: {} calls to DB were executed", i);
