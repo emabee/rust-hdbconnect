@@ -25,7 +25,7 @@ impl PartitionMethod {
             1 => Ok(PartitionMethod::RoundRobin),
             2 => Ok(PartitionMethod::Hash),
             _ => Err(HdbError::Impl(format!(
-                "Invalid value for PartitionMethod detected: {}",
+                "PartitionMethod {} not implemented",
                 val
             ))),
         }
@@ -46,7 +46,7 @@ impl ParameterFunction {
             1 => Ok(ParameterFunction::Year),
             2 => Ok(ParameterFunction::Month),
             _ => Err(HdbError::Impl(format!(
-                "Invalid value for ParameterFunction detected: {}",
+                "ParameterFunction {} not implemented",
                 val
             ))),
         }

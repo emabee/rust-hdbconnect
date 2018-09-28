@@ -128,10 +128,7 @@ impl PartKind {
             73 => Ok(PartKind::SQLReplyOptions),
             74 => Ok(PartKind::PrintOptions),
 
-            _ => Err(HdbError::Impl(format!(
-                "Invalid value for PartKind detected: {}",
-                val
-            ))),
+            _ => Err(HdbError::Impl(format!("PartKind {} not implemented", val))),
         }
     }
 }

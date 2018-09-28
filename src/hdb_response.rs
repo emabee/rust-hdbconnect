@@ -189,7 +189,7 @@ impl fmt::Display for HdbResponse {
     }
 }
 
-pub mod factory {
+pub(crate) mod factory {
     use super::{HdbResponse, HdbReturnValue};
     use protocol::parts::output_parameters::OutputParameters;
     use protocol::parts::parameter_descriptor::ParameterDescriptor;
@@ -220,8 +220,8 @@ pub mod factory {
                     false
                 }
                 _ => true,
-            })
-            .count() > 0
+            }).count()
+            > 0
         {
             return Err(HdbError::Impl(
                 "resultset(): Unexpected InternalReturnValue(s) received".to_owned(),

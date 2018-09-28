@@ -334,7 +334,7 @@ pub fn parse_message_and_sequence_header(
     }
 
     if no_of_segs > 1 {
-        return Err(HdbError::Impl(format!("no_of_segs = {} != 1",no_of_segs)));
+        return Err(HdbError::Impl(format!("no_of_segs = {} > 1",no_of_segs)));
     }
 
     util::skip_bytes(10, rdr)?; // (I1 + B[9])
@@ -384,7 +384,7 @@ impl Kind {
             2 => Ok(Kind::Reply),
             5 => Ok(Kind::Error),
             _ => Err(HdbError::Impl(format!(
-                "Invalid value for message::Kind::from_i8() detected: {}",
+                "reply::Kind {} not implemented",
                 val
             ))),
         }

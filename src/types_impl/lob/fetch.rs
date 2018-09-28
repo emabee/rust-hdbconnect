@@ -20,7 +20,7 @@ pub fn fetch_a_lob_chunk(
     server_resource_consumption_info: &mut ServerResourceConsumptionInfo,
 ) -> HdbResult<(Vec<u8>, bool)> {
     match *o_am_conn_core {
-        None => Err(HdbError::Impl(
+        None => Err(HdbError::Usage(
             "Fetching more LOB chunks is no more possible (connection already closed)".to_owned(),
         )),
         Some(ref mut am_conn_core) => {

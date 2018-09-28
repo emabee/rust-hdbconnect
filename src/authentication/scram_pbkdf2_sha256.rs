@@ -81,10 +81,9 @@ impl Authenticator for ScramPbkdf2Sha256 {
             }
         }
 
-        Err(HdbError::Impl(
-            "Server proof failed - this can indicate a severe security issue with the server!"
-                .to_string(),
-        ))
+        let msg = "Server proof failed - this indicates a severe security issue with the server!";
+        warn!("{}", msg);
+        Err(HdbError::Usage(msg.to_string()))
     }
 }
 
@@ -93,7 +92,7 @@ fn parse_first_server_data(server_data: &[u8]) -> HdbResult<(Vec<u8>, Vec<u8>, u
     let mut af = AuthFields::parse(&mut io::Cursor::new(server_data))?;
     if af.len() != 3 {
         return Err(HdbError::Impl(format!(
-            "got {} auth fields instead of 3",
+            "got {} auth fields, expected 3",
             af.len()
         )));
     }

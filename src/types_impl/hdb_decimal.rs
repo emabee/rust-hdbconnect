@@ -49,7 +49,7 @@ impl HdbDecimal {
             }
 
             if exponent < -6143 || exponent > 6144 {
-                return Err(SerializationError::GeneralError(format!(
+                return Err(SerializationError::Serde(format!(
                     "exponent '{}' out of range",
                     exponent
                 )));

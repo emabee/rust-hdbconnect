@@ -1,5 +1,7 @@
 use byteorder::{LittleEndian, ReadBytesExt};
+use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, Timelike};
 use std::cmp;
+use std::error::Error;
 use std::fmt;
 use std::io;
 use {HdbError, HdbResult};
@@ -59,20 +61,25 @@ impl LongDate {
         minute: u32,
         second: u32,
         nanosecond: u32,
-    ) -> Result<LongDate, &'static str> {
+    ) -> HdbResult<LongDate> {
         if y < 1 || y > 9999 {
-            return Err("Only years between 1 and 9999 are supported");
+            return Err(HdbError::Usage(
+                "Only years between 1 and 9999 are supported".to_owned(),
+            ));
         }
         if m < 1 || m > 12 {
-            return Err("Only months between 1 and 12 are supported");
+            return Err(HdbError::Usage(
+                "Only months between 1 and 12 are supported".to_owned(),
+            ));
         }
         if d < 1 || d > 31 {
-            return Err("Only days between 1 and 31 are supported");
+            return Err(HdbError::Usage(
+                "Only days between 1 and 31 are supported".to_owned(),
+            ));
         }
 
         Ok(LongDate(
-            1
-                + to_day_number(y as u32, m, d) * DAY_FACTOR
+            1 + to_day_number(y as u32, m, d) * DAY_FACTOR
                 + i64::from(hour) * HOUR_FACTOR
                 + i64::from(minute) * MINUTE_FACTOR
                 + i64::from(second) * SECOND_FACTOR
@@ -88,12 +95,12 @@ impl LongDate {
         hour: u32,
         minute: u32,
         second: u32,
-    ) -> Result<LongDate, &'static str> {
+    ) -> HdbResult<LongDate> {
         LongDate::from_ymd_hms_n(y, m, d, hour, minute, second, 0)
     }
 
     /// Factory method for LongDate up to day precision.
-    pub fn from_ymd(y: i32, m: u32, d: u32) -> Result<LongDate, &'static str> {
+    pub fn from_ymd(y: i32, m: u32, d: u32) -> HdbResult<LongDate> {
         LongDate::from_ymd_hms_n(y, m, d, 0, 0, 0, 0)
     }
 
@@ -141,6 +148,82 @@ impl LongDate {
             year -= 1;
         }
         (year, month, day, hour, minute, second, fraction)
+    }
+
+    /// Parses a `LongDate` from a String.
+    ///
+    /// Note that Chrono types serialize as formatted Strings.
+    /// We parse such (and other) Strings and construct a `LongDate`.
+    pub fn from_date_string(s: &str) -> HdbResult<LongDate> {
+        type FSD = fn(&str) -> HdbResult<LongDate>;
+
+        let funcs: Vec<FSD> = vec![
+            LongDate::from_string_full,
+            LongDate::from_string_second,
+            LongDate::from_string_day,
+            LongDate::from_utc_string,
+        ];
+
+        for func in funcs {
+            if let Ok(longdate) = func(s) {
+                return Ok(longdate);
+            }
+        }
+        Err(HdbError::Usage(format!(
+            "Cannot parse LongDate from given date string\"{}\"",
+            s,
+        )))
+    }
+
+    fn from_string_full(s: &str) -> HdbResult<LongDate> {
+        let ndt = NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S%.f")
+            .or_else(|_| NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S%.f"))
+            .map_err(|e| HdbError::Usage(e.description().to_owned()))?;
+        LongDate::from_ymd_hms_n(
+            ndt.year(),
+            ndt.month(),
+            ndt.day(),
+            ndt.hour(),
+            ndt.minute(),
+            ndt.second(),
+            ndt.nanosecond(),
+        )
+    }
+
+    fn from_string_second(s: &str) -> HdbResult<LongDate> {
+        let ndt = NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S")
+            .or_else(|_| NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S"))
+            .map_err(|e| HdbError::Usage(e.description().to_owned()))?;
+        LongDate::from_ymd_hms(
+            ndt.year(),
+            ndt.month(),
+            ndt.day(),
+            ndt.hour(),
+            ndt.minute(),
+            ndt.second(),
+        )
+    }
+
+    fn from_string_day(s: &str) -> HdbResult<LongDate> {
+        let nd = NaiveDate::parse_from_str(s, "%Y-%m-%d")
+            .map_err(|e| HdbError::Usage(e.description().to_owned()))?;
+        LongDate::from_ymd(nd.year(), nd.month(), nd.day())
+    }
+
+    fn from_utc_string(s: &str) -> HdbResult<LongDate> {
+        // 2012-02-02T02:02:02.200Z
+        let ndt = DateTime::parse_from_rfc3339(s)
+            .map_err(|e| HdbError::Usage(e.description().to_owned()))?
+            .naive_utc();
+        LongDate::from_ymd_hms_n(
+            ndt.year(),
+            ndt.month(),
+            ndt.day(),
+            ndt.hour(),
+            ndt.minute(),
+            ndt.second(),
+            ndt.nanosecond(),
+        )
     }
 }
 

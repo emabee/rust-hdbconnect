@@ -1,5 +1,7 @@
 use byteorder::{LittleEndian, ReadBytesExt};
+use chrono::{Datelike, NaiveDate};
 use std::cmp;
+use std::error::Error;
 use std::fmt;
 use std::io;
 use {HdbError, HdbResult};
@@ -43,15 +45,21 @@ impl DayDate {
     }
 
     /// Factory method for DayDate with all fields.
-    pub fn from_ymd(y: i32, m: u32, d: u32) -> Result<DayDate, &'static str> {
+    pub fn from_ymd(y: i32, m: u32, d: u32) -> HdbResult<DayDate> {
         if y < 1 || y > 9999 {
-            return Err("Only years between 1 and 9999 are supported");
+            return Err(HdbError::Usage(
+                "Only years between 1 and 9999 are supported".to_owned(),
+            ));
         }
         if m < 1 || m > 12 {
-            return Err("Only months between 1 and 12 are supported");
+            return Err(HdbError::Usage(
+                "Only months between 1 and 12 are supported".to_owned(),
+            ));
         }
         if d < 1 || d > 31 {
-            return Err("Only days between 1 and 31 are supported");
+            return Err(HdbError::Usage(
+                "Only days between 1 and 31 are supported".to_owned(),
+            ));
         }
 
         Ok(DayDate(1 + to_day_number(y as u32, m, d)))
@@ -91,6 +99,32 @@ impl DayDate {
             year -= 1;
         }
         (year, month, day)
+    }
+
+    /// Parses a `DayDate` from a String.
+    ///
+    /// Note that Chrono types serialize as formatted Strings.
+    /// We parse such (and other) Strings and construct a `DayDate`.
+    pub fn from_date_string(s: &str) -> HdbResult<DayDate> {
+        type FSD = fn(&str) -> HdbResult<DayDate>;
+
+        let funcs: Vec<FSD> = vec![DayDate::from_string_day];
+
+        for func in funcs {
+            if let Ok(daydate) = func(s) {
+                return Ok(daydate);
+            }
+        }
+        Err(HdbError::Usage(format!(
+            "Cannot parse DayDate from given date string\"{}\"",
+            s,
+        )))
+    }
+
+    fn from_string_day(s: &str) -> HdbResult<DayDate> {
+        let nd = NaiveDate::parse_from_str(s, "%Y-%m-%d")
+            .map_err(|e| HdbError::Usage(e.description().to_owned()))?;
+        DayDate::from_ymd(nd.year(), nd.month(), nd.day())
     }
 }
 

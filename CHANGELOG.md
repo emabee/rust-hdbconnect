@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.7.4]  2018-09-28
+
+Some improvements around parsing date and time values.
+
+Update to serde_db 0.5.
+
 ## [0.7.3]  2018-09-21
 
 Add implementation for NCLOB.

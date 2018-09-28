@@ -7,9 +7,9 @@ use super::parts::connect_options::ConnectOptions;
 use super::parts::output_parameters::factory as OutputParametersFactory;
 use super::parts::output_parameters::OutputParameters;
 use super::parts::parameter_descriptor::factory as ParameterDescriptorFactory;
-use super::parts::partiton_information::PartitionInformation;
 use super::parts::parameter_descriptor::ParameterDescriptor;
 use super::parts::parameters::Parameters;
+use super::parts::partiton_information::PartitionInformation;
 use super::parts::read_lob_reply::ReadLobReply;
 use super::parts::resultset::factory as ResultSetFactory;
 use super::parts::resultset::ResultSet;
@@ -92,10 +92,7 @@ impl Argument {
             Argument::TransactionFlags(ref opts) => opts.count(),
             Argument::XatOptions(ref xat) => xat.count(),
             ref a => {
-                return Err(HdbError::Impl(format!(
-                    "Argument::count() called on {:?}",
-                    a
-                )));
+                return Err(HdbError::Impl(format!("count() called on {:?}", a)));
             }
         })
     }
@@ -237,7 +234,7 @@ impl Argument {
                 )?)
             } else {
                 return Err(HdbError::Impl(
-                    "Cannot parse output parameters without metadata".to_owned(),
+                    "Parsing output parameters needs metadata".to_owned(),
                 ));
             },
             PartKind::ParameterMetadata => Argument::ParameterMetadata(

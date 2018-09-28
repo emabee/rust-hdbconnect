@@ -1,5 +1,7 @@
 use byteorder::{LittleEndian, ReadBytesExt};
+use chrono::{NaiveTime, Timelike};
 use std::cmp;
+use std::error::Error;
 use std::fmt;
 use std::io;
 use {HdbError, HdbResult};
@@ -46,9 +48,11 @@ impl SecondTime {
     }
 
     /// Factory method for SecondTime with all fields.
-    pub fn from_hms(hour: u32, minute: u32, second: u32) -> Result<SecondTime, &'static str> {
+    pub fn from_hms(hour: u32, minute: u32, second: u32) -> HdbResult<SecondTime> {
         if hour > 23 || minute > 59 || second > 59 {
-            Err("illegal value of hour, minute or second")
+            Err(HdbError::Usage(
+                "illegal value of hour, minute or second".to_owned(),
+            ))
         } else {
             Ok(SecondTime(
                 hour * HOUR_FACTOR + minute * MINUTE_FACTOR + second + 1,
@@ -65,6 +69,32 @@ impl SecondTime {
         second -= MINUTE_FACTOR * minute;
 
         (hour, minute, second)
+    }
+
+    /// Parses a `SecondTime` from a String.
+    ///
+    /// Note that Chrono types serialize as formatted Strings.
+    /// We parse such (and other) Strings and construct a `SecondTime`.
+    pub fn from_date_string(s: &str) -> HdbResult<SecondTime> {
+        type FSD = fn(&str) -> HdbResult<SecondTime>;
+
+        let funcs: Vec<FSD> = vec![SecondTime::from_string_second];
+
+        for func in funcs {
+            if let Ok(secondtime) = func(s) {
+                return Ok(secondtime);
+            }
+        }
+        Err(HdbError::Usage(format!(
+            "Cannot parse SecondTime from given date string \"{}\"",
+            s,
+        )))
+    }
+
+    fn from_string_second(s: &str) -> HdbResult<SecondTime> {
+        let nt = NaiveTime::parse_from_str(s, "%H:%M:%S")
+            .map_err(|e| HdbError::Usage(e.description().to_owned()))?;
+        SecondTime::from_hms(nt.hour(), nt.minute(), nt.second())
     }
 }
 

@@ -208,7 +208,9 @@ impl ConnectionCore {
     pub fn evaluate_ta_flags(&mut self, ta_flags: TransactionFlags) -> HdbResult<()> {
         self.session_state.update(ta_flags);
         if self.session_state.dead {
-            Err(HdbError::Impl("SessionclosingTaError received".to_owned()))
+            Err(HdbError::DbIssue(
+                "SessionclosingTaError received".to_owned(),
+            ))
         } else {
             Ok(())
         }

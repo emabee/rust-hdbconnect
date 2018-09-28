@@ -11,9 +11,7 @@ use std::io;
 use std::result;
 use std::sync;
 
-/// An abbreviation of <code>Result&lt;T, `HdbError`&gt;</code>.
-///
-/// Just for convenience.
+/// Abbreviation of `Result<T, HdbError>`.
 pub type HdbResult<T> = result::Result<T, HdbError>;
 
 /// Represents all possible errors that can occur in hdbconnect.
@@ -23,12 +21,14 @@ pub enum HdbError {
     /// Conversion of single db value to rust type failed.
     Conversion(ConversionError),
 
-    /// Error occured in deserialization of data structures into an
-    /// application-defined structure.
+    /// Error occured in deserialization of data structures into an application-defined structure.
     Deserialization(DeserializationError),
 
     /// Database server responded with an error.
     DbError(ServerError),
+
+    /// Database server has a severe issue.
+    DbIssue(String),
 
     /// Database server responded with an error.
     MultipleDbErrors(Vec<ServerError>),
@@ -71,6 +71,7 @@ impl error::Error for HdbError {
     fn description(&self) -> &str {
         match *self {
             HdbError::DbError(_) => "Error from database server",
+            HdbError::DbIssue(_) => "Issue on database server",
             HdbError::MultipleDbErrors(_) => "Multiple errors from database server",
             HdbError::Conversion(_) => "Conversion of database type to rust type failed",
             HdbError::Deserialization(ref e) => e.description(),
@@ -93,6 +94,7 @@ impl error::Error for HdbError {
             HdbError::Serialization(ref error) => Some(error),
             HdbError::Impl(_)
             | HdbError::DbError(_)
+            | HdbError::DbIssue(_)
             | HdbError::MultipleDbErrors(_)
             | HdbError::Usage(_)
             | HdbError::Poison(_)
@@ -110,9 +112,10 @@ impl fmt::Display for HdbError {
             HdbError::Io(ref error) => write!(fmt, "{:?}", error),
             HdbError::Impl(ref error) => write!(fmt, "{:?}", error),
             HdbError::Serialization(ref error) => write!(fmt, "{:?}", error),
-            HdbError::Evaluation(ref s) | HdbError::Usage(ref s) | HdbError::Poison(ref s) => {
-                write!(fmt, "{:?}", s)
-            }
+            HdbError::Evaluation(ref s)
+            | HdbError::Usage(ref s)
+            | HdbError::Poison(ref s)
+            | HdbError::DbIssue(ref s) => write!(fmt, "{:?}", s),
             HdbError::DbError(ref se) => write!(fmt, "{:?}", se),
             HdbError::MultipleDbErrors(ref vec) => write!(fmt, "{:?}", vec[0]),
         }

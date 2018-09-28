@@ -4,9 +4,9 @@ mod c_resource_manager;
 
 pub use self::c_resource_manager::{new_resource_manager, HdbCResourceManager};
 
-use HdbError;
 use dist_tx::rm::{ErrorCode, RmError};
 use std::error::Error;
+use HdbError;
 
 impl From<HdbError> for RmError {
     fn from(error: HdbError) -> RmError {
@@ -20,9 +20,10 @@ impl From<HdbError> for RmError {
             HdbError::Deserialization(e) => {
                 RmError::new(ErrorCode::RmError, e.description().to_string())
             }
-            HdbError::Usage(s) | HdbError::Evaluation(s) | HdbError::Poison(s) => {
-                RmError::new(ErrorCode::RmError, s)
-            }
+            HdbError::Usage(s)
+            | HdbError::Evaluation(s)
+            | HdbError::Poison(s)
+            | HdbError::DbIssue(s) => RmError::new(ErrorCode::RmError, s),
             HdbError::Impl(s) => RmError::new(ErrorCode::RmError, s.to_string()),
             HdbError::Io(e) => RmError::new(ErrorCode::RmError, e.description().to_string()),
             HdbError::Serialization(e) => {
