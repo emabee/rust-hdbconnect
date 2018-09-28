@@ -128,7 +128,8 @@ fn client_info() -> HdbResult<()> {
 
     let _result: Vec<SessCtx> = connection.query(stmt)?.try_into()?;
 
-    connection.set_client_info("AppName", "AppVersion", "AppSource", "AppUser")?;
+    connection.set_application_user("OTTO")?;
+    connection.set_application_info("0.8.15", "dummy.rs")?;
 
     // make sure it is set ...
     let result: Vec<SessCtx> = connection.query(stmt)?.try_into()?;
@@ -144,10 +145,9 @@ fn client_info() -> HdbResult<()> {
 }
 
 fn check_result(result: &[SessCtx]) {
-    assert_eq!(result[0], SessCtx::new("APPLICATION", "AppName"));
-    assert_eq!(result[3], SessCtx::new("APPLICATIONVERSION", "AppVersion"));
-    assert_eq!(result[1], SessCtx::new("APPLICATIONSOURCE", "AppSource"));
-    assert_eq!(result[2], SessCtx::new("APPLICATIONUSER", "AppUser"));
+    assert_eq!(result[3], SessCtx::new("APPLICATIONVERSION", "0.8.15"));
+    assert_eq!(result[1], SessCtx::new("APPLICATIONSOURCE", "dummy.rs"));
+    assert_eq!(result[2], SessCtx::new("APPLICATIONUSER", "OTTO"));
 }
 
 fn command_info() -> HdbResult<()> {

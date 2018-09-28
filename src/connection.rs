@@ -124,26 +124,25 @@ impl Connection {
     /// Example:
     ///
     /// ```ignore
-    /// connection.set_client_info(
-    ///     "MyApp",
-    ///     "5.3.23",
-    ///     "update_customer.rs",
-    ///     "K2209657"
-    /// )?;
+    /// connection.set_application_user("K2209657")?;
     /// ```
-    pub fn set_client_info(
-        &self,
-        application: &str,
-        application_version: &str,
-        application_source: &str,
-        application_user: &str,
-    ) -> HdbResult<()> {
-        self.am_conn_core.lock()?.set_client_info(
-            application,
-            application_version,
-            application_source,
-            application_user,
-        )
+    pub fn set_application_user(&self, application_user: &str) -> HdbResult<()> {
+        self.am_conn_core
+            .lock()?
+            .set_application_user(application_user)
+    }
+
+    /// Sets client information into session variables on the server.
+    ///
+    /// Example:
+    ///
+    /// ```ignore
+    /// connection.set_application_info("5.3.23","update_customer.rs")?;
+    /// ```
+    pub fn set_application_info(&mut self, version: &str, source: &str) -> HdbResult<()> {
+        self.am_conn_core
+            .lock()?
+            .set_application_info(version, source)
     }
 
     /// Executes a statement on the database.

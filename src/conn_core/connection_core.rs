@@ -78,17 +78,14 @@ impl ConnectionCore {
         })))
     }
 
-    pub fn set_client_info(
-        &mut self,
-        application: &str,
-        application_version: &str,
-        application_source: &str,
-        application_user: &str,
-    ) -> HdbResult<()> {
-        self.client_info.set_application(application);
-        self.client_info
-            .set_application_version(application_version);
-        self.client_info.set_application_source(application_source);
+    pub fn set_application_info(&mut self, version: &str, source: &str) -> HdbResult<()> {
+        self.client_info.set_application_version(version);
+        self.client_info.set_application_source(source);
+        self.client_info_touched = true;
+        Ok(())
+    }
+
+    pub fn set_application_user(&mut self, application_user: &str) -> HdbResult<()> {
         self.client_info.set_application_user(application_user);
         self.client_info_touched = true;
         Ok(())
