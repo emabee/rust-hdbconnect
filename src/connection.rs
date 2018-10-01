@@ -119,30 +119,37 @@ impl Connection {
         Ok(self.am_conn_core.lock()?.last_seq_number())
     }
 
-    /// Sets client information into session variables on the server.
+    /// Sets client information into a session variable on the server.
     ///
     /// Example:
     ///
     /// ```ignore
     /// connection.set_application_user("K2209657")?;
     /// ```
-    pub fn set_application_user(&self, application_user: &str) -> HdbResult<()> {
-        self.am_conn_core
-            .lock()?
-            .set_application_user(application_user)
+    pub fn set_application_user(&self, appl_user: &str) -> HdbResult<()> {
+        self.am_conn_core.lock()?.set_application_user(appl_user)
     }
 
-    /// Sets client information into session variables on the server.
+    /// Sets client information into a session variable on the server.
     ///
     /// Example:
     ///
     /// ```ignore
-    /// connection.set_application_info("5.3.23","update_customer.rs")?;
+    /// connection.set_application_version("5.3.23")?;
     /// ```
-    pub fn set_application_info(&mut self, version: &str, source: &str) -> HdbResult<()> {
-        self.am_conn_core
-            .lock()?
-            .set_application_info(version, source)
+    pub fn set_application_version(&mut self, version: &str) -> HdbResult<()> {
+        self.am_conn_core.lock()?.set_application_version(version)
+    }
+
+    /// Sets client information into a session variable on the server.
+    ///
+    /// Example:
+    ///
+    /// ```ignore
+    /// connection.set_application_source("5.3.23","update_customer.rs")?;
+    /// ```
+    pub fn set_application_source(&mut self, source: &str) -> HdbResult<()> {
+        self.am_conn_core.lock()?.set_application_source(source)
     }
 
     /// Executes a statement on the database.
@@ -241,8 +248,7 @@ impl Connection {
         Box::new(new_resource_manager(Arc::clone(&self.am_conn_core)))
     }
 
-    /// Tools like debuggers can provide additional information while stepping
-    /// through a source
+    /// Tools like debuggers can provide additional information while stepping through a source
     pub fn execute_with_debuginfo(
         &mut self,
         stmt: &str,

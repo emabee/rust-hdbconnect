@@ -136,8 +136,8 @@ fn test_nclobs(
     assert_eq!(fingerprint1, fingerprint4);
 
     debug!("nclob.max_size(): {}", nclob.max_size());
-    // set_lob_read_length deals now in chars (1, 2, or 3 bytes), so we must be careful
-    assert!(nclob.max_size() < 610_000);
+    // set_lob_read_length deals now in chars (1, 2, or 3 bytes), max_size() in bytes
+    assert!(nclob.max_size() < 605_000);
 
     Ok(())
 }

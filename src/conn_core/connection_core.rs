@@ -78,8 +78,13 @@ impl ConnectionCore {
         })))
     }
 
-    pub fn set_application_info(&mut self, version: &str, source: &str) -> HdbResult<()> {
+    pub fn set_application_version(&mut self, version: &str) -> HdbResult<()> {
         self.client_info.set_application_version(version);
+        self.client_info_touched = true;
+        Ok(())
+    }
+
+    pub fn set_application_source(&mut self, source: &str) -> HdbResult<()> {
         self.client_info.set_application_source(source);
         self.client_info_touched = true;
         Ok(())

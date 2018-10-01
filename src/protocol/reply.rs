@@ -266,6 +266,7 @@ impl Reply {
             ReplyType::Rollback => HdbResponseFactory::success(int_return_values),
 
             ReplyType::Nil | 
+            ReplyType::Explain |
             ReplyType::Insert |
             ReplyType::Update |
             ReplyType::Delete => HdbResponseFactory::rows_affected(int_return_values),
@@ -285,16 +286,14 @@ impl Reply {
             ReplyType::WriteLob |
 
             // FIXME: 4 ReplyTypes where it is unclear when they occur and what to return:
-            ReplyType::Explain |
             ReplyType::XaStart |
             ReplyType::XaJoin |
             ReplyType::XAPrepare => {
                 let s = format!(
-                    "unexpected reply type {:?} in send_and_get_hdbresponse(), \
+                    "unexpected reply type {:?} in Reply::into_hdbresponse(), \
                      with these internal return values: {:?}", 
                     self.replytype, int_return_values);
                 error!("{}",s);
-                error!("Reply: {:?}",self);
                 Err(HdbError::impl_(s))
             },
         }

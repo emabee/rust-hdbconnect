@@ -223,9 +223,10 @@ pub(crate) mod factory {
             }).count()
             > 0
         {
-            return Err(HdbError::Impl(
-                "resultset(): Unexpected InternalReturnValue(s) received".to_owned(),
-            ));
+            return Err(HdbError::Impl(format!(
+                "resultset(): Unexpected InternalReturnValue(s) received: {:?}",
+                int_return_values
+            )));
         }
 
         if rs_count > 1 || pm_count > 1 {

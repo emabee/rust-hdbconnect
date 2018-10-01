@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.0]  2018-10-01
+
+Improve client_info handling (-> API change -> Version bump).
+
+Implement ReplyType Explain.
+
 ## [0.7.4]  2018-09-28
 
 Some improvements around parsing date and time values.

@@ -129,7 +129,8 @@ fn client_info() -> HdbResult<()> {
     let _result: Vec<SessCtx> = connection.query(stmt)?.try_into()?;
 
     connection.set_application_user("OTTO")?;
-    connection.set_application_info("0.8.15", "dummy.rs")?;
+    connection.set_application_version("0.8.15")?;
+    connection.set_application_source("dummy.rs")?;
 
     // make sure it is set ...
     let result: Vec<SessCtx> = connection.query(stmt)?.try_into()?;

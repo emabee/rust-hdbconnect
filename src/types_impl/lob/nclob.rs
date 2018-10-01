@@ -160,7 +160,7 @@ impl NCLobHandle {
 
         if self.is_data_complete {
             if self.length_b != self.acc_byte_length as u64 {
-                debug!(
+                error!(
                     "fetch_next_chunk(): is_data_complete = {}, length_c = {}, length_b = {}, \
                      locator_id = {}, surrogate_buf = {:?}, utf8.len() = {}",
                     self.is_data_complete,
@@ -173,6 +173,7 @@ impl NCLobHandle {
                 trace!("utf8: {:?}", self.utf8);
             }
             assert_eq!(self.length_b, self.acc_byte_length as u64);
+            debug!("max_size: {}", self.max_size);
         } else {
             assert!(self.length_b != self.acc_byte_length as u64);
         }
