@@ -25,14 +25,26 @@ pub fn test_060_explain() -> HdbResult<()> {
 }
 
 fn run(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -> HdbResult<()> {
+    info!("use EXPLAIN and verify it works");
+
+    let result =
+        connection.dml("DELETE FROM explain_plan_table WHERE statement_name = 'test_explain'")?;
+    debug!("cleanup (deletion result = {:?})", result);
+
+    let count: usize = connection
+        .query("select count(*) from EXPLAIN_PLAN_TABLE")?
+        .try_into()?;
+    assert_eq!(count, 0);
+
+    debug!("create the plan");
+    connection
+        .exec("EXPLAIN PLAN SET STATEMENT_NAME = 'test_explain' FOR select 'FOO' from dummy")?;
+
     let count: u32 = connection
         .query("select count(*) from EXPLAIN_PLAN_TABLE")?
         .try_into()?;
-    info!("count = {}", count);
-
-    let result = connection
-        .dml("EXPLAIN PLAN SET STATEMENT_NAME = 'test_explain' FOR select 'FOO' from dummy")?;
-    info!("explain result: {:?}", result);
+    debug!("read the plan size (no of lines = {})", count);
+    assert!(count > 0);
 
     let result: Vec<(String, String)> = connection
         .query(
@@ -40,11 +52,7 @@ fn run(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -> 
              FROM explain_plan_table \
              WHERE statement_name = 'test_explain';",
         )?.try_into()?;
-    info!("obtain the plan: {:?}", result);
-
-    let result =
-        connection.dml("DELETE FROM explain_plan_table WHERE statement_name = 'test_explain'")?;
-    info!("deletion result = {:?}", result);
+    debug!("obtain the plan: {:?}", result);
 
     Ok(())
 }

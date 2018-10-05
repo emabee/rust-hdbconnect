@@ -167,6 +167,7 @@ impl Connection {
     pub fn query(&mut self, stmt: &str) -> HdbResult<ResultSet> {
         self.statement(stmt)?.into_resultset()
     }
+
     /// Executes a statement and expects a single number of affected rows.
     pub fn dml(&mut self, stmt: &str) -> HdbResult<usize> {
         let vec = &(self.statement(stmt)?.into_affected_rows()?);
@@ -177,12 +178,14 @@ impl Connection {
             )),
         }
     }
+
     /// Executes a statement and expects a plain success.
     pub fn exec(&mut self, stmt: &str) -> HdbResult<()> {
         self.statement(stmt)?.into_success()
     }
 
     /// Prepares a statement and returns a handle to it.
+    ///
     /// Note that the handle keeps using the same connection.
     pub fn prepare(&self, stmt: &str) -> HdbResult<PreparedStatement> {
         Ok(PreparedStatementFactory::prepare(
