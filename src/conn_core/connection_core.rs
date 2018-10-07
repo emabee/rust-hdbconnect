@@ -335,7 +335,7 @@ impl Drop for ConnectionCore {
     // try to send a disconnect to the database, ignore all errors
     fn drop(&mut self) {
         if let Err(e) = self.drop_impl() {
-            error!("Disconnect request failed with {:?}", e);
+            warn!("Disconnect request failed with {:?}", e);
         }
     }
 }

@@ -1,6 +1,7 @@
 use protocol::parts::option_part::OptionId;
 use protocol::parts::option_part::OptionPart;
 
+// FIXME
 // An Options part that is used by the client to specify HOLDCURSORSOVERCOMMIT.
 // If HOLDCURSORSOVERCOMMIT is set by the client on commit,
 // not only cursors marked explicitly as HOLD, but all cursors, are held.

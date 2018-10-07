@@ -33,7 +33,9 @@ use {HdbError, HdbResult};
 /// > `client_locale_from_env`: if `<value>` is 1, the client's locale is read
 ///   from the environment variabe LANG  
 /// > `tls_trust_anchor_dir`: the `<value>` points to a folder with pem files that contain
-///   the server's certificates; all pem files in that folder are evaluated
+///   the server's certificates; all pem files in that folder are evaluated  
+/// > `tls_trust_anchor_env`: the `<value>` denotes the environment variable that contains
+///   the server's certificate
 ///
 /// The client locale is used in language-dependent handling within the SAP HANA
 /// database calculation engine.
@@ -56,7 +58,7 @@ pub struct ConnectParams {
     password: SecStr,
     clientlocale: Option<String>,
     #[cfg(feature = "alpha_tls")]
-    trust_anchor_dir: Option<String>,
+    server_certs: ServerCerts,
     options: Vec<(String, String)>,
 }
 impl ConnectParams {
@@ -70,10 +72,10 @@ impl ConnectParams {
         fs::read_to_string(path)?.into_connect_params()
     }
 
-    /// The trust_anchor_dir.
+    /// The ServerCerts.
     #[cfg(feature = "alpha_tls")]
-    pub fn trust_anchor_dir(&self) -> Option<&str> {
-        self.trust_anchor_dir.as_ref().map(|s| s.as_ref())
+    pub fn server_certs(&self) -> &ServerCerts {
+        &self.server_certs
     }
 
     /// The host.
@@ -199,7 +201,7 @@ impl IntoConnectParams for Url {
         }
 
         #[cfg(feature = "alpha_tls")]
-        let mut trust_anchor_dir = None;
+        let mut server_certs = ServerCerts::None;
         let mut clientlocale = None;
         let mut options = Vec::<(String, String)>::new();
         for (name, value) in self.query_pairs() {
@@ -212,7 +214,11 @@ impl IntoConnectParams for Url {
                     };
                 }
                 #[cfg(feature = "alpha_tls")]
-                "tls_trust_anchor_dir" => trust_anchor_dir = Some(value.to_string()),
+                "tls_trust_anchor_dir" => server_certs = ServerCerts::Directory(value.to_string()),
+                #[cfg(feature = "alpha_tls")]
+                "tls_trust_anchor_env" => {
+                    server_certs = ServerCerts::Environment(value.to_string())
+                }
                 _ => options.push((name.to_string(), value.to_string())),
             }
         }
@@ -226,7 +232,7 @@ impl IntoConnectParams for Url {
             password,
             clientlocale,
             #[cfg(feature = "alpha_tls")]
-            trust_anchor_dir,
+            server_certs,
             options,
         })
     }
@@ -254,7 +260,7 @@ pub struct ConnectParamsBuilder {
     password: Option<String>,
     clientlocale: Option<String>,
     #[cfg(feature = "alpha_tls")]
-    trust_anchor_dir: Option<String>,
+    server_certs: ServerCerts,
     options: Vec<(String, String)>,
 }
 
@@ -268,7 +274,7 @@ impl ConnectParamsBuilder {
             password: None,
             clientlocale: None,
             #[cfg(feature = "alpha_tls")]
-            trust_anchor_dir: None,
+            server_certs: ServerCerts::None,
             options: vec![],
         }
     }
@@ -313,11 +319,19 @@ impl ConnectParamsBuilder {
         self
     }
 
-    /// Enforces the usage of TLS for the connection to the database and requires a
-    /// filesystem folder with pem files to validate the server.
+    /// Enforces the usage of TLS for the connection to the database and requires that
+    /// the server's certificate is provided in a directory
     #[cfg(feature = "alpha_tls")]
-    pub fn use_tls(&mut self, trust_anchor_dir: String) -> &mut ConnectParamsBuilder {
-        self.trust_anchor_dir = Some(trust_anchor_dir);
+    pub fn use_tls_dir(&mut self, trust_anchor_dir: String) -> &mut ConnectParamsBuilder {
+        self.server_certs = ServerCerts::Directory(trust_anchor_dir);
+        self
+    }
+
+    /// Enforces the usage of TLS for the connection to the database and requires that
+    /// the server's certificate is provided via the specified environment variable
+    #[cfg(feature = "alpha_tls")]
+    pub fn use_tls_env(&mut self, trust_anchor_env: String) -> &mut ConnectParamsBuilder {
+        self.server_certs = ServerCerts::Environment(trust_anchor_env);
         self
     }
 
@@ -360,14 +374,34 @@ impl ConnectParamsBuilder {
             options: mem::replace(&mut self.options, vec![]),
 
             #[cfg(feature = "alpha_tls")]
-            use_tls: self.trust_anchor_dir.is_some(),
+            use_tls: self.server_certs.is_some(),
 
             #[cfg(feature = "alpha_tls")]
-            trust_anchor_dir: match self.trust_anchor_dir {
-                Some(ref s) => Some(s.clone()),
-                None => None,
-            },
+            server_certs: self.server_certs.clone(),
         })
+    }
+}
+
+#[cfg(feature = "alpha_tls")]
+#[derive(Clone, Debug)]
+pub enum ServerCerts {
+    Directory(String),
+    Environment(String),
+    None,
+}
+#[cfg(feature = "alpha_tls")]
+impl ServerCerts {
+    pub fn is_some(&self) -> bool {
+        match self {
+            ServerCerts::None => false,
+            _ => true,
+        }
+    }
+}
+#[cfg(feature = "alpha_tls")]
+impl Default for ServerCerts {
+    fn default() -> ServerCerts {
+        ServerCerts::None
     }
 }
 

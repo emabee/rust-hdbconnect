@@ -91,7 +91,7 @@ impl Drop for ResultSetCore {
     // inform the server in case the resultset is not yet closed, ignore all errors
     fn drop(&mut self) {
         if let Err(e) = self.drop_impl() {
-            error!("CloseResultSet request failed with {:?}", e);
+            warn!("CloseResultSet request failed with {:?}", e);
         }
     }
 }

@@ -51,7 +51,7 @@ impl OptionId<TopologyAttrId> for TopologyAttrId {
             10 => TopologyAttrId::IsStandby,
             13 => TopologyAttrId::SiteType,
             val => {
-                error!("Invalid value for TopologyAttrId received: {}", val);
+                warn!("Invalid value for TopologyAttrId received: {}", val);
                 TopologyAttrId::__Unexpected__(val)
             }
         }

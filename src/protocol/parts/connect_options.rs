@@ -117,11 +117,12 @@ impl ConnectOptions {
                 | ConnOptId::FdaEnabled
                 | ConnOptId::ItabParameter
                 | ConnOptId::ClientDistributionMode
-                | ConnOptId::ClientInfoNullValueOK => {
+                | ConnOptId::ClientInfoNullValueOK
+                | ConnOptId::FlagSet1 => {
                     self.set_fromserver(k, v);
                 }
-                _ => {
-                    error!("Unexpected ConnectOption coming from server");
+                k => {
+                    warn!("Unexpected ConnectOption coming from server ({:?})", k);
                 }
             };
         }
@@ -325,6 +326,21 @@ impl ConnectOptions {
 
     pub fn get_clientinfo_nullvalue_ok(&self) -> Option<&bool> {
         self.get_bool(&ConnOptId::ClientInfoNullValueOK, "ClientInfoNullValueOK")
+    }
+
+    pub fn get_hold_cursor_over_rollback_supported(&self) -> Option<bool> {
+        self.get_integer(&ConnOptId::FlagSet1, "FlagSet1")
+            .map(|i| (*i & 0b1) == 0b1)
+    }
+
+    pub fn get_support_drop_statement_id_part(&self) -> Option<bool> {
+        self.get_integer(&ConnOptId::FlagSet1, "FlagSet1")
+            .map(|i| (*i & 0b10) == 0b10)
+    }
+
+    pub fn get_support_full_compile_on_prepare(&self) -> Option<bool> {
+        self.get_integer(&ConnOptId::FlagSet1, "FlagSet1")
+            .map(|i| (*i & 0b100) == 0b100)
     }
 
     // SO FAR UNUSED
