@@ -3,6 +3,7 @@ use HdbResult;
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use cesu8;
+use std::error::Error;
 use std::fmt;
 use std::io;
 
@@ -85,11 +86,8 @@ impl ServerError {
     pub fn text(&self) -> String {
         self.text.clone()
     }
-}
 
-#[doc(hidden)]
-impl ServerError {
-    pub fn new(
+    pub(crate) fn new(
         code: i32,
         position: i32,
         severity: Severity,
@@ -105,11 +103,11 @@ impl ServerError {
         }
     }
 
-    pub fn size(&self) -> usize {
+    pub(crate) fn size(&self) -> usize {
         BASE_SIZE + self.text.len()
     }
 
-    pub fn parse(arg_size: i32, rdr: &mut io::BufRead) -> HdbResult<ServerError> {
+    pub(crate) fn parse(arg_size: i32, rdr: &mut io::BufRead) -> HdbResult<ServerError> {
         let code = rdr.read_i32::<LittleEndian>()?; // I4
         let position = rdr.read_i32::<LittleEndian>()?; // I4
         let text_length = rdr.read_i32::<LittleEndian>()?; // I4
@@ -125,7 +123,7 @@ impl ServerError {
         Ok(hdberr)
     }
 
-    pub fn to_string(&self) -> String {
+    pub(crate) fn to_string(&self) -> String {
         format!(
             "{} [code: {}, sql state: {}] at position {}: \"{}\"",
             self.severity,
@@ -136,6 +134,8 @@ impl ServerError {
         )
     }
 }
+
+impl Error for ServerError {}
 
 impl fmt::Display for ServerError {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {

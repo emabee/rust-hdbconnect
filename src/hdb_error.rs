@@ -57,12 +57,44 @@ pub enum HdbError {
 }
 
 impl HdbError {
-    #[doc(hidden)]
-    pub fn impl_<S: AsRef<str>>(s: S) -> HdbError {
+    /// Return the contained server_error, if any.
+    ///
+    /// This method helps in case you need programmatic access to e.g. the error code.
+    ///
+    /// Example:
+    ///
+    /// ```rust,no_run
+    /// # use hdbconnect::{Connection,HdbError, HdbResult};
+    /// # use hdbconnect::IntoConnectParams;
+    /// # fn main() -> HdbResult<()> {
+    ///     # let hdb_result: HdbResult<()> = Err(HdbError::Usage("test".to_string()));
+    ///     # let mut connection = Connection::new("".into_connect_params()?)?;
+    ///     if let Err(hdberror) = hdb_result {
+    ///         if let Some(server_error) = hdberror.server_error() {
+    ///             let sys_m_error_code: (i32, String, String) = connection
+    ///                 .query(&format!(
+    ///                     "select * from SYS.M_ERROR_CODES where code = {}",
+    ///                     server_error.code()
+    ///                 ))?.try_into()?;
+    ///             println!("sys_m_error_code: {:?}", sys_m_error_code);
+    ///         }
+    ///     }
+    ///     # Ok(())
+    /// # }
+    /// ```
+    pub fn server_error(&self) -> Option<&ServerError> {
+        match self {
+            HdbError::DbError(server_error) => Some(&server_error),
+            _ => None,
+        }
+    }
+}
+// Factory methods
+impl HdbError {
+    pub(crate) fn impl_<S: AsRef<str>>(s: S) -> HdbError {
         HdbError::Impl(s.as_ref().to_owned())
     }
-    #[doc(hidden)]
-    pub fn usage_<S: AsRef<str>>(s: S) -> HdbError {
+    pub(crate) fn usage_<S: AsRef<str>>(s: S) -> HdbError {
         HdbError::Usage(s.as_ref().to_owned())
     }
 }
@@ -92,8 +124,8 @@ impl error::Error for HdbError {
             HdbError::Deserialization(ref error) => Some(error),
             HdbError::Io(ref error) => Some(error),
             HdbError::Serialization(ref error) => Some(error),
+            HdbError::DbError(ref server_error) => Some(server_error),
             HdbError::Impl(_)
-            | HdbError::DbError(_)
             | HdbError::DbIssue(_)
             | HdbError::MultipleDbErrors(_)
             | HdbError::Usage(_)
