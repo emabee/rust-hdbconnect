@@ -32,9 +32,9 @@ use {HdbError, HdbResult};
 /// > `client_locale`: `<value>` is used to specify the client's locale  
 /// > `client_locale_from_env`: if `<value>` is 1, the client's locale is read
 ///   from the environment variabe LANG  
-/// > `tls_trust_anchor_dir`: the `<value>` points to a folder with pem files that contain
+/// > `tls_certificate_dir`: the `<value>` points to a folder with pem files that contain
 ///   the server's certificates; all pem files in that folder are evaluated  
-/// > `tls_trust_anchor_env`: the `<value>` denotes the environment variable that contains
+/// > `tls_certificate_env`: the `<value>` denotes the environment variable that contains
 ///   the server's certificate
 ///
 /// The client locale is used in language-dependent handling within the SAP HANA
@@ -50,14 +50,14 @@ use {HdbError, HdbResult};
 /// ```
 #[derive(Clone)]
 pub struct ConnectParams {
-    #[cfg(feature = "alpha_tls")]
+    #[cfg(feature = "tls")]
     use_tls: bool,
     host: String,
     addr: String,
     dbuser: String,
     password: SecStr,
     clientlocale: Option<String>,
-    #[cfg(feature = "alpha_tls")]
+    #[cfg(feature = "tls")]
     server_certs: ServerCerts,
     options: Vec<(String, String)>,
 }
@@ -73,7 +73,7 @@ impl ConnectParams {
     }
 
     /// The ServerCerts.
-    #[cfg(feature = "alpha_tls")]
+    #[cfg(feature = "tls")]
     pub fn server_certs(&self) -> &ServerCerts {
         &self.server_certs
     }
@@ -90,10 +90,10 @@ impl ConnectParams {
 
     /// Whether TLS or a plain TCP connection is to be used.
     pub fn use_tls(&self) -> bool {
-        #[cfg(feature = "alpha_tls")]
+        #[cfg(feature = "tls")]
         return self.use_tls;
 
-        #[cfg(not(feature = "alpha_tls"))]
+        #[cfg(not(feature = "tls"))]
         return false;
     }
 
@@ -177,7 +177,7 @@ impl IntoConnectParams for Url {
             Some(s) => s.to_string(),
         });
 
-        #[cfg(feature = "alpha_tls")]
+        #[cfg(feature = "tls")]
         let use_tls = match self.scheme() {
             "hdbsql" => false,
             "hdbsqls" => true,
@@ -189,7 +189,7 @@ impl IntoConnectParams for Url {
             }
         };
 
-        #[cfg(not(feature = "alpha_tls"))]
+        #[cfg(not(feature = "tls"))]
         {
             if self.scheme() != "hdbsql" {
                 return Err(HdbError::Usage(format!(
@@ -200,7 +200,7 @@ impl IntoConnectParams for Url {
             }
         }
 
-        #[cfg(feature = "alpha_tls")]
+        #[cfg(feature = "tls")]
         let mut server_certs = ServerCerts::None;
         let mut clientlocale = None;
         let mut options = Vec::<(String, String)>::new();
@@ -213,25 +213,23 @@ impl IntoConnectParams for Url {
                         Err(_) => None,
                     };
                 }
-                #[cfg(feature = "alpha_tls")]
-                "tls_trust_anchor_dir" => server_certs = ServerCerts::Directory(value.to_string()),
-                #[cfg(feature = "alpha_tls")]
-                "tls_trust_anchor_env" => {
-                    server_certs = ServerCerts::Environment(value.to_string())
-                }
+                #[cfg(feature = "tls")]
+                "tls_certificate_dir" => server_certs = ServerCerts::Directory(value.to_string()),
+                #[cfg(feature = "tls")]
+                "tls_certificate_env" => server_certs = ServerCerts::Environment(value.to_string()),
                 _ => options.push((name.to_string(), value.to_string())),
             }
         }
 
         Ok(ConnectParams {
-            #[cfg(feature = "alpha_tls")]
+            #[cfg(feature = "tls")]
             use_tls,
             addr: format!("{}:{}", host, port),
             host,
             dbuser,
             password,
             clientlocale,
-            #[cfg(feature = "alpha_tls")]
+            #[cfg(feature = "tls")]
             server_certs,
             options,
         })
@@ -259,7 +257,7 @@ pub struct ConnectParamsBuilder {
     dbuser: Option<String>,
     password: Option<String>,
     clientlocale: Option<String>,
-    #[cfg(feature = "alpha_tls")]
+    #[cfg(feature = "tls")]
     server_certs: ServerCerts,
     options: Vec<(String, String)>,
 }
@@ -273,7 +271,7 @@ impl ConnectParamsBuilder {
             dbuser: None,
             password: None,
             clientlocale: None,
-            #[cfg(feature = "alpha_tls")]
+            #[cfg(feature = "tls")]
             server_certs: ServerCerts::None,
             options: vec![],
         }
@@ -321,17 +319,17 @@ impl ConnectParamsBuilder {
 
     /// Enforces the usage of TLS for the connection to the database and requires that
     /// the server's certificate is provided in a directory
-    #[cfg(feature = "alpha_tls")]
-    pub fn use_tls_dir(&mut self, trust_anchor_dir: String) -> &mut ConnectParamsBuilder {
-        self.server_certs = ServerCerts::Directory(trust_anchor_dir);
+    #[cfg(feature = "tls")]
+    pub fn use_certificate_dir(&mut self, certificate_dir: String) -> &mut ConnectParamsBuilder {
+        self.server_certs = ServerCerts::Directory(certificate_dir);
         self
     }
 
     /// Enforces the usage of TLS for the connection to the database and requires that
     /// the server's certificate is provided via the specified environment variable
-    #[cfg(feature = "alpha_tls")]
-    pub fn use_tls_env(&mut self, trust_anchor_env: String) -> &mut ConnectParamsBuilder {
-        self.server_certs = ServerCerts::Environment(trust_anchor_env);
+    #[cfg(feature = "tls")]
+    pub fn use_certificate_env(&mut self, certificate_env: String) -> &mut ConnectParamsBuilder {
+        self.server_certs = ServerCerts::Environment(certificate_env);
         self
     }
 
@@ -373,23 +371,23 @@ impl ConnectParamsBuilder {
             },
             options: mem::replace(&mut self.options, vec![]),
 
-            #[cfg(feature = "alpha_tls")]
+            #[cfg(feature = "tls")]
             use_tls: self.server_certs.is_some(),
 
-            #[cfg(feature = "alpha_tls")]
+            #[cfg(feature = "tls")]
             server_certs: self.server_certs.clone(),
         })
     }
 }
 
-#[cfg(feature = "alpha_tls")]
+#[cfg(feature = "tls")]
 #[derive(Clone, Debug)]
 pub enum ServerCerts {
     Directory(String),
     Environment(String),
     None,
 }
-#[cfg(feature = "alpha_tls")]
+#[cfg(feature = "tls")]
 impl ServerCerts {
     pub fn is_some(&self) -> bool {
         match self {
@@ -398,7 +396,7 @@ impl ServerCerts {
         }
     }
 }
-#[cfg(feature = "alpha_tls")]
+#[cfg(feature = "tls")]
 impl Default for ServerCerts {
     fn default() -> ServerCerts {
         ServerCerts::None

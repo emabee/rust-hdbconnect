@@ -25,7 +25,7 @@ fn test_012_tls() -> HdbResult<()> {
     url.push_str("?tls_trust_anchor_dir=.%2F.private");
     debug!("url = {}", url);
 
-    if cfg!(feature = "alpha_tls") {
+    if cfg!(feature = "tls") {
         debug!("really trying tls");
         let conn_params = url.into_connect_params()?;
         let mut connection = Connection::new(conn_params)?;

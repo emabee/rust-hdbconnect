@@ -1,6 +1,6 @@
 [package]
 name = "hdbconnect"
-version = "0.8.0"
+version = "0.8.1"
 authors = ["emabee <meinolf.block@sap.com>","Pascal Seitz <pascal.seitz@gmail.com>"]
 license = "MIT/Apache-2.0"
 readme = "README.md"
@@ -13,7 +13,7 @@ categories = ["database"]
 
 [features]
 default = []
-alpha_tls = ["rustls","regex","webpki","webpki-roots"]
+tls = ["rustls","webpki"]
 alpha_routing = []
 
 [dependencies]
@@ -28,7 +28,6 @@ log = "0.4"
 num = "0.2"
 r2d2 = "0.8"
 rand = "0.5"
-regex = {version = "1.0", optional = true}
 rust-crypto = "0.2"
 rustls = {version = "0.14", optional = true}
 secstr = "0.3"
@@ -41,7 +40,6 @@ url = "1.7"
 username = "0.2"
 vec_map = "0.8"
 webpki = {version = "0.18", optional = true}
-webpki-roots = {version = "0.15", optional = true}
 
 [dev-dependencies]
 serde_bytes = "0.10"

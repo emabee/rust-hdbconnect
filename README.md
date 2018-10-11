@@ -8,7 +8,7 @@ Add hdbconnect to the dependencies section in your project's `Cargo.toml`, with
 
 ```toml
 [dependencies]
-hdbconnect = "0.7.*"
+hdbconnect = "^0.8.1"
 ```
 
 and add this to your crate root:
@@ -61,6 +61,17 @@ pub fn main() -> HdbResult<()> {
 See <https://docs.rs/hdbconnect/> for the full functionality of hdbconnect.
 
 There you also find more code examples, e.g. in the description of module `code_examples`.
+
+## Crate Features
+
+### `tls`
+
+The `tls` feature adds the capability to use TLS in the communication to HANA, and adds dependencies to `rustls` and `webpki`. 
+
+See [ConnectParams](https://docs.rs/hdbconnect/*/hdbconnect/struct.ConnectParams.html)
+for how to use hdbconnect with tls.
+
+See [HANA in SCP](HANA_in_SCP.md) for instructions how to obtain the necessary server certificate from a HANA in SAP Cloud Platform.
 
 ## Versions
 

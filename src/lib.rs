@@ -50,15 +50,11 @@ extern crate url;
 extern crate username;
 extern crate vec_map;
 
-#[cfg(feature = "alpha_tls")]
+#[cfg(feature = "tls")]
 extern crate rustls;
 
-#[cfg(feature = "alpha_tls")]
-extern crate regex;
-#[cfg(feature = "alpha_tls")]
+#[cfg(feature = "tls")]
 extern crate webpki;
-#[cfg(feature = "alpha_tls")]
-extern crate webpki_roots;
 
 mod authentication;
 mod conn_core;

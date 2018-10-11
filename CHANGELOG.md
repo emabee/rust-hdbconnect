@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.8.1]  2018-10-01
+
+Fix tls and expose as a documented feature.
+
 ## [0.8.0]  2018-10-01
 
 Improve client_info handling (-> API change -> Version bump).
