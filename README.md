@@ -8,7 +8,7 @@ Add hdbconnect to the dependencies section in your project's `Cargo.toml`, with
 
 ```toml
 [dependencies]
-hdbconnect = "^0.8.1"
+hdbconnect = "0.9"
 ```
 
 and add this to your crate root:
@@ -66,7 +66,7 @@ There you also find more code examples, e.g. in the description of module `code_
 
 ### `tls`
 
-The `tls` feature adds the capability to use TLS in the communication to HANA, and adds dependencies to `rustls` and `webpki`. 
+The `tls` feature adds the capability to use TLS in the communication to HANA, and adds dependencies to `rustls` and `webpki`.
 
 See [ConnectParams](https://docs.rs/hdbconnect/*/hdbconnect/struct.ConnectParams.html)
 for how to use hdbconnect with tls.

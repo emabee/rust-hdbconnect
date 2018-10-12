@@ -4,6 +4,7 @@
 
 mod buffalo;
 pub mod connect_params;
+pub mod connect_params_builder;
 mod connection_core;
 mod initial_request;
 mod session_state;

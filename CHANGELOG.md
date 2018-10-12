@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.9]  2018-10-12
+
+Add a way to provide the server certificate for tls directly, and refactor the respective
+API of ConnectParamsBuilder (-> version bump).
+
 ## [0.8.1]  2018-10-01
 
 Fix tls and expose as a documented feature.

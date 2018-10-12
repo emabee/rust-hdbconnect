@@ -1,6 +1,6 @@
 [package]
 name = "hdbconnect"
-version = "0.8.1"
+version = "0.9.0"
 authors = ["emabee <meinolf.block@sap.com>","Pascal Seitz <pascal.seitz@gmail.com>"]
 license = "MIT/Apache-2.0"
 readme = "README.md"
@@ -10,6 +10,9 @@ documentation = "https://docs.rs/hdbconnect/"
 description = "A pure rust driver for SAP HANA(TM)"
 keywords = ["relational", "database", "driver", "serde", "HANA"]
 categories = ["database"]
+
+[package.metadata.docs.rs]
+all-features = true
 
 [features]
 default = []

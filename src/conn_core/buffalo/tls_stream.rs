@@ -18,7 +18,6 @@ pub struct TlsStream {
 impl TlsStream {
     pub fn new(params: &ConnectParams) -> io::Result<TlsStream> {
         let (tcpstream, tlsconfig, tlssession) = connect_tcp(params)?;
-        info!("building TlsStream");
         Ok(TlsStream {
             is_handshaking: true,
             tcpstream,
@@ -47,13 +46,48 @@ fn connect_tcp(
 
     let mut config = ClientConfig::new();
     match params.server_certs() {
-        ServerCerts::None => {
+        None => {
             return Err(io::Error::new(
                 io::ErrorKind::Other,
-                "No trust anchors provided",
+                "No server certificates provided",
             ))
         }
-        ServerCerts::Directory(trust_anchor_dir) => {
+        Some(ServerCerts::Direct(pem)) => {
+            let mut cursor = Cursor::new(pem);
+            let (n_ok, n_err) = config.root_store.add_pem_file(&mut cursor).unwrap();
+            if n_ok == 0 {
+                return Err(io::Error::new(
+                    io::ErrorKind::Other,
+                    "None of the provided server certificates was accepted",
+                ));
+            }
+            if n_err > 0 {
+                warn!("Not all provided server certificates were accepted");
+            }
+        }
+        Some(ServerCerts::Environment(env_var)) => match env::var(env_var) {
+            Ok(value) => {
+                trace!("trying with env var {:?}", env_var);
+                let mut cursor = Cursor::new(value);
+                let (n_ok, n_err) = config.root_store.add_pem_file(&mut cursor).unwrap();
+                if n_ok == 0 {
+                    return Err(io::Error::new(
+                        io::ErrorKind::Other,
+                        "None of the provided server certificates was accepted",
+                    ));
+                }
+                if n_err > 0 {
+                    warn!("Not all provided server certificates were accepted");
+                }
+            }
+            Err(e) => {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    format!("Environment variable {} not found, reason: {}", env_var, e),
+                ));
+            }
+        },
+        Some(ServerCerts::Directory(trust_anchor_dir)) => {
             debug!("Trust anchor directory = {}", trust_anchor_dir);
 
             let trust_anchor_files: Vec<PathBuf> = read_dir(trust_anchor_dir)?
@@ -75,7 +109,7 @@ fn connect_tcp(
                 let (n_ok, n_err) = config.root_store.add_pem_file(&mut rd).map_err(|_| {
                     io::Error::new(
                         io::ErrorKind::InvalidInput,
-                        "trust anchors could not be parsed",
+                        "server certificates could not be parsed",
                     )
                 })?;
                 t_ok += n_ok;
@@ -84,33 +118,13 @@ fn connect_tcp(
             if t_ok == 0 {
                 return Err(io::Error::new(
                     io::ErrorKind::Other,
-                    "None of the provided trust anchors was accepted",
+                    "None of the provided server certificates was accepted",
                 ));
             }
             if t_err > 0 {
-                warn!("Not all provided trust anchors were accepted");
+                warn!("Not all provided server certificates were accepted");
             }
         }
-        ServerCerts::Environment(env_var) => match env::var(env_var) {
-            Ok(value) => {
-                trace!("trying with env var {:?}", env_var);
-                let mut cursor = Cursor::new(value);
-                let (n_ok, n_err) = config.root_store.add_pem_file(&mut cursor).unwrap();
-                if n_ok == 0 {
-                    return Err(io::Error::new(
-                        io::ErrorKind::Other,
-                        "None of the provided trust anchors was accepted",
-                    ));
-                }
-                if n_err > 0 {
-                    warn!("Not all provided trust anchors were accepted");
-                }
-            }
-            Err(e) => {
-                // FIXME improve error message
-                return Err(io::Error::new(io::ErrorKind::InvalidInput, e));
-            }
-        },
     }
 
     let tlsconfig = Arc::new(config);
