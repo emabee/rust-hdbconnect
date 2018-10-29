@@ -120,7 +120,7 @@ mod tests {
             .to_vec();
 
         let mut a = ScramSha256 {
-            client_challenge: client_challenge,
+            client_challenge,
             server_proof: None,
         };
         let my_client_proof = a.client_proof(&server_challenge, &password).unwrap();

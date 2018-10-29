@@ -26,11 +26,11 @@ fn test_012_tls() -> HdbResult<()> {
     debug!("url = {}", url);
 
     if cfg!(feature = "tls") {
-        debug!("not really trying tls ...");
-    // let conn_params = url.into_connect_params()?;
-    // let mut connection = Connection::new(conn_params)?;
+        // debug!("not really trying tls ...");
+        let conn_params = url.into_connect_params()?;
+        let mut connection = Connection::new(conn_params)?;
 
-    // select_version_and_user(&mut connection)?;
+        select_version_and_user(&mut connection)?;
     } else {
         assert!(url.into_connect_params().is_err());
         debug!("got error from trying tls, as expected");

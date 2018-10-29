@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.9.1]  2018-10-29
+
+Switch from deprecated to new hashing libs.
+
 ## [0.9]  2018-10-12
 
 Add a way to provide the server certificate for tls directly, and refactor the respective
