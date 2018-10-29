@@ -31,7 +31,11 @@ extern crate bigdecimal;
 extern crate byteorder;
 extern crate cesu8;
 extern crate chrono;
-extern crate crypto;
+
+extern crate sha2;
+extern crate pbkdf2;
+extern crate hmac;
+
 extern crate dist_tx;
 extern crate hex;
 extern crate num;
