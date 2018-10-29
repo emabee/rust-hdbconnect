@@ -1,11 +1,10 @@
-use crypto::digest::Digest;
-use crypto::hmac::Hmac;
-use crypto::mac::Mac;
-use crypto::pbkdf2::pbkdf2;
-use crypto::sha2::Sha256;
+use pbkdf2::pbkdf2;
+use sha2::{Sha256, Digest};
 use hdb_error::HdbResult;
 use secstr::SecStr;
 use std::iter::repeat;
+
+use hmac::{Hmac, Mac};
 
 pub fn scram_sha256(
     salt: &[u8],
@@ -48,8 +47,8 @@ pub fn scram_pdkdf2_sha256(
     password: &SecStr,
     iterations: u32,
 ) -> HdbResult<(Vec<u8>, Vec<u8>)> {
-    //
-    let salted_password = use_pbkdf2(&password.unsecure().to_vec(), salt, iterations);
+
+    let salted_password = use_pbkdf2(&password.unsecure().to_vec(), salt, iterations as usize);
 
     let server_verifier = hmac(&salted_password, salt);
 
@@ -73,26 +72,25 @@ pub fn scram_pdkdf2_sha256(
     Ok((client_proof, server_proof))
 }
 
-pub fn use_pbkdf2(key: &[u8], salt: &[u8], it: u32) -> Vec<u8> {
+pub fn use_pbkdf2(key: &[u8], salt: &[u8], it: usize) -> Vec<u8> {
     let mut output = [0_u8; 32];
-    let mut mac = Hmac::new(Sha256::new(), key);
-    pbkdf2(&mut mac, salt, it, &mut output);
+
+    pbkdf2::<Hmac<Sha256>>(key, salt, it, &mut output);
     output.to_vec()
 }
 
 pub fn hmac(key: &[u8], data: &[u8]) -> Vec<u8> {
-    let mut hmac = Hmac::new(Sha256::new(), key);
-    hmac.input(data);
-    hmac.result().code().to_vec()
+    let mut mac = Hmac::<Sha256>::new_varkey(key)
+        .expect("Failed to create Hmac from key");
+
+    mac.input(data);
+    mac.result().code().to_vec()
 }
 
 pub fn sha256(input: &[u8]) -> Vec<u8> {
     let mut sha = Sha256::new();
     sha.input(input);
-
-    let mut bytes: Vec<u8> = repeat(0u8).take(sha.output_bytes()).collect();
-    sha.result(&mut bytes[..]);
-    bytes
+    sha.result().to_vec()
 }
 
 pub fn xor(a: &[u8], b: &[u8]) -> Vec<u8> {
