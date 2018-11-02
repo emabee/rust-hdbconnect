@@ -51,6 +51,6 @@ webpki = {version = "0.18", optional = true}
 [dev-dependencies]
 serde_bytes = "0.10"
 # flexi_logger = {path = "../flexi_logger"}
-flexi_logger = "0.9"
+flexi_logger = "0.10"
 version-sync = "0.5"
 
