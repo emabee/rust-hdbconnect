@@ -27,12 +27,14 @@ use {HdbError, HdbResult};
 ///
 #[derive(Debug)]
 pub struct HdbResponse {
-    data: Vec<HdbReturnValue>,
-    metadata: Option<Vec<ParameterDescriptor>>,
+    /// the raw return data.
+    pub data: Vec<HdbReturnValue>,
+    /// the metadata.
+    pub metadata: Option<Vec<ParameterDescriptor>>,
 }
 
 impl HdbResponse {
-    /// Returns the number of contained single return values.
+    /// Returns the number of return values.
     pub fn count(&self) -> usize {
         self.data.len()
     }
