@@ -35,6 +35,28 @@ impl PreparedStatement {
         self.o_par_md.as_ref()
     }
 
+    /// Descriptors of the input parameters of the prepared statement, if any.
+    pub fn input_parameter_descriptors(&self) -> Option<&Vec<ParameterDescriptor>> {
+        self.o_input_md.as_ref()
+    }
+
+    /// Adds a row of ParameterRow for the batch
+    pub fn add_row(&mut self, row: ParameterRow) -> HdbResult<()> {
+        trace!("PreparedStatement::add_row()");
+        match (&(self.o_input_md), &mut (self.o_batch)) {
+            (&Some(ref _metadata), &mut Some(ref mut vec)) => {
+                vec.push(row);
+                Ok(())
+            }
+            (_, _) => {
+                let s = "no metadata in add_row()";
+                Err(HdbError::Serialization(
+                    SerializationError::StructuralMismatch(s),
+                ))
+            }
+        }
+    }
+
     /// Converts the input into a row of parameters for the batch,
     /// if it is consistent with the metadata.
     pub fn add_batch<T: serde::ser::Serialize>(&mut self, input: &T) -> HdbResult<()> {

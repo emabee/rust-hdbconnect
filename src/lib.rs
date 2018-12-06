@@ -91,6 +91,8 @@ pub use protocol::parts::resultset::ResultSet;
 pub use protocol::parts::row::Row;
 pub use protocol::parts::server_error::{ServerError, Severity};
 
+
+pub use protocol::parts::parameters::{ParameterRow, Parameters};
 pub use protocol::parts::parameter_descriptor::{
     ParameterBinding, ParameterDescriptor, ParameterDirection,
 };
