@@ -6,13 +6,9 @@ use HdbResult;
 
 use std::io;
 
-/// A single row of parameters.
-///
-/// Can be used in
-/// [`PreparedStatement.add_batch()`](struct.PreparedStatement.html#method.add_batch)
-/// in generic use-cases.
-#[derive(Default, Debug, Clone, Serialize)]
-pub struct ParameterRow(Vec<HdbValue>);
+// A single row of parameters.
+#[derive(Default, Debug, Clone)]
+pub(crate) struct ParameterRow(Vec<HdbValue>);
 
 impl ParameterRow {
     /// Constructor.

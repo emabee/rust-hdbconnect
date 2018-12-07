@@ -86,7 +86,6 @@ pub use protocol::parts::server_error::{ServerError, Severity};
 pub use protocol::parts::parameter_descriptor::{
     ParameterBinding, ParameterDescriptor, ParameterDirection,
 };
-pub use protocol::parts::parameters::ParameterRow;
 pub use protocol::parts::resultset_metadata::ResultSetMetadata;
 
 /// Constants for the IDs of the data types being used by HANA.
