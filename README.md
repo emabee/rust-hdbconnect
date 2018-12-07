@@ -8,7 +8,7 @@ Add hdbconnect to the dependencies section in your project's `Cargo.toml`, with
 
 ```toml
 [dependencies]
-hdbconnect = "0.9"
+hdbconnect = "0.10"
 ```
 
 and add this to your crate root:

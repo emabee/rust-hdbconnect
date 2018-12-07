@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.10.0]  2018-12-07
+
+Changes to PreparedStatement:
+
+- add method add_row_to_batch()
+- remove method set_auto_commit() (-> version bump)
+
+HdbValue now implements Serialize.
+
 ## [0.9.1]  2018-10-29
 
 Switch from deprecated to new hashing libs.
