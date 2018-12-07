@@ -2,6 +2,7 @@ use conn_core::AmConnCore;
 use protocol::argument::Argument;
 use protocol::part::Part;
 use protocol::partkind::PartKind;
+use protocol::parts::hdb_value::HdbValue;
 use protocol::parts::parameter_descriptor::ParameterDescriptor;
 use protocol::parts::parameters::{ParameterRow, Parameters};
 use protocol::parts::resultset_metadata::ResultSetMetadata;
@@ -58,6 +59,27 @@ impl PreparedStatement {
         }
     }
 
+    /// Consumes the input as a row of parameters for the batch.
+    ///
+    /// Useful mainly for generic code.
+    /// In most cases [`add_batch()`](struct.PreparedStatement.html#method.add_batch)
+    /// is more convenient.
+    pub fn add_row_to_batch(&mut self, row: Vec<HdbValue>) -> HdbResult<()> {
+        trace!("PreparedStatement::add_row_to_batch()");
+        match (&(self.o_input_md), &mut (self.o_batch)) {
+            (&Some(ref _metadata), &mut Some(ref mut vec)) => {
+                vec.push(ParameterRow::new(row));
+                Ok(())
+            }
+            (_, _) => {
+                let s = "no metadata in add_row_to_batch()";
+                Err(HdbError::Serialization(
+                    SerializationError::StructuralMismatch(s),
+                ))
+            }
+        }
+    }
+
     /// Executes the statement with the collected batch, and clears the batch.
     pub fn execute_batch(&mut self) -> HdbResult<HdbResponse> {
         trace!("PreparedStatement::execute_batch()");
@@ -83,14 +105,6 @@ impl PreparedStatement {
             // NO fails, Hard hangs :-(
             SkipLastSpace::Soft,
         )
-    }
-
-    /// Sets the auto-commit of the prepared statement's connection for future
-    /// calls.
-    pub fn set_auto_commit(&mut self, ac: bool) -> HdbResult<()> {
-        let mut guard = self.am_conn_core.lock()?;
-        (*guard).set_auto_commit(ac);
-        Ok(())
     }
 }
 
