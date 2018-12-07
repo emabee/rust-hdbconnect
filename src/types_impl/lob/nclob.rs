@@ -9,10 +9,10 @@ use types_impl::lob::fetch_a_lob_chunk;
 use {HdbError, HdbResult};
 
 /// NCLob implementation that is used with `HdbValue::NCLOB`.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct NCLob(RefCell<NCLobHandle>);
 
-pub fn new_nclob_from_db(
+pub(crate) fn new_nclob_from_db(
     am_conn_core: &AmConnCore,
     is_data_complete: bool,
     length_c: u64,
@@ -64,8 +64,9 @@ impl io::Read for NCLob {
 // The data are often not transferred completely, so we carry internally
 // a database connection and the
 // necessary controls to support fetching remaining data on demand.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 struct NCLobHandle {
+    #[serde(skip)]
     o_am_conn_core: Option<AmConnCore>,
     is_data_complete: bool,
     length_c: u64,
@@ -76,6 +77,7 @@ struct NCLobHandle {
     max_size: usize,
     acc_byte_length: usize,
     acc_char_length: usize,
+    #[serde(skip)]
     server_resource_consumption_info: ServerResourceConsumptionInfo,
 }
 impl NCLobHandle {

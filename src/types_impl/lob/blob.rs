@@ -9,16 +9,16 @@ use std::io::{self, Write};
 use std::sync::Arc;
 
 /// BLob implementation that is used within `HdbValue::BLOB`.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct BLob(BLobEnum);
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 enum BLobEnum {
     FromDB(RefCell<BLobHandle>),
     ToDB(Vec<u8>),
 }
 
-pub fn new_blob_from_db(
+pub(crate) fn new_blob_from_db(
     am_conn_core: &AmConnCore,
     is_data_complete: bool,
     length_b: u64,
@@ -35,7 +35,7 @@ pub fn new_blob_from_db(
 }
 
 // Factory method for BLobs that are to be sent to the database.
-pub fn new_blob_to_db(vec: Vec<u8>) -> BLob {
+pub(crate) fn new_blob_to_db(vec: Vec<u8>) -> BLob {
     BLob(BLobEnum::ToDB(vec))
 }
 
@@ -105,8 +105,9 @@ impl io::Read for BLob {
 // The data are often not transferred completely,
 // so we carry internally a database connection and the
 // necessary controls to support fetching remaining data on demand.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 struct BLobHandle {
+    #[serde(skip)]
     o_am_conn_core: Option<AmConnCore>,
     is_data_complete: bool,
     length_b: u64,
@@ -114,6 +115,7 @@ struct BLobHandle {
     data: Vec<u8>,
     max_size: usize,
     acc_byte_length: usize,
+    #[serde(skip)]
     server_resource_consumption_info: ServerResourceConsumptionInfo,
 }
 impl BLobHandle {

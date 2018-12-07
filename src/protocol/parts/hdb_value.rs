@@ -28,7 +28,7 @@ const LENGTH_INDICATOR_NULL: u8 = 255;
 
 /// Enum for all supported database value types.
 #[allow(non_camel_case_types)]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub enum HdbValue {
     /// Internally used only. Is swapped in where a real value (any of the
     /// others) is swapped out.
@@ -635,7 +635,7 @@ impl fmt::Display for HdbValue {
     }
 }
 
-pub mod factory {
+pub(crate) mod factory {
     use super::HdbValue;
     use conn_core::AmConnCore;
     use protocol::util;
@@ -654,7 +654,7 @@ pub mod factory {
     use std::iter::repeat;
     use std::{u32, u64};
 
-    pub fn parse_from_reply(
+    pub(crate) fn parse_from_reply(
         p_typecode: u8,
         nullable: bool,
         am_conn_core: &AmConnCore,

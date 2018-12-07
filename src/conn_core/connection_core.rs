@@ -26,14 +26,14 @@ use std::io;
 use std::mem;
 use std::sync::{Arc, Mutex};
 
-pub type AmConnCore = Arc<Mutex<ConnectionCore>>;
+pub(crate) type AmConnCore = Arc<Mutex<ConnectionCore>>;
 
 pub const DEFAULT_FETCH_SIZE: u32 = 32;
 pub const DEFAULT_LOB_READ_LENGTH: i32 = 1_000_000;
 const HOLD_OVER_COMMIT: u8 = 8;
 
 #[derive(Debug)]
-pub struct ConnectionCore {
+pub(crate) struct ConnectionCore {
     authenticated: bool,
     session_id: i64,
     client_info: ClientInfo,

@@ -2,7 +2,7 @@
 
 mod c_resource_manager;
 
-pub use self::c_resource_manager::{new_resource_manager, HdbCResourceManager};
+pub(crate) use self::c_resource_manager::new_resource_manager;
 
 use dist_tx::rm::{ErrorCode, RmError};
 use std::error::Error;

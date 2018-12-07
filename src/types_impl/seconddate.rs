@@ -21,7 +21,7 @@ const JGREG: i64 = 2_299_161;
 ///
 /// The type is used internally to implement serialization to the wire.
 /// It is agnostic of timezones.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct SecondDate(i64);
 
 impl fmt::Display for SecondDate {

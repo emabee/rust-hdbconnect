@@ -57,7 +57,7 @@ impl fmt::Display for OutputParameters {
     }
 }
 
-pub mod factory {
+pub(crate) mod factory {
     use super::OutputParameters;
     use conn_core::AmConnCore;
     use protocol::parts::hdb_value::factory as HdbValueFactory;
@@ -69,14 +69,15 @@ pub mod factory {
 
     use std::io;
 
-    pub fn parse(
+    pub(crate) fn parse(
         o_am_conn_core: Option<&AmConnCore>,
         par_md: &[ParameterDescriptor],
         rdr: &mut io::BufRead,
     ) -> HdbResult<OutputParameters> {
         trace!("OutputParameters::parse()");
-        let am_conn_core = o_am_conn_core
-            .ok_or_else(|| HdbError::impl_("Cannot parse output parameters without am_conn_core"))?;
+        let am_conn_core = o_am_conn_core.ok_or_else(|| {
+            HdbError::impl_("Cannot parse output parameters without am_conn_core")
+        })?;
 
         let mut output_pars = OutputParameters {
             metadata: Vec::<ParameterDescriptor>::new(),

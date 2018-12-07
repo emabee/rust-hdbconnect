@@ -19,11 +19,11 @@ use HdbError;
 /// ../struct.Connection.html#method.get_resource_manager)).
 ///
 #[derive(Debug)]
-pub struct HdbCResourceManager {
+pub(crate) struct HdbCResourceManager {
     am_conn_core: AmConnCore,
 }
 
-pub fn new_resource_manager(am_conn_core: AmConnCore) -> CRmWrapper<HdbCResourceManager> {
+pub(crate) fn new_resource_manager(am_conn_core: AmConnCore) -> CRmWrapper<HdbCResourceManager> {
     CRmWrapper(HdbCResourceManager { am_conn_core })
 }
 

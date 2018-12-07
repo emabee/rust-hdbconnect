@@ -16,7 +16,7 @@ const JGREG: i32 = 2_299_161;
 ///
 /// The type is used internally to implement serialization to the wire.
 /// It is agnostic of timezones.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct DayDate(i32);
 
 impl fmt::Display for DayDate {

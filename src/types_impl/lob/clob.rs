@@ -13,10 +13,10 @@ use {HdbError, HdbResult};
 /// CLOB fields are supposed to only store ASCII7, but HANA doesn't check this.
 /// So the implementation is a mixture of BLOB implementation (the protocol counts bytes, not chars)
 /// and NCLOB implementation (the exposed data are chars, not bytes).
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct CLob(RefCell<CLobHandle>);
 
-pub fn new_clob_from_db(
+pub(crate) fn new_clob_from_db(
     am_conn_core: &AmConnCore,
     is_data_complete: bool,
     length_c: u64,
@@ -71,8 +71,9 @@ impl io::Read for CLob {
 // The data are often not transferred completely, so we carry internally
 // a database connection and the
 // necessary controls to support fetching remaining data on demand.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 struct CLobHandle {
+    #[serde(skip)]
     o_am_conn_core: Option<AmConnCore>,
     is_data_complete: bool,
     length_c: u64,
@@ -82,6 +83,7 @@ struct CLobHandle {
     utf8: String,
     max_size: usize,
     acc_byte_length: usize,
+    #[serde(skip)]
     server_resource_consumption_info: ServerResourceConsumptionInfo,
 }
 impl CLobHandle {

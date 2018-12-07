@@ -8,7 +8,7 @@ use {HdbError, HdbResult};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::io;
 
-pub fn parse_blob(am_conn_core: &AmConnCore, rdr: &mut io::BufRead) -> HdbResult<BLob> {
+pub(crate) fn parse_blob(am_conn_core: &AmConnCore, rdr: &mut io::BufRead) -> HdbResult<BLob> {
     match parse_nullable_blob(am_conn_core, rdr)? {
         Some(blob) => Ok(blob),
         None => Err(HdbError::Impl(
@@ -17,7 +17,7 @@ pub fn parse_blob(am_conn_core: &AmConnCore, rdr: &mut io::BufRead) -> HdbResult
     }
 }
 
-pub fn parse_nullable_blob(
+pub(crate) fn parse_nullable_blob(
     am_conn_core: &AmConnCore,
     rdr: &mut io::BufRead,
 ) -> HdbResult<Option<BLob>> {
@@ -36,7 +36,7 @@ pub fn parse_nullable_blob(
     }
 }
 
-pub fn parse_clob(am_conn_core: &AmConnCore, rdr: &mut io::BufRead) -> HdbResult<CLob> {
+pub(crate) fn parse_clob(am_conn_core: &AmConnCore, rdr: &mut io::BufRead) -> HdbResult<CLob> {
     match parse_nullable_clob(am_conn_core, rdr)? {
         Some(clob) => Ok(clob),
         None => Err(HdbError::Impl(
@@ -45,7 +45,7 @@ pub fn parse_clob(am_conn_core: &AmConnCore, rdr: &mut io::BufRead) -> HdbResult
     }
 }
 
-pub fn parse_nullable_clob(
+pub(crate) fn parse_nullable_clob(
     am_conn_core: &AmConnCore,
     rdr: &mut io::BufRead,
 ) -> HdbResult<Option<CLob>> {
@@ -65,7 +65,7 @@ pub fn parse_nullable_clob(
     }
 }
 
-pub fn parse_nclob(am_conn_core: &AmConnCore, rdr: &mut io::BufRead) -> HdbResult<NCLob> {
+pub(crate) fn parse_nclob(am_conn_core: &AmConnCore, rdr: &mut io::BufRead) -> HdbResult<NCLob> {
     match parse_nullable_nclob(am_conn_core, rdr)? {
         Some(nclob) => Ok(nclob),
         None => Err(HdbError::Impl(
@@ -74,7 +74,7 @@ pub fn parse_nclob(am_conn_core: &AmConnCore, rdr: &mut io::BufRead) -> HdbResul
     }
 }
 
-pub fn parse_nullable_nclob(
+pub(crate) fn parse_nullable_nclob(
     am_conn_core: &AmConnCore,
     rdr: &mut io::BufRead,
 ) -> HdbResult<Option<NCLob>> {

@@ -14,7 +14,7 @@ use std::{i16, i32, io};
 const PART_HEADER_SIZE: usize = 16;
 
 #[derive(Debug)]
-pub struct Part {
+pub(crate) struct Part {
     kind: PartKind,
     arg: Argument, // a.k.a. part data, or part buffer :-(
 }
@@ -113,7 +113,7 @@ fn parse_part_header(rdr: &mut io::BufRead) -> HdbResult<(PartKind, PartAttribut
 }
 
 #[derive(Debug, Default)]
-pub struct Parts(Vec<Part>);
+pub(crate) struct Parts(Vec<Part>);
 
 impl Parts {
     pub fn is_empty(&self) -> bool {

@@ -9,7 +9,7 @@ extern crate serde_json;
 
 mod test_utils;
 
-use hdbconnect::{Connection, HdbResult};
+use hdbconnect::{Connection, HdbResult, HdbValue, ParameterRow};
 
 #[test] // cargo test --test test_030_prepare -- --nocapture
 pub fn test_030_prepare() {
@@ -30,6 +30,7 @@ fn impl_test_030_prepare() -> HdbResult<i32> {
     let mut connection = test_utils::get_authenticated_connection()?;
 
     prepare_insert_statement(&mut connection)?;
+    prepare_statement_use_parameter_row(&mut connection)?;
 
     Ok(connection.get_call_count()?)
 }
@@ -108,5 +109,49 @@ fn prepare_insert_statement(connection: &mut Connection) -> HdbResult<()> {
         assert_eq!(false, s.contains("rollback"));
         assert_eq!(true, s.contains("comm") || s.contains("auto"));
     }
+    Ok(())
+}
+
+fn prepare_statement_use_parameter_row(connection: &mut Connection) -> HdbResult<()> {
+    info!("test statement preparation with direct use of parameter row");
+    connection.multiple_statements_ignore_err(vec!["drop table TEST_PREPARE"]);
+    let stmts = vec!["create table TEST_PREPARE (F1_S NVARCHAR(20), F2_I INT)"];
+    connection.multiple_statements(stmts)?;
+
+    let insert_stmt_str = "insert into TEST_PREPARE (F1_S, F2_I) values(?, ?)";
+
+    // prepare & execute with rust types
+    let mut insert_stmt = connection.prepare(insert_stmt_str)?;
+    insert_stmt.add_batch(&("conn1-auto1", 45_i32))?;
+    insert_stmt.add_batch(&("conn1-auto2", 46_i32))?;
+    insert_stmt.execute_batch()?;
+
+    let typed_result: i32 = connection
+        .query("select sum(F2_I) from TEST_PREPARE")?
+        .try_into()?;
+    assert_eq!(typed_result, 91);
+
+    // prepare & execute with rust types
+    let mut insert_stmt = connection.prepare(insert_stmt_str)?;
+    insert_stmt.add_batch(&ParameterRow::new(vec![
+        HdbValue::STRING("conn1-auto1".to_string()),
+        HdbValue::INT(1000_i32),
+    ]))?;
+    insert_stmt.add_batch(&ParameterRow::new(vec![
+        HdbValue::STRING("conn1-auto2".to_string()),
+        HdbValue::INT(2100_i32),
+    ]))?;
+    insert_stmt.add_batch(&ParameterRow::new(vec![
+        HdbValue::STRING("conn1-auto1".to_string()),
+        HdbValue::STRING("25".to_string()),
+    ]))?;
+    insert_stmt.execute_batch()?;
+    connection.commit()?;
+
+    let typed_result: i32 = connection
+        .query("select sum(F2_I) from TEST_PREPARE")?
+        .try_into()?;
+    assert_eq!(typed_result, 3216);
+
     Ok(())
 }

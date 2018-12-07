@@ -19,7 +19,7 @@ const HOUR_FACTOR: u32 = 3_600;
 /// Hours * 60*60 + Minutes * 60 + Seconds  + 1 < 86400.
 ///
 /// When reading, we treat 0 and 1 as "00:00:00".
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct SecondTime(u32);
 
 impl fmt::Display for SecondTime {

@@ -15,7 +15,7 @@ use protocol::request_type::RequestType;
 use secstr::SecStr;
 use username;
 
-pub fn first_auth_request(
+pub(crate) fn first_auth_request(
     am_conn_core: &mut AmConnCore,
     db_user: &str,
     authenticators: &[Box<dyn Authenticator>],
@@ -64,7 +64,7 @@ pub fn first_auth_request(
     }
 }
 
-pub fn second_auth_request(
+pub(crate) fn second_auth_request(
     am_conn_core: &mut AmConnCore,
     db_user: &str,
     password: &SecStr,

@@ -23,7 +23,7 @@ const SEGMENT_HEADER_SIZE: usize = 24; // same for in and out
 
 // Packets having the same sequence number belong to one request/response pair.
 #[derive(Debug)]
-pub struct Request {
+pub(crate) struct Request {
     pub request_type: RequestType,
     command_options: u8,
     parts: Parts,

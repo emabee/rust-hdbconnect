@@ -20,7 +20,7 @@ use std::io;
 use {HdbError, HdbResponse, HdbResult};
 
 #[derive(Debug)]
-pub struct Reply {
+pub(crate) struct Reply {
     session_id: i64,
     pub replytype: ReplyType,
     pub parts: Parts,
@@ -319,7 +319,7 @@ impl Drop for Reply {
 }
 
 ///
-pub fn parse_message_and_sequence_header(
+pub(crate) fn parse_message_and_sequence_header(
     rdr: &mut io::BufRead,
 ) -> HdbResult<(i16, Reply)> {
     // MESSAGE HEADER: 32 bytes

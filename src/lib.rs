@@ -16,12 +16,6 @@
 //! [code examples](code_examples/index.html)
 //! for an overview.
 //!
-//! ## Disclaimer
-//!
-//! This driver is functionally operable and working well and fast.
-//! However, its implementation still lacks some features:
-//! some date/time/timestamp datatypes are missing, SSL is not yet supported.
-//!
 
 // #![feature(bufreader_buffer)]
 #![warn(missing_docs)]
@@ -31,34 +25,32 @@ extern crate bigdecimal;
 extern crate byteorder;
 extern crate cesu8;
 extern crate chrono;
-
-extern crate sha2;
-extern crate pbkdf2;
-extern crate hmac;
-
-extern crate dist_tx;
 extern crate hex;
+extern crate hmac;
 extern crate num;
-
+extern crate pbkdf2;
+extern crate sha2;
 #[macro_use]
 extern crate log;
 
 extern crate r2d2;
 extern crate rand;
-
 extern crate secstr;
 
 extern crate serde;
-extern crate serde_db;
-extern crate url;
-extern crate username;
-extern crate vec_map;
+#[macro_use]
+extern crate serde_derive;
 
 #[cfg(feature = "tls")]
 extern crate rustls;
-
+extern crate url;
+extern crate username;
+extern crate vec_map;
 #[cfg(feature = "tls")]
 extern crate webpki;
+
+extern crate dist_tx;
+extern crate serde_db;
 
 mod authentication;
 mod conn_core;
@@ -91,11 +83,10 @@ pub use protocol::parts::resultset::ResultSet;
 pub use protocol::parts::row::Row;
 pub use protocol::parts::server_error::{ServerError, Severity};
 
-
-pub use protocol::parts::parameters::{ParameterRow, Parameters};
 pub use protocol::parts::parameter_descriptor::{
     ParameterBinding, ParameterDescriptor, ParameterDirection,
 };
+pub use protocol::parts::parameters::ParameterRow;
 pub use protocol::parts::resultset_metadata::ResultSetMetadata;
 
 /// Constants for the IDs of the data types being used by HANA.

@@ -36,7 +36,7 @@ use cesu8;
 use std::io;
 
 #[derive(Debug)]
-pub enum Argument {
+pub(crate) enum Argument {
     Auth(AuthFields),
     ClientContext(ClientContext),
     ClientInfo(ClientInfo),
@@ -108,9 +108,11 @@ impl Argument {
             Argument::CommandInfo(ref opts) => size += opts.size(),
             Argument::CommitOptions(ref opts) => size += opts.size(),
             Argument::ConnectOptions(ref conn_opts) => size += conn_opts.size(),
-            Argument::Error(ref vec) => for server_error in vec {
-                size += server_error.size();
-            },
+            Argument::Error(ref vec) => {
+                for server_error in vec {
+                    size += server_error.size();
+                }
+            }
             Argument::FetchOptions(ref opts) => size += opts.size(),
             Argument::FetchSize(_) => size += 4,
             Argument::LobFlags(ref opts) => size += opts.size(),
@@ -226,17 +228,19 @@ impl Argument {
                 }
                 Argument::Error(vec)
             }
-            PartKind::OutputParameters => if let Some(par_md) = o_par_md {
-                Argument::OutputParameters(OutputParametersFactory::parse(
-                    o_am_conn_core,
-                    par_md,
-                    rdr,
-                )?)
-            } else {
-                return Err(HdbError::Impl(
-                    "Parsing output parameters needs metadata".to_owned(),
-                ));
-            },
+            PartKind::OutputParameters => {
+                if let Some(par_md) = o_par_md {
+                    Argument::OutputParameters(OutputParametersFactory::parse(
+                        o_am_conn_core,
+                        par_md,
+                        rdr,
+                    )?)
+                } else {
+                    return Err(HdbError::Impl(
+                        "Parsing output parameters needs metadata".to_owned(),
+                    ));
+                }
+            }
             PartKind::ParameterMetadata => Argument::ParameterMetadata(
                 ParameterDescriptorFactory::parse(no_of_args, arg_size as u32, rdr)?,
             ),

@@ -12,7 +12,7 @@ use secstr::SecStr;
 // So far we only support two; if more are implemented, the password might
 // become optional; if then the password is not given, the pw-related
 // authenticators mut not be added to the list.
-pub fn authenticate(
+pub(crate) fn authenticate(
     am_conn_core: &mut AmConnCore,
     db_user: &str,
     password: &SecStr,

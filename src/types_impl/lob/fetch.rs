@@ -12,7 +12,7 @@ use std::cmp;
 use {HdbError, HdbResult};
 
 // Note that total_length and offset count either bytes (BLOB, CLOB), or 1-2-3-chars (NCLOB)
-pub fn fetch_a_lob_chunk(
+pub(crate) fn fetch_a_lob_chunk(
     o_am_conn_core: &mut Option<AmConnCore>,
     locator_id: u64,
     total_length: u64,

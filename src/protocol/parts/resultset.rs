@@ -349,7 +349,7 @@ pub mod factory {
     use std::sync::Arc;
     use {HdbError, HdbResult};
 
-    pub fn resultset_new(
+    pub(crate) fn resultset_new(
         am_conn_core: &AmConnCore,
         attrs: PartAttributes,
         rs_id: u64,
@@ -391,7 +391,7 @@ pub mod factory {
     // For first resultset packets, we create and return a new ResultSet object.
     // We then expect the previous three parts to be
     // a matching ResultSetMetadata, a ResultSetId, and a StatementContext.
-    pub fn parse(
+    pub(crate) fn parse(
         no_of_rows: i32,
         attributes: PartAttributes,
         parts: &mut Parts,

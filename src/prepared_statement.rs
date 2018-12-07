@@ -30,31 +30,14 @@ pub struct PreparedStatement {
 }
 
 impl PreparedStatement {
-    /// Descriptors of the parameters of the prepared statement, if any.
+    /// Descriptors of all parameters of the prepared statement (in, out, inout), if any.
     pub fn parameter_descriptors(&self) -> Option<&Vec<ParameterDescriptor>> {
         self.o_par_md.as_ref()
     }
 
-    /// Descriptors of the input parameters of the prepared statement, if any.
+    /// Descriptors of the input (in and inout) parameters of the prepared statement, if any.
     pub fn input_parameter_descriptors(&self) -> Option<&Vec<ParameterDescriptor>> {
         self.o_input_md.as_ref()
-    }
-
-    /// Adds a row of ParameterRow for the batch
-    pub fn add_row(&mut self, row: ParameterRow) -> HdbResult<()> {
-        trace!("PreparedStatement::add_row()");
-        match (&(self.o_input_md), &mut (self.o_batch)) {
-            (&Some(ref _metadata), &mut Some(ref mut vec)) => {
-                vec.push(row);
-                Ok(())
-            }
-            (_, _) => {
-                let s = "no metadata in add_row()";
-                Err(HdbError::Serialization(
-                    SerializationError::StructuralMismatch(s),
-                ))
-            }
-        }
     }
 
     /// Converts the input into a row of parameters for the batch,
@@ -129,7 +112,7 @@ impl Drop for PreparedStatement {
     }
 }
 
-pub mod factory {
+pub(crate) mod factory {
     use super::PreparedStatement;
     use conn_core::AmConnCore;
     use protocol::argument::Argument;
@@ -143,8 +126,11 @@ pub mod factory {
     use protocol::request_type::RequestType;
     use {HdbError, HdbResult};
 
-    /// Prepare a statement.
-    pub fn prepare(mut am_conn_core: AmConnCore, stmt: String) -> HdbResult<PreparedStatement> {
+    // Prepare a statement.
+    pub(crate) fn prepare(
+        mut am_conn_core: AmConnCore,
+        stmt: String,
+    ) -> HdbResult<PreparedStatement> {
         let command_options: u8 = 8;
         let mut request = Request::new(RequestType::Prepare, command_options);
         request.push(Part::new(PartKind::Command, Argument::Command(stmt)));
