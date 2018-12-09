@@ -701,7 +701,7 @@ pub(crate) mod factory {
             30 => Ok(HdbValue::NSTRING(parse_string(rdr)?)),
             33 => Ok(HdbValue::BSTRING(parse_binary(rdr)?)),
             // 47 => Ok(HdbValue::SMALLDECIMAL(
-            51 => Ok(HdbValue::TEXT(parse_string(rdr)?)),
+            51 => Ok(HdbValue::TEXT(parse_nclob(am_conn_core, rdr)?.into_string()?)),
             52 => Ok(HdbValue::SHORTTEXT(parse_string(rdr)?)),
             61 => Ok(HdbValue::LONGDATE(parse_longdate(rdr)?)),
             62 => Ok(HdbValue::SECONDDATE(parse_seconddate(rdr)?)),
@@ -750,7 +750,13 @@ pub(crate) mod factory {
             158 => Ok(HdbValue::N_NSTRING(parse_nullable_string(rdr)?)),
             161 => Ok(HdbValue::N_BSTRING(parse_nullable_binary(rdr)?)),
             // 175 => Ok(HdbValue::N_SMALLDECIMAL(
-            179 => Ok(HdbValue::N_TEXT(parse_nullable_string(rdr)?)),
+            179 => {
+                if let Some(el) = parse_nullable_nclob(am_conn_core,rdr)? {
+                    Ok(HdbValue::N_TEXT(Some(el.into_string()?)))
+                } else {
+                    Ok(HdbValue::N_TEXT(None))
+                }
+            },
             180 => Ok(HdbValue::N_SHORTTEXT(parse_nullable_string(rdr)?)),
             189 => Ok(HdbValue::N_LONGDATE(parse_nullable_longdate(rdr)?)),
             190 => Ok(HdbValue::N_SECONDDATE(parse_nullable_seconddate(rdr)?)),
