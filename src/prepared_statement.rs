@@ -106,6 +106,11 @@ impl PreparedStatement {
             SkipLastSpace::Soft,
         )
     }
+
+    // Prepare a statement.
+    pub(crate) fn try_new(am_conn_core: AmConnCore, stmt: String) -> HdbResult<PreparedStatement> {
+        factory::prepare(am_conn_core, stmt)
+    }
 }
 
 impl Drop for PreparedStatement {
@@ -126,7 +131,7 @@ impl Drop for PreparedStatement {
     }
 }
 
-pub(crate) mod factory {
+mod factory {
     use super::PreparedStatement;
     use conn_core::AmConnCore;
     use protocol::argument::Argument;

@@ -54,7 +54,7 @@ pub(crate) struct ConnectionCore {
 
 impl ConnectionCore {
     pub fn initialize(params: ConnectParams) -> HdbResult<AmConnCore> {
-        let mut buffalo = Buffalo::new(params)?;
+        let mut buffalo = Buffalo::try_new(params)?;
 
         initial_request::send_and_receive(&mut buffalo)?;
 
@@ -247,8 +247,7 @@ impl ConnectionCore {
         }
     }
 
-    #[allow(unknown_lints)]
-    #[allow(too_many_arguments)]
+    #[allow(clippy::too_many_arguments)]
     pub fn roundtrip(
         &mut self,
         request: Request,

@@ -87,11 +87,7 @@ pub use protocol::parts::parameter_descriptor::{
     ParameterBinding, ParameterDescriptor, ParameterDirection,
 };
 pub use protocol::parts::resultset_metadata::ResultSetMetadata;
-
-/// Constants for the IDs of the data types being used by HANA.
-pub mod type_id {
-    pub use protocol::parts::type_id::*;
-}
+pub use protocol::parts::type_id::{BaseTypeId, TypeId};
 
 mod types_impl;
 

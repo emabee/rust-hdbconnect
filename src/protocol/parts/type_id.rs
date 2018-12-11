@@ -1,155 +1,246 @@
-#[doc(hidden)]
-pub const NOTHING: u8 = 0; // is swapped in when a real value is swapped out
-/// HANA TINYINT
-pub const TINYINT: u8 = 1;
-/// SMALLINT
-pub const SMALLINT: u8 = 2;
-/// INT
-pub const INT: u8 = 3;
-/// BIGINT
-pub const BIGINT: u8 = 4;
-/// DECIMAL
-pub const DECIMAL: u8 = 5;
-/// REAL
-pub const REAL: u8 = 6;
-/// DOUBLE
-pub const DOUBLE: u8 = 7;
-/// CHAR
-pub const CHAR: u8 = 8;
-/// VARCHAR
-pub const VARCHAR: u8 = 9;
-/// NCHAR
-pub const NCHAR: u8 = 10;
-/// NVARCHAR
-pub const NVARCHAR: u8 = 11;
-/// BINARY
-pub const BINARY: u8 = 12;
-/// VARBINARY
-pub const VARBINARY: u8 = 13;
-// DATE: 14, TIME: 15, TIMESTAMP: 16 (all deprecated with protocol version 3)
-// 17 - 24: reserved, do not use
-/// CLOB
-pub const CLOB: u8 = 25;
-/// NCLOB
-pub const NCLOB: u8 = 26;
-/// BLOB
-pub const BLOB: u8 = 27;
-/// BOOLEAN
-pub const BOOLEAN: u8 = 28;
-/// STRING
-pub const STRING: u8 = 29;
-/// NSTRING
-pub const NSTRING: u8 = 30;
-// BLOCATOR: 31  FIXME not yet implemented
-// NLOCATOR: 32  FIXME not yet implemented
-/// BSTRING
-pub const BSTRING: u8 = 33;
-// 34 - 46: docu unclear, likely unused
-/// SMALLDECIMAL
-pub const SMALLDECIMAL: u8 = 47;
-// 48, 49: ABAP only?
-// ARRAY: 50  FIXME not yet implemented
-/// TEXT
-pub const TEXT: u8 = 51;
-/// SHORTTEXT
-pub const SHORTTEXT: u8 = 52;
-// 53, 54: Reserved, do not use
-// 55: ALPHANUM  FIXME not yet implemented
-// 56: Reserved, do not use
-// 57 - 60: not documented
-/// LONGDATE
-pub const LONGDATE: u8 = 61;
-/// SECONDDATE
-pub const SECONDDATE: u8 = 62;
-/// DAYDATE
-pub const DAYDATE: u8 = 63;
-/// SECONDTIME
-pub const SECONDTIME: u8 = 64;
-// 65 - 80: Reserved, do not use
+/// Combination of base type id and "nullability".
+#[derive(Clone, Debug)]
+pub struct TypeId {
+    base_type_id: BaseTypeId,
+    nullable: bool,
+}
+impl TypeId {
+    #[inline]
+    pub(crate) fn new(base_type_id: BaseTypeId, nullable: bool) -> TypeId {
+        TypeId {
+            base_type_id,
+            nullable,
+        }
+    }
 
-// TypeCode_CLOCATOR                  =70,  // FIXME
-// TypeCode_BLOB_DISK_RESERVED        =71,  // FIXME
-// TypeCode_CLOB_DISK_RESERVED        =72,  // FIXME
-// TypeCode_NCLOB_DISK_RESERVE        =73,  // FIXME
-// TypeCode_ST_GEOMETRY               =74,  // FIXME
-// TypeCode_ST_POINT                  =75,  // FIXME
-// TypeCode_FIXED16                   =76,  // FIXME
-// TypeCode_ABAP_ITAB                 =77,  // FIXME
-// TypeCode_RECORD_ROW_STORE         = 78,  // FIXME
-// TypeCode_RECORD_COLUMN_STORE      = 79,  // FIXME
-// TypeCode_FIXED8                   = 81,  // FIXME
-// TypeCode_FIXED12                  = 82,  // FIXME
-// TypeCode_CIPHERTEXT               = 90,  // FIXME
+    /// Returns the base type id.
+    pub fn base_type_id(&self) -> &BaseTypeId {
+        &self.base_type_id
+    }
 
-/// Nullable Variant of TINYINT
-pub const N_TINYINT: u8 = TINYINT + 128;
-/// Nullable Variant of SMALLINT
-pub const N_SMALLINT: u8 = SMALLINT + 128;
-/// Nullable Variant of INT
-pub const N_INT: u8 = INT + 128;
-/// Nullable Variant of BIGINT
-pub const N_BIGINT: u8 = BIGINT + 128;
-/// Nullable Variant of DECIMAL
-pub const N_DECIMAL: u8 = DECIMAL + 128;
-/// Nullable Variant of REAL
-pub const N_REAL: u8 = REAL + 128;
-/// Nullable Variant of DOUBLE
-pub const N_DOUBLE: u8 = DOUBLE + 128;
-/// Nullable Variant of CHAR
-pub const N_CHAR: u8 = CHAR + 128;
-/// Nullable Variant of VARCHAR
-pub const N_VARCHAR: u8 = VARCHAR + 128;
-/// Nullable Variant of NCHAR
-pub const N_NCHAR: u8 = NCHAR + 128;
-/// Nullable Variant of NVARCHAR
-pub const N_NVARCHAR: u8 = NVARCHAR + 128;
-/// Nullable Variant of BINARY
-pub const N_BINARY: u8 = BINARY + 128;
-/// Nullable Variant of VARBINARY
-pub const N_VARBINARY: u8 = VARBINARY + 128;
-// / Nullable Variant of TIMESTAMP
-// pub const N_TIMESTAMP: u8       = TIMESTAMP + 128;
-/// Nullable Variant of CLOB
-pub const N_CLOB: u8 = CLOB + 128;
-/// Nullable Variant of NCLOB
-pub const N_NCLOB: u8 = NCLOB + 128;
-/// Nullable Variant of BLOB
-pub const N_BLOB: u8 = BLOB + 128;
-/// Nullable Variant of BOOLEAN
-pub const N_BOOLEAN: u8 = BOOLEAN + 128;
-/// Nullable Variant of STRING
-pub const N_STRING: u8 = STRING + 128;
-/// Nullable Variant of NSTRING
-pub const N_NSTRING: u8 = NSTRING + 128;
-/// Nullable Variant of BSTRING
-pub const N_BSTRING: u8 = BSTRING + 128;
-/// Nullable Variant of SMALLDECIMAL
-pub const N_SMALLDECIMAL: u8 = SMALLDECIMAL + 128;
-/// Nullable Variant of TEXT
-pub const N_TEXT: u8 = TEXT + 128;
-/// Nullable Variant of SHORTTEXT
-pub const N_SHORTTEXT: u8 = SHORTTEXT + 128;
-/// Nullable Variant of LONGDATE
-pub const N_LONGDATE: u8 = LONGDATE + 128;
-/// Nullable Variant of SECONDDATE
-pub const N_SECONDDATE: u8 = SECONDDATE + 128;
-/// Nullable Variant of DAYDATE
-pub const N_DAYDATE: u8 = DAYDATE + 128;
-/// Nullable Variant of SECONDTIME
-pub const N_SECONDTIME: u8 = SECONDTIME + 128;
+    /// True if NULL values are allowed.
+    pub fn is_nullable(&self) -> bool {
+        self.nullable
+    }
 
-// 65 - 80: Reserved, do not use
+    /// Expose constituents.
+    pub(crate) fn as_tuple(&self) -> (&BaseTypeId, bool) {
+        (&self.base_type_id, self.nullable)
+    }
 
-// TypeCode_CLOCATOR                  =70 + 128,  // FIXME
-// TypeCode_BLOB_DISK_RESERVED        =71 + 128,  // FIXME
-// TypeCode_CLOB_DISK_RESERVED        =72 + 128,  // FIXME
-// TypeCode_NCLOB_DISK_RESERVE        =73 + 128,  // FIXME
-// TypeCode_ST_GEOMETRY               =74 + 128,  // FIXME
-// TypeCode_ST_POINT                  =75 + 128,  // FIXME
-// TypeCode_FIXED16                   =76 + 128,  // FIXME
-// TypeCode_ABAP_ITAB                 =77 + 128,  // FIXME
-// TypeCode_RECORD_ROW_STORE         = 78 + 128,  // FIXME
-// TypeCode_RECORD_COLUMN_STORE      = 79 + 128,  // FIXME
-// TypeCode_FIXED8                   = 81 + 128,  // FIXME
-// TypeCode_FIXED12                  = 82 + 128,  // FIXME
-// TypeCode_CIPHERTEXT               = 90 + 128,  // FIXME
+    //
+    #[allow(clippy::identity_op)]
+    pub(crate) fn type_code(&self) -> u8 {
+        // FIXME the leading "0_u8 + " is necessary due to a compiler bug
+        0_u8 + if self.nullable { 128 } else { 0 }
+            + self.base_type_id.type_code()
+    }
+}
+
+impl std::fmt::Display for TypeId {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            fmt,
+            "{}{}",
+            if self.nullable { "Nullable " } else { "" },
+            self.base_type_id
+        )?;
+        Ok(())
+    }
+}
+
+/// Value type of a database column.
+/// For details regarding the value types see [HdbValue](enum.HdbValue.html).
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum BaseTypeId {
+    #[doc(hidden)]
+    NOTHING,
+    /// See [HdbValue](enum.HdbValue.html).
+    TINYINT,
+    /// See [HdbValue](enum.HdbValue.html).
+    SMALLINT,
+    /// See [HdbValue](enum.HdbValue.html).
+    INT,
+    /// See [HdbValue](enum.HdbValue.html).
+    BIGINT,
+    /// See [HdbValue](enum.HdbValue.html).
+    DECIMAL,
+    /// See [HdbValue](enum.HdbValue.html).
+    REAL,
+    /// See [HdbValue](enum.HdbValue.html).
+    DOUBLE,
+    /// See [HdbValue](enum.HdbValue.html).
+    CHAR,
+    /// See [HdbValue](enum.HdbValue.html).
+    VARCHAR,
+    /// See [HdbValue](enum.HdbValue.html).
+    NCHAR,
+    /// See [HdbValue](enum.HdbValue.html).
+    NVARCHAR,
+    /// See [HdbValue](enum.HdbValue.html).
+    BINARY,
+    /// See [HdbValue](enum.HdbValue.html).
+    VARBINARY,
+    /// See [HdbValue](enum.HdbValue.html).
+    CLOB,
+    /// See [HdbValue](enum.HdbValue.html).
+    NCLOB,
+    /// See [HdbValue](enum.HdbValue.html).
+    BLOB,
+    /// See [HdbValue](enum.HdbValue.html).
+    BOOLEAN,
+    /// See [HdbValue](enum.HdbValue.html).
+    STRING,
+    /// See [HdbValue](enum.HdbValue.html).
+    NSTRING,
+    /// See [HdbValue](enum.HdbValue.html).
+    BSTRING,
+    /// See [HdbValue](enum.HdbValue.html).
+    SMALLDECIMAL,
+    /// See [HdbValue](enum.HdbValue.html).
+    TEXT,
+    /// See [HdbValue](enum.HdbValue.html).
+    SHORTTEXT,
+    /// See [HdbValue](enum.HdbValue.html).
+    LONGDATE,
+    /// See [HdbValue](enum.HdbValue.html).
+    SECONDDATE,
+    /// See [HdbValue](enum.HdbValue.html).
+    DAYDATE,
+    /// See [HdbValue](enum.HdbValue.html).
+    SECONDTIME,
+}
+impl From<u8> for BaseTypeId {
+    fn from(id: u8) -> BaseTypeId {
+        match id {
+            0 => BaseTypeId::NOTHING,
+            1 => BaseTypeId::TINYINT,
+            2 => BaseTypeId::SMALLINT,
+            3 => BaseTypeId::INT,
+            4 => BaseTypeId::BIGINT,
+            5 => BaseTypeId::DECIMAL,
+            6 => BaseTypeId::REAL,
+            7 => BaseTypeId::DOUBLE,
+            8 => BaseTypeId::CHAR,
+            9 => BaseTypeId::VARCHAR,
+            10 => BaseTypeId::NCHAR,
+            11 => BaseTypeId::NVARCHAR,
+            12 => BaseTypeId::BINARY,
+            13 => BaseTypeId::VARBINARY,
+            // DATE: 14, TIME: 15, TIMESTAMP: 16 (all deprecated with protocol version 3)
+            // 17 - 24: reserved, do not use
+            25 => BaseTypeId::CLOB,
+            26 => BaseTypeId::NCLOB,
+            27 => BaseTypeId::BLOB,
+            28 => BaseTypeId::BOOLEAN,
+            29 => BaseTypeId::STRING,
+            30 => BaseTypeId::NSTRING,
+            // BLOCATOR: 31  FIXME not yet implemented
+            // NLOCATOR: 32  FIXME not yet implemented
+            33 => BaseTypeId::BSTRING,
+            // 34 - 46: docu unclear, likely unused
+            47 => BaseTypeId::SMALLDECIMAL,
+            // 48, 49: ABAP only?
+            // ARRAY: 50  FIXME not yet implemented
+            51 => BaseTypeId::TEXT,
+            52 => BaseTypeId::SHORTTEXT,
+            // 53, 54: Reserved, do not use
+            // 55: ALPHANUM  FIXME not yet implemented
+            // 56: Reserved, do not use
+            // 57 - 60: not documented
+            61 => BaseTypeId::LONGDATE,
+            62 => BaseTypeId::SECONDDATE,
+            63 => BaseTypeId::DAYDATE,
+            64 => BaseTypeId::SECONDTIME,
+            // 65 - 80: Reserved, do not use
+
+            // TypeCode_CLOCATOR                  =70,  // FIXME
+            // TypeCode_BLOB_DISK_RESERVED        =71,  // FIXME
+            // TypeCode_CLOB_DISK_RESERVED        =72,  // FIXME
+            // TypeCode_NCLOB_DISK_RESERVE        =73,  // FIXME
+            // TypeCode_ST_GEOMETRY               =74,  // FIXME
+            // TypeCode_ST_POINT                  =75,  // FIXME
+            // TypeCode_FIXED16                   =76,  // FIXME
+            // TypeCode_ABAP_ITAB                 =77,  // FIXME
+            // TypeCode_RECORD_ROW_STORE         = 78,  // FIXME
+            // TypeCode_RECORD_COLUMN_STORE      = 79,  // FIXME
+            // TypeCode_FIXED8                   = 81,  // FIXME
+            // TypeCode_FIXED12                  = 82,  // FIXME
+            // TypeCode_CIPHERTEXT               = 90,  // FIXME
+            _ => panic!("Illegal BaseTypeId"),
+        }
+    }
+}
+impl BaseTypeId {
+    pub(crate) fn type_code(&self) -> u8 {
+        match &self {
+            BaseTypeId::NOTHING => 0,
+            BaseTypeId::TINYINT => 1,
+            BaseTypeId::SMALLINT => 2,
+            BaseTypeId::INT => 3,
+            BaseTypeId::BIGINT => 4,
+            BaseTypeId::DECIMAL => 5,
+            BaseTypeId::REAL => 6,
+            BaseTypeId::DOUBLE => 7,
+            BaseTypeId::CHAR => 8,
+            BaseTypeId::VARCHAR => 9,
+            BaseTypeId::NCHAR => 10,
+            BaseTypeId::NVARCHAR => 11,
+            BaseTypeId::BINARY => 12,
+            BaseTypeId::VARBINARY => 13,
+            BaseTypeId::CLOB => 25,
+            BaseTypeId::NCLOB => 26,
+            BaseTypeId::BLOB => 27,
+            BaseTypeId::BOOLEAN => 28,
+            BaseTypeId::STRING => 29,
+            BaseTypeId::NSTRING => 30,
+            BaseTypeId::BSTRING => 33,
+            BaseTypeId::SMALLDECIMAL => 47,
+            BaseTypeId::TEXT => 51,
+            BaseTypeId::SHORTTEXT => 52,
+            BaseTypeId::LONGDATE => 61,
+            BaseTypeId::SECONDDATE => 62,
+            BaseTypeId::DAYDATE => 63,
+            BaseTypeId::SECONDTIME => 64,
+        }
+    }
+}
+impl std::fmt::Display for BaseTypeId {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            fmt,
+            "{}",
+            match self {
+                BaseTypeId::NOTHING => "NOTHING",
+                BaseTypeId::TINYINT => "TINYINT",
+                BaseTypeId::SMALLINT => "SMALLINT",
+                BaseTypeId::INT => "INT",
+                BaseTypeId::BIGINT => "BIGINT",
+                BaseTypeId::DECIMAL => "DECIMAL",
+                BaseTypeId::REAL => "REAL",
+                BaseTypeId::DOUBLE => "DOUBLE",
+                BaseTypeId::CHAR => "CHAR",
+                BaseTypeId::VARCHAR => "VARCHAR",
+                BaseTypeId::NCHAR => "NCHAR",
+                BaseTypeId::NVARCHAR => "NVARCHAR",
+                BaseTypeId::BINARY => "BINARY",
+                BaseTypeId::VARBINARY => "VARBINARY",
+                BaseTypeId::CLOB => "CLOB",
+                BaseTypeId::NCLOB => "NCLOB",
+                BaseTypeId::BLOB => "BLOB",
+                BaseTypeId::BOOLEAN => "BOOLEAN",
+                BaseTypeId::STRING => "STRING",
+                BaseTypeId::NSTRING => "NSTRING",
+                BaseTypeId::BSTRING => "BSTRING",
+                BaseTypeId::SMALLDECIMAL => "SMALLDECIMAL",
+                BaseTypeId::TEXT => "TEXT",
+                BaseTypeId::SHORTTEXT => "SHORTTEXT",
+                BaseTypeId::LONGDATE => "LONGDATE",
+                BaseTypeId::SECONDDATE => "SECONDDATE",
+                BaseTypeId::DAYDATE => "DAYDATE",
+                BaseTypeId::SECONDTIME => "SECONDTIME",
+            }
+        )?;
+        Ok(())
+    }
+}

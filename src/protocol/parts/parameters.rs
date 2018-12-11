@@ -1,5 +1,3 @@
-use super::hdb_value::serialize as hdb_value_serialize;
-use super::hdb_value::size as hdb_value_size;
 use super::hdb_value::HdbValue;
 use protocol::util;
 use HdbResult;
@@ -12,24 +10,23 @@ pub(crate) struct ParameterRow(Vec<HdbValue>);
 
 impl ParameterRow {
     /// Constructor.
-    pub fn new(vtv: Vec<HdbValue>) -> ParameterRow {
-        ParameterRow(vtv)
+    pub fn new(vec: Vec<HdbValue>) -> ParameterRow {
+        ParameterRow(vec)
     }
 
     pub(crate) fn size(&self) -> HdbResult<usize> {
         let mut size = 0;
         for value in &(self.0) {
-            size += hdb_value_size(value)?;
+            size += value.size()?;
         }
         Ok(size)
     }
 
     pub(crate) fn serialize(&self, w: &mut io::Write) -> HdbResult<()> {
         let mut data_pos = 0_i32;
-        // serialize the values (LOBs only serialize their header, the data follow
-        // below)
+        // serialize the values (LOBs only serialize their header, the data follow below)
         for value in &(self.0) {
-            hdb_value_serialize(value, &mut data_pos, w)?;
+            value.serialize(&mut data_pos, w)?;
         }
 
         // serialize LOB data

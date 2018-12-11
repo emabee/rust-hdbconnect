@@ -1,10 +1,12 @@
 use conn_core::AmConnCore;
 use protocol::argument::Argument;
 use protocol::part::Part;
+use protocol::part::Parts;
 use protocol::part_attributes::PartAttributes;
 use protocol::partkind::PartKind;
 use protocol::parts::resultset_metadata::ResultSetMetadata;
 use protocol::parts::row::Row;
+use protocol::parts::statement_context::StatementContext;
 use protocol::reply::SkipLastSpace;
 use protocol::reply_type::ReplyType;
 use protocol::request::Request;
@@ -279,6 +281,36 @@ impl ResultSet {
         trace!("Resultset::try_into()");
         Ok(DeserializableResultset::into_typed(self)?)
     }
+
+    pub(crate) fn new(
+        am_conn_core: &AmConnCore,
+        attrs: PartAttributes,
+        rs_id: u64,
+        rsm: ResultSetMetadata,
+        o_stmt_ctx: Option<StatementContext>,
+    ) -> ResultSet {
+        factory::resultset_new(am_conn_core, attrs, rs_id, rsm, o_stmt_ctx)
+    }
+
+    pub(crate) fn parse(
+        no_of_rows: i32,
+        attributes: PartAttributes,
+        parts: &mut Parts,
+        am_conn_core: &AmConnCore,
+        rs_md: Option<&ResultSetMetadata>,
+        o_rs: &mut Option<&mut ResultSet>,
+        rdr: &mut std::io::BufRead,
+    ) -> HdbResult<Option<ResultSet>> {
+        factory::parse(
+            no_of_rows,
+            attributes,
+            parts,
+            am_conn_core,
+            rs_md,
+            o_rs,
+            rdr,
+        )
+    }
 }
 
 impl fmt::Display for ResultSet {
@@ -333,14 +365,13 @@ impl Iterator for RowIterator {
     }
 }
 
-pub mod factory {
+mod factory {
     use super::{ResultSet, ResultSetCore, Row};
     use conn_core::AmConnCore;
     use protocol::argument::Argument;
     use protocol::part::Parts;
     use protocol::part_attributes::PartAttributes;
     use protocol::partkind::PartKind;
-    use protocol::parts::hdb_value::factory as HdbValueFactory;
     use protocol::parts::hdb_value::HdbValue;
     use protocol::parts::resultset_metadata::ResultSetMetadata;
     use protocol::parts::statement_context::StatementContext;
@@ -483,26 +514,15 @@ pub mod factory {
                 let mut values = Vec::<HdbValue>::new();
                 trace!("Parsing row {}", r,);
                 for c in 0..no_of_cols {
-                    let typecode = resultset
+                    let type_id = resultset
                         .metadata
                         .type_id(c)
                         .map_err(|_| HdbError::impl_("Not enough metadata"))?;
-                    let nullable: bool = resultset
-                        .metadata
-                        .is_nullable(c)
-                        .map_err(|_| HdbError::impl_("Not enough metadata"))?;
-                    trace!(
-                        "Parsing row {}, column {}, typecode {}, nullable {}",
-                        r,
-                        c,
-                        typecode,
-                        nullable
-                    );
-                    let value =
-                        HdbValueFactory::parse_from_reply(typecode, nullable, am_conn_core, rdr)?;
+                    trace!("Parsing row {}, column {}, type_id {}", r, c, type_id,);
+                    let value = HdbValue::parse_from_reply(&type_id, am_conn_core, rdr)?;
                     debug!(
-                        "Parsed row {}, column {}, value {}, typecode {}, nullable {}",
-                        r, c, value, typecode, nullable,
+                        "Parsed row {}, column {}, value {}, type_id {}",
+                        r, c, value, type_id,
                     );
                     values.push(value);
                 }

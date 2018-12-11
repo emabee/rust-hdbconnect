@@ -1,27 +1,24 @@
-use conn_core::connect_params::ConnectParams;
-use protocol::parts::command_info::CommandInfo;
-use protocol::parts::server_error::ServerError;
-use protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
-use {HdbError, HdbResponse, HdbResult};
-
-use prepared_statement::factory as PreparedStatementFactory;
-use prepared_statement::PreparedStatement;
-
 use authentication;
+use conn_core::connect_params::ConnectParams;
 use conn_core::{AmConnCore, ConnectionCore};
+use prepared_statement::PreparedStatement;
 use protocol::argument::Argument;
 use protocol::part::Part;
 use protocol::partkind::PartKind;
+use protocol::parts::command_info::CommandInfo;
 use protocol::parts::resultset::ResultSet;
+use protocol::parts::server_error::ServerError;
 use protocol::reply::SkipLastSpace;
 use protocol::request::Request;
 use protocol::request_type::RequestType;
-use xa_impl::new_resource_manager;
+use protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
+use {HdbError, HdbResponse, HdbResult};
 
 use chrono::Local;
 use dist_tx::rm::ResourceManager;
 use std::error::Error;
 use std::sync::Arc;
+use xa_impl::new_resource_manager;
 
 /// Connection object.
 ///
@@ -41,10 +38,10 @@ pub struct Connection {
     params: ConnectParams,
     am_conn_core: AmConnCore,
 }
-#[allow(unknown_lints)]
-#[allow(unit_arg)]
+
 impl Connection {
     /// Factory method for authenticated connections.
+    #[allow(clippy::new_ret_no_self)]
     pub fn new(params: ConnectParams) -> HdbResult<Connection> {
         trace!("Entering connect()");
         let start = Local::now();
@@ -80,7 +77,8 @@ impl Connection {
 
     /// Sets the connection's auto-commit behavior for future calls.
     pub fn set_auto_commit(&mut self, ac: bool) -> HdbResult<()> {
-        Ok(self.am_conn_core.lock()?.set_auto_commit(ac))
+        self.am_conn_core.lock()?.set_auto_commit(ac);
+        Ok(())
     }
 
     /// Returns the connection's auto-commit behavior.
@@ -90,18 +88,17 @@ impl Connection {
 
     /// Configures the connection's fetch size for future calls.
     pub fn set_fetch_size(&mut self, fetch_size: u32) -> HdbResult<()> {
-        Ok(self.am_conn_core.lock()?.set_fetch_size(fetch_size))
+        self.am_conn_core.lock()?.set_fetch_size(fetch_size);
+        Ok(())
     }
     /// Configures the connection's lob read length for future calls.
     pub fn get_lob_read_length(&self) -> HdbResult<i32> {
         Ok(self.am_conn_core.lock()?.get_lob_read_length())
     }
     /// Configures the connection's lob read length for future calls.
-    pub fn set_lob_read_length(&mut self, lob_read_length: i32) -> HdbResult<()> {
-        Ok(self
-            .am_conn_core
-            .lock()?
-            .set_lob_read_length(lob_read_length))
+    pub fn set_lob_read_length(&mut self, l: i32) -> HdbResult<()> {
+        self.am_conn_core.lock()?.set_lob_read_length(l);
+        Ok(())
     }
 
     ///
@@ -188,7 +185,7 @@ impl Connection {
     ///
     /// Note that the handle keeps using the same connection.
     pub fn prepare(&self, stmt: &str) -> HdbResult<PreparedStatement> {
-        Ok(PreparedStatementFactory::prepare(
+        Ok(PreparedStatement::try_new(
             Arc::clone(&self.am_conn_core),
             String::from(stmt),
         )?)

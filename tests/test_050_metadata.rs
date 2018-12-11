@@ -8,7 +8,9 @@ extern crate serde_json;
 
 mod test_utils;
 
-use hdbconnect::{Connection, HdbResult, ParameterBinding, ParameterDirection, ResultSet, Row};
+use hdbconnect::{
+    BaseTypeId, Connection, HdbResult, ParameterBinding, ParameterDirection, ResultSet, Row,
+};
 
 #[test] // cargo test test_050_metadata -- --nocapture
 pub fn test_050_metadata() {
@@ -34,8 +36,7 @@ fn impl_test_050_metadata() -> HdbResult<i32> {
     Ok(connection.get_call_count()?)
 }
 
-#[allow(unknown_lints)]
-#[allow(cyclomatic_complexity)]
+#[allow(clippy::cyclomatic_complexity)]
 fn procedure(connection: &mut Connection) -> HdbResult<()> {
     info!("procedure(): run a sqlscript procedure with input parameters");
 
@@ -67,7 +68,7 @@ fn procedure(connection: &mut Connection) -> HdbResult<()> {
     debug!("op-md: {:?}", pd0);
     assert_eq!(pd0.binding(), ParameterBinding::Optional);
     assert_eq!(pd0.name().unwrap(), "INOUT_DECIMAL");
-    assert_eq!(pd0.type_id(), 5);
+    assert_eq!(pd0.type_id().base_type_id(), &BaseTypeId::DECIMAL);
     assert_eq!(pd0.scale(), 5);
     assert_eq!(pd0.precision(), 10);
     assert_eq!(pd0.direction(), ParameterDirection::INOUT);
@@ -75,7 +76,7 @@ fn procedure(connection: &mut Connection) -> HdbResult<()> {
     debug!("op-md: {:?}", pd1);
     assert_eq!(pd1.binding(), ParameterBinding::Optional);
     assert_eq!(pd1.name().unwrap(), "OUT_STRING");
-    assert_eq!(pd1.type_id(), 11);
+    assert_eq!(pd1.type_id().base_type_id(), &BaseTypeId::NVARCHAR);
     assert_eq!(pd1.scale(), 0);
     assert_eq!(pd1.precision(), 40);
     assert_eq!(pd1.direction(), ParameterDirection::OUT);

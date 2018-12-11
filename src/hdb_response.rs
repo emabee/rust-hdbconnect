@@ -2,6 +2,7 @@ use hdb_return_value::HdbReturnValue;
 use protocol::parts::output_parameters::OutputParameters;
 use protocol::parts::parameter_descriptor::ParameterDescriptor;
 use protocol::parts::resultset::ResultSet;
+use protocol::parts::rows_affected::RowsAffected;
 use std::fmt;
 use {HdbError, HdbResult};
 
@@ -178,39 +179,10 @@ impl HdbResponse {
         errmsg.push_str("]");
         HdbError::Evaluation(errmsg)
     }
-}
 
-impl fmt::Display for HdbResponse {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "HdbResponse [")?;
-        for dbretval in &self.return_values {
-            write!(fmt, "{}, ", dbretval)?;
-        }
-        for pm in &self.parameter_metadata {
-            write!(fmt, "{:?}, ", pm)?;
-        }
-        write!(fmt, "]")?;
-        Ok(())
-    }
-}
-
-pub(crate) mod factory {
-    use super::{HdbResponse, HdbReturnValue};
-    use protocol::parts::output_parameters::OutputParameters;
-    use protocol::parts::parameter_descriptor::ParameterDescriptor;
-    use protocol::parts::resultset::ResultSet;
-    use protocol::parts::rows_affected::RowsAffected;
-    use {HdbError, HdbResult};
-
-    #[derive(Debug)]
-    pub enum InternalReturnValue {
-        ResultSet(ResultSet),
-        AffectedRows(Vec<RowsAffected>),
-        OutputParameters(OutputParameters),
-        ParameterMetadata(Vec<ParameterDescriptor>),
-    }
-
-    pub fn resultset(mut int_return_values: Vec<InternalReturnValue>) -> HdbResult<HdbResponse> {
+    pub(crate) fn resultset(
+        mut int_return_values: Vec<InternalReturnValue>,
+    ) -> HdbResult<HdbResponse> {
         let mut rs_count = 0;
         let mut pm_count = 0;
         if int_return_values
@@ -225,7 +197,8 @@ pub(crate) mod factory {
                     false
                 }
                 _ => true,
-            }).count()
+            })
+            .count()
             > 0
         {
             return Err(HdbError::Impl(format!(
@@ -265,7 +238,7 @@ pub(crate) mod factory {
         })
     }
 
-    pub fn rows_affected(
+    pub(crate) fn rows_affected(
         mut int_return_values: Vec<InternalReturnValue>,
     ) -> HdbResult<HdbResponse> {
         if int_return_values.len() > 1 {
@@ -307,7 +280,9 @@ pub(crate) mod factory {
         }
     }
 
-    pub fn success(mut int_return_values: Vec<InternalReturnValue>) -> HdbResult<HdbResponse> {
+    pub(crate) fn success(
+        mut int_return_values: Vec<InternalReturnValue>,
+    ) -> HdbResult<HdbResponse> {
         if int_return_values.is_empty() {
             return Ok(HdbResponse {
                 return_values: vec![HdbReturnValue::Success],
@@ -329,18 +304,20 @@ pub(crate) mod factory {
                     ));
                 }
                 match vec_ra.pop().unwrap() {
-                    RowsAffected::Count(i) => if i > 0 {
-                        Err(HdbError::Impl(
-                            "found an affected-row-count > 0, but only a single Success was \
-                             expected"
-                                .to_owned(),
-                        ))
-                    } else {
-                        Ok(HdbResponse {
-                            return_values: vec![HdbReturnValue::Success],
-                            parameter_metadata: None,
-                        })
-                    },
+                    RowsAffected::Count(i) => {
+                        if i > 0 {
+                            Err(HdbError::Impl(
+                                "found an affected-row-count > 0, but only a single Success was \
+                                 expected"
+                                    .to_owned(),
+                            ))
+                        } else {
+                            Ok(HdbResponse {
+                                return_values: vec![HdbReturnValue::Success],
+                                parameter_metadata: None,
+                            })
+                        }
+                    }
                     RowsAffected::SuccessNoInfo => Ok(HdbResponse {
                         return_values: vec![HdbReturnValue::Success],
                         parameter_metadata: None,
@@ -365,7 +342,7 @@ pub(crate) mod factory {
         }
     }
 
-    pub fn multiple_return_values(
+    pub(crate) fn multiple_return_values(
         mut int_return_values: Vec<InternalReturnValue>,
     ) -> HdbResult<HdbResponse> {
         let mut vec_dbrv = Vec::<HdbReturnValue>::new();
@@ -404,4 +381,26 @@ pub(crate) mod factory {
             parameter_metadata: pardescs,
         })
     }
+}
+
+impl fmt::Display for HdbResponse {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "HdbResponse [")?;
+        for dbretval in &self.return_values {
+            write!(fmt, "{}, ", dbretval)?;
+        }
+        for pm in &self.parameter_metadata {
+            write!(fmt, "{:?}, ", pm)?;
+        }
+        write!(fmt, "]")?;
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+pub(crate) enum InternalReturnValue {
+    ResultSet(ResultSet),
+    AffectedRows(Vec<RowsAffected>),
+    OutputParameters(OutputParameters),
+    ParameterMetadata(Vec<ParameterDescriptor>),
 }

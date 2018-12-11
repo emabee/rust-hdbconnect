@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.0]  2018-12-11
+
+Change handling of type ids  (-> version bump).
+Fix parameter serialization.
+Fix some new clippies.
+
+Code maintenance: make all factory submodules private.
+
 ## [0.10.0]  2018-12-07
 
 Changes to PreparedStatement:

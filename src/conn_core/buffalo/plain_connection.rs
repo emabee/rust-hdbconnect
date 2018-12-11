@@ -12,7 +12,7 @@ pub struct PlainConnection {
 
 impl PlainConnection {
     /// Returns an initialized plain tcp connection
-    pub fn new(params: ConnectParams) -> io::Result<(PlainConnection)> {
+    pub fn try_new(params: ConnectParams) -> io::Result<(PlainConnection)> {
         let tcpstream = TcpStream::connect(params.addr())?;
         Ok(PlainConnection {
             params,

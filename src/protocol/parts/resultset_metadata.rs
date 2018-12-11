@@ -1,3 +1,4 @@
+use protocol::parts::type_id::{BaseTypeId, TypeId};
 use protocol::util;
 use {HdbError, HdbResult};
 
@@ -100,9 +101,8 @@ impl ResultSetMetadata {
         Ok(self.get(i)?.is_array_type())
     }
 
-    /// Returns the id of the value type. See module
-    /// `hdbconnect::metadata::type_id`.
-    pub fn type_id(&self, i: usize) -> HdbResult<u8> {
+    /// Returns the id of the value type.
+    pub fn type_id(&self, i: usize) -> HdbResult<&TypeId> {
         Ok(self.get(i)?.type_id())
     }
 
@@ -114,6 +114,71 @@ impl ResultSetMetadata {
     /// Precision (for some numeric types only).
     pub fn precision(&self, i: usize) -> HdbResult<i16> {
         Ok(self.get(i)?.precision())
+    }
+
+    pub(crate) fn parse(
+        count: i32,
+        arg_size: u32,
+        rdr: &mut io::BufRead,
+    ) -> HdbResult<ResultSetMetadata> {
+        let mut rsm = ResultSetMetadata {
+            fields: Vec::<FieldMetadata>::new(),
+            names: VecMap::<String>::new(),
+        };
+        trace!("Got count {}", count);
+        for _ in 0..count {
+            let column_options = rdr.read_u8()?; // U1 (documented as I1)
+            let type_id = rdr.read_u8()?; // I1
+            let scale = rdr.read_i16::<LittleEndian>()?; // I2
+            let precision = rdr.read_i16::<LittleEndian>()?; // I2
+            rdr.read_i16::<LittleEndian>()?; // I2
+            let tablename_idx = rdr.read_u32::<LittleEndian>()?; // I4
+            rsm.add_to_names(tablename_idx);
+            let schemaname_idx = rdr.read_u32::<LittleEndian>()?; // I4
+            rsm.add_to_names(schemaname_idx);
+            let columnname_idx = rdr.read_u32::<LittleEndian>()?; // I4
+            rsm.add_to_names(columnname_idx);
+            let displayname_idx = rdr.read_u32::<LittleEndian>()?; // I4
+            rsm.add_to_names(displayname_idx);
+
+            let nullable = (column_options & 0b_0000_0010_u8) != 0;
+            let base_type_id = BaseTypeId::from(type_id);
+            let fm = FieldMetadata {
+                column_options,
+                type_id: TypeId::new(base_type_id, nullable),
+                scale,
+                precision,
+                tablename_idx,
+                schemaname_idx,
+                columnname_idx,
+                displayname_idx,
+            };
+            rsm.fields.push(fm);
+        }
+        trace!("Read ResultSetMetadata phase 1: {:?}", rsm);
+        // now we read the names
+        let mut offset = 0;
+        let limit = arg_size - (count as u32) * 22;
+        trace!(
+            "arg_size = {}, count = {}, limit = {} ",
+            arg_size,
+            count,
+            limit
+        );
+        for _ in 0..rsm.names.len() {
+            if offset >= limit {
+                return Err(HdbError::Impl(
+                    "Error in reading ResultSetMetadata".to_owned(),
+                ));
+            }
+            let nl = rdr.read_u8()?; // UI1
+            let buffer: Vec<u8> = util::parse_bytes(nl as usize, rdr)?; // variable
+            let name = cesu8::from_cesu8(&buffer)?;
+            trace!("offset = {}, name = {}", offset, name);
+            rsm.names.insert(offset as usize, name.to_string());
+            offset += u32::from(nl) + 1;
+        }
+        Ok(rsm)
     }
 }
 
@@ -132,75 +197,12 @@ impl fmt::Display for ResultSetMetadata {
     }
 }
 
-pub fn parse(count: i32, arg_size: u32, rdr: &mut io::BufRead) -> HdbResult<ResultSetMetadata> {
-    let mut rsm = ResultSetMetadata {
-        fields: Vec::<FieldMetadata>::new(),
-        names: VecMap::<String>::new(),
-    };
-    trace!("Got count {}", count);
-    for _ in 0..count {
-        let column_options = rdr.read_u8()?; // U1 (documented as I1)
-        let type_id = rdr.read_u8()?; // I1
-        let scale = rdr.read_i16::<LittleEndian>()?; // I2
-        let precision = rdr.read_i16::<LittleEndian>()?; // I2
-        rdr.read_i16::<LittleEndian>()?; // I2
-        let tablename_idx = rdr.read_u32::<LittleEndian>()?; // I4
-        rsm.add_to_names(tablename_idx);
-        let schemaname_idx = rdr.read_u32::<LittleEndian>()?; // I4
-        rsm.add_to_names(schemaname_idx);
-        let columnname_idx = rdr.read_u32::<LittleEndian>()?; // I4
-        rsm.add_to_names(columnname_idx);
-        let displayname_idx = rdr.read_u32::<LittleEndian>()?; // I4
-        rsm.add_to_names(displayname_idx);
-
-        let fm = FieldMetadata {
-            column_options,
-            type_id,
-            scale,
-            precision,
-            tablename_idx,
-            schemaname_idx,
-            columnname_idx,
-            displayname_idx,
-        };
-        rsm.fields.push(fm);
-    }
-    trace!("Read ResultSetMetadata phase 1: {:?}", rsm);
-    // now we read the names
-    let mut offset = 0;
-    let limit = arg_size - (count as u32) * 22;
-    trace!(
-        "arg_size = {}, count = {}, limit = {} ",
-        arg_size,
-        count,
-        limit
-    );
-    for _ in 0..rsm.names.len() {
-        if offset >= limit {
-            return Err(HdbError::Impl(
-                "Error in reading ResultSetMetadata".to_owned(),
-            ));
-        }
-        let nl = rdr.read_u8()?; // UI1
-        let buffer: Vec<u8> = util::parse_bytes(nl as usize, rdr)?; // variable
-        let name = cesu8::from_cesu8(&buffer)?;
-        trace!("offset = {}, name = {}", offset, name);
-        rsm.names.insert(offset as usize, name.to_string());
-        offset += u32::from(nl) + 1;
-    }
-    Ok(rsm)
-}
-
 /// Describes a single field (column) in a result set.
 #[derive(Clone, Debug)]
 struct FieldMetadata {
-    // Database schema.
     schemaname_idx: u32,
-    // Database table.
     tablename_idx: u32,
-    // Name of the column.
     columnname_idx: u32,
-    // Display name of a column.
     displayname_idx: u32,
     // Column_options.
     // Bit pattern:
@@ -212,11 +214,10 @@ struct FieldMetadata {
     // 5 = Autoincrement
     // 6 = ArrayType
     column_options: u8,
-    // The id of the value type.
-    type_id: u8,
-    // scale length (for some numeric types only).
+    type_id: TypeId,
+    // scale (for some numeric types only)
     scale: i16,
-    // Precision (for some numeric types only).
+    // Precision (for some numeric types only)
     precision: i16,
 }
 impl FieldMetadata {
@@ -260,8 +261,8 @@ impl FieldMetadata {
     }
 
     /// The id of the value type.
-    pub fn type_id(&self) -> u8 {
-        self.type_id
+    pub fn type_id(&self) -> &TypeId {
+        &(self.type_id)
     }
     /// Scale (for some numeric types only).
     pub fn scale(&self) -> i16 {

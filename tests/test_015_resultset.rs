@@ -136,17 +136,17 @@ fn evaluate_resultset(
 }
 
 fn verify_row_ordering(
-    log_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut ReconfigurationHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
-    log_handle.parse_new_spec("info, test_015_resultset = info");
     info!("verify_row_ordering");
     // prepare the db table
     connection.multiple_statements_ignore_err(vec!["drop table TEST_ROW_ORDERING"]);
     connection.multiple_statements(vec![
         "create table TEST_ROW_ORDERING ( f1 INT primary key, f2 INT)",
     ])?;
-    let mut insert_stmt = connection.prepare("insert into TEST_ROW_ORDERING (f1, f2) values(?,?)")?;
+    let mut insert_stmt =
+        connection.prepare("insert into TEST_ROW_ORDERING (f1, f2) values(?,?)")?;
 
     for i in 0..3000 {
         insert_stmt.add_batch(&(i, i))?;

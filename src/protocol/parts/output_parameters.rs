@@ -1,3 +1,4 @@
+use conn_core::AmConnCore;
 use {HdbError, HdbResult};
 
 use protocol::parts::hdb_value::HdbValue;
@@ -33,6 +34,14 @@ impl OutputParameters {
             .get(i)
             .ok_or_else(|| HdbError::usage_("wrong index: no such parameter"))
     }
+
+    pub(crate) fn parse(
+        o_am_conn_core: Option<&AmConnCore>,
+        par_md: &[ParameterDescriptor],
+        rdr: &mut std::io::BufRead,
+    ) -> HdbResult<OutputParameters> {
+        factory::parse(o_am_conn_core, par_md, rdr)
+    }
 }
 
 impl fmt::Display for OutputParameters {
@@ -57,14 +66,11 @@ impl fmt::Display for OutputParameters {
     }
 }
 
-pub(crate) mod factory {
+mod factory {
     use super::OutputParameters;
     use conn_core::AmConnCore;
-    use protocol::parts::hdb_value::factory as HdbValueFactory;
     use protocol::parts::hdb_value::HdbValue;
-    use protocol::parts::parameter_descriptor::{
-        ParameterBinding, ParameterDescriptor, ParameterDirection,
-    };
+    use protocol::parts::parameter_descriptor::{ParameterDescriptor, ParameterDirection};
     use {HdbError, HdbResult};
 
     use std::io;
@@ -87,18 +93,9 @@ pub(crate) mod factory {
         for descriptor in par_md {
             match descriptor.direction() {
                 ParameterDirection::INOUT | ParameterDirection::OUT => {
-                    let typecode = descriptor.type_id();
-                    let nullable = match descriptor.binding() {
-                        ParameterBinding::Optional => true,
-                        _ => false,
-                    };
-                    trace!(
-                        "Parsing value with typecode {}, nullable {}",
-                        typecode,
-                        nullable
-                    );
+                    trace!("Parsing value with descriptor {}", descriptor);
                     let value =
-                        HdbValueFactory::parse_from_reply(typecode, nullable, am_conn_core, rdr)?;
+                        HdbValue::parse_from_reply(&descriptor.type_id(), am_conn_core, rdr)?;
                     trace!("Found value {:?}", value);
                     output_pars.metadata.push(descriptor.clone());
                     output_pars.values.push(value);

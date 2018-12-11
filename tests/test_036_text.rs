@@ -56,17 +56,15 @@ fn test_text(
     assert_eq!(test_text, ret_text.1);
 
 
-    // TODO Adding None does not work
-    // let mut insert_stmt =
-    // connection.prepare("insert into TEST_TEXT (chardata, chardata_nn) values (?,?)")?;
-   
-    // let none:Option<String> = None;
-    // insert_stmt.add_batch(&(none, test_text))?;
-    // insert_stmt.execute_batch()?;
-    // let resultset = connection.query("select chardata, chardata_nn FROM TEST_TEXT WHERE chardata IS NULL")?;
-    // let ret_text:(Option<String>,String) = resultset.try_into()?;
-    // assert_eq!(None, ret_text.0);
-    // assert_eq!(test_text, ret_text.1);
+    // Also test NULL values
+    let none:Option<&str> = None;
+    insert_stmt.add_batch(&(none, test_text))?;
+    insert_stmt.execute_batch()?;
+    let ret_text:(Option<String>,String) = connection
+        .query("select chardata, chardata_nn FROM TEST_TEXT WHERE chardata IS NULL")?
+        .try_into()?;
+    assert_eq!(None, ret_text.0);
+    assert_eq!(test_text, ret_text.1);
 
     Ok(())
 }

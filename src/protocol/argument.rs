@@ -4,16 +4,13 @@ use super::partkind::PartKind;
 use super::parts::authfields::AuthFields;
 use super::parts::client_info::ClientInfo;
 use super::parts::connect_options::ConnectOptions;
-use super::parts::output_parameters::factory as OutputParametersFactory;
 use super::parts::output_parameters::OutputParameters;
-use super::parts::parameter_descriptor::factory as ParameterDescriptorFactory;
 use super::parts::parameter_descriptor::ParameterDescriptor;
 use super::parts::parameters::Parameters;
 use super::parts::partiton_information::PartitionInformation;
 use super::parts::read_lob_reply::ReadLobReply;
-use super::parts::resultset::factory as ResultSetFactory;
 use super::parts::resultset::ResultSet;
-use super::parts::resultset_metadata::{self, ResultSetMetadata};
+use super::parts::resultset_metadata::ResultSetMetadata;
 use super::parts::rows_affected::RowsAffected;
 use super::parts::server_error::ServerError;
 use super::parts::statement_context::StatementContext;
@@ -194,8 +191,7 @@ impl Argument {
         Ok(remaining_bufsize - size as u32 - padsize as u32)
     }
 
-    #[allow(unknown_lints)]
-    #[allow(too_many_arguments)]
+    #[allow(clippy::too_many_arguments)]
     pub fn parse(
         kind: PartKind,
         attributes: PartAttributes,
@@ -230,7 +226,7 @@ impl Argument {
             }
             PartKind::OutputParameters => {
                 if let Some(par_md) = o_par_md {
-                    Argument::OutputParameters(OutputParametersFactory::parse(
+                    Argument::OutputParameters(OutputParameters::parse(
                         o_am_conn_core,
                         par_md,
                         rdr,
@@ -241,12 +237,14 @@ impl Argument {
                     ));
                 }
             }
-            PartKind::ParameterMetadata => Argument::ParameterMetadata(
-                ParameterDescriptorFactory::parse(no_of_args, arg_size as u32, rdr)?,
-            ),
+            PartKind::ParameterMetadata => Argument::ParameterMetadata(ParameterDescriptor::parse(
+                no_of_args,
+                arg_size as u32,
+                rdr,
+            )?),
             PartKind::ReadLobReply => Argument::ReadLobReply(ReadLobReply::parse(rdr)?),
             PartKind::ResultSet => {
-                let rs = ResultSetFactory::parse(
+                let rs = ResultSet::parse(
                     no_of_args,
                     attributes,
                     parts,
@@ -259,7 +257,7 @@ impl Argument {
                 Argument::ResultSet(rs)
             }
             PartKind::ResultSetId => Argument::ResultSetId(rdr.read_u64::<LittleEndian>()?),
-            PartKind::ResultSetMetadata => Argument::ResultSetMetadata(resultset_metadata::parse(
+            PartKind::ResultSetMetadata => Argument::ResultSetMetadata(ResultSetMetadata::parse(
                 no_of_args,
                 arg_size as u32,
                 rdr,

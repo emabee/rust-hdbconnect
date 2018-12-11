@@ -15,7 +15,7 @@ impl fmt::Debug for TlsConnection {
     }
 }
 impl TlsConnection {
-    pub fn new(params: ConnectParams) -> io::Result<(TlsConnection)> {
+    pub fn try_new(params: ConnectParams) -> io::Result<(TlsConnection)> {
         let tlsstream = TlsStream::new(&params)?;
         Ok(TlsConnection {
             params,

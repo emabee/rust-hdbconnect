@@ -1,19 +1,16 @@
-use {HdbError, HdbResult};
+use hdb_error::HdbResult;
+use protocol::parts::type_id::TypeId;
 
 /// Metadata for a parameter.
 #[derive(Clone, Debug)]
 pub struct ParameterDescriptor {
     // bit 0: mandatory; 1: optional, 2: has_default
     parameter_option: u8,
-    // type_id
-    type_id: u8,
-    // Scale of the parameter
+    type_id: TypeId,
     scale: u16,
-    // Precision of the parameter
     precision: u16,
-    // whether the parameter is input or output
+    // whether the parameter is input and/or output
     direction: ParameterDirection,
-    // Name
     name: Option<String>,
 }
 impl ParameterDescriptor {
@@ -26,7 +23,7 @@ impl ParameterDescriptor {
             ParameterBinding::Optional
         } else {
             // we do not check the third bit here,
-            // we rely on HANA sending exactly one of the first three bits as 1
+            // we rely on HANA sending always exactly one of the first three bits as 1
             ParameterBinding::HasDefault
         }
     }
@@ -56,11 +53,11 @@ impl ParameterDescriptor {
         (self.parameter_option & 0b_0100_0000_u8) != 0
     }
 
-    /// Returns the id of the value type of the parameter.
-    /// See also module [`type_id`](type_id/index.html).
-    pub fn type_id(&self) -> u8 {
-        self.type_id
+    /// Returns the type id of the parameter.
+    pub fn type_id(&self) -> &TypeId {
+        &(self.type_id)
     }
+
     /// Scale (for some numeric types only).
     pub fn scale(&self) -> u16 {
         self.scale
@@ -78,27 +75,32 @@ impl ParameterDescriptor {
     pub fn name(&self) -> Option<&String> {
         self.name.as_ref()
     }
-}
 
-pub fn parameter_descriptor_new(
-    parameter_option: u8,
-    type_id: u8,
-    direction: ParameterDirection,
-    precision: u16,
-    scale: u16,
-) -> ParameterDescriptor {
-    ParameterDescriptor {
-        parameter_option,
-        type_id,
-        direction,
-        precision,
-        scale,
-        name: None,
+    pub(crate) fn parse(
+        count: i32,
+        arg_size: u32,
+        rdr: &mut std::io::BufRead,
+    ) -> HdbResult<Vec<ParameterDescriptor>> {
+        factory::parse(count, arg_size, rdr)
     }
 }
 
-pub fn parameter_descriptor_set_name(pd: &mut ParameterDescriptor, name: String) {
-    pd.name = Some(name);
+impl std::fmt::Display for ParameterDescriptor {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        if let Some(ref s) = self.name {
+            write!(fmt, "{} ", s,)?;
+        }
+        write!(
+            fmt,
+            "{} {:?} {:?},  Scale({}), Precision({})",
+            self.type_id,
+            self.binding(),
+            self.direction(),
+            self.precision(),
+            self.scale()
+        )?;
+        Ok(())
+    }
 }
 
 /// Describes whether a parameter is Nullable or not or if it has a default
@@ -123,32 +125,16 @@ pub enum ParameterDirection {
     /// output parameter
     OUT,
 }
-pub fn parameter_direction_from_u8(v: u8) -> HdbResult<ParameterDirection> {
-    // it's done with three bits where always exactly one is 1 and the others are 0;
-    // the other bits are not used,
-    // so we can avoid bit handling and do it the simple way
-    match v {
-        1 => Ok(ParameterDirection::IN),
-        2 => Ok(ParameterDirection::INOUT),
-        4 => Ok(ParameterDirection::OUT),
-        _ => Err(HdbError::impl_(&format!(
-            "invalid value for ParameterDirection: {}",
-            v
-        ))),
-    }
-}
 
-pub mod factory {
-    use super::{
-        parameter_descriptor_new, parameter_descriptor_set_name, parameter_direction_from_u8,
-        ParameterDescriptor,
-    };
+mod factory {
+    use super::{ParameterDescriptor, ParameterDirection};
     use byteorder::{LittleEndian, ReadBytesExt};
     use cesu8;
+    use protocol::parts::type_id::TypeId;
     use protocol::util;
     use std::io;
     use std::u32;
-    use HdbResult;
+    use {HdbError, HdbResult};
 
     pub fn parse(
         count: i32,
@@ -187,4 +173,44 @@ pub mod factory {
         }
         Ok(vec_pd)
     }
+
+    fn parameter_descriptor_new(
+        parameter_option: u8,
+        type_code: u8,
+        direction: ParameterDirection,
+        precision: u16,
+        scale: u16,
+    ) -> ParameterDescriptor {
+        let nullable = (parameter_option & 0b_0000_0010_u8) != 0;
+        let type_id = TypeId::new(From::from(type_code), nullable);
+
+        ParameterDescriptor {
+            parameter_option,
+            type_id,
+            direction,
+            precision,
+            scale,
+            name: None,
+        }
+    }
+
+    fn parameter_descriptor_set_name(pd: &mut ParameterDescriptor, name: String) {
+        pd.name = Some(name);
+    }
+
+    fn parameter_direction_from_u8(v: u8) -> HdbResult<ParameterDirection> {
+        // it's done with three bits where always exactly one is 1 and the others are 0;
+        // the other bits are not used,
+        // so we can avoid bit handling and do it the simple way
+        match v {
+            1 => Ok(ParameterDirection::IN),
+            2 => Ok(ParameterDirection::INOUT),
+            4 => Ok(ParameterDirection::OUT),
+            _ => Err(HdbError::impl_(&format!(
+                "invalid value for ParameterDirection: {}",
+                v
+            ))),
+        }
+    }
+
 }

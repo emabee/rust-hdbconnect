@@ -9,7 +9,7 @@ extern crate serde_json;
 mod test_utils;
 
 use hdbconnect::{
-    type_id, Connection, HdbResult, ParameterBinding, ParameterDirection, ResultSet, Row,
+    BaseTypeId, Connection, HdbResult, ParameterBinding, ParameterDirection, ResultSet, Row
 };
 
 #[test] // cargo test test_040_procedures -- --nocapture
@@ -186,7 +186,7 @@ fn procedure_with_in_and_out_parameters(connection: &mut Connection) -> HdbResul
     {
         let par_desc = op.parameter_descriptor(0)?;
         assert_eq!(par_desc.binding(), ParameterBinding::Optional);
-        assert_eq!(par_desc.type_id(), type_id::NVARCHAR);
+        assert_eq!(par_desc.type_id().base_type_id(), &BaseTypeId::NVARCHAR);
         assert_eq!(par_desc.direction(), ParameterDirection::OUT);
         assert_eq!(par_desc.name(), Some(&"SOME_STRING".to_string()));
     }

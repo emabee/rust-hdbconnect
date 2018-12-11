@@ -7,15 +7,13 @@ use super::part::{Part, Parts};
 use super::part_attributes::PartAttributes;
 use super::partkind::PartKind;
 use super::parts::parameter_descriptor::ParameterDescriptor;
-use super::parts::resultset::factory as ResultSetFactory;
 use super::parts::resultset::ResultSet;
 use super::parts::resultset_metadata::ResultSetMetadata;
 use super::parts::server_error::{ServerError, Severity};
 use super::reply_type::ReplyType;
 use super::util;
 use byteorder::{LittleEndian, ReadBytesExt};
-use hdb_response::factory as HdbResponseFactory;
-use hdb_response::factory::InternalReturnValue;
+use hdb_response::InternalReturnValue;
 use std::io;
 use {HdbError, HdbResponse, HdbResult};
 
@@ -44,8 +42,7 @@ impl Reply {
     //    prepared statements
     // * `ResultSet` needs to be injected (and is extended and returned)
     //    in case of fetch requests
-    #[allow(unknown_lints)]
-    #[allow(let_and_return)]
+    #[allow(clippy::let_and_return)]
     pub fn parse(
         o_rs_md: Option<&ResultSetMetadata>,
         o_par_md: Option<&Vec<ParameterDescriptor>>,
@@ -223,7 +220,7 @@ impl Reply {
                 Argument::ResultSetMetadata(rsm) => match self.parts.pop() {
                     Some(part) => match *part.arg() {
                         Argument::ResultSetId(rs_id) => {
-                            let rs = ResultSetFactory::resultset_new(
+                            let rs = ResultSet::new(
                                 am_conn_core,
                                 PartAttributes::new(0b_0000_0100),
                                 rs_id,
@@ -258,22 +255,22 @@ impl Reply {
         );
         match self.replytype {
             ReplyType::Select |
-            ReplyType::SelectForUpdate => HdbResponseFactory::resultset(int_return_values),
+            ReplyType::SelectForUpdate => HdbResponse::resultset(int_return_values),
 
             
             ReplyType::Ddl |
             ReplyType::Commit |
-            ReplyType::Rollback => HdbResponseFactory::success(int_return_values),
+            ReplyType::Rollback => HdbResponse::success(int_return_values),
 
             ReplyType::Nil | 
             ReplyType::Explain |
             ReplyType::Insert |
             ReplyType::Update |
-            ReplyType::Delete => HdbResponseFactory::rows_affected(int_return_values),
+            ReplyType::Delete => HdbResponse::rows_affected(int_return_values),
 
             ReplyType::DbProcedureCall |
             ReplyType::DbProcedureCallWithResult =>
-                HdbResponseFactory::multiple_return_values(int_return_values),
+                HdbResponse::multiple_return_values(int_return_values),
 
             
             // ReplyTypes that are handled elsewhere and that should not go through this method:
