@@ -13,6 +13,7 @@ extern crate sha2;
 
 mod test_utils;
 
+use serde_bytes::{Bytes};
 use flexi_logger::ReconfigurationHandle;
 use hdbconnect::types::NCLob;
 use hdbconnect::{Connection, HdbResult};
@@ -30,6 +31,7 @@ pub fn test_034_nclobs() -> HdbResult<()> {
     let mut connection = test_utils::get_authenticated_connection()?;
 
     test_nclobs(&mut connection, &mut loghandle)?;
+    test_bytes_to_nclobs(&mut connection, &mut loghandle)?;
 
     info!("{} calls to DB were executed", connection.get_call_count()?);
     Ok(())
@@ -138,6 +140,41 @@ fn test_nclobs(
     debug!("nclob.max_size(): {}", nclob.max_size());
     // set_lob_read_length deals now in chars (1, 2, or 3 bytes), max_size() in bytes
     assert!(nclob.max_size() < 605_000);
+
+    Ok(())
+}
+
+fn test_bytes_to_nclobs(
+    connection: &mut Connection,
+    _logger_handle: &mut ReconfigurationHandle,
+) -> HdbResult<()> {
+    info!("create a NCLOB from bytes in the database, and read it in back to a String");
+
+    connection.multiple_statements_ignore_err(vec!["drop table TEST_NCLOBS_BYTES"]);
+    let stmts = vec!["create table TEST_NCLOBS_BYTES (chardata NCLOB,chardata_nn NCLOB NOT NULL)"];
+    connection.multiple_statements(stmts)?;
+
+    let test_string = "testピパぽ".to_string();
+    let test_string_bytes = Bytes::new(test_string.as_bytes()); // TODO: serialization should also work without Bytes wrapper
+
+    let mut insert_stmt =
+        connection.prepare("insert into TEST_NCLOBS_BYTES (chardata, chardata_nn) values (?,?)")?;
+    insert_stmt.add_batch(&(test_string_bytes, test_string_bytes))?;
+
+    let res = insert_stmt.add_batch(&(Bytes::new(&[255,255]), Bytes::new(&[255,255]))); // malformed utf-8
+    assert_eq!(res.is_err(), true);
+    insert_stmt.execute_batch()?;
+
+    debug!("and read it back");
+    let query = "select chardata, chardata from TEST_NCLOBS_BYTES";
+    let resultset = connection.query(query)?;
+    debug!("and convert it into a rust string");
+
+    let mydata: (String, String) = resultset.try_into()?;
+
+    // verify we get in both cases the same blabla back
+    assert_eq!(mydata.0, test_string);
+    assert_eq!(mydata.1, test_string);
 
     Ok(())
 }
