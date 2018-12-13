@@ -53,6 +53,7 @@ extern crate dist_tx;
 extern crate serde_db;
 
 mod authentication;
+mod into_string;
 mod conn_core;
 mod connection;
 mod connection_manager;
