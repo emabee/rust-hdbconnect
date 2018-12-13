@@ -13,6 +13,7 @@ use crate::protocol::request::Request;
 use crate::protocol::request_type::RequestType;
 use crate::protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
 use crate::{HdbError, HdbResponse, HdbResult};
+use crate::into_string::IntoString;
 
 use chrono::Local;
 use dist_tx::rm::ResourceManager;
@@ -156,17 +157,17 @@ impl Connection {
     /// In many cases it will be more appropriate to use
     /// one of the methods query(), dml(), exec(), which have the
     /// adequate simple result type you usually want.
-    pub fn statement(&mut self, stmt: &str) -> HdbResult<HdbResponse> {
-        execute(&mut self.am_conn_core, String::from(stmt), None)
+    pub fn statement<I: IntoString>(&mut self, stmt: I) -> HdbResult<HdbResponse> {
+        execute(&mut self.am_conn_core, stmt.into(), None)
     }
 
     /// Executes a statement and expects a single ResultSet.
-    pub fn query(&mut self, stmt: &str) -> HdbResult<ResultSet> {
+    pub fn query<I: IntoString>(&mut self, stmt: I) -> HdbResult<ResultSet> {
         self.statement(stmt)?.into_resultset()
     }
 
     /// Executes a statement and expects a single number of affected rows.
-    pub fn dml(&mut self, stmt: &str) -> HdbResult<usize> {
+    pub fn dml<I: IntoString>(&mut self, stmt: I) -> HdbResult<usize> {
         let vec = &(self.statement(stmt)?.into_affected_rows()?);
         match vec.len() {
             1 => Ok(vec[0]),
@@ -177,7 +178,7 @@ impl Connection {
     }
 
     /// Executes a statement and expects a plain success.
-    pub fn exec(&mut self, stmt: &str) -> HdbResult<()> {
+    pub fn exec<I: IntoString>(&mut self, stmt: I) -> HdbResult<()> {
         self.statement(stmt)?.into_success()
     }
 
@@ -216,10 +217,10 @@ impl Connection {
 
     /// Utility method to fire a couple of statements, ignoring errors and
     /// return values
-    pub fn multiple_statements_ignore_err<S: AsRef<str>>(&mut self, stmts: Vec<S>) {
+    pub fn multiple_statements_ignore_err<S: IntoString + AsRef<str>>(&mut self, stmts: Vec<S>) {
         for s in stmts {
             trace!("multiple_statements_ignore_err: firing \"{}\"", s.as_ref());
-            let result = self.statement(s.as_ref());
+            let result = self.statement(s);
             match result {
                 Ok(_) => {}
                 Err(e) => debug!("Error intentionally ignored: {}", e.description()),
@@ -229,9 +230,9 @@ impl Connection {
 
     /// Utility method to fire a couple of statements, ignoring their return
     /// values; the method returns with the first error, or with  ()
-    pub fn multiple_statements<S: AsRef<str>>(&mut self, stmts: Vec<S>) -> HdbResult<()> {
+    pub fn multiple_statements<S: IntoString>(&mut self, stmts: Vec<S>) -> HdbResult<()> {
         for s in stmts {
-            self.statement(s.as_ref())?;
+            self.statement(s)?;
         }
         Ok(())
     }

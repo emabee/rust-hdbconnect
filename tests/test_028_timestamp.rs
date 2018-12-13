@@ -126,7 +126,7 @@ fn test_longdate(_loghandle: &mut ReconfigurationHandle) -> HdbResult<i32> {
         info!("test null values");
         let q = "insert into TEST_TIMESTAMP (number) values(2350)";
 
-        let rows_affected = connection.dml(&q)?;
+        let rows_affected = connection.dml(q)?;
         trace!("rows_affected = {}", rows_affected);
         assert_eq!(rows_affected, 1);
 
