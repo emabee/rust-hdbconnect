@@ -1,17 +1,17 @@
 use super::authenticator::Authenticator;
 
-use conn_core::AmConnCore;
-use hdb_error::{HdbError, HdbResult};
-use protocol::argument::Argument;
-use protocol::part::Part;
-use protocol::partkind::PartKind;
-use protocol::parts::authfields::AuthFields;
-use protocol::parts::client_context::ClientContext;
-use protocol::parts::connect_options::ConnectOptions;
-use protocol::reply::SkipLastSpace;
-use protocol::reply_type::ReplyType;
-use protocol::request::Request;
-use protocol::request_type::RequestType;
+use crate::conn_core::AmConnCore;
+use crate::hdb_error::{HdbError, HdbResult};
+use crate::protocol::argument::Argument;
+use crate::protocol::part::Part;
+use crate::protocol::partkind::PartKind;
+use crate::protocol::parts::authfields::AuthFields;
+use crate::protocol::parts::client_context::ClientContext;
+use crate::protocol::parts::connect_options::ConnectOptions;
+use crate::protocol::reply::SkipLastSpace;
+use crate::protocol::reply_type::ReplyType;
+use crate::protocol::request::Request;
+use crate::protocol::request_type::RequestType;
 use secstr::SecStr;
 use username;
 

@@ -1,7 +1,7 @@
 use cesu8::Cesu8DecodingError;
-use conn_core::ConnectionCore;
-use protocol::parts::resultset::ResultSetCore;
-use protocol::parts::server_error::ServerError;
+use crate::conn_core::ConnectionCore;
+use crate::protocol::parts::resultset::ResultSetCore;
+use crate::protocol::parts::server_error::ServerError;
 use serde_db::de::{ConversionError, DeserializationError};
 use serde_db::ser::SerializationError;
 

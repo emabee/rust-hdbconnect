@@ -1,16 +1,16 @@
 use bigdecimal::ParseBigDecimalError;
-use hdb_error::HdbError;
+use crate::hdb_error::HdbError;
 use std::num::ParseFloatError;
 use std::num::ParseIntError;
-use types_impl::lob::new_blob_to_db;
+use crate::types_impl::lob::new_blob_to_db;
 
-use protocol::parts::hdb_value::HdbValue;
-use protocol::parts::parameter_descriptor::ParameterDescriptor;
-use protocol::parts::type_id::BaseTypeId;
-use types::DayDate;
-use types::LongDate;
-use types::SecondDate;
-use types::SecondTime;
+use crate::protocol::parts::hdb_value::HdbValue;
+use crate::protocol::parts::parameter_descriptor::ParameterDescriptor;
+use crate::protocol::parts::type_id::BaseTypeId;
+use crate::types::DayDate;
+use crate::types::LongDate;
+use crate::types::SecondDate;
+use crate::types::SecondTime;
 
 use bigdecimal::BigDecimal;
 use bigdecimal::FromPrimitive;

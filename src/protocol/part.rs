@@ -4,8 +4,8 @@ use super::partkind::PartKind;
 use super::parts::parameter_descriptor::ParameterDescriptor;
 use super::parts::resultset::ResultSet;
 use super::parts::resultset_metadata::ResultSetMetadata;
-use conn_core::AmConnCore;
-use {HdbError, HdbResult};
+use crate::conn_core::AmConnCore;
+use crate::{HdbError, HdbResult};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::cmp::max;

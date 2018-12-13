@@ -1,8 +1,8 @@
-use conn_core::AmConnCore;
-use {HdbError, HdbResult};
+use crate::conn_core::AmConnCore;
+use crate::{HdbError, HdbResult};
 
-use protocol::parts::hdb_value::HdbValue;
-use protocol::parts::parameter_descriptor::ParameterDescriptor;
+use crate::protocol::parts::hdb_value::HdbValue;
+use crate::protocol::parts::parameter_descriptor::ParameterDescriptor;
 use serde;
 use serde_db::de::DbValue;
 use std::fmt;
@@ -68,10 +68,10 @@ impl fmt::Display for OutputParameters {
 
 mod factory {
     use super::OutputParameters;
-    use conn_core::AmConnCore;
-    use protocol::parts::hdb_value::HdbValue;
-    use protocol::parts::parameter_descriptor::{ParameterDescriptor, ParameterDirection};
-    use {HdbError, HdbResult};
+    use crate::conn_core::AmConnCore;
+    use crate::protocol::parts::hdb_value::HdbValue;
+    use crate::protocol::parts::parameter_descriptor::{ParameterDescriptor, ParameterDirection};
+    use crate::{HdbError, HdbResult};
 
     use std::io;
 

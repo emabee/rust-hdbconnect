@@ -1,6 +1,6 @@
 use super::hdb_value::{serialize_length_and_string, string_length};
 
-use HdbResult;
+use crate::HdbResult;
 
 use std::collections::HashMap;
 use std::env;

@@ -1,9 +1,9 @@
-use conn_core::AmConnCore;
-use protocol::util;
-use types_impl::lob::blob::{new_blob_from_db, BLob};
-use types_impl::lob::clob::{new_clob_from_db, CLob};
-use types_impl::lob::nclob::{new_nclob_from_db, NCLob};
-use {HdbError, HdbResult};
+use crate::conn_core::AmConnCore;
+use crate::protocol::util;
+use crate::types_impl::lob::blob::{new_blob_from_db, BLob};
+use crate::types_impl::lob::clob::{new_clob_from_db, CLob};
+use crate::types_impl::lob::nclob::{new_nclob_from_db, NCLob};
+use crate::{HdbError, HdbResult};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::io;

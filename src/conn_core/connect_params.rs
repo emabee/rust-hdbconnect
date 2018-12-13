@@ -1,12 +1,12 @@
 //! Connection parameters
-use conn_core::connect_params_builder::ConnectParamsBuilder;
+use crate::conn_core::connect_params_builder::ConnectParamsBuilder;
 use secstr::SecStr;
 use std::env;
 use std::fmt;
 use std::fs;
 use std::path::Path;
 use url::Url;
-use {HdbError, HdbResult};
+use crate::{HdbError, HdbResult};
 
 /// An immutable struct with all information necessary to open a new connection
 /// to a HANA database.

@@ -6,7 +6,7 @@ pub(crate) use self::c_resource_manager::new_resource_manager;
 
 use dist_tx::rm::{ErrorCode, RmError};
 use std::error::Error;
-use HdbError;
+use crate::HdbError;
 
 impl From<HdbError> for RmError {
     fn from(error: HdbError) -> RmError {

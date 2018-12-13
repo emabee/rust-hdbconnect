@@ -1,17 +1,17 @@
 use bigdecimal::BigDecimal;
-use conn_core::AmConnCore;
-use protocol::parts::type_id::{BaseTypeId, TypeId};
-use protocol::util;
-use types::BLob;
-use types::CLob;
-use types::DayDate;
-use types::LongDate;
-use types::NCLob;
-use types::SecondDate;
-use types::SecondTime;
-use types_impl::hdb_decimal::serialize_decimal;
-use types_impl::lob::{serialize_blob_header, serialize_clob_header, serialize_nclob_header};
-use {HdbError, HdbResult};
+use crate::conn_core::AmConnCore;
+use crate::protocol::parts::type_id::{BaseTypeId, TypeId};
+use crate::protocol::util;
+use crate::types::BLob;
+use crate::types::CLob;
+use crate::types::DayDate;
+use crate::types::LongDate;
+use crate::types::NCLob;
+use crate::types::SecondDate;
+use crate::types::SecondTime;
+use crate::types_impl::hdb_decimal::serialize_decimal;
+use crate::types_impl::lob::{serialize_blob_header, serialize_clob_header, serialize_nclob_header};
+use crate::{HdbError, HdbResult};
 
 use byteorder::{LittleEndian, WriteBytesExt};
 use cesu8;
@@ -661,17 +661,17 @@ impl fmt::Display for HdbValue {
 
 mod factory {
     use super::HdbValue;
-    use conn_core::AmConnCore;
-    use protocol::parts::type_id::{BaseTypeId, TypeId};
-    use protocol::util;
-    use types_impl::daydate::{parse_daydate, parse_nullable_daydate};
-    use types_impl::hdb_decimal::{parse_decimal, parse_nullable_decimal};
-    use types_impl::lob::{parse_blob, parse_clob, parse_nclob};
-    use types_impl::lob::{parse_nullable_blob, parse_nullable_clob, parse_nullable_nclob};
-    use types_impl::longdate::{parse_longdate, parse_nullable_longdate};
-    use types_impl::seconddate::{parse_nullable_seconddate, parse_seconddate};
-    use types_impl::secondtime::{parse_nullable_secondtime, parse_secondtime};
-    use {HdbError, HdbResult};
+    use crate::conn_core::AmConnCore;
+    use crate::protocol::parts::type_id::{BaseTypeId, TypeId};
+    use crate::protocol::util;
+    use crate::types_impl::daydate::{parse_daydate, parse_nullable_daydate};
+    use crate::types_impl::hdb_decimal::{parse_decimal, parse_nullable_decimal};
+    use crate::types_impl::lob::{parse_blob, parse_clob, parse_nclob};
+    use crate::types_impl::lob::{parse_nullable_blob, parse_nullable_clob, parse_nullable_nclob};
+    use crate::types_impl::longdate::{parse_longdate, parse_nullable_longdate};
+    use crate::types_impl::seconddate::{parse_nullable_seconddate, parse_seconddate};
+    use crate::types_impl::secondtime::{parse_nullable_secondtime, parse_secondtime};
+    use crate::{HdbError, HdbResult};
 
     use byteorder::{LittleEndian, ReadBytesExt};
     use cesu8;

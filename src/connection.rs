@@ -1,24 +1,24 @@
-use authentication;
-use conn_core::connect_params::ConnectParams;
-use conn_core::{AmConnCore, ConnectionCore};
-use prepared_statement::PreparedStatement;
-use protocol::argument::Argument;
-use protocol::part::Part;
-use protocol::partkind::PartKind;
-use protocol::parts::command_info::CommandInfo;
-use protocol::parts::resultset::ResultSet;
-use protocol::parts::server_error::ServerError;
-use protocol::reply::SkipLastSpace;
-use protocol::request::Request;
-use protocol::request_type::RequestType;
-use protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
-use {HdbError, HdbResponse, HdbResult};
+use crate::authentication;
+use crate::conn_core::connect_params::ConnectParams;
+use crate::conn_core::{AmConnCore, ConnectionCore};
+use crate::prepared_statement::PreparedStatement;
+use crate::protocol::argument::Argument;
+use crate::protocol::part::Part;
+use crate::protocol::partkind::PartKind;
+use crate::protocol::parts::command_info::CommandInfo;
+use crate::protocol::parts::resultset::ResultSet;
+use crate::protocol::parts::server_error::ServerError;
+use crate::protocol::reply::SkipLastSpace;
+use crate::protocol::request::Request;
+use crate::protocol::request_type::RequestType;
+use crate::protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
+use crate::{HdbError, HdbResponse, HdbResult};
 
 use chrono::Local;
 use dist_tx::rm::ResourceManager;
 use std::error::Error;
 use std::sync::Arc;
-use xa_impl::new_resource_manager;
+use crate::xa_impl::new_resource_manager;
 
 /// Connection object.
 ///

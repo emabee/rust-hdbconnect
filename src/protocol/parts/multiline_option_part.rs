@@ -1,7 +1,7 @@
 use byteorder::{LittleEndian, ReadBytesExt};
-use hdb_error::HdbResult;
-use protocol::parts::option_part::OptionId;
-use protocol::parts::option_part::OptionPart;
+use crate::hdb_error::HdbResult;
+use crate::protocol::parts::option_part::OptionId;
+use crate::protocol::parts::option_part::OptionPart;
 use std::hash::Hash;
 use std::io;
 

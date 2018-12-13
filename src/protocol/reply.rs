@@ -2,7 +2,7 @@
 //! we model message and segment together.
 //! But we differentiate explicitly between request messages and reply messages.
 use super::argument::Argument;
-use conn_core::AmConnCore;
+use crate::conn_core::AmConnCore;
 use super::part::{Part, Parts};
 use super::part_attributes::PartAttributes;
 use super::partkind::PartKind;
@@ -13,9 +13,9 @@ use super::parts::server_error::{ServerError, Severity};
 use super::reply_type::ReplyType;
 use super::util;
 use byteorder::{LittleEndian, ReadBytesExt};
-use hdb_response::InternalReturnValue;
+use crate::hdb_response::InternalReturnValue;
 use std::io;
-use {HdbError, HdbResponse, HdbResult};
+use crate::{HdbError, HdbResponse, HdbResult};
 
 #[derive(Debug)]
 pub(crate) struct Reply {

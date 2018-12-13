@@ -1,15 +1,15 @@
-use conn_core::AmConnCore;
+use crate::conn_core::AmConnCore;
 use dist_tx::rm::{CResourceManager, CRmWrapper, ErrorCode, Flags, RmError, RmRc, RmResult};
 use dist_tx::tm::XaTransactionId;
-use hdb_error::HdbResult;
-use protocol::argument::Argument;
-use protocol::part::Part;
-use protocol::partkind::PartKind;
-use protocol::parts::xat_options::XatOptions;
-use protocol::reply::{Reply, SkipLastSpace};
-use protocol::request::Request;
-use protocol::request_type::RequestType;
-use HdbError;
+use crate::hdb_error::HdbResult;
+use crate::protocol::argument::Argument;
+use crate::protocol::part::Part;
+use crate::protocol::partkind::PartKind;
+use crate::protocol::parts::xat_options::XatOptions;
+use crate::protocol::reply::{Reply, SkipLastSpace};
+use crate::protocol::request::Request;
+use crate::protocol::request_type::RequestType;
+use crate::HdbError;
 
 /// Handle for dealing with distributed transactions that is to be used by a
 /// transaction manager.

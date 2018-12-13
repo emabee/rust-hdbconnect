@@ -12,11 +12,11 @@ use super::reply_type::ReplyType;
 use super::request_type::RequestType;
 use byteorder::{LittleEndian, WriteBytesExt};
 use chrono::Local;
-use conn_core::AmConnCore;
-use protocol::reply::Reply;
-use protocol::reply::SkipLastSpace;
+use crate::conn_core::AmConnCore;
+use crate::protocol::reply::Reply;
+use crate::protocol::reply::SkipLastSpace;
 use std::io;
-use {HdbResponse, HdbResult};
+use crate::{HdbResponse, HdbResult};
 
 const MESSAGE_HEADER_SIZE: u32 = 32;
 const SEGMENT_HEADER_SIZE: usize = 24; // same for in and out

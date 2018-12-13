@@ -1,5 +1,5 @@
 use secstr::SecStr;
-use {HdbError, HdbResult};
+use crate::{HdbError, HdbResult};
 
 pub trait Authenticator {
     fn name(&self) -> &str;

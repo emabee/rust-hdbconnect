@@ -1,5 +1,5 @@
-use protocol::parts::option_part::OptionId;
-use protocol::parts::option_part::OptionPart;
+use crate::protocol::parts::option_part::OptionId;
+use crate::protocol::parts::option_part::OptionPart;
 
 // An Options part that is used to differentiate between primary and secondary
 // connections.

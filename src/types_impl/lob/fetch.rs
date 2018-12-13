@@ -1,15 +1,15 @@
-use conn_core::AmConnCore;
-use protocol::argument::Argument;
-use protocol::part::Part;
-use protocol::partkind::PartKind;
-use protocol::parts::read_lob_request::ReadLobRequest;
-use protocol::reply::SkipLastSpace;
-use protocol::reply_type::ReplyType;
-use protocol::request::Request;
-use protocol::request_type::RequestType;
-use protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
+use crate::conn_core::AmConnCore;
+use crate::protocol::argument::Argument;
+use crate::protocol::part::Part;
+use crate::protocol::partkind::PartKind;
+use crate::protocol::parts::read_lob_request::ReadLobRequest;
+use crate::protocol::reply::SkipLastSpace;
+use crate::protocol::reply_type::ReplyType;
+use crate::protocol::request::Request;
+use crate::protocol::request_type::RequestType;
+use crate::protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
 use std::cmp;
-use {HdbError, HdbResult};
+use crate::{HdbError, HdbResult};
 
 // Note that total_length and offset count either bytes (BLOB, CLOB), or 1-2-3-chars (NCLOB)
 pub(crate) fn fetch_a_lob_chunk(

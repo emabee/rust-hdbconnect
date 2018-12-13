@@ -1,4 +1,4 @@
-use {HdbError, HdbResult};
+use crate::{HdbError, HdbResult};
 
 // Identifies the nature of the statement or functionality that has been
 // prepared or executed. Is documented as Function Code.

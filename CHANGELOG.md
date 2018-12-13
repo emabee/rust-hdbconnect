@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.11.1]  2018-12-13
+
+Move to edition 2018.
+Support serialization of byte arrays containing valid UTF-8 into NCLOB.
+
 ## [0.11.0]  2018-12-11
 
 Change handling of type ids  (-> version bump).

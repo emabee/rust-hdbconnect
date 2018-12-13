@@ -1,6 +1,6 @@
-use protocol::parts::type_id::{BaseTypeId, TypeId};
-use protocol::util;
-use {HdbError, HdbResult};
+use crate::protocol::parts::type_id::{BaseTypeId, TypeId};
+use crate::protocol::util;
+use crate::{HdbError, HdbResult};
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use cesu8;

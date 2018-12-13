@@ -1,6 +1,6 @@
-use conn_core::buffalo::Buffalo;
-use protocol::util;
-use HdbResult;
+use crate::conn_core::buffalo::Buffalo;
+use crate::protocol::util;
+use crate::HdbResult;
 
 use byteorder::{BigEndian, WriteBytesExt};
 

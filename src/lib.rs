@@ -66,28 +66,28 @@ mod xa_impl;
 
 pub mod code_examples;
 
-pub use conn_core::connect_params::{ConnectParams, IntoConnectParams};
-pub use conn_core::connect_params_builder::ConnectParamsBuilder;
+pub use crate::conn_core::connect_params::{ConnectParams, IntoConnectParams};
+pub use crate::conn_core::connect_params_builder::ConnectParamsBuilder;
 
 #[cfg(feature = "tls")]
 pub use conn_core::connect_params::ServerCerts;
 
-pub use connection::Connection;
-pub use connection_manager::ConnectionManager;
-pub use hdb_error::{HdbError, HdbResult};
-pub use hdb_response::HdbResponse;
-pub use hdb_return_value::HdbReturnValue;
-pub use prepared_statement::PreparedStatement;
-pub use protocol::parts::output_parameters::OutputParameters;
-pub use protocol::parts::resultset::ResultSet;
-pub use protocol::parts::row::Row;
-pub use protocol::parts::server_error::{ServerError, Severity};
+pub use crate::connection::Connection;
+pub use crate::connection_manager::ConnectionManager;
+pub use crate::hdb_error::{HdbError, HdbResult};
+pub use crate::hdb_response::HdbResponse;
+pub use crate::hdb_return_value::HdbReturnValue;
+pub use crate::prepared_statement::PreparedStatement;
+pub use crate::protocol::parts::output_parameters::OutputParameters;
+pub use crate::protocol::parts::resultset::ResultSet;
+pub use crate::protocol::parts::row::Row;
+pub use crate::protocol::parts::server_error::{ServerError, Severity};
 
-pub use protocol::parts::parameter_descriptor::{
+pub use crate::protocol::parts::parameter_descriptor::{
     ParameterBinding, ParameterDescriptor, ParameterDirection,
 };
-pub use protocol::parts::resultset_metadata::ResultSetMetadata;
-pub use protocol::parts::type_id::{BaseTypeId, TypeId};
+pub use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
+pub use crate::protocol::parts::type_id::{BaseTypeId, TypeId};
 
 mod types_impl;
 
@@ -98,13 +98,13 @@ mod types_impl;
 /// `HdbValue`s. Some of the `HdbValue`s are implemented using `LongDate`,
 /// BLOB, etc.
 pub mod types {
-    pub use types_impl::lob::BLob;
-    pub use types_impl::lob::CLob;
-    pub use types_impl::lob::NCLob;
+    pub use crate::types_impl::lob::BLob;
+    pub use crate::types_impl::lob::CLob;
+    pub use crate::types_impl::lob::NCLob;
 
-    pub use types_impl::daydate::DayDate;
-    pub use types_impl::longdate::LongDate;
-    pub use types_impl::seconddate::SecondDate;
-    pub use types_impl::secondtime::SecondTime;
+    pub use crate::types_impl::daydate::DayDate;
+    pub use crate::types_impl::longdate::LongDate;
+    pub use crate::types_impl::seconddate::SecondDate;
+    pub use crate::types_impl::secondtime::SecondTime;
 }
-pub use protocol::parts::hdb_value::HdbValue;
+pub use crate::protocol::parts::hdb_value::HdbValue;

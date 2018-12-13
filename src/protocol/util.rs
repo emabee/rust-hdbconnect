@@ -2,7 +2,7 @@ use byteorder::{ReadBytesExt, WriteBytesExt};
 use cesu8;
 use std::io;
 use std::iter::repeat;
-use HdbResult;
+use crate::HdbResult;
 
 /// Read n bytes from a `BufRead`, return as Vec<u8>
 pub fn parse_bytes(len: usize, rdr: &mut io::BufRead) -> HdbResult<Vec<u8>> {

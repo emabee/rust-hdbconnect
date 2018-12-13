@@ -1,5 +1,5 @@
-use hdb_error::HdbResult;
-use protocol::parts::type_id::TypeId;
+use crate::hdb_error::HdbResult;
+use crate::protocol::parts::type_id::TypeId;
 
 /// Metadata for a parameter.
 #[derive(Clone, Debug)]
@@ -130,11 +130,11 @@ mod factory {
     use super::{ParameterDescriptor, ParameterDirection};
     use byteorder::{LittleEndian, ReadBytesExt};
     use cesu8;
-    use protocol::parts::type_id::TypeId;
-    use protocol::util;
+    use crate::protocol::parts::type_id::TypeId;
+    use crate::protocol::util;
     use std::io;
     use std::u32;
-    use {HdbError, HdbResult};
+    use crate::{HdbError, HdbResult};
 
     pub fn parse(
         count: i32,

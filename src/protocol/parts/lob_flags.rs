@@ -1,4 +1,4 @@
-use protocol::parts::option_part::{OptionId, OptionPart};
+use crate::protocol::parts::option_part::{OptionId, OptionPart};
 
 // The part is sent from the client to signal whether the implicit LOB
 // streaming is started so that the server does not commit the current

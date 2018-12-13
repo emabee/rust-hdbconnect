@@ -4,7 +4,7 @@ use num::bigint::{BigInt, Sign};
 use serde_db::ser::SerializationError;
 use std::fmt;
 use std::io;
-use HdbResult;
+use crate::HdbResult;
 
 // MANTISSA     113-bit     Integer mantissa
 //                          (byte 0; byte 14, lowest bit)

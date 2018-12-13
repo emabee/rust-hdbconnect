@@ -1,15 +1,15 @@
-use conn_core::AmConnCore;
-use protocol::argument::Argument;
-use protocol::part::Part;
-use protocol::partkind::PartKind;
-use protocol::parts::hdb_value::HdbValue;
-use protocol::parts::parameter_descriptor::ParameterDescriptor;
-use protocol::parts::parameters::{ParameterRow, Parameters};
-use protocol::parts::resultset_metadata::ResultSetMetadata;
-use protocol::reply::SkipLastSpace;
-use protocol::request::Request;
-use protocol::request_type::RequestType;
-use {HdbError, HdbResponse, HdbResult};
+use crate::conn_core::AmConnCore;
+use crate::protocol::argument::Argument;
+use crate::protocol::part::Part;
+use crate::protocol::partkind::PartKind;
+use crate::protocol::parts::hdb_value::HdbValue;
+use crate::protocol::parts::parameter_descriptor::ParameterDescriptor;
+use crate::protocol::parts::parameters::{ParameterRow, Parameters};
+use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
+use crate::protocol::reply::SkipLastSpace;
+use crate::protocol::request::Request;
+use crate::protocol::request_type::RequestType;
+use crate::{HdbError, HdbResponse, HdbResult};
 
 use serde;
 use serde_db::ser::to_params;
@@ -133,17 +133,17 @@ impl Drop for PreparedStatement {
 
 mod factory {
     use super::PreparedStatement;
-    use conn_core::AmConnCore;
-    use protocol::argument::Argument;
-    use protocol::part::Part;
-    use protocol::partkind::PartKind;
-    use protocol::parts::parameter_descriptor::{ParameterDescriptor, ParameterDirection};
-    use protocol::parts::parameters::ParameterRow;
-    use protocol::parts::resultset_metadata::ResultSetMetadata;
-    use protocol::reply::SkipLastSpace;
-    use protocol::request::Request;
-    use protocol::request_type::RequestType;
-    use {HdbError, HdbResult};
+    use crate::conn_core::AmConnCore;
+    use crate::protocol::argument::Argument;
+    use crate::protocol::part::Part;
+    use crate::protocol::partkind::PartKind;
+    use crate::protocol::parts::parameter_descriptor::{ParameterDescriptor, ParameterDirection};
+    use crate::protocol::parts::parameters::ParameterRow;
+    use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
+    use crate::protocol::reply::SkipLastSpace;
+    use crate::protocol::request::Request;
+    use crate::protocol::request_type::RequestType;
+    use crate::{HdbError, HdbResult};
 
     // Prepare a statement.
     pub(crate) fn prepare(

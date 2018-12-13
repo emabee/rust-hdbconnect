@@ -1,5 +1,5 @@
-use protocol::util;
-use {HdbError, HdbResult};
+use crate::protocol::util;
+use crate::{HdbError, HdbResult};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::io;

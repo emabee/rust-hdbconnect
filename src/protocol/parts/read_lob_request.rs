@@ -1,5 +1,5 @@
 use byteorder::{LittleEndian, WriteBytesExt};
-use hdb_error::HdbResult;
+use crate::hdb_error::HdbResult;
 use std::io;
 
 #[derive(Debug)]

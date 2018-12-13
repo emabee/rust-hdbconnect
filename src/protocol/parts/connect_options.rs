@@ -1,6 +1,6 @@
-use hdb_error::HdbResult;
-use protocol::parts::option_part::{OptionId, OptionPart};
-use protocol::parts::option_value::OptionValue;
+use crate::hdb_error::HdbResult;
+use crate::protocol::parts::option_part::{OptionId, OptionPart};
+use crate::protocol::parts::option_value::OptionValue;
 
 // An Options part that is used for describing the connection's capabilities.
 // It is used both in requests and replies.

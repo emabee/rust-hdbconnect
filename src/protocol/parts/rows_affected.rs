@@ -1,4 +1,4 @@
-use HdbResult;
+use crate::HdbResult;
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::fmt;

@@ -1,5 +1,5 @@
-use protocol::parts::multiline_option_part::MultilineOptionPart;
-use protocol::parts::option_part::OptionId;
+use crate::protocol::parts::multiline_option_part::MultilineOptionPart;
+use crate::protocol::parts::option_part::OptionId;
 
 pub type Topology = MultilineOptionPart<TopologyAttrId>;
 

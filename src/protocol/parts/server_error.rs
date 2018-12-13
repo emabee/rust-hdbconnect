@@ -1,5 +1,5 @@
-use protocol::util;
-use HdbResult;
+use crate::protocol::util;
+use crate::HdbResult;
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use cesu8;

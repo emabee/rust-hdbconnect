@@ -1,6 +1,6 @@
 use super::hdb_value::HdbValue;
-use protocol::util;
-use HdbResult;
+use crate::protocol::util;
+use crate::HdbResult;
 
 use std::io;
 

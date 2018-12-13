@@ -1,9 +1,9 @@
-use authentication::auth_requests::{first_auth_request, second_auth_request};
-use authentication::authenticator::Authenticator;
-use authentication::scram_pbkdf2_sha256::ScramPbkdf2Sha256;
-use authentication::scram_sha256::ScramSha256;
-use conn_core::AmConnCore;
-use hdb_error::HdbResult;
+use crate::authentication::auth_requests::{first_auth_request, second_auth_request};
+use crate::authentication::authenticator::Authenticator;
+use crate::authentication::scram_pbkdf2_sha256::ScramPbkdf2Sha256;
+use crate::authentication::scram_sha256::ScramSha256;
+use crate::conn_core::AmConnCore;
+use crate::hdb_error::HdbResult;
 use secstr::SecStr;
 
 // Do the authentication.

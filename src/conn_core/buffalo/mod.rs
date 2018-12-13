@@ -5,10 +5,10 @@ mod tls_connection;
 mod tls_stream;
 
 use chrono::Local;
-use conn_core::buffalo::plain_connection::PlainConnection;
+use crate::conn_core::buffalo::plain_connection::PlainConnection;
 #[cfg(feature = "tls")]
 use conn_core::buffalo::tls_connection::TlsConnection;
-use conn_core::connect_params::ConnectParams;
+use crate::conn_core::connect_params::ConnectParams;
 use std::cell::RefCell;
 use std::io;
 

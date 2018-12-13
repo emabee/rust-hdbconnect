@@ -1,8 +1,8 @@
 use dist_tx::tm::XaTransactionId;
-use protocol::parts::output_parameters::OutputParameters;
-use protocol::parts::resultset::ResultSet;
+use crate::protocol::parts::output_parameters::OutputParameters;
+use crate::protocol::parts::resultset::ResultSet;
 use std::fmt;
-use {HdbError, HdbResult};
+use crate::{HdbError, HdbResult};
 
 /// An enum that describes a single database return value.
 #[derive(Debug)]

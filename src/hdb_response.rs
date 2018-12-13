@@ -1,10 +1,10 @@
-use hdb_return_value::HdbReturnValue;
-use protocol::parts::output_parameters::OutputParameters;
-use protocol::parts::parameter_descriptor::ParameterDescriptor;
-use protocol::parts::resultset::ResultSet;
-use protocol::parts::rows_affected::RowsAffected;
+use crate::hdb_return_value::HdbReturnValue;
+use crate::protocol::parts::output_parameters::OutputParameters;
+use crate::protocol::parts::parameter_descriptor::ParameterDescriptor;
+use crate::protocol::parts::resultset::ResultSet;
+use crate::protocol::parts::rows_affected::RowsAffected;
 use std::fmt;
-use {HdbError, HdbResult};
+use crate::{HdbError, HdbResult};
 
 /// Represents all possible non-error responses to a database command.
 ///

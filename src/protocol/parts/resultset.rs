@@ -1,18 +1,18 @@
-use conn_core::AmConnCore;
-use protocol::argument::Argument;
-use protocol::part::Part;
-use protocol::part::Parts;
-use protocol::part_attributes::PartAttributes;
-use protocol::partkind::PartKind;
-use protocol::parts::resultset_metadata::ResultSetMetadata;
-use protocol::parts::row::Row;
-use protocol::parts::statement_context::StatementContext;
-use protocol::reply::SkipLastSpace;
-use protocol::reply_type::ReplyType;
-use protocol::request::Request;
-use protocol::request_type::RequestType;
-use protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
-use {HdbError, HdbResult};
+use crate::conn_core::AmConnCore;
+use crate::protocol::argument::Argument;
+use crate::protocol::part::Part;
+use crate::protocol::part::Parts;
+use crate::protocol::part_attributes::PartAttributes;
+use crate::protocol::partkind::PartKind;
+use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
+use crate::protocol::parts::row::Row;
+use crate::protocol::parts::statement_context::StatementContext;
+use crate::protocol::reply::SkipLastSpace;
+use crate::protocol::reply_type::ReplyType;
+use crate::protocol::request::Request;
+use crate::protocol::request_type::RequestType;
+use crate::protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
+use crate::{HdbError, HdbResult};
 
 use serde;
 use serde_db::de::DeserializableResultset;
@@ -367,18 +367,18 @@ impl Iterator for RowIterator {
 
 mod factory {
     use super::{ResultSet, ResultSetCore, Row};
-    use conn_core::AmConnCore;
-    use protocol::argument::Argument;
-    use protocol::part::Parts;
-    use protocol::part_attributes::PartAttributes;
-    use protocol::partkind::PartKind;
-    use protocol::parts::hdb_value::HdbValue;
-    use protocol::parts::resultset_metadata::ResultSetMetadata;
-    use protocol::parts::statement_context::StatementContext;
-    use protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
+    use crate::conn_core::AmConnCore;
+    use crate::protocol::argument::Argument;
+    use crate::protocol::part::Parts;
+    use crate::protocol::part_attributes::PartAttributes;
+    use crate::protocol::partkind::PartKind;
+    use crate::protocol::parts::hdb_value::HdbValue;
+    use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
+    use crate::protocol::parts::statement_context::StatementContext;
+    use crate::protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
     use std::io;
     use std::sync::Arc;
-    use {HdbError, HdbResult};
+    use crate::{HdbError, HdbResult};
 
     pub(crate) fn resultset_new(
         am_conn_core: &AmConnCore,

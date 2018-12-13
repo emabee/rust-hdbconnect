@@ -4,7 +4,7 @@ use std::cmp;
 use std::error::Error;
 use std::fmt;
 use std::io;
-use {HdbError, HdbResult};
+use crate::{HdbError, HdbResult};
 
 const NULL_REPRESENTATION: i64 = 315_538_070_401;
 

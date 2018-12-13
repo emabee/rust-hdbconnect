@@ -1,7 +1,7 @@
-use HdbResult;
+use crate::HdbResult;
 
-use protocol::parts::option_part::{OptionId, OptionPart};
-use protocol::parts::option_value::OptionValue;
+use crate::protocol::parts::option_part::{OptionId, OptionPart};
+use crate::protocol::parts::option_value::OptionValue;
 
 use dist_tx::rm::{Flags, RmRc};
 use dist_tx::tm::XaTransactionId;

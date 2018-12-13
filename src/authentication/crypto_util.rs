@@ -1,6 +1,6 @@
 use pbkdf2::pbkdf2;
 use sha2::{Sha256, Digest};
-use hdb_error::HdbResult;
+use crate::hdb_error::HdbResult;
 use secstr::SecStr;
 use std::iter::repeat;
 

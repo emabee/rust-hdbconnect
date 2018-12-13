@@ -1,4 +1,4 @@
-use protocol::parts::option_part::{OptionId, OptionPart};
+use crate::protocol::parts::option_part::{OptionId, OptionPart};
 
 /// The part is sent from the server to signal
 ///

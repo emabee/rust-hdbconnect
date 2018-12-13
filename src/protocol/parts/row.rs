@@ -1,7 +1,7 @@
-use protocol::parts::hdb_value::HdbValue;
-use protocol::parts::resultset_metadata::ResultSetMetadata;
-use types::{BLob, CLob, NCLob};
-use {HdbError, HdbResult};
+use crate::protocol::parts::hdb_value::HdbValue;
+use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
+use crate::types::{BLob, CLob, NCLob};
+use crate::{HdbError, HdbResult};
 
 use serde;
 use serde_db::de::{ConversionError, DbValue, DeserializableRow};

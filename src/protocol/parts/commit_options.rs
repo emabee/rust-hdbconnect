@@ -1,5 +1,5 @@
-use protocol::parts::option_part::OptionId;
-use protocol::parts::option_part::OptionPart;
+use crate::protocol::parts::option_part::OptionId;
+use crate::protocol::parts::option_part::OptionPart;
 
 // FIXME
 // An Options part that is used by the client to specify HOLDCURSORSOVERCOMMIT.

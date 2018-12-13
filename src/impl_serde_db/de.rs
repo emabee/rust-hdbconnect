@@ -6,11 +6,11 @@ use serde_db::de::{
 };
 use std::error::Error;
 use std::{fmt, i16, i32, i64, i8, u16, u32, u8};
-use {HdbError, HdbResult};
+use crate::{HdbError, HdbResult};
 
-use protocol::parts::hdb_value::HdbValue;
-use protocol::parts::resultset::ResultSet;
-use protocol::parts::row::Row;
+use crate::protocol::parts::hdb_value::HdbValue;
+use crate::protocol::parts::resultset::ResultSet;
+use crate::protocol::parts::row::Row;
 
 #[doc(hidden)]
 impl DeserializableResultset for ResultSet {
