@@ -25,7 +25,6 @@ use crate::protocol::parts::fetch_options::FetchOptions;
 use crate::protocol::parts::lob_flags::LobFlags;
 use crate::protocol::parts::read_lob_request::ReadLobRequest;
 use crate::protocol::parts::session_context::SessionContext;
-use crate::protocol::util;
 use crate::{HdbError, HdbResult};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -33,11 +32,11 @@ use cesu8;
 use std::io;
 
 #[derive(Debug)]
-pub(crate) enum Argument {
+pub(crate) enum Argument<'a> {
     Auth(AuthFields),
     ClientContext(ClientContext),
     ClientInfo(ClientInfo),
-    Command(String),
+    Command(&'a str),
     CommandInfo(CommandInfo),
     CommitOptions(CommitOptions),
     ConnectOptions(ConnectOptions),
@@ -64,7 +63,7 @@ pub(crate) enum Argument {
     XatOptions(XatOptions),
 }
 
-impl Argument {
+impl<'a> Argument<'a> {
     // only called on output (serialize)
     pub fn count(&self) -> HdbResult<usize> {
         Ok(match *self {
@@ -203,15 +202,11 @@ impl Argument {
         o_par_md: Option<&Vec<ParameterDescriptor>>,
         o_rs: &mut Option<&mut ResultSet>,
         rdr: &mut io::BufRead,
-    ) -> HdbResult<(Argument, usize)> {
+    ) -> HdbResult<(Argument<'a>, usize)> {
         trace!("Entering parse(no_of_args={}, kind={:?})", no_of_args, kind);
 
         let arg = match kind {
             PartKind::Authentication => Argument::Auth(AuthFields::parse(rdr)?),
-            PartKind::Command => {
-                let bytes = util::parse_bytes(arg_size as usize, rdr)?;
-                Argument::Command(cesu8::from_cesu8(&bytes)?.to_owned().to_string())
-            }
             PartKind::CommandInfo => Argument::CommandInfo(CommandInfo::parse(no_of_args, rdr)?),
             PartKind::ConnectOptions => {
                 Argument::ConnectOptions(ConnectOptions::parse(no_of_args, rdr)?)

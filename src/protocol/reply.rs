@@ -21,7 +21,7 @@ use crate::{HdbError, HdbResponse, HdbResult};
 pub(crate) struct Reply {
     session_id: i64,
     pub replytype: ReplyType,
-    pub parts: Parts,
+    pub parts: Parts<'static>,
 }
 impl Reply {
     fn new(session_id: i64, replytype: ReplyType) -> Reply {
@@ -188,7 +188,7 @@ impl Reply {
         }
     }
 
-    pub fn push(&mut self, part: Part) {
+    pub fn push(&mut self, part: Part<'static>) {
         self.parts.push(part);
     }
 

@@ -1,10 +1,10 @@
 use crate::conn_core::connect_params::ConnectParams;
 #[cfg(feature = "tls")]
-use conn_core::connect_params::ServerCerts;
+use crate::conn_core::connect_params::ServerCerts;
+use crate::{HdbError, HdbResult};
 use secstr::SecStr;
 use std::env;
 use std::mem;
-use crate::{HdbError, HdbResult};
 
 /// A builder for `ConnectParams`.
 ///

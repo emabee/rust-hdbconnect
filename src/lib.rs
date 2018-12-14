@@ -53,7 +53,6 @@ extern crate dist_tx;
 extern crate serde_db;
 
 mod authentication;
-mod into_string;
 mod conn_core;
 mod connection;
 mod connection_manager;
@@ -71,7 +70,7 @@ pub use crate::conn_core::connect_params::{ConnectParams, IntoConnectParams};
 pub use crate::conn_core::connect_params_builder::ConnectParamsBuilder;
 
 #[cfg(feature = "tls")]
-pub use conn_core::connect_params::ServerCerts;
+pub use crate::conn_core::connect_params::ServerCerts;
 
 pub use crate::connection::Connection;
 pub use crate::connection_manager::ConnectionManager;

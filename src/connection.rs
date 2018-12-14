@@ -12,14 +12,12 @@ use crate::protocol::reply::SkipLastSpace;
 use crate::protocol::request::Request;
 use crate::protocol::request_type::RequestType;
 use crate::protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
+use crate::xa_impl::new_resource_manager;
 use crate::{HdbError, HdbResponse, HdbResult};
-use crate::into_string::IntoString;
-
 use chrono::Local;
 use dist_tx::rm::ResourceManager;
 use std::error::Error;
 use std::sync::Arc;
-use crate::xa_impl::new_resource_manager;
 
 /// Connection object.
 ///
@@ -124,8 +122,10 @@ impl Connection {
     /// ```ignore
     /// connection.set_application_user("K2209657")?;
     /// ```
-    pub fn set_application_user(&self, appl_user: &str) -> HdbResult<()> {
-        self.am_conn_core.lock()?.set_application_user(appl_user)
+    pub fn set_application_user<S: AsRef<str>>(&self, appl_user: S) -> HdbResult<()> {
+        self.am_conn_core
+            .lock()?
+            .set_application_user(appl_user.as_ref())
     }
 
     /// Sets client information into a session variable on the server.
@@ -135,8 +135,10 @@ impl Connection {
     /// ```ignore
     /// connection.set_application_version("5.3.23")?;
     /// ```
-    pub fn set_application_version(&mut self, version: &str) -> HdbResult<()> {
-        self.am_conn_core.lock()?.set_application_version(version)
+    pub fn set_application_version<S: AsRef<str>>(&mut self, version: S) -> HdbResult<()> {
+        self.am_conn_core
+            .lock()?
+            .set_application_version(version.as_ref())
     }
 
     /// Sets client information into a session variable on the server.
@@ -146,8 +148,10 @@ impl Connection {
     /// ```ignore
     /// connection.set_application_source("5.3.23","update_customer.rs")?;
     /// ```
-    pub fn set_application_source(&mut self, source: &str) -> HdbResult<()> {
-        self.am_conn_core.lock()?.set_application_source(source)
+    pub fn set_application_source<S: AsRef<str>>(&mut self, source: S) -> HdbResult<()> {
+        self.am_conn_core
+            .lock()?
+            .set_application_source(source.as_ref())
     }
 
     /// Executes a statement on the database.
@@ -157,17 +161,17 @@ impl Connection {
     /// In many cases it will be more appropriate to use
     /// one of the methods query(), dml(), exec(), which have the
     /// adequate simple result type you usually want.
-    pub fn statement<I: IntoString>(&mut self, stmt: I) -> HdbResult<HdbResponse> {
-        execute(&mut self.am_conn_core, stmt.into(), None)
+    pub fn statement<S: AsRef<str>>(&mut self, stmt: S) -> HdbResult<HdbResponse> {
+        execute(&mut self.am_conn_core, stmt.as_ref(), None)
     }
 
     /// Executes a statement and expects a single ResultSet.
-    pub fn query<I: IntoString>(&mut self, stmt: I) -> HdbResult<ResultSet> {
+    pub fn query<S: AsRef<str>>(&mut self, stmt: S) -> HdbResult<ResultSet> {
         self.statement(stmt)?.into_resultset()
     }
 
     /// Executes a statement and expects a single number of affected rows.
-    pub fn dml<I: IntoString>(&mut self, stmt: I) -> HdbResult<usize> {
+    pub fn dml<S: AsRef<str>>(&mut self, stmt: S) -> HdbResult<usize> {
         let vec = &(self.statement(stmt)?.into_affected_rows()?);
         match vec.len() {
             1 => Ok(vec[0]),
@@ -178,17 +182,17 @@ impl Connection {
     }
 
     /// Executes a statement and expects a plain success.
-    pub fn exec<I: IntoString>(&mut self, stmt: I) -> HdbResult<()> {
+    pub fn exec<S: AsRef<str>>(&mut self, stmt: S) -> HdbResult<()> {
         self.statement(stmt)?.into_success()
     }
 
     /// Prepares a statement and returns a handle to it.
     ///
     /// Note that the handle keeps using the same connection.
-    pub fn prepare(&self, stmt: &str) -> HdbResult<PreparedStatement> {
+    pub fn prepare<S: AsRef<str>>(&self, stmt: S) -> HdbResult<PreparedStatement> {
         Ok(PreparedStatement::try_new(
             Arc::clone(&self.am_conn_core),
-            String::from(stmt),
+            stmt.as_ref(),
         )?)
     }
 
@@ -217,7 +221,7 @@ impl Connection {
 
     /// Utility method to fire a couple of statements, ignoring errors and
     /// return values
-    pub fn multiple_statements_ignore_err<S: IntoString + AsRef<str>>(&mut self, stmts: Vec<S>) {
+    pub fn multiple_statements_ignore_err<S: AsRef<str>>(&mut self, stmts: Vec<S>) {
         for s in stmts {
             trace!("multiple_statements_ignore_err: firing \"{}\"", s.as_ref());
             let result = self.statement(s);
@@ -230,7 +234,7 @@ impl Connection {
 
     /// Utility method to fire a couple of statements, ignoring their return
     /// values; the method returns with the first error, or with  ()
-    pub fn multiple_statements<S: IntoString>(&mut self, stmts: Vec<S>) -> HdbResult<()> {
+    pub fn multiple_statements<S: AsRef<str>>(&mut self, stmts: Vec<S>) -> HdbResult<()> {
         for s in stmts {
             self.statement(s)?;
         }
@@ -250,26 +254,29 @@ impl Connection {
     }
 
     /// Tools like debuggers can provide additional information while stepping through a source
-    pub fn execute_with_debuginfo(
+    pub fn execute_with_debuginfo<S: AsRef<str>>(
         &mut self,
-        stmt: &str,
-        module: &str,
+        stmt: S,
+        module: S,
         line: i32,
     ) -> HdbResult<HdbResponse> {
         execute(
             &mut self.am_conn_core,
-            String::from(stmt),
-            Some(CommandInfo::new(line, module)),
+            stmt,
+            Some(CommandInfo::new(line, module.as_ref())),
         )
     }
 }
 
-fn execute(
+fn execute<S>(
     am_conn_core: &mut AmConnCore,
-    stmt: String,
+    stmt: S,
     o_ci: Option<CommandInfo>,
-) -> HdbResult<HdbResponse> {
-    debug!("connection::execute({})", stmt);
+) -> HdbResult<HdbResponse>
+where
+    S: AsRef<str>,
+{
+    debug!("connection::execute({})", stmt.as_ref());
     let command_options = 0b_1000;
     let fetch_size: u32 = { am_conn_core.lock()?.get_fetch_size() };
     let mut request = Request::new(RequestType::ExecuteDirect, command_options);
@@ -290,6 +297,9 @@ fn execute(
         }
     }
 
-    request.push(Part::new(PartKind::Command, Argument::Command(stmt)));
+    request.push(Part::new(
+        PartKind::Command,
+        Argument::Command(stmt.as_ref()),
+    ));
     request.send_and_get_hdbresponse(None, None, am_conn_core, None, SkipLastSpace::Soft)
 }

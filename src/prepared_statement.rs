@@ -108,7 +108,7 @@ impl PreparedStatement {
     }
 
     // Prepare a statement.
-    pub(crate) fn try_new(am_conn_core: AmConnCore, stmt: String) -> HdbResult<PreparedStatement> {
+    pub(crate) fn try_new(am_conn_core: AmConnCore, stmt: &str) -> HdbResult<PreparedStatement> {
         factory::prepare(am_conn_core, stmt)
     }
 }
@@ -148,7 +148,7 @@ mod factory {
     // Prepare a statement.
     pub(crate) fn prepare(
         mut am_conn_core: AmConnCore,
-        stmt: String,
+        stmt: &str,
     ) -> HdbResult<PreparedStatement> {
         let command_options: u8 = 8;
         let mut request = Request::new(RequestType::Prepare, command_options);

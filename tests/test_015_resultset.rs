@@ -1,17 +1,10 @@
-extern crate chrono;
-extern crate flexi_logger;
-extern crate hdbconnect;
-#[macro_use]
-extern crate log;
-#[macro_use]
-extern crate serde_derive;
-extern crate serde_json;
-
 mod test_utils;
 
 use chrono::NaiveDateTime;
 use flexi_logger::ReconfigurationHandle;
 use hdbconnect::{Connection, HdbResult};
+use log::*;
+use serde_derive::*;
 
 #[test] // cargo test --test test_015_resultset -- --nocapture
 pub fn test_015_resultset() {

@@ -1,9 +1,10 @@
 # Changelog
 
-## [0.11.1]  2018-12-13
+## [0.11.1]  2018-12-14
 
 Move to edition 2018.
 Support serialization of byte arrays containing valid UTF-8 into NCLOB.
+Remove unneccessary String allocations and make connection API more flexible.
 
 ## [0.11.0]  2018-12-11
 

@@ -4,11 +4,11 @@ mod tls_connection;
 #[cfg(feature = "tls")]
 mod tls_stream;
 
-use chrono::Local;
 use crate::conn_core::buffalo::plain_connection::PlainConnection;
 #[cfg(feature = "tls")]
-use conn_core::buffalo::tls_connection::TlsConnection;
+use crate::conn_core::buffalo::tls_connection::TlsConnection;
 use crate::conn_core::connect_params::ConnectParams;
+use chrono::Local;
 use std::cell::RefCell;
 use std::io;
 

@@ -10,27 +10,27 @@ use super::parts::resultset_metadata::ResultSetMetadata;
 use super::parts::statement_context::StatementContext;
 use super::reply_type::ReplyType;
 use super::request_type::RequestType;
-use byteorder::{LittleEndian, WriteBytesExt};
-use chrono::Local;
 use crate::conn_core::AmConnCore;
 use crate::protocol::reply::Reply;
 use crate::protocol::reply::SkipLastSpace;
-use std::io;
 use crate::{HdbResponse, HdbResult};
+use byteorder::{LittleEndian, WriteBytesExt};
+use chrono::Local;
+use std::io;
 
 const MESSAGE_HEADER_SIZE: u32 = 32;
 const SEGMENT_HEADER_SIZE: usize = 24; // same for in and out
 
 // Packets having the same sequence number belong to one request/response pair.
 #[derive(Debug)]
-pub(crate) struct Request {
+pub(crate) struct Request<'a> {
     pub request_type: RequestType,
     command_options: u8,
-    parts: Parts,
+    parts: Parts<'a>,
 }
 // Methods for defining a request
-impl Request {
-    pub fn new(request_type: RequestType, command_options: u8) -> Request {
+impl<'a> Request<'a> {
+    pub fn new(request_type: RequestType, command_options: u8) -> Request<'a> {
         Request {
             request_type,
             command_options,
@@ -38,17 +38,17 @@ impl Request {
         }
     }
 
-    pub fn new_for_disconnect() -> Request {
+    pub fn new_for_disconnect() -> Request<'a> {
         Request::new(RequestType::Disconnect, 0)
     }
 
-    pub fn push(&mut self, part: Part) {
+    pub fn push(&mut self, part: Part<'a>) {
         self.parts.push(part);
     }
 }
 
 // Methods for sending the request
-impl Request {
+impl<'a> Request<'a> {
     pub fn send_and_get_hdbresponse(
         self,
         o_rs_md: Option<&ResultSetMetadata>,

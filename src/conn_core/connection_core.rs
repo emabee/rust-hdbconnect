@@ -19,9 +19,8 @@ use crate::protocol::reply_type::ReplyType;
 use crate::protocol::request::Request;
 use crate::protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
 use crate::protocol::util;
-use std::cell::RefCell;
 use crate::{HdbError, HdbResult};
-
+use std::cell::RefCell;
 use std::io;
 use std::mem;
 use std::sync::{Arc, Mutex};
@@ -52,7 +51,7 @@ pub(crate) struct ConnectionCore {
     buffalo: Buffalo,
 }
 
-impl ConnectionCore {
+impl<'a> ConnectionCore {
     pub fn initialize(params: ConnectParams) -> HdbResult<AmConnCore> {
         let mut buffalo = Buffalo::try_new(params)?;
 
@@ -250,7 +249,7 @@ impl ConnectionCore {
     #[allow(clippy::too_many_arguments)]
     pub fn roundtrip(
         &mut self,
-        request: Request,
+        request: Request<'a>,
         am_conn_core: &AmConnCore,
         o_rs_md: Option<&ResultSetMetadata>,
         o_par_md: Option<&Vec<ParameterDescriptor>>,

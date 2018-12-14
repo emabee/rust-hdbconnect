@@ -14,12 +14,12 @@ use std::{i16, i32, io};
 const PART_HEADER_SIZE: usize = 16;
 
 #[derive(Debug)]
-pub(crate) struct Part {
+pub(crate) struct Part<'a> {
     kind: PartKind,
-    arg: Argument, // a.k.a. part data, or part buffer :-(
+    arg: Argument<'a>, // a.k.a. part data, or part buffer :-(
 }
 
-impl Part {
+impl<'a> Part<'a> {
     pub fn new(kind: PartKind, arg: Argument) -> Part {
         Part { kind, arg }
     }
@@ -29,7 +29,7 @@ impl Part {
     pub fn arg(&self) -> &Argument {
         &self.arg
     }
-    pub fn into_elements(self) -> (PartKind, Argument) {
+    pub fn into_elements(self) -> (PartKind, Argument<'a>) {
         (self.kind, self.arg)
     }
 
@@ -76,7 +76,7 @@ impl Part {
         par_md: Option<&Vec<ParameterDescriptor>>,
         o_rs: &mut Option<&mut ResultSet>,
         rdr: &mut io::BufRead,
-    ) -> HdbResult<(Part, usize)> {
+    ) -> HdbResult<(Part<'a>, usize)> {
         trace!("Entering parse()");
         let (kind, attributes, arg_size, no_of_args) = parse_part_header(rdr)?;
         debug!(
@@ -113,9 +113,9 @@ fn parse_part_header(rdr: &mut io::BufRead) -> HdbResult<(PartKind, PartAttribut
 }
 
 #[derive(Debug, Default)]
-pub(crate) struct Parts(Vec<Part>);
+pub(crate) struct Parts<'a>(Vec<Part<'a>>);
 
-impl Parts {
+impl<'a> Parts<'a> {
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
@@ -132,7 +132,7 @@ impl Parts {
         self.0.reverse()
     }
 
-    pub fn push(&mut self, part: Part) {
+    pub fn push(&mut self, part: Part<'a>) {
         self.0.push(part)
     }
     pub fn pop(&mut self) -> Option<Part> {
@@ -161,17 +161,17 @@ impl Parts {
     }
 }
 
-impl IntoIterator for Parts {
-    type Item = Part;
-    type IntoIter = ::std::vec::IntoIter<Part>;
+impl<'a> IntoIterator for Parts<'a> {
+    type Item = Part<'a>;
+    type IntoIter = ::std::vec::IntoIter<Part<'a>>;
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
     }
 }
 
-impl<'a> IntoIterator for &'a Parts {
-    type Item = &'a Part;
-    type IntoIter = ::std::slice::Iter<'a, Part>;
+impl<'a> IntoIterator for &'a Parts<'a> {
+    type Item = &'a Part<'a>;
+    type IntoIter = ::std::slice::Iter<'a, Part<'a>>;
     fn into_iter(self) -> Self::IntoIter {
         (self.0).iter()
     }

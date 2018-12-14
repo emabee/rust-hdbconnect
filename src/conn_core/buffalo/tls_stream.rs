@@ -1,4 +1,4 @@
-use conn_core::connect_params::{ConnectParams, ServerCerts};
+use crate::conn_core::connect_params::{ConnectParams, ServerCerts};
 use rustls::ClientConfig;
 use rustls::{ClientSession, Session};
 use std::env;
@@ -94,11 +94,13 @@ fn connect_tcp(
                 .filter_map(|r_dir_entry| r_dir_entry.ok())
                 .filter(|dir_entry| {
                     dir_entry.file_type().is_ok() && dir_entry.file_type().unwrap().is_file()
-                }).filter(|dir_entry| {
+                })
+                .filter(|dir_entry| {
                     let path = dir_entry.path();
                     let ext = path.extension();
                     ext.is_some() && ext.unwrap() == "pem"
-                }).map(|dir_entry| dir_entry.path())
+                })
+                .map(|dir_entry| dir_entry.path())
                 .collect();
 
             let mut t_ok = 0;
