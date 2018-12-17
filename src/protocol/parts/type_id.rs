@@ -28,12 +28,10 @@ impl TypeId {
         (&self.base_type_id, self.nullable)
     }
 
-    //
-    #[allow(clippy::identity_op)]
+    /// Full type code: for nullable types the returned value is 128 + the value for the
+    /// corresponding non-nullable type (which is always less than 128).
     pub(crate) fn type_code(&self) -> u8 {
-        // FIXME the leading "0_u8 + " is necessary due to a compiler bug
-        0_u8 + if self.nullable { 128 } else { 0 }
-            + self.base_type_id.type_code()
+        (if self.nullable { 128 } else { 0 }) + self.base_type_id.type_code()
     }
 }
 
@@ -49,65 +47,64 @@ impl std::fmt::Display for TypeId {
     }
 }
 
-/// Value type of a database column.
-/// For details regarding the value types see [HdbValue](enum.HdbValue.html).
+/// Value type id of a database column.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum BaseTypeId {
     #[doc(hidden)]
     NOTHING,
-    /// See [HdbValue](enum.HdbValue.html).
+    /// Base type ID for [HdbValue::TINYINT](enum.HdbValue.html#variant.TINYINT).
     TINYINT,
-    /// See [HdbValue](enum.HdbValue.html).
+    /// Base type ID for [HdbValue::SMALLINT](enum.HdbValue.html#variant.SMALLINT).
     SMALLINT,
-    /// See [HdbValue](enum.HdbValue.html).
+    /// Base type ID for [HdbValue::INT](enum.HdbValue.html#variant.INT).
     INT,
-    /// See [HdbValue](enum.HdbValue.html).
+    /// Base type ID for [HdbValue::BIGINT](enum.HdbValue.html#variant.BIGINT).
     BIGINT,
-    /// See [HdbValue](enum.HdbValue.html).
+    /// Base type ID for [HdbValue::DECIMAL](enum.HdbValue.html#variant.DECIMAL).
     DECIMAL,
-    /// See [HdbValue](enum.HdbValue.html).
+    /// Base type ID for [HdbValue::REAL](enum.HdbValue.html#variant.REAL).
     REAL,
-    /// See [HdbValue](enum.HdbValue.html).
+    /// Base type ID for [HdbValue::DOUBLE](enum.HdbValue.html#variant.DOUBLE).
     DOUBLE,
-    /// See [HdbValue](enum.HdbValue.html).
+    /// Base type ID for [HdbValue::CHAR](enum.HdbValue.html#variant.CHAR).
     CHAR,
-    /// See [HdbValue](enum.HdbValue.html).
+    /// Base type ID for [HdbValue::VARCHAR](enum.HdbValue.html#variant.VARCHAR).
     VARCHAR,
-    /// See [HdbValue](enum.HdbValue.html).
+    /// Base type ID for [HdbValue::NCHAR](enum.HdbValue.html#variant.NCHAR).
     NCHAR,
-    /// See [HdbValue](enum.HdbValue.html).
+    /// Base type ID for [HdbValue::NVARCHAR](enum.HdbValue.html#variant.NVARCHAR).
     NVARCHAR,
-    /// See [HdbValue](enum.HdbValue.html).
+    /// Base type ID for [HdbValue::BINARY](enum.HdbValue.html#variant.BINARY).
     BINARY,
-    /// See [HdbValue](enum.HdbValue.html).
+    /// Base type ID for [HdbValue::VARBINARY](enum.HdbValue.html#variant.VARBINARY).
     VARBINARY,
-    /// See [HdbValue](enum.HdbValue.html).
+    /// Base type ID for [HdbValue::CLOB](enum.HdbValue.html#variant.CLOB).
     CLOB,
-    /// See [HdbValue](enum.HdbValue.html).
+    /// Base type ID for [HdbValue::NCLOB](enum.HdbValue.html#variant.NCLOB).
     NCLOB,
-    /// See [HdbValue](enum.HdbValue.html).
+    /// Base type ID for [HdbValue::BLOB](enum.HdbValue.html#variant.BLOB).
     BLOB,
-    /// See [HdbValue](enum.HdbValue.html).
+    /// Base type ID for [HdbValue::BOOLEAN](enum.HdbValue.html#variant.BOOLEAN).
     BOOLEAN,
-    /// See [HdbValue](enum.HdbValue.html).
+    /// Base type ID for [HdbValue::STRING](enum.HdbValue.html#variant.STRING).
     STRING,
-    /// See [HdbValue](enum.HdbValue.html).
+    /// Base type ID for [HdbValue::NSTRING](enum.HdbValue.html#variant.NSTRING).
     NSTRING,
-    /// See [HdbValue](enum.HdbValue.html).
+    /// Base type ID for [HdbValue::BSTRING](enum.HdbValue.html#variant.BSTRING).
     BSTRING,
-    /// See [HdbValue](enum.HdbValue.html).
+    /// Base type ID for [HdbValue::SMALLDECIMAL](enum.HdbValue.html#variant.SMALLDECIMAL).
     SMALLDECIMAL,
-    /// See [HdbValue](enum.HdbValue.html).
+    /// Base type ID for [HdbValue::TEXT](enum.HdbValue.html#variant.TEXT).
     TEXT,
-    /// See [HdbValue](enum.HdbValue.html).
+    /// Base type ID for [HdbValue::SHORTTEXT](enum.HdbValue.html#variant.SHORTTEXT).
     SHORTTEXT,
-    /// See [HdbValue](enum.HdbValue.html).
+    /// Base type ID for [HdbValue::LONGDATE](enum.HdbValue.html#variant.LONGDATE).
     LONGDATE,
-    /// See [HdbValue](enum.HdbValue.html).
+    /// Base type ID for [HdbValue::SECONDDATE](enum.HdbValue.html#variant.SECONDDATE).
     SECONDDATE,
-    /// See [HdbValue](enum.HdbValue.html).
+    /// Base type ID for [HdbValue::DAYDATE](enum.HdbValue.html#variant.DAYDATE).
     DAYDATE,
-    /// See [HdbValue](enum.HdbValue.html).
+    /// Base type ID for [HdbValue::SECONDTIME](enum.HdbValue.html#variant.SECONDTIME).
     SECONDTIME,
 }
 impl From<u8> for BaseTypeId {
@@ -155,9 +152,9 @@ impl From<u8> for BaseTypeId {
             // 65 - 80: Reserved, do not use
 
             // TypeCode_CLOCATOR                  =70,  // FIXME
-            // TypeCode_BLOB_DISK_RESERVED        =71,  // FIXME
-            // TypeCode_CLOB_DISK_RESERVED        =72,  // FIXME
-            // TypeCode_NCLOB_DISK_RESERVE        =73,  // FIXME
+            // TypeCode_BLOB_DISK_RESERVED        =71,
+            // TypeCode_CLOB_DISK_RESERVED        =72,
+            // TypeCode_NCLOB_DISK_RESERVE        =73,
             // TypeCode_ST_GEOMETRY               =74,  // FIXME
             // TypeCode_ST_POINT                  =75,  // FIXME
             // TypeCode_FIXED16                   =76,  // FIXME

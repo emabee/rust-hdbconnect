@@ -85,34 +85,33 @@ pub enum HdbValue {
     VARCHAR(String),
     /// Fixed-length character string.
     NCHAR(String),
-    /// The NVARCHAR(n) data type specifies a variable-length Unicode character
+    /// Specifies a variable-length Unicode character
     /// set string, where <n> indicates the maximum length in characters
     /// and is an integer between 1 and 5000.
     NVARCHAR(String),
-    /// The BINARY(n) data type is used to store binary data of a specified
-    /// length in bytes, where n indicates the fixed length and is an
-    /// integer between 1 and 5000.
+    /// Stores binary data of a specified length in bytes,
+    /// where n indicates the fixed length and is an integer between 1 and 5000.
     BINARY(Vec<u8>),
-    /// The VARBINARY(n) data type is used to store binary data of a specified
-    /// maximum length in bytes,
+    /// Stores binary data of a specified maximum length in bytes,
     /// where n indicates the maximum length and is an integer between 1 and 5000.
     VARBINARY(Vec<u8>),
-    /// The CLOB data type is used to store a large ASCII character string.
+    /// Stores a large ASCII character string.
     CLOB(CLob),
-    /// The NCLOB data type is used to store a large Unicode string.
+    /// Stores a large Unicode string.
     NCLOB(NCLob),
-    /// The BLOB data type is used to store a large binary string.
+    /// Stores a large binary string.
     BLOB(BLob),
     /// BOOLEAN stores boolean values, which are TRUE or FALSE.
     BOOLEAN(bool),
-    /// The DB returns all Strings as type STRING, independent of the concrete
-    /// column type.
+    /// The DB returns all Strings as type STRING, independent of the concrete column type.
     STRING(String),
     /// Likely not used?
     NSTRING(String),
     /// The DB returns all binary values as type BSTRING.
     BSTRING(Vec<u8>),
-    /// The SMALLDECIMAL is a floating-point decimal number.
+
+    /// Floating-point decimal number.
+    ///
     /// The precision and scale can vary within the range 1~16 for precision
     /// and -369~368 for scale, depending on the stored value.  
     /// SMALLDECIMAL is only supported on the HANA column store.
@@ -124,21 +123,27 @@ pub enum HdbValue {
     /// 3.1415, 3.1415 for example,
     /// retaining the specified precision(5) and scale(4).
     SMALLDECIMAL(BigDecimal),
-    /// The TEXT data type enables text search features.
+
+    /// Enables text search features.
+    ///
     /// This data type can be defined for column tables, but not for row tables.
     /// This is not a standalone SQL-Type. Selecting a TEXT column yields a
     /// column of type NCLOB.
     TEXT(String),
+
     /// Similar to TEXT.
     SHORTTEXT(String),
     /// Timestamp with 10^-7 seconds precision, uses eight bytes.
     LONGDATE(LongDate),
     /// TIMESTAMP with second precision.
     SECONDDATE(SecondDate),
-    /// DATE.
+
+    /// DATE with day precision.
     DAYDATE(DayDate),
-    /// TIME.
+
+    /// TIME with second precision.
     SECONDTIME(SecondTime),
+
     /// Nullable variant of TINYINT.
     N_TINYINT(Option<u8>),
     /// Nullable variant of SMALLINT.
