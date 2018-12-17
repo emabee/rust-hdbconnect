@@ -3,7 +3,7 @@ use crate::protocol::argument::Argument;
 use crate::protocol::part::Part;
 use crate::protocol::partkind::PartKind;
 use crate::protocol::parts::hdb_value::HdbValue;
-use crate::protocol::parts::parameter_descriptor::ParameterDescriptor;
+use crate::protocol::parts::parameter_descriptor::{ParameterDescriptor, ParameterDirection};
 use crate::protocol::parts::parameters::{ParameterRow, Parameters};
 use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
 use crate::protocol::reply::SkipLastSpace;
@@ -108,45 +108,7 @@ impl PreparedStatement {
     }
 
     // Prepare a statement.
-    pub(crate) fn try_new(am_conn_core: AmConnCore, stmt: &str) -> HdbResult<PreparedStatement> {
-        factory::prepare(am_conn_core, stmt)
-    }
-}
-
-impl Drop for PreparedStatement {
-    /// Frees all server-side ressources that belong to this prepared statement.
-    fn drop(&mut self) {
-        let mut request = Request::new(RequestType::DropStatementId, 0);
-        request.push(Part::new(
-            PartKind::StatementId,
-            Argument::StatementId(self.statement_id),
-        ));
-        if let Ok(mut reply) = request.send_and_get_reply_simplified(
-            &mut (self.am_conn_core),
-            None,
-            SkipLastSpace::Hard,
-        ) {
-            reply.parts.pop_arg_if_kind(PartKind::StatementContext);
-        }
-    }
-}
-
-mod factory {
-    use super::PreparedStatement;
-    use crate::conn_core::AmConnCore;
-    use crate::protocol::argument::Argument;
-    use crate::protocol::part::Part;
-    use crate::protocol::partkind::PartKind;
-    use crate::protocol::parts::parameter_descriptor::{ParameterDescriptor, ParameterDirection};
-    use crate::protocol::parts::parameters::ParameterRow;
-    use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
-    use crate::protocol::reply::SkipLastSpace;
-    use crate::protocol::request::Request;
-    use crate::protocol::request_type::RequestType;
-    use crate::{HdbError, HdbResult};
-
-    // Prepare a statement.
-    pub(crate) fn prepare(
+    pub(crate) fn try_new(
         mut am_conn_core: AmConnCore,
         stmt: &str,
     ) -> HdbResult<PreparedStatement> {
@@ -237,5 +199,23 @@ mod factory {
             o_rs_md,
             _o_table_location: o_table_location,
         })
+    }
+}
+
+impl Drop for PreparedStatement {
+    /// Frees all server-side ressources that belong to this prepared statement.
+    fn drop(&mut self) {
+        let mut request = Request::new(RequestType::DropStatementId, 0);
+        request.push(Part::new(
+            PartKind::StatementId,
+            Argument::StatementId(self.statement_id),
+        ));
+        if let Ok(mut reply) = request.send_and_get_reply_simplified(
+            &mut (self.am_conn_core),
+            None,
+            SkipLastSpace::Hard,
+        ) {
+            reply.parts.pop_arg_if_kind(PartKind::StatementContext);
+        }
     }
 }

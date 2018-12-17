@@ -1,9 +1,9 @@
 use crate::conn_core::AmConnCore;
 use crate::protocol::argument::Argument;
-use crate::protocol::part::Part;
-use crate::protocol::part::Parts;
+use crate::protocol::part::{Part, Parts};
 use crate::protocol::part_attributes::PartAttributes;
 use crate::protocol::partkind::PartKind;
+use crate::protocol::parts::hdb_value::HdbValue;
 use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
 use crate::protocol::parts::row::Row;
 use crate::protocol::parts::statement_context::StatementContext;
@@ -289,9 +289,41 @@ impl ResultSet {
         rsm: ResultSetMetadata,
         o_stmt_ctx: Option<StatementContext>,
     ) -> ResultSet {
-        factory::resultset_new(am_conn_core, attrs, rs_id, rsm, o_stmt_ctx)
+        let mut server_resource_consumption_info: ServerResourceConsumptionInfo =
+            Default::default();
+
+        if let Some(stmt_ctx) = o_stmt_ctx {
+            server_resource_consumption_info.update(
+                stmt_ctx.get_server_processing_time(),
+                stmt_ctx.get_server_cpu_time(),
+                stmt_ctx.get_server_memory_usage(),
+            );
+        }
+
+        ResultSet {
+            core_ref: ResultSetCore::new_am_rscore(am_conn_core, attrs, rs_id),
+            metadata: Arc::new(rsm),
+            rows: Vec::<Row>::new(),
+            server_resource_consumption_info,
+        }
     }
 
+    // resultsets can be part of the response in three cases which differ
+    // in regard to metadata handling:
+    //
+    // a) a response to a plain "execute" will contain the metadata in one of the
+    //    other parts; the metadata parameter will thus have the variant None
+    //
+    // b) a response to an "execute prepared" will only contain data;
+    //    the metadata had beeen returned already to the "prepare" call, and are
+    //    provided with parameter metadata
+    //
+    // c) a response to a "fetch more lines" is triggered from an older resultset
+    //    which already has its metadata
+    //
+    // For first resultset packets, we create and return a new ResultSet object.
+    // We then expect the previous three parts to be
+    // a matching ResultSetMetadata, a ResultSetId, and a StatementContext.
     pub(crate) fn parse(
         no_of_rows: i32,
         attributes: PartAttributes,
@@ -301,15 +333,107 @@ impl ResultSet {
         o_rs: &mut Option<&mut ResultSet>,
         rdr: &mut std::io::BufRead,
     ) -> HdbResult<Option<ResultSet>> {
-        factory::parse(
-            no_of_rows,
-            attributes,
-            parts,
-            am_conn_core,
-            rs_md,
-            o_rs,
-            rdr,
-        )
+        match *o_rs {
+            None => {
+                // case a) or b)
+                let o_stmt_ctx = match parts.pop_arg_if_kind(PartKind::StatementContext) {
+                    Some(Argument::StatementContext(stmt_ctx)) => Some(stmt_ctx),
+                    None => None,
+                    _ => {
+                        return Err(HdbError::impl_(
+                            "Inconsistent StatementContext part found for ResultSet",
+                        ))
+                    }
+                };
+
+                let rs_id = match parts.pop_arg() {
+                    Some(Argument::ResultSetId(rs_id)) => rs_id,
+                    _ => return Err(HdbError::impl_("No ResultSetId part found for ResultSet")),
+                };
+
+                let rs_metadata = match parts.pop_arg_if_kind(PartKind::ResultSetMetadata) {
+                    Some(Argument::ResultSetMetadata(rsmd)) => rsmd,
+                    None => match rs_md {
+                        Some(rs_md) => rs_md.clone(),
+                        _ => return Err(HdbError::impl_("No metadata provided for ResultSet")),
+                    },
+                    _ => {
+                        return Err(HdbError::impl_(
+                            "Inconsistent metadata part found for ResultSet",
+                        ))
+                    }
+                };
+
+                let mut result =
+                    ResultSet::new(am_conn_core, attributes, rs_id, rs_metadata, o_stmt_ctx);
+                ResultSet::parse_rows(&mut result, no_of_rows, rdr)?;
+                Ok(Some(result))
+            }
+
+            Some(ref mut fetching_resultset) => {
+                match parts.pop_arg_if_kind(PartKind::StatementContext) {
+                    Some(Argument::StatementContext(stmt_ctx)) => {
+                        fetching_resultset.server_resource_consumption_info.update(
+                            stmt_ctx.get_server_processing_time(),
+                            stmt_ctx.get_server_cpu_time(),
+                            stmt_ctx.get_server_memory_usage(),
+                        );
+                    }
+                    None => {}
+                    _ => {
+                        return Err(HdbError::impl_(
+                            "Inconsistent StatementContext part found for ResultSet",
+                        ))
+                    }
+                };
+
+                {
+                    let mut guard = fetching_resultset.core_ref.lock()?;
+                    let rs_core = &mut *guard;
+                    rs_core.attributes = attributes;
+                }
+                ResultSet::parse_rows(fetching_resultset, no_of_rows, rdr)?;
+                Ok(None)
+            }
+        }
+    }
+
+    fn parse_rows(
+        resultset: &mut ResultSet,
+        no_of_rows: i32,
+        rdr: &mut std::io::BufRead,
+    ) -> HdbResult<()> {
+        let no_of_cols = resultset.metadata.number_of_fields();
+        debug!(
+            "resultset::parse_rows() reading {} lines with {} columns",
+            no_of_rows, no_of_cols
+        );
+
+        let guard = resultset.core_ref.lock()?;
+        let rs_core = &*guard;
+        if let Some(ref am_conn_core) = rs_core.o_am_conn_core {
+            for r in 0..no_of_rows {
+                let mut values = Vec::<HdbValue>::new();
+                trace!("Parsing row {}", r,);
+                for c in 0..no_of_cols {
+                    let type_id = resultset
+                        .metadata
+                        .type_id(c)
+                        .map_err(|_| HdbError::impl_("Not enough metadata"))?;
+                    trace!("Parsing row {}, column {}, type_id {}", r, c, type_id,);
+                    let value = HdbValue::parse_from_reply(&type_id, am_conn_core, rdr)?;
+                    debug!(
+                        "Parsed row {}, column {}, value {}, type_id {}",
+                        r, c, value, type_id,
+                    );
+                    values.push(value);
+                }
+                let row = Row::new(Arc::clone(&resultset.metadata), values);
+                trace!("parse_rows(): Found row {}", row);
+                resultset.rows.push(row);
+            }
+        }
+        Ok(())
     }
 }
 
@@ -362,175 +486,5 @@ impl Iterator for RowIterator {
             Ok(None) => None,
             Err(e) => Some(Err(e)),
         }
-    }
-}
-
-mod factory {
-    use super::{ResultSet, ResultSetCore, Row};
-    use crate::conn_core::AmConnCore;
-    use crate::protocol::argument::Argument;
-    use crate::protocol::part::Parts;
-    use crate::protocol::part_attributes::PartAttributes;
-    use crate::protocol::partkind::PartKind;
-    use crate::protocol::parts::hdb_value::HdbValue;
-    use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
-    use crate::protocol::parts::statement_context::StatementContext;
-    use crate::protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
-    use std::io;
-    use std::sync::Arc;
-    use crate::{HdbError, HdbResult};
-
-    pub(crate) fn resultset_new(
-        am_conn_core: &AmConnCore,
-        attrs: PartAttributes,
-        rs_id: u64,
-        rsm: ResultSetMetadata,
-        o_stmt_ctx: Option<StatementContext>,
-    ) -> ResultSet {
-        let mut server_resource_consumption_info: ServerResourceConsumptionInfo =
-            Default::default();
-
-        if let Some(stmt_ctx) = o_stmt_ctx {
-            server_resource_consumption_info.update(
-                stmt_ctx.get_server_processing_time(),
-                stmt_ctx.get_server_cpu_time(),
-                stmt_ctx.get_server_memory_usage(),
-            );
-        }
-
-        ResultSet {
-            core_ref: ResultSetCore::new_am_rscore(am_conn_core, attrs, rs_id),
-            metadata: Arc::new(rsm),
-            rows: Vec::<Row>::new(),
-            server_resource_consumption_info,
-        }
-    }
-
-    // resultsets can be part of the response in three cases which differ
-    // in regard to metadata handling:
-    //
-    // a) a response to a plain "execute" will contain the metadata in one of the
-    //    other parts; the metadata parameter will thus have the variant None
-    //
-    // b) a response to an "execute prepared" will only contain data;
-    //    the metadata had beeen returned already to the "prepare" call, and are
-    //    provided with parameter metadata
-    //
-    // c) a response to a "fetch more lines" is triggered from an older resultset
-    //    which already has its metadata
-    //
-    // For first resultset packets, we create and return a new ResultSet object.
-    // We then expect the previous three parts to be
-    // a matching ResultSetMetadata, a ResultSetId, and a StatementContext.
-    pub(crate) fn parse(
-        no_of_rows: i32,
-        attributes: PartAttributes,
-        parts: &mut Parts,
-        am_conn_core: &AmConnCore,
-        rs_md: Option<&ResultSetMetadata>,
-        o_rs: &mut Option<&mut ResultSet>,
-        rdr: &mut io::BufRead,
-    ) -> HdbResult<Option<ResultSet>> {
-        match *o_rs {
-            None => {
-                // case a) or b)
-                let o_stmt_ctx = match parts.pop_arg_if_kind(PartKind::StatementContext) {
-                    Some(Argument::StatementContext(stmt_ctx)) => Some(stmt_ctx),
-                    None => None,
-                    _ => {
-                        return Err(HdbError::impl_(
-                            "Inconsistent StatementContext part found for ResultSet",
-                        ))
-                    }
-                };
-
-                let rs_id = match parts.pop_arg() {
-                    Some(Argument::ResultSetId(rs_id)) => rs_id,
-                    _ => return Err(HdbError::impl_("No ResultSetId part found for ResultSet")),
-                };
-
-                let rs_metadata = match parts.pop_arg_if_kind(PartKind::ResultSetMetadata) {
-                    Some(Argument::ResultSetMetadata(rsmd)) => rsmd,
-                    None => match rs_md {
-                        Some(rs_md) => rs_md.clone(),
-                        _ => return Err(HdbError::impl_("No metadata provided for ResultSet")),
-                    },
-                    _ => {
-                        return Err(HdbError::impl_(
-                            "Inconsistent metadata part found for ResultSet",
-                        ))
-                    }
-                };
-
-                let mut result =
-                    resultset_new(am_conn_core, attributes, rs_id, rs_metadata, o_stmt_ctx);
-                parse_rows(&mut result, no_of_rows, rdr)?;
-                Ok(Some(result))
-            }
-
-            Some(ref mut fetching_resultset) => {
-                match parts.pop_arg_if_kind(PartKind::StatementContext) {
-                    Some(Argument::StatementContext(stmt_ctx)) => {
-                        fetching_resultset.server_resource_consumption_info.update(
-                            stmt_ctx.get_server_processing_time(),
-                            stmt_ctx.get_server_cpu_time(),
-                            stmt_ctx.get_server_memory_usage(),
-                        );
-                    }
-                    None => {}
-                    _ => {
-                        return Err(HdbError::impl_(
-                            "Inconsistent StatementContext part found for ResultSet",
-                        ))
-                    }
-                };
-
-                {
-                    let mut guard = fetching_resultset.core_ref.lock()?;
-                    let rs_core = &mut *guard;
-                    rs_core.attributes = attributes;
-                }
-                parse_rows(fetching_resultset, no_of_rows, rdr)?;
-                Ok(None)
-            }
-        }
-    }
-
-    fn parse_rows(
-        resultset: &mut ResultSet,
-        no_of_rows: i32,
-        rdr: &mut io::BufRead,
-    ) -> HdbResult<()> {
-        let no_of_cols = resultset.metadata.number_of_fields();
-        debug!(
-            "resultset::parse_rows() reading {} lines with {} columns",
-            no_of_rows, no_of_cols
-        );
-
-        let guard = resultset.core_ref.lock()?;
-        let rs_core = &*guard;
-        if let Some(ref am_conn_core) = rs_core.o_am_conn_core {
-            for r in 0..no_of_rows {
-                let mut values = Vec::<HdbValue>::new();
-                trace!("Parsing row {}", r,);
-                for c in 0..no_of_cols {
-                    let type_id = resultset
-                        .metadata
-                        .type_id(c)
-                        .map_err(|_| HdbError::impl_("Not enough metadata"))?;
-                    trace!("Parsing row {}, column {}, type_id {}", r, c, type_id,);
-                    let value = HdbValue::parse_from_reply(&type_id, am_conn_core, rdr)?;
-                    debug!(
-                        "Parsed row {}, column {}, value {}, type_id {}",
-                        r, c, value, type_id,
-                    );
-                    values.push(value);
-                }
-                let row = Row::new(Arc::clone(&resultset.metadata), values);
-                trace!("parse_rows(): Found row {}", row);
-                resultset.rows.push(row);
-            }
-        }
-        Ok(())
     }
 }

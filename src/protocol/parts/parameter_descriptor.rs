@@ -1,5 +1,8 @@
-use crate::hdb_error::HdbResult;
 use crate::protocol::parts::type_id::TypeId;
+use crate::protocol::util;
+use crate::{HdbError, HdbResult};
+use byteorder::{LittleEndian, ReadBytesExt};
+use std::u32;
 
 /// Metadata for a parameter.
 #[derive(Clone, Debug)]
@@ -81,7 +84,76 @@ impl ParameterDescriptor {
         arg_size: u32,
         rdr: &mut std::io::BufRead,
     ) -> HdbResult<Vec<ParameterDescriptor>> {
-        factory::parse(count, arg_size, rdr)
+        let mut consumed = 0;
+        let mut vec_pd = Vec::<ParameterDescriptor>::new();
+        let mut name_offsets = Vec::<u32>::new();
+        for _ in 0..count {
+            // 16 byte each
+            let option = rdr.read_u8()?;
+            let value_type = rdr.read_u8()?;
+            let mode = ParameterDescriptor::direction_from_u8(rdr.read_u8()?)?;
+            rdr.read_u8()?;
+            name_offsets.push(rdr.read_u32::<LittleEndian>()?);
+            let length = rdr.read_u16::<LittleEndian>()?;
+            let fraction = rdr.read_u16::<LittleEndian>()?;
+            rdr.read_u32::<LittleEndian>()?;
+            consumed += 16;
+            assert!(arg_size >= consumed);
+            vec_pd.push(ParameterDescriptor::new(
+                option, value_type, mode, length, fraction,
+            ));
+        }
+        // read the parameter names
+        for (descriptor, name_offset) in vec_pd.iter_mut().zip(name_offsets.iter()) {
+            if name_offset != &u32::MAX {
+                let length = rdr.read_u8()?;
+                let name =
+                    cesu8::from_cesu8(&util::parse_bytes(length as usize, rdr)?)?.to_string();
+                descriptor.set_name(name);
+                consumed += 1 + u32::from(length);
+                assert!(arg_size >= consumed);
+            }
+        }
+        Ok(vec_pd)
+    }
+
+    fn new(
+        parameter_option: u8,
+        type_code: u8,
+        direction: ParameterDirection,
+        precision: u16,
+        scale: u16,
+    ) -> ParameterDescriptor {
+        let nullable = (parameter_option & 0b_0000_0010_u8) != 0;
+        let type_id = TypeId::new(From::from(type_code), nullable);
+
+        ParameterDescriptor {
+            parameter_option,
+            type_id,
+            direction,
+            precision,
+            scale,
+            name: None,
+        }
+    }
+
+    fn set_name(&mut self, name: String) {
+        self.name = Some(name);
+    }
+
+    fn direction_from_u8(v: u8) -> HdbResult<ParameterDirection> {
+        // it's done with three bits where always exactly one is 1 and the others are 0;
+        // the other bits are not used,
+        // so we can avoid bit handling and do it the simple way
+        match v {
+            1 => Ok(ParameterDirection::IN),
+            2 => Ok(ParameterDirection::INOUT),
+            4 => Ok(ParameterDirection::OUT),
+            _ => Err(HdbError::impl_(&format!(
+                "invalid value for ParameterDirection: {}",
+                v
+            ))),
+        }
     }
 }
 
@@ -124,93 +196,4 @@ pub enum ParameterDirection {
     INOUT,
     /// output parameter
     OUT,
-}
-
-mod factory {
-    use super::{ParameterDescriptor, ParameterDirection};
-    use byteorder::{LittleEndian, ReadBytesExt};
-    use cesu8;
-    use crate::protocol::parts::type_id::TypeId;
-    use crate::protocol::util;
-    use std::io;
-    use std::u32;
-    use crate::{HdbError, HdbResult};
-
-    pub fn parse(
-        count: i32,
-        arg_size: u32,
-        rdr: &mut io::BufRead,
-    ) -> HdbResult<Vec<ParameterDescriptor>> {
-        let mut consumed = 0;
-        let mut vec_pd = Vec::<ParameterDescriptor>::new();
-        let mut name_offsets = Vec::<u32>::new();
-        for _ in 0..count {
-            // 16 byte each
-            let option = rdr.read_u8()?;
-            let value_type = rdr.read_u8()?;
-            let mode = parameter_direction_from_u8(rdr.read_u8()?)?;
-            rdr.read_u8()?;
-            name_offsets.push(rdr.read_u32::<LittleEndian>()?);
-            let length = rdr.read_u16::<LittleEndian>()?;
-            let fraction = rdr.read_u16::<LittleEndian>()?;
-            rdr.read_u32::<LittleEndian>()?;
-            consumed += 16;
-            assert!(arg_size >= consumed);
-            vec_pd.push(parameter_descriptor_new(
-                option, value_type, mode, length, fraction,
-            ));
-        }
-        // read the parameter names
-        for (mut descriptor, name_offset) in vec_pd.iter_mut().zip(name_offsets.iter()) {
-            if name_offset != &u32::MAX {
-                let length = rdr.read_u8()?;
-                let name =
-                    cesu8::from_cesu8(&util::parse_bytes(length as usize, rdr)?)?.to_string();
-                parameter_descriptor_set_name(&mut descriptor, name);
-                consumed += 1 + u32::from(length);
-                assert!(arg_size >= consumed);
-            }
-        }
-        Ok(vec_pd)
-    }
-
-    fn parameter_descriptor_new(
-        parameter_option: u8,
-        type_code: u8,
-        direction: ParameterDirection,
-        precision: u16,
-        scale: u16,
-    ) -> ParameterDescriptor {
-        let nullable = (parameter_option & 0b_0000_0010_u8) != 0;
-        let type_id = TypeId::new(From::from(type_code), nullable);
-
-        ParameterDescriptor {
-            parameter_option,
-            type_id,
-            direction,
-            precision,
-            scale,
-            name: None,
-        }
-    }
-
-    fn parameter_descriptor_set_name(pd: &mut ParameterDescriptor, name: String) {
-        pd.name = Some(name);
-    }
-
-    fn parameter_direction_from_u8(v: u8) -> HdbResult<ParameterDirection> {
-        // it's done with three bits where always exactly one is 1 and the others are 0;
-        // the other bits are not used,
-        // so we can avoid bit handling and do it the simple way
-        match v {
-            1 => Ok(ParameterDirection::IN),
-            2 => Ok(ParameterDirection::INOUT),
-            4 => Ok(ParameterDirection::OUT),
-            _ => Err(HdbError::impl_(&format!(
-                "invalid value for ParameterDirection: {}",
-                v
-            ))),
-        }
-    }
-
 }

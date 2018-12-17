@@ -1,28 +1,26 @@
-use bigdecimal::BigDecimal;
 use crate::conn_core::AmConnCore;
 use crate::protocol::parts::type_id::{BaseTypeId, TypeId};
 use crate::protocol::util;
-use crate::types::BLob;
-use crate::types::CLob;
-use crate::types::DayDate;
-use crate::types::LongDate;
-use crate::types::NCLob;
-use crate::types::SecondDate;
-use crate::types::SecondTime;
-use crate::types_impl::hdb_decimal::serialize_decimal;
-use crate::types_impl::lob::{serialize_blob_header, serialize_clob_header, serialize_nclob_header};
+use crate::types::{BLob, CLob, DayDate, LongDate, NCLob, SecondDate, SecondTime};
+use crate::types_impl::daydate::{parse_daydate, parse_nullable_daydate};
+use crate::types_impl::hdb_decimal::{parse_decimal, parse_nullable_decimal, serialize_decimal};
+use crate::types_impl::lob::{
+    parse_blob, parse_clob, parse_nclob, parse_nullable_blob, parse_nullable_clob,
+    parse_nullable_nclob, serialize_blob_header, serialize_clob_header, serialize_nclob_header,
+};
+use crate::types_impl::longdate::{parse_longdate, parse_nullable_longdate};
+use crate::types_impl::seconddate::{parse_nullable_seconddate, parse_seconddate};
+use crate::types_impl::secondtime::{parse_nullable_secondtime, parse_secondtime};
 use crate::{HdbError, HdbResult};
-
-use byteorder::{LittleEndian, WriteBytesExt};
+use bigdecimal::BigDecimal;
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use cesu8;
 use serde;
 use serde_db::de::DbValue;
 use std::fmt;
-use std::i16;
-use std::io;
 
 const MAX_1_BYTE_LENGTH: u8 = 245;
-const MAX_2_BYTE_LENGTH: i16 = i16::MAX;
+const MAX_2_BYTE_LENGTH: i16 = std::i16::MAX;
 const LENGTH_INDICATOR_2BYTE: u8 = 246;
 const LENGTH_INDICATOR_4BYTE: u8 = 247;
 const LENGTH_INDICATOR_NULL: u8 = 255;
@@ -198,7 +196,7 @@ pub enum HdbValue {
 }
 
 impl HdbValue {
-    fn serialize_type_id(&self, w: &mut io::Write) -> HdbResult<bool> {
+    fn serialize_type_id(&self, w: &mut std::io::Write) -> HdbResult<bool> {
         let is_null = match *self {
             HdbValue::N_TINYINT(None)
             | HdbValue::N_SMALLINT(None)
@@ -305,7 +303,7 @@ impl HdbValue {
         Ok(DbValue::into_typed(self)?)
     }
 
-    pub(crate) fn serialize(&self, data_pos: &mut i32, w: &mut io::Write) -> HdbResult<()> {
+    pub(crate) fn serialize(&self, data_pos: &mut i32, w: &mut std::io::Write) -> HdbResult<()> {
         if !self.serialize_type_id(w)? {
             match *self {
                 HdbValue::NOTHING => panic!("Can't send HdbValue::NOTHING to Database"),
@@ -526,163 +524,7 @@ impl HdbValue {
     pub(crate) fn parse_from_reply(
         type_id: &TypeId,
         am_conn_core: &AmConnCore,
-        rdr: &mut io::BufRead,
-    ) -> HdbResult<HdbValue> {
-        factory::parse_from_reply(type_id, am_conn_core, rdr)
-    }
-}
-
-//
-fn type_id_not_null(base_type_id: BaseTypeId) -> TypeId {
-    TypeId::new(base_type_id, false)
-}
-fn type_id_nullable(base_type_id: BaseTypeId) -> TypeId {
-    TypeId::new(base_type_id, true)
-}
-
-pub fn string_length(s: &str) -> usize {
-    match util::cesu8_length(s) {
-        clen if clen <= MAX_1_BYTE_LENGTH as usize => 1 + clen,
-        clen if clen <= MAX_2_BYTE_LENGTH as usize => 3 + clen,
-        clen => 5 + clen,
-    }
-}
-
-pub fn serialize_length_and_string(s: &str, w: &mut io::Write) -> HdbResult<()> {
-    serialize_length_and_bytes(&cesu8::to_cesu8(s), w)
-}
-
-fn serialize_length_and_bytes(v: &[u8], w: &mut io::Write) -> HdbResult<()> {
-    match v.len() {
-        l if l <= MAX_1_BYTE_LENGTH as usize => {
-            w.write_u8(l as u8)?; // B1           LENGTH OF VALUE
-        }
-        l if l <= MAX_2_BYTE_LENGTH as usize => {
-            w.write_u8(LENGTH_INDICATOR_2BYTE)?; // B1           246
-            w.write_i16::<LittleEndian>(l as i16)?; // I2           LENGTH OF VALUE
-        }
-        l => {
-            w.write_u8(LENGTH_INDICATOR_4BYTE)?; // B1           247
-            w.write_i32::<LittleEndian>(l as i32)?; // I4           LENGTH OF VALUE
-        }
-    }
-    util::serialize_bytes(v, w) // B variable   VALUE BYTES
-}
-
-impl fmt::Display for HdbValue {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            HdbValue::NOTHING => write!(fmt, "Value already swapped out"),
-            HdbValue::TINYINT(value) | HdbValue::N_TINYINT(Some(value)) => write!(fmt, "{}", value),
-            HdbValue::SMALLINT(value) | HdbValue::N_SMALLINT(Some(value)) => {
-                write!(fmt, "{}", value)
-            }
-            HdbValue::INT(value) | HdbValue::N_INT(Some(value)) => write!(fmt, "{}", value),
-            HdbValue::BIGINT(value) | HdbValue::N_BIGINT(Some(value)) => write!(fmt, "{}", value),
-            HdbValue::DECIMAL(ref value)
-            | HdbValue::N_DECIMAL(Some(ref value))
-            | HdbValue::SMALLDECIMAL(ref value)
-            | HdbValue::N_SMALLDECIMAL(Some(ref value)) => write!(fmt, "{}", value),
-            HdbValue::REAL(value) | HdbValue::N_REAL(Some(value)) => write!(fmt, "{}", value),
-            HdbValue::DOUBLE(value) | HdbValue::N_DOUBLE(Some(value)) => write!(fmt, "{}", value),
-            HdbValue::CHAR(ref value)
-            | HdbValue::N_CHAR(Some(ref value))
-            | HdbValue::VARCHAR(ref value)
-            | HdbValue::N_VARCHAR(Some(ref value))
-            | HdbValue::NCHAR(ref value)
-            | HdbValue::N_NCHAR(Some(ref value))
-            | HdbValue::NVARCHAR(ref value)
-            | HdbValue::N_NVARCHAR(Some(ref value))
-            | HdbValue::STRING(ref value)
-            | HdbValue::N_STRING(Some(ref value))
-            | HdbValue::NSTRING(ref value)
-            | HdbValue::N_NSTRING(Some(ref value))
-            | HdbValue::TEXT(ref value)
-            | HdbValue::N_TEXT(Some(ref value))
-            | HdbValue::SHORTTEXT(ref value)
-            | HdbValue::N_SHORTTEXT(Some(ref value)) => write!(fmt, "{}", value),
-            HdbValue::BINARY(_) | HdbValue::N_BINARY(Some(_)) => write!(fmt, "<BINARY>"),
-            HdbValue::VARBINARY(ref vec) | HdbValue::N_VARBINARY(Some(ref vec)) => {
-                write!(fmt, "<VARBINARY length = {}>", vec.len())
-            }
-            HdbValue::CLOB(_) | HdbValue::N_CLOB(Some(_)) => write!(fmt, "<CLOB>"),
-            HdbValue::NCLOB(_) | HdbValue::N_NCLOB(Some(_)) => write!(fmt, "<NCLOB>"),
-            HdbValue::BLOB(ref blob) | HdbValue::N_BLOB(Some(ref blob)) => write!(
-                fmt,
-                "<BLOB length = {}, read = {}>",
-                blob.len_alldata(),
-                blob.len_readdata()
-            ),
-            HdbValue::BOOLEAN(value) | HdbValue::N_BOOLEAN(Some(value)) => write!(fmt, "{}", value),
-            HdbValue::BSTRING(_) | HdbValue::N_BSTRING(Some(_)) => write!(fmt, "<BSTRING>"),
-            HdbValue::LONGDATE(ref value) | HdbValue::N_LONGDATE(Some(ref value)) => {
-                write!(fmt, "{}", value)
-            }
-            HdbValue::SECONDDATE(ref value) | HdbValue::N_SECONDDATE(Some(ref value)) => {
-                write!(fmt, "{}", value)
-            }
-            HdbValue::DAYDATE(ref value) | HdbValue::N_DAYDATE(Some(ref value)) => {
-                write!(fmt, "{}", value)
-            }
-            HdbValue::SECONDTIME(ref value) | HdbValue::N_SECONDTIME(Some(ref value)) => {
-                write!(fmt, "{}", value)
-            }
-
-            HdbValue::N_TINYINT(None)
-            | HdbValue::N_SMALLINT(None)
-            | HdbValue::N_INT(None)
-            | HdbValue::N_BIGINT(None)
-            | HdbValue::N_DECIMAL(None)
-            | HdbValue::N_SMALLDECIMAL(None)
-            | HdbValue::N_REAL(None)
-            | HdbValue::N_DOUBLE(None)
-            | HdbValue::N_CHAR(None)
-            | HdbValue::N_VARCHAR(None)
-            | HdbValue::N_NCHAR(None)
-            | HdbValue::N_NVARCHAR(None)
-            | HdbValue::N_BINARY(None)
-            | HdbValue::N_VARBINARY(None)
-            | HdbValue::N_CLOB(None)
-            | HdbValue::N_NCLOB(None)
-            | HdbValue::N_BLOB(None)
-            | HdbValue::N_BOOLEAN(None)
-            | HdbValue::N_STRING(None)
-            | HdbValue::N_NSTRING(None)
-            | HdbValue::N_BSTRING(None)
-            | HdbValue::N_TEXT(None)
-            | HdbValue::N_SHORTTEXT(None)
-            | HdbValue::N_LONGDATE(None)
-            | HdbValue::N_SECONDDATE(None)
-            | HdbValue::N_DAYDATE(None)
-            | HdbValue::N_SECONDTIME(None) => write!(fmt, "<NULL>"),
-        }
-    }
-}
-
-mod factory {
-    use super::HdbValue;
-    use crate::conn_core::AmConnCore;
-    use crate::protocol::parts::type_id::{BaseTypeId, TypeId};
-    use crate::protocol::util;
-    use crate::types_impl::daydate::{parse_daydate, parse_nullable_daydate};
-    use crate::types_impl::hdb_decimal::{parse_decimal, parse_nullable_decimal};
-    use crate::types_impl::lob::{parse_blob, parse_clob, parse_nclob};
-    use crate::types_impl::lob::{parse_nullable_blob, parse_nullable_clob, parse_nullable_nclob};
-    use crate::types_impl::longdate::{parse_longdate, parse_nullable_longdate};
-    use crate::types_impl::seconddate::{parse_nullable_seconddate, parse_seconddate};
-    use crate::types_impl::secondtime::{parse_nullable_secondtime, parse_secondtime};
-    use crate::{HdbError, HdbResult};
-
-    use byteorder::{LittleEndian, ReadBytesExt};
-    use cesu8;
-    use std::io;
-    use std::iter::repeat;
-    use std::{u32, u64};
-
-    pub(crate) fn parse_from_reply(
-        type_id: &TypeId,
-        am_conn_core: &AmConnCore,
-        rdr: &mut io::BufRead,
+        rdr: &mut std::io::BufRead,
     ) -> HdbResult<HdbValue> {
         match (type_id.base_type_id(), type_id.is_nullable()) {
             (BaseTypeId::NOTHING, _) => panic!("Must not happen"),
@@ -795,131 +637,258 @@ mod factory {
             }
         }
     }
+}
 
-    // reads the nullindicator and returns Ok(true) if it has value 0 or Ok(false)
-    // otherwise
-    fn ind_null(rdr: &mut io::BufRead) -> HdbResult<bool> {
-        Ok(rdr.read_u8()? == 0)
+// reads the nullindicator and returns Ok(true) if it has value 0 or Ok(false)
+// otherwise
+fn ind_null(rdr: &mut std::io::BufRead) -> HdbResult<bool> {
+    Ok(rdr.read_u8()? == 0)
+}
+
+// reads the nullindicator and throws an error if it has value 0
+fn ind_not_null(rdr: &mut std::io::BufRead) -> HdbResult<()> {
+    if ind_null(rdr)? {
+        Err(HdbError::Impl(
+            "null value returned for not-null column".to_owned(),
+        ))
+    } else {
+        Ok(())
     }
+}
 
-    // reads the nullindicator and throws an error if it has value 0
-    fn ind_not_null(rdr: &mut io::BufRead) -> HdbResult<()> {
-        if ind_null(rdr)? {
-            Err(HdbError::Impl(
-                "null value returned for not-null column".to_owned(),
-            ))
-        } else {
-            Ok(())
+fn parse_real(rdr: &mut std::io::BufRead) -> HdbResult<f32> {
+    let mut vec: Vec<u8> = std::iter::repeat(0u8).take(4).collect();
+    rdr.read_exact(&mut vec[..])?;
+    let mut r = std::io::Cursor::new(&vec);
+    let tmp = r.read_u32::<LittleEndian>()?;
+    match tmp {
+        std::u32::MAX => Err(HdbError::Impl(
+            "Unexpected NULL Value in parse_real()".to_owned(),
+        )),
+        _ => {
+            r.set_position(0);
+            Ok(r.read_f32::<LittleEndian>()?)
         }
     }
+}
 
-    fn parse_real(rdr: &mut io::BufRead) -> HdbResult<f32> {
-        let mut vec: Vec<u8> = repeat(0u8).take(4).collect();
-        rdr.read_exact(&mut vec[..])?;
-        let mut r = io::Cursor::new(&vec);
-        let tmp = r.read_u32::<LittleEndian>()?;
-        match tmp {
-            u32::MAX => Err(HdbError::Impl(
-                "Unexpected NULL Value in parse_real()".to_owned(),
-            )),
-            _ => {
-                r.set_position(0);
-                Ok(r.read_f32::<LittleEndian>()?)
-            }
+fn parse_nullable_real(rdr: &mut std::io::BufRead) -> HdbResult<Option<f32>> {
+    let mut vec: Vec<u8> = std::iter::repeat(0u8).take(4).collect();
+    rdr.read_exact(&mut vec[..])?;
+    let mut r = std::io::Cursor::new(&vec);
+    let tmp = r.read_u32::<LittleEndian>()?;
+    match tmp {
+        std::u32::MAX => Ok(None),
+        _ => {
+            r.set_position(0);
+            Ok(Some(r.read_f32::<LittleEndian>()?))
         }
     }
+}
 
-    fn parse_nullable_real(rdr: &mut io::BufRead) -> HdbResult<Option<f32>> {
-        let mut vec: Vec<u8> = repeat(0u8).take(4).collect();
-        rdr.read_exact(&mut vec[..])?;
-        let mut r = io::Cursor::new(&vec);
-        let tmp = r.read_u32::<LittleEndian>()?;
-        match tmp {
-            u32::MAX => Ok(None),
-            _ => {
-                r.set_position(0);
-                Ok(Some(r.read_f32::<LittleEndian>()?))
-            }
+fn parse_double(rdr: &mut std::io::BufRead) -> HdbResult<f64> {
+    let mut vec: Vec<u8> = std::iter::repeat(0u8).take(8).collect();
+    rdr.read_exact(&mut vec[..])?;
+    let mut r = std::io::Cursor::new(&vec);
+    let tmp = r.read_u64::<LittleEndian>()?;
+    match tmp {
+        std::u64::MAX => Err(HdbError::Impl(
+            "Unexpected NULL Value in parse_double()".to_owned(),
+        )),
+        _ => {
+            r.set_position(0);
+            Ok(r.read_f64::<LittleEndian>()?)
         }
     }
+}
 
-    fn parse_double(rdr: &mut io::BufRead) -> HdbResult<f64> {
-        let mut vec: Vec<u8> = repeat(0u8).take(8).collect();
-        rdr.read_exact(&mut vec[..])?;
-        let mut r = io::Cursor::new(&vec);
-        let tmp = r.read_u64::<LittleEndian>()?;
-        match tmp {
-            u64::MAX => Err(HdbError::Impl(
-                "Unexpected NULL Value in parse_double()".to_owned(),
-            )),
-            _ => {
-                r.set_position(0);
-                Ok(r.read_f64::<LittleEndian>()?)
-            }
+fn parse_nullable_double(rdr: &mut std::io::BufRead) -> HdbResult<Option<f64>> {
+    let mut vec: Vec<u8> = std::iter::repeat(0u8).take(8).collect();
+    rdr.read_exact(&mut vec[..])?;
+    let mut r = std::io::Cursor::new(&vec);
+    let tmp = r.read_u64::<LittleEndian>()?;
+    match tmp {
+        std::u64::MAX => Ok(None),
+        _ => {
+            r.set_position(0);
+            Ok(Some(r.read_f64::<LittleEndian>()?))
         }
     }
+}
 
-    fn parse_nullable_double(rdr: &mut io::BufRead) -> HdbResult<Option<f64>> {
-        let mut vec: Vec<u8> = repeat(0u8).take(8).collect();
-        rdr.read_exact(&mut vec[..])?;
-        let mut r = io::Cursor::new(&vec);
-        let tmp = r.read_u64::<LittleEndian>()?;
-        match tmp {
-            u64::MAX => Ok(None),
-            _ => {
-                r.set_position(0);
-                Ok(Some(r.read_f64::<LittleEndian>()?))
-            }
+// ----- STRINGS and BINARIES
+// ----------------------------------------------------------------
+fn parse_string(rdr: &mut std::io::BufRead) -> HdbResult<String> {
+    Ok(cesu8::from_cesu8(&parse_binary(rdr)?)?.to_string())
+}
+
+fn parse_binary(rdr: &mut std::io::BufRead) -> HdbResult<Vec<u8>> {
+    let l8 = rdr.read_u8()?; // B1
+    let len = match l8 {
+        l if l <= MAX_1_BYTE_LENGTH => l8 as usize,
+        LENGTH_INDICATOR_2BYTE => rdr.read_i16::<LittleEndian>()? as usize, // I2
+        LENGTH_INDICATOR_4BYTE => rdr.read_i32::<LittleEndian>()? as usize, // I4
+        l => {
+            return Err(HdbError::Impl(format!(
+                "Invalid value in length indicator: {}",
+                l
+            )));
+        }
+    };
+    let result = util::parse_bytes(len, rdr)?; // B (varying)
+    trace!("parse_binary(): read_bytes = {:?}, len = {}", result, len);
+    Ok(result)
+}
+
+fn parse_nullable_string(rdr: &mut std::io::BufRead) -> HdbResult<Option<String>> {
+    match parse_nullable_binary(rdr)? {
+        Some(vec) => Ok(Some(cesu8::from_cesu8(&vec)?.to_string())),
+        None => Ok(None),
+    }
+}
+
+fn parse_nullable_binary(rdr: &mut std::io::BufRead) -> HdbResult<Option<Vec<u8>>> {
+    let l8 = rdr.read_u8()?; // B1
+    let len = match l8 {
+        l if l <= MAX_1_BYTE_LENGTH => l8 as usize,
+        LENGTH_INDICATOR_2BYTE => rdr.read_i16::<LittleEndian>()? as usize, // I2
+        LENGTH_INDICATOR_4BYTE => rdr.read_i32::<LittleEndian>()? as usize, // I4
+        LENGTH_INDICATOR_NULL => return Ok(None),
+        l => {
+            return Err(HdbError::Impl(format!(
+                "Invalid value in length indicator: {}",
+                l
+            )))
+        }
+    };
+    let result = util::parse_bytes(len, rdr)?;
+    trace!("parse_nullable_binary(): read_bytes = {:?}", result);
+    Ok(Some(result)) // B (varying)
+}
+
+//
+fn type_id_not_null(base_type_id: BaseTypeId) -> TypeId {
+    TypeId::new(base_type_id, false)
+}
+fn type_id_nullable(base_type_id: BaseTypeId) -> TypeId {
+    TypeId::new(base_type_id, true)
+}
+
+pub(crate) fn string_length(s: &str) -> usize {
+    match util::cesu8_length(s) {
+        clen if clen <= MAX_1_BYTE_LENGTH as usize => 1 + clen,
+        clen if clen <= MAX_2_BYTE_LENGTH as usize => 3 + clen,
+        clen => 5 + clen,
+    }
+}
+
+pub(crate) fn serialize_length_and_string(s: &str, w: &mut std::io::Write) -> HdbResult<()> {
+    serialize_length_and_bytes(&cesu8::to_cesu8(s), w)
+}
+
+fn serialize_length_and_bytes(v: &[u8], w: &mut std::io::Write) -> HdbResult<()> {
+    match v.len() {
+        l if l <= MAX_1_BYTE_LENGTH as usize => {
+            w.write_u8(l as u8)?; // B1           LENGTH OF VALUE
+        }
+        l if l <= MAX_2_BYTE_LENGTH as usize => {
+            w.write_u8(LENGTH_INDICATOR_2BYTE)?; // B1           246
+            w.write_i16::<LittleEndian>(l as i16)?; // I2           LENGTH OF VALUE
+        }
+        l => {
+            w.write_u8(LENGTH_INDICATOR_4BYTE)?; // B1           247
+            w.write_i32::<LittleEndian>(l as i32)?; // I4           LENGTH OF VALUE
         }
     }
+    util::serialize_bytes(v, w) // B variable   VALUE BYTES
+}
 
-    // ----- STRINGS and BINARIES
-    // ----------------------------------------------------------------
-    pub fn parse_string(rdr: &mut io::BufRead) -> HdbResult<String> {
-        Ok(cesu8::from_cesu8(&parse_binary(rdr)?)?.to_string())
-    }
-
-    fn parse_binary(rdr: &mut io::BufRead) -> HdbResult<Vec<u8>> {
-        let l8 = rdr.read_u8()?; // B1
-        let len = match l8 {
-            l if l <= super::MAX_1_BYTE_LENGTH => l8 as usize,
-            super::LENGTH_INDICATOR_2BYTE => rdr.read_i16::<LittleEndian>()? as usize, // I2
-            super::LENGTH_INDICATOR_4BYTE => rdr.read_i32::<LittleEndian>()? as usize, // I4
-            l => {
-                return Err(HdbError::Impl(format!(
-                    "Invalid value in length indicator: {}",
-                    l
-                )));
+impl fmt::Display for HdbValue {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            HdbValue::NOTHING => write!(fmt, "Value already swapped out"),
+            HdbValue::TINYINT(value) | HdbValue::N_TINYINT(Some(value)) => write!(fmt, "{}", value),
+            HdbValue::SMALLINT(value) | HdbValue::N_SMALLINT(Some(value)) => {
+                write!(fmt, "{}", value)
             }
-        };
-        let result = util::parse_bytes(len, rdr)?; // B (varying)
-        trace!("parse_binary(): read_bytes = {:?}, len = {}", result, len);
-        Ok(result)
-    }
+            HdbValue::INT(value) | HdbValue::N_INT(Some(value)) => write!(fmt, "{}", value),
+            HdbValue::BIGINT(value) | HdbValue::N_BIGINT(Some(value)) => write!(fmt, "{}", value),
+            HdbValue::DECIMAL(ref value)
+            | HdbValue::N_DECIMAL(Some(ref value))
+            | HdbValue::SMALLDECIMAL(ref value)
+            | HdbValue::N_SMALLDECIMAL(Some(ref value)) => write!(fmt, "{}", value),
+            HdbValue::REAL(value) | HdbValue::N_REAL(Some(value)) => write!(fmt, "{}", value),
+            HdbValue::DOUBLE(value) | HdbValue::N_DOUBLE(Some(value)) => write!(fmt, "{}", value),
+            HdbValue::CHAR(ref value)
+            | HdbValue::N_CHAR(Some(ref value))
+            | HdbValue::VARCHAR(ref value)
+            | HdbValue::N_VARCHAR(Some(ref value))
+            | HdbValue::NCHAR(ref value)
+            | HdbValue::N_NCHAR(Some(ref value))
+            | HdbValue::NVARCHAR(ref value)
+            | HdbValue::N_NVARCHAR(Some(ref value))
+            | HdbValue::STRING(ref value)
+            | HdbValue::N_STRING(Some(ref value))
+            | HdbValue::NSTRING(ref value)
+            | HdbValue::N_NSTRING(Some(ref value))
+            | HdbValue::TEXT(ref value)
+            | HdbValue::N_TEXT(Some(ref value))
+            | HdbValue::SHORTTEXT(ref value)
+            | HdbValue::N_SHORTTEXT(Some(ref value)) => write!(fmt, "{}", value),
+            HdbValue::BINARY(_) | HdbValue::N_BINARY(Some(_)) => write!(fmt, "<BINARY>"),
+            HdbValue::VARBINARY(ref vec) | HdbValue::N_VARBINARY(Some(ref vec)) => {
+                write!(fmt, "<VARBINARY length = {}>", vec.len())
+            }
+            HdbValue::CLOB(_) | HdbValue::N_CLOB(Some(_)) => write!(fmt, "<CLOB>"),
+            HdbValue::NCLOB(_) | HdbValue::N_NCLOB(Some(_)) => write!(fmt, "<NCLOB>"),
+            HdbValue::BLOB(ref blob) | HdbValue::N_BLOB(Some(ref blob)) => write!(
+                fmt,
+                "<BLOB length = {}, read = {}>",
+                blob.len_alldata(),
+                blob.len_readdata()
+            ),
+            HdbValue::BOOLEAN(value) | HdbValue::N_BOOLEAN(Some(value)) => write!(fmt, "{}", value),
+            HdbValue::BSTRING(_) | HdbValue::N_BSTRING(Some(_)) => write!(fmt, "<BSTRING>"),
+            HdbValue::LONGDATE(ref value) | HdbValue::N_LONGDATE(Some(ref value)) => {
+                write!(fmt, "{}", value)
+            }
+            HdbValue::SECONDDATE(ref value) | HdbValue::N_SECONDDATE(Some(ref value)) => {
+                write!(fmt, "{}", value)
+            }
+            HdbValue::DAYDATE(ref value) | HdbValue::N_DAYDATE(Some(ref value)) => {
+                write!(fmt, "{}", value)
+            }
+            HdbValue::SECONDTIME(ref value) | HdbValue::N_SECONDTIME(Some(ref value)) => {
+                write!(fmt, "{}", value)
+            }
 
-    fn parse_nullable_string(rdr: &mut io::BufRead) -> HdbResult<Option<String>> {
-        match parse_nullable_binary(rdr)? {
-            Some(vec) => Ok(Some(cesu8::from_cesu8(&vec)?.to_string())),
-            None => Ok(None),
+            HdbValue::N_TINYINT(None)
+            | HdbValue::N_SMALLINT(None)
+            | HdbValue::N_INT(None)
+            | HdbValue::N_BIGINT(None)
+            | HdbValue::N_DECIMAL(None)
+            | HdbValue::N_SMALLDECIMAL(None)
+            | HdbValue::N_REAL(None)
+            | HdbValue::N_DOUBLE(None)
+            | HdbValue::N_CHAR(None)
+            | HdbValue::N_VARCHAR(None)
+            | HdbValue::N_NCHAR(None)
+            | HdbValue::N_NVARCHAR(None)
+            | HdbValue::N_BINARY(None)
+            | HdbValue::N_VARBINARY(None)
+            | HdbValue::N_CLOB(None)
+            | HdbValue::N_NCLOB(None)
+            | HdbValue::N_BLOB(None)
+            | HdbValue::N_BOOLEAN(None)
+            | HdbValue::N_STRING(None)
+            | HdbValue::N_NSTRING(None)
+            | HdbValue::N_BSTRING(None)
+            | HdbValue::N_TEXT(None)
+            | HdbValue::N_SHORTTEXT(None)
+            | HdbValue::N_LONGDATE(None)
+            | HdbValue::N_SECONDDATE(None)
+            | HdbValue::N_DAYDATE(None)
+            | HdbValue::N_SECONDTIME(None) => write!(fmt, "<NULL>"),
         }
-    }
-
-    fn parse_nullable_binary(rdr: &mut io::BufRead) -> HdbResult<Option<Vec<u8>>> {
-        let l8 = rdr.read_u8()?; // B1
-        let len = match l8 {
-            l if l <= super::MAX_1_BYTE_LENGTH => l8 as usize,
-            super::LENGTH_INDICATOR_2BYTE => rdr.read_i16::<LittleEndian>()? as usize, // I2
-            super::LENGTH_INDICATOR_4BYTE => rdr.read_i32::<LittleEndian>()? as usize, // I4
-            super::LENGTH_INDICATOR_NULL => return Ok(None),
-            l => {
-                return Err(HdbError::Impl(format!(
-                    "Invalid value in length indicator: {}",
-                    l
-                )))
-            }
-        };
-        let result = util::parse_bytes(len, rdr)?;
-        trace!("parse_nullable_binary(): read_bytes = {:?}", result);
-        Ok(Some(result)) // B (varying)
     }
 }

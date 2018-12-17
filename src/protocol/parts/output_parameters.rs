@@ -2,7 +2,7 @@ use crate::conn_core::AmConnCore;
 use crate::{HdbError, HdbResult};
 
 use crate::protocol::parts::hdb_value::HdbValue;
-use crate::protocol::parts::parameter_descriptor::ParameterDescriptor;
+use crate::protocol::parts::parameter_descriptor::{ParameterDescriptor, ParameterDirection};
 use serde;
 use serde_db::de::DbValue;
 use std::fmt;
@@ -40,46 +40,6 @@ impl OutputParameters {
         par_md: &[ParameterDescriptor],
         rdr: &mut std::io::BufRead,
     ) -> HdbResult<OutputParameters> {
-        factory::parse(o_am_conn_core, par_md, rdr)
-    }
-}
-
-impl fmt::Display for OutputParameters {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        // write a header
-        writeln!(fmt)?;
-        for parameter_descriptor in &self.metadata {
-            write!(
-                fmt,
-                "{}, ",
-                parameter_descriptor.name().unwrap_or(&String::new())
-            )?;
-        }
-        writeln!(fmt)?;
-
-        // write the data
-        for value in &self.values {
-            write!(fmt, "{}, ", &value)?; // write the value
-        }
-        writeln!(fmt)?;
-        Ok(())
-    }
-}
-
-mod factory {
-    use super::OutputParameters;
-    use crate::conn_core::AmConnCore;
-    use crate::protocol::parts::hdb_value::HdbValue;
-    use crate::protocol::parts::parameter_descriptor::{ParameterDescriptor, ParameterDirection};
-    use crate::{HdbError, HdbResult};
-
-    use std::io;
-
-    pub(crate) fn parse(
-        o_am_conn_core: Option<&AmConnCore>,
-        par_md: &[ParameterDescriptor],
-        rdr: &mut io::BufRead,
-    ) -> HdbResult<OutputParameters> {
         trace!("OutputParameters::parse()");
         let am_conn_core = o_am_conn_core.ok_or_else(|| {
             HdbError::impl_("Cannot parse output parameters without am_conn_core")
@@ -104,5 +64,27 @@ mod factory {
             }
         }
         Ok(output_pars)
+    }
+}
+
+impl fmt::Display for OutputParameters {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        // write a header
+        writeln!(fmt)?;
+        for parameter_descriptor in &self.metadata {
+            write!(
+                fmt,
+                "{}, ",
+                parameter_descriptor.name().unwrap_or(&String::new())
+            )?;
+        }
+        writeln!(fmt)?;
+
+        // write the data
+        for value in &self.values {
+            write!(fmt, "{}, ", &value)?; // write the value
+        }
+        writeln!(fmt)?;
+        Ok(())
     }
 }
