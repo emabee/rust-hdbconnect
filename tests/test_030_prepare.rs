@@ -31,6 +31,7 @@ fn impl_test_030_prepare() -> HdbResult<i32> {
 
     prepare_insert_statement(&mut connection)?;
     prepare_statement_use_parameter_row(&mut connection)?;
+    prepare_multiple_errors(&mut connection)?;
 
     Ok(connection.get_call_count()?)
 }
@@ -155,5 +156,44 @@ fn prepare_statement_use_parameter_row(connection: &mut Connection) -> HdbResult
         .try_into()?;
     assert_eq!(typed_result, 3216);
 
+    Ok(())
+}
+
+fn prepare_multiple_errors(connection: &mut Connection) -> HdbResult<()> {
+    info!("test multiple errors from failing batches");
+
+    connection.multiple_statements_ignore_err(vec!["drop table TEST_PREPARE"]);
+    let stmts = vec!["create table TEST_PREPARE (F1_S NVARCHAR(20) primary key, F2_I INT)"];
+    connection.multiple_statements(stmts)?;
+
+    connection.set_auto_commit(true)?;
+    let insert_stmt_str = "insert into TEST_PREPARE (F1_S, F2_I) values(?, ?)";
+    let mut insert_stmt = connection.prepare(insert_stmt_str)?;
+
+    insert_stmt.add_batch(&("multi_error1", 41_i32))?;
+    insert_stmt.add_batch(&("multi_error2", 42_i32))?;
+    insert_stmt.add_batch(&("multi_error3", 43_i32))?;
+    insert_stmt.add_batch(&("multi_error4", 44_i32))?;
+    insert_stmt.add_batch(&("multi_error5", 45_i32))?;
+    insert_stmt.execute_batch()?;
+
+    insert_stmt.add_batch(&("multi_error1", 141_i32))?;
+    insert_stmt.add_batch(&("multi_error12", 142_i32))?;
+    insert_stmt.add_batch(&("multi_error3", 143_i32))?;
+    insert_stmt.add_batch(&("multi_error14", 144_i32))?;
+    insert_stmt.add_batch(&("multi_error5", 145_i32))?;
+    let result = insert_stmt.execute_batch();
+    assert!(result.is_err());
+
+    match result.err().unwrap() {
+        hdbconnect::HdbError::MixedResults(vec_rows_affected) => {
+            assert!(vec_rows_affected[0].is_failure());
+            assert!(!vec_rows_affected[1].is_failure());
+            assert!(vec_rows_affected[2].is_failure());
+            assert!(!vec_rows_affected[3].is_failure());
+            assert!(vec_rows_affected[4].is_failure());
+        }
+        _ => assert!(false, "bad err"),
+    }
     Ok(())
 }

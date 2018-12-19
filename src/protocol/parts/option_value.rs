@@ -1,8 +1,7 @@
-use cesu8;
 use crate::protocol::util;
 use crate::{HdbError, HdbResult};
-
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use cesu8;
 use std::io;
 
 #[allow(non_camel_case_types)]

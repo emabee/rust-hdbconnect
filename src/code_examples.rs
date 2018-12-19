@@ -314,4 +314,4 @@
 //!
 //! While being read by `io::copy()`, the CLOB will continuously fetch more data from the
 //! database until the complete CLOB was passed over.
-//! 
+//!

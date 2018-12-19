@@ -1,23 +1,19 @@
-extern crate chrono;
-extern crate flexi_logger;
-extern crate hdbconnect;
-
-#[macro_use]
-extern crate log;
-
-extern crate serde;
-extern crate serde_json;
-
 mod test_utils;
 
+use flexi_logger::Logger;
 use hdbconnect::{Connection, HdbError, HdbResult};
+use log::*;
 
 // cargo test test_011_invalid_password -- --nocapture
 #[test]
 pub fn test_011_invalid_password() -> HdbResult<()> {
-    test_utils::init_logger("info,test_011_invalid_password=info");
+    let mut log_handle = Logger::with_env_or_str("info")
+        .start_reconfigurable()
+        .unwrap_or_else(|e| panic!("Logger initialization failed with {}", e));
     info!("test warnings");
-
+    log_handle.parse_new_spec("info,test_011_invalid_password=info");
+    // hdbconnect::protocol::request = trace, hdbconnect::protocol::part = debug,
+    // hdbconnect::protocol::util = trace
     let mut conn = test_utils::get_system_connection()?;
 
     debug!("drop user DOEDEL, and recreate it with need to set password");
@@ -35,10 +31,12 @@ pub fn test_011_invalid_password() -> HdbResult<()> {
         .try_into()?;
     assert_eq!(minimal_password_length, "8");
 
+    debug!("Force first password change");
     let force_first_password_change: String = conn
         .query(
             "select value from M_PASSWORD_POLICY where property = 'force_first_password_change'",
-        )?.try_into()?;
+        )?
+        .try_into()?;
     assert_eq!(force_first_password_change, "true");
 
     debug!("logon as DOEDEL");

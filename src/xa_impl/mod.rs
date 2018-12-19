@@ -4,16 +4,16 @@ mod c_resource_manager;
 
 pub(crate) use self::c_resource_manager::new_resource_manager;
 
+use crate::HdbError;
 use dist_tx::rm::{ErrorCode, RmError};
 use std::error::Error;
-use crate::HdbError;
 
 impl From<HdbError> for RmError {
     fn from(error: HdbError) -> RmError {
         match error {
             HdbError::Cesu8(e) => RmError::new(ErrorCode::RmError, e.description().to_string()),
             HdbError::DbError(se) => RmError::new(ErrorCode::RmError, se.to_string()),
-            HdbError::MultipleDbErrors(se) => RmError::new(ErrorCode::RmError, se[0].to_string()),
+            HdbError::MixedResults(se) => RmError::new(ErrorCode::RmError, se[0].to_string()),
             HdbError::Conversion(e) => {
                 RmError::new(ErrorCode::RmError, e.description().to_string())
             }

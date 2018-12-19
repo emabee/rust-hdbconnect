@@ -1,9 +1,8 @@
 use crate::hdb_return_value::HdbReturnValue;
+use crate::protocol::parts::execution_result::ExecutionResult;
 use crate::protocol::parts::output_parameters::OutputParameters;
 use crate::protocol::parts::parameter_descriptor::ParameterDescriptor;
 use crate::protocol::parts::resultset::ResultSet;
-use crate::protocol::parts::rows_affected::RowsAffected;
-use std::fmt;
 use crate::{HdbError, HdbResult};
 
 /// Represents all possible non-error responses to a database command.
@@ -251,9 +250,9 @@ impl HdbResponse {
                 let mut vec_i = Vec::<usize>::new();
                 for ra in vec_ra {
                     match ra {
-                        RowsAffected::Count(i) => vec_i.push(i),
-                        RowsAffected::SuccessNoInfo => vec_i.push(0),
-                        RowsAffected::ExecutionFailed => {
+                        ExecutionResult::RowsAffected(i) => vec_i.push(i),
+                        ExecutionResult::SuccessNoInfo => vec_i.push(0),
+                        ExecutionResult::Failure(_) => {
                             return Err(HdbError::Impl(
                                 "Found unexpected returnvalue ExecutionFailed".to_owned(),
                             ));
@@ -304,7 +303,7 @@ impl HdbResponse {
                     ));
                 }
                 match vec_ra.pop().unwrap() {
-                    RowsAffected::Count(i) => {
+                    ExecutionResult::RowsAffected(i) => {
                         if i > 0 {
                             Err(HdbError::Impl(
                                 "found an affected-row-count > 0, but only a single Success was \
@@ -318,11 +317,11 @@ impl HdbResponse {
                             })
                         }
                     }
-                    RowsAffected::SuccessNoInfo => Ok(HdbResponse {
+                    ExecutionResult::SuccessNoInfo => Ok(HdbResponse {
                         return_values: vec![HdbReturnValue::Success],
                         parameter_metadata: None,
                     }),
-                    RowsAffected::ExecutionFailed => Err(HdbError::Impl(
+                    ExecutionResult::Failure(_) => Err(HdbError::Impl(
                         "Found unexpected returnvalue ExecutionFailed".to_owned(),
                     )),
                 }
@@ -354,9 +353,9 @@ impl HdbResponse {
                     let mut vec_i = Vec::<usize>::new();
                     for ra in vec_ra {
                         match ra {
-                            RowsAffected::Count(i) => vec_i.push(i),
-                            RowsAffected::SuccessNoInfo => vec_i.push(0),
-                            RowsAffected::ExecutionFailed => {
+                            ExecutionResult::RowsAffected(i) => vec_i.push(i),
+                            ExecutionResult::SuccessNoInfo => vec_i.push(0),
+                            ExecutionResult::Failure(_) => {
                                 return Err(HdbError::Impl(
                                     "Found unexpected returnvalue 'ExecutionFailed'".to_owned(),
                                 ));
@@ -383,8 +382,8 @@ impl HdbResponse {
     }
 }
 
-impl fmt::Display for HdbResponse {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+impl std::fmt::Display for HdbResponse {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(fmt, "HdbResponse [")?;
         for dbretval in &self.return_values {
             write!(fmt, "{}, ", dbretval)?;
@@ -400,7 +399,7 @@ impl fmt::Display for HdbResponse {
 #[derive(Debug)]
 pub(crate) enum InternalReturnValue {
     ResultSet(ResultSet),
-    AffectedRows(Vec<RowsAffected>),
+    AffectedRows(Vec<ExecutionResult>),
     OutputParameters(OutputParameters),
     ParameterMetadata(Vec<ParameterDescriptor>),
 }

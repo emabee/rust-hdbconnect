@@ -164,11 +164,9 @@ fn command_info() -> HdbResult<()> {
 
     let stmt = r#"SELECT KEY, NONSENSE FROM M_SESSION_CONTEXT ORDER BY KEY"#;
 
-    assert!(
-        connection
-            .execute_with_debuginfo(stmt, "BLABLA", 4711)
-            .is_err()
-    );
+    assert!(connection
+        .execute_with_debuginfo(stmt, "BLABLA", 4711)
+        .is_err());
 
     Ok(())
 }

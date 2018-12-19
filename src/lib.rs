@@ -83,6 +83,7 @@ pub use crate::protocol::parts::resultset::ResultSet;
 pub use crate::protocol::parts::row::Row;
 pub use crate::protocol::parts::server_error::{ServerError, Severity};
 
+pub use crate::protocol::parts::execution_result::ExecutionResult;
 pub use crate::protocol::parts::parameter_descriptor::{
     ParameterBinding, ParameterDescriptor, ParameterDirection,
 };

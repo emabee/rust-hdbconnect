@@ -51,7 +51,8 @@ fn run(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -> 
             "SELECT Operator_Name, Operator_ID \
              FROM explain_plan_table \
              WHERE statement_name = 'test_explain';",
-        )?.try_into()?;
+        )?
+        .try_into()?;
     debug!("obtain the plan: {:?}", result);
 
     Ok(())

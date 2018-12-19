@@ -1,10 +1,10 @@
-use cesu8::Cesu8DecodingError;
 use crate::conn_core::ConnectionCore;
+use crate::protocol::parts::execution_result::ExecutionResult;
 use crate::protocol::parts::resultset::ResultSetCore;
 use crate::protocol::parts::server_error::ServerError;
+use cesu8::Cesu8DecodingError;
 use serde_db::de::{ConversionError, DeserializationError};
 use serde_db::ser::SerializationError;
-
 use std::error::{self, Error};
 use std::fmt;
 use std::io;
@@ -30,8 +30,8 @@ pub enum HdbError {
     /// Database server has a severe issue.
     DbIssue(String),
 
-    /// Database server responded with an error.
-    MultipleDbErrors(Vec<ServerError>),
+    /// Database server responded with at least one error.
+    MixedResults(Vec<ExecutionResult>),
 
     /// Some error occured while reading CESU-8.
     Cesu8(Cesu8DecodingError),
@@ -104,7 +104,7 @@ impl error::Error for HdbError {
         match *self {
             HdbError::DbError(_) => "Error from database server",
             HdbError::DbIssue(_) => "Issue on database server",
-            HdbError::MultipleDbErrors(_) => "Multiple errors from database server",
+            HdbError::MixedResults(_) => "Database server responded with at least one error",
             HdbError::Conversion(_) => "Conversion of database type to rust type failed",
             HdbError::Deserialization(ref e) => e.description(),
             HdbError::Cesu8(ref e) => e.description(),
@@ -127,7 +127,7 @@ impl error::Error for HdbError {
             HdbError::DbError(ref server_error) => Some(server_error),
             HdbError::Impl(_)
             | HdbError::DbIssue(_)
-            | HdbError::MultipleDbErrors(_)
+            | HdbError::MixedResults(_)
             | HdbError::Usage(_)
             | HdbError::Poison(_)
             | HdbError::Evaluation(_) => None,
@@ -149,7 +149,28 @@ impl fmt::Display for HdbError {
             | HdbError::Poison(ref s)
             | HdbError::DbIssue(ref s) => write!(fmt, "{:?}", s),
             HdbError::DbError(ref se) => write!(fmt, "{:?}", se),
-            HdbError::MultipleDbErrors(ref vec) => write!(fmt, "{:?}", vec[0]),
+            HdbError::MixedResults(ref vec_rows_affected) => {
+                write!(fmt, "MixedResults[")?;
+                let mut first = true;
+                for ra in vec_rows_affected {
+                    if first {
+                        first = false;
+                    } else {
+                        write!(fmt, ", ")?;
+                    };
+                    match ra {
+                        ExecutionResult::Failure(Some(err)) => {
+                            write!(fmt, "Failure({:?})", err)?;
+                        }
+                        ExecutionResult::Failure(None) => {
+                            write!(fmt, "Failure()")?;
+                        }
+                        ra => write!(fmt, "{:?}", ra)?,
+                    }
+                }
+                write!(fmt, "]")?;
+                Ok(())
+            }
         }
     }
 }

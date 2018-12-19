@@ -1,10 +1,10 @@
+use crate::{HdbError, HdbResult};
 use byteorder::{LittleEndian, ReadBytesExt};
 use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, Timelike};
 use std::cmp;
 use std::error::Error;
 use std::fmt;
 use std::io;
-use crate::{HdbError, HdbResult};
 
 const NULL_REPRESENTATION: i64 = 3_155_380_704_000_000_001;
 

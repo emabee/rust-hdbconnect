@@ -1,22 +1,23 @@
-//! Since there is obviously no usecase for multiple segments in one request,
-//! we model message and segment together.
-//! But we differentiate explicitly between request messages and reply messages.
-use super::argument::Argument;
-use crate::conn_core::AmConnCore;
-use super::part::{Part, Parts};
-use super::part_attributes::PartAttributes;
-use super::partkind::PartKind;
-use super::parts::parameter_descriptor::ParameterDescriptor;
-use super::parts::resultset::ResultSet;
-use super::parts::resultset_metadata::ResultSetMetadata;
-use super::parts::server_error::{ServerError, Severity};
-use super::reply_type::ReplyType;
-use super::util;
-use byteorder::{LittleEndian, ReadBytesExt};
-use crate::hdb_response::InternalReturnValue;
-use std::io;
 use crate::{HdbError, HdbResponse, HdbResult};
+use crate::conn_core::AmConnCore;
+use crate::hdb_response::InternalReturnValue;
+use crate::protocol::argument::Argument;
+use crate::protocol::part::{Part, Parts};
+use crate::protocol::part_attributes::PartAttributes;
+use crate::protocol::partkind::PartKind;
+use crate::protocol::parts::execution_result::ExecutionResult;
+use crate::protocol::parts::parameter_descriptor::ParameterDescriptor;
+use crate::protocol::parts::resultset::ResultSet;
+use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
+use crate::protocol::parts::server_error::{ServerError, Severity};
+use crate::protocol::reply_type::ReplyType;
+use crate::protocol::util;
+use byteorder::{LittleEndian, ReadBytesExt};
+use std::io;
 
+// Since there is obviously no usecase for multiple segments in one request,
+// we model message and segment together.
+// But we differentiate explicitly between request messages and reply messages.
 #[derive(Debug)]
 pub(crate) struct Reply {
     session_id: i64,
@@ -105,8 +106,15 @@ impl Reply {
             reply.push(part);
 
             if i < no_of_parts - 1 {
+                trace!("reply::parse_impl(): padsize = {}", padsize);
+                // FIXME try hard here
                 util::skip_bytes(padsize, rdr)?;
             } else {
+                trace!(
+                    "reply::parse_impl(): skip: {:?}, padsize = {}",
+                    skip,
+                    padsize
+                );
                 match skip {
                     SkipLastSpace::Soft => util::dont_use_soft_consume_bytes(padsize, rdr)?,
                     SkipLastSpace::Hard => util::skip_bytes(padsize, rdr)?,
@@ -117,8 +125,8 @@ impl Reply {
         Ok(reply)
     }
 
-    fn assert_expected_reply_type(&self, expected_reply_type: Option<ReplyType>) -> HdbResult<()> {
-        match expected_reply_type {
+    fn assert_expected_reply_type(&self, reply_type: Option<ReplyType>) -> HdbResult<()> {
+        match reply_type {
             None => Ok(()), // we had no clear expectation
             Some(fc) => {
                 if self.replytype.to_i16() == fc.to_i16() {
@@ -137,53 +145,91 @@ impl Reply {
         let mut conn_core = am_conn_core.lock()?;
         (*conn_core).warnings.clear();
 
-        let err_code = PartKind::Error.to_i8();
-        match (&self.parts)
-            .into_iter()
-            .position(|p| p.kind().to_i8() == err_code)
-        {
-            None => {
-                // No error part found, reply evaluation happens elsewhere
-                Ok(())
-            }
-            Some(_) => {
-                // Error part found, but could contain warnings only
-                let mut retval: HdbResult<()> = Ok(());
-                self.parts.reverse(); // digest with pop
-                while let Some(part) = self.parts.pop() {
-                    let (kind, arg) = part.into_elements();
-                    match arg {
-                        Argument::StatementContext(ref stmt_ctx) => {
-                            (*conn_core).evaluate_statement_context(stmt_ctx)?;
+        // Retrieve errors from returned parts
+        let mut errors = {
+            let opt_error_part = self.parts.extract_first_part_of_type(PartKind::Error);
+            match opt_error_part {
+                None => {
+                    // No error part found, reply evaluation happens elsewhere
+                    return Ok(());
+                }
+                Some(error_part) => {
+                    let (_, argument) = error_part.into_elements();
+                    if let Argument::Error(server_errors) = argument {
+                        // filter out warnings and add them to conn_core
+                        let errors: Vec<ServerError> = server_errors
+                            .into_iter()
+                            .filter_map(|se| match se.severity() {
+                                Severity::Warning => {
+                                    (*conn_core).warnings.push(se);
+                                    None
+                                }
+                                _ => Some(se),
+                            })
+                            .collect();
+                        if errors.is_empty() {
+                            // Only warnings, so return Ok(())
+                            return Ok(());
+                        } else {
+                            errors
                         }
-                        Argument::TransactionFlags(ta_flags) => {
-                            (*conn_core).evaluate_ta_flags(ta_flags)?;
-                        }
-                        Argument::Error(vec) => {
-                            // warnings are filtered out and added to conn_core
-                            let mut errors: Vec<ServerError> = vec.into_iter()
-                                .filter_map(|se| match se.severity() {
-                                    Severity::Warning => {
-                                        (*conn_core).warnings.push(se);
-                                        None
-                                    }
-                                    _ => Some(se),
-                                })
-                                .collect();
-                            if errors.len() == 1 {
-                                retval = Err(HdbError::DbError(errors.remove(0)));
-                            } else {
-                                retval = Err(HdbError::MultipleDbErrors(errors));
-                            }
-                            debug!("Reply::handle_db_error(): {:?}", retval);
-                        }
-                        arg => warn!(
-                            "Reply::handle_db_error(): ignoring unexpected part of kind {:?}, arg = {:?}",
-                            kind, arg
-                        ),
+                    } else {
+                        unreachable!("129837938423")
                     }
                 }
-                retval
+            }
+        };
+
+        // Evaluate the other parts
+        let mut opt_rows_affected = None;
+        self.parts.reverse(); // digest with pop
+        while let Some(part) = self.parts.pop() {
+            let (kind, arg) = part.into_elements();
+            match arg {
+                Argument::StatementContext(ref stmt_ctx) => {
+                    (*conn_core).evaluate_statement_context(stmt_ctx)?;
+                }
+                Argument::TransactionFlags(ta_flags) => {
+                    (*conn_core).evaluate_ta_flags(ta_flags)?;
+                }
+                Argument::ExecutionResult(vec) => {
+                    opt_rows_affected = Some(vec);
+                }
+                arg => {
+                    warn!( 
+                    "Reply::handle_db_error(): ignoring unexpected part of kind {:?}, arg = {:?}",
+                    kind, arg
+                )
+                }
+            }
+        }
+
+        match opt_rows_affected {
+            Some(rows_affected) => {
+                // mix errors into rows_affected
+                let mut err_iter = errors.into_iter();
+                let mut rows_affected = rows_affected
+                    .into_iter()
+                    .map(|ra| match ra {
+                        ExecutionResult::Failure(_) => ExecutionResult::Failure(err_iter.next()),
+                        _ => ra,
+                    })
+                    .collect::<Vec<ExecutionResult>>();
+                for e in err_iter {
+                    warn!(
+                        "Reply::handle_db_error(): \
+                         found more errors than instances of ExecutionResult::Failure"
+                    );
+                    rows_affected.push(ExecutionResult::Failure(Some(e)));
+                }
+                Err(HdbError::MixedResults(rows_affected))
+            }
+            None => {
+                if errors.len() == 1 {
+                    Err(HdbError::DbError(errors.remove(0)))
+                } else {
+                    unreachable!("hopefully...")
+                }
             }
         }
     }
@@ -233,7 +279,7 @@ impl Reply {
                     },
                     _ => panic!("Missing required part ResultSetID"),
                 },
-                Argument::RowsAffected(vra) => {
+                Argument::ExecutionResult(vra) => {
                     int_return_values.push(InternalReturnValue::AffectedRows(vra));
                 }
                 _ => warn!(
@@ -308,17 +354,16 @@ impl Drop for Reply {
     fn drop(&mut self) {
         for part in &self.parts {
             warn!(
-                "reply of type {:?} is dropped, but not all parts were evaluated: part-kind = {:?}",
-                self.replytype, part.kind()
+                "reply of type {:?} is dropped, not all parts were evaluated: part-kind = {:?}",
+                self.replytype,
+                part.kind()
             );
         }
     }
 }
 
 ///
-pub(crate) fn parse_message_and_sequence_header(
-    rdr: &mut io::BufRead,
-) -> HdbResult<(i16, Reply)> {
+pub(crate) fn parse_message_and_sequence_header(rdr: &mut io::BufRead) -> HdbResult<(i16, Reply)> {
     // MESSAGE HEADER: 32 bytes
     let session_id: i64 = rdr.read_i64::<LittleEndian>()?; // I8
     let packet_seq_number: i32 = rdr.read_i32::<LittleEndian>()?; // I4
@@ -326,11 +371,13 @@ pub(crate) fn parse_message_and_sequence_header(
     let remaining_bufsize: u32 = rdr.read_u32::<LittleEndian>()?; // UI4  not needed?
     let no_of_segs = rdr.read_i16::<LittleEndian>()?; // I2
     if no_of_segs == 0 {
-        return Err(HdbError::Impl("empty response (is ok for drop connection)".to_owned()));
+        return Err(HdbError::Impl(
+            "empty response (is ok for drop connection)".to_owned(),
+        ));
     }
 
     if no_of_segs > 1 {
-        return Err(HdbError::Impl(format!("no_of_segs = {} > 1",no_of_segs)));
+        return Err(HdbError::Impl(format!("no_of_segs = {} > 1", no_of_segs)));
     }
 
     util::skip_bytes(10, rdr)?; // (I1 + B[9])

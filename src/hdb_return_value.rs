@@ -1,8 +1,8 @@
-use dist_tx::tm::XaTransactionId;
 use crate::protocol::parts::output_parameters::OutputParameters;
 use crate::protocol::parts::resultset::ResultSet;
-use std::fmt;
 use crate::{HdbError, HdbResult};
+use dist_tx::tm::XaTransactionId;
+use std::fmt;
 
 /// An enum that describes a single database return value.
 #[derive(Debug)]
@@ -68,13 +68,16 @@ impl HdbReturnValue {
     pub fn into_success(self) -> HdbResult<()> {
         match self {
             HdbReturnValue::Success => Ok(()),
-            HdbReturnValue::AffectedRows(_) => if self.is_success() {
-                Ok(())
-            } else {
-                Err(HdbError::Evaluation(
-                    "Wrong call to HdbReturnValue::into_success(): non-zero AffectRows".to_string(),
-                ))
-            },
+            HdbReturnValue::AffectedRows(_) => {
+                if self.is_success() {
+                    Ok(())
+                } else {
+                    Err(HdbError::Evaluation(
+                        "Wrong call to HdbReturnValue::into_success(): non-zero AffectRows"
+                            .to_string(),
+                    ))
+                }
+            }
             HdbReturnValue::OutputParameters(_) => Err(HdbError::Evaluation(
                 "Wrong call to HdbReturnValue::into_success(): is OutputParameters".to_string(),
             )),

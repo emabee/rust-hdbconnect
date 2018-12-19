@@ -9,7 +9,7 @@ extern crate serde_json;
 mod test_utils;
 
 use hdbconnect::{
-    BaseTypeId, Connection, HdbResult, ParameterBinding, ParameterDirection, ResultSet, Row
+    BaseTypeId, Connection, HdbResult, ParameterBinding, ParameterDirection, ResultSet, Row,
 };
 
 #[test] // cargo test test_040_procedures -- --nocapture

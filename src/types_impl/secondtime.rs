@@ -1,10 +1,10 @@
+use crate::{HdbError, HdbResult};
 use byteorder::{LittleEndian, ReadBytesExt};
 use chrono::{NaiveTime, Timelike};
 use std::cmp;
 use std::error::Error;
 use std::fmt;
 use std::io;
-use crate::{HdbError, HdbResult};
 
 const NULL_REPRESENTATION: i32 = 86_402;
 

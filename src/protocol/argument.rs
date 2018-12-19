@@ -4,6 +4,7 @@ use super::partkind::PartKind;
 use super::parts::authfields::AuthFields;
 use super::parts::client_info::ClientInfo;
 use super::parts::connect_options::ConnectOptions;
+use super::parts::execution_result::ExecutionResult;
 use super::parts::output_parameters::OutputParameters;
 use super::parts::parameter_descriptor::ParameterDescriptor;
 use super::parts::parameters::Parameters;
@@ -11,7 +12,6 @@ use super::parts::partiton_information::PartitionInformation;
 use super::parts::read_lob_reply::ReadLobReply;
 use super::parts::resultset::ResultSet;
 use super::parts::resultset_metadata::ResultSetMetadata;
-use super::parts::rows_affected::RowsAffected;
 use super::parts::server_error::ServerError;
 use super::parts::statement_context::StatementContext;
 use super::parts::topology::Topology;
@@ -52,7 +52,7 @@ pub(crate) enum Argument<'a> {
     ResultSet(Option<ResultSet>),
     ResultSetId(u64),
     ResultSetMetadata(ResultSetMetadata),
-    RowsAffected(Vec<RowsAffected>),
+    ExecutionResult(Vec<ExecutionResult>),
     SessionContext(SessionContext),
     StatementContext(StatementContext),
     StatementId(u64),
@@ -104,11 +104,6 @@ impl<'a> Argument<'a> {
             Argument::CommandInfo(ref opts) => size += opts.size(),
             Argument::CommitOptions(ref opts) => size += opts.size(),
             Argument::ConnectOptions(ref conn_opts) => size += conn_opts.size(),
-            Argument::Error(ref vec) => {
-                for server_error in vec {
-                    size += server_error.size();
-                }
-            }
             Argument::FetchOptions(ref opts) => size += opts.size(),
             Argument::FetchSize(_) => size += 4,
             Argument::LobFlags(ref opts) => size += opts.size(),
@@ -202,7 +197,7 @@ impl<'a> Argument<'a> {
         o_par_md: Option<&Vec<ParameterDescriptor>>,
         o_rs: &mut Option<&mut ResultSet>,
         rdr: &mut io::BufRead,
-    ) -> HdbResult<(Argument<'a>, usize)> {
+    ) -> HdbResult<Argument<'a>> {
         trace!("Entering parse(no_of_args={}, kind={:?})", no_of_args, kind);
 
         let arg = match kind {
@@ -211,14 +206,7 @@ impl<'a> Argument<'a> {
             PartKind::ConnectOptions => {
                 Argument::ConnectOptions(ConnectOptions::parse(no_of_args, rdr)?)
             }
-            PartKind::Error => {
-                let mut vec = Vec::<ServerError>::new();
-                for _ in 0..no_of_args {
-                    let server_error = ServerError::parse(arg_size, rdr)?;
-                    vec.push(server_error);
-                }
-                Argument::Error(vec)
-            }
+            PartKind::Error => Argument::Error(ServerError::parse(no_of_args, arg_size, rdr)?),
             PartKind::OutputParameters => {
                 if let Some(par_md) = o_par_md {
                     Argument::OutputParameters(OutputParameters::parse(
@@ -257,7 +245,9 @@ impl<'a> Argument<'a> {
                 arg_size as u32,
                 rdr,
             )?),
-            PartKind::RowsAffected => Argument::RowsAffected(RowsAffected::parse(no_of_args, rdr)?),
+            PartKind::ExecutionResult => {
+                Argument::ExecutionResult(ExecutionResult::parse(no_of_args, rdr)?)
+            }
             PartKind::StatementContext => {
                 Argument::StatementContext(StatementContext::parse(no_of_args, rdr)?)
             }
@@ -290,11 +280,11 @@ impl<'a> Argument<'a> {
             }
         };
 
-        Ok((arg, padsize(arg_size as usize)))
+        Ok(arg)
     }
 }
 
-pub fn padsize(size: usize) -> usize {
+fn padsize(size: usize) -> usize {
     match size {
         0 => 0,
         _ => 7 - (size - 1) % 8,

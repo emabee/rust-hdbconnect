@@ -1,12 +1,12 @@
 //! Connection parameters
 use crate::conn_core::connect_params_builder::ConnectParamsBuilder;
+use crate::{HdbError, HdbResult};
 use secstr::SecStr;
 use std::env;
 use std::fmt;
 use std::fs;
 use std::path::Path;
 use url::Url;
-use crate::{HdbError, HdbResult};
 
 /// An immutable struct with all information necessary to open a new connection
 /// to a HANA database.
@@ -274,17 +274,13 @@ mod tests {
 
     #[test]
     fn test_errors() {
-        assert!(
-            "hdbsql://schLau@abcd123:2222"
-                .into_connect_params()
-                .is_err()
-        );
+        assert!("hdbsql://schLau@abcd123:2222"
+            .into_connect_params()
+            .is_err());
         assert!("hdbsql://meier@abcd123:2222".into_connect_params().is_err());
         assert!("hdbsql://meier:schLau@:2222".into_connect_params().is_err());
-        assert!(
-            "hdbsql://meier:schLau@abcd123"
-                .into_connect_params()
-                .is_err()
-        );
+        assert!("hdbsql://meier:schLau@abcd123"
+            .into_connect_params()
+            .is_err());
     }
 }

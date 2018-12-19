@@ -1,8 +1,8 @@
-use bigdecimal::ParseBigDecimalError;
 use crate::hdb_error::HdbError;
+use crate::types_impl::lob::new_blob_to_db;
+use bigdecimal::ParseBigDecimalError;
 use std::num::ParseFloatError;
 use std::num::ParseIntError;
-use crate::types_impl::lob::new_blob_to_db;
 
 use crate::protocol::parts::hdb_value::HdbValue;
 use crate::protocol::parts::parameter_descriptor::ParameterDescriptor;
@@ -548,9 +548,10 @@ impl DbvFactory for ParameterDescriptor {
         Ok(match self.type_id().as_tuple() {
             (BaseTypeId::BLOB, false) => HdbValue::BLOB(new_blob_to_db((*value).to_vec())),
             (BaseTypeId::BLOB, true) => HdbValue::N_BLOB(Some(new_blob_to_db((*value).to_vec()))),
-            (BaseTypeId::NCLOB, _) => HdbValue::STRING(String::from_utf8(value.to_vec()).map_err(|e|{
-                parse_error("bytes", "NCLOB".to_string(), Some(Box::new(e)))
-            })?),
+            (BaseTypeId::NCLOB, _) => HdbValue::STRING(
+                String::from_utf8(value.to_vec())
+                    .map_err(|e| parse_error("bytes", "NCLOB".to_string(), Some(Box::new(e))))?,
+            ),
             _ => {
                 return Err(SerializationError::Type {
                     value_type: "bytes",

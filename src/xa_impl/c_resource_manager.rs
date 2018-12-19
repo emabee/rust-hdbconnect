@@ -1,6 +1,4 @@
 use crate::conn_core::AmConnCore;
-use dist_tx::rm::{CResourceManager, CRmWrapper, ErrorCode, Flags, RmError, RmRc, RmResult};
-use dist_tx::tm::XaTransactionId;
 use crate::hdb_error::HdbResult;
 use crate::protocol::argument::Argument;
 use crate::protocol::part::Part;
@@ -10,6 +8,8 @@ use crate::protocol::reply::{Reply, SkipLastSpace};
 use crate::protocol::request::Request;
 use crate::protocol::request_type::RequestType;
 use crate::HdbError;
+use dist_tx::rm::{CResourceManager, CRmWrapper, ErrorCode, Flags, RmError, RmRc, RmResult};
+use dist_tx::tm::XaTransactionId;
 
 /// Handle for dealing with distributed transactions that is to be used by a
 /// transaction manager.
@@ -150,12 +150,8 @@ impl HdbCResourceManager {
             .map_err(|hdb_error| {
                 if let HdbError::DbError(ref se) = hdb_error {
                     return RmError::new(error_code_from_hana_code(se.code()), se.text().clone());
-                } else if let HdbError::MultipleDbErrors(ref v) = hdb_error {
-                    // FIXME use all texts, not just the first
-                    return RmError::new(
-                        error_code_from_hana_code(v[0].code()),
-                        v[0].text().clone(),
-                    );
+                } else if let HdbError::MixedResults(_) = hdb_error {
+                    return RmError::new(ErrorCode::RmError, "HdbError::MixedResults".to_string());
                 };
                 From::<HdbError>::from(hdb_error)
             })

@@ -8,8 +8,8 @@ use crate::protocol::reply_type::ReplyType;
 use crate::protocol::request::Request;
 use crate::protocol::request_type::RequestType;
 use crate::protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
-use std::cmp;
 use crate::{HdbError, HdbResult};
+use std::cmp;
 
 // Note that total_length and offset count either bytes (BLOB, CLOB), or 1-2-3-chars (NCLOB)
 pub(crate) fn fetch_a_lob_chunk(

@@ -17,9 +17,7 @@ use hdbconnect::{Connection, HdbResult};
 // cargo test test_036_text -- --nocapture
 #[test]
 pub fn test_036_text() -> HdbResult<()> {
-    let mut loghandle = test_utils::init_logger(
-        "info, test_036_text = info",
-    );
+    let mut loghandle = test_utils::init_logger("info, test_036_text = info");
 
     let mut connection = test_utils::get_authenticated_connection()?;
 
@@ -51,16 +49,15 @@ fn test_text(
     insert_stmt.execute_batch()?;
 
     let resultset = connection.query("select chardata, chardata_nn FROM TEST_TEXT")?;
-    let ret_text:(Option<String>,String) = resultset.try_into()?;
+    let ret_text: (Option<String>, String) = resultset.try_into()?;
     assert_eq!(test_text, ret_text.0.expect("expected string but got None"));
     assert_eq!(test_text, ret_text.1);
 
-
     // Also test NULL values
-    let none:Option<&str> = None;
+    let none: Option<&str> = None;
     insert_stmt.add_batch(&(none, test_text))?;
     insert_stmt.execute_batch()?;
-    let ret_text:(Option<String>,String) = connection
+    let ret_text: (Option<String>, String) = connection
         .query("select chardata, chardata_nn FROM TEST_TEXT WHERE chardata IS NULL")?
         .try_into()?;
     assert_eq!(None, ret_text.0);

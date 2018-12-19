@@ -1,10 +1,10 @@
+use crate::HdbResult;
 use bigdecimal::{BigDecimal, Zero};
 use byteorder::{ByteOrder, LittleEndian};
 use num::bigint::{BigInt, Sign};
 use serde_db::ser::SerializationError;
 use std::fmt;
 use std::io;
-use crate::HdbResult;
 
 // MANTISSA     113-bit     Integer mantissa
 //                          (byte 0; byte 14, lowest bit)

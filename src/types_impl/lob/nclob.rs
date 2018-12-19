@@ -1,12 +1,12 @@
 use crate::conn_core::AmConnCore;
 use crate::protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
 use crate::protocol::util;
+use crate::types_impl::lob::fetch_a_lob_chunk;
+use crate::{HdbError, HdbResult};
 use std::cell::RefCell;
 use std::cmp::max;
 use std::io::{self, Write};
 use std::sync::Arc;
-use crate::types_impl::lob::fetch_a_lob_chunk;
-use crate::{HdbError, HdbResult};
 
 /// NCLob implementation that is used with `HdbValue::NCLOB`.
 #[derive(Clone, Debug, Serialize)]

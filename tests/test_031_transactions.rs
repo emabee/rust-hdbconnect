@@ -33,7 +33,8 @@ pub fn test_031_transactions() -> HdbResult<()> {
                 .query(&format!(
                     "select * from SYS.M_ERROR_CODES where code = {}",
                     server_error.code()
-                ))?.try_into()?;
+                ))?
+                .try_into()?;
             info!("error_info: {:?}", error_info);
         }
     }

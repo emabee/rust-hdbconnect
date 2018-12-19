@@ -1,9 +1,9 @@
 use crate::protocol::parts::option_value::OptionValue;
+use crate::HdbResult;
 use std::collections::hash_map::IntoIter;
 use std::collections::hash_map::Iter;
 use std::collections::HashMap;
 use std::hash::Hash;
-use crate::HdbResult;
 
 use byteorder::{ReadBytesExt, WriteBytesExt};
 use std::io;

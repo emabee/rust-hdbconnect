@@ -1,12 +1,12 @@
 use super::authenticator::Authenticator;
-use super::crypto_util::*;
-use byteorder::{BigEndian, WriteBytesExt};
+use super::crypto_util::scram_sha256;
 use crate::protocol::parts::authfields::AuthFields;
 use crate::protocol::util;
+use crate::{HdbError, HdbResult};
+use byteorder::{BigEndian, WriteBytesExt};
 use rand::{thread_rng, RngCore};
 use secstr::SecStr;
 use std::io;
-use crate::{HdbError, HdbResult};
 
 const CLIENT_PROOF_SIZE: usize = 32;
 

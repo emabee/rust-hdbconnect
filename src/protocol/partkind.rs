@@ -9,7 +9,7 @@ pub enum PartKind {
     Error,                 // 6 // Error information
     StatementId,           // 10 // Prepared statement identifier
     TransactionId,         // 11 // Transaction identifier // FIXME is missing
-    RowsAffected,          // 12 // Number of affected rows of dml statement
+    ExecutionResult,       // 12 // Number of affected rows of dml statement
     ResultSetId,           // 13 // Identifier of resultset
     TopologyInformation,   // 15 // Topology information
     TableLocation,         // 16 // Location of table data
@@ -51,7 +51,7 @@ impl PartKind {
             PartKind::Error => 6,
             PartKind::StatementId => 10,
             PartKind::TransactionId => 11,
-            PartKind::RowsAffected => 12,
+            PartKind::ExecutionResult => 12,
             PartKind::ResultSetId => 13,
             PartKind::TopologyInformation => 15,
             PartKind::TableLocation => 16,
@@ -94,7 +94,7 @@ impl PartKind {
             6 => Ok(PartKind::Error),
             10 => Ok(PartKind::StatementId),
             11 => Ok(PartKind::TransactionId),
-            12 => Ok(PartKind::RowsAffected),
+            12 => Ok(PartKind::ExecutionResult),
             13 => Ok(PartKind::ResultSetId),
             15 => Ok(PartKind::TopologyInformation),
             16 => Ok(PartKind::TableLocation),

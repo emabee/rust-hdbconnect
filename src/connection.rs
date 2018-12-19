@@ -16,7 +16,6 @@ use crate::xa_impl::new_resource_manager;
 use crate::{HdbError, HdbResponse, HdbResult};
 use chrono::Local;
 use dist_tx::rm::ResourceManager;
-use std::error::Error;
 use std::sync::Arc;
 
 /// Connection object.
@@ -227,7 +226,7 @@ impl Connection {
             let result = self.statement(s);
             match result {
                 Ok(_) => {}
-                Err(e) => debug!("Error intentionally ignored: {}", e.description()),
+                Err(e) => debug!("Error intentionally ignored: {:?}", e),
             }
         }
     }

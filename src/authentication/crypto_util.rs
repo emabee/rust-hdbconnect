@@ -1,7 +1,7 @@
-use pbkdf2::pbkdf2;
-use sha2::{Sha256, Digest};
 use crate::hdb_error::HdbResult;
+use pbkdf2::pbkdf2;
 use secstr::SecStr;
+use sha2::{Digest, Sha256};
 use std::iter::repeat;
 
 use hmac::{Hmac, Mac};
@@ -47,7 +47,6 @@ pub fn scram_pdkdf2_sha256(
     password: &SecStr,
     iterations: u32,
 ) -> HdbResult<(Vec<u8>, Vec<u8>)> {
-
     let salted_password = use_pbkdf2(&password.unsecure().to_vec(), salt, iterations as usize);
 
     let server_verifier = hmac(&salted_password, salt);
@@ -80,8 +79,7 @@ pub fn use_pbkdf2(key: &[u8], salt: &[u8], it: usize) -> Vec<u8> {
 }
 
 pub fn hmac(key: &[u8], data: &[u8]) -> Vec<u8> {
-    let mut mac = Hmac::<Sha256>::new_varkey(key)
-        .expect("Failed to create Hmac from key");
+    let mut mac = Hmac::<Sha256>::new_varkey(key).expect("Failed to create Hmac from key");
 
     mac.input(data);
     mac.result().code().to_vec()

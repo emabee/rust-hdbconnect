@@ -2,11 +2,11 @@ use super::fetch_a_lob_chunk;
 use crate::conn_core::AmConnCore;
 use crate::protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
 use crate::protocol::util;
+use crate::{HdbError, HdbResult};
 use std::cell::RefCell;
 use std::cmp::max;
 use std::io::{self, Write};
 use std::sync::Arc;
-use crate::{HdbError, HdbResult};
 
 /// CLob implementation that is used with `HdbValue::CLOB`.
 ///

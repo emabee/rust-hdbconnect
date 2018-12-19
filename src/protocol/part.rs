@@ -83,7 +83,7 @@ impl<'a> Part<'a> {
             "parse() found part of kind {:?} with attributes {:?}, arg_size {} and no_of_args {}",
             kind, attributes, arg_size, no_of_args
         );
-        let (arg, padsize) = Argument::parse(
+        let arg = Argument::parse(
             kind,
             attributes,
             no_of_args,
@@ -95,7 +95,14 @@ impl<'a> Part<'a> {
             o_rs,
             rdr,
         )?;
-        Ok((Part::new(kind, arg), padsize))
+        Ok((Part::new(kind, arg), padsize(arg_size as usize)))
+    }
+}
+
+fn padsize(size: usize) -> usize {
+    match size {
+        0 => 0,
+        _ => 7 - (size - 1) % 8,
     }
 }
 
@@ -126,6 +133,18 @@ impl<'a> Parts<'a> {
 
     pub fn clear(&mut self) {
         self.0.clear()
+    }
+
+    pub fn extract_first_part_of_type(&mut self, part_kind: PartKind) -> Option<Part> {
+        let part_code = part_kind.to_i8();
+        let part_position = (&self.0)
+            .into_iter()
+            .position(|p| p.kind().to_i8() == part_code);
+
+        match part_position {
+            Some(pos) => Some(self.0.remove(pos)),
+            None => None,
+        }
     }
 
     pub fn reverse(&mut self) {

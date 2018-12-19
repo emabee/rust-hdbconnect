@@ -13,10 +13,10 @@ extern crate sha2;
 
 mod test_utils;
 
-use serde_bytes::{Bytes};
 use flexi_logger::ReconfigurationHandle;
 use hdbconnect::types::NCLob;
 use hdbconnect::{Connection, HdbResult};
+use serde_bytes::Bytes;
 use sha2::{Digest, Sha256};
 use std::fs::File;
 use std::io::{self, Read};
@@ -161,7 +161,7 @@ fn test_bytes_to_nclobs(
         connection.prepare("insert into TEST_NCLOBS_BYTES (chardata, chardata_nn) values (?,?)")?;
     insert_stmt.add_batch(&(test_string_bytes, test_string_bytes))?;
 
-    let res = insert_stmt.add_batch(&(Bytes::new(&[255,255]), Bytes::new(&[255,255]))); // malformed utf-8
+    let res = insert_stmt.add_batch(&(Bytes::new(&[255, 255]), Bytes::new(&[255, 255]))); // malformed utf-8
     assert_eq!(res.is_err(), true);
     insert_stmt.execute_batch()?;
 
