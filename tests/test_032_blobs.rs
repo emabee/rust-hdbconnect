@@ -47,7 +47,7 @@ fn test_blobs(
     connection.set_lob_read_length(1_000_000)?;
 
     connection.multiple_statements_ignore_err(vec!["drop table TEST_BLOBS"]);
-    let stmts = vec!["create table TEST_BLOBS (desc NVARCHAR(10) not null, bindata BLOB)"];
+    let stmts = vec!["create table TEST_BLOBS (desc NVARCHAR(10) not null, bindata BLOB, bindata_NN BLOB NOT NULL)"];
     connection.multiple_statements(stmts)?;
 
     #[derive(Serialize, Deserialize, Debug, PartialEq)]
@@ -58,6 +58,8 @@ fn test_blobs(
         bytes: ByteBuf, // Vec<u8>,
         #[serde(rename = "BL2")]
         o_bytes: Option<ByteBuf>, // Option<Vec<u8>>,
+        #[serde(rename = "BL3")]
+        bytes_nn: ByteBuf, // Vec<u8>,
     }
 
     const SIZE: usize = 5 * 1024 * 1024;
@@ -74,13 +76,13 @@ fn test_blobs(
 
     // insert it into HANA
     let mut insert_stmt =
-        connection.prepare("insert into TEST_BLOBS (desc, bindata) values (?,?)")?;
-    insert_stmt.add_batch(&("5MB", Bytes::new(&*raw_data)))?;
+        connection.prepare("insert into TEST_BLOBS (desc, bindata, bindata_NN) values (?,?,?)")?;
+    insert_stmt.add_batch(&("5MB", Bytes::new(&*raw_data), Bytes::new(&*raw_data)))?;
     insert_stmt.execute_batch()?;
 
     // and read it back
     let before = connection.get_call_count()?;
-    let query = "select desc, bindata as BL1, bindata as BL2 from TEST_BLOBS";
+    let query = "select desc, bindata as BL1, bindata as BL2 , bindata_NN as BL3 from TEST_BLOBS";
     let resultset = connection.query(query)?;
     let mydata: MyData = resultset.try_into()?;
     info!(
@@ -93,6 +95,9 @@ fn test_blobs(
     assert_eq!(SIZE, mydata.bytes.len());
     let mut hasher = Sha256::default();
     hasher.input(&mydata.bytes);
+    assert_eq!(SIZE, mydata.bytes_nn.len());
+    let mut hasher = Sha256::default();
+    hasher.input(&mydata.bytes_nn);
     let fingerprint2 = hasher.result();
     assert_eq!(fingerprint1, fingerprint2);
 
@@ -118,9 +123,18 @@ fn test_blobs(
 
     connection.set_lob_read_length(200_000)?;
 
-    let query = "select desc, bindata as BL1, bindata as BL2 from TEST_BLOBS";
+    let query = "select desc, bindata as BL1, bindata as BL2, bindata_NN as BL3 from TEST_BLOBS";
     let mut resultset: hdbconnect::ResultSet = connection.query(query)?;
-    let mut blob: BLob = resultset.pop_row().unwrap().field_into_blob(1)?;
+    let mut row = resultset.pop_row().unwrap();
+    let mut blob: BLob = row.field_into_blob(1)?;
+    let mut blob2: BLob = row.field_into_blob(2)?;
+
+    let mut streamed = Vec::<u8>::new();
+    io::copy(&mut blob2, &mut streamed)?;
+    assert_eq!(raw_data.len(), streamed.len());
+    let mut hasher = Sha256::default();
+    hasher.input(&streamed);
+
     let mut streamed = Vec::<u8>::new();
     io::copy(&mut blob, &mut streamed)?;
 
