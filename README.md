@@ -1,5 +1,5 @@
 [![](http://meritbadge.herokuapp.com/hdbconnect)](https://crates.io/crates/hdbconnect)
-[![Coverage Status](https://coveralls.io/repos/github/PSeitz/rust-hdbconnect/badge.svg?branch=)](https://coveralls.io/github/PSeitz/rust-hdbconnect?branch=)
+[![Coverage Status](https://coveralls.io/repos/github/PSeitz/rust-hdbconnect/badge.svg?branch=master)](https://coveralls.io/github/PSeitz/rust-hdbconnect?branch=master)
 [![License:MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 # hdbconnect
