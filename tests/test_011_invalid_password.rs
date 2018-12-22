@@ -7,11 +7,10 @@ use log::*;
 // cargo test test_011_invalid_password -- --nocapture
 #[test]
 pub fn test_011_invalid_password() -> HdbResult<()> {
-    let mut log_handle = Logger::with_env_or_str("info")
-        .start_reconfigurable()
-        .unwrap_or_else(|e| panic!("Logger initialization failed with {}", e));
-    info!("test warnings");
-    log_handle.parse_new_spec("info,test_011_invalid_password=info");
+    test_utils::init_logger(
+        "info, test_011_invalid_password=info",
+    );
+
     // hdbconnect::protocol::request = trace, hdbconnect::protocol::part = debug,
     // hdbconnect::protocol::util = trace
     let mut conn = test_utils::get_system_connection()?;
