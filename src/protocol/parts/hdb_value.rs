@@ -17,6 +17,7 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use cesu8;
 use serde;
 use serde_db::de::DbValue;
+use serde_derive::Serialize;
 use std::fmt;
 
 const MAX_1_BYTE_LENGTH: u8 = 245;

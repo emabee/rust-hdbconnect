@@ -300,5 +300,6 @@ where
         PartKind::Command,
         Argument::Command(stmt.as_ref()),
     ));
+    // FIXME SkipLastSpace::Soft
     request.send_and_get_hdbresponse(None, None, am_conn_core, None, SkipLastSpace::Soft)
 }

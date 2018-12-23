@@ -2,6 +2,7 @@ use crate::conn_core::AmConnCore;
 use crate::protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
 use crate::types_impl::lob::fetch_a_lob_chunk;
 use crate::{HdbError, HdbResult};
+use serde_derive::Serialize;
 use std::cell::RefCell;
 use std::cmp;
 use std::io::{self, Write};

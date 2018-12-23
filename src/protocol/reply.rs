@@ -107,7 +107,6 @@ impl Reply {
 
             if i < no_of_parts - 1 {
                 trace!("reply::parse_impl(): padsize = {}", padsize);
-                // FIXME try hard here
                 util::skip_bytes(padsize, rdr)?;
             } else {
                 trace!(
@@ -115,9 +114,11 @@ impl Reply {
                     skip,
                     padsize
                 );
+                // FIXME try to find a correlation to the request type or the response type?
                 match skip {
                     SkipLastSpace::Soft => util::dont_use_soft_consume_bytes(padsize, rdr)?,
                     SkipLastSpace::Hard => util::skip_bytes(padsize, rdr)?,
+                    SkipLastSpace::HardButLess(cnt) => util::skip_bytes(std::cmp::max(padsize as isize - cnt as isize, 0) as usize, rdr)?,
                     SkipLastSpace::No => {}
                 }
             }
@@ -346,6 +347,7 @@ impl Reply {
 #[derive(Clone, Copy, Debug)]
 pub enum SkipLastSpace {
     Hard,
+    HardButLess(u8),
     Soft,
     No,
 }

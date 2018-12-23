@@ -277,7 +277,7 @@ impl<'a> ConnectionCore {
                 rdr,
             )?;
             trace!(
-                "ConnectionCore::roundtrip(): request type {:?}, reply type {:?}",
+                "ConnectionCore::roundtrip(): sent request type {:?}, got reply type {:?}",
                 request_type,
                 reply.replytype
             );

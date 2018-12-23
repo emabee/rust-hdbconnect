@@ -8,17 +8,11 @@ A pure rust SQL driver for SAP HANA(TM).
 
 ## Usage
 
-Add hdbconnect to the dependencies section in your project's `Cargo.toml`, with
+Add hdbconnect to the dependencies section in your project's `Cargo.toml`:
 
 ```toml
 [dependencies]
 hdbconnect = "0.11"
-```
-
-and add this to your crate root:
-
-```rust
-extern crate hdbconnect;
 ```
 
 Assume you have a HANA (e.g. a HANA Express) accessible at port 30333 on host `hxehost`,

@@ -151,7 +151,6 @@ pub fn serialize_decimal(bd: &BigDecimal, w: &mut io::Write) -> HdbResult<()> {
 
 #[cfg(test)]
 mod tests {
-    extern crate flexi_logger;
     use super::HdbDecimal;
     use bigdecimal::BigDecimal;
     use num::bigint::BigInt;

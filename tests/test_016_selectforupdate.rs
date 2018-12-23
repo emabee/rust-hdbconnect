@@ -1,35 +1,25 @@
-extern crate chrono;
-extern crate flexi_logger;
-extern crate hdbconnect;
-#[macro_use]
-extern crate log;
-extern crate serde_json;
-
 mod test_utils;
 
 use flexi_logger::ReconfigurationHandle;
 use hdbconnect::{Connection, HdbResult};
+use log::{debug, info};
 use std::thread;
 use std::time::Duration;
 
 #[test] // cargo test --test test_016_selectforupdate -- --nocapture
 pub fn test_016_selectforupdate() -> HdbResult<()> {
-    let mut logger_handle = test_utils::init_logger("info, test_016_selectforupdate = info");
-
+    let mut log_handle = test_utils::init_logger("info");
     let mut connection = test_utils::get_authenticated_connection()?;
 
-    prepare(&mut connection, &mut logger_handle)?;
-    produce_conflicts(&mut connection, &mut logger_handle)?;
+    prepare(&mut log_handle, &mut connection)?;
+    produce_conflicts(&mut log_handle, &mut connection)?;
 
     info!("{} calls to DB were executed", connection.get_call_count()?);
 
     Ok(())
 }
 
-fn prepare(
-    connection: &mut Connection,
-    _logger_handle: &mut ReconfigurationHandle,
-) -> HdbResult<()> {
+fn prepare(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -> HdbResult<()> {
     info!("prepare");
     debug!("prepare the db table");
     connection.multiple_statements_ignore_err(vec!["drop table TEST_SELFORUPDATE"]);
@@ -57,8 +47,8 @@ fn prepare(
 }
 
 fn produce_conflicts(
+    _log_handle: &mut ReconfigurationHandle,
     connection: &mut Connection,
-    _logger_handle: &mut ReconfigurationHandle,
 ) -> HdbResult<()> {
     info!("verify that locking with 'select for update' works");
     connection.set_auto_commit(false)?;

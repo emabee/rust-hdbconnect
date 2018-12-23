@@ -1,23 +1,13 @@
-extern crate chrono;
-extern crate flexi_logger;
-extern crate hdbconnect;
-
-#[macro_use]
-extern crate log;
-
-extern crate serde;
-#[macro_use]
-extern crate serde_derive;
-extern crate serde_json;
-
 mod test_utils;
 
 use hdbconnect::{Connection, HdbResult, IntoConnectParams};
+use log::{debug, info};
+use serde_derive::{Deserialize, Serialize};
 
-// cargo test test_012_tls -- --nocapture
+// cargo test --test test_012_tls -- --nocapture
 #[test]
 fn test_012_tls() -> HdbResult<()> {
-    test_utils::init_logger("info, test_012_tls=debug, hdbconnect::conn_core = trace");
+    let _log_handle = test_utils::init_logger("info");
     info!("test tls");
 
     let mut url = test_utils::get_std_connect_url()?;

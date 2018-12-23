@@ -1,35 +1,24 @@
-extern crate chrono;
-extern crate flexi_logger;
-extern crate hdbconnect;
-#[macro_use]
-extern crate log;
-extern crate rand;
-extern crate serde;
-extern crate serde_bytes;
-extern crate serde_json;
-extern crate sha2;
-
 mod test_utils;
 
 use flexi_logger::ReconfigurationHandle;
 use hdbconnect::{Connection, HdbResult};
+use log::{debug, info};
 
 // cargo test test_036_text -- --nocapture
 #[test]
 pub fn test_036_text() -> HdbResult<()> {
-    let mut loghandle = test_utils::init_logger("info, test_036_text = info");
-
+    let mut log_handle = test_utils::init_logger("info");
     let mut connection = test_utils::get_authenticated_connection()?;
 
-    test_text(&mut connection, &mut loghandle)?;
+    test_text(&mut log_handle, &mut connection)?;
 
     info!("{} calls to DB were executed", connection.get_call_count()?);
     Ok(())
 }
 
 fn test_text(
-    connection: &mut Connection,
     _logger_handle: &mut ReconfigurationHandle,
+    connection: &mut Connection,
 ) -> HdbResult<()> {
     info!("create a TEXT in the database, and read it");
 

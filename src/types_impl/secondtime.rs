@@ -1,6 +1,7 @@
 use crate::{HdbError, HdbResult};
 use byteorder::{LittleEndian, ReadBytesExt};
 use chrono::{NaiveTime, Timelike};
+use serde_derive::Serialize;
 use std::cmp;
 use std::error::Error;
 use std::fmt;

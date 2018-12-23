@@ -3,28 +3,16 @@ mod test_utils;
 use chrono::NaiveDateTime;
 use flexi_logger::ReconfigurationHandle;
 use hdbconnect::{Connection, HdbResult};
-use log::*;
-use serde_derive::*;
+use log::{debug, info};
+use serde_derive::Deserialize;
 
 #[test] // cargo test --test test_015_resultset -- --nocapture
-pub fn test_015_resultset() {
+pub fn test_015_resultset() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger("info");
-
-    match impl_test_015_resultset(&mut log_handle) {
-        Err(e) => {
-            error!("impl_test_015_resultset() failed with {:?}", e);
-            assert!(false)
-        }
-        Ok(_) => debug!("impl_test_015_resultset() ended successful"),
-    }
-}
-
-// Test the various ways to evaluate a resultset
-fn impl_test_015_resultset(log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
     let mut connection = test_utils::get_authenticated_connection()?;
 
-    evaluate_resultset(log_handle, &mut connection)?;
-    verify_row_ordering(log_handle, &mut connection)?;
+    evaluate_resultset(&mut log_handle, &mut connection)?;
+    verify_row_ordering(&mut log_handle, &mut connection)?;
 
     info!("{} calls to DB were executed", connection.get_call_count()?);
 
@@ -32,7 +20,7 @@ fn impl_test_015_resultset(log_handle: &mut ReconfigurationHandle) -> HdbResult<
 }
 
 fn evaluate_resultset(
-    log_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut ReconfigurationHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     info!("evaluate_resultset");
@@ -75,11 +63,9 @@ fn evaluate_resultset(
 
     {
         let _tmp = connection.query(stmt)?;
-        // log_handle.parse_new_spec("trace");
         info!("After query");
     }
     info!("After drop");
-    log_handle.parse_new_spec("info");
 
     info!("Loop over rows, pick out single values individually, in arbitrary order");
     for row in connection.query(stmt)? {

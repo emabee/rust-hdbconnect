@@ -1,43 +1,26 @@
-extern crate chrono;
-extern crate flexi_logger;
-extern crate hdbconnect;
-#[macro_use]
-extern crate log;
-
-extern crate serde_json;
-
 mod test_utils;
 
+use flexi_logger::ReconfigurationHandle;
 use hdbconnect::{
     BaseTypeId, Connection, HdbResult, ParameterBinding, ParameterDirection, ResultSet, Row,
 };
+use log::{debug, info};
 
-#[test] // cargo test test_050_metadata -- --nocapture
-pub fn test_050_metadata() {
-    test_utils::init_logger("test_050_metadata=info");
-
-    match impl_test_050_metadata() {
-        Err(e) => {
-            error!("test_050_metadata() failed with {:?}", e);
-            assert!(false)
-        }
-        Ok(n) => info!("{} calls to DB were executed", n),
-    }
-}
-
-// Test procedures.
-// Various procedures from very simple to pretty complex are tested.
-fn impl_test_050_metadata() -> HdbResult<i32> {
+#[test]
+pub fn test_050_metadata() -> HdbResult<()> {
+    let mut log_handle = test_utils::init_logger("info");
     let mut connection = test_utils::get_authenticated_connection()?;
 
-    // test procedure with IN, OUT, INOUT parameters
-    procedure(&mut connection)?;
+    test_procedure_metadata(&mut log_handle, &mut connection)?;
 
-    Ok(connection.get_call_count()?)
+    info!("{} calls to DB were executed", connection.get_call_count()?);
+    Ok(())
 }
 
-#[allow(clippy::cyclomatic_complexity)]
-fn procedure(connection: &mut Connection) -> HdbResult<()> {
+fn test_procedure_metadata(
+    _log_handle: &mut ReconfigurationHandle,
+    connection: &mut Connection,
+) -> HdbResult<()> {
     info!("procedure(): run a sqlscript procedure with input parameters");
 
     connection.multiple_statements_ignore_err(vec!["drop procedure TEST_MD_PARS"]);

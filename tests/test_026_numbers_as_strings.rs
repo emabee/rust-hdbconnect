@@ -1,21 +1,15 @@
-extern crate flexi_logger;
-extern crate hdbconnect;
-#[macro_use]
-extern crate log;
-extern crate serde_json;
-
 mod test_utils;
 
 use flexi_logger::ReconfigurationHandle;
 use hdbconnect::{Connection, HdbResult};
+use log::{debug, info};
 
 #[test] // cargo test --test test_026_numbers_as_strings -- --nocapture
 pub fn test_026_numbers_as_strings() -> HdbResult<()> {
-    let mut reconfiguration_handle =
-        test_utils::init_logger("info, test_026_numbers_as_strings = info");
-
+    let mut log_handle = test_utils::init_logger("info");
     let mut connection = test_utils::get_authenticated_connection()?;
-    evaluate_resultset(&mut reconfiguration_handle, &mut connection)?;
+
+    evaluate_resultset(&mut log_handle, &mut connection)?;
 
     info!("{} calls to DB were executed", connection.get_call_count()?);
     Ok(())
@@ -30,15 +24,24 @@ fn evaluate_resultset(
     connection
         .multiple_statements_ignore_err(vec!["drop table TEST_INTEGERS", "drop table TEST_FLOATS"]);
     let stmts = vec![
-        "create table TEST_INTEGERS (f1 NVARCHAR(100) primary key, f2 TINYINT, f3 SMALLINT, f4 INTEGER, f5 BIGINT, f2_NN TINYINT NOT NULL, f3_NN SMALLINT NOT NULL, f4_NN INTEGER NOT NULL, f5_NN BIGINT NOT NULL)",
-        "create table TEST_FLOATS (f1 NVARCHAR(100) primary key, f2 REAL, F3 DOUBLE, f2_NN REAL NOT NULL, F3_NN DOUBLE NOT NULL)",
+        "create table TEST_INTEGERS \
+         (f1 NVARCHAR(100) primary key, f2 TINYINT, f3 SMALLINT, f4 INTEGER, f5 BIGINT, \
+         f2_NN TINYINT NOT NULL, f3_NN SMALLINT NOT NULL, f4_NN INTEGER NOT NULL, \
+         f5_NN BIGINT NOT NULL)",
+        "create table TEST_FLOATS \
+         (f1 NVARCHAR(100) primary key, f2 REAL, F3 DOUBLE, \
+         f2_NN REAL NOT NULL, F3_NN DOUBLE NOT NULL)",
     ];
     connection.multiple_statements(stmts)?;
 
     debug!("test integers");
-    let mut insert_stmt = connection
-        .prepare("insert into TEST_INTEGERS (f1, f2, f3, f4, f5, f2_NN, f3_NN, f4_NN, f5_NN) values(?, ?, ?, ?, ?, ?, ?, ?, ?)")?;
-    insert_stmt.add_batch(&("123", 123_i8, 123_i16, 123_i32, 123_i64, 123_i8, 123_i16, 123_i32, 123_i64))?;
+    let mut insert_stmt = connection.prepare(
+        "insert into TEST_INTEGERS (f1, f2, f3, f4, f5, f2_NN, f3_NN, f4_NN, f5_NN) \
+         values(?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    )?;
+    insert_stmt.add_batch(&(
+        "123", 123_i8, 123_i16, 123_i32, 123_i64, 123_i8, 123_i16, 123_i32, 123_i64,
+    ))?;
     insert_stmt.add_batch(&("88", "88", "88", "88", "88", "88", "88", "88", "88"))?;
     insert_stmt.execute_batch()?;
 
@@ -46,7 +49,17 @@ fn evaluate_resultset(
         .query("select * from TEST_INTEGERS")?
         .try_into()?;
 
-    let result: Vec<(String, String, String, String, String, String, String, String, String)> = connection
+    let result: Vec<(
+        String,
+        String,
+        String,
+        String,
+        String,
+        String,
+        String,
+        String,
+        String,
+    )> = connection
         .query("select * from TEST_INTEGERS")?
         .try_into()?;
     for row in result {
@@ -61,9 +74,15 @@ fn evaluate_resultset(
     }
 
     debug!("test floats");
-    let mut insert_stmt =
-        connection.prepare("insert into TEST_FLOATS (f1, f2, f3, f2_NN, f3_NN) values(?, ?, ?, ?, ?)")?;
-    insert_stmt.add_batch(&("123.456", 123.456_f32, 123.456_f64, 123.456_f32, 123.456_f64))?;
+    let mut insert_stmt = connection
+        .prepare("insert into TEST_FLOATS (f1, f2, f3, f2_NN, f3_NN) values(?, ?, ?, ?, ?)")?;
+    insert_stmt.add_batch(&(
+        "123.456",
+        123.456_f32,
+        123.456_f64,
+        123.456_f32,
+        123.456_f64,
+    ))?;
     insert_stmt.add_batch(&("456.123", "456.123", "456.123", "456.123", "456.123"))?;
     insert_stmt.execute_batch()?;
 

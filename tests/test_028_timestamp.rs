@@ -1,29 +1,28 @@
-extern crate chrono;
-extern crate flexi_logger;
-extern crate hdbconnect;
-#[macro_use]
-extern crate log;
-extern crate serde_json;
-
 mod test_utils;
 
 use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
 use flexi_logger::ReconfigurationHandle;
-use hdbconnect::HdbResult;
+use hdbconnect::{Connection, HdbResult};
+use log::{debug, info, trace};
 
-#[test] // cargo test --test test_021_longdate
-pub fn test_021_longdate() -> HdbResult<()> {
-    let mut loghandle = test_utils::init_logger("info,test_021_longdate=trace");
+#[test]
+pub fn test_028_timestamp() -> HdbResult<()> {
+    let mut log_handle = test_utils::init_logger("info");
+    let mut connection = test_utils::get_authenticated_connection()?;
 
-    let count = test_longdate(&mut loghandle)?;
-    info!("longdate: {} calls to DB were executed", count);
+    test_timestamp(&mut log_handle, &mut connection)?;
+
+    info!("{} calls to DB were executed", connection.get_call_count()?);
     Ok(())
 }
 
 // Test the conversion of timestamps
 // - during serialization (input to prepared_statements)
 // - during deserialization (result)
-fn test_longdate(_loghandle: &mut ReconfigurationHandle) -> HdbResult<i32> {
+fn test_timestamp(
+    _log_handle: &mut ReconfigurationHandle,
+    connection: &mut Connection,
+) -> HdbResult<i32> {
     info!("verify that NaiveDateTime values match the expected string representation");
 
     debug!("prepare the test data");
@@ -49,8 +48,6 @@ fn test_longdate(_loghandle: &mut ReconfigurationHandle) -> HdbResult<i32> {
             string_values[i]
         );
     }
-
-    let mut connection = test_utils::get_authenticated_connection()?;
 
     // Insert the data such that the conversion "String -> LongDate" is done on the
     // server side (we assume that this conversion is error-free).

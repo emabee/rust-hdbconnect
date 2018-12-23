@@ -1,29 +1,28 @@
-extern crate chrono;
-extern crate flexi_logger;
-extern crate hdbconnect;
-#[macro_use]
-extern crate log;
-extern crate serde_json;
-
 mod test_utils;
 
 use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
 use flexi_logger::ReconfigurationHandle;
-use hdbconnect::HdbResult;
+use hdbconnect::{Connection, HdbResult};
+use log::{debug, info, trace};
 
 #[test] // cargo test --test test_021_longdate
 pub fn test_021_longdate() -> HdbResult<()> {
-    let mut loghandle = test_utils::init_logger("info,test_021_longdate=info");
+    let mut loghandle = test_utils::init_logger("info");
+    let mut connection = test_utils::get_authenticated_connection()?;
 
-    let count = test_longdate(&mut loghandle)?;
-    info!("longdate: {} calls to DB were executed", count);
+    test_longdate(&mut loghandle, &mut connection)?;
+
+    info!("{} calls to DB were executed", connection.get_call_count()?);
     Ok(())
 }
 
 // Test the conversion of timestamps
 // - during serialization (input to prepared_statements)
 // - during deserialization (result)
-fn test_longdate(_loghandle: &mut ReconfigurationHandle) -> HdbResult<i32> {
+fn test_longdate(
+    _loghandle: &mut ReconfigurationHandle,
+    connection: &mut Connection,
+) -> HdbResult<()> {
     info!("verify that NaiveDateTime values match the expected string representation");
 
     debug!("prepare the test data");
@@ -49,8 +48,6 @@ fn test_longdate(_loghandle: &mut ReconfigurationHandle) -> HdbResult<i32> {
             string_values[i]
         );
     }
-
-    let mut connection = test_utils::get_authenticated_connection()?;
 
     // Insert the data such that the conversion "String -> LongDate" is done on the
     // server side (we assume that this conversion is error-free).
@@ -82,7 +79,8 @@ fn test_longdate(_loghandle: &mut ReconfigurationHandle) -> HdbResult<i32> {
         info!("test the conversion NaiveDateTime -> DB");
         let mut prep_stmt = connection
             .prepare("select sum(number) from TEST_LONGDATE where mydate = ? or mydate = ?")?;
-        // Enforce that NaiveDateTime values are converted in the client (with serde) to the DB type:
+        // Enforce that NaiveDateTime values are converted in the client (with serde)
+        // to the DB type:
         prep_stmt.add_batch(&(naive_datetime_values[2], naive_datetime_values[3]))?;
         let mut response = prep_stmt.execute_batch()?;
         debug!(
@@ -145,5 +143,5 @@ fn test_longdate(_loghandle: &mut ReconfigurationHandle) -> HdbResult<i32> {
         assert_eq!(date, None);
     }
 
-    Ok(connection.get_call_count()?)
+    Ok(())
 }

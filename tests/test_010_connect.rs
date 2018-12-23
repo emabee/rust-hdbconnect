@@ -1,41 +1,31 @@
-extern crate chrono;
-extern crate flexi_logger;
-extern crate hdbconnect;
-
-#[macro_use]
-extern crate log;
-
-extern crate serde;
-#[macro_use]
-extern crate serde_derive;
-extern crate serde_json;
-
 mod test_utils;
 
 use chrono::Local;
+use flexi_logger::ReconfigurationHandle;
 use hdbconnect::{ConnectParams, Connection, HdbResult, IntoConnectParams};
+use log::*;
+use serde_derive::{Deserialize, Serialize};
 use std::env;
 
-// cargo test test_010_connect -- --nocapture
 #[test]
 pub fn test_010_connect() -> HdbResult<()> {
-    test_utils::init_logger("test_010_connect = info, hdbconnect = info");
+    let mut log_handle = test_utils::init_logger("info");
 
-    connect_successfully();
-    connect_wrong_password();
-    connect_and_select_with_explicit_clientlocale()?;
-    connect_and_select_with_clientlocale_from_env()?;
-    client_info()?;
-    command_info()?;
+    connect_successfully(&mut log_handle);
+    connect_wrong_password(&mut log_handle);
+    connect_and_select_with_explicit_clientlocale(&mut log_handle)?;
+    connect_and_select_with_clientlocale_from_env(&mut log_handle)?;
+    client_info(&mut log_handle)?;
+    command_info(&mut log_handle)?;
     Ok(())
 }
 
-fn connect_successfully() {
+fn connect_successfully(_log_handle: &mut ReconfigurationHandle) {
     info!("test a successful connection");
     test_utils::get_authenticated_connection().unwrap();
 }
 
-fn connect_wrong_password() {
+fn connect_wrong_password(_log_handle: &mut ReconfigurationHandle) {
     info!("test connect failure on wrong credentials");
     let start = Local::now();
     let conn_params: ConnectParams =
@@ -53,7 +43,9 @@ fn connect_wrong_password() {
     );
 }
 
-fn connect_and_select_with_explicit_clientlocale() -> HdbResult<()> {
+fn connect_and_select_with_explicit_clientlocale(
+    _log_handle: &mut ReconfigurationHandle,
+) -> HdbResult<()> {
     info!("connect and do some simple select with explicit clientlocale");
 
     let mut url = test_utils::get_std_connect_url()?;
@@ -63,11 +55,13 @@ fn connect_and_select_with_explicit_clientlocale() -> HdbResult<()> {
 
     let mut connection = Connection::new(conn_params)?;
     select_version_and_user(&mut connection)?;
-    debug!("{} calls to DB were executed", connection.get_call_count()?);
+    info!("{} calls to DB were executed", connection.get_call_count()?);
     Ok(())
 }
 
-fn connect_and_select_with_clientlocale_from_env() -> HdbResult<()> {
+fn connect_and_select_with_clientlocale_from_env(
+    _log_handle: &mut ReconfigurationHandle,
+) -> HdbResult<()> {
     info!("connect and do some simple select with clientlocale from env");
     if env::var("LANG").is_err() {
         env::set_var("LANG", "en_US.UTF-8");
@@ -80,7 +74,7 @@ fn connect_and_select_with_clientlocale_from_env() -> HdbResult<()> {
 
     let mut connection = Connection::new(conn_params)?;
     select_version_and_user(&mut connection)?;
-    debug!("{} calls to DB were executed", connection.get_call_count()?);
+    info!("{} calls to DB were executed", connection.get_call_count()?);
     Ok(())
 }
 
@@ -120,7 +114,7 @@ impl SessCtx {
     }
 }
 
-fn client_info() -> HdbResult<()> {
+fn client_info(_log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
     info!("client info");
     let mut connection = test_utils::get_authenticated_connection().unwrap();
 
@@ -132,11 +126,11 @@ fn client_info() -> HdbResult<()> {
     connection.set_application_version("0.8.15")?;
     connection.set_application_source("dummy.rs")?;
 
-    // make sure it is set ...
+    debug!("make sure the client info is set ...");
     let result: Vec<SessCtx> = connection.query(stmt)?.try_into()?;
     check_result(&result);
 
-    // ... and remains set
+    debug!("... and remains set");
     let _result: Vec<SessCtx> = connection.query(stmt)?.try_into()?;
     let _result: Vec<SessCtx> = connection.query(stmt)?.try_into()?;
     let result: Vec<SessCtx> = connection.query(stmt)?.try_into()?;
@@ -151,7 +145,7 @@ fn check_result(result: &[SessCtx]) {
     assert_eq!(result[2], SessCtx::new("APPLICATIONUSER", "OTTO"));
 }
 
-fn command_info() -> HdbResult<()> {
+fn command_info(_log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
     info!("command info");
     let mut connection = test_utils::get_authenticated_connection().unwrap();
 

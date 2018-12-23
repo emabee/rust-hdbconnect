@@ -21,36 +21,8 @@
 #![warn(missing_docs)]
 #![deny(missing_debug_implementations)]
 
-extern crate bigdecimal;
-extern crate byteorder;
-extern crate cesu8;
-extern crate chrono;
-extern crate hex;
-extern crate hmac;
-extern crate num;
-extern crate pbkdf2;
-extern crate sha2;
 #[macro_use]
 extern crate log;
-
-extern crate r2d2;
-extern crate rand;
-extern crate secstr;
-
-extern crate serde;
-#[macro_use]
-extern crate serde_derive;
-
-#[cfg(feature = "tls")]
-extern crate rustls;
-extern crate url;
-extern crate username;
-extern crate vec_map;
-#[cfg(feature = "tls")]
-extern crate webpki;
-
-extern crate dist_tx;
-extern crate serde_db;
 
 mod authentication;
 mod conn_core;

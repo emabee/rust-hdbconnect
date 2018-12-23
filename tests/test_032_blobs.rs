@@ -1,47 +1,30 @@
-extern crate chrono;
-extern crate flexi_logger;
-extern crate hdbconnect;
-#[macro_use]
-extern crate log;
-extern crate rand;
-extern crate serde;
-extern crate serde_bytes;
-#[macro_use]
-extern crate serde_derive;
-extern crate serde_json;
-extern crate sha2;
-
 mod test_utils;
 
 use flexi_logger::ReconfigurationHandle;
 use hdbconnect::types::BLob;
 use hdbconnect::{Connection, HdbResult};
+use log::{debug, info};
 use rand::{thread_rng, RngCore};
 use serde_bytes::{ByteBuf, Bytes};
+use serde_derive::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::io;
 
 // cargo test test_032_blobs -- --nocapture
 #[test]
 pub fn test_032_blobs() -> HdbResult<()> {
-    let mut loghandle = test_utils::init_logger("info, test_032_blobs = info");
+    let mut loghandle = test_utils::init_logger("info");
+    let mut connection = test_utils::get_authenticated_connection()?;
 
-    let count = impl_test_032_blobs(&mut loghandle)?;
-    info!("{} calls to DB were executed", count);
+    test_blobs(&mut loghandle, &mut connection)?;
+
+    info!("{} calls to DB were executed", connection.get_call_count()?);
     Ok(())
 }
 
-fn impl_test_032_blobs(loghandle: &mut ReconfigurationHandle) -> HdbResult<i32> {
-    let mut connection = test_utils::get_authenticated_connection()?;
-
-    test_blobs(&mut connection, loghandle)?;
-
-    Ok(connection.get_call_count()?)
-}
-
 fn test_blobs(
-    connection: &mut Connection,
     _loghandle: &mut ReconfigurationHandle,
+    connection: &mut Connection,
 ) -> HdbResult<()> {
     info!("create a 5MB BLOB in the database, and read it in various ways");
     connection.set_lob_read_length(1_000_000)?;

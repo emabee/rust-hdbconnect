@@ -117,7 +117,7 @@ impl PreparedStatement {
         request.push(Part::new(PartKind::Command, Argument::Command(stmt)));
 
         let mut reply =
-            request.send_and_get_reply_simplified(&mut am_conn_core, None, SkipLastSpace::Soft)?;
+            request.send_and_get_reply_simplified(&mut am_conn_core, None, SkipLastSpace::Hard)?;
 
         // ParameterMetadata, ResultSetMetadata
         // StatementContext, StatementId,

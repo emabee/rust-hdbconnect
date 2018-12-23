@@ -1,37 +1,30 @@
-extern crate chrono;
-extern crate flexi_logger;
-extern crate hdbconnect;
-#[macro_use]
-extern crate log;
-#[macro_use]
-extern crate serde_derive;
-extern crate serde_json;
-
 mod test_utils;
 
+use flexi_logger::ReconfigurationHandle;
 use hdbconnect::{Connection, HdbResult, HdbValue};
+use log::{debug, info};
+use serde_derive::Deserialize;
 
 #[test] // cargo test --test test_030_prepare -- --nocapture
-pub fn test_030_prepare() {
-    test_utils::init_logger("test_030_prepare=info, hdbconnect=info");
+pub fn test_030_prepare() -> HdbResult<()> {
+    let mut log_handle = test_utils::init_logger("info");
+    let mut connection = test_utils::get_authenticated_connection()?;
 
-    match impl_test_030_prepare() {
-        Err(e) => {
-            error!("test_030_prepare() failed with {:?}", e);
-            assert!(false)
-        }
-        Ok(i) => info!("{} calls to DB were executed", i),
-    }
+    test_prepare(&mut log_handle, &mut connection)?;
+
+    info!("{} calls to DB were executed", connection.get_call_count()?);
+    Ok(())
 }
 
 // Test prepared statements, transactional correctness,
 // incl. parameter serialization (and resultset deserialization)
-fn impl_test_030_prepare() -> HdbResult<i32> {
-    let mut connection = test_utils::get_authenticated_connection()?;
-
-    prepare_insert_statement(&mut connection)?;
-    prepare_statement_use_parameter_row(&mut connection)?;
-    prepare_multiple_errors(&mut connection)?;
+fn test_prepare(
+    _log_handle: &mut ReconfigurationHandle,
+    connection: &mut Connection,
+) -> HdbResult<i32> {
+    prepare_insert_statement(connection)?;
+    prepare_statement_use_parameter_row(connection)?;
+    prepare_multiple_errors(connection)?;
 
     Ok(connection.get_call_count()?)
 }

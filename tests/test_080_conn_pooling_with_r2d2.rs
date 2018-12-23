@@ -1,18 +1,12 @@
-extern crate flexi_logger;
-extern crate hdbconnect;
-extern crate r2d2;
-extern crate serde;
-extern crate serde_json;
-
 mod test_utils;
 
-use hdbconnect::ConnectionManager;
+use hdbconnect::{ConnectionManager, HdbResult};
 use std::thread;
 use std::time::Duration;
 
 #[test]
-fn test_080_conn_pooling_with_r2d2() {
-    test_utils::init_logger("test_080_conn_pooling_with_r2d2 = info");
+fn test_080_conn_pooling_with_r2d2() -> HdbResult<()> {
+    //let mut log_handle = test_utils::init_logger("info");
 
     let conn_params = test_utils::get_std_connect_params().unwrap();
     let manager = ConnectionManager::new(&conn_params);
@@ -26,4 +20,5 @@ fn test_080_conn_pooling_with_r2d2() {
         });
     }
     thread::sleep(Duration::from_millis(100));
+    Ok(())
 }

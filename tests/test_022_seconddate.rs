@@ -1,29 +1,28 @@
-extern crate chrono;
-extern crate flexi_logger;
-extern crate hdbconnect;
-#[macro_use]
-extern crate log;
-extern crate serde_json;
-
 mod test_utils;
 
 use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
 use flexi_logger::ReconfigurationHandle;
-use hdbconnect::HdbResult;
+use hdbconnect::{Connection, HdbResult};
+use log::{debug, info, trace};
 
 #[test] // cargo test --test test_022_seconddate
 pub fn test_022_seconddate() -> HdbResult<()> {
-    let mut loghandle = test_utils::init_logger("info,test_022_seconddate=info");
+    let mut loghandle = test_utils::init_logger("info");
+    let mut connection = test_utils::get_authenticated_connection()?;
 
-    let i = test_seconddate(&mut loghandle)?;
-    info!("seconddate: {} calls to DB were executed", i);
+    test_seconddate(&mut loghandle, &mut connection)?;
+
+    info!("{} calls to DB were executed", connection.get_call_count()?);
     Ok(())
 }
 
 // Test the conversion of timestamps
 // - during serialization (input to prepared_statements)
 // - during deserialization (result)
-fn test_seconddate(_loghandle: &mut ReconfigurationHandle) -> HdbResult<i32> {
+fn test_seconddate(
+    _loghandle: &mut ReconfigurationHandle,
+    connection: &mut Connection,
+) -> HdbResult<()> {
     info!("test_seconddate: verify that NaiveDateTime values match the expected string representation");
 
     debug!("test_seconddate: prepare the test data");
@@ -49,8 +48,6 @@ fn test_seconddate(_loghandle: &mut ReconfigurationHandle) -> HdbResult<i32> {
             string_values[i]
         );
     }
-
-    let mut connection = test_utils::get_authenticated_connection()?;
 
     // Insert the data such that the conversion "String -> SecondDate" is done on the
     // server side (we assume that this conversion is error-free).
@@ -114,5 +111,5 @@ fn test_seconddate(_loghandle: &mut ReconfigurationHandle) -> HdbResult<i32> {
             assert_eq!(date, naive_datetime_values[0]);
         }
     }
-    Ok(connection.get_call_count()?)
+    Ok(())
 }

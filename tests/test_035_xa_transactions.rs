@@ -1,45 +1,28 @@
-extern crate chrono;
-extern crate dist_tx;
-extern crate flexi_logger;
-extern crate hdbconnect;
-#[macro_use]
-extern crate log;
-extern crate rand;
-extern crate serde_json;
-
 mod test_utils;
 
 use dist_tx::tm::*;
-#[allow(unused_imports)]
 use flexi_logger::ReconfigurationHandle;
 use hdbconnect::{Connection, HdbResult};
+use log::{debug, info};
 
 #[test] // cargo test --test test_035_xa_transactions -- --nocapture
-pub fn test_035_xa_transactions() {
+pub fn test_035_xa_transactions() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger("info");
-
-    match impl_test_035_xa_transactions(&mut log_handle) {
-        Err(e) => panic!("impl_test_035_xa_transactions() failed with {:?}", e),
-        Ok(_) => debug!("impl_test_035_xa_transactions() ended successful"),
-    }
-}
-
-fn impl_test_035_xa_transactions(log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
     let mut connection = test_utils::get_authenticated_connection()?;
 
-    prepare(&mut connection, log_handle)?;
+    prepare(&mut log_handle, &mut connection)?;
 
-    successful_xa(&mut connection, log_handle)?;
-    xa_rollback(&mut connection, log_handle)?;
-    xa_repeated(&mut connection, log_handle)?;
-    xa_conflicts(&mut connection, log_handle)?;
+    successful_xa(&mut log_handle, &mut connection)?;
+    xa_rollback(&mut log_handle, &mut connection)?;
+    xa_repeated(&mut log_handle, &mut connection)?;
+    xa_conflicts(&mut log_handle, &mut connection)?;
 
-    debug!("{} calls to DB were executed", connection.get_call_count()?);
+    info!("{} calls to DB were executed", connection.get_call_count()?);
     Ok(())
 }
 
 // prepare the db table
-fn prepare(conn: &mut Connection, _log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
+fn prepare(_log_handle: &mut ReconfigurationHandle, conn: &mut Connection) -> HdbResult<()> {
     info!("Prepare...");
     conn.multiple_statements_ignore_err(vec!["drop table TEST_XA"]);
     conn.multiple_statements(vec![
@@ -51,7 +34,7 @@ fn prepare(conn: &mut Connection, _log_handle: &mut ReconfigurationHandle) -> Hd
     ])
 }
 
-fn successful_xa(conn: &mut Connection, _log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
+fn successful_xa(_log_handle: &mut ReconfigurationHandle, conn: &mut Connection) -> HdbResult<()> {
     info!("Successful XA");
 
     // open two connections, auto_commit off
@@ -97,7 +80,7 @@ fn insert_stmt(i: u32, s: &'static str) -> String {
     format!("insert into TEST_XA (f1, f2) values({}, '{}')", i, s)
 }
 
-fn xa_rollback(conn: &mut Connection, _log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
+fn xa_rollback(_log_handle: &mut ReconfigurationHandle, conn: &mut Connection) -> HdbResult<()> {
     info!("xa_rollback");
 
     // open two connections, auto_commit off
@@ -164,7 +147,7 @@ fn xa_rollback(conn: &mut Connection, _log_handle: &mut ReconfigurationHandle) -
     Ok(())
 }
 
-fn xa_repeated(conn: &mut Connection, _log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
+fn xa_repeated(_log_handle: &mut ReconfigurationHandle, conn: &mut Connection) -> HdbResult<()> {
     info!("xa_repeated");
 
     // open two connections, auto_commit off
@@ -238,7 +221,7 @@ fn xa_repeated(conn: &mut Connection, _log_handle: &mut ReconfigurationHandle) -
     Ok(())
 }
 
-fn xa_conflicts(conn: &mut Connection, _log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
+fn xa_conflicts(_log_handle: &mut ReconfigurationHandle, conn: &mut Connection) -> HdbResult<()> {
     info!("xa_conflicts");
 
     // open two connections, auto_commit off

@@ -1,27 +1,20 @@
-extern crate flexi_logger;
-extern crate hdbconnect;
-#[macro_use]
-extern crate log;
-extern crate bigdecimal;
-extern crate num;
-#[macro_use]
-extern crate serde_derive;
-extern crate serde_json;
-
 mod test_utils;
 
 use bigdecimal::BigDecimal;
-#[allow(unused_imports)]
-use flexi_logger::{LogSpecification, ReconfigurationHandle};
+use flexi_logger::ReconfigurationHandle;
 use hdbconnect::{Connection, HdbResult, HdbValue};
+use log::{debug, info};
 use num::FromPrimitive;
+use serde_derive::Deserialize;
 
 //cargo test --test test_025_decimals -- --nocapture
 #[test]
 fn test_025_decimals() -> HdbResult<()> {
-    let mut log_handle = test_utils::init_logger("info, test_025_decimals = info");
+    let mut log_handle = test_utils::init_logger("info");
     let mut connection = test_utils::get_authenticated_connection()?;
+
     test_025_decimals_impl(&mut log_handle, &mut connection)?;
+
     info!("{} calls to DB were executed", connection.get_call_count()?);
     Ok(())
 }

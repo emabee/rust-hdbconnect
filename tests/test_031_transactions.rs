@@ -1,14 +1,9 @@
-extern crate chrono;
-extern crate flexi_logger;
-extern crate hdbconnect;
-#[macro_use]
-extern crate log;
-extern crate serde_json;
-
 mod test_utils;
 
 use chrono::NaiveDate;
-use hdbconnect::{Connection, HdbResult};
+use flexi_logger::ReconfigurationHandle;
+use hdbconnect::{Connection, HdbError, HdbResult};
+use log::{debug, info};
 
 // From wikipedia:
 //
@@ -22,28 +17,29 @@ use hdbconnect::{Connection, HdbResult};
 
 #[test] // cargo test --test test_031_transactions -- --nocapture
 pub fn test_031_transactions() -> HdbResult<()> {
-    test_utils::init_logger("info, test_031_transactions = info");
-
+    let mut log_handle = test_utils::init_logger("info");
     let mut connection = test_utils::get_authenticated_connection()?;
-    connection.set_auto_commit(false)?;
 
-    if let Err(hdberror) = write1_read2(&mut connection, "READ UNCOMMITTED") {
-        if let Some(server_error) = hdberror.server_error() {
-            let error_info: (i32, String, String) = connection
-                .query(&format!(
-                    "select * from SYS.M_ERROR_CODES where code = {}",
-                    server_error.code()
-                ))?
-                .try_into()?;
-            info!("error_info: {:?}", error_info);
-        }
+    connection.set_auto_commit(false)?;
+    if let Err(HdbError::DbError(server_error)) =
+        write1_read2(&mut log_handle, &mut connection, "READ UNCOMMITTED")
+    {
+        let error_info: (i32, String, String) = connection
+            .query(&format!(
+                "select * from SYS.M_ERROR_CODES where code = {}",
+                server_error.code()
+            ))?
+            .try_into()?;
+        assert_eq!(error_info.0, 7);
+        assert_eq!(error_info.1, "ERR_FEATURE_NOT_SUPPORTED");
+        info!("error_info: {:?}", error_info);
+    } else {
+        assert!(false, "did not receive ServerError");
     }
 
-    write1_read2(&mut connection, "READ COMMITTED")?;
-
-    write1_read2(&mut connection, "REPEATABLE READ")?;
-
-    write1_read2(&mut connection, "SERIALIZABLE")?;
+    write1_read2(&mut log_handle, &mut connection, "READ COMMITTED")?;
+    write1_read2(&mut log_handle, &mut connection, "REPEATABLE READ")?;
+    write1_read2(&mut log_handle, &mut connection, "SERIALIZABLE")?;
 
     // SET TRANSACTION { READ ONLY | READ WRITE }
 
@@ -54,7 +50,11 @@ pub fn test_031_transactions() -> HdbResult<()> {
     Ok(())
 }
 
-fn write1_read2(connection1: &mut Connection, isolation: &str) -> HdbResult<()> {
+fn write1_read2(
+    _log_handle: &mut ReconfigurationHandle,
+    connection1: &mut Connection,
+    isolation: &str,
+) -> HdbResult<()> {
     info!("Test isolation level {}", isolation);
     connection1.exec(&format!("SET TRANSACTION ISOLATION LEVEL {}", isolation))?;
 

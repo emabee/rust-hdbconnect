@@ -1,39 +1,34 @@
-extern crate flexi_logger;
-extern crate hdbconnect;
-#[macro_use]
-extern crate log;
-extern crate bigdecimal;
-extern crate num;
-#[macro_use]
-extern crate serde_derive;
-extern crate serde_json;
-
 mod test_utils;
 
 use bigdecimal::BigDecimal;
 #[allow(unused_imports)]
-use flexi_logger::{LogSpecification, ReconfigurationHandle};
+use flexi_logger::ReconfigurationHandle;
 use hdbconnect::{Connection, HdbResult, HdbValue};
+use log::{debug, info};
 use num::FromPrimitive;
+use serde_derive::Deserialize;
 
 //cargo test --test test_027_small_decimals -- --nocapture
 #[test]
 fn test_027_small_decimals() -> HdbResult<()> {
-    let mut log_handle = test_utils::init_logger("info, test_027_small_decimals = info");
+    let mut log_handle = test_utils::init_logger("info");
     let mut connection = test_utils::get_authenticated_connection()?;
-    test_027_small_decimals_impl(&mut log_handle, &mut connection)?;
+
+    test_small_decimals(&mut log_handle, &mut connection)?;
+
     info!("{} calls to DB were executed", connection.get_call_count()?);
     Ok(())
 }
 
-fn test_027_small_decimals_impl(
+fn test_small_decimals(
     _log_handle: &mut ReconfigurationHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     connection.multiple_statements_ignore_err(vec!["drop table TEST_SMALL_DECIMALS"]);
 
     let stmts = vec![
-        "create table TEST_SMALL_DECIMALS (f1 NVARCHAR(100) primary key, f2 SMALLDECIMAL, f3 integer, f2_NN SMALLDECIMAL NOT NULL, f3_NN integer NOT NULL)",
+        "create table TEST_SMALL_DECIMALS (f1 NVARCHAR(100) primary key, f2 SMALLDECIMAL, \
+        f3 integer, f2_NN SMALLDECIMAL NOT NULL, f3_NN integer NOT NULL)",
         "insert into TEST_SMALL_DECIMALS (f1, f2, f2_NN, f3_NN) values('0.00000', 0.000, 0.000, 10)",
         "insert into TEST_SMALL_DECIMALS (f1, f2, f2_NN, f3_NN) values('0.00100', 0.001, 0.001, 10)",
         "insert into TEST_SMALL_DECIMALS (f1, f2, f2_NN, f3_NN) values('-0.00100', -0.001, -0.001, 10)",
@@ -57,12 +52,18 @@ fn test_027_small_decimals_impl(
         f3_nn: u32,
     };
 
-    let insert_stmt_str = "insert into TEST_SMALL_DECIMALS (F1, F2, F2_NN, F3_NN) values(?, ?, ?, ?)";
+    let insert_stmt_str =
+        "insert into TEST_SMALL_DECIMALS (F1, F2, F2_NN, F3_NN) values(?, ?, ?, ?)";
 
     // prepare & execute
 
     let mut insert_stmt = connection.prepare(insert_stmt_str)?;
-    insert_stmt.add_batch(&("75.53500", BigDecimal::from_f32(75.53500).unwrap(), BigDecimal::from_f32(75.53500).unwrap(), 10))?;
+    insert_stmt.add_batch(&(
+        "75.53500",
+        BigDecimal::from_f32(75.53500).unwrap(),
+        BigDecimal::from_f32(75.53500).unwrap(),
+        10,
+    ))?;
     insert_stmt.add_batch(&("87.65432", 87.654_32_f32, 87.654_32_f32, 10))?;
     insert_stmt.add_batch(&("0.00500", 0.005_f32, 0.005_f32, 10))?;
     insert_stmt.add_batch(&("-0.00600", -0.006_00_f64, -0.006_00_f64, 10))?;
@@ -77,7 +78,8 @@ fn test_027_small_decimals_impl(
     insert_stmt.execute_batch()?;
 
     info!("Read and verify decimals");
-    let resultset = connection.query("select f1, f2, f3_NN, f2_NN from TEST_SMALL_DECIMALS order by f2")?;
+    let resultset =
+        connection.query("select f1, f2, f3_NN, f2_NN from TEST_SMALL_DECIMALS order by f2")?;
     let precision = resultset.metadata().precision(1)?;
     debug!("metadata: {:?}", resultset.metadata());
     let scale = 5; //resultset.metadata().scale(1)? as usize;
@@ -94,7 +96,8 @@ fn test_027_small_decimals_impl(
     }
 
     info!("Read and verify decimals to struct");
-    let resultset = connection.query("select f1, f2, f3_NN, f2_NN from TEST_SMALL_DECIMALS order by f2")?;
+    let resultset =
+        connection.query("select f1, f2, f3_NN, f2_NN from TEST_SMALL_DECIMALS order by f2")?;
     let scale = 5; //resultset.metadata().scale(1)? as usize;
     let result: Vec<TestData> = resultset.try_into()?;
     for td in result {

@@ -1,18 +1,14 @@
 mod test_utils;
 
-use flexi_logger::Logger;
 use hdbconnect::{Connection, HdbError, HdbResult};
-use log::*;
+use log::{debug, info};
 
-// cargo test test_011_invalid_password -- --nocapture
+// cargo test --test test_011_invalid_password -- --nocapture
 #[test]
 pub fn test_011_invalid_password() -> HdbResult<()> {
-    test_utils::init_logger(
-        "info, test_011_invalid_password=info",
-    );
+    let mut _log_handle = test_utils::init_logger("info");
 
-    // hdbconnect::protocol::request = trace, hdbconnect::protocol::part = debug,
-    // hdbconnect::protocol::util = trace
+    info!("test warnings");
     let mut conn = test_utils::get_system_connection()?;
 
     debug!("drop user DOEDEL, and recreate it with need to set password");

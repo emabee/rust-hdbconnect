@@ -3,6 +3,7 @@ use crate::conn_core::AmConnCore;
 use crate::protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
 use crate::protocol::util;
 use crate::{HdbError, HdbResult};
+use serde_derive::Serialize;
 use std::cell::RefCell;
 use std::cmp::max;
 use std::io::{self, Write};

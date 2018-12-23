@@ -1,50 +1,32 @@
-extern crate chrono;
-extern crate flexi_logger;
-extern crate hdbconnect;
-#[macro_use]
-extern crate log;
-
-extern crate serde_json;
-
 mod test_utils;
 
+use flexi_logger::ReconfigurationHandle;
 use hdbconnect::{
     BaseTypeId, Connection, HdbResult, ParameterBinding, ParameterDirection, ResultSet, Row,
 };
+use log::{debug, info};
 
-#[test] // cargo test test_040_procedures -- --nocapture
-pub fn test_040_procedures() {
-    test_utils::init_logger("info");
-
-    match impl_test_040_procedures() {
-        Err(e) => {
-            error!("test_040_procedures() failed with {:?}", e);
-            assert!(false)
-        }
-        Ok(n) => info!("{} calls to DB were executed", n),
-    }
-}
-
-// Test procedures.
-// Various procedures from very simple to pretty complex are tested.
-fn impl_test_040_procedures() -> HdbResult<i32> {
+// Test various procedures, from very simple to pretty complex
+#[test]
+pub fn test_040_procedures() -> HdbResult<()> {
+    let mut log_handle = test_utils::init_logger("info");
     let mut connection = test_utils::get_authenticated_connection()?;
 
-    very_simple_procedure(&mut connection)?;
-    procedure_with_out_resultsets(&mut connection)?;
-    procedure_with_secret_resultsets(&mut connection)?;
+    very_simple_procedure(&mut log_handle, &mut connection)?;
+    procedure_with_out_resultsets(&mut log_handle, &mut connection)?;
+    procedure_with_secret_resultsets(&mut log_handle, &mut connection)?;
+    procedure_with_in_parameters(&mut log_handle, &mut connection)?;
+    procedure_with_in_and_out_parameters(&mut log_handle, &mut connection)?;
+    procedure_with_in_nclob_non_consuming(&mut log_handle, &mut connection)?;
 
-    // test IN parameters
-    procedure_with_in_parameters(&mut connection)?;
-
-    // test OUT, INOUT parameters
-    procedure_with_in_and_out_parameters(&mut connection)?;
-
-    procedure_with_in_nclob_non_consuming(&mut connection)?;
-    Ok(connection.get_call_count()?)
+    info!("{} calls to DB were executed", connection.get_call_count()?);
+    Ok(())
 }
 
-fn very_simple_procedure(connection: &mut Connection) -> HdbResult<()> {
+fn very_simple_procedure(
+    _log_handle: &mut ReconfigurationHandle,
+    connection: &mut Connection,
+) -> HdbResult<()> {
     info!("very_simple_procedure(): run a simple sqlscript procedure");
 
     connection.multiple_statements_ignore_err(vec!["drop procedure TEST_PROCEDURE"]);
@@ -64,7 +46,10 @@ fn very_simple_procedure(connection: &mut Connection) -> HdbResult<()> {
     Ok(())
 }
 
-fn procedure_with_out_resultsets(connection: &mut Connection) -> HdbResult<()> {
+fn procedure_with_out_resultsets(
+    _log_handle: &mut ReconfigurationHandle,
+    connection: &mut Connection,
+) -> HdbResult<()> {
     info!(
         "procedure_with_out_resultsets(): run a sqlscript procedure with resultsets as OUT \
          parameters"
@@ -100,7 +85,10 @@ fn procedure_with_out_resultsets(connection: &mut Connection) -> HdbResult<()> {
     Ok(())
 }
 
-fn procedure_with_secret_resultsets(connection: &mut Connection) -> HdbResult<()> {
+fn procedure_with_secret_resultsets(
+    _log_handle: &mut ReconfigurationHandle,
+    connection: &mut Connection,
+) -> HdbResult<()> {
     info!("procedure_with_secret_resultsets(): run a sqlscript procedure with implicit resultsets");
 
     connection.multiple_statements_ignore_err(vec!["drop procedure GET_PROCEDURES_SECRETLY"]);
@@ -131,7 +119,10 @@ fn procedure_with_secret_resultsets(connection: &mut Connection) -> HdbResult<()
     Ok(())
 }
 
-fn procedure_with_in_parameters(connection: &mut Connection) -> HdbResult<()> {
+fn procedure_with_in_parameters(
+    _log_handle: &mut ReconfigurationHandle,
+    connection: &mut Connection,
+) -> HdbResult<()> {
     info!("procedure_with_in_parameters(): run a sqlscript procedure with input parameters");
 
     connection.multiple_statements_ignore_err(vec!["drop procedure TEST_INPUT_PARS"]);
@@ -160,7 +151,10 @@ fn procedure_with_in_parameters(connection: &mut Connection) -> HdbResult<()> {
     Ok(())
 }
 
-fn procedure_with_in_and_out_parameters(connection: &mut Connection) -> HdbResult<()> {
+fn procedure_with_in_and_out_parameters(
+    _log_handle: &mut ReconfigurationHandle,
+    connection: &mut Connection,
+) -> HdbResult<()> {
     info!(
         "procedure_with_in_and_out_parameters(): verify that we can run a sqlscript procedure \
          with input and output parameters"
@@ -200,7 +194,10 @@ fn procedure_with_in_and_out_parameters(connection: &mut Connection) -> HdbResul
     Ok(())
 }
 
-fn procedure_with_in_nclob_non_consuming(connection: &mut Connection) -> HdbResult<()> {
+fn procedure_with_in_nclob_non_consuming(
+    _log_handle: &mut ReconfigurationHandle,
+    connection: &mut Connection,
+) -> HdbResult<()> {
     info!("procedure_with_in_nclob_non_consuming(): convert input parameter to nclob");
 
     connection.multiple_statements_ignore_err(vec!["drop procedure TEST_CLOB_INPUT_PARS"]);

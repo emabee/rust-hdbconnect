@@ -1,22 +1,11 @@
-extern crate chrono;
-extern crate flexi_logger;
-extern crate hdbconnect;
-#[macro_use]
-extern crate log;
-extern crate rand;
-extern crate serde;
-extern crate serde_bytes;
-#[macro_use]
-extern crate serde_derive;
-extern crate serde_json;
-extern crate sha2;
-
 mod test_utils;
 
 use flexi_logger::ReconfigurationHandle;
 use hdbconnect::types::NCLob;
 use hdbconnect::{Connection, HdbResult};
+use log::{debug, info};
 use serde_bytes::Bytes;
+use serde_derive::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::fs::File;
 use std::io::{self, Read};
@@ -24,22 +13,19 @@ use std::io::{self, Read};
 // cargo test test_034_nclobs -- --nocapture
 #[test]
 pub fn test_034_nclobs() -> HdbResult<()> {
-    let mut loghandle = test_utils::init_logger(
-        "info, test_034_nclobs = info, hdbconnect::types_impl::lob::nclob = info",
-    );
-
+    let mut log_handle = test_utils::init_logger("info");
     let mut connection = test_utils::get_authenticated_connection()?;
 
-    test_nclobs(&mut connection, &mut loghandle)?;
-    test_bytes_to_nclobs(&mut connection, &mut loghandle)?;
+    test_nclobs(&mut log_handle, &mut connection)?;
+    test_bytes_to_nclobs(&mut log_handle, &mut connection)?;
 
     info!("{} calls to DB were executed", connection.get_call_count()?);
     Ok(())
 }
 
 fn test_nclobs(
+    _log_handle: &mut ReconfigurationHandle,
     connection: &mut Connection,
-    _logger_handle: &mut ReconfigurationHandle,
 ) -> HdbResult<()> {
     info!("create a big NCLOB in the database, and read it in various ways");
 
@@ -145,8 +131,8 @@ fn test_nclobs(
 }
 
 fn test_bytes_to_nclobs(
-    connection: &mut Connection,
     _logger_handle: &mut ReconfigurationHandle,
+    connection: &mut Connection,
 ) -> HdbResult<()> {
     info!("create a NCLOB from bytes in the database, and read it in back to a String");
 

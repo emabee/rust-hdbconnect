@@ -1,46 +1,28 @@
-extern crate chrono;
-extern crate flexi_logger;
-extern crate hdbconnect;
-#[macro_use]
-extern crate log;
-extern crate rand;
-extern crate serde;
-extern crate serde_bytes;
-#[macro_use]
-extern crate serde_derive;
-extern crate serde_json;
-extern crate sha2;
-
 mod test_utils;
 
 use flexi_logger::ReconfigurationHandle;
 use hdbconnect::types::CLob;
 use hdbconnect::{Connection, HdbResult};
+use log::{debug, info};
+use serde_derive::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::fs::File;
 use std::io::{self, Read};
 
-// cargo test test_033_clobs -- --nocapture
 #[test]
 pub fn test_033_clobs() -> HdbResult<()> {
-    let mut loghandle = test_utils::init_logger("info, test_032_blobs = info");
+    let mut log_handle = test_utils::init_logger("info");
+    let mut connection = test_utils::get_authenticated_connection()?;
 
-    let count = impl_test_033_clobs(&mut loghandle)?;
-    info!("{} calls to DB were executed", count);
+    test_clobs(&mut log_handle, &mut connection)?;
+
+    info!("{} calls to DB were executed", connection.get_call_count()?);
     Ok(())
 }
 
-fn impl_test_033_clobs(logger_handle: &mut ReconfigurationHandle) -> HdbResult<i32> {
-    let mut connection = test_utils::get_authenticated_connection()?;
-
-    test_clobs(&mut connection, logger_handle)?;
-
-    Ok(connection.get_call_count()?)
-}
-
 fn test_clobs(
+    _log_handle: &mut ReconfigurationHandle,
     connection: &mut Connection,
-    _logger_handle: &mut ReconfigurationHandle,
 ) -> HdbResult<()> {
     info!("create a big CLOB in the database, and read it in various ways");
 

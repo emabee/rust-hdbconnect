@@ -143,8 +143,6 @@
 //! so you need to specify the target type explicitly:
 //!
 //! ```rust,no_run
-//! # extern crate chrono;
-//! # extern crate hdbconnect;
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams, Row};
 //! use chrono::NaiveDateTime;
 //! # fn main() { }
@@ -172,9 +170,7 @@
 //! or tuple or struct:
 //!
 //! ```rust,no_run
-//! # #[macro_use]
-//! # extern crate serde_derive;
-//! # extern crate hdbconnect;
+//! # use serde_derive::Deserialize;
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
 //! # fn main() { }
 //! # fn foo() -> HdbResult<()> {
@@ -203,9 +199,7 @@
 //!   tuple that matches the fields of the resultset.
 //!
 //! ```rust,no_run
-//! # #[macro_use]
-//! # extern crate serde_derive;
-//! # extern crate hdbconnect;
+//! # use serde_derive::Deserialize;
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
 //! # fn main() { }
 //! # fn foo() -> HdbResult<()> {
@@ -226,9 +220,7 @@
 //!   then you can choose to deserialize into a plain <code>`MyRow`</code> directly.
 //!
 //!   ```rust,no_run
-//!   # #[macro_use]
-//!   # extern crate serde_derive;
-//!   # extern crate hdbconnect;
+//!   # use serde_derive::Deserialize;
 //!   # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
 //!   # fn main() { }
 //!   # fn foo() -> HdbResult<()> {

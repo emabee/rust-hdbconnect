@@ -1,15 +1,8 @@
-extern crate flexi_logger;
-extern crate hdbconnect;
-#[macro_use]
-extern crate log;
-extern crate serde_bytes;
-#[macro_use]
-extern crate serde_derive;
-extern crate serde_json;
-
 use flexi_logger::Logger;
 use hdbconnect::{ConnectParams, Connection, HdbResult, IntoConnectParams};
+use log::{debug, error, info};
 use serde_bytes::ByteBuf;
+use serde_derive::Deserialize;
 use std::fs::read_to_string;
 
 pub fn connect_params_from_file(s: &'static str) -> HdbResult<ConnectParams> {

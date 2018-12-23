@@ -1,30 +1,23 @@
-extern crate flexi_logger;
-extern crate hdbconnect;
-#[macro_use]
-extern crate log;
-extern crate bigdecimal;
-extern crate num;
+mod test_utils;
 
-extern crate serde_json;
+use flexi_logger::ReconfigurationHandle;
+use hdbconnect::{Connection, HdbResult};
+use log::{debug, info};
 
-#[allow(unused_imports)]
-use flexi_logger::{LogSpecification, Logger, ReconfigurationHandle};
-use hdbconnect::{ConnectParams, Connection, HdbResult};
-
-// cargo test test_060_explain -- --nocapture
 #[test]
 pub fn test_060_explain() -> HdbResult<()> {
-    let mut log_handle = Logger::with_env_or_str("info, test_060_explain = info")
-        .start_reconfigurable()
-        .unwrap_or_else(|e| panic!("Logger initialization failed with {}", e));
+    let mut log_handle = test_utils::init_logger("info");
+    let mut connection = test_utils::get_authenticated_connection()?;
 
-    let mut connection = get_authenticated_connection()?;
-    run(&mut log_handle, &mut connection)?;
+    test_explain(&mut log_handle, &mut connection)?;
     info!("{} calls to DB were executed", connection.get_call_count()?);
     Ok(())
 }
 
-fn run(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -> HdbResult<()> {
+fn test_explain(
+    _log_handle: &mut ReconfigurationHandle,
+    connection: &mut Connection,
+) -> HdbResult<()> {
     info!("use EXPLAIN and verify it works");
 
     let result =
@@ -56,17 +49,4 @@ fn run(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -> 
     debug!("obtain the plan: {:?}", result);
 
     Ok(())
-}
-
-fn get_authenticated_connection() -> HdbResult<Connection> {
-    let params = get_std_connect_params()?;
-    trace!("params: {:?}", params);
-    Connection::new(params)
-}
-
-fn get_std_connect_params() -> HdbResult<ConnectParams> {
-    //let version = "2_0";
-    let version = "2_3";
-    let path = format!("./.private/db_{}_std.url", version);
-    ConnectParams::from_file(path)
 }
