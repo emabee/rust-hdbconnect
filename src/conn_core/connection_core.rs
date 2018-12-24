@@ -14,11 +14,9 @@ use crate::protocol::parts::topology::Topology;
 use crate::protocol::parts::transactionflags::TransactionFlags;
 use crate::protocol::reply::parse_message_and_sequence_header;
 use crate::protocol::reply::Reply;
-use crate::protocol::reply::SkipLastSpace;
 use crate::protocol::reply_type::ReplyType;
 use crate::protocol::request::Request;
 use crate::protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
-use crate::protocol::util;
 use crate::{HdbError, HdbResult};
 use std::cell::RefCell;
 use std::io;
@@ -246,7 +244,6 @@ impl<'a> ConnectionCore {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn roundtrip(
         &mut self,
         request: Request<'a>,
@@ -255,7 +252,6 @@ impl<'a> ConnectionCore {
         o_par_md: Option<&Vec<ParameterDescriptor>>,
         o_rs: &mut Option<&mut ResultSet>,
         expected_reply_type: Option<ReplyType>,
-        skip: SkipLastSpace,
     ) -> HdbResult<Reply> {
         let request_type = request.request_type.clone();
         let auto_commit_flag: i8 = if self.is_auto_commit() { 1 } else { 0 };
@@ -273,7 +269,6 @@ impl<'a> ConnectionCore {
                 o_rs,
                 am_conn_core,
                 expected_reply_type,
-                skip,
                 rdr,
             )?;
             trace!(
@@ -305,16 +300,17 @@ impl<'a> ConnectionCore {
                             "Disconnect: response header parsed, now parsing {} parts",
                             no_of_parts
                         );
-                        for _ in 0..no_of_parts {
-                            let (part, padsize) = Part::parse(
+                        for i in 0..no_of_parts {
+                            let part = Part::parse(
                                 &mut (reply.parts),
                                 None,
                                 None,
                                 None,
                                 &mut None,
+                                &reply.replytype,
+                                i == no_of_parts - 1,
                                 &mut *reader,
                             )?;
-                            util::skip_bytes(padsize, &mut *reader)?;
                             debug!("Drop of connection: got Part {:?}", part);
                         }
                         trace!("Disconnect: response successfully parsed");

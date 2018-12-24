@@ -5,6 +5,8 @@ use super::parts::parameter_descriptor::ParameterDescriptor;
 use super::parts::resultset::ResultSet;
 use super::parts::resultset_metadata::ResultSetMetadata;
 use crate::conn_core::AmConnCore;
+use crate::protocol::reply_type::ReplyType;
+use crate::protocol::util;
 use crate::{HdbError, HdbResult};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -68,15 +70,17 @@ impl<'a> Part<'a> {
         Ok(result)
     }
 
-    ///
+    #[allow(clippy::too_many_arguments)]
     pub fn parse(
         already_received_parts: &mut Parts,
         o_am_conn_core: Option<&AmConnCore>,
         rs_md: Option<&ResultSetMetadata>,
         par_md: Option<&Vec<ParameterDescriptor>>,
         o_rs: &mut Option<&mut ResultSet>,
+        reply_type: &ReplyType,
+        last: bool,
         rdr: &mut io::BufRead,
-    ) -> HdbResult<(Part<'a>, usize)> {
+    ) -> HdbResult<Part<'a>> {
         trace!("Entering parse()");
         let (kind, attributes, arg_size, no_of_args) = parse_part_header(rdr)?;
         debug!(
@@ -95,14 +99,18 @@ impl<'a> Part<'a> {
             o_rs,
             rdr,
         )?;
-        Ok((Part::new(kind, arg), padsize(arg_size as usize)))
+        let padsize = padsize(arg_size);
+
+        util::skip_padding(padsize, reply_type, kind, last, rdr)?;
+
+        Ok(Part::new(kind, arg))
     }
 }
 
-fn padsize(size: usize) -> usize {
+fn padsize(size: i32) -> usize {
     match size {
         0 => 0,
-        _ => 7 - (size - 1) % 8,
+        _ => 7 - (size as usize - 1) % 8,
     }
 }
 

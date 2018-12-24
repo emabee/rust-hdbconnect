@@ -7,7 +7,6 @@ use crate::protocol::parts::hdb_value::HdbValue;
 use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
 use crate::protocol::parts::row::Row;
 use crate::protocol::parts::statement_context::StatementContext;
-use crate::protocol::reply::SkipLastSpace;
 use crate::protocol::reply_type::ReplyType;
 use crate::protocol::request::Request;
 use crate::protocol::request_type::RequestType;
@@ -65,15 +64,9 @@ impl ResultSetCore {
                         Argument::ResultSetId(rs_id),
                     ));
 
-                    if let Ok(mut reply) = conn_guard.roundtrip(
-                        request,
-                        conn_core,
-                        None,
-                        None,
-                        &mut None,
-                        None,
-                        SkipLastSpace::Hard,
-                    ) {
+                    if let Ok(mut reply) =
+                        conn_guard.roundtrip(request, conn_core, None, None, &mut None, None)
+                    {
                         let _ = reply.parts.pop_arg_if_kind(PartKind::StatementContext);
                         for part in &reply.parts {
                             warn!(
@@ -185,7 +178,6 @@ impl ResultSet {
             &mut Some(self),
             &mut conn_core,
             Some(ReplyType::Fetch),
-            SkipLastSpace::No,
         )?;
         reply.parts.pop_arg_if_kind(PartKind::ResultSet);
 

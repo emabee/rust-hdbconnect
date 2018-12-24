@@ -6,7 +6,6 @@ use crate::protocol::parts::hdb_value::HdbValue;
 use crate::protocol::parts::parameter_descriptor::{ParameterDescriptor, ParameterDirection};
 use crate::protocol::parts::parameters::{ParameterRow, Parameters};
 use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
-use crate::protocol::reply::SkipLastSpace;
 use crate::protocol::request::Request;
 use crate::protocol::request_type::RequestType;
 use crate::{HdbError, HdbResponse, HdbResult};
@@ -102,8 +101,6 @@ impl PreparedStatement {
             self.o_par_md.as_ref(),
             &mut (self.am_conn_core),
             None,
-            // NO fails, Hard hangs :-(
-            SkipLastSpace::Soft,
         )
     }
 
@@ -116,8 +113,7 @@ impl PreparedStatement {
         let mut request = Request::new(RequestType::Prepare, command_options);
         request.push(Part::new(PartKind::Command, Argument::Command(stmt)));
 
-        let mut reply =
-            request.send_and_get_reply_simplified(&mut am_conn_core, None, SkipLastSpace::Hard)?;
+        let mut reply = request.send_and_get_reply_simplified(&mut am_conn_core, None)?;
 
         // ParameterMetadata, ResultSetMetadata
         // StatementContext, StatementId,
@@ -210,11 +206,8 @@ impl Drop for PreparedStatement {
             PartKind::StatementId,
             Argument::StatementId(self.statement_id),
         ));
-        if let Ok(mut reply) = request.send_and_get_reply_simplified(
-            &mut (self.am_conn_core),
-            None,
-            SkipLastSpace::Hard,
-        ) {
+        if let Ok(mut reply) = request.send_and_get_reply_simplified(&mut (self.am_conn_core), None)
+        {
             reply.parts.pop_arg_if_kind(PartKind::StatementContext);
         }
     }

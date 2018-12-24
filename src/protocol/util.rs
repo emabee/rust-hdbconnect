@@ -1,7 +1,8 @@
+use crate::protocol::partkind::PartKind;
+use crate::protocol::reply_type::ReplyType;
 use crate::HdbResult;
 use byteorder::{ReadBytesExt, WriteBytesExt};
 use cesu8;
-use log::Level::Trace;
 use std::io;
 use std::iter::repeat;
 
@@ -24,36 +25,51 @@ pub fn serialize_bytes(v: &[u8], w: &mut io::Write) -> HdbResult<()> {
 }
 
 pub fn skip_bytes(n: usize, rdr: &mut io::BufRead) -> HdbResult<()> {
-    if log_enabled!(Trace) {
-        trace!("Skipping over {} padding bytes", n);
-        for i in 0..n {
-            let b = rdr.read_u8()?;
-            if b < 128 {
-                trace!("{}: \"{}\"", i, (b as char));
-            } else {
-                trace!("{}: x{:x}", i, b);
-            }
-        }
-    } else {
-        for _ in 0..n {
-            rdr.read_u8()?;
-        }
+    for _ in 0..n {
+        rdr.read_u8()?;
     }
     Ok(())
 }
 
-// FIXME dont_use_soft_consume_bytes
-pub fn dont_use_soft_consume_bytes(n: usize, rdr: &mut io::BufRead) -> HdbResult<()> {
-    trace!("Maybe skipping over {} padding bytes", n);
-    rdr.consume(n);
-    Ok(())
+pub fn skip_padding(
+    n: usize,
+    reply_type: &ReplyType,
+    kind: PartKind,
+    last: bool,
+    rdr: &mut io::BufRead,
+) -> HdbResult<()> {
+    match (reply_type, last) {
+        (ReplyType::DbProcedureCallWithResult, true)
+        | (ReplyType::Fetch, true)
+        | (ReplyType::ReadLob, true)
+        | (ReplyType::Select, true)
+        | (ReplyType::SelectForUpdate, true) => {
+            trace!(
+                "{:20?}, {:20?}, last = {:5}, do not skip over   {} padding bytes",
+                reply_type,
+                kind,
+                last,
+                n
+            );
+            Ok(())
+        }
+        (_, _) => {
+            trace!(
+                "{:20?}, {:20?}, last = {:5}, hard skipping over {} padding bytes",
+                reply_type,
+                kind,
+                last,
+                n
+            );
+            for _ in 0..n {
+                rdr.read_u8()?;
+            }
+            Ok(())
+        }
+    }
 }
 
 // --- CESU8 Stuff --- //
-
-// pub fn cesu8_to_utf8(v: &[u8]) -> HdbResult<Cow<str>> {
-//     Ok(cesu8::from_cesu8(v)?)
-// }
 
 /// cesu-8 is identical to utf-8, except for high code points
 /// which consume 4 bytes in utf-8 and 6 in cesu-8;
@@ -165,7 +181,7 @@ mod tests {
 
     #[test]
     fn check_tail_detection() {
-        let s_utf8 = 
+        let s_utf8 =
             "¡Este código es editable y ejecutable! Ce code est modifiable et exécutable ! \
 			Quest💩o codice è modificabile ed eseguibile! このコードは編集して実行出来ます！ \
             여기에서 코드를 수정하고 실행할 수 있습니다! Ten kod można edytować ora💩z uruchomić! \

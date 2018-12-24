@@ -3,7 +3,6 @@ use crate::protocol::argument::Argument;
 use crate::protocol::part::Part;
 use crate::protocol::partkind::PartKind;
 use crate::protocol::parts::read_lob_request::ReadLobRequest;
-use crate::protocol::reply::SkipLastSpace;
 use crate::protocol::reply_type::ReplyType;
 use crate::protocol::request::Request;
 use crate::protocol::request_type::RequestType;
@@ -45,11 +44,8 @@ pub(crate) fn fetch_a_lob_chunk(
                 length_to_read
             );
 
-            let mut reply = request.send_and_get_reply_simplified(
-                am_conn_core,
-                Some(ReplyType::ReadLob),
-                SkipLastSpace::No,
-            )?;
+            let mut reply =
+                request.send_and_get_reply_simplified(am_conn_core, Some(ReplyType::ReadLob))?;
 
             let (reply_data, reply_is_last_data) =
                 match reply.parts.pop_arg_if_kind(PartKind::ReadLobReply) {

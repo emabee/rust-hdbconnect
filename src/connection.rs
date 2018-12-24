@@ -8,7 +8,6 @@ use crate::protocol::partkind::PartKind;
 use crate::protocol::parts::command_info::CommandInfo;
 use crate::protocol::parts::resultset::ResultSet;
 use crate::protocol::parts::server_error::ServerError;
-use crate::protocol::reply::SkipLastSpace;
 use crate::protocol::request::Request;
 use crate::protocol::request_type::RequestType;
 use crate::protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
@@ -300,6 +299,5 @@ where
         PartKind::Command,
         Argument::Command(stmt.as_ref()),
     ));
-    // FIXME SkipLastSpace::Soft
-    request.send_and_get_hdbresponse(None, None, am_conn_core, None, SkipLastSpace::Soft)
+    request.send_and_get_hdbresponse(None, None, am_conn_core, None)
 }

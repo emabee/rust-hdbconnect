@@ -12,7 +12,6 @@ use super::reply_type::ReplyType;
 use super::request_type::RequestType;
 use crate::conn_core::AmConnCore;
 use crate::protocol::reply::Reply;
-use crate::protocol::reply::SkipLastSpace;
 use crate::{HdbResponse, HdbResult};
 use byteorder::{LittleEndian, WriteBytesExt};
 use chrono::Local;
@@ -55,7 +54,6 @@ impl<'a> Request<'a> {
         o_par_md: Option<&Vec<ParameterDescriptor>>,
         am_conn_core: &mut AmConnCore,
         expected_reply_type: Option<ReplyType>,
-        skip: SkipLastSpace,
     ) -> HdbResult<HdbResponse> {
         let reply = self.send_and_get_reply(
             o_rs_md,
@@ -63,7 +61,6 @@ impl<'a> Request<'a> {
             &mut None,
             am_conn_core,
             expected_reply_type,
-            skip,
         )?;
 
         reply.into_hdbresponse(am_conn_core)
@@ -74,16 +71,8 @@ impl<'a> Request<'a> {
         self,
         am_conn_core: &mut AmConnCore,
         expected_reply_type: Option<ReplyType>,
-        skip: SkipLastSpace,
     ) -> HdbResult<Reply> {
-        self.send_and_get_reply(
-            None,
-            None,
-            &mut None,
-            am_conn_core,
-            expected_reply_type,
-            skip,
-        )
+        self.send_and_get_reply(None, None, &mut None, am_conn_core, expected_reply_type)
     }
 
     pub fn send_and_get_reply(
@@ -93,7 +82,6 @@ impl<'a> Request<'a> {
         o_rs: &mut Option<&mut ResultSet>,
         am_conn_core: &mut AmConnCore,
         expected_reply_type: Option<ReplyType>,
-        skip: SkipLastSpace,
     ) -> HdbResult<Reply> {
         trace!(
             "Request::send_and_get_reply() with requestType = {:?}",
@@ -102,14 +90,8 @@ impl<'a> Request<'a> {
         let _start = Local::now();
         self.add_statement_sequence(am_conn_core)?;
 
-        let mut reply = self.roundtrip(
-            o_rs_md,
-            o_par_md,
-            o_rs,
-            am_conn_core,
-            expected_reply_type,
-            skip,
-        )?;
+        let mut reply =
+            self.roundtrip(o_rs_md, o_par_md, o_rs, am_conn_core, expected_reply_type)?;
 
         reply.handle_db_error(am_conn_core)?;
 
@@ -147,7 +129,6 @@ impl<'a> Request<'a> {
         o_rs: &mut Option<&mut ResultSet>,
         am_conn_core: &AmConnCore,
         expected_reply_type: Option<ReplyType>,
-        skip: SkipLastSpace,
     ) -> HdbResult<Reply> {
         trace!("request::roundtrip()");
         let mut conn_core = am_conn_core.lock()?;
@@ -158,7 +139,6 @@ impl<'a> Request<'a> {
             o_par_md,
             o_rs,
             expected_reply_type,
-            skip,
         )
     }
 

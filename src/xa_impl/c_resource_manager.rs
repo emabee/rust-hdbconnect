@@ -4,7 +4,7 @@ use crate::protocol::argument::Argument;
 use crate::protocol::part::Part;
 use crate::protocol::partkind::PartKind;
 use crate::protocol::parts::xat_options::XatOptions;
-use crate::protocol::reply::{Reply, SkipLastSpace};
+use crate::protocol::reply::Reply;
 use crate::protocol::request::Request;
 use crate::protocol::request_type::RequestType;
 use crate::HdbError;
@@ -92,11 +92,8 @@ impl CResourceManager for HdbCResourceManager {
             Argument::XatOptions(xat_options),
         ));
 
-        let mut reply: Reply = request.send_and_get_reply_simplified(
-            &mut (self.am_conn_core),
-            None,
-            SkipLastSpace::Hard,
-        )?;
+        let mut reply: Reply =
+            request.send_and_get_reply_simplified(&mut (self.am_conn_core), None)?;
         while !reply.parts.is_empty() {
             reply.parts.drop_args_of_kind(PartKind::StatementContext);
             match reply.parts.pop_arg() {
@@ -182,11 +179,7 @@ impl HdbCResourceManager {
             Argument::XatOptions(xat_options),
         ));
 
-        let mut reply = request.send_and_get_reply_simplified(
-            &mut (self.am_conn_core),
-            None,
-            SkipLastSpace::Hard,
-        )?;
+        let mut reply = request.send_and_get_reply_simplified(&mut (self.am_conn_core), None)?;
 
         reply.parts.drop_args_of_kind(PartKind::StatementContext);
         if let Some(Argument::XatOptions(xat_options)) =

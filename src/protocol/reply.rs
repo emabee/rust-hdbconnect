@@ -1,4 +1,3 @@
-use crate::{HdbError, HdbResponse, HdbResult};
 use crate::conn_core::AmConnCore;
 use crate::hdb_response::InternalReturnValue;
 use crate::protocol::argument::Argument;
@@ -12,6 +11,7 @@ use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
 use crate::protocol::parts::server_error::{ServerError, Severity};
 use crate::protocol::reply_type::ReplyType;
 use crate::protocol::util;
+use crate::{HdbError, HdbResponse, HdbResult};
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::io;
 
@@ -50,11 +50,10 @@ impl Reply {
         o_rs: &mut Option<&mut ResultSet>,
         am_conn_core: &AmConnCore,
         expected_reply_type: Option<ReplyType>,
-        skip: SkipLastSpace,
         rdr: &mut io::BufRead,
     ) -> HdbResult<Reply> {
         trace!("Reply::parse()");
-        let reply = Reply::parse_impl(o_rs_md, o_par_md, o_rs, am_conn_core, rdr, skip)?;
+        let reply = Reply::parse_impl(o_rs_md, o_par_md, o_rs, am_conn_core, rdr)?;
 
         // Make sure that here (after parsing) the buffer is empty
         // The following only works with nightly, because `.buffer()`
@@ -89,39 +88,22 @@ impl Reply {
         o_rs: &mut Option<&mut ResultSet>,
         am_conn_core: &AmConnCore,
         rdr: &mut io::BufRead,
-        skip: SkipLastSpace,
     ) -> HdbResult<Reply> {
         let (no_of_parts, mut reply) = parse_message_and_sequence_header(rdr)?;
         trace!("Reply::parse(): parsed the header");
 
         for i in 0..no_of_parts {
-            let (part, padsize) = Part::parse(
+            let part = Part::parse(
                 &mut (reply.parts),
                 Some(am_conn_core),
                 o_rs_md,
                 o_par_md,
                 o_rs,
+                &reply.replytype,
+                i == no_of_parts - 1,
                 rdr,
             )?;
             reply.push(part);
-
-            if i < no_of_parts - 1 {
-                trace!("reply::parse_impl(): padsize = {}", padsize);
-                util::skip_bytes(padsize, rdr)?;
-            } else {
-                trace!(
-                    "reply::parse_impl(): skip: {:?}, padsize = {}",
-                    skip,
-                    padsize
-                );
-                // FIXME try to find a correlation to the request type or the response type?
-                match skip {
-                    SkipLastSpace::Soft => util::dont_use_soft_consume_bytes(padsize, rdr)?,
-                    SkipLastSpace::Hard => util::skip_bytes(padsize, rdr)?,
-                    SkipLastSpace::HardButLess(cnt) => util::skip_bytes(std::cmp::max(padsize as isize - cnt as isize, 0) as usize, rdr)?,
-                    SkipLastSpace::No => {}
-                }
-            }
         }
         Ok(reply)
     }
@@ -196,12 +178,10 @@ impl Reply {
                 Argument::ExecutionResult(vec) => {
                     opt_rows_affected = Some(vec);
                 }
-                arg => {
-                    warn!( 
+                arg => warn!(
                     "Reply::handle_db_error(): ignoring unexpected part of kind {:?}, arg = {:?}",
                     kind, arg
-                )
-                }
+                ),
             }
         }
 
@@ -304,12 +284,11 @@ impl Reply {
             ReplyType::Select |
             ReplyType::SelectForUpdate => HdbResponse::resultset(int_return_values),
 
-            
             ReplyType::Ddl |
             ReplyType::Commit |
             ReplyType::Rollback => HdbResponse::success(int_return_values),
 
-            ReplyType::Nil | 
+            ReplyType::Nil |
             ReplyType::Explain |
             ReplyType::Insert |
             ReplyType::Update |
@@ -319,7 +298,6 @@ impl Reply {
             ReplyType::DbProcedureCallWithResult =>
                 HdbResponse::multiple_return_values(int_return_values),
 
-            
             // ReplyTypes that are handled elsewhere and that should not go through this method:
             ReplyType::Connect | ReplyType::Fetch | ReplyType::ReadLob |
             ReplyType::CloseCursor | ReplyType::Disconnect |
@@ -342,14 +320,6 @@ impl Reply {
             },
         }
     }
-}
-
-#[derive(Clone, Copy, Debug)]
-pub enum SkipLastSpace {
-    Hard,
-    HardButLess(u8),
-    Soft,
-    No,
 }
 
 impl Drop for Reply {
