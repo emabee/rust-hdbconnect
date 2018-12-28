@@ -7,7 +7,7 @@ use serde_derive::{Deserialize, Serialize};
 // cargo test --test test_012_tls -- --nocapture
 #[test]
 fn test_012_tls() -> HdbResult<()> {
-    let _log_handle = test_utils::init_logger("info");
+    let _log_handle = test_utils::init_logger();
     info!("test tls");
 
     let mut url = test_utils::get_std_connect_url()?;

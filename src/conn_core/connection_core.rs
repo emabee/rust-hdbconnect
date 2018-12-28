@@ -307,7 +307,6 @@ impl<'a> ConnectionCore {
                                 None,
                                 None,
                                 &mut None,
-                                &reply.replytype,
                                 i == no_of_parts - 1,
                                 &mut *reader,
                             )?;

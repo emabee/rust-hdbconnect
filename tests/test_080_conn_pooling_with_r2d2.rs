@@ -6,7 +6,7 @@ use std::time::Duration;
 
 #[test]
 fn test_080_conn_pooling_with_r2d2() -> HdbResult<()> {
-    //let mut log_handle = test_utils::init_logger("info");
+    //let mut log_handle = test_utils::init_logger();
 
     let conn_params = test_utils::get_std_connect_params().unwrap();
     let manager = ConnectionManager::new(&conn_params);

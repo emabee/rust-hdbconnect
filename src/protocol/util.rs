@@ -1,5 +1,3 @@
-use crate::protocol::partkind::PartKind;
-use crate::protocol::reply_type::ReplyType;
 use crate::HdbResult;
 use byteorder::{ReadBytesExt, WriteBytesExt};
 use cesu8;
@@ -29,44 +27,6 @@ pub fn skip_bytes(n: usize, rdr: &mut io::BufRead) -> HdbResult<()> {
         rdr.read_u8()?;
     }
     Ok(())
-}
-
-pub fn skip_padding(
-    n: usize,
-    reply_type: &ReplyType,
-    kind: PartKind,
-    last: bool,
-    rdr: &mut io::BufRead,
-) -> HdbResult<()> {
-    match (reply_type, last) {
-        (ReplyType::DbProcedureCallWithResult, true)
-        | (ReplyType::Fetch, true)
-        | (ReplyType::ReadLob, true)
-        | (ReplyType::Select, true)
-        | (ReplyType::SelectForUpdate, true) => {
-            trace!(
-                "{:20?}, {:20?}, last = {:5}, do not skip over   {} padding bytes",
-                reply_type,
-                kind,
-                last,
-                n
-            );
-            Ok(())
-        }
-        (_, _) => {
-            trace!(
-                "{:20?}, {:20?}, last = {:5}, hard skipping over {} padding bytes",
-                reply_type,
-                kind,
-                last,
-                n
-            );
-            for _ in 0..n {
-                rdr.read_u8()?;
-            }
-            Ok(())
-        }
-    }
 }
 
 // --- CESU8 Stuff --- //

@@ -99,7 +99,6 @@ impl Reply {
                 o_rs_md,
                 o_par_md,
                 o_rs,
-                &reply.replytype,
                 i == no_of_parts - 1,
                 rdr,
             )?;

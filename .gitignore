@@ -1,7 +1,6 @@
 .private
 .vscode
 examples/_*.rs
-test_logs
-test_logs_original
+test_logs*/*
 target
 Z_TMP

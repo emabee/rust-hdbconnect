@@ -5,31 +5,26 @@ use hdbconnect::{Connection, HdbResult, HdbValue};
 use log::{debug, info};
 use serde_derive::Deserialize;
 
+// Test prepared statements, transactional correctness,
+// incl. parameter serialization (and resultset deserialization)
+
 #[test] // cargo test --test test_030_prepare -- --nocapture
 pub fn test_030_prepare() -> HdbResult<()> {
-    let mut log_handle = test_utils::init_logger("info");
+    let mut log_handle = test_utils::init_logger();
     let mut connection = test_utils::get_authenticated_connection()?;
 
-    test_prepare(&mut log_handle, &mut connection)?;
+    prepare_insert_statement(&mut log_handle, &mut connection)?;
+    prepare_statement_use_parameter_row(&mut log_handle, &mut connection)?;
+    prepare_multiple_errors(&mut log_handle, &mut connection)?;
 
     info!("{} calls to DB were executed", connection.get_call_count()?);
     Ok(())
 }
 
-// Test prepared statements, transactional correctness,
-// incl. parameter serialization (and resultset deserialization)
-fn test_prepare(
+fn prepare_insert_statement(
     _log_handle: &mut ReconfigurationHandle,
     connection: &mut Connection,
-) -> HdbResult<i32> {
-    prepare_insert_statement(connection)?;
-    prepare_statement_use_parameter_row(connection)?;
-    prepare_multiple_errors(connection)?;
-
-    Ok(connection.get_call_count()?)
-}
-
-fn prepare_insert_statement(connection: &mut Connection) -> HdbResult<()> {
+) -> HdbResult<()> {
     info!(
         "test statement preparation and transactional correctness (auto_commit on/off, rollbacks)"
     );
@@ -106,7 +101,10 @@ fn prepare_insert_statement(connection: &mut Connection) -> HdbResult<()> {
     Ok(())
 }
 
-fn prepare_statement_use_parameter_row(connection: &mut Connection) -> HdbResult<()> {
+fn prepare_statement_use_parameter_row(
+    _log_handle: &mut ReconfigurationHandle,
+    connection: &mut Connection,
+) -> HdbResult<()> {
     info!("test statement preparation with direct use of parameter row");
     connection.multiple_statements_ignore_err(vec!["drop table TEST_PREPARE"]);
     let stmts = vec!["create table TEST_PREPARE (F1_S NVARCHAR(20), F2_I INT)"];
@@ -152,8 +150,12 @@ fn prepare_statement_use_parameter_row(connection: &mut Connection) -> HdbResult
     Ok(())
 }
 
-fn prepare_multiple_errors(connection: &mut Connection) -> HdbResult<()> {
+fn prepare_multiple_errors(
+    _log_handle: &mut ReconfigurationHandle,
+    connection: &mut Connection,
+) -> HdbResult<()> {
     info!("test multiple errors from failing batches");
+    _log_handle.parse_new_spec("info, hdbconnect::protocol::util = trace");
 
     connection.multiple_statements_ignore_err(vec!["drop table TEST_PREPARE"]);
     let stmts = vec!["create table TEST_PREPARE (F1_S NVARCHAR(20) primary key, F2_I INT)"];

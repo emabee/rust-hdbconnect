@@ -7,7 +7,7 @@ use log::{debug, info};
 // cargo test test_036_text -- --nocapture
 #[test]
 pub fn test_036_text() -> HdbResult<()> {
-    let mut log_handle = test_utils::init_logger("info");
+    let mut log_handle = test_utils::init_logger();
     let mut connection = test_utils::get_authenticated_connection()?;
 
     test_text(&mut log_handle, &mut connection)?;

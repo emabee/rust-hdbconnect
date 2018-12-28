@@ -1,5 +1,3 @@
-use crate::protocol::partkind::PartKind;
-use crate::protocol::reply_type::ReplyType;
 use crate::protocol::util;
 use crate::HdbResult;
 use byteorder::{LittleEndian, ReadBytesExt};
@@ -64,7 +62,7 @@ pub struct ServerError {
     sqlstate: Vec<u8>,
     text: String,
 }
-const BASE_SIZE: usize = 4 + 4 + 4 + 1 + 5;
+const BASE_SIZE: i32 = 4 + 4 + 4 + 1 + 5;
 
 impl ServerError {
     /// Returns the error code.
@@ -104,11 +102,7 @@ impl ServerError {
         }
     }
 
-    pub(crate) fn parse(
-        no_of_args: i32,
-        arg_size: i32,
-        rdr: &mut io::BufRead,
-    ) -> HdbResult<Vec<ServerError>> {
+    pub(crate) fn parse(no_of_args: i32, rdr: &mut io::BufRead) -> HdbResult<Vec<ServerError>> {
         let mut server_errors = Vec::<ServerError>::new();
         for _i in 0..no_of_args {
             let code = rdr.read_i32::<LittleEndian>()?; // I4
@@ -119,25 +113,8 @@ impl ServerError {
             let bytes = util::parse_bytes(text_length as usize, rdr)?; // B[text_length]
             let text = cesu8::from_cesu8(&bytes)?.to_string();
 
-            // FIXME
-            // this is what we would like to do:
-            //  let pad = 8 - (BASE_SIZE + text_length as usize) % 8;
-            //  util::skip_bytes(pad, rdr)?;
-            // this is voodoo, but it works :-(
-            {
-                let pad = if no_of_args == 1 {
-                    (arg_size - BASE_SIZE as i32 - text_length) as usize
-                } else {
-                    8 - (BASE_SIZE + text_length as usize) % 8
-                };
-                util::skip_padding(
-                    pad,
-                    /* FIXME unused replytpye is hijacked here */ &ReplyType::XAPrepare,
-                    PartKind::Error,
-                    false,
-                    rdr,
-                )?;
-            }
+            let pad = 8 - (BASE_SIZE + text_length) % 8;
+            util::skip_bytes(pad as usize, rdr)?;
 
             let server_error = ServerError::new(code, position, severity, sqlstate, text);
             debug!("ServerError::parse(): found server error {}", server_error);

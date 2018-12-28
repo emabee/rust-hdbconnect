@@ -11,7 +11,7 @@ use serde_derive::Deserialize;
 
 #[test] // cargo test --test test_020_deser -- --nocapture
 pub fn deser() -> HdbResult<()> {
-    let mut log_handle = test_utils::init_logger("test_020_deser=info");
+    let mut log_handle = test_utils::init_logger();
 
     let mut connection = test_utils::get_authenticated_connection()?;
 

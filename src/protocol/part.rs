@@ -5,8 +5,6 @@ use super::parts::parameter_descriptor::ParameterDescriptor;
 use super::parts::resultset::ResultSet;
 use super::parts::resultset_metadata::ResultSetMetadata;
 use crate::conn_core::AmConnCore;
-use crate::protocol::reply_type::ReplyType;
-use crate::protocol::util;
 use crate::{HdbError, HdbResult};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -70,14 +68,12 @@ impl<'a> Part<'a> {
         Ok(result)
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn parse(
         already_received_parts: &mut Parts,
         o_am_conn_core: Option<&AmConnCore>,
         rs_md: Option<&ResultSetMetadata>,
         par_md: Option<&Vec<ParameterDescriptor>>,
         o_rs: &mut Option<&mut ResultSet>,
-        reply_type: &ReplyType,
         last: bool,
         rdr: &mut io::BufRead,
     ) -> HdbResult<Part<'a>> {
@@ -99,18 +95,37 @@ impl<'a> Part<'a> {
             o_rs,
             rdr,
         )?;
-        let padsize = padsize(arg_size);
 
-        util::skip_padding(padsize, reply_type, kind, last, rdr)?;
+        let padsize = 7 - (arg_size + 7) % 8;
+        match (kind, last) {
+            (PartKind::ResultSet, true)
+            | (PartKind::ResultSetId, true)
+            | (PartKind::ReadLobReply, true) => trace!(
+                "{:20?}, last = {:5}, do not skip over {} padding bytes",
+                kind,
+                last,
+                padsize
+            ),
+            (PartKind::Error, _) => trace!(
+                "{:20?}, last = {:5}, do not skip over {} padding bytes",
+                kind,
+                last,
+                padsize
+            ),
+            (_, _) => {
+                trace!(
+                    "{:20?}, last = {:5}, skip over {} padding bytes",
+                    kind,
+                    last,
+                    padsize
+                );
+                for _ in 0..padsize {
+                    rdr.read_u8()?;
+                }
+            }
+        }
 
         Ok(Part::new(kind, arg))
-    }
-}
-
-fn padsize(size: i32) -> usize {
-    match size {
-        0 => 0,
-        _ => 7 - (size as usize - 1) % 8,
     }
 }
 

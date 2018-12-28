@@ -7,7 +7,7 @@ use log::{debug, info, trace};
 
 #[test] // cargo test --test test_022_seconddate
 pub fn test_022_seconddate() -> HdbResult<()> {
-    let mut loghandle = test_utils::init_logger("info");
+    let mut loghandle = test_utils::init_logger();
     let mut connection = test_utils::get_authenticated_connection()?;
 
     test_seconddate(&mut loghandle, &mut connection)?;

@@ -9,8 +9,10 @@ use log::{debug, info};
 // Test various procedures, from very simple to pretty complex
 #[test]
 pub fn test_040_procedures() -> HdbResult<()> {
-    let mut log_handle = test_utils::init_logger("info");
+    let mut log_handle = test_utils::init_logger();
     let mut connection = test_utils::get_authenticated_connection()?;
+
+    log_handle.parse_new_spec("info, hdbconnect::protocol::util = trace");
 
     very_simple_procedure(&mut log_handle, &mut connection)?;
     procedure_with_out_resultsets(&mut log_handle, &mut connection)?;

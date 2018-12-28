@@ -6,64 +6,88 @@ use log::{debug, info};
 // cargo test --test test_011_invalid_password -- --nocapture
 #[test]
 pub fn test_011_invalid_password() -> HdbResult<()> {
-    let mut _log_handle = test_utils::init_logger("info");
+    let mut _log_handle = test_utils::init_logger();
+    _log_handle.parse_new_spec(
+        "info, test_011_invalid_password= debug, hdbconnect::protocol::util = trace",
+    );
 
     info!("test warnings");
-    let mut conn = test_utils::get_system_connection()?;
+    let mut sys_conn = test_utils::get_system_connection()?;
 
     debug!("drop user DOEDEL, and recreate it with need to set password");
-    conn.multiple_statements_ignore_err(vec![
-        "drop user DOEDEL",
+    sys_conn.multiple_statements_ignore_err(vec![
         "ALTER SYSTEM ALTER CONFIGURATION ('nameserver.ini', 'system') \
          SET ('password policy', 'force_first_password_change') = 'true' WITH RECONFIGURE",
         "ALTER SYSTEM ALTER CONFIGURATION ('nameserver.ini', 'system') \
          SET ('password policy', 'minimal_password_length') = '8' WITH RECONFIGURE",
-        "create user DOEDEL password \"Doebcd1234\"",
     ]);
 
-    let minimal_password_length: String = conn
+    let minimal_password_length: String = sys_conn
         .query("select value from M_PASSWORD_POLICY where property = 'minimal_password_length'")?
         .try_into()?;
     assert_eq!(minimal_password_length, "8");
 
     debug!("Force first password change");
-    let force_first_password_change: String = conn
+    let force_first_password_change: String = sys_conn
         .query(
             "select value from M_PASSWORD_POLICY where property = 'force_first_password_change'",
         )?
         .try_into()?;
     assert_eq!(force_first_password_change, "true");
 
-    debug!("logon as DOEDEL");
-    let conn_params =
-        test_utils::get_wrong_connect_params(Some("DOEDEL"), Some("Doebcd1234")).unwrap();
+    for i in 0..9 {
+        let user = match i {
+            0 => "DOEDEL",
+            1 => "DOEDEL1",
+            2 => "DOEDEL22",
+            3 => "DOEDEL333",
+            4 => "DOEDEL4444",
+            5 => "DOEDEL55555",
+            6 => "DOEDEL666666",
+            7 => "DOEDEL7777777",
+            8 => "DOEDEL88888888",
+            _ => "DOEDEL999999999",
+        };
 
-    assert_eq!(conn_params.dbuser(), "DOEDEL");
-    assert_eq!(conn_params.password().unsecure(), b"Doebcd1234");
+        sys_conn.multiple_statements_ignore_err(vec![
+            &format!("drop user {}", user),
+            &format!("create user {} password \"Doebcd1234\"", user),
+        ]);
 
-    let mut doedel_conn = Connection::new(conn_params)?;
-    debug!("DOEDEL is connected");
+        debug!("logon as {}", user);
+        let conn_params =
+            test_utils::get_wrong_connect_params(Some(&user), Some("Doebcd1234")).unwrap();
 
-    debug!("select from dummy -> ensure getting the right error");
-    let result = doedel_conn.query("select 1 from dummy");
-    if let Err(HdbError::DbError(ref server_error)) = result {
-        debug!("Got this server error: {:?}", server_error);
-        assert_eq!(
-            server_error.code(),
-            414,
-            "Expected 414 = ERR_SQL_ALTER_PASSWORD_NEEDED"
+        assert_eq!(conn_params.dbuser(), &user);
+        assert_eq!(conn_params.password().unsecure(), b"Doebcd1234");
+
+        let mut doedel_conn = Connection::new(conn_params)?;
+        _log_handle.parse_new_spec(
+            "info, test_011_invalid_password= debug, hdbconnect::protocol::util = trace",
         );
-    } else {
-        panic!("We did not get SqlError 414 = ERR_SQL_ALTER_PASSWORD_NEEDED");
-    }
+        debug!("{} is connected", user);
 
-    debug!("reset the password");
-    doedel_conn.exec("ALTER USER DOEDEL PASSWORD \"DoeDoe5678\"")?;
+        debug!("select from dummy -> ensure getting the right error");
+        let result = doedel_conn.query("select 1 from dummy");
+        if let Err(HdbError::DbError(ref server_error)) = result {
+            debug!("Got this server error: {:?}", server_error);
+            assert_eq!(
+                server_error.code(),
+                414,
+                "Expected 414 = ERR_SQL_ALTER_PASSWORD_NEEDED"
+            );
+        } else {
+            panic!("We did not get SqlError 414 = ERR_SQL_ALTER_PASSWORD_NEEDED");
+        }
 
-    debug!("select again -> ensure its working");
-    let result = doedel_conn.query("select 1 from dummy");
-    if let Err(_) = result {
-        panic!("Changing password did not reopen the connection");
+        debug!("reset the password");
+        doedel_conn.exec(&format!("ALTER USER {} PASSWORD \"DoeDoe5678\"", user))?;
+
+        debug!("select again -> ensure its working");
+        let result = doedel_conn.query("select 1 from dummy");
+        if let Err(_) = result {
+            panic!("Changing password did not reopen the connection");
+        }
     }
     Ok(())
 }

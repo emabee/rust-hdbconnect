@@ -11,7 +11,7 @@ use std::io::{self, Read};
 
 #[test]
 pub fn test_033_clobs() -> HdbResult<()> {
-    let mut log_handle = test_utils::init_logger("info");
+    let mut log_handle = test_utils::init_logger();
     let mut connection = test_utils::get_authenticated_connection()?;
 
     test_clobs(&mut log_handle, &mut connection)?;

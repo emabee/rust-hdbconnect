@@ -6,7 +6,7 @@ use log::{debug, info};
 
 #[test]
 pub fn test_060_explain() -> HdbResult<()> {
-    let mut log_handle = test_utils::init_logger("info");
+    let mut log_handle = test_utils::init_logger();
     let mut connection = test_utils::get_authenticated_connection()?;
 
     test_explain(&mut log_handle, &mut connection)?;

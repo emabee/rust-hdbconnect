@@ -13,7 +13,7 @@ use std::io;
 // cargo test test_032_blobs -- --nocapture
 #[test]
 pub fn test_032_blobs() -> HdbResult<()> {
-    let mut loghandle = test_utils::init_logger("info");
+    let mut loghandle = test_utils::init_logger();
     let mut connection = test_utils::get_authenticated_connection()?;
 
     test_blobs(&mut loghandle, &mut connection)?;

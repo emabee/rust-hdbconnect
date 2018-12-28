@@ -11,7 +11,7 @@ use serde_derive::Deserialize;
 //cargo test --test test_027_small_decimals -- --nocapture
 #[test]
 fn test_027_small_decimals() -> HdbResult<()> {
-    let mut log_handle = test_utils::init_logger("info");
+    let mut log_handle = test_utils::init_logger();
     let mut connection = test_utils::get_authenticated_connection()?;
 
     test_small_decimals(&mut log_handle, &mut connection)?;

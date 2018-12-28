@@ -8,7 +8,7 @@ use serde_derive::Deserialize;
 
 #[test] // cargo test --test test_015_resultset -- --nocapture
 pub fn test_015_resultset() -> HdbResult<()> {
-    let mut log_handle = test_utils::init_logger("info");
+    let mut log_handle = test_utils::init_logger();
     let mut connection = test_utils::get_authenticated_connection()?;
 
     evaluate_resultset(&mut log_handle, &mut connection)?;

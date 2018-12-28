@@ -13,7 +13,7 @@ use std::io::{self, Read};
 // cargo test test_034_nclobs -- --nocapture
 #[test]
 pub fn test_034_nclobs() -> HdbResult<()> {
-    let mut log_handle = test_utils::init_logger("info");
+    let mut log_handle = test_utils::init_logger();
     let mut connection = test_utils::get_authenticated_connection()?;
 
     test_nclobs(&mut log_handle, &mut connection)?;

@@ -17,7 +17,7 @@ use log::{debug, info};
 
 #[test] // cargo test --test test_031_transactions -- --nocapture
 pub fn test_031_transactions() -> HdbResult<()> {
-    let mut log_handle = test_utils::init_logger("info");
+    let mut log_handle = test_utils::init_logger();
     let mut connection = test_utils::get_authenticated_connection()?;
 
     connection.set_auto_commit(false)?;

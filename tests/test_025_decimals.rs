@@ -10,7 +10,7 @@ use serde_derive::Deserialize;
 //cargo test --test test_025_decimals -- --nocapture
 #[test]
 fn test_025_decimals() -> HdbResult<()> {
-    let mut log_handle = test_utils::init_logger("info");
+    let mut log_handle = test_utils::init_logger();
     let mut connection = test_utils::get_authenticated_connection()?;
 
     test_025_decimals_impl(&mut log_handle, &mut connection)?;

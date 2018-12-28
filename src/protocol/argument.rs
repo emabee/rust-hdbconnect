@@ -206,7 +206,7 @@ impl<'a> Argument<'a> {
             PartKind::ConnectOptions => {
                 Argument::ConnectOptions(ConnectOptions::parse(no_of_args, rdr)?)
             }
-            PartKind::Error => Argument::Error(ServerError::parse(no_of_args, arg_size, rdr)?),
+            PartKind::Error => Argument::Error(ServerError::parse(no_of_args, rdr)?),
             PartKind::OutputParameters => {
                 if let Some(par_md) = o_par_md {
                     Argument::OutputParameters(OutputParameters::parse(

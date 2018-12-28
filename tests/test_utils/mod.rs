@@ -6,8 +6,16 @@ use hdbconnect::{ConnectParams, IntoConnectParams};
 use hdbconnect::{Connection, HdbResult};
 use std::fs::read_to_string;
 
-pub fn init_logger(log_spec: &str) -> ReconfigurationHandle {
-    Logger::with_env_or_str(log_spec)
+// Returns a logger that prints out all info, warn and error messages.
+// 
+// For CI/CD, we could change the code here to e.g. react on env settings
+// that allow the CI/CD infrastructure to have the logs written to files in a directory.
+pub fn init_logger() -> ReconfigurationHandle {
+    Logger::with_env_or_str("info")
+        // .log_to_file()
+        // .suppress_timestamp()
+        // .directory("test_logs")
+        // .print_message()
         .format(opt_format)
         .start_reconfigurable()
         .unwrap_or_else(|e| panic!("Logger initialization failed with {}", e))
