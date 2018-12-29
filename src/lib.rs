@@ -24,8 +24,8 @@
 #[macro_use]
 extern crate log;
 
-pub extern crate r2d2;
-pub extern crate serde_db;
+pub use r2d2;
+pub use serde_db;
 
 mod authentication;
 mod conn_core;
