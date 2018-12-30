@@ -24,6 +24,9 @@
 #[macro_use]
 extern crate log;
 
+pub use r2d2;
+pub use serde_db;
+
 mod authentication;
 mod conn_core;
 mod connection;
