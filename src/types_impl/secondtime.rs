@@ -38,13 +38,12 @@ impl cmp::PartialEq<SecondTime> for SecondTime {
 }
 
 impl SecondTime {
-    #[doc(hidden)]
-    pub fn new(raw: i32) -> SecondTime {
+    pub(crate) fn new(raw: i32) -> SecondTime {
         assert!(raw < NULL_REPRESENTATION && raw >= 0);
         SecondTime(raw as u32)
     }
-    #[doc(hidden)]
-    pub fn ref_raw(&self) -> &u32 {
+
+    pub(crate) fn ref_raw(&self) -> &u32 {
         &self.0
     }
 

@@ -235,17 +235,21 @@ impl HdbValue {
         };
 
         if is_null {
-            w.write_u8(self.type_id().type_code())?;
+            w.write_u8(self.type_id()?.type_code())?;
         } else {
-            w.write_u8(self.type_id().base_type_id().type_code())?;
+            w.write_u8(self.type_id()?.base_type_id().type_code())?;
         }
         Ok(is_null)
     }
 
     /// hdb protocol uses ids < 128 for non-null values, and ids > 128 for nullable values
-    fn type_id(&self) -> TypeId {
-        match *self {
-            HdbValue::NOTHING => type_id_not_null(BaseTypeId::NOTHING),
+    fn type_id(&self) -> HdbResult<TypeId> {
+        Ok(match *self {
+            HdbValue::NOTHING => {
+                return Err(HdbError::Impl(
+                    "Can't send HdbValue::NOTHING to Database".to_string(),
+                ))
+            }
             HdbValue::TINYINT(_) => type_id_not_null(BaseTypeId::TINYINT),
             HdbValue::SMALLINT(_) => type_id_not_null(BaseTypeId::SMALLINT),
             HdbValue::INT(_) => type_id_not_null(BaseTypeId::INT),
@@ -301,7 +305,7 @@ impl HdbValue {
             HdbValue::N_SECONDDATE(_) => type_id_nullable(BaseTypeId::SECONDDATE),
             HdbValue::N_DAYDATE(_) => type_id_nullable(BaseTypeId::DAYDATE),
             HdbValue::N_SECONDTIME(_) => type_id_nullable(BaseTypeId::SECONDTIME),
-        }
+        })
     }
 
     /// Deserialize into a rust type
@@ -312,7 +316,6 @@ impl HdbValue {
     pub(crate) fn serialize(&self, data_pos: &mut i32, w: &mut std::io::Write) -> HdbResult<()> {
         if !self.serialize_type_id(w)? {
             match *self {
-                HdbValue::NOTHING => panic!("Can't send HdbValue::NOTHING to Database"),
                 HdbValue::TINYINT(u) | HdbValue::N_TINYINT(Some(u)) => w.write_u8(u)?,
 
                 HdbValue::SMALLINT(i) | HdbValue::N_SMALLINT(Some(i)) => {
@@ -409,7 +412,8 @@ impl HdbValue {
                 | HdbValue::N_VARBINARY(None)
                 | HdbValue::N_BSTRING(None) => {}
 
-                HdbValue::CHAR(_)
+                HdbValue::NOTHING
+                | HdbValue::CHAR(_)
                 | HdbValue::N_CHAR(_)
                 | HdbValue::NCHAR(_)
                 | HdbValue::N_NCHAR(_)
@@ -419,7 +423,7 @@ impl HdbValue {
                 | HdbValue::N_NVARCHAR(_) => {
                     return Err(HdbError::Impl(format!(
                         "HdbValue::serialize() not implemented for type {}",
-                        self.type_id()
+                        self
                     )))
                 }
             }
@@ -430,11 +434,6 @@ impl HdbValue {
     // is used to calculate the argument size (in serialize)
     pub(crate) fn size(&self) -> HdbResult<usize> {
         Ok(1 + match self {
-            HdbValue::NOTHING => {
-                return Err(HdbError::Impl(
-                    "Can't send HdbValue::NOTHING to Database".to_string(),
-                ))
-            }
             HdbValue::BOOLEAN(_)
             | HdbValue::N_BOOLEAN(Some(_))
             | HdbValue::TINYINT(_)
@@ -511,7 +510,8 @@ impl HdbValue {
             | HdbValue::N_TEXT(None)
             | HdbValue::N_SHORTTEXT(None) => 0,
 
-            HdbValue::CHAR(_)
+            HdbValue::NOTHING
+            | HdbValue::CHAR(_)
             | HdbValue::VARCHAR(_)
             | HdbValue::NCHAR(_)
             | HdbValue::NVARCHAR(_)
@@ -520,8 +520,8 @@ impl HdbValue {
             | HdbValue::N_NCHAR(_)
             | HdbValue::N_NVARCHAR(_) => {
                 return Err(HdbError::Impl(format!(
-                    "HdbValue::size() not implemented for type code {}",
-                    self.type_id()
+                    "HdbValue::size() not implemented for type {}",
+                    self
                 )))
             }
         })
@@ -533,7 +533,6 @@ impl HdbValue {
         rdr: &mut std::io::BufRead,
     ) -> HdbResult<HdbValue> {
         match (type_id.base_type_id(), type_id.is_nullable()) {
-            (BaseTypeId::NOTHING, _) => panic!("Must not happen"),
             (BaseTypeId::TINYINT, false) => Ok(HdbValue::TINYINT({
                 ind_not_null(rdr)?;
                 rdr.read_u8()?

@@ -23,8 +23,7 @@ pub enum Severity {
     __UNKNOWN__(i8),
 }
 impl Severity {
-    #[doc(hidden)]
-    pub fn from_i8(i: i8) -> Severity {
+    pub(crate) fn from_i8(i: i8) -> Severity {
         match i {
             0 => Severity::Warning,
             1 => Severity::Error,

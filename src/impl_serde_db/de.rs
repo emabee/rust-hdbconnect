@@ -12,7 +12,6 @@ use crate::protocol::parts::hdb_value::HdbValue;
 use crate::protocol::parts::resultset::ResultSet;
 use crate::protocol::parts::row::Row;
 
-#[doc(hidden)]
 impl DeserializableResultset for ResultSet {
     type ROW = Row;
     type E = HdbError;
@@ -52,7 +51,6 @@ impl DeserializableResultset for ResultSet {
     }
 }
 
-#[doc(hidden)]
 impl DeserializableRow for Row {
     type V = HdbValue;
     type E = HdbError;
@@ -78,7 +76,6 @@ impl DeserializableRow for Row {
     }
 }
 
-#[doc(hidden)]
 impl DbValue for HdbValue {
     fn is_null(&self) -> bool {
         match *self {
@@ -169,7 +166,6 @@ impl DbValue for HdbValue {
     }
 }
 
-#[doc(hidden)]
 impl DbValueInto<bool> for HdbValue {
     fn try_into(self) -> Result<bool, ConversionError> {
         match self {
@@ -179,7 +175,6 @@ impl DbValueInto<bool> for HdbValue {
     }
 }
 
-#[doc(hidden)]
 impl DbValueInto<u8> for HdbValue {
     fn try_into(self) -> Result<u8, ConversionError> {
         match self {
@@ -216,7 +211,6 @@ impl DbValueInto<u8> for HdbValue {
     }
 }
 
-#[doc(hidden)]
 impl DbValueInto<u16> for HdbValue {
     fn try_into(self) -> Result<u16, ConversionError> {
         match self {
@@ -253,7 +247,6 @@ impl DbValueInto<u16> for HdbValue {
     }
 }
 
-#[doc(hidden)]
 impl DbValueInto<u32> for HdbValue {
     fn try_into(self) -> Result<u32, ConversionError> {
         match self {
@@ -290,7 +283,6 @@ impl DbValueInto<u32> for HdbValue {
     }
 }
 
-#[doc(hidden)]
 impl DbValueInto<u64> for HdbValue {
     fn try_into(self) -> Result<u64, ConversionError> {
         match self {
@@ -328,7 +320,6 @@ impl DbValueInto<u64> for HdbValue {
     }
 }
 
-#[doc(hidden)]
 impl DbValueInto<i8> for HdbValue {
     fn try_into(self) -> Result<i8, ConversionError> {
         match self {
@@ -371,7 +362,6 @@ impl DbValueInto<i8> for HdbValue {
     }
 }
 
-#[doc(hidden)]
 impl DbValueInto<i16> for HdbValue {
     fn try_into(self) -> Result<i16, ConversionError> {
         match self {
@@ -402,7 +392,6 @@ impl DbValueInto<i16> for HdbValue {
     }
 }
 
-#[doc(hidden)]
 impl DbValueInto<i32> for HdbValue {
     fn try_into(self) -> Result<i32, ConversionError> {
         match self {
@@ -427,7 +416,6 @@ impl DbValueInto<i32> for HdbValue {
     }
 }
 
-#[doc(hidden)]
 impl DbValueInto<i64> for HdbValue {
     fn try_into(self) -> Result<i64, ConversionError> {
         match self {
@@ -445,7 +433,6 @@ impl DbValueInto<i64> for HdbValue {
     }
 }
 
-#[doc(hidden)]
 impl DbValueInto<f32> for HdbValue {
     fn try_into(self) -> Result<f32, ConversionError> {
         match self {
@@ -458,7 +445,6 @@ impl DbValueInto<f32> for HdbValue {
     }
 }
 
-#[doc(hidden)]
 impl DbValueInto<f64> for HdbValue {
     fn try_into(self) -> Result<f64, ConversionError> {
         match self {
@@ -471,7 +457,6 @@ impl DbValueInto<f64> for HdbValue {
     }
 }
 
-#[doc(hidden)]
 impl DbValueInto<String> for HdbValue {
     fn try_into(self) -> Result<String, ConversionError> {
         trace!("try_into -> String");
@@ -522,7 +507,6 @@ impl DbValueInto<String> for HdbValue {
     }
 }
 
-#[doc(hidden)]
 impl DbValueInto<NaiveDateTime> for HdbValue {
     fn try_into(self) -> Result<NaiveDateTime, ConversionError> {
         trace!("try_into -> NaiveDateTime");
@@ -548,7 +532,6 @@ impl DbValueInto<NaiveDateTime> for HdbValue {
     }
 }
 
-#[doc(hidden)]
 impl DbValueInto<Vec<u8>> for HdbValue {
     fn try_into(self) -> Result<Vec<u8>, ConversionError> {
         match self {

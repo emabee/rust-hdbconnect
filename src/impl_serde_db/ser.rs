@@ -18,7 +18,6 @@ use serde_db::ser::{parse_error, DbvFactory, SerializationError};
 use std::str::FromStr;
 use std::{i16, i32, i64, i8, u16, u32, u8};
 
-#[doc(hidden)]
 impl DbvFactory for ParameterDescriptor {
     type DBV = HdbValue;
 
@@ -568,7 +567,6 @@ impl DbvFactory for ParameterDescriptor {
             })
         } else {
             Ok(match self.type_id().base_type_id() {
-                BaseTypeId::NOTHING => panic!("Must not happen"),
                 BaseTypeId::TINYINT => HdbValue::N_TINYINT(None),
                 BaseTypeId::SMALLINT => HdbValue::N_SMALLINT(None),
                 BaseTypeId::INT => HdbValue::N_INT(None),

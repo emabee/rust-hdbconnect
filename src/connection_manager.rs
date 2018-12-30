@@ -6,6 +6,35 @@ use r2d2;
 /// Implementation of r2d2's
 /// [`ManageConnection`](https://docs.rs/r2d2/*/r2d2/trait.ManageConnection.html)
 /// interface.
+///
+/// # Example
+///
+/// ```rust,no_run
+/// # use hdbconnect::{ConnectionManager, ConnectParams, HdbResult};
+/// # use std::thread;
+/// # const NUM_THREADS:usize = 15;
+/// # const POOL_SIZE:u32 = 5;
+///
+/// let connect_params = ConnectParams::builder()
+///     .hostname("abcd123")
+///     .port(2222)
+///     .dbuser("MEIER")
+///     .password("schlau")
+///     .build()
+///     .unwrap();
+/// let manager = ConnectionManager::new(&connect_params);
+/// let pool = r2d2::Pool::builder().max_size(POOL_SIZE).build(manager).unwrap();
+///
+/// for _ in 0..NUM_THREADS {
+///     let pool = pool.clone();
+///     thread::spawn(move || {
+///         let mut conn = pool.get().unwrap();
+///         // ... work with your connection
+///     });
+/// }
+///
+/// ```
+///
 #[derive(Debug)]
 pub struct ConnectionManager {
     connect_params: ConnectParams,

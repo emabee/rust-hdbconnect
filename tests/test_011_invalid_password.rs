@@ -35,6 +35,8 @@ pub fn test_011_invalid_password() -> HdbResult<()> {
         .try_into()?;
     assert_eq!(force_first_password_change, "true");
 
+    // we use names with different lengths to provoke error messages with different lengths
+    // to verify we can parse them all correctly from the wire
     for i in 0..9 {
         let user = match i {
             0 => "DOEDEL",

@@ -44,12 +44,10 @@ impl cmp::PartialEq<LongDate> for LongDate {
 }
 
 impl LongDate {
-    #[doc(hidden)]
-    pub fn new(raw: i64) -> LongDate {
+    pub(crate) fn new(raw: i64) -> LongDate {
         LongDate(raw)
     }
-    #[doc(hidden)]
-    pub fn ref_raw(&self) -> &i64 {
+    pub(crate) fn ref_raw(&self) -> &i64 {
         &self.0
     }
 

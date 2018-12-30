@@ -50,8 +50,6 @@ impl std::fmt::Display for TypeId {
 /// Value type id of a database column.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum BaseTypeId {
-    #[doc(hidden)]
-    NOTHING,
     /// Base type ID for [HdbValue::TINYINT](enum.HdbValue.html#variant.TINYINT).
     TINYINT,
     /// Base type ID for [HdbValue::SMALLINT](enum.HdbValue.html#variant.SMALLINT).
@@ -110,7 +108,6 @@ pub enum BaseTypeId {
 impl From<u8> for BaseTypeId {
     fn from(id: u8) -> BaseTypeId {
         match id {
-            0 => BaseTypeId::NOTHING,
             1 => BaseTypeId::TINYINT,
             2 => BaseTypeId::SMALLINT,
             3 => BaseTypeId::INT,
@@ -171,7 +168,6 @@ impl From<u8> for BaseTypeId {
 impl BaseTypeId {
     pub(crate) fn type_code(&self) -> u8 {
         match &self {
-            BaseTypeId::NOTHING => 0,
             BaseTypeId::TINYINT => 1,
             BaseTypeId::SMALLINT => 2,
             BaseTypeId::INT => 3,
@@ -208,7 +204,6 @@ impl std::fmt::Display for BaseTypeId {
             fmt,
             "{}",
             match self {
-                BaseTypeId::NOTHING => "NOTHING",
                 BaseTypeId::TINYINT => "TINYINT",
                 BaseTypeId::SMALLINT => "SMALLINT",
                 BaseTypeId::INT => "INT",

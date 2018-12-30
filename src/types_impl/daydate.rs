@@ -35,13 +35,11 @@ impl cmp::PartialEq<DayDate> for DayDate {
 }
 
 impl DayDate {
-    #[doc(hidden)]
-    pub fn new(raw: i32) -> DayDate {
+    pub(crate) fn new(raw: i32) -> DayDate {
         assert!(raw < NULL_REPRESENTATION && raw >= 0);
         DayDate(raw)
     }
-    #[doc(hidden)]
-    pub fn ref_raw(&self) -> &i32 {
+    pub(crate) fn ref_raw(&self) -> &i32 {
         &self.0
     }
 

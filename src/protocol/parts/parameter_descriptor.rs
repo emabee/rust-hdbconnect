@@ -81,10 +81,8 @@ impl ParameterDescriptor {
 
     pub(crate) fn parse(
         count: i32,
-        arg_size: u32,
         rdr: &mut std::io::BufRead,
     ) -> HdbResult<Vec<ParameterDescriptor>> {
-        let mut consumed = 0;
         let mut vec_pd = Vec::<ParameterDescriptor>::new();
         let mut name_offsets = Vec::<u32>::new();
         for _ in 0..count {
@@ -97,8 +95,6 @@ impl ParameterDescriptor {
             let length = rdr.read_u16::<LittleEndian>()?;
             let fraction = rdr.read_u16::<LittleEndian>()?;
             rdr.read_u32::<LittleEndian>()?;
-            consumed += 16;
-            assert!(arg_size >= consumed);
             vec_pd.push(ParameterDescriptor::new(
                 option, value_type, mode, length, fraction,
             ));
@@ -110,8 +106,6 @@ impl ParameterDescriptor {
                 let name =
                     cesu8::from_cesu8(&util::parse_bytes(length as usize, rdr)?)?.to_string();
                 descriptor.set_name(name);
-                consumed += 1 + u32::from(length);
-                assert!(arg_size >= consumed);
             }
         }
         Ok(vec_pd)

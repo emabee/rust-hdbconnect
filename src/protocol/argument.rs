@@ -186,11 +186,10 @@ impl<'a> Argument<'a> {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn parse(
+    pub(crate) fn parse(
         kind: PartKind,
         attributes: PartAttributes,
         no_of_args: i32,
-        arg_size: i32,
         parts: &mut Parts,
         o_am_conn_core: Option<&AmConnCore>,
         o_rs_md: Option<&ResultSetMetadata>,
@@ -220,11 +219,9 @@ impl<'a> Argument<'a> {
                     ));
                 }
             }
-            PartKind::ParameterMetadata => Argument::ParameterMetadata(ParameterDescriptor::parse(
-                no_of_args,
-                arg_size as u32,
-                rdr,
-            )?),
+            PartKind::ParameterMetadata => {
+                Argument::ParameterMetadata(ParameterDescriptor::parse(no_of_args, rdr)?)
+            }
             PartKind::ReadLobReply => Argument::ReadLobReply(ReadLobReply::parse(rdr)?),
             PartKind::ResultSet => {
                 let rs = ResultSet::parse(
@@ -240,11 +237,9 @@ impl<'a> Argument<'a> {
                 Argument::ResultSet(rs)
             }
             PartKind::ResultSetId => Argument::ResultSetId(rdr.read_u64::<LittleEndian>()?),
-            PartKind::ResultSetMetadata => Argument::ResultSetMetadata(ResultSetMetadata::parse(
-                no_of_args,
-                arg_size as u32,
-                rdr,
-            )?),
+            PartKind::ResultSetMetadata => {
+                Argument::ResultSetMetadata(ResultSetMetadata::parse(no_of_args, rdr)?)
+            }
             PartKind::ExecutionResult => {
                 Argument::ExecutionResult(ExecutionResult::parse(no_of_args, rdr)?)
             }

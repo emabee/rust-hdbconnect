@@ -116,11 +116,7 @@ impl ResultSetMetadata {
         Ok(self.get(i)?.precision())
     }
 
-    pub(crate) fn parse(
-        count: i32,
-        arg_size: u32,
-        rdr: &mut io::BufRead,
-    ) -> HdbResult<ResultSetMetadata> {
+    pub(crate) fn parse(count: i32, rdr: &mut io::BufRead) -> HdbResult<ResultSetMetadata> {
         let mut rsm = ResultSetMetadata {
             fields: Vec::<FieldMetadata>::new(),
             names: VecMap::<String>::new(),
@@ -158,19 +154,7 @@ impl ResultSetMetadata {
         trace!("Read ResultSetMetadata phase 1: {:?}", rsm);
         // now we read the names
         let mut offset = 0;
-        let limit = arg_size - (count as u32) * 22;
-        trace!(
-            "arg_size = {}, count = {}, limit = {} ",
-            arg_size,
-            count,
-            limit
-        );
         for _ in 0..rsm.names.len() {
-            if offset >= limit {
-                return Err(HdbError::Impl(
-                    "Error in reading ResultSetMetadata".to_owned(),
-                ));
-            }
             let nl = rdr.read_u8()?; // UI1
             let buffer: Vec<u8> = util::parse_bytes(nl as usize, rdr)?; // variable
             let name = cesu8::from_cesu8(&buffer)?;

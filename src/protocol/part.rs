@@ -87,7 +87,6 @@ impl<'a> Part<'a> {
             kind,
             attributes,
             no_of_args,
-            arg_size,
             already_received_parts,
             o_am_conn_core,
             rs_md,
