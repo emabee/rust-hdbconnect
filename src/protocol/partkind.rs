@@ -23,7 +23,7 @@ pub enum PartKind {
     Authentication,        // 33 // Authentication data
     SessionContext,        // 34 // Session context information
     StatementContext,      // 39 // Statement visibility context
-    PartitionInformation,  // 40 // Table partitioning information // FIXME is missing
+    PartitionInformation,  // 40 // Table partitioning information
     OutputParameters,      // 41 // Output parameter data
     ConnectOptions,        // 42 // Connect options
     CommitOptions,         // 43 // Commit options

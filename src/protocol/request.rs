@@ -12,6 +12,7 @@ use std::io;
 
 const MESSAGE_HEADER_SIZE: u32 = 32;
 const SEGMENT_HEADER_SIZE: usize = 24; // same for in and out
+pub const HOLD_CURSORS_OVER_COMMIT: u8 = 8;
 
 // Packets having the same sequence number belong to one request/response pair.
 #[derive(Debug)]

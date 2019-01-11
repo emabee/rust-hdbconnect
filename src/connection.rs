@@ -8,7 +8,7 @@ use crate::protocol::partkind::PartKind;
 use crate::protocol::parts::command_info::CommandInfo;
 use crate::protocol::parts::resultset::ResultSet;
 use crate::protocol::parts::server_error::ServerError;
-use crate::protocol::request::Request;
+use crate::protocol::request::{Request, HOLD_CURSORS_OVER_COMMIT};
 use crate::protocol::request_type::RequestType;
 use crate::protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
 use crate::xa_impl::new_resource_manager;
@@ -268,36 +268,38 @@ impl Connection {
 fn execute<S>(
     am_conn_core: &mut AmConnCore,
     stmt: S,
-    o_ci: Option<CommandInfo>,
+    o_command_info: Option<CommandInfo>,
 ) -> HdbResult<HdbResponse>
 where
     S: AsRef<str>,
 {
     debug!("connection::execute({})", stmt.as_ref());
-    let command_options = 0b_1000;
-    let fetch_size: u32 = { am_conn_core.lock()?.get_fetch_size() };
-    let mut request = Request::new(RequestType::ExecuteDirect, command_options);
-    request.push(Part::new(
-        PartKind::FetchSize,
-        Argument::FetchSize(fetch_size),
-    ));
-    if let Option::Some(ci) = o_ci {
-        request.push(Part::new(PartKind::CommandInfo, Argument::CommandInfo(ci)));
-    }
+    let mut request = Request::new(RequestType::ExecuteDirect, HOLD_CURSORS_OVER_COMMIT);
     {
-        let mut guard = am_conn_core.lock()?;
-        if guard.is_client_info_touched() {
+        let mut conn_core = am_conn_core.lock()?;
+        let fetch_size = conn_core.get_fetch_size();
+        request.push(Part::new(
+            PartKind::FetchSize,
+            Argument::FetchSize(fetch_size),
+        ));
+        if let Some(command_info) = o_command_info {
             request.push(Part::new(
-                PartKind::ClientInfo,
-                Argument::ClientInfo(guard.get_client_info_for_sending()),
+                PartKind::CommandInfo,
+                Argument::CommandInfo(command_info),
             ));
         }
+        if conn_core.is_client_info_touched() {
+            request.push(Part::new(
+                PartKind::ClientInfo,
+                Argument::ClientInfo(conn_core.get_client_info_for_sending()),
+            ));
+        }
+        request.push(Part::new(
+            PartKind::Command,
+            Argument::Command(stmt.as_ref()),
+        ));
     }
 
-    request.push(Part::new(
-        PartKind::Command,
-        Argument::Command(stmt.as_ref()),
-    ));
     let reply = am_conn_core.send(request)?;
     reply.into_hdbresponse(am_conn_core)
 }

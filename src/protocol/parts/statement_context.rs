@@ -3,6 +3,7 @@ use crate::protocol::parts::option_value::OptionValue;
 
 // An options part that is populated from previously received statement context
 // information. The binary option content is opaque to the client.
+// Assumption: it's used to support automatic reconnects (but we don't make use of that: FIXME)
 pub type StatementContext = OptionPart<StatementContextId>;
 
 impl StatementContext {

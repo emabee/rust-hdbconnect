@@ -6,7 +6,7 @@ use crate::protocol::parts::hdb_value::HdbValue;
 use crate::protocol::parts::parameter_descriptor::{ParameterDescriptor, ParameterDirection};
 use crate::protocol::parts::parameters::{ParameterRow, Parameters};
 use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
-use crate::protocol::request::Request;
+use crate::protocol::request::{Request, HOLD_CURSORS_OVER_COMMIT};
 use crate::protocol::request_type::RequestType;
 use crate::{HdbError, HdbResponse, HdbResult};
 
@@ -82,7 +82,7 @@ impl PreparedStatement {
     /// Executes the statement with the collected batch, and clears the batch.
     pub fn execute_batch(&mut self) -> HdbResult<HdbResponse> {
         trace!("PreparedStatement::execute_batch()");
-        let mut request = Request::new(RequestType::Execute, 8_u8);
+        let mut request = Request::new(RequestType::Execute, HOLD_CURSORS_OVER_COMMIT);
         request.push(Part::new(
             PartKind::StatementId,
             Argument::StatementId(self.statement_id),
@@ -110,8 +110,7 @@ impl PreparedStatement {
         mut am_conn_core: AmConnCore,
         stmt: &str,
     ) -> HdbResult<PreparedStatement> {
-        let command_options: u8 = 8;
-        let mut request = Request::new(RequestType::Prepare, command_options);
+        let mut request = Request::new(RequestType::Prepare, HOLD_CURSORS_OVER_COMMIT);
         request.push(Part::new(PartKind::Command, Argument::Command(stmt)));
 
         let mut reply = am_conn_core.send(request)?;

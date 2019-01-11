@@ -161,8 +161,7 @@ impl ResultSet {
 
         // build the request, provide resultset id, define FetchSize
         debug!("ResultSet::fetch_next() with fetch_size = {}", fetch_size);
-        let command_options = 0;
-        let mut request = Request::new(RequestType::FetchNext, command_options);
+        let mut request = Request::new(RequestType::FetchNext, 0);
         request.push(Part::new(
             PartKind::ResultSetId,
             Argument::ResultSetId(resultset_id),

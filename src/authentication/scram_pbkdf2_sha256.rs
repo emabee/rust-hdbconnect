@@ -89,20 +89,20 @@ impl Authenticator for ScramPbkdf2Sha256 {
 
 // `server_data` is again an AuthFields, contains salt, server_nonce, iterations
 fn parse_first_server_data(server_data: &[u8]) -> HdbResult<(Vec<u8>, Vec<u8>, u32)> {
-    let mut af = AuthFields::parse(&mut io::Cursor::new(server_data))?;
-    if af.len() != 3 {
+    let mut auth_fields = AuthFields::parse(&mut io::Cursor::new(server_data))?;
+    if auth_fields.len() != 3 {
         return Err(HdbError::Impl(format!(
             "got {} auth fields, expected 3",
-            af.len()
+            auth_fields.len()
         )));
     }
 
     let iterations = {
-        let mut rdr = io::Cursor::new(af.pop().unwrap());
+        let mut rdr = io::Cursor::new(auth_fields.pop().unwrap());
         rdr.read_u32::<BigEndian>()?
     };
-    let server_nonce = af.pop().unwrap();
-    let salt = af.pop().unwrap();
+    let server_nonce = auth_fields.pop().unwrap();
+    let salt = auth_fields.pop().unwrap();
 
     if iterations < 15_000 {
         Err(HdbError::Impl(format!(

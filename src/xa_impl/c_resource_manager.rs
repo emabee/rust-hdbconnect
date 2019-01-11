@@ -82,8 +82,7 @@ impl CResourceManager for HdbCResourceManager {
             return Err(usage_error("recover", flags));
         }
 
-        let command_options = 0b_1000;
-        let mut request = Request::new(RequestType::XARecover, command_options);
+        let mut request = Request::new(RequestType::XARecover, 0);
 
         let mut xat_options = XatOptions::default();
         xat_options.set_flags(flags);
@@ -171,8 +170,7 @@ impl HdbCResourceManager {
             xat_options.set_flags(flags);
         }
 
-        let command_options = 0b_1000;
-        let mut request = Request::new(request_type, command_options);
+        let mut request = Request::new(request_type, 0);
         request.push(Part::new(
             PartKind::XatOptions,
             Argument::XatOptions(xat_options),
