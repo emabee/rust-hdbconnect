@@ -63,7 +63,8 @@ impl r2d2::ManageConnection for ConnectionManager {
     // A standard implementation would check if a simple query like SELECT 1 succeeds.
     fn is_valid(&self, conn: &mut Self::Connection) -> Result<(), Self::Error> {
         trace!("ConnectionManager::is_valid()");
-        conn.query("SELECT 1 from dummy").map(|_| ())
+        conn.query("SELECT 'IsConnectionStillAlive' from dummy")
+            .map(|_| ())
     }
 
     // *Quickly* determines if the connection is no longer usable.

@@ -133,9 +133,9 @@ impl ConnectOptions {
         self.set_value(id, value)
     }
 
-    fn get_integer(&self, id: &ConnOptId, s: &str) -> Option<&i32> {
+    fn get_integer(&self, id: &ConnOptId, s: &str) -> Option<i32> {
         match self.get_value(id) {
-            Some(&OptionValue::INT(ref i)) => Some(i),
+            Some(&OptionValue::INT(i)) => Some(i),
             None => None,
             Some(ref ov) => {
                 error!("{} with unexpected value type: {:?}", s, ov);
@@ -167,7 +167,7 @@ impl ConnectOptions {
     // The connection ID is filled by the server when the connection is established.
     // It can be used in DISCONNECT/KILL commands for command or session
     // cancellation.
-    pub fn get_connection_id(&self) -> Option<&i32> {
+    pub fn get_connection_id(&self) -> Option<i32> {
         self.get_integer(&ConnOptId::ConnectionID, "ConnectionID")
     }
 
@@ -188,18 +188,18 @@ impl ConnectOptions {
     }
 
     // Build platform.
-    pub fn get_build_platform(&self) -> Option<&i32> {
+    pub fn get_build_platform(&self) -> Option<i32> {
         self.get_integer(&ConnOptId::BuildPlatform, "BuildPlatform")
     }
 
     // Endianness.
-    pub fn get_endianness(&self) -> Option<&i32> {
+    pub fn get_endianness(&self) -> Option<i32> {
         self.get_integer(&ConnOptId::Endianness, "Endianness")
     }
 
     // `EngineDataFormatVersion` is set by the server to the maximum version it is
     // able to support. The possible values correspond to the `DataFormatVersion`.
-    pub fn get_engine_dataformat_version(&self) -> Option<&i32> {
+    pub fn get_engine_dataformat_version(&self) -> Option<i32> {
         self.get_integer(
             &ConnOptId::EngineDataFormatVersion,
             "EngineDataFormatVersion",
@@ -207,7 +207,7 @@ impl ConnectOptions {
     }
 
     // DataFormatVersion.
-    pub fn get_dataformat_version(&self) -> Option<&i32> {
+    pub fn get_dataformat_version(&self) -> Option<i32> {
         self.get_integer(&ConnOptId::DataFormatVersion, "DataFormatVersion")
     }
 
@@ -227,7 +227,7 @@ impl ConnectOptions {
     //   SECONDTIME.)
     // 6 Send data type BINTEXT to client.
 
-    pub fn get_dataformat_version2(&self) -> Option<&i32> {
+    pub fn get_dataformat_version2(&self) -> Option<i32> {
         self.get_integer(&ConnOptId::DataFormatVersion2, "DataFormatVersion2")
     }
 
@@ -248,7 +248,7 @@ impl ConnectOptions {
     }
 
     // ActiveActiveProtocolVersion.
-    pub fn get_activeactive_protocolversion(&self) -> Option<&i32> {
+    pub fn get_activeactive_protocolversion(&self) -> Option<i32> {
         self.get_integer(
             &ConnOptId::ActiveActiveProtocolVersion,
             "ActiveActiveProtocolVersion",
@@ -284,7 +284,7 @@ impl ConnectOptions {
 
     // Value 1 is sent by the server to indicate it ignores unknown parts of the
     // communication protocol instead of raising a fatal error.
-    pub fn get_ignore_unknown_parts(&self) -> Option<&i32> {
+    pub fn get_ignore_unknown_parts(&self) -> Option<i32> {
         self.get_integer(&ConnOptId::IgnoreUnknownParts, "IgnoreUnknownParts")
     }
 
@@ -320,7 +320,7 @@ impl ConnectOptions {
     //                  for executing the statement, cli­ents execute on that node,
     //                  if possible.
     //   3 STATEMENT_CONNECTION  both STATEMENT and CONNECTION level
-    pub fn get_client_distribution_mode(&self) -> Option<&i32> {
+    pub fn get_client_distribution_mode(&self) -> Option<i32> {
         self.get_integer(&ConnOptId::ClientDistributionMode, "ClientDistributionMode")
     }
 
@@ -330,17 +330,17 @@ impl ConnectOptions {
 
     pub fn get_hold_cursor_over_rollback_supported(&self) -> Option<bool> {
         self.get_integer(&ConnOptId::FlagSet1, "FlagSet1")
-            .map(|i| (*i & 0b1) == 0b1)
+            .map(|i| (i & 0b1) == 0b1)
     }
 
     pub fn get_support_drop_statement_id_part(&self) -> Option<bool> {
         self.get_integer(&ConnOptId::FlagSet1, "FlagSet1")
-            .map(|i| (*i & 0b10) == 0b10)
+            .map(|i| (i & 0b10) == 0b10)
     }
 
     pub fn get_support_full_compile_on_prepare(&self) -> Option<bool> {
         self.get_integer(&ConnOptId::FlagSet1, "FlagSet1")
-            .map(|i| (*i & 0b100) == 0b100)
+            .map(|i| (i & 0b100) == 0b100)
     }
 
     // SO FAR UNUSED

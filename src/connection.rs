@@ -97,6 +97,13 @@ impl Connection {
         Ok(())
     }
 
+    /// Returns the ID of the connection.
+    ///
+    /// The ID is set by the server. Can be handy for logging.
+    pub fn get_id(&self) -> HdbResult<u32> {
+        Ok(self.am_conn_core.lock()?.get_connection_id() as u32)
+    }
+
     ///
     pub fn get_server_resource_consumption_info(&self) -> HdbResult<ServerResourceConsumptionInfo> {
         Ok(self
@@ -273,7 +280,10 @@ fn execute<S>(
 where
     S: AsRef<str>,
 {
-    debug!("connection::execute({})", stmt.as_ref());
+    debug!(
+        "connection[{}]::execute()",
+        am_conn_core.lock()?.get_connection_id()
+    );
     let mut request = Request::new(RequestType::ExecuteDirect, HOLD_CURSORS_OVER_COMMIT);
     {
         let mut conn_core = am_conn_core.lock()?;

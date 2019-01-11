@@ -28,7 +28,6 @@ use std::mem;
 
 pub const DEFAULT_FETCH_SIZE: u32 = 32;
 pub const DEFAULT_LOB_READ_LENGTH: i32 = 1_000_000;
-const HOLD_OVER_COMMIT: u8 = 8;
 
 #[derive(Debug)]
 pub(crate) struct ConnectionCore {
@@ -36,7 +35,6 @@ pub(crate) struct ConnectionCore {
     session_id: i64,
     client_info: ClientInfo,
     client_info_touched: bool,
-    command_options: u8,
     seq_number: i32,
     auto_commit: bool,
     server_resource_consumption_info: ServerResourceConsumptionInfo,
@@ -59,7 +57,6 @@ impl<'a> ConnectionCore {
             authenticated: false,
             session_id: 0,
             seq_number: 0,
-            command_options: HOLD_OVER_COMMIT,
             auto_commit: true,
             server_resource_consumption_info: Default::default(),
             fetch_size: DEFAULT_FETCH_SIZE,
@@ -227,6 +224,11 @@ impl<'a> ConnectionCore {
             .map(|s| s.as_ref())
             .unwrap_or("")
     }
+
+    pub fn get_connection_id(&self) -> i32 {
+        self.connect_options.get_connection_id().unwrap_or(-1)
+    }
+
     pub fn get_full_version_string(&self) -> &str {
         self.connect_options
             .get_full_version_string()

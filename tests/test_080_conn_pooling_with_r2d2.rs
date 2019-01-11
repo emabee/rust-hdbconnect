@@ -1,8 +1,8 @@
 mod test_utils;
 
 use hdbconnect::{ConnectionManager, HdbResult};
-use std::thread;
-use std::time::Duration;
+use log::trace;
+use std::thread::{self, JoinHandle};
 
 #[test]
 fn test_080_conn_pooling_with_r2d2() -> HdbResult<()> {
@@ -12,13 +12,29 @@ fn test_080_conn_pooling_with_r2d2() -> HdbResult<()> {
     let manager = ConnectionManager::new(&conn_params);
     let pool = r2d2::Pool::builder().max_size(15).build(manager).unwrap();
 
-    for _ in 0..20 {
+    let no_of_workers: usize = 20;
+    let mut worker_handles: Vec<JoinHandle<u8>> = Default::default();
+
+    for thread_number in 0..no_of_workers {
         let pool = pool.clone();
-        thread::spawn(move || {
-            let mut conn = pool.get().unwrap();
-            conn.query("select 1 from dummy").unwrap();
-        });
+        worker_handles.push(
+            thread::Builder::new()
+                .name(thread_number.to_string())
+                .spawn(move || {
+                    let mut conn = pool.get().unwrap();
+                    trace!("connection[{}]: Firing query", conn.get_id().unwrap());
+                    conn.query("select 1 from dummy").unwrap();
+                    0 as u8
+                })
+                .unwrap(),
+        );
     }
-    thread::sleep(Duration::from_millis(100));
+
+    for worker_handle in worker_handles {
+        worker_handle
+            .join()
+            .unwrap_or_else(|e| panic!("Joining worker thread failed: {:?}", e));
+    }
+
     Ok(())
 }
