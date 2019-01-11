@@ -1,6 +1,4 @@
-use crate::conn_core::ConnectionCore;
 use crate::protocol::parts::execution_result::ExecutionResult;
-use crate::protocol::parts::resultset::ResultSetCore;
 use crate::protocol::parts::server_error::ServerError;
 use cesu8::Cesu8DecodingError;
 use serde_db::de::{ConversionError, DeserializationError};
@@ -217,14 +215,8 @@ impl From<Cesu8DecodingError> for HdbError {
     }
 }
 
-impl<'a> From<sync::PoisonError<sync::MutexGuard<'a, ConnectionCore>>> for HdbError {
-    fn from(error: sync::PoisonError<sync::MutexGuard<'a, ConnectionCore>>) -> HdbError {
-        HdbError::Poison(error.description().to_owned())
-    }
-}
-
-impl<'a> From<sync::PoisonError<sync::MutexGuard<'a, ResultSetCore>>> for HdbError {
-    fn from(error: sync::PoisonError<sync::MutexGuard<'a, ResultSetCore>>) -> HdbError {
+impl<'a, T> From<sync::PoisonError<sync::MutexGuard<'a, T>>> for HdbError {
+    fn from(error: sync::PoisonError<sync::MutexGuard<'a, T>>) -> HdbError {
         HdbError::Poison(error.description().to_owned())
     }
 }

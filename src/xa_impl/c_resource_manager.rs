@@ -92,8 +92,7 @@ impl CResourceManager for HdbCResourceManager {
             Argument::XatOptions(xat_options),
         ));
 
-        let mut reply: Reply =
-            request.send_and_get_reply_simplified(&mut (self.am_conn_core), None)?;
+        let mut reply: Reply = self.am_conn_core.send(request)?;
         while !reply.parts.is_empty() {
             reply.parts.drop_args_of_kind(PartKind::StatementContext);
             match reply.parts.pop_arg() {
@@ -179,7 +178,7 @@ impl HdbCResourceManager {
             Argument::XatOptions(xat_options),
         ));
 
-        let mut reply = request.send_and_get_reply_simplified(&mut (self.am_conn_core), None)?;
+        let mut reply = self.am_conn_core.send(request)?;
 
         reply.parts.drop_args_of_kind(PartKind::StatementContext);
         if let Some(Argument::XatOptions(xat_options)) =

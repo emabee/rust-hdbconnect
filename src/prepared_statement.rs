@@ -96,12 +96,13 @@ impl PreparedStatement {
             ));
         }
 
-        request.send_and_get_hdbresponse(
+        let reply = self.am_conn_core.full_send(
+            request,
             self.o_rs_md.as_ref(),
             self.o_par_md.as_ref(),
-            &mut (self.am_conn_core),
-            None,
-        )
+            &mut None,
+        )?;
+        reply.into_hdbresponse(&mut (self.am_conn_core))
     }
 
     // Prepare a statement.
@@ -113,7 +114,7 @@ impl PreparedStatement {
         let mut request = Request::new(RequestType::Prepare, command_options);
         request.push(Part::new(PartKind::Command, Argument::Command(stmt)));
 
-        let mut reply = request.send_and_get_reply_simplified(&mut am_conn_core, None)?;
+        let mut reply = am_conn_core.send(request)?;
 
         // ParameterMetadata, ResultSetMetadata
         // StatementContext, StatementId,
@@ -206,8 +207,7 @@ impl Drop for PreparedStatement {
             PartKind::StatementId,
             Argument::StatementId(self.statement_id),
         ));
-        if let Ok(mut reply) = request.send_and_get_reply_simplified(&mut (self.am_conn_core), None)
-        {
+        if let Ok(mut reply) = self.am_conn_core.send(request) {
             reply.parts.pop_arg_if_kind(PartKind::StatementContext);
         }
     }

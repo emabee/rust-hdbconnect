@@ -37,7 +37,8 @@ pub(crate) fn first_auth_request(
         Argument::Auth(auth_fields),
     ));
 
-    let mut reply = request1.send_and_get_reply_simplified(am_conn_core, Some(ReplyType::Nil))?;
+    let mut reply = am_conn_core.send(request1)?;
+    reply.assert_expected_reply_type(&ReplyType::Nil)?;
 
     match reply.parts.pop_arg_if_kind(PartKind::Authentication) {
         Some(Argument::Auth(mut auth_fields)) => {
@@ -86,7 +87,8 @@ pub(crate) fn second_auth_request(
         Argument::ConnectOptions(ConnectOptions::for_server(clientlocale, get_os_user())),
     ));
 
-    let mut reply = request2.send_and_get_reply_simplified(am_conn_core, Some(ReplyType::Nil))?;
+    let mut reply = am_conn_core.send(request2)?;
+    reply.assert_expected_reply_type(&ReplyType::Nil)?;
 
     let mut conn_core = am_conn_core.lock()?;
     conn_core.set_session_id(reply.session_id());

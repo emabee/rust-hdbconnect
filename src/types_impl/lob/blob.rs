@@ -6,7 +6,6 @@ use serde_derive::Serialize;
 use std::cell::RefCell;
 use std::cmp;
 use std::io::{self, Write};
-use std::sync::Arc;
 
 /// BLob implementation that is used within `HdbValue::BLOB`.
 #[derive(Clone, Debug, Serialize)]
@@ -133,7 +132,7 @@ impl BLobHandle {
             data.len()
         );
         BLobHandle {
-            o_am_conn_core: Some(Arc::clone(am_conn_core)),
+            o_am_conn_core: Some(am_conn_core.clone()),
             length_b,
             is_data_complete,
             locator_id,

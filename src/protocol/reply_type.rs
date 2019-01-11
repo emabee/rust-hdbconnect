@@ -3,7 +3,7 @@ use crate::{HdbError, HdbResult};
 // Identifies the nature of the statement or functionality that has been
 // prepared or executed. Is documented as Function Code.
 // Irrelevant numbers (ABAP stuff, "reserved") are not listed.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum ReplyType {
     Nil,                       // Nil
     Ddl,                       // DDL statement
@@ -64,35 +64,6 @@ impl ReplyType {
                 "found unexpected value {} for ReplyType",
                 val
             ))),
-        }
-    }
-
-    pub fn to_i16(&self) -> i16 {
-        match *self {
-            ReplyType::Nil => 0,
-            ReplyType::Ddl => 1,
-            ReplyType::Insert => 2,
-            ReplyType::Update => 3,
-            ReplyType::Delete => 4,
-            ReplyType::Select => 5,
-            ReplyType::SelectForUpdate => 6,
-            ReplyType::Explain => 7,
-            ReplyType::DbProcedureCall => 8,
-            ReplyType::DbProcedureCallWithResult => 9,
-            ReplyType::Fetch => 10,
-            ReplyType::Commit => 11,
-            ReplyType::Rollback => 12,
-            ReplyType::Connect => 14,
-            ReplyType::WriteLob => 15,
-            ReplyType::ReadLob => 16,
-            ReplyType::Disconnect => 18,
-            ReplyType::CloseCursor => 19,
-            ReplyType::FindLob => 20,
-            ReplyType::XaStart => 22,
-            ReplyType::XaJoin => 23,
-            ReplyType::XAControl => 25,
-            ReplyType::XAPrepare => 26,
-            ReplyType::XARecover => 27,
         }
     }
 }

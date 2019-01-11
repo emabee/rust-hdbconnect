@@ -3,12 +3,9 @@ use crate::hdb_response::InternalReturnValue;
 use crate::protocol::argument::Argument;
 use crate::protocol::part::{Part, Parts};
 use crate::protocol::part_attributes::PartAttributes;
-use crate::protocol::partkind::PartKind;
-use crate::protocol::parts::execution_result::ExecutionResult;
 use crate::protocol::parts::parameter_descriptor::ParameterDescriptor;
 use crate::protocol::parts::resultset::ResultSet;
 use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
-use crate::protocol::parts::server_error::{ServerError, Severity};
 use crate::protocol::reply_type::ReplyType;
 use crate::protocol::util;
 use crate::{HdbError, HdbResponse, HdbResult};
@@ -49,7 +46,6 @@ impl Reply {
         o_par_md: Option<&Vec<ParameterDescriptor>>,
         o_rs: &mut Option<&mut ResultSet>,
         am_conn_core: &AmConnCore,
-        expected_reply_type: Option<ReplyType>,
         rdr: &mut io::BufRead,
     ) -> HdbResult<Reply> {
         trace!("Reply::parse()");
@@ -58,7 +54,7 @@ impl Reply {
         // Make sure that here (after parsing) the buffer is empty
         // The following only works with nightly, because `.buffer()`
         // is on its way, but not yet in stable (https://github.com/rust-lang/rust/pull/49139)
-        // and needs additionally to activate line 26 in lib.rs
+        // and needs additionally to activate feature(bufreader_buffer) in lib.rs
         #[cfg(feature = "check_buffer")]
         {
             use std::io::BufRead;
@@ -71,14 +67,13 @@ impl Reply {
                         buf.to_vec()
                     );
                 } else {
-                    info!("Buffer is empty");
+                    debug!("Reply::parse(): buffer is empty");
                 }
                 buf.len()
             };
             rdr.consume(buf_len);
         }
 
-        reply.assert_expected_reply_type(expected_reply_type)?;
         Ok(reply)
     }
 
@@ -107,110 +102,14 @@ impl Reply {
         Ok(reply)
     }
 
-    fn assert_expected_reply_type(&self, reply_type: Option<ReplyType>) -> HdbResult<()> {
-        match reply_type {
-            None => Ok(()), // we had no clear expectation
-            Some(fc) => {
-                if self.replytype.to_i16() == fc.to_i16() {
-                    Ok(()) // we got what we expected
-                } else {
-                    Err(HdbError::Impl(format!(
-                        "unexpected reply_type (function code) {:?}",
-                        self.replytype
-                    )))
-                }
-            }
-        }
-    }
-
-    pub fn handle_db_error(&mut self, am_conn_core: &mut AmConnCore) -> HdbResult<()> {
-        let mut conn_core = am_conn_core.lock()?;
-        (*conn_core).warnings.clear();
-
-        // Retrieve errors from returned parts
-        let mut errors = {
-            let opt_error_part = self.parts.extract_first_part_of_type(PartKind::Error);
-            match opt_error_part {
-                None => {
-                    // No error part found, reply evaluation happens elsewhere
-                    return Ok(());
-                }
-                Some(error_part) => {
-                    let (_, argument) = error_part.into_elements();
-                    if let Argument::Error(server_errors) = argument {
-                        // filter out warnings and add them to conn_core
-                        let errors: Vec<ServerError> = server_errors
-                            .into_iter()
-                            .filter_map(|se| match se.severity() {
-                                Severity::Warning => {
-                                    (*conn_core).warnings.push(se);
-                                    None
-                                }
-                                _ => Some(se),
-                            })
-                            .collect();
-                        if errors.is_empty() {
-                            // Only warnings, so return Ok(())
-                            return Ok(());
-                        } else {
-                            errors
-                        }
-                    } else {
-                        unreachable!("129837938423")
-                    }
-                }
-            }
-        };
-
-        // Evaluate the other parts
-        let mut opt_rows_affected = None;
-        self.parts.reverse(); // digest with pop
-        while let Some(part) = self.parts.pop() {
-            let (kind, arg) = part.into_elements();
-            match arg {
-                Argument::StatementContext(ref stmt_ctx) => {
-                    (*conn_core).evaluate_statement_context(stmt_ctx)?;
-                }
-                Argument::TransactionFlags(ta_flags) => {
-                    (*conn_core).evaluate_ta_flags(ta_flags)?;
-                }
-                Argument::ExecutionResult(vec) => {
-                    opt_rows_affected = Some(vec);
-                }
-                arg => warn!(
-                    "Reply::handle_db_error(): ignoring unexpected part of kind {:?}, arg = {:?}",
-                    kind, arg
-                ),
-            }
-        }
-
-        match opt_rows_affected {
-            Some(rows_affected) => {
-                // mix errors into rows_affected
-                let mut err_iter = errors.into_iter();
-                let mut rows_affected = rows_affected
-                    .into_iter()
-                    .map(|ra| match ra {
-                        ExecutionResult::Failure(_) => ExecutionResult::Failure(err_iter.next()),
-                        _ => ra,
-                    })
-                    .collect::<Vec<ExecutionResult>>();
-                for e in err_iter {
-                    warn!(
-                        "Reply::handle_db_error(): \
-                         found more errors than instances of ExecutionResult::Failure"
-                    );
-                    rows_affected.push(ExecutionResult::Failure(Some(e)));
-                }
-                Err(HdbError::MixedResults(rows_affected))
-            }
-            None => {
-                if errors.len() == 1 {
-                    Err(HdbError::DbError(errors.remove(0)))
-                } else {
-                    unreachable!("hopefully...")
-                }
-            }
+    pub fn assert_expected_reply_type(&self, reply_type: &ReplyType) -> HdbResult<()> {
+        if self.replytype == *reply_type {
+            Ok(()) // we got what we expected
+        } else {
+            Err(HdbError::Impl(format!(
+                "unexpected reply_type {:?}",
+                self.replytype
+            )))
         }
     }
 

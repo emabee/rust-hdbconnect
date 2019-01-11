@@ -73,13 +73,12 @@ impl<'a> Argument<'a> {
             | Argument::FetchSize(_)
             | Argument::ResultSetId(_)
             | Argument::StatementId(_)
-            | Argument::TopologyInformation(_)
+            // | Argument::TopologyInformation(_)
             | Argument::ReadLobRequest(_) => 1,
             Argument::ClientInfo(ref client_info) => client_info.count(),
             Argument::CommandInfo(ref opts) => opts.count(),
             Argument::CommitOptions(ref opts) => opts.count(),
             Argument::ConnectOptions(ref opts) => opts.count(),
-            Argument::Error(ref vec) => vec.len(),
             Argument::FetchOptions(ref opts) => opts.count(),
             Argument::LobFlags(ref opts) => opts.count(),
             Argument::Parameters(ref pars) => pars.count(),
@@ -110,11 +109,10 @@ impl<'a> Argument<'a> {
             Argument::Parameters(ref pars) => size += pars.size()?,
             Argument::ReadLobRequest(ref r) => size += r.size(),
             Argument::ResultSetId(_) => size += 8,
+            Argument::SessionContext(ref opts) => size += opts.size(),
             Argument::StatementId(_) => size += 8,
             Argument::StatementContext(ref sc) => size += sc.size(),
-
-            Argument::SessionContext(ref opts) => size += opts.size(),
-            Argument::TopologyInformation(ref topology) => size += topology.size(),
+            // Argument::TopologyInformation(ref topology) => size += topology.size(),
             Argument::TransactionFlags(ref taflags) => size += taflags.size(),
             Argument::XatOptions(ref xat) => size += xat.size(),
 
@@ -146,10 +144,10 @@ impl<'a> Argument<'a> {
             Argument::CommitOptions(ref opts) => opts.serialize(w)?,
             Argument::ConnectOptions(ref conn_opts) => conn_opts.serialize(w)?,
 
+            Argument::FetchOptions(ref opts) => opts.serialize(w)?,
             Argument::FetchSize(fs) => {
                 w.write_u32::<LittleEndian>(fs)?;
             }
-            Argument::FetchOptions(ref opts) => opts.serialize(w)?,
             Argument::LobFlags(ref opts) => opts.serialize(w)?,
             Argument::Parameters(ref parameters) => {
                 parameters.serialize(w)?;

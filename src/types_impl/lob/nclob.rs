@@ -7,7 +7,6 @@ use serde_derive::Serialize;
 use std::cell::RefCell;
 use std::cmp::max;
 use std::io::{self, Write};
-use std::sync::Arc;
 
 /// NCLob implementation that is used with `HdbValue::NCLOB`.
 #[derive(Clone, Debug, Serialize)]
@@ -96,7 +95,7 @@ impl NCLobHandle {
         let (utf8, surrogate_buf) = util::to_string_and_surrogate(cesu8).unwrap(/* yes */);
 
         let nclob_handle = NCLobHandle {
-            o_am_conn_core: Some(Arc::clone(am_conn_core)),
+            o_am_conn_core: Some(am_conn_core.clone()),
             length_c,
             length_b,
             is_data_complete,

@@ -4,17 +4,10 @@
 use super::argument::Argument;
 use super::part::{Part, Parts};
 use super::partkind::PartKind;
-use super::parts::parameter_descriptor::ParameterDescriptor;
-use super::parts::resultset::ResultSet;
-use super::parts::resultset_metadata::ResultSetMetadata;
-use super::parts::statement_context::StatementContext;
-use super::reply_type::ReplyType;
 use super::request_type::RequestType;
-use crate::conn_core::AmConnCore;
-use crate::protocol::reply::Reply;
-use crate::{HdbResponse, HdbResult};
+use crate::protocol::parts::statement_context::StatementContext;
+use crate::HdbResult;
 use byteorder::{LittleEndian, WriteBytesExt};
-use chrono::Local;
 use std::io;
 
 const MESSAGE_HEADER_SIZE: u32 = 32;
@@ -44,102 +37,18 @@ impl<'a> Request<'a> {
     pub fn push(&mut self, part: Part<'a>) {
         self.parts.push(part);
     }
-}
 
-// Methods for sending the request
-impl<'a> Request<'a> {
-    pub fn send_and_get_hdbresponse(
-        self,
-        o_rs_md: Option<&ResultSetMetadata>,
-        o_par_md: Option<&Vec<ParameterDescriptor>>,
-        am_conn_core: &mut AmConnCore,
-        expected_reply_type: Option<ReplyType>,
-    ) -> HdbResult<HdbResponse> {
-        let reply = self.send_and_get_reply(
-            o_rs_md,
-            o_par_md,
-            &mut None,
-            am_conn_core,
-            expected_reply_type,
-        )?;
-
-        reply.into_hdbresponse(am_conn_core)
-    }
-
-    // simplified interface
-    pub fn send_and_get_reply_simplified(
-        self,
-        am_conn_core: &mut AmConnCore,
-        expected_reply_type: Option<ReplyType>,
-    ) -> HdbResult<Reply> {
-        self.send_and_get_reply(None, None, &mut None, am_conn_core, expected_reply_type)
-    }
-
-    pub fn send_and_get_reply(
-        mut self,
-        o_rs_md: Option<&ResultSetMetadata>,
-        o_par_md: Option<&Vec<ParameterDescriptor>>,
-        o_rs: &mut Option<&mut ResultSet>,
-        am_conn_core: &mut AmConnCore,
-        expected_reply_type: Option<ReplyType>,
-    ) -> HdbResult<Reply> {
+    pub fn add_statement_context(&mut self, ssi_value: i64) {
+        let mut stmt_ctx: StatementContext = Default::default();
+        stmt_ctx.set_statement_sequence_info(ssi_value);
         trace!(
-            "Request::send_and_get_reply() with requestType = {:?}",
-            self.request_type,
+            "Sending StatementContext with sequence_info = {:?}",
+            ssi_value
         );
-        let _start = Local::now();
-        self.add_statement_sequence(am_conn_core)?;
-
-        let mut reply =
-            self.roundtrip(o_rs_md, o_par_md, o_rs, am_conn_core, expected_reply_type)?;
-
-        reply.handle_db_error(am_conn_core)?;
-
-        debug!(
-            "Request::send_and_get_reply() took {} ms",
-            (Local::now().signed_duration_since(_start)).num_milliseconds()
-        );
-        Ok(reply)
-    }
-
-    fn add_statement_sequence(&mut self, am_conn_core: &AmConnCore) -> HdbResult<()> {
-        let guard = am_conn_core.lock()?;
-        match *(*guard).statement_sequence() {
-            None => {}
-            Some(ssi_value) => {
-                let mut stmt_ctx: StatementContext = Default::default();
-                stmt_ctx.set_statement_sequence_info(ssi_value);
-                trace!(
-                    "Sending StatementContext with sequence_info = {:?}",
-                    ssi_value
-                );
-                self.parts.push(Part::new(
-                    PartKind::StatementContext,
-                    Argument::StatementContext(stmt_ctx),
-                ));
-            }
-        }
-        Ok(())
-    }
-
-    fn roundtrip(
-        self,
-        o_rs_md: Option<&ResultSetMetadata>,
-        o_par_md: Option<&Vec<ParameterDescriptor>>,
-        o_rs: &mut Option<&mut ResultSet>,
-        am_conn_core: &AmConnCore,
-        expected_reply_type: Option<ReplyType>,
-    ) -> HdbResult<Reply> {
-        trace!("request::roundtrip()");
-        let mut conn_core = am_conn_core.lock()?;
-        conn_core.roundtrip(
-            self,
-            am_conn_core,
-            o_rs_md,
-            o_par_md,
-            o_rs,
-            expected_reply_type,
-        )
+        self.push(Part::new(
+            PartKind::StatementContext,
+            Argument::StatementContext(stmt_ctx),
+        ));
     }
 
     pub fn serialize(
@@ -194,8 +103,8 @@ impl<'a> Request<'a> {
         Ok(())
     }
 
-    /// Length in bytes of the variable part of the message, i.e. total message
-    /// without the header
+    // Length in bytes of the variable part of the message, i.e. total message
+    // without the header
     fn varpart_size(&self) -> HdbResult<u32> {
         let mut len = 0_u32;
         len += self.seg_size()? as u32;

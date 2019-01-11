@@ -1,6 +1,6 @@
 use crate::authentication;
 use crate::conn_core::connect_params::ConnectParams;
-use crate::conn_core::{AmConnCore, ConnectionCore};
+use crate::conn_core::AmConnCore;
 use crate::prepared_statement::PreparedStatement;
 use crate::protocol::argument::Argument;
 use crate::protocol::part::Part;
@@ -15,7 +15,6 @@ use crate::xa_impl::new_resource_manager;
 use crate::{HdbError, HdbResponse, HdbResult};
 use chrono::Local;
 use dist_tx::rm::ResourceManager;
-use std::sync::Arc;
 
 /// Connection object.
 ///
@@ -43,7 +42,7 @@ impl Connection {
         trace!("Entering connect()");
         let start = Local::now();
 
-        let mut am_conn_core = ConnectionCore::initialize(params.clone())?;
+        let mut am_conn_core = AmConnCore::try_new(params.clone())?;
 
         authentication::authenticate(
             &mut (am_conn_core),
@@ -189,7 +188,7 @@ impl Connection {
     /// Note that the handle keeps using the same connection.
     pub fn prepare<S: AsRef<str>>(&self, stmt: S) -> HdbResult<PreparedStatement> {
         Ok(PreparedStatement::try_new(
-            Arc::clone(&self.am_conn_core),
+            self.am_conn_core.clone(),
             stmt.as_ref(),
         )?)
     }
@@ -248,7 +247,7 @@ impl Connection {
     /// Returns an implementation of `dist_tx::rm::ResourceManager` that is
     /// based on this connection.
     pub fn get_resource_manager(&self) -> Box<ResourceManager> {
-        Box::new(new_resource_manager(Arc::clone(&self.am_conn_core)))
+        Box::new(new_resource_manager(self.am_conn_core.clone()))
     }
 
     /// Tools like debuggers can provide additional information while stepping through a source
@@ -299,5 +298,6 @@ where
         PartKind::Command,
         Argument::Command(stmt.as_ref()),
     ));
-    request.send_and_get_hdbresponse(None, None, am_conn_core, None)
+    let reply = am_conn_core.send(request)?;
+    reply.into_hdbresponse(am_conn_core)
 }

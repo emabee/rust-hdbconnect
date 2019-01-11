@@ -7,7 +7,6 @@ use serde_derive::Serialize;
 use std::cell::RefCell;
 use std::cmp::max;
 use std::io::{self, Write};
-use std::sync::Arc;
 
 /// CLob implementation that is used with `HdbValue::CLOB`.
 ///
@@ -100,7 +99,7 @@ impl CLobHandle {
 
         let (utf8, buffer_cesu8) = util::to_string_and_tail(cesu8).unwrap(/* yes */);
         let clob_handle = CLobHandle {
-            o_am_conn_core: Some(Arc::clone(am_conn_core)),
+            o_am_conn_core: Some(am_conn_core.clone()),
             length_c,
             length_b,
             is_data_complete,

@@ -7,9 +7,6 @@ use log::{debug, info};
 #[test]
 pub fn test_011_invalid_password() -> HdbResult<()> {
     let mut _log_handle = test_utils::init_logger();
-    _log_handle.parse_new_spec(
-        "info, test_011_invalid_password= debug, hdbconnect::protocol::util = trace",
-    );
 
     info!("test warnings");
     let mut sys_conn = test_utils::get_system_connection()?;
@@ -64,9 +61,6 @@ pub fn test_011_invalid_password() -> HdbResult<()> {
         assert_eq!(conn_params.password().unsecure(), b"Doebcd1234");
 
         let mut doedel_conn = Connection::new(conn_params)?;
-        _log_handle.parse_new_spec(
-            "info, test_011_invalid_password= debug, hdbconnect::protocol::util = trace",
-        );
         debug!("{} is connected", user);
 
         debug!("select from dummy -> ensure getting the right error");

@@ -1,29 +1,30 @@
+use crate::conn_core::am_conn_core::AmConnCore;
 use crate::conn_core::buffalo::Buffalo;
 use crate::conn_core::connect_params::ConnectParams;
 use crate::conn_core::initial_request;
 use crate::conn_core::session_state::SessionState;
+use crate::protocol::argument::Argument;
 use crate::protocol::part::Part;
+use crate::protocol::part::Parts;
+use crate::protocol::partkind::PartKind;
 use crate::protocol::parts::client_info::ClientInfo;
 use crate::protocol::parts::connect_options::ConnectOptions;
+use crate::protocol::parts::execution_result::ExecutionResult;
 use crate::protocol::parts::parameter_descriptor::ParameterDescriptor;
 use crate::protocol::parts::resultset::ResultSet;
 use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
-use crate::protocol::parts::server_error::ServerError;
+use crate::protocol::parts::server_error::{ServerError, Severity};
 use crate::protocol::parts::statement_context::StatementContext;
 use crate::protocol::parts::topology::Topology;
 use crate::protocol::parts::transactionflags::TransactionFlags;
 use crate::protocol::reply::parse_message_and_sequence_header;
 use crate::protocol::reply::Reply;
-use crate::protocol::reply_type::ReplyType;
 use crate::protocol::request::Request;
 use crate::protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
 use crate::{HdbError, HdbResult};
 use std::cell::RefCell;
 use std::io;
 use std::mem;
-use std::sync::{Arc, Mutex};
-
-pub(crate) type AmConnCore = Arc<Mutex<ConnectionCore>>;
 
 pub const DEFAULT_FETCH_SIZE: u32 = 32;
 pub const DEFAULT_LOB_READ_LENGTH: i32 = 1_000_000;
@@ -50,12 +51,11 @@ pub(crate) struct ConnectionCore {
 }
 
 impl<'a> ConnectionCore {
-    pub fn initialize(params: ConnectParams) -> HdbResult<AmConnCore> {
+    pub fn try_new(params: ConnectParams) -> HdbResult<ConnectionCore> {
         let mut buffalo = Buffalo::try_new(params)?;
-
         initial_request::send_and_receive(&mut buffalo)?;
 
-        Ok(Arc::new(Mutex::new(ConnectionCore {
+        Ok(ConnectionCore {
             authenticated: false,
             session_id: 0,
             seq_number: 0,
@@ -72,7 +72,7 @@ impl<'a> ConnectionCore {
             topology: None,
             warnings: Vec::<ServerError>::new(),
             buffalo,
-        })))
+        })
     }
 
     pub fn set_application_version(&mut self, version: &str) -> HdbResult<()> {
@@ -251,33 +251,108 @@ impl<'a> ConnectionCore {
         o_rs_md: Option<&ResultSetMetadata>,
         o_par_md: Option<&Vec<ParameterDescriptor>>,
         o_rs: &mut Option<&mut ResultSet>,
-        expected_reply_type: Option<ReplyType>,
     ) -> HdbResult<Reply> {
-        let request_type = request.request_type.clone();
         let auto_commit_flag: i8 = if self.is_auto_commit() { 1 } else { 0 };
         let nsn = self.next_seq_number();
         {
             let writer = &mut *(self.writer().borrow_mut());
             request.serialize(self.session_id(), nsn, auto_commit_flag, writer)?;
         }
-        {
+        let mut reply = {
             let rdr = &mut *(self.reader().borrow_mut());
+            Reply::parse(o_rs_md, o_par_md, o_rs, am_conn_core, rdr)?
+        };
+        self.handle_db_error(&mut reply.parts)?;
+        Ok(reply)
+    }
 
-            let reply = Reply::parse(
-                o_rs_md,
-                o_par_md,
-                o_rs,
-                am_conn_core,
-                expected_reply_type,
-                rdr,
-            )?;
-            trace!(
-                "ConnectionCore::roundtrip(): sent request type {:?}, got reply type {:?}",
-                request_type,
-                reply.replytype
-            );
+    fn handle_db_error(&mut self, parts: &mut Parts) -> HdbResult<()> {
+        self.warnings.clear();
 
-            Ok(reply)
+        // Retrieve errors from returned parts
+        let mut errors = {
+            let opt_error_part = parts.extract_first_part_of_type(PartKind::Error);
+            match opt_error_part {
+                None => {
+                    // No error part found, reply evaluation happens elsewhere
+                    return Ok(());
+                }
+                Some(error_part) => {
+                    let (_, argument) = error_part.into_elements();
+                    if let Argument::Error(server_errors) = argument {
+                        // filter out warnings and add them to conn_core
+                        let errors: Vec<ServerError> = server_errors
+                            .into_iter()
+                            .filter_map(|se| match se.severity() {
+                                Severity::Warning => {
+                                    self.warnings.push(se);
+                                    None
+                                }
+                                _ => Some(se),
+                            })
+                            .collect();
+                        if errors.is_empty() {
+                            // Only warnings, so return Ok(())
+                            return Ok(());
+                        } else {
+                            errors
+                        }
+                    } else {
+                        unreachable!("129837938423")
+                    }
+                }
+            }
+        };
+
+        // Evaluate the other parts
+        let mut opt_rows_affected = None;
+        parts.reverse(); // digest with pop
+        while let Some(part) = parts.pop() {
+            let (kind, arg) = part.into_elements();
+            match arg {
+                Argument::StatementContext(ref stmt_ctx) => {
+                    self.evaluate_statement_context(stmt_ctx)?;
+                }
+                Argument::TransactionFlags(ta_flags) => {
+                    self.evaluate_ta_flags(ta_flags)?;
+                }
+                Argument::ExecutionResult(vec) => {
+                    opt_rows_affected = Some(vec);
+                }
+                arg => warn!(
+                    "Reply::handle_db_error(): ignoring unexpected part of kind {:?}, arg = {:?}",
+                    kind, arg
+                ),
+            }
+        }
+
+        match opt_rows_affected {
+            Some(rows_affected) => {
+                // mix errors into rows_affected
+                let mut err_iter = errors.into_iter();
+                let mut rows_affected = rows_affected
+                    .into_iter()
+                    .map(|ra| match ra {
+                        ExecutionResult::Failure(_) => ExecutionResult::Failure(err_iter.next()),
+                        _ => ra,
+                    })
+                    .collect::<Vec<ExecutionResult>>();
+                for e in err_iter {
+                    warn!(
+                        "Reply::handle_db_error(): \
+                         found more errors than instances of ExecutionResult::Failure"
+                    );
+                    rows_affected.push(ExecutionResult::Failure(Some(e)));
+                }
+                Err(HdbError::MixedResults(rows_affected))
+            }
+            None => {
+                if errors.len() == 1 {
+                    Err(HdbError::DbError(errors.remove(0)))
+                } else {
+                    unreachable!("hopefully...")
+                }
+            }
         }
     }
 

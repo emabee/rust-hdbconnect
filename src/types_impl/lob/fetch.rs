@@ -44,8 +44,8 @@ pub(crate) fn fetch_a_lob_chunk(
                 length_to_read
             );
 
-            let mut reply =
-                request.send_and_get_reply_simplified(am_conn_core, Some(ReplyType::ReadLob))?;
+            let mut reply = am_conn_core.send(request)?;
+            reply.assert_expected_reply_type(&ReplyType::ReadLob)?;
 
             let (reply_data, reply_is_last_data) =
                 match reply.parts.pop_arg_if_kind(PartKind::ReadLobReply) {

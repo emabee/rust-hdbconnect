@@ -46,7 +46,7 @@ impl ResultSetCore {
         resultset_id: u64,
     ) -> Arc<Mutex<ResultSetCore>> {
         Arc::new(Mutex::new(ResultSetCore {
-            o_am_conn_core: Some(Arc::clone(am_conn_core)),
+            o_am_conn_core: Some(am_conn_core.clone()),
             attributes,
             resultset_id,
         }))
@@ -65,7 +65,7 @@ impl ResultSetCore {
                     ));
 
                     if let Ok(mut reply) =
-                        conn_guard.roundtrip(request, conn_core, None, None, &mut None, None)
+                        conn_guard.roundtrip(request, conn_core, None, None, &mut None)
                     {
                         let _ = reply.parts.pop_arg_if_kind(PartKind::StatementContext);
                         for part in &reply.parts {
@@ -147,7 +147,7 @@ impl ResultSet {
             let guard = self.core_ref.lock()?;
             let rs_core = &*guard;
             let conn_core = match rs_core.o_am_conn_core {
-                Some(ref cr) => Arc::clone(cr),
+                Some(ref am_conn_core) => am_conn_core.clone(),
                 None => {
                     return Err(HdbError::impl_("Fetch no more possible"));
                 }
@@ -172,13 +172,8 @@ impl ResultSet {
             Argument::FetchSize(fetch_size),
         ));
 
-        let mut reply = request.send_and_get_reply(
-            None,
-            None,
-            &mut Some(self),
-            &mut conn_core,
-            Some(ReplyType::Fetch),
-        )?;
+        let mut reply = conn_core.full_send(request, None, None, &mut Some(self))?;
+        reply.assert_expected_reply_type(&ReplyType::Fetch)?;
         reply.parts.pop_arg_if_kind(PartKind::ResultSet);
 
         let mut guard = self.core_ref.lock()?;
