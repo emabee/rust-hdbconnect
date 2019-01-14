@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.12.1]  2019-01-14
+
+Code maintenance.
+
+(Non-functional: temporarily remove version-sync.)
+
+## [0.12.0]  2018-12-14
+
+Expose Connection.get_id().
+
+Code maintenance.
+
+Remove usage of #[doc(hidden)] -> version bump.
+
 ## [0.11.1]  2018-12-14
 
 Move to edition 2018.

@@ -16,7 +16,7 @@ pub fn test_030_prepare() -> HdbResult<()> {
     prepare_insert_statement(&mut log_handle, &mut connection)?;
     prepare_statement_use_parameter_row(&mut log_handle, &mut connection)?;
     prepare_multiple_errors(&mut log_handle, &mut connection)?;
-
+    prepare_select(&mut log_handle, &mut connection)?;
     info!("{} calls to DB were executed", connection.get_call_count()?);
     Ok(())
 }
@@ -190,5 +190,19 @@ fn prepare_multiple_errors(
         }
         _ => assert!(false, "bad err"),
     }
+    Ok(())
+}
+
+fn prepare_select(
+    _log_handle: &mut ReconfigurationHandle,
+    connection: &mut Connection,
+) -> HdbResult<()> {
+    info!("test preparing a select statement");
+    let stmt_str = "select sum(F2_I) from TEST_PREPARE where F2_I > ?";
+    let mut stmt = connection.prepare(stmt_str)?;
+    stmt.add_batch(&(45_i32))?;
+    let resultset = stmt.execute_batch()?.into_resultset()?;
+    let sum_of_big_values: i64 = resultset.try_into()?;
+    assert_eq!(sum_of_big_values, 286_i64);
     Ok(())
 }

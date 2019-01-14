@@ -1,6 +1,6 @@
 //! Code examples for the usage of this database driver.
 //!
-//! <b>1. Database connections</b>
+//! # 1. Database connections
 //!
 //! Establish an authenticated connection to the database server
 //! (see also [`ConnectParams`](../struct.ConnectParams.html)):
@@ -15,7 +15,9 @@
 //! # }
 //! ```
 //!
-//! <b>2. Queries and other database calls</b>
+//! # 2. Queries and other database calls
+//!
+//! ## 2.1 Generic method: Connection.statement() and HdbResponse()
 //!
 //! The most generic way to fire SQL statements without preparation is using
 //! `Connection::statement()`.
@@ -57,6 +59,8 @@
 //! You can do the same of course with `HdbResponse`s obtained from the execution
 //! of prepared statements.
 //!
+//! ## 2.2 More specific methods with tailored return values
+//!
 //! In many cases it will be more appropriate and convenient to use one of the
 //! specialized methods
 //!
@@ -76,6 +80,8 @@
 //! # Ok(())
 //! # }
 //! ```
+//!
+//! ## 2.3 Prepared statements
 //!
 //! With prepared statements, the code will look like this:
 //!
@@ -103,12 +109,14 @@
 //! let stmt_str = "select NAME, CITY from TEST_TABLE where age > ?";
 //! let mut stmt = connection.prepare(stmt_str)?;
 //! stmt.add_batch(&(45_i32))?;
-//! let resultset = stmt.execute_batch()?;
+//! let resultset = stmt.execute_batch()?.into_resultset()?;
 //! # Ok(())
 //! # }
 //! ```
 //!
-//! <b>3. Resultset evaluation</b>
+//! # 3. Resultset evaluation
+//!
+//! # 3.1 Iterating over rows
 //!
 //! Evaluating a resultset by iterating over the rows explicitly is possible, of course.
 //! Note that the row iterator returns `HdbResult<Row>`, not `Row`,
@@ -137,6 +145,8 @@
 //! let key_figure = resultset.into_iter()?.map(|r|{r?}).filter(...).fold(...);
 //! ```
 //!
+//! # 3.2 Explicitly evaluating a single row
+//!
 //! You _can_ retrieve the field values of a row  individually, in arbitrary order.
 //! `hdbconnect::Row` provides for this a single
 //! method that is generalized by its return value,
@@ -144,7 +154,6 @@
 //!
 //! ```rust,no_run
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams, Row};
-//! use chrono::NaiveDateTime;
 //! # fn main() { }
 //! # fn foo() -> HdbResult<()> {
 //! # let params = "hdbsql://my_user:my_passwd@the_host:2222".into_connect_params()?;
@@ -154,7 +163,7 @@
 //! for row in resultset {
 //!     let mut row:Row = row?;
 //! # #[allow(unused_variables)]
-//!     let f4: NaiveDateTime = row.field_into(3)?;
+//!     let f4: chrono::NaiveDateTime = row.field_into(3)?;
 //! # #[allow(unused_variables)]
 //!     let f1: String = row.field_into(0)?;
 //! # #[allow(unused_variables)]
@@ -165,6 +174,8 @@
 //! # Ok(())
 //! # }
 //! ```
+//!
+//! # 3.3 Direct conversion of entire rows
 //!
 //! A usually more convenient way is to convert the complete row into a normal rust value
 //! or tuple or struct:
@@ -188,15 +199,19 @@
 //! # }
 //! ```
 //!
-//! As hdbconnect uses serde for this conversion, you need to
-//! specify the type of your target variable explicitly.
+//! As hdbconnect uses return type polymorphism for this conversion (based on `serde`),
+//! you need to specify the type of your target variable explicitly.
 //!
-//! Sometimes even more convenient is the option to convert the complete resultset in a single step.
-//! This option supports
-//! a variety of target data structures, depending on the concrete numbers of rows and columns.
+//! # 3.4 Direct conversion of entire resultsets
 //!
-//! * You can always, and __most often want to__, use a <code>Vec</code> of a struct or
-//!   tuple that matches the fields of the resultset.
+//! Even more convenient is the option to convert the complete resultset in a single step.
+//! Depending on the concrete numbers of rows and columns, this option supports
+//! a variety of target data structures.
+//!
+//! # 3.4.1 Matrix-structured resultsets
+//!
+//! You can always, and __most often want to__, use a <code>Vec</code> of a struct or
+//! tuple that matches the fields of the resultset.
 //!
 //! ```rust,no_run
 //! # use serde_derive::Deserialize;
@@ -215,9 +230,11 @@
 //! # }
 //! ```
 //!
-//! * If the resultset contains only a single line (e.g. because you specified
-//!   TOP 1 in your select, or you qualified the full primary key),
-//!   then you can choose to deserialize into a plain <code>`MyRow`</code> directly.
+//! # 3.4.2 Single-line resultsets
+//!
+//! If the resultset contains only a single line (e.g. because you specified
+//! TOP 1 in your select, or you qualified the full primary key),
+//! then you can choose to deserialize into a plain <code>`MyRow`</code> directly.
 //!
 //!   ```rust,no_run
 //!   # use serde_derive::Deserialize;
@@ -234,23 +251,27 @@
 //!   # }
 //!   ```
 //!
-//! * If the resultset contains only a single column, then you can choose to
-//!   deserialize into a <code>Vec&lt;field&gt;</code>,
-//!   where <code>field</code> is a type that matches the field of the resultset.
-//!   If a plain rust type is used, you don't even need to derive Deserialize:
+//! # 3.4.3 Single-column resultsets
+//!
+//! If the resultset contains only a single column, then you can choose to
+//! deserialize into a <code>Vec&lt;field&gt;</code>,
+//! where <code>field</code> is a type that matches the field of the resultset.
+//! If a plain rust type is used, you don't even need to derive Deserialize:
 //!
 //!   ```ignore
 //!   let result: Vec<u32> = connection.query(qry)?.try_into()?;
 //!   ```
 //!
-//! * If the resultset contains only a single value (one row with one column),
-//!   then you can also deserialize into a plain <code>field</code>:
+//! # 3.4.4 Single-value resultsets
+//!
+//! If the resultset contains only a single value (one row with one column),
+//! then you can also deserialize into a plain <code>field</code>:
 //!
 //!   ```ignore
 //!   let result: u32 = connection.query(qry)?.try_into()?;
 //!   ```
 //!
-//! <b>4. Deserialization of field values</b>
+//! # 4. Deserialization of field values
 //!
 //! The deserialization of individual values provides flexibility without data loss:
 //!
@@ -269,7 +290,7 @@
 //! violates the boundaries of the target values.
 //!
 //!
-//! <b>5. Binary Values</b>
+//! # 5. Binary Values
 //!
 //! So far, specialization support is not yet in rust stable. Without that, you  have to use
 //! [`serde_bytes::Bytes`](https://docs.serde.rs/serde_bytes/struct.Bytes.html) and
@@ -289,7 +310,7 @@
 //! ```
 //!
 //!
-//! <b>6. LOBs</b>
+//! # 6. LOBs
 //! Binary and Character LOBs can be treated like "normal" binary and String data, i.e.
 //! you can convert them with the methods described above into `ByteBuf` or String values.
 //!
@@ -300,7 +321,7 @@
 //!
 //! ```ignore
 //!     let mut resultset: hdbconnect::ResultSet = connection.query(query)?;
-//!     let mut clob: CLOB = resultset.pop_row().unwrap().field_into_clob(1)?;
+//!     let mut clob: hdbconnect::CLOB = resultset.pop_row().unwrap().field_into_clob(1)?;
 //!     io::copy(&mut clob, &mut writer)?;
 //! ```
 //!
