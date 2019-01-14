@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.12.2]  ???
+
+Version sync re-added.
+
 ## [0.12.1]  2019-01-14
 
 Code maintenance.

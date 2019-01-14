@@ -53,7 +53,5 @@ webpki = {version = "0.18", optional = true}
 serde_bytes = "0.10"
 # flexi_logger = {path = "../flexi_logger"}
 flexi_logger = "0.10"
-# Currently causes "error: failed to select a version for `lazy_static`."
-# See also tests\test_999_version_numbers.rs
-# version-sync = "0.6"
+version-sync = "0.7"
 
