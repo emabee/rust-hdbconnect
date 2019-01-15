@@ -64,7 +64,7 @@ impl Authenticator for ScramPbkdf2Sha256 {
         let mut buf = Vec::<u8>::with_capacity(3 + CLIENT_PROOF_SIZE);
         buf.write_u16::<BigEndian>(1_u16)?;
         buf.write_u8(CLIENT_PROOF_SIZE as u8)?;
-        buf.write(&client_proof)?;
+        buf.write_all(&client_proof)?;
 
         Ok(buf)
     }

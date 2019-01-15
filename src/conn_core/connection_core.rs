@@ -4,7 +4,6 @@ use crate::conn_core::connect_params::ConnectParams;
 use crate::conn_core::initial_request;
 use crate::conn_core::session_state::SessionState;
 use crate::protocol::argument::Argument;
-use crate::protocol::part::Part;
 use crate::protocol::part::Parts;
 use crate::protocol::partkind::PartKind;
 use crate::protocol::parts::client_info::ClientInfo;
@@ -17,7 +16,6 @@ use crate::protocol::parts::server_error::{ServerError, Severity};
 use crate::protocol::parts::statement_context::StatementContext;
 use crate::protocol::parts::topology::Topology;
 use crate::protocol::parts::transactionflags::TransactionFlags;
-use crate::protocol::reply::parse_message_and_sequence_header;
 use crate::protocol::reply::Reply;
 use crate::protocol::request::Request;
 use crate::protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
@@ -262,7 +260,7 @@ impl<'a> ConnectionCore {
         }
         let mut reply = {
             let rdr = &mut *(self.reader().borrow_mut());
-            Reply::parse(o_rs_md, o_par_md, o_rs, am_conn_core, rdr)?
+            Reply::parse(o_rs_md, o_par_md, o_rs, Some(am_conn_core), rdr)?
         };
         self.handle_db_error(&mut reply.parts)?;
         Ok(reply)
@@ -371,25 +369,11 @@ impl<'a> ConnectionCore {
             }
             {
                 let mut reader = self.buffalo.reader().borrow_mut();
-                match parse_message_and_sequence_header(&mut *reader) {
-                    Ok((no_of_parts, mut reply)) => {
-                        trace!(
-                            "Disconnect: response header parsed, now parsing {} parts",
-                            no_of_parts
-                        );
-                        for i in 0..no_of_parts {
-                            let part = Part::parse(
-                                &mut (reply.parts),
-                                None,
-                                None,
-                                None,
-                                &mut None,
-                                i == no_of_parts - 1,
-                                &mut *reader,
-                            )?;
+                match Reply::parse(None, None, &mut None, None, &mut *reader) {
+                    Ok(reply) => {
+                        for part in &reply.parts {
                             debug!("Drop of connection: got Part {:?}", part);
                         }
-                        trace!("Disconnect: response successfully parsed");
                     }
                     Err(e) => {
                         trace!("Disconnect: could not parse response due to {:?}", e);

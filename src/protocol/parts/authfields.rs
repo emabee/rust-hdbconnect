@@ -76,7 +76,7 @@ impl AuthField {
                 )));
             }
         }
-        w.write(&self.0)?; // B (varying) value
+        w.write_all(&self.0)?; // B (varying) value
         Ok(())
     }
 
