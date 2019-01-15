@@ -22,7 +22,6 @@ use crate::protocol::reply::Reply;
 use crate::protocol::request::Request;
 use crate::protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
 use crate::{HdbError, HdbResult};
-use std::cell::RefCell;
 use std::io::Write;
 use std::mem;
 
@@ -185,10 +184,6 @@ impl<'a> ConnectionCore {
         self.session_id
     }
 
-    fn reader(&self) -> &RefCell<std::io::BufRead> {
-        self.buffalo.reader()
-    }
-
     pub fn next_seq_number(&mut self) -> i32 {
         self.seq_number += 1;
         self.seq_number
@@ -252,24 +247,31 @@ impl<'a> ConnectionCore {
     ) -> HdbResult<Reply> {
         let auto_commit_flag: i8 = if self.is_auto_commit() { 1 } else { 0 };
         let nsn = self.next_seq_number();
-        {
-            match self.buffalo {
-                Buffalo::Plain(ref pc) => {
-                    let writer = &mut *(pc.writer()).borrow_mut();
-                    request.emit(self.session_id(), nsn, auto_commit_flag, writer)?;
-                }
-                #[cfg(feature = "tls")]
-                Buffalo::Secure(ref sc) => {
-                    let writer = &mut *(sc.writer()).borrow_mut();
-                    request.emit(self.session_id(), nsn, auto_commit_flag, writer)?;
-                }
+
+        match self.buffalo {
+            Buffalo::Plain(ref pc) => {
+                let writer = &mut *(pc.writer()).borrow_mut();
+                request.emit(self.session_id(), nsn, auto_commit_flag, writer)?;
+            }
+            #[cfg(feature = "tls")]
+            Buffalo::Secure(ref sc) => {
+                let writer = &mut *(sc.writer()).borrow_mut();
+                request.emit(self.session_id(), nsn, auto_commit_flag, writer)?;
             }
         }
 
-        let mut reply = {
-            let rdr = &mut *(self.reader().borrow_mut());
-            Reply::parse(o_rs_md, o_par_md, o_rs, am_conn_core, rdr)?
+        let mut reply = match self.buffalo {
+            Buffalo::Plain(ref pc) => {
+                let reader = &mut *(pc.reader()).borrow_mut();
+                Reply::parse(o_rs_md, o_par_md, o_rs, am_conn_core, reader)?
+            }
+            #[cfg(feature = "tls")]
+            Buffalo::Secure(ref sc) => {
+                let reader = &mut *(sc.reader()).borrow_mut();
+                Reply::parse(o_rs_md, o_par_md, o_rs, am_conn_core, reader)?
+            }
         };
+
         self.handle_db_error(&mut reply.parts)?;
         Ok(reply)
     }
@@ -379,20 +381,25 @@ impl<'a> ConnectionCore {
                     #[cfg(feature = "tls")]
                     Buffalo::Secure(ref sc) => {
                         let writer = &mut *(sc.writer()).borrow_mut();
-                        request.emit(self.session_id(), nsn, auto_commit_flag, writer)?;
+                        request.emit(self.session_id(), nsn, 0, writer)?;
                         writer.flush()?;
                     }
                 }
                 trace!("Disconnect: request successfully sent");
             }
             {
-                let mut reader = self.buffalo.reader().borrow_mut();
-                match parse_message_and_sequence_header(&mut *reader) {
+                match match self.buffalo {
+                    Buffalo::Plain(ref pc) => {
+                        let reader = &mut *(pc.reader()).borrow_mut();
+                        Reply::parse(reader)
+                    }
+                    #[cfg(feature = "tls")]
+                    Buffalo::Secure(ref sc) => {
+                        let reader = &mut *(sc.reader()).borrow_mut();
+                        parse_message_and_sequence_header(reader)
+                    }
+                } {
                     Ok((no_of_parts, mut reply)) => {
-                        trace!(
-                            "Disconnect: response header parsed, now parsing {} parts",
-                            no_of_parts
-                        );
                         for i in 0..no_of_parts {
                             let part = Part::parse(
                                 &mut (reply.parts),
@@ -405,7 +412,6 @@ impl<'a> ConnectionCore {
                             )?;
                             debug!("Drop of connection: got Part {:?}", part);
                         }
-                        trace!("Disconnect: response successfully parsed");
                     }
                     Err(e) => {
                         trace!("Disconnect: could not parse response due to {:?}", e);

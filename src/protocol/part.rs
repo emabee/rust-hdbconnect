@@ -68,14 +68,14 @@ impl<'a> Part<'a> {
         Ok(result)
     }
 
-    pub fn parse(
+    pub fn parse<T: io::BufRead>(
         already_received_parts: &mut Parts,
         o_am_conn_core: Option<&AmConnCore>,
         rs_md: Option<&ResultSetMetadata>,
         par_md: Option<&Vec<ParameterDescriptor>>,
         o_rs: &mut Option<&mut ResultSet>,
         last: bool,
-        rdr: &mut io::BufRead,
+        rdr: &mut T,
     ) -> HdbResult<Part<'a>> {
         trace!("Entering parse()");
         let (kind, attributes, arg_size, no_of_args) = parse_part_header(rdr)?;

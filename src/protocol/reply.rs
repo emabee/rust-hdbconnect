@@ -41,12 +41,12 @@ impl Reply {
     // * `ResultSet` needs to be injected (and is extended and returned)
     //    in case of fetch requests
     #[allow(clippy::let_and_return)]
-    pub fn parse(
+    pub fn parse<T: io::BufRead>(
         o_rs_md: Option<&ResultSetMetadata>,
         o_par_md: Option<&Vec<ParameterDescriptor>>,
         o_rs: &mut Option<&mut ResultSet>,
         am_conn_core: &AmConnCore,
-        rdr: &mut io::BufRead,
+        rdr: &mut T,
     ) -> HdbResult<Reply> {
         trace!("Reply::parse()");
         let reply = Reply::parse_impl(o_rs_md, o_par_md, o_rs, am_conn_core, rdr)?;
@@ -77,12 +77,12 @@ impl Reply {
         Ok(reply)
     }
 
-    fn parse_impl(
+    fn parse_impl<T: io::BufRead>(
         o_rs_md: Option<&ResultSetMetadata>,
         o_par_md: Option<&Vec<ParameterDescriptor>>,
         o_rs: &mut Option<&mut ResultSet>,
         am_conn_core: &AmConnCore,
-        rdr: &mut io::BufRead,
+        rdr: &mut T,
     ) -> HdbResult<Reply> {
         let (no_of_parts, mut reply) = parse_message_and_sequence_header(rdr)?;
         trace!("Reply::parse(): parsed the header");
@@ -233,7 +233,9 @@ impl Drop for Reply {
 }
 
 ///
-pub(crate) fn parse_message_and_sequence_header(rdr: &mut io::BufRead) -> HdbResult<(i16, Reply)> {
+pub(crate) fn parse_message_and_sequence_header<T: io::BufRead>(
+    rdr: &mut T,
+) -> HdbResult<(i16, Reply)> {
     // MESSAGE HEADER: 32 bytes
     let session_id: i64 = rdr.read_i64::<LittleEndian>()?; // I8
     let packet_seq_number: i32 = rdr.read_i32::<LittleEndian>()?; // I4

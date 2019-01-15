@@ -35,10 +35,10 @@ impl OutputParameters {
             .ok_or_else(|| HdbError::usage_("wrong index: no such parameter"))
     }
 
-    pub(crate) fn parse(
+    pub(crate) fn parse<T: std::io::BufRead>(
         o_am_conn_core: Option<&AmConnCore>,
         par_md: &[ParameterDescriptor],
-        rdr: &mut std::io::BufRead,
+        rdr: &mut T,
     ) -> HdbResult<OutputParameters> {
         trace!("OutputParameters::parse()");
         let am_conn_core = o_am_conn_core.ok_or_else(|| {

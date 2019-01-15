@@ -20,7 +20,7 @@ impl ReadLobReply {
 }
 
 impl ReadLobReply {
-    pub fn parse(rdr: &mut BufRead) -> HdbResult<ReadLobReply> {
+    pub fn parse<T: BufRead>(rdr: &mut T) -> HdbResult<ReadLobReply> {
         let locator_id = rdr.read_u64::<LittleEndian>()?; // I8
         let options = rdr.read_u8()?; // I1
         let is_last_data = (options & 0b_100_u8) != 0;

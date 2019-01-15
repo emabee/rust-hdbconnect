@@ -51,7 +51,7 @@ impl OptionValue {
         }
     }
 
-    pub fn parse(rdr: &mut io::BufRead) -> HdbResult<OptionValue> {
+    pub fn parse<T: io::BufRead>(rdr: &mut T) -> HdbResult<OptionValue> {
         let value_type = rdr.read_u8()?; // U1
         OptionValue::parse_value(value_type, rdr)
     }

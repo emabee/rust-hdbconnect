@@ -183,7 +183,7 @@ impl<'a> Argument<'a> {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn parse(
+    pub(crate) fn parse<T: io::BufRead>(
         kind: PartKind,
         attributes: PartAttributes,
         no_of_args: i32,
@@ -192,7 +192,7 @@ impl<'a> Argument<'a> {
         o_rs_md: Option<&ResultSetMetadata>,
         o_par_md: Option<&Vec<ParameterDescriptor>>,
         o_rs: &mut Option<&mut ResultSet>,
-        rdr: &mut io::BufRead,
+        rdr: &mut T,
     ) -> HdbResult<Argument<'a>> {
         trace!("Entering parse(no_of_args={}, kind={:?})", no_of_args, kind);
 

@@ -10,7 +10,7 @@ impl AuthFields {
     pub fn with_capacity(count: usize) -> AuthFields {
         AuthFields(Vec::<AuthField>::with_capacity(count))
     }
-    pub fn parse(rdr: &mut io::BufRead) -> HdbResult<AuthFields> {
+    pub fn parse<T: io::BufRead>(rdr: &mut T) -> HdbResult<AuthFields> {
         let field_count = rdr.read_i16::<LittleEndian>()? as usize; // I2
         let mut auth_fields: AuthFields = AuthFields(Vec::<AuthField>::with_capacity(field_count));
         for _ in 0..field_count {
@@ -84,7 +84,7 @@ impl AuthField {
         1 + self.0.len()
     }
 
-    fn parse(rdr: &mut io::BufRead) -> HdbResult<AuthField> {
+    fn parse<T: io::BufRead>(rdr: &mut T) -> HdbResult<AuthField> {
         let mut len = rdr.read_u8()? as usize; // B1
         match len {
             255 => {

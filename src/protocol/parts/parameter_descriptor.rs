@@ -79,9 +79,9 @@ impl ParameterDescriptor {
         self.name.as_ref()
     }
 
-    pub(crate) fn parse(
+    pub(crate) fn parse<T: std::io::BufRead>(
         count: i32,
-        rdr: &mut std::io::BufRead,
+        rdr: &mut T,
     ) -> HdbResult<Vec<ParameterDescriptor>> {
         let mut vec_pd = Vec::<ParameterDescriptor>::new();
         let mut name_offsets = Vec::<u32>::new();

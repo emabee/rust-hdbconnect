@@ -55,7 +55,7 @@ impl<T: OptionId<T> + Eq + PartialEq + Hash> OptionPart<T> {
         Ok(())
     }
 
-    pub fn parse(count: i32, rdr: &mut io::BufRead) -> HdbResult<OptionPart<T>> {
+    pub fn parse<R: io::BufRead>(count: i32, rdr: &mut R) -> HdbResult<OptionPart<T>> {
         let mut result = OptionPart::default();
         for _ in 0..count {
             let id = T::from_u8(rdr.read_u8()?);

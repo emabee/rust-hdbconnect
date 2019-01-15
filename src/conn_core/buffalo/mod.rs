@@ -9,7 +9,6 @@ use crate::conn_core::buffalo::plain_connection::PlainConnection;
 use crate::conn_core::buffalo::tls_connection::TlsConnection;
 use crate::conn_core::connect_params::ConnectParams;
 use chrono::Local;
-use std::cell::RefCell;
 use std::io;
 
 /// A buffered tcp connection, with or without TLS.
@@ -54,24 +53,6 @@ impl Buffalo {
                 .unwrap_or(-1)
         );
         Ok(buffalo)
-    }
-
-    /// Provides access to the writer half.
-    pub fn writer(&self) -> &RefCell<io::Write> {
-        match self {
-            Buffalo::Plain(pc) => pc.writer(),
-            #[cfg(feature = "tls")]
-            Buffalo::Secure(sc) => sc.writer(),
-        }
-    }
-
-    /// Provides access to the reader half.
-    pub fn reader(&self) -> &RefCell<io::BufRead> {
-        match self {
-            Buffalo::Plain(pc) => pc.reader(),
-            #[cfg(feature = "tls")]
-            Buffalo::Secure(sc) => sc.reader(),
-        }
     }
 
     /// Returns a descriptor of the chosen type

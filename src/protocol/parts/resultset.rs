@@ -310,14 +310,14 @@ impl ResultSet {
     // For first resultset packets, we create and return a new ResultSet object.
     // We then expect the previous three parts to be
     // a matching ResultSetMetadata, a ResultSetId, and a StatementContext.
-    pub(crate) fn parse(
+    pub(crate) fn parse<T: std::io::BufRead>(
         no_of_rows: i32,
         attributes: PartAttributes,
         parts: &mut Parts,
         am_conn_core: &AmConnCore,
         rs_md: Option<&ResultSetMetadata>,
         o_rs: &mut Option<&mut ResultSet>,
-        rdr: &mut std::io::BufRead,
+        rdr: &mut T,
     ) -> HdbResult<Option<ResultSet>> {
         match *o_rs {
             None => {

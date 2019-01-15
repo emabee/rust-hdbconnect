@@ -25,7 +25,7 @@ impl PlainConnection {
         &self.writer
     }
 
-    pub fn reader(&self) -> &RefCell<io::BufRead> {
+    pub fn reader(&self) -> &RefCell<io::BufReader<TcpStream>> {
         &self.reader
     }
 

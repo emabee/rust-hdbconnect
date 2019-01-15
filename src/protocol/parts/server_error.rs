@@ -101,7 +101,10 @@ impl ServerError {
         }
     }
 
-    pub(crate) fn parse(no_of_args: i32, rdr: &mut io::BufRead) -> HdbResult<Vec<ServerError>> {
+    pub(crate) fn parse<T: io::BufRead>(
+        no_of_args: i32,
+        rdr: &mut T,
+    ) -> HdbResult<Vec<ServerError>> {
         let mut server_errors = Vec::<ServerError>::new();
         for _i in 0..no_of_args {
             let code = rdr.read_i32::<LittleEndian>()?; // I4

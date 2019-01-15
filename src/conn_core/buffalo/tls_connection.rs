@@ -33,11 +33,11 @@ impl TlsConnection {
         Ok(())
     }
 
-    pub fn writer(&self) -> &RefCell<io::Write> {
+    pub fn writer(&self) -> &RefCell<io::BufWriter<TlsStream>> {
         &self.writer
     }
 
-    pub fn reader(&self) -> &RefCell<io::BufRead> {
+    pub fn reader(&self) -> &RefCell<io::BufReader<TlsStream>> {
         &self.reader
     }
 }
