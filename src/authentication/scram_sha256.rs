@@ -1,12 +1,12 @@
 use super::authenticator::Authenticator;
 use super::crypto_util::scram_sha256;
 use crate::protocol::parts::authfields::AuthFields;
-use crate::protocol::util;
 use crate::{HdbError, HdbResult};
 use byteorder::{BigEndian, WriteBytesExt};
 use rand::{thread_rng, RngCore};
 use secstr::SecStr;
 use std::io;
+use std::io::Write;
 
 const CLIENT_PROOF_SIZE: usize = 32;
 
@@ -47,14 +47,12 @@ impl Authenticator for ScramSha256 {
         self.client_challenge.clear();
         self.server_proof = Some(server_proof);
 
-        let buf = Vec::<u8>::with_capacity(3 + CLIENT_PROOF_SIZE);
-        let mut w = io::Cursor::new(buf);
-        w.write_u16::<BigEndian>(1_u16)?;
+        let mut buf = Vec::<u8>::with_capacity(3 + CLIENT_PROOF_SIZE);
+        buf.write_u16::<BigEndian>(1_u16)?;
+        buf.write_u8(CLIENT_PROOF_SIZE as u8)?;
+        buf.write(&client_proof)?;
 
-        w.write_u8(CLIENT_PROOF_SIZE as u8)?;
-        util::serialize_bytes(&client_proof, &mut w)?;
-
-        Ok(w.into_inner())
+        Ok(buf)
     }
 
     fn verify_server(&self, server_proof: &[u8]) -> HdbResult<()> {

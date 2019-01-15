@@ -1,5 +1,4 @@
 use super::hdb_value::HdbValue;
-use crate::protocol::util;
 use crate::HdbResult;
 
 use std::io;
@@ -33,7 +32,7 @@ impl ParameterRow {
         for value in &(self.0) {
             match *value {
                 HdbValue::BLOB(ref blob) | HdbValue::N_BLOB(Some(ref blob)) => {
-                    util::serialize_bytes(blob.ref_to_bytes()?, w)?
+                    w.write(blob.ref_to_bytes()?)?;
                 }
                 _ => {}
             }

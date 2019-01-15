@@ -1,5 +1,5 @@
 use crate::HdbResult;
-use byteorder::{ReadBytesExt, WriteBytesExt};
+use byteorder::{ReadBytesExt};
 use cesu8;
 use std::io;
 use std::iter::repeat;
@@ -12,14 +12,6 @@ pub fn parse_bytes(len: usize, rdr: &mut io::BufRead) -> HdbResult<Vec<u8>> {
         rdr.read_exact(rf)?;
     }
     Ok(vec)
-}
-
-/// Write a byte vec to a Write impl
-pub fn serialize_bytes(v: &[u8], w: &mut io::Write) -> HdbResult<()> {
-    for b in v {
-        w.write_u8(*b)?;
-    }
-    Ok(())
 }
 
 pub fn skip_bytes(n: usize, rdr: &mut io::BufRead) -> HdbResult<()> {

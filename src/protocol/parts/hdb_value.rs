@@ -805,7 +805,8 @@ fn serialize_length_and_bytes(v: &[u8], w: &mut std::io::Write) -> HdbResult<()>
             w.write_i32::<LittleEndian>(l as i32)?; // I4           LENGTH OF VALUE
         }
     }
-    util::serialize_bytes(v, w) // B variable   VALUE BYTES
+    w.write(v)?; // B variable   VALUE BYTES
+    Ok(())
 }
 
 impl fmt::Display for HdbValue {
