@@ -76,7 +76,8 @@ impl AuthField {
                 )));
             }
         }
-        util::serialize_bytes(&self.0, w) // B (varying) value
+        w.write(&self.0)?; // B (varying) value
+        Ok(())
     }
 
     fn size(&self) -> usize {

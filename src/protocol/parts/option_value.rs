@@ -78,7 +78,8 @@ fn serialize_length_and_string(s: &str, w: &mut io::Write) -> HdbResult<()> {
 
 fn serialize_length_and_bytes(v: &[u8], w: &mut io::Write) -> HdbResult<()> {
     w.write_i16::<LittleEndian>(v.len() as i16)?; // I2: length of value
-    util::serialize_bytes(v, w) // B (varying)
+    w.write(v)?; // B (varying)
+    Ok(())
 }
 
 fn parse_length_and_string(rdr: &mut io::BufRead) -> HdbResult<String> {
