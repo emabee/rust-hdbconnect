@@ -38,10 +38,10 @@ impl AuthFields {
         size
     }
 
-    pub fn serialize(&self, w: &mut io::Write) -> HdbResult<()> {
+    pub fn emit<T: io::Write>(&self, w: &mut T) -> HdbResult<()> {
         w.write_i16::<LittleEndian>(self.0.len() as i16)?;
         for field in &self.0 {
-            field.serialize(w)?;
+            field.emit(w)?;
         }
         Ok(())
     }
@@ -62,7 +62,7 @@ impl AuthField {
         self.0.to_vec()
     }
 
-    fn serialize(&self, w: &mut io::Write) -> HdbResult<()> {
+    fn emit<T: io::Write>(&self, w: &mut T) -> HdbResult<()> {
         match self.0.len() {
             l if l <= 250_usize => w.write_u8(l as u8)?, // B1: length of value
             l if l <= 65_535_usize => {

@@ -1,4 +1,4 @@
-use super::hdb_value::{serialize_length_and_string, string_length};
+use super::hdb_value::{emit_length_and_string, string_length};
 
 use crate::HdbResult;
 
@@ -50,10 +50,10 @@ impl ClientInfo {
         self.set(ClientInfoKey::DriverVersion, driver_version);
     }
 
-    pub fn serialize(&self, w: &mut io::Write) -> HdbResult<()> {
+    pub fn emit<T: io::Write>(&self, w: &mut T) -> HdbResult<()> {
         for (key, value) in &self.0 {
-            serialize_length_and_string(key.get_string(), w)?;
-            serialize_length_and_string(value, w)?;
+            emit_length_and_string(key.get_string(), w)?;
+            emit_length_and_string(value, w)?;
         }
         Ok(())
     }

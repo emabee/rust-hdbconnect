@@ -47,10 +47,10 @@ impl<T: OptionId<T> + Eq + PartialEq + Hash> OptionPart<T> {
         self.0.iter()
     }
 
-    pub fn serialize(&self, w: &mut io::Write) -> HdbResult<()> {
+    pub fn emit<W: io::Write>(&self, w: &mut W) -> HdbResult<()> {
         for (id, value) in &self.0 {
             w.write_u8(id.to_u8())?;
-            value.serialize(w)?;
+            value.emit(w)?;
         }
         Ok(())
     }

@@ -16,8 +16,8 @@ impl ReadLobRequest {
             length_to_read,
         }
     }
-    pub fn serialize(&self, w: &mut io::Write) -> HdbResult<()> {
-        trace!("read_lob_request::serialize() {:?}", self);
+    pub fn emit<T: io::Write>(&self, w: &mut T) -> HdbResult<()> {
+        trace!("read_lob_request::emit() {:?}", self);
         w.write_u64::<LittleEndian>(self.locator_id)?;
         w.write_u64::<LittleEndian>(self.offset)?;
         w.write_i32::<LittleEndian>(self.length_to_read)?;

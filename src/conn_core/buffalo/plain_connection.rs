@@ -21,7 +21,7 @@ impl PlainConnection {
         })
     }
 
-    pub fn writer(&self) -> &RefCell<io::Write> {
+    pub fn writer(&self) -> &RefCell<io::BufWriter<TcpStream>> {
         &self.writer
     }
 

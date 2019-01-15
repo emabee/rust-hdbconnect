@@ -143,7 +143,7 @@ pub fn parse_nullable_decimal(rdr: &mut io::BufRead) -> HdbResult<Option<BigDeci
     }
 }
 
-pub fn serialize_decimal(bd: &BigDecimal, w: &mut io::Write) -> HdbResult<()> {
+pub fn emit_decimal(bd: &BigDecimal, w: &mut io::Write) -> HdbResult<()> {
     let hdb_decimal = HdbDecimal::from_bigdecimal(bd)?;
     w.write_all(&hdb_decimal.raw)?;
     Ok(())

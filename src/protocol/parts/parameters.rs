@@ -21,14 +21,14 @@ impl ParameterRow {
         Ok(size)
     }
 
-    pub(crate) fn serialize(&self, w: &mut io::Write) -> HdbResult<()> {
+    pub(crate) fn emit<T: io::Write>(&self, w: &mut T) -> HdbResult<()> {
         let mut data_pos = 0_i32;
-        // serialize the values (LOBs only serialize their header, the data follow below)
+        // emit the values (LOBs only emit their header, the data follow below)
         for value in &(self.0) {
-            value.serialize(&mut data_pos, w)?;
+            value.emit(&mut data_pos, w)?;
         }
 
-        // serialize LOB data
+        // emit LOB data
         for value in &(self.0) {
             match *value {
                 HdbValue::BLOB(ref blob) | HdbValue::N_BLOB(Some(ref blob)) => {
@@ -54,9 +54,9 @@ impl Parameters {
         Parameters { rows }
     }
 
-    pub(crate) fn serialize(&self, w: &mut io::Write) -> HdbResult<()> {
+    pub(crate) fn emit<T: io::Write>(&self, w: &mut T) -> HdbResult<()> {
         for row in &self.rows {
-            row.serialize(w)?;
+            row.emit(w)?;
         }
         Ok(())
     }

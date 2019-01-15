@@ -33,7 +33,7 @@ impl<'a> Part<'a> {
         (self.kind, self.arg)
     }
 
-    pub fn serialize(&self, mut remaining_bufsize: u32, w: &mut io::Write) -> HdbResult<u32> {
+    pub fn emit<T: io::Write>(&self, mut remaining_bufsize: u32, w: &mut T) -> HdbResult<u32> {
         debug!("Serializing part of kind {:?}", self.kind);
         // PART HEADER 16 bytes
         w.write_i8(self.kind.to_i8())?;
@@ -58,7 +58,7 @@ impl<'a> Part<'a> {
 
         remaining_bufsize -= PART_HEADER_SIZE as u32;
 
-        remaining_bufsize = self.arg.serialize(remaining_bufsize, w)?;
+        remaining_bufsize = self.arg.emit(remaining_bufsize, w)?;
         Ok(remaining_bufsize)
     }
 

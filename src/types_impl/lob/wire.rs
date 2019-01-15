@@ -121,7 +121,7 @@ fn parse_lob_2(
     }
 }
 
-pub fn serialize_blob_header(v_len: usize, data_pos: &mut i32, w: &mut io::Write) -> HdbResult<()> {
+pub fn emit_blob_header(v_len: usize, data_pos: &mut i32, w: &mut io::Write) -> HdbResult<()> {
     // bit 0: not used; bit 1: data is included; bit 2: no more data remaining
     w.write_u8(0b_110_u8)?; // I1           Bit set for options
     w.write_i32::<LittleEndian>(v_len as i32)?; // I4           LENGTH OF VALUE
@@ -130,7 +130,7 @@ pub fn serialize_blob_header(v_len: usize, data_pos: &mut i32, w: &mut io::Write
     Ok(())
 }
 
-pub fn serialize_clob_header(s_len: usize, data_pos: &mut i32, w: &mut io::Write) -> HdbResult<()> {
+pub fn emit_clob_header(s_len: usize, data_pos: &mut i32, w: &mut io::Write) -> HdbResult<()> {
     // bit 0: not used; bit 1: data is included; bit 2: no more data remaining
     w.write_u8(0b_110_u8)?; // I1           Bit set for options
     w.write_i32::<LittleEndian>(s_len as i32)?; // I4           LENGTH OF VALUE
@@ -139,11 +139,7 @@ pub fn serialize_clob_header(s_len: usize, data_pos: &mut i32, w: &mut io::Write
     Ok(())
 }
 
-pub fn serialize_nclob_header(
-    s_len: usize,
-    data_pos: &mut i32,
-    w: &mut io::Write,
-) -> HdbResult<()> {
+pub fn emit_nclob_header(s_len: usize, data_pos: &mut i32, w: &mut io::Write) -> HdbResult<()> {
     // bit 0: not used; bit 1: data is included; bit 2: no more data remaining
     w.write_u8(0b_110_u8)?; // I1           Bit set for options
     w.write_i32::<LittleEndian>(s_len as i32)?; // I4           LENGTH OF VALUE

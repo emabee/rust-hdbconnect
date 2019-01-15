@@ -3,10 +3,10 @@ use crate::protocol::parts::type_id::{BaseTypeId, TypeId};
 use crate::protocol::util;
 use crate::types::{BLob, CLob, DayDate, LongDate, NCLob, SecondDate, SecondTime};
 use crate::types_impl::daydate::{parse_daydate, parse_nullable_daydate};
-use crate::types_impl::hdb_decimal::{parse_decimal, parse_nullable_decimal, serialize_decimal};
+use crate::types_impl::hdb_decimal::{emit_decimal, parse_decimal, parse_nullable_decimal};
 use crate::types_impl::lob::{
-    parse_blob, parse_clob, parse_nclob, parse_nullable_blob, parse_nullable_clob,
-    parse_nullable_nclob, serialize_blob_header, serialize_clob_header, serialize_nclob_header,
+    emit_blob_header, emit_clob_header, emit_nclob_header, parse_blob, parse_clob, parse_nclob,
+    parse_nullable_blob, parse_nullable_clob, parse_nullable_nclob,
 };
 use crate::types_impl::longdate::{parse_longdate, parse_nullable_longdate};
 use crate::types_impl::seconddate::{parse_nullable_seconddate, parse_seconddate};
@@ -202,7 +202,7 @@ pub enum HdbValue {
 }
 
 impl HdbValue {
-    fn serialize_type_id(&self, w: &mut std::io::Write) -> HdbResult<bool> {
+    fn emit_type_id(&self, w: &mut std::io::Write) -> HdbResult<bool> {
         let is_null = match *self {
             HdbValue::N_TINYINT(None)
             | HdbValue::N_SMALLINT(None)
@@ -313,8 +313,8 @@ impl HdbValue {
         Ok(DbValue::into_typed(self)?)
     }
 
-    pub(crate) fn serialize(&self, data_pos: &mut i32, w: &mut std::io::Write) -> HdbResult<()> {
-        if !self.serialize_type_id(w)? {
+    pub(crate) fn emit<T: std::io::Write>(&self, data_pos: &mut i32, w: &mut T) -> HdbResult<()> {
+        if !self.emit_type_id(w)? {
             match *self {
                 HdbValue::TINYINT(u) | HdbValue::N_TINYINT(Some(u)) => w.write_u8(u)?,
 
@@ -323,7 +323,7 @@ impl HdbValue {
                 }
 
                 HdbValue::INT(i) | HdbValue::N_INT(Some(i)) => {
-                    // trace!("HdbValue::serialize INT: {}", i);
+                    // trace!("HdbValue::emit INT: {}", i);
                     w.write_i32::<LittleEndian>(i)?
                 }
 
@@ -334,7 +334,7 @@ impl HdbValue {
                 HdbValue::DECIMAL(ref bigdec)
                 | HdbValue::N_DECIMAL(Some(ref bigdec))
                 | HdbValue::SMALLDECIMAL(ref bigdec)
-                | HdbValue::N_SMALLDECIMAL(Some(ref bigdec)) => serialize_decimal(bigdec, w)?,
+                | HdbValue::N_SMALLDECIMAL(Some(ref bigdec)) => emit_decimal(bigdec, w)?,
 
                 HdbValue::REAL(f) | HdbValue::N_REAL(Some(f)) => w.write_f32::<LittleEndian>(f)?,
 
@@ -361,15 +361,15 @@ impl HdbValue {
                 }
 
                 HdbValue::CLOB(ref clob) | HdbValue::N_CLOB(Some(ref clob)) => {
-                    serialize_clob_header(clob.len()?, data_pos, w)?
+                    emit_clob_header(clob.len()?, data_pos, w)?
                 }
 
                 HdbValue::NCLOB(ref nclob) | HdbValue::N_NCLOB(Some(ref nclob)) => {
-                    serialize_nclob_header(nclob.len()?, data_pos, w)?
+                    emit_nclob_header(nclob.len()?, data_pos, w)?
                 }
 
                 HdbValue::BLOB(ref blob) | HdbValue::N_BLOB(Some(ref blob)) => {
-                    serialize_blob_header(blob.len_alldata(), data_pos, w)?
+                    emit_blob_header(blob.len_alldata(), data_pos, w)?
                 }
 
                 HdbValue::STRING(ref s)
@@ -379,14 +379,14 @@ impl HdbValue {
                 | HdbValue::N_STRING(Some(ref s))
                 | HdbValue::N_NSTRING(Some(ref s))
                 | HdbValue::N_TEXT(Some(ref s))
-                | HdbValue::N_SHORTTEXT(Some(ref s)) => serialize_length_and_string(s, w)?,
+                | HdbValue::N_SHORTTEXT(Some(ref s)) => emit_length_and_string(s, w)?,
 
                 HdbValue::BINARY(ref v)
                 | HdbValue::VARBINARY(ref v)
                 | HdbValue::BSTRING(ref v)
                 | HdbValue::N_BINARY(Some(ref v))
                 | HdbValue::N_VARBINARY(Some(ref v))
-                | HdbValue::N_BSTRING(Some(ref v)) => serialize_length_and_bytes(v, w)?,
+                | HdbValue::N_BSTRING(Some(ref v)) => emit_length_and_bytes(v, w)?,
 
                 HdbValue::N_TINYINT(None)
                 | HdbValue::N_SMALLINT(None)
@@ -422,7 +422,7 @@ impl HdbValue {
                 | HdbValue::NVARCHAR(_)
                 | HdbValue::N_NVARCHAR(_) => {
                     return Err(HdbError::Impl(format!(
-                        "HdbValue::serialize() not implemented for type {}",
+                        "HdbValue::emit() not implemented for type {}",
                         self
                     )))
                 }
@@ -431,7 +431,7 @@ impl HdbValue {
         Ok(())
     }
 
-    // is used to calculate the argument size (in serialize)
+    // is used to calculate the argument size (in emit)
     pub(crate) fn size(&self) -> HdbResult<usize> {
         Ok(1 + match self {
             HdbValue::BOOLEAN(_)
@@ -787,11 +787,11 @@ pub(crate) fn string_length(s: &str) -> usize {
     }
 }
 
-pub(crate) fn serialize_length_and_string(s: &str, w: &mut std::io::Write) -> HdbResult<()> {
-    serialize_length_and_bytes(&cesu8::to_cesu8(s), w)
+pub(crate) fn emit_length_and_string(s: &str, w: &mut std::io::Write) -> HdbResult<()> {
+    emit_length_and_bytes(&cesu8::to_cesu8(s), w)
 }
 
-fn serialize_length_and_bytes(v: &[u8], w: &mut std::io::Write) -> HdbResult<()> {
+fn emit_length_and_bytes(v: &[u8], w: &mut std::io::Write) -> HdbResult<()> {
     match v.len() {
         l if l <= MAX_1_BYTE_LENGTH as usize => {
             w.write_u8(l as u8)?; // B1           LENGTH OF VALUE

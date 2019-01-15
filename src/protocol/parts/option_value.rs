@@ -16,7 +16,7 @@ pub enum OptionValue {
 }
 
 impl OptionValue {
-    pub fn serialize(&self, w: &mut io::Write) -> HdbResult<()> {
+    pub fn emit<T: io::Write>(&self, w: &mut T) -> HdbResult<()> {
         w.write_u8(self.type_id())?; // I1
         match *self {
             // variable
@@ -24,8 +24,8 @@ impl OptionValue {
             OptionValue::BIGINT(i) => w.write_i64::<LittleEndian>(i)?,
             OptionValue::DOUBLE(f) => w.write_f64::<LittleEndian>(f)?,
             OptionValue::BOOLEAN(b) => w.write_u8(if b { 1 } else { 0 })?,
-            OptionValue::STRING(ref s) => serialize_length_and_string(s, w)?,
-            OptionValue::BSTRING(ref v) => serialize_length_and_bytes(v, w)?,
+            OptionValue::STRING(ref s) => emit_length_and_string(s, w)?,
+            OptionValue::BSTRING(ref v) => emit_length_and_bytes(v, w)?,
         }
         Ok(())
     }
@@ -72,11 +72,11 @@ impl OptionValue {
     }
 }
 
-fn serialize_length_and_string(s: &str, w: &mut io::Write) -> HdbResult<()> {
-    serialize_length_and_bytes(&cesu8::to_cesu8(s), w)
+fn emit_length_and_string(s: &str, w: &mut io::Write) -> HdbResult<()> {
+    emit_length_and_bytes(&cesu8::to_cesu8(s), w)
 }
 
-fn serialize_length_and_bytes(v: &[u8], w: &mut io::Write) -> HdbResult<()> {
+fn emit_length_and_bytes(v: &[u8], w: &mut io::Write) -> HdbResult<()> {
     w.write_i16::<LittleEndian>(v.len() as i16)?; // I2: length of value
     w.write(v)?; // B (varying)
     Ok(())

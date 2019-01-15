@@ -23,7 +23,7 @@ use crate::protocol::request::Request;
 use crate::protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
 use crate::{HdbError, HdbResult};
 use std::cell::RefCell;
-use std::io;
+use std::io::Write;
 use std::mem;
 
 pub const DEFAULT_FETCH_SIZE: u32 = 32;
@@ -185,12 +185,8 @@ impl<'a> ConnectionCore {
         self.session_id
     }
 
-    fn reader(&self) -> &RefCell<io::BufRead> {
+    fn reader(&self) -> &RefCell<std::io::BufRead> {
         self.buffalo.reader()
-    }
-
-    fn writer(&self) -> &RefCell<io::Write> {
-        self.buffalo.writer()
     }
 
     pub fn next_seq_number(&mut self) -> i32 {
@@ -257,9 +253,19 @@ impl<'a> ConnectionCore {
         let auto_commit_flag: i8 = if self.is_auto_commit() { 1 } else { 0 };
         let nsn = self.next_seq_number();
         {
-            let writer = &mut *(self.writer().borrow_mut());
-            request.serialize(self.session_id(), nsn, auto_commit_flag, writer)?;
+            match self.buffalo {
+                Buffalo::Plain(ref pc) => {
+                    let writer = &mut *(pc.writer()).borrow_mut();
+                    request.emit(self.session_id(), nsn, auto_commit_flag, writer)?;
+                }
+                #[cfg(feature = "tls")]
+                Buffalo::Secure(ref sc) => {
+                    let writer = &mut *(sc.writer()).borrow_mut();
+                    request.emit(self.session_id(), nsn, auto_commit_flag, writer)?;
+                }
+            }
         }
+
         let mut reply = {
             let rdr = &mut *(self.reader().borrow_mut());
             Reply::parse(o_rs_md, o_par_md, o_rs, am_conn_core, rdr)?
@@ -364,9 +370,19 @@ impl<'a> ConnectionCore {
             let request = Request::new_for_disconnect();
             {
                 let nsn = self.next_seq_number();
-                let mut writer = self.buffalo.writer().borrow_mut();
-                request.serialize(self.session_id, nsn, 0, &mut *writer)?;
-                writer.flush()?;
+                match self.buffalo {
+                    Buffalo::Plain(ref pc) => {
+                        let writer = &mut *(pc.writer()).borrow_mut();
+                        request.emit(self.session_id(), nsn, 0, writer)?;
+                        writer.flush()?;
+                    }
+                    #[cfg(feature = "tls")]
+                    Buffalo::Secure(ref sc) => {
+                        let writer = &mut *(sc.writer()).borrow_mut();
+                        request.emit(self.session_id(), nsn, auto_commit_flag, writer)?;
+                        writer.flush()?;
+                    }
+                }
                 trace!("Disconnect: request successfully sent");
             }
             {

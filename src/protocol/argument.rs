@@ -64,7 +64,7 @@ pub(crate) enum Argument<'a> {
 }
 
 impl<'a> Argument<'a> {
-    // only called on output (serialize)
+    // only called on output (emit)
     pub fn count(&self) -> HdbResult<usize> {
         Ok(match *self {
             Argument::Auth(_)
@@ -92,7 +92,7 @@ impl<'a> Argument<'a> {
         })
     }
 
-    // only called on output (serialize)
+    // only called on output (emit)
     pub fn size(&self, with_padding: bool) -> HdbResult<usize> {
         let mut size = 0usize;
         match *self {
@@ -127,44 +127,43 @@ impl<'a> Argument<'a> {
         Ok(size)
     }
 
-    /// Serialize to byte stream
-    pub fn serialize(&self, remaining_bufsize: u32, w: &mut io::Write) -> HdbResult<u32> {
+    pub fn emit<T: io::Write>(&self, remaining_bufsize: u32, w: &mut T) -> HdbResult<u32> {
         match *self {
-            Argument::Auth(ref af) => af.serialize(w)?,
-            Argument::ClientContext(ref opts) => opts.serialize(w)?,
+            Argument::Auth(ref af) => af.emit(w)?,
+            Argument::ClientContext(ref opts) => opts.emit(w)?,
             Argument::ClientInfo(ref client_info) => {
-                client_info.serialize(w)?;
+                client_info.emit(w)?;
             }
             Argument::Command(ref s) => {
                 for b in cesu8::to_cesu8(s).iter() {
                     w.write_u8(*b)?;
                 }
             }
-            Argument::CommandInfo(ref opts) => opts.serialize(w)?,
-            Argument::CommitOptions(ref opts) => opts.serialize(w)?,
-            Argument::ConnectOptions(ref conn_opts) => conn_opts.serialize(w)?,
+            Argument::CommandInfo(ref opts) => opts.emit(w)?,
+            Argument::CommitOptions(ref opts) => opts.emit(w)?,
+            Argument::ConnectOptions(ref conn_opts) => conn_opts.emit(w)?,
 
-            Argument::FetchOptions(ref opts) => opts.serialize(w)?,
+            Argument::FetchOptions(ref opts) => opts.emit(w)?,
             Argument::FetchSize(fs) => {
                 w.write_u32::<LittleEndian>(fs)?;
             }
-            Argument::LobFlags(ref opts) => opts.serialize(w)?,
+            Argument::LobFlags(ref opts) => opts.emit(w)?,
             Argument::Parameters(ref parameters) => {
-                parameters.serialize(w)?;
+                parameters.emit(w)?;
             }
-            Argument::ReadLobRequest(ref r) => r.serialize(w)?,
+            Argument::ReadLobRequest(ref r) => r.emit(w)?,
             Argument::ResultSetId(rs_id) => {
                 w.write_u64::<LittleEndian>(rs_id)?;
             }
-            Argument::SessionContext(ref opts) => opts.serialize(w)?,
+            Argument::SessionContext(ref opts) => opts.emit(w)?,
             Argument::StatementId(stmt_id) => {
                 w.write_u64::<LittleEndian>(stmt_id)?;
             }
-            Argument::StatementContext(ref sc) => sc.serialize(w)?,
-            Argument::TransactionFlags(ref taflags) => taflags.serialize(w)?,
-            Argument::XatOptions(ref xatid) => xatid.serialize(w)?,
+            Argument::StatementContext(ref sc) => sc.emit(w)?,
+            Argument::TransactionFlags(ref taflags) => taflags.emit(w)?,
+            Argument::XatOptions(ref xatid) => xatid.emit(w)?,
             ref a => {
-                return Err(HdbError::Impl(format!("serialize() called on {:?}", a)));
+                return Err(HdbError::Impl(format!("emit() called on {:?}", a)));
             }
         }
 

@@ -52,12 +52,12 @@ impl<'a> Request<'a> {
         ));
     }
 
-    pub fn serialize(
+    pub fn emit<T: io::Write>(
         self,
         session_id: i64,
         seq_number: i32,
         auto_commit_flag: i8,
-        w: &mut io::Write,
+        w: &mut T,
     ) -> HdbResult<()> {
         let varpart_size = self.varpart_size()?;
         let total_size = MESSAGE_HEADER_SIZE + varpart_size;
@@ -65,7 +65,7 @@ impl<'a> Request<'a> {
         let mut remaining_bufsize = total_size - MESSAGE_HEADER_SIZE;
 
         debug!(
-            "Request::serialize() for session_id = {}, seq_number = {}, request_type = {:?}",
+            "Request::emit() for session_id = {}, seq_number = {}, request_type = {:?}",
             session_id, seq_number, self.request_type
         );
         // MESSAGE HEADER
@@ -97,7 +97,7 @@ impl<'a> Request<'a> {
         trace!("Headers are written");
         // PARTS
         for part in &(self.parts) {
-            remaining_bufsize = part.serialize(remaining_bufsize, w)?;
+            remaining_bufsize = part.emit(remaining_bufsize, w)?;
         }
         w.flush()?;
         trace!("Parts are written");
