@@ -32,7 +32,7 @@ impl ParameterRow {
         for value in &(self.0) {
             match *value {
                 HdbValue::BLOB(ref blob) | HdbValue::N_BLOB(Some(ref blob)) => {
-                    w.write(blob.ref_to_bytes()?)?;
+                    w.write_all(blob.ref_to_bytes()?)?;
                 }
                 _ => {}
             }

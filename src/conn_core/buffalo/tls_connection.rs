@@ -16,7 +16,7 @@ impl fmt::Debug for TlsConnection {
 }
 impl TlsConnection {
     pub fn try_new(params: ConnectParams) -> io::Result<(TlsConnection)> {
-        let tlsstream = TlsStream::new(&params)?;
+        let tlsstream = TlsStream::try_new(&params)?;
         Ok(TlsConnection {
             params,
             reader: RefCell::new(io::BufReader::new(tlsstream.try_clone()?)),
@@ -26,7 +26,7 @@ impl TlsConnection {
 
     #[allow(dead_code)]
     pub fn reconnect(&self) -> io::Result<()> {
-        let tlsstream = TlsStream::new(&self.params)?;
+        let tlsstream = TlsStream::try_new(&self.params)?;
         self.reader
             .replace(io::BufReader::new(tlsstream.try_clone()?));
         self.writer.replace(io::BufWriter::new(tlsstream));

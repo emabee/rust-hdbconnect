@@ -16,7 +16,7 @@ pub struct TlsStream {
     tlssession: Arc<Mutex<ClientSession>>,
 }
 impl TlsStream {
-    pub fn new(params: &ConnectParams) -> io::Result<TlsStream> {
+    pub fn try_new(params: &ConnectParams) -> io::Result<TlsStream> {
         let (tcpstream, tlsconfig, tlssession) = connect_tcp(params)?;
         Ok(TlsStream {
             is_handshaking: true,

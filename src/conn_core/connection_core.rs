@@ -4,7 +4,6 @@ use crate::conn_core::connect_params::ConnectParams;
 use crate::conn_core::initial_request;
 use crate::conn_core::session_state::SessionState;
 use crate::protocol::argument::Argument;
-use crate::protocol::part::Part;
 use crate::protocol::part::Parts;
 use crate::protocol::partkind::PartKind;
 use crate::protocol::parts::client_info::ClientInfo;
@@ -17,7 +16,6 @@ use crate::protocol::parts::server_error::{ServerError, Severity};
 use crate::protocol::parts::statement_context::StatementContext;
 use crate::protocol::parts::topology::Topology;
 use crate::protocol::parts::transactionflags::TransactionFlags;
-use crate::protocol::reply::parse_message_and_sequence_header;
 use crate::protocol::reply::Reply;
 use crate::protocol::request::Request;
 use crate::protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
@@ -263,12 +261,12 @@ impl<'a> ConnectionCore {
         let mut reply = match self.buffalo {
             Buffalo::Plain(ref pc) => {
                 let reader = &mut *(pc.reader()).borrow_mut();
-                Reply::parse(o_rs_md, o_par_md, o_rs, am_conn_core, reader)?
+                Reply::parse(o_rs_md, o_par_md, o_rs, Some(am_conn_core), reader)?
             }
             #[cfg(feature = "tls")]
             Buffalo::Secure(ref sc) => {
                 let reader = &mut *(sc.reader()).borrow_mut();
-                Reply::parse(o_rs_md, o_par_md, o_rs, am_conn_core, reader)?
+                Reply::parse(o_rs_md, o_par_md, o_rs, Some(am_conn_core), reader)?
             }
         };
 
@@ -370,53 +368,37 @@ impl<'a> ConnectionCore {
         trace!("Drop of ConnectionCore, session_id = {}", self.session_id);
         if self.authenticated {
             let request = Request::new_for_disconnect();
-            {
-                let nsn = self.next_seq_number();
-                match self.buffalo {
-                    Buffalo::Plain(ref pc) => {
-                        let writer = &mut *(pc.writer()).borrow_mut();
-                        request.emit(self.session_id(), nsn, 0, writer)?;
-                        writer.flush()?;
-                    }
-                    #[cfg(feature = "tls")]
-                    Buffalo::Secure(ref sc) => {
-                        let writer = &mut *(sc.writer()).borrow_mut();
-                        request.emit(self.session_id(), nsn, 0, writer)?;
-                        writer.flush()?;
-                    }
+
+            let nsn = self.next_seq_number();
+            match self.buffalo {
+                Buffalo::Plain(ref pc) => {
+                    let writer = &mut *(pc.writer()).borrow_mut();
+                    request.emit(self.session_id(), nsn, 0, writer)?;
+                    writer.flush()?;
                 }
-                trace!("Disconnect: request successfully sent");
+                #[cfg(feature = "tls")]
+                Buffalo::Secure(ref sc) => {
+                    let writer = &mut *(sc.writer()).borrow_mut();
+                    request.emit(self.session_id(), nsn, 0, writer)?;
+                    writer.flush()?;
+                }
             }
-            {
-                match match self.buffalo {
-                    Buffalo::Plain(ref pc) => {
-                        let reader = &mut *(pc.reader()).borrow_mut();
-                        Reply::parse(reader)
-                    }
-                    #[cfg(feature = "tls")]
-                    Buffalo::Secure(ref sc) => {
-                        let reader = &mut *(sc.reader()).borrow_mut();
-                        parse_message_and_sequence_header(reader)
-                    }
-                } {
-                    Ok((no_of_parts, mut reply)) => {
-                        for i in 0..no_of_parts {
-                            let part = Part::parse(
-                                &mut (reply.parts),
-                                None,
-                                None,
-                                None,
-                                &mut None,
-                                i == no_of_parts - 1,
-                                &mut *reader,
-                            )?;
-                            debug!("Drop of connection: got Part {:?}", part);
-                        }
-                    }
-                    Err(e) => {
-                        trace!("Disconnect: could not parse response due to {:?}", e);
-                    }
+            trace!("Disconnect: request successfully sent");
+
+            let reply = match self.buffalo {
+                Buffalo::Plain(ref pc) => {
+                    let reader = &mut *(pc.reader()).borrow_mut();
+                    Reply::parse(None, None, &mut None, None, reader)?
                 }
+                #[cfg(feature = "tls")]
+                Buffalo::Secure(ref sc) => {
+                    let reader = &mut *(sc.reader()).borrow_mut();
+                    Reply::parse(None, None, &mut None, None, reader)?
+                }
+            };
+
+            for part in &reply.parts {
+                debug!("Drop of connection: got Part {:?}", part);
             }
         }
         Ok(())
