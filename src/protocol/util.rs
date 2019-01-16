@@ -57,7 +57,7 @@ pub fn count_1_2_3_sequence_starts(cesu8: &[u8]) -> usize {
     cesu8.iter().filter(|b| is_utf8_char_start(**b)).count()
 }
 
-pub fn to_string_and_surrogate(cesu8: &[u8]) -> HdbResult<(String, Option<[u8; 3]>)> {
+pub fn to_string_and_surrogate(cesu8: Vec<u8>) -> HdbResult<(String, Option<[u8; 3]>)> {
     let (utf8, buffer_cesu8) = to_string_and_tail(cesu8).unwrap(/* yes */);
     let surrogate_buf = match buffer_cesu8.len() {
         0 => None,
@@ -74,7 +74,7 @@ pub fn to_string_and_surrogate(cesu8: &[u8]) -> HdbResult<(String, Option<[u8; 3
     Ok((utf8, surrogate_buf))
 }
 
-pub fn to_string_and_tail(cesu8: &[u8]) -> HdbResult<(String, Vec<u8>)> {
+pub fn to_string_and_tail(mut cesu8: Vec<u8>) -> HdbResult<(String, Vec<u8>)> {
     let cesu8_length = cesu8.len();
     let start = match cesu8_length {
         0...7 => 0,
@@ -82,8 +82,8 @@ pub fn to_string_and_tail(cesu8: &[u8]) -> HdbResult<(String, Vec<u8>)> {
     };
 
     let tail_len = get_tail_len(&cesu8[start..]);
-    let (a, tail) = cesu8.split_at(cesu8_length - tail_len);
-    Ok((cesu8::from_cesu8(a)?.into_owned(), Vec::from(tail)))
+    let tail = cesu8.split_off(cesu8_length - tail_len);
+    Ok((string_from_cesu8(cesu8)?, tail))
 }
 
 fn get_tail_len(bytes: &[u8]) -> usize {
@@ -160,7 +160,7 @@ mod tests {
             let (first_cesu8, second_cesu8) = v_cesu8.split_at(i);
 
             // split the first part in valid unicode plus the tail
-            let (mut f_utf8, mut tail_cesu8) = to_string_and_tail(first_cesu8).unwrap();
+            let (mut f_utf8, mut tail_cesu8) = to_string_and_tail(first_cesu8.to_vec()).unwrap();
 
             // make sure the tail is shorter than 6
             assert!(tail_cesu8.len() < 6);

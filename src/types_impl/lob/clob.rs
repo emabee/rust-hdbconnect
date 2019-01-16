@@ -22,7 +22,7 @@ pub(crate) fn new_clob_from_db(
     length_c: u64,
     length_b: u64,
     locator_id: u64,
-    data: &[u8],
+    data: Vec<u8>,
 ) -> CLob {
     CLob(RefCell::new(CLobHandle::new(
         am_conn_core,
@@ -93,7 +93,7 @@ impl CLobHandle {
         length_c: u64,
         length_b: u64,
         locator_id: u64,
-        cesu8: &[u8],
+        cesu8: Vec<u8>,
     ) -> CLobHandle {
         let acc_byte_length = cesu8.len();
 
@@ -143,11 +143,20 @@ impl CLobHandle {
         debug!("reply_data.len() = {}", reply_data.len());
 
         self.acc_byte_length += reply_data.len();
-        self.buffer_cesu8.append(&mut reply_data);
-        let (utf8, buffer) = util::to_string_and_tail(&self.buffer_cesu8)?;
+        if self.buffer_cesu8.is_empty() {
+            let (utf8, buffer) = util::to_string_and_tail(reply_data)?;
+            self.utf8.push_str(&utf8);
+            self.buffer_cesu8 = buffer;
+        }else{
+            self.buffer_cesu8.append(&mut reply_data);
+            let mut buffer_cesu8 = vec![];
+            std::mem::swap(&mut buffer_cesu8, &mut self.buffer_cesu8);
+            let (utf8, buffer) = util::to_string_and_tail(buffer_cesu8)?;
 
-        self.utf8.push_str(&utf8);
-        self.buffer_cesu8 = buffer;
+            self.utf8.push_str(&utf8);
+            self.buffer_cesu8 = buffer;
+        }
+
         self.is_data_complete = reply_is_last_data;
         self.max_size = max(self.utf8.len() + self.buffer_cesu8.len(), self.max_size);
 

@@ -18,7 +18,7 @@ pub(crate) fn new_nclob_from_db(
     length_c: u64,
     length_b: u64,
     locator_id: u64,
-    data: &[u8],
+    data: Vec<u8>,
 ) -> NCLob {
     NCLob(RefCell::new(NCLobHandle::new(
         am_conn_core,
@@ -87,10 +87,10 @@ impl NCLobHandle {
         length_c: u64,
         length_b: u64,
         locator_id: u64,
-        cesu8: &[u8],
+        cesu8: Vec<u8>,
     ) -> NCLobHandle {
         let acc_byte_length = cesu8.len();
-        let acc_char_length = util::count_1_2_3_sequence_starts(cesu8);
+        let acc_char_length = util::count_1_2_3_sequence_starts(&cesu8);
 
         let (utf8, surrogate_buf) = util::to_string_and_surrogate(cesu8).unwrap(/* yes */);
 
@@ -147,9 +147,9 @@ impl NCLobHandle {
             Some(ref buf) => {
                 let mut temp = buf.to_vec();
                 temp.append(&mut reply_data);
-                util::to_string_and_surrogate(&temp).unwrap(/* yes */)
+                util::to_string_and_surrogate(temp).unwrap(/* yes */)
             }
-            None => util::to_string_and_surrogate(&reply_data).unwrap(/* yes */),
+            None => util::to_string_and_surrogate(reply_data).unwrap(/* yes */),
         };
 
         self.utf8.push_str(&utf8);
