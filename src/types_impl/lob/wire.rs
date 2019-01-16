@@ -60,7 +60,7 @@ pub(crate) fn parse_nullable_clob(
             length_c,
             length_b,
             locator_id,
-            &data,
+            data,
         )))
     }
 }
@@ -89,7 +89,7 @@ pub(crate) fn parse_nullable_nclob(
             length_c,
             length_b,
             locator_id,
-            &data,
+            data,
         )))
     }
 }
