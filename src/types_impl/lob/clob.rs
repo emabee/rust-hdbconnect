@@ -67,10 +67,11 @@ impl io::Read for CLob {
     }
 }
 
-// `CLobHandle` is used for CLOBs and NCLOBs that we receive from the database.
+// `CLobHandle` is used for CLOBs that we receive from the database.
 // The data are often not transferred completely, so we carry internally
-// a database connection and the
-// necessary controls to support fetching remaining data on demand.
+// a database connection and the necessary controls to support fetching remaining data on demand.
+// Since the data stream can be cut into chunks anywhere in the byte stream,
+// we may need to buffer an orphaned part of a multi-byte sequence between two fetches.
 #[derive(Clone, Debug, Serialize)]
 struct CLobHandle {
     #[serde(skip)]
@@ -140,14 +141,14 @@ impl CLobHandle {
             &mut self.server_resource_consumption_info,
         )?;
 
-        debug!("reply_data.len() = {}", reply_data.len());
+        debug!("fetch_next_chunk(): got {} bytes", reply_data.len());
 
         self.acc_byte_length += reply_data.len();
         if self.buffer_cesu8.is_empty() {
             let (utf8, buffer) = util::to_string_and_tail(reply_data)?;
             self.utf8.push_str(&utf8);
             self.buffer_cesu8 = buffer;
-        }else{
+        } else {
             self.buffer_cesu8.append(&mut reply_data);
             let mut buffer_cesu8 = vec![];
             std::mem::swap(&mut buffer_cesu8, &mut self.buffer_cesu8);

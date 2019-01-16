@@ -74,14 +74,10 @@ fn test_timestamp(
         // Enforce that NaiveDateTime values are converted in the client (with serde) to the DB type:
         prep_stmt.add_batch(&(naive_datetime_values[2], naive_datetime_values[3]))?;
         let mut response = prep_stmt.execute_batch()?;
-        debug!(
-            "Parameter Descriptor: {:?}",
-            response.get_parameter_descriptor()?
-        );
-        debug!(
-            "Parameter Descriptor: {:?}",
-            response.get_parameter_descriptor()?
-        );
+        let pd = response.get_parameter_descriptor()?;
+        debug!("Parameter Descriptor: {:?}",pd);
+        let pd = response.get_parameter_descriptor()?;
+        debug!("Parameter Descriptor: {:?}",pd);
         assert!(response.get_parameter_descriptor().is_err());
         let typed_result: i32 = response.into_resultset()?.try_into()?;
         assert_eq!(typed_result, 31);

@@ -60,10 +60,12 @@ impl io::Read for NCLob {
     }
 }
 
-// `NCLobHandle` is used for CLOBs and NCLOBs that we receive from the database.
+// `NCLobHandle` is used for NCLOBs that we receive from the database.
 // The data are often not transferred completely, so we carry internally
-// a database connection and the
-// necessary controls to support fetching remaining data on demand.
+// a database connection and the necessary controls to support fetching remaining data on demand.
+// The data stream can be cut into chunks between valid 1-, 2-, or 3-byte sequences.
+// Since surrogate pairs can be cut in two halfs (two 3-byte sequences), we may need to buffer
+// an orphaned surrogate between two fetches.
 #[derive(Clone, Debug, Serialize)]
 struct NCLobHandle {
     #[serde(skip)]

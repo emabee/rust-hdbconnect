@@ -1,7 +1,8 @@
 # Changelog
 
-## [0.12.2]  ???
+## [0.12.2]  2019-01-16
 
+Remove unneccessary allocations.
 Version sync re-added.
 
 ## [0.12.1]  2019-01-14
