@@ -1,5 +1,5 @@
 use crate::HdbResult;
-use byteorder::{ReadBytesExt};
+use byteorder::ReadBytesExt;
 use cesu8;
 use std::io;
 use std::iter::repeat;
@@ -22,6 +22,14 @@ pub fn skip_bytes(n: usize, rdr: &mut io::BufRead) -> HdbResult<()> {
 }
 
 // --- CESU8 Stuff --- //
+
+// Consumes the cesu8 bytes, returns a String with minimal allocation
+pub fn string_from_cesu8(bytes: Vec<u8>) -> HdbResult<String> {
+    match String::from_utf8(bytes) {
+        Ok(s) => Ok(s),
+        Err(e) => Ok(cesu8::from_cesu8(e.as_bytes())?.to_string()),
+    }
+}
 
 /// cesu-8 is identical to utf-8, except for high code points
 /// which consume 4 bytes in utf-8 and 6 in cesu-8;
@@ -102,18 +110,18 @@ fn get_tail_len(bytes: &[u8]) -> usize {
     panic!("no valid cutoff point found for {:?}!", bytes)
 }
 
-/// First half:
-///  11101101 10100000 10000000  to  11101101 10101111 10111111
-///  E   D    A   0                  E   D    A   F
-///   
-/// Second half:
-///  11101101 10110000 10000000  to  11101101 10111111 10111111
-///  E   D    B   0					E   D    B   F
-///
-///  Any three byte sequence:
-///  11100000 10000000 10000000  to  11101111 10111111 10111111
-///  E   0    8   0                  E   F    B   F
-///   
+// First half:
+//  11101101 10100000 10000000  to  11101101 10101111 10111111
+//  E   D    A   0                  E   D    A   F
+//
+// Second half:
+//  11101101 10110000 10000000  to  11101101 10111111 10111111
+//  E   D    B   0					E   D    B   F
+//
+//  Any three byte sequence:
+//  11100000 10000000 10000000  to  11101111 10111111 10111111
+//  E   0    8   0                  E   F    B   F
+//
 fn get_cesu8_char_len(b1: u8, b2: u8) -> Option<usize> {
     // start of, or equal to, ...
     match (b1, b2) {

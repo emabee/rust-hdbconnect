@@ -83,7 +83,7 @@ fn emit_length_and_bytes(v: &[u8], w: &mut io::Write) -> HdbResult<()> {
 }
 
 fn parse_length_and_string(rdr: &mut io::BufRead) -> HdbResult<String> {
-    Ok(cesu8::from_cesu8(&parse_length_and_binary(rdr)?)?.to_string())
+    util::string_from_cesu8(parse_length_and_binary(rdr)?)
 }
 
 fn parse_length_and_binary(rdr: &mut io::BufRead) -> HdbResult<Vec<u8>> {

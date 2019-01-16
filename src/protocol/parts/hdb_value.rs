@@ -724,7 +724,7 @@ fn parse_nullable_double(rdr: &mut std::io::BufRead) -> HdbResult<Option<f64>> {
 // ----- STRINGS and BINARIES
 // ----------------------------------------------------------------
 fn parse_string(rdr: &mut std::io::BufRead) -> HdbResult<String> {
-    Ok(cesu8::from_cesu8(&parse_binary(rdr)?)?.to_string())
+    util::string_from_cesu8(parse_binary(rdr)?)
 }
 
 fn parse_binary(rdr: &mut std::io::BufRead) -> HdbResult<Vec<u8>> {
@@ -747,7 +747,7 @@ fn parse_binary(rdr: &mut std::io::BufRead) -> HdbResult<Vec<u8>> {
 
 fn parse_nullable_string(rdr: &mut std::io::BufRead) -> HdbResult<Option<String>> {
     match parse_nullable_binary(rdr)? {
-        Some(vec) => Ok(Some(cesu8::from_cesu8(&vec)?.to_string())),
+        Some(bytes) => Ok(Some({ util::string_from_cesu8(bytes)? })),
         None => Ok(None),
     }
 }

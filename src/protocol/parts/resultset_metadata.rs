@@ -156,8 +156,7 @@ impl ResultSetMetadata {
         let mut offset = 0;
         for _ in 0..rsm.names.len() {
             let nl = rdr.read_u8()?; // UI1
-            let buffer: Vec<u8> = util::parse_bytes(nl as usize, rdr)?; // variable
-            let name = cesu8::from_cesu8(&buffer)?;
+            let name = util::string_from_cesu8(util::parse_bytes(nl as usize, rdr)?)?; // variable
             trace!("offset = {}, name = {}", offset, name);
             rsm.names.insert(offset as usize, name.to_string());
             offset += u32::from(nl) + 1;

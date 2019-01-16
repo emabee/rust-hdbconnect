@@ -113,8 +113,7 @@ impl ServerError {
             let severity = Severity::from_i8(rdr.read_i8()?); // I1
             let sqlstate = util::parse_bytes(5_usize, rdr)?; // B5
             let bytes = util::parse_bytes(text_length as usize, rdr)?; // B[text_length]
-            let text = cesu8::from_cesu8(&bytes)?.to_string();
-
+            let text = util::string_from_cesu8(bytes)?;
             let pad = 8 - (BASE_SIZE + text_length) % 8;
             util::skip_bytes(pad as usize, rdr)?;
 

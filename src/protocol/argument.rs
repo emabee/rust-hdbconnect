@@ -25,6 +25,7 @@ use crate::protocol::parts::fetch_options::FetchOptions;
 use crate::protocol::parts::lob_flags::LobFlags;
 use crate::protocol::parts::read_lob_request::ReadLobRequest;
 use crate::protocol::parts::session_context::SessionContext;
+use crate::protocol::util;
 use crate::{HdbError, HdbResult};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -99,7 +100,7 @@ impl<'a> Argument<'a> {
             Argument::Auth(ref af) => size += af.size(),
             Argument::ClientContext(ref opts) => size += opts.size(),
             Argument::ClientInfo(ref client_info) => size += client_info.size(),
-            Argument::Command(ref s) => size += cesu8::to_cesu8(s).len(),
+            Argument::Command(ref s) => size += util::cesu8_length(s),
             Argument::CommandInfo(ref opts) => size += opts.size(),
             Argument::CommitOptions(ref opts) => size += opts.size(),
             Argument::ConnectOptions(ref conn_opts) => size += conn_opts.size(),
@@ -131,14 +132,8 @@ impl<'a> Argument<'a> {
         match *self {
             Argument::Auth(ref af) => af.emit(w)?,
             Argument::ClientContext(ref opts) => opts.emit(w)?,
-            Argument::ClientInfo(ref client_info) => {
-                client_info.emit(w)?;
-            }
-            Argument::Command(ref s) => {
-                for b in cesu8::to_cesu8(s).iter() {
-                    w.write_u8(*b)?;
-                }
-            }
+            Argument::ClientInfo(ref client_info) => client_info.emit(w)?,
+            Argument::Command(ref s) => w.write_all(&cesu8::to_cesu8(s))?,
             Argument::CommandInfo(ref opts) => opts.emit(w)?,
             Argument::CommitOptions(ref opts) => opts.emit(w)?,
             Argument::ConnectOptions(ref conn_opts) => conn_opts.emit(w)?,

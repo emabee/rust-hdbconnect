@@ -103,8 +103,7 @@ impl ParameterDescriptor {
         for (descriptor, name_offset) in vec_pd.iter_mut().zip(name_offsets.iter()) {
             if name_offset != &u32::MAX {
                 let length = rdr.read_u8()?;
-                let name =
-                    cesu8::from_cesu8(&util::parse_bytes(length as usize, rdr)?)?.to_string();
+                let name = util::string_from_cesu8(util::parse_bytes(length as usize, rdr)?)?;
                 descriptor.set_name(name);
             }
         }
