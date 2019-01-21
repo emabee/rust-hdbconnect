@@ -1,6 +1,9 @@
 use super::connection_core::ConnectionCore;
 use crate::conn_core::connect_params::ConnectParams;
 use crate::hdb_error::HdbResult;
+use crate::protocol::argument::Argument;
+use crate::protocol::part::Part;
+use crate::protocol::partkind::PartKind;
 use crate::protocol::parts::parameter_descriptor::ParameterDescriptor;
 use crate::protocol::parts::resultset::ResultSet;
 use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
@@ -44,6 +47,13 @@ impl AmConnCore {
         match conn_core.statement_sequence() {
             None => {}
             Some(ssi_value) => request.add_statement_context(*ssi_value),
+        }
+
+        if conn_core.is_client_info_touched() {
+            request.push(Part::new(
+                PartKind::ClientInfo,
+                Argument::ClientInfo(conn_core.get_client_info_for_sending()),
+            ));
         }
 
         let reply = conn_core.roundtrip(request, &self, o_rs_md, o_par_md, o_rs)?;

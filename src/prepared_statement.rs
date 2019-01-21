@@ -40,7 +40,14 @@ impl PreparedStatement {
         self.o_input_md.as_ref()
     }
 
-    /// Converts the input into a row of parameters for the batch,
+    /// Converts the input into a row of parameters,
+    /// if it is consistent with the metadata, and executes the statement immediately.
+    pub fn execute<T: serde::ser::Serialize>(&mut self, input: &T) -> HdbResult<HdbResponse> {
+        self.add_batch(input)?;
+        self.execute_batch()
+    }
+
+    /// Converts the input into a row of parameters and adds it to the batch,
     /// if it is consistent with the metadata.
     pub fn add_batch<T: serde::ser::Serialize>(&mut self, input: &T) -> HdbResult<()> {
         trace!("PreparedStatement::add_batch()");
@@ -80,19 +87,41 @@ impl PreparedStatement {
     }
 
     /// Executes the statement with the collected batch, and clears the batch.
+    ///
+    /// Does nothing and returns with an error, if no batch exists.
     pub fn execute_batch(&mut self) -> HdbResult<HdbResponse> {
-        trace!("PreparedStatement::execute_batch()");
+        match self.o_batch {
+            Some(ref mut rows1) => {
+                if rows1.is_empty() {
+                    Err(HdbError::Usage(
+                        "The batch is empty and cannot be executed".to_string(),
+                    ))
+                } else {
+                    let mut rows2 = Vec::<ParameterRow>::new();
+                    mem::swap(rows1, &mut rows2);
+                    self.execute_parameter_rows(Some(rows2))
+                }
+            }
+            None => Err(HdbError::Usage(
+                "The statement has no parameters, use of batch is not possible".to_string(),
+            )),
+        }
+    }
+
+    fn execute_parameter_rows(
+        &mut self,
+        o_rows: Option<Vec<ParameterRow>>,
+    ) -> HdbResult<HdbResponse> {
+        trace!("PreparedStatement::execute_parameter_rows()");
         let mut request = Request::new(RequestType::Execute, HOLD_CURSORS_OVER_COMMIT);
         request.push(Part::new(
             PartKind::StatementId,
             Argument::StatementId(self.statement_id),
         ));
-        if let Some(ref mut pars1) = self.o_batch {
-            let mut pars2 = Vec::<ParameterRow>::new();
-            mem::swap(pars1, &mut pars2);
+        if let Some(rows) = o_rows {
             request.push(Part::new(
                 PartKind::Parameters,
-                Argument::Parameters(Parameters::new(pars2)),
+                Argument::Parameters(Parameters::new(rows)),
             ));
         }
 

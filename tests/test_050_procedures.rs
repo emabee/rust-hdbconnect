@@ -8,7 +8,7 @@ use log::{debug, info};
 
 // Test various procedures, from very simple to pretty complex
 #[test]
-pub fn test_040_procedures() -> HdbResult<()> {
+pub fn test_050_procedures() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     let mut connection = test_utils::get_authenticated_connection()?;
 

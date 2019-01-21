@@ -5,8 +5,8 @@ use flexi_logger::ReconfigurationHandle;
 use hdbconnect::{Connection, HdbResult};
 use log::{debug, info};
 
-#[test] // cargo test --test test_035_xa_transactions -- --nocapture
-pub fn test_035_xa_transactions() -> HdbResult<()> {
+#[test] // cargo test --test test_090_xa_transactions -- --nocapture
+pub fn test_090_xa_transactions() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     let mut connection = test_utils::get_authenticated_connection()?;
 
@@ -48,7 +48,7 @@ fn successful_xa(_log_handle: &mut ReconfigurationHandle, conn: &mut Connection)
     // the two connections
     // log_handle.parse_new_spec("debug,
     // dist_tx::tm::simple_transaction_manager=trace");
-    let mut tm = SimpleTransactionManager::new("test_035_xa_transactions".to_owned());
+    let mut tm = SimpleTransactionManager::new("test_090_xa_transactions".to_owned());
     tm.register(conn_a.get_resource_manager(), 22, true)
         .unwrap();
     tm.register(conn_b.get_resource_manager(), 44, true)
@@ -105,7 +105,7 @@ fn xa_rollback(_log_handle: &mut ReconfigurationHandle, conn: &mut Connection) -
     // the two connections
     // log_handle.parse_new_spec("debug, dist_tx::tm::simple_transaction_manager =
     // trace");
-    let mut tm = SimpleTransactionManager::new("test_035_xa_transactions".to_owned());
+    let mut tm = SimpleTransactionManager::new("test_090_xa_transactions".to_owned());
     tm.register(conn_a.get_resource_manager(), 22, true)
         .unwrap();
     tm.register(conn_b.get_resource_manager(), 44, true)
@@ -168,7 +168,7 @@ fn xa_repeated(_log_handle: &mut ReconfigurationHandle, conn: &mut Connection) -
     // the two connections
     // log_handle.parse_new_spec("debug, dist_tx::tm::simple_transaction_manager =
     // trace");
-    let mut tm = SimpleTransactionManager::new("test_035_xa_transactions".to_owned());
+    let mut tm = SimpleTransactionManager::new("test_090_xa_transactions".to_owned());
     tm.register(conn_a.get_resource_manager(), 22, true)
         .unwrap();
     tm.register(conn_b.get_resource_manager(), 44, true)
@@ -238,7 +238,7 @@ fn xa_conflicts(_log_handle: &mut ReconfigurationHandle, conn: &mut Connection) 
     // the two connections
     // log_handle.parse_new_spec("debug, dist_tx::tm::simple_transaction_manager =
     // trace");
-    let mut tm = SimpleTransactionManager::new("test_035_xa_transactions".to_owned());
+    let mut tm = SimpleTransactionManager::new("test_090_xa_transactions".to_owned());
     tm.register(conn_a.get_resource_manager(), 22, true)
         .unwrap();
     tm.register(conn_b.get_resource_manager(), 44, true)

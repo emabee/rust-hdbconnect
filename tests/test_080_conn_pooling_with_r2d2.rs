@@ -22,7 +22,7 @@ fn test_080_conn_pooling_with_r2d2() -> HdbResult<()> {
                 .name(thread_number.to_string())
                 .spawn(move || {
                     let mut conn = pool.get().unwrap();
-                    trace!("connection[{}]: Firing query", conn.get_id().unwrap());
+                    trace!("connection[{}]: Firing query", conn.id().unwrap());
                     conn.query("select 1 from dummy").unwrap();
                     0 as u8
                 })

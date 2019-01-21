@@ -7,7 +7,7 @@ use hdbconnect::{
 use log::{debug, info};
 
 #[test]
-pub fn test_050_metadata() -> HdbResult<()> {
+pub fn test_060_metadata() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     let mut connection = test_utils::get_authenticated_connection()?;
 

@@ -23,13 +23,8 @@ impl TypeId {
         self.nullable
     }
 
-    /// Expose constituents.
-    pub(crate) fn as_tuple(&self) -> (&BaseTypeId, bool) {
-        (&self.base_type_id, self.nullable)
-    }
-
-    /// Full type code: for nullable types the returned value is 128 + the value for the
-    /// corresponding non-nullable type (which is always less than 128).
+    // Full type code: for nullable types the returned value is 128 + the value for the
+    // corresponding non-nullable type (which is always less than 128).
     pub(crate) fn type_code(&self) -> u8 {
         (if self.nullable { 128 } else { 0 }) + self.base_type_id.type_code()
     }

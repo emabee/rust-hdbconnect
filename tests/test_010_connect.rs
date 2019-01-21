@@ -116,33 +116,54 @@ impl SessCtx {
 
 fn client_info(_log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
     info!("client info");
+    _log_handle.parse_and_push_temp_spec("info, test = debug");
     let mut connection = test_utils::get_authenticated_connection().unwrap();
+    let connection_id: u32 = connection.id()?;
 
-    let stmt = r#"SELECT KEY, VALUE FROM M_SESSION_CONTEXT ORDER BY KEY"#;
-
-    let _result: Vec<SessCtx> = connection.query(stmt)?.try_into()?;
-
+    debug!("make sure the client info is set ...");
     connection.set_application_user("OTTO")?;
     connection.set_application_version("0.8.15")?;
     connection.set_application_source("dummy.rs")?;
 
-    debug!("make sure the client info is set ...");
-    let result: Vec<SessCtx> = connection.query(stmt)?.try_into()?;
+    let mut prep_stmt = connection
+        .prepare("\
+            SELECT KEY, VALUE \
+            FROM M_SESSION_CONTEXT \
+            WHERE CONNECTION_ID = ? \
+            AND (\
+               KEY = 'APPLICATIONSOURCE' \
+               OR KEY = 'APPLICATIONUSER' \
+               OR KEY = 'APPLICATIONVERSION') \
+            ORDER BY KEY")?;
+    let result: Vec<SessCtx> = prep_stmt
+        .execute(&connection_id)?
+        .into_resultset()?
+        .try_into()?;
     check_result(&result);
 
     debug!("... and remains set");
-    let _result: Vec<SessCtx> = connection.query(stmt)?.try_into()?;
-    let _result: Vec<SessCtx> = connection.query(stmt)?.try_into()?;
-    let result: Vec<SessCtx> = connection.query(stmt)?.try_into()?;
+    let _result: Vec<SessCtx> = prep_stmt
+        .execute(&connection_id)?
+        .into_resultset()?
+        .try_into()?;
+
+    let _result: Vec<SessCtx> = prep_stmt
+        .execute(&connection_id)?
+        .into_resultset()?
+        .try_into()?;
+    let result: Vec<SessCtx> = prep_stmt
+        .execute(&connection_id)?
+        .into_resultset()?
+        .try_into()?;
     check_result(&result);
 
     Ok(())
 }
 
 fn check_result(result: &[SessCtx]) {
-    assert_eq!(result[3], SessCtx::new("APPLICATIONVERSION", "0.8.15"));
-    assert_eq!(result[1], SessCtx::new("APPLICATIONSOURCE", "dummy.rs"));
-    assert_eq!(result[2], SessCtx::new("APPLICATIONUSER", "OTTO"));
+    assert_eq!(result[0], SessCtx::new("APPLICATIONSOURCE", "dummy.rs"));
+    assert_eq!(result[1], SessCtx::new("APPLICATIONUSER", "OTTO"));
+    assert_eq!(result[2], SessCtx::new("APPLICATIONVERSION", "0.8.15"));
 }
 
 fn command_info(_log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {

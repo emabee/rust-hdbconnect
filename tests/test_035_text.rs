@@ -4,9 +4,9 @@ use flexi_logger::ReconfigurationHandle;
 use hdbconnect::{Connection, HdbResult};
 use log::{debug, info};
 
-// cargo test test_036_text -- --nocapture
+// cargo test test_035_text -- --nocapture
 #[test]
-pub fn test_036_text() -> HdbResult<()> {
+pub fn test_035_text() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     let mut connection = test_utils::get_authenticated_connection()?;
 

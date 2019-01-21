@@ -9,29 +9,27 @@ impl PartAttributes {
     }
 
     // Last part in a sequence of parts (FETCH, array command EXECUTE):
-    // const IS_LAST_PACKET: u8    = 0b_0000_0001;
-    // Part in a sequence of parts:
-    // const HAS_NEXT_PACKET: u8   = 0b_0000_0010;
-    // First part in a sequence of parts:
-    // const IS_FIRST_PACKET: u8   = 0b_0000_0100;
-    // Empty part, caused by “row not found” error:
-    // const ROW_NOT_FOUND: u8     = 0b_0000_1000;
-    // The resultset that produced this part is closed:
-    // const RESULTSET_CLOSED: u8  = 0b_0001_0000;
-
     pub fn is_last_packet(&self) -> bool {
         (self.0 & 0b_0000_0001) != 0
     }
+
+    // Part in a sequence of parts:
     fn has_next_packet(&self) -> bool {
         (self.0 & 0b_0000_0010) != 0
     }
+
+    // First part in a sequence of parts:
     fn is_first_packet(&self) -> bool {
         (self.0 & 0b_0000_0100) != 0
     }
+
+    // Empty part, caused by “row not found” error:
     pub fn row_not_found(&self) -> bool {
         (self.0 & 0b_0000_1000) != 0
     }
-    pub fn is_resultset_closed(&self) -> bool {
+
+    // The resultset that produced this part is closed:
+    pub fn resultset_is_closed(&self) -> bool {
         (self.0 & 0b_0001_0000) != 0
     }
 }
@@ -59,7 +57,7 @@ impl fmt::Debug for PartAttributes {
                 b = w_and(b, f)?;
                 write!(f, "ROW_NOT_FOUND")?;
             };
-            if self.is_resultset_closed() {
+            if self.resultset_is_closed() {
                 w_and(b, f)?;
                 write!(f, "RESULTSET_CLOSED")?;
             };

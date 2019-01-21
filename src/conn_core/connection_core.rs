@@ -384,22 +384,6 @@ impl<'a> ConnectionCore {
                 }
             }
             trace!("Disconnect: request successfully sent");
-
-            let reply = match self.buffalo {
-                Buffalo::Plain(ref pc) => {
-                    let reader = &mut *(pc.reader()).borrow_mut();
-                    Reply::parse(None, None, &mut None, None, reader)?
-                }
-                #[cfg(feature = "tls")]
-                Buffalo::Secure(ref sc) => {
-                    let reader = &mut *(sc.reader()).borrow_mut();
-                    Reply::parse(None, None, &mut None, None, reader)?
-                }
-            };
-
-            for part in &reply.parts {
-                debug!("Drop of connection: got Part {:?}", part);
-            }
         }
         Ok(())
     }

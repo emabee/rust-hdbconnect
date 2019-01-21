@@ -30,8 +30,8 @@ const LENGTH_INDICATOR_NULL: u8 = 255;
 #[allow(non_camel_case_types)]
 #[derive(Clone, Debug, Serialize)]
 pub enum HdbValue {
-    /// Internally used only. Is swapped in where a real value (any of the
-    /// others) is swapped out.
+    /// Internally used only.
+    /// Is swapped in where a real value (any of the others) is swapped out.
     NOTHING,
     /// Stores an 8-bit unsigned integer.
     /// The minimum value is 0. The maximum value is 255.
@@ -202,46 +202,6 @@ pub enum HdbValue {
 }
 
 impl HdbValue {
-    fn emit_type_id(&self, w: &mut std::io::Write) -> HdbResult<bool> {
-        let is_null = match *self {
-            HdbValue::N_TINYINT(None)
-            | HdbValue::N_SMALLINT(None)
-            | HdbValue::N_INT(None)
-            | HdbValue::N_BIGINT(None)
-            | HdbValue::N_DECIMAL(None)
-            | HdbValue::N_REAL(None)
-            | HdbValue::N_DOUBLE(None)
-            | HdbValue::N_CHAR(None)
-            | HdbValue::N_VARCHAR(None)
-            | HdbValue::N_NCHAR(None)
-            | HdbValue::N_NVARCHAR(None)
-            | HdbValue::N_BINARY(None)
-            | HdbValue::N_VARBINARY(None)
-            | HdbValue::N_CLOB(None)
-            | HdbValue::N_NCLOB(None)
-            | HdbValue::N_BLOB(None)
-            | HdbValue::N_BOOLEAN(None)
-            | HdbValue::N_STRING(None)
-            | HdbValue::N_NSTRING(None)
-            | HdbValue::N_BSTRING(None)
-            | HdbValue::N_SMALLDECIMAL(None)
-            | HdbValue::N_TEXT(None)
-            | HdbValue::N_SHORTTEXT(None)
-            | HdbValue::N_SECONDDATE(None)
-            | HdbValue::N_DAYDATE(None)
-            | HdbValue::N_SECONDTIME(None)
-            | HdbValue::N_LONGDATE(None) => true,
-            _ => false,
-        };
-
-        if is_null {
-            w.write_u8(self.type_id()?.type_code())?;
-        } else {
-            w.write_u8(self.type_id()?.base_type_id().type_code())?;
-        }
-        Ok(is_null)
-    }
-
     /// hdb protocol uses ids < 128 for non-null values, and ids > 128 for nullable values
     fn type_id(&self) -> HdbResult<TypeId> {
         Ok(match *self {
@@ -372,21 +332,11 @@ impl HdbValue {
                     emit_blob_header(blob.len_alldata(), data_pos, w)?
                 }
 
-                HdbValue::STRING(ref s)
-                | HdbValue::NSTRING(ref s)
-                | HdbValue::TEXT(ref s)
-                | HdbValue::SHORTTEXT(ref s)
-                | HdbValue::N_STRING(Some(ref s))
-                | HdbValue::N_NSTRING(Some(ref s))
-                | HdbValue::N_TEXT(Some(ref s))
-                | HdbValue::N_SHORTTEXT(Some(ref s)) => emit_length_and_string(s, w)?,
+                HdbValue::STRING(ref s) => emit_length_and_string(s, w)?,
 
-                HdbValue::BINARY(ref v)
-                | HdbValue::VARBINARY(ref v)
-                | HdbValue::BSTRING(ref v)
-                | HdbValue::N_BINARY(Some(ref v))
-                | HdbValue::N_VARBINARY(Some(ref v))
-                | HdbValue::N_BSTRING(Some(ref v)) => emit_length_and_bytes(v, w)?,
+                HdbValue::BINARY(ref v) | HdbValue::VARBINARY(ref v) => {
+                    emit_length_and_bytes(v, w)?;
+                }
 
                 HdbValue::N_TINYINT(None)
                 | HdbValue::N_SMALLINT(None)
@@ -420,7 +370,18 @@ impl HdbValue {
                 | HdbValue::VARCHAR(_)
                 | HdbValue::N_VARCHAR(_)
                 | HdbValue::NVARCHAR(_)
-                | HdbValue::N_NVARCHAR(_) => {
+                | HdbValue::N_NVARCHAR(_)
+                | HdbValue::NSTRING(_)
+                | HdbValue::TEXT(_)
+                | HdbValue::SHORTTEXT(_)
+                | HdbValue::N_STRING(Some(_))
+                | HdbValue::N_NSTRING(Some(_))
+                | HdbValue::N_TEXT(Some(_))
+                | HdbValue::N_SHORTTEXT(Some(_))
+                | HdbValue::BSTRING(_)
+                | HdbValue::N_BINARY(Some(_))
+                | HdbValue::N_VARBINARY(Some(_))
+                | HdbValue::N_BSTRING(Some(_)) => {
                     return Err(HdbError::Impl(format!(
                         "HdbValue::emit() not implemented for type {}",
                         self
@@ -429,6 +390,47 @@ impl HdbValue {
             }
         }
         Ok(())
+    }
+
+    // returns true if the value is a null value, false otherwise
+    fn emit_type_id(&self, w: &mut std::io::Write) -> HdbResult<bool> {
+        let is_null = match *self {
+            HdbValue::N_TINYINT(None)
+            | HdbValue::N_SMALLINT(None)
+            | HdbValue::N_INT(None)
+            | HdbValue::N_BIGINT(None)
+            | HdbValue::N_DECIMAL(None)
+            | HdbValue::N_REAL(None)
+            | HdbValue::N_DOUBLE(None)
+            | HdbValue::N_CHAR(None)
+            | HdbValue::N_VARCHAR(None)
+            | HdbValue::N_NCHAR(None)
+            | HdbValue::N_NVARCHAR(None)
+            | HdbValue::N_BINARY(None)
+            | HdbValue::N_VARBINARY(None)
+            | HdbValue::N_CLOB(None)
+            | HdbValue::N_NCLOB(None)
+            | HdbValue::N_BLOB(None)
+            | HdbValue::N_BOOLEAN(None)
+            | HdbValue::N_STRING(None)
+            | HdbValue::N_NSTRING(None)
+            | HdbValue::N_BSTRING(None)
+            | HdbValue::N_SMALLDECIMAL(None)
+            | HdbValue::N_TEXT(None)
+            | HdbValue::N_SHORTTEXT(None)
+            | HdbValue::N_SECONDDATE(None)
+            | HdbValue::N_DAYDATE(None)
+            | HdbValue::N_SECONDTIME(None)
+            | HdbValue::N_LONGDATE(None) => true,
+            _ => false,
+        };
+
+        if is_null {
+            w.write_u8(self.type_id()?.type_code())?;
+        } else {
+            w.write_u8(self.type_id()?.base_type_id().type_code())?;
+        }
+        Ok(is_null)
     }
 
     // is used to calculate the argument size (in emit)
@@ -465,26 +467,32 @@ impl HdbValue {
             | HdbValue::N_SECONDDATE(Some(_)) => 8,
 
             HdbValue::CLOB(ref clob) | HdbValue::N_CLOB(Some(ref clob)) => 9 + clob.len()?,
-
             HdbValue::NCLOB(ref nclob) | HdbValue::N_NCLOB(Some(ref nclob)) => 9 + nclob.len()?,
-
             HdbValue::BLOB(ref blob) | HdbValue::N_BLOB(Some(ref blob)) => 9 + blob.len_alldata(),
 
             HdbValue::STRING(ref s)
-            | HdbValue::N_STRING(Some(ref s))
             | HdbValue::NSTRING(ref s)
-            | HdbValue::N_NSTRING(Some(ref s))
             | HdbValue::TEXT(ref s)
-            | HdbValue::N_TEXT(Some(ref s))
             | HdbValue::SHORTTEXT(ref s)
-            | HdbValue::N_SHORTTEXT(Some(ref s)) => string_length(s),
+            | HdbValue::CHAR(ref s)
+            | HdbValue::VARCHAR(ref s)
+            | HdbValue::NCHAR(ref s)
+            | HdbValue::NVARCHAR(ref s)
+            | HdbValue::N_STRING(Some(ref s))
+            | HdbValue::N_NSTRING(Some(ref s))
+            | HdbValue::N_TEXT(Some(ref s))
+            | HdbValue::N_SHORTTEXT(Some(ref s))
+            | HdbValue::N_CHAR(Some(ref s))
+            | HdbValue::N_VARCHAR(Some(ref s))
+            | HdbValue::N_NCHAR(Some(ref s))
+            | HdbValue::N_NVARCHAR(Some(ref s)) => binary_length(util::cesu8_length(s)),
 
             HdbValue::BINARY(ref v)
             | HdbValue::N_BINARY(Some(ref v))
             | HdbValue::VARBINARY(ref v)
             | HdbValue::N_VARBINARY(Some(ref v))
             | HdbValue::BSTRING(ref v)
-            | HdbValue::N_BSTRING(Some(ref v)) => v.len() + 2,
+            | HdbValue::N_BSTRING(Some(ref v)) => binary_length(v.len()),
 
             HdbValue::N_TINYINT(None)
             | HdbValue::N_SMALLINT(None)
@@ -507,18 +515,14 @@ impl HdbValue {
             | HdbValue::N_BSTRING(None)
             | HdbValue::N_STRING(None)
             | HdbValue::N_NSTRING(None)
+            | HdbValue::N_CHAR(None)
+            | HdbValue::N_NCHAR(None)
+            | HdbValue::N_VARCHAR(None)
+            | HdbValue::N_NVARCHAR(None)
             | HdbValue::N_TEXT(None)
             | HdbValue::N_SHORTTEXT(None) => 0,
 
-            HdbValue::NOTHING
-            | HdbValue::CHAR(_)
-            | HdbValue::VARCHAR(_)
-            | HdbValue::NCHAR(_)
-            | HdbValue::NVARCHAR(_)
-            | HdbValue::N_CHAR(_)
-            | HdbValue::N_VARCHAR(_)
-            | HdbValue::N_NCHAR(_)
-            | HdbValue::N_NVARCHAR(_) => {
+            HdbValue::NOTHING => {
                 return Err(HdbError::Impl(format!(
                     "HdbValue::size() not implemented for type {}",
                     self
@@ -780,10 +784,14 @@ fn type_id_nullable(base_type_id: BaseTypeId) -> TypeId {
 }
 
 pub(crate) fn string_length(s: &str) -> usize {
-    match util::cesu8_length(s) {
-        clen if clen <= MAX_1_BYTE_LENGTH as usize => 1 + clen,
-        clen if clen <= MAX_2_BYTE_LENGTH as usize => 3 + clen,
-        clen => 5 + clen,
+    binary_length(util::cesu8_length(s))
+}
+
+pub(crate) fn binary_length(l: usize) -> usize {
+    match l {
+        l if l <= MAX_1_BYTE_LENGTH as usize => 1 + l,
+        l if l <= MAX_2_BYTE_LENGTH as usize => 3 + l,
+        l => 5 + l,
     }
 }
 

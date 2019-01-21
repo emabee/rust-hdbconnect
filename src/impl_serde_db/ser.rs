@@ -22,456 +22,245 @@ impl DbvFactory for ParameterDescriptor {
     type DBV = HdbValue;
 
     fn from_bool(&self, value: bool) -> Result<HdbValue, SerializationError> {
-        Ok(match self.type_id().as_tuple() {
-            (BaseTypeId::BOOLEAN, false) => HdbValue::BOOLEAN(value),
-            (BaseTypeId::BOOLEAN, true) => HdbValue::N_BOOLEAN(Some(value)),
-            _ => {
-                return Err(SerializationError::Type {
-                    value_type: "boolean",
-                    db_type: self.descriptor(),
-                })
-            }
+        Ok(match self.type_id().base_type_id() {
+            BaseTypeId::BOOLEAN => HdbValue::BOOLEAN(value),
+            BaseTypeId::TINYINT => HdbValue::BOOLEAN(value),
+            _ => return Err(type_mismatch("boolean", self.descriptor())),
         })
     }
 
     fn from_i8(&self, value: i8) -> Result<HdbValue, SerializationError> {
         let input_type = "i8";
-        Ok(match self.type_id().as_tuple() {
-            (BaseTypeId::TINYINT, false) => {
+        Ok(match self.type_id().base_type_id() {
+            BaseTypeId::TINYINT => {
                 if value >= 0 {
                     HdbValue::TINYINT(value as u8)
                 } else {
                     return Err(SerializationError::Range(input_type, self.descriptor()));
                 }
             }
-            (BaseTypeId::TINYINT, true) => {
-                if value >= 0 {
-                    HdbValue::N_TINYINT(Some(value as u8))
-                } else {
-                    return Err(SerializationError::Range(input_type, self.descriptor()));
-                }
-            }
-            (BaseTypeId::SMALLINT, false) => HdbValue::SMALLINT(i16::from(value)),
-            (BaseTypeId::SMALLINT, true) => HdbValue::N_SMALLINT(Some(i16::from(value))),
-            (BaseTypeId::INT, false) => HdbValue::INT(i32::from(value)),
-            (BaseTypeId::INT, true) => HdbValue::N_INT(Some(i32::from(value))),
-            (BaseTypeId::BIGINT, false) => HdbValue::BIGINT(i64::from(value)),
-            (BaseTypeId::BIGINT, true) => HdbValue::N_BIGINT(Some(i64::from(value))),
-            (BaseTypeId::DECIMAL, false) => HdbValue::DECIMAL(
+            BaseTypeId::SMALLINT => HdbValue::SMALLINT(i16::from(value)),
+            BaseTypeId::INT => HdbValue::INT(i32::from(value)),
+            BaseTypeId::BIGINT => HdbValue::BIGINT(i64::from(value)),
+            BaseTypeId::DECIMAL => HdbValue::DECIMAL(
                 BigDecimal::from_i8(value).ok_or_else(|| decimal_range(input_type))?,
             ),
-            (BaseTypeId::DECIMAL, true) => HdbValue::N_DECIMAL(Some(
-                BigDecimal::from_i8(value).ok_or_else(|| decimal_range(input_type))?,
-            )),
-            _ => {
-                return Err(SerializationError::Type {
-                    value_type: input_type,
-                    db_type: self.descriptor(),
-                })
-            }
+            _ => return Err(type_mismatch(input_type, self.descriptor())),
         })
     }
+
     fn from_i16(&self, value: i16) -> Result<HdbValue, SerializationError> {
         let input_type = "i16";
-        Ok(match self.type_id().as_tuple() {
-            (BaseTypeId::TINYINT, false) => {
+        Ok(match self.type_id().base_type_id() {
+            BaseTypeId::TINYINT => {
                 if (value >= 0) && (value <= i16::from(u8::MAX)) {
                     HdbValue::TINYINT(value as u8)
                 } else {
                     return Err(SerializationError::Range(input_type, self.descriptor()));
                 }
             }
-            (BaseTypeId::TINYINT, true) => {
-                if (value >= 0) && (value <= i16::from(u8::MAX)) {
-                    HdbValue::N_TINYINT(Some(value as u8))
-                } else {
-                    return Err(SerializationError::Range(input_type, self.descriptor()));
-                }
-            }
-            (BaseTypeId::SMALLINT, false) => HdbValue::SMALLINT(value),
-            (BaseTypeId::SMALLINT, true) => HdbValue::N_SMALLINT(Some(value)),
-            (BaseTypeId::INT, false) => HdbValue::INT(i32::from(value)),
-            (BaseTypeId::INT, true) => HdbValue::N_INT(Some(i32::from(value))),
-            (BaseTypeId::BIGINT, false) => HdbValue::BIGINT(i64::from(value)),
-            (BaseTypeId::BIGINT, true) => HdbValue::N_BIGINT(Some(i64::from(value))),
-            (BaseTypeId::DECIMAL, false) => HdbValue::DECIMAL(
+            BaseTypeId::SMALLINT => HdbValue::SMALLINT(value),
+            BaseTypeId::INT => HdbValue::INT(i32::from(value)),
+            BaseTypeId::BIGINT => HdbValue::BIGINT(i64::from(value)),
+            BaseTypeId::DECIMAL => HdbValue::DECIMAL(
                 BigDecimal::from_i16(value).ok_or_else(|| decimal_range(input_type))?,
             ),
-            (BaseTypeId::DECIMAL, true) => HdbValue::N_DECIMAL(Some(
-                BigDecimal::from_i16(value).ok_or_else(|| decimal_range(input_type))?,
-            )),
-            _ => {
-                return Err(SerializationError::Type {
-                    value_type: input_type,
-                    db_type: self.descriptor(),
-                })
-            }
+            _ => return Err(type_mismatch(input_type, self.descriptor())),
         })
     }
+
     fn from_i32(&self, value: i32) -> Result<HdbValue, SerializationError> {
         let input_type = "i32";
-        Ok(match self.type_id().as_tuple() {
-            (BaseTypeId::TINYINT, false) => {
+        Ok(match self.type_id().base_type_id() {
+            BaseTypeId::TINYINT => {
                 if (value >= 0) && (value <= i32::from(u8::MAX)) {
                     HdbValue::TINYINT(value as u8)
                 } else {
                     return Err(SerializationError::Range(input_type, self.descriptor()));
                 }
             }
-            (BaseTypeId::TINYINT, true) => {
-                if (value >= 0) && (value <= i32::from(u8::MAX)) {
-                    HdbValue::N_TINYINT(Some(value as u8))
-                } else {
-                    return Err(SerializationError::Range(input_type, self.descriptor()));
-                }
-            }
-            (BaseTypeId::SMALLINT, false) => {
+            BaseTypeId::SMALLINT => {
                 if (value >= i32::from(i16::MIN)) && (value <= i32::from(i16::MAX)) {
                     HdbValue::SMALLINT(value as i16)
                 } else {
                     return Err(SerializationError::Range(input_type, self.descriptor()));
                 }
             }
-            (BaseTypeId::SMALLINT, true) => {
-                if (value >= i32::from(i16::MIN)) && (value <= i32::from(i16::MAX)) {
-                    HdbValue::N_SMALLINT(Some(value as i16))
-                } else {
-                    return Err(SerializationError::Range(input_type, self.descriptor()));
-                }
-            }
-            (BaseTypeId::INT, false) => HdbValue::INT(value),
-            (BaseTypeId::INT, true) => HdbValue::N_INT(Some(value)),
-            (BaseTypeId::BIGINT, false) => HdbValue::BIGINT(i64::from(value)),
-            (BaseTypeId::BIGINT, true) => HdbValue::N_BIGINT(Some(i64::from(value))),
-            (BaseTypeId::DECIMAL, false) => HdbValue::DECIMAL(
+            BaseTypeId::INT => HdbValue::INT(value),
+            BaseTypeId::BIGINT => HdbValue::BIGINT(i64::from(value)),
+            BaseTypeId::DECIMAL => HdbValue::DECIMAL(
                 BigDecimal::from_i32(value).ok_or_else(|| decimal_range(input_type))?,
             ),
-            (BaseTypeId::DECIMAL, true) => HdbValue::N_DECIMAL(Some(
-                BigDecimal::from_i32(value).ok_or_else(|| decimal_range(input_type))?,
-            )),
-            (BaseTypeId::DAYDATE, false) => HdbValue::DAYDATE(DayDate::new(value)),
-            (BaseTypeId::DAYDATE, true) => HdbValue::N_DAYDATE(Some(DayDate::new(value))),
-            (BaseTypeId::SECONDTIME, false) => HdbValue::SECONDTIME(SecondTime::new(value)),
-            (BaseTypeId::SECONDTIME, true) => HdbValue::N_SECONDTIME(Some(SecondTime::new(value))),
-            _ => {
-                return Err(SerializationError::Type {
-                    value_type: input_type,
-                    db_type: self.descriptor(),
-                })
-            }
+            BaseTypeId::DAYDATE => HdbValue::DAYDATE(DayDate::new(value)),
+            BaseTypeId::SECONDTIME => HdbValue::SECONDTIME(SecondTime::new(value)),
+            _ => return Err(type_mismatch(input_type, self.descriptor())),
         })
     }
+
     fn from_i64(&self, value: i64) -> Result<HdbValue, SerializationError> {
         let input_type = "i64";
-        Ok(match self.type_id().as_tuple() {
-            (BaseTypeId::TINYINT, false) => {
+        Ok(match self.type_id().base_type_id() {
+            BaseTypeId::TINYINT => {
                 if (value >= 0) && (value <= i64::from(u8::MAX)) {
                     HdbValue::TINYINT(value as u8)
                 } else {
                     return Err(SerializationError::Range(input_type, self.descriptor()));
                 }
             }
-            (BaseTypeId::TINYINT, true) => {
-                if (value >= 0) && (value <= i64::from(u8::MAX)) {
-                    HdbValue::N_TINYINT(Some(value as u8))
-                } else {
-                    return Err(SerializationError::Range(input_type, self.descriptor()));
-                }
-            }
-            (BaseTypeId::SMALLINT, false) => {
+            BaseTypeId::SMALLINT => {
                 if (value >= i64::from(i16::MIN)) && (value <= i64::from(i16::MAX)) {
                     HdbValue::SMALLINT(value as i16)
                 } else {
                     return Err(SerializationError::Range(input_type, self.descriptor()));
                 }
             }
-            (BaseTypeId::SMALLINT, true) => {
-                if (value >= i64::from(i16::MIN)) && (value <= i64::from(i16::MAX)) {
-                    HdbValue::N_SMALLINT(Some(value as i16))
-                } else {
-                    return Err(SerializationError::Range(input_type, self.descriptor()));
-                }
-            }
-            (BaseTypeId::INT, false) => {
+            BaseTypeId::INT => {
                 if (value >= i64::from(i32::MIN)) && (value <= i64::from(i32::MAX)) {
                     HdbValue::INT(value as i32)
                 } else {
                     return Err(SerializationError::Range(input_type, self.descriptor()));
                 }
             }
-            (BaseTypeId::INT, true) => {
-                if (value >= i64::from(i32::MIN)) && (value <= i64::from(i32::MAX)) {
-                    HdbValue::N_INT(Some(value as i32))
-                } else {
-                    return Err(SerializationError::Range(input_type, self.descriptor()));
-                }
-            }
-            (BaseTypeId::BIGINT, false) => HdbValue::BIGINT(value),
-            (BaseTypeId::BIGINT, true) => HdbValue::N_BIGINT(Some(value)),
-            (BaseTypeId::LONGDATE, false) => HdbValue::LONGDATE(LongDate::new(value)),
-            (BaseTypeId::LONGDATE, true) => HdbValue::N_LONGDATE(Some(LongDate::new(value))),
-            (BaseTypeId::SECONDDATE, false) => HdbValue::SECONDDATE(SecondDate::new(value)),
-            (BaseTypeId::SECONDDATE, true) => HdbValue::N_SECONDDATE(Some(SecondDate::new(value))),
-            (BaseTypeId::DECIMAL, false) => HdbValue::DECIMAL(
+            BaseTypeId::BIGINT => HdbValue::BIGINT(value),
+            BaseTypeId::LONGDATE => HdbValue::LONGDATE(LongDate::new(value)),
+            BaseTypeId::SECONDDATE => HdbValue::SECONDDATE(SecondDate::new(value)),
+            BaseTypeId::DECIMAL => HdbValue::DECIMAL(
                 BigDecimal::from_i64(value).ok_or_else(|| decimal_range(input_type))?,
             ),
-            (BaseTypeId::DECIMAL, true) => HdbValue::N_DECIMAL(Some(
-                BigDecimal::from_i64(value).ok_or_else(|| decimal_range(input_type))?,
-            )),
-            _ => {
-                return Err(SerializationError::Type {
-                    value_type: input_type,
-                    db_type: self.descriptor(),
-                })
-            }
+            _ => return Err(type_mismatch(input_type, self.descriptor())),
         })
     }
     fn from_u8(&self, value: u8) -> Result<HdbValue, SerializationError> {
         let input_type = "u8";
-        Ok(match self.type_id().as_tuple() {
-            (BaseTypeId::TINYINT, false) => HdbValue::TINYINT(value),
-            (BaseTypeId::TINYINT, true) => HdbValue::N_TINYINT(Some(value)),
-            (BaseTypeId::SMALLINT, false) => HdbValue::SMALLINT(i16::from(value)),
-            (BaseTypeId::SMALLINT, true) => HdbValue::N_SMALLINT(Some(i16::from(value))),
-            (BaseTypeId::INT, false) => HdbValue::INT(i32::from(value)),
-            (BaseTypeId::INT, true) => HdbValue::N_INT(Some(i32::from(value))),
-            (BaseTypeId::BIGINT, false) => HdbValue::BIGINT(i64::from(value)),
-            (BaseTypeId::BIGINT, true) => HdbValue::N_BIGINT(Some(i64::from(value))),
-            (BaseTypeId::DECIMAL, false) => HdbValue::DECIMAL(
+        Ok(match self.type_id().base_type_id() {
+            BaseTypeId::TINYINT => HdbValue::TINYINT(value),
+            BaseTypeId::SMALLINT => HdbValue::SMALLINT(i16::from(value)),
+            BaseTypeId::INT => HdbValue::INT(i32::from(value)),
+            BaseTypeId::BIGINT => HdbValue::BIGINT(i64::from(value)),
+            BaseTypeId::DECIMAL => HdbValue::DECIMAL(
                 BigDecimal::from_u8(value).ok_or_else(|| decimal_range(input_type))?,
             ),
-            (BaseTypeId::DECIMAL, true) => HdbValue::N_DECIMAL(Some(
-                BigDecimal::from_u8(value).ok_or_else(|| decimal_range(input_type))?,
-            )),
-            _ => {
-                return Err(SerializationError::Type {
-                    value_type: input_type,
-                    db_type: self.descriptor(),
-                })
-            }
+            _ => return Err(type_mismatch(input_type, self.descriptor())),
         })
     }
     fn from_u16(&self, value: u16) -> Result<HdbValue, SerializationError> {
         let input_type = "u16";
-        Ok(match self.type_id().as_tuple() {
-            (BaseTypeId::TINYINT, false) => {
+        Ok(match self.type_id().base_type_id() {
+            BaseTypeId::TINYINT => {
                 if value <= u16::from(u8::MAX) {
                     HdbValue::TINYINT(value as u8)
                 } else {
                     return Err(SerializationError::Range(input_type, self.descriptor()));
                 }
             }
-            (BaseTypeId::TINYINT, true) => {
-                if value <= u16::from(u8::MAX) {
-                    HdbValue::N_TINYINT(Some(value as u8))
-                } else {
-                    return Err(SerializationError::Range(input_type, self.descriptor()));
-                }
-            }
-            (BaseTypeId::SMALLINT, false) => {
+            BaseTypeId::SMALLINT => {
                 if value <= i16::MAX as u16 {
                     HdbValue::SMALLINT(value as i16)
                 } else {
                     return Err(SerializationError::Range(input_type, self.descriptor()));
                 }
             }
-            (BaseTypeId::SMALLINT, true) => {
-                if value <= i16::MAX as u16 {
-                    HdbValue::N_SMALLINT(Some(value as i16))
-                } else {
-                    return Err(SerializationError::Range(input_type, self.descriptor()));
-                }
-            }
-            (BaseTypeId::INT, false) => HdbValue::INT(i32::from(value)),
-            (BaseTypeId::INT, true) => HdbValue::N_INT(Some(i32::from(value))),
-            (BaseTypeId::BIGINT, false) => HdbValue::BIGINT(i64::from(value)),
-            (BaseTypeId::BIGINT, true) => HdbValue::N_BIGINT(Some(i64::from(value))),
-            (BaseTypeId::DECIMAL, false) => HdbValue::DECIMAL(
+            BaseTypeId::INT => HdbValue::INT(i32::from(value)),
+            BaseTypeId::BIGINT => HdbValue::BIGINT(i64::from(value)),
+            BaseTypeId::DECIMAL => HdbValue::DECIMAL(
                 BigDecimal::from_u16(value).ok_or_else(|| decimal_range(input_type))?,
             ),
-            (BaseTypeId::DECIMAL, true) => HdbValue::N_DECIMAL(Some(
-                BigDecimal::from_u16(value).ok_or_else(|| decimal_range(input_type))?,
-            )),
-            _ => {
-                return Err(SerializationError::Type {
-                    value_type: input_type,
-                    db_type: self.descriptor(),
-                })
-            }
+            _ => return Err(type_mismatch(input_type, self.descriptor())),
         })
     }
+
     fn from_u32(&self, value: u32) -> Result<HdbValue, SerializationError> {
         let input_type = "u32";
-        Ok(match self.type_id().as_tuple() {
-            (BaseTypeId::TINYINT, false) => {
+        Ok(match self.type_id().base_type_id() {
+            BaseTypeId::TINYINT => {
                 if value <= u32::from(u8::MAX) {
                     HdbValue::TINYINT(value as u8)
                 } else {
                     return Err(SerializationError::Range(input_type, self.descriptor()));
                 }
             }
-            (BaseTypeId::TINYINT, true) => {
-                if value <= u32::from(u8::MAX) {
-                    HdbValue::N_TINYINT(Some(value as u8))
-                } else {
-                    return Err(SerializationError::Range(input_type, self.descriptor()));
-                }
-            }
-            (BaseTypeId::SMALLINT, false) => {
+            BaseTypeId::SMALLINT => {
                 if value <= i16::MAX as u32 {
                     HdbValue::SMALLINT(value as i16)
                 } else {
                     return Err(SerializationError::Range(input_type, self.descriptor()));
                 }
             }
-            (BaseTypeId::SMALLINT, true) => {
-                if value <= i16::MAX as u32 {
-                    HdbValue::N_SMALLINT(Some(value as i16))
-                } else {
-                    return Err(SerializationError::Range(input_type, self.descriptor()));
-                }
-            }
-            (BaseTypeId::INT, false) => {
+            BaseTypeId::INT => {
                 if value <= i32::MAX as u32 {
                     HdbValue::INT(value as i32)
                 } else {
                     return Err(SerializationError::Range(input_type, self.descriptor()));
                 }
             }
-            (BaseTypeId::INT, true) => {
-                if value <= i32::MAX as u32 {
-                    HdbValue::N_INT(Some(value as i32))
-                } else {
-                    return Err(SerializationError::Range(input_type, self.descriptor()));
-                }
-            }
-            (BaseTypeId::BIGINT, false) => HdbValue::BIGINT(i64::from(value)),
-            (BaseTypeId::BIGINT, true) => HdbValue::N_BIGINT(Some(i64::from(value))),
-            (BaseTypeId::DECIMAL, false) => HdbValue::DECIMAL(
+            BaseTypeId::BIGINT => HdbValue::BIGINT(i64::from(value)),
+            BaseTypeId::DECIMAL => HdbValue::DECIMAL(
                 BigDecimal::from_u32(value).ok_or_else(|| decimal_range(input_type))?,
             ),
-            (BaseTypeId::DECIMAL, true) => HdbValue::N_DECIMAL(Some(
-                BigDecimal::from_u32(value).ok_or_else(|| decimal_range(input_type))?,
-            )),
-            _ => {
-                return Err(SerializationError::Type {
-                    value_type: input_type,
-                    db_type: self.descriptor(),
-                })
-            }
+            _ => return Err(type_mismatch(input_type, self.descriptor())),
         })
     }
+
     fn from_u64(&self, value: u64) -> Result<HdbValue, SerializationError> {
         let input_type = "u64";
-        Ok(match self.type_id().as_tuple() {
-            (BaseTypeId::TINYINT, false) => {
+        Ok(match self.type_id().base_type_id() {
+            BaseTypeId::TINYINT => {
                 if value <= u64::from(u8::MAX) {
                     HdbValue::TINYINT(value as u8)
                 } else {
                     return Err(SerializationError::Range(input_type, self.descriptor()));
                 }
             }
-            (BaseTypeId::TINYINT, true) => {
-                if value <= u64::from(u8::MAX) {
-                    HdbValue::N_TINYINT(Some(value as u8))
-                } else {
-                    return Err(SerializationError::Range(input_type, self.descriptor()));
-                }
-            }
-            (BaseTypeId::SMALLINT, false) => {
+            BaseTypeId::SMALLINT => {
                 if value <= i16::MAX as u64 {
                     HdbValue::SMALLINT(value as i16)
                 } else {
                     return Err(SerializationError::Range(input_type, self.descriptor()));
                 }
             }
-            (BaseTypeId::SMALLINT, true) => {
-                if value <= i16::MAX as u64 {
-                    HdbValue::N_SMALLINT(Some(value as i16))
-                } else {
-                    return Err(SerializationError::Range(input_type, self.descriptor()));
-                }
-            }
-            (BaseTypeId::INT, false) => {
+            BaseTypeId::INT => {
                 if value <= i32::MAX as u64 {
                     HdbValue::INT(value as i32)
                 } else {
                     return Err(SerializationError::Range(input_type, self.descriptor()));
                 }
             }
-            (BaseTypeId::INT, true) => {
-                if value <= i32::MAX as u64 {
-                    HdbValue::N_INT(Some(value as i32))
-                } else {
-                    return Err(SerializationError::Range(input_type, self.descriptor()));
-                }
-            }
-            (BaseTypeId::BIGINT, false) => {
+            BaseTypeId::BIGINT => {
                 if value <= i64::MAX as u64 {
                     HdbValue::BIGINT(value as i64)
                 } else {
                     return Err(SerializationError::Range(input_type, self.descriptor()));
                 }
             }
-            (BaseTypeId::BIGINT, true) => {
-                if value <= i64::MAX as u64 {
-                    HdbValue::N_BIGINT(Some(value as i64))
-                } else {
-                    return Err(SerializationError::Range(input_type, self.descriptor()));
-                }
-            }
-            (BaseTypeId::DECIMAL, false) => HdbValue::DECIMAL(
+            BaseTypeId::DECIMAL => HdbValue::DECIMAL(
                 BigDecimal::from_u64(value).ok_or_else(|| decimal_range(input_type))?,
             ),
-            (BaseTypeId::DECIMAL, true) => HdbValue::N_DECIMAL(Some(
-                BigDecimal::from_u64(value).ok_or_else(|| decimal_range(input_type))?,
-            )),
-            _ => {
-                return Err(SerializationError::Type {
-                    value_type: input_type,
-                    db_type: self.descriptor(),
-                })
-            }
+            _ => return Err(type_mismatch(input_type, self.descriptor())),
         })
     }
+
     fn from_f32(&self, value: f32) -> Result<HdbValue, SerializationError> {
         let input_type = "f32";
-        Ok(match self.type_id().as_tuple() {
-            (BaseTypeId::REAL, false) => HdbValue::REAL(value),
-            (BaseTypeId::REAL, true) => HdbValue::N_REAL(Some(value)),
-            (BaseTypeId::DECIMAL, false) => HdbValue::DECIMAL(
+        Ok(match self.type_id().base_type_id() {
+            BaseTypeId::REAL => HdbValue::REAL(value),
+            BaseTypeId::DECIMAL => HdbValue::DECIMAL(
                 BigDecimal::from_f32(value).ok_or_else(|| decimal_range(input_type))?,
             ),
-            (BaseTypeId::DECIMAL, true) => HdbValue::N_DECIMAL(Some(
-                BigDecimal::from_f32(value).ok_or_else(|| decimal_range(input_type))?,
-            )),
-            _ => {
-                return Err(SerializationError::Type {
-                    value_type: "f32",
-                    db_type: self.descriptor(),
-                })
-            }
+            _ => return Err(type_mismatch("f32", self.descriptor())),
         })
     }
+
     fn from_f64(&self, value: f64) -> Result<HdbValue, SerializationError> {
         let input_type = "f64";
-        Ok(match self.type_id().as_tuple() {
-            (BaseTypeId::DOUBLE, false) => HdbValue::DOUBLE(value),
-            (BaseTypeId::DOUBLE, true) => HdbValue::N_DOUBLE(Some(value)),
-            (BaseTypeId::DECIMAL, false) => HdbValue::DECIMAL(
+        Ok(match self.type_id().base_type_id() {
+            BaseTypeId::DOUBLE => HdbValue::DOUBLE(value),
+            BaseTypeId::DECIMAL => HdbValue::DECIMAL(
                 BigDecimal::from_f64(value).ok_or_else(|| decimal_range(input_type))?,
             ),
-            (BaseTypeId::DECIMAL, true) => HdbValue::N_DECIMAL(Some(
-                BigDecimal::from_f64(value).ok_or_else(|| decimal_range(input_type))?,
-            )),
-            _ => {
-                return Err(SerializationError::Type {
-                    value_type: "f64",
-                    db_type: self.descriptor(),
-                })
-            }
+            _ => return Err(type_mismatch("f64", self.descriptor())),
         })
     }
+
     fn from_char(&self, value: char) -> Result<HdbValue, SerializationError> {
         let mut s = String::new();
         s.push(value);
@@ -484,14 +273,10 @@ impl DbvFactory for ParameterDescriptor {
             | BaseTypeId::NSTRING
             | BaseTypeId::TEXT
             | BaseTypeId::SHORTTEXT => HdbValue::STRING(s),
-            _ => {
-                return Err(SerializationError::Type {
-                    value_type: "char",
-                    db_type: self.descriptor(),
-                })
-            }
+            _ => return Err(type_mismatch("char", self.descriptor())),
         })
     }
+
     fn from_str(&self, value: &str) -> Result<HdbValue, SerializationError> {
         let map_i = |e: ParseIntError| {
             parse_error(value, "some integer type".to_string(), Some(Box::new(e)))
@@ -534,37 +319,24 @@ impl DbvFactory for ParameterDescriptor {
             BaseTypeId::SECONDTIME => {
                 HdbValue::SECONDTIME(SecondTime::from_date_string(value).map_err(map_d)?)
             }
-
-            _ => {
-                return Err(SerializationError::Type {
-                    value_type: "&str",
-                    db_type: self.descriptor(),
-                })
-            }
+            _ => return Err(type_mismatch("&str", self.descriptor())),
         })
     }
     fn from_bytes(&self, value: &[u8]) -> Result<HdbValue, SerializationError> {
-        Ok(match self.type_id().as_tuple() {
-            (BaseTypeId::BLOB, false) => HdbValue::BLOB(new_blob_to_db((*value).to_vec())),
-            (BaseTypeId::BLOB, true) => HdbValue::N_BLOB(Some(new_blob_to_db((*value).to_vec()))),
-            (BaseTypeId::NCLOB, _) => HdbValue::STRING(
+        Ok(match self.type_id().base_type_id() {
+            BaseTypeId::BINARY | BaseTypeId::VARBINARY => HdbValue::BINARY((*value).to_vec()),
+            BaseTypeId::BLOB => HdbValue::BLOB(new_blob_to_db((*value).to_vec())),
+            BaseTypeId::NCLOB => HdbValue::STRING(
                 String::from_utf8(value.to_vec())
                     .map_err(|e| parse_error("bytes", "NCLOB".to_string(), Some(Box::new(e))))?,
             ),
-            _ => {
-                return Err(SerializationError::Type {
-                    value_type: "bytes",
-                    db_type: self.descriptor(),
-                })
-            }
+            _ => return Err(type_mismatch("bytes", self.descriptor())),
         })
     }
+
     fn from_none(&self) -> Result<HdbValue, SerializationError> {
         if !self.is_nullable() {
-            Err(SerializationError::Type {
-                value_type: "none",
-                db_type: self.descriptor(),
-            })
+            Err(type_mismatch("none", self.descriptor()))
         } else {
             Ok(match self.type_id().base_type_id() {
                 BaseTypeId::TINYINT => HdbValue::N_TINYINT(None),
@@ -593,7 +365,7 @@ impl DbvFactory for ParameterDescriptor {
                 BaseTypeId::LONGDATE => HdbValue::N_LONGDATE(None),
                 BaseTypeId::SECONDDATE => HdbValue::N_SECONDDATE(None),
                 BaseTypeId::DAYDATE => HdbValue::N_DAYDATE(None),
-                BaseTypeId::SECONDTIME => HdbValue::N_SECONDTIME(None),
+                BaseTypeId::SECONDTIME => HdbValue::N_SECONDDATE(None), // error in HANA: using N_SECONDTIME yields "error while parsing protocol: no such data type: type_code=192"
             })
         }
     }
@@ -605,4 +377,11 @@ impl DbvFactory for ParameterDescriptor {
 
 fn decimal_range(ovt: &'static str) -> SerializationError {
     SerializationError::Range(ovt, "Decimal".to_string())
+}
+
+fn type_mismatch(value_type: &'static str, db_type: String) -> SerializationError {
+    SerializationError::Type {
+        value_type,
+        db_type,
+    }
 }

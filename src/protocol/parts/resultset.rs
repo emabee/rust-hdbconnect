@@ -55,7 +55,7 @@ impl ResultSetCore {
     fn drop_impl(&mut self) -> HdbResult<()> {
         let rs_id = self.resultset_id;
         trace!("ResultSetCore::drop(), resultset_id {}", rs_id);
-        if !self.attributes.is_resultset_closed() {
+        if !self.attributes.resultset_is_closed() {
             if let Some(ref conn_core) = self.o_am_conn_core {
                 if let Ok(mut conn_guard) = conn_core.lock() {
                     let mut request = Request::new(RequestType::CloseResultSet, 0);
@@ -187,7 +187,7 @@ impl ResultSet {
         let guard = self.core_ref.lock()?;
         let rs_core = &*guard;
         if (!rs_core.attributes.is_last_packet())
-            && (rs_core.attributes.row_not_found() || rs_core.attributes.is_resultset_closed())
+            && (rs_core.attributes.row_not_found() || rs_core.attributes.resultset_is_closed())
         {
             Err(HdbError::impl_(
                 "ResultSet attributes inconsistent: incomplete, but already closed on server",

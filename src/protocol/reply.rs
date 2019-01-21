@@ -40,7 +40,6 @@ impl Reply {
     //    prepared statements
     // * `ResultSet` needs to be injected (and is extended and returned)
     //    in case of fetch requests
-    #[allow(clippy::let_and_return)]
     pub fn parse<T: io::BufRead>(
         o_rs_md: Option<&ResultSetMetadata>,
         o_par_md: Option<&Vec<ParameterDescriptor>>,
@@ -49,9 +48,22 @@ impl Reply {
         rdr: &mut T,
     ) -> HdbResult<Reply> {
         trace!("Reply::parse()");
-        let reply = Reply::parse_impl(o_rs_md, o_par_md, o_rs, o_am_conn_core, rdr)?;
+        let (no_of_parts, mut reply) = parse_message_and_sequence_header(rdr)?;
 
-        // Make sure that here (after parsing) the buffer is empty
+        for i in 0..no_of_parts {
+            let part = Part::parse(
+                &mut (reply.parts),
+                o_am_conn_core,
+                o_rs_md,
+                o_par_md,
+                o_rs,
+                i == no_of_parts - 1,
+                rdr,
+            )?;
+            reply.push(part);
+        }
+
+        // Make sure that here (after parsing) the buffer is empty.
         // The following only works with nightly, because `.buffer()`
         // is on its way, but not yet in stable (https://github.com/rust-lang/rust/pull/49139)
         // and needs additionally to activate feature(bufreader_buffer) in lib.rs
@@ -74,31 +86,6 @@ impl Reply {
             rdr.consume(buf_len);
         }
 
-        Ok(reply)
-    }
-
-    fn parse_impl<T: io::BufRead>(
-        o_rs_md: Option<&ResultSetMetadata>,
-        o_par_md: Option<&Vec<ParameterDescriptor>>,
-        o_rs: &mut Option<&mut ResultSet>,
-        o_am_conn_core: Option<&AmConnCore>,
-        rdr: &mut T,
-    ) -> HdbResult<Reply> {
-        let (no_of_parts, mut reply) = parse_message_and_sequence_header(rdr)?;
-        trace!("Reply::parse(): parsed the header");
-
-        for i in 0..no_of_parts {
-            let part = Part::parse(
-                &mut (reply.parts),
-                o_am_conn_core,
-                o_rs_md,
-                o_par_md,
-                o_rs,
-                i == no_of_parts - 1,
-                rdr,
-            )?;
-            reply.push(part);
-        }
         Ok(reply)
     }
 
