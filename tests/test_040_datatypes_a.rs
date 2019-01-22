@@ -150,7 +150,6 @@ fn read(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) ->
         FIELD_VARBINARY: Option<ByteBuf>,
     }
 
-    _log_handle.parse_and_push_temp_spec("test = debug");
     {
         info!("read non-null values and evaluate via serde_db");
         let q = "select * from TEST_TYPES_A where id = 1";
@@ -173,7 +172,6 @@ fn read(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) ->
             assert!(!value.is_null());
         }
     }
-
     {
         info!("read null values and evaluate directly");
         let q = "select * from TEST_TYPES_A where id = 3";

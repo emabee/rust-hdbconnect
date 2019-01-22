@@ -3,9 +3,9 @@ mod test_utils;
 // use chrono::NaiveDateTime;
 use flexi_logger::ReconfigurationHandle;
 use hdbconnect::{Connection, HdbResult, HdbValue};
-use log::info;
-use serde_bytes::Bytes;
-// use serde_derive::Deserialize;
+use log::{debug,info};
+use serde_bytes::{ByteBuf,Bytes};
+use serde_derive::Deserialize;
 
 #[test] // cargo test --test test_041_datatypes_b -- --nocapture
 pub fn test_041_datatypes_b() -> HdbResult<()> {
@@ -109,7 +109,58 @@ fn write(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -
     Ok(())
 }
 
-fn read(_log_handle: &mut ReconfigurationHandle, _connection: &mut Connection) -> HdbResult<()> {
+
+    #[derive(Debug, Deserialize)]
+    #[allow(non_snake_case)]
+    struct Data {
+        ID: u32,
+        FIELD_CLOB: Option<String>,
+        FIELD_NCLOB: Option<String>,
+        FIELD_BLOB: Option<ByteBuf>,
+        FIELD_BOOLEAN: Option<bool>,
+        FIELD_TEXT: Option<String>,
+        FIELD_SHORTTEXT: Option<String>,
+        FIELD_LONGDATE: Option<chrono::NaiveDateTime>,
+        FIELD_SECONDDATE: Option<chrono::NaiveDateTime>,
+        FIELD_DAYDATE: Option<chrono::NaiveDate>,
+        FIELD_SECONDTIME: Option<chrono::NaiveTime>,
+    }
+
+
+fn read(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -> HdbResult<()> {
+    {
+        info!("read non-null values and evaluate via serde_db");
+        let q = "select * from TEST_TYPES_B where id = 1";
+        let data: Data = connection.query(q)?.try_into()?;
+        debug!("data: {:?}", data);
+    }
+    {
+        info!("read null values and evaluate via serde_db");
+        let q = "select * from TEST_TYPES_B where id = 3";
+        let data: Data = connection.query(q)?.try_into()?;
+        debug!("data: {:?}", data);
+    }
+    {
+        info!("read non-null values and evaluate directly");
+        let q = "select * from TEST_TYPES_B where id = 1";
+        let mut data = connection.query(q)?;
+        debug!("data: {:?}", data);
+        let row = data.pop_row().unwrap();
+        for value in row {
+            assert!(!value.is_null());
+        }
+    }
+    {
+        info!("read null values and evaluate directly");
+        let q = "select * from TEST_TYPES_B where id = 3";
+        let mut resultset = connection.query(q)?;
+        debug!("resultset: {:?}", resultset);
+        let row = resultset.pop_row().unwrap();
+        assert!(!row[0].is_null());
+        for value in row.iter().skip(1) {
+            assert!(value.is_null());
+        }
+    }
     Ok(())
 }
 

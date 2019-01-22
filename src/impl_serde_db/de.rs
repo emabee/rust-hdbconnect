@@ -170,6 +170,8 @@ impl DbValueInto<bool> for HdbValue {
     fn try_into(self) -> Result<bool, ConversionError> {
         match self {
             HdbValue::BOOLEAN(b) | HdbValue::N_BOOLEAN(Some(b)) => Ok(b),
+            HdbValue::TINYINT(1) | HdbValue::N_TINYINT(Some(1)) => Ok(true),
+            HdbValue::TINYINT(0) | HdbValue::N_TINYINT(Some(0)) => Ok(false),
             value => Err(wrong_type(&value, "bool")),
         }
     }
