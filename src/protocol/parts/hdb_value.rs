@@ -273,6 +273,40 @@ impl HdbValue {
         Ok(DbValue::into_typed(self)?)
     }
 
+    /// Returns true if the value is a NULL value.
+    pub fn is_null(&self) -> bool {
+        match *self {
+            HdbValue::N_TINYINT(None)
+            | HdbValue::N_SMALLINT(None)
+            | HdbValue::N_INT(None)
+            | HdbValue::N_BIGINT(None)
+            | HdbValue::N_DECIMAL(None)
+            | HdbValue::N_REAL(None)
+            | HdbValue::N_DOUBLE(None)
+            | HdbValue::N_CHAR(None)
+            | HdbValue::N_VARCHAR(None)
+            | HdbValue::N_NCHAR(None)
+            | HdbValue::N_NVARCHAR(None)
+            | HdbValue::N_BINARY(None)
+            | HdbValue::N_VARBINARY(None)
+            | HdbValue::N_CLOB(None)
+            | HdbValue::N_NCLOB(None)
+            | HdbValue::N_BLOB(None)
+            | HdbValue::N_BOOLEAN(None)
+            | HdbValue::N_STRING(None)
+            | HdbValue::N_NSTRING(None)
+            | HdbValue::N_BSTRING(None)
+            | HdbValue::N_SMALLDECIMAL(None)
+            | HdbValue::N_TEXT(None)
+            | HdbValue::N_SHORTTEXT(None)
+            | HdbValue::N_SECONDDATE(None)
+            | HdbValue::N_DAYDATE(None)
+            | HdbValue::N_SECONDTIME(None)
+            | HdbValue::N_LONGDATE(None) => true,
+            _ => false,
+        }
+    }
+
     pub(crate) fn emit<T: std::io::Write>(&self, data_pos: &mut i32, w: &mut T) -> HdbResult<()> {
         if !self.emit_type_id(w)? {
             match *self {
@@ -394,36 +428,7 @@ impl HdbValue {
 
     // returns true if the value is a null value, false otherwise
     fn emit_type_id(&self, w: &mut std::io::Write) -> HdbResult<bool> {
-        let is_null = match *self {
-            HdbValue::N_TINYINT(None)
-            | HdbValue::N_SMALLINT(None)
-            | HdbValue::N_INT(None)
-            | HdbValue::N_BIGINT(None)
-            | HdbValue::N_DECIMAL(None)
-            | HdbValue::N_REAL(None)
-            | HdbValue::N_DOUBLE(None)
-            | HdbValue::N_CHAR(None)
-            | HdbValue::N_VARCHAR(None)
-            | HdbValue::N_NCHAR(None)
-            | HdbValue::N_NVARCHAR(None)
-            | HdbValue::N_BINARY(None)
-            | HdbValue::N_VARBINARY(None)
-            | HdbValue::N_CLOB(None)
-            | HdbValue::N_NCLOB(None)
-            | HdbValue::N_BLOB(None)
-            | HdbValue::N_BOOLEAN(None)
-            | HdbValue::N_STRING(None)
-            | HdbValue::N_NSTRING(None)
-            | HdbValue::N_BSTRING(None)
-            | HdbValue::N_SMALLDECIMAL(None)
-            | HdbValue::N_TEXT(None)
-            | HdbValue::N_SHORTTEXT(None)
-            | HdbValue::N_SECONDDATE(None)
-            | HdbValue::N_DAYDATE(None)
-            | HdbValue::N_SECONDTIME(None)
-            | HdbValue::N_LONGDATE(None) => true,
-            _ => false,
-        };
+        let is_null = self.is_null();
 
         if is_null {
             w.write_u8(self.type_id()?.type_code())?;

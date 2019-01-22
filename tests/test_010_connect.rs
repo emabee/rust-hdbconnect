@@ -125,16 +125,17 @@ fn client_info(_log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
     connection.set_application_version("0.8.15")?;
     connection.set_application_source("dummy.rs")?;
 
-    let mut prep_stmt = connection
-        .prepare("\
-            SELECT KEY, VALUE \
-            FROM M_SESSION_CONTEXT \
-            WHERE CONNECTION_ID = ? \
-            AND (\
-               KEY = 'APPLICATIONSOURCE' \
-               OR KEY = 'APPLICATIONUSER' \
-               OR KEY = 'APPLICATIONVERSION') \
-            ORDER BY KEY")?;
+    let mut prep_stmt = connection.prepare(
+        "\
+         SELECT KEY, VALUE \
+         FROM M_SESSION_CONTEXT \
+         WHERE CONNECTION_ID = ? \
+         AND (\
+         KEY = 'APPLICATIONSOURCE' \
+         OR KEY = 'APPLICATIONUSER' \
+         OR KEY = 'APPLICATIONVERSION') \
+         ORDER BY KEY",
+    )?;
     let result: Vec<SessCtx> = prep_stmt
         .execute(&connection_id)?
         .into_resultset()?

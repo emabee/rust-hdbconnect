@@ -69,11 +69,9 @@ fn test_025_decimals_impl(
     let scale = resultset.metadata().scale(1)? as usize;
     for row in resultset {
         let row = row?;
-        let f1: HdbValue = row.cloned_value(0)?;
-        let f2: HdbValue = row.cloned_value(1)?;
-        if let HdbValue::N_DECIMAL(Some(ref bd)) = f2 {
+        if let HdbValue::N_DECIMAL(Some(ref bd)) = &row[1] {
             debug!("precision = {}, scale = {}", precision, scale);
-            assert_eq!(format!("{}", f1), format!("{0:.1$}", bd, scale));
+            assert_eq!(format!("{}", &row[0]), format!("{0:.1$}", bd, scale));
         } else {
             assert!(false, "Unexpected value type");
         }

@@ -77,9 +77,9 @@ fn test_daydate(
         trace!("calling execute_batch()");
         let mut response = prep_stmt.execute_batch()?;
         let pd = response.get_parameter_descriptor()?;
-        debug!("Parameter Descriptor: {:?}",pd);
+        debug!("Parameter Descriptor: {:?}", pd);
         let pd = response.get_parameter_descriptor()?;
-        debug!("Parameter Descriptor: {:?}",pd);
+        debug!("Parameter Descriptor: {:?}", pd);
         assert!(response.get_parameter_descriptor().is_err());
         let typed_result: i32 = response.into_resultset()?.try_into()?;
         assert_eq!(typed_result, 31);

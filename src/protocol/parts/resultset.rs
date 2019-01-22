@@ -18,11 +18,12 @@ use serde_db::de::DeserializableResultset;
 use std::fmt;
 use std::sync::{Arc, Mutex};
 
-/// Contains the result of a database read command, including the describing
-/// metadata.
+/// The result of a database query.
+///
+/// This is essentially a set of `Row`s, which is a set of `HdbValue`s.
 ///
 /// In most cases, you will want to use the powerful method
-/// [`try_into`](#method.try_into) to convert the data from the generic format
+/// [`try_into`](#method.try_into) to convert the data from this generic format
 /// into your application specific format.
 #[derive(Debug)]
 pub struct ResultSet {
@@ -92,117 +93,6 @@ impl Drop for ResultSetCore {
 }
 
 impl ResultSet {
-    /// Returns the total number of rows in the resultset,
-    /// including those that still need to be fetched from the database,
-    /// but excluding those that have already been removed from the resultset.
-    ///
-    /// This method can be expensive, and it can fail, since it fetches all yet
-    /// outstanding rows from the database.
-    pub fn total_number_of_rows(&mut self) -> HdbResult<usize> {
-        self.fetch_all()?;
-        Ok(self.rows.len())
-    }
-
-    /// Removes the last row and returns it, or None if it is empty.
-    pub fn pop_row(&mut self) -> Option<Row> {
-        self.rows.pop()
-    }
-
-    /// Returns true if more than 1 row is contained
-    pub fn has_multiple_rows(&mut self) -> bool {
-        let is_complete = match self.is_complete() {
-            Ok(b) => b,
-            Err(_) => false,
-        };
-        !is_complete || (self.rows.len() > 1)
-    }
-
-    /// Reverses the order of the rows
-    pub fn reverse_rows(&mut self) {
-        trace!("ResultSet::reverse_rows()");
-        self.rows.reverse()
-    }
-
-    /// Access to metadata.
-    pub fn metadata(&self) -> &ResultSetMetadata {
-        &self.metadata
-    }
-
-    /// Fetches all not yet transported result lines from the server.
-    ///
-    /// Bigger resultsets are typically not transported in one DB roundtrip;
-    /// the number of roundtrips depends on the size of the resultset
-    /// and the configured fetch_size of the connection.
-    pub fn fetch_all(&mut self) -> HdbResult<()> {
-        while !self.is_complete()? {
-            self.fetch_next()?;
-        }
-        Ok(())
-    }
-
-    fn fetch_next(&mut self) -> HdbResult<()> {
-        trace!("ResultSet::fetch_next()");
-        let (mut conn_core, resultset_id, fetch_size) = {
-            // scope the borrow
-            let guard = self.core_ref.lock()?;
-            let rs_core = &*guard;
-            let conn_core = match rs_core.o_am_conn_core {
-                Some(ref am_conn_core) => am_conn_core.clone(),
-                None => {
-                    return Err(HdbError::impl_("Fetch no more possible"));
-                }
-            };
-            let fetch_size = {
-                let guard = conn_core.lock()?;
-                (*guard).get_fetch_size()
-            };
-            (conn_core, rs_core.resultset_id, fetch_size)
-        };
-
-        // build the request, provide resultset id, define FetchSize
-        debug!("ResultSet::fetch_next() with fetch_size = {}", fetch_size);
-        let mut request = Request::new(RequestType::FetchNext, 0);
-        request.push(Part::new(
-            PartKind::ResultSetId,
-            Argument::ResultSetId(resultset_id),
-        ));
-        request.push(Part::new(
-            PartKind::FetchSize,
-            Argument::FetchSize(fetch_size),
-        ));
-
-        let mut reply = conn_core.full_send(request, None, None, &mut Some(self))?;
-        reply.assert_expected_reply_type(&ReplyType::Fetch)?;
-        reply.parts.pop_arg_if_kind(PartKind::ResultSet);
-
-        let mut guard = self.core_ref.lock()?;
-        let rs_core = &mut *guard;
-        if rs_core.attributes.is_last_packet() {
-            rs_core.o_am_conn_core = None;
-        }
-        Ok(())
-    }
-
-    fn is_complete(&self) -> HdbResult<bool> {
-        let guard = self.core_ref.lock()?;
-        let rs_core = &*guard;
-        if (!rs_core.attributes.is_last_packet())
-            && (rs_core.attributes.row_not_found() || rs_core.attributes.resultset_is_closed())
-        {
-            Err(HdbError::impl_(
-                "ResultSet attributes inconsistent: incomplete, but already closed on server",
-            ))
-        } else {
-            Ok(rs_core.attributes.is_last_packet())
-        }
-    }
-
-    /// Returns information about the server's resource consumption for this
-    /// resultset
-    pub fn server_resource_consumption_info(&self) -> ServerResourceConsumptionInfo {
-        self.server_resource_consumption_info.clone()
-    }
-
     /// Translates a generic resultset into a given rust type that implements
     /// serde::Deserialize. The implementation of this function uses serde_db.
     /// See [there](https://docs.rs/serde_db/) for more details.
@@ -266,6 +156,113 @@ impl ResultSet {
     {
         trace!("Resultset::try_into()");
         Ok(DeserializableResultset::into_typed(self)?)
+    }
+
+    /// Access to metadata.
+    pub fn metadata(&self) -> &ResultSetMetadata {
+        &self.metadata
+    }
+
+    /// Returns the total number of rows in the resultset,
+    /// including those that still need to be fetched from the database,
+    /// but excluding those that have already been removed from the resultset.
+    ///
+    /// This method can be expensive, and it can fail, since it fetches all yet
+    /// outstanding rows from the database.
+    pub fn total_number_of_rows(&mut self) -> HdbResult<usize> {
+        self.fetch_all()?;
+        Ok(self.rows.len())
+    }
+
+    /// Removes the last row and returns it, or None if it is empty.
+    ///
+    /// Consequently, the resultset has one row les after the call.
+    pub fn pop_row(&mut self) -> Option<Row> {
+        self.rows.pop()
+    }
+
+    // Returns true if the resultset contains more than one row.
+    pub(crate) fn has_multiple_rows(&mut self) -> bool {
+        let is_complete = match self.is_complete() {
+            Ok(b) => b,
+            Err(_) => false,
+        };
+        !is_complete || (self.rows.len() > 1)
+    }
+
+    // Reverses the order of the rows.
+    pub(crate) fn reverse_rows(&mut self) {
+        trace!("ResultSet::reverse_rows()");
+        self.rows.reverse()
+    }
+
+    /// Fetches all not yet transported result lines from the server.
+    ///
+    /// Bigger resultsets are typically not transported in one roundtrip from the database;
+    /// the number of roundtrips depends on the total number of rows in the resultset
+    /// and the configured fetch-size of the connection.
+    pub fn fetch_all(&mut self) -> HdbResult<()> {
+        while !self.is_complete()? {
+            self.fetch_next()?;
+        }
+        Ok(())
+    }
+
+    fn fetch_next(&mut self) -> HdbResult<()> {
+        trace!("ResultSet::fetch_next()");
+        let (mut conn_core, resultset_id, fetch_size) = {
+            // scope the borrow
+            let guard = self.core_ref.lock()?;
+            let rs_core = &*guard;
+            let conn_core = match rs_core.o_am_conn_core {
+                Some(ref am_conn_core) => am_conn_core.clone(),
+                None => {
+                    return Err(HdbError::impl_("Fetch no more possible"));
+                }
+            };
+            let fetch_size = {
+                let guard = conn_core.lock()?;
+                (*guard).get_fetch_size()
+            };
+            (conn_core, rs_core.resultset_id, fetch_size)
+        };
+
+        // build the request, provide resultset id, define FetchSize
+        debug!("ResultSet::fetch_next() with fetch_size = {}", fetch_size);
+        let mut request = Request::new(RequestType::FetchNext, 0);
+        request.push(Part::new(
+            PartKind::ResultSetId,
+            Argument::ResultSetId(resultset_id),
+        ));
+        request.push(Part::new(
+            PartKind::FetchSize,
+            Argument::FetchSize(fetch_size),
+        ));
+
+        let mut reply = conn_core.full_send(request, None, None, &mut Some(self))?;
+        reply.assert_expected_reply_type(&ReplyType::Fetch)?;
+        reply.parts.pop_arg_if_kind(PartKind::ResultSet);
+
+        let mut guard = self.core_ref.lock()?;
+        let rs_core = &mut *guard;
+        if rs_core.attributes.is_last_packet() {
+            rs_core.o_am_conn_core = None;
+        }
+        Ok(())
+    }
+
+    fn is_complete(&self) -> HdbResult<bool> {
+        let guard = self.core_ref.lock()?;
+        let rs_core = &*guard;
+        if (!rs_core.attributes.is_last_packet())
+            && (rs_core.attributes.row_not_found() || rs_core.attributes.resultset_is_closed())
+        {
+            Err(HdbError::impl_(
+                "ResultSet attributes inconsistent: incomplete, but already closed on server",
+            ))
+        } else {
+            Ok(rs_core.attributes.is_last_packet())
+        }
     }
 
     pub(crate) fn new(

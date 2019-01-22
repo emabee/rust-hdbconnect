@@ -67,7 +67,7 @@ impl DeserializableRow for Row {
 
     // Returns the name of the column at the specified index.
     fn get_fieldname(&self, field_idx: usize) -> Option<&String> {
-        Row::get_fieldname(self, field_idx).ok()
+        Row::metadata(self).displayname(field_idx).ok()
     }
 
     // Reverses the order of the values.

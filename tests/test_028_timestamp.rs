@@ -75,9 +75,9 @@ fn test_timestamp(
         prep_stmt.add_batch(&(naive_datetime_values[2], naive_datetime_values[3]))?;
         let mut response = prep_stmt.execute_batch()?;
         let pd = response.get_parameter_descriptor()?;
-        debug!("Parameter Descriptor: {:?}",pd);
+        debug!("Parameter Descriptor: {:?}", pd);
         let pd = response.get_parameter_descriptor()?;
-        debug!("Parameter Descriptor: {:?}",pd);
+        debug!("Parameter Descriptor: {:?}", pd);
         assert!(response.get_parameter_descriptor().is_err());
         let typed_result: i32 = response.into_resultset()?.try_into()?;
         assert_eq!(typed_result, 31);

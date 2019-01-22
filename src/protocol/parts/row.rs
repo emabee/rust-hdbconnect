@@ -10,7 +10,13 @@ use std::mem;
 use std::sync::Arc;
 use std::vec;
 
-/// A generic implementation of a single line of a `ResultSet`.
+/// A single line of a `ResultSet`, consisting of the contained `HdbValue`s and
+/// a reference to the metadata.
+///
+/// `Row` has several methods that support an efficient data transfer into your own data structures.
+///
+/// You also can access individual values with `row[idx]`, or iterate over the values (with
+/// `row.iter()` or `for value in row {...}`).
 #[derive(Clone, Debug)]
 pub struct Row {
     metadata: Arc<ResultSetMetadata>,
@@ -19,8 +25,22 @@ pub struct Row {
 
 impl Row {
     /// Factory for row.
-    pub fn new(metadata: Arc<ResultSetMetadata>, values: Vec<HdbValue>) -> Row {
+    pub(crate) fn new(metadata: Arc<ResultSetMetadata>, values: Vec<HdbValue>) -> Row {
         Row { metadata, values }
+    }
+
+    /// Converts the entire Row into a rust value.
+    pub fn try_into<'de, T>(self) -> HdbResult<T>
+    where
+        T: serde::de::Deserialize<'de>,
+    {
+        trace!("Row::into_typed()");
+        Ok(DeserializableRow::into_typed(self)?)
+    }
+
+    /// Iterate over the values.
+    pub fn iter(&self) -> std::slice::Iter<HdbValue> {
+        self.values.iter()
     }
 
     /// Returns the length of the row.
@@ -38,27 +58,6 @@ impl Row {
     pub fn pop(&mut self) -> Option<HdbValue> {
         trace!("Row::pop()");
         self.values.pop()
-    }
-
-    /// Returns the name of the i'th column
-    pub fn get_fieldname(&self, i: usize) -> HdbResult<&String> {
-        trace!("Row::get_fieldname()");
-        self.metadata.displayname(i)
-    }
-
-    /// Reverses the order of the values
-    pub fn reverse_values(&mut self) {
-        trace!("Row::reverse()");
-        self.values.reverse()
-    }
-
-    /// Returns a clone of the ith value.
-    pub fn cloned_value(&self, i: usize) -> HdbResult<HdbValue> {
-        trace!("Row::cloned_value()");
-        self.values
-            .get(i)
-            .cloned()
-            .ok_or_else(|| HdbError::Usage("element with index {} does not exist".to_owned()))
     }
 
     /// Pops and converts the last field into a plain rust value.
@@ -147,13 +146,23 @@ impl Row {
         }
     }
 
-    /// Converts the Row into a rust value.
-    pub fn try_into<'de, T>(self) -> HdbResult<T>
-    where
-        T: serde::de::Deserialize<'de>,
-    {
-        trace!("Row::into_typed()");
-        Ok(DeserializableRow::into_typed(self)?)
+    /// Reverses the order of the values
+    pub(crate) fn reverse_values(&mut self) {
+        trace!("Row::reverse()");
+        self.values.reverse()
+    }
+
+    /// Returns the metadata.
+    pub fn metadata(&self) -> &ResultSetMetadata {
+        trace!("Row::metadata()");
+        &(self.metadata)
+    }
+}
+
+impl std::ops::Index<usize> for Row {
+    type Output = HdbValue;
+    fn index(&self, idx: usize) -> &HdbValue {
+        &self.values[idx]
     }
 }
 
