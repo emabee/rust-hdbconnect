@@ -23,7 +23,7 @@ pub fn test_050_procedures() -> HdbResult<()> {
 
     info!("{} calls to DB were executed", connection.get_call_count()?);
     Ok(())
-}
+} 
 
 fn very_simple_procedure(
     _log_handle: &mut ReconfigurationHandle,
@@ -145,10 +145,10 @@ fn procedure_with_in_parameters(
     let mut response = prepared_stmt.execute_batch()?;
     response.get_success()?;
     let mut rs: ResultSet = response.get_resultset()?;
-    let mut row: Row = rs.pop_row().unwrap();
-    let value: i32 = row.field_into(0)?;
+    let mut row: Row = rs.next_row()?.unwrap();
+    let value: i32 = row.next_value().unwrap().try_into()?;
     assert_eq!(value, 42_i32);
-    let value: String = row.field_into(1)?;
+    let value: String = row.next_value().unwrap().try_into()?;
     assert_eq!(&value, "is between 41 and 43");
     Ok(())
 }
@@ -190,7 +190,7 @@ fn procedure_with_in_and_out_parameters(
     assert_eq!(value, "some output parameter");
 
     let mut rs = response.get_resultset()?;
-    let value: i32 = rs.pop_row().unwrap().field_into(0)?;
+    let value: i32 = rs.next_row()?.unwrap().next_value().unwrap().try_into()?;
     assert_eq!(value, 42);
 
     Ok(())
@@ -219,8 +219,8 @@ fn procedure_with_in_nclob_non_consuming(
     let mut response = prepared_stmt.execute_batch()?;
     response.get_success()?;
     let mut rs = response.get_resultset()?;
-    let mut row = rs.pop_row().unwrap();
-    let value: String = row.field_into(0)?;
+    let mut row = rs.next_row()?.unwrap();
+    let value: String = row.next_value().unwrap().try_into()?;
     assert_eq!(value, "nclob string");
 
     Ok(())

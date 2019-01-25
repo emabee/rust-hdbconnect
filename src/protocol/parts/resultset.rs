@@ -29,7 +29,8 @@ use std::sync::{Arc, Mutex};
 pub struct ResultSet {
     core_ref: Arc<Mutex<ResultSetCore>>,
     metadata: Arc<ResultSetMetadata>,
-    rows: Vec<Row>,
+    next_rows: Vec<Row>,
+    row_iter: <Vec<Row> as IntoIterator>::IntoIter,
     server_resource_consumption_info: ServerResourceConsumptionInfo,
 }
 
@@ -171,14 +172,32 @@ impl ResultSet {
     /// outstanding rows from the database.
     pub fn total_number_of_rows(&mut self) -> HdbResult<usize> {
         self.fetch_all()?;
-        Ok(self.rows.len())
+        Ok(self.row_iter.len())
     }
 
-    /// Removes the last row and returns it, or None if it is empty.
+    /// Removes the next row and returns it, or None if the ResultSet is empty.
     ///
-    /// Consequently, the resultset has one row les after the call.
-    pub fn pop_row(&mut self) -> Option<Row> {
-        self.rows.pop()
+    /// Consequently, the ResultSet has one row less after the call.
+    /// May need to fetch further rows from the database, which can fail, and thus returns
+    /// an HdbResult.
+    ///
+    /// Using ResultSet::into_iter() is preferrable due to better performance.
+    pub fn next_row(&mut self) -> HdbResult<Option<Row>> {
+        match self.row_iter.next() {
+            Some(r) => Ok(Some(r)),
+            None => {
+                if self.next_rows.is_empty() {
+                    if self.is_complete()? {
+                        return Ok(None);
+                    }
+                    self.fetch_next()?;
+                }
+                let mut tmp_vec = Vec::<Row>::new();
+                std::mem::swap(&mut tmp_vec, &mut self.next_rows);
+                self.row_iter = tmp_vec.into_iter();
+                Ok(self.row_iter.next())
+            }
+        }
     }
 
     // Returns true if the resultset contains more than one row.
@@ -187,13 +206,7 @@ impl ResultSet {
             Ok(b) => b,
             Err(_) => false,
         };
-        !is_complete || (self.rows.len() > 1)
-    }
-
-    // Reverses the order of the rows.
-    pub(crate) fn reverse_rows(&mut self) {
-        trace!("ResultSet::reverse_rows()");
-        self.rows.reverse()
+        !is_complete || (self.next_rows.len() + self.row_iter.len() > 1)
     }
 
     /// Fetches all not yet transported result lines from the server.
@@ -286,7 +299,8 @@ impl ResultSet {
         ResultSet {
             core_ref: ResultSetCore::new_am_rscore(am_conn_core, attrs, rs_id),
             metadata: Arc::new(rsm),
-            rows: Vec::<Row>::new(),
+            next_rows: Vec::<Row>::new(),
+            row_iter: Vec::<Row>::new().into_iter(),
             server_resource_consumption_info,
         }
     }
@@ -413,7 +427,7 @@ impl ResultSet {
                 }
                 let row = Row::new(Arc::clone(&resultset.metadata), values);
                 trace!("parse_rows(): Found row {}", row);
-                resultset.rows.push(row);
+                resultset.next_rows.push(row);
             }
         }
         Ok(())
@@ -421,50 +435,24 @@ impl ResultSet {
 }
 
 impl fmt::Display for ResultSet {
+    // Writes a header and then the data
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(fmt, "{}\n", &self.metadata)?; // write a header
-        for row in &self.rows {
-            writeln!(fmt, "{}\n", &row)?; // write the data
+        writeln!(fmt, "{}\n", &self.metadata)?;
+
+        for row in self.row_iter.as_slice() {
+            writeln!(fmt, "{}\n", &row)?;
+        }
+        for row in &self.next_rows {
+            writeln!(fmt, "{}\n", &row)?;
         }
         Ok(())
     }
 }
 
-impl IntoIterator for ResultSet {
-    type Item = HdbResult<Row>;
-    type IntoIter = RowIterator;
-
-    fn into_iter(self) -> Self::IntoIter {
-        RowIterator::new(self)
-    }
-}
-
-#[derive(Debug)]
-pub struct RowIterator {
-    rs: ResultSet,
-}
-impl RowIterator {
-    fn new(mut rs: ResultSet) -> RowIterator {
-        rs.reverse_rows();
-        RowIterator { rs }
-    }
-    fn next_int(&mut self) -> HdbResult<Option<Row>> {
-        if self.rs.rows.is_empty() {
-            if self.rs.is_complete()? {
-                return Ok(None);
-            } else {
-                self.rs.fetch_next()?;
-                self.rs.reverse_rows();
-            }
-        }
-        Ok(self.rs.rows.pop())
-    }
-}
-
-impl Iterator for RowIterator {
+impl Iterator for ResultSet {
     type Item = HdbResult<Row>;
     fn next(&mut self) -> Option<HdbResult<Row>> {
-        match self.next_int() {
+        match self.next_row() {
             Ok(Some(row)) => Some(Ok(row)),
             Ok(None) => None,
             Err(e) => Some(Err(e)),

@@ -27,7 +27,7 @@
 //! ```rust,no_run
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
 //! # fn foo() -> HdbResult<()> {
-//! # let params = "hdbsql://my_user:my_passwd@the_host:2222".into_connect_params()?;
+//! # let params = "".into_connect_params()?;
 //! # let mut connection = Connection::new(params)?;
 //! let query = "SELECT foo FROM bar";
 //! # #[allow(unused_variables)]
@@ -46,7 +46,7 @@
 //! ```rust,no_run
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
 //! # fn foo() -> HdbResult<()> {
-//! # let params = "hdbsql://my_user:my_passwd@the_host:2222".into_connect_params()?;
+//! # let params = "".into_connect_params()?;
 //! # let mut connection = Connection::new(params)?;
 //! # let query = "SELECT foo FROM bar";
 //! let response = connection.statement(query)?; // HdbResponse
@@ -73,7 +73,7 @@
 //! ```rust,no_run
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
 //! # fn foo() -> HdbResult<()> {
-//! # let params = "hdbsql://my_user:my_passwd@the_host:2222".into_connect_params()?;
+//! # let params = "".into_connect_params()?;
 //! # let mut connection = Connection::new(params)?;
 //! let qry = "SELECT foo FROM bar";
 //! let resultset = connection.query(qry)?; // ResultSet
@@ -88,7 +88,7 @@
 //! ```rust,no_run
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
 //! # fn foo() -> HdbResult<()> {
-//! # let params = "hdbsql://my_user:my_passwd@the_host:2222".into_connect_params()?;
+//! # let params = "".into_connect_params()?;
 //! # let mut connection = Connection::new(params)?;
 //! let stmt_str = "insert into TEST_PREPARE (F_STRING, F_INTEGER) values(?, ?)";
 //! let mut stmt = connection.prepare(stmt_str)?;
@@ -104,7 +104,7 @@
 //! ```rust,no_run
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
 //! # fn foo() -> HdbResult<()> {
-//! # let params = "hdbsql://my_user:my_passwd@the_host:2222".into_connect_params()?;
+//! # let params = "".into_connect_params()?;
 //! # let mut connection = Connection::new(params)?;
 //! let stmt_str = "select NAME, CITY from TEST_TABLE where age > ?";
 //! let mut stmt = connection.prepare(stmt_str)?;
@@ -114,21 +114,21 @@
 //! # }
 //! ```
 //!
-//! # 3. Resultset evaluation
+//! # 3. Result set evaluation
 //!
 //! # 3.1 Iterating over rows
 //!
-//! Evaluating a resultset by iterating over the rows explicitly is possible, of course.
+//! Evaluating a result set by iterating over the rows explicitly is possible, of course.
 //! Note that the row iterator returns `HdbResult<Row>`, not `Row`,
-//! because the resultset might need to fetch more rows lazily from the server, which can fail.
+//! because the result set might need to fetch more rows lazily from the server, which can fail.
 //!
 //! ```rust,no_run
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
 //! # fn foo() -> HdbResult<()> {
-//! # let params = "hdbsql://my_user:my_passwd@the_host:2222".into_connect_params()?;
+//! # let params = "".into_connect_params()?;
 //! # let mut connection = Connection::new(params)?;
-//! # let qry = "SELECT foo FROM bar";
-//! # let resultset = connection.query(qry)?; // ResultSet
+//! # let qry = "";
+//! # let resultset = connection.query(qry)?;
 //! for row in resultset {
 //!     let row = row?;
 //!     // now you have a real row
@@ -137,7 +137,7 @@
 //! # }
 //! ```
 //!
-//! Such a streaming-like behavior is especially appropriate for large resultsets.
+//! Such a streaming-like behavior is especially appropriate for large result sets.
 //! Iterating over the rows, while they are fetched on-demand from the server in smaller portions,
 //! makes it easy to write complex evaluations in an efficient and scalable manner.
 //!
@@ -156,20 +156,20 @@
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams, Row};
 //! # fn main() { }
 //! # fn foo() -> HdbResult<()> {
-//! # let params = "hdbsql://my_user:my_passwd@the_host:2222".into_connect_params()?;
+//! # let params = "".into_connect_params()?;
 //! # let mut connection = Connection::new(params)?;
-//! # let qry = "SELECT foo FROM bar";
-//! # let resultset = connection.query(qry)?; // ResultSet
+//! # let qry = "";
+//! # let resultset = connection.query(qry)?;
 //! for row in resultset {
 //!     let mut row:Row = row?;
 //! # #[allow(unused_variables)]
-//!     let f4: chrono::NaiveDateTime = row.field_into(3)?;
+//!     let f1: String = row.next_value().unwrap().try_into()?;
 //! # #[allow(unused_variables)]
-//!     let f1: String = row.field_into(0)?;
+//!     let f2: Option<i32> = row.next_value().unwrap().try_into()?;
 //! # #[allow(unused_variables)]
-//!     let f3: i32 = row.field_into(2)?;
+//!     let f3: i32 = row.next_value().unwrap().try_into()?;
 //! # #[allow(unused_variables)]
-//!     let f2: Option<i32> = row.field_into(1)?;
+//!     let f4: chrono::NaiveDateTime = row.next_value().unwrap().try_into()?;
 //! }
 //! # Ok(())
 //! # }
@@ -185,10 +185,10 @@
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
 //! # fn main() { }
 //! # fn foo() -> HdbResult<()> {
-//! # let params = "hdbsql://my_user:my_passwd@the_host:2222".into_connect_params()?;
+//! # let params = "".into_connect_params()?;
 //! # let mut connection = Connection::new(params)?;
-//! # let qry = "SELECT foo FROM bar";
-//! # let resultset = connection.query(qry)?; // ResultSet
+//! # let qry = "";
+//! # let resultset = connection.query(qry)?;
 //! #[derive(Deserialize)]
 //! struct TestData {/* ...*/}
 //! let qry = "select * from TEST_RESULTSET";
@@ -202,25 +202,25 @@
 //! As hdbconnect uses return type polymorphism for this conversion (based on `serde`),
 //! you need to specify the type of your target variable explicitly.
 //!
-//! # 3.4 Direct conversion of entire resultsets
+//! # 3.4 Direct conversion of entire result sets
 //!
-//! Even more convenient is the option to convert the complete resultset in a single step.
+//! Even more convenient is the option to convert the complete result set in a single step.
 //! Depending on the concrete numbers of rows and columns, this option supports
 //! a variety of target data structures.
 //!
-//! # 3.4.1 Matrix-structured resultsets
+//! # 3.4.1 Matrix-structured result sets
 //!
 //! You can always, and __most often want to__, use a <code>Vec</code> of a struct or
-//! tuple that matches the fields of the resultset.
+//! tuple that matches the fields of the result set.
 //!
 //! ```rust,no_run
 //! # use serde_derive::Deserialize;
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
 //! # fn main() { }
 //! # fn foo() -> HdbResult<()> {
-//! # let params = "hdbsql://my_user:my_passwd@the_host:2222".into_connect_params()?;
+//! # let params = "".into_connect_params()?;
 //! # let mut connection = Connection::new(params)?;
-//! # let qry = "select * from TEST_RESULTSET";
+//! # let qry = "";
 //! #[derive(Deserialize)]
 //! struct MyRow {/* ...*/}
 //!
@@ -230,9 +230,9 @@
 //! # }
 //! ```
 //!
-//! # 3.4.2 Single-line resultsets
+//! # 3.4.2 Single-line result sets
 //!
-//! If the resultset contains only a single line (e.g. because you specified
+//! If the result set contains only a single line (e.g. because you specified
 //! TOP 1 in your select, or you qualified the full primary key),
 //! then you can choose to deserialize into a plain <code>`MyRow`</code> directly.
 //!
@@ -251,24 +251,38 @@
 //!   # }
 //!   ```
 //!
-//! # 3.4.3 Single-column resultsets
+//! # 3.4.3 Single-column result sets
 //!
-//! If the resultset contains only a single column, then you can choose to
+//! If the result set contains only a single column, then you can choose to
 //! deserialize into a <code>Vec&lt;field&gt;</code>,
-//! where <code>field</code> is a type that matches the field of the resultset.
+//! where <code>field</code> is a type that matches the field of the result set.
 //! If a plain rust type is used, you don't even need to derive Deserialize:
 //!
-//!   ```ignore
+//!   ```rust, no-run
+//! # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
+//! # fn foo() -> HdbResult<()> {
+//! # let params = "".into_connect_params()?;
+//! # let mut connection = Connection::new(params)?;
+//! # let qry = "";
 //!   let result: Vec<u32> = connection.query(qry)?.try_into()?;
+//! # Ok(())
+//! # }
 //!   ```
 //!
-//! # 3.4.4 Single-value resultsets
+//! # 3.4.4 Single-value result sets
 //!
-//! If the resultset contains only a single value (one row with one column),
+//! If the result set contains only a single value (one row with one column),
 //! then you can also deserialize into a plain <code>field</code>:
 //!
-//!   ```ignore
+//!   ```rust, no-run
+//! # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
+//! # fn foo() -> HdbResult<()> {
+//! # let params = "".into_connect_params()?;
+//! # let mut connection = Connection::new(params)?;
+//! # let qry = "";
 //!   let result: u32 = connection.query(qry)?.try_into()?;
+//! # Ok(())
+//! # }
 //!   ```
 //!
 //! # 4. Deserialization of field values
@@ -276,7 +290,7 @@
 //! The deserialization of individual values provides flexibility without data loss:
 //!
 //! * You can e.g. convert values from a nullable column into a plain field,
-//!   provided that no NULL values are given in the resultset.
+//!   provided that no NULL values are given in the result set.
 //!
 //! * Vice versa, you can use an Option<code>&lt;field&gt;</code> as target structure,
 //!   even if the column is marked as NOT NULL.
@@ -286,8 +300,8 @@
 //!
 //! * You can convert numeric values on-the-fly into default String representations.
 //!
-//! You should use this flexibility with some care though, errors are returned if the data
-//! violates the boundaries of the target values.
+//! You should use this flexibility with some care though, or you will face errors
+//! when the data violates the boundaries of the target values.
 //!
 //!
 //! # 5. Binary Values
@@ -304,9 +318,17 @@
 //! ```
 //!
 //!
-//! ```ignore
-//! let bindata: ByteBuf = resultset.try_into()?; // single binary field
+//! ```rust, no-run
+//! # use hdbconnect::{Connection, ResultSet, HdbResult, IntoConnectParams};
+//! # fn foo() -> HdbResult<()> {
+//! # let params = "".into_connect_params()?;
+//! # let qry = "";
+//! # let mut connection = Connection::new(params)?;
+//! # let resultset: ResultSet = connection.query(qry)?;
+//! let bindata: serde_bytes::ByteBuf = resultset.try_into()?; // single binary field
 //! let first_byte = bindata[0];
+//! # Ok(())
+//! # }
 //! ```
 //!
 //!
@@ -314,17 +336,25 @@
 //! Binary and Character LOBs can be treated like "normal" binary and String data, i.e.
 //! you can convert them with the methods described above into `ByteBuf` or String values.
 //!
-//! But of course you often do not want to materialize the complete "Large Object", especially
-//! if you just want to stream it into a writer.
+//! You can avoid materializing the complete "Large Object", e.g.
+//! if you want to stream it into a writer:
 //!
-//! This can be easily accomplished as well:
-//!
-//! ```ignore
-//!     let mut resultset: hdbconnect::ResultSet = connection.query(query)?;
-//!     let mut clob: hdbconnect::CLOB = resultset.pop_row().unwrap().field_into_clob(1)?;
-//!     io::copy(&mut clob, &mut writer)?;
+//! ```rust, no-run
+//! # use hdbconnect::{Connection, HdbResult, IntoConnectParams, ResultSet};
+//! # use hdbconnect::types::NCLob;
+//! # fn foo() -> HdbResult<()> {
+//! # let params = "".into_connect_params()?;
+//! # let query = "";
+//! # let mut connection = Connection::new(params)?;
+//! # let mut resultset: ResultSet = connection.query(query)?;
+//! # let mut writer: Vec<u8> = vec![];
+//! let mut row = resultset.next_row()?.unwrap();
+//! let mut nclob: NCLob = row.next_value().unwrap().try_into_nclob()?;
+//! std::io::copy(&mut nclob, &mut writer)?;
+//! # Ok(())
+//! # }
 //! ```
 //!
-//! While being read by `io::copy()`, the CLOB will continuously fetch more data from the
-//! database until the complete CLOB was passed over.
+//! While being read by `io::copy()`, the NCLOB will continuously fetch more data from the
+//! database until the complete NCLOB is processed.
 //!

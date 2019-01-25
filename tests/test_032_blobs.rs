@@ -106,11 +106,11 @@ fn test_blobs(
 
     connection.set_lob_read_length(200_000)?;
 
-    let query = "select desc, bindata as BL1, bindata as BL2, bindata_NN as BL3 from TEST_BLOBS";
+    let query = "select bindata as BL1, bindata as BL2, bindata_NN as BL3 from TEST_BLOBS";
     let mut resultset: hdbconnect::ResultSet = connection.query(query)?;
-    let mut row = resultset.pop_row().unwrap();
-    let mut blob: BLob = row.field_into_blob(1)?;
-    let mut blob2: BLob = row.field_into_blob(2)?;
+    let mut row = resultset.next_row()?.unwrap();
+    let mut blob: BLob = row.next_value().unwrap().try_into_blob()?;
+    let mut blob2: BLob = row.next_value().unwrap().try_into_blob()?;
 
     let mut streamed = Vec::<u8>::new();
     io::copy(&mut blob2, &mut streamed)?;

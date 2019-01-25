@@ -1,4 +1,4 @@
-use crate::{HdbError, HdbResult};
+use crate::HdbError;
 use bigdecimal::ToPrimitive;
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use serde_db::de::{
@@ -16,38 +16,20 @@ impl DeserializableResultset for ResultSet {
     type ROW = Row;
     type E = HdbError;
 
-    /// Returns true if more than 1 row is contained.
     fn has_multiple_rows(&mut self) -> Result<bool, DeserializationError> {
         Ok(ResultSet::has_multiple_rows(self))
     }
 
-    /// Reverses the order of the rows.
-    fn reverse_rows(&mut self) {
-        ResultSet::reverse_rows(self)
+    fn next(&mut self) -> DeserializationResult<Option<Row>> {
+        Ok(ResultSet::next_row(self)?)
     }
 
-    /// Removes the last row and returns it, or None if it is empty.
-    fn pop_row(&mut self) -> DeserializationResult<Option<Row>> {
-        Ok(ResultSet::pop_row(self))
-    }
-
-    /// Returns the number of fields.
     fn number_of_fields(&self) -> usize {
         ResultSet::metadata(self).number_of_fields()
     }
 
-    /// Returns the name of the i'th column
-    fn get_fieldname(&self, i: usize) -> Option<&String> {
+    fn fieldname(&self, i: usize) -> Option<&String> {
         ResultSet::metadata(self).displayname(i).ok()
-    }
-
-    /// Fetches all not yet transported result lines from the server.
-    ///
-    /// Bigger resultsets are typically not transported in one DB roundtrip;
-    /// the number of roundtrips depends on the size of the resultset
-    /// and the configured fetch_size of the connection.
-    fn fetch_all(&mut self) -> HdbResult<()> {
-        ResultSet::fetch_all(self)
     }
 }
 
@@ -55,24 +37,20 @@ impl DeserializableRow for Row {
     type V = HdbValue;
     type E = HdbError;
 
-    // Returns the length of the row.
     fn len(&self) -> usize {
         Row::len(self)
     }
 
-    // Removes and returns the last value.
-    fn pop(&mut self) -> Option<HdbValue> {
-        Row::pop(self)
+    fn next(&mut self) -> Option<HdbValue> {
+        Row::next_value(self)
     }
 
-    // Returns the name of the column at the specified index.
-    fn get_fieldname(&self, field_idx: usize) -> Option<&String> {
+    fn number_of_fields(&self) -> usize {
+        self.number_of_fields()
+    }
+
+    fn fieldname(&self, field_idx: usize) -> Option<&String> {
         Row::metadata(self).displayname(field_idx).ok()
-    }
-
-    // Reverses the order of the values.
-    fn reverse_values(&mut self) {
-        Row::reverse_values(self)
     }
 }
 
@@ -594,4 +572,11 @@ fn decimal_range(ovt: &str) -> ConversionError {
 /// Deserializes a `LongDate` into a String format.
 fn str_from<T: fmt::Display>(t: &T) -> String {
     format!("{}", t)
+}
+
+// FIXME: improve this implementation
+impl From<HdbError> for DeserializationError {
+    fn from(e: HdbError) -> DeserializationError {
+        DeserializationError::Usage(e.to_string())
+    }
 }

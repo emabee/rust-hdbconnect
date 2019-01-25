@@ -30,21 +30,30 @@ pub struct PreparedStatement {
 }
 
 impl PreparedStatement {
-    /// Descriptors of all parameters of the prepared statement (in, out, inout), if any.
-    pub fn parameter_descriptors(&self) -> Option<&Vec<ParameterDescriptor>> {
-        self.o_par_md.as_ref()
-    }
-
-    /// Descriptors of the input (in and inout) parameters of the prepared statement, if any.
-    pub fn input_parameter_descriptors(&self) -> Option<&Vec<ParameterDescriptor>> {
-        self.o_input_md.as_ref()
-    }
-
     /// Converts the input into a row of parameters,
     /// if it is consistent with the metadata, and executes the statement immediately.
+    ///
+    /// If the statement has no parameter, call it like this:
+    ///
+    /// ```rust, no-run
+    /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, Row};
+    /// # fn main() { }
+    /// # fn foo() -> HdbResult<()> {
+    /// # let mut connection = Connection::new("".into_connect_params()?)?;
+    /// # let mut stmt = connection.prepare("")?;
+    /// let resultset = stmt.execute(&())?.into_resultset()?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn execute<T: serde::ser::Serialize>(&mut self, input: &T) -> HdbResult<HdbResponse> {
-        self.add_batch(input)?;
-        self.execute_batch()
+        trace!("PreparedStatement::execute()");
+        match self.o_input_md {
+            Some(ref metadata) => {
+                let par_row = ParameterRow::new(to_params(input, metadata)?);
+                self.execute_parameter_rows(Some(vec![par_row]))
+            }
+            None => self.execute_parameter_rows(None),
+        }
     }
 
     /// Converts the input into a row of parameters and adds it to the batch,
@@ -106,6 +115,16 @@ impl PreparedStatement {
                 "The statement has no parameters, use of batch is not possible".to_string(),
             )),
         }
+    }
+
+    /// Descriptors of all parameters of the prepared statement (in, out, inout), if any.
+    pub fn parameter_descriptors(&self) -> Option<&Vec<ParameterDescriptor>> {
+        self.o_par_md.as_ref()
+    }
+
+    /// Descriptors of the input (in and inout) parameters of the prepared statement, if any.
+    pub fn input_parameter_descriptors(&self) -> Option<&Vec<ParameterDescriptor>> {
+        self.o_input_md.as_ref()
     }
 
     fn execute_parameter_rows(

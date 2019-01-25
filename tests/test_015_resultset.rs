@@ -23,26 +23,25 @@ fn evaluate_resultset(
     _log_handle: &mut ReconfigurationHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
-    info!("evaluate_resultset");
+    info!("evaluate resultset");
     // prepare the db table
     connection.multiple_statements_ignore_err(vec!["drop table TEST_RESULTSET"]);
     let stmts = vec![
-        "create table TEST_RESULTSET ( f1_s NVARCHAR(100) primary key, f2_i INT, f3_i \
-         INT not null, f4_dt LONGDATE)",
-        "insert into TEST_RESULTSET (f1_s, f2_i, f3_i, f4_dt) values('Hello', null, \
-         1,'01.01.1900')",
-        "insert into TEST_RESULTSET (f1_s, f2_i, f3_i, f4_dt) values('world!', null, \
-         20,'01.01.1901')",
-        "insert into TEST_RESULTSET (f1_s, f2_i, f3_i, f4_dt) values('I am here.', \
-         null, 300,'01.01.1902')",
+        "create table TEST_RESULTSET ( \
+         f1_s NVARCHAR(100) primary key, f2_i INT, f3_i INT not null, f4_dt LONGDATE)",
+        "insert into TEST_RESULTSET (f1_s, f2_i, f3_i, f4_dt) \
+         values('Hello', null, 1,'01.01.1900')",
+        "insert into TEST_RESULTSET (f1_s, f2_i, f3_i, f4_dt) \
+         values('world!', null, 20,'01.01.1901')",
+        "insert into TEST_RESULTSET (f1_s, f2_i, f3_i, f4_dt) \
+         values('I am here.', null, 300,'01.01.1902')",
     ];
     connection.multiple_statements(stmts)?;
 
     // insert some mass data
     for i in 100..200 {
         connection.dml(format!(
-            "insert into TEST_RESULTSET (f1_s, f2_i, f3_i, \
-             f4_dt) values('{}', {}, {},'01.01.1900')",
+            "insert into TEST_RESULTSET (f1_s, f2_i, f3_i, f4_dt) values('{}', {}, {},'01.01.1900')",
             i, i, i
         ))?;
     }
@@ -63,17 +62,17 @@ fn evaluate_resultset(
 
     {
         let _tmp = connection.query(stmt)?;
-        info!("After query");
+        debug!("After query");
     }
-    info!("After drop");
+    debug!("After drop of resultset");
 
-    info!("Loop over rows, pick out single values individually, in arbitrary order");
+    info!("Loop over rows, loop over values, evaluate each individually");
     for row in connection.query(stmt)? {
         let mut row = row?;
-        let f4: NaiveDateTime = row.field_into(3)?;
-        let f1: String = row.field_into(0)?;
-        let f3: i32 = row.field_into(2)?;
-        let f2: Option<i32> = row.field_into(1)?;
+        let f1: String = row.next_value().unwrap().try_into()?;
+        let f2: Option<i32> = row.next_value().unwrap().try_into()?;
+        let f3: i32 = row.next_value().unwrap().try_into()?;
+        let f4: NaiveDateTime = row.next().unwrap().try_into()?;
         debug!("Got {}, {:?}, {}, {}", f1, f2, f3, f4);
     }
 
@@ -118,7 +117,7 @@ fn verify_row_ordering(
     _log_handle: &mut ReconfigurationHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
-    info!("verify_row_ordering");
+    info!("verify row ordering");
     // prepare the db table
     connection.multiple_statements_ignore_err(vec!["drop table TEST_ROW_ORDERING"]);
     connection.multiple_statements(vec![
@@ -137,10 +136,11 @@ fn verify_row_ordering(
     for fs in [10, 100, 1000, 2000].into_iter() {
         debug!("verify_row_ordering with fetch_size {}", *fs);
         connection.set_fetch_size(*fs).unwrap();
+
         for (index, row) in connection.query(stmt)?.into_iter().enumerate() {
             let (f1, f2): (usize, usize) = row?.try_into()?;
             if index % 100 == 0 {
-                debug!("pass 1, {}", index);
+                debug!("pass 1: convert rows individually, {}", index);
             };
             assert_eq!(index, f1);
             assert_eq!(index, f2);
@@ -148,17 +148,17 @@ fn verify_row_ordering(
 
         for (index, row) in connection.query(stmt)?.into_iter().enumerate() {
             if index % 100 == 0 {
-                debug!("pass 2, {}", index);
+                debug!("pass 2: convert fields individually, {}", index);
             }
             let mut row = row?;
-            assert_eq!(index, row.field_into::<usize>(0)?);
-            assert_eq!(index, row.field_into::<usize>(1)?);
+            assert_eq!(index, row.next_value().unwrap().try_into::<usize>()?);
+            assert_eq!(index, row.next_value().unwrap().try_into::<usize>()?);
         }
 
         let result: Vec<(usize, usize)> = connection.query(stmt)?.try_into()?;
         for (index, (f1, f2)) in result.into_iter().enumerate() {
             if index % 100 == 0 {
-                debug!("pass 3, {}", index);
+                debug!("pass 3: convert the whole resultset, {}", index);
             }
             assert_eq!(index, f1);
             assert_eq!(index, f2);

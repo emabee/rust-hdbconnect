@@ -111,9 +111,9 @@ fn test_nclobs(
 
     connection.set_lob_read_length(200_000)?;
 
-    let query = "select desc, chardata as CL1, chardata as CL2 from TEST_NCLOBS";
-    let mut resultset: hdbconnect::ResultSet = connection.query(query)?;
-    let mut nclob: NCLob = resultset.pop_row().unwrap().field_into_nclob(1)?;
+    let mut resultset = connection.query("select chardata from TEST_NCLOBS")?;
+    let mut row = resultset.next_row()?.unwrap();
+    let mut nclob: NCLob = row.next_value().unwrap().try_into_nclob()?;
     let mut streamed = Vec::<u8>::new();
     io::copy(&mut nclob, &mut streamed)?;
 

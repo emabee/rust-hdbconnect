@@ -1,5 +1,19 @@
 # Changelog
 
+## [Unpublished 0.13.0] 2019-01-25
+
+- Migrate to serde_db 0.7
+- Apply changes to ResultSet
+  - remove methods pop_row(), reverse_rows(),
+  - add method next_row()
+  - make ResultSet an Iterator for item type HdbResult\<Row\>
+- Apply changes to Row
+  - remove methods iter(), pop(), pop_into(), field_into(), field_into_option(), field_into_nclob(),
+    field_into_clob(), field_into_blob(), reverse_values()
+  - add method next_value()
+  - add internal method number_of_fields()
+  - make Row and iterator with item type HdbValue
+
 ## [0.12.2]  2019-01-16
 
 Remove unneccessary allocations.

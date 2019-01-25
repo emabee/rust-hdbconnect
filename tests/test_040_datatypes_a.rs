@@ -167,7 +167,7 @@ fn read(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) ->
         let q = "select * from TEST_TYPES_A where id = 1";
         let mut data = connection.query(q)?;
         debug!("data: {:?}", data);
-        let row = data.pop_row().unwrap();
+        let row = data.next_row()?.unwrap();
         for value in row {
             assert!(!value.is_null());
         }
@@ -177,9 +177,9 @@ fn read(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) ->
         let q = "select * from TEST_TYPES_A where id = 3";
         let mut resultset = connection.query(q)?;
         debug!("resultset: {:?}", resultset);
-        let row = resultset.pop_row().unwrap();
+        let row = resultset.next_row()?.unwrap();
         assert!(!row[0].is_null());
-        for value in row.iter().skip(1) {
+        for value in row.skip(1) {
             assert!(value.is_null());
         }
     }

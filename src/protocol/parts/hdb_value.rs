@@ -16,7 +16,7 @@ use bigdecimal::BigDecimal;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use cesu8;
 use serde;
-use serde_db::de::DbValue;
+use serde_db::de::{ConversionError, DbValue};
 use serde_derive::Serialize;
 use std::fmt;
 
@@ -269,8 +269,41 @@ impl HdbValue {
     }
 
     /// Deserialize into a rust type
-    pub fn try_into<'x, T: serde::Deserialize<'x>>(self) -> Result<T, HdbError> {
+    pub fn try_into<'x, T: serde::Deserialize<'x>>(self) -> HdbResult<T> {
         Ok(DbValue::into_typed(self)?)
+    }
+
+    /// Convert into hdbconnect::BLob
+    pub fn try_into_blob(self) -> HdbResult<BLob> {
+        match self {
+            HdbValue::BLOB(blob) | HdbValue::N_BLOB(Some(blob)) => Ok(blob),
+            tv => Err(HdbError::Conversion(ConversionError::ValueType(format!(
+                "The value {:?} cannot be converted into a BLOB",
+                tv
+            )))),
+        }
+    }
+
+    /// Convert into hdbconnect::CLob
+    pub fn try_into_clob(self) -> HdbResult<CLob> {
+        match self {
+            HdbValue::CLOB(clob) | HdbValue::N_CLOB(Some(clob)) => Ok(clob),
+            tv => Err(HdbError::Conversion(ConversionError::ValueType(format!(
+                "The value {:?} cannot be converted into a CLOB",
+                tv
+            )))),
+        }
+    }
+
+    /// Convert into hdbconnect::NCLob
+    pub fn try_into_nclob(self) -> HdbResult<NCLob> {
+        match self {
+            HdbValue::NCLOB(nclob) | HdbValue::N_NCLOB(Some(nclob)) => Ok(nclob),
+            tv => Err(HdbError::Conversion(ConversionError::ValueType(format!(
+                "The value {:?} cannot be converted into a NCLOB",
+                tv
+            )))),
+        }
     }
 
     /// Returns true if the value is a NULL value.
@@ -908,6 +941,36 @@ impl fmt::Display for HdbValue {
             | HdbValue::N_SECONDDATE(None)
             | HdbValue::N_DAYDATE(None)
             | HdbValue::N_SECONDTIME(None) => write!(fmt, "<NULL>"),
+        }
+    }
+}
+
+// FIXME implement more of these...
+impl std::cmp::PartialEq<i32> for HdbValue {
+    fn eq(&self, rhs: &i32) -> bool {
+        match self {
+            HdbValue::TINYINT(i) | HdbValue::N_TINYINT(Some(i)) => i32::from(*i) == *rhs,
+            HdbValue::SMALLINT(i) | HdbValue::N_SMALLINT(Some(i)) => i32::from(*i) == *rhs,
+            HdbValue::INT(i) | HdbValue::N_INT(Some(i)) => *i == *rhs,
+            HdbValue::BIGINT(i) | HdbValue::N_BIGINT(Some(i)) => *i == i64::from(*rhs),
+            _ => false,
+        }
+    }
+}
+impl std::cmp::PartialEq<&str> for HdbValue {
+    fn eq(&self, rhs: &&str) -> bool {
+        match self {
+            HdbValue::STRING(ref s)
+            | HdbValue::CHAR(ref s)
+            | HdbValue::VARCHAR(ref s)
+            | HdbValue::NCHAR(ref s)
+            | HdbValue::NVARCHAR(ref s)
+            | HdbValue::N_STRING(Some(ref s))
+            | HdbValue::N_CHAR(Some(ref s))
+            | HdbValue::N_VARCHAR(Some(ref s))
+            | HdbValue::N_NCHAR(Some(ref s))
+            | HdbValue::N_NVARCHAR(Some(ref s)) => s == rhs,
+            _ => false,
         }
     }
 }

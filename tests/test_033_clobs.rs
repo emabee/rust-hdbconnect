@@ -25,7 +25,7 @@ fn test_clobs(
     connection: &mut Connection,
 ) -> HdbResult<()> {
     info!("create a big CLOB in the database, and read it in various ways");
-
+    _log_handle.parse_and_push_temp_spec("info, test = debug");
     debug!("setup...");
     connection.set_lob_read_length(1_000_000)?;
 
@@ -110,7 +110,9 @@ fn test_clobs(
 
     let query = "select desc, chardata as CL1, chardata as CL2 from TEST_CLOBS";
     let mut resultset: hdbconnect::ResultSet = connection.query(query)?;
-    let mut clob: CLob = resultset.pop_row().unwrap().field_into_clob(1)?;
+    let mut row = resultset.next_row()?.unwrap();
+    row.next_value().unwrap();
+    let mut clob: CLob = row.next_value().unwrap().try_into_clob()?;
     let mut streamed = Vec::<u8>::new();
     io::copy(&mut clob, &mut streamed)?;
 

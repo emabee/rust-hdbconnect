@@ -16,7 +16,8 @@ pub fn test_030_prepare() -> HdbResult<()> {
     prepare_insert_statement(&mut log_handle, &mut connection)?;
     prepare_statement_use_parameter_row(&mut log_handle, &mut connection)?;
     prepare_multiple_errors(&mut log_handle, &mut connection)?;
-    prepare_select(&mut log_handle, &mut connection)?;
+    prepare_select_with_pars(&mut log_handle, &mut connection)?;
+    prepare_select_without_pars(&mut log_handle, &mut connection)?;
     info!("{} calls to DB were executed", connection.get_call_count()?);
     Ok(())
 }
@@ -25,9 +26,7 @@ fn prepare_insert_statement(
     _log_handle: &mut ReconfigurationHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
-    info!(
-        "test statement preparation and transactional correctness (auto_commit on/off, rollbacks)"
-    );
+    info!("statement preparation and transactional correctness (auto_commit on/off, rollbacks)");
     connection.multiple_statements_ignore_err(vec!["drop table TEST_PREPARE"]);
     let stmts = vec!["create table TEST_PREPARE (F1_S NVARCHAR(20), F2_I INT)"];
     connection.multiple_statements(stmts)?;
@@ -105,7 +104,7 @@ fn prepare_statement_use_parameter_row(
     _log_handle: &mut ReconfigurationHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
-    info!("test statement preparation with direct use of parameter row");
+    info!("statement preparation with direct use of a parameter row");
     connection.multiple_statements_ignore_err(vec!["drop table TEST_PREPARE"]);
     let stmts = vec!["create table TEST_PREPARE (F1_S NVARCHAR(20), F2_I INT)"];
     connection.multiple_statements(stmts)?;
@@ -193,16 +192,29 @@ fn prepare_multiple_errors(
     Ok(())
 }
 
-fn prepare_select(
+fn prepare_select_with_pars(
     _log_handle: &mut ReconfigurationHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
-    info!("test preparing a select statement");
+    info!("prepared select statement with parameters");
     let stmt_str = "select sum(F2_I) from TEST_PREPARE where F2_I > ?";
     let mut stmt = connection.prepare(stmt_str)?;
     stmt.add_batch(&(45_i32))?;
     let resultset = stmt.execute_batch()?.into_resultset()?;
     let sum_of_big_values: i64 = resultset.try_into()?;
     assert_eq!(sum_of_big_values, 286_i64);
+    Ok(())
+}
+
+fn prepare_select_without_pars(
+    _log_handle: &mut ReconfigurationHandle,
+    connection: &mut Connection,
+) -> HdbResult<()> {
+    info!("prepared select statement without parameters");
+    let stmt_str = "select sum(F2_I) from TEST_PREPARE";
+    let mut stmt = connection.prepare(stmt_str)?;
+    let resultset = stmt.execute(&())?.into_resultset()?;
+    let sum_of_big_values: i64 = resultset.try_into()?;
+    assert_eq!(sum_of_big_values, 501_i64);
     Ok(())
 }
