@@ -83,7 +83,9 @@ impl DbValue for HdbValue {
             | HdbValue::N_LONGDATE(None)
             | HdbValue::N_SECONDDATE(None)
             | HdbValue::N_DAYDATE(None)
-            | HdbValue::N_SECONDTIME(None) => true,
+            | HdbValue::N_SECONDTIME(None)
+            | HdbValue::N_GEOMETRY(None)
+            | HdbValue::N_POINT(None) => true,
 
             HdbValue::NOTHING
             | HdbValue::N_TINYINT(Some(_))
@@ -113,6 +115,8 @@ impl DbValue for HdbValue {
             | HdbValue::N_SECONDDATE(Some(_))
             | HdbValue::N_DAYDATE(Some(_))
             | HdbValue::N_SECONDTIME(Some(_))
+            | HdbValue::N_GEOMETRY(Some(_))
+            | HdbValue::N_POINT(Some(_))
             | HdbValue::TINYINT(_)
             | HdbValue::SMALLINT(_)
             | HdbValue::INT(_)
@@ -139,7 +143,9 @@ impl DbValue for HdbValue {
             | HdbValue::LONGDATE(_)
             | HdbValue::SECONDDATE(_)
             | HdbValue::DAYDATE(_)
-            | HdbValue::SECONDTIME(_) => false,
+            | HdbValue::SECONDTIME(_)
+            | HdbValue::GEOMETRY(_)
+            | HdbValue::POINT(_) => false,
         }
     }
 }
@@ -522,9 +528,13 @@ impl DbValueInto<Vec<u8>> for HdbValue {
             HdbValue::BINARY(v)
             | HdbValue::VARBINARY(v)
             | HdbValue::BSTRING(v)
+            | HdbValue::GEOMETRY(v)
+            | HdbValue::POINT(v)
             | HdbValue::N_BINARY(Some(v))
             | HdbValue::N_VARBINARY(Some(v))
-            | HdbValue::N_BSTRING(Some(v)) => Ok(v),
+            | HdbValue::N_BSTRING(Some(v))
+            | HdbValue::N_GEOMETRY(Some(v))
+            | HdbValue::N_POINT(Some(v)) => Ok(v),
 
             HdbValue::CHAR(s)
             | HdbValue::VARCHAR(s)

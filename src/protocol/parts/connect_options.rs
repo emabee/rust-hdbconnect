@@ -11,7 +11,7 @@ impl ConnectOptions {
     pub fn for_server(locale: &Option<String>, os_user: String) -> ConnectOptions {
         let connopts = ConnectOptions::default()
             .set_complete_array_execution(true)
-            .set_dataformat_version2(4)
+            .set_dataformat_version2(8)
             .set_client_locale(locale)
             .set_enable_array_type(true)
             .set_select_for_update_ok(true)
@@ -119,7 +119,7 @@ impl ConnectOptions {
                 | ConnOptId::ClientDistributionMode
                 | ConnOptId::ClientInfoNullValueOK
                 | ConnOptId::FlagSet1 => {
-                    self.set_fromserver(k, v);
+                    self.set_from_server(k, v);
                 }
                 k => {
                     warn!("Unexpected ConnectOption coming from server ({:?})", k);
@@ -128,7 +128,8 @@ impl ConnectOptions {
         }
         Ok(())
     }
-    fn set_fromserver(&mut self, id: ConnOptId, value: OptionValue) -> Option<OptionValue> {
+
+    fn set_from_server(&mut self, id: ConnOptId, value: OptionValue) -> Option<OptionValue> {
         debug!("Got ConnectionOption from server: {:?} = {:?}", id, value);
         self.set_value(id, value)
     }

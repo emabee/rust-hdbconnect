@@ -131,19 +131,22 @@ pub enum HdbValue {
     /// This is not a standalone SQL-Type. Selecting a TEXT column yields a
     /// column of type NCLOB.
     TEXT(String),
-
     /// Similar to TEXT.
     SHORTTEXT(String),
+
     /// Timestamp with 10^-7 seconds precision, uses eight bytes.
     LONGDATE(LongDate),
     /// TIMESTAMP with second precision.
     SECONDDATE(SecondDate),
-
     /// DATE with day precision.
     DAYDATE(DayDate),
-
     /// TIME with second precision.
     SECONDTIME(SecondTime),
+
+    /// Spatial type GEOMETRY.
+    GEOMETRY(Vec<u8>),
+    /// Spatial type POINT.
+    POINT(Vec<u8>),
 
     /// Nullable variant of TINYINT.
     N_TINYINT(Option<u8>),
@@ -199,6 +202,10 @@ pub enum HdbValue {
     N_SECONDTIME(Option<SecondTime>),
     /// Nullable variant of LONGDATE.
     N_LONGDATE(Option<LongDate>),
+    /// Spatial type GEOMETRY.
+    N_GEOMETRY(Option<Vec<u8>>),
+    /// Spatial type POINT.
+    N_POINT(Option<Vec<u8>>),
 }
 
 impl HdbValue {
@@ -237,6 +244,8 @@ impl HdbValue {
             HdbValue::SECONDDATE(_) => type_id_not_null(BaseTypeId::SECONDDATE),
             HdbValue::DAYDATE(_) => type_id_not_null(BaseTypeId::DAYDATE),
             HdbValue::SECONDTIME(_) => type_id_not_null(BaseTypeId::SECONDTIME),
+            HdbValue::GEOMETRY(_) => type_id_not_null(BaseTypeId::GEOMETRY),
+            HdbValue::POINT(_) => type_id_not_null(BaseTypeId::POINT),
 
             HdbValue::N_TINYINT(_) => type_id_nullable(BaseTypeId::TINYINT),
             HdbValue::N_SMALLINT(_) => type_id_nullable(BaseTypeId::SMALLINT),
@@ -265,6 +274,8 @@ impl HdbValue {
             HdbValue::N_SECONDDATE(_) => type_id_nullable(BaseTypeId::SECONDDATE),
             HdbValue::N_DAYDATE(_) => type_id_nullable(BaseTypeId::DAYDATE),
             HdbValue::N_SECONDTIME(_) => type_id_nullable(BaseTypeId::SECONDTIME),
+            HdbValue::N_GEOMETRY(_) => type_id_nullable(BaseTypeId::GEOMETRY),
+            HdbValue::N_POINT(_) => type_id_nullable(BaseTypeId::POINT),
         })
     }
 
@@ -369,8 +380,7 @@ impl HdbValue {
                     w.write_f64::<LittleEndian>(f)?
                 }
 
-                HdbValue::BOOLEAN(true) | HdbValue::N_BOOLEAN(Some(true)) => w.write_u8(1)?,
-                HdbValue::BOOLEAN(false) | HdbValue::N_BOOLEAN(Some(false)) => w.write_u8(0)?,
+                HdbValue::BOOLEAN(b) | HdbValue::N_BOOLEAN(Some(b)) => emit_bool(b, w)?,
 
                 HdbValue::LONGDATE(ref ld) | HdbValue::N_LONGDATE(Some(ref ld)) => {
                     w.write_i64::<LittleEndian>(*ld.ref_raw())?
@@ -401,7 +411,10 @@ impl HdbValue {
 
                 HdbValue::STRING(ref s) => emit_length_and_string(s, w)?,
 
-                HdbValue::BINARY(ref v) | HdbValue::VARBINARY(ref v) => {
+                HdbValue::BINARY(ref v)
+                | HdbValue::VARBINARY(ref v)
+                | HdbValue::GEOMETRY(ref v)
+                | HdbValue::POINT(ref v) => {
                     emit_length_and_bytes(v, w)?;
                 }
 
@@ -427,7 +440,9 @@ impl HdbValue {
                 | HdbValue::N_BLOB(None)
                 | HdbValue::N_BINARY(None)
                 | HdbValue::N_VARBINARY(None)
-                | HdbValue::N_BSTRING(None) => {}
+                | HdbValue::N_BSTRING(None)
+                | HdbValue::N_GEOMETRY(None)
+                | HdbValue::N_POINT(None) => {}
 
                 HdbValue::NOTHING
                 | HdbValue::CHAR(_)
@@ -448,7 +463,9 @@ impl HdbValue {
                 | HdbValue::BSTRING(_)
                 | HdbValue::N_BINARY(Some(_))
                 | HdbValue::N_VARBINARY(Some(_))
-                | HdbValue::N_BSTRING(Some(_)) => {
+                | HdbValue::N_BSTRING(Some(_))
+                | HdbValue::N_GEOMETRY(Some(_))
+                | HdbValue::N_POINT(Some(_)) => {
                     return Err(HdbError::Impl(format!(
                         "HdbValue::emit() not implemented for type {}",
                         self
@@ -530,7 +547,11 @@ impl HdbValue {
             | HdbValue::VARBINARY(ref v)
             | HdbValue::N_VARBINARY(Some(ref v))
             | HdbValue::BSTRING(ref v)
-            | HdbValue::N_BSTRING(Some(ref v)) => binary_length(v.len()),
+            | HdbValue::N_BSTRING(Some(ref v))
+            | HdbValue::GEOMETRY(ref v)
+            | HdbValue::N_GEOMETRY(Some(ref v))
+            | HdbValue::POINT(ref v)
+            | HdbValue::N_POINT(Some(ref v)) => binary_length(v.len()),
 
             HdbValue::N_TINYINT(None)
             | HdbValue::N_SMALLINT(None)
@@ -558,7 +579,9 @@ impl HdbValue {
             | HdbValue::N_VARCHAR(None)
             | HdbValue::N_NVARCHAR(None)
             | HdbValue::N_TEXT(None)
-            | HdbValue::N_SHORTTEXT(None) => 0,
+            | HdbValue::N_SHORTTEXT(None)
+            | HdbValue::N_GEOMETRY(None)
+            | HdbValue::N_POINT(None) => 0,
 
             HdbValue::NOTHING => {
                 return Err(HdbError::Impl(format!(
@@ -603,7 +626,7 @@ impl HdbValue {
             (BaseTypeId::CLOB, false) => Ok(HdbValue::CLOB(parse_clob(am_conn_core, rdr)?)),
             (BaseTypeId::NCLOB, false) => Ok(HdbValue::NCLOB(parse_nclob(am_conn_core, rdr)?)),
             (BaseTypeId::BLOB, false) => Ok(HdbValue::BLOB(parse_blob(am_conn_core, rdr)?)),
-            (BaseTypeId::BOOLEAN, false) => Ok(HdbValue::BOOLEAN(rdr.read_u8()? > 0)),
+            (BaseTypeId::BOOLEAN, false) => Ok(HdbValue::BOOLEAN(parse_bool(rdr)?)),
             (BaseTypeId::STRING, false) => Ok(HdbValue::STRING(parse_string(rdr)?)),
             (BaseTypeId::NSTRING, false) => Ok(HdbValue::NSTRING(parse_string(rdr)?)),
             (BaseTypeId::BSTRING, false) => Ok(HdbValue::BSTRING(parse_binary(rdr)?)),
@@ -616,6 +639,9 @@ impl HdbValue {
             (BaseTypeId::SECONDDATE, false) => Ok(HdbValue::SECONDDATE(parse_seconddate(rdr)?)),
             (BaseTypeId::DAYDATE, false) => Ok(HdbValue::DAYDATE(parse_daydate(rdr)?)),
             (BaseTypeId::SECONDTIME, false) => Ok(HdbValue::SECONDTIME(parse_secondtime(rdr)?)),
+            (BaseTypeId::GEOMETRY, false) => Ok(HdbValue::GEOMETRY(parse_binary(rdr)?)),
+            (BaseTypeId::POINT, false) => Ok(HdbValue::POINT(parse_binary(rdr)?)),
+
             (BaseTypeId::TINYINT, true) => Ok(HdbValue::N_TINYINT(if ind_null(rdr)? {
                 None
             } else {
@@ -655,11 +681,7 @@ impl HdbValue {
             (BaseTypeId::BLOB, true) => {
                 Ok(HdbValue::N_BLOB(parse_nullable_blob(am_conn_core, rdr)?))
             }
-            (BaseTypeId::BOOLEAN, true) => Ok(HdbValue::N_BOOLEAN(if ind_null(rdr)? {
-                None
-            } else {
-                Some(rdr.read_u8()? > 0)
-            })),
+            (BaseTypeId::BOOLEAN, true) => Ok(HdbValue::N_BOOLEAN(parse_nullable_bool(rdr)?)),
             (BaseTypeId::STRING, true) => Ok(HdbValue::N_STRING(parse_nullable_string(rdr)?)),
             (BaseTypeId::NSTRING, true) => Ok(HdbValue::N_NSTRING(parse_nullable_string(rdr)?)),
             (BaseTypeId::BSTRING, true) => Ok(HdbValue::N_BSTRING(parse_nullable_binary(rdr)?)),
@@ -682,7 +704,39 @@ impl HdbValue {
             (BaseTypeId::SECONDTIME, true) => {
                 Ok(HdbValue::N_SECONDTIME(parse_nullable_secondtime(rdr)?))
             }
+            (BaseTypeId::GEOMETRY, true) => Ok(HdbValue::N_GEOMETRY(parse_nullable_binary(rdr)?)),
+            (BaseTypeId::POINT, true) => Ok(HdbValue::N_POINT(parse_nullable_binary(rdr)?)),
         }
+    }
+}
+
+fn emit_bool(b: bool, w: &mut std::io::Write) -> HdbResult<()> {
+    // this is the version that works with dataformat_version2 = 4
+    // w.write_u8(b as u8)?;
+
+    // as of dataformat_version2 = 8
+    w.write_u8(2 * (b as u8))?;
+    Ok(())
+}
+
+//(0x00 = FALSE, 0x01 = NULL, 0x02 = TRUE)
+fn parse_bool(rdr: &mut std::io::BufRead) -> HdbResult<bool> {
+    match rdr.read_u8()? {
+        0 => Ok(false),
+        2 => Ok(true),
+        1 => Err(HdbError::Impl("parse_bool: got null value".to_string())),
+        i => Err(HdbError::Impl(format!("parse_bool: got bad value {}", i))),
+    }
+}
+fn parse_nullable_bool(rdr: &mut std::io::BufRead) -> HdbResult<Option<bool>> {
+    match rdr.read_u8()? {
+        0 => Ok(Some(false)),
+        1 => Ok(None),
+        2 => Ok(Some(true)),
+        i => Err(HdbError::Impl(format!(
+            "parse_nullable_bool: got bad value {}",
+            i
+        ))),
     }
 }
 
@@ -913,6 +967,12 @@ impl fmt::Display for HdbValue {
             HdbValue::SECONDTIME(ref value) | HdbValue::N_SECONDTIME(Some(ref value)) => {
                 write!(fmt, "{}", value)
             }
+            HdbValue::GEOMETRY(ref vec) | HdbValue::N_GEOMETRY(Some(ref vec)) => {
+                write!(fmt, "<GEOMETRY length = {}>", vec.len())
+            }
+            HdbValue::POINT(ref vec) | HdbValue::N_POINT(Some(ref vec)) => {
+                write!(fmt, "<POINT length = {}>", vec.len())
+            }
 
             HdbValue::N_TINYINT(None)
             | HdbValue::N_SMALLINT(None)
@@ -940,7 +1000,9 @@ impl fmt::Display for HdbValue {
             | HdbValue::N_LONGDATE(None)
             | HdbValue::N_SECONDDATE(None)
             | HdbValue::N_DAYDATE(None)
-            | HdbValue::N_SECONDTIME(None) => write!(fmt, "<NULL>"),
+            | HdbValue::N_SECONDTIME(None)
+            | HdbValue::N_GEOMETRY(None)
+            | HdbValue::N_POINT(None) => write!(fmt, "<NULL>"),
         }
     }
 }

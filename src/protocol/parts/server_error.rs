@@ -102,7 +102,7 @@ impl ServerError {
     }
 
     pub(crate) fn parse<T: io::BufRead>(
-        no_of_args: i32,
+        no_of_args: usize,
         rdr: &mut T,
     ) -> HdbResult<Vec<ServerError>> {
         let mut server_errors = Vec::<ServerError>::new();

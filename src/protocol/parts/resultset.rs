@@ -322,7 +322,7 @@ impl ResultSet {
     // We then expect the previous three parts to be
     // a matching ResultSetMetadata, a ResultSetId, and a StatementContext.
     pub(crate) fn parse<T: std::io::BufRead>(
-        no_of_rows: i32,
+        no_of_rows: usize,
         attributes: PartAttributes,
         parts: &mut Parts,
         am_conn_core: &AmConnCore,
@@ -397,7 +397,7 @@ impl ResultSet {
 
     fn parse_rows(
         resultset: &mut ResultSet,
-        no_of_rows: i32,
+        no_of_rows: usize,
         rdr: &mut std::io::BufRead,
     ) -> HdbResult<()> {
         let no_of_cols = resultset.metadata.number_of_fields();
@@ -405,6 +405,7 @@ impl ResultSet {
             "resultset::parse_rows() reading {} lines with {} columns",
             no_of_rows, no_of_cols
         );
+        resultset.next_rows.reserve(no_of_rows);
 
         let guard = resultset.core_ref.lock()?;
         let rs_core = &*guard;

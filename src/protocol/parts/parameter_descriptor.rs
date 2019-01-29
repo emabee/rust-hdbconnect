@@ -80,7 +80,7 @@ impl ParameterDescriptor {
     }
 
     pub(crate) fn parse<T: std::io::BufRead>(
-        count: i32,
+        count: usize,
         rdr: &mut T,
     ) -> HdbResult<Vec<ParameterDescriptor>> {
         let mut vec_pd = Vec::<ParameterDescriptor>::new();

@@ -322,9 +322,13 @@ impl DbvFactory for ParameterDescriptor {
             _ => return Err(type_mismatch("&str", self.descriptor())),
         })
     }
+
     fn from_bytes(&self, value: &[u8]) -> Result<HdbValue, SerializationError> {
         Ok(match self.type_id().base_type_id() {
-            BaseTypeId::BINARY | BaseTypeId::VARBINARY => HdbValue::BINARY((*value).to_vec()),
+            BaseTypeId::BINARY
+            | BaseTypeId::VARBINARY
+            | BaseTypeId::GEOMETRY
+            | BaseTypeId::POINT => HdbValue::BINARY((*value).to_vec()),
             BaseTypeId::BLOB => HdbValue::BLOB(new_blob_to_db((*value).to_vec())),
             BaseTypeId::NCLOB => HdbValue::STRING(
                 String::from_utf8(value.to_vec())
@@ -366,6 +370,8 @@ impl DbvFactory for ParameterDescriptor {
                 BaseTypeId::SECONDDATE => HdbValue::N_SECONDDATE(None),
                 BaseTypeId::DAYDATE => HdbValue::N_DAYDATE(None),
                 BaseTypeId::SECONDTIME => HdbValue::N_SECONDDATE(None), // error in HANA: using N_SECONDTIME yields "error while parsing protocol: no such data type: type_code=192"
+                BaseTypeId::GEOMETRY => HdbValue::N_GEOMETRY(None),
+                BaseTypeId::POINT => HdbValue::N_POINT(None),
             })
         }
     }

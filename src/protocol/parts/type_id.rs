@@ -99,6 +99,10 @@ pub enum BaseTypeId {
     DAYDATE,
     /// Base type ID for [HdbValue::SECONDTIME](enum.HdbValue.html#variant.SECONDTIME).
     SECONDTIME,
+    /// Base type ID for [HdbValue::GEOMETRY](enum.HdbValue.html#variant.GEOMETRY).
+    GEOMETRY,
+    /// Base type ID for [HdbValue::POINT](enum.HdbValue.html#variant.POINT).
+    POINT,
 }
 impl From<u8> for BaseTypeId {
     fn from(id: u8) -> BaseTypeId {
@@ -147,8 +151,8 @@ impl From<u8> for BaseTypeId {
             // TypeCode_BLOB_DISK_RESERVED        =71,
             // TypeCode_CLOB_DISK_RESERVED        =72,
             // TypeCode_NCLOB_DISK_RESERVE        =73,
-            // TypeCode_ST_GEOMETRY               =74,  // FIXME
-            // TypeCode_ST_POINT                  =75,  // FIXME
+            74 => BaseTypeId::GEOMETRY,
+            75 => BaseTypeId::POINT,
             // TypeCode_FIXED16                   =76,  // FIXME
             // TypeCode_ABAP_ITAB                 =77,  // FIXME
             // TypeCode_RECORD_ROW_STORE         = 78,  // FIXME
@@ -190,6 +194,8 @@ impl BaseTypeId {
             BaseTypeId::SECONDDATE => 62,
             BaseTypeId::DAYDATE => 63,
             BaseTypeId::SECONDTIME => 64,
+            BaseTypeId::GEOMETRY => 74,
+            BaseTypeId::POINT => 75,
         }
     }
 }
@@ -226,6 +232,8 @@ impl std::fmt::Display for BaseTypeId {
                 BaseTypeId::SECONDDATE => "SECONDDATE",
                 BaseTypeId::DAYDATE => "DAYDATE",
                 BaseTypeId::SECONDTIME => "SECONDTIME",
+                BaseTypeId::GEOMETRY => "GEOMETRY",
+                BaseTypeId::POINT => "POINT",
             }
         )?;
         Ok(())

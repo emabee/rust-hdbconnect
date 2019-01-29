@@ -128,7 +128,7 @@ impl<'a> Part<'a> {
     }
 }
 
-fn parse_part_header(rdr: &mut io::BufRead) -> HdbResult<(PartKind, PartAttributes, i32, i32)> {
+fn parse_part_header(rdr: &mut io::BufRead) -> HdbResult<(PartKind, PartAttributes, usize, usize)> {
     // PART HEADER: 16 bytes
     let kind = PartKind::from_i8(rdr.read_i8()?)?; // I1
     let attributes = PartAttributes::new(rdr.read_u8()?); // U1 (documented as I1)
@@ -138,7 +138,7 @@ fn parse_part_header(rdr: &mut io::BufRead) -> HdbResult<(PartKind, PartAttribut
     rdr.read_i32::<LittleEndian>()?; // I4 remaining_packet_size
 
     let no_of_args = max(i32::from(no_of_argsi16), no_of_argsi32);
-    Ok((kind, attributes, arg_size, no_of_args))
+    Ok((kind, attributes, arg_size as usize, no_of_args as usize))
 }
 
 #[derive(Debug, Default)]

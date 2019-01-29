@@ -181,7 +181,7 @@ impl<'a> Argument<'a> {
     pub(crate) fn parse<T: io::BufRead>(
         kind: PartKind,
         attributes: PartAttributes,
-        no_of_args: i32,
+        no_of_args: usize,
         parts: &mut Parts,
         o_am_conn_core: Option<&AmConnCore>,
         o_rs_md: Option<&ResultSetMetadata>,

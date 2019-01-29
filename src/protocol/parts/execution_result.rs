@@ -17,10 +17,10 @@ pub enum ExecutionResult {
 }
 impl ExecutionResult {
     pub(crate) fn parse<T: io::BufRead>(
-        count: i32,
+        count: usize,
         rdr: &mut T,
     ) -> HdbResult<Vec<ExecutionResult>> {
-        let mut vec = Vec::<ExecutionResult>::with_capacity(count as usize);
+        let mut vec = Vec::<ExecutionResult>::with_capacity(count);
         for _ in 0..count {
             match rdr.read_i32::<LittleEndian>()? {
                 -2 => vec.push(ExecutionResult::SuccessNoInfo),
