@@ -23,18 +23,15 @@ impl ParameterRow {
 
     pub(crate) fn emit<T: io::Write>(&self, w: &mut T) -> HdbResult<()> {
         let mut data_pos = 0_i32;
-        // emit the values (LOBs only emit their header, the data follow below)
+        // emit the values (BLOBs only emit their header, the data follow below)
         for value in &(self.0) {
             value.emit(&mut data_pos, w)?;
         }
 
         // emit LOB data
         for value in &(self.0) {
-            match *value {
-                HdbValue::BLOB(ref blob) | HdbValue::N_BLOB(Some(ref blob)) => {
-                    w.write_all(blob.ref_to_bytes()?)?;
-                }
-                _ => {}
+            if let HdbValue::BLOB(ref blob) = *value {
+                w.write_all(blob.ref_to_bytes()?)?;
             }
         }
         Ok(())

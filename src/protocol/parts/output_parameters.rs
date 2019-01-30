@@ -54,8 +54,12 @@ impl OutputParameters {
             match descriptor.direction() {
                 ParameterDirection::INOUT | ParameterDirection::OUT => {
                     trace!("Parsing value with descriptor {}", descriptor);
-                    let value =
-                        HdbValue::parse_from_reply(&descriptor.type_id(), am_conn_core, rdr)?;
+                    let value = HdbValue::parse_from_reply(
+                        descriptor.type_id(),
+                        descriptor.nullable(),
+                        am_conn_core,
+                        rdr,
+                    )?;
                     trace!("Found value {:?}", value);
                     output_pars.metadata.push(descriptor.clone());
                     output_pars.values.push(value);

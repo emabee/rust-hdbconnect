@@ -1,32 +1,32 @@
 use crate::conn_core::AmConnCore;
+use crate::protocol::parts::hdb_value::HdbValue;
+use crate::protocol::parts::type_id::TypeId;
 use crate::protocol::util;
-use crate::types_impl::lob::blob::{new_blob_from_db, BLob};
-use crate::types_impl::lob::clob::{new_clob_from_db, CLob};
-use crate::types_impl::lob::nclob::{new_nclob_from_db, NCLob};
+use crate::types_impl::lob::blob::new_blob_from_db;
+use crate::types_impl::lob::clob::new_clob_from_db;
+use crate::types_impl::lob::nclob::new_nclob_from_db;
 use crate::{HdbError, HdbResult};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::io;
 
-pub(crate) fn parse_blob(am_conn_core: &AmConnCore, rdr: &mut io::BufRead) -> HdbResult<BLob> {
-    match parse_nullable_blob(am_conn_core, rdr)? {
-        Some(blob) => Ok(blob),
-        None => Err(HdbError::Impl(
-            "Null value found for non-null blob column".to_owned(),
-        )),
-    }
-}
-
-pub(crate) fn parse_nullable_blob(
+pub(crate) fn parse_blob(
     am_conn_core: &AmConnCore,
+    nullable: bool,
     rdr: &mut io::BufRead,
-) -> HdbResult<Option<BLob>> {
+) -> HdbResult<HdbValue> {
     let (is_null, is_data_included, is_last_data) = parse_lob_1(rdr)?;
     if is_null {
-        Ok(None)
+        if nullable {
+            Ok(HdbValue::NULL(TypeId::BLOB))
+        } else {
+            Err(HdbError::Impl(
+                "found null value for not-null BLOB column".to_owned(),
+            ))
+        }
     } else {
         let (_, length_b, locator_id, data) = parse_lob_2(rdr, is_data_included)?;
-        Ok(Some(new_blob_from_db(
+        Ok(HdbValue::BLOB(new_blob_from_db(
             am_conn_core,
             is_last_data,
             length_b,
@@ -36,25 +36,23 @@ pub(crate) fn parse_nullable_blob(
     }
 }
 
-pub(crate) fn parse_clob(am_conn_core: &AmConnCore, rdr: &mut io::BufRead) -> HdbResult<CLob> {
-    match parse_nullable_clob(am_conn_core, rdr)? {
-        Some(clob) => Ok(clob),
-        None => Err(HdbError::Impl(
-            "Null value found for non-null clob column".to_owned(),
-        )),
-    }
-}
-
-pub(crate) fn parse_nullable_clob(
+pub(crate) fn parse_clob(
     am_conn_core: &AmConnCore,
+    nullable: bool,
     rdr: &mut io::BufRead,
-) -> HdbResult<Option<CLob>> {
+) -> HdbResult<HdbValue> {
     let (is_null, is_data_included, is_last_data) = parse_lob_1(rdr)?;
     if is_null {
-        Ok(None)
+        if nullable {
+            Ok(HdbValue::NULL(TypeId::CLOB))
+        } else {
+            Err(HdbError::Impl(
+                "found null value for not-null CLOB column".to_owned(),
+            ))
+        }
     } else {
         let (length_c, length_b, locator_id, data) = parse_lob_2(rdr, is_data_included)?;
-        Ok(Some(new_clob_from_db(
+        Ok(HdbValue::CLOB(new_clob_from_db(
             am_conn_core,
             is_last_data,
             length_c,
@@ -65,32 +63,36 @@ pub(crate) fn parse_nullable_clob(
     }
 }
 
-pub(crate) fn parse_nclob(am_conn_core: &AmConnCore, rdr: &mut io::BufRead) -> HdbResult<NCLob> {
-    match parse_nullable_nclob(am_conn_core, rdr)? {
-        Some(nclob) => Ok(nclob),
-        None => Err(HdbError::Impl(
-            "Null value found for non-null nclob column".to_owned(),
-        )),
-    }
-}
-
-pub(crate) fn parse_nullable_nclob(
+pub(crate) fn parse_nclob(
     am_conn_core: &AmConnCore,
+    nullable: bool,
+    type_id: TypeId,
     rdr: &mut io::BufRead,
-) -> HdbResult<Option<NCLob>> {
+) -> HdbResult<HdbValue> {
     let (is_null, is_data_included, is_last_data) = parse_lob_1(rdr)?;
     if is_null {
-        Ok(None)
+        if nullable {
+            Ok(HdbValue::NULL(TypeId::NCLOB))
+        } else {
+            Err(HdbError::Impl(
+                "found null value for not-null NCLOB column".to_owned(),
+            ))
+        }
     } else {
         let (length_c, length_b, locator_id, data) = parse_lob_2(rdr, is_data_included)?;
-        Ok(Some(new_nclob_from_db(
+        let nclob = new_nclob_from_db(
             am_conn_core,
             is_last_data,
             length_c,
             length_b,
             locator_id,
             data,
-        )))
+        );
+        Ok(match type_id {
+            TypeId::NCLOB => HdbValue::NCLOB(nclob),
+            TypeId::TEXT => HdbValue::TEXT(nclob.into_string()?),
+            _ => return Err(HdbError::Impl("unexpected type id for nclob".to_owned())),
+        })
     }
 }
 
@@ -121,7 +123,11 @@ fn parse_lob_2(
     }
 }
 
-pub fn emit_blob_header(v_len: usize, data_pos: &mut i32, w: &mut io::Write) -> HdbResult<()> {
+pub(crate) fn emit_blob_header(
+    v_len: usize,
+    data_pos: &mut i32,
+    w: &mut io::Write,
+) -> HdbResult<()> {
     // bit 0: not used; bit 1: data is included; bit 2: no more data remaining
     w.write_u8(0b_110_u8)?; // I1           Bit set for options
     w.write_i32::<LittleEndian>(v_len as i32)?; // I4           LENGTH OF VALUE
@@ -130,7 +136,11 @@ pub fn emit_blob_header(v_len: usize, data_pos: &mut i32, w: &mut io::Write) -> 
     Ok(())
 }
 
-pub fn emit_clob_header(s_len: usize, data_pos: &mut i32, w: &mut io::Write) -> HdbResult<()> {
+pub(crate) fn emit_clob_header(
+    s_len: usize,
+    data_pos: &mut i32,
+    w: &mut io::Write,
+) -> HdbResult<()> {
     // bit 0: not used; bit 1: data is included; bit 2: no more data remaining
     w.write_u8(0b_110_u8)?; // I1           Bit set for options
     w.write_i32::<LittleEndian>(s_len as i32)?; // I4           LENGTH OF VALUE
@@ -139,7 +149,11 @@ pub fn emit_clob_header(s_len: usize, data_pos: &mut i32, w: &mut io::Write) -> 
     Ok(())
 }
 
-pub fn emit_nclob_header(s_len: usize, data_pos: &mut i32, w: &mut io::Write) -> HdbResult<()> {
+pub(crate) fn emit_nclob_header(
+    s_len: usize,
+    data_pos: &mut i32,
+    w: &mut io::Write,
+) -> HdbResult<()> {
     // bit 0: not used; bit 1: data is included; bit 2: no more data remaining
     w.write_u8(0b_110_u8)?; // I1           Bit set for options
     w.write_i32::<LittleEndian>(s_len as i32)?; // I4           LENGTH OF VALUE

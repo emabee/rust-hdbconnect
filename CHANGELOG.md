@@ -1,7 +1,11 @@
 # Changelog
 
-## [Unpublished 0.13.0] 2019-01-25
+## [0.13.0] 2019-01-30
 
+- revise names of some metadata methods
+- Reduce complexity of HdbValue: use a single explicit NULL variant
+- Also simplify type id handling
+- Implement geo-types
 - Migrate to serde_db 0.7
 - Apply changes to ResultSet
   - remove methods pop_row(), reverse_rows(),

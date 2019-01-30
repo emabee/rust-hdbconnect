@@ -2,7 +2,7 @@ mod test_utils;
 
 // use chrono::NaiveDateTime;
 use flexi_logger::ReconfigurationHandle;
-use hdbconnect::{Connection, HdbResult, HdbValue};
+use hdbconnect::{Connection, HdbResult};
 use log::{debug,info};
 use serde_bytes::{ByteBuf,Bytes};
 use serde_derive::Deserialize;
@@ -94,18 +94,7 @@ fn write(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -
     )?;
 
     info!("insert nulls via prep-statement");
-    stmt.execute(&(
-        HdbValue::N_CLOB(None),
-        HdbValue::N_NCLOB(None),
-        HdbValue::N_BLOB(None),
-        HdbValue::N_BOOLEAN(None),
-        HdbValue::N_TEXT(None),
-        HdbValue::N_SHORTTEXT(None),
-        HdbValue::N_LONGDATE(None),
-        HdbValue::N_SECONDDATE(None),
-        HdbValue::N_DAYDATE(None),
-        HdbValue::N_SECONDTIME(None),
-    ))?;
+    stmt.execute(&( (),(),(),(),(),(),(),(),(),() ))?;
     Ok(())
 }
 

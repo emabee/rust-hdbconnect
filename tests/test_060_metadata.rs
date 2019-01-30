@@ -2,7 +2,7 @@ mod test_utils;
 
 use flexi_logger::ReconfigurationHandle;
 use hdbconnect::{
-    BaseTypeId, Connection, HdbResult, ParameterBinding, ParameterDirection, ResultSet,
+    TypeId, Connection, HdbResult, ParameterBinding, ParameterDirection, ResultSet,
 };
 use log::{debug, info};
 
@@ -51,7 +51,7 @@ fn test_procedure_metadata(
     debug!("op-md: {:?}", pd0);
     assert_eq!(pd0.binding(), ParameterBinding::Optional);
     assert_eq!(pd0.name().unwrap(), "INOUT_DECIMAL");
-    assert_eq!(pd0.type_id().base_type_id(), &BaseTypeId::DECIMAL);
+    assert_eq!(pd0.type_id(), TypeId::DECIMAL);
     assert_eq!(pd0.scale(), 5);
     assert_eq!(pd0.precision(), 10);
     assert_eq!(pd0.direction(), ParameterDirection::INOUT);
@@ -59,7 +59,7 @@ fn test_procedure_metadata(
     debug!("op-md: {:?}", pd1);
     assert_eq!(pd1.binding(), ParameterBinding::Optional);
     assert_eq!(pd1.name().unwrap(), "OUT_STRING");
-    assert_eq!(pd1.type_id().base_type_id(), &BaseTypeId::NVARCHAR);
+    assert_eq!(pd1.type_id(), TypeId::NVARCHAR);
     assert_eq!(pd1.scale(), 0);
     assert_eq!(pd1.precision(), 40);
     assert_eq!(pd1.direction(), ParameterDirection::OUT);
@@ -76,8 +76,8 @@ fn test_procedure_metadata(
     assert_eq!(rs_md.displayname(0)?, "I");
     assert_eq!(rs_md.has_default(0)?, false);
     assert_eq!(rs_md.is_array_type(0)?, false);
-    assert_eq!(rs_md.is_nullable(0)?, true);
-    assert_eq!(rs_md.is_readonly(0)?, false);
+    assert_eq!(rs_md.nullable(0)?, true);
+    assert_eq!(rs_md.read_only(0)?, false);
     assert_eq!(rs_md.precision(0)?, 10);
     assert_eq!(rs_md.scale(0)?, 0);
     Ok(())

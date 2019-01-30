@@ -42,7 +42,7 @@ fn test_text(
     assert_eq!(test_text, ret_text.0.expect("expected string but got None"));
     assert_eq!(test_text, ret_text.1);
 
-    // Also test NULL values
+    debug!("Also test NULL values");
     let none: Option<&str> = None;
     insert_stmt.add_batch(&(none, test_text))?;
     insert_stmt.execute_batch()?;

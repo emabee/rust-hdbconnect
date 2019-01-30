@@ -3,7 +3,6 @@ use crate::protocol::argument::Argument;
 use crate::protocol::part::{Part, Parts};
 use crate::protocol::part_attributes::PartAttributes;
 use crate::protocol::partkind::PartKind;
-use crate::protocol::parts::hdb_value::HdbValue;
 use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
 use crate::protocol::parts::row::Row;
 use crate::protocol::parts::statement_context::StatementContext;
@@ -410,24 +409,9 @@ impl ResultSet {
         let guard = resultset.core_ref.lock()?;
         let rs_core = &*guard;
         if let Some(ref am_conn_core) = rs_core.o_am_conn_core {
-            for r in 0..no_of_rows {
-                let mut values = Vec::<HdbValue>::new();
-                trace!("Parsing row {}", r,);
-                for c in 0..no_of_cols {
-                    let type_id = resultset
-                        .metadata
-                        .type_id(c)
-                        .map_err(|_| HdbError::impl_("Not enough metadata"))?;
-                    trace!("Parsing row {}, column {}, type_id {}", r, c, type_id,);
-                    let value = HdbValue::parse_from_reply(&type_id, am_conn_core, rdr)?;
-                    debug!(
-                        "Parsed row {}, column {}, value {}, type_id {}",
-                        r, c, value, type_id,
-                    );
-                    values.push(value);
-                }
-                let row = Row::new(Arc::clone(&resultset.metadata), values);
-                trace!("parse_rows(): Found row {}", row);
+            for i in 0..no_of_rows {
+                let row = Row::parse(Arc::clone(&resultset.metadata), am_conn_core, rdr)?;
+                trace!("parse_rows(): Found row #{}: {}", i, row);
                 resultset.next_rows.push(row);
             }
         }

@@ -1,7 +1,7 @@
 mod test_utils;
 
 use flexi_logger::ReconfigurationHandle;
-use hdbconnect::{BaseTypeId, Connection, HdbResult};
+use hdbconnect::{TypeId, Connection, HdbResult};
 use log::{debug, info};
 use serde_bytes::ByteBuf;
 
@@ -50,7 +50,7 @@ fn test_geometries(
 
     debug!("select and deserialize (use serde)");
     let resultset = connection.query("select shape from SpatialShapes")?;
-    assert_eq!(*(resultset.metadata().type_id(0)?.base_type_id()), BaseTypeId::GEOMETRY);
+    assert_eq!(resultset.metadata().type_id(0)?, TypeId::GEOMETRY);
     debug!("Resultset = {}", resultset);
     let shapes: Vec<ByteBuf> = resultset.try_into()?;
 
@@ -93,7 +93,7 @@ fn test_points(
 
     debug!("select and deserialize (use serde)");
     let resultset = connection.query("select shape1 from Points")?;
-    assert_eq!(*(resultset.metadata().type_id(0)?.base_type_id()), BaseTypeId::POINT);
+    assert_eq!(resultset.metadata().type_id(0)?, TypeId::POINT);
     debug!("Resultset = {}", resultset);
     let shapes: Vec<ByteBuf> = resultset.try_into()?;
 

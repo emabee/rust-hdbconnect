@@ -63,7 +63,7 @@ pub use crate::protocol::parts::parameter_descriptor::{
     ParameterBinding, ParameterDescriptor, ParameterDirection,
 };
 pub use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
-pub use crate::protocol::parts::type_id::{BaseTypeId, TypeId};
+pub use crate::protocol::parts::type_id::TypeId;
 
 mod types_impl;
 

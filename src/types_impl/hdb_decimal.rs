@@ -1,4 +1,6 @@
-use crate::HdbResult;
+use crate::protocol::parts::hdb_value::HdbValue;
+use crate::protocol::parts::type_id::TypeId;
+use crate::{HdbError, HdbResult};
 use bigdecimal::{BigDecimal, Zero};
 use byteorder::{ByteOrder, LittleEndian};
 use num::bigint::{BigInt, Sign};
@@ -110,17 +112,14 @@ impl fmt::Display for HdbDecimal {
     }
 }
 
-pub fn parse_decimal(rdr: &mut io::BufRead) -> HdbResult<BigDecimal> {
+pub fn parse_decimal(
+    nullable: bool,
+    type_id: TypeId,
+    rdr: &mut io::BufRead,
+) -> HdbResult<HdbValue> {
     let mut raw = [0_u8; 16];
     rdr.read_exact(&mut raw[..])?;
-    Ok(HdbDecimal { raw }.as_bigdecimal())
-}
-
-pub fn parse_nullable_decimal(rdr: &mut io::BufRead) -> HdbResult<Option<BigDecimal>> {
-    let mut raw = [0_u8; 16];
-    rdr.read_exact(&mut raw[..])?;
-
-    if raw[15] == 112
+    let is_null = raw[15] == 112
         && raw[14] == 0
         && raw[13] == 0
         && raw[12] == 0
@@ -135,11 +134,23 @@ pub fn parse_nullable_decimal(rdr: &mut io::BufRead) -> HdbResult<Option<BigDeci
         && raw[3] == 0
         && raw[2] == 0
         && raw[1] == 0
-        && raw[0] == 0
-    {
-        Ok(None)
+        && raw[0] == 0;
+
+    if is_null {
+        if nullable {
+            Ok(HdbValue::NULL(type_id))
+        } else {
+            Err(HdbError::Impl(
+                "found null value for not-null column".to_owned(),
+            ))
+        }
     } else {
-        Ok(Some(HdbDecimal { raw }.as_bigdecimal()))
+        let bd = HdbDecimal { raw }.as_bigdecimal();
+        Ok(match type_id {
+            TypeId::SMALLDECIMAL => HdbValue::SMALLDECIMAL(bd),
+            TypeId::DECIMAL => HdbValue::DECIMAL(bd),
+            _ => return Err(HdbError::Impl("unexpected type id for decimal".to_owned())),
+        })
     }
 }
 

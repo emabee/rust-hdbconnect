@@ -1,4 +1,4 @@
-use crate::protocol::parts::type_id::{BaseTypeId, TypeId};
+use crate::protocol::parts::type_id::TypeId;
 use crate::protocol::util;
 use crate::{HdbError, HdbResult};
 
@@ -77,7 +77,7 @@ impl ResultSetMetadata {
     }
 
     /// True if column can contain NULL values.
-    pub fn is_nullable(&self, i: usize) -> HdbResult<bool> {
+    pub fn nullable(&self, i: usize) -> HdbResult<bool> {
         Ok(self.get(i)?.is_nullable())
     }
 
@@ -87,9 +87,9 @@ impl ResultSetMetadata {
     }
     // 3 = Escape_char
     // ???
-    ///  Returns true if the column is readonly.
-    pub fn is_readonly(&self, i: usize) -> HdbResult<bool> {
-        Ok(self.get(i)?.is_readonly())
+    ///  Returns true if the column is read-only.
+    pub fn read_only(&self, i: usize) -> HdbResult<bool> {
+        Ok(self.get(i)?.read_only())
     }
     /// Returns true if the column is auto-incremented.
     pub fn is_auto_incremented(&self, i: usize) -> HdbResult<bool> {
@@ -102,7 +102,7 @@ impl ResultSetMetadata {
     }
 
     /// Returns the id of the value type.
-    pub fn type_id(&self, i: usize) -> HdbResult<&TypeId> {
+    pub fn type_id(&self, i: usize) -> HdbResult<TypeId> {
         Ok(self.get(i)?.type_id())
     }
 
@@ -124,7 +124,7 @@ impl ResultSetMetadata {
         trace!("Got count {}", count);
         for _ in 0..count {
             let column_options = rdr.read_u8()?; // U1 (documented as I1)
-            let type_id = rdr.read_u8()?; // I1
+            let type_code = rdr.read_u8()?; // I1
             let scale = rdr.read_i16::<LittleEndian>()?; // I2
             let precision = rdr.read_i16::<LittleEndian>()?; // I2
             rdr.read_i16::<LittleEndian>()?; // I2
@@ -138,10 +138,11 @@ impl ResultSetMetadata {
             rsm.add_to_names(displayname_idx);
 
             let nullable = (column_options & 0b_0000_0010_u8) != 0;
-            let base_type_id = BaseTypeId::from(type_id);
+            let type_id = TypeId::try_new(type_code)?;
             let fm = FieldMetadata {
                 column_options,
-                type_id: TypeId::new(base_type_id, nullable),
+                type_id,
+                nullable,
                 scale,
                 precision,
                 tablename_idx,
@@ -198,6 +199,7 @@ struct FieldMetadata {
     // 6 = ArrayType
     column_options: u8,
     type_id: TypeId,
+    nullable: bool,
     // scale (for some numeric types only)
     scale: i16,
     // Precision (for some numeric types only)
@@ -230,8 +232,8 @@ impl FieldMetadata {
     }
     // 3 = Escape_char
     // ???
-    //  Returns true if the column is readonly
-    pub fn is_readonly(&self) -> bool {
+    //  Returns true if the column is read-only
+    pub fn read_only(&self) -> bool {
         (self.column_options & 0b_0001_0000_u8) != 0
     }
     // Returns true if the column is auto-incremented.
@@ -244,8 +246,8 @@ impl FieldMetadata {
     }
 
     /// The id of the value type.
-    pub fn type_id(&self) -> &TypeId {
-        &(self.type_id)
+    pub fn type_id(&self) -> TypeId {
+        self.type_id
     }
     /// Scale (for some numeric types only).
     pub fn scale(&self) -> i16 {

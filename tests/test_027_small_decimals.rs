@@ -85,7 +85,7 @@ fn test_small_decimals(
     let scale = 5; //resultset.metadata().scale(1)? as usize;
     for row in resultset {
         let row = row?;
-        if let HdbValue::N_DECIMAL(Some(ref bd)) = &row[1] {
+        if let HdbValue::DECIMAL(ref bd) = &row[1] {
             debug!("precision = {}, scale = {}", precision, scale);
             assert_eq!(format!("{}", &row[0]), format!("{0:.1$}", bd, scale));
         } else {

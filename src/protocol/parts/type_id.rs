@@ -1,50 +1,9 @@
-/// Combination of base type id and "nullability".
-#[derive(Clone, Debug)]
-pub struct TypeId {
-    base_type_id: BaseTypeId,
-    nullable: bool,
-}
-impl TypeId {
-    #[inline]
-    pub(crate) fn new(base_type_id: BaseTypeId, nullable: bool) -> TypeId {
-        TypeId {
-            base_type_id,
-            nullable,
-        }
-    }
+use crate::{HdbError, HdbResult};
+use serde_derive::Serialize;
 
-    /// Returns the base type id.
-    pub fn base_type_id(&self) -> &BaseTypeId {
-        &self.base_type_id
-    }
-
-    /// True if NULL values are allowed.
-    pub fn is_nullable(&self) -> bool {
-        self.nullable
-    }
-
-    // Full type code: for nullable types the returned value is 128 + the value for the
-    // corresponding non-nullable type (which is always less than 128).
-    pub(crate) fn type_code(&self) -> u8 {
-        (if self.nullable { 128 } else { 0 }) + self.base_type_id.type_code()
-    }
-}
-
-impl std::fmt::Display for TypeId {
-    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            fmt,
-            "{}{}",
-            if self.nullable { "Nullable " } else { "" },
-            self.base_type_id
-        )?;
-        Ok(())
-    }
-}
-
-/// Value type id of a database column.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum BaseTypeId {
+/// ID of the value type of a database column or a parameter.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+pub enum TypeId {
     /// Base type ID for [HdbValue::TINYINT](enum.HdbValue.html#variant.TINYINT).
     TINYINT,
     /// Base type ID for [HdbValue::SMALLINT](enum.HdbValue.html#variant.SMALLINT).
@@ -104,55 +63,56 @@ pub enum BaseTypeId {
     /// Base type ID for [HdbValue::POINT](enum.HdbValue.html#variant.POINT).
     POINT,
 }
-impl From<u8> for BaseTypeId {
-    fn from(id: u8) -> BaseTypeId {
-        match id {
-            1 => BaseTypeId::TINYINT,
-            2 => BaseTypeId::SMALLINT,
-            3 => BaseTypeId::INT,
-            4 => BaseTypeId::BIGINT,
-            5 => BaseTypeId::DECIMAL,
-            6 => BaseTypeId::REAL,
-            7 => BaseTypeId::DOUBLE,
-            8 => BaseTypeId::CHAR,
-            9 => BaseTypeId::VARCHAR,
-            10 => BaseTypeId::NCHAR,
-            11 => BaseTypeId::NVARCHAR,
-            12 => BaseTypeId::BINARY,
-            13 => BaseTypeId::VARBINARY,
+
+impl TypeId {
+    pub(crate) fn try_new(id: u8) -> HdbResult<TypeId> {
+        Ok(match id {
+            1 => TypeId::TINYINT,
+            2 => TypeId::SMALLINT,
+            3 => TypeId::INT,
+            4 => TypeId::BIGINT,
+            5 => TypeId::DECIMAL,
+            6 => TypeId::REAL,
+            7 => TypeId::DOUBLE,
+            8 => TypeId::CHAR,
+            9 => TypeId::VARCHAR,
+            10 => TypeId::NCHAR,
+            11 => TypeId::NVARCHAR,
+            12 => TypeId::BINARY,
+            13 => TypeId::VARBINARY,
             // DATE: 14, TIME: 15, TIMESTAMP: 16 (all deprecated with protocol version 3)
             // 17 - 24: reserved, do not use
-            25 => BaseTypeId::CLOB,
-            26 => BaseTypeId::NCLOB,
-            27 => BaseTypeId::BLOB,
-            28 => BaseTypeId::BOOLEAN,
-            29 => BaseTypeId::STRING,
-            30 => BaseTypeId::NSTRING,
+            25 => TypeId::CLOB,
+            26 => TypeId::NCLOB,
+            27 => TypeId::BLOB,
+            28 => TypeId::BOOLEAN,
+            29 => TypeId::STRING,
+            30 => TypeId::NSTRING,
             // BLOCATOR: 31  FIXME not yet implemented
             // NLOCATOR: 32  FIXME not yet implemented
-            33 => BaseTypeId::BSTRING,
+            33 => TypeId::BSTRING,
             // 34 - 46: docu unclear, likely unused
-            47 => BaseTypeId::SMALLDECIMAL,
+            47 => TypeId::SMALLDECIMAL,
             // 48, 49: ABAP only?
             // ARRAY: 50  FIXME not yet implemented
-            51 => BaseTypeId::TEXT,
-            52 => BaseTypeId::SHORTTEXT,
+            51 => TypeId::TEXT,
+            52 => TypeId::SHORTTEXT,
             // 53, 54: Reserved, do not use
             // 55: ALPHANUM  FIXME not yet implemented
             // 56: Reserved, do not use
             // 57 - 60: not documented
-            61 => BaseTypeId::LONGDATE,
-            62 => BaseTypeId::SECONDDATE,
-            63 => BaseTypeId::DAYDATE,
-            64 => BaseTypeId::SECONDTIME,
+            61 => TypeId::LONGDATE,
+            62 => TypeId::SECONDDATE,
+            63 => TypeId::DAYDATE,
+            64 => TypeId::SECONDTIME,
             // 65 - 80: Reserved, do not use
 
             // TypeCode_CLOCATOR                  =70,  // FIXME
             // TypeCode_BLOB_DISK_RESERVED        =71,
             // TypeCode_CLOB_DISK_RESERVED        =72,
             // TypeCode_NCLOB_DISK_RESERVE        =73,
-            74 => BaseTypeId::GEOMETRY,
-            75 => BaseTypeId::POINT,
+            74 => TypeId::GEOMETRY,
+            75 => TypeId::POINT,
             // TypeCode_FIXED16                   =76,  // FIXME
             // TypeCode_ABAP_ITAB                 =77,  // FIXME
             // TypeCode_RECORD_ROW_STORE         = 78,  // FIXME
@@ -160,80 +120,81 @@ impl From<u8> for BaseTypeId {
             // TypeCode_FIXED8                   = 81,  // FIXME
             // TypeCode_FIXED12                  = 82,  // FIXME
             // TypeCode_CIPHERTEXT               = 90,  // FIXME
-            _ => panic!("Illegal BaseTypeId"),
-        }
+            _ => return Err(HdbError::Impl("Illegal TypeId".to_string())),
+        })
+    }
+
+    // hdb protocol uses ids < 128 for non-null values, and ids > 128 for nullable values
+    pub(crate) fn type_code(self, nullable: bool) -> u8 {
+        (if nullable { 128 } else { 0 })
+            + match self {
+                TypeId::TINYINT => 1,
+                TypeId::SMALLINT => 2,
+                TypeId::INT => 3,
+                TypeId::BIGINT => 4,
+                TypeId::DECIMAL => 5,
+                TypeId::REAL => 6,
+                TypeId::DOUBLE => 7,
+                TypeId::CHAR => 8,
+                TypeId::VARCHAR => 9,
+                TypeId::NCHAR => 10,
+                TypeId::NVARCHAR => 11,
+                TypeId::BINARY => 12,
+                TypeId::VARBINARY => 13,
+                TypeId::CLOB => 25,
+                TypeId::NCLOB => 26,
+                TypeId::BLOB => 27,
+                TypeId::BOOLEAN => 28,
+                TypeId::STRING => 29,
+                TypeId::NSTRING => 30,
+                TypeId::BSTRING => 33,
+                TypeId::SMALLDECIMAL => 47,
+                TypeId::TEXT => 51,
+                TypeId::SHORTTEXT => 52,
+                TypeId::LONGDATE => 61,
+                TypeId::SECONDDATE => 62,
+                TypeId::DAYDATE => 63,
+                TypeId::SECONDTIME => 64,
+                TypeId::GEOMETRY => 74,
+                TypeId::POINT => 75,
+            }
     }
 }
-impl BaseTypeId {
-    pub(crate) fn type_code(&self) -> u8 {
-        match &self {
-            BaseTypeId::TINYINT => 1,
-            BaseTypeId::SMALLINT => 2,
-            BaseTypeId::INT => 3,
-            BaseTypeId::BIGINT => 4,
-            BaseTypeId::DECIMAL => 5,
-            BaseTypeId::REAL => 6,
-            BaseTypeId::DOUBLE => 7,
-            BaseTypeId::CHAR => 8,
-            BaseTypeId::VARCHAR => 9,
-            BaseTypeId::NCHAR => 10,
-            BaseTypeId::NVARCHAR => 11,
-            BaseTypeId::BINARY => 12,
-            BaseTypeId::VARBINARY => 13,
-            BaseTypeId::CLOB => 25,
-            BaseTypeId::NCLOB => 26,
-            BaseTypeId::BLOB => 27,
-            BaseTypeId::BOOLEAN => 28,
-            BaseTypeId::STRING => 29,
-            BaseTypeId::NSTRING => 30,
-            BaseTypeId::BSTRING => 33,
-            BaseTypeId::SMALLDECIMAL => 47,
-            BaseTypeId::TEXT => 51,
-            BaseTypeId::SHORTTEXT => 52,
-            BaseTypeId::LONGDATE => 61,
-            BaseTypeId::SECONDDATE => 62,
-            BaseTypeId::DAYDATE => 63,
-            BaseTypeId::SECONDTIME => 64,
-            BaseTypeId::GEOMETRY => 74,
-            BaseTypeId::POINT => 75,
-        }
-    }
-}
-impl std::fmt::Display for BaseTypeId {
+impl std::fmt::Display for TypeId {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             fmt,
             "{}",
             match self {
-                BaseTypeId::TINYINT => "TINYINT",
-                BaseTypeId::SMALLINT => "SMALLINT",
-                BaseTypeId::INT => "INT",
-                BaseTypeId::BIGINT => "BIGINT",
-                BaseTypeId::DECIMAL => "DECIMAL",
-                BaseTypeId::REAL => "REAL",
-                BaseTypeId::DOUBLE => "DOUBLE",
-                BaseTypeId::CHAR => "CHAR",
-                BaseTypeId::VARCHAR => "VARCHAR",
-                BaseTypeId::NCHAR => "NCHAR",
-                BaseTypeId::NVARCHAR => "NVARCHAR",
-                BaseTypeId::BINARY => "BINARY",
-                BaseTypeId::VARBINARY => "VARBINARY",
-                BaseTypeId::CLOB => "CLOB",
-                BaseTypeId::NCLOB => "NCLOB",
-                BaseTypeId::BLOB => "BLOB",
-                BaseTypeId::BOOLEAN => "BOOLEAN",
-                BaseTypeId::STRING => "STRING",
-                BaseTypeId::NSTRING => "NSTRING",
-                BaseTypeId::BSTRING => "BSTRING",
-                BaseTypeId::SMALLDECIMAL => "SMALLDECIMAL",
-                BaseTypeId::TEXT => "TEXT",
-                BaseTypeId::SHORTTEXT => "SHORTTEXT",
-                BaseTypeId::LONGDATE => "LONGDATE",
-                BaseTypeId::SECONDDATE => "SECONDDATE",
-                BaseTypeId::DAYDATE => "DAYDATE",
-                BaseTypeId::SECONDTIME => "SECONDTIME",
-                BaseTypeId::GEOMETRY => "GEOMETRY",
-                BaseTypeId::POINT => "POINT",
+                TypeId::TINYINT => "TINYINT",
+                TypeId::SMALLINT => "SMALLINT",
+                TypeId::INT => "INT",
+                TypeId::BIGINT => "BIGINT",
+                TypeId::DECIMAL => "DECIMAL",
+                TypeId::REAL => "REAL",
+                TypeId::DOUBLE => "DOUBLE",
+                TypeId::CHAR => "CHAR",
+                TypeId::VARCHAR => "VARCHAR",
+                TypeId::NCHAR => "NCHAR",
+                TypeId::NVARCHAR => "NVARCHAR",
+                TypeId::BINARY => "BINARY",
+                TypeId::VARBINARY => "VARBINARY",
+                TypeId::CLOB => "CLOB",
+                TypeId::NCLOB => "NCLOB",
+                TypeId::BLOB => "BLOB",
+                TypeId::BOOLEAN => "BOOLEAN",
+                TypeId::STRING => "STRING",
+                TypeId::NSTRING => "NSTRING",
+                TypeId::BSTRING => "BSTRING",
+                TypeId::SMALLDECIMAL => "SMALLDECIMAL",
+                TypeId::TEXT => "TEXT",
+                TypeId::SHORTTEXT => "SHORTTEXT",
+                TypeId::LONGDATE => "LONGDATE",
+                TypeId::SECONDDATE => "SECONDDATE",
+                TypeId::DAYDATE => "DAYDATE",
+                TypeId::SECONDTIME => "SECONDTIME",
+                TypeId::GEOMETRY => "GEOMETRY",
+                TypeId::POINT => "POINT",
             }
         )?;
         Ok(())

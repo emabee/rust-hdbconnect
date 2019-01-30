@@ -2,7 +2,7 @@ mod test_utils;
 
 use flexi_logger::ReconfigurationHandle;
 use hdbconnect::{
-    BaseTypeId, Connection, HdbResult, ParameterBinding, ParameterDirection, ResultSet, Row,
+    TypeId, Connection, HdbResult, ParameterBinding, ParameterDirection, ResultSet, Row,
 };
 use log::{debug, info};
 
@@ -182,7 +182,7 @@ fn procedure_with_in_and_out_parameters(
     {
         let par_desc = op.parameter_descriptor(0)?;
         assert_eq!(par_desc.binding(), ParameterBinding::Optional);
-        assert_eq!(par_desc.type_id().base_type_id(), &BaseTypeId::NVARCHAR);
+        assert_eq!(par_desc.type_id(), TypeId::NVARCHAR);
         assert_eq!(par_desc.direction(), ParameterDirection::OUT);
         assert_eq!(par_desc.name(), Some(&"SOME_STRING".to_string()));
     }

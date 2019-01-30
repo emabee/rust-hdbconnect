@@ -10,6 +10,7 @@ pub struct ParameterDescriptor {
     // bit 0: mandatory; 1: optional, 2: has_default
     parameter_option: u8,
     type_id: TypeId,
+    nullable: bool,
     scale: u16,
     precision: u16,
     // whether the parameter is input and/or output
@@ -57,8 +58,13 @@ impl ParameterDescriptor {
     }
 
     /// Returns the type id of the parameter.
-    pub fn type_id(&self) -> &TypeId {
-        &(self.type_id)
+    pub fn type_id(&self) -> TypeId {
+        self.type_id
+    }
+
+    /// Returns true if and only if a NULL value is accepted for this parameter.
+    pub fn nullable(&self) -> bool {
+        self.nullable
     }
 
     /// Scale (for some numeric types only).
@@ -95,9 +101,9 @@ impl ParameterDescriptor {
             let length = rdr.read_u16::<LittleEndian>()?;
             let fraction = rdr.read_u16::<LittleEndian>()?;
             rdr.read_u32::<LittleEndian>()?;
-            vec_pd.push(ParameterDescriptor::new(
+            vec_pd.push(ParameterDescriptor::try_new(
                 option, value_type, mode, length, fraction,
-            ));
+            )?);
         }
         // read the parameter names
         for (descriptor, name_offset) in vec_pd.iter_mut().zip(name_offsets.iter()) {
@@ -110,24 +116,25 @@ impl ParameterDescriptor {
         Ok(vec_pd)
     }
 
-    fn new(
+    fn try_new(
         parameter_option: u8,
         type_code: u8,
         direction: ParameterDirection,
         precision: u16,
         scale: u16,
-    ) -> ParameterDescriptor {
+    ) -> HdbResult<ParameterDescriptor> {
         let nullable = (parameter_option & 0b_0000_0010_u8) != 0;
-        let type_id = TypeId::new(From::from(type_code), nullable);
+        let type_id = TypeId::try_new(type_code)?;
 
-        ParameterDescriptor {
+        Ok(ParameterDescriptor {
             parameter_option,
             type_id,
+            nullable,
             direction,
             precision,
             scale,
             name: None,
-        }
+        })
     }
 
     fn set_name(&mut self, name: String) {
@@ -157,7 +164,8 @@ impl std::fmt::Display for ParameterDescriptor {
         }
         write!(
             fmt,
-            "{} {:?} {:?},  Scale({}), Precision({})",
+            "{}{} {:?} {:?},  Scale({}), Precision({})",
+            if self.nullable { "Nullable " } else { "" },
             self.type_id,
             self.binding(),
             self.direction(),

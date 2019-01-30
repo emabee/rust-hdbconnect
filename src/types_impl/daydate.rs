@@ -1,3 +1,5 @@
+use crate::protocol::parts::hdb_value::HdbValue;
+use crate::protocol::parts::type_id::TypeId;
 use crate::{HdbError, HdbResult};
 use byteorder::{LittleEndian, ReadBytesExt};
 use chrono::{Datelike, NaiveDate};
@@ -154,20 +156,17 @@ fn to_day(m: u32) -> (i32, i32) {
     }
 }
 
-pub fn parse_daydate(rdr: &mut io::BufRead) -> HdbResult<DayDate> {
-    let dd = rdr.read_i32::<LittleEndian>()?;
-    match dd {
-        NULL_REPRESENTATION => Err(HdbError::Impl(
-            "Null value found for non-null daydate column".to_owned(),
-        )),
-        _ => Ok(DayDate::new(dd)),
-    }
-}
-
-pub fn parse_nullable_daydate(rdr: &mut io::BufRead) -> HdbResult<Option<DayDate>> {
-    let dd = rdr.read_i32::<LittleEndian>()?;
-    match dd {
-        NULL_REPRESENTATION => Ok(None),
-        _ => Ok(Some(DayDate::new(dd))),
+pub fn parse_daydate(nullable: bool, rdr: &mut io::BufRead) -> HdbResult<HdbValue> {
+    let i = rdr.read_i32::<LittleEndian>()?;
+    if i == NULL_REPRESENTATION {
+        if nullable {
+            Ok(HdbValue::NULL(TypeId::DAYDATE))
+        } else {
+            Err(HdbError::Impl(
+                "found NULL value for NOT NULL longdate column".to_owned(),
+            ))
+        }
+    } else {
+        Ok(HdbValue::DAYDATE(DayDate::new(i)))
     }
 }

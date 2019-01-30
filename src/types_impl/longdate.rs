@@ -1,3 +1,5 @@
+use crate::protocol::parts::hdb_value::HdbValue;
+use crate::protocol::parts::type_id::TypeId;
 use crate::{HdbError, HdbResult};
 use byteorder::{LittleEndian, ReadBytesExt};
 use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, Timelike};
@@ -253,20 +255,17 @@ fn to_day(m: u32) -> (i32, i32) {
     }
 }
 
-pub fn parse_longdate(rdr: &mut io::BufRead) -> HdbResult<LongDate> {
+pub fn parse_longdate(nullable: bool, rdr: &mut io::BufRead) -> HdbResult<HdbValue> {
     let i = rdr.read_i64::<LittleEndian>()?;
-    match i {
-        NULL_REPRESENTATION => Err(HdbError::Impl(
-            "Null value found for non-null longdate column".to_owned(),
-        )),
-        _ => Ok(LongDate::new(i)),
-    }
-}
-
-pub fn parse_nullable_longdate(rdr: &mut io::BufRead) -> HdbResult<Option<LongDate>> {
-    let i = rdr.read_i64::<LittleEndian>()?;
-    match i {
-        NULL_REPRESENTATION => Ok(None),
-        _ => Ok(Some(LongDate::new(i))),
+    if i == NULL_REPRESENTATION {
+        if nullable {
+            Ok(HdbValue::NULL(TypeId::LONGDATE))
+        } else {
+            Err(HdbError::Impl(
+                "found NULL value for NOT NULL longdate column".to_owned(),
+            ))
+        }
+    } else {
+        Ok(HdbValue::LONGDATE(LongDate::new(i)))
     }
 }

@@ -1,3 +1,4 @@
+use crate::conn_core::AmConnCore;
 use crate::protocol::parts::hdb_value::HdbValue;
 use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
 use crate::HdbResult;
@@ -62,6 +63,29 @@ impl Row {
 
     pub(crate) fn number_of_fields(&self) -> usize {
         self.metadata.number_of_fields()
+    }
+
+    pub(crate) fn parse(
+        md: std::sync::Arc<ResultSetMetadata>,
+        am_conn_core: &AmConnCore,
+        rdr: &mut std::io::BufRead,
+    ) -> HdbResult<Row> {
+        let no_of_cols = md.number_of_fields();
+        let mut values = Vec::<HdbValue>::new();
+        for c in 0..no_of_cols {
+            let type_id = md.type_id(c)?;
+            let nullable = md.nullable(c)?;
+            trace!(
+                "Parsing column {}, {}{}",
+                c,
+                if nullable { "Nullable " } else { "" },
+                type_id,
+            );
+            let value = HdbValue::parse_from_reply(type_id, nullable, am_conn_core, rdr)?;
+            values.push(value);
+        }
+        let row = Row::new(md, values);
+        Ok(row)
     }
 }
 

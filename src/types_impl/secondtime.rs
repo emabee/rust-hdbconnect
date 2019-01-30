@@ -1,3 +1,5 @@
+use crate::protocol::parts::hdb_value::HdbValue;
+use crate::protocol::parts::type_id::TypeId;
 use crate::{HdbError, HdbResult};
 use byteorder::{LittleEndian, ReadBytesExt};
 use chrono::{NaiveTime, Timelike};
@@ -98,20 +100,17 @@ impl SecondTime {
     }
 }
 
-pub fn parse_secondtime(rdr: &mut io::BufRead) -> HdbResult<SecondTime> {
-    let st = rdr.read_i32::<LittleEndian>()?;
-    match st {
-        NULL_REPRESENTATION => Err(HdbError::Impl(
-            "Null value found for non-null secondtime column".to_owned(),
-        )),
-        _ => Ok(SecondTime::new(st)),
-    }
-}
-
-pub fn parse_nullable_secondtime(rdr: &mut io::BufRead) -> HdbResult<Option<SecondTime>> {
-    let st = rdr.read_i32::<LittleEndian>()?;
-    match st {
-        NULL_REPRESENTATION => Ok(None),
-        _ => Ok(Some(SecondTime::new(st))),
+pub fn parse_secondtime(nullable: bool, rdr: &mut io::BufRead) -> HdbResult<HdbValue> {
+    let i = rdr.read_i32::<LittleEndian>()?;
+    if i == NULL_REPRESENTATION {
+        if nullable {
+            Ok(HdbValue::NULL(TypeId::SECONDTIME))
+        } else {
+            Err(HdbError::Impl(
+                "found NULL value for NOT NULL scondtime column".to_owned(),
+            ))
+        }
+    } else {
+        Ok(HdbValue::SECONDTIME(SecondTime::new(i)))
     }
 }

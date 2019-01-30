@@ -2,7 +2,7 @@ mod test_utils;
 
 use bigdecimal::BigDecimal;
 use flexi_logger::ReconfigurationHandle;
-use hdbconnect::{Connection, HdbResult, HdbValue};
+use hdbconnect::{Connection, HdbResult};
 use log::{debug, info};
 use serde_bytes::{ByteBuf, Bytes};
 use serde_derive::Deserialize;
@@ -109,23 +109,7 @@ fn write(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -
     )?;
 
     info!("insert nulls via prep-statement");
-    stmt.execute(&(
-        HdbValue::N_TINYINT(None),
-        HdbValue::N_SMALLINT(None),
-        HdbValue::N_INT(None),
-        HdbValue::N_BIGINT(None),
-        HdbValue::N_DECIMAL(None),
-        HdbValue::N_DECIMAL(None),
-        HdbValue::N_REAL(None),
-        HdbValue::N_DOUBLE(None),
-        HdbValue::N_CHAR(None),
-        HdbValue::N_VARCHAR(None),
-        HdbValue::N_NCHAR(None),
-        HdbValue::N_NVARCHAR(None),
-        HdbValue::N_BINARY(None),
-        HdbValue::N_VARBINARY(None),
-    ))?;
-
+    stmt.execute(&( (),(),(),(),(),(),(),(),(),(),(),(),(),() ))?;
     Ok(())
 }
 
