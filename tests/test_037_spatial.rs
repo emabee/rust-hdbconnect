@@ -4,7 +4,7 @@ use flexi_logger::ReconfigurationHandle;
 use hdbconnect::{TypeId, Connection, HdbResult};
 use log::{debug, info};
 use serde_bytes::ByteBuf;
-
+use serde_bytes::{Bytes};
 #[test] // cargo test --test test_046_spatial
 fn test_046_spatial() -> HdbResult<()> {
     let mut loghandle = test_utils::init_logger();
@@ -106,5 +106,12 @@ fn test_points(
 
     let count: u16 = connection.query("select count(*) from Points")?.try_into()?;
     assert_eq!(count, 2);
+
+    // let mut stmt = connection.prepare("insert into Points VALUES(?,NEW ST_POINT(?))")?;
+    // stmt.add_batch(&(1, Bytes::new(b"Point(2.5 3.0)")))?; // noch schöner wäre ohne Bytes stmt.add_batch(&(1,"Point(2.5 3.0)"))?;
+    // stmt.execute_batch()?;
+    // let count: u16 = connection.query("select count(*) from Points")?.try_into()?;
+    // assert_eq!(count, 3);
+
     Ok(())
 }
