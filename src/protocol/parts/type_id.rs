@@ -120,7 +120,7 @@ impl TypeId {
             // TypeCode_FIXED8                   = 81,  // FIXME
             // TypeCode_FIXED12                  = 82,  // FIXME
             // TypeCode_CIPHERTEXT               = 90,  // FIXME
-            _ => return Err(HdbError::Impl("Illegal TypeId".to_string())),
+            tc => return Err(HdbError::Impl(format!("Illegal type code {}", tc))),
         })
     }
 
