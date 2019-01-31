@@ -11,8 +11,8 @@ pub struct ParameterDescriptor {
     parameter_option: u8,
     type_id: TypeId,
     nullable: bool,
-    scale: u16,
-    precision: u16,
+    scale: i16,
+    precision: i16,
     // whether the parameter is input and/or output
     direction: ParameterDirection,
     name: Option<String>,
@@ -68,11 +68,11 @@ impl ParameterDescriptor {
     }
 
     /// Scale (for some numeric types only).
-    pub fn scale(&self) -> u16 {
+    pub fn scale(&self) -> i16 {
         self.scale
     }
     /// Precision (for some numeric types only).
-    pub fn precision(&self) -> u16 {
+    pub fn precision(&self) -> i16 {
         self.precision
     }
     /// Describes whether a parameter is used for input, output, or both.
@@ -98,8 +98,8 @@ impl ParameterDescriptor {
             let mode = ParameterDescriptor::direction_from_u8(rdr.read_u8()?)?;
             rdr.read_u8()?;
             name_offsets.push(rdr.read_u32::<LittleEndian>()?);
-            let length = rdr.read_u16::<LittleEndian>()?;
-            let fraction = rdr.read_u16::<LittleEndian>()?;
+            let length = rdr.read_i16::<LittleEndian>()?;
+            let fraction = rdr.read_i16::<LittleEndian>()?;
             rdr.read_u32::<LittleEndian>()?;
             vec_pd.push(ParameterDescriptor::try_new(
                 option, value_type, mode, length, fraction,
@@ -120,8 +120,8 @@ impl ParameterDescriptor {
         parameter_option: u8,
         type_code: u8,
         direction: ParameterDirection,
-        precision: u16,
-        scale: u16,
+        precision: i16,
+        scale: i16,
     ) -> HdbResult<ParameterDescriptor> {
         let nullable = (parameter_option & 0b_0000_0010_u8) != 0;
         let type_id = TypeId::try_new(type_code)?;

@@ -23,6 +23,7 @@ fn test_025_decimals_impl(
     _log_handle: &mut ReconfigurationHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
+    info!("setup ...");
     connection.multiple_statements_ignore_err(vec!["drop table TEST_DECIMALS"]);
     let stmts = vec![
         "create table TEST_DECIMALS (f1 NVARCHAR(100) primary key, f2 DECIMAL(7,5), f3 integer)",
@@ -47,7 +48,7 @@ fn test_025_decimals_impl(
 
     let insert_stmt_str = "insert into TEST_DECIMALS (F1, F2) values(?, ?)";
 
-    // prepare & execute
+    info!("prepare & execute");
     let mut insert_stmt = connection.prepare(insert_stmt_str)?;
     insert_stmt.add_batch(&("75.53500", BigDecimal::from_f32(75.53500).unwrap()))?;
     insert_stmt.add_batch(&("87.65432", 87.654_32_f32))?;
@@ -67,9 +68,10 @@ fn test_025_decimals_impl(
     let resultset = connection.query("select f1, f2 from TEST_DECIMALS order by f2")?;
     let precision = resultset.metadata().precision(1)?;
     let scale = resultset.metadata().scale(1)? as usize;
+// FIXME
     for row in resultset {
         let row = row?;
-        if let HdbValue::DECIMAL(ref bd) = &row[1] {
+        if let HdbValue::DECIMAL(ref bd, type_id, precision1, scale1) = &row[1] {
             debug!("precision = {}, scale = {}", precision, scale);
             assert_eq!(format!("{}", &row[0]), format!("{0:.1$}", bd, scale));
         } else {

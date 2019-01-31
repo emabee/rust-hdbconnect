@@ -2,8 +2,9 @@ use crate::protocol::parts::hdb_value::HdbValue;
 use crate::protocol::parts::type_id::TypeId;
 use crate::{HdbError, HdbResult};
 use bigdecimal::{BigDecimal, Zero};
-use byteorder::{ByteOrder, LittleEndian};
+use byteorder::{ByteOrder, LittleEndian, ReadBytesExt, WriteBytesExt};
 use num::bigint::{BigInt, Sign};
+use num::{FromPrimitive, ToPrimitive};
 use serde_db::ser::SerializationError;
 use std::fmt;
 use std::io;
@@ -115,49 +116,122 @@ impl fmt::Display for HdbDecimal {
 pub fn parse_decimal(
     nullable: bool,
     type_id: TypeId,
+    precision: i16,
+    scale: i16,
     rdr: &mut io::BufRead,
 ) -> HdbResult<HdbValue> {
-    let mut raw = [0_u8; 16];
-    rdr.read_exact(&mut raw[..])?;
-    let is_null = raw[15] == 112
-        && raw[14] == 0
-        && raw[13] == 0
-        && raw[12] == 0
-        && raw[11] == 0
-        && raw[10] == 0
-        && raw[9] == 0
-        && raw[8] == 0
-        && raw[7] == 0
-        && raw[6] == 0
-        && raw[5] == 0
-        && raw[4] == 0
-        && raw[3] == 0
-        && raw[2] == 0
-        && raw[1] == 0
-        && raw[0] == 0;
+    match type_id {
+        TypeId::SMALLDECIMAL | TypeId::DECIMAL => {
+            let mut raw = [0_u8; 16];
+            rdr.read_exact(&mut raw[..])?;
+            let is_null = raw[15] == 112
+                && raw[14] == 0
+                && raw[13] == 0
+                && raw[12] == 0
+                && raw[11] == 0
+                && raw[10] == 0
+                && raw[9] == 0
+                && raw[8] == 0
+                && raw[7] == 0
+                && raw[6] == 0
+                && raw[5] == 0
+                && raw[4] == 0
+                && raw[3] == 0
+                && raw[2] == 0
+                && raw[1] == 0
+                && raw[0] == 0;
 
-    if is_null {
-        if nullable {
-            Ok(HdbValue::NULL(type_id))
-        } else {
-            Err(HdbError::Impl(
-                "found null value for not-null column".to_owned(),
-            ))
+            if is_null {
+                if nullable {
+                    Ok(HdbValue::NULL(type_id))
+                } else {
+                    Err(HdbError::Impl(
+                        "found null value for not-null column".to_owned(),
+                    ))
+                }
+            } else {
+                let bd = HdbDecimal { raw }.as_bigdecimal();
+                Ok(match type_id {
+                    TypeId::SMALLDECIMAL => {
+                        HdbValue::DECIMAL(bd, TypeId::SMALLDECIMAL, precision, scale)
+                    }
+                    TypeId::DECIMAL => HdbValue::DECIMAL(bd, TypeId::DECIMAL, precision, scale),
+                    _ => return Err(HdbError::Impl("unexpected type id for decimal".to_owned())),
+                })
+            }
         }
-    } else {
-        let bd = HdbDecimal { raw }.as_bigdecimal();
-        Ok(match type_id {
-            TypeId::SMALLDECIMAL => HdbValue::SMALLDECIMAL(bd),
-            TypeId::DECIMAL => HdbValue::DECIMAL(bd),
-            _ => return Err(HdbError::Impl("unexpected type id for decimal".to_owned())),
-        })
+        TypeId::FIXED8 => Ok(if parse_null(nullable, rdr)? {
+            HdbValue::NULL(TypeId::FIXED8)
+        } else {
+            let i = rdr.read_i64::<LittleEndian>()?;
+            let bi = BigInt::from_i64(i).unwrap();
+            let bd = BigDecimal::new(bi, scale as i64);
+            HdbValue::DECIMAL(bd, TypeId::SMALLDECIMAL, precision, scale)
+        }),
+        TypeId::FIXED12 => unimplemented!("FIXME ldskfspiewüoköl-12"),
+        TypeId::FIXED16 => unimplemented!("FIXME ldskfspiewüoköl-16"),
+        _ => return Err(HdbError::Impl("unexpected type id for decimal".to_owned())),
     }
 }
 
-pub fn emit_decimal(bd: &BigDecimal, w: &mut io::Write) -> HdbResult<()> {
-    let hdb_decimal = HdbDecimal::from_bigdecimal(bd)?;
-    w.write_all(&hdb_decimal.raw)?;
+fn parse_null(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<bool> {
+    let is_null = rdr.read_u8()? == 0;
+    if is_null && !nullable {
+        Err(HdbError::Impl(
+            "found null value for not-null column".to_owned(),
+        ))
+    } else {
+        Ok(is_null)
+    }
+}
+
+pub fn emit_decimal(
+    bd: &BigDecimal,
+    type_id: TypeId,
+    _precision: i16,
+    scale: i16,
+    w: &mut io::Write,
+) -> HdbResult<()> {
+    match type_id {
+        TypeId::SMALLDECIMAL | TypeId::DECIMAL => {
+            let hdb_decimal = HdbDecimal::from_bigdecimal(bd)?;
+            w.write_all(&hdb_decimal.raw)?;
+        }
+        TypeId::FIXED8 => {
+            let (bigint, exponent) = bd.as_bigint_and_exponent();
+            let i = apply_scale_on_emit(bigint.to_i64().unwrap(), scale, exponent);
+            w.write_i64::<LittleEndian>(i)?;
+        }
+        TypeId::FIXED12 => unimplemented!("FIXME pqoiÖEWLKJdsa-12"),
+        TypeId::FIXED16 => unimplemented!("FIXME pqoiÖEWLKJdsa-16"),
+        _ => return Err(HdbError::Impl("unexpected type id for decimal".to_owned())),
+    }
     Ok(())
+}
+
+fn apply_scale_on_emit(input: i64, scale: i16, exponent: i64) -> i64 {
+    let mut out = input;
+    let effective_scale = scale as i64 - exponent;
+    if effective_scale > 0 {
+        for _ in 0..effective_scale {
+            out *= 10;
+        }
+    } else if effective_scale < 0 {
+        for _ in 0..-effective_scale {
+            out /= 10;
+        }
+    }
+    out
+}
+
+pub fn decimal_size(type_id: &TypeId) -> HdbResult<usize> {
+    Ok(match type_id {
+        TypeId::FIXED8 => 8,
+        TypeId::FIXED12 => 12,
+        TypeId::FIXED16 => 16,
+        TypeId::DECIMAL | TypeId::SMALLDECIMAL => 16,
+        _ => return Err(HdbError::Impl("unexpected type id for decimal".to_owned())),
+    })
 }
 
 #[cfg(test)]

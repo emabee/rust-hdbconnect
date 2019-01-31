@@ -196,7 +196,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "hdbconnect"
-version = "0.13.0"
+version = "0.14.0-beta"
 dependencies = [
  "bigdecimal 0.0.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "blake2 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",

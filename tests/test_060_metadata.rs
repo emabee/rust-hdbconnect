@@ -51,7 +51,8 @@ fn test_procedure_metadata(
     debug!("op-md: {:?}", pd0);
     assert_eq!(pd0.binding(), ParameterBinding::Optional);
     assert_eq!(pd0.name().unwrap(), "INOUT_DECIMAL");
-    assert_eq!(pd0.type_id(), TypeId::DECIMAL);
+    // behavior depends on DB version:
+    assert!((pd0.type_id() == TypeId::FIXED8) | (pd0.type_id() == TypeId::DECIMAL));
     assert_eq!(pd0.scale(), 5);
     assert_eq!(pd0.precision(), 10);
     assert_eq!(pd0.direction(), ParameterDirection::INOUT);

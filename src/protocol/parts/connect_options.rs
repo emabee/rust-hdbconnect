@@ -11,7 +11,7 @@ impl ConnectOptions {
     pub fn for_server(locale: &Option<String>, os_user: String) -> ConnectOptions {
         let connopts = ConnectOptions::default()
             .set_complete_array_execution(true)
-            .set_dataformat_version2(7)
+            .set_dataformat_version2(8)
             .set_client_locale(locale)
             .set_enable_array_type(true)
             .set_select_for_update_ok(true)

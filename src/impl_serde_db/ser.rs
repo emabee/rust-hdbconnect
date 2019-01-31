@@ -31,7 +31,8 @@ impl DbvFactory for ParameterDescriptor {
 
     fn from_i8(&self, value: i8) -> Result<HdbValue, SerializationError> {
         let input_type = "i8";
-        Ok(match self.type_id() {
+        let tid = self.type_id();
+        Ok(match tid {
             TypeId::TINYINT => {
                 if value >= 0 {
                     HdbValue::TINYINT(value as u8)
@@ -42,8 +43,16 @@ impl DbvFactory for ParameterDescriptor {
             TypeId::SMALLINT => HdbValue::SMALLINT(i16::from(value)),
             TypeId::INT => HdbValue::INT(i32::from(value)),
             TypeId::BIGINT => HdbValue::BIGINT(i64::from(value)),
-            TypeId::DECIMAL => HdbValue::DECIMAL(
+
+            TypeId::DECIMAL
+            | TypeId::SMALLDECIMAL
+            | TypeId::FIXED8
+            | TypeId::FIXED12
+            | TypeId::FIXED16 => HdbValue::DECIMAL(
                 BigDecimal::from_i8(value).ok_or_else(|| decimal_range(input_type))?,
+                tid,
+                self.precision(),
+                self.scale(),
             ),
             _ => return Err(type_mismatch(input_type, self.descriptor())),
         })
@@ -51,7 +60,8 @@ impl DbvFactory for ParameterDescriptor {
 
     fn from_i16(&self, value: i16) -> Result<HdbValue, SerializationError> {
         let input_type = "i16";
-        Ok(match self.type_id() {
+        let tid = self.type_id();
+        Ok(match tid {
             TypeId::TINYINT => {
                 if (value >= 0) && (value <= i16::from(u8::MAX)) {
                     HdbValue::TINYINT(value as u8)
@@ -62,8 +72,16 @@ impl DbvFactory for ParameterDescriptor {
             TypeId::SMALLINT => HdbValue::SMALLINT(value),
             TypeId::INT => HdbValue::INT(i32::from(value)),
             TypeId::BIGINT => HdbValue::BIGINT(i64::from(value)),
-            TypeId::DECIMAL => HdbValue::DECIMAL(
+
+            TypeId::DECIMAL
+            | TypeId::SMALLDECIMAL
+            | TypeId::FIXED8
+            | TypeId::FIXED12
+            | TypeId::FIXED16 => HdbValue::DECIMAL(
                 BigDecimal::from_i16(value).ok_or_else(|| decimal_range(input_type))?,
+                tid,
+                self.precision(),
+                self.scale(),
             ),
             _ => return Err(type_mismatch(input_type, self.descriptor())),
         })
@@ -71,7 +89,8 @@ impl DbvFactory for ParameterDescriptor {
 
     fn from_i32(&self, value: i32) -> Result<HdbValue, SerializationError> {
         let input_type = "i32";
-        Ok(match self.type_id() {
+        let tid = self.type_id();
+        Ok(match tid {
             TypeId::TINYINT => {
                 if (value >= 0) && (value <= i32::from(u8::MAX)) {
                     HdbValue::TINYINT(value as u8)
@@ -88,8 +107,15 @@ impl DbvFactory for ParameterDescriptor {
             }
             TypeId::INT => HdbValue::INT(value),
             TypeId::BIGINT => HdbValue::BIGINT(i64::from(value)),
-            TypeId::DECIMAL => HdbValue::DECIMAL(
+            TypeId::DECIMAL
+            | TypeId::SMALLDECIMAL
+            | TypeId::FIXED8
+            | TypeId::FIXED12
+            | TypeId::FIXED16 => HdbValue::DECIMAL(
                 BigDecimal::from_i32(value).ok_or_else(|| decimal_range(input_type))?,
+                tid,
+                self.precision(),
+                self.scale(),
             ),
             TypeId::DAYDATE => HdbValue::DAYDATE(DayDate::new(value)),
             TypeId::SECONDTIME => HdbValue::SECONDTIME(SecondTime::new(value)),
@@ -99,7 +125,8 @@ impl DbvFactory for ParameterDescriptor {
 
     fn from_i64(&self, value: i64) -> Result<HdbValue, SerializationError> {
         let input_type = "i64";
-        Ok(match self.type_id() {
+        let tid = self.type_id();
+        Ok(match tid {
             TypeId::TINYINT => {
                 if (value >= 0) && (value <= i64::from(u8::MAX)) {
                     HdbValue::TINYINT(value as u8)
@@ -124,28 +151,46 @@ impl DbvFactory for ParameterDescriptor {
             TypeId::BIGINT => HdbValue::BIGINT(value),
             TypeId::LONGDATE => HdbValue::LONGDATE(LongDate::new(value)),
             TypeId::SECONDDATE => HdbValue::SECONDDATE(SecondDate::new(value)),
-            TypeId::DECIMAL => HdbValue::DECIMAL(
+
+            TypeId::DECIMAL
+            | TypeId::SMALLDECIMAL
+            | TypeId::FIXED8
+            | TypeId::FIXED12
+            | TypeId::FIXED16 => HdbValue::DECIMAL(
                 BigDecimal::from_i64(value).ok_or_else(|| decimal_range(input_type))?,
+                tid,
+                self.precision(),
+                self.scale(),
             ),
             _ => return Err(type_mismatch(input_type, self.descriptor())),
         })
     }
     fn from_u8(&self, value: u8) -> Result<HdbValue, SerializationError> {
         let input_type = "u8";
-        Ok(match self.type_id() {
+        let tid = self.type_id();
+        Ok(match tid {
             TypeId::TINYINT => HdbValue::TINYINT(value),
             TypeId::SMALLINT => HdbValue::SMALLINT(i16::from(value)),
             TypeId::INT => HdbValue::INT(i32::from(value)),
             TypeId::BIGINT => HdbValue::BIGINT(i64::from(value)),
-            TypeId::DECIMAL => HdbValue::DECIMAL(
+
+            TypeId::DECIMAL
+            | TypeId::SMALLDECIMAL
+            | TypeId::FIXED8
+            | TypeId::FIXED12
+            | TypeId::FIXED16 => HdbValue::DECIMAL(
                 BigDecimal::from_u8(value).ok_or_else(|| decimal_range(input_type))?,
+                tid,
+                self.precision(),
+                self.scale(),
             ),
             _ => return Err(type_mismatch(input_type, self.descriptor())),
         })
     }
     fn from_u16(&self, value: u16) -> Result<HdbValue, SerializationError> {
         let input_type = "u16";
-        Ok(match self.type_id() {
+        let tid = self.type_id();
+        Ok(match tid {
             TypeId::TINYINT => {
                 if value <= u16::from(u8::MAX) {
                     HdbValue::TINYINT(value as u8)
@@ -162,8 +207,16 @@ impl DbvFactory for ParameterDescriptor {
             }
             TypeId::INT => HdbValue::INT(i32::from(value)),
             TypeId::BIGINT => HdbValue::BIGINT(i64::from(value)),
-            TypeId::DECIMAL => HdbValue::DECIMAL(
+
+            TypeId::DECIMAL
+            | TypeId::SMALLDECIMAL
+            | TypeId::FIXED8
+            | TypeId::FIXED12
+            | TypeId::FIXED16 => HdbValue::DECIMAL(
                 BigDecimal::from_u16(value).ok_or_else(|| decimal_range(input_type))?,
+                tid,
+                self.precision(),
+                self.scale(),
             ),
             _ => return Err(type_mismatch(input_type, self.descriptor())),
         })
@@ -171,7 +224,8 @@ impl DbvFactory for ParameterDescriptor {
 
     fn from_u32(&self, value: u32) -> Result<HdbValue, SerializationError> {
         let input_type = "u32";
-        Ok(match self.type_id() {
+        let tid = self.type_id();
+        Ok(match tid {
             TypeId::TINYINT => {
                 if value <= u32::from(u8::MAX) {
                     HdbValue::TINYINT(value as u8)
@@ -194,8 +248,16 @@ impl DbvFactory for ParameterDescriptor {
                 }
             }
             TypeId::BIGINT => HdbValue::BIGINT(i64::from(value)),
-            TypeId::DECIMAL => HdbValue::DECIMAL(
+
+            TypeId::DECIMAL
+            | TypeId::SMALLDECIMAL
+            | TypeId::FIXED8
+            | TypeId::FIXED12
+            | TypeId::FIXED16 => HdbValue::DECIMAL(
                 BigDecimal::from_u32(value).ok_or_else(|| decimal_range(input_type))?,
+                tid,
+                self.precision(),
+                self.scale(),
             ),
             _ => return Err(type_mismatch(input_type, self.descriptor())),
         })
@@ -203,7 +265,8 @@ impl DbvFactory for ParameterDescriptor {
 
     fn from_u64(&self, value: u64) -> Result<HdbValue, SerializationError> {
         let input_type = "u64";
-        Ok(match self.type_id() {
+        let tid = self.type_id();
+        Ok(match tid {
             TypeId::TINYINT => {
                 if value <= u64::from(u8::MAX) {
                     HdbValue::TINYINT(value as u8)
@@ -232,8 +295,15 @@ impl DbvFactory for ParameterDescriptor {
                     return Err(SerializationError::Range(input_type, self.descriptor()));
                 }
             }
-            TypeId::DECIMAL => HdbValue::DECIMAL(
+            TypeId::DECIMAL
+            | TypeId::SMALLDECIMAL
+            | TypeId::FIXED8
+            | TypeId::FIXED12
+            | TypeId::FIXED16 => HdbValue::DECIMAL(
                 BigDecimal::from_u64(value).ok_or_else(|| decimal_range(input_type))?,
+                tid,
+                self.precision(),
+                self.scale(),
             ),
             _ => return Err(type_mismatch(input_type, self.descriptor())),
         })
@@ -241,10 +311,19 @@ impl DbvFactory for ParameterDescriptor {
 
     fn from_f32(&self, value: f32) -> Result<HdbValue, SerializationError> {
         let input_type = "f32";
-        Ok(match self.type_id() {
+        let tid = self.type_id();
+        Ok(match tid {
             TypeId::REAL => HdbValue::REAL(value),
-            TypeId::DECIMAL => HdbValue::DECIMAL(
+
+            TypeId::DECIMAL
+            | TypeId::SMALLDECIMAL
+            | TypeId::FIXED8
+            | TypeId::FIXED12
+            | TypeId::FIXED16 => HdbValue::DECIMAL(
                 BigDecimal::from_f32(value).ok_or_else(|| decimal_range(input_type))?,
+                tid,
+                self.precision(),
+                self.scale(),
             ),
             _ => return Err(type_mismatch("f32", self.descriptor())),
         })
@@ -252,10 +331,19 @@ impl DbvFactory for ParameterDescriptor {
 
     fn from_f64(&self, value: f64) -> Result<HdbValue, SerializationError> {
         let input_type = "f64";
-        Ok(match self.type_id() {
+        let tid = self.type_id();
+        Ok(match tid {
             TypeId::DOUBLE => HdbValue::DOUBLE(value),
-            TypeId::DECIMAL => HdbValue::DECIMAL(
+
+            TypeId::DECIMAL
+            | TypeId::SMALLDECIMAL
+            | TypeId::FIXED8
+            | TypeId::FIXED12
+            | TypeId::FIXED16 => HdbValue::DECIMAL(
                 BigDecimal::from_f64(value).ok_or_else(|| decimal_range(input_type))?,
+                tid,
+                self.precision(),
+                self.scale(),
             ),
             _ => return Err(type_mismatch("f64", self.descriptor())),
         })
@@ -289,7 +377,9 @@ impl DbvFactory for ParameterDescriptor {
         };
         let map_d =
             |e: HdbError| parse_error(value, "some date type".to_string(), Some(Box::new(e)));
-        Ok(match self.type_id() {
+
+        let tid = self.type_id();
+        Ok(match tid {
             TypeId::TINYINT => HdbValue::TINYINT(u8::from_str(value).map_err(map_i)?),
             TypeId::SMALLINT => HdbValue::SMALLINT(i16::from_str(value).map_err(map_i)?),
             TypeId::INT => HdbValue::INT(i32::from_str(value).map_err(map_i)?),
@@ -306,7 +396,18 @@ impl DbvFactory for ParameterDescriptor {
             | TypeId::SHORTTEXT
             | TypeId::CLOB
             | TypeId::NCLOB => HdbValue::STRING(String::from(value)),
-            TypeId::DECIMAL => HdbValue::DECIMAL(BigDecimal::from_str(value).map_err(map_bd)?),
+
+            TypeId::DECIMAL
+            | TypeId::SMALLDECIMAL
+            | TypeId::FIXED8
+            | TypeId::FIXED12
+            | TypeId::FIXED16 => HdbValue::DECIMAL(
+                BigDecimal::from_str(value).map_err(map_bd)?,
+                tid,
+                self.precision(),
+                self.scale(),
+            ),
+
             TypeId::LONGDATE => {
                 HdbValue::LONGDATE(LongDate::from_date_string(value).map_err(map_d)?)
             }

@@ -3,7 +3,7 @@ use crate::protocol::parts::type_id::TypeId;
 use crate::protocol::util;
 use crate::types::{BLob, CLob, DayDate, LongDate, NCLob, SecondDate, SecondTime};
 use crate::types_impl::daydate::parse_daydate;
-use crate::types_impl::hdb_decimal::{emit_decimal, parse_decimal};
+use crate::types_impl::hdb_decimal::{decimal_size, emit_decimal, parse_decimal};
 use crate::types_impl::lob::{
     emit_blob_header, emit_clob_header, emit_nclob_header, parse_blob, parse_clob, parse_nclob,
 };
@@ -16,7 +16,6 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use cesu8;
 use serde;
 use serde_db::de::{ConversionError, DbValue};
-use serde_derive::Serialize;
 use std::fmt;
 
 const MAX_1_BYTE_LENGTH: u8 = 245;
@@ -27,7 +26,7 @@ const LENGTH_INDICATOR_NULL: u8 = 255;
 
 /// Enum for all supported database value types.
 #[allow(non_camel_case_types)]
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug)]
 pub enum HdbValue {
     /// Is swapped in where a real value (any of the others) is swapped out.
     NOTHING,
@@ -46,6 +45,7 @@ pub enum HdbValue {
     /// The minimum value is -9,223,372,036,854,775,808.
     /// The maximum value is 9,223,372,036,854,775,807.
     BIGINT(i64),
+
     /// DECIMAL(p, s) is the SQL standard notation for fixed-point decimal.
     /// "p" specifies precision or the number of total digits
     /// (the sum of whole digits and fractional digits).
@@ -65,7 +65,7 @@ pub enum HdbValue {
     /// 0.0000001234 (1234E-10) has precision 4 and scale 10.
     /// 1.0000001234 (10000001234E-10) has precision 11 and scale 10.
     /// The value 1234000000 (1234E6) has precision 4 and scale -6.
-    DECIMAL(BigDecimal),
+    DECIMAL(BigDecimal, TypeId, i16, i16),
     /// Stores a single-precision 32-bit floating-point number.
     REAL(f32),
     /// Stores a double-precision 64-bit floating-point number.
@@ -102,6 +102,7 @@ pub enum HdbValue {
     NCLOB(NCLob),
     /// Stores a large binary string.
     BLOB(BLob),
+
     /// BOOLEAN stores boolean values, which are TRUE or FALSE.
     BOOLEAN(bool),
     /// The DB returns all Strings as type STRING, independent of the concrete column type.
@@ -110,20 +111,6 @@ pub enum HdbValue {
     NSTRING(String),
     /// The DB returns all binary values as type BSTRING.
     BSTRING(Vec<u8>),
-
-    /// Floating-point decimal number.
-    ///
-    /// The precision and scale can vary within the range 1~16 for precision
-    /// and -369~368 for scale, depending on the stored value.  
-    /// SMALLDECIMAL is only supported on the HANA column store.
-    /// DECIMAL and SMALLDECIMAL are floating-point types.
-    /// For instance, a decimal column can store any of 3.14, 3.1415, 3.141592
-    /// whilst maintaining their precision.
-    /// DECIMAL(p, s) is the SQL standard notation for fixed-point decimal.
-    /// 3.14, 3.1415, 3.141592 are stored in a decimal(5, 4) column as 3.1400,
-    /// 3.1415, 3.1415 for example,
-    /// retaining the specified precision(5) and scale(4).
-    SMALLDECIMAL(BigDecimal),
 
     /// Enables text search features.
     ///
@@ -163,7 +150,7 @@ impl HdbValue {
             HdbValue::SMALLINT(_) => TypeId::SMALLINT,
             HdbValue::INT(_) => TypeId::INT,
             HdbValue::BIGINT(_) => TypeId::BIGINT,
-            HdbValue::DECIMAL(_) => TypeId::DECIMAL,
+            HdbValue::DECIMAL(_, type_id, _, _) => type_id,
             HdbValue::REAL(_) => TypeId::REAL,
             HdbValue::DOUBLE(_) => TypeId::DOUBLE,
             HdbValue::CHAR(_) => TypeId::CHAR,
@@ -179,7 +166,6 @@ impl HdbValue {
             HdbValue::STRING(_) => TypeId::STRING,
             HdbValue::NSTRING(_) => TypeId::NSTRING,
             HdbValue::BSTRING(_) => TypeId::BSTRING,
-            HdbValue::SMALLDECIMAL(_) => TypeId::SMALLDECIMAL,
             HdbValue::TEXT(_) => TypeId::TEXT,
             HdbValue::SHORTTEXT(_) => TypeId::SHORTTEXT,
             HdbValue::LONGDATE(_) => TypeId::LONGDATE,
@@ -245,8 +231,8 @@ impl HdbValue {
                 HdbValue::SMALLINT(i) => w.write_i16::<LittleEndian>(i)?,
                 HdbValue::INT(i) => w.write_i32::<LittleEndian>(i)?,
                 HdbValue::BIGINT(i) => w.write_i64::<LittleEndian>(i)?,
-                HdbValue::DECIMAL(ref bigdec) | HdbValue::SMALLDECIMAL(ref bigdec) => {
-                    emit_decimal(bigdec, w)?
+                HdbValue::DECIMAL(ref bigdec, type_id, precision, scale) => {
+                    emit_decimal(bigdec, type_id, precision, scale, w)?
                 }
                 HdbValue::REAL(f) => w.write_f32::<LittleEndian>(f)?,
                 HdbValue::DOUBLE(f) => w.write_f64::<LittleEndian>(f)?,
@@ -296,7 +282,7 @@ impl HdbValue {
             HdbValue::NOTHING | HdbValue::NULL(_) => 0,
             HdbValue::BOOLEAN(_) | HdbValue::TINYINT(_) => 1,
             HdbValue::SMALLINT(_) => 2,
-            HdbValue::DECIMAL(_) | HdbValue::SMALLDECIMAL(_) => 16,
+            HdbValue::DECIMAL(_, type_id, _, _) => decimal_size(type_id)?,
 
             HdbValue::INT(_)
             | HdbValue::REAL(_)
@@ -331,6 +317,8 @@ impl HdbValue {
 
     pub(crate) fn parse_from_reply(
         type_id: TypeId,
+        precision: i16,
+        scale: i16,
         nullable: bool,
         am_conn_core: &AmConnCore,
         rdr: &mut std::io::BufRead,
@@ -346,7 +334,11 @@ impl HdbValue {
 
             TypeId::BOOLEAN => Ok(parse_bool(nullable, rdr)?),
 
-            TypeId::SMALLDECIMAL | TypeId::DECIMAL => Ok(parse_decimal(nullable, t, rdr)?),
+            TypeId::SMALLDECIMAL
+            | TypeId::DECIMAL
+            | TypeId::FIXED8
+            | TypeId::FIXED12
+            | TypeId::FIXED16 => Ok(parse_decimal(nullable, t, precision, scale, rdr)?),
 
             TypeId::CHAR
             | TypeId::VARCHAR
@@ -388,7 +380,7 @@ fn emit_bool(b: bool, w: &mut std::io::Write) -> HdbResult<()> {
 // - returns Ok(true) if the value is NULL
 // - returns Ok(false) if a normal value is to be expected
 // - throws an error if NULL is found but nullable is false
-fn is_null(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<bool> {
+fn parse_null(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<bool> {
     let is_null = rdr.read_u8()? == 0;
     if is_null && !nullable {
         Err(HdbError::Impl(
@@ -400,7 +392,7 @@ fn is_null(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<bool> {
 }
 
 fn parse_tinyint(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValue> {
-    Ok(if is_null(nullable, rdr)? {
+    Ok(if parse_null(nullable, rdr)? {
         HdbValue::NULL(TypeId::TINYINT)
     } else {
         HdbValue::TINYINT(rdr.read_u8()?)
@@ -408,21 +400,21 @@ fn parse_tinyint(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbVal
 }
 
 fn parse_smallint(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValue> {
-    Ok(if is_null(nullable, rdr)? {
+    Ok(if parse_null(nullable, rdr)? {
         HdbValue::NULL(TypeId::SMALLINT)
     } else {
         HdbValue::SMALLINT(rdr.read_i16::<LittleEndian>()?)
     })
 }
 fn parse_int(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValue> {
-    Ok(if is_null(nullable, rdr)? {
+    Ok(if parse_null(nullable, rdr)? {
         HdbValue::NULL(TypeId::INT)
     } else {
         HdbValue::INT(rdr.read_i32::<LittleEndian>()?)
     })
 }
 fn parse_bigint(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValue> {
-    Ok(if is_null(nullable, rdr)? {
+    Ok(if parse_null(nullable, rdr)? {
         HdbValue::NULL(TypeId::BIGINT)
     } else {
         HdbValue::BIGINT(rdr.read_i64::<LittleEndian>()?)
@@ -500,7 +492,7 @@ fn parse_string(
             Ok(HdbValue::NULL(TypeId::STRING))
         } else {
             Err(HdbError::Impl(
-                "found NULL value for NOT NULL binary column".to_owned(),
+                "found NULL value for NOT NULL string column".to_owned(),
             ))
         }
     } else {
@@ -606,9 +598,7 @@ impl fmt::Display for HdbValue {
             HdbValue::INT(value) => write!(fmt, "{}", value),
             HdbValue::BIGINT(value) => write!(fmt, "{}", value),
 
-            HdbValue::DECIMAL(ref value) | HdbValue::SMALLDECIMAL(ref value) => {
-                write!(fmt, "{}", value)
-            }
+            HdbValue::DECIMAL(ref value, _, _, _) => write!(fmt, "{}", value),
 
             HdbValue::REAL(value) => write!(fmt, "{}", value),
             HdbValue::DOUBLE(value) => write!(fmt, "{}", value),

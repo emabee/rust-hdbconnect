@@ -4,64 +4,70 @@ use serde_derive::Serialize;
 /// ID of the value type of a database column or a parameter.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 pub enum TypeId {
-    /// Base type ID for [HdbValue::TINYINT](enum.HdbValue.html#variant.TINYINT).
+    /// Type ID for [HdbValue::TINYINT](enum.HdbValue.html#variant.TINYINT).
     TINYINT,
-    /// Base type ID for [HdbValue::SMALLINT](enum.HdbValue.html#variant.SMALLINT).
+    /// Type ID for [HdbValue::SMALLINT](enum.HdbValue.html#variant.SMALLINT).
     SMALLINT,
-    /// Base type ID for [HdbValue::INT](enum.HdbValue.html#variant.INT).
+    /// Type ID for [HdbValue::INT](enum.HdbValue.html#variant.INT).
     INT,
-    /// Base type ID for [HdbValue::BIGINT](enum.HdbValue.html#variant.BIGINT).
+    /// Type ID for [HdbValue::BIGINT](enum.HdbValue.html#variant.BIGINT).
     BIGINT,
-    /// Base type ID for [HdbValue::DECIMAL](enum.HdbValue.html#variant.DECIMAL).
+    /// Type ID for [HdbValue::DECIMAL](enum.HdbValue.html#variant.DECIMAL).
     DECIMAL,
-    /// Base type ID for [HdbValue::REAL](enum.HdbValue.html#variant.REAL).
+    /// Type ID for [HdbValue::REAL](enum.HdbValue.html#variant.REAL).
     REAL,
-    /// Base type ID for [HdbValue::DOUBLE](enum.HdbValue.html#variant.DOUBLE).
+    /// Type ID for [HdbValue::DOUBLE](enum.HdbValue.html#variant.DOUBLE).
     DOUBLE,
-    /// Base type ID for [HdbValue::CHAR](enum.HdbValue.html#variant.CHAR).
+    /// Type ID for [HdbValue::CHAR](enum.HdbValue.html#variant.CHAR).
     CHAR,
-    /// Base type ID for [HdbValue::VARCHAR](enum.HdbValue.html#variant.VARCHAR).
+    /// Type ID for [HdbValue::VARCHAR](enum.HdbValue.html#variant.VARCHAR).
     VARCHAR,
-    /// Base type ID for [HdbValue::NCHAR](enum.HdbValue.html#variant.NCHAR).
+    /// Type ID for [HdbValue::NCHAR](enum.HdbValue.html#variant.NCHAR).
     NCHAR,
-    /// Base type ID for [HdbValue::NVARCHAR](enum.HdbValue.html#variant.NVARCHAR).
+    /// Type ID for [HdbValue::NVARCHAR](enum.HdbValue.html#variant.NVARCHAR).
     NVARCHAR,
-    /// Base type ID for [HdbValue::BINARY](enum.HdbValue.html#variant.BINARY).
+    /// Type ID for [HdbValue::BINARY](enum.HdbValue.html#variant.BINARY).
     BINARY,
-    /// Base type ID for [HdbValue::VARBINARY](enum.HdbValue.html#variant.VARBINARY).
+    /// Type ID for [HdbValue::VARBINARY](enum.HdbValue.html#variant.VARBINARY).
     VARBINARY,
-    /// Base type ID for [HdbValue::CLOB](enum.HdbValue.html#variant.CLOB).
+    /// Type ID for [HdbValue::CLOB](enum.HdbValue.html#variant.CLOB).
     CLOB,
-    /// Base type ID for [HdbValue::NCLOB](enum.HdbValue.html#variant.NCLOB).
+    /// Type ID for [HdbValue::NCLOB](enum.HdbValue.html#variant.NCLOB).
     NCLOB,
-    /// Base type ID for [HdbValue::BLOB](enum.HdbValue.html#variant.BLOB).
+    /// Type ID for [HdbValue::BLOB](enum.HdbValue.html#variant.BLOB).
     BLOB,
-    /// Base type ID for [HdbValue::BOOLEAN](enum.HdbValue.html#variant.BOOLEAN).
+    /// Type ID for [HdbValue::BOOLEAN](enum.HdbValue.html#variant.BOOLEAN).
     BOOLEAN,
-    /// Base type ID for [HdbValue::STRING](enum.HdbValue.html#variant.STRING).
+    /// Type ID for [HdbValue::STRING](enum.HdbValue.html#variant.STRING).
     STRING,
-    /// Base type ID for [HdbValue::NSTRING](enum.HdbValue.html#variant.NSTRING).
+    /// Type ID for [HdbValue::NSTRING](enum.HdbValue.html#variant.NSTRING).
     NSTRING,
-    /// Base type ID for [HdbValue::BSTRING](enum.HdbValue.html#variant.BSTRING).
+    /// Type ID for [HdbValue::BSTRING](enum.HdbValue.html#variant.BSTRING).
     BSTRING,
-    /// Base type ID for [HdbValue::SMALLDECIMAL](enum.HdbValue.html#variant.SMALLDECIMAL).
+    /// Type ID for [HdbValue::SMALLDECIMAL](enum.HdbValue.html#variant.SMALLDECIMAL).
     SMALLDECIMAL,
-    /// Base type ID for [HdbValue::TEXT](enum.HdbValue.html#variant.TEXT).
+    /// Type ID for [HdbValue::TEXT](enum.HdbValue.html#variant.TEXT).
     TEXT,
-    /// Base type ID for [HdbValue::SHORTTEXT](enum.HdbValue.html#variant.SHORTTEXT).
+    /// Type ID for [HdbValue::SHORTTEXT](enum.HdbValue.html#variant.SHORTTEXT).
     SHORTTEXT,
-    /// Base type ID for [HdbValue::LONGDATE](enum.HdbValue.html#variant.LONGDATE).
+    /// Type ID for [HdbValue::LONGDATE](enum.HdbValue.html#variant.LONGDATE).
     LONGDATE,
-    /// Base type ID for [HdbValue::SECONDDATE](enum.HdbValue.html#variant.SECONDDATE).
+    /// Type ID for [HdbValue::SECONDDATE](enum.HdbValue.html#variant.SECONDDATE).
     SECONDDATE,
-    /// Base type ID for [HdbValue::DAYDATE](enum.HdbValue.html#variant.DAYDATE).
+    /// Type ID for [HdbValue::DAYDATE](enum.HdbValue.html#variant.DAYDATE).
     DAYDATE,
-    /// Base type ID for [HdbValue::SECONDTIME](enum.HdbValue.html#variant.SECONDTIME).
+    /// Type ID for [HdbValue::SECONDTIME](enum.HdbValue.html#variant.SECONDTIME).
     SECONDTIME,
-    /// Base type ID for [HdbValue::GEOMETRY](enum.HdbValue.html#variant.GEOMETRY).
+    /// Type ID for [HdbValue::GEOMETRY](enum.HdbValue.html#variant.GEOMETRY).
     GEOMETRY,
-    /// Base type ID for [HdbValue::POINT](enum.HdbValue.html#variant.POINT).
+    /// Type ID for [HdbValue::POINT](enum.HdbValue.html#variant.POINT).
     POINT,
+    /// Internally used only.
+    FIXED8,
+    /// Internally used only.
+    FIXED12,
+    /// Internally used only.
+    FIXED16,
 }
 
 impl TypeId {
@@ -113,12 +119,12 @@ impl TypeId {
             // TypeCode_NCLOB_DISK_RESERVE        =73,
             74 => TypeId::GEOMETRY,
             75 => TypeId::POINT,
-            // TypeCode_FIXED16                   =76,  // FIXME
+            76 => TypeId::FIXED16,
             // TypeCode_ABAP_ITAB                 =77,  // FIXME
             // TypeCode_RECORD_ROW_STORE         = 78,  // FIXME
             // TypeCode_RECORD_COLUMN_STORE      = 79,  // FIXME
-            // TypeCode_FIXED8                   = 81,  // FIXME
-            // TypeCode_FIXED12                  = 82,  // FIXME
+            81 => TypeId::FIXED8,
+            82 => TypeId::FIXED12,
             // TypeCode_CIPHERTEXT               = 90,  // FIXME
             tc => return Err(HdbError::Impl(format!("Illegal type code {}", tc))),
         })
@@ -157,6 +163,9 @@ impl TypeId {
                 TypeId::SECONDTIME => 64,
                 TypeId::GEOMETRY => 74,
                 TypeId::POINT => 75,
+                TypeId::FIXED16 => 76,
+                TypeId::FIXED8 => 81,
+                TypeId::FIXED12 => 82,
             }
     }
 }
@@ -195,6 +204,9 @@ impl std::fmt::Display for TypeId {
                 TypeId::SECONDTIME => "SECONDTIME",
                 TypeId::GEOMETRY => "GEOMETRY",
                 TypeId::POINT => "POINT",
+                TypeId::FIXED8 => "FIXED8",
+                TypeId::FIXED12 => "FIXED12",
+                TypeId::FIXED16 => "FIXED16",
             }
         )?;
         Ok(())

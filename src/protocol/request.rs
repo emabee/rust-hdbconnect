@@ -65,8 +65,8 @@ impl<'a> Request<'a> {
         let mut remaining_bufsize = total_size - MESSAGE_HEADER_SIZE;
 
         debug!(
-            "Request::emit() for session_id = {}, seq_number = {}, request_type = {:?}",
-            session_id, seq_number, self.request_type
+            "Request::emit() of type {:?} for session_id = {}, seq_number = {}",
+            self.request_type, session_id, seq_number
         );
         // MESSAGE HEADER
         w.write_i64::<LittleEndian>(session_id)?; // I8

@@ -1,7 +1,7 @@
 mod test_utils;
 
 use flexi_logger::ReconfigurationHandle;
-use hdbconnect::{Connection, HdbResult, HdbValue};
+use hdbconnect::{Connection, HdbResult, HdbValue, TypeId};
 use log::{debug, info};
 use serde_derive::Deserialize;
 
@@ -111,7 +111,7 @@ fn prepare_statement_use_parameter_row(
 
     let insert_stmt_str = "insert into TEST_PREPARE (F1_S, F2_I) values(?, ?)";
 
-    // prepare & execute with rust types
+    debug!("prepare & execute with rust types");
     let mut insert_stmt = connection.prepare(insert_stmt_str)?;
     insert_stmt.add_batch(&("conn1-auto1", 45_i32))?;
     insert_stmt.add_batch(&("conn1-auto2", 46_i32))?;
@@ -122,25 +122,26 @@ fn prepare_statement_use_parameter_row(
         .try_into()?;
     assert_eq!(typed_result, 91);
 
-    // prepare & execute with rust types
+    debug!("prepare & execute with HdbValues");
     let mut stmt = connection.prepare(insert_stmt_str)?;
     let my_string = String::from("foo");
-    stmt.add_batch(&vec![
+    stmt.add_row_to_batch(vec![
         HdbValue::STRING(my_string.clone()),
         HdbValue::INT(1000_i32),
     ])?;
-    stmt.add_batch(&vec![
+    debug!("now it fails...");
+    stmt.add_row_to_batch(vec![
         HdbValue::STRING(my_string.clone()),
         HdbValue::INT(2100_i32),
     ])?;
-    stmt.add_batch(&vec![
+    stmt.add_row_to_batch(vec![
         HdbValue::STRING(my_string),
         HdbValue::STRING("25".to_string()),
     ])?;
 
     stmt.execute_batch()?;
     connection.commit()?;
-
+    debug!("checking...");
     let typed_result: i32 = connection
         .query("select sum(F2_I) from TEST_PREPARE")?
         .try_into()?;

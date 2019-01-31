@@ -57,7 +57,8 @@ pub fn get_wrong_connect_params(user: Option<&str>, pw: Option<&str>) -> HdbResu
 
 fn get_version() -> &'static str {
     // "2_0"
-    "2_3"
+    // "2_3"
+    "pascal"
 }
 
 fn connect_params_from_file(s: &str) -> HdbResult<ConnectParams> {

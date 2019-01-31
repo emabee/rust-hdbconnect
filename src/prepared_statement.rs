@@ -62,7 +62,9 @@ impl PreparedStatement {
         trace!("PreparedStatement::add_batch()");
         match (&(self.o_input_md), &mut (self.o_batch)) {
             (&Some(ref metadata), &mut Some(ref mut vec)) => {
-                vec.push(ParameterRow::new(to_params(input, metadata)?));
+                let data = to_params(input, metadata)?;
+                // FIXME warn!("data {}", data[0]);
+                vec.push(ParameterRow::new(data));
                 Ok(())
             }
             (_, _) => {
