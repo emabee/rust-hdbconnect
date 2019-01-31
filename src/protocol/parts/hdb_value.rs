@@ -74,28 +74,8 @@ pub enum HdbValue {
     /// 2.2250738585072014E-308 and the largest negative DOUBLE value is
     /// -2.2250738585072014E-308.
     DOUBLE(f64),
-    /// Fixed-length character String, only ASCII-7 allowed.
-    CHAR(String),
-    /// The VARCHAR(n) data type specifies a variable-length character string,
-    /// where n indicates the maximum length in bytes and is an integer between
-    /// 1 and 5000. If the VARCHAR(n) data type is used in a DML query, for
-    /// example CAST (A as VARCHAR(n)), <n> indicates the maximum length of
-    /// the string in characters. SAP recommends using VARCHAR with ASCII
-    /// characters based strings only. For data containing other
-    /// characters, SAP recommends using the NVARCHAR data type instead.
-    VARCHAR(String),
-    /// Fixed-length character string.
-    NCHAR(String),
-    /// Specifies a variable-length Unicode character
-    /// set string, where <n> indicates the maximum length in characters
-    /// and is an integer between 1 and 5000.
-    NVARCHAR(String),
-    /// Stores binary data of a specified length in bytes,
-    /// where n indicates the fixed length and is an integer between 1 and 5000.
-    BINARY(Vec<u8>),
-    /// Stores binary data of a specified maximum length in bytes,
-    /// where n indicates the maximum length and is an integer between 1 and 5000.
-    VARBINARY(Vec<u8>),
+    /// Stores binary data.
+    BINARY(Vec<u8>, TypeId),
     /// Stores a large ASCII character string.
     CLOB(CLob),
     /// Stores a large Unicode string.
@@ -106,11 +86,7 @@ pub enum HdbValue {
     /// BOOLEAN stores boolean values, which are TRUE or FALSE.
     BOOLEAN(bool),
     /// The DB returns all Strings as type STRING, independent of the concrete column type.
-    STRING(String),
-    /// Likely not used?
-    NSTRING(String),
-    /// The DB returns all binary values as type BSTRING.
-    BSTRING(Vec<u8>),
+    STRING(String, TypeId),
 
     /// Enables text search features.
     ///
@@ -118,8 +94,6 @@ pub enum HdbValue {
     /// This is not a standalone SQL-Type. Selecting a TEXT column yields a
     /// column of type NCLOB.
     TEXT(String),
-    /// Similar to TEXT.
-    SHORTTEXT(String),
 
     /// Timestamp with 10^-7 seconds precision, uses eight bytes.
     LONGDATE(LongDate),
@@ -153,27 +127,19 @@ impl HdbValue {
             HdbValue::DECIMAL(_, type_id, _, _) => type_id,
             HdbValue::REAL(_) => TypeId::REAL,
             HdbValue::DOUBLE(_) => TypeId::DOUBLE,
-            HdbValue::CHAR(_) => TypeId::CHAR,
-            HdbValue::VARCHAR(_) => TypeId::VARCHAR,
-            HdbValue::NCHAR(_) => TypeId::NCHAR,
-            HdbValue::NVARCHAR(_) => TypeId::NVARCHAR,
-            HdbValue::BINARY(_) => TypeId::BINARY,
-            HdbValue::VARBINARY(_) => TypeId::VARBINARY,
+            HdbValue::BINARY(_, type_id) => type_id,
             HdbValue::CLOB(_) => TypeId::CLOB,
             HdbValue::NCLOB(_) => TypeId::NCLOB,
             HdbValue::BLOB(_) => TypeId::BLOB,
             HdbValue::BOOLEAN(_) => TypeId::BOOLEAN,
-            HdbValue::STRING(_) => TypeId::STRING,
-            HdbValue::NSTRING(_) => TypeId::NSTRING,
-            HdbValue::BSTRING(_) => TypeId::BSTRING,
+            HdbValue::STRING(_, _type_id) => TypeId::STRING, //sic! for NCLOB e.g.
             HdbValue::TEXT(_) => TypeId::TEXT,
-            HdbValue::SHORTTEXT(_) => TypeId::SHORTTEXT,
             HdbValue::LONGDATE(_) => TypeId::LONGDATE,
             HdbValue::SECONDDATE(_) => TypeId::SECONDDATE,
             HdbValue::DAYDATE(_) => TypeId::DAYDATE,
             HdbValue::SECONDTIME(_) => TypeId::SECONDTIME,
-            HdbValue::GEOMETRY(_) => TypeId::GEOMETRY,
-            HdbValue::POINT(_) => TypeId::POINT,
+            HdbValue::GEOMETRY(_) => TypeId::BINARY, // TypeId::GEOMETRY,
+            HdbValue::POINT(_) => TypeId::BINARY,    // TypeId::POINT,
         })
     }
 
@@ -244,21 +210,12 @@ impl HdbValue {
                 HdbValue::CLOB(ref clob) => emit_clob_header(clob.len()?, data_pos, w)?,
                 HdbValue::NCLOB(ref nclob) => emit_nclob_header(nclob.len()?, data_pos, w)?,
                 HdbValue::BLOB(ref blob) => emit_blob_header(blob.len_alldata(), data_pos, w)?,
-                HdbValue::STRING(ref s) => emit_length_and_string(s, w)?,
-                HdbValue::BINARY(ref v)
-                | HdbValue::VARBINARY(ref v)
-                | HdbValue::GEOMETRY(ref v)
-                | HdbValue::POINT(ref v) => emit_length_and_bytes(v, w)?,
+                HdbValue::STRING(ref s, _) => emit_length_and_string(s, w)?,
+                HdbValue::BINARY(ref v, _) | HdbValue::GEOMETRY(ref v) | HdbValue::POINT(ref v) => {
+                    emit_length_and_bytes(v, w)?
+                }
 
-                HdbValue::NOTHING
-                | HdbValue::CHAR(_)
-                | HdbValue::NCHAR(_)
-                | HdbValue::VARCHAR(_)
-                | HdbValue::NVARCHAR(_)
-                | HdbValue::NSTRING(_)
-                | HdbValue::TEXT(_)
-                | HdbValue::SHORTTEXT(_)
-                | HdbValue::BSTRING(_) => {
+                HdbValue::NOTHING | HdbValue::TEXT(_) => {
                     return Err(HdbError::Impl(format!(
                         "HdbValue::emit() not implemented for type {}",
                         self
@@ -272,7 +229,8 @@ impl HdbValue {
     // returns true if the value is a null value, false otherwise
     fn emit_type_id(&self, w: &mut std::io::Write) -> HdbResult<bool> {
         let is_null = self.is_null();
-        w.write_u8(self.type_id()?.type_code(is_null))?;
+        let type_code = self.type_id()?.type_code(is_null);
+        w.write_u8(type_code)?;
         Ok(is_null)
     }
 
@@ -298,20 +256,13 @@ impl HdbValue {
             HdbValue::NCLOB(ref nclob) => 9 + nclob.len()?,
             HdbValue::BLOB(ref blob) => 9 + blob.len_alldata(),
 
-            HdbValue::STRING(ref s)
-            | HdbValue::NSTRING(ref s)
-            | HdbValue::TEXT(ref s)
-            | HdbValue::SHORTTEXT(ref s)
-            | HdbValue::CHAR(ref s)
-            | HdbValue::VARCHAR(ref s)
-            | HdbValue::NCHAR(ref s)
-            | HdbValue::NVARCHAR(ref s) => binary_length(util::cesu8_length(s)),
+            HdbValue::STRING(ref s, _) | HdbValue::TEXT(ref s) => {
+                binary_length(util::cesu8_length(s))
+            }
 
-            HdbValue::BINARY(ref v)
-            | HdbValue::VARBINARY(ref v)
-            | HdbValue::BSTRING(ref v)
-            | HdbValue::GEOMETRY(ref v)
-            | HdbValue::POINT(ref v) => binary_length(v.len()),
+            HdbValue::BINARY(ref v, _) | HdbValue::GEOMETRY(ref v) | HdbValue::POINT(ref v) => {
+                binary_length(v.len())
+            }
         })
     }
 
@@ -498,13 +449,13 @@ fn parse_string(
     } else {
         let s = util::string_from_cesu8(_read_bytes(l8, rdr)?)?;
         Ok(match type_id {
-            TypeId::CHAR => HdbValue::CHAR(s),
-            TypeId::VARCHAR => HdbValue::VARCHAR(s),
-            TypeId::NCHAR => HdbValue::NCHAR(s),
-            TypeId::NVARCHAR => HdbValue::NVARCHAR(s),
-            TypeId::STRING => HdbValue::STRING(s),
-            TypeId::NSTRING => HdbValue::NSTRING(s),
-            TypeId::SHORTTEXT => HdbValue::SHORTTEXT(s),
+            TypeId::CHAR
+            | TypeId::VARCHAR
+            | TypeId::NCHAR
+            | TypeId::NVARCHAR
+            | TypeId::NSTRING
+            | TypeId::SHORTTEXT
+            | TypeId::STRING => HdbValue::STRING(s, type_id),
             _ => return Err(HdbError::Impl("unexpected type id for string".to_owned())),
         })
     }
@@ -529,9 +480,9 @@ fn parse_binary(
     } else {
         let bytes = _read_bytes(l8, rdr)?;
         Ok(match type_id {
-            TypeId::BINARY => HdbValue::BINARY(bytes),
-            TypeId::VARBINARY => HdbValue::VARBINARY(bytes),
-            TypeId::BSTRING => HdbValue::BSTRING(bytes),
+            TypeId::BSTRING | TypeId::VARBINARY | TypeId::BINARY => {
+                HdbValue::BINARY(bytes, type_id)
+            }
             TypeId::GEOMETRY => HdbValue::GEOMETRY(bytes),
             TypeId::POINT => HdbValue::POINT(bytes),
             _ => return Err(HdbError::Impl("unexpected type id for binary".to_owned())),
@@ -602,16 +553,17 @@ impl fmt::Display for HdbValue {
 
             HdbValue::REAL(value) => write!(fmt, "{}", value),
             HdbValue::DOUBLE(value) => write!(fmt, "{}", value),
-            HdbValue::CHAR(ref value)
-            | HdbValue::VARCHAR(ref value)
-            | HdbValue::NCHAR(ref value)
-            | HdbValue::NVARCHAR(ref value)
-            | HdbValue::STRING(ref value)
-            | HdbValue::NSTRING(ref value)
-            | HdbValue::TEXT(ref value)
-            | HdbValue::SHORTTEXT(ref value) => write!(fmt, "{}", value),
-            HdbValue::BINARY(_) => write!(fmt, "<BINARY>"),
-            HdbValue::VARBINARY(ref vec) => write!(fmt, "<VARBINARY length = {}>", vec.len()),
+            HdbValue::TEXT(ref value) => write!(fmt, "{}", value),
+            HdbValue::STRING(ref value, type_id) => {
+                if value.len() < 10_000 {
+                    write!(fmt, "{}", value)
+                } else {
+                    write!(fmt, "<{} length = {}>", type_id, value.len())
+                }
+            }
+            HdbValue::BINARY(ref vec, type_id) => {
+                write!(fmt, "<{} length = {}>", type_id, vec.len())
+            }
 
             HdbValue::CLOB(_) => write!(fmt, "<CLOB>"),
             HdbValue::NCLOB(_) => write!(fmt, "<NCLOB>"),
@@ -623,7 +575,6 @@ impl fmt::Display for HdbValue {
             ),
 
             HdbValue::BOOLEAN(value) => write!(fmt, "{}", value),
-            HdbValue::BSTRING(_) => write!(fmt, "<BSTRING>"),
             HdbValue::LONGDATE(ref value) => write!(fmt, "{}", value),
             HdbValue::SECONDDATE(ref value) => write!(fmt, "{}", value),
             HdbValue::DAYDATE(ref value) => write!(fmt, "{}", value),
@@ -649,11 +600,7 @@ impl std::cmp::PartialEq<i32> for HdbValue {
 impl std::cmp::PartialEq<&str> for HdbValue {
     fn eq(&self, rhs: &&str) -> bool {
         match self {
-            HdbValue::STRING(ref s)
-            | HdbValue::CHAR(ref s)
-            | HdbValue::VARCHAR(ref s)
-            | HdbValue::NCHAR(ref s)
-            | HdbValue::NVARCHAR(ref s) => s == rhs,
+            HdbValue::STRING(ref s, _) => s == rhs,
             _ => false,
         }
     }

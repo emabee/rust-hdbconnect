@@ -126,17 +126,17 @@ fn prepare_statement_use_parameter_row(
     let mut stmt = connection.prepare(insert_stmt_str)?;
     let my_string = String::from("foo");
     stmt.add_row_to_batch(vec![
-        HdbValue::STRING(my_string.clone()),
+        HdbValue::STRING(my_string.clone(), TypeId::STRING),
         HdbValue::INT(1000_i32),
     ])?;
     debug!("now it fails...");
     stmt.add_row_to_batch(vec![
-        HdbValue::STRING(my_string.clone()),
+        HdbValue::STRING(my_string.clone(), TypeId::STRING),
         HdbValue::INT(2100_i32),
     ])?;
     stmt.add_row_to_batch(vec![
-        HdbValue::STRING(my_string),
-        HdbValue::STRING("25".to_string()),
+        HdbValue::STRING(my_string, TypeId::STRING),
+        HdbValue::STRING("25".to_string(), TypeId::STRING),
     ])?;
 
     stmt.execute_batch()?;

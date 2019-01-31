@@ -341,14 +341,7 @@ impl DbValueInto<String> for HdbValue {
             HdbValue::BIGINT(i) => Ok(format!("{}", i)),
             HdbValue::REAL(f) => Ok(format!("{}", f)),
             HdbValue::DOUBLE(f) => Ok(format!("{}", f)),
-            HdbValue::CHAR(s)
-            | HdbValue::VARCHAR(s)
-            | HdbValue::NCHAR(s)
-            | HdbValue::NVARCHAR(s)
-            | HdbValue::STRING(s)
-            | HdbValue::NSTRING(s)
-            | HdbValue::TEXT(s)
-            | HdbValue::SHORTTEXT(s) => Ok(s),
+            HdbValue::TEXT(s) | HdbValue::STRING(s, _) => Ok(s),
 
             HdbValue::LONGDATE(ld) => Ok(str_from(&ld)),
             HdbValue::SECONDDATE(sd) => Ok(str_from(&sd)),
@@ -398,20 +391,9 @@ impl DbValueInto<Vec<u8>> for HdbValue {
                 .into_bytes()
                 .map_err(|e| ConversionError::Incomplete(e.description().to_owned()))?),
 
-            HdbValue::BINARY(v)
-            | HdbValue::VARBINARY(v)
-            | HdbValue::BSTRING(v)
-            | HdbValue::GEOMETRY(v)
-            | HdbValue::POINT(v) => Ok(v),
+            HdbValue::BINARY(v, _) | HdbValue::GEOMETRY(v) | HdbValue::POINT(v) => Ok(v),
 
-            HdbValue::CHAR(s)
-            | HdbValue::VARCHAR(s)
-            | HdbValue::NCHAR(s)
-            | HdbValue::NVARCHAR(s)
-            | HdbValue::STRING(s)
-            | HdbValue::NSTRING(s)
-            | HdbValue::TEXT(s)
-            | HdbValue::SHORTTEXT(s) => Ok(s.into_bytes()),
+            HdbValue::TEXT(s) | HdbValue::STRING(s, _) => Ok(s.into_bytes()),
 
             value => Err(wrong_type(&value, "Vec<u8>")),
         }

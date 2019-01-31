@@ -360,7 +360,7 @@ impl DbvFactory for ParameterDescriptor {
             | TypeId::STRING
             | TypeId::NSTRING
             | TypeId::TEXT
-            | TypeId::SHORTTEXT => HdbValue::STRING(s),
+            | TypeId::SHORTTEXT => HdbValue::STRING(s, TypeId::STRING), // FIXME
             _ => return Err(type_mismatch("char", self.descriptor())),
         })
     }
@@ -395,7 +395,7 @@ impl DbvFactory for ParameterDescriptor {
             | TypeId::TEXT
             | TypeId::SHORTTEXT
             | TypeId::CLOB
-            | TypeId::NCLOB => HdbValue::STRING(String::from(value)),
+            | TypeId::NCLOB => HdbValue::STRING(String::from(value), TypeId::STRING), // FIXME
 
             TypeId::DECIMAL
             | TypeId::SMALLDECIMAL
@@ -423,14 +423,16 @@ impl DbvFactory for ParameterDescriptor {
     }
 
     fn from_bytes(&self, value: &[u8]) -> Result<HdbValue, SerializationError> {
-        Ok(match self.type_id() {
-            TypeId::BINARY | TypeId::VARBINARY | TypeId::GEOMETRY | TypeId::POINT => {
-                HdbValue::BINARY((*value).to_vec())
-            }
+        let tid = self.type_id();
+        Ok(match tid {
+            TypeId::BINARY | TypeId::VARBINARY => HdbValue::BINARY((*value).to_vec(), tid),
+            TypeId::GEOMETRY => HdbValue::GEOMETRY((*value).to_vec()),
+            TypeId::POINT => HdbValue::POINT((*value).to_vec()),
             TypeId::BLOB => HdbValue::BLOB(new_blob_to_db((*value).to_vec())),
             TypeId::NCLOB => HdbValue::STRING(
                 String::from_utf8(value.to_vec())
                     .map_err(|e| parse_error("bytes", "NCLOB".to_string(), Some(Box::new(e))))?,
+                self.type_id(),
             ),
             _ => return Err(type_mismatch("bytes", self.descriptor())),
         })
