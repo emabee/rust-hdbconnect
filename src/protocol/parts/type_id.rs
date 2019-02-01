@@ -4,69 +4,101 @@ use serde_derive::Serialize;
 /// ID of the value type of a database column or a parameter.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 pub enum TypeId {
-    /// Type ID for [HdbValue::TINYINT](enum.HdbValue.html#variant.TINYINT).
+    /// For database type TINYINT;
+    /// used with [`HdbValue::TINYINT`](enum.HdbValue.html#variant.TINYINT).
     TINYINT,
-    /// Type ID for [HdbValue::SMALLINT](enum.HdbValue.html#variant.SMALLINT).
+    /// For database type SMALLINT;
+    /// used with [`HdbValue::SMALLINT`](enum.HdbValue.html#variant.SMALLINT).
     SMALLINT,
-    /// Type ID for [HdbValue::INT](enum.HdbValue.html#variant.INT).
+    /// For database type INT;
+    /// used with [`HdbValue::INT`](enum.HdbValue.html#variant.INT).
     INT,
-    /// Type ID for [HdbValue::BIGINT](enum.HdbValue.html#variant.BIGINT).
+    /// For database type BIGINT;
+    /// used with [`HdbValue::BIGINT`](enum.HdbValue.html#variant.BIGINT).
     BIGINT,
-    /// Type ID for [HdbValue::DECIMAL](enum.HdbValue.html#variant.DECIMAL).
+    /// For database type DECIMAL;
+    /// used with [`HdbValue::DECIMAL`](enum.HdbValue.html#variant.DECIMAL).
     DECIMAL,
-    /// Type ID for [HdbValue::REAL](enum.HdbValue.html#variant.REAL).
+    /// For database type REAL;
+    /// used with [`HdbValue::REAL`](enum.HdbValue.html#variant.REAL).
     REAL,
-    /// Type ID for [HdbValue::DOUBLE](enum.HdbValue.html#variant.DOUBLE).
+    /// For database type DOUBLE;
+    /// used with [`HdbValue::DOUBLE`](enum.HdbValue.html#variant.DOUBLE).
     DOUBLE,
-    /// Type ID for [HdbValue::CHAR](enum.HdbValue.html#variant.CHAR).
+    /// For database type CHAR;
+    /// used with [`HdbValue::STRING`](enum.HdbValue.html#variant.STRING).
     CHAR,
-    /// Type ID for [HdbValue::VARCHAR](enum.HdbValue.html#variant.VARCHAR).
+    /// For database type VARCHAR;
+    /// used with [`HdbValue::STRING`](enum.HdbValue.html#variant.STRING).
     VARCHAR,
-    /// Type ID for [HdbValue::NCHAR](enum.HdbValue.html#variant.NCHAR).
+    /// For database type NCHAR;
+    /// used with [`HdbValue::STRING`](enum.HdbValue.html#variant.STRING).
     NCHAR,
-    /// Type ID for [HdbValue::NVARCHAR](enum.HdbValue.html#variant.NVARCHAR).
+    /// For database type NVARCHAR;
+    /// used with [`HdbValue::STRING`](enum.HdbValue.html#variant.STRING).
     NVARCHAR,
-    /// Type ID for [HdbValue::BINARY](enum.HdbValue.html#variant.BINARY).
+    /// For database type BINARY;
+    /// used with [`HdbValue::BINARY`](enum.HdbValue.html#variant.BINARY).
     BINARY,
-    /// Type ID for [HdbValue::VARBINARY](enum.HdbValue.html#variant.VARBINARY).
+    /// For database type VARBINARY;
+    /// used with [`HdbValue::BINARY`](enum.HdbValue.html#variant.BINARY).
     VARBINARY,
-    /// Type ID for [HdbValue::CLOB](enum.HdbValue.html#variant.CLOB).
+    /// For database type CLOB;
+    /// used with [`HdbValue::CLOB`](enum.HdbValue.html#variant.CLOB).
     CLOB,
-    /// Type ID for [HdbValue::NCLOB](enum.HdbValue.html#variant.NCLOB).
+    /// For database type NCLOB;
+    /// used with [`HdbValue::NCLOB`](enum.HdbValue.html#variant.NCLOB).
     NCLOB,
-    /// Type ID for [HdbValue::BLOB](enum.HdbValue.html#variant.BLOB).
+    /// For database type BLOB;
+    /// used with [`HdbValue::BLOB`](enum.HdbValue.html#variant.BLOB).
     BLOB,
-    /// Type ID for [HdbValue::BOOLEAN](enum.HdbValue.html#variant.BOOLEAN).
+    /// For database type BOOLEAN;
+    /// used with [`HdbValue::BOOLEAN`](enum.HdbValue.html#variant.BOOLEAN).
     BOOLEAN,
-    /// Type ID for [HdbValue::STRING](enum.HdbValue.html#variant.STRING).
+    /// For database type STRING;
+    /// used with [`HdbValue::STRING`](enum.HdbValue.html#variant.STRING).
     STRING,
-    /// Type ID for [HdbValue::NSTRING](enum.HdbValue.html#variant.NSTRING).
+    /// For database type NSTRING;
+    /// used with [`HdbValue::STRING`](enum.HdbValue.html#variant.STRING).
     NSTRING,
-    /// Type ID for [HdbValue::BSTRING](enum.HdbValue.html#variant.BSTRING).
+    /// For database type BSTRING;
+    /// used with [`HdbValue::BINARY`](enum.HdbValue.html#variant.BINARY).
     BSTRING,
-    /// Type ID for [HdbValue::SMALLDECIMAL](enum.HdbValue.html#variant.SMALLDECIMAL).
+    /// For database type SMALLDECIMAL;
+    /// used with [`HdbValue::DECIMAL`](enum.HdbValue.html#variant.DECIMAL).
     SMALLDECIMAL,
-    /// Type ID for [HdbValue::TEXT](enum.HdbValue.html#variant.TEXT).
+    /// For database type TEXT;
+    /// used with [`HdbValue::TEXT`](enum.HdbValue.html#variant.TEXT).
     TEXT,
-    /// Type ID for [HdbValue::SHORTTEXT](enum.HdbValue.html#variant.SHORTTEXT).
+    /// For database type SHORTTEXT;
+    /// used with [`HdbValue::STRING`](enum.HdbValue.html#variant.STRING).
     SHORTTEXT,
-    /// Type ID for [HdbValue::LONGDATE](enum.HdbValue.html#variant.LONGDATE).
+    /// For database type LONGDATE;
+    /// used with [`HdbValue::LONGDATE`](enum.HdbValue.html#variant.LONGDATE).
     LONGDATE,
-    /// Type ID for [HdbValue::SECONDDATE](enum.HdbValue.html#variant.SECONDDATE).
+    /// For database type SECONDDATE;
+    /// used with [`HdbValue::SECONDDATE`](enum.HdbValue.html#variant.SECONDDATE).
     SECONDDATE,
-    /// Type ID for [HdbValue::DAYDATE](enum.HdbValue.html#variant.DAYDATE).
+    /// For database type DAYDATE;
+    /// used with [`HdbValue::DAYDATE`](enum.HdbValue.html#variant.DAYDATE).
     DAYDATE,
-    /// Type ID for [HdbValue::SECONDTIME](enum.HdbValue.html#variant.SECONDTIME).
+    /// For database type SECONDTIME;
+    /// used with [`HdbValue::SECONDTIME`](enum.HdbValue.html#variant.SECONDTIME).
     SECONDTIME,
-    /// Type ID for [HdbValue::GEOMETRY](enum.HdbValue.html#variant.GEOMETRY).
+    /// For database type GEOMETRY;
+    /// used with [`HdbValue::GEOMETRY`](enum.HdbValue.html#variant.GEOMETRY).
     GEOMETRY,
-    /// Type ID for [HdbValue::POINT](enum.HdbValue.html#variant.POINT).
+    /// For database type POINT;
+    /// used with [`HdbValue::POINT`](enum.HdbValue.html#variant.POINT).
     POINT,
-    /// Internally used only.
+    /// Transport format for database type DECIMAL;
+    /// used with [`HdbValue::DECIMAL`](enum.HdbValue.html#variant.DECIMAL).
     FIXED8,
-    /// Internally used only.
+    /// Transport format for database type DECIMAL;
+    /// used with [`HdbValue::DECIMAL`](enum.HdbValue.html#variant.DECIMAL).
     FIXED12,
-    /// Internally used only.
+    /// Transport format for database type DECIMAL;
+    /// used with [`HdbValue::DECIMAL`](enum.HdbValue.html#variant.DECIMAL).
     FIXED16,
 }
 

@@ -168,8 +168,8 @@ pub fn parse_decimal(
             let bd = BigDecimal::new(bi, scale as i64);
             HdbValue::DECIMAL(bd, TypeId::SMALLDECIMAL, precision, scale)
         }),
-        TypeId::FIXED12 => unimplemented!("FIXME ldskfspiewüoköl-12"),
-        TypeId::FIXED16 => unimplemented!("FIXME ldskfspiewüoköl-16"),
+        TypeId::FIXED12 => unimplemented!("FIXME NOW ldskfspiewüoköl-12"),
+        TypeId::FIXED16 => unimplemented!("FIXME NOW ldskfspiewüoköl-16"),
         _ => return Err(HdbError::Impl("unexpected type id for decimal".to_owned())),
     }
 }
@@ -202,8 +202,8 @@ pub fn emit_decimal(
             let i = apply_scale_on_emit(bigint.to_i64().unwrap(), scale, exponent);
             w.write_i64::<LittleEndian>(i)?;
         }
-        TypeId::FIXED12 => unimplemented!("FIXME pqoiÖEWLKJdsa-12"),
-        TypeId::FIXED16 => unimplemented!("FIXME pqoiÖEWLKJdsa-16"),
+        TypeId::FIXED12 => unimplemented!("FIXME NOW pqoiÖEWLKJdsa-12"),
+        TypeId::FIXED16 => unimplemented!("FIXME NOW pqoiÖEWLKJdsa-16"),
         _ => return Err(HdbError::Impl("unexpected type id for decimal".to_owned())),
     }
     Ok(())

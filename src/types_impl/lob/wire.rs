@@ -90,7 +90,7 @@ pub(crate) fn parse_nclob(
         );
         Ok(match type_id {
             TypeId::NCLOB => HdbValue::NCLOB(nclob),
-            TypeId::TEXT => HdbValue::TEXT(nclob.into_string()?),
+            TypeId::TEXT => HdbValue::TEXT(nclob.into_string()?), //FIXME NOW
             _ => return Err(HdbError::Impl("unexpected type id for nclob".to_owned())),
         })
     }

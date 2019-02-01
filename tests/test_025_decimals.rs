@@ -68,7 +68,7 @@ fn test_025_decimals_impl(
     let resultset = connection.query("select f1, f2 from TEST_DECIMALS order by f2")?;
     let precision = resultset.metadata().precision(1)?;
     let scale = resultset.metadata().scale(1)? as usize;
-// FIXME
+// FIXME NOW 
     for row in resultset {
         let row = row?;
         if let HdbValue::DECIMAL(ref bd, type_id, precision1, scale1) = &row[1] {

@@ -99,25 +99,9 @@ impl<'a> Part<'a> {
         match (kind, last) {
             (PartKind::ResultSet, true)
             | (PartKind::ResultSetId, true)
-            | (PartKind::ReadLobReply, true) => trace!(
-                "{:20?}, last = {:5}, do not skip over {} padding bytes",
-                kind,
-                last,
-                padsize
-            ),
-            (PartKind::Error, _) => trace!(
-                "{:20?}, last = {:5}, do not skip over {} padding bytes",
-                kind,
-                last,
-                padsize
-            ),
+            | (PartKind::ReadLobReply, true)
+            | (PartKind::Error, _) => {}
             (_, _) => {
-                trace!(
-                    "{:20?}, last = {:5}, skip over {} padding bytes",
-                    kind,
-                    last,
-                    padsize
-                );
                 for _ in 0..padsize {
                     rdr.read_u8()?;
                 }
