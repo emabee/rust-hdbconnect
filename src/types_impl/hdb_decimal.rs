@@ -165,12 +165,12 @@ pub fn parse_decimal(
         } else {
             let i = rdr.read_i64::<LittleEndian>()?;
             let bi = BigInt::from_i64(i).unwrap();
-            let bd = BigDecimal::new(bi, scale as i64);
+            let bd = BigDecimal::new(bi, i64::from(scale));
             HdbValue::DECIMAL(bd, TypeId::SMALLDECIMAL, precision, scale)
         }),
         TypeId::FIXED12 => unimplemented!("FIXME NOW ldskfspiewüoköl-12"),
         TypeId::FIXED16 => unimplemented!("FIXME NOW ldskfspiewüoköl-16"),
-        _ => return Err(HdbError::Impl("unexpected type id for decimal".to_owned())),
+        _ => Err(HdbError::Impl("unexpected type id for decimal".to_owned())),
     }
 }
 
@@ -211,7 +211,7 @@ pub fn emit_decimal(
 
 fn apply_scale_on_emit(input: i64, scale: i16, exponent: i64) -> i64 {
     let mut out = input;
-    let effective_scale = scale as i64 - exponent;
+    let effective_scale = i64::from(scale) - exponent;
     if effective_scale > 0 {
         for _ in 0..effective_scale {
             out *= 10;
@@ -224,7 +224,7 @@ fn apply_scale_on_emit(input: i64, scale: i16, exponent: i64) -> i64 {
     out
 }
 
-pub fn decimal_size(type_id: &TypeId) -> HdbResult<usize> {
+pub fn decimal_size(type_id: TypeId) -> HdbResult<usize> {
     Ok(match type_id {
         TypeId::FIXED8 => 8,
         TypeId::FIXED12 => 12,

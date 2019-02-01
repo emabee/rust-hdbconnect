@@ -240,7 +240,7 @@ impl HdbValue {
             HdbValue::NOTHING | HdbValue::NULL(_) => 0,
             HdbValue::BOOLEAN(_) | HdbValue::TINYINT(_) => 1,
             HdbValue::SMALLINT(_) => 2,
-            HdbValue::DECIMAL(_, type_id, _, _) => decimal_size(type_id)?,
+            HdbValue::DECIMAL(_, type_id, _, _) => decimal_size(*type_id)?,
 
             HdbValue::INT(_)
             | HdbValue::REAL(_)
