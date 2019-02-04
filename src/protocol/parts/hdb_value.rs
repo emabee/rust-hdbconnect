@@ -3,7 +3,7 @@ use crate::protocol::parts::type_id::TypeId;
 use crate::protocol::util;
 use crate::types::{BLob, CLob, DayDate, LongDate, NCLob, SecondDate, SecondTime};
 use crate::types_impl::daydate::parse_daydate;
-use crate::types_impl::hdb_decimal::{decimal_size, emit_decimal, parse_decimal};
+use crate::types_impl::decimal::{decimal_size, emit_decimal, parse_decimal};
 use crate::types_impl::lob::{
     emit_blob_header, emit_clob_header, emit_nclob_header, parse_blob, parse_clob, parse_nclob,
 };
@@ -284,11 +284,9 @@ impl HdbValue {
 
             TypeId::BOOLEAN => Ok(parse_bool(nullable, rdr)?),
 
-            TypeId::SMALLDECIMAL
-            | TypeId::DECIMAL
-            | TypeId::FIXED8
-            | TypeId::FIXED12
-            | TypeId::FIXED16 => Ok(parse_decimal(nullable, t, scale, rdr)?),
+            TypeId::DECIMAL | TypeId::FIXED8 | TypeId::FIXED12 | TypeId::FIXED16 => {
+                Ok(parse_decimal(nullable, t, scale, rdr)?)
+            }
 
             TypeId::CHAR
             | TypeId::VARCHAR

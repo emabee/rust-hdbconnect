@@ -44,15 +44,13 @@ impl DbvFactory for ParameterDescriptor {
             TypeId::INT => HdbValue::INT(i32::from(value)),
             TypeId::BIGINT => HdbValue::BIGINT(i64::from(value)),
 
-            TypeId::DECIMAL
-            | TypeId::SMALLDECIMAL
-            | TypeId::FIXED8
-            | TypeId::FIXED12
-            | TypeId::FIXED16 => HdbValue::DECIMAL(
-                BigDecimal::from_i8(value).ok_or_else(|| decimal_range(input_type))?,
-                tid,
-                self.scale(),
-            ),
+            TypeId::DECIMAL | TypeId::FIXED8 | TypeId::FIXED12 | TypeId::FIXED16 => {
+                HdbValue::DECIMAL(
+                    BigDecimal::from_i8(value).ok_or_else(|| decimal_range(input_type))?,
+                    tid,
+                    self.scale(),
+                )
+            }
             _ => return Err(type_mismatch(input_type, self.descriptor())),
         })
     }
@@ -72,15 +70,13 @@ impl DbvFactory for ParameterDescriptor {
             TypeId::INT => HdbValue::INT(i32::from(value)),
             TypeId::BIGINT => HdbValue::BIGINT(i64::from(value)),
 
-            TypeId::DECIMAL
-            | TypeId::SMALLDECIMAL
-            | TypeId::FIXED8
-            | TypeId::FIXED12
-            | TypeId::FIXED16 => HdbValue::DECIMAL(
-                BigDecimal::from_i16(value).ok_or_else(|| decimal_range(input_type))?,
-                tid,
-                self.scale(),
-            ),
+            TypeId::DECIMAL | TypeId::FIXED8 | TypeId::FIXED12 | TypeId::FIXED16 => {
+                HdbValue::DECIMAL(
+                    BigDecimal::from_i16(value).ok_or_else(|| decimal_range(input_type))?,
+                    tid,
+                    self.scale(),
+                )
+            }
             _ => return Err(type_mismatch(input_type, self.descriptor())),
         })
     }
@@ -105,15 +101,13 @@ impl DbvFactory for ParameterDescriptor {
             }
             TypeId::INT => HdbValue::INT(value),
             TypeId::BIGINT => HdbValue::BIGINT(i64::from(value)),
-            TypeId::DECIMAL
-            | TypeId::SMALLDECIMAL
-            | TypeId::FIXED8
-            | TypeId::FIXED12
-            | TypeId::FIXED16 => HdbValue::DECIMAL(
-                BigDecimal::from_i32(value).ok_or_else(|| decimal_range(input_type))?,
-                tid,
-                self.scale(),
-            ),
+            TypeId::DECIMAL | TypeId::FIXED8 | TypeId::FIXED12 | TypeId::FIXED16 => {
+                HdbValue::DECIMAL(
+                    BigDecimal::from_i32(value).ok_or_else(|| decimal_range(input_type))?,
+                    tid,
+                    self.scale(),
+                )
+            }
             TypeId::DAYDATE => HdbValue::DAYDATE(DayDate::new(value)),
             TypeId::SECONDTIME => HdbValue::SECONDTIME(SecondTime::new(value)),
             _ => return Err(type_mismatch(input_type, self.descriptor())),
@@ -149,15 +143,13 @@ impl DbvFactory for ParameterDescriptor {
             TypeId::LONGDATE => HdbValue::LONGDATE(LongDate::new(value)),
             TypeId::SECONDDATE => HdbValue::SECONDDATE(SecondDate::new(value)),
 
-            TypeId::DECIMAL
-            | TypeId::SMALLDECIMAL
-            | TypeId::FIXED8
-            | TypeId::FIXED12
-            | TypeId::FIXED16 => HdbValue::DECIMAL(
-                BigDecimal::from_i64(value).ok_or_else(|| decimal_range(input_type))?,
-                tid,
-                self.scale(),
-            ),
+            TypeId::DECIMAL | TypeId::FIXED8 | TypeId::FIXED12 | TypeId::FIXED16 => {
+                HdbValue::DECIMAL(
+                    BigDecimal::from_i64(value).ok_or_else(|| decimal_range(input_type))?,
+                    tid,
+                    self.scale(),
+                )
+            }
             _ => return Err(type_mismatch(input_type, self.descriptor())),
         })
     }
@@ -170,15 +162,13 @@ impl DbvFactory for ParameterDescriptor {
             TypeId::INT => HdbValue::INT(i32::from(value)),
             TypeId::BIGINT => HdbValue::BIGINT(i64::from(value)),
 
-            TypeId::DECIMAL
-            | TypeId::SMALLDECIMAL
-            | TypeId::FIXED8
-            | TypeId::FIXED12
-            | TypeId::FIXED16 => HdbValue::DECIMAL(
-                BigDecimal::from_u8(value).ok_or_else(|| decimal_range(input_type))?,
-                tid,
-                self.scale(),
-            ),
+            TypeId::DECIMAL | TypeId::FIXED8 | TypeId::FIXED12 | TypeId::FIXED16 => {
+                HdbValue::DECIMAL(
+                    BigDecimal::from_u8(value).ok_or_else(|| decimal_range(input_type))?,
+                    tid,
+                    self.scale(),
+                )
+            }
             _ => return Err(type_mismatch(input_type, self.descriptor())),
         })
     }
@@ -203,15 +193,13 @@ impl DbvFactory for ParameterDescriptor {
             TypeId::INT => HdbValue::INT(i32::from(value)),
             TypeId::BIGINT => HdbValue::BIGINT(i64::from(value)),
 
-            TypeId::DECIMAL
-            | TypeId::SMALLDECIMAL
-            | TypeId::FIXED8
-            | TypeId::FIXED12
-            | TypeId::FIXED16 => HdbValue::DECIMAL(
-                BigDecimal::from_u16(value).ok_or_else(|| decimal_range(input_type))?,
-                tid,
-                self.scale(),
-            ),
+            TypeId::DECIMAL | TypeId::FIXED8 | TypeId::FIXED12 | TypeId::FIXED16 => {
+                HdbValue::DECIMAL(
+                    BigDecimal::from_u16(value).ok_or_else(|| decimal_range(input_type))?,
+                    tid,
+                    self.scale(),
+                )
+            }
             _ => return Err(type_mismatch(input_type, self.descriptor())),
         })
     }
@@ -243,15 +231,13 @@ impl DbvFactory for ParameterDescriptor {
             }
             TypeId::BIGINT => HdbValue::BIGINT(i64::from(value)),
 
-            TypeId::DECIMAL
-            | TypeId::SMALLDECIMAL
-            | TypeId::FIXED8
-            | TypeId::FIXED12
-            | TypeId::FIXED16 => HdbValue::DECIMAL(
-                BigDecimal::from_u32(value).ok_or_else(|| decimal_range(input_type))?,
-                tid,
-                self.scale(),
-            ),
+            TypeId::DECIMAL | TypeId::FIXED8 | TypeId::FIXED12 | TypeId::FIXED16 => {
+                HdbValue::DECIMAL(
+                    BigDecimal::from_u32(value).ok_or_else(|| decimal_range(input_type))?,
+                    tid,
+                    self.scale(),
+                )
+            }
             _ => return Err(type_mismatch(input_type, self.descriptor())),
         })
     }
@@ -288,15 +274,13 @@ impl DbvFactory for ParameterDescriptor {
                     return Err(SerializationError::Range(input_type, self.descriptor()));
                 }
             }
-            TypeId::DECIMAL
-            | TypeId::SMALLDECIMAL
-            | TypeId::FIXED8
-            | TypeId::FIXED12
-            | TypeId::FIXED16 => HdbValue::DECIMAL(
-                BigDecimal::from_u64(value).ok_or_else(|| decimal_range(input_type))?,
-                tid,
-                self.scale(),
-            ),
+            TypeId::DECIMAL | TypeId::FIXED8 | TypeId::FIXED12 | TypeId::FIXED16 => {
+                HdbValue::DECIMAL(
+                    BigDecimal::from_u64(value).ok_or_else(|| decimal_range(input_type))?,
+                    tid,
+                    self.scale(),
+                )
+            }
             _ => return Err(type_mismatch(input_type, self.descriptor())),
         })
     }
@@ -307,15 +291,13 @@ impl DbvFactory for ParameterDescriptor {
         Ok(match tid {
             TypeId::REAL => HdbValue::REAL(value),
 
-            TypeId::DECIMAL
-            | TypeId::SMALLDECIMAL
-            | TypeId::FIXED8
-            | TypeId::FIXED12
-            | TypeId::FIXED16 => HdbValue::DECIMAL(
-                BigDecimal::from_f32(value).ok_or_else(|| decimal_range(input_type))?,
-                tid,
-                self.scale(),
-            ),
+            TypeId::DECIMAL | TypeId::FIXED8 | TypeId::FIXED12 | TypeId::FIXED16 => {
+                HdbValue::DECIMAL(
+                    BigDecimal::from_f32(value).ok_or_else(|| decimal_range(input_type))?,
+                    tid,
+                    self.scale(),
+                )
+            }
             _ => return Err(type_mismatch("f32", self.descriptor())),
         })
     }
@@ -326,15 +308,13 @@ impl DbvFactory for ParameterDescriptor {
         Ok(match tid {
             TypeId::DOUBLE => HdbValue::DOUBLE(value),
 
-            TypeId::DECIMAL
-            | TypeId::SMALLDECIMAL
-            | TypeId::FIXED8
-            | TypeId::FIXED12
-            | TypeId::FIXED16 => HdbValue::DECIMAL(
-                BigDecimal::from_f64(value).ok_or_else(|| decimal_range(input_type))?,
-                tid,
-                self.scale(),
-            ),
+            TypeId::DECIMAL | TypeId::FIXED8 | TypeId::FIXED12 | TypeId::FIXED16 => {
+                HdbValue::DECIMAL(
+                    BigDecimal::from_f64(value).ok_or_else(|| decimal_range(input_type))?,
+                    tid,
+                    self.scale(),
+                )
+            }
             _ => return Err(type_mismatch("f64", self.descriptor())),
         })
     }
@@ -387,15 +367,13 @@ impl DbvFactory for ParameterDescriptor {
             | TypeId::CLOB
             | TypeId::NCLOB => HdbValue::STRING(String::from(value), TypeId::STRING), // FIXME
 
-            TypeId::DECIMAL
-            | TypeId::SMALLDECIMAL
-            | TypeId::FIXED8
-            | TypeId::FIXED12
-            | TypeId::FIXED16 => HdbValue::DECIMAL(
-                BigDecimal::from_str(value).map_err(map_bd)?,
-                tid,
-                self.scale(),
-            ),
+            TypeId::DECIMAL | TypeId::FIXED8 | TypeId::FIXED12 | TypeId::FIXED16 => {
+                HdbValue::DECIMAL(
+                    BigDecimal::from_str(value).map_err(map_bd)?,
+                    tid,
+                    self.scale(),
+                )
+            }
 
             TypeId::LONGDATE => {
                 HdbValue::LONGDATE(LongDate::from_date_string(value).map_err(map_d)?)

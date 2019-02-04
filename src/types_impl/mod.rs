@@ -1,4 +1,5 @@
-pub mod hdb_decimal;
+pub mod decimal;
+mod hdb_decimal;
 
 pub mod daydate;
 pub mod longdate;

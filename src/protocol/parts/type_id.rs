@@ -16,7 +16,7 @@ pub enum TypeId {
     /// For database type BIGINT;
     /// used with [`HdbValue::BIGINT`](enum.HdbValue.html#variant.BIGINT).
     BIGINT,
-    /// For database type DECIMAL;
+    /// For database type DECIMAL and SMALLDECIMAL;
     /// used with [`HdbValue::DECIMAL`](enum.HdbValue.html#variant.DECIMAL).
     DECIMAL,
     /// For database type REAL;
@@ -64,9 +64,6 @@ pub enum TypeId {
     /// For database type BSTRING;
     /// used with [`HdbValue::BINARY`](enum.HdbValue.html#variant.BINARY).
     BSTRING,
-    /// For database type SMALLDECIMAL;
-    /// used with [`HdbValue::DECIMAL`](enum.HdbValue.html#variant.DECIMAL).
-    SMALLDECIMAL,
     /// For database type TEXT;
     /// used with [`HdbValue::TEXT`](enum.HdbValue.html#variant.TEXT).
     TEXT,
@@ -130,7 +127,7 @@ impl TypeId {
             // NLOCATOR: 32  FIXME not yet implemented
             33 => TypeId::BSTRING,
             // 34 - 46: docu unclear, likely unused
-            47 => TypeId::SMALLDECIMAL,
+            // 47 => SMALLDECIMAL not needed on client-side
             // 48, 49: ABAP only?
             // ARRAY: 50  FIXME not yet implemented
             51 => TypeId::TEXT,
@@ -186,7 +183,6 @@ impl TypeId {
                 TypeId::STRING => 29,
                 TypeId::NSTRING => 30,
                 TypeId::BSTRING => 33,
-                TypeId::SMALLDECIMAL => 47,
                 TypeId::TEXT => 51,
                 TypeId::SHORTTEXT => 52,
                 TypeId::LONGDATE => 61,
@@ -227,7 +223,6 @@ impl std::fmt::Display for TypeId {
                 TypeId::STRING => "STRING",
                 TypeId::NSTRING => "NSTRING",
                 TypeId::BSTRING => "BSTRING",
-                TypeId::SMALLDECIMAL => "SMALLDECIMAL",
                 TypeId::TEXT => "TEXT",
                 TypeId::SHORTTEXT => "SHORTTEXT",
                 TypeId::LONGDATE => "LONGDATE",
