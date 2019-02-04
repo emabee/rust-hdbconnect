@@ -2,8 +2,8 @@ mod test_utils;
 
 use flexi_logger::ReconfigurationHandle;
 use hdbconnect::{TypeId, Connection, HdbResult};
-use log::{debug, info, trace};
-use serde_bytes::{Bytes, ByteBuf};
+use log::{debug, info};
+use serde_bytes::ByteBuf;
 
 #[test] // cargo test --test test_046_spatial
 fn test_046_spatial() -> HdbResult<()> {

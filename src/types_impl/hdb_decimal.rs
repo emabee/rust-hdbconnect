@@ -76,33 +76,30 @@ impl HdbDecimal {
         Ok(hdbdecimal)
     }
 
-    // Creates a `BigDecimal` representation.
-    fn as_bigdecimal(&self, scale: i16) -> BigDecimal {
-        let (sign, mantissa, exponent) = self.elements();
-        let bd = match sign {
-            Sign::Minus => -BigDecimal::new(mantissa, -exponent),
-            Sign::NoSign | Sign::Plus => BigDecimal::new(mantissa, -exponent),
-        };
-        bd.with_scale(i64::from(scale))
+    fn into_bigdecimal_with_scale(self, scale: i16) -> BigDecimal {
+        let mut bd = self.into_bigdecimal();
+        if scale < std::i16::MAX {
+            bd = bd.with_scale(i64::from(scale));
+        }
+        bd
+    }
+    fn into_bigdecimal(self) -> BigDecimal {
+        let (is_negative, mantissa, exponent) = self.elements();
+        if is_negative {
+            -BigDecimal::new(mantissa, -exponent)
+        } else {
+            BigDecimal::new(mantissa, -exponent)
+        }
     }
 
     // Retrieve the ingredients of the HdbDecimal
-    pub fn elements(&self) -> (Sign, BigInt, i64) {
-        let mut raw_bytes = self.raw;
-
-        let sign = if (raw_bytes[15] & 0b_1000_0000_u8) == 0 {
-            Sign::Plus
-        } else {
-            Sign::Minus
-        };
-
-        raw_bytes[15] &= 0b_0111_1111_u8;
-        let exponent = i64::from(LittleEndian::read_u16(&raw_bytes[14..=15]) >> 1) - 6176;
-
-        raw_bytes[14] &= 0b_0000_0001_u8;
-        let mantissa = BigInt::from_bytes_le(Sign::Plus, &raw_bytes[0..=14]);
-
-        (sign, mantissa, exponent)
+    pub fn elements(mut self) -> (bool, BigInt, i64) {
+        let is_negative = (self.raw[15] & 0b_1000_0000_u8) != 0;
+        self.raw[15] &= 0b_0111_1111_u8;
+        let exponent = i64::from(LittleEndian::read_u16(&self.raw[14..=15]) >> 1) - 6176;
+        self.raw[14] &= 0b_0000_0001_u8;
+        let mantissa = BigInt::from_bytes_le(Sign::Plus, &self.raw[0..=14]);
+        (is_negative, mantissa, exponent)
     }
 }
 
@@ -143,7 +140,7 @@ pub fn parse_decimal(
                 }
             } else {
                 trace!("parse {}", type_id);
-                let bd = HdbDecimal { raw }.as_bigdecimal(scale);
+                let bd = HdbDecimal { raw }.into_bigdecimal_with_scale(scale);
                 Ok(match type_id {
                     TypeId::SMALLDECIMAL => HdbValue::DECIMAL(bd, TypeId::SMALLDECIMAL, scale),
                     TypeId::DECIMAL => HdbValue::DECIMAL(bd, TypeId::DECIMAL, scale),
@@ -321,8 +318,8 @@ mod tests {
 
     fn big_2_hdb_2_big(bigdec: BigDecimal) {
         let hdbdec = HdbDecimal::from_bigdecimal(&bigdec).unwrap();
-        let (s, m, e) = hdbdec.elements();
-        let bigdec2 = hdbdec.as_bigdecimal();
+        let (s, m, e) = hdbdec.clone().elements();
+        let bigdec2 = hdbdec.clone().into_bigdecimal();
         debug!("bigdec:  {:?}", bigdec);
         debug!("hdbdec:  {:?}", hdbdec);
         debug!("s: {:?}, m: {}, e: {}", s, m, e);
