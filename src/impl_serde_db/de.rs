@@ -99,7 +99,7 @@ impl DbValueInto<u8> for HdbValue {
                     Err(number_range(i, "u8"))
                 }
             }
-            HdbValue::DECIMAL(bigdec, _, _, _) => bigdec.to_u8().ok_or_else(|| decimal_range("u8")),
+            HdbValue::DECIMAL(bigdec, _, _) => bigdec.to_u8().ok_or_else(|| decimal_range("u8")),
             value => Err(wrong_type(&value, "u8")),
         }
     }
@@ -133,9 +133,7 @@ impl DbValueInto<u16> for HdbValue {
                     Err(number_range(i, "u16"))
                 }
             }
-            HdbValue::DECIMAL(bigdec, _, _, _) => {
-                bigdec.to_u16().ok_or_else(|| decimal_range("u16"))
-            }
+            HdbValue::DECIMAL(bigdec, _, _) => bigdec.to_u16().ok_or_else(|| decimal_range("u16")),
             value => Err(wrong_type(&value, "u16")),
         }
     }
@@ -166,9 +164,7 @@ impl DbValueInto<u32> for HdbValue {
                     Err(number_range(i, "u32"))
                 }
             }
-            HdbValue::DECIMAL(bigdec, _, _, _) => {
-                bigdec.to_u32().ok_or_else(|| decimal_range("u32"))
-            }
+            HdbValue::DECIMAL(bigdec, _, _) => bigdec.to_u32().ok_or_else(|| decimal_range("u32")),
             value => Err(wrong_type(&value, "u32")),
         }
     }
@@ -199,9 +195,7 @@ impl DbValueInto<u64> for HdbValue {
                     Err(number_range(i, "u64"))
                 }
             }
-            HdbValue::DECIMAL(bigdec, _, _, _) => {
-                bigdec.to_u64().ok_or_else(|| decimal_range("u64"))
-            }
+            HdbValue::DECIMAL(bigdec, _, _) => bigdec.to_u64().ok_or_else(|| decimal_range("u64")),
             value => Err(wrong_type(&value, "u64")),
         }
     }
@@ -238,7 +232,7 @@ impl DbValueInto<i8> for HdbValue {
                     Err(number_range(i, "i8"))
                 }
             }
-            HdbValue::DECIMAL(bigdec, _, _, _) => bigdec.to_i8().ok_or_else(|| decimal_range("i8")),
+            HdbValue::DECIMAL(bigdec, _, _) => bigdec.to_i8().ok_or_else(|| decimal_range("i8")),
             value => Err(wrong_type(&value, "i8")),
         }
     }
@@ -263,7 +257,7 @@ impl DbValueInto<i16> for HdbValue {
                     Err(number_range(i, "i16"))
                 }
             }
-            HdbValue::DECIMAL(dec, _, _, _) => dec.to_i16().ok_or_else(|| decimal_range("i16")),
+            HdbValue::DECIMAL(dec, _, _) => dec.to_i16().ok_or_else(|| decimal_range("i16")),
             value => Err(wrong_type(&value, "i16")),
         }
     }
@@ -282,9 +276,7 @@ impl DbValueInto<i32> for HdbValue {
                     Err(number_range(i, "i32"))
                 }
             }
-            HdbValue::DECIMAL(bigdec, _, _, _) => {
-                bigdec.to_i32().ok_or_else(|| decimal_range("i32"))
-            }
+            HdbValue::DECIMAL(bigdec, _, _) => bigdec.to_i32().ok_or_else(|| decimal_range("i32")),
             value => Err(wrong_type(&value, "i32")),
         }
     }
@@ -299,9 +291,7 @@ impl DbValueInto<i64> for HdbValue {
             HdbValue::BIGINT(i) => Ok(i),
             HdbValue::LONGDATE(ld) => Ok(*ld.ref_raw()),
             HdbValue::SECONDDATE(sd) => Ok(*sd.ref_raw()),
-            HdbValue::DECIMAL(bigdec, _, _, _) => {
-                bigdec.to_i64().ok_or_else(|| decimal_range("i64"))
-            }
+            HdbValue::DECIMAL(bigdec, _, _) => bigdec.to_i64().ok_or_else(|| decimal_range("i64")),
             value => Err(wrong_type(&value, "i64")),
         }
     }
@@ -310,9 +300,7 @@ impl DbValueInto<i64> for HdbValue {
 impl DbValueInto<f32> for HdbValue {
     fn try_into(self) -> Result<f32, ConversionError> {
         match self {
-            HdbValue::DECIMAL(bigdec, _, _, _) => {
-                bigdec.to_f32().ok_or_else(|| decimal_range("f32"))
-            }
+            HdbValue::DECIMAL(bigdec, _, _) => bigdec.to_f32().ok_or_else(|| decimal_range("f32")),
             HdbValue::REAL(f) => Ok(f),
             value => Err(wrong_type(&value, "f32")),
         }
@@ -322,9 +310,7 @@ impl DbValueInto<f32> for HdbValue {
 impl DbValueInto<f64> for HdbValue {
     fn try_into(self) -> Result<f64, ConversionError> {
         match self {
-            HdbValue::DECIMAL(bigdec, _, _, _) => {
-                bigdec.to_f64().ok_or_else(|| decimal_range("f64"))
-            }
+            HdbValue::DECIMAL(bigdec, _, _) => bigdec.to_f64().ok_or_else(|| decimal_range("f64")),
             HdbValue::DOUBLE(f) => Ok(f),
             value => Err(wrong_type(&value, "f64")),
         }
@@ -347,7 +333,7 @@ impl DbValueInto<String> for HdbValue {
             HdbValue::SECONDDATE(sd) => Ok(str_from(&sd)),
             HdbValue::DAYDATE(date) => Ok(str_from(&date)),
             HdbValue::SECONDTIME(time) => Ok(str_from(&time)),
-            HdbValue::DECIMAL(hdbdec, _, _, _) => Ok(format!("{}", hdbdec)),
+            HdbValue::DECIMAL(hdbdec, _, _) => Ok(format!("{}", hdbdec)),
             HdbValue::CLOB(clob) => Ok(clob
                 .into_string()
                 .map_err(|e| ConversionError::Incomplete(e.description().to_owned()))?),

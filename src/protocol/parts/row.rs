@@ -75,7 +75,6 @@ impl Row {
         for c in 0..no_of_cols {
             let type_id = md.type_id(c)?;
             let nullable = md.nullable(c)?;
-            let precision = md.precision(c)?;
             let scale = md.scale(c)?;
             trace!(
                 "Parsing column {}, {}{}",
@@ -83,8 +82,7 @@ impl Row {
                 if nullable { "Nullable " } else { "" },
                 type_id,
             );
-            let value =
-                HdbValue::parse_from_reply(type_id, precision, scale, nullable, am_conn_core, rdr)?;
+            let value = HdbValue::parse_from_reply(type_id, scale, nullable, am_conn_core, rdr)?;
             values.push(value);
         }
         let row = Row::new(md, values);

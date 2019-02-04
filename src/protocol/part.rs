@@ -143,9 +143,7 @@ impl<'a> Parts<'a> {
 
     pub fn extract_first_part_of_type(&mut self, part_kind: PartKind) -> Option<Part> {
         let part_code = part_kind.to_i8();
-        let part_position = (&self.0)
-            .into_iter()
-            .position(|p| p.kind().to_i8() == part_code);
+        let part_position = (&self.0).iter().position(|p| p.kind().to_i8() == part_code);
 
         match part_position {
             Some(pos) => Some(self.0.remove(pos)),

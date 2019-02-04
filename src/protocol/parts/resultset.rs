@@ -171,7 +171,7 @@ impl ResultSet {
     /// outstanding rows from the database.
     pub fn total_number_of_rows(&mut self) -> HdbResult<usize> {
         self.fetch_all()?;
-        Ok(self.row_iter.len())
+        Ok(self.next_rows.len() + self.row_iter.len())
     }
 
     /// Removes the next row and returns it, or None if the ResultSet is empty.

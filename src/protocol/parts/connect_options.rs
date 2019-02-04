@@ -92,9 +92,12 @@ impl ConnectOptions {
 
 // Methods to handle info we got from the server
 impl ConnectOptions {
-    // Transfer server ConnectOptions from other to self
-    pub fn transfer_server_connect_options(&mut self, other: ConnectOptions) -> HdbResult<()> {
-        for (k, v) in other {
+    pub fn digest_server_connect_options(
+        &mut self,
+        new_co: ConnectOptions,
+        old_co: ConnectOptions,
+    ) -> HdbResult<()> {
+        for (k, v) in new_co {
             match k {
                 ConnOptId::ConnectionID
                 | ConnOptId::SystemID
@@ -119,7 +122,20 @@ impl ConnectOptions {
                 | ConnOptId::ClientDistributionMode
                 | ConnOptId::ClientInfoNullValueOK
                 | ConnOptId::FlagSet1 => {
-                    self.set_from_server(k, v);
+                    let old_value = old_co.get_value(&k);
+                    match old_value {
+                        Some(old_value) => {
+                            if *old_value != v {
+                                info!(
+                                    "Server changes ConnectionOption {:?} from value {:?} \
+                                     to {:?}",
+                                    k, old_value, v
+                                )
+                            }
+                        }
+                        None => debug!("Got from server ConnectionOption: {:?} = {:?}", k, v),
+                    }
+                    self.set_value(k, v);
                 }
                 k => {
                     warn!("Unexpected ConnectOption coming from server ({:?})", k);
@@ -127,11 +143,6 @@ impl ConnectOptions {
             };
         }
         Ok(())
-    }
-
-    fn set_from_server(&mut self, id: ConnOptId, value: OptionValue) -> Option<OptionValue> {
-        debug!("Got ConnectionOption from server: {:?} = {:?}", id, value);
-        self.set_value(id, value)
     }
 
     fn get_integer(&self, id: &ConnOptId, s: &str) -> Option<i32> {
@@ -412,7 +423,7 @@ impl ConnectOptions {
 //      USETRANSACTIONFLAGSONLY
 //      IGNOREUNKNOWNPARTS
 
-#[derive(Debug, Eq, PartialEq, Hash)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum ConnOptId {
     ConnectionID,                 // 1 //
     CompleteArrayExecution,       // 2 // @deprecated Array execution semantics, always true.

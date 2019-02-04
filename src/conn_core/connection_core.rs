@@ -157,9 +157,13 @@ impl<'a> ConnectionCore {
         self.topology = Some(topology);
     }
 
-    pub fn transfer_server_connect_options(&mut self, conn_opts: ConnectOptions) -> HdbResult<()> {
+    pub fn digest_server_connect_options(
+        &mut self,
+        new_conn_opts: ConnectOptions,
+        old_conn_opts: ConnectOptions,
+    ) -> HdbResult<()> {
         self.connect_options
-            .transfer_server_connect_options(conn_opts)
+            .digest_server_connect_options(new_conn_opts, old_conn_opts)
     }
 
     pub fn is_authenticated(&self) -> bool {
@@ -233,6 +237,10 @@ impl<'a> ConnectionCore {
             mem::swap(&mut v, &mut self.warnings);
             Ok(Some(v))
         }
+    }
+
+    pub fn connect_options(&self) -> &ConnectOptions {
+        &self.connect_options
     }
 
     pub fn roundtrip(

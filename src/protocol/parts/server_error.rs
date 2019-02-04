@@ -1,7 +1,6 @@
 use crate::protocol::util;
 use crate::HdbResult;
 use byteorder::{LittleEndian, ReadBytesExt};
-use cesu8;
 use std::error::Error;
 use std::fmt;
 use std::io;

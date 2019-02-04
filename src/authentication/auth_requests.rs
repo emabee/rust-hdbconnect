@@ -82,9 +82,10 @@ pub(crate) fn second_auth_request(
     ));
 
     // how about e.g. TABLEOUTPUTPARAMETER and DESCRIBETABLEOUTPUTPARAMETER?
+    let sent_co = ConnectOptions::for_server(clientlocale, get_os_user());
     request2.push(Part::new(
         PartKind::ConnectOptions,
-        Argument::ConnectOptions(ConnectOptions::for_server(clientlocale, get_os_user())),
+        Argument::ConnectOptions(sent_co.clone()),
     ));
 
     let mut reply = am_conn_core.send(request2)?;
@@ -98,18 +99,18 @@ pub(crate) fn second_auth_request(
         _ => {
             return Err(HdbError::Impl(
                 "second_auth_request(): expected TopologyInformation part".to_owned(),
-            ))
+            ));
         }
     }
 
     match reply.parts.pop_arg_if_kind(PartKind::ConnectOptions) {
-        Some(Argument::ConnectOptions(conn_opts)) => {
-            conn_core.transfer_server_connect_options(conn_opts)?
+        Some(Argument::ConnectOptions(received_co)) => {
+            conn_core.digest_server_connect_options(received_co, sent_co)?
         }
         _ => {
             return Err(HdbError::Impl(
                 "second_auth_request(): expected ConnectOptions part".to_owned(),
-            ))
+            ));
         }
     }
 

@@ -51,7 +51,6 @@ impl DbvFactory for ParameterDescriptor {
             | TypeId::FIXED16 => HdbValue::DECIMAL(
                 BigDecimal::from_i8(value).ok_or_else(|| decimal_range(input_type))?,
                 tid,
-                self.precision(),
                 self.scale(),
             ),
             _ => return Err(type_mismatch(input_type, self.descriptor())),
@@ -80,7 +79,6 @@ impl DbvFactory for ParameterDescriptor {
             | TypeId::FIXED16 => HdbValue::DECIMAL(
                 BigDecimal::from_i16(value).ok_or_else(|| decimal_range(input_type))?,
                 tid,
-                self.precision(),
                 self.scale(),
             ),
             _ => return Err(type_mismatch(input_type, self.descriptor())),
@@ -114,7 +112,6 @@ impl DbvFactory for ParameterDescriptor {
             | TypeId::FIXED16 => HdbValue::DECIMAL(
                 BigDecimal::from_i32(value).ok_or_else(|| decimal_range(input_type))?,
                 tid,
-                self.precision(),
                 self.scale(),
             ),
             TypeId::DAYDATE => HdbValue::DAYDATE(DayDate::new(value)),
@@ -159,7 +156,6 @@ impl DbvFactory for ParameterDescriptor {
             | TypeId::FIXED16 => HdbValue::DECIMAL(
                 BigDecimal::from_i64(value).ok_or_else(|| decimal_range(input_type))?,
                 tid,
-                self.precision(),
                 self.scale(),
             ),
             _ => return Err(type_mismatch(input_type, self.descriptor())),
@@ -181,7 +177,6 @@ impl DbvFactory for ParameterDescriptor {
             | TypeId::FIXED16 => HdbValue::DECIMAL(
                 BigDecimal::from_u8(value).ok_or_else(|| decimal_range(input_type))?,
                 tid,
-                self.precision(),
                 self.scale(),
             ),
             _ => return Err(type_mismatch(input_type, self.descriptor())),
@@ -215,7 +210,6 @@ impl DbvFactory for ParameterDescriptor {
             | TypeId::FIXED16 => HdbValue::DECIMAL(
                 BigDecimal::from_u16(value).ok_or_else(|| decimal_range(input_type))?,
                 tid,
-                self.precision(),
                 self.scale(),
             ),
             _ => return Err(type_mismatch(input_type, self.descriptor())),
@@ -256,7 +250,6 @@ impl DbvFactory for ParameterDescriptor {
             | TypeId::FIXED16 => HdbValue::DECIMAL(
                 BigDecimal::from_u32(value).ok_or_else(|| decimal_range(input_type))?,
                 tid,
-                self.precision(),
                 self.scale(),
             ),
             _ => return Err(type_mismatch(input_type, self.descriptor())),
@@ -302,7 +295,6 @@ impl DbvFactory for ParameterDescriptor {
             | TypeId::FIXED16 => HdbValue::DECIMAL(
                 BigDecimal::from_u64(value).ok_or_else(|| decimal_range(input_type))?,
                 tid,
-                self.precision(),
                 self.scale(),
             ),
             _ => return Err(type_mismatch(input_type, self.descriptor())),
@@ -322,7 +314,6 @@ impl DbvFactory for ParameterDescriptor {
             | TypeId::FIXED16 => HdbValue::DECIMAL(
                 BigDecimal::from_f32(value).ok_or_else(|| decimal_range(input_type))?,
                 tid,
-                self.precision(),
                 self.scale(),
             ),
             _ => return Err(type_mismatch("f32", self.descriptor())),
@@ -342,7 +333,6 @@ impl DbvFactory for ParameterDescriptor {
             | TypeId::FIXED16 => HdbValue::DECIMAL(
                 BigDecimal::from_f64(value).ok_or_else(|| decimal_range(input_type))?,
                 tid,
-                self.precision(),
                 self.scale(),
             ),
             _ => return Err(type_mismatch("f64", self.descriptor())),
@@ -404,7 +394,6 @@ impl DbvFactory for ParameterDescriptor {
             | TypeId::FIXED16 => HdbValue::DECIMAL(
                 BigDecimal::from_str(value).map_err(map_bd)?,
                 tid,
-                self.precision(),
                 self.scale(),
             ),
 

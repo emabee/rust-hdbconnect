@@ -23,7 +23,7 @@ alpha_routing = []
 [dependencies]
 bigdecimal = {version = "0.0.14", features = ["serde"]}
 blake2 = "0.8.0"
-byteorder = "1.2"
+byteorder = "1.3"
 cesu8 = "1.1"
 chrono = { version = "0.4", features = ["serde"] }
 #dist_tx = {path = "../dist_tx"}

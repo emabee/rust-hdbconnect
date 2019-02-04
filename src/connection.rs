@@ -213,6 +213,15 @@ impl Connection {
             .clone())
     }
 
+    #[doc(hidden)]
+    pub fn data_format_version_2(&self) -> HdbResult<Option<i32>> {
+        Ok(self
+            .am_conn_core
+            .lock()?
+            .connect_options()
+            .get_dataformat_version2())
+    }
+
     /// Returns the number of roundtrips to the database that
     /// have been done through this connection.
     pub fn get_call_count(&self) -> HdbResult<i32> {

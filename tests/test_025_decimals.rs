@@ -11,22 +11,56 @@ use serde_derive::Deserialize;
 #[test]
 fn test_025_decimals() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
+    log_handle.parse_new_spec("info, hdbconnect::types_impl::hdb_decimal = trace");
     let mut connection = test_utils::get_authenticated_connection()?;
 
-    test_025_decimals_impl(&mut log_handle, &mut connection)?;
+    match connection.data_format_version_2()? {
+        Some(version) if version > 7 => {
+            info!("=== run test for FIXED8 ===");
+            test_025_decimals_impl(TS::FIXED8, &mut log_handle, &mut connection)?;
+
+            info!("=== run test for FIXED12 ===");
+            test_025_decimals_impl(TS::FIXED12, &mut log_handle, &mut connection)?;
+
+            info!("=== run test for FIXED16 ===");
+            test_025_decimals_impl(TS::FIXED16, &mut log_handle, &mut connection)?;
+        }
+        _ => {
+            // Old HdbDecimal implementation
+            info!("=== run test for HdbDecimal ===");
+            test_025_decimals_impl(TS::DECIMAL, &mut log_handle, &mut connection)?;
+        }
+    }
 
     info!("{} calls to DB were executed", connection.get_call_count()?);
     Ok(())
 }
 
+enum TS {
+    FIXED8,
+    FIXED12,
+    FIXED16,
+    DECIMAL,
+}
+
 fn test_025_decimals_impl(
+    ts: TS,
     _log_handle: &mut ReconfigurationHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     info!("setup ...");
     connection.multiple_statements_ignore_err(vec!["drop table TEST_DECIMALS"]);
     let stmts = vec![
+        match ts {
+            TS::DECIMAL => 
         "create table TEST_DECIMALS (f1 NVARCHAR(100) primary key, f2 DECIMAL(7,5), f3 integer)",
+            TS::FIXED8 => 
+        "create table TEST_DECIMALS (f1 NVARCHAR(100) primary key, f2 DECIMAL(7,5), f3 integer)",
+            TS::FIXED12 => 
+        "create table TEST_DECIMALS (f1 NVARCHAR(100) primary key, f2 DECIMAL(28,5), f3 integer)",
+            TS::FIXED16 => 
+        "create table TEST_DECIMALS (f1 NVARCHAR(100) primary key, f2 DECIMAL(38,5), f3 integer)",
+        },
         "insert into TEST_DECIMALS (f1, f2) values('0.00000', 0.000)",
         "insert into TEST_DECIMALS (f1, f2) values('0.00100', 0.001)",
         "insert into TEST_DECIMALS (f1, f2) values('-0.00100', -0.001)",
@@ -66,14 +100,10 @@ fn test_025_decimals_impl(
 
     info!("Read and verify decimals");
     let resultset = connection.query("select f1, f2 from TEST_DECIMALS order by f2")?;
-    let precision = resultset.metadata().precision(1)?;
-    let scale = resultset.metadata().scale(1)? as usize;
-// FIXME NOW 
     for row in resultset {
         let row = row?;
-        if let HdbValue::DECIMAL(ref bd, type_id, precision1, scale1) = &row[1] {
-            debug!("precision = {}, scale = {}", precision, scale);
-            assert_eq!(format!("{}", &row[0]), format!("{0:.1$}", bd, scale));
+        if let HdbValue::DECIMAL(ref bd, _, _) = &row[1] {
+            assert_eq!(format!("{}", &row[0]), format!("{}", bd));
         } else {
             assert!(false, "Unexpected value type");
         }
@@ -89,13 +119,13 @@ fn test_025_decimals_impl(
     }
 
     // Does not work because the scale information is not available
-    // info!("Read and verify decimals to tuple");
-    // let result: Vec<(String, String)> =
-    //     connection.query("select * from TEST_DECIMALS")?.try_into()?;
-    // for row in result {
-    //     debug!("{}, {}", row.0, row.1);
-    //     assert_eq!(row.0, row.1);
-    // }
+    info!("Read and verify decimals to tuple");
+    let result: Vec<(String, String)> =
+        connection.query("select * from TEST_DECIMALS")?.try_into()?;
+    for row in result {
+        debug!("{}, {}", row.0, row.1);
+        assert_eq!(row.0, row.1);
+    }
 
     info!("Read and verify decimal to single value");
     let resultset = connection.query("select AVG(F3) from TEST_DECIMALS")?;
@@ -107,13 +137,13 @@ fn test_025_decimals_impl(
         .try_into()?;
     assert_eq!(mydata, Some(65));
 
-    // test failing conversion
+    info!("test failing conversion");
     let mydata: HdbResult<i8> = connection
         .query("select SUM(ABS(F2)) from TEST_DECIMALS")?
         .try_into();
     assert!(mydata.is_err());
 
-    // test working conversion
+    info!("test working conversion");
     let mydata: i64 = connection
         .query("select SUM(ABS(F2)) from TEST_DECIMALS")?
         .try_into()?;

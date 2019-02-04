@@ -6,7 +6,6 @@ use byteorder::{ByteOrder, LittleEndian, ReadBytesExt, WriteBytesExt};
 use num::bigint::{BigInt, Sign};
 use num::{FromPrimitive, ToPrimitive};
 use serde_db::ser::SerializationError;
-use std::fmt;
 use std::io;
 
 // MANTISSA     113-bit     Integer mantissa
@@ -22,7 +21,7 @@ use std::io;
 // Intermediate representation of HANA's DECIMAL type; is only used when reading
 // from or writing to the wire.
 #[derive(Clone, Debug)]
-pub struct HdbDecimal {
+struct HdbDecimal {
     raw: [u8; 16],
 }
 impl HdbDecimal {
@@ -74,17 +73,17 @@ impl HdbDecimal {
             raw[15] |= 0b_1000_0000_u8;
         }
         let hdbdecimal = HdbDecimal { raw };
-        trace!("hdbdecimal.as_bigdecimal(): {}", hdbdecimal.as_bigdecimal());
         Ok(hdbdecimal)
     }
 
     // Creates a `BigDecimal` representation.
-    pub fn as_bigdecimal(&self) -> BigDecimal {
+    fn as_bigdecimal(&self, scale: i16) -> BigDecimal {
         let (sign, mantissa, exponent) = self.elements();
-        match sign {
+        let bd = match sign {
             Sign::Minus => -BigDecimal::new(mantissa, -exponent),
-            _ => BigDecimal::new(mantissa, -exponent),
-        }
+            Sign::NoSign | Sign::Plus => BigDecimal::new(mantissa, -exponent),
+        };
+        bd.with_scale(i64::from(scale))
     }
 
     // Retrieve the ingredients of the HdbDecimal
@@ -107,16 +106,9 @@ impl HdbDecimal {
     }
 }
 
-impl fmt::Display for HdbDecimal {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "{}", self.as_bigdecimal())
-    }
-}
-
 pub fn parse_decimal(
     nullable: bool,
     type_id: TypeId,
-    precision: i16,
     scale: i16,
     rdr: &mut io::BufRead,
 ) -> HdbResult<HdbValue> {
@@ -150,12 +142,11 @@ pub fn parse_decimal(
                     ))
                 }
             } else {
-                let bd = HdbDecimal { raw }.as_bigdecimal();
+                trace!("parse {}", type_id);
+                let bd = HdbDecimal { raw }.as_bigdecimal(scale);
                 Ok(match type_id {
-                    TypeId::SMALLDECIMAL => {
-                        HdbValue::DECIMAL(bd, TypeId::SMALLDECIMAL, precision, scale)
-                    }
-                    TypeId::DECIMAL => HdbValue::DECIMAL(bd, TypeId::DECIMAL, precision, scale),
+                    TypeId::SMALLDECIMAL => HdbValue::DECIMAL(bd, TypeId::SMALLDECIMAL, scale),
+                    TypeId::DECIMAL => HdbValue::DECIMAL(bd, TypeId::DECIMAL, scale),
                     _ => return Err(HdbError::Impl("unexpected type id for decimal".to_owned())),
                 })
             }
@@ -163,13 +154,34 @@ pub fn parse_decimal(
         TypeId::FIXED8 => Ok(if parse_null(nullable, rdr)? {
             HdbValue::NULL(TypeId::FIXED8)
         } else {
+            trace!("parse FIXED8");
             let i = rdr.read_i64::<LittleEndian>()?;
-            let bi = BigInt::from_i64(i).unwrap();
+            let bi = BigInt::from_i64(i)
+                .ok_or_else(|| HdbError::Impl("invalid value of type FIXED8".to_owned()))?;
             let bd = BigDecimal::new(bi, i64::from(scale));
-            HdbValue::DECIMAL(bd, TypeId::SMALLDECIMAL, precision, scale)
+            HdbValue::DECIMAL(bd, TypeId::FIXED8, scale)
         }),
-        TypeId::FIXED12 => unimplemented!("FIXME NOW ldskfspiewüoköl-12"),
-        TypeId::FIXED16 => unimplemented!("FIXME NOW ldskfspiewüoköl-16"),
+
+        TypeId::FIXED12 => Ok(if parse_null(nullable, rdr)? {
+            HdbValue::NULL(TypeId::FIXED12)
+        } else {
+            trace!("parse FIXED12");
+            let bytes = crate::protocol::util::parse_bytes(12, rdr)?;
+            let bigint = BigInt::from_signed_bytes_le(&bytes);
+            let bd = BigDecimal::new(bigint, i64::from(scale));
+            HdbValue::DECIMAL(bd, TypeId::FIXED12, scale)
+        }),
+
+        TypeId::FIXED16 => Ok(if parse_null(nullable, rdr)? {
+            HdbValue::NULL(TypeId::FIXED16)
+        } else {
+            trace!("parse FIXED16");
+            let i = rdr.read_i128::<LittleEndian>()?;
+            let bi = BigInt::from_i128(i)
+                .ok_or_else(|| HdbError::Impl("invalid value of type FIXED16".to_owned()))?;
+            let bd = BigDecimal::new(bi, i64::from(scale));
+            HdbValue::DECIMAL(bd, TypeId::FIXED8, scale)
+        }),
         _ => Err(HdbError::Impl("unexpected type id for decimal".to_owned())),
     }
 }
@@ -185,10 +197,9 @@ fn parse_null(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<bool> {
     }
 }
 
-pub fn emit_decimal(
+pub(crate) fn emit_decimal(
     bd: &BigDecimal,
     type_id: TypeId,
-    _precision: i16,
     scale: i16,
     w: &mut io::Write,
 ) -> HdbResult<()> {
@@ -198,30 +209,41 @@ pub fn emit_decimal(
             w.write_all(&hdb_decimal.raw)?;
         }
         TypeId::FIXED8 => {
-            let (bigint, exponent) = bd.as_bigint_and_exponent();
-            let i = apply_scale_on_emit(bigint.to_i64().unwrap(), scale, exponent);
-            w.write_i64::<LittleEndian>(i)?;
+            trace!("emit FIXED8");
+            let bd = bd.with_scale(i64::from(scale));
+            let (bigint, _exponent) = bd.as_bigint_and_exponent();
+            w.write_i64::<LittleEndian>(bigint.to_i64().unwrap())?;
         }
-        TypeId::FIXED12 => unimplemented!("FIXME NOW pqoiÖEWLKJdsa-12"),
-        TypeId::FIXED16 => unimplemented!("FIXME NOW pqoiÖEWLKJdsa-16"),
+        TypeId::FIXED12 => {
+            trace!("emit FIXED12");
+            // if we get less than 12 bytes, we need to append bytes with either value
+            // 0_u8 or 255_u8, depending on the value of the highest bit of the last byte.
+            let bd = bd.with_scale(i64::from(scale));
+            let (bigint, _exponent) = bd.as_bigint_and_exponent();
+            let mut bytes = bigint.to_signed_bytes_le();
+            let l = bytes.len();
+            if l < 12 {
+                let filler = if bytes[l - 1] & 0b_1000_0000_u8 == 0 {
+                    0_u8
+                } else {
+                    255_u8
+                };
+                bytes.reserve(12 - l);
+                for _ in l..12 {
+                    bytes.push(filler);
+                }
+            }
+            w.write_all(&bytes)?;
+        }
+        TypeId::FIXED16 => {
+            trace!("emit FIXED16");
+            let bd = bd.with_scale(i64::from(scale));
+            let (bigint, _exponent) = bd.as_bigint_and_exponent();
+            w.write_i128::<LittleEndian>(bigint.to_i128().unwrap())?;
+        }
         _ => return Err(HdbError::Impl("unexpected type id for decimal".to_owned())),
     }
     Ok(())
-}
-
-fn apply_scale_on_emit(input: i64, scale: i16, exponent: i64) -> i64 {
-    let mut out = input;
-    let effective_scale = i64::from(scale) - exponent;
-    if effective_scale > 0 {
-        for _ in 0..effective_scale {
-            out *= 10;
-        }
-    } else if effective_scale < 0 {
-        for _ in 0..-effective_scale {
-            out /= 10;
-        }
-    }
-    out
 }
 
 pub fn decimal_size(type_id: TypeId) -> HdbResult<usize> {

@@ -3,7 +3,6 @@ use crate::protocol::util;
 use crate::{HdbError, HdbResult};
 
 use byteorder::{LittleEndian, ReadBytesExt};
-use cesu8;
 use std::fmt;
 use std::io;
 use std::u32;

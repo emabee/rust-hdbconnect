@@ -5,7 +5,7 @@ use cesu8;
 use std::io;
 
 #[allow(non_camel_case_types)]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum OptionValue {
     INT(i32),         // INTEGER
     BIGINT(i64),      // BIGINT

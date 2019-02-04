@@ -13,7 +13,7 @@ pub trait OptionId<T: OptionId<T>> {
     fn to_u8(&self) -> u8;
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct OptionPart<T: OptionId<T> + Eq + PartialEq + Hash>(HashMap<T, OptionValue>);
 
 impl<T: OptionId<T> + Eq + PartialEq + Hash> Default for OptionPart<T> {

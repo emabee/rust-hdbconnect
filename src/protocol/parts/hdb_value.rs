@@ -65,7 +65,7 @@ pub enum HdbValue {
     /// 0.0000001234 (1234E-10) has precision 4 and scale 10.
     /// 1.0000001234 (10000001234E-10) has precision 11 and scale 10.
     /// The value 1234000000 (1234E6) has precision 4 and scale -6.
-    DECIMAL(BigDecimal, TypeId, i16, i16),
+    DECIMAL(BigDecimal, TypeId, i16),
     /// Stores a single-precision 32-bit floating-point number.
     REAL(f32),
     /// Stores a double-precision 64-bit floating-point number.
@@ -116,7 +116,7 @@ impl HdbValue {
             HdbValue::NOTHING => {
                 return Err(HdbError::Impl(
                     "Can't send HdbValue::NOTHING to Database".to_string(),
-                ))
+                ));
             }
             HdbValue::NULL(type_id) => type_id,
 
@@ -124,7 +124,7 @@ impl HdbValue {
             HdbValue::SMALLINT(_) => TypeId::SMALLINT,
             HdbValue::INT(_) => TypeId::INT,
             HdbValue::BIGINT(_) => TypeId::BIGINT,
-            HdbValue::DECIMAL(_, type_id, _, _) => type_id,
+            HdbValue::DECIMAL(_, type_id, _) => type_id,
             HdbValue::REAL(_) => TypeId::REAL,
             HdbValue::DOUBLE(_) => TypeId::DOUBLE,
             HdbValue::BINARY(_, type_id) => type_id,
@@ -197,8 +197,8 @@ impl HdbValue {
                 HdbValue::SMALLINT(i) => w.write_i16::<LittleEndian>(i)?,
                 HdbValue::INT(i) => w.write_i32::<LittleEndian>(i)?,
                 HdbValue::BIGINT(i) => w.write_i64::<LittleEndian>(i)?,
-                HdbValue::DECIMAL(ref bigdec, type_id, precision, scale) => {
-                    emit_decimal(bigdec, type_id, precision, scale, w)?
+                HdbValue::DECIMAL(ref bigdec, type_id, scale) => {
+                    emit_decimal(bigdec, type_id, scale, w)?
                 }
                 HdbValue::REAL(f) => w.write_f32::<LittleEndian>(f)?,
                 HdbValue::DOUBLE(f) => w.write_f64::<LittleEndian>(f)?,
@@ -219,7 +219,7 @@ impl HdbValue {
                     return Err(HdbError::Impl(format!(
                         "HdbValue::emit() not implemented for type {}",
                         self
-                    )))
+                    )));
                 }
             }
         }
@@ -240,7 +240,7 @@ impl HdbValue {
             HdbValue::NOTHING | HdbValue::NULL(_) => 0,
             HdbValue::BOOLEAN(_) | HdbValue::TINYINT(_) => 1,
             HdbValue::SMALLINT(_) => 2,
-            HdbValue::DECIMAL(_, type_id, _, _) => decimal_size(*type_id)?,
+            HdbValue::DECIMAL(_, type_id, _) => decimal_size(*type_id)?,
 
             HdbValue::INT(_)
             | HdbValue::REAL(_)
@@ -268,7 +268,6 @@ impl HdbValue {
 
     pub(crate) fn parse_from_reply(
         type_id: TypeId,
-        precision: i16,
         scale: i16,
         nullable: bool,
         am_conn_core: &AmConnCore,
@@ -289,7 +288,7 @@ impl HdbValue {
             | TypeId::DECIMAL
             | TypeId::FIXED8
             | TypeId::FIXED12
-            | TypeId::FIXED16 => Ok(parse_decimal(nullable, t, precision, scale, rdr)?),
+            | TypeId::FIXED16 => Ok(parse_decimal(nullable, t, scale, rdr)?),
 
             TypeId::CHAR
             | TypeId::VARCHAR
@@ -499,7 +498,7 @@ fn _read_bytes(l8: u8, rdr: &mut std::io::BufRead) -> HdbResult<Vec<u8>> {
             return Err(HdbError::Impl(format!(
                 "Unexpected value in length indicator: {}",
                 l
-            )))
+            )));
         }
     };
     util::parse_bytes(len, rdr)
@@ -549,7 +548,7 @@ impl fmt::Display for HdbValue {
             HdbValue::INT(value) => write!(fmt, "{}", value),
             HdbValue::BIGINT(value) => write!(fmt, "{}", value),
 
-            HdbValue::DECIMAL(ref value, _, _, _) => write!(fmt, "{}", value),
+            HdbValue::DECIMAL(ref value, _, _) => write!(fmt, "{}", value),
 
             HdbValue::REAL(value) => write!(fmt, "{}", value),
             HdbValue::DOUBLE(value) => write!(fmt, "{}", value),
