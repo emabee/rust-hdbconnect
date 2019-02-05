@@ -42,7 +42,7 @@ impl Reply {
     //    in case of fetch requests
     pub fn parse<T: io::BufRead>(
         o_rs_md: Option<&ResultSetMetadata>,
-        o_par_md: Option<&Vec<ParameterDescriptor>>,
+        o_par_md: Option<&[ParameterDescriptor]>,
         o_rs: &mut Option<&mut ResultSet>,
         o_am_conn_core: Option<&AmConnCore>,
         rdr: &mut T,

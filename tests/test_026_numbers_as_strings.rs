@@ -16,7 +16,7 @@ pub fn test_026_numbers_as_strings() -> HdbResult<()> {
 }
 
 fn evaluate_resultset(
-    reconfiguration_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut ReconfigurationHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     info!("Read and write integer variables as numeric values and as Strings");
@@ -86,7 +86,6 @@ fn evaluate_resultset(
     insert_stmt.add_batch(&("456.123", "456.123", "456.123", "456.123", "456.123"))?;
     insert_stmt.execute_batch()?;
 
-    reconfiguration_handle.parse_new_spec("info");
     let _result: Vec<(String, f32, f64, f32, f64)> =
         connection.query("select * from TEST_FLOATS")?.try_into()?;
 

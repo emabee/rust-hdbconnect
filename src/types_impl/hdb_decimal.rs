@@ -61,7 +61,7 @@ impl HdbDecimal {
         } else {
             trace!("parse DECIMAL");
             let bd = HdbDecimal::new(raw).into_bigdecimal_with_scale(scale);
-            Ok(HdbValue::DECIMAL(bd, TypeId::DECIMAL, scale))
+            Ok(HdbValue::DECIMAL(bd))
         }
     }
 

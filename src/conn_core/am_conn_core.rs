@@ -34,7 +34,7 @@ impl AmConnCore {
         &mut self,
         mut request: Request,
         o_rs_md: Option<&ResultSetMetadata>,
-        o_par_md: Option<&Vec<ParameterDescriptor>>,
+        o_par_md: Option<&[ParameterDescriptor]>,
         o_rs: &mut Option<&mut ResultSet>,
     ) -> HdbResult<Reply> {
         trace!(

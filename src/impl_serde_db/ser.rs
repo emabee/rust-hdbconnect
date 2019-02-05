@@ -47,8 +47,6 @@ impl DbvFactory for ParameterDescriptor {
             TypeId::DECIMAL | TypeId::FIXED8 | TypeId::FIXED12 | TypeId::FIXED16 => {
                 HdbValue::DECIMAL(
                     BigDecimal::from_i8(value).ok_or_else(|| decimal_range(input_type))?,
-                    tid,
-                    self.scale(),
                 )
             }
             _ => return Err(type_mismatch(input_type, self.descriptor())),
@@ -73,8 +71,6 @@ impl DbvFactory for ParameterDescriptor {
             TypeId::DECIMAL | TypeId::FIXED8 | TypeId::FIXED12 | TypeId::FIXED16 => {
                 HdbValue::DECIMAL(
                     BigDecimal::from_i16(value).ok_or_else(|| decimal_range(input_type))?,
-                    tid,
-                    self.scale(),
                 )
             }
             _ => return Err(type_mismatch(input_type, self.descriptor())),
@@ -104,8 +100,6 @@ impl DbvFactory for ParameterDescriptor {
             TypeId::DECIMAL | TypeId::FIXED8 | TypeId::FIXED12 | TypeId::FIXED16 => {
                 HdbValue::DECIMAL(
                     BigDecimal::from_i32(value).ok_or_else(|| decimal_range(input_type))?,
-                    tid,
-                    self.scale(),
                 )
             }
             TypeId::DAYDATE => HdbValue::DAYDATE(DayDate::new(value)),
@@ -146,8 +140,6 @@ impl DbvFactory for ParameterDescriptor {
             TypeId::DECIMAL | TypeId::FIXED8 | TypeId::FIXED12 | TypeId::FIXED16 => {
                 HdbValue::DECIMAL(
                     BigDecimal::from_i64(value).ok_or_else(|| decimal_range(input_type))?,
-                    tid,
-                    self.scale(),
                 )
             }
             _ => return Err(type_mismatch(input_type, self.descriptor())),
@@ -165,8 +157,6 @@ impl DbvFactory for ParameterDescriptor {
             TypeId::DECIMAL | TypeId::FIXED8 | TypeId::FIXED12 | TypeId::FIXED16 => {
                 HdbValue::DECIMAL(
                     BigDecimal::from_u8(value).ok_or_else(|| decimal_range(input_type))?,
-                    tid,
-                    self.scale(),
                 )
             }
             _ => return Err(type_mismatch(input_type, self.descriptor())),
@@ -196,8 +186,6 @@ impl DbvFactory for ParameterDescriptor {
             TypeId::DECIMAL | TypeId::FIXED8 | TypeId::FIXED12 | TypeId::FIXED16 => {
                 HdbValue::DECIMAL(
                     BigDecimal::from_u16(value).ok_or_else(|| decimal_range(input_type))?,
-                    tid,
-                    self.scale(),
                 )
             }
             _ => return Err(type_mismatch(input_type, self.descriptor())),
@@ -234,8 +222,6 @@ impl DbvFactory for ParameterDescriptor {
             TypeId::DECIMAL | TypeId::FIXED8 | TypeId::FIXED12 | TypeId::FIXED16 => {
                 HdbValue::DECIMAL(
                     BigDecimal::from_u32(value).ok_or_else(|| decimal_range(input_type))?,
-                    tid,
-                    self.scale(),
                 )
             }
             _ => return Err(type_mismatch(input_type, self.descriptor())),
@@ -277,8 +263,6 @@ impl DbvFactory for ParameterDescriptor {
             TypeId::DECIMAL | TypeId::FIXED8 | TypeId::FIXED12 | TypeId::FIXED16 => {
                 HdbValue::DECIMAL(
                     BigDecimal::from_u64(value).ok_or_else(|| decimal_range(input_type))?,
-                    tid,
-                    self.scale(),
                 )
             }
             _ => return Err(type_mismatch(input_type, self.descriptor())),
@@ -294,8 +278,6 @@ impl DbvFactory for ParameterDescriptor {
             TypeId::DECIMAL | TypeId::FIXED8 | TypeId::FIXED12 | TypeId::FIXED16 => {
                 HdbValue::DECIMAL(
                     BigDecimal::from_f32(value).ok_or_else(|| decimal_range(input_type))?,
-                    tid,
-                    self.scale(),
                 )
             }
             _ => return Err(type_mismatch("f32", self.descriptor())),
@@ -311,8 +293,6 @@ impl DbvFactory for ParameterDescriptor {
             TypeId::DECIMAL | TypeId::FIXED8 | TypeId::FIXED12 | TypeId::FIXED16 => {
                 HdbValue::DECIMAL(
                     BigDecimal::from_f64(value).ok_or_else(|| decimal_range(input_type))?,
-                    tid,
-                    self.scale(),
                 )
             }
             _ => return Err(type_mismatch("f64", self.descriptor())),
@@ -330,7 +310,7 @@ impl DbvFactory for ParameterDescriptor {
             | TypeId::STRING
             | TypeId::NSTRING
             | TypeId::TEXT
-            | TypeId::SHORTTEXT => HdbValue::STRING(s, TypeId::STRING), // FIXME
+            | TypeId::SHORTTEXT => HdbValue::STRING(s),
             _ => return Err(type_mismatch("char", self.descriptor())),
         })
     }
@@ -365,14 +345,10 @@ impl DbvFactory for ParameterDescriptor {
             | TypeId::TEXT
             | TypeId::SHORTTEXT
             | TypeId::CLOB
-            | TypeId::NCLOB => HdbValue::STRING(String::from(value), TypeId::STRING), // FIXME
+            | TypeId::NCLOB => HdbValue::STRING(String::from(value)),
 
             TypeId::DECIMAL | TypeId::FIXED8 | TypeId::FIXED12 | TypeId::FIXED16 => {
-                HdbValue::DECIMAL(
-                    BigDecimal::from_str(value).map_err(map_bd)?,
-                    tid,
-                    self.scale(),
-                )
+                HdbValue::DECIMAL(BigDecimal::from_str(value).map_err(map_bd)?)
             }
 
             TypeId::LONGDATE => {
@@ -392,29 +368,23 @@ impl DbvFactory for ParameterDescriptor {
     fn from_bytes(&self, value: &[u8]) -> Result<HdbValue, SerializationError> {
         let tid = self.type_id();
         Ok(match tid {
-            TypeId::BINARY | TypeId::VARBINARY => HdbValue::BINARY((*value).to_vec(), tid),
+            TypeId::BINARY | TypeId::VARBINARY => HdbValue::BINARY((*value).to_vec()),
             TypeId::GEOMETRY => HdbValue::GEOMETRY((*value).to_vec()),
             TypeId::POINT => HdbValue::POINT((*value).to_vec()),
             TypeId::BLOB => HdbValue::BLOB(new_blob_to_db((*value).to_vec())),
             TypeId::NCLOB => HdbValue::STRING(
                 String::from_utf8(value.to_vec())
                     .map_err(|e| parse_error("bytes", "NCLOB".to_string(), Some(Box::new(e))))?,
-                self.type_id(),
             ),
             _ => return Err(type_mismatch("bytes", self.descriptor())),
         })
     }
 
     fn from_none(&self) -> Result<HdbValue, SerializationError> {
-        if !self.is_nullable() {
-            Err(type_mismatch("none", self.descriptor()))
+        if self.is_nullable() {
+            Ok(HdbValue::NULL(self.type_id()))
         } else {
-            // work around a bug in HANA: it doesn't accept NULL SECONDDATE values
-            let btid = match self.type_id() {
-                TypeId::SECONDTIME => TypeId::SECONDDATE,
-                btid => btid,
-            };
-            Ok(HdbValue::NULL(btid))
+            Err(type_mismatch("none", self.descriptor()))
         }
     }
 
@@ -424,7 +394,7 @@ impl DbvFactory for ParameterDescriptor {
 }
 
 fn decimal_range(ovt: &'static str) -> SerializationError {
-    SerializationError::Range(ovt, "Decimal".to_string())
+    SerializationError::Range(ovt, "some Decimal".to_string())
 }
 
 fn type_mismatch(value_type: &'static str, db_type: String) -> SerializationError {

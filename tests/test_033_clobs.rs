@@ -25,7 +25,6 @@ fn test_clobs(
     connection: &mut Connection,
 ) -> HdbResult<()> {
     info!("create a big CLOB in the database, and read it in various ways");
-    _log_handle.parse_and_push_temp_spec("info, test = debug");
     debug!("setup...");
     connection.set_lob_read_length(1_000_000)?;
 

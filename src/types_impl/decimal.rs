@@ -25,7 +25,7 @@ pub fn parse_decimal(
             let bigint = BigInt::from_i64(i)
                 .ok_or_else(|| HdbError::Impl("invalid value of type FIXED8".to_owned()))?;
             let bd = BigDecimal::new(bigint, i64::from(scale));
-            HdbValue::DECIMAL(bd, TypeId::FIXED8, scale)
+            HdbValue::DECIMAL(bd)
         }),
 
         TypeId::FIXED12 => Ok(if parse_null(nullable, rdr)? {
@@ -35,7 +35,7 @@ pub fn parse_decimal(
             let bytes = crate::protocol::util::parse_bytes(12, rdr)?;
             let bigint = BigInt::from_signed_bytes_le(&bytes);
             let bd = BigDecimal::new(bigint, i64::from(scale));
-            HdbValue::DECIMAL(bd, TypeId::FIXED12, scale)
+            HdbValue::DECIMAL(bd)
         }),
 
         TypeId::FIXED16 => Ok(if parse_null(nullable, rdr)? {
@@ -46,7 +46,7 @@ pub fn parse_decimal(
             let bi = BigInt::from_i128(i)
                 .ok_or_else(|| HdbError::Impl("invalid value of type FIXED16".to_owned()))?;
             let bd = BigDecimal::new(bi, i64::from(scale));
-            HdbValue::DECIMAL(bd, TypeId::FIXED8, scale)
+            HdbValue::DECIMAL(bd)
         }),
         _ => Err(HdbError::Impl("unexpected type id for decimal".to_owned())),
     }
@@ -71,6 +71,7 @@ pub(crate) fn emit_decimal(
 ) -> HdbResult<()> {
     match type_id {
         TypeId::DECIMAL => {
+            trace!("emit DECIMAL");
             let hdb_decimal = HdbDecimal::from_bigdecimal(bd)?;
             w.write_all(&hdb_decimal.into_raw())?;
         }
@@ -110,14 +111,4 @@ pub(crate) fn emit_decimal(
         _ => return Err(HdbError::Impl("unexpected type id for decimal".to_owned())),
     }
     Ok(())
-}
-
-pub fn decimal_size(type_id: TypeId) -> HdbResult<usize> {
-    Ok(match type_id {
-        TypeId::FIXED8 => 8,
-        TypeId::FIXED12 => 12,
-        TypeId::FIXED16 => 16,
-        TypeId::DECIMAL => 16,
-        _ => return Err(HdbError::Impl("unexpected type id for decimal".to_owned())),
-    })
 }

@@ -1,7 +1,7 @@
 mod test_utils;
 
 use flexi_logger::ReconfigurationHandle;
-use hdbconnect::{Connection, HdbResult, HdbValue, TypeId};
+use hdbconnect::{Connection, HdbResult, HdbValue};
 use log::{debug, info};
 use serde_derive::Deserialize;
 
@@ -41,13 +41,13 @@ fn prepare_insert_statement(
 
     let insert_stmt_str = "insert into TEST_PREPARE (F1_S, F2_I) values(?, ?)";
 
-    // prepare & execute
+    debug!("prepare & execute");
     let mut insert_stmt = connection.prepare(insert_stmt_str)?;
     insert_stmt.add_batch(&("conn1-auto1", 45_i32))?;
     insert_stmt.add_batch(&("conn1-auto2", 46_i32))?;
     insert_stmt.execute_batch()?;
 
-    // prepare & execute on second connection
+    debug!("prepare & execute on second connection");
     let connection2 = connection.spawn()?;
     let mut insert_stmt2 = connection2.prepare(insert_stmt_str)?;
     insert_stmt2.add_batch(&("conn2-auto1", 45_i32))?;
@@ -55,8 +55,8 @@ fn prepare_insert_statement(
     let affrows = insert_stmt2.execute_batch()?.into_affected_rows();
     debug!("affected rows: {:?}", affrows);
 
-    // prepare & execute on first connection with auto_commit off,
-    // rollback, do it again and commit
+    debug!("prepare & execute on first connection with auto_commit off, \
+            rollback, do it again and commit");
     connection.set_auto_commit(false)?;
     let count = connection.get_call_count()?;
     let mut insert_stmt = connection.prepare(insert_stmt_str)?;
@@ -126,19 +126,20 @@ fn prepare_statement_use_parameter_row(
     let mut stmt = connection.prepare(insert_stmt_str)?;
     let my_string = String::from("foo");
     stmt.add_row_to_batch(vec![
-        HdbValue::STRING(my_string.clone(), TypeId::STRING),
+        HdbValue::STRING(my_string.clone()),
         HdbValue::INT(1000_i32),
     ])?;
-    debug!("now it fails...");
+    debug!("add to batch...");
     stmt.add_row_to_batch(vec![
-        HdbValue::STRING(my_string.clone(), TypeId::STRING),
+        HdbValue::STRING(my_string.clone()),
         HdbValue::INT(2100_i32),
     ])?;
     stmt.add_row_to_batch(vec![
-        HdbValue::STRING(my_string, TypeId::STRING),
-        HdbValue::STRING("25".to_string(), TypeId::STRING),
+        HdbValue::STRING(my_string),
+        HdbValue::STRING("25".to_string()),
     ])?;
 
+    debug!("execute...");
     stmt.execute_batch()?;
     connection.commit()?;
     debug!("checking...");
@@ -146,7 +147,6 @@ fn prepare_statement_use_parameter_row(
         .query("select sum(F2_I) from TEST_PREPARE")?
         .try_into()?;
     assert_eq!(typed_result, 3216);
-
     Ok(())
 }
 
@@ -155,8 +155,6 @@ fn prepare_multiple_errors(
     connection: &mut Connection,
 ) -> HdbResult<()> {
     info!("test multiple errors from failing batches");
-    _log_handle.parse_new_spec("info, hdbconnect::protocol::util = trace");
-
     connection.multiple_statements_ignore_err(vec!["drop table TEST_PREPARE"]);
     let stmts = vec!["create table TEST_PREPARE (F1_S NVARCHAR(20) primary key, F2_I INT)"];
     connection.multiple_statements(stmts)?;

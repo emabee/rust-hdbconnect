@@ -196,6 +196,62 @@ impl TypeId {
                 TypeId::FIXED12 => 82,
             }
     }
+
+    pub(crate) fn matches_value_type(self, value_type: TypeId) -> HdbResult<()> {
+        match value_type {
+            TypeId::STRING => match self {
+                TypeId::CHAR
+                | TypeId::TINYINT
+                | TypeId::SMALLINT
+                | TypeId::INT
+                | TypeId::BIGINT
+                | TypeId::VARCHAR
+                | TypeId::NCHAR
+                | TypeId::NVARCHAR
+                | TypeId::STRING
+                | TypeId::NSTRING
+                | TypeId::TEXT
+                | TypeId::SHORTTEXT
+                | TypeId::CLOB
+                | TypeId::NCLOB => Ok(()),
+                _ => Err(HdbError::Impl(format!(
+                    "value type id ({}) does not match metadata ({})",
+                    value_type, self
+                ))),
+            },
+            TypeId::SECONDDATE => match self {
+                TypeId::SECONDDATE | TypeId::SECONDTIME => Ok(()),
+                _ => Err(HdbError::Impl(format!(
+                    "value type id ({}) does not match metadata ({})",
+                    value_type, self
+                ))),
+            },
+            TypeId::BINARY => match self {
+                TypeId::BINARY | TypeId::VARBINARY | TypeId::GEOMETRY | TypeId::POINT => Ok(()),
+                _ => Err(HdbError::Impl(format!(
+                    "value type id ({}) does not match metadata ({})",
+                    value_type, self
+                ))),
+            },
+            TypeId::DECIMAL => match self {
+                TypeId::DECIMAL | TypeId::FIXED8 | TypeId::FIXED12 | TypeId::FIXED16 => Ok(()),
+                _ => Err(HdbError::Impl(format!(
+                    "value type id ({}) does not match metadata ({})",
+                    value_type, self
+                ))),
+            },
+            tid => {
+                if tid == self {
+                    Ok(())
+                } else {
+                    Err(HdbError::Impl(format!(
+                        "value type id ({}) does not match metadata ({})",
+                        value_type, self
+                    )))
+                }
+            }
+        }
+    }
 }
 impl std::fmt::Display for TypeId {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {

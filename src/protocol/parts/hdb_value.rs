@@ -1,9 +1,10 @@
 use crate::conn_core::AmConnCore;
+use crate::protocol::parts::parameter_descriptor::ParameterDescriptor;
 use crate::protocol::parts::type_id::TypeId;
 use crate::protocol::util;
 use crate::types::{BLob, CLob, DayDate, LongDate, NCLob, SecondDate, SecondTime};
 use crate::types_impl::daydate::parse_daydate;
-use crate::types_impl::decimal::{decimal_size, emit_decimal, parse_decimal};
+use crate::types_impl::decimal::{emit_decimal, parse_decimal};
 use crate::types_impl::lob::{
     emit_blob_header, emit_clob_header, emit_nclob_header, parse_blob, parse_clob, parse_nclob,
 };
@@ -46,26 +47,9 @@ pub enum HdbValue {
     /// The maximum value is 9,223,372,036,854,775,807.
     BIGINT(i64),
 
-    /// DECIMAL(p, s) is the SQL standard notation for fixed-point decimal.
-    /// "p" specifies precision or the number of total digits
-    /// (the sum of whole digits and fractional digits).
-    /// "s" denotes scale or the number of fractional digits.
-    /// If a column is defined as DECIMAL(5, 4) for example,
-    /// the numbers 3.14, 3.1415, 3.141592 are stored in the column as 3.1400,
-    /// 3.1415, 3.1415, retaining the specified precision(5) and scale(4).
-    ///
-    /// Precision p can range from 1 to 38, scale s can range from 0 to p.
-    /// If the scale is not specified, it defaults to 0.
-    /// If precision and scale are not specified, DECIMAL becomes a
-    /// floating-point decimal number. In this case, precision and scale
-    /// can vary within the range 1 to 34 for precision and -6,111 to 6,176
-    /// for scale, depending on the stored value.
-    ///
-    /// Examples:
-    /// 0.0000001234 (1234E-10) has precision 4 and scale 10.
-    /// 1.0000001234 (10000001234E-10) has precision 11 and scale 10.
-    /// The value 1234000000 (1234E6) has precision 4 and scale -6.
-    DECIMAL(BigDecimal, TypeId, i16),
+    /// Representation for fixed-point decimal values.
+    DECIMAL(BigDecimal),
+
     /// Stores a single-precision 32-bit floating-point number.
     REAL(f32),
     /// Stores a double-precision 64-bit floating-point number.
@@ -75,7 +59,7 @@ pub enum HdbValue {
     /// -2.2250738585072014E-308.
     DOUBLE(f64),
     /// Stores binary data.
-    BINARY(Vec<u8>, TypeId),
+    BINARY(Vec<u8>),
     /// Stores a large ASCII character string.
     CLOB(CLob),
     /// Stores a large Unicode string.
@@ -86,7 +70,7 @@ pub enum HdbValue {
     /// BOOLEAN stores boolean values, which are TRUE or FALSE.
     BOOLEAN(bool),
     /// The DB returns all Strings as type STRING, independent of the concrete column type.
-    STRING(String, TypeId),
+    STRING(String),
 
     /// Enables text search features.
     ///
@@ -111,28 +95,42 @@ pub enum HdbValue {
 }
 
 impl HdbValue {
-    fn type_id(&self) -> HdbResult<TypeId> {
+    pub(crate) fn type_id_for_emit(&self, requested_type_id: TypeId) -> HdbResult<TypeId> {
         Ok(match *self {
             HdbValue::NOTHING => {
                 return Err(HdbError::Impl(
                     "Can't send HdbValue::NOTHING to Database".to_string(),
                 ));
             }
-            HdbValue::NULL(type_id) => type_id,
+            HdbValue::NULL(type_id) => match type_id {
+                // work around a bug in HANA: it doesn't accept NULL SECONDTIME values
+                TypeId::SECONDTIME => TypeId::SECONDDATE,
+                btid => btid,
+            },
 
             HdbValue::TINYINT(_) => TypeId::TINYINT,
             HdbValue::SMALLINT(_) => TypeId::SMALLINT,
             HdbValue::INT(_) => TypeId::INT,
             HdbValue::BIGINT(_) => TypeId::BIGINT,
-            HdbValue::DECIMAL(_, type_id, _) => type_id,
+            HdbValue::DECIMAL(_) => match requested_type_id {
+                TypeId::FIXED8 | TypeId::FIXED12 | TypeId::FIXED16 | TypeId::DECIMAL => {
+                    requested_type_id
+                }
+                _ => {
+                    return Err(HdbError::Impl(format!(
+                        "Can't send {} type for requested {} type",
+                        "DECIMAL", requested_type_id
+                    )));
+                }
+            },
             HdbValue::REAL(_) => TypeId::REAL,
             HdbValue::DOUBLE(_) => TypeId::DOUBLE,
-            HdbValue::BINARY(_, type_id) => type_id,
+            HdbValue::BINARY(_) => TypeId::BINARY,
             HdbValue::CLOB(_) => TypeId::CLOB,
             HdbValue::NCLOB(_) => TypeId::NCLOB,
             HdbValue::BLOB(_) => TypeId::BLOB,
             HdbValue::BOOLEAN(_) => TypeId::BOOLEAN,
-            HdbValue::STRING(_, _type_id) => TypeId::STRING, //sic! for NCLOB e.g.
+            HdbValue::STRING(_) => TypeId::STRING,
             HdbValue::TEXT(_) => TypeId::TEXT,
             HdbValue::LONGDATE(_) => TypeId::LONGDATE,
             HdbValue::SECONDDATE(_) => TypeId::SECONDDATE,
@@ -189,16 +187,21 @@ impl HdbValue {
         }
     }
 
-    pub(crate) fn emit<T: std::io::Write>(&self, data_pos: &mut i32, w: &mut T) -> HdbResult<()> {
-        if !self.emit_type_id(w)? {
+    pub(crate) fn emit<T: std::io::Write>(
+        &self,
+        data_pos: &mut i32,
+        descriptor: &ParameterDescriptor,
+        w: &mut T,
+    ) -> HdbResult<()> {
+        if !self.emit_type_id(descriptor.type_id(), w)? {
             match *self {
                 HdbValue::NULL(_) => {}
                 HdbValue::TINYINT(u) => w.write_u8(u)?,
                 HdbValue::SMALLINT(i) => w.write_i16::<LittleEndian>(i)?,
                 HdbValue::INT(i) => w.write_i32::<LittleEndian>(i)?,
                 HdbValue::BIGINT(i) => w.write_i64::<LittleEndian>(i)?,
-                HdbValue::DECIMAL(ref bigdec, type_id, scale) => {
-                    emit_decimal(bigdec, type_id, scale, w)?
+                HdbValue::DECIMAL(ref bigdec) => {
+                    emit_decimal(bigdec, descriptor.type_id(), descriptor.scale(), w)?
                 }
                 HdbValue::REAL(f) => w.write_f32::<LittleEndian>(f)?,
                 HdbValue::DOUBLE(f) => w.write_f64::<LittleEndian>(f)?,
@@ -210,8 +213,8 @@ impl HdbValue {
                 HdbValue::CLOB(ref clob) => emit_clob_header(clob.len()?, data_pos, w)?,
                 HdbValue::NCLOB(ref nclob) => emit_nclob_header(nclob.len()?, data_pos, w)?,
                 HdbValue::BLOB(ref blob) => emit_blob_header(blob.len_alldata(), data_pos, w)?,
-                HdbValue::STRING(ref s, _) => emit_length_and_string(s, w)?,
-                HdbValue::BINARY(ref v, _) | HdbValue::GEOMETRY(ref v) | HdbValue::POINT(ref v) => {
+                HdbValue::STRING(ref s) => emit_length_and_string(s, w)?,
+                HdbValue::BINARY(ref v) | HdbValue::GEOMETRY(ref v) | HdbValue::POINT(ref v) => {
                     emit_length_and_bytes(v, w)?
                 }
 
@@ -227,20 +230,31 @@ impl HdbValue {
     }
 
     // returns true if the value is a null value, false otherwise
-    fn emit_type_id(&self, w: &mut std::io::Write) -> HdbResult<bool> {
+    fn emit_type_id(&self, requested_type_id: TypeId, w: &mut std::io::Write) -> HdbResult<bool> {
         let is_null = self.is_null();
-        let type_code = self.type_id()?.type_code(is_null);
+        let type_code = self.type_id_for_emit(requested_type_id)?.type_code(is_null);
         w.write_u8(type_code)?;
         Ok(is_null)
     }
 
     // is used to calculate the argument size (in emit)
-    pub(crate) fn size(&self) -> HdbResult<usize> {
+    pub(crate) fn size(&self, type_id: TypeId) -> HdbResult<usize> {
         Ok(1 + match self {
             HdbValue::NOTHING | HdbValue::NULL(_) => 0,
             HdbValue::BOOLEAN(_) | HdbValue::TINYINT(_) => 1,
             HdbValue::SMALLINT(_) => 2,
-            HdbValue::DECIMAL(_, type_id, _) => decimal_size(*type_id)?,
+            HdbValue::DECIMAL(_) => match type_id {
+                TypeId::DECIMAL => 16,
+                TypeId::FIXED8 => 8,
+                TypeId::FIXED12 => 12,
+                TypeId::FIXED16 => 16,
+                tid => {
+                    return Err(HdbError::Impl(format!(
+                        "invalid TypeId {} for DECIMAL",
+                        tid
+                    )));
+                }
+            },
 
             HdbValue::INT(_)
             | HdbValue::REAL(_)
@@ -256,11 +270,9 @@ impl HdbValue {
             HdbValue::NCLOB(ref nclob) => 9 + nclob.len()?,
             HdbValue::BLOB(ref blob) => 9 + blob.len_alldata(),
 
-            HdbValue::STRING(ref s, _) | HdbValue::TEXT(ref s) => {
-                binary_length(util::cesu8_length(s))
-            }
+            HdbValue::STRING(ref s) | HdbValue::TEXT(ref s) => binary_length(util::cesu8_length(s)),
 
-            HdbValue::BINARY(ref v, _) | HdbValue::GEOMETRY(ref v) | HdbValue::POINT(ref v) => {
+            HdbValue::BINARY(ref v) | HdbValue::GEOMETRY(ref v) | HdbValue::POINT(ref v) => {
                 binary_length(v.len())
             }
         })
@@ -452,7 +464,7 @@ fn parse_string(
             | TypeId::NVARCHAR
             | TypeId::NSTRING
             | TypeId::SHORTTEXT
-            | TypeId::STRING => HdbValue::STRING(s, type_id),
+            | TypeId::STRING => HdbValue::STRING(s),
             _ => return Err(HdbError::Impl("unexpected type id for string".to_owned())),
         })
     }
@@ -477,9 +489,7 @@ fn parse_binary(
     } else {
         let bytes = _read_bytes(l8, rdr)?;
         Ok(match type_id {
-            TypeId::BSTRING | TypeId::VARBINARY | TypeId::BINARY => {
-                HdbValue::BINARY(bytes, type_id)
-            }
+            TypeId::BSTRING | TypeId::VARBINARY | TypeId::BINARY => HdbValue::BINARY(bytes),
             TypeId::GEOMETRY => HdbValue::GEOMETRY(bytes),
             TypeId::POINT => HdbValue::POINT(bytes),
             _ => return Err(HdbError::Impl("unexpected type id for binary".to_owned())),
@@ -546,21 +556,19 @@ impl fmt::Display for HdbValue {
             HdbValue::INT(value) => write!(fmt, "{}", value),
             HdbValue::BIGINT(value) => write!(fmt, "{}", value),
 
-            HdbValue::DECIMAL(ref value, _, _) => write!(fmt, "{}", value),
+            HdbValue::DECIMAL(ref value) => write!(fmt, "{}", value),
 
             HdbValue::REAL(value) => write!(fmt, "{}", value),
             HdbValue::DOUBLE(value) => write!(fmt, "{}", value),
             HdbValue::TEXT(ref value) => write!(fmt, "{}", value),
-            HdbValue::STRING(ref value, type_id) => {
+            HdbValue::STRING(ref value) => {
                 if value.len() < 10_000 {
                     write!(fmt, "{}", value)
                 } else {
-                    write!(fmt, "<{} length = {}>", type_id, value.len())
+                    write!(fmt, "<STRING length = {}>", value.len())
                 }
             }
-            HdbValue::BINARY(ref vec, type_id) => {
-                write!(fmt, "<{} length = {}>", type_id, vec.len())
-            }
+            HdbValue::BINARY(ref vec) => write!(fmt, "<BINARY length = {}>", vec.len()),
 
             HdbValue::CLOB(_) => write!(fmt, "<CLOB>"),
             HdbValue::NCLOB(_) => write!(fmt, "<NCLOB>"),
@@ -597,7 +605,7 @@ impl std::cmp::PartialEq<i32> for HdbValue {
 impl std::cmp::PartialEq<&str> for HdbValue {
     fn eq(&self, rhs: &&str) -> bool {
         match self {
-            HdbValue::STRING(ref s, _) => s == rhs,
+            HdbValue::STRING(ref s) => s == rhs,
             _ => false,
         }
     }

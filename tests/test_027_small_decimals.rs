@@ -85,7 +85,7 @@ fn test_small_decimals(
     let scale = 5; //resultset.metadata().scale(1)? as usize;
     for row in resultset {
         let row = row?;
-        if let HdbValue::DECIMAL(ref bd, _, _) = &row[1] {
+        if let HdbValue::DECIMAL(ref bd) = &row[1] {
             debug!("precision = {}, scale = {}", precision, scale);
             assert_eq!(format!("{}", &row[0]), format!("{0:.1$}", bd, scale));
         } else {
@@ -104,15 +104,6 @@ fn test_small_decimals(
         assert_eq!(td.f1, format!("{}", format!("{0:.1$}", td.f2_nn, scale)));
         assert_eq!(td.f3_nn, 10);
     }
-
-    // Does not work because the scale information is not available
-    // info!("Read and verify decimals to tuple");
-    // let result: Vec<(String, String)> =
-    //     connection.query("select * from TEST_SMALL_DECIMALS")?.try_into()?;
-    // for row in result {
-    //     debug!("{}, {}", row.0, row.1);
-    //     assert_eq!(row.0, row.1);
-    // }
 
     info!("Read and verify small decimal to single value");
     let resultset = connection.query("select AVG(F3) from TEST_SMALL_DECIMALS")?;

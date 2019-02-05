@@ -116,7 +116,6 @@ impl SessCtx {
 
 fn client_info(_log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
     info!("client info");
-    _log_handle.parse_and_push_temp_spec("info, test = debug");
     let mut connection = test_utils::get_authenticated_connection().unwrap();
     let connection_id: u32 = connection.id()?;
 

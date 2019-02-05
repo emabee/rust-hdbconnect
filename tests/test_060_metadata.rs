@@ -66,9 +66,7 @@ fn test_procedure_metadata(
     assert_eq!(pd1.direction(), ParameterDirection::OUT);
 
     let mut rs: ResultSet = response.get_resultset()?;
-    _log_handle.parse_and_push_temp_spec("info, hdbconnect::protocol::parts::resultset = trace");
     let row: hdbconnect::Row = rs.next_row()?.unwrap();
-    info!("row: {:?}", row);
     assert_eq!(row[0], 42_i32);
     assert_eq!(row[1], "is between 41 and 43");
 

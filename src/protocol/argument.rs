@@ -94,7 +94,11 @@ impl<'a> Argument<'a> {
     }
 
     // only called on output (emit)
-    pub fn size(&self, with_padding: bool) -> HdbResult<usize> {
+    pub fn size(
+        &self,
+        with_padding: bool,
+        o_par_md: Option<&[ParameterDescriptor]>,
+    ) -> HdbResult<usize> {
         let mut size = 0usize;
         match *self {
             Argument::Auth(ref af) => size += af.size(),
@@ -107,7 +111,16 @@ impl<'a> Argument<'a> {
             Argument::FetchOptions(ref opts) => size += opts.size(),
             Argument::FetchSize(_) => size += 4,
             Argument::LobFlags(ref opts) => size += opts.size(),
-            Argument::Parameters(ref pars) => size += pars.size()?,
+            Argument::Parameters(ref pars) => {
+                size += match o_par_md {
+                    Some(par_md) => pars.size(par_md)?,
+                    None => {
+                        return Err(HdbError::Impl(
+                            "Argument::Parameters::emit(): No metadata".to_string(),
+                        ));
+                    }
+                }
+            }
             Argument::ReadLobRequest(ref r) => size += r.size(),
             Argument::ResultSetId(_) => size += 8,
             Argument::SessionContext(ref opts) => size += opts.size(),
@@ -128,7 +141,12 @@ impl<'a> Argument<'a> {
         Ok(size)
     }
 
-    pub fn emit<T: io::Write>(&self, remaining_bufsize: u32, w: &mut T) -> HdbResult<u32> {
+    pub fn emit<T: io::Write>(
+        &self,
+        remaining_bufsize: u32,
+        o_par_md: Option<&[ParameterDescriptor]>,
+        w: &mut T,
+    ) -> HdbResult<u32> {
         match *self {
             Argument::Auth(ref af) => af.emit(w)?,
             Argument::ClientContext(ref opts) => opts.emit(w)?,
@@ -143,9 +161,14 @@ impl<'a> Argument<'a> {
                 w.write_u32::<LittleEndian>(fs)?;
             }
             Argument::LobFlags(ref opts) => opts.emit(w)?,
-            Argument::Parameters(ref parameters) => {
-                parameters.emit(w)?;
-            }
+            Argument::Parameters(ref parameters) => match o_par_md {
+                Some(par_md) => parameters.emit(par_md, w)?,
+                None => {
+                    return Err(HdbError::Impl(
+                        "Argument::Parameters::emit(): No metadata".to_string(),
+                    ));
+                }
+            },
             Argument::ReadLobRequest(ref r) => r.emit(w)?,
             Argument::ResultSetId(rs_id) => {
                 w.write_u64::<LittleEndian>(rs_id)?;
@@ -162,7 +185,7 @@ impl<'a> Argument<'a> {
             }
         }
 
-        let size = self.size(false)?;
+        let size = self.size(false, o_par_md)?;
         let padsize = padsize(size);
         for _ in 0..padsize {
             w.write_u8(0)?;
@@ -185,7 +208,7 @@ impl<'a> Argument<'a> {
         parts: &mut Parts,
         o_am_conn_core: Option<&AmConnCore>,
         o_rs_md: Option<&ResultSetMetadata>,
-        o_par_md: Option<&Vec<ParameterDescriptor>>,
+        o_par_md: Option<&[ParameterDescriptor]>,
         o_rs: &mut Option<&mut ResultSet>,
         rdr: &mut T,
     ) -> HdbResult<Argument<'a>> {

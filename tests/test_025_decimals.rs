@@ -11,7 +11,6 @@ use serde_derive::Deserialize;
 #[test]
 fn test_025_decimals() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
-    log_handle.parse_new_spec("info, hdbconnect::types_impl::hdb_decimal = trace");
     let mut connection = test_utils::get_authenticated_connection()?;
 
     match connection.data_format_version_2()? {
@@ -102,7 +101,7 @@ fn test_025_decimals_impl(
     let resultset = connection.query("select f1, f2 from TEST_DECIMALS order by f2")?;
     for row in resultset {
         let row = row?;
-        if let HdbValue::DECIMAL(ref bd, _, _) = &row[1] {
+        if let HdbValue::DECIMAL(ref bd) = &row[1] {
             assert_eq!(format!("{}", &row[0]), format!("{}", bd));
         } else {
             assert!(false, "Unexpected value type");
@@ -118,7 +117,6 @@ fn test_025_decimals_impl(
         assert_eq!(td.f1, format!("{}", format!("{0:.1$}", td.f2, scale)));
     }
 
-    // Does not work because the scale information is not available
     info!("Read and verify decimals to tuple");
     let result: Vec<(String, String)> =
         connection.query("select * from TEST_DECIMALS")?.try_into()?;

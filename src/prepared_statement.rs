@@ -49,7 +49,7 @@ impl PreparedStatement {
         trace!("PreparedStatement::execute()");
         match self.o_input_md {
             Some(ref metadata) => {
-                let par_row = ParameterRow::new(to_params(input, metadata)?);
+                let par_row = ParameterRow::new(to_params(input, metadata)?, metadata)?;
                 self.execute_parameter_rows(Some(vec![par_row]))
             }
             None => self.execute_parameter_rows(None),
@@ -61,9 +61,9 @@ impl PreparedStatement {
     pub fn add_batch<T: serde::ser::Serialize>(&mut self, input: &T) -> HdbResult<()> {
         trace!("PreparedStatement::add_batch()");
         match (&(self.o_input_md), &mut (self.o_batch)) {
-            (&Some(ref metadata), &mut Some(ref mut vec)) => {
+            (&Some(ref metadata), &mut Some(ref mut batch)) => {
                 let data = to_params(input, metadata)?;
-                vec.push(ParameterRow::new(data));
+                batch.push(ParameterRow::new(data, metadata)?);
                 Ok(())
             }
             (_, _) => {
@@ -83,8 +83,8 @@ impl PreparedStatement {
     pub fn add_row_to_batch(&mut self, row: Vec<HdbValue>) -> HdbResult<()> {
         trace!("PreparedStatement::add_row_to_batch()");
         match (&(self.o_input_md), &mut (self.o_batch)) {
-            (&Some(ref _metadata), &mut Some(ref mut vec)) => {
-                vec.push(ParameterRow::new(row));
+            (&Some(ref descriptors), &mut Some(ref mut batch)) => {
+                batch.push(ParameterRow::new(row, descriptors)?);
                 Ok(())
             }
             (_, _) => {
@@ -148,7 +148,7 @@ impl PreparedStatement {
         let reply = self.am_conn_core.full_send(
             request,
             self.o_rs_md.as_ref(),
-            self.o_par_md.as_ref(),
+            self.o_par_md.as_ref().map(|vec| vec.as_slice()),
             &mut None,
         )?;
         reply.into_hdbresponse(&mut (self.am_conn_core))
@@ -204,7 +204,7 @@ impl PreparedStatement {
             None => {
                 return Err(HdbError::Impl(
                     "PreparedStatement needs a StatementId".to_owned(),
-                ))
+                ));
             }
         };
 
