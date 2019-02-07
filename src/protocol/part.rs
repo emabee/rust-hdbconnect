@@ -1,10 +1,10 @@
 use super::argument::Argument;
 use super::part_attributes::PartAttributes;
 use super::partkind::PartKind;
-use super::parts::parameter_descriptor::ParameterDescriptor;
 use super::parts::resultset::ResultSet;
 use super::parts::resultset_metadata::ResultSetMetadata;
 use crate::conn_core::AmConnCore;
+use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
 use crate::{HdbError, HdbResult};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -36,7 +36,7 @@ impl<'a> Part<'a> {
     pub fn emit<T: io::Write>(
         &self,
         mut remaining_bufsize: u32,
-        o_par_md: Option<&[ParameterDescriptor]>,
+        o_descriptors: Option<&ParameterDescriptors>,
         w: &mut T,
     ) -> HdbResult<u32> {
         debug!("Serializing part of kind {:?}", self.kind);
@@ -58,21 +58,21 @@ impl<'a> Part<'a> {
                 ));
             }
         }
-        w.write_i32::<LittleEndian>(self.arg.size(false, o_par_md)? as i32)?;
+        w.write_i32::<LittleEndian>(self.arg.size(false, o_descriptors)? as i32)?;
         w.write_i32::<LittleEndian>(remaining_bufsize as i32)?;
 
         remaining_bufsize -= PART_HEADER_SIZE as u32;
 
-        remaining_bufsize = self.arg.emit(remaining_bufsize, o_par_md, w)?;
+        remaining_bufsize = self.arg.emit(remaining_bufsize, o_descriptors, w)?;
         Ok(remaining_bufsize)
     }
 
     pub fn size(
         &self,
         with_padding: bool,
-        o_par_md: Option<&[ParameterDescriptor]>,
+        o_descriptors: Option<&ParameterDescriptors>,
     ) -> HdbResult<usize> {
-        let result = PART_HEADER_SIZE + self.arg.size(with_padding, o_par_md)?;
+        let result = PART_HEADER_SIZE + self.arg.size(with_padding, o_descriptors)?;
         trace!("Part_size = {}", result);
         Ok(result)
     }
@@ -81,7 +81,7 @@ impl<'a> Part<'a> {
         already_received_parts: &mut Parts,
         o_am_conn_core: Option<&AmConnCore>,
         rs_md: Option<&ResultSetMetadata>,
-        o_par_md: Option<&[ParameterDescriptor]>,
+        o_descriptors: Option<&ParameterDescriptors>,
         o_rs: &mut Option<&mut ResultSet>,
         last: bool,
         rdr: &mut T,
@@ -99,7 +99,7 @@ impl<'a> Part<'a> {
             already_received_parts,
             o_am_conn_core,
             rs_md,
-            o_par_md,
+            o_descriptors,
             o_rs,
             rdr,
         )?;

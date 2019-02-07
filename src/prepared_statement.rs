@@ -3,7 +3,7 @@ use crate::protocol::argument::Argument;
 use crate::protocol::part::Part;
 use crate::protocol::partkind::PartKind;
 use crate::protocol::parts::hdb_value::HdbValue;
-use crate::protocol::parts::parameter_descriptor::{ParameterDescriptor, ParameterDirection};
+use crate::protocol::parts::parameter_descriptor::{ParameterDescriptor, ParameterDescriptors};
 use crate::protocol::parts::parameters::{ParameterRow, Parameters};
 use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
 use crate::protocol::request::{Request, HOLD_CURSORS_OVER_COMMIT};
@@ -18,61 +18,120 @@ use std::mem;
 
 /// Allows injection-safe SQL execution and repeated calls of the same statement
 /// with different parameters with as few roundtrips as possible.
+///
+/// # Providing Input Parameters
+///
+/// ## Type systems
+///
+/// It is helpful to understand the involved type systems - there are four!
+/// * The _database type system_ consists of the standard SQL types and proprietary types
+///   to represent values,
+///   like TINYINT, FLOAT, NVARCHAR, and many others.
+///   This type system is NOT directly visible to the client!
+/// * The _wire_ has its own type system - it's focus is on efficient data transfer.
+///   hdbconnect has to deal with these types appropriately.
+///   `hdbconnect::TypeId` enumerates a somewhat reduced superset of the server-side
+///   and the wire type system.
+/// * The _driver API_ represents values as variants of `HdbValue`; this type system
+///   hides the complexity of the wire type system and aims to be as close to the rust type system
+///   as possible
+/// * The application is written in rust, and uses the _rust type system_.
+///
+/// ## From Rust to HdbValue
+///
+/// Prepared statements typically take one or more input parameter(s).
+/// As part of the statement preparation, the database server provides the client
+/// with detailed metadata for these parameters, which are kept by the `PreparedStatement`.
+///
+/// The parameter values can be handed over to the `PreparedStatement` either as
+/// `Serializable` rust types, or explicitly as `HdbValue` instances.
+/// If they are handed over as `Serializable` rust types, then the built-in `serde_db`-based
+/// conversion will convert them directly into those `HdbValue` variants
+/// that correspond to the `TypeId` that the server has requested.
+/// The application can also provide the values explicitly as `HdbValue` instances and by that
+/// enforce the usage of a different wire type and of server-side type conversions.
+///
+/// ## Sending HdbValues to the database
+///
+/// Sending an HdbValue::DECIMAL e.g. to the database can occur in different formats:
+/// with older HANA versions, a proprietary DECIMAL format is used that is independent
+/// of the number range of the concrete field. In newer HANA versions, three different
+/// formats are used (FIXED8, FIXED12 and FIXED16) that together allow for a wider value
+/// range and a lower bandwidth.
+///
+/// Similarly, a HdbValue::STRING is used to transfer values to all string-like wire types.
+/// But the wire protocol sometimes also allow sending data in another wire type than requested.
+/// If the database e.g. requests an INT, you can also send a String representation of the
+/// number, by using `HdbValue::STRING("1088")`, instead of the binary INT representation
+/// `HdbValue::INT(1088)`.
+
 #[derive(Debug)]
 pub struct PreparedStatement {
     am_conn_core: AmConnCore,
     statement_id: u64,
-    _o_table_location: Option<Vec<i32>>,
-    o_par_md: Option<Vec<ParameterDescriptor>>,
-    o_input_md: Option<Vec<ParameterDescriptor>>,
+    o_descriptors: Option<ParameterDescriptors>,
+    batch: Vec<ParameterRow>,
     o_rs_md: Option<ResultSetMetadata>,
-    o_batch: Option<Vec<ParameterRow>>,
+    _o_table_location: Option<Vec<i32>>,
 }
 
 impl PreparedStatement {
     /// Converts the input into a row of parameters,
     /// if it is consistent with the metadata, and executes the statement immediately.
     ///
-    /// If the statement has no parameter, call it like this:
     ///
-    /// ```rust, no-run
+    /// ```rust,no_run
+    /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
+    /// # fn main() -> HdbResult<()> {
+    /// # let params = "hdbsql://my_user:my_passwd@the_host:2222"
+    /// #     .into_connect_params()
+    /// #     .unwrap();
+    /// # let mut connection = Connection::new(params).unwrap();
+    /// let mut statement = connection.prepare("select * from phrases where ID = ? and text = ?")?;
+    /// let hdbresponse = statement.execute(&(42, "Foo is bar"))?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// If the statement has no parameter, execute it like this:
+    ///
+    /// ```rust, no_run
     /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, Row};
     /// # fn main() { }
     /// # fn foo() -> HdbResult<()> {
     /// # let mut connection = Connection::new("".into_connect_params()?)?;
     /// # let mut stmt = connection.prepare("")?;
-    /// let resultset = stmt.execute(&())?.into_resultset()?;
+    /// let hdbresponse = stmt.execute(&())?;
     /// # Ok(())
     /// # }
     /// ```
     pub fn execute<T: serde::ser::Serialize>(&mut self, input: &T) -> HdbResult<HdbResponse> {
         trace!("PreparedStatement::execute()");
-        match self.o_input_md {
-            Some(ref metadata) => {
-                let par_row = ParameterRow::new(to_params(input, metadata)?, metadata)?;
-                self.execute_parameter_rows(Some(vec![par_row]))
+        if let Some(ref descriptors) = self.o_descriptors {
+            if descriptors.has_in() {
+                let par_row =
+                    ParameterRow::new(to_params(input, &mut descriptors.iter_in())?, &descriptors)?;
+                return self.execute_parameter_rows(Some(vec![par_row]));
             }
-            None => self.execute_parameter_rows(None),
         }
+        self.execute_parameter_rows(None)
     }
 
     /// Converts the input into a row of parameters and adds it to the batch,
     /// if it is consistent with the metadata.
     pub fn add_batch<T: serde::ser::Serialize>(&mut self, input: &T) -> HdbResult<()> {
         trace!("PreparedStatement::add_batch()");
-        match (&(self.o_input_md), &mut (self.o_batch)) {
-            (&Some(ref metadata), &mut Some(ref mut batch)) => {
-                let data = to_params(input, metadata)?;
-                batch.push(ParameterRow::new(data, metadata)?);
-                Ok(())
-            }
-            (_, _) => {
-                let s = "no metadata in add_batch()";
-                Err(HdbError::Serialization(
-                    SerializationError::StructuralMismatch(s),
-                ))
+        if let Some(ref descriptors) = self.o_descriptors {
+            if descriptors.has_in() {
+                let par_row =
+                    ParameterRow::new(to_params(input, &mut descriptors.iter_in())?, &descriptors)?;
+                self.batch.push(par_row);
+                return Ok(());
             }
         }
+        Err(HdbError::Serialization(
+            SerializationError::StructuralMismatch("no metadata in add_batch()"),
+        ))
     }
 
     /// Consumes the input as a row of parameters for the batch.
@@ -80,52 +139,40 @@ impl PreparedStatement {
     /// Useful mainly for generic code.
     /// In most cases [`add_batch()`](struct.PreparedStatement.html#method.add_batch)
     /// is more convenient.
-    pub fn add_row_to_batch(&mut self, row: Vec<HdbValue>) -> HdbResult<()> {
+    pub fn add_row_to_batch(&mut self, hdb_values: Vec<HdbValue>) -> HdbResult<()> {
         trace!("PreparedStatement::add_row_to_batch()");
-        match (&(self.o_input_md), &mut (self.o_batch)) {
-            (&Some(ref descriptors), &mut Some(ref mut batch)) => {
-                batch.push(ParameterRow::new(row, descriptors)?);
-                Ok(())
-            }
-            (_, _) => {
-                let s = "no metadata in add_row_to_batch()";
-                Err(HdbError::Serialization(
-                    SerializationError::StructuralMismatch(s),
-                ))
+        if let Some(ref descriptors) = self.o_descriptors {
+            if descriptors.has_in() {
+                let par_row = ParameterRow::new(hdb_values, &descriptors)?;
+                self.batch.push(par_row);
+                return Ok(());
             }
         }
+        Err(HdbError::Serialization(
+            SerializationError::StructuralMismatch("no metadata in add_row_to_batch()"),
+        ))
     }
 
     /// Executes the statement with the collected batch, and clears the batch.
     ///
     /// Does nothing and returns with an error, if no batch exists.
     pub fn execute_batch(&mut self) -> HdbResult<HdbResponse> {
-        match self.o_batch {
-            Some(ref mut rows1) => {
-                if rows1.is_empty() {
-                    Err(HdbError::Usage(
-                        "The batch is empty and cannot be executed".to_string(),
-                    ))
-                } else {
-                    let mut rows2 = Vec::<ParameterRow>::new();
-                    mem::swap(rows1, &mut rows2);
-                    self.execute_parameter_rows(Some(rows2))
-                }
-            }
-            None => Err(HdbError::Usage(
-                "The statement has no parameters, use of batch is not possible".to_string(),
-            )),
+        if self.batch.is_empty() {
+            Err(HdbError::Usage(
+                "The batch is empty and cannot be executed".to_string(),
+            ))
+        } else {
+            let mut rows2 = Vec::<ParameterRow>::new();
+            mem::swap(&mut self.batch, &mut rows2);
+            self.execute_parameter_rows(Some(rows2))
         }
     }
 
     /// Descriptors of all parameters of the prepared statement (in, out, inout), if any.
-    pub fn parameter_descriptors(&self) -> Option<&Vec<ParameterDescriptor>> {
-        self.o_par_md.as_ref()
-    }
-
-    /// Descriptors of the input (in and inout) parameters of the prepared statement, if any.
-    pub fn input_parameter_descriptors(&self) -> Option<&Vec<ParameterDescriptor>> {
-        self.o_input_md.as_ref()
+    pub fn parameter_descriptors(&self) -> Option<&[ParameterDescriptor]> {
+        self.o_descriptors
+            .as_ref()
+            .map(|descr| descr.ref_inner().as_slice())
     }
 
     fn execute_parameter_rows(
@@ -148,7 +195,7 @@ impl PreparedStatement {
         let reply = self.am_conn_core.full_send(
             request,
             self.o_rs_md.as_ref(),
-            self.o_par_md.as_ref().map(|vec| vec.as_slice()),
+            self.o_descriptors.as_ref(),
             &mut None,
         )?;
         reply.into_hdbresponse(&mut (self.am_conn_core))
@@ -169,13 +216,13 @@ impl PreparedStatement {
         // TableLocation, TransactionFlags,
         let mut o_table_location: Option<Vec<i32>> = None;
         let mut o_stmt_id: Option<u64> = None;
-        let mut o_par_md: Option<Vec<ParameterDescriptor>> = None;
+        let mut o_descriptors: Option<ParameterDescriptors> = None;
         let mut o_rs_md: Option<ResultSetMetadata> = None;
 
         while !reply.parts.is_empty() {
             match reply.parts.pop_arg() {
-                Some(Argument::ParameterMetadata(par_md)) => {
-                    o_par_md = Some(par_md);
+                Some(Argument::ParameterMetadata(descriptors)) => {
+                    o_descriptors = Some(descriptors);
                 }
                 Some(Argument::StatementId(id)) => {
                     o_stmt_id = Some(id);
@@ -208,39 +255,16 @@ impl PreparedStatement {
             }
         };
 
-        let o_input_md = if let Some(ref mut metadata) = o_par_md {
-            let mut input_metadata = Vec::<ParameterDescriptor>::new();
-            for pd in metadata {
-                match pd.direction() {
-                    ParameterDirection::IN | ParameterDirection::INOUT => {
-                        input_metadata.push((*pd).clone())
-                    }
-                    ParameterDirection::OUT => {}
-                }
-            }
-            if !input_metadata.is_empty() {
-                Some(input_metadata)
-            } else {
-                None
-            }
-        } else {
-            None
-        };
-
         debug!(
-            "PreparedStatement created with parameter_metadata = {:?}",
-            o_par_md
+            "PreparedStatement created with parameter descriptors = {:?}",
+            o_descriptors
         );
 
         Ok(PreparedStatement {
             am_conn_core,
             statement_id,
-            o_batch: match o_par_md {
-                Some(_) => Some(Vec::<ParameterRow>::new()),
-                None => None,
-            },
-            o_par_md,
-            o_input_md,
+            batch: Vec::<ParameterRow>::new(),
+            o_descriptors,
             o_rs_md,
             _o_table_location: o_table_location,
         })

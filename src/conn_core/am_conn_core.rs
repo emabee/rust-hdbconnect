@@ -4,7 +4,7 @@ use crate::hdb_error::HdbResult;
 use crate::protocol::argument::Argument;
 use crate::protocol::part::Part;
 use crate::protocol::partkind::PartKind;
-use crate::protocol::parts::parameter_descriptor::ParameterDescriptor;
+use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
 use crate::protocol::parts::resultset::ResultSet;
 use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
 use crate::protocol::reply::Reply;
@@ -34,7 +34,7 @@ impl AmConnCore {
         &mut self,
         mut request: Request,
         o_rs_md: Option<&ResultSetMetadata>,
-        o_par_md: Option<&[ParameterDescriptor]>,
+        o_descriptors: Option<&ParameterDescriptors>,
         o_rs: &mut Option<&mut ResultSet>,
     ) -> HdbResult<Reply> {
         trace!(
@@ -56,7 +56,7 @@ impl AmConnCore {
             ));
         }
 
-        let reply = conn_core.roundtrip(request, &self, o_rs_md, o_par_md, o_rs)?;
+        let reply = conn_core.roundtrip(request, &self, o_rs_md, o_descriptors, o_rs)?;
 
         debug!(
             "AmConnCore::full_send() took {} ms",

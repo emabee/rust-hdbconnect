@@ -1,5 +1,5 @@
 use super::hdb_value::HdbValue;
-use crate::protocol::parts::parameter_descriptor::{ParameterDescriptor, ParameterDirection};
+use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
 use crate::{HdbError, HdbResult};
 
 use std::io;
@@ -10,56 +10,32 @@ pub(crate) struct ParameterRow(Vec<HdbValue>);
 
 impl ParameterRow {
     /// Constructor.
+    ///
+    /// Fails if the provided `HdbValue`s are not compatible with the parameter descriptors.
     pub fn new(
         hdb_values: Vec<HdbValue>,
-        descriptors: &[ParameterDescriptor],
+        descriptors: &ParameterDescriptors,
     ) -> HdbResult<ParameterRow> {
-        let mut iter = descriptors.iter();
-        for value in &(hdb_values) {
-            // find next IN or INOUT descriptor:: FIXME
-            let mut o_descriptor: Option<&ParameterDescriptor> = None;
-            while let Some(descr) = iter.next() {
-                match descr.direction() {
-                    ParameterDirection::OUT => {}
-                    ParameterDirection::IN | ParameterDirection::INOUT => {
-                        o_descriptor = Some(descr);
-                        break;
-                    }
-                }
-            }
-            match o_descriptor {
-                Some(descriptor) => {
-                    descriptor
-                        .type_id()
-                        .matches_value_type(value.type_id_for_emit(descriptor.type_id())?)?;
-                }
-                None => {
-                    return Err(HdbError::Impl(
-                        "ParameterRow::new(): Not enough metadata".to_string(),
-                    ));
-                }
+        let mut in_descriptors = descriptors.iter_in();
+        for hdb_value in &hdb_values {
+            if let Some(descriptor) = in_descriptors.next() {
+                descriptor
+                    .type_id()
+                    .matches_value_type(hdb_value.type_id_for_emit(descriptor.type_id())?)?;
+            } else {
+                return Err(HdbError::Impl(
+                    "ParameterRow::new(): Not enough metadata".to_string(),
+                ));
             }
         }
-
         Ok(ParameterRow(hdb_values))
     }
 
-    pub(crate) fn size(&self, descriptors: &[ParameterDescriptor]) -> HdbResult<usize> {
+    pub(crate) fn size(&self, descriptors: &ParameterDescriptors) -> HdbResult<usize> {
         let mut size = 0;
-        let mut iter = descriptors.iter();
+        let mut in_descriptors = descriptors.iter_in();
         for value in &(self.0) {
-            // find next IN or INOUT descriptor
-            let mut o_descriptor: Option<&ParameterDescriptor> = None;
-            while let Some(descr) = iter.next() {
-                match descr.direction() {
-                    ParameterDirection::OUT => {}
-                    ParameterDirection::IN | ParameterDirection::INOUT => {
-                        o_descriptor = Some(descr);
-                        break;
-                    }
-                }
-            }
-            match o_descriptor {
+            match in_descriptors.next() {
                 Some(descriptor) => {
                     size += value.size(descriptor.type_id())?;
                 }
@@ -76,25 +52,14 @@ impl ParameterRow {
 
     pub(crate) fn emit<T: io::Write>(
         &self,
-        descriptors: &[ParameterDescriptor],
+        descriptors: &ParameterDescriptors,
         w: &mut T,
     ) -> HdbResult<()> {
         let mut data_pos = 0_i32;
-        let mut iter = descriptors.iter();
+        let mut in_descriptors = descriptors.iter_in();
         for value in &(self.0) {
-            // find next IN or INOUT descriptor
-            let mut o_descriptor: Option<&ParameterDescriptor> = None;
-            while let Some(descr) = iter.next() {
-                match descr.direction() {
-                    ParameterDirection::OUT => {}
-                    ParameterDirection::IN | ParameterDirection::INOUT => {
-                        o_descriptor = Some(descr);
-                        break;
-                    }
-                }
-            }
             // emit the value
-            match o_descriptor {
+            match in_descriptors.next() {
                 Some(descriptor) => {
                     value.emit(&mut data_pos, descriptor, w)?;
                 }
@@ -131,11 +96,11 @@ impl Parameters {
 
     pub(crate) fn emit<T: io::Write>(
         &self,
-        par_md: &[ParameterDescriptor],
+        descriptors: &ParameterDescriptors,
         w: &mut T,
     ) -> HdbResult<()> {
         for row in &self.rows {
-            row.emit(par_md, w)?;
+            row.emit(descriptors, w)?;
         }
         Ok(())
     }
@@ -144,7 +109,7 @@ impl Parameters {
         self.rows.len()
     }
 
-    pub(crate) fn size(&self, descriptors: &[ParameterDescriptor]) -> HdbResult<usize> {
+    pub(crate) fn size(&self, descriptors: &ParameterDescriptors) -> HdbResult<usize> {
         let mut size = 0;
         for row in &self.rows {
             size += row.size(descriptors)?;

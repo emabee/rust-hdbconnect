@@ -17,11 +17,10 @@ pub fn test_035_text() -> HdbResult<()> {
 }
 
 fn test_text(
-    _logger_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut ReconfigurationHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     info!("create a TEXT in the database, and read it");
-
     debug!("setup...");
     connection.set_lob_read_length(1_000_000)?;
 
@@ -31,13 +30,15 @@ fn test_text(
 
     let test_text = "blablaいっぱいおでぶ𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀cesu-8𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀";
 
+    debug!("prepare...");
     let mut insert_stmt =
         connection.prepare("insert into TEST_TEXT (chardata, chardata_nn) values (?,?)")?;
-    insert_stmt.add_batch(&(test_text, test_text))?;
+    debug!("execute...");
+    insert_stmt.execute(&(test_text, test_text))?;
 
-    insert_stmt.execute_batch()?;
-
+    debug!("query...");
     let resultset = connection.query("select chardata, chardata_nn FROM TEST_TEXT")?;
+    debug!("deserialize...");
     let ret_text: (Option<String>, String) = resultset.try_into()?;
     assert_eq!(test_text, ret_text.0.expect("expected string but got None"));
     assert_eq!(test_text, ret_text.1);

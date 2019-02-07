@@ -3,7 +3,7 @@ use crate::hdb_response::InternalReturnValue;
 use crate::protocol::argument::Argument;
 use crate::protocol::part::{Part, Parts};
 use crate::protocol::part_attributes::PartAttributes;
-use crate::protocol::parts::parameter_descriptor::ParameterDescriptor;
+use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
 use crate::protocol::parts::resultset::ResultSet;
 use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
 use crate::protocol::reply_type::ReplyType;
@@ -42,7 +42,7 @@ impl Reply {
     //    in case of fetch requests
     pub fn parse<T: io::BufRead>(
         o_rs_md: Option<&ResultSetMetadata>,
-        o_par_md: Option<&[ParameterDescriptor]>,
+        o_descriptors: Option<&ParameterDescriptors>,
         o_rs: &mut Option<&mut ResultSet>,
         o_am_conn_core: Option<&AmConnCore>,
         rdr: &mut T,
@@ -55,7 +55,7 @@ impl Reply {
                 &mut (reply.parts),
                 o_am_conn_core,
                 o_rs_md,
-                o_par_md,
+                o_descriptors,
                 o_rs,
                 i == no_of_parts - 1,
                 rdr,
@@ -124,7 +124,7 @@ impl Reply {
                     int_return_values.push(InternalReturnValue::OutputParameters(op));
                 }
                 Argument::ParameterMetadata(pm) => {
-                    int_return_values.push(InternalReturnValue::ParameterMetadata(pm));
+                    int_return_values.push(InternalReturnValue::ParameterMetadata(pm.into_inner()));
                 }
                 Argument::ResultSet(Some(rs)) => {
                     int_return_values.push(InternalReturnValue::ResultSet(rs));

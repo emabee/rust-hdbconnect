@@ -72,13 +72,6 @@ pub enum HdbValue {
     /// The DB returns all Strings as type STRING, independent of the concrete column type.
     STRING(String),
 
-    /// Enables text search features.
-    ///
-    /// This data type can be defined for column tables, but not for row tables.
-    /// This is not a standalone SQL-Type. Selecting a TEXT column yields a
-    /// column of type NCLOB.
-    TEXT(String),
-
     /// Timestamp with 10^-7 seconds precision, uses eight bytes.
     LONGDATE(LongDate),
     /// TIMESTAMP with second precision.
@@ -131,7 +124,6 @@ impl HdbValue {
             HdbValue::BLOB(_) => TypeId::BLOB,
             HdbValue::BOOLEAN(_) => TypeId::BOOLEAN,
             HdbValue::STRING(_) => TypeId::STRING,
-            HdbValue::TEXT(_) => TypeId::TEXT,
             HdbValue::LONGDATE(_) => TypeId::LONGDATE,
             HdbValue::SECONDDATE(_) => TypeId::SECONDDATE,
             HdbValue::DAYDATE(_) => TypeId::DAYDATE,
@@ -218,11 +210,10 @@ impl HdbValue {
                     emit_length_and_bytes(v, w)?
                 }
 
-                HdbValue::NOTHING | HdbValue::TEXT(_) => {
-                    return Err(HdbError::Impl(format!(
-                        "HdbValue::emit() not implemented for type {}",
-                        self
-                    )));
+                HdbValue::NOTHING => {
+                    return Err(HdbError::Usage(
+                        "HdbValue::NOTHING cannot be sent to the database".to_string(),
+                    ));
                 }
             }
         }
@@ -270,7 +261,7 @@ impl HdbValue {
             HdbValue::NCLOB(ref nclob) => 9 + nclob.len()?,
             HdbValue::BLOB(ref blob) => 9 + blob.len_alldata(),
 
-            HdbValue::STRING(ref s) | HdbValue::TEXT(ref s) => binary_length(util::cesu8_length(s)),
+            HdbValue::STRING(ref s) => binary_length(util::cesu8_length(s)),
 
             HdbValue::BINARY(ref v) | HdbValue::GEOMETRY(ref v) | HdbValue::POINT(ref v) => {
                 binary_length(v.len())
@@ -314,10 +305,9 @@ impl HdbValue {
             | TypeId::GEOMETRY
             | TypeId::POINT => Ok(parse_binary(nullable, t, rdr)?),
 
-            TypeId::CLOB => Ok(parse_clob(am_conn_core, nullable, rdr)?),
-            TypeId::NCLOB => Ok(parse_nclob(am_conn_core, nullable, t, rdr)?),
             TypeId::BLOB => Ok(parse_blob(am_conn_core, nullable, rdr)?),
-            TypeId::TEXT => Ok(parse_nclob(am_conn_core, nullable, t, rdr)?),
+            TypeId::CLOB => Ok(parse_clob(am_conn_core, nullable, rdr)?),
+            TypeId::NCLOB | TypeId::TEXT => Ok(parse_nclob(am_conn_core, nullable, t, rdr)?),
 
             TypeId::LONGDATE => Ok(parse_longdate(nullable, rdr)?),
             TypeId::SECONDDATE => Ok(parse_seconddate(nullable, rdr)?),
@@ -560,7 +550,6 @@ impl fmt::Display for HdbValue {
 
             HdbValue::REAL(value) => write!(fmt, "{}", value),
             HdbValue::DOUBLE(value) => write!(fmt, "{}", value),
-            HdbValue::TEXT(ref value) => write!(fmt, "{}", value),
             HdbValue::STRING(ref value) => {
                 if value.len() < 10_000 {
                     write!(fmt, "{}", value)

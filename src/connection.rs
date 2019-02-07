@@ -16,19 +16,8 @@ use crate::{HdbError, HdbResponse, HdbResult};
 use chrono::Local;
 use dist_tx::rm::ResourceManager;
 
-/// Connection object.
+/// A connection to the database.
 ///
-/// The connection to the database.
-///
-/// # Example
-///
-/// ```ignore
-/// use hdbconnect::{Connection, IntoConnectParams};
-/// let params = "hdbsql://my_user:my_passwd@the_host:2222"
-///     .into_connect_params()
-///     .unwrap();
-/// let mut connection = Connection::new(params).unwrap();
-/// ```
 #[derive(Debug)]
 pub struct Connection {
     params: ConnectParams,
@@ -37,6 +26,16 @@ pub struct Connection {
 
 impl Connection {
     /// Factory method for authenticated connections.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use hdbconnect::{Connection, IntoConnectParams};
+    /// let params = "hdbsql://my_user:my_passwd@the_host:2222"
+    ///     .into_connect_params()
+    ///     .unwrap();
+    /// let mut connection = Connection::new(params).unwrap();
+    /// ```
     #[allow(clippy::new_ret_no_self)]
     pub fn new(params: ConnectParams) -> HdbResult<Connection> {
         trace!("Entering connect()");
@@ -79,13 +78,43 @@ impl Connection {
     /// one of the dedicated methods `query()`, `dml()`, `exec()` below, which
     /// internally convert the `HdbResponse` to the
     /// respective adequate simple result type.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// # use hdbconnect::{Connection, HdbResponse, HdbResult, IntoConnectParams};
+    /// # fn main() -> HdbResult<()> {
+    /// # let params = "hdbsql://my_user:my_passwd@the_host:2222"
+    /// #     .into_connect_params()
+    /// #     .unwrap();
+    /// # let mut connection = Connection::new(params).unwrap();
+    /// # let statement_string = "";
+    /// let mut response = connection.statement(&statement_string)?; // HdbResponse
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn statement<S: AsRef<str>>(&mut self, stmt: S) -> HdbResult<HdbResponse> {
         execute(&mut self.am_conn_core, stmt.as_ref(), None)
     }
 
     /// Executes a statement and expects a single ResultSet.
     ///
-    /// Should be used for query statements (SELECT ...) which return a single resultset.
+    /// Should be used for query statements (like "SELECT ...") which return a single resultset.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, ResultSet};
+    /// # fn main() -> HdbResult<()> {
+    /// # let params = "hdbsql://my_user:my_passwd@the_host:2222"
+    /// #     .into_connect_params()
+    /// #     .unwrap();
+    /// # let mut connection = Connection::new(params).unwrap();
+    /// # let statement_string = "";
+    /// let mut rs = connection.query(&statement_string)?; // ResultSet
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn query<S: AsRef<str>>(&mut self, stmt: S) -> HdbResult<ResultSet> {
         self.statement(stmt)?.into_resultset()
     }
@@ -93,6 +122,21 @@ impl Connection {
     /// Executes a statement and expects a single number of affected rows.
     ///
     /// Should be used for DML statements only, i.e., INSERT, UPDATE, DELETE, UPSERT.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, ResultSet};
+    /// # fn main() -> HdbResult<()> {
+    /// # let params = "hdbsql://my_user:my_passwd@the_host:2222"
+    /// #     .into_connect_params()
+    /// #     .unwrap();
+    /// # let mut connection = Connection::new(params).unwrap();
+    /// # let statement_string = "";
+    /// let count = connection.dml(&statement_string)?; //usize
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn dml<S: AsRef<str>>(&mut self, stmt: S) -> HdbResult<usize> {
         let vec = &(self.statement(stmt)?.into_affected_rows()?);
         match vec.len() {
@@ -106,13 +150,43 @@ impl Connection {
     /// Executes a statement and expects a plain success.
     ///
     /// Should be used for SQL commands like "ALTER SYSTEM ...".
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, ResultSet};
+    /// # fn main() -> HdbResult<()> {
+    /// # let params = "hdbsql://my_user:my_passwd@the_host:2222"
+    /// #     .into_connect_params()
+    /// #     .unwrap();
+    /// # let mut connection = Connection::new(params).unwrap();
+    /// # let statement_string = "";
+    /// connection.exec(&statement_string)?;
+    /// # Ok(())
+    /// # }
     pub fn exec<S: AsRef<str>>(&mut self, stmt: S) -> HdbResult<()> {
         self.statement(stmt)?.into_success()
     }
 
-    /// Prepares a statement and returns a handle to it.
+    /// Prepares a statement and returns a handle (a `PreparedStatement`) to it.
     ///
-    /// Note that the handle keeps using the same database connection as this `Connection`.
+    /// Note that the `PreparedStatement` keeps using the same database connection as
+    /// this `Connection`.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
+    /// # fn main() -> HdbResult<()> {
+    /// # let params = "hdbsql://my_user:my_passwd@the_host:2222"
+    /// #     .into_connect_params()
+    /// #     .unwrap();
+    /// # let mut connection = Connection::new(params).unwrap();
+    /// let query_string = "select * from phrases where ID = ? and text = ?";
+    /// let mut statement = connection.prepare(query_string)?; //PreparedStatement
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn prepare<S: AsRef<str>>(&self, stmt: S) -> HdbResult<PreparedStatement> {
         Ok(PreparedStatement::try_new(
             self.am_conn_core.clone(),

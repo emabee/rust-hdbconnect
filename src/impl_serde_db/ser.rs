@@ -18,7 +18,7 @@ use serde_db::ser::{parse_error, DbvFactory, SerializationError};
 use std::str::FromStr;
 use std::{i16, i32, i64, i8, u16, u32, u8};
 
-impl DbvFactory for ParameterDescriptor {
+impl DbvFactory for &ParameterDescriptor {
     type DBV = HdbValue;
 
     fn from_bool(&self, value: bool) -> Result<HdbValue, SerializationError> {

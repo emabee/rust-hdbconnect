@@ -97,7 +97,7 @@ impl ConnectParamsBuilder {
     ///
     /// Example:
     ///
-    /// ```rust,no-run
+    /// ```rust,no_run
     /// # use hdbconnect::{ConnectParams,ServerCerts};
     /// # let string_with_certificate = String::new();
     /// let mut conn_params = ConnectParams::builder()

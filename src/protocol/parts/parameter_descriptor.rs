@@ -4,6 +4,68 @@ use crate::{HdbError, HdbResult};
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::u32;
 
+#[derive(Debug)]
+pub(crate) struct ParameterDescriptors(Vec<ParameterDescriptor>);
+impl ParameterDescriptors {
+    pub fn iter_all(&self) -> impl std::iter::Iterator<Item = &ParameterDescriptor> {
+        self.0.iter()
+    }
+    pub fn iter_in(&self) -> impl std::iter::Iterator<Item = &ParameterDescriptor> {
+        self.0.iter().filter(|ms| {
+            (ms.direction == ParameterDirection::IN) | (ms.direction == ParameterDirection::INOUT)
+        })
+    }
+    pub fn iter_out(&self) -> impl std::iter::Iterator<Item = &ParameterDescriptor> {
+        self.0.iter().filter(|ms| {
+            (ms.direction == ParameterDirection::OUT) | (ms.direction == ParameterDirection::INOUT)
+        })
+    }
+
+    pub fn has_in(&self) -> bool {
+        self.iter_in().next().is_some()
+    }
+    pub fn has_out(&self) -> bool {
+        self.iter_out().next().is_some()
+    }
+
+    pub fn parse<T: std::io::BufRead>(
+        count: usize,
+        rdr: &mut T,
+    ) -> HdbResult<ParameterDescriptors> {
+        let mut vec_pd = Vec::<ParameterDescriptor>::new();
+        let mut name_offsets = Vec::<u32>::new();
+        for _ in 0..count {
+            // 16 byte each
+            let option = rdr.read_u8()?;
+            let value_type = rdr.read_u8()?;
+            let mode = ParameterDescriptor::direction_from_u8(rdr.read_u8()?)?;
+            rdr.read_u8()?;
+            name_offsets.push(rdr.read_u32::<LittleEndian>()?);
+            let length = rdr.read_i16::<LittleEndian>()?;
+            let fraction = rdr.read_i16::<LittleEndian>()?;
+            rdr.read_u32::<LittleEndian>()?;
+            vec_pd.push(ParameterDescriptor::try_new(
+                option, value_type, mode, length, fraction,
+            )?);
+        }
+        // read the parameter names
+        for (descriptor, name_offset) in vec_pd.iter_mut().zip(name_offsets.iter()) {
+            if name_offset != &u32::MAX {
+                let length = rdr.read_u8()?;
+                let name = util::string_from_cesu8(util::parse_bytes(length as usize, rdr)?)?;
+                descriptor.set_name(name);
+            }
+        }
+        Ok(ParameterDescriptors(vec_pd))
+    }
+    pub fn into_inner(self) -> Vec<ParameterDescriptor> {
+        self.0
+    }
+    pub fn ref_inner(&self) -> &Vec<ParameterDescriptor> {
+        &self.0
+    }
+}
+
 /// Metadata for a parameter.
 #[derive(Clone, Debug)]
 pub struct ParameterDescriptor {
@@ -83,37 +145,6 @@ impl ParameterDescriptor {
     /// Returns the name of the parameter.
     pub fn name(&self) -> Option<&String> {
         self.name.as_ref()
-    }
-
-    pub(crate) fn parse<T: std::io::BufRead>(
-        count: usize,
-        rdr: &mut T,
-    ) -> HdbResult<Vec<ParameterDescriptor>> {
-        let mut vec_pd = Vec::<ParameterDescriptor>::new();
-        let mut name_offsets = Vec::<u32>::new();
-        for _ in 0..count {
-            // 16 byte each
-            let option = rdr.read_u8()?;
-            let value_type = rdr.read_u8()?;
-            let mode = ParameterDescriptor::direction_from_u8(rdr.read_u8()?)?;
-            rdr.read_u8()?;
-            name_offsets.push(rdr.read_u32::<LittleEndian>()?);
-            let length = rdr.read_i16::<LittleEndian>()?;
-            let fraction = rdr.read_i16::<LittleEndian>()?;
-            rdr.read_u32::<LittleEndian>()?;
-            vec_pd.push(ParameterDescriptor::try_new(
-                option, value_type, mode, length, fraction,
-            )?);
-        }
-        // read the parameter names
-        for (descriptor, name_offset) in vec_pd.iter_mut().zip(name_offsets.iter()) {
-            if name_offset != &u32::MAX {
-                let length = rdr.read_u8()?;
-                let name = util::string_from_cesu8(util::parse_bytes(length as usize, rdr)?)?;
-                descriptor.set_name(name);
-            }
-        }
-        Ok(vec_pd)
     }
 
     fn try_new(

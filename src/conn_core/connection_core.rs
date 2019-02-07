@@ -9,7 +9,7 @@ use crate::protocol::partkind::PartKind;
 use crate::protocol::parts::client_info::ClientInfo;
 use crate::protocol::parts::connect_options::ConnectOptions;
 use crate::protocol::parts::execution_result::ExecutionResult;
-use crate::protocol::parts::parameter_descriptor::ParameterDescriptor;
+use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
 use crate::protocol::parts::resultset::ResultSet;
 use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
 use crate::protocol::parts::server_error::{ServerError, Severity};
@@ -248,7 +248,7 @@ impl<'a> ConnectionCore {
         request: Request<'a>,
         am_conn_core: &AmConnCore,
         o_rs_md: Option<&ResultSetMetadata>,
-        o_par_md: Option<&[ParameterDescriptor]>,
+        o_descriptors: Option<&ParameterDescriptors>,
         o_rs: &mut Option<&mut ResultSet>,
     ) -> HdbResult<Reply> {
         let auto_commit_flag: i8 = if self.is_auto_commit() { 1 } else { 0 };
@@ -257,7 +257,13 @@ impl<'a> ConnectionCore {
         match self.buffalo {
             Buffalo::Plain(ref pc) => {
                 let writer = &mut *(pc.writer()).borrow_mut();
-                request.emit(self.session_id(), nsn, auto_commit_flag, o_par_md, writer)?;
+                request.emit(
+                    self.session_id(),
+                    nsn,
+                    auto_commit_flag,
+                    o_descriptors,
+                    writer,
+                )?;
             }
             #[cfg(feature = "tls")]
             Buffalo::Secure(ref sc) => {
@@ -269,12 +275,12 @@ impl<'a> ConnectionCore {
         let mut reply = match self.buffalo {
             Buffalo::Plain(ref pc) => {
                 let reader = &mut *(pc.reader()).borrow_mut();
-                Reply::parse(o_rs_md, o_par_md, o_rs, Some(am_conn_core), reader)?
+                Reply::parse(o_rs_md, o_descriptors, o_rs, Some(am_conn_core), reader)?
             }
             #[cfg(feature = "tls")]
             Buffalo::Secure(ref sc) => {
                 let reader = &mut *(sc.reader()).borrow_mut();
-                Reply::parse(o_rs_md, o_par_md, o_rs, Some(am_conn_core), reader)?
+                Reply::parse(o_rs_md, o_descriptors, o_rs, Some(am_conn_core), reader)?
             }
         };
 

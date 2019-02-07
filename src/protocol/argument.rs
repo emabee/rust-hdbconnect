@@ -6,7 +6,6 @@ use super::parts::client_info::ClientInfo;
 use super::parts::connect_options::ConnectOptions;
 use super::parts::execution_result::ExecutionResult;
 use super::parts::output_parameters::OutputParameters;
-use super::parts::parameter_descriptor::ParameterDescriptor;
 use super::parts::parameters::Parameters;
 use super::parts::partiton_information::PartitionInformation;
 use super::parts::read_lob_reply::ReadLobReply;
@@ -23,6 +22,7 @@ use crate::protocol::parts::command_info::CommandInfo;
 use crate::protocol::parts::commit_options::CommitOptions;
 use crate::protocol::parts::fetch_options::FetchOptions;
 use crate::protocol::parts::lob_flags::LobFlags;
+use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
 use crate::protocol::parts::read_lob_request::ReadLobRequest;
 use crate::protocol::parts::session_context::SessionContext;
 use crate::protocol::util;
@@ -46,7 +46,7 @@ pub(crate) enum Argument<'a> {
     FetchSize(u32),
     LobFlags(LobFlags),
     OutputParameters(OutputParameters),
-    ParameterMetadata(Vec<ParameterDescriptor>),
+    ParameterMetadata(ParameterDescriptors),
     Parameters(Parameters),
     ReadLobRequest(ReadLobRequest),
     ReadLobReply(ReadLobReply),
@@ -97,7 +97,7 @@ impl<'a> Argument<'a> {
     pub fn size(
         &self,
         with_padding: bool,
-        o_par_md: Option<&[ParameterDescriptor]>,
+        o_descriptors: Option<&ParameterDescriptors>,
     ) -> HdbResult<usize> {
         let mut size = 0usize;
         match *self {
@@ -112,8 +112,8 @@ impl<'a> Argument<'a> {
             Argument::FetchSize(_) => size += 4,
             Argument::LobFlags(ref opts) => size += opts.size(),
             Argument::Parameters(ref pars) => {
-                size += match o_par_md {
-                    Some(par_md) => pars.size(par_md)?,
+                size += match o_descriptors {
+                    Some(descriptors) => pars.size(descriptors)?,
                     None => {
                         return Err(HdbError::Impl(
                             "Argument::Parameters::emit(): No metadata".to_string(),
@@ -144,7 +144,7 @@ impl<'a> Argument<'a> {
     pub fn emit<T: io::Write>(
         &self,
         remaining_bufsize: u32,
-        o_par_md: Option<&[ParameterDescriptor]>,
+        o_descriptors: Option<&ParameterDescriptors>,
         w: &mut T,
     ) -> HdbResult<u32> {
         match *self {
@@ -161,8 +161,8 @@ impl<'a> Argument<'a> {
                 w.write_u32::<LittleEndian>(fs)?;
             }
             Argument::LobFlags(ref opts) => opts.emit(w)?,
-            Argument::Parameters(ref parameters) => match o_par_md {
-                Some(par_md) => parameters.emit(par_md, w)?,
+            Argument::Parameters(ref parameters) => match o_descriptors {
+                Some(descriptors) => parameters.emit(descriptors, w)?,
                 None => {
                     return Err(HdbError::Impl(
                         "Argument::Parameters::emit(): No metadata".to_string(),
@@ -185,7 +185,7 @@ impl<'a> Argument<'a> {
             }
         }
 
-        let size = self.size(false, o_par_md)?;
+        let size = self.size(false, o_descriptors)?;
         let padsize = padsize(size);
         for _ in 0..padsize {
             w.write_u8(0)?;
@@ -208,7 +208,7 @@ impl<'a> Argument<'a> {
         parts: &mut Parts,
         o_am_conn_core: Option<&AmConnCore>,
         o_rs_md: Option<&ResultSetMetadata>,
-        o_par_md: Option<&[ParameterDescriptor]>,
+        o_descriptors: Option<&ParameterDescriptors>,
         o_rs: &mut Option<&mut ResultSet>,
         rdr: &mut T,
     ) -> HdbResult<Argument<'a>> {
@@ -222,10 +222,10 @@ impl<'a> Argument<'a> {
             }
             PartKind::Error => Argument::Error(ServerError::parse(no_of_args, rdr)?),
             PartKind::OutputParameters => {
-                if let Some(par_md) = o_par_md {
+                if let Some(descriptors) = o_descriptors {
                     Argument::OutputParameters(OutputParameters::parse(
                         o_am_conn_core,
-                        par_md,
+                        descriptors,
                         rdr,
                     )?)
                 } else {
@@ -235,7 +235,7 @@ impl<'a> Argument<'a> {
                 }
             }
             PartKind::ParameterMetadata => {
-                Argument::ParameterMetadata(ParameterDescriptor::parse(no_of_args, rdr)?)
+                Argument::ParameterMetadata(ParameterDescriptors::parse(no_of_args, rdr)?)
             }
             PartKind::ReadLobReply => Argument::ReadLobReply(ReadLobReply::parse(rdr)?),
             PartKind::ResultSet => {

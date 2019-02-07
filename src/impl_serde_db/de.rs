@@ -327,7 +327,7 @@ impl DbValueInto<String> for HdbValue {
             HdbValue::BIGINT(i) => Ok(format!("{}", i)),
             HdbValue::REAL(f) => Ok(format!("{}", f)),
             HdbValue::DOUBLE(f) => Ok(format!("{}", f)),
-            HdbValue::TEXT(s) | HdbValue::STRING(s) => Ok(s),
+            HdbValue::STRING(s) => Ok(s),
 
             HdbValue::LONGDATE(ld) => Ok(str_from(&ld)),
             HdbValue::SECONDDATE(sd) => Ok(str_from(&sd)),
@@ -379,7 +379,7 @@ impl DbValueInto<Vec<u8>> for HdbValue {
 
             HdbValue::BINARY(v) | HdbValue::GEOMETRY(v) | HdbValue::POINT(v) => Ok(v),
 
-            HdbValue::TEXT(s) | HdbValue::STRING(s) => Ok(s.into_bytes()),
+            HdbValue::STRING(s) => Ok(s.into_bytes()),
 
             value => Err(wrong_type(&value, "Vec<u8>")),
         }

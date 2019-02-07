@@ -1,8 +1,9 @@
 use crate::conn_core::AmConnCore;
+use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
 use crate::{HdbError, HdbResult};
 
 use crate::protocol::parts::hdb_value::HdbValue;
-use crate::protocol::parts::parameter_descriptor::{ParameterDescriptor, ParameterDirection};
+use crate::protocol::parts::parameter_descriptor::ParameterDescriptor;
 use serde;
 use serde_db::de::DbValue;
 use std::fmt;
@@ -37,7 +38,7 @@ impl OutputParameters {
 
     pub(crate) fn parse<T: std::io::BufRead>(
         o_am_conn_core: Option<&AmConnCore>,
-        par_md: &[ParameterDescriptor],
+        descriptors: &ParameterDescriptors,
         rdr: &mut T,
     ) -> HdbResult<OutputParameters> {
         trace!("OutputParameters::parse()");
@@ -50,23 +51,18 @@ impl OutputParameters {
             values: Vec::<HdbValue>::new(),
         };
 
-        for descriptor in par_md {
-            match descriptor.direction() {
-                ParameterDirection::INOUT | ParameterDirection::OUT => {
-                    trace!("Parsing value with descriptor {}", descriptor);
-                    let value = HdbValue::parse_from_reply(
-                        descriptor.type_id(),
-                        descriptor.scale(),
-                        descriptor.nullable(),
-                        am_conn_core,
-                        rdr,
-                    )?;
-                    trace!("Found value {:?}", value);
-                    output_pars.metadata.push(descriptor.clone());
-                    output_pars.values.push(value);
-                }
-                _ => {}
-            }
+        for descriptor in descriptors.iter_out() {
+            trace!("Parsing value with descriptor {}", descriptor);
+            let value = HdbValue::parse_from_reply(
+                descriptor.type_id(),
+                descriptor.scale(),
+                descriptor.nullable(),
+                am_conn_core,
+                rdr,
+            )?;
+            trace!("Found value {:?}", value);
+            output_pars.metadata.push(descriptor.clone());
+            output_pars.values.push(value);
         }
         Ok(output_pars)
     }

@@ -198,8 +198,7 @@ fn prepare_select_with_pars(
     info!("prepared select statement with parameters");
     let stmt_str = "select sum(F2_I) from TEST_PREPARE where F2_I > ?";
     let mut stmt = connection.prepare(stmt_str)?;
-    stmt.add_batch(&(45_i32))?;
-    let resultset = stmt.execute_batch()?.into_resultset()?;
+    let resultset = stmt.execute(&(45_i32))?.into_resultset()?;
     let sum_of_big_values: i64 = resultset.try_into()?;
     assert_eq!(sum_of_big_values, 286_i64);
     Ok(())

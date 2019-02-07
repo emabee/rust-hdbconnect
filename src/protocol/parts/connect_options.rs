@@ -126,7 +126,7 @@ impl ConnectOptions {
                     match old_value {
                         Some(old_value) => {
                             if *old_value != v {
-                                info!(
+                                debug!(
                                     "Server changes ConnectionOption {:?} from value {:?} \
                                      to {:?}",
                                     k, old_value, v

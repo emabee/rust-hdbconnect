@@ -258,7 +258,7 @@
 //! where <code>field</code> is a type that matches the field of the result set.
 //! If a plain rust type is used, you don't even need to derive Deserialize:
 //!
-//!   ```rust, no-run
+//!   ```rust, no_run
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
 //! # fn foo() -> HdbResult<()> {
 //! # let params = "".into_connect_params()?;
@@ -274,7 +274,7 @@
 //! If the result set contains only a single value (one row with one column),
 //! then you can also deserialize into a plain <code>field</code>:
 //!
-//!   ```rust, no-run
+//!   ```rust, no_run
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
 //! # fn foo() -> HdbResult<()> {
 //! # let params = "".into_connect_params()?;
@@ -318,7 +318,7 @@
 //! ```
 //!
 //!
-//! ```rust, no-run
+//! ```rust, no_run
 //! # use hdbconnect::{Connection, ResultSet, HdbResult, IntoConnectParams};
 //! # fn foo() -> HdbResult<()> {
 //! # let params = "".into_connect_params()?;
@@ -339,7 +339,7 @@
 //! You can avoid materializing the complete "Large Object", e.g.
 //! if you want to stream it into a writer:
 //!
-//! ```rust, no-run
+//! ```rust, no_run
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams, ResultSet};
 //! # use hdbconnect::types::NCLob;
 //! # fn foo() -> HdbResult<()> {
