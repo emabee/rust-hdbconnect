@@ -117,6 +117,22 @@ impl PreparedStatement {
         self.execute_parameter_rows(None)
     }
 
+    /// Consumes the input as a row of parameters for immediate execution.
+    ///
+    /// Useful mainly for generic code.
+    /// In most cases [`execute()`](struct.PreparedStatement.html#method.execute)
+    /// is more convenient.
+    pub fn execute_row(&mut self, hdb_values: Vec<HdbValue>) -> HdbResult<HdbResponse> {
+        trace!("PreparedStatement::execute()");
+        if let Some(ref descriptors) = self.o_descriptors {
+            if descriptors.has_in() {
+                let par_row = ParameterRow::new(hdb_values, &descriptors)?;
+                return self.execute_parameter_rows(Some(vec![par_row]));
+            }
+        }
+        self.execute_parameter_rows(None)
+    }
+
     /// Converts the input into a row of parameters and adds it to the batch,
     /// if it is consistent with the metadata.
     pub fn add_batch<T: serde::ser::Serialize>(&mut self, input: &T) -> HdbResult<()> {

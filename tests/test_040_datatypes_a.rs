@@ -2,7 +2,7 @@ mod test_utils;
 
 use bigdecimal::BigDecimal;
 use flexi_logger::ReconfigurationHandle;
-use hdbconnect::{Connection, HdbResult};
+use hdbconnect::{Connection, HdbValue, HdbResult};
 use log::{debug, info};
 use serde_bytes::{ByteBuf, Bytes};
 use serde_derive::Deserialize;
@@ -92,6 +92,23 @@ fn write(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -
         Bytes::new(&parse_hex("0123456789abcdef")),
     ))?;
 
+    stmt.execute_row(vec![
+        HdbValue::STRING("2".to_string()),
+        HdbValue::STRING("2".to_string()),
+        HdbValue::STRING("2".to_string()),
+        HdbValue::STRING("2".to_string()),
+        HdbValue::STRING("2.0".to_string()),
+        HdbValue::STRING("2.0".to_string()),
+        HdbValue::STRING("2.0".to_string()),
+        HdbValue::STRING("2.0".to_string()),
+        HdbValue::STRING("Hello world!".to_string()),
+        HdbValue::STRING("Hello world!".to_string()),
+        HdbValue::STRING("Hello world!".to_string()),
+        HdbValue::STRING("Hello world!".to_string()),
+        HdbValue::STRING("deadbeef01234567".to_string()),
+        HdbValue::STRING("deadbeef01234567".to_string()),
+    ])?;
+
     info!("insert nulls directly");
     connection.dml(
         "insert into TEST_TYPES_A \
@@ -110,6 +127,14 @@ fn write(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -
 
     info!("insert nulls via prep-statement");
     stmt.execute(&( (),(),(),(),(),(),(),(),(),(),(),(),(),() ))?;
+
+    info!("insert nulls via prep-statement, using HdbValue::NULL");
+    stmt.execute_row(vec![
+        HdbValue::NULL, HdbValue::NULL, HdbValue::NULL, HdbValue::NULL,
+        HdbValue::NULL, HdbValue::NULL, HdbValue::NULL, HdbValue::NULL,
+        HdbValue::NULL, HdbValue::NULL, HdbValue::NULL, HdbValue::NULL,
+        HdbValue::NULL, HdbValue::NULL 
+    ])?;
     Ok(())
 }
 
@@ -158,7 +183,7 @@ fn read(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) ->
     }
     {
         info!("read null values and evaluate directly");
-        let q = "select * from TEST_TYPES_A where id = 3";
+        let q = "select * from TEST_TYPES_A where id = 4";
         let mut resultset = connection.query(q)?;
         debug!("resultset: {:?}", resultset);
         let row = resultset.next_row()?.unwrap();

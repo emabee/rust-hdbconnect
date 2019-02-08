@@ -200,31 +200,12 @@ impl TypeId {
     pub(crate) fn matches_value_type(self, value_type: TypeId) -> HdbResult<()> {
         match value_type {
             TypeId::STRING => match self {
-                TypeId::CHAR
-                | TypeId::TINYINT
-                | TypeId::SMALLINT
-                | TypeId::INT
-                | TypeId::BIGINT
-                | TypeId::VARCHAR
-                | TypeId::NCHAR
-                | TypeId::NVARCHAR
-                | TypeId::STRING
-                | TypeId::NSTRING
-                | TypeId::TEXT
-                | TypeId::SHORTTEXT
-                | TypeId::CLOB
-                | TypeId::NCLOB => Ok(()),
-                _ => Err(HdbError::Impl(format!(
+                // no clear strategy for GEO stuff yet, so be restrictive
+                TypeId::GEOMETRY | TypeId::POINT => Err(HdbError::Impl(format!(
                     "value type id ({}) does not match metadata ({})",
                     value_type, self
                 ))),
-            },
-            TypeId::SECONDDATE => match self {
-                TypeId::SECONDDATE | TypeId::SECONDTIME => Ok(()),
-                _ => Err(HdbError::Impl(format!(
-                    "value type id ({}) does not match metadata ({})",
-                    value_type, self
-                ))),
+                _ => Ok(()),
             },
             TypeId::BINARY => match self {
                 TypeId::BINARY | TypeId::VARBINARY | TypeId::GEOMETRY | TypeId::POINT => Ok(()),

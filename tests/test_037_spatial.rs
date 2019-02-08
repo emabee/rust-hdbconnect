@@ -1,7 +1,7 @@
 mod test_utils;
 
 use flexi_logger::ReconfigurationHandle;
-use hdbconnect::{TypeId, Connection, HdbResult};
+use hdbconnect::{Connection, HdbResult, TypeId};
 use log::{debug, info};
 use serde_bytes::ByteBuf;
 
@@ -23,8 +23,10 @@ fn test_geometries(
 ) -> HdbResult<()> {
     info!("write and read GEOMETRY data");
 
+    // Insert the data such that the conversion "String -> WKB" is done on the
+    // server side (we assume that this conversion is error-free).
     connection.multiple_statements_ignore_err(vec!["drop table SpatialShapes"]);
-	connection.multiple_statements(vec![
+    connection.multiple_statements(vec![
         "CREATE COLUMN TABLE SpatialShapes( \
 		    ShapeID integer, \
 		    shape 	ST_GEOMETRY \
@@ -57,15 +59,16 @@ fn test_geometries(
     debug!("insert via parameters (use serde)");
     let mut stmt = connection.prepare("insert into SpatialShapes VALUES(?,?)")?;
     for (idx, shape) in shapes.iter().enumerate() {
-        stmt.add_batch(&(idx+100, shape))?;
+        stmt.add_batch(&(idx + 100, shape))?;
     }
     stmt.execute_batch()?;
 
-    let count: u16 = connection.query("select count(*) from SpatialShapes")?.try_into()?;
+    let count: u16 = connection
+        .query("select count(*) from SpatialShapes")?
+        .try_into()?;
     assert_eq!(count, 34);
     Ok(())
 }
-
 
 fn test_points(
     _loghandle: &mut ReconfigurationHandle,
@@ -81,11 +84,11 @@ fn test_points(
     // SHAPE5 ST_Point(1000004326) VALIDATION NONE, \
     // SHAPE6 ST_Point(4326) VALIDATION FULL \
 
-	connection.multiple_statements(vec![
+    connection.multiple_statements(vec![
         "CREATE COLUMN TABLE Points( \
-		    ID integer, \
-            SHAPE1 ST_Point \
-        )",
+         ID integer, \
+         SHAPE1 ST_Point \
+         )",
         "INSERT INTO Points VALUES(1, NEW ST_Point('Point(2.5 3.0)'))",
         // "INSERT INTO Points VALUES(2, NEW ST_Point('Point(3.0 4.5)'))",
         // "INSERT INTO Points VALUES(3, NEW ST_Point('Point(3.0 6.0)'))",
@@ -101,17 +104,19 @@ fn test_points(
     debug!("insert via parameters (use serde)");
     let mut stmt = connection.prepare("insert into Points VALUES(?,?)")?;
     for (idx, shape) in shapes.iter().enumerate() {
-        stmt.add_batch(&(idx+100, shape))?;
+        stmt.add_batch(&(idx + 100, shape))?;
     }
     stmt.execute_batch()?;
 
-    let count: u16 = connection.query("select count(*) from Points")?.try_into()?;
+    let count: u16 = connection
+        .query("select count(*) from Points")?
+        .try_into()?;
     assert_eq!(count, 2);
 
     // here we would get parameter type id 31 = BLOCATOR:
     // let mut stmt = connection.prepare("insert into Points VALUES(?,NEW ST_POINT(?))")?;
-        // this seems to manipulate the statement itself !?!?
-        // stmt.add_batch(&(1, Bytes::new(b"Point(2.5 3.0)")))?; 
+    // this seems to manipulate the statement itself !?!?
+    // stmt.add_batch(&(1, Bytes::new(b"Point(2.5 3.0)")))?;
 
     // here just a POINT
     // let mut stmt = connection.prepare("insert into Points VALUES(?,?)")?;

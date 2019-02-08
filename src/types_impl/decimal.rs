@@ -18,7 +18,7 @@ pub fn parse_decimal(
         TypeId::DECIMAL => HdbDecimal::parse_hdb_decimal(nullable, scale, rdr),
 
         TypeId::FIXED8 => Ok(if parse_null(nullable, rdr)? {
-            HdbValue::NULL(TypeId::FIXED8)
+            HdbValue::NULL
         } else {
             trace!("parse FIXED8");
             let i = rdr.read_i64::<LittleEndian>()?;
@@ -29,7 +29,7 @@ pub fn parse_decimal(
         }),
 
         TypeId::FIXED12 => Ok(if parse_null(nullable, rdr)? {
-            HdbValue::NULL(TypeId::FIXED12)
+            HdbValue::NULL
         } else {
             trace!("parse FIXED12");
             let bytes = crate::protocol::util::parse_bytes(12, rdr)?;
@@ -39,7 +39,7 @@ pub fn parse_decimal(
         }),
 
         TypeId::FIXED16 => Ok(if parse_null(nullable, rdr)? {
-            HdbValue::NULL(TypeId::FIXED16)
+            HdbValue::NULL
         } else {
             trace!("parse FIXED16");
             let i = rdr.read_i128::<LittleEndian>()?;

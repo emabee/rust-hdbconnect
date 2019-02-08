@@ -57,7 +57,7 @@ impl DeserializableRow for Row {
 impl DbValue for HdbValue {
     fn is_null(&self) -> bool {
         match *self {
-            HdbValue::NULL(_) => true,
+            HdbValue::NULL => true,
             _ => false,
         }
     }

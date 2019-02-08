@@ -1,6 +1,5 @@
 use crate::hdb_error::{HdbError, HdbResult};
 use crate::protocol::parts::hdb_value::HdbValue;
-use crate::protocol::parts::type_id::TypeId;
 use bigdecimal::{BigDecimal, Zero};
 use byteorder::{ByteOrder, LittleEndian};
 use num::bigint::{BigInt, Sign};
@@ -33,15 +32,14 @@ impl HdbDecimal {
     ) -> HdbResult<HdbValue> {
         let mut raw = [0_u8; 16];
         rdr.read_exact(&mut raw[..])?;
-        let is_null = raw[15] == 112
-            && raw[0..=14].into_iter().all(|el|*el==0);
 
-        if is_null {
+        if raw[15] == 112 && raw[0..=14].iter().all(|el| *el == 0) {
+            // it's a NULL!
             if nullable {
-                Ok(HdbValue::NULL(TypeId::DECIMAL))
+                Ok(HdbValue::NULL)
             } else {
                 Err(HdbError::Impl(
-                    "found null value for not-null column".to_owned(),
+                    "received null value for not-null column".to_owned(),
                 ))
             }
         } else {

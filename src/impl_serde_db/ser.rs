@@ -382,7 +382,7 @@ impl DbvFactory for &ParameterDescriptor {
 
     fn from_none(&self) -> Result<HdbValue, SerializationError> {
         if self.is_nullable() {
-            Ok(HdbValue::NULL(self.type_id()))
+            Ok(HdbValue::NULL)
         } else {
             Err(type_mismatch("none", self.descriptor()))
         }

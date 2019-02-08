@@ -19,9 +19,11 @@ impl ParameterRow {
         let mut in_descriptors = descriptors.iter_in();
         for hdb_value in &hdb_values {
             if let Some(descriptor) = in_descriptors.next() {
-                descriptor
-                    .type_id()
-                    .matches_value_type(hdb_value.type_id_for_emit(descriptor.type_id())?)?;
+                if !hdb_value.is_null() {
+                    descriptor
+                        .type_id()
+                        .matches_value_type(hdb_value.type_id_for_emit(descriptor.type_id())?)?;
+                }
             } else {
                 return Err(HdbError::Impl(
                     "ParameterRow::new(): Not enough metadata".to_string(),

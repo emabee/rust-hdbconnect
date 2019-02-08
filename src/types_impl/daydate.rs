@@ -1,5 +1,4 @@
 use crate::protocol::parts::hdb_value::HdbValue;
-use crate::protocol::parts::type_id::TypeId;
 use crate::{HdbError, HdbResult};
 use byteorder::{LittleEndian, ReadBytesExt};
 use chrono::{Datelike, NaiveDate};
@@ -160,7 +159,7 @@ pub fn parse_daydate(nullable: bool, rdr: &mut io::BufRead) -> HdbResult<HdbValu
     let i = rdr.read_i32::<LittleEndian>()?;
     if i == NULL_REPRESENTATION {
         if nullable {
-            Ok(HdbValue::NULL(TypeId::DAYDATE))
+            Ok(HdbValue::NULL)
         } else {
             Err(HdbError::Impl(
                 "found NULL value for NOT NULL longdate column".to_owned(),

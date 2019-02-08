@@ -71,18 +71,15 @@ fn test_longdate(
         .prepare("insert into TEST_LONGDATE (number,mydate)  values(?, ?)")
         .unwrap();
     prepared_stmt
-        .add_batch(&(&18, &"2018-09-20 17:31:41"))
+        .execute(&(&18, &"2018-09-20 17:31:41"))
         .unwrap();
-    prepared_stmt.execute_batch().unwrap();
 
     {
-        info!("test the conversion NaiveDateTime -> DB");
+        info!("test the conversion NaiveDateTime -> LongDate -> wire -> DB");
         let mut prep_stmt = connection
             .prepare("select sum(number) from TEST_LONGDATE where mydate = ? or mydate = ?")?;
-        // Enforce that NaiveDateTime values are converted in the client (with serde)
-        // to the DB type:
-        prep_stmt.add_batch(&(naive_datetime_values[2], naive_datetime_values[3]))?;
-        let mut response = prep_stmt.execute_batch()?;
+        let mut response =
+            prep_stmt.execute(&(naive_datetime_values[2], naive_datetime_values[3]))?;
         let pd = response.get_parameter_descriptor()?;
         debug!("Parameter Descriptor: {:?}", pd);
         let pd = response.get_parameter_descriptor()?;
@@ -91,18 +88,20 @@ fn test_longdate(
         let typed_result: i32 = response.into_resultset()?.try_into()?;
         assert_eq!(typed_result, 31);
 
-        info!("test the conversion DateTime<Utc> -> DB");
+        info!("test the conversion DateTime<Utc> -> LongDate -> wire -> DB");
         let utc2: DateTime<Utc> = DateTime::from_utc(naive_datetime_values[2], Utc);
         let utc3: DateTime<Utc> = DateTime::from_utc(naive_datetime_values[3], Utc);
 
         // Enforce that UTC timestamps values are converted here in the client to the DB type:
-        prep_stmt.add_batch(&(utc2, utc3))?;
-        let typed_result: i32 = prep_stmt.execute_batch()?.into_resultset()?.try_into()?;
+        let typed_result: i32 = prep_stmt
+            .execute(&(utc2, utc3))?
+            .into_resultset()?
+            .try_into()?;
         assert_eq!(typed_result, 31_i32);
     }
 
     {
-        info!("test the conversion DB -> NaiveDateTime");
+        info!("test the conversion DB -> wire -> LongDate -> NaiveDateTime");
         let s = "select mydate from TEST_LONGDATE order by number asc";
         let rs = connection.query(s)?;
         let dates: Vec<NaiveDateTime> = rs.try_into()?;

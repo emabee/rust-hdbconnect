@@ -2,7 +2,7 @@ mod test_utils;
 
 // use chrono::NaiveDateTime;
 use flexi_logger::ReconfigurationHandle;
-use hdbconnect::{Connection, HdbResult};
+use hdbconnect::{Connection, HdbValue, HdbResult};
 use log::{debug,info};
 use serde_bytes::{ByteBuf,Bytes};
 use serde_derive::Deserialize;
@@ -79,6 +79,19 @@ fn write(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -
         "01:02:03",
     ))?;
 
+    stmt.execute_row(vec![
+        HdbValue::STRING("foo bar rab oof".to_string()),
+        HdbValue::STRING("foo bar rab oof".to_string()),
+        HdbValue::STRING("foo bar rab oof".to_string()),
+        HdbValue::STRING("true".to_string()),
+        HdbValue::STRING("foo bar rab oof".to_string()),
+        HdbValue::STRING("foo bar rab oof".to_string()),
+        HdbValue::STRING("2019-01-31 04:04:04.400000000".to_string()),
+        HdbValue::STRING("2019-01-31 04:04:04".to_string()),
+        HdbValue::STRING("2019-01-31".to_string()),
+        HdbValue::STRING("04:04:04".to_string()),
+    ])?;
+
     info!("insert nulls directly");
     connection.dml(
         "\
@@ -94,7 +107,10 @@ fn write(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -
     )?;
 
     info!("insert nulls via prep-statement");
-    stmt.execute(&( (),(),(),(),(),(),(),(),(),() ))?;
+    stmt.execute_row(vec![
+        HdbValue::NULL, HdbValue::NULL, HdbValue::NULL, HdbValue::NULL, HdbValue::NULL, 
+        HdbValue::NULL, HdbValue::NULL, HdbValue::NULL, HdbValue::NULL, HdbValue::NULL,
+    ])?;
     Ok(())
 }
 
@@ -141,7 +157,7 @@ fn read(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) ->
     }
     {
         info!("read null values and evaluate directly");
-        let q = "select * from TEST_TYPES_B where id = 3";
+        let q = "select * from TEST_TYPES_B where id = 4";
         let mut resultset = connection.query(q)?;
         debug!("resultset: {:?}", resultset);
         let row = resultset.next_row()?.unwrap();

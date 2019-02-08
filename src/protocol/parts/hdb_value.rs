@@ -32,7 +32,7 @@ pub enum HdbValue {
     /// Is swapped in where a real value (any of the others) is swapped out.
     NOTHING,
     /// Representation of a database NULL value.
-    NULL(TypeId),
+    NULL,
     /// Stores an 8-bit unsigned integer.
     /// The minimum value is 0. The maximum value is 255.
     TINYINT(u8),
@@ -95,10 +95,10 @@ impl HdbValue {
                     "Can't send HdbValue::NOTHING to Database".to_string(),
                 ));
             }
-            HdbValue::NULL(type_id) => match type_id {
+            HdbValue::NULL => match requested_type_id {
                 // work around a bug in HANA: it doesn't accept NULL SECONDTIME values
                 TypeId::SECONDTIME => TypeId::SECONDDATE,
-                btid => btid,
+                tid => tid,
             },
 
             HdbValue::TINYINT(_) => TypeId::TINYINT,
@@ -174,7 +174,7 @@ impl HdbValue {
     /// Returns true if the value is a NULL value.
     pub fn is_null(&self) -> bool {
         match *self {
-            HdbValue::NULL(_) => true,
+            HdbValue::NULL => true,
             _ => false,
         }
     }
@@ -187,7 +187,7 @@ impl HdbValue {
     ) -> HdbResult<()> {
         if !self.emit_type_id(descriptor.type_id(), w)? {
             match *self {
-                HdbValue::NULL(_) => {}
+                HdbValue::NULL => {}
                 HdbValue::TINYINT(u) => w.write_u8(u)?,
                 HdbValue::SMALLINT(i) => w.write_i16::<LittleEndian>(i)?,
                 HdbValue::INT(i) => w.write_i32::<LittleEndian>(i)?,
@@ -231,7 +231,7 @@ impl HdbValue {
     // is used to calculate the argument size (in emit)
     pub(crate) fn size(&self, type_id: TypeId) -> HdbResult<usize> {
         Ok(1 + match self {
-            HdbValue::NOTHING | HdbValue::NULL(_) => 0,
+            HdbValue::NOTHING | HdbValue::NULL => 0,
             HdbValue::BOOLEAN(_) | HdbValue::TINYINT(_) => 1,
             HdbValue::SMALLINT(_) => 2,
             HdbValue::DECIMAL(_) => match type_id {
@@ -343,7 +343,7 @@ fn parse_null(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<bool> {
 
 fn parse_tinyint(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValue> {
     Ok(if parse_null(nullable, rdr)? {
-        HdbValue::NULL(TypeId::TINYINT)
+        HdbValue::NULL
     } else {
         HdbValue::TINYINT(rdr.read_u8()?)
     })
@@ -351,21 +351,21 @@ fn parse_tinyint(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbVal
 
 fn parse_smallint(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValue> {
     Ok(if parse_null(nullable, rdr)? {
-        HdbValue::NULL(TypeId::SMALLINT)
+        HdbValue::NULL
     } else {
         HdbValue::SMALLINT(rdr.read_i16::<LittleEndian>()?)
     })
 }
 fn parse_int(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValue> {
     Ok(if parse_null(nullable, rdr)? {
-        HdbValue::NULL(TypeId::INT)
+        HdbValue::NULL
     } else {
         HdbValue::INT(rdr.read_i32::<LittleEndian>()?)
     })
 }
 fn parse_bigint(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValue> {
     Ok(if parse_null(nullable, rdr)? {
-        HdbValue::NULL(TypeId::BIGINT)
+        HdbValue::NULL
     } else {
         HdbValue::BIGINT(rdr.read_i64::<LittleEndian>()?)
     })
@@ -380,7 +380,7 @@ fn parse_real(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValue>
 
     if is_null {
         if nullable {
-            Ok(HdbValue::NULL(TypeId::REAL))
+            Ok(HdbValue::NULL)
         } else {
             Err(HdbError::Impl(
                 "found NULL value for NOT NULL column".to_owned(),
@@ -401,7 +401,7 @@ fn parse_double(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValu
 
     if is_null {
         if nullable {
-            Ok(HdbValue::NULL(TypeId::DOUBLE))
+            Ok(HdbValue::NULL)
         } else {
             Err(HdbError::Impl(
                 "found NULL value for NOT NULL column".to_owned(),
@@ -420,7 +420,7 @@ fn parse_bool(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValue>
         2 => Ok(HdbValue::BOOLEAN(true)),
         1 => {
             if nullable {
-                Ok(HdbValue::NULL(TypeId::BOOLEAN))
+                Ok(HdbValue::NULL)
             } else {
                 Err(HdbError::Impl("parse_bool: got null value".to_string()))
             }
@@ -439,7 +439,7 @@ fn parse_string(
 
     if is_null {
         if nullable {
-            Ok(HdbValue::NULL(TypeId::STRING))
+            Ok(HdbValue::NULL)
         } else {
             Err(HdbError::Impl(
                 "found NULL value for NOT NULL string column".to_owned(),
@@ -470,7 +470,7 @@ fn parse_binary(
 
     if is_null {
         if nullable {
-            Ok(HdbValue::NULL(TypeId::BINARY))
+            Ok(HdbValue::NULL)
         } else {
             Err(HdbError::Impl(
                 "found NULL value for NOT NULL binary column".to_owned(),
@@ -540,7 +540,7 @@ impl fmt::Display for HdbValue {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             HdbValue::NOTHING => write!(fmt, "<NOTHING>"),
-            HdbValue::NULL(_) => write!(fmt, "<NULL>"),
+            HdbValue::NULL => write!(fmt, "<NULL>"),
             HdbValue::TINYINT(value) => write!(fmt, "{}", value),
             HdbValue::SMALLINT(value) => write!(fmt, "{}", value),
             HdbValue::INT(value) => write!(fmt, "{}", value),

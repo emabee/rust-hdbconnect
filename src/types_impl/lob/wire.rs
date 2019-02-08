@@ -18,7 +18,7 @@ pub(crate) fn parse_blob(
     let (is_null, is_data_included, is_last_data) = parse_lob_1(rdr)?;
     if is_null {
         if nullable {
-            Ok(HdbValue::NULL(TypeId::BLOB))
+            Ok(HdbValue::NULL)
         } else {
             Err(HdbError::Impl(
                 "found null value for not-null BLOB column".to_owned(),
@@ -44,7 +44,7 @@ pub(crate) fn parse_clob(
     let (is_null, is_data_included, is_last_data) = parse_lob_1(rdr)?;
     if is_null {
         if nullable {
-            Ok(HdbValue::NULL(TypeId::CLOB))
+            Ok(HdbValue::NULL)
         } else {
             Err(HdbError::Impl(
                 "found null value for not-null CLOB column".to_owned(),
@@ -72,7 +72,7 @@ pub(crate) fn parse_nclob(
     let (is_null, is_data_included, is_last_data) = parse_lob_1(rdr)?;
     if is_null {
         if nullable {
-            Ok(HdbValue::NULL(TypeId::NCLOB))
+            Ok(HdbValue::NULL)
         } else {
             Err(HdbError::Impl(
                 "found null value for not-null NCLOB column".to_owned(),

@@ -1,5 +1,4 @@
 use crate::protocol::parts::hdb_value::HdbValue;
-use crate::protocol::parts::type_id::TypeId;
 use crate::{HdbError, HdbResult};
 use byteorder::{LittleEndian, ReadBytesExt};
 use chrono::{NaiveTime, Timelike};
@@ -104,7 +103,7 @@ pub fn parse_secondtime(nullable: bool, rdr: &mut io::BufRead) -> HdbResult<HdbV
     let i = rdr.read_i32::<LittleEndian>()?;
     if i == NULL_REPRESENTATION {
         if nullable {
-            Ok(HdbValue::NULL(TypeId::SECONDTIME))
+            Ok(HdbValue::NULL)
         } else {
             Err(HdbError::Impl(
                 "found NULL value for NOT NULL scondtime column".to_owned(),

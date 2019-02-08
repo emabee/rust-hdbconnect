@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.14.1] 2019-02-08
+
+Improve HdbValue, TypedId, and handling of parameters in PreparedStatement.
+Add method PreparedStatement.execute_row().
+
 ## [0.13.0] 2019-01-30
 
 - revise names of some metadata methods
