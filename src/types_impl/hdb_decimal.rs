@@ -34,21 +34,7 @@ impl HdbDecimal {
         let mut raw = [0_u8; 16];
         rdr.read_exact(&mut raw[..])?;
         let is_null = raw[15] == 112
-            && raw[14] == 0
-            && raw[13] == 0
-            && raw[12] == 0
-            && raw[11] == 0
-            && raw[10] == 0
-            && raw[9] == 0
-            && raw[8] == 0
-            && raw[7] == 0
-            && raw[6] == 0
-            && raw[5] == 0
-            && raw[4] == 0
-            && raw[3] == 0
-            && raw[2] == 0
-            && raw[1] == 0
-            && raw[0] == 0;
+            && raw[0..=14].into_iter().all(|el|*el==0);
 
         if is_null {
             if nullable {
