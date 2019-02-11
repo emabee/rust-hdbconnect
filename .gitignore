@@ -4,3 +4,4 @@ examples/_*.rs
 test_logs*/*
 target
 Z_TMP
+Cargo.lock
