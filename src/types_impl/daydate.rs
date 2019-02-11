@@ -1,10 +1,8 @@
 use crate::protocol::parts::hdb_value::HdbValue;
 use crate::{HdbError, HdbResult};
 use byteorder::{LittleEndian, ReadBytesExt};
-use chrono::{Datelike, NaiveDate};
 use serde_derive::Serialize;
 use std::cmp;
-use std::error::Error;
 use std::fmt;
 use std::io;
 
@@ -44,29 +42,8 @@ impl DayDate {
         &self.0
     }
 
-    /// Factory method for DayDate with all fields.
-    pub fn from_ymd(y: i32, m: u32, d: u32) -> HdbResult<DayDate> {
-        if y < 1 || y > 9999 {
-            return Err(HdbError::Usage(
-                "Only years between 1 and 9999 are supported".to_owned(),
-            ));
-        }
-        if m < 1 || m > 12 {
-            return Err(HdbError::Usage(
-                "Only months between 1 and 12 are supported".to_owned(),
-            ));
-        }
-        if d < 1 || d > 31 {
-            return Err(HdbError::Usage(
-                "Only days between 1 and 31 are supported".to_owned(),
-            ));
-        }
-
-        Ok(DayDate(1 + to_day_number(y as u32, m, d)))
-    }
-
     /// Convert into tuple of "elements".
-    pub fn as_ymd(&self) -> (i32, u32, u32) {
+    pub(crate) fn as_ymd(&self) -> (i32, u32, u32) {
         let datevalue = match self.0 {
             0 => 0, // maps the special value '' == 0 to '0001-01-01' = 1
             v => v - 1,
@@ -101,61 +78,9 @@ impl DayDate {
         (year, month, day)
     }
 
-    /// Parses a `DayDate` from a String.
-    ///
-    /// Note that Chrono types serialize as formatted Strings.
-    /// We parse such (and other) Strings and construct a `DayDate`.
-    pub fn from_date_string(s: &str) -> HdbResult<DayDate> {
-        type FSD = fn(&str) -> HdbResult<DayDate>;
-
-        let funcs: Vec<FSD> = vec![DayDate::from_string_day];
-
-        for func in funcs {
-            if let Ok(daydate) = func(s) {
-                return Ok(daydate);
-            }
-        }
-        Err(HdbError::Usage(format!(
-            "Cannot parse DayDate from given date string\"{}\"",
-            s,
-        )))
-    }
-
-    fn from_string_day(s: &str) -> HdbResult<DayDate> {
-        let nd = NaiveDate::parse_from_str(s, "%Y-%m-%d")
-            .map_err(|e| HdbError::Usage(e.description().to_owned()))?;
-        DayDate::from_ymd(nd.year(), nd.month(), nd.day())
-    }
 }
 
-fn to_day_number(y: u32, m: u32, d: u32) -> i32 {
-    let (yd, md) = to_day(m);
-    let y2 = y as i32 + yd;
-    let mut daynr = ((1461 * y2) >> 2) + md + d as i32 - 307;
-    if daynr > 577_746_i32 {
-        daynr += 2 - ((3 * ((y2 + 100) / 100)) >> 2);
-    }
-    daynr
-}
-fn to_day(m: u32) -> (i32, i32) {
-    match m {
-        1 => (-1, 306),
-        2 => (-1, 337),
-        3 => (0, 0),
-        4 => (0, 31),
-        5 => (0, 61),
-        6 => (0, 92),
-        7 => (0, 122),
-        8 => (0, 153),
-        9 => (0, 184),
-        10 => (0, 214),
-        11 => (0, 245),
-        12 => (0, 275),
-        _ => panic!("unexpected value m = {} in to_day()", m),
-    }
-}
-
-pub fn parse_daydate(nullable: bool, rdr: &mut io::BufRead) -> HdbResult<HdbValue> {
+pub(crate) fn parse_daydate(nullable: bool, rdr: &mut io::BufRead) -> HdbResult<HdbValue> {
     let i = rdr.read_i32::<LittleEndian>()?;
     if i == NULL_REPRESENTATION {
         if nullable {

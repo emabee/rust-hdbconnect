@@ -1,4 +1,3 @@
-use crate::hdb_error::HdbError;
 use crate::types_impl::lob::new_blob_to_db;
 use bigdecimal::ParseBigDecimalError;
 use std::num::ParseFloatError;
@@ -325,8 +324,6 @@ impl DbvFactory for &ParameterDescriptor {
         let map_f = |e: ParseFloatError| {
             parse_error(value, "some float type".to_string(), Some(Box::new(e)))
         };
-        let map_d =
-            |e: HdbError| parse_error(value, "some date type".to_string(), Some(Box::new(e)));
 
         let tid = self.type_id();
         Ok(match tid {
@@ -351,16 +348,10 @@ impl DbvFactory for &ParameterDescriptor {
                 HdbValue::DECIMAL(BigDecimal::from_str(value).map_err(map_bd)?)
             }
 
-            TypeId::LONGDATE => {
-                HdbValue::LONGDATE(LongDate::from_date_string(value).map_err(map_d)?)
-            }
-            TypeId::SECONDDATE => {
-                HdbValue::SECONDDATE(SecondDate::from_date_string(value).map_err(map_d)?)
-            }
-            TypeId::DAYDATE => HdbValue::DAYDATE(DayDate::from_date_string(value).map_err(map_d)?),
-            TypeId::SECONDTIME => {
-                HdbValue::SECONDTIME(SecondTime::from_date_string(value).map_err(map_d)?)
-            }
+            TypeId::LONGDATE =>HdbValue::STRING(String::from(value)),
+            TypeId::SECONDDATE => HdbValue::STRING(String::from(value)),
+            TypeId::DAYDATE => HdbValue::STRING(String::from(value)),
+            TypeId::SECONDTIME => HdbValue::STRING(String::from(value)),
             _ => return Err(type_mismatch("&str", self.descriptor())),
         })
     }
