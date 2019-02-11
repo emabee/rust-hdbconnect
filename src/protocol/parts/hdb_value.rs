@@ -5,9 +5,8 @@ use crate::protocol::util;
 use crate::types::{BLob, CLob, DayDate, LongDate, NCLob, SecondDate, SecondTime};
 use crate::types_impl::daydate::parse_daydate;
 use crate::types_impl::decimal::{emit_decimal, parse_decimal};
-use crate::types_impl::lob::{
-    emit_blob_header, emit_clob_header, emit_nclob_header, parse_blob, parse_clob, parse_nclob,
-};
+// use crate::types_impl::lob::{emit_blob_header, emit_clob_header, emit_nclob_header};
+use crate::types_impl::lob::{parse_blob, parse_clob, parse_nclob};
 use crate::types_impl::longdate::parse_longdate;
 use crate::types_impl::seconddate::parse_seconddate;
 use crate::types_impl::secondtime::parse_secondtime;
@@ -181,7 +180,7 @@ impl HdbValue {
 
     pub(crate) fn emit<T: std::io::Write>(
         &self,
-        data_pos: &mut i32,
+        _data_pos: &mut i32,
         descriptor: &ParameterDescriptor,
         w: &mut T,
     ) -> HdbResult<()> {
@@ -202,18 +201,25 @@ impl HdbValue {
                 HdbValue::SECONDDATE(ref sd) => w.write_i64::<LittleEndian>(*sd.ref_raw())?,
                 HdbValue::DAYDATE(ref dd) => w.write_i32::<LittleEndian>(*dd.ref_raw())?,
                 HdbValue::SECONDTIME(ref st) => w.write_u32::<LittleEndian>(*st.ref_raw())?,
-                HdbValue::CLOB(ref clob) => emit_clob_header(clob.len()?, data_pos, w)?,
-                HdbValue::NCLOB(ref nclob) => emit_nclob_header(nclob.len()?, data_pos, w)?,
-                HdbValue::BLOB(ref blob) => emit_blob_header(blob.len_alldata(), data_pos, w)?,
+                // HdbValue::CLOB(ref clob) => {
+                //     emit_clob_header(clob.total_byte_length(), data_pos, w)?
+                // }
+                // HdbValue::NCLOB(ref nclob) => {
+                //     emit_nclob_header(nclob.total_byte_length(), data_pos, w)?
+                // }
+                // HdbValue::BLOB(ref blob) => {
+                //     emit_blob_header(blob.total_byte_length(), data_pos, w)?
+                // }
                 HdbValue::STRING(ref s) => emit_length_and_string(s, w)?,
                 HdbValue::BINARY(ref v) | HdbValue::GEOMETRY(ref v) | HdbValue::POINT(ref v) => {
                     emit_length_and_bytes(v, w)?
                 }
 
-                HdbValue::NOTHING => {
-                    return Err(HdbError::Usage(
-                        "HdbValue::NOTHING cannot be sent to the database".to_string(),
-                    ));
+                _ => {
+                    return Err(HdbError::Usage(format!(
+                        "HdbValue::{} cannot be sent to the database",
+                        self
+                    )));
                 }
             }
         }
@@ -257,9 +263,9 @@ impl HdbValue {
             | HdbValue::LONGDATE(_)
             | HdbValue::SECONDDATE(_) => 8,
 
-            HdbValue::CLOB(ref clob) => 9 + clob.len()?,
-            HdbValue::NCLOB(ref nclob) => 9 + nclob.len()?,
-            HdbValue::BLOB(ref blob) => 9 + blob.len_alldata(),
+            HdbValue::CLOB(ref clob) => 9 + clob.total_byte_length() as usize,
+            HdbValue::NCLOB(ref nclob) => 9 + nclob.total_byte_length() as usize,
+            HdbValue::BLOB(ref blob) => 9 + blob.total_byte_length() as usize,
 
             HdbValue::STRING(ref s) => binary_length(util::cesu8_length(s)),
 
@@ -313,6 +319,10 @@ impl HdbValue {
             TypeId::SECONDDATE => Ok(parse_seconddate(nullable, rdr)?),
             TypeId::DAYDATE => Ok(parse_daydate(nullable, rdr)?),
             TypeId::SECONDTIME => Ok(parse_secondtime(nullable, rdr)?),
+
+            TypeId::NLOCATOR => Err(HdbError::Impl(
+                "no implementation for parsing NLOCATOR".to_string(),
+            )),
         }
     }
 }
@@ -561,12 +571,7 @@ impl fmt::Display for HdbValue {
 
             HdbValue::CLOB(_) => write!(fmt, "<CLOB>"),
             HdbValue::NCLOB(_) => write!(fmt, "<NCLOB>"),
-            HdbValue::BLOB(ref blob) => write!(
-                fmt,
-                "<BLOB length = {}, read = {}>",
-                blob.len_alldata(),
-                blob.len_readdata()
-            ),
+            HdbValue::BLOB(ref blob) => write!(fmt, "<BLOB length = {}>", blob.total_byte_length()),
 
             HdbValue::BOOLEAN(value) => write!(fmt, "{}", value),
             HdbValue::LONGDATE(ref value) => write!(fmt, "{}", value),

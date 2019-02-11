@@ -72,13 +72,6 @@ impl ParameterRow {
                 }
             }
         }
-
-        // BLOBs only emitted their header, the data now
-        for value in &(self.0) {
-            if let HdbValue::BLOB(ref blob) = *value {
-                w.write_all(blob.ref_to_bytes()?)?;
-            }
-        }
         Ok(())
     }
 }

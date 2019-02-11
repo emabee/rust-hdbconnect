@@ -23,7 +23,7 @@ use crate::{HdbError, HdbResult};
 use std::io::Write;
 use std::mem;
 
-pub const DEFAULT_FETCH_SIZE: u32 = 32;
+pub const DEFAULT_FETCH_SIZE: u32 = 1000;
 pub const DEFAULT_LOB_READ_LENGTH: i32 = 1_000_000;
 
 #[derive(Debug)]

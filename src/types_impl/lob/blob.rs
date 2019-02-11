@@ -2,182 +2,206 @@ use crate::conn_core::AmConnCore;
 use crate::protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
 use crate::types_impl::lob::fetch_a_lob_chunk;
 use crate::{HdbError, HdbResult};
-use serde_derive::Serialize;
 use std::cell::RefCell;
-use std::cmp;
 use std::io::{self, Write};
 
 /// BLob implementation that is used within `HdbValue::BLOB`.
-#[derive(Clone, Debug, Serialize)]
-pub struct BLob(BLobEnum);
-
-#[derive(Clone, Debug, Serialize)]
-enum BLobEnum {
-    FromDB(RefCell<BLobHandle>),
-    ToDB(Vec<u8>),
-}
+#[derive(Clone, Debug)]
+pub struct BLob(RefCell<BLobHandle>);
 
 pub(crate) fn new_blob_from_db(
     am_conn_core: &AmConnCore,
     is_data_complete: bool,
-    length_b: u64,
+    total_byte_length: u64,
     locator_id: u64,
     data: Vec<u8>,
 ) -> BLob {
-    BLob(BLobEnum::FromDB(RefCell::new(BLobHandle::new(
+    BLob(RefCell::new(BLobHandle::new(
         am_conn_core,
         is_data_complete,
-        length_b,
+        total_byte_length,
         locator_id,
         data,
-    ))))
-}
-
-// Factory method for BLobs that are to be sent to the database.
-pub(crate) fn new_blob_to_db(vec: Vec<u8>) -> BLob {
-    BLob(BLobEnum::ToDB(vec))
+    )))
 }
 
 impl BLob {
-    /// Length of contained data.
-    pub fn len_alldata(&self) -> usize {
-        match self.0 {
-            BLobEnum::FromDB(ref handle) => handle.borrow_mut().len_alldata() as usize,
-            BLobEnum::ToDB(ref vec) => vec.len(),
-        }
-    }
+    /// Converts into the BLObs data as Vec<u8>.
+    ///
+    /// All outstanding data (data that were not yet fetched from the server) are fetched
+    /// _into_ this BLob object,
+    /// before the complete data, as far as they were not yet read _from_ this BLob object,
+    /// are returned.
+    ///
+    ///
+    /// ## Example
+    ///
+    /// ```rust, no-run
+    /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, Row};
+    /// # fn main() { }
+    /// # fn foo() -> HdbResult<()> {
+    /// # let params = "".into_connect_params()?;
+    /// # let mut connection = Connection::new(params)?;
+    /// # let query = "";
+    ///  let mut resultset = connection.query(query)?;
+    ///  let mut blob = resultset.next_row()?.unwrap().next_value().unwrap().try_into_blob()?;
+    ///
+    ///  let b = blob.into_bytes()?; // Vec<u8>, can be huge
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Alternative
+    ///
+    /// For larger objects, a streaming approach using the `Read` implementation of BLob
+    /// might by more appropriate.
+    ///
+    /// ## Example
+    ///
+    /// ```rust, no-run
+    /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, Row};
+    /// # fn main() { }
+    /// # fn foo() -> HdbResult<()> {
+    /// # let params = "".into_connect_params()?;
+    /// # let mut connection = Connection::new(params)?;
+    /// # let mut writer = Vec::<u8>::new();
+    /// # let query = "select chardata from TEST_NCLOBS";
+    /// # let mut resultset = connection.query(query)?;
+    /// # let mut blob = resultset.next_row()?.unwrap().next_value().unwrap().try_into_blob()?;
+    ///  std::io::copy(&mut blob, &mut writer)?;
+    /// # Ok(())
+    /// # }
+    /// ```
 
-    /// Length of read data.
-    pub fn len_readdata(&self) -> usize {
-        match self.0 {
-            BLobEnum::FromDB(ref handle) => handle.borrow_mut().len_readdata() as usize,
-            BLobEnum::ToDB(ref vec) => vec.len(),
-        }
-    }
-
-    /// Is container empty
-    pub fn is_empty(&self) -> HdbResult<bool> {
-        Ok(self.len_alldata() == 0)
-    }
-
-    /// Ref to the contained Vec<u8>.
-    pub fn ref_to_bytes(&self) -> HdbResult<&Vec<u8>> {
-        trace!("BLob::ref_to_bytes()");
-        match self.0 {
-            BLobEnum::FromDB(_) => Err(HdbError::impl_("cannot serialize BLobHandle")),
-            BLobEnum::ToDB(ref vec) => Ok(vec),
-        }
-    }
-
-    /// Converts into the contained Vec<u8>.
     pub fn into_bytes(self) -> HdbResult<Vec<u8>> {
         trace!("BLob::into_bytes()");
-        match self.0 {
-            BLobEnum::FromDB(handle) => handle.into_inner().into_bytes(),
-            BLobEnum::ToDB(vec) => Ok(vec),
-        }
+        self.0.into_inner().into_bytes()
     }
 
-    /// Returns the maximum size of the internal buffers.
+    /// Total length of data.
+    pub fn total_byte_length(&self) -> u64 {
+        self.0.borrow_mut().total_byte_length()
+    }
+
+    /// Returns true if the BLob does not contain data.
+    pub fn is_empty(&self) -> bool {
+        self.total_byte_length() == 0
+    }
+
+    /// Returns the maximum size of the internal buffers, in bytes.
     ///
-    /// Tests can verify that this value does not exceed `lob_read_size` +
-    /// `buf.len()`.
-    pub fn max_size(&self) -> usize {
-        match self.0 {
-            BLobEnum::FromDB(ref handle) => handle.borrow().max_size(),
-            BLobEnum::ToDB(ref v) => v.len(),
-        }
+    /// With streaming, this value should not exceed `lob_read_size` plus
+    /// the buffer size used by the reader.
+    pub fn max_buf_len(&self) -> usize {
+        self.0.borrow().max_buf_len()
+    }
+
+    /// Current size of the internal buffer, in bytes.
+    pub fn cur_buf_len(&self) -> usize {
+        self.0.borrow_mut().cur_buf_len() as usize
     }
 }
 
 // Support for BLob streaming
 impl io::Read for BLob {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        match self.0 {
-            BLobEnum::FromDB(ref blob_handle) => blob_handle.borrow_mut().read(buf),
-            BLobEnum::ToDB(ref v) => v.as_slice().read(buf),
-        }
+        self.0.borrow_mut().read(buf)
     }
 }
 
 // `BLobHandle` is used for BLobs that we receive from the database.
-// The data are often not transferred completely,
-// so we carry internally a database connection and the
-// necessary controls to support fetching remaining data on demand.
-#[derive(Clone, Debug, Serialize)]
+// The data are often not transferred completely, so we carry internally
+// a database connection and the necessary controls to support fetching
+// remaining data on demand.
+#[derive(Clone, Debug)]
 struct BLobHandle {
-    #[serde(skip)]
     o_am_conn_core: Option<AmConnCore>,
     is_data_complete: bool,
-    length_b: u64,
+    total_byte_length: u64,
     locator_id: u64,
     data: Vec<u8>,
-    max_size: usize,
+    max_buf_len: usize,
     acc_byte_length: usize,
-    #[serde(skip)]
     server_resource_consumption_info: ServerResourceConsumptionInfo,
 }
 impl BLobHandle {
-    pub fn new(
+    fn new(
         am_conn_core: &AmConnCore,
         is_data_complete: bool,
-        length_b: u64,
+        total_byte_length: u64,
         locator_id: u64,
         data: Vec<u8>,
     ) -> BLobHandle {
         trace!(
-            "BLobHandle::new() with length_b = {}, is_data_complete = {}, data.length() = {}",
-            length_b,
+            "BLobHandle::new() with total_byte_length = {}, is_data_complete = {}, data.length() = {}",
+            total_byte_length,
             is_data_complete,
             data.len()
         );
         BLobHandle {
             o_am_conn_core: Some(am_conn_core.clone()),
-            length_b,
+            total_byte_length,
             is_data_complete,
             locator_id,
-            max_size: data.len(),
+            max_buf_len: data.len(),
             acc_byte_length: data.len(),
             data,
             server_resource_consumption_info: Default::default(),
         }
     }
 
-    pub fn len_alldata(&mut self) -> u64 {
-        self.length_b
+    fn total_byte_length(&mut self) -> u64 {
+        self.total_byte_length
     }
 
-    pub fn len_readdata(&mut self) -> usize {
+    fn cur_buf_len(&mut self) -> usize {
         self.data.len()
     }
 
     fn fetch_next_chunk(&mut self) -> HdbResult<()> {
-        let (mut reply_data, reply_is_last_data) = fetch_a_lob_chunk(
-            &mut self.o_am_conn_core,
-            self.locator_id,
-            self.length_b,
-            self.acc_byte_length as u64,
-            &mut self.server_resource_consumption_info,
-        )?;
+        if self.is_data_complete {
+            return Err(HdbError::impl_("fetch_next_chunk(): already complete"));
+        }
 
-        self.acc_byte_length += reply_data.len();
-        self.data.append(&mut reply_data);
-        self.is_data_complete = reply_is_last_data;
-        self.max_size = cmp::max(self.data.len(), self.max_size);
+        match self.o_am_conn_core {
+            None => Err(HdbError::Usage(
+                "Fetching more BLob chunks is no more possible (connection already closed)"
+                    .to_owned(),
+            )),
+            Some(ref mut am_conn_core) => {
+                let (mut reply_data, reply_is_last_data) = fetch_a_lob_chunk(
+                    am_conn_core,
+                    self.locator_id,
+                    self.acc_byte_length as u64,
+                    {
+                        let guard = am_conn_core.lock()?;
+                        std::cmp::min(
+                            (*guard).get_lob_read_length() as u32,
+                            (self.total_byte_length - self.acc_byte_length as u64) as u32,
+                        )
+                    },
+                    &mut self.server_resource_consumption_info,
+                )?;
 
-        assert_eq!(
-            self.is_data_complete,
-            self.length_b == self.acc_byte_length as u64
-        );
-        trace!(
-            "fetch_next_chunk: is_data_complete = {}, data.len() = {}",
-            self.is_data_complete,
-            self.data.len()
-        );
-        Ok(())
+                self.acc_byte_length += reply_data.len();
+                self.data.append(&mut reply_data);
+                self.is_data_complete = reply_is_last_data;
+                self.max_buf_len = std::cmp::max(self.data.len(), self.max_buf_len);
+
+                assert_eq!(
+                    self.is_data_complete,
+                    self.total_byte_length == self.acc_byte_length as u64
+                );
+                trace!(
+                    "fetch_next_chunk: is_data_complete = {}, data.len() = {}",
+                    self.is_data_complete,
+                    self.data.len()
+                );
+                Ok(())
+            }
+        }
     }
 
-    /// Converts a BLob into a Vec<u8> containing its data.
     fn load_complete(&mut self) -> HdbResult<()> {
         trace!("load_complete()");
         while !self.is_data_complete {
@@ -186,12 +210,12 @@ impl BLobHandle {
         Ok(())
     }
 
-    pub fn max_size(&self) -> usize {
-        self.max_size
+    fn max_buf_len(&self) -> usize {
+        self.max_buf_len
     }
 
-    /// Converts a BLob into a Vec<u8> containing its data.
-    pub fn into_bytes(mut self) -> HdbResult<Vec<u8>> {
+    // Converts a BLobHandle into a Vec<u8> containing its data.
+    fn into_bytes(mut self) -> HdbResult<Vec<u8>> {
         trace!("into_bytes()");
         self.load_complete()?;
         Ok(self.data)
@@ -208,7 +232,7 @@ impl io::Read for BLobHandle {
                 .map_err(|e| io::Error::new(io::ErrorKind::UnexpectedEof, e))?;
         }
 
-        let count = cmp::min(self.data.len(), buf.len());
+        let count = std::cmp::min(self.data.len(), buf.len());
         buf.write_all(&self.data[0..count])?;
         self.data.drain(0..count);
         Ok(count)

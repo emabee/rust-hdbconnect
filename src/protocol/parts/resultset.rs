@@ -338,7 +338,7 @@ impl ResultSet {
                     _ => {
                         return Err(HdbError::impl_(
                             "Inconsistent StatementContext part found for ResultSet",
-                        ))
+                        ));
                     }
                 };
 
@@ -356,7 +356,7 @@ impl ResultSet {
                     _ => {
                         return Err(HdbError::impl_(
                             "Inconsistent metadata part found for ResultSet",
-                        ))
+                        ));
                     }
                 };
 
@@ -379,7 +379,7 @@ impl ResultSet {
                     _ => {
                         return Err(HdbError::impl_(
                             "Inconsistent StatementContext part found for ResultSet",
-                        ))
+                        ));
                     }
                 };
 

@@ -25,16 +25,18 @@ fn test_text(
     debug!("setup...");
 
     connection.multiple_statements_ignore_err(vec!["drop table TEST_BOOL"]);
-    let stmts = vec!["create table TEST_BOOL ( \
-            ob0 BOOLEAN, ob1 BOOLEAN, ob2 BOOLEAN, b3 BOOLEAN NOT NULL, b4 BOOLEAN NOT NULL \
-    )"];
+    let stmts = vec![
+        "create table TEST_BOOL ( \
+         ob0 BOOLEAN, ob1 BOOLEAN, ob2 BOOLEAN, b3 BOOLEAN NOT NULL, b4 BOOLEAN NOT NULL \
+         )",
+    ];
     connection.multiple_statements(stmts)?;
 
     let mut insert_stmt =
         connection.prepare("insert into TEST_BOOL (ob0, ob1, ob2, b3, b4) values (?,?,?,?,?)")?;
 
     debug!("trying add batch");
-    let none : Option<bool> = None;
+    let none: Option<bool> = None;
     insert_stmt.add_batch(&(true, false, none, true, false))?;
 
     debug!("trying execute_batch");

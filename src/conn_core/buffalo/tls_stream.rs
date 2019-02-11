@@ -50,7 +50,7 @@ fn connect_tcp(
             return Err(io::Error::new(
                 io::ErrorKind::Other,
                 "No server certificates provided",
-            ))
+            ));
         }
         Some(ServerCerts::Direct(pem)) => {
             let mut cursor = Cursor::new(pem);

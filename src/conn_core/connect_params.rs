@@ -190,7 +190,7 @@ impl IntoConnectParams for Url {
                 return Err(HdbError::Usage(format!(
                     "Unknown protocol '{}'; only 'hdbsql' and 'hdbsqls' are supported",
                     s
-                )))
+                )));
             }
         };
 

@@ -232,7 +232,7 @@ impl HdbResponse {
             (None, None) | (_, _) => {
                 return Err(HdbError::Impl(
                     "Nothing found, but a single Resultset was expected".to_owned(),
-                ))
+                ));
             }
         })
     }

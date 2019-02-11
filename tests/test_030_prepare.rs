@@ -55,8 +55,10 @@ fn prepare_insert_statement(
     let affrows = insert_stmt2.execute_batch()?.into_affected_rows();
     debug!("affected rows: {:?}", affrows);
 
-    debug!("prepare & execute on first connection with auto_commit off, \
-            rollback, do it again and commit");
+    debug!(
+        "prepare & execute on first connection with auto_commit off, \
+         rollback, do it again and commit"
+    );
     connection.set_auto_commit(false)?;
     let count = connection.get_call_count()?;
     let mut insert_stmt = connection.prepare(insert_stmt_str)?;

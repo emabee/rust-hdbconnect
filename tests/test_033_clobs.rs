@@ -121,9 +121,9 @@ fn test_clobs(
     let fingerprint4 = hasher.result();
     assert_eq!(fingerprint1, fingerprint4);
 
-    debug!("clob.max_size(): {}", clob.max_size());
-    // io::copy works with 8MB, if we have less, we fetch 200_000:
-    assert!(clob.max_size() < 210_000);
+    debug!("clob.max_size(): {}", clob.max_buf_len());
+    // io::copy works with 8MB, our buffer remains at about 200_000:
+    assert!(clob.max_buf_len() < 210_000);
 
     Ok(())
 }

@@ -1,5 +1,4 @@
 use crate::hdb_error::HdbError;
-use crate::types_impl::lob::new_blob_to_db;
 use bigdecimal::ParseBigDecimalError;
 use std::num::ParseFloatError;
 use std::num::ParseIntError;
@@ -368,10 +367,11 @@ impl DbvFactory for &ParameterDescriptor {
     fn from_bytes(&self, value: &[u8]) -> Result<HdbValue, SerializationError> {
         let tid = self.type_id();
         Ok(match tid {
-            TypeId::BINARY | TypeId::VARBINARY => HdbValue::BINARY((*value).to_vec()),
+            TypeId::BLOB | TypeId::BINARY | TypeId::VARBINARY => {
+                HdbValue::BINARY((*value).to_vec())
+            }
             TypeId::GEOMETRY => HdbValue::GEOMETRY((*value).to_vec()),
             TypeId::POINT => HdbValue::POINT((*value).to_vec()),
-            TypeId::BLOB => HdbValue::BLOB(new_blob_to_db((*value).to_vec())),
             TypeId::NCLOB => HdbValue::STRING(
                 String::from_utf8(value.to_vec())
                     .map_err(|e| parse_error("bytes", "NCLOB".to_string(), Some(Box::new(e))))?,

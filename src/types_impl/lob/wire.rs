@@ -6,8 +6,7 @@ use crate::types_impl::lob::blob::new_blob_from_db;
 use crate::types_impl::lob::clob::new_clob_from_db;
 use crate::types_impl::lob::nclob::new_nclob_from_db;
 use crate::{HdbError, HdbResult};
-
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use byteorder::{LittleEndian, ReadBytesExt};
 use std::io;
 
 pub(crate) fn parse_blob(
@@ -25,11 +24,11 @@ pub(crate) fn parse_blob(
             ))
         }
     } else {
-        let (_, length_b, locator_id, data) = parse_lob_2(rdr, is_data_included)?;
+        let (_, total_byte_length, locator_id, data) = parse_lob_2(rdr, is_data_included)?;
         Ok(HdbValue::BLOB(new_blob_from_db(
             am_conn_core,
             is_last_data,
-            length_b,
+            total_byte_length,
             locator_id,
             data,
         )))
@@ -51,12 +50,13 @@ pub(crate) fn parse_clob(
             ))
         }
     } else {
-        let (length_c, length_b, locator_id, data) = parse_lob_2(rdr, is_data_included)?;
+        let (total_char_length, total_byte_length, locator_id, data) =
+            parse_lob_2(rdr, is_data_included)?;
         Ok(HdbValue::CLOB(new_clob_from_db(
             am_conn_core,
             is_last_data,
-            length_c,
-            length_b,
+            total_char_length,
+            total_byte_length,
             locator_id,
             data,
         )))
@@ -79,12 +79,13 @@ pub(crate) fn parse_nclob(
             ))
         }
     } else {
-        let (length_c, length_b, locator_id, data) = parse_lob_2(rdr, is_data_included)?;
+        let (total_char_length, total_byte_length, locator_id, data) =
+            parse_lob_2(rdr, is_data_included)?;
         let nclob = new_nclob_from_db(
             am_conn_core,
             is_last_data,
-            length_c,
-            length_b,
+            total_char_length,
+            total_byte_length,
             locator_id,
             data,
         );
@@ -109,54 +110,51 @@ fn parse_lob_2(
     is_data_included: bool,
 ) -> HdbResult<(u64, u64, u64, Vec<u8>)> {
     util::skip_bytes(2, rdr)?; // U2 (filler)
-    let length_c = rdr.read_u64::<LittleEndian>()?; // I8
-    let length_b = rdr.read_u64::<LittleEndian>()?; // I8
+    let total_char_length = rdr.read_u64::<LittleEndian>()?; // I8
+    let total_byte_length = rdr.read_u64::<LittleEndian>()?; // I8
     let locator_id = rdr.read_u64::<LittleEndian>()?; // I8
     let chunk_length = rdr.read_u32::<LittleEndian>()?; // I4
 
     if is_data_included {
         let data = util::parse_bytes(chunk_length as usize, rdr)?; // B[chunk_length]
-        Ok((length_c, length_b, locator_id, data))
+        Ok((total_char_length, total_byte_length, locator_id, data))
     } else {
-        Ok((length_c, length_b, locator_id, Vec::<u8>::new()))
+        Ok((
+            total_char_length,
+            total_byte_length,
+            locator_id,
+            Vec::<u8>::new(),
+        ))
     }
 }
 
-pub(crate) fn emit_blob_header(
-    v_len: usize,
-    data_pos: &mut i32,
-    w: &mut io::Write,
-) -> HdbResult<()> {
-    // bit 0: not used; bit 1: data is included; bit 2: no more data remaining
-    w.write_u8(0b_110_u8)?; // I1           Bit set for options
-    w.write_i32::<LittleEndian>(v_len as i32)?; // I4           LENGTH OF VALUE
-    w.write_i32::<LittleEndian>(*data_pos as i32)?; // I4           position
-    *data_pos += v_len as i32;
-    Ok(())
-}
+// pub(crate) fn emit_blob_header(v_len: u64, data_pos: &mut i32, w: &mut io::Write) -> HdbResult<()> {
+//     // bit 0: not used; bit 1: data is included; bit 2: no more data remaining
+//     w.write_u8(0b_110_u8)?; // I1           Bit set for options
+//     w.write_i32::<LittleEndian>(v_len as i32)?; // I4           LENGTH OF VALUE
+//     w.write_i32::<LittleEndian>(*data_pos as i32)?; // I4           position
+//     *data_pos += v_len as i32;
+//     Ok(())
+// }
 
-pub(crate) fn emit_clob_header(
-    s_len: usize,
-    data_pos: &mut i32,
-    w: &mut io::Write,
-) -> HdbResult<()> {
-    // bit 0: not used; bit 1: data is included; bit 2: no more data remaining
-    w.write_u8(0b_110_u8)?; // I1           Bit set for options
-    w.write_i32::<LittleEndian>(s_len as i32)?; // I4           LENGTH OF VALUE
-    w.write_i32::<LittleEndian>(*data_pos as i32)?; // I4           position
-    *data_pos += s_len as i32;
-    Ok(())
-}
+// pub(crate) fn emit_clob_header(s_len: u64, data_pos: &mut i32, w: &mut io::Write) -> HdbResult<()> {
+//     // bit 0: not used; bit 1: data is included; bit 2: no more data remaining
+//     w.write_u8(0b_110_u8)?; // I1           Bit set for options
+//     w.write_i32::<LittleEndian>(s_len as i32)?; // I4           LENGTH OF VALUE
+//     w.write_i32::<LittleEndian>(*data_pos as i32)?; // I4           position
+//     *data_pos += s_len as i32;
+//     Ok(())
+// }
 
-pub(crate) fn emit_nclob_header(
-    s_len: usize,
-    data_pos: &mut i32,
-    w: &mut io::Write,
-) -> HdbResult<()> {
-    // bit 0: not used; bit 1: data is included; bit 2: no more data remaining
-    w.write_u8(0b_110_u8)?; // I1           Bit set for options
-    w.write_i32::<LittleEndian>(s_len as i32)?; // I4           LENGTH OF VALUE
-    w.write_i32::<LittleEndian>(*data_pos as i32)?; // I4           position
-    *data_pos += s_len as i32;
-    Ok(())
-}
+// pub(crate) fn emit_nclob_header(
+//     s_len: u64,
+//     data_pos: &mut i32,
+//     w: &mut io::Write,
+// ) -> HdbResult<()> {
+//     // bit 0: not used; bit 1: data is included; bit 2: no more data remaining
+//     w.write_u8(0b_110_u8)?; // I1           Bit set for options
+//     w.write_i32::<LittleEndian>(s_len as i32)?; // I4           LENGTH OF VALUE
+//     w.write_i32::<LittleEndian>(*data_pos as i32)?; // I4           position
+//     *data_pos += s_len as i32;
+//     Ok(())
+// }

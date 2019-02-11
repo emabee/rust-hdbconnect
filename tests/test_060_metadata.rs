@@ -1,9 +1,7 @@
 mod test_utils;
 
 use flexi_logger::ReconfigurationHandle;
-use hdbconnect::{
-    TypeId, Connection, HdbResult, ParameterBinding, ParameterDirection, ResultSet,
-};
+use hdbconnect::{Connection, HdbResult, ParameterBinding, ParameterDirection, ResultSet, TypeId};
 use log::{debug, info};
 
 #[test]

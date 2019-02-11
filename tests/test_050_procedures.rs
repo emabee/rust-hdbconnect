@@ -2,7 +2,7 @@ mod test_utils;
 
 use flexi_logger::ReconfigurationHandle;
 use hdbconnect::{
-    TypeId, Connection, HdbResult, ParameterBinding, ParameterDirection, ResultSet, Row,
+    Connection, HdbResult, ParameterBinding, ParameterDirection, ResultSet, Row, TypeId,
 };
 use log::{debug, info};
 
@@ -21,7 +21,7 @@ pub fn test_050_procedures() -> HdbResult<()> {
 
     info!("{} calls to DB were executed", connection.get_call_count()?);
     Ok(())
-} 
+}
 
 fn very_simple_procedure(
     _log_handle: &mut ReconfigurationHandle,

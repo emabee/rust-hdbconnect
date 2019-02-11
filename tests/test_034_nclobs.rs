@@ -109,6 +109,8 @@ fn test_nclobs(
     // stream a clob from the database into a sink
     debug!("read big clob in streaming fashion");
 
+    // Connection.set_lob_read_length() affects NCLobs in chars (1, 2, or 3 bytes),
+    // NCLob::max_buf_len() (see below) is in bytes
     connection.set_lob_read_length(200_000)?;
 
     let mut resultset = connection.query("select chardata from TEST_NCLOBS")?;
@@ -123,10 +125,16 @@ fn test_nclobs(
     let fingerprint4 = hasher.result();
     assert_eq!(fingerprint1, fingerprint4);
 
-    debug!("nclob.max_size(): {}", nclob.max_size());
-    // set_lob_read_length deals now in chars (1, 2, or 3 bytes), max_size() in bytes
-    assert!(nclob.max_size() < 605_000);
+    debug!("nclob.max_buf_len(): {}", nclob.max_buf_len());
+    assert!(nclob.max_buf_len() < 605_000);
 
+    info!("read from somewhere within");
+    let mut resultset = connection.query("select chardata from TEST_NCLOBS")?;
+    let mut row = resultset.next_row().unwrap().unwrap();
+    let nclob: NCLob = row.next_value().unwrap().try_into_nclob().unwrap();
+    for i in 1030..1040 {
+        let _nclob_slice = nclob.read_slice(i, 100)?;
+    }
     Ok(())
 }
 
@@ -149,7 +157,12 @@ fn test_bytes_to_nclobs(
 
     let res = insert_stmt.add_batch(&(Bytes::new(&[255, 255]), Bytes::new(&[255, 255]))); // malformed utf-8
     assert_eq!(res.is_err(), true);
-    insert_stmt.execute_batch()?;
+    let response = insert_stmt.execute_batch()?;
+
+    assert_eq!(response.count(), 1);
+    let affect_rows = response.into_affected_rows()?;
+    assert_eq!(affect_rows.len(), 1);
+    assert_eq!(affect_rows[0], 1);
 
     debug!("and read it back");
     let query = "select chardata, chardata from TEST_NCLOBS_BYTES";

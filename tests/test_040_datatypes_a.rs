@@ -2,7 +2,7 @@ mod test_utils;
 
 use bigdecimal::BigDecimal;
 use flexi_logger::ReconfigurationHandle;
-use hdbconnect::{Connection, HdbValue, HdbResult};
+use hdbconnect::{Connection, HdbResult, HdbValue};
 use log::{debug, info};
 use serde_bytes::{ByteBuf, Bytes};
 use serde_derive::Deserialize;
@@ -126,15 +126,10 @@ fn write(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -
     )?;
 
     info!("insert nulls via prep-statement");
-    stmt.execute(&( (),(),(),(),(),(),(),(),(),(),(),(),(),() ))?;
+    stmt.execute(&std::iter::repeat(()).take(14).collect::<Vec<_>>())?;
 
     info!("insert nulls via prep-statement, using HdbValue::NULL");
-    stmt.execute_row(vec![
-        HdbValue::NULL, HdbValue::NULL, HdbValue::NULL, HdbValue::NULL,
-        HdbValue::NULL, HdbValue::NULL, HdbValue::NULL, HdbValue::NULL,
-        HdbValue::NULL, HdbValue::NULL, HdbValue::NULL, HdbValue::NULL,
-        HdbValue::NULL, HdbValue::NULL 
-    ])?;
+    stmt.execute_row(std::iter::repeat(HdbValue::NULL).take(14).collect())?;
     Ok(())
 }
 

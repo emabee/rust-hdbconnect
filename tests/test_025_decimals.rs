@@ -51,13 +51,13 @@ fn test_025_decimals_impl(
     connection.multiple_statements_ignore_err(vec!["drop table TEST_DECIMALS"]);
     let stmts = vec![
         match ts {
-            TS::DECIMAL => 
+            TS::DECIMAL =>
         "create table TEST_DECIMALS (f1 NVARCHAR(100) primary key, f2 DECIMAL(7,5), f3 integer)",
-            TS::FIXED8 => 
+            TS::FIXED8 =>
         "create table TEST_DECIMALS (f1 NVARCHAR(100) primary key, f2 DECIMAL(7,5), f3 integer)",
-            TS::FIXED12 => 
+            TS::FIXED12 =>
         "create table TEST_DECIMALS (f1 NVARCHAR(100) primary key, f2 DECIMAL(28,5), f3 integer)",
-            TS::FIXED16 => 
+            TS::FIXED16 =>
         "create table TEST_DECIMALS (f1 NVARCHAR(100) primary key, f2 DECIMAL(38,5), f3 integer)",
         },
         "insert into TEST_DECIMALS (f1, f2) values('0.00000', 0.000)",
@@ -118,8 +118,9 @@ fn test_025_decimals_impl(
     }
 
     info!("Read and verify decimals to tuple");
-    let result: Vec<(String, String)> =
-        connection.query("select * from TEST_DECIMALS")?.try_into()?;
+    let result: Vec<(String, String)> = connection
+        .query("select * from TEST_DECIMALS")?
+        .try_into()?;
     for row in result {
         debug!("{}, {}", row.0, row.1);
         assert_eq!(row.0, row.1);

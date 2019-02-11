@@ -1,4 +1,5 @@
-use crate::HdbResult;
+use crate::types_impl::lob::NCLobSlice;
+use crate::{HdbError, HdbResult};
 use byteorder::ReadBytesExt;
 use cesu8;
 use std::io;
@@ -86,28 +87,62 @@ pub fn to_string_and_tail(mut cesu8: Vec<u8>) -> HdbResult<(String, Vec<u8>)> {
     Ok((string_from_cesu8(cesu8)?, tail))
 }
 
+// determine how many of the last characters must be cut off to ensure the string ends with
+// consistent cesu-8 that can be converted into utf-8
 fn get_tail_len(bytes: &[u8]) -> usize {
     match bytes.last() {
-        None => return 0,
-        Some(0...127) => return 0,
-        Some(0xC0...0xDF) => return 1,
-        Some(_) => {}
-    }
-
-    let len = bytes.len();
-    for i in 0..len - 1 {
-        let index = len - 2 - i;
-        if let Some(char_len) = get_cesu8_char_len(bytes[index], bytes[index + 1]) {
-            if index + char_len > len {
-                return len - index;
-            } else if index + char_len == len {
-                return 0;
-            } else {
-                return len - index - char_len;
+        None | Some(0...127) => 0,
+        Some(0xC0...0xDF) => 1,
+        Some(_) => {
+            let len = bytes.len();
+            for i in 0..len - 1 {
+                let index = len - 2 - i;
+                let cesu8_char_start = get_cesu8_char_start(&bytes[index..]);
+                if let Some(char_len) = match cesu8_char_start {
+                    Cesu8CharType::One => Some(1),
+                    Cesu8CharType::Two => Some(2),
+                    Cesu8CharType::Three => Some(3),
+                    Cesu8CharType::FirstHalfOfSurrogate => Some(6),
+                    Cesu8CharType::SecondHalfOfSurrogate
+                    | Cesu8CharType::NotAStart
+                    | Cesu8CharType::TooShort
+                    | Cesu8CharType::Empty => None,
+                } {
+                    if index + char_len > len {
+                        return len - index;
+                    } else if index + char_len == len {
+                        return 0;
+                    } else {
+                        return len - index - char_len;
+                    }
+                }
             }
+            panic!("no valid cutoff point found for {:?}!", bytes)
         }
     }
-    panic!("no valid cutoff point found for {:?}!", bytes)
+}
+
+pub fn split_off_orphaned_surrogates(cesu8: Vec<u8>) -> HdbResult<NCLobSlice> {
+    let (prefix, cesu8) = match get_cesu8_char_start(&cesu8) {
+        Cesu8CharType::One
+        | Cesu8CharType::Two
+        | Cesu8CharType::Three
+        | Cesu8CharType::FirstHalfOfSurrogate => (None, cesu8),
+        Cesu8CharType::SecondHalfOfSurrogate => {
+            (Some([cesu8[0], cesu8[1], cesu8[2]]), cesu8[3..].to_vec())
+        }
+        Cesu8CharType::NotAStart => return Err(HdbError::Impl("sadasdasdas".to_string())),
+        Cesu8CharType::Empty => (None, cesu8),
+        Cesu8CharType::TooShort => (None, cesu8),
+    };
+
+    let (data, postfix) = to_string_and_surrogate(cesu8)?;
+
+    Ok(NCLobSlice {
+        prefix,
+        data,
+        postfix,
+    })
 }
 
 // First half:
@@ -122,16 +157,34 @@ fn get_tail_len(bytes: &[u8]) -> usize {
 //  11100000 10000000 10000000  to  11101111 10111111 10111111
 //  E   0    8   0                  E   F    B   F
 //
-fn get_cesu8_char_len(b1: u8, b2: u8) -> Option<usize> {
-    // start of, or equal to, ...
-    match (b1, b2) {
-        (0x00...0x7F, _) => Some(1),           // ...plain ascii
-        (0xC0...0xDF, _) => Some(2),           // ...two-byte char
-        (0xED, 0xA0...0xAF) => Some(6),        // ...first half of surrogate pair
-        (0xED, 0xB0...0xBF) => None,           // ...second half of surrogate pair
-        (0xE0...0xEF, 0x80...0xBF) => Some(3), // ...non-surrogate three-byte char
-        (_, _) => None,                        // not a start
+fn get_cesu8_char_start(bytes: &[u8]) -> Cesu8CharType {
+    match bytes.len() {
+        0 => Cesu8CharType::Empty,
+        1 => match bytes[0] {
+            0x00...0x7F => Cesu8CharType::One,
+            0xC0...0xDF => Cesu8CharType::Two,
+            _ => Cesu8CharType::TooShort,
+        },
+        _ => match (bytes[0], bytes[1]) {
+            (0x00...0x7F, _) => Cesu8CharType::One,
+            (0xC0...0xDF, _) => Cesu8CharType::Two,
+            (0xED, 0xA0...0xAF) => Cesu8CharType::FirstHalfOfSurrogate,
+            (0xED, 0xB0...0xBF) => Cesu8CharType::SecondHalfOfSurrogate,
+            (0xE0...0xEF, 0x80...0xBF) => Cesu8CharType::Three,
+            (_, _) => Cesu8CharType::NotAStart,
+        },
     }
+}
+#[derive(Debug)]
+enum Cesu8CharType {
+    Empty,
+    TooShort,
+    NotAStart,
+    One,   // ...plain ascii
+    Two,   // ...two-byte char
+    Three, // ...non-surrogate three-byte char
+    FirstHalfOfSurrogate,
+    SecondHalfOfSurrogate,
 }
 
 #[cfg(test)]

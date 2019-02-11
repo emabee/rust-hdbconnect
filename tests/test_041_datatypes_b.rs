@@ -2,9 +2,9 @@ mod test_utils;
 
 // use chrono::NaiveDateTime;
 use flexi_logger::ReconfigurationHandle;
-use hdbconnect::{Connection, HdbValue, HdbResult};
-use log::{debug,info};
-use serde_bytes::{ByteBuf,Bytes};
+use hdbconnect::{Connection, HdbResult, HdbValue};
+use log::{debug, info};
+use serde_bytes::{ByteBuf, Bytes};
 use serde_derive::Deserialize;
 
 #[test] // cargo test --test test_041_datatypes_b -- --nocapture
@@ -107,30 +107,25 @@ fn write(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -
     )?;
 
     info!("insert nulls via prep-statement");
-    stmt.execute_row(vec![
-        HdbValue::NULL, HdbValue::NULL, HdbValue::NULL, HdbValue::NULL, HdbValue::NULL, 
-        HdbValue::NULL, HdbValue::NULL, HdbValue::NULL, HdbValue::NULL, HdbValue::NULL,
-    ])?;
+    stmt.execute_row(std::iter::repeat(HdbValue::NULL).take(10).collect())?;
     Ok(())
 }
 
-
-    #[derive(Debug, Deserialize)]
-    #[allow(non_snake_case)]
-    struct Data {
-        ID: u32,
-        FIELD_CLOB: Option<String>,
-        FIELD_NCLOB: Option<String>,
-        FIELD_BLOB: Option<ByteBuf>,
-        FIELD_BOOLEAN: Option<bool>,
-        FIELD_TEXT: Option<String>,
-        FIELD_SHORTTEXT: Option<String>,
-        FIELD_LONGDATE: Option<chrono::NaiveDateTime>,
-        FIELD_SECONDDATE: Option<chrono::NaiveDateTime>,
-        FIELD_DAYDATE: Option<chrono::NaiveDate>,
-        FIELD_SECONDTIME: Option<chrono::NaiveTime>,
-    }
-
+#[derive(Debug, Deserialize)]
+#[allow(non_snake_case)]
+struct Data {
+    ID: u32,
+    FIELD_CLOB: Option<String>,
+    FIELD_NCLOB: Option<String>,
+    FIELD_BLOB: Option<ByteBuf>,
+    FIELD_BOOLEAN: Option<bool>,
+    FIELD_TEXT: Option<String>,
+    FIELD_SHORTTEXT: Option<String>,
+    FIELD_LONGDATE: Option<chrono::NaiveDateTime>,
+    FIELD_SECONDDATE: Option<chrono::NaiveDateTime>,
+    FIELD_DAYDATE: Option<chrono::NaiveDate>,
+    FIELD_SECONDTIME: Option<chrono::NaiveTime>,
+}
 
 fn read(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -> HdbResult<()> {
     {
