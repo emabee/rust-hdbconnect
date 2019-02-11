@@ -121,9 +121,17 @@ fn test_clobs(
     let fingerprint4 = hasher.result();
     assert_eq!(fingerprint1, fingerprint4);
 
-    debug!("clob.max_size(): {}", clob.max_buf_len());
+    debug!("clob.max_buf_len(): {}", clob.max_buf_len());
     // io::copy works with 8MB, our buffer remains at about 200_000:
     assert!(clob.max_buf_len() < 210_000);
+
+    info!("read from somewhere within");
+    let mut resultset = connection.query("select chardata from TEST_CLOBS")?;
+    let mut row = resultset.next_row().unwrap().unwrap();
+    let clob: CLob = row.next_value().unwrap().try_into_clob().unwrap();
+    for i in 1000..1040 {
+        let _clob_slice = clob.read_slice(i, 100)?;
+    }
 
     Ok(())
 }

@@ -41,6 +41,11 @@ impl CLob {
         self.0.into_inner().into_string()
     }
 
+    /// Reads from given offset and the given length, in bytes.
+    pub fn read_slice(&self, offset: u64, length: u32) -> HdbResult<CLobSlice> {
+        self.0.borrow_mut().read_slice(offset, length)
+    }
+
     /// Total length of data.
     pub fn total_byte_length(&self) -> u64 {
         self.0.borrow_mut().total_byte_length()
@@ -63,6 +68,13 @@ impl CLob {
     pub fn cur_buf_len(&self) -> usize {
         self.0.borrow_mut().cur_buf_len() as usize
     }
+}
+
+#[derive(Debug)]
+pub struct CLobSlice {
+    pub prefix: Option<Vec<u8>>,
+    pub data: String,
+    pub postfix: Option<Vec<u8>>,
 }
 
 // Support for CLob streaming
@@ -128,6 +140,28 @@ impl CLobHandle {
             clob_handle.utf8.len()
         );
         clob_handle
+    }
+
+    fn read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CLobSlice> {
+        match self.o_am_conn_core {
+            None => Err(HdbError::Usage(
+                "Fetching more LOB chunks is no more possible (connection already closed)"
+                    .to_owned(),
+            )),
+            Some(ref mut am_conn_core) => {
+                let (reply_data, _reply_is_last_data) = fetch_a_lob_chunk(
+                    am_conn_core,
+                    self.locator_id,
+                    offset,
+                    length,
+                    &mut self.server_resource_consumption_info,
+                )?;
+
+                debug!("read_slice(): got {} bytes", reply_data.len());
+
+                Ok(util::split_off_orphaned_bytes(reply_data)?)
+            }
+        }
     }
 
     fn total_byte_length(&self) -> u64 {

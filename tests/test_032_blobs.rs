@@ -127,9 +127,17 @@ fn test_blobs(
     let fingerprint4 = hasher.result();
     assert_eq!(fingerprint1, fingerprint4);
 
-    debug!("blob.max_size(): {}", blob.max_buf_len());
+    debug!("blob.max_buf_len(): {}", blob.max_buf_len());
     // io::copy works with 8MB, our buffer remains at about 200_000:
     assert!(blob.max_buf_len() < 210_000);
+
+    info!("read from somewhere within");
+    let mut resultset = connection.query("select bindata from TEST_BLOBS")?;
+    let mut row = resultset.next_row().unwrap().unwrap();
+    let blob: BLob = row.next_value().unwrap().try_into_blob().unwrap();
+    for i in 1000..1040 {
+        let _blob_slice = blob.read_slice(i, 100)?;
+    }
 
     Ok(())
 }

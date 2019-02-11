@@ -78,6 +78,11 @@ impl BLob {
         self.0.into_inner().into_bytes()
     }
 
+    /// Reads from given offset and the given length, in bytes.
+    pub fn read_slice(&self, offset: u64, length: u32) -> HdbResult<Vec<u8>> {
+        self.0.borrow_mut().read_slice(offset, length)
+    }
+
     /// Total length of data.
     pub fn total_byte_length(&self) -> u64 {
         self.0.borrow_mut().total_byte_length()
@@ -147,6 +152,26 @@ impl BLobHandle {
             acc_byte_length: data.len(),
             data,
             server_resource_consumption_info: Default::default(),
+        }
+    }
+
+    fn read_slice(&mut self, offset: u64, length: u32) -> HdbResult<Vec<u8>> {
+        match self.o_am_conn_core {
+            None => Err(HdbError::Usage(
+                "Fetching more LOB chunks is no more possible (connection already closed)"
+                    .to_owned(),
+            )),
+            Some(ref mut am_conn_core) => {
+                let (reply_data, _reply_is_last_data) = fetch_a_lob_chunk(
+                    am_conn_core,
+                    self.locator_id,
+                    offset,
+                    length,
+                    &mut self.server_resource_consumption_info,
+                )?;
+                debug!("read_slice(): got {} bytes", reply_data.len());
+                Ok(reply_data)
+            }
         }
     }
 

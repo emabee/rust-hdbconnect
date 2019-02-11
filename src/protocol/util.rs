@@ -1,3 +1,4 @@
+use crate::types_impl::lob::CLobSlice;
 use crate::types_impl::lob::NCLobSlice;
 use crate::{HdbError, HdbResult};
 use byteorder::ReadBytesExt;
@@ -122,6 +123,45 @@ fn get_tail_len(bytes: &[u8]) -> usize {
     }
 }
 
+// find first cesu8-start,
+// find tail
+// determine in-between (can be empty)
+pub fn split_off_orphaned_bytes(cesu8: Vec<u8>) -> HdbResult<CLobSlice> {
+    let mut split = 0;
+    for start in 0..cesu8.len() {
+        split = match get_cesu8_char_start(&cesu8[start..]) {
+            Cesu8CharType::One
+            | Cesu8CharType::Two
+            | Cesu8CharType::Three
+            | Cesu8CharType::FirstHalfOfSurrogate => start,
+            Cesu8CharType::SecondHalfOfSurrogate => start + 3,
+            Cesu8CharType::NotAStart => {
+                continue;
+            }
+            Cesu8CharType::Empty => start,
+            Cesu8CharType::TooShort => start,
+        };
+        break;
+    }
+    let prefix = if split == 0 {
+        None
+    } else {
+        Some(cesu8[0..split].to_vec())
+    };
+    let cesu8: Vec<u8> = cesu8[split..].to_vec();
+    let (data, postfix) = to_string_and_tail(cesu8).unwrap(/* yes */);
+    let postfix = if postfix.is_empty() {
+        None
+    } else {
+        Some(postfix)
+    };
+    Ok(CLobSlice {
+        prefix,
+        data,
+        postfix,
+    })
+}
+
 pub fn split_off_orphaned_surrogates(cesu8: Vec<u8>) -> HdbResult<NCLobSlice> {
     let (prefix, cesu8) = match get_cesu8_char_start(&cesu8) {
         Cesu8CharType::One
@@ -131,7 +171,9 @@ pub fn split_off_orphaned_surrogates(cesu8: Vec<u8>) -> HdbResult<NCLobSlice> {
         Cesu8CharType::SecondHalfOfSurrogate => {
             (Some([cesu8[0], cesu8[1], cesu8[2]]), cesu8[3..].to_vec())
         }
-        Cesu8CharType::NotAStart => return Err(HdbError::Impl("sadasdasdas".to_string())),
+        Cesu8CharType::NotAStart => {
+            return Err(HdbError::Impl("Unexpected value for NCLob".to_string()));
+        }
         Cesu8CharType::Empty => (None, cesu8),
         Cesu8CharType::TooShort => (None, cesu8),
     };
