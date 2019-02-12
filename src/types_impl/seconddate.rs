@@ -51,7 +51,6 @@ impl SecondDate {
         &self.0
     }
 
-
     /// Convert into tuple of "elements".
     pub(crate) fn as_ymd_hms(&self) -> (i32, u32, u32, u32, u32, u32) {
         let value = match self.0 {
@@ -95,9 +94,7 @@ impl SecondDate {
         }
         (year, month, day, hour, minute, second)
     }
-
 }
-
 
 pub(crate) fn parse_seconddate(nullable: bool, rdr: &mut io::BufRead) -> HdbResult<HdbValue> {
     let i = rdr.read_i64::<LittleEndian>()?;

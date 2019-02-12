@@ -1,54 +1,56 @@
-use super::fetch_a_lob_chunk;
+use super::{fetch_a_lob_chunk, CharLobSlice};
 use crate::conn_core::AmConnCore;
 use crate::protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
 use crate::protocol::util;
 use crate::{HdbError, HdbResult};
 use serde_derive::Serialize;
-use std::cell::RefCell;
+use std::boxed::Box;
 use std::cmp::max;
 use std::io::{self, Write};
 
-/// CLob implementation that is used with `HdbValue::CLOB`.
+/// Character LOB implementation that is used with `HdbValue::CLOB`.
+///
+/// Note that the CLOB type is not recommended for use.
 ///
 /// CLOB fields are supposed to only store ASCII7, but HANA doesn't check this.
 /// So the implementation is a mixture of BLOB implementation (the protocol counts bytes, not chars)
 /// and NCLOB implementation (the exposed data are chars, not bytes).
 #[derive(Clone, Debug, Serialize)]
-pub struct CLob(RefCell<CLobHandle>);
-
-pub(crate) fn new_clob_from_db(
-    am_conn_core: &AmConnCore,
-    is_data_complete: bool,
-    total_char_length: u64,
-    total_byte_length: u64,
-    locator_id: u64,
-    data: Vec<u8>,
-) -> CLob {
-    CLob(RefCell::new(CLobHandle::new(
-        am_conn_core,
-        is_data_complete,
-        total_char_length,
-        total_byte_length,
-        locator_id,
-        data,
-    )))
-}
+pub struct CLob(Box<CLobHandle>);
 
 impl CLob {
-    /// Converts into the contained String.
+    pub(crate) fn new(
+        am_conn_core: &AmConnCore,
+        is_data_complete: bool,
+        total_char_length: u64,
+        total_byte_length: u64,
+        locator_id: u64,
+        data: Vec<u8>,
+    ) -> CLob {
+        CLob(Box::new(CLobHandle::new(
+            am_conn_core,
+            is_data_complete,
+            total_char_length,
+            total_byte_length,
+            locator_id,
+            data,
+        )))
+    }
+
+    /// Converts the CLob into the contained String.
     pub fn into_string(self) -> HdbResult<String> {
         trace!("CLob::into_string()");
-        self.0.into_inner().into_string()
+        self.0.into_string()
     }
 
     /// Reads from given offset and the given length, in bytes.
-    pub fn read_slice(&self, offset: u64, length: u32) -> HdbResult<CLobSlice> {
-        self.0.borrow_mut().read_slice(offset, length)
+    pub fn read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
+        self.0.read_slice(offset, length)
     }
 
-    /// Total length of data.
+    /// Total length of data, in bytes.
     pub fn total_byte_length(&self) -> u64 {
-        self.0.borrow_mut().total_byte_length()
+        self.0.total_byte_length()
     }
 
     /// Returns true if the CLob does not contain data.
@@ -56,31 +58,24 @@ impl CLob {
         self.total_byte_length() == 0
     }
 
-    /// Returns the maximum size of the internal buffers.
+    /// Returns the maximum size of the internal buffer, in bytes.
     ///
     /// With streaming, this value should not exceed `lob_read_size` plus
     /// the buffer size used by the reader.
     pub fn max_buf_len(&self) -> usize {
-        self.0.borrow().max_buf_len()
+        self.0.max_buf_len()
     }
 
-    /// Current size of the internal buffer.
+    /// Current size of the internal buffer, in bytes.
     pub fn cur_buf_len(&self) -> usize {
-        self.0.borrow_mut().cur_buf_len() as usize
+        self.0.cur_buf_len() as usize
     }
-}
-
-#[derive(Debug)]
-pub struct CLobSlice {
-    pub prefix: Option<Vec<u8>>,
-    pub data: String,
-    pub postfix: Option<Vec<u8>>,
 }
 
 // Support for CLob streaming
 impl io::Read for CLob {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        self.0.borrow_mut().read(buf)
+        self.0.read(buf)
     }
 }
 
@@ -142,7 +137,7 @@ impl CLobHandle {
         clob_handle
     }
 
-    fn read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CLobSlice> {
+    fn read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
         match self.o_am_conn_core {
             None => Err(HdbError::Usage(
                 "Fetching more LOB chunks is no more possible (connection already closed)"

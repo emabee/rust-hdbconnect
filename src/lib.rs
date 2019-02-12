@@ -74,9 +74,7 @@ mod types_impl;
 /// `HdbValue`s. Some of the `HdbValue`s are implemented using `LongDate`,
 /// BLOB, etc.
 pub mod types {
-    pub use crate::types_impl::lob::BLob;
-    pub use crate::types_impl::lob::CLob;
-    pub use crate::types_impl::lob::NCLob;
+    pub use crate::types_impl::lob::{BLob, CLob, CharLobSlice, NCLob};
 
     pub use crate::types_impl::daydate::DayDate;
     pub use crate::types_impl::longdate::LongDate;

@@ -56,7 +56,6 @@ impl SecondTime {
 
         (hour, minute, second)
     }
-
 }
 
 pub(crate) fn parse_secondtime(nullable: bool, rdr: &mut io::BufRead) -> HdbResult<HdbValue> {

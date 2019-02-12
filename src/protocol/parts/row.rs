@@ -1,7 +1,7 @@
 use crate::conn_core::AmConnCore;
 use crate::protocol::parts::hdb_value::HdbValue;
 use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
-use crate::HdbResult;
+use crate::{HdbError, HdbResult};
 
 use serde;
 use serde_db::de::DeserializableRow;
@@ -53,6 +53,18 @@ impl Row {
     /// Returns true if the row contains no value.
     pub fn is_empty(&self) -> bool {
         self.value_iter.as_slice().is_empty()
+    }
+
+    /// Converts itself in the single contained value.
+    ///
+    /// Fails if the row is empty or has more than one value.
+    pub fn into_single_value(mut self) -> HdbResult<HdbValue> {
+        if self.len() > 1 {
+            Err(HdbError::Usage("Row has more than one field".to_owned()))
+        } else {
+            self.next_value()
+                .ok_or_else(|| HdbError::Usage("Row is empty".to_owned()))
+        }
     }
 
     /// Returns the metadata.

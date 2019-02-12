@@ -1,34 +1,34 @@
+use super::{fetch_a_lob_chunk, CharLobSlice};
 use crate::conn_core::AmConnCore;
 use crate::protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
 use crate::protocol::util;
-use crate::types_impl::lob::fetch_a_lob_chunk;
 use crate::{HdbError, HdbResult};
-use std::cell::RefCell;
+use std::boxed::Box;
 use std::io::{self, Write};
 
-/// NCLob implementation that is used with `HdbValue::NCLOB`.
+/// Unicode LOB implementation that is used with `HdbValue::NCLOB`.
 #[derive(Clone, Debug)]
-pub struct NCLob(RefCell<NCLobHandle>);
-
-pub(crate) fn new_nclob_from_db(
-    am_conn_core: &AmConnCore,
-    is_data_complete: bool,
-    total_char_length: u64,
-    total_byte_length: u64,
-    locator_id: u64,
-    data: Vec<u8>,
-) -> NCLob {
-    NCLob(RefCell::new(NCLobHandle::new(
-        am_conn_core,
-        is_data_complete,
-        total_char_length,
-        total_byte_length,
-        locator_id,
-        data,
-    )))
-}
+pub struct NCLob(Box<NCLobHandle>);
 
 impl NCLob {
+    pub(crate) fn new(
+        am_conn_core: &AmConnCore,
+        is_data_complete: bool,
+        total_char_length: u64,
+        total_byte_length: u64,
+        locator_id: u64,
+        data: Vec<u8>,
+    ) -> NCLob {
+        NCLob(Box::new(NCLobHandle::new(
+            am_conn_core,
+            is_data_complete,
+            total_char_length,
+            total_byte_length,
+            locator_id,
+            data,
+        )))
+    }
+
     /// Converts into the NCLob's data as String.
     ///
     /// All outstanding data (data that were not yet fetched from the server) are fetched
@@ -79,17 +79,17 @@ impl NCLob {
     /// ```
     pub fn into_string(self) -> HdbResult<String> {
         trace!("NCLob::into_string()");
-        self.0.into_inner().into_string()
+        self.0.into_string()
     }
 
-    /// Reads from given offset and the given length, in 123-chars.
-    pub fn read_slice(&self, offset: u64, length: u32) -> HdbResult<NCLobSlice> {
-        self.0.borrow_mut().read_slice(offset, length)
+    /// Reads from given offset and the given length, in number of 123-byte sequences.
+    pub fn read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
+        self.0.read_slice(offset, length)
     }
 
     /// Total length of data, in bytes.
     pub fn total_byte_length(&self) -> u64 {
-        self.0.borrow_mut().total_byte_length()
+        self.0.total_byte_length()
     }
 
     /// Returns true if the NCLob does not contain data.
@@ -97,30 +97,24 @@ impl NCLob {
         self.total_byte_length() == 0
     }
 
-    /// Returns the maximum size of the internal buffers.
+    /// Returns the maximum size of the internal buffers, in bytes.
     ///
-    /// This method exists mainly for test and debugging purposes.
+    /// With streaming, this value should not exceed `lob_read_size` plus
+    /// the buffer size used by the reader.
     pub fn max_buf_len(&self) -> usize {
-        self.0.borrow().max_buf_len()
+        self.0.max_buf_len()
     }
 
     /// Current size of the internal buffer, in bytes.
     pub fn cur_buf_len(&self) -> usize {
-        self.0.borrow_mut().cur_buf_len() as usize
+        self.0.cur_buf_len() as usize
     }
-}
-
-#[derive(Debug)]
-pub struct NCLobSlice {
-    pub prefix: Option<[u8; 3]>,
-    pub data: String,
-    pub postfix: Option<[u8; 3]>,
 }
 
 // Support for NCLob streaming.
 impl io::Read for NCLob {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        self.0.borrow_mut().read(buf)
+        self.0.read(buf)
     }
 }
 
@@ -137,7 +131,7 @@ struct NCLobHandle {
     total_char_length: u64,
     total_byte_length: u64,
     locator_id: u64,
-    surrogate_buf: Option<[u8; 3]>,
+    surrogate_buf: Option<Vec<u8>>,
     utf8: String,
     max_buf_len: usize,
     acc_byte_length: usize,
@@ -185,7 +179,7 @@ impl NCLobHandle {
         nclob_handle
     }
 
-    fn read_slice(&mut self, offset: u64, length: u32) -> HdbResult<NCLobSlice> {
+    fn read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
         match self.o_am_conn_core {
             None => Err(HdbError::Usage(
                 "Fetching more LOB chunks is no more possible (connection already closed)"
@@ -207,11 +201,11 @@ impl NCLobHandle {
         }
     }
 
-    fn total_byte_length(&mut self) -> u64 {
+    fn total_byte_length(&self) -> u64 {
         self.total_byte_length
     }
 
-    fn cur_buf_len(&mut self) -> usize {
+    fn cur_buf_len(&self) -> usize {
         self.utf8.len()
     }
 

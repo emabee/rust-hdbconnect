@@ -2,31 +2,31 @@ use crate::conn_core::AmConnCore;
 use crate::protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
 use crate::types_impl::lob::fetch_a_lob_chunk;
 use crate::{HdbError, HdbResult};
-use std::cell::RefCell;
+use std::boxed::Box;
 use std::io::{self, Write};
 
-/// BLob implementation that is used within `HdbValue::BLOB`.
+/// Binary LOB implementation that is used within `HdbValue::BLOB`.
 #[derive(Clone, Debug)]
-pub struct BLob(RefCell<BLobHandle>);
-
-pub(crate) fn new_blob_from_db(
-    am_conn_core: &AmConnCore,
-    is_data_complete: bool,
-    total_byte_length: u64,
-    locator_id: u64,
-    data: Vec<u8>,
-) -> BLob {
-    BLob(RefCell::new(BLobHandle::new(
-        am_conn_core,
-        is_data_complete,
-        total_byte_length,
-        locator_id,
-        data,
-    )))
-}
+pub struct BLob(Box<BLobHandle>);
 
 impl BLob {
-    /// Converts into the BLObs data as Vec<u8>.
+    pub(crate) fn new(
+        am_conn_core: &AmConnCore,
+        is_data_complete: bool,
+        total_byte_length: u64,
+        locator_id: u64,
+        data: Vec<u8>,
+    ) -> BLob {
+        BLob(Box::new(BLobHandle::new(
+            am_conn_core,
+            is_data_complete,
+            total_byte_length,
+            locator_id,
+            data,
+        )))
+    }
+
+    /// Converts the BLob into a Vec<u8>.
     ///
     /// All outstanding data (data that were not yet fetched from the server) are fetched
     /// _into_ this BLob object,
@@ -72,20 +72,19 @@ impl BLob {
     /// # Ok(())
     /// # }
     /// ```
-
     pub fn into_bytes(self) -> HdbResult<Vec<u8>> {
         trace!("BLob::into_bytes()");
-        self.0.into_inner().into_bytes()
+        self.0.into_bytes()
     }
 
     /// Reads from given offset and the given length, in bytes.
-    pub fn read_slice(&self, offset: u64, length: u32) -> HdbResult<Vec<u8>> {
-        self.0.borrow_mut().read_slice(offset, length)
+    pub fn read_slice(&mut self, offset: u64, length: u32) -> HdbResult<Vec<u8>> {
+        self.0.read_slice(offset, length)
     }
 
-    /// Total length of data.
+    /// Total length of data, in bytes.
     pub fn total_byte_length(&self) -> u64 {
-        self.0.borrow_mut().total_byte_length()
+        self.0.total_byte_length()
     }
 
     /// Returns true if the BLob does not contain data.
@@ -93,24 +92,24 @@ impl BLob {
         self.total_byte_length() == 0
     }
 
-    /// Returns the maximum size of the internal buffers, in bytes.
+    /// Returns the maximum size of the internal buffer, in bytes.
     ///
     /// With streaming, this value should not exceed `lob_read_size` plus
     /// the buffer size used by the reader.
     pub fn max_buf_len(&self) -> usize {
-        self.0.borrow().max_buf_len()
+        self.0.max_buf_len()
     }
 
     /// Current size of the internal buffer, in bytes.
     pub fn cur_buf_len(&self) -> usize {
-        self.0.borrow_mut().cur_buf_len() as usize
+        self.0.cur_buf_len() as usize
     }
 }
 
 // Support for BLob streaming
 impl io::Read for BLob {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        self.0.borrow_mut().read(buf)
+        self.0.read(buf)
     }
 }
 
@@ -175,11 +174,11 @@ impl BLobHandle {
         }
     }
 
-    fn total_byte_length(&mut self) -> u64 {
+    fn total_byte_length(&self) -> u64 {
         self.total_byte_length
     }
 
-    fn cur_buf_len(&mut self) -> usize {
+    fn cur_buf_len(&self) -> usize {
         self.data.len()
     }
 

@@ -132,9 +132,11 @@ fn test_blobs(
     assert!(blob.max_buf_len() < 210_000);
 
     info!("read from somewhere within");
-    let mut resultset = connection.query("select bindata from TEST_BLOBS")?;
-    let mut row = resultset.next_row().unwrap().unwrap();
-    let blob: BLob = row.next_value().unwrap().try_into_blob().unwrap();
+    let mut blob: BLob = connection
+        .query("select bindata from TEST_BLOBS")?
+        .into_single_row()?
+        .into_single_value()?
+        .try_into_blob()?;
     for i in 1000..1040 {
         let _blob_slice = blob.read_slice(i, 100)?;
     }

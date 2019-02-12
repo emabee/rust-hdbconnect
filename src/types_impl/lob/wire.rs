@@ -2,9 +2,7 @@ use crate::conn_core::AmConnCore;
 use crate::protocol::parts::hdb_value::HdbValue;
 use crate::protocol::parts::type_id::TypeId;
 use crate::protocol::util;
-use crate::types_impl::lob::blob::new_blob_from_db;
-use crate::types_impl::lob::clob::new_clob_from_db;
-use crate::types_impl::lob::nclob::new_nclob_from_db;
+use crate::types_impl::lob::{BLob, CLob, NCLob};
 use crate::{HdbError, HdbResult};
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::io;
@@ -24,11 +22,11 @@ pub(crate) fn parse_blob(
             ))
         }
     } else {
-        let (_, total_byte_length, locator_id, data) = parse_lob_2(rdr, is_data_included)?;
-        Ok(HdbValue::BLOB(new_blob_from_db(
+        let (_, length, locator_id, data) = parse_lob_2(rdr, is_data_included)?;
+        Ok(HdbValue::BLOB(BLob::new(
             am_conn_core,
             is_last_data,
-            total_byte_length,
+            length,
             locator_id,
             data,
         )))
@@ -50,13 +48,12 @@ pub(crate) fn parse_clob(
             ))
         }
     } else {
-        let (total_char_length, total_byte_length, locator_id, data) =
-            parse_lob_2(rdr, is_data_included)?;
-        Ok(HdbValue::CLOB(new_clob_from_db(
+        let (char_length, byte_length, locator_id, data) = parse_lob_2(rdr, is_data_included)?;
+        Ok(HdbValue::CLOB(CLob::new(
             am_conn_core,
             is_last_data,
-            total_char_length,
-            total_byte_length,
+            char_length,
+            byte_length,
             locator_id,
             data,
         )))
@@ -79,18 +76,16 @@ pub(crate) fn parse_nclob(
             ))
         }
     } else {
-        let (total_char_length, total_byte_length, locator_id, data) =
-            parse_lob_2(rdr, is_data_included)?;
-        let nclob = new_nclob_from_db(
-            am_conn_core,
-            is_last_data,
-            total_char_length,
-            total_byte_length,
-            locator_id,
-            data,
-        );
+        let (char_length, byte_length, locator_id, data) = parse_lob_2(rdr, is_data_included)?;
         Ok(match type_id {
-            TypeId::TEXT | TypeId::NCLOB => HdbValue::NCLOB(nclob),
+            TypeId::TEXT | TypeId::NCLOB => HdbValue::NCLOB(NCLob::new(
+                am_conn_core,
+                is_last_data,
+                char_length,
+                byte_length,
+                locator_id,
+                data,
+            )),
             _ => return Err(HdbError::Impl("unexpected type id for nclob".to_owned())),
         })
     }

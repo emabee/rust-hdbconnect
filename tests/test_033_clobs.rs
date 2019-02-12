@@ -126,9 +126,11 @@ fn test_clobs(
     assert!(clob.max_buf_len() < 210_000);
 
     info!("read from somewhere within");
-    let mut resultset = connection.query("select chardata from TEST_CLOBS")?;
-    let mut row = resultset.next_row().unwrap().unwrap();
-    let clob: CLob = row.next_value().unwrap().try_into_clob().unwrap();
+    let mut clob: CLob = connection
+        .query("select chardata from TEST_CLOBS")?
+        .into_single_row()?
+        .into_single_value()?
+        .try_into_clob()?;
     for i in 1000..1040 {
         let _clob_slice = clob.read_slice(i, 100)?;
     }

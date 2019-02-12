@@ -1,5 +1,4 @@
-use crate::types_impl::lob::CLobSlice;
-use crate::types_impl::lob::NCLobSlice;
+use crate::types_impl::lob::CharLobSlice;
 use crate::{HdbError, HdbResult};
 use byteorder::ReadBytesExt;
 use cesu8;
@@ -59,17 +58,13 @@ pub fn count_1_2_3_sequence_starts(cesu8: &[u8]) -> usize {
     cesu8.iter().filter(|b| is_utf8_char_start(**b)).count()
 }
 
-pub fn to_string_and_surrogate(cesu8: Vec<u8>) -> HdbResult<(String, Option<[u8; 3]>)> {
+pub fn to_string_and_surrogate(cesu8: Vec<u8>) -> HdbResult<(String, Option<Vec<u8>>)> {
     let (utf8, buffer_cesu8) = to_string_and_tail(cesu8).unwrap(/* yes */);
     let surrogate_buf = match buffer_cesu8.len() {
         0 => None,
         3 => {
             debug!("to_string_and_surrogate() found a split surrogate pair");
-            let mut buffer = [0_u8; 3];
-            buffer[0] = buffer_cesu8[0];
-            buffer[1] = buffer_cesu8[1];
-            buffer[2] = buffer_cesu8[2];
-            Some(buffer)
+            Some(vec![buffer_cesu8[0], buffer_cesu8[1], buffer_cesu8[2]])
         }
         _ => panic!("Unexpected buffer_cesu8 = {:?}", buffer_cesu8),
     };
@@ -126,7 +121,7 @@ fn get_tail_len(bytes: &[u8]) -> usize {
 // find first cesu8-start,
 // find tail
 // determine in-between (can be empty)
-pub fn split_off_orphaned_bytes(cesu8: Vec<u8>) -> HdbResult<CLobSlice> {
+pub fn split_off_orphaned_bytes(cesu8: Vec<u8>) -> HdbResult<CharLobSlice> {
     let mut split = 0;
     for start in 0..cesu8.len() {
         split = match get_cesu8_char_start(&cesu8[start..]) {
@@ -155,22 +150,23 @@ pub fn split_off_orphaned_bytes(cesu8: Vec<u8>) -> HdbResult<CLobSlice> {
     } else {
         Some(postfix)
     };
-    Ok(CLobSlice {
+    Ok(CharLobSlice {
         prefix,
         data,
         postfix,
     })
 }
 
-pub fn split_off_orphaned_surrogates(cesu8: Vec<u8>) -> HdbResult<NCLobSlice> {
+pub fn split_off_orphaned_surrogates(cesu8: Vec<u8>) -> HdbResult<CharLobSlice> {
     let (prefix, cesu8) = match get_cesu8_char_start(&cesu8) {
         Cesu8CharType::One
         | Cesu8CharType::Two
         | Cesu8CharType::Three
         | Cesu8CharType::FirstHalfOfSurrogate => (None, cesu8),
-        Cesu8CharType::SecondHalfOfSurrogate => {
-            (Some([cesu8[0], cesu8[1], cesu8[2]]), cesu8[3..].to_vec())
-        }
+        Cesu8CharType::SecondHalfOfSurrogate => (
+            Some(vec![cesu8[0], cesu8[1], cesu8[2]]),
+            cesu8[3..].to_vec(),
+        ),
         Cesu8CharType::NotAStart => {
             return Err(HdbError::Impl("Unexpected value for NCLob".to_string()));
         }
@@ -180,7 +176,7 @@ pub fn split_off_orphaned_surrogates(cesu8: Vec<u8>) -> HdbResult<NCLobSlice> {
 
     let (data, postfix) = to_string_and_surrogate(cesu8)?;
 
-    Ok(NCLobSlice {
+    Ok(CharLobSlice {
         prefix,
         data,
         postfix,

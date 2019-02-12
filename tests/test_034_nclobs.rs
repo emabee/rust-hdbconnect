@@ -129,9 +129,11 @@ fn test_nclobs(
     assert!(nclob.max_buf_len() < 605_000);
 
     info!("read from somewhere within");
-    let mut resultset = connection.query("select chardata from TEST_NCLOBS")?;
-    let mut row = resultset.next_row().unwrap().unwrap();
-    let nclob: NCLob = row.next_value().unwrap().try_into_nclob().unwrap();
+    let mut nclob: NCLob = connection
+        .query("select chardata from TEST_NCLOBS")?
+        .into_single_row()?
+        .into_single_value()?
+        .try_into_nclob()?;
     for i in 1030..1040 {
         let _nclob_slice = nclob.read_slice(i, 100)?;
     }

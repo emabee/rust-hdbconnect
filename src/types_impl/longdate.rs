@@ -95,10 +95,7 @@ impl LongDate {
         }
         (year, month, day, hour, minute, second, fraction)
     }
-
-
 }
-
 
 pub(crate) fn parse_longdate(nullable: bool, rdr: &mut io::BufRead) -> HdbResult<HdbValue> {
     let i = rdr.read_i64::<LittleEndian>()?;

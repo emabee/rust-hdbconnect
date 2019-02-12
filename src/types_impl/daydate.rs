@@ -77,7 +77,6 @@ impl DayDate {
         }
         (year, month, day)
     }
-
 }
 
 pub(crate) fn parse_daydate(nullable: bool, rdr: &mut io::BufRead) -> HdbResult<HdbValue> {

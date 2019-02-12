@@ -158,6 +158,21 @@ impl ResultSet {
         Ok(DeserializableResultset::into_typed(self)?)
     }
 
+    /// Converts the resultset into a single row.
+    ///
+    /// Fails if the resultset contains more than a single row, or is empty.
+    pub fn into_single_row(mut self) -> HdbResult<Row> {
+        if self.has_multiple_rows() {
+            Err(HdbError::Usage(
+                "Resultset has more than one row".to_owned(),
+            ))
+        } else {
+            self.row_iter
+                .next()
+                .ok_or_else(|| HdbError::Usage("Resultset is empty".to_owned()))
+        }
+    }
+
     /// Access to metadata.
     pub fn metadata(&self) -> &ResultSetMetadata {
         &self.metadata
