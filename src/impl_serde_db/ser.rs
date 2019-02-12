@@ -31,13 +31,10 @@ impl DbvFactory for &ParameterDescriptor {
         let input_type = "i8";
         let tid = self.type_id();
         Ok(match tid {
-            TypeId::TINYINT => {
-                if value >= 0 {
-                    HdbValue::TINYINT(value as u8)
-                } else {
-                    return Err(SerializationError::Range(input_type, self.descriptor()));
-                }
-            }
+            TypeId::TINYINT => HdbValue::TINYINT(
+                num::cast(value)
+                    .ok_or_else(|| SerializationError::Range(input_type, self.descriptor()))?,
+            ),
             TypeId::SMALLINT => HdbValue::SMALLINT(i16::from(value)),
             TypeId::INT => HdbValue::INT(i32::from(value)),
             TypeId::BIGINT => HdbValue::BIGINT(i64::from(value)),
@@ -55,13 +52,10 @@ impl DbvFactory for &ParameterDescriptor {
         let input_type = "i16";
         let tid = self.type_id();
         Ok(match tid {
-            TypeId::TINYINT => {
-                if (value >= 0) && (value <= i16::from(u8::MAX)) {
-                    HdbValue::TINYINT(value as u8)
-                } else {
-                    return Err(SerializationError::Range(input_type, self.descriptor()));
-                }
-            }
+            TypeId::TINYINT => HdbValue::TINYINT(
+                num::cast(value)
+                    .ok_or_else(|| SerializationError::Range(input_type, self.descriptor()))?,
+            ),
             TypeId::SMALLINT => HdbValue::SMALLINT(value),
             TypeId::INT => HdbValue::INT(i32::from(value)),
             TypeId::BIGINT => HdbValue::BIGINT(i64::from(value)),
@@ -79,20 +73,14 @@ impl DbvFactory for &ParameterDescriptor {
         let input_type = "i32";
         let tid = self.type_id();
         Ok(match tid {
-            TypeId::TINYINT => {
-                if (value >= 0) && (value <= i32::from(u8::MAX)) {
-                    HdbValue::TINYINT(value as u8)
-                } else {
-                    return Err(SerializationError::Range(input_type, self.descriptor()));
-                }
-            }
-            TypeId::SMALLINT => {
-                if (value >= i32::from(i16::MIN)) && (value <= i32::from(i16::MAX)) {
-                    HdbValue::SMALLINT(value as i16)
-                } else {
-                    return Err(SerializationError::Range(input_type, self.descriptor()));
-                }
-            }
+            TypeId::TINYINT => HdbValue::TINYINT(
+                num::cast(value)
+                    .ok_or_else(|| SerializationError::Range(input_type, self.descriptor()))?,
+            ),
+            TypeId::SMALLINT => HdbValue::SMALLINT(
+                num::cast(value)
+                    .ok_or_else(|| SerializationError::Range(input_type, self.descriptor()))?,
+            ),
             TypeId::INT => HdbValue::INT(value),
             TypeId::BIGINT => HdbValue::BIGINT(i64::from(value)),
             TypeId::DECIMAL | TypeId::FIXED8 | TypeId::FIXED12 | TypeId::FIXED16 => {
@@ -110,27 +98,18 @@ impl DbvFactory for &ParameterDescriptor {
         let input_type = "i64";
         let tid = self.type_id();
         Ok(match tid {
-            TypeId::TINYINT => {
-                if (value >= 0) && (value <= i64::from(u8::MAX)) {
-                    HdbValue::TINYINT(value as u8)
-                } else {
-                    return Err(SerializationError::Range(input_type, self.descriptor()));
-                }
-            }
-            TypeId::SMALLINT => {
-                if (value >= i64::from(i16::MIN)) && (value <= i64::from(i16::MAX)) {
-                    HdbValue::SMALLINT(value as i16)
-                } else {
-                    return Err(SerializationError::Range(input_type, self.descriptor()));
-                }
-            }
-            TypeId::INT => {
-                if (value >= i64::from(i32::MIN)) && (value <= i64::from(i32::MAX)) {
-                    HdbValue::INT(value as i32)
-                } else {
-                    return Err(SerializationError::Range(input_type, self.descriptor()));
-                }
-            }
+            TypeId::TINYINT => HdbValue::TINYINT(
+                num::cast(value)
+                    .ok_or_else(|| SerializationError::Range(input_type, self.descriptor()))?,
+            ),
+            TypeId::SMALLINT => HdbValue::SMALLINT(
+                num::cast(value)
+                    .ok_or_else(|| SerializationError::Range(input_type, self.descriptor()))?,
+            ),
+            TypeId::INT => HdbValue::INT(
+                num::cast(value)
+                    .ok_or_else(|| SerializationError::Range(input_type, self.descriptor()))?,
+            ),
             TypeId::BIGINT => HdbValue::BIGINT(value),
             TypeId::LONGDATE => HdbValue::LONGDATE(LongDate::new(value)),
             TypeId::SECONDDATE => HdbValue::SECONDDATE(SecondDate::new(value)),
@@ -164,20 +143,14 @@ impl DbvFactory for &ParameterDescriptor {
         let input_type = "u16";
         let tid = self.type_id();
         Ok(match tid {
-            TypeId::TINYINT => {
-                if value <= u16::from(u8::MAX) {
-                    HdbValue::TINYINT(value as u8)
-                } else {
-                    return Err(SerializationError::Range(input_type, self.descriptor()));
-                }
-            }
-            TypeId::SMALLINT => {
-                if value <= i16::MAX as u16 {
-                    HdbValue::SMALLINT(value as i16)
-                } else {
-                    return Err(SerializationError::Range(input_type, self.descriptor()));
-                }
-            }
+            TypeId::TINYINT => HdbValue::TINYINT(
+                num::cast(value)
+                    .ok_or_else(|| SerializationError::Range(input_type, self.descriptor()))?,
+            ),
+            TypeId::SMALLINT => HdbValue::SMALLINT(
+                num::cast(value)
+                    .ok_or_else(|| SerializationError::Range(input_type, self.descriptor()))?,
+            ),
             TypeId::INT => HdbValue::INT(i32::from(value)),
             TypeId::BIGINT => HdbValue::BIGINT(i64::from(value)),
 
@@ -194,27 +167,18 @@ impl DbvFactory for &ParameterDescriptor {
         let input_type = "u32";
         let tid = self.type_id();
         Ok(match tid {
-            TypeId::TINYINT => {
-                if value <= u32::from(u8::MAX) {
-                    HdbValue::TINYINT(value as u8)
-                } else {
-                    return Err(SerializationError::Range(input_type, self.descriptor()));
-                }
-            }
-            TypeId::SMALLINT => {
-                if value <= i16::MAX as u32 {
-                    HdbValue::SMALLINT(value as i16)
-                } else {
-                    return Err(SerializationError::Range(input_type, self.descriptor()));
-                }
-            }
-            TypeId::INT => {
-                if value <= i32::MAX as u32 {
-                    HdbValue::INT(value as i32)
-                } else {
-                    return Err(SerializationError::Range(input_type, self.descriptor()));
-                }
-            }
+            TypeId::TINYINT => HdbValue::TINYINT(
+                num::cast(value)
+                    .ok_or_else(|| SerializationError::Range(input_type, self.descriptor()))?,
+            ),
+            TypeId::SMALLINT => HdbValue::SMALLINT(
+                num::cast(value)
+                    .ok_or_else(|| SerializationError::Range(input_type, self.descriptor()))?,
+            ),
+            TypeId::INT => HdbValue::INT(
+                num::cast(value)
+                    .ok_or_else(|| SerializationError::Range(input_type, self.descriptor()))?,
+            ),
             TypeId::BIGINT => HdbValue::BIGINT(i64::from(value)),
 
             TypeId::DECIMAL | TypeId::FIXED8 | TypeId::FIXED12 | TypeId::FIXED16 => {
@@ -230,34 +194,22 @@ impl DbvFactory for &ParameterDescriptor {
         let input_type = "u64";
         let tid = self.type_id();
         Ok(match tid {
-            TypeId::TINYINT => {
-                if value <= u64::from(u8::MAX) {
-                    HdbValue::TINYINT(value as u8)
-                } else {
-                    return Err(SerializationError::Range(input_type, self.descriptor()));
-                }
-            }
-            TypeId::SMALLINT => {
-                if value <= i16::MAX as u64 {
-                    HdbValue::SMALLINT(value as i16)
-                } else {
-                    return Err(SerializationError::Range(input_type, self.descriptor()));
-                }
-            }
-            TypeId::INT => {
-                if value <= i32::MAX as u64 {
-                    HdbValue::INT(value as i32)
-                } else {
-                    return Err(SerializationError::Range(input_type, self.descriptor()));
-                }
-            }
-            TypeId::BIGINT => {
-                if value <= i64::MAX as u64 {
-                    HdbValue::BIGINT(value as i64)
-                } else {
-                    return Err(SerializationError::Range(input_type, self.descriptor()));
-                }
-            }
+            TypeId::TINYINT => HdbValue::TINYINT(
+                num::cast(value)
+                    .ok_or_else(|| SerializationError::Range(input_type, self.descriptor()))?,
+            ),
+            TypeId::SMALLINT => HdbValue::SMALLINT(
+                num::cast(value)
+                    .ok_or_else(|| SerializationError::Range(input_type, self.descriptor()))?,
+            ),
+            TypeId::INT => HdbValue::INT(
+                num::cast(value)
+                    .ok_or_else(|| SerializationError::Range(input_type, self.descriptor()))?,
+            ),
+            TypeId::BIGINT => HdbValue::BIGINT(
+                num::cast(value)
+                    .ok_or_else(|| SerializationError::Range(input_type, self.descriptor()))?,
+            ),
             TypeId::DECIMAL | TypeId::FIXED8 | TypeId::FIXED12 | TypeId::FIXED16 => {
                 HdbValue::DECIMAL(
                     BigDecimal::from_u64(value).ok_or_else(|| decimal_range(input_type))?,
@@ -298,8 +250,6 @@ impl DbvFactory for &ParameterDescriptor {
     }
 
     fn from_char(&self, value: char) -> Result<HdbValue, SerializationError> {
-        let mut s = String::new();
-        s.push(value);
         Ok(match self.type_id() {
             TypeId::CHAR
             | TypeId::VARCHAR
@@ -308,7 +258,7 @@ impl DbvFactory for &ParameterDescriptor {
             | TypeId::STRING
             | TypeId::NSTRING
             | TypeId::TEXT
-            | TypeId::SHORTTEXT => HdbValue::STRING(s),
+            | TypeId::SHORTTEXT => HdbValue::STRING(value.to_string()),
             _ => return Err(type_mismatch("char", self.descriptor())),
         })
     }
@@ -347,7 +297,7 @@ impl DbvFactory for &ParameterDescriptor {
                 HdbValue::DECIMAL(BigDecimal::from_str(value).map_err(map_bd)?)
             }
 
-            TypeId::LONGDATE =>HdbValue::STRING(String::from(value)),
+            TypeId::LONGDATE => HdbValue::STRING(String::from(value)),
             TypeId::SECONDDATE => HdbValue::STRING(String::from(value)),
             TypeId::DAYDATE => HdbValue::STRING(String::from(value)),
             TypeId::SECONDTIME => HdbValue::STRING(String::from(value)),
