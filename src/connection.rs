@@ -53,15 +53,15 @@ impl Connection {
         {
             let guard = am_conn_core.lock()?;
             debug!(
-                "user \"{}\" successfully logged on ({} µs) to {} of {} (HANA version: {})",
+                "user \"{}\" successfully logged on ({} µs) to {:?} of {:?} (HANA version: {:?})",
                 params.dbuser(),
                 Local::now()
                     .signed_duration_since(start)
                     .num_microseconds()
                     .unwrap_or(-1),
-                guard.get_database_name(),
-                guard.get_system_id(),
-                guard.get_full_version_string()
+                guard.connect_options().get_database_name(),
+                guard.connect_options().get_system_id(),
+                guard.connect_options().get_full_version_string()
             );
         }
         Ok(Connection {
@@ -274,8 +274,8 @@ impl Connection {
     /// Returns the ID of the connection.
     ///
     /// The ID is set by the server. Can be handy for logging.
-    pub fn id(&self) -> HdbResult<u32> {
-        Ok(self.am_conn_core.lock()?.get_connection_id() as u32)
+    pub fn id(&self) -> HdbResult<i32> {
+        Ok(self.am_conn_core.lock()?.connect_options().get_connection_id())
     }
 
     ///
@@ -360,6 +360,31 @@ impl Connection {
             Some(CommandInfo::new(line, module.as_ref())),
         )
     }
+
+    /// (MDC) Database name.
+    pub fn get_database_name(&self) -> HdbResult<Option<String>> {
+        Ok(self.am_conn_core
+            .lock()?
+            .connect_options()
+            .get_database_name().cloned())
+    }
+
+    /// The SystemID is set by the server with the SAPSYSTEMNAME of the
+    /// connected instance (for tracing and supportability purposes).
+    pub fn get_system_id(&self) -> HdbResult<Option<String>> {
+        Ok(self.am_conn_core
+            .lock()?
+            .connect_options()
+            .get_system_id().cloned())
+    }
+
+    /// HANA Full version string.
+    pub fn get_full_version_string(&self) -> HdbResult<Option<String>> {
+        Ok(self.am_conn_core
+            .lock()?
+            .connect_options()
+            .get_full_version_string().cloned())
+    }
 }
 
 fn execute<S>(
@@ -371,8 +396,8 @@ where
     S: AsRef<str>,
 {
     debug!(
-        "connection[{}]::execute()",
-        am_conn_core.lock()?.get_connection_id()
+        "connection[{:?}]::execute()",
+        am_conn_core.lock()?.connect_options().get_connection_id()
     );
     let mut request = Request::new(RequestType::ExecuteDirect, HOLD_CURSORS_OVER_COMMIT);
     {

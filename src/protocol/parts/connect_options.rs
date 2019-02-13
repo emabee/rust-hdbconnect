@@ -4,11 +4,11 @@ use crate::protocol::parts::option_value::OptionValue;
 
 // An Options part that is used for describing the connection's capabilities.
 // It is used both in requests and replies.
-pub type ConnectOptions = OptionPart<ConnOptId>;
+pub(crate) type ConnectOptions = OptionPart<ConnOptId>;
 
 // Methods to send information to the server.
 impl ConnectOptions {
-    pub fn for_server(locale: &Option<String>, os_user: String) -> ConnectOptions {
+    pub(crate) fn for_server(locale: &Option<String>, os_user: String) -> ConnectOptions {
         let connopts = ConnectOptions::default()
             .set_complete_array_execution(true)
             .set_dataformat_version2(8)
@@ -92,7 +92,7 @@ impl ConnectOptions {
 
 // Methods to handle info we got from the server
 impl ConnectOptions {
-    pub fn digest_server_connect_options(
+    pub(crate) fn digest_server_connect_options(
         &mut self,
         new_co: ConnectOptions,
         old_co: ConnectOptions,
@@ -179,39 +179,39 @@ impl ConnectOptions {
     // The connection ID is filled by the server when the connection is established.
     // It can be used in DISCONNECT/KILL commands for command or session
     // cancellation.
-    pub fn get_connection_id(&self) -> Option<i32> {
-        self.get_integer(&ConnOptId::ConnectionID, "ConnectionID")
+    pub(crate) fn get_connection_id(&self) -> i32 {
+        self.get_integer(&ConnOptId::ConnectionID, "ConnectionID").expect("Could not read connection id")
     }
 
     // The SystemID is set by the server with the SAPSYSTEMNAME of the
     // connected instance (for tracing and supportability purposes).
-    pub fn get_system_id(&self) -> Option<&String> {
+    pub(crate) fn get_system_id(&self) -> Option<&String> {
         self.get_string(&ConnOptId::SystemID, "SystemID")
     }
 
     // (MDC) Database name.
-    pub fn get_database_name(&self) -> Option<&String> {
+    pub(crate) fn get_database_name(&self) -> Option<&String> {
         self.get_string(&ConnOptId::DatabaseName, "DatabaseName")
     }
 
     // Full version string.
-    pub fn get_full_version_string(&self) -> Option<&String> {
+    pub(crate) fn get_full_version_string(&self) -> Option<&String> {
         self.get_string(&ConnOptId::FullVersionString, "FullVersionString")
     }
 
     // Build platform.
-    pub fn get_build_platform(&self) -> Option<i32> {
+    pub(crate) fn get_build_platform(&self) -> Option<i32> {
         self.get_integer(&ConnOptId::BuildPlatform, "BuildPlatform")
     }
 
     // Endianness.
-    pub fn get_endianness(&self) -> Option<i32> {
+    pub(crate) fn get_endianness(&self) -> Option<i32> {
         self.get_integer(&ConnOptId::Endianness, "Endianness")
     }
 
     // `EngineDataFormatVersion` is set by the server to the maximum version it is
     // able to support. The possible values correspond to the `DataFormatVersion`.
-    pub fn get_engine_dataformat_version(&self) -> Option<i32> {
+    pub(crate) fn get_engine_dataformat_version(&self) -> Option<i32> {
         self.get_integer(
             &ConnOptId::EngineDataFormatVersion,
             "EngineDataFormatVersion",
@@ -219,7 +219,7 @@ impl ConnectOptions {
     }
 
     // DataFormatVersion.
-    pub fn get_dataformat_version(&self) -> Option<i32> {
+    pub(crate) fn get_dataformat_version(&self) -> Option<i32> {
         self.get_integer(&ConnOptId::DataFormatVersion, "DataFormatVersion")
     }
 
@@ -239,12 +239,12 @@ impl ConnectOptions {
     //   SECONDTIME.)
     // 6 Send data type BINTEXT to client.
 
-    pub fn get_dataformat_version2(&self) -> Option<i32> {
+    pub(crate) fn get_dataformat_version2(&self) -> Option<i32> {
         self.get_integer(&ConnOptId::DataFormatVersion2, "DataFormatVersion2")
     }
 
     // NonTransactionalPrepare
-    pub fn get_nontransactional_prepare(&self) -> Option<&bool> {
+    pub(crate) fn get_nontransactional_prepare(&self) -> Option<&bool> {
         self.get_bool(
             &ConnOptId::NonTransactionalPrepare,
             "NonTransactionalPrepare",
@@ -252,7 +252,7 @@ impl ConnectOptions {
     }
 
     // Is set by the server to indicate that it can process array commands.
-    pub fn get_supports_large_bulk_operations(&self) -> Option<&bool> {
+    pub(crate) fn get_supports_large_bulk_operations(&self) -> Option<&bool> {
         self.get_bool(
             &ConnOptId::SupportsLargeBulkOperations,
             "SupportsLargeBulkOperations",
@@ -260,7 +260,7 @@ impl ConnectOptions {
     }
 
     // ActiveActiveProtocolVersion.
-    pub fn get_activeactive_protocolversion(&self) -> Option<i32> {
+    pub(crate) fn get_activeactive_protocolversion(&self) -> Option<i32> {
         self.get_integer(
             &ConnOptId::ActiveActiveProtocolVersion,
             "ActiveActiveProtocolVersion",
@@ -269,25 +269,25 @@ impl ConnectOptions {
 
     // Is set by the server to indicate that it supports implicit LOB streaming
     // even though auto-commit is on instead of raising an error.
-    pub fn get_implicit_lob_streaming(&self) -> Option<&bool> {
+    pub(crate) fn get_implicit_lob_streaming(&self) -> Option<&bool> {
         self.get_bool(&ConnOptId::ImplicitLobStreaming, "ImplicitLobStreaming")
     }
 
     // Is set to true if array commands continue to process remaining input
     // when detecting an error in an input row.
-    pub fn get_complete_array_execution(&self) -> Option<&bool> {
+    pub(crate) fn get_complete_array_execution(&self) -> Option<&bool> {
         self.get_bool(&ConnOptId::CompleteArrayExecution, "CompleteArrayExecution")
     }
 
     // Is set by the server
-    pub fn get_query_timeout_ok(&self) -> Option<&bool> {
+    pub(crate) fn get_query_timeout_ok(&self) -> Option<&bool> {
         self.get_bool(&ConnOptId::QueryTimeoutOK, "QueryTimeoutOK")
     }
 
     // Is set by the server to indicate the client should gather the
     // state of the current transaction only from the TRANSACTIONFLAGS command, not
     // from the nature of the command (DDL, UPDATE, and so on).
-    pub fn get_use_transaction_flags_only(&self) -> Option<&bool> {
+    pub(crate) fn get_use_transaction_flags_only(&self) -> Option<&bool> {
         self.get_bool(
             &ConnOptId::UseTransactionFlagsOnly,
             "UseTransactionFlagsOnly",
@@ -296,24 +296,24 @@ impl ConnectOptions {
 
     // Value 1 is sent by the server to indicate it ignores unknown parts of the
     // communication protocol instead of raising a fatal error.
-    pub fn get_ignore_unknown_parts(&self) -> Option<i32> {
+    pub(crate) fn get_ignore_unknown_parts(&self) -> Option<i32> {
         self.get_integer(&ConnOptId::IgnoreUnknownParts, "IgnoreUnknownParts")
     }
 
     // Is sent by the client and returned by the server if configuration allows
     // splitting batch (array) commands for parallel execution.
-    pub fn get_split_batch_commands(&self) -> Option<&bool> {
+    pub(crate) fn get_split_batch_commands(&self) -> Option<&bool> {
         self.get_bool(&ConnOptId::SplitBatchCommands, "SplitBatchCommands")
     }
 
     // Set by the server to signal it understands FDA extensions.
-    pub fn get_fda_enabled(&self) -> Option<&bool> {
+    pub(crate) fn get_fda_enabled(&self) -> Option<&bool> {
         self.get_bool(&ConnOptId::FdaEnabled, "FdaEnabled")
     }
 
     // Set by the server to signal it understands ABAP ITAB
     // parameters of SQL statements (For-All-Entries Optimization).
-    pub fn get_itab_parameter(&self) -> Option<&bool> {
+    pub(crate) fn get_itab_parameter(&self) -> Option<&bool> {
         self.get_bool(&ConnOptId::ItabParameter, "ItabParameter")
     }
 
@@ -332,25 +332,25 @@ impl ConnectOptions {
     //                  for executing the statement, cli­ents execute on that node,
     //                  if possible.
     //   3 STATEMENT_CONNECTION  both STATEMENT and CONNECTION level
-    pub fn get_client_distribution_mode(&self) -> Option<i32> {
+    pub(crate) fn get_client_distribution_mode(&self) -> Option<i32> {
         self.get_integer(&ConnOptId::ClientDistributionMode, "ClientDistributionMode")
     }
 
-    pub fn get_clientinfo_nullvalue_ok(&self) -> Option<&bool> {
+    pub(crate) fn get_clientinfo_nullvalue_ok(&self) -> Option<&bool> {
         self.get_bool(&ConnOptId::ClientInfoNullValueOK, "ClientInfoNullValueOK")
     }
 
-    pub fn get_hold_cursor_over_rollback_supported(&self) -> Option<bool> {
+    pub(crate) fn get_hold_cursor_over_rollback_supported(&self) -> Option<bool> {
         self.get_integer(&ConnOptId::FlagSet1, "FlagSet1")
             .map(|i| (i & 0b1) == 0b1)
     }
 
-    pub fn get_support_drop_statement_id_part(&self) -> Option<bool> {
+    pub(crate) fn get_support_drop_statement_id_part(&self) -> Option<bool> {
         self.get_integer(&ConnOptId::FlagSet1, "FlagSet1")
             .map(|i| (i & 0b10) == 0b10)
     }
 
-    pub fn get_support_full_compile_on_prepare(&self) -> Option<bool> {
+    pub(crate) fn get_support_full_compile_on_prepare(&self) -> Option<bool> {
         self.get_integer(&ConnOptId::FlagSet1, "FlagSet1")
             .map(|i| (i & 0b100) == 0b100)
     }

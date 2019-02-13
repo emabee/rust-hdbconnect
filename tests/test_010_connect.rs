@@ -12,6 +12,7 @@ pub fn test_010_connect() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
 
     connect_successfully(&mut log_handle);
+    connect_options(&mut log_handle);
     connect_wrong_password(&mut log_handle);
     connect_and_select_with_explicit_clientlocale(&mut log_handle)?;
     connect_and_select_with_clientlocale_from_env(&mut log_handle)?;
@@ -23,6 +24,15 @@ pub fn test_010_connect() -> HdbResult<()> {
 fn connect_successfully(_log_handle: &mut ReconfigurationHandle) {
     info!("test a successful connection");
     test_utils::get_authenticated_connection().unwrap();
+}
+
+fn connect_options(_log_handle: &mut ReconfigurationHandle) -> HdbResult<()>  {
+    info!("test a successful connection");
+    let mut connection = test_utils::get_authenticated_connection()?;
+    connection.get_database_name()?;
+    connection.get_system_id()?;
+    connection.get_full_version_string()?;
+    Ok(())
 }
 
 fn connect_wrong_password(_log_handle: &mut ReconfigurationHandle) {
@@ -117,7 +127,7 @@ impl SessCtx {
 fn client_info(_log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
     info!("client info");
     let mut connection = test_utils::get_authenticated_connection().unwrap();
-    let connection_id: u32 = connection.id()?;
+    let connection_id: i32 = connection.id()?;
 
     debug!("make sure the client info is set ...");
     connection.set_application_user("OTTO")?;
