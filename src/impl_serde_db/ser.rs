@@ -23,6 +23,9 @@ impl DbvFactory for &ParameterDescriptor {
         Ok(match self.type_id() {
             TypeId::BOOLEAN => HdbValue::BOOLEAN(value),
             TypeId::TINYINT => HdbValue::BOOLEAN(value),
+            TypeId::SMALLINT => HdbValue::BOOLEAN(value),
+            TypeId::INT => HdbValue::BOOLEAN(value),
+            TypeId::BIGINT => HdbValue::BOOLEAN(value),
             _ => return Err(type_mismatch("boolean", self.descriptor())),
         })
     }
@@ -330,7 +333,7 @@ impl DbvFactory for &ParameterDescriptor {
     }
 
     fn descriptor(&self) -> String {
-        self.type_id().to_string()
+        format!("{:?}", self.type_id())
     }
 }
 

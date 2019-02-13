@@ -67,8 +67,8 @@ impl DbValueInto<bool> for HdbValue {
     fn try_into(self) -> Result<bool, ConversionError> {
         match self {
             HdbValue::BOOLEAN(b) => Ok(b),
-            HdbValue::TINYINT(1) => Ok(true),
-            HdbValue::TINYINT(0) => Ok(false),
+            HdbValue::TINYINT(1) | HdbValue::SMALLINT(1) | HdbValue::INT(1) |HdbValue::BIGINT(1) => Ok(true),
+            HdbValue::TINYINT(0) | HdbValue::SMALLINT(0) | HdbValue::INT(0) |HdbValue::BIGINT(0) => Ok(false),
             value => Err(wrong_type(&value, "bool")),
         }
     }
@@ -78,27 +78,9 @@ impl DbValueInto<u8> for HdbValue {
     fn try_into(self) -> Result<u8, ConversionError> {
         match self {
             HdbValue::TINYINT(u) => Ok(u),
-            HdbValue::SMALLINT(i) => {
-                if (i >= 0) && (i <= i16::from(u8::MAX)) {
-                    Ok(i as u8)
-                } else {
-                    Err(number_range(i64::from(i), "u8"))
-                }
-            }
-            HdbValue::INT(i) => {
-                if (i >= 0) && (i <= i32::from(u8::MAX)) {
-                    Ok(i as u8)
-                } else {
-                    Err(number_range(i64::from(i), "u8"))
-                }
-            }
-            HdbValue::BIGINT(i) => {
-                if (i >= 0) && (i <= i64::from(u8::MAX)) {
-                    Ok(i as u8)
-                } else {
-                    Err(number_range(i, "u8"))
-                }
-            }
+            HdbValue::SMALLINT(i) => Ok(num::cast(i).ok_or_else(|| number_range(i64::from(i), "u8"))?),
+            HdbValue::INT(i) => Ok(num::cast(i).ok_or_else(|| number_range(i64::from(i), "u8"))?),
+            HdbValue::BIGINT(i) => Ok(num::cast(i).ok_or_else(|| number_range(i64::from(i), "u8"))?),
             HdbValue::DECIMAL(bigdec) => bigdec.to_u8().ok_or_else(|| decimal_range("u8")),
             value => Err(wrong_type(&value, "u8")),
         }
@@ -110,29 +92,11 @@ impl DbValueInto<u16> for HdbValue {
         match self {
             HdbValue::TINYINT(u) => Ok(u16::from(u)),
 
-            HdbValue::SMALLINT(i) => {
-                if i >= 0 {
-                    Ok(i as u16)
-                } else {
-                    Err(number_range(i64::from(i), "u16"))
-                }
-            }
+            HdbValue::SMALLINT(i) => Ok(num::cast(i).ok_or_else(|| number_range(i64::from(i), "u16"))?),
 
-            HdbValue::INT(i) => {
-                if (i >= 0) && (i <= i32::from(u16::MAX)) {
-                    Ok(i as u16)
-                } else {
-                    Err(number_range(i64::from(i), "u16"))
-                }
-            }
+            HdbValue::INT(i) => Ok(num::cast(i).ok_or_else(|| number_range(i64::from(i), "u16"))?),
 
-            HdbValue::BIGINT(i) => {
-                if (i >= 0) && (i <= i64::from(u16::MAX)) {
-                    Ok(i as u16)
-                } else {
-                    Err(number_range(i, "u16"))
-                }
-            }
+            HdbValue::BIGINT(i) => Ok(num::cast(i).ok_or_else(|| number_range(i64::from(i), "u16"))?),
             HdbValue::DECIMAL(bigdec) => bigdec.to_u16().ok_or_else(|| decimal_range("u16")),
             value => Err(wrong_type(&value, "u16")),
         }
@@ -143,27 +107,9 @@ impl DbValueInto<u32> for HdbValue {
     fn try_into(self) -> Result<u32, ConversionError> {
         match self {
             HdbValue::TINYINT(u) => Ok(u32::from(u)),
-            HdbValue::SMALLINT(i) => {
-                if i >= 0 {
-                    Ok(i as u32)
-                } else {
-                    Err(number_range(i64::from(i), "u32"))
-                }
-            }
-            HdbValue::INT(i) => {
-                if i >= 0 {
-                    Ok(i as u32)
-                } else {
-                    Err(number_range(i64::from(i), "u32"))
-                }
-            }
-            HdbValue::BIGINT(i) => {
-                if (i >= 0) && (i <= i64::from(u32::MAX)) {
-                    Ok(i as u32)
-                } else {
-                    Err(number_range(i, "u32"))
-                }
-            }
+            HdbValue::SMALLINT(i) => Ok(num::cast(i).ok_or_else(|| number_range(i64::from(i), "u32"))?),
+            HdbValue::INT(i) => Ok(num::cast(i).ok_or_else(|| number_range(i64::from(i), "u32"))?),
+            HdbValue::BIGINT(i) => Ok(num::cast(i).ok_or_else(|| number_range(i64::from(i), "u32"))?),
             HdbValue::DECIMAL(bigdec) => bigdec.to_u32().ok_or_else(|| decimal_range("u32")),
             value => Err(wrong_type(&value, "u32")),
         }
@@ -174,27 +120,9 @@ impl DbValueInto<u64> for HdbValue {
     fn try_into(self) -> Result<u64, ConversionError> {
         match self {
             HdbValue::TINYINT(u) => Ok(u64::from(u)),
-            HdbValue::SMALLINT(i) => {
-                if i >= 0 {
-                    Ok(i as u64)
-                } else {
-                    Err(number_range(i64::from(i), "u64"))
-                }
-            }
-            HdbValue::INT(i) => {
-                if i >= 0 {
-                    Ok(i as u64)
-                } else {
-                    Err(number_range(i64::from(i), "u64"))
-                }
-            }
-            HdbValue::BIGINT(i) => {
-                if i >= 0 {
-                    Ok(i as u64)
-                } else {
-                    Err(number_range(i, "u64"))
-                }
-            }
+            HdbValue::SMALLINT(i) => Ok(num::cast(i).ok_or_else(|| number_range(i64::from(i), "u64"))?),
+            HdbValue::INT(i) => Ok(num::cast(i).ok_or_else(|| number_range(i64::from(i), "u64"))?),
+            HdbValue::BIGINT(i) => Ok(num::cast(i).ok_or_else(|| number_range(i64::from(i), "u64"))?),
             HdbValue::DECIMAL(bigdec) => bigdec.to_u64().ok_or_else(|| decimal_range("u64")),
             value => Err(wrong_type(&value, "u64")),
         }
@@ -204,34 +132,10 @@ impl DbValueInto<u64> for HdbValue {
 impl DbValueInto<i8> for HdbValue {
     fn try_into(self) -> Result<i8, ConversionError> {
         match self {
-            HdbValue::TINYINT(u) => {
-                if u <= i8::MAX as u8 {
-                    Ok(u as i8)
-                } else {
-                    Err(number_range(i64::from(u), "i8"))
-                }
-            }
-            HdbValue::SMALLINT(i) => {
-                if (i >= i16::from(i8::MIN)) && (i <= i16::from(i8::MAX)) {
-                    Ok(i as i8)
-                } else {
-                    Err(number_range(i64::from(i), "i8"))
-                }
-            }
-            HdbValue::INT(i) => {
-                if (i >= i32::from(i8::MIN)) && (i <= i32::from(i8::MAX)) {
-                    Ok(i as i8)
-                } else {
-                    Err(number_range(i64::from(i), "i8"))
-                }
-            }
-            HdbValue::BIGINT(i) => {
-                if (i >= i64::from(i8::MIN)) && (i <= i64::from(i8::MAX)) {
-                    Ok(i as i8)
-                } else {
-                    Err(number_range(i, "i8"))
-                }
-            }
+            HdbValue::TINYINT(i) => Ok(num::cast(i).ok_or_else(|| number_range(i64::from(i), "i8"))?),
+            HdbValue::SMALLINT(i) => Ok(num::cast(i).ok_or_else(|| number_range(i64::from(i), "i8"))?),
+            HdbValue::INT(i) => Ok(num::cast(i).ok_or_else(|| number_range(i64::from(i), "i8"))?),
+            HdbValue::BIGINT(i) => Ok(num::cast(i).ok_or_else(|| number_range(i64::from(i), "i8"))?),
             HdbValue::DECIMAL(bigdec) => bigdec.to_i8().ok_or_else(|| decimal_range("i8")),
             value => Err(wrong_type(&value, "i8")),
         }
@@ -243,20 +147,8 @@ impl DbValueInto<i16> for HdbValue {
         match self {
             HdbValue::TINYINT(u) => Ok(i16::from(u)),
             HdbValue::SMALLINT(i) => Ok(i),
-            HdbValue::INT(i) => {
-                if (i >= i32::from(i16::MIN)) && (i <= i32::from(i16::MAX)) {
-                    Ok(i as i16)
-                } else {
-                    Err(number_range(i64::from(i), "i16"))
-                }
-            }
-            HdbValue::BIGINT(i) => {
-                if (i >= i64::from(i16::MIN)) && (i <= i64::from(i16::MAX)) {
-                    Ok(i as i16)
-                } else {
-                    Err(number_range(i, "i16"))
-                }
-            }
+            HdbValue::INT(i) => Ok(num::cast(i).ok_or_else(|| number_range(i64::from(i), "u8"))?),
+            HdbValue::BIGINT(i) => Ok(num::cast(i).ok_or_else(|| number_range(i64::from(i), "u8"))?),
             HdbValue::DECIMAL(bigdec) => bigdec.to_i16().ok_or_else(|| decimal_range("i16")),
             value => Err(wrong_type(&value, "i16")),
         }
@@ -269,13 +161,7 @@ impl DbValueInto<i32> for HdbValue {
             HdbValue::TINYINT(u) => Ok(i32::from(u)),
             HdbValue::SMALLINT(i) => Ok(i32::from(i)),
             HdbValue::INT(i) => Ok(i),
-            HdbValue::BIGINT(i) => {
-                if (i >= i64::from(i32::MIN)) && (i <= i64::from(i32::MAX)) {
-                    Ok(i as i32)
-                } else {
-                    Err(number_range(i, "i32"))
-                }
-            }
+            HdbValue::BIGINT(i) => Ok(num::cast(i).ok_or_else(|| number_range(i64::from(i), "i32"))?),
             HdbValue::DECIMAL(bigdec) => bigdec.to_i32().ok_or_else(|| decimal_range("i32")),
             value => Err(wrong_type(&value, "i32")),
         }
