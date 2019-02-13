@@ -77,7 +77,7 @@ impl Row {
             let nullable = md.nullable(c)?;
             let scale = md.scale(c)?;
             trace!(
-                "Parsing column {}, {}{}",
+                "Parsing column {}, {}{:?}",
                 c,
                 if nullable { "Nullable " } else { "" },
                 type_id,

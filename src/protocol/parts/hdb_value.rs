@@ -110,7 +110,7 @@ impl HdbValue {
                 }
                 _ => {
                     return Err(HdbError::Impl(format!(
-                        "Can't send {} type for requested {} type",
+                        "Can't send {} type for requested {:?} type",
                         "DECIMAL", requested_type_id
                     )));
                 }
@@ -247,7 +247,7 @@ impl HdbValue {
                 TypeId::FIXED16 => 16,
                 tid => {
                     return Err(HdbError::Impl(format!(
-                        "invalid TypeId {} for DECIMAL",
+                        "invalid TypeId {:?} for DECIMAL",
                         tid
                     )));
                 }

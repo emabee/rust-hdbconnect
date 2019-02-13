@@ -27,16 +27,13 @@ fn test_tiny_int(
     _log_handle: &mut ReconfigurationHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
-    info!("create numeric fields and try different number conversions");
-    debug!("setup...");
-
     connection.multiple_statements_ignore_err(vec!["drop table TEST_NUMERIC_CONVERSION"]);
-    let stmts = vec!["create table TEST_NUMERIC_CONVERSION (TINYINT TINYINT, SMALLINT SMALLINT, INTEGER INTEGER, BIGINT BIGINT)"];
+    let stmts = vec!["create table TEST_NUMERIC_CONVERSION (TINYINT TINYINT)"];
     connection.multiple_statements(stmts)?;
 
     debug!("prepare...");
     let mut insert_stmt =
-        connection.prepare("insert into TEST_NUMERIC_CONVERSION (TINYINT) values (?)")?;
+        connection.prepare("insert into TEST_NUMERIC_CONVERSION values (?)")?;
     debug!("execute...");
     insert_stmt.execute(&(1u8))?;
     insert_stmt.execute(&(1u16))?;
@@ -48,10 +45,28 @@ fn test_tiny_int(
     insert_stmt.execute(&(1i64))?;
 
     debug!("query...");
-    let resultset = connection.query("select TINYINT FROM TEST_NUMERIC_CONVERSION")?;
+    let resultset = connection.query("select * FROM TEST_NUMERIC_CONVERSION")?;
     debug!("deserialize...");
     let num_rows: Vec<usize> = resultset.try_into()?;
     assert_eq!(num_rows, vec![1, 1, 1, 1, 1, 1, 1, 1]);
+
+    assert_eq!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<u8>>()?,  vec![1, 1, 1, 1, 1, 1, 1, 1] );
+    assert_eq!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<u16>>()?, vec![1, 1, 1, 1, 1, 1, 1, 1] );
+    assert_eq!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<u32>>()?, vec![1, 1, 1, 1, 1, 1, 1, 1] );
+    assert_eq!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<u64>>()?, vec![1, 1, 1, 1, 1, 1, 1, 1] );
+    assert_eq!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<i8>>()?,  vec![1, 1, 1, 1, 1, 1, 1, 1] );
+    assert_eq!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<i16>>()?, vec![1, 1, 1, 1, 1, 1, 1, 1] );
+    assert_eq!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<i32>>()?, vec![1, 1, 1, 1, 1, 1, 1, 1] );
+    assert_eq!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<i64>>()?, vec![1, 1, 1, 1, 1, 1, 1, 1] );
+
+    connection.multiple_statements(vec!["TRUNCATE TABLE TEST_NUMERIC_CONVERSION"])?;
+    let mut insert_stmt =
+        connection.prepare("insert into TEST_NUMERIC_CONVERSION values (?)")?;
+    insert_stmt.execute(&(true))?;
+    insert_stmt.execute(&(false))?;
+
+    let num_rows: Vec<bool> = connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into()?;
+    assert_eq!(num_rows, vec![true, false]);
 
     //negative values not allowed
     assert!(insert_stmt.execute(&(-1i8)).is_err());
@@ -75,6 +90,15 @@ fn test_tiny_int(
     assert!(insert_stmt.execute(&(256i32)).is_err());
     assert!(insert_stmt.execute(&(256i64)).is_err());
 
+    assert!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<u8>>().is_ok());
+    assert!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<u16>>().is_ok());
+    assert!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<u32>>().is_ok());
+    assert!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<u64>>().is_ok());
+    assert!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<i16>>().is_ok());
+    assert!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<i32>>().is_ok());
+    assert!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<i64>>().is_ok());
+
+    assert!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<i8>>().is_err());
     Ok(())
 }
 
@@ -82,16 +106,13 @@ fn test_small_int(
     _log_handle: &mut ReconfigurationHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
-    info!("create numeric fields and try different number conversions");
-    debug!("setup...");
-
     connection.multiple_statements_ignore_err(vec!["drop table TEST_NUMERIC_CONVERSION"]);
     let stmts = vec!["create table TEST_NUMERIC_CONVERSION (SMALLINT SMALLINT)"];
     connection.multiple_statements(stmts)?;
 
     debug!("prepare...");
     let mut insert_stmt =
-        connection.prepare("insert into TEST_NUMERIC_CONVERSION (SMALLINT) values (?)")?;
+        connection.prepare("insert into TEST_NUMERIC_CONVERSION values (?)")?;
     debug!("execute...");
     insert_stmt.execute(&(1u8))?;
     insert_stmt.execute(&(1u16))?;
@@ -107,6 +128,25 @@ fn test_small_int(
     debug!("deserialize...");
     let num_rows: Vec<usize> = resultset.try_into()?;
     assert_eq!(num_rows, vec![1, 1, 1, 1, 1, 1, 1, 1]);
+
+    assert_eq!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<u8>>()?,  vec![1, 1, 1, 1, 1, 1, 1, 1] );
+    assert_eq!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<u16>>()?, vec![1, 1, 1, 1, 1, 1, 1, 1] );
+    assert_eq!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<u32>>()?, vec![1, 1, 1, 1, 1, 1, 1, 1] );
+    assert_eq!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<u64>>()?, vec![1, 1, 1, 1, 1, 1, 1, 1] );
+    assert_eq!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<i8>>()?,  vec![1, 1, 1, 1, 1, 1, 1, 1] );
+    assert_eq!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<i16>>()?, vec![1, 1, 1, 1, 1, 1, 1, 1] );
+    assert_eq!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<i32>>()?, vec![1, 1, 1, 1, 1, 1, 1, 1] );
+    assert_eq!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<i64>>()?, vec![1, 1, 1, 1, 1, 1, 1, 1] );
+
+    connection.multiple_statements(vec!["TRUNCATE TABLE TEST_NUMERIC_CONVERSION"])?;
+    let mut insert_stmt =
+        connection.prepare("insert into TEST_NUMERIC_CONVERSION values (?)")?;
+    insert_stmt.execute(&(true))?;
+    insert_stmt.execute(&(false))?;
+
+    let num_rows: Vec<bool> = connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into()?;
+    assert_eq!(num_rows, vec![true, false]);
+
 
     insert_stmt.execute(&(-1i8))?;
     insert_stmt.execute(&(-1i16))?;
@@ -137,6 +177,17 @@ fn test_small_int(
     assert!(insert_stmt.execute(&(-32769i32)).is_err());
     assert!(insert_stmt.execute(&(-32769i64)).is_err());
 
+    assert!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<u8>>().is_err());
+    assert!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<u16>>().is_err());
+    assert!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<u32>>().is_err());
+    assert!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<i8>>().is_err());
+    assert!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<u64>>().is_err());
+
+    assert!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<i16>>().is_ok());
+    assert!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<i32>>().is_ok());
+    assert!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<i64>>().is_ok());
+
+
     Ok(())
 }
 
@@ -144,16 +195,13 @@ fn test_integer(
     _log_handle: &mut ReconfigurationHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
-    info!("create numeric fields and try different number conversions");
-    debug!("setup...");
-
     connection.multiple_statements_ignore_err(vec!["drop table TEST_NUMERIC_CONVERSION"]);
     let stmts = vec!["create table TEST_NUMERIC_CONVERSION (INTEGER INTEGER)"];
     connection.multiple_statements(stmts)?;
 
     debug!("prepare...");
     let mut insert_stmt =
-        connection.prepare("insert into TEST_NUMERIC_CONVERSION (INTEGER) values (?)")?;
+        connection.prepare("insert into TEST_NUMERIC_CONVERSION values (?)")?;
     debug!("execute...");
 
     insert_stmt.execute(&(1u8))?;
@@ -171,7 +219,26 @@ fn test_integer(
     let num_rows: Vec<usize> = resultset.try_into()?;
     assert_eq!(num_rows, vec![1, 1, 1, 1, 1, 1, 1, 1]);
 
-        insert_stmt.execute(&(-1i8))?;
+    assert_eq!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<u8>>()?,  vec![1, 1, 1, 1, 1, 1, 1, 1] );
+    assert_eq!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<u16>>()?, vec![1, 1, 1, 1, 1, 1, 1, 1] );
+    assert_eq!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<u32>>()?, vec![1, 1, 1, 1, 1, 1, 1, 1] );
+    assert_eq!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<u64>>()?, vec![1, 1, 1, 1, 1, 1, 1, 1] );
+    assert_eq!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<i8>>()?,  vec![1, 1, 1, 1, 1, 1, 1, 1] );
+    assert_eq!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<i16>>()?, vec![1, 1, 1, 1, 1, 1, 1, 1] );
+    assert_eq!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<i32>>()?, vec![1, 1, 1, 1, 1, 1, 1, 1] );
+    assert_eq!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<i64>>()?, vec![1, 1, 1, 1, 1, 1, 1, 1] );
+
+    connection.multiple_statements(vec!["TRUNCATE TABLE TEST_NUMERIC_CONVERSION"])?;
+    let mut insert_stmt =
+        connection.prepare("insert into TEST_NUMERIC_CONVERSION values (?)")?;
+    insert_stmt.execute(&(true))?;
+    insert_stmt.execute(&(false))?;
+
+    let num_rows: Vec<bool> = connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into()?;
+    assert_eq!(num_rows, vec![true, false]);
+
+
+    insert_stmt.execute(&(-1i8))?;
     insert_stmt.execute(&(-1i16))?;
     insert_stmt.execute(&(-1i32))?;
     insert_stmt.execute(&(-1i64))?;
@@ -193,6 +260,17 @@ fn test_integer(
     //out of range
     assert!(insert_stmt.execute(&(-2_147_483_649i64)).is_err());
 
+
+    assert!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<u8>>().is_err());
+    assert!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<u16>>().is_err());
+    assert!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<u32>>().is_err());
+    assert!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<i8>>().is_err());
+    assert!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<i16>>().is_err());
+    assert!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<u64>>().is_err());
+
+    assert!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<i32>>().is_ok());
+    assert!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<i64>>().is_ok());
+
     Ok(())
 }
 
@@ -200,16 +278,13 @@ fn test_big_int(
     _log_handle: &mut ReconfigurationHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
-    info!("create numeric fields and try different number conversions");
-    debug!("setup...");
-
     connection.multiple_statements_ignore_err(vec!["drop table TEST_NUMERIC_CONVERSION"]);
     let stmts = vec!["create table TEST_NUMERIC_CONVERSION (BIGINT BIGINT)"];
     connection.multiple_statements(stmts)?;
 
     debug!("prepare...");
     let mut insert_stmt =
-        connection.prepare("insert into TEST_NUMERIC_CONVERSION (BIGINT) values (?)")?;
+        connection.prepare("insert into TEST_NUMERIC_CONVERSION values (?)")?;
     debug!("execute...");
 
     insert_stmt.execute(&(1u8))?;
@@ -227,6 +302,24 @@ fn test_big_int(
     let num_rows: Vec<usize> = resultset.try_into()?;
     assert_eq!(num_rows, vec![1, 1, 1, 1, 1, 1, 1, 1]);
 
+    assert_eq!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<u8>>()?,  vec![1, 1, 1, 1, 1, 1, 1, 1] );
+    assert_eq!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<u16>>()?, vec![1, 1, 1, 1, 1, 1, 1, 1] );
+    assert_eq!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<u32>>()?, vec![1, 1, 1, 1, 1, 1, 1, 1] );
+    assert_eq!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<u64>>()?, vec![1, 1, 1, 1, 1, 1, 1, 1] );
+    assert_eq!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<i8>>()?,  vec![1, 1, 1, 1, 1, 1, 1, 1] );
+    assert_eq!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<i16>>()?, vec![1, 1, 1, 1, 1, 1, 1, 1] );
+    assert_eq!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<i32>>()?, vec![1, 1, 1, 1, 1, 1, 1, 1] );
+    assert_eq!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<i64>>()?, vec![1, 1, 1, 1, 1, 1, 1, 1] );
+
+    connection.multiple_statements(vec!["TRUNCATE TABLE TEST_NUMERIC_CONVERSION"])?;
+    let mut insert_stmt =
+        connection.prepare("insert into TEST_NUMERIC_CONVERSION values (?)")?;
+    insert_stmt.execute(&(true))?;
+    insert_stmt.execute(&(false))?;
+
+    let num_rows: Vec<bool> = connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into()?;
+    assert_eq!(num_rows, vec![true, false]);
+
     insert_stmt.execute(&(-1i8))?;
     insert_stmt.execute(&(-1i16))?;
     insert_stmt.execute(&(-1i32))?;
@@ -241,6 +334,16 @@ fn test_big_int(
 
     //in range
     assert!(insert_stmt.execute(&(-9_223_372_036_854_775_808i64)).is_ok());
+
+    assert!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<u8>>().is_err());
+    assert!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<u16>>().is_err());
+    assert!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<u32>>().is_err());
+    assert!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<i8>>().is_err());
+    assert!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<i16>>().is_err());
+    assert!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<i32>>().is_err());
+    assert!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<u64>>().is_err());
+
+    assert!(connection.query("select * FROM TEST_NUMERIC_CONVERSION")?.try_into::<Vec<i64>>().is_ok());
 
     Ok(())
 }

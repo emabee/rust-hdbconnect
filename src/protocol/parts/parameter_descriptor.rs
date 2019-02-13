@@ -195,7 +195,7 @@ impl std::fmt::Display for ParameterDescriptor {
         }
         write!(
             fmt,
-            "{}{} {:?} {:?},  Scale({}), Precision({})",
+            "{}{:?} {:?} {:?},  Scale({}), Precision({})",
             if self.nullable { "Nullable " } else { "" },
             self.type_id,
             self.binding(),
