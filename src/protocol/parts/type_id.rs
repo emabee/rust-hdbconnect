@@ -201,86 +201,36 @@ impl TypeId {
     }
 
     pub(crate) fn matches_value_type(self, value_type: TypeId) -> HdbResult<()> {
-        match value_type {
-            TypeId::STRING => match self {
-                // no clear strategy for GEO stuff yet, so be restrictive
-                TypeId::GEOMETRY | TypeId::POINT => Err(HdbError::Impl(format!(
-                    "value type id ({}) does not match metadata ({})",
-                    value_type, self
-                ))),
-                _ => Ok(()),
-            },
-            TypeId::BINARY => match self {
-                TypeId::BLOB
-                | TypeId::BINARY
-                | TypeId::VARBINARY
-                | TypeId::GEOMETRY
-                | TypeId::POINT => Ok(()),
-                _ => Err(HdbError::Impl(format!(
-                    "value type id ({}) does not match metadata ({})",
-                    value_type, self
-                ))),
-            },
-            TypeId::DECIMAL => match self {
-                TypeId::DECIMAL | TypeId::FIXED8 | TypeId::FIXED12 | TypeId::FIXED16 => Ok(()),
-                _ => Err(HdbError::Impl(format!(
-                    "value type id ({}) does not match metadata ({})",
-                    value_type, self
-                ))),
-            },
-            tid => {
-                if tid == self {
-                    Ok(())
-                } else {
-                    Err(HdbError::Impl(format!(
-                        "value type id ({}) does not match metadata ({})",
-                        value_type, self
-                    )))
-                }
-            }
+
+        if value_type == self {
+            return Ok(());
         }
-    }
-}
-impl std::fmt::Display for TypeId {
-    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            fmt,
-            "{}",
-            match self {
-                TypeId::TINYINT => "TINYINT",
-                TypeId::SMALLINT => "SMALLINT",
-                TypeId::INT => "INT",
-                TypeId::BIGINT => "BIGINT",
-                TypeId::DECIMAL => "DECIMAL",
-                TypeId::REAL => "REAL",
-                TypeId::DOUBLE => "DOUBLE",
-                TypeId::CHAR => "CHAR",
-                TypeId::VARCHAR => "VARCHAR",
-                TypeId::NCHAR => "NCHAR",
-                TypeId::NVARCHAR => "NVARCHAR",
-                TypeId::BINARY => "BINARY",
-                TypeId::VARBINARY => "VARBINARY",
-                TypeId::CLOB => "CLOB",
-                TypeId::NCLOB => "NCLOB",
-                TypeId::BLOB => "BLOB",
-                TypeId::BOOLEAN => "BOOLEAN",
-                TypeId::STRING => "STRING",
-                TypeId::NSTRING => "NSTRING",
-                TypeId::NLOCATOR => "NLOCATOR",
-                TypeId::BSTRING => "BSTRING",
-                TypeId::TEXT => "TEXT",
-                TypeId::SHORTTEXT => "SHORTTEXT",
-                TypeId::LONGDATE => "LONGDATE",
-                TypeId::SECONDDATE => "SECONDDATE",
-                TypeId::DAYDATE => "DAYDATE",
-                TypeId::SECONDTIME => "SECONDTIME",
-                TypeId::GEOMETRY => "GEOMETRY",
-                TypeId::POINT => "POINT",
-                TypeId::FIXED8 => "FIXED8",
-                TypeId::FIXED12 => "FIXED12",
-                TypeId::FIXED16 => "FIXED16",
-            }
-        )?;
-        Ok(())
+
+        // From To Conversions
+        match (value_type, self) {
+            (TypeId::BOOLEAN, TypeId::TINYINT) => return Ok(()),
+            (TypeId::BOOLEAN, TypeId::SMALLINT) => return Ok(()),
+            (TypeId::BOOLEAN, TypeId::INT) => return Ok(()),
+            (TypeId::BOOLEAN, TypeId::BIGINT) => return Ok(()),
+
+            (TypeId::STRING, TypeId::GEOMETRY) => {}, // no clear strategy for GEO stuff yet, so be restrictive
+            (TypeId::STRING, TypeId::POINT) => {}, // no clear strategy for GEO stuff yet, so be restrictive
+            (TypeId::STRING, _) => return Ok(()), // Allow all other cases
+
+            (TypeId::BINARY, TypeId::BLOB) => return Ok(()),
+            (TypeId::BINARY, TypeId::VARBINARY) => return Ok(()),
+            (TypeId::BINARY, TypeId::GEOMETRY) => return Ok(()),
+            (TypeId::BINARY, TypeId::POINT) => return Ok(()),
+
+            (TypeId::DECIMAL, TypeId::FIXED8) => return Ok(()),
+            (TypeId::DECIMAL, TypeId::FIXED12) => return Ok(()),
+            (TypeId::DECIMAL, TypeId::FIXED16) => return Ok(()),
+            _ => {}
+        }
+
+        Err(HdbError::Impl(format!(
+            "value type id {:?} does not match metadata {:?}",
+            value_type, self
+        )))
     }
 }
