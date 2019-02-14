@@ -180,7 +180,8 @@ impl ConnectOptions {
     // It can be used in DISCONNECT/KILL commands for command or session
     // cancellation.
     pub(crate) fn get_connection_id(&self) -> i32 {
-        self.get_integer(&ConnOptId::ConnectionID, "ConnectionID").expect("Could not read connection id")
+        self.get_integer(&ConnOptId::ConnectionID, "ConnectionID")
+            .expect("Could not read connection id")
     }
 
     // The SystemID is set by the server with the SAPSYSTEMNAME of the

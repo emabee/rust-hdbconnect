@@ -1,5 +1,6 @@
 use crate::conn_core::AmConnCore;
 use crate::protocol::parts::hdb_value::HdbValue;
+use crate::protocol::parts::resultset::AmRsCore;
 use crate::protocol::parts::type_id::TypeId;
 use crate::protocol::util;
 use crate::types_impl::lob::{BLob, CLob, NCLob};
@@ -9,6 +10,7 @@ use std::io;
 
 pub(crate) fn parse_blob(
     am_conn_core: &AmConnCore,
+    o_am_rscore: &Option<AmRsCore>,
     nullable: bool,
     rdr: &mut io::BufRead,
 ) -> HdbResult<HdbValue> {
@@ -25,6 +27,7 @@ pub(crate) fn parse_blob(
         let (_, length, locator_id, data) = parse_lob_2(rdr, is_data_included)?;
         Ok(HdbValue::BLOB(BLob::new(
             am_conn_core,
+            o_am_rscore,
             is_last_data,
             length,
             locator_id,
@@ -35,6 +38,7 @@ pub(crate) fn parse_blob(
 
 pub(crate) fn parse_clob(
     am_conn_core: &AmConnCore,
+    o_am_rscore: &Option<AmRsCore>,
     nullable: bool,
     rdr: &mut io::BufRead,
 ) -> HdbResult<HdbValue> {
@@ -51,6 +55,7 @@ pub(crate) fn parse_clob(
         let (char_length, byte_length, locator_id, data) = parse_lob_2(rdr, is_data_included)?;
         Ok(HdbValue::CLOB(CLob::new(
             am_conn_core,
+            o_am_rscore,
             is_last_data,
             char_length,
             byte_length,
@@ -62,6 +67,7 @@ pub(crate) fn parse_clob(
 
 pub(crate) fn parse_nclob(
     am_conn_core: &AmConnCore,
+    o_am_rscore: &Option<AmRsCore>,
     nullable: bool,
     type_id: TypeId,
     rdr: &mut io::BufRead,
@@ -80,6 +86,7 @@ pub(crate) fn parse_nclob(
         Ok(match type_id {
             TypeId::TEXT | TypeId::NCLOB => HdbValue::NCLOB(NCLob::new(
                 am_conn_core,
+                o_am_rscore,
                 is_last_data,
                 char_length,
                 byte_length,

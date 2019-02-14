@@ -12,7 +12,7 @@ pub fn test_010_connect() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
 
     connect_successfully(&mut log_handle);
-    connect_options(&mut log_handle);
+    connect_options(&mut log_handle)?;
     connect_wrong_password(&mut log_handle);
     connect_and_select_with_explicit_clientlocale(&mut log_handle)?;
     connect_and_select_with_clientlocale_from_env(&mut log_handle)?;
@@ -26,9 +26,9 @@ fn connect_successfully(_log_handle: &mut ReconfigurationHandle) {
     test_utils::get_authenticated_connection().unwrap();
 }
 
-fn connect_options(_log_handle: &mut ReconfigurationHandle) -> HdbResult<()>  {
+fn connect_options(_log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
     info!("test a successful connection");
-    let mut connection = test_utils::get_authenticated_connection()?;
+    let connection = test_utils::get_authenticated_connection()?;
     connection.get_database_name()?;
     connection.get_system_id()?;
     connection.get_full_version_string()?;

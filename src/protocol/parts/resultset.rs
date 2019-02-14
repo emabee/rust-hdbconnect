@@ -17,6 +17,8 @@ use serde_db::de::DeserializableResultset;
 use std::fmt;
 use std::sync::{Arc, Mutex};
 
+pub(crate) type AmRsCore = Arc<Mutex<ResultSetCore>>;
+
 /// The result of a database query.
 ///
 /// This is essentially a set of `Row`s, which is a set of `HdbValue`s.
@@ -26,7 +28,7 @@ use std::sync::{Arc, Mutex};
 /// into your application specific format.
 #[derive(Debug)]
 pub struct ResultSet {
-    core_ref: Arc<Mutex<ResultSetCore>>,
+    o_am_rscore: Option<AmRsCore>,
     metadata: Arc<ResultSetMetadata>,
     next_rows: Vec<Row>,
     row_iter: <Vec<Row> as IntoIterator>::IntoIter,
@@ -35,7 +37,7 @@ pub struct ResultSet {
 
 #[derive(Debug)]
 pub struct ResultSetCore {
-    o_am_conn_core: Option<AmConnCore>,
+    am_conn_core: AmConnCore,
     attributes: PartAttributes,
     resultset_id: u64,
 }
@@ -47,7 +49,7 @@ impl ResultSetCore {
         resultset_id: u64,
     ) -> Arc<Mutex<ResultSetCore>> {
         Arc::new(Mutex::new(ResultSetCore {
-            o_am_conn_core: Some(am_conn_core.clone()),
+            am_conn_core: am_conn_core.clone(),
             attributes,
             resultset_id,
         }))
@@ -57,24 +59,22 @@ impl ResultSetCore {
         let rs_id = self.resultset_id;
         trace!("ResultSetCore::drop(), resultset_id {}", rs_id);
         if !self.attributes.resultset_is_closed() {
-            if let Some(ref conn_core) = self.o_am_conn_core {
-                if let Ok(mut conn_guard) = conn_core.lock() {
-                    let mut request = Request::new(RequestType::CloseResultSet, 0);
-                    request.push(Part::new(
-                        PartKind::ResultSetId,
-                        Argument::ResultSetId(rs_id),
-                    ));
+            if let Ok(mut conn_guard) = self.am_conn_core.lock() {
+                let mut request = Request::new(RequestType::CloseResultSet, 0);
+                request.push(Part::new(
+                    PartKind::ResultSetId,
+                    Argument::ResultSetId(rs_id),
+                ));
 
-                    if let Ok(mut reply) =
-                        conn_guard.roundtrip(request, conn_core, None, None, &mut None)
-                    {
-                        let _ = reply.parts.pop_arg_if_kind(PartKind::StatementContext);
-                        for part in &reply.parts {
-                            warn!(
-                                "CloseResultSet got a reply with a part of kind {:?}",
-                                part.kind()
-                            );
-                        }
+                if let Ok(mut reply) =
+                    conn_guard.roundtrip(request, &self.am_conn_core, None, None, &mut None)
+                {
+                    let _ = reply.parts.pop_arg_if_kind(PartKind::StatementContext);
+                    for part in &reply.parts {
+                        warn!(
+                            "CloseResultSet got a reply with a part of kind {:?}",
+                            part.kind()
+                        );
                     }
                 }
             }
@@ -167,8 +167,7 @@ impl ResultSet {
                 "Resultset has more than one row".to_owned(),
             ))
         } else {
-            self.row_iter
-                .next()
+            self.next_row()?
                 .ok_or_else(|| HdbError::Usage("Resultset is empty".to_owned()))
         }
     }
@@ -239,22 +238,20 @@ impl ResultSet {
         trace!("ResultSet::fetch_next()");
         let (mut conn_core, resultset_id, fetch_size) = {
             // scope the borrow
-            let guard = self.core_ref.lock()?;
-            let rs_core = &*guard;
-            let conn_core = match rs_core.o_am_conn_core {
-                Some(ref am_conn_core) => am_conn_core.clone(),
+            match self.o_am_rscore {
+                Some(ref am_rscore) => {
+                    let rs_core = am_rscore.lock()?;
+                    let am_conn_core = rs_core.am_conn_core.clone();
+                    let fetch_size = { am_conn_core.lock()?.get_fetch_size() };
+                    (am_conn_core, rs_core.resultset_id, fetch_size)
+                }
                 None => {
                     return Err(HdbError::impl_("Fetch no more possible"));
                 }
-            };
-            let fetch_size = {
-                let guard = conn_core.lock()?;
-                (*guard).get_fetch_size()
-            };
-            (conn_core, rs_core.resultset_id, fetch_size)
+            }
         };
 
-        // build the request, provide resultset id, define FetchSize
+        // build the request, provide resultset-id and fetch-size
         debug!("ResultSet::fetch_next() with fetch_size = {}", fetch_size);
         let mut request = Request::new(RequestType::FetchNext, 0);
         request.push(Part::new(
@@ -270,25 +267,30 @@ impl ResultSet {
         reply.assert_expected_reply_type(&ReplyType::Fetch)?;
         reply.parts.pop_arg_if_kind(PartKind::ResultSet);
 
-        let mut guard = self.core_ref.lock()?;
-        let rs_core = &mut *guard;
-        if rs_core.attributes.is_last_packet() {
-            rs_core.o_am_conn_core = None;
+        let mut drop_rs_core = false;
+        if let Some(ref am_rscore) = self.o_am_rscore {
+            drop_rs_core = am_rscore.lock()?.attributes.is_last_packet();
+        };
+        if drop_rs_core {
+            self.o_am_rscore = None;
         }
         Ok(())
     }
 
     fn is_complete(&self) -> HdbResult<bool> {
-        let guard = self.core_ref.lock()?;
-        let rs_core = &*guard;
-        if (!rs_core.attributes.is_last_packet())
-            && (rs_core.attributes.row_not_found() || rs_core.attributes.resultset_is_closed())
-        {
-            Err(HdbError::impl_(
-                "ResultSet attributes inconsistent: incomplete, but already closed on server",
-            ))
+        if let Some(ref am_rscore) = self.o_am_rscore {
+            let rs_core = am_rscore.lock()?;
+            if (!rs_core.attributes.is_last_packet())
+                && (rs_core.attributes.row_not_found() || rs_core.attributes.resultset_is_closed())
+            {
+                Err(HdbError::impl_(
+                    "ResultSet attributes inconsistent: incomplete, but already closed on server",
+                ))
+            } else {
+                Ok(rs_core.attributes.is_last_packet())
+            }
         } else {
-            Ok(rs_core.attributes.is_last_packet())
+            Ok(true)
         }
     }
 
@@ -311,7 +313,7 @@ impl ResultSet {
         }
 
         ResultSet {
-            core_ref: ResultSetCore::new_am_rscore(am_conn_core, attrs, rs_id),
+            o_am_rscore: Some(ResultSetCore::new_am_rscore(am_conn_core, attrs, rs_id)),
             metadata: Arc::new(rsm),
             next_rows: Vec::<Row>::new(),
             row_iter: Vec::<Row>::new().into_iter(),
@@ -398,10 +400,9 @@ impl ResultSet {
                     }
                 };
 
-                {
-                    let mut guard = fetching_resultset.core_ref.lock()?;
-                    let rs_core = &mut *guard;
-                    rs_core.attributes = attributes;
+                if let Some(ref mut am_rscore) = fetching_resultset.o_am_rscore {
+                    let mut rscore = am_rscore.lock()?;
+                    rscore.attributes = attributes;
                 }
                 ResultSet::parse_rows(fetching_resultset, no_of_rows, rdr)?;
                 Ok(None)
@@ -409,25 +410,19 @@ impl ResultSet {
         }
     }
 
-    fn parse_rows(
-        resultset: &mut ResultSet,
-        no_of_rows: usize,
-        rdr: &mut std::io::BufRead,
-    ) -> HdbResult<()> {
-        let no_of_cols = resultset.metadata.number_of_fields();
-        debug!(
-            "resultset::parse_rows() reading {} lines with {} columns",
-            no_of_rows, no_of_cols
-        );
-        resultset.next_rows.reserve(no_of_rows);
+    fn parse_rows(&mut self, no_of_rows: usize, rdr: &mut std::io::BufRead) -> HdbResult<()> {
+        self.next_rows.reserve(no_of_rows);
+        let no_of_cols = self.metadata.number_of_fields();
+        debug!("parse_rows(): {} lines, {} columns", no_of_rows, no_of_cols);
 
-        let guard = resultset.core_ref.lock()?;
-        let rs_core = &*guard;
-        if let Some(ref am_conn_core) = rs_core.o_am_conn_core {
+        if let Some(ref mut am_rscore) = self.o_am_rscore {
+            let rscore = am_rscore.lock()?;
+            let am_conn_core: &AmConnCore = &rscore.am_conn_core;
+            let o_am_rscore = Some(am_rscore.clone());
             for i in 0..no_of_rows {
-                let row = Row::parse(Arc::clone(&resultset.metadata), am_conn_core, rdr)?;
+                let row = Row::parse(Arc::clone(&self.metadata), &o_am_rscore, am_conn_core, rdr)?;
                 trace!("parse_rows(): Found row #{}: {}", i, row);
-                resultset.next_rows.push(row);
+                self.next_rows.push(row);
             }
         }
         Ok(())

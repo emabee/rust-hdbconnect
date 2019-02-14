@@ -1,5 +1,6 @@
 use crate::conn_core::AmConnCore;
 use crate::protocol::parts::parameter_descriptor::ParameterDescriptor;
+use crate::protocol::parts::resultset::AmRsCore;
 use crate::protocol::parts::type_id::TypeId;
 use crate::protocol::util;
 use crate::types::{BLob, CLob, DayDate, LongDate, NCLob, SecondDate, SecondTime};
@@ -280,6 +281,7 @@ impl HdbValue {
         scale: i16,
         nullable: bool,
         am_conn_core: &AmConnCore,
+        o_am_rscore: &Option<AmRsCore>,
         rdr: &mut std::io::BufRead,
     ) -> HdbResult<HdbValue> {
         let t = type_id;
@@ -311,9 +313,11 @@ impl HdbValue {
             | TypeId::GEOMETRY
             | TypeId::POINT => Ok(parse_binary(nullable, t, rdr)?),
 
-            TypeId::BLOB => Ok(parse_blob(am_conn_core, nullable, rdr)?),
-            TypeId::CLOB => Ok(parse_clob(am_conn_core, nullable, rdr)?),
-            TypeId::NCLOB | TypeId::TEXT => Ok(parse_nclob(am_conn_core, nullable, t, rdr)?),
+            TypeId::BLOB => Ok(parse_blob(am_conn_core, o_am_rscore, nullable, rdr)?),
+            TypeId::CLOB => Ok(parse_clob(am_conn_core, o_am_rscore, nullable, rdr)?),
+            TypeId::NCLOB | TypeId::TEXT => {
+                Ok(parse_nclob(am_conn_core, o_am_rscore, nullable, t, rdr)?)
+            }
 
             TypeId::LONGDATE => Ok(parse_longdate(nullable, rdr)?),
             TypeId::SECONDDATE => Ok(parse_seconddate(nullable, rdr)?),

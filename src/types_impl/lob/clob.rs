@@ -1,9 +1,9 @@
 use super::{fetch_a_lob_chunk, CharLobSlice};
 use crate::conn_core::AmConnCore;
+use crate::protocol::parts::resultset::AmRsCore;
 use crate::protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
 use crate::protocol::util;
 use crate::{HdbError, HdbResult};
-use serde_derive::Serialize;
 use std::boxed::Box;
 use std::cmp::max;
 use std::io::{self, Write};
@@ -15,12 +15,13 @@ use std::io::{self, Write};
 /// CLOB fields are supposed to only store ASCII7, but HANA doesn't check this.
 /// So the implementation is a mixture of BLOB implementation (the protocol counts bytes, not chars)
 /// and NCLOB implementation (the exposed data are chars, not bytes).
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug)]
 pub struct CLob(Box<CLobHandle>);
 
 impl CLob {
     pub(crate) fn new(
         am_conn_core: &AmConnCore,
+        o_am_rscore: &Option<AmRsCore>,
         is_data_complete: bool,
         total_char_length: u64,
         total_byte_length: u64,
@@ -29,6 +30,7 @@ impl CLob {
     ) -> CLob {
         CLob(Box::new(CLobHandle::new(
             am_conn_core,
+            o_am_rscore,
             is_data_complete,
             total_char_length,
             total_byte_length,
@@ -38,6 +40,53 @@ impl CLob {
     }
 
     /// Converts the CLob into the contained String.
+    ///
+    /// All outstanding data (data that were not yet fetched from the server) are fetched
+    /// _into_ this CLob object,
+    /// before the complete data, as far as they were not yet read _from_ this NCLob object,
+    /// are returned.
+    ///
+    ///
+    /// ## Example
+    ///
+    /// ```rust, no-run
+    /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, Row};
+    /// # fn main() { }
+    /// # fn foo() -> HdbResult<()> {
+    /// # let params = "".into_connect_params()?;
+    /// # let mut connection = Connection::new(params)?;
+    /// # let query = "";
+    ///  let mut resultset = connection.query(query)?;
+    ///  let mut clob = resultset.into_single_row()?.into_single_value()?.try_into_clob()?;
+    ///  let s = clob.into_string(); // String, can be huge
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Alternative
+    ///
+    /// For larger objects, a streaming approach using the `Read` implementation of CLob
+    /// might by more appropriate, to avoid total allocation of the large object.
+    ///
+    /// ## Example
+    ///
+    /// ```rust, no-run
+    /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, Row};
+    /// # fn main() { }
+    /// # fn foo() -> HdbResult<()> {
+    /// # let params = "".into_connect_params()?;
+    /// # let mut connection = Connection::new(params)?;
+    ///  let mut writer;
+    ///  // ... writer gets instantiated, is an implementation of std::io::Write;
+    ///  # writer = Vec::<u8>::new();
+    ///
+    ///  # let query = "";
+    ///  # let mut resultset = connection.query(query)?;
+    ///  # let mut clob = resultset.into_single_row()?.into_single_value()?.try_into_clob()?;
+    ///  std::io::copy(&mut clob, &mut writer)?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn into_string(self) -> HdbResult<String> {
         trace!("CLob::into_string()");
         self.0.into_string()
@@ -85,10 +134,10 @@ impl io::Read for CLob {
 // remaining data on demand.
 // Since the data stream can be cut into chunks anywhere in the byte stream,
 // we may need to buffer an orphaned part of a multi-byte sequence between two fetches.
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug)]
 struct CLobHandle {
-    #[serde(skip)]
-    o_am_conn_core: Option<AmConnCore>,
+    am_conn_core: AmConnCore,
+    o_am_rscore: Option<AmRsCore>,
     is_data_complete: bool,
     total_char_length: u64,
     total_byte_length: u64,
@@ -97,12 +146,12 @@ struct CLobHandle {
     utf8: String,
     max_buf_len: usize,
     acc_byte_length: usize,
-    #[serde(skip)]
     server_resource_consumption_info: ServerResourceConsumptionInfo,
 }
 impl CLobHandle {
     fn new(
         am_conn_core: &AmConnCore,
+        o_am_rscore: &Option<AmRsCore>,
         is_data_complete: bool,
         total_char_length: u64,
         total_byte_length: u64,
@@ -113,7 +162,11 @@ impl CLobHandle {
 
         let (utf8, buffer_cesu8) = util::to_string_and_tail(cesu8).unwrap(/* yes */);
         let clob_handle = CLobHandle {
-            o_am_conn_core: Some(am_conn_core.clone()),
+            am_conn_core: am_conn_core.clone(),
+            o_am_rscore: match o_am_rscore {
+                Some(ref am_rscore) => Some(am_rscore.clone()),
+                None => None,
+            },
             total_char_length,
             total_byte_length,
             is_data_complete,
@@ -138,25 +191,15 @@ impl CLobHandle {
     }
 
     fn read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
-        match self.o_am_conn_core {
-            None => Err(HdbError::Usage(
-                "Fetching more LOB chunks is no more possible (connection already closed)"
-                    .to_owned(),
-            )),
-            Some(ref mut am_conn_core) => {
-                let (reply_data, _reply_is_last_data) = fetch_a_lob_chunk(
-                    am_conn_core,
-                    self.locator_id,
-                    offset,
-                    length,
-                    &mut self.server_resource_consumption_info,
-                )?;
-
-                debug!("read_slice(): got {} bytes", reply_data.len());
-
-                Ok(util::split_off_orphaned_bytes(reply_data)?)
-            }
-        }
+        let (reply_data, _reply_is_last_data) = fetch_a_lob_chunk(
+            &mut self.am_conn_core,
+            self.locator_id,
+            offset,
+            length,
+            &mut self.server_resource_consumption_info,
+        )?;
+        debug!("read_slice(): got {} bytes", reply_data.len());
+        Ok(util::split_off_orphaned_bytes(reply_data)?)
     }
 
     fn total_byte_length(&self) -> u64 {
@@ -172,58 +215,49 @@ impl CLobHandle {
             return Err(HdbError::impl_("fetch_next_chunk(): already complete"));
         }
 
-        match self.o_am_conn_core {
-            None => Err(HdbError::Usage(
-                "Fetching more CLob chunks is no more possible (connection already closed)"
-                    .to_owned(),
-            )),
-            Some(ref mut am_conn_core) => {
-                let (mut reply_data, reply_is_last_data) = fetch_a_lob_chunk(
-                    am_conn_core,
-                    self.locator_id,
-                    self.acc_byte_length as u64,
-                    {
-                        let guard = am_conn_core.lock()?;
-                        std::cmp::min(
-                            (*guard).get_lob_read_length() as u32,
-                            (self.total_byte_length - self.acc_byte_length as u64) as u32,
-                        )
-                    },
-                    &mut self.server_resource_consumption_info,
-                )?;
+        let read_length = std::cmp::min(
+            self.am_conn_core.lock()?.get_lob_read_length() as u32,
+            (self.total_byte_length - self.acc_byte_length as u64) as u32,
+        );
 
-                self.acc_byte_length += reply_data.len();
-                if self.buffer_cesu8.is_empty() {
-                    let (utf8, buffer) = util::to_string_and_tail(reply_data)?;
-                    self.utf8.push_str(&utf8);
-                    self.buffer_cesu8 = buffer;
-                } else {
-                    self.buffer_cesu8.append(&mut reply_data);
-                    let mut buffer_cesu8 = vec![];
-                    std::mem::swap(&mut buffer_cesu8, &mut self.buffer_cesu8);
-                    let (utf8, buffer) = util::to_string_and_tail(buffer_cesu8)?;
+        let (mut reply_data, reply_is_last_data) = fetch_a_lob_chunk(
+            &mut self.am_conn_core,
+            self.locator_id,
+            self.acc_byte_length as u64,
+            read_length,
+            &mut self.server_resource_consumption_info,
+        )?;
 
-                    self.utf8.push_str(&utf8);
-                    self.buffer_cesu8 = buffer;
-                }
+        self.acc_byte_length += reply_data.len();
+        if self.buffer_cesu8.is_empty() {
+            let (utf8, buffer) = util::to_string_and_tail(reply_data)?;
+            self.utf8.push_str(&utf8);
+            self.buffer_cesu8 = buffer;
+        } else {
+            self.buffer_cesu8.append(&mut reply_data);
+            let mut buffer_cesu8 = vec![];
+            std::mem::swap(&mut buffer_cesu8, &mut self.buffer_cesu8);
+            let (utf8, buffer) = util::to_string_and_tail(buffer_cesu8)?;
 
-                self.is_data_complete = reply_is_last_data;
-                self.max_buf_len = max(self.utf8.len() + self.buffer_cesu8.len(), self.max_buf_len);
-
-                if self.is_data_complete {
-                    if self.total_byte_length != self.acc_byte_length as u64 {
-                        warn!(
-                            "is_data_complete: {}, total_byte_length: {}, acc_byte_length: {}",
-                            self.is_data_complete, self.total_byte_length, self.acc_byte_length,
-                        );
-                    }
-                    assert_eq!(self.total_byte_length, self.acc_byte_length as u64);
-                } else {
-                    assert!(self.total_byte_length != self.acc_byte_length as u64);
-                }
-                Ok(())
-            }
+            self.utf8.push_str(&utf8);
+            self.buffer_cesu8 = buffer;
         }
+
+        self.is_data_complete = reply_is_last_data;
+        self.max_buf_len = max(self.utf8.len() + self.buffer_cesu8.len(), self.max_buf_len);
+
+        if self.is_data_complete {
+            if self.total_byte_length != self.acc_byte_length as u64 {
+                warn!(
+                    "is_data_complete: {}, total_byte_length: {}, acc_byte_length: {}",
+                    self.is_data_complete, self.total_byte_length, self.acc_byte_length,
+                );
+            }
+            assert_eq!(self.total_byte_length, self.acc_byte_length as u64);
+        } else {
+            assert!(self.total_byte_length != self.acc_byte_length as u64);
+        }
+        Ok(())
     }
 
     fn load_complete(&mut self) -> HdbResult<()> {

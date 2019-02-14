@@ -153,9 +153,7 @@ fn read(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) ->
     {
         info!("read null values and evaluate directly");
         let q = "select * from TEST_TYPES_B where id = 4";
-        let mut resultset = connection.query(q)?;
-        debug!("resultset: {:?}", resultset);
-        let row = resultset.next_row()?.unwrap();
+        let row = connection.query(q)?.into_single_row()?;
         assert!(!row[0].is_null());
         for value in row.skip(1) {
             assert!(value.is_null());

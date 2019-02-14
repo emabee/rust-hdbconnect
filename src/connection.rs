@@ -275,7 +275,11 @@ impl Connection {
     ///
     /// The ID is set by the server. Can be handy for logging.
     pub fn id(&self) -> HdbResult<i32> {
-        Ok(self.am_conn_core.lock()?.connect_options().get_connection_id())
+        Ok(self
+            .am_conn_core
+            .lock()?
+            .connect_options()
+            .get_connection_id())
     }
 
     ///
@@ -363,27 +367,33 @@ impl Connection {
 
     /// (MDC) Database name.
     pub fn get_database_name(&self) -> HdbResult<Option<String>> {
-        Ok(self.am_conn_core
+        Ok(self
+            .am_conn_core
             .lock()?
             .connect_options()
-            .get_database_name().cloned())
+            .get_database_name()
+            .cloned())
     }
 
     /// The SystemID is set by the server with the SAPSYSTEMNAME of the
     /// connected instance (for tracing and supportability purposes).
     pub fn get_system_id(&self) -> HdbResult<Option<String>> {
-        Ok(self.am_conn_core
+        Ok(self
+            .am_conn_core
             .lock()?
             .connect_options()
-            .get_system_id().cloned())
+            .get_system_id()
+            .cloned())
     }
 
     /// HANA Full version string.
     pub fn get_full_version_string(&self) -> HdbResult<Option<String>> {
-        Ok(self.am_conn_core
+        Ok(self
+            .am_conn_core
             .lock()?
             .connect_options()
-            .get_full_version_string().cloned())
+            .get_full_version_string()
+            .cloned())
     }
 }
 

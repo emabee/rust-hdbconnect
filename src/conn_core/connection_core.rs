@@ -96,7 +96,10 @@ impl<'a> ConnectionCore {
         self.client_info.clone()
     }
 
-    pub(crate) fn evaluate_statement_context(&mut self, stmt_ctx: &StatementContext) -> HdbResult<()> {
+    pub(crate) fn evaluate_statement_context(
+        &mut self,
+        stmt_ctx: &StatementContext,
+    ) -> HdbResult<()> {
         trace!(
             "Received StatementContext with sequence_info = {:?}",
             stmt_ctx.get_statement_sequence_info()
@@ -235,7 +238,13 @@ impl<'a> ConnectionCore {
             #[cfg(feature = "tls")]
             Buffalo::Secure(ref sc) => {
                 let writer = &mut *(sc.writer()).borrow_mut();
-                request.emit(self.session_id(), nsn, auto_commit_flag, o_descriptors, writer)?;
+                request.emit(
+                    self.session_id(),
+                    nsn,
+                    auto_commit_flag,
+                    o_descriptors,
+                    writer,
+                )?;
             }
         }
 

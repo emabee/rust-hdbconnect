@@ -1,5 +1,6 @@
 use crate::conn_core::AmConnCore;
 use crate::protocol::parts::hdb_value::HdbValue;
+use crate::protocol::parts::resultset::AmRsCore;
 use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
 use crate::{HdbError, HdbResult};
 
@@ -79,6 +80,7 @@ impl Row {
 
     pub(crate) fn parse(
         md: std::sync::Arc<ResultSetMetadata>,
+        o_am_rscore: &Option<AmRsCore>,
         am_conn_core: &AmConnCore,
         rdr: &mut std::io::BufRead,
     ) -> HdbResult<Row> {
@@ -94,7 +96,14 @@ impl Row {
                 if nullable { "Nullable " } else { "" },
                 type_id,
             );
-            let value = HdbValue::parse_from_reply(type_id, scale, nullable, am_conn_core, rdr)?;
+            let value = HdbValue::parse_from_reply(
+                type_id,
+                scale,
+                nullable,
+                am_conn_core,
+                o_am_rscore,
+                rdr,
+            )?;
             values.push(value);
         }
         let row = Row::new(md, values);
