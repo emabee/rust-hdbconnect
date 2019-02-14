@@ -131,15 +131,15 @@ fn test_blobs(
     // io::copy works with 8MB, our buffer remains at about 200_000:
     assert!(blob.max_buf_len() < 210_000);
 
-    info!("read from somewhere within");
-    let mut blob: BLob = connection
-        .query("select bindata from TEST_BLOBS")?
-        .into_single_row()?
-        .into_single_value()?
-        .try_into_blob()?;
-    for i in 1000..1040 {
-        let _blob_slice = blob.read_slice(i, 100)?;
-    }
+    // info!("read from somewhere within");
+    // let mut blob: BLob = connection
+    //     .query("select bindata from TEST_BLOBS")?
+    //     .into_single_row()?
+    //     .into_single_value()?
+    //     .try_into_blob()?;
+    // for i in 1000..1040 {
+    //     let _blob_slice = blob.read_slice(i, 100)?;
+    // }
 
     Ok(())
 }

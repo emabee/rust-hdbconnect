@@ -1,4 +1,5 @@
 use crate::conn_core::AmConnCore;
+use crate::protocol::parts::resultset::AmRsCore;
 use crate::protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
 use crate::types_impl::lob::fetch_a_lob_chunk;
 use crate::{HdbError, HdbResult};
@@ -12,6 +13,7 @@ pub struct BLob(Box<BLobHandle>);
 impl BLob {
     pub(crate) fn new(
         am_conn_core: &AmConnCore,
+        o_am_rscore: &Option<AmRsCore>,
         is_data_complete: bool,
         total_byte_length: u64,
         locator_id: u64,
@@ -19,6 +21,7 @@ impl BLob {
     ) -> BLob {
         BLob(Box::new(BLobHandle::new(
             am_conn_core,
+            o_am_rscore,
             is_data_complete,
             total_byte_length,
             locator_id,
@@ -119,7 +122,8 @@ impl io::Read for BLob {
 // remaining data on demand.
 #[derive(Clone, Debug)]
 struct BLobHandle {
-    o_am_conn_core: Option<AmConnCore>,
+    am_conn_core: AmConnCore,
+    o_am_rscore: Option<AmRsCore>,
     is_data_complete: bool,
     total_byte_length: u64,
     locator_id: u64,
@@ -131,6 +135,7 @@ struct BLobHandle {
 impl BLobHandle {
     fn new(
         am_conn_core: &AmConnCore,
+        o_am_rscore: &Option<AmRsCore>,
         is_data_complete: bool,
         total_byte_length: u64,
         locator_id: u64,
@@ -143,7 +148,11 @@ impl BLobHandle {
             data.len()
         );
         BLobHandle {
-            o_am_conn_core: Some(am_conn_core.clone()),
+            am_conn_core: am_conn_core.clone(),
+            o_am_rscore: match o_am_rscore {
+                Some(ref am_rscore) => Some(am_rscore.clone()),
+                None => None,
+            },
             total_byte_length,
             is_data_complete,
             locator_id,
@@ -155,23 +164,15 @@ impl BLobHandle {
     }
 
     fn read_slice(&mut self, offset: u64, length: u32) -> HdbResult<Vec<u8>> {
-        match self.o_am_conn_core {
-            None => Err(HdbError::Usage(
-                "Fetching more LOB chunks is no more possible (connection already closed)"
-                    .to_owned(),
-            )),
-            Some(ref mut am_conn_core) => {
-                let (reply_data, _reply_is_last_data) = fetch_a_lob_chunk(
-                    am_conn_core,
-                    self.locator_id,
-                    offset,
-                    length,
-                    &mut self.server_resource_consumption_info,
-                )?;
-                debug!("read_slice(): got {} bytes", reply_data.len());
-                Ok(reply_data)
-            }
-        }
+        let (reply_data, _reply_is_last_data) = fetch_a_lob_chunk(
+            &mut self.am_conn_core,
+            self.locator_id,
+            offset,
+            length,
+            &mut self.server_resource_consumption_info,
+        )?;
+        debug!("read_slice(): got {} bytes", reply_data.len());
+        Ok(reply_data)
     }
 
     fn total_byte_length(&self) -> u64 {
@@ -187,43 +188,34 @@ impl BLobHandle {
             return Err(HdbError::impl_("fetch_next_chunk(): already complete"));
         }
 
-        match self.o_am_conn_core {
-            None => Err(HdbError::Usage(
-                "Fetching more BLob chunks is no more possible (connection already closed)"
-                    .to_owned(),
-            )),
-            Some(ref mut am_conn_core) => {
-                let (mut reply_data, reply_is_last_data) = fetch_a_lob_chunk(
-                    am_conn_core,
-                    self.locator_id,
-                    self.acc_byte_length as u64,
-                    {
-                        let guard = am_conn_core.lock()?;
-                        std::cmp::min(
-                            (*guard).get_lob_read_length() as u32,
-                            (self.total_byte_length - self.acc_byte_length as u64) as u32,
-                        )
-                    },
-                    &mut self.server_resource_consumption_info,
-                )?;
+        let read_length = std::cmp::min(
+            self.am_conn_core.lock()?.get_lob_read_length() as u32,
+            (self.total_byte_length - self.acc_byte_length as u64) as u32,
+        );
 
-                self.acc_byte_length += reply_data.len();
-                self.data.append(&mut reply_data);
-                self.is_data_complete = reply_is_last_data;
-                self.max_buf_len = std::cmp::max(self.data.len(), self.max_buf_len);
+        let (mut reply_data, reply_is_last_data) = fetch_a_lob_chunk(
+            &mut self.am_conn_core,
+            self.locator_id,
+            self.acc_byte_length as u64,
+            read_length,
+            &mut self.server_resource_consumption_info,
+        )?;
 
-                assert_eq!(
-                    self.is_data_complete,
-                    self.total_byte_length == self.acc_byte_length as u64
-                );
-                trace!(
-                    "fetch_next_chunk: is_data_complete = {}, data.len() = {}",
-                    self.is_data_complete,
-                    self.data.len()
-                );
-                Ok(())
-            }
-        }
+        self.acc_byte_length += reply_data.len();
+        self.data.append(&mut reply_data);
+        self.is_data_complete = reply_is_last_data;
+        self.max_buf_len = std::cmp::max(self.data.len(), self.max_buf_len);
+
+        assert_eq!(
+            self.is_data_complete,
+            self.total_byte_length == self.acc_byte_length as u64
+        );
+        trace!(
+            "fetch_next_chunk: is_data_complete = {}, data.len() = {}",
+            self.is_data_complete,
+            self.data.len()
+        );
+        Ok(())
     }
 
     fn load_complete(&mut self) -> HdbResult<()> {

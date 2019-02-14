@@ -58,6 +58,7 @@ impl OutputParameters {
                 descriptor.scale(),
                 descriptor.nullable(),
                 am_conn_core,
+                &None,
                 rdr,
             )?;
             trace!("Found value {:?}", value);

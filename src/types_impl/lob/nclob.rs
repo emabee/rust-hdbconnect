@@ -1,5 +1,6 @@
 use super::{fetch_a_lob_chunk, CharLobSlice};
 use crate::conn_core::AmConnCore;
+use crate::protocol::parts::resultset::AmRsCore;
 use crate::protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
 use crate::protocol::util;
 use crate::{HdbError, HdbResult};
@@ -13,6 +14,7 @@ pub struct NCLob(Box<NCLobHandle>);
 impl NCLob {
     pub(crate) fn new(
         am_conn_core: &AmConnCore,
+        o_am_rscore: &Option<AmRsCore>,
         is_data_complete: bool,
         total_char_length: u64,
         total_byte_length: u64,
@@ -21,6 +23,7 @@ impl NCLob {
     ) -> NCLob {
         NCLob(Box::new(NCLobHandle::new(
             am_conn_core,
+            o_am_rscore,
             is_data_complete,
             total_char_length,
             total_byte_length,
@@ -126,7 +129,8 @@ impl io::Read for NCLob {
 // an orphaned surrogate between two fetches.
 #[derive(Clone, Debug)]
 struct NCLobHandle {
-    o_am_conn_core: Option<AmConnCore>,
+    am_conn_core: AmConnCore,
+    o_am_rscore: Option<AmRsCore>,
     is_data_complete: bool,
     total_char_length: u64,
     total_byte_length: u64,
@@ -141,6 +145,7 @@ struct NCLobHandle {
 impl NCLobHandle {
     fn new(
         am_conn_core: &AmConnCore,
+        o_am_rscore: &Option<AmRsCore>,
         is_data_complete: bool,
         total_char_length: u64,
         total_byte_length: u64,
@@ -153,7 +158,11 @@ impl NCLobHandle {
         let (utf8, surrogate_buf) = util::to_string_and_surrogate(cesu8).unwrap(/* yes */);
 
         let nclob_handle = NCLobHandle {
-            o_am_conn_core: Some(am_conn_core.clone()),
+            am_conn_core: am_conn_core.clone(),
+            o_am_rscore: match o_am_rscore {
+                Some(ref am_rscore) => Some(am_rscore.clone()),
+                None => None,
+            },
             total_char_length,
             total_byte_length,
             is_data_complete,
@@ -180,25 +189,15 @@ impl NCLobHandle {
     }
 
     fn read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
-        match self.o_am_conn_core {
-            None => Err(HdbError::Usage(
-                "Fetching more LOB chunks is no more possible (connection already closed)"
-                    .to_owned(),
-            )),
-            Some(ref mut am_conn_core) => {
-                let (reply_data, _reply_is_last_data) = fetch_a_lob_chunk(
-                    am_conn_core,
-                    self.locator_id,
-                    offset,
-                    length,
-                    &mut self.server_resource_consumption_info,
-                )?;
-
-                debug!("read_slice(): got {} bytes", reply_data.len());
-
-                Ok(util::split_off_orphaned_surrogates(reply_data)?)
-            }
-        }
+        let (reply_data, _reply_is_last_data) = fetch_a_lob_chunk(
+            &mut self.am_conn_core,
+            self.locator_id,
+            offset,
+            length,
+            &mut self.server_resource_consumption_info,
+        )?;
+        debug!("read_slice(): got {} bytes", reply_data.len());
+        Ok(util::split_off_orphaned_surrogates(reply_data)?)
     }
 
     fn total_byte_length(&self) -> u64 {
@@ -214,70 +213,49 @@ impl NCLobHandle {
             return Err(HdbError::impl_("fetch_next_chunk(): already complete"));
         }
 
-        match self.o_am_conn_core {
-            None => Err(HdbError::Usage(
-                "Fetching more LOB chunks is no more possible (connection already closed)"
-                    .to_owned(),
-            )),
-            Some(ref mut am_conn_core) => {
-                let (mut reply_data, reply_is_last_data) = fetch_a_lob_chunk(
-                    am_conn_core,
-                    self.locator_id,
-                    self.acc_char_length as u64,
-                    {
-                        let guard = am_conn_core.lock()?;
-                        std::cmp::min(
-                            (*guard).get_lob_read_length() as u32,
-                            (self.total_char_length - self.acc_char_length as u64) as u32,
-                        )
-                    },
-                    &mut self.server_resource_consumption_info,
-                )?;
+        let read_length = std::cmp::min(
+            self.am_conn_core.lock()?.get_lob_read_length() as u32,
+            (self.total_char_length - self.acc_char_length as u64) as u32,
+        );
 
-                debug!("fetch_next_chunk(): got {} bytes", reply_data.len());
+        let (mut reply_data, reply_is_last_data) = fetch_a_lob_chunk(
+            &mut self.am_conn_core,
+            self.locator_id,
+            self.acc_char_length as u64,
+            read_length,
+            &mut self.server_resource_consumption_info,
+        )?;
 
-                self.acc_byte_length += reply_data.len();
-                self.acc_char_length += util::count_1_2_3_sequence_starts(&reply_data);
+        self.acc_byte_length += reply_data.len();
+        self.acc_char_length += util::count_1_2_3_sequence_starts(&reply_data);
 
-                let (utf8, surrogate_buf) = match self.surrogate_buf {
-                    Some(ref buf) => {
-                        let mut temp = buf.to_vec();
-                        temp.append(&mut reply_data);
-                        util::to_string_and_surrogate(temp).unwrap(/* yes */)
-                    }
-                    None => util::to_string_and_surrogate(reply_data).unwrap(/* yes */),
-                };
-
-                self.utf8.push_str(&utf8);
-                self.surrogate_buf = surrogate_buf;
-                self.is_data_complete = reply_is_last_data;
-                self.max_buf_len = std::cmp::max(
-                    self.utf8.len() + if self.surrogate_buf.is_some() { 3 } else { 0 },
-                    self.max_buf_len,
-                );
-
-                if self.is_data_complete {
-                    if self.total_byte_length != self.acc_byte_length as u64 {
-                        error!(
-                    "fetch_next_chunk(): is_data_complete = {}, total_char_length = {}, total_byte_length = {}, \
-                     locator_id = {}, surrogate_buf = {:?}, utf8.len() = {}",
-                    self.is_data_complete,
-                    self.total_char_length,
-                    self.total_byte_length,
-                    self.locator_id,
-                    self.surrogate_buf,
-                    self.utf8.len()
-                );
-                        trace!("utf8: {:?}", self.utf8);
-                    }
-                    assert_eq!(self.total_byte_length, self.acc_byte_length as u64);
-                    debug!("max_buf_len: {}", self.max_buf_len);
-                } else {
-                    assert!(self.total_byte_length != self.acc_byte_length as u64);
-                }
-                Ok(())
+        let (utf8, surrogate_buf) = match self.surrogate_buf {
+            Some(ref buf) => {
+                let mut temp = buf.to_vec();
+                temp.append(&mut reply_data);
+                util::to_string_and_surrogate(temp).unwrap(/* yes */)
             }
-        }
+            None => util::to_string_and_surrogate(reply_data).unwrap(/* yes */),
+        };
+
+        self.utf8.push_str(&utf8);
+        self.surrogate_buf = surrogate_buf;
+        self.is_data_complete = reply_is_last_data;
+        self.max_buf_len = std::cmp::max(
+            self.utf8.len() + if self.surrogate_buf.is_some() { 3 } else { 0 },
+            self.max_buf_len,
+        );
+
+        assert_eq!(
+            self.is_data_complete,
+            self.total_byte_length == self.acc_byte_length as u64
+        );
+        trace!(
+            "fetch_next_chunk: is_data_complete = {}, utf8.len() = {}",
+            self.is_data_complete,
+            self.utf8.len()
+        );
+        Ok(())
     }
 
     fn load_complete(&mut self) -> HdbResult<()> {

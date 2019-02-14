@@ -128,7 +128,7 @@ fn test_nclobs(
     debug!("nclob.max_buf_len(): {}", nclob.max_buf_len());
     assert!(nclob.max_buf_len() < 605_000);
 
-    info!("read from somewhere within");
+    // info!("read from somewhere within");
     let mut nclob: NCLob = connection
         .query("select chardata from TEST_NCLOBS")?
         .into_single_row()?
