@@ -32,7 +32,7 @@ impl NCLob {
         )))
     }
 
-    /// Converts into the NCLob's data as String.
+    /// Converts the NCLob into the contained String.
     ///
     /// All outstanding data (data that were not yet fetched from the server) are fetched
     /// _into_ this NCLob object,
@@ -50,7 +50,7 @@ impl NCLob {
     /// # let mut connection = Connection::new(params)?;
     /// # let query = "";
     ///  let mut resultset = connection.query(query)?;
-    ///  let mut nclob = resultset.next_row()?.unwrap().next_value().unwrap().try_into_nclob()?;
+    ///  let mut nclob = resultset.into_single_row()?.into_single_value()?.try_into_nclob()?;
     ///  let s = nclob.into_string(); // String, can be huge
     /// # Ok(())
     /// # }
@@ -59,7 +59,7 @@ impl NCLob {
     /// # Alternative
     ///
     /// For larger objects, a streaming approach using the `Read` implementation of NCLob
-    /// might by more appropriate.
+    /// might by more appropriate, to avoid total allocation of the large object.
     ///
     /// ## Example
     ///
@@ -74,8 +74,8 @@ impl NCLob {
     ///  # writer = Vec::<u8>::new();
     ///
     ///  # let query = "";
-    ///  let mut resultset = connection.query(query)?;
-    ///  let mut nclob = resultset.next_row()?.unwrap().next_value().unwrap().try_into_nclob()?;
+    ///  # let mut resultset = connection.query(query)?;
+    ///  # let mut nclob = resultset.into_single_row()?.into_single_value()?.try_into_nclob()?;
     ///  std::io::copy(&mut nclob, &mut writer)?;
     /// # Ok(())
     /// # }

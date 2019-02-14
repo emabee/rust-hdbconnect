@@ -40,6 +40,53 @@ impl CLob {
     }
 
     /// Converts the CLob into the contained String.
+    ///
+    /// All outstanding data (data that were not yet fetched from the server) are fetched
+    /// _into_ this CLob object,
+    /// before the complete data, as far as they were not yet read _from_ this NCLob object,
+    /// are returned.
+    ///
+    ///
+    /// ## Example
+    ///
+    /// ```rust, no-run
+    /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, Row};
+    /// # fn main() { }
+    /// # fn foo() -> HdbResult<()> {
+    /// # let params = "".into_connect_params()?;
+    /// # let mut connection = Connection::new(params)?;
+    /// # let query = "";
+    ///  let mut resultset = connection.query(query)?;
+    ///  let mut clob = resultset.into_single_row()?.into_single_value()?.try_into_clob()?;
+    ///  let s = clob.into_string(); // String, can be huge
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Alternative
+    ///
+    /// For larger objects, a streaming approach using the `Read` implementation of CLob
+    /// might by more appropriate, to avoid total allocation of the large object.
+    ///
+    /// ## Example
+    ///
+    /// ```rust, no-run
+    /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, Row};
+    /// # fn main() { }
+    /// # fn foo() -> HdbResult<()> {
+    /// # let params = "".into_connect_params()?;
+    /// # let mut connection = Connection::new(params)?;
+    ///  let mut writer;
+    ///  // ... writer gets instantiated, is an implementation of std::io::Write;
+    ///  # writer = Vec::<u8>::new();
+    ///
+    ///  # let query = "";
+    ///  # let mut resultset = connection.query(query)?;
+    ///  # let mut clob = resultset.into_single_row()?.into_single_value()?.try_into_clob()?;
+    ///  std::io::copy(&mut clob, &mut writer)?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn into_string(self) -> HdbResult<String> {
         trace!("CLob::into_string()");
         self.0.into_string()

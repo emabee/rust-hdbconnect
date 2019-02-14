@@ -47,7 +47,7 @@ impl BLob {
     /// # let mut connection = Connection::new(params)?;
     /// # let query = "";
     ///  let mut resultset = connection.query(query)?;
-    ///  let mut blob = resultset.next_row()?.unwrap().next_value().unwrap().try_into_blob()?;
+    ///  let mut blob = resultset.into_single_row()?.into_single_value()?.try_into_blob()?;
     ///
     ///  let b = blob.into_bytes()?; // Vec<u8>, can be huge
     /// # Ok(())
@@ -57,7 +57,7 @@ impl BLob {
     /// # Alternative
     ///
     /// For larger objects, a streaming approach using the `Read` implementation of BLob
-    /// might by more appropriate.
+    /// might by more appropriate, to avoid total allocation of the large object.
     ///
     /// ## Example
     ///
@@ -70,7 +70,7 @@ impl BLob {
     /// # let mut writer = Vec::<u8>::new();
     /// # let query = "select chardata from TEST_NCLOBS";
     /// # let mut resultset = connection.query(query)?;
-    /// # let mut blob = resultset.next_row()?.unwrap().next_value().unwrap().try_into_blob()?;
+    /// # let mut blob = resultset.into_single_row()?.into_single_value()?.try_into_blob()?;
     ///  std::io::copy(&mut blob, &mut writer)?;
     /// # Ok(())
     /// # }

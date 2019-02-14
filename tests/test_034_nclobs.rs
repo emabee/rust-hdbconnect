@@ -106,15 +106,12 @@ fn test_nclobs(
     );
     assert_eq!(mydata, second);
 
-    // stream a clob from the database into a sink
     debug!("read big clob in streaming fashion");
-
-    // Connection.set_lob_read_length() affects NCLobs in chars (1, 2, or 3 bytes),
-    // NCLob::max_buf_len() (see below) is in bytes
+    // Note: Connection.set_lob_read_length() affects NCLobs in chars (1, 2, or 3 bytes),
+    // while NCLob::max_buf_len() (see below) is in bytes
     connection.set_lob_read_length(200_000)?;
 
-    let mut resultset = connection.query("select chardata from TEST_NCLOBS")?;
-    let mut row = resultset.next_row()?.unwrap();
+    let mut row = connection.query(query)?.into_single_row()?;
     let mut nclob: NCLob = row.next_value().unwrap().try_into_nclob()?;
     let mut streamed = Vec::<u8>::new();
     io::copy(&mut nclob, &mut streamed)?;
@@ -128,7 +125,7 @@ fn test_nclobs(
     debug!("nclob.max_buf_len(): {}", nclob.max_buf_len());
     assert!(nclob.max_buf_len() < 605_000);
 
-    // info!("read from somewhere within");
+    info!("read from somewhere within");
     let mut nclob: NCLob = connection
         .query("select chardata from TEST_NCLOBS")?
         .into_single_row()?

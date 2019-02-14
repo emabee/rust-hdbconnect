@@ -108,8 +108,7 @@ fn test_clobs(
     connection.set_lob_read_length(200_000)?;
 
     let query = "select desc, chardata as CL1, chardata as CL2 from TEST_CLOBS";
-    let mut resultset: hdbconnect::ResultSet = connection.query(query)?;
-    let mut row = resultset.next_row()?.unwrap();
+    let mut row = connection.query(query)?.into_single_row()?;
     row.next_value().unwrap();
     let mut clob: CLob = row.next_value().unwrap().try_into_clob()?;
     let mut streamed = Vec::<u8>::new();

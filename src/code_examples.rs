@@ -348,8 +348,7 @@
 //! # let mut connection = Connection::new(params)?;
 //! # let mut resultset: ResultSet = connection.query(query)?;
 //! # let mut writer: Vec<u8> = vec![];
-//! let mut row = resultset.next_row()?.unwrap();
-//! let mut nclob: NCLob = row.next_value().unwrap().try_into_nclob()?;
+//! let mut nclob: NCLob = resultset.into_single_row()?.into_single_value()?.try_into_nclob()?;
 //! std::io::copy(&mut nclob, &mut writer)?;
 //! # Ok(())
 //! # }

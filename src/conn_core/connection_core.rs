@@ -46,7 +46,7 @@ pub(crate) struct ConnectionCore {
 }
 
 impl<'a> ConnectionCore {
-    pub fn try_new(params: ConnectParams) -> HdbResult<ConnectionCore> {
+    pub(crate) fn try_new(params: ConnectParams) -> HdbResult<ConnectionCore> {
         let mut buffalo = Buffalo::try_new(params)?;
         initial_request::send_and_receive(&mut buffalo)?;
 
@@ -69,34 +69,37 @@ impl<'a> ConnectionCore {
         })
     }
 
-    pub fn set_application_version(&mut self, version: &str) -> HdbResult<()> {
+    pub(crate) fn set_application_version(&mut self, version: &str) -> HdbResult<()> {
         self.client_info.set_application_version(version);
         self.client_info_touched = true;
         Ok(())
     }
 
-    pub fn set_application_source(&mut self, source: &str) -> HdbResult<()> {
+    pub(crate) fn set_application_source(&mut self, source: &str) -> HdbResult<()> {
         self.client_info.set_application_source(source);
         self.client_info_touched = true;
         Ok(())
     }
 
-    pub fn set_application_user(&mut self, application_user: &str) -> HdbResult<()> {
+    pub(crate) fn set_application_user(&mut self, application_user: &str) -> HdbResult<()> {
         self.client_info.set_application_user(application_user);
         self.client_info_touched = true;
         Ok(())
     }
 
-    pub fn is_client_info_touched(&self) -> bool {
+    pub(crate) fn is_client_info_touched(&self) -> bool {
         self.client_info_touched
     }
-    pub fn get_client_info_for_sending(&mut self) -> ClientInfo {
+    pub(crate) fn get_client_info_for_sending(&mut self) -> ClientInfo {
         debug!("cloning client info for sending");
         self.client_info_touched = false;
         self.client_info.clone()
     }
 
-    pub fn evaluate_statement_context(&mut self, stmt_ctx: &StatementContext) -> HdbResult<()> {
+    pub(crate) fn evaluate_statement_context(
+        &mut self,
+        stmt_ctx: &StatementContext,
+    ) -> HdbResult<()> {
         trace!(
             "Received StatementContext with sequence_info = {:?}",
             stmt_ctx.get_statement_sequence_info()
@@ -116,48 +119,43 @@ impl<'a> ConnectionCore {
         Ok(())
     }
 
-    pub fn set_auto_commit(&mut self, ac: bool) {
+    pub(crate) fn set_auto_commit(&mut self, ac: bool) {
         self.auto_commit = ac;
     }
 
-    pub fn is_auto_commit(&self) -> bool {
+    pub(crate) fn is_auto_commit(&self) -> bool {
         self.auto_commit
     }
 
-    pub fn server_resource_consumption_info(&self) -> &ServerResourceConsumptionInfo {
+    pub(crate) fn server_resource_consumption_info(&self) -> &ServerResourceConsumptionInfo {
         &self.server_resource_consumption_info
     }
 
-    #[deprecated]
-    pub fn get_server_proc_time(&self) -> i32 {
-        self.server_resource_consumption_info.acc_server_proc_time
-    }
-
-    pub fn get_fetch_size(&self) -> u32 {
+    pub(crate) fn get_fetch_size(&self) -> u32 {
         self.fetch_size
     }
 
-    pub fn set_fetch_size(&mut self, fetch_size: u32) {
+    pub(crate) fn set_fetch_size(&mut self, fetch_size: u32) {
         self.fetch_size = fetch_size;
     }
 
-    pub fn get_lob_read_length(&self) -> i32 {
+    pub(crate) fn get_lob_read_length(&self) -> i32 {
         self.lob_read_length
     }
 
-    pub fn set_lob_read_length(&mut self, lob_read_length: i32) {
+    pub(crate) fn set_lob_read_length(&mut self, lob_read_length: i32) {
         self.lob_read_length = lob_read_length;
     }
 
-    pub fn set_session_id(&mut self, session_id: i64) {
+    pub(crate) fn set_session_id(&mut self, session_id: i64) {
         self.session_id = session_id;
     }
 
-    pub fn set_topology(&mut self, topology: Topology) {
+    pub(crate) fn set_topology(&mut self, topology: Topology) {
         self.topology = Some(topology);
     }
 
-    pub fn digest_server_connect_options(
+    pub(crate) fn digest_server_connect_options(
         &mut self,
         new_conn_opts: ConnectOptions,
         old_conn_opts: ConnectOptions,
@@ -166,15 +164,11 @@ impl<'a> ConnectionCore {
             .digest_server_connect_options(new_conn_opts, old_conn_opts)
     }
 
-    pub fn is_authenticated(&self) -> bool {
-        self.authenticated
-    }
-
-    pub fn set_authenticated(&mut self, authenticated: bool) {
+    pub(crate) fn set_authenticated(&mut self, authenticated: bool) {
         self.authenticated = authenticated;
     }
 
-    pub fn statement_sequence(&self) -> &Option<i64> {
+    pub(crate) fn statement_sequence(&self) -> &Option<i64> {
         &self.statement_sequence
     }
 
@@ -182,19 +176,19 @@ impl<'a> ConnectionCore {
         self.statement_sequence = statement_sequence;
     }
 
-    pub fn session_id(&self) -> i64 {
+    pub(crate) fn session_id(&self) -> i64 {
         self.session_id
     }
 
-    pub fn next_seq_number(&mut self) -> i32 {
+    pub(crate) fn next_seq_number(&mut self) -> i32 {
         self.seq_number += 1;
         self.seq_number
     }
-    pub fn last_seq_number(&self) -> i32 {
+    pub(crate) fn last_seq_number(&self) -> i32 {
         self.seq_number
     }
 
-    pub fn evaluate_ta_flags(&mut self, ta_flags: TransactionFlags) -> HdbResult<()> {
+    pub(crate) fn evaluate_ta_flags(&mut self, ta_flags: TransactionFlags) -> HdbResult<()> {
         self.session_state.update(ta_flags);
         if self.session_state.dead {
             Err(HdbError::DbIssue(
@@ -205,31 +199,7 @@ impl<'a> ConnectionCore {
         }
     }
 
-    pub fn get_database_name(&self) -> &str {
-        self.connect_options
-            .get_database_name()
-            .map(|s| s.as_ref())
-            .unwrap_or("")
-    }
-    pub fn get_system_id(&self) -> &str {
-        self.connect_options
-            .get_system_id()
-            .map(|s| s.as_ref())
-            .unwrap_or("")
-    }
-
-    pub fn get_connection_id(&self) -> i32 {
-        self.connect_options.get_connection_id().unwrap_or(-1)
-    }
-
-    pub fn get_full_version_string(&self) -> &str {
-        self.connect_options
-            .get_full_version_string()
-            .map(|s| s.as_ref())
-            .unwrap_or("")
-    }
-
-    pub fn pop_warnings(&mut self) -> HdbResult<Option<Vec<ServerError>>> {
+    pub(crate) fn pop_warnings(&mut self) -> HdbResult<Option<Vec<ServerError>>> {
         if self.warnings.is_empty() {
             Ok(None)
         } else {
@@ -239,11 +209,11 @@ impl<'a> ConnectionCore {
         }
     }
 
-    pub fn connect_options(&self) -> &ConnectOptions {
+    pub(crate) fn connect_options(&self) -> &ConnectOptions {
         &self.connect_options
     }
 
-    pub fn roundtrip(
+    pub(crate) fn roundtrip(
         &mut self,
         request: Request<'a>,
         am_conn_core: &AmConnCore,
@@ -268,7 +238,13 @@ impl<'a> ConnectionCore {
             #[cfg(feature = "tls")]
             Buffalo::Secure(ref sc) => {
                 let writer = &mut *(sc.writer()).borrow_mut();
-                request.emit(self.session_id(), nsn, auto_commit_flag, writer)?;
+                request.emit(
+                    self.session_id(),
+                    nsn,
+                    auto_commit_flag,
+                    o_descriptors,
+                    writer,
+                )?;
             }
         }
 
@@ -393,7 +369,7 @@ impl<'a> ConnectionCore {
                 #[cfg(feature = "tls")]
                 Buffalo::Secure(ref sc) => {
                     let writer = &mut *(sc.writer()).borrow_mut();
-                    request.emit(self.session_id(), nsn, 0, writer)?;
+                    request.emit(self.session_id(), nsn, 0, None, writer)?;
                     writer.flush()?;
                 }
             }

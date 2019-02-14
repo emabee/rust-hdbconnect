@@ -107,8 +107,7 @@ fn test_blobs(
     connection.set_lob_read_length(200_000)?;
 
     let query = "select bindata as BL1, bindata as BL2, bindata_NN as BL3 from TEST_BLOBS";
-    let mut resultset: hdbconnect::ResultSet = connection.query(query)?;
-    let mut row = resultset.next_row()?.unwrap();
+    let mut row = connection.query(query)?.into_single_row()?;
     let mut blob: BLob = row.next_value().unwrap().try_into_blob()?;
     let mut blob2: BLob = row.next_value().unwrap().try_into_blob()?;
 
@@ -131,15 +130,15 @@ fn test_blobs(
     // io::copy works with 8MB, our buffer remains at about 200_000:
     assert!(blob.max_buf_len() < 210_000);
 
-    // info!("read from somewhere within");
-    // let mut blob: BLob = connection
-    //     .query("select bindata from TEST_BLOBS")?
-    //     .into_single_row()?
-    //     .into_single_value()?
-    //     .try_into_blob()?;
-    // for i in 1000..1040 {
-    //     let _blob_slice = blob.read_slice(i, 100)?;
-    // }
+    info!("read from somewhere within");
+    let mut blob: BLob = connection
+        .query("select bindata from TEST_BLOBS")?
+        .into_single_row()?
+        .into_single_value()?
+        .try_into_blob()?;
+    for i in 1000..1040 {
+        let _blob_slice = blob.read_slice(i, 100)?;
+    }
 
     Ok(())
 }
