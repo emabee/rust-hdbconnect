@@ -235,7 +235,7 @@ impl<'a> ConnectionCore {
             #[cfg(feature = "tls")]
             Buffalo::Secure(ref sc) => {
                 let writer = &mut *(sc.writer()).borrow_mut();
-                request.emit(self.session_id(), nsn, auto_commit_flag, writer)?;
+                request.emit(self.session_id(), nsn, auto_commit_flag, o_descriptors, writer)?;
             }
         }
 
@@ -360,7 +360,7 @@ impl<'a> ConnectionCore {
                 #[cfg(feature = "tls")]
                 Buffalo::Secure(ref sc) => {
                     let writer = &mut *(sc.writer()).borrow_mut();
-                    request.emit(self.session_id(), nsn, 0, writer)?;
+                    request.emit(self.session_id(), nsn, 0, None, writer)?;
                     writer.flush()?;
                 }
             }
