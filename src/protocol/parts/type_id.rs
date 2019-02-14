@@ -204,26 +204,29 @@ impl TypeId {
         if value_type == self {
             return Ok(());
         }
-
+        info!(
+            "CALLED WITH self = {:?}, value_type: {:?}",
+            self, value_type
+        );
         // From To Conversions
         match (value_type, self) {
-            (TypeId::BOOLEAN, TypeId::TINYINT)
-            | (TypeId::BOOLEAN, TypeId::SMALLINT)
-            | (TypeId::BOOLEAN, TypeId::INT)
-            | (TypeId::BOOLEAN, TypeId::BIGINT) => return Ok(()),
+            (TypeId::BOOLEAN, TypeId::TINYINT) => return Ok(()),
+            (TypeId::BOOLEAN, TypeId::SMALLINT) => return Ok(()),
+            (TypeId::BOOLEAN, TypeId::INT) => return Ok(()),
+            (TypeId::BOOLEAN, TypeId::BIGINT) => return Ok(()),
 
             (TypeId::STRING, TypeId::GEOMETRY) => {} // no clear strategy for GEO stuff yet, so be restrictive
             (TypeId::STRING, TypeId::POINT) => {} // no clear strategy for GEO stuff yet, so be restrictive
             (TypeId::STRING, _) => return Ok(()), // Allow all other cases
 
-            (TypeId::BINARY, TypeId::BLOB)
-            | (TypeId::BINARY, TypeId::VARBINARY)
-            | (TypeId::BINARY, TypeId::GEOMETRY)
-            | (TypeId::BINARY, TypeId::POINT) => return Ok(()),
+            (TypeId::BINARY, TypeId::BLOB) => return Ok(()),
+            (TypeId::BINARY, TypeId::VARBINARY) => return Ok(()),
+            (TypeId::BINARY, TypeId::GEOMETRY) => return Ok(()),
+            (TypeId::BINARY, TypeId::POINT) => return Ok(()),
 
-            (TypeId::DECIMAL, TypeId::FIXED8)
-            | (TypeId::DECIMAL, TypeId::FIXED12)
-            | (TypeId::DECIMAL, TypeId::FIXED16) => return Ok(()),
+            (TypeId::DECIMAL, TypeId::FIXED8) => return Ok(()),
+            (TypeId::DECIMAL, TypeId::FIXED12) => return Ok(()),
+            (TypeId::DECIMAL, TypeId::FIXED16) => return Ok(()),
             _ => {}
         }
 

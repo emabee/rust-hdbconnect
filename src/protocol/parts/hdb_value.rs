@@ -165,7 +165,7 @@ impl HdbValue {
         match self {
             HdbValue::NCLOB(nclob) => Ok(nclob),
             tv => Err(HdbError::Conversion(ConversionError::ValueType(format!(
-                "The value {:?} cannot be converted into a NCLOB",
+                "HdbValue::try_into_nclob(): the database value {:?} cannot be converted into a NCLob",
                 tv
             )))),
         }

@@ -27,6 +27,7 @@ fn test_nclobs(
     _log_handle: &mut ReconfigurationHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
+    _log_handle.parse_new_spec("info, test = debug");
     info!("create a big NCLOB in the database, and read it in various ways");
 
     debug!("setup...");
@@ -112,6 +113,7 @@ fn test_nclobs(
     connection.set_lob_read_length(200_000)?;
 
     let mut row = connection.query(query)?.into_single_row()?;
+    row.next_value().unwrap();
     let mut nclob: NCLob = row.next_value().unwrap().try_into_nclob()?;
     let mut streamed = Vec::<u8>::new();
     io::copy(&mut nclob, &mut streamed)?;
