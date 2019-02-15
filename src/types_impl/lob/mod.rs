@@ -6,7 +6,7 @@ mod wire;
 
 pub use self::blob::BLob;
 pub use self::clob::CLob;
-pub(crate) use self::fetch::fetch_a_lob_chunk;
+pub(crate) use self::fetch::{fetch_a_lob_chunk, write_a_lob_chunk};
 pub use self::nclob::NCLob;
 pub(crate) use self::wire::{parse_blob, parse_clob, parse_nclob};
 

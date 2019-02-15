@@ -16,9 +16,9 @@ pub enum PartKind {
     ReadLobRequest,        // 17 // Request data of READLOB message
     ReadLobReply,          // 18 // Reply data of READLOB message
     CommandInfo,           // 27 // Command information
-    WriteLobRequest,       // 28 // Request data of WRITELOB message // FIXME is missing
+    WriteLobRequest,       // 28 // Request data of WRITELOB message
     ClientContext,         // 29 // Client context
-    WriteLobReply,         // 30 // Reply data of WRITELOB message // FIXME is missing
+    WriteLobReply,         // 30 // Reply data of WRITELOB message
     Parameters,            // 32 // Parameter data
     Authentication,        // 33 // Authentication data
     SessionContext,        // 34 // Session context information

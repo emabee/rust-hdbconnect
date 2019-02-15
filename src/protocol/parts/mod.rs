@@ -26,4 +26,6 @@ pub mod statement_context;
 pub mod topology;
 pub mod transactionflags;
 pub mod type_id;
+pub mod write_lob_reply;
+pub mod write_lob_request;
 pub mod xat_options;

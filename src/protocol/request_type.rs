@@ -8,9 +8,9 @@ pub enum RequestType {
     Prepare,       // Prepare an SQL statement
     // OldXaStart,      // Start a distributed transaction
     // OldXaJoin,       // Join a distributed transaction
-    Execute, // Execute a previously prepared SQL statement
-    ReadLob, // Reads large object data
-    // WriteLob,        // Writes large object data
+    Execute,  // Execute a previously prepared SQL statement
+    ReadLob,  // Reads large object data
+    WriteLob, // Writes large object data
     // FindLob,         // Finds data in a large object
     Authenticate, // Sends authentication data
     Connect,      // Connects to the database
@@ -44,7 +44,7 @@ impl RequestType {
             // RequestType::OldXaJoin => 6,
             RequestType::Execute => 13,
             RequestType::ReadLob => 16,
-            // RequestType::WriteLob => 17,
+            RequestType::WriteLob => 17,
             // RequestType::FindLob => 18,
             RequestType::Authenticate => 65,
             RequestType::Connect => 66,

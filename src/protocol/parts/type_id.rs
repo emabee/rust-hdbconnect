@@ -204,10 +204,6 @@ impl TypeId {
         if value_type == self {
             return Ok(());
         }
-        info!(
-            "CALLED WITH self = {:?}, value_type: {:?}",
-            self, value_type
-        );
         // From To Conversions
         match (value_type, self) {
             (TypeId::BOOLEAN, TypeId::TINYINT) => return Ok(()),

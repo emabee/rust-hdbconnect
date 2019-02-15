@@ -1,11 +1,11 @@
-use super::{fetch_a_lob_chunk, CharLobSlice};
+use super::{fetch_a_lob_chunk, write_a_lob_chunk, CharLobSlice};
 use crate::conn_core::AmConnCore;
 use crate::protocol::parts::resultset::AmRsCore;
 use crate::protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
 use crate::protocol::util;
 use crate::{HdbError, HdbResult};
 use std::boxed::Box;
-use std::io::{self, Write};
+use std::io::Write;
 
 /// Unicode LOB implementation that is used with `HdbValue::NCLOB`.
 #[derive(Clone, Debug)]
@@ -115,9 +115,17 @@ impl NCLob {
 }
 
 // Support for NCLob streaming.
-impl io::Read for NCLob {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+impl std::io::Read for NCLob {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         self.0.read(buf)
+    }
+}
+impl std::io::Write for NCLob {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.0.write(buf)
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.0.flush()
     }
 }
 
@@ -258,6 +266,16 @@ impl NCLobHandle {
         Ok(())
     }
 
+    fn write_chunk(&mut self, offset: i64, buf: &[u8]) -> HdbResult<()> {
+        write_a_lob_chunk(
+            &mut self.am_conn_core,
+            self.locator_id,
+            offset,
+            buf,
+            &mut self.server_resource_consumption_info,
+        )
+    }
+
     fn load_complete(&mut self) -> HdbResult<()> {
         trace!("load_complete()");
         while !self.is_data_complete {
@@ -278,14 +296,14 @@ impl NCLobHandle {
     }
 }
 
-// Support for CLOB streaming
-impl io::Read for NCLobHandle {
-    fn read(&mut self, mut buf: &mut [u8]) -> io::Result<usize> {
+// Support for NCLOB streaming
+impl std::io::Read for NCLobHandle {
+    fn read(&mut self, mut buf: &mut [u8]) -> std::io::Result<usize> {
         trace!("read() with buf of len {}", buf.len());
 
         while !self.is_data_complete && (buf.len() > self.utf8.len()) {
             self.fetch_next_chunk()
-                .map_err(|e| io::Error::new(io::ErrorKind::UnexpectedEof, e))?;
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
         }
 
         // we want to keep clean UTF-8 in utf8, so we cut off at good places only
@@ -302,5 +320,19 @@ impl io::Read for NCLobHandle {
         buf.write_all(&self.utf8.as_bytes()[0..count])?;
         self.utf8.drain(0..count);
         Ok(count)
+    }
+}
+impl std::io::Write for NCLobHandle {
+    // first naive implementation: do a roundtrip on every write, just appending
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        trace!("write() with buf of len {}", buf.len());
+        let offset = -1;
+        self.write_chunk(offset, buf)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+
+        unimplemented!("asdsadsad");
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        unimplemented!("asdsadsad");
     }
 }

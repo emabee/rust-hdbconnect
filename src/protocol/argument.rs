@@ -1,30 +1,32 @@
-use super::part::Parts;
-use super::part_attributes::PartAttributes;
-use super::partkind::PartKind;
-use super::parts::authfields::AuthFields;
-use super::parts::client_info::ClientInfo;
-use super::parts::connect_options::ConnectOptions;
-use super::parts::execution_result::ExecutionResult;
-use super::parts::output_parameters::OutputParameters;
-use super::parts::parameters::Parameters;
-use super::parts::partiton_information::PartitionInformation;
-use super::parts::read_lob_reply::ReadLobReply;
-use super::parts::resultset::ResultSet;
-use super::parts::resultset_metadata::ResultSetMetadata;
-use super::parts::server_error::ServerError;
-use super::parts::statement_context::StatementContext;
-use super::parts::topology::Topology;
-use super::parts::transactionflags::TransactionFlags;
-use super::parts::xat_options::XatOptions;
 use crate::conn_core::AmConnCore;
+use crate::protocol::part::Parts;
+use crate::protocol::part_attributes::PartAttributes;
+use crate::protocol::partkind::PartKind;
+use crate::protocol::parts::authfields::AuthFields;
 use crate::protocol::parts::client_context::ClientContext;
+use crate::protocol::parts::client_info::ClientInfo;
 use crate::protocol::parts::command_info::CommandInfo;
 use crate::protocol::parts::commit_options::CommitOptions;
+use crate::protocol::parts::connect_options::ConnectOptions;
+use crate::protocol::parts::execution_result::ExecutionResult;
 use crate::protocol::parts::fetch_options::FetchOptions;
 use crate::protocol::parts::lob_flags::LobFlags;
+use crate::protocol::parts::output_parameters::OutputParameters;
 use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
+use crate::protocol::parts::parameters::Parameters;
+use crate::protocol::parts::partiton_information::PartitionInformation;
+use crate::protocol::parts::read_lob_reply::ReadLobReply;
 use crate::protocol::parts::read_lob_request::ReadLobRequest;
+use crate::protocol::parts::resultset::ResultSet;
+use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
+use crate::protocol::parts::server_error::ServerError;
 use crate::protocol::parts::session_context::SessionContext;
+use crate::protocol::parts::statement_context::StatementContext;
+use crate::protocol::parts::topology::Topology;
+use crate::protocol::parts::transactionflags::TransactionFlags;
+use crate::protocol::parts::write_lob_reply::WriteLobReply;
+use crate::protocol::parts::write_lob_request::WriteLobRequest;
+use crate::protocol::parts::xat_options::XatOptions;
 use crate::protocol::util;
 use crate::{HdbError, HdbResult};
 
@@ -50,6 +52,8 @@ pub(crate) enum Argument<'a> {
     Parameters(Parameters),
     ReadLobRequest(ReadLobRequest),
     ReadLobReply(ReadLobReply),
+    WriteLobRequest(WriteLobRequest<'a>),
+    WriteLobReply(WriteLobReply),
     ResultSet(Option<ResultSet>),
     ResultSetId(u64),
     ResultSetMetadata(ResultSetMetadata),
@@ -76,6 +80,7 @@ impl<'a> Argument<'a> {
             | Argument::StatementId(_)
             // | Argument::TopologyInformation(_)
             | Argument::ReadLobRequest(_) => 1,
+            Argument::WriteLobRequest(_) => 1,
             Argument::ClientInfo(ref client_info) => client_info.count(),
             Argument::CommandInfo(ref opts) => opts.count(),
             Argument::CommitOptions(ref opts) => opts.count(),
@@ -122,6 +127,7 @@ impl<'a> Argument<'a> {
                 }
             }
             Argument::ReadLobRequest(ref r) => size += r.size(),
+            Argument::WriteLobRequest(ref r) => size += r.size(),
             Argument::ResultSetId(_) => size += 8,
             Argument::SessionContext(ref opts) => size += opts.size(),
             Argument::StatementId(_) => size += 8,
@@ -179,6 +185,7 @@ impl<'a> Argument<'a> {
             }
             Argument::StatementContext(ref sc) => sc.emit(w)?,
             Argument::TransactionFlags(ref taflags) => taflags.emit(w)?,
+            Argument::WriteLobRequest(ref r) => r.emit(w)?,
             Argument::XatOptions(ref xatid) => xatid.emit(w)?,
             ref a => {
                 return Err(HdbError::Impl(format!("emit() called on {:?}", a)));

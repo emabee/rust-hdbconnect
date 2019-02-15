@@ -5,7 +5,7 @@ use crate::protocol::parts::type_id::TypeId;
 use crate::protocol::util;
 use crate::types_impl::lob::{BLob, CLob, NCLob};
 use crate::{HdbError, HdbResult};
-use byteorder::{LittleEndian, ReadBytesExt};
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::io;
 
 pub(crate) fn parse_blob(
@@ -130,33 +130,11 @@ fn parse_lob_2(
     }
 }
 
-// pub(crate) fn emit_blob_header(v_len: u64, data_pos: &mut i32, w: &mut io::Write) -> HdbResult<()> {
-//     // bit 0: not used; bit 1: data is included; bit 2: no more data remaining
-//     w.write_u8(0b_110_u8)?; // I1           Bit set for options
-//     w.write_i32::<LittleEndian>(v_len as i32)?; // I4           LENGTH OF VALUE
-//     w.write_i32::<LittleEndian>(*data_pos as i32)?; // I4           position
-//     *data_pos += v_len as i32;
-//     Ok(())
-// }
-
-// pub(crate) fn emit_clob_header(s_len: u64, data_pos: &mut i32, w: &mut io::Write) -> HdbResult<()> {
-//     // bit 0: not used; bit 1: data is included; bit 2: no more data remaining
-//     w.write_u8(0b_110_u8)?; // I1           Bit set for options
-//     w.write_i32::<LittleEndian>(s_len as i32)?; // I4           LENGTH OF VALUE
-//     w.write_i32::<LittleEndian>(*data_pos as i32)?; // I4           position
-//     *data_pos += s_len as i32;
-//     Ok(())
-// }
-
-// pub(crate) fn emit_nclob_header(
-//     s_len: u64,
-//     data_pos: &mut i32,
-//     w: &mut io::Write,
-// ) -> HdbResult<()> {
-//     // bit 0: not used; bit 1: data is included; bit 2: no more data remaining
-//     w.write_u8(0b_110_u8)?; // I1           Bit set for options
-//     w.write_i32::<LittleEndian>(s_len as i32)?; // I4           LENGTH OF VALUE
-//     w.write_i32::<LittleEndian>(*data_pos as i32)?; // I4           position
-//     *data_pos += s_len as i32;
-//     Ok(())
-// }
+pub(crate) fn emit_lob_header(length: u64, offset: &mut i32, w: &mut io::Write) -> HdbResult<()> {
+    // bit 0: not used; bit 1: data is included; bit 2: no more data remaining
+    w.write_u8(0b_000_u8)?; // I1           Bit set for options
+    w.write_i32::<LittleEndian>(length as i32)?; // I4           LENGTH OF VALUE
+    w.write_i32::<LittleEndian>(*offset as i32)?; // I4           position
+    *offset += length as i32;
+    Ok(())
+}
