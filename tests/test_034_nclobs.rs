@@ -141,10 +141,15 @@ fn test_streaming(
     let mut reader = &fifty_times_smp_blabla.as_bytes()[..];
 
     stmt.execute_row(vec![
-        HdbValue::STRING("lsadksaldk".to_string()),
+        HdbValue::STR("lsadksaldk"),
         HdbValue::LOBSTREAM(Some(&mut reader)),
     ])?;
     connection.commit()?;
+
+    let count: u8 = connection
+        .query("select count(*) from TEST_NCLOBS where desc = 'lsadksaldk'")?
+        .try_into()?;
+    assert_eq!(count, 1_u8, "HdbValue::CHAR did not work");
 
     debug!("read big nclob in streaming fashion");
     // Note: Connection.set_lob_read_length() affects NCLobs in chars (1, 2, or 3 bytes),
@@ -164,7 +169,11 @@ fn test_streaming(
     hasher.input(&buffer);
     let fingerprint4 = hasher.result().to_vec();
     assert_eq!(fingerprint, &fingerprint4);
-    assert!(nclob.max_buf_len() < 605_000, "nclob.max_buf_len() too big: {}", nclob.max_buf_len());
+    assert!(
+        nclob.max_buf_len() < 605_000,
+        "nclob.max_buf_len() too big: {}",
+        nclob.max_buf_len()
+    );
 
     connection.set_auto_commit(true)?;
     Ok(())

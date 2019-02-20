@@ -2,7 +2,7 @@ mod test_utils;
 
 use flexi_logger::ReconfigurationHandle;
 use hdbconnect::types::CLob;
-use hdbconnect::{Connection, HdbValue, HdbResult};
+use hdbconnect::{Connection, HdbResult, HdbValue};
 use log::{debug, info};
 use serde_derive::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -182,9 +182,12 @@ fn test_streaming(
     hasher.input(&buffer);
     let fingerprint4 = hasher.result().to_vec();
     assert_eq!(fingerprint, &fingerprint4);
-    assert!(clob.max_buf_len() < 210_000, "clob.max_buf_len() too big: {}", clob.max_buf_len());
+    assert!(
+        clob.max_buf_len() < 210_000,
+        "clob.max_buf_len() too big: {}",
+        clob.max_buf_len()
+    );
 
     connection.set_auto_commit(true)?;
     Ok(())
 }
-

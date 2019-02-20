@@ -2,7 +2,7 @@ mod test_utils;
 
 use flexi_logger::ReconfigurationHandle;
 use hdbconnect::types::BLob;
-use hdbconnect::{Connection, HdbValue, HdbResult};
+use hdbconnect::{Connection, HdbResult, HdbValue};
 use log::{debug, info};
 use rand::{thread_rng, RngCore};
 use serde_bytes::{ByteBuf, Bytes};
@@ -27,7 +27,6 @@ pub fn test_032_blobs() -> HdbResult<()> {
 const SIZE: usize = 5 * 1024 * 1024;
 
 fn get_random_bytes() -> (Vec<u8>, Vec<u8>) {
-
     // create random byte data
     let mut raw_data = Vec::<u8>::with_capacity(SIZE);
     raw_data.resize(SIZE, 0_u8);
@@ -42,16 +41,18 @@ fn get_random_bytes() -> (Vec<u8>, Vec<u8>) {
 fn test_blobs(
     _loghandle: &mut ReconfigurationHandle,
     connection: &mut Connection,
-    random_bytes: &Vec<u8>, 
-    fingerprint: &Vec<u8>
+    random_bytes: &Vec<u8>,
+    fingerprint: &Vec<u8>,
 ) -> HdbResult<()> {
     info!("create a 5MB BLOB in the database, and read it in various ways");
     connection.set_lob_read_length(1_000_000)?;
 
     connection.multiple_statements_ignore_err(vec!["drop table TEST_BLOBS"]);
-    let stmts = vec!["\
-        create table TEST_BLOBS \
-        (desc NVARCHAR(10) not null, bindata BLOB, bindata_NN BLOB NOT NULL)"];
+    let stmts = vec![
+        "\
+         create table TEST_BLOBS \
+         (desc NVARCHAR(10) not null, bindata BLOB, bindata_NN BLOB NOT NULL)",
+    ];
     connection.multiple_statements(stmts)?;
 
     #[derive(Serialize, Deserialize, Debug, PartialEq)]
@@ -69,7 +70,11 @@ fn test_blobs(
     // insert it into HANA
     let mut insert_stmt =
         connection.prepare("insert into TEST_BLOBS (desc, bindata, bindata_NN) values (?,?,?)")?;
-    insert_stmt.add_batch(&("5MB", Bytes::new(&*random_bytes), Bytes::new(&*random_bytes)))?;
+    insert_stmt.add_batch(&(
+        "5MB",
+        Bytes::new(&*random_bytes),
+        Bytes::new(&*random_bytes),
+    ))?;
     insert_stmt.execute_batch()?;
 
     // and read it back
@@ -191,7 +196,11 @@ fn test_streaming(
     hasher.input(&buffer);
     let fingerprint4 = hasher.result().to_vec();
     assert_eq!(fingerprint, &fingerprint4);
-    assert!(blob.max_buf_len() < 210_000, "blob.max_buf_len() too big: {}", blob.max_buf_len());
+    assert!(
+        blob.max_buf_len() < 210_000,
+        "blob.max_buf_len() too big: {}",
+        blob.max_buf_len()
+    );
 
     connection.set_auto_commit(true)?;
     Ok(())

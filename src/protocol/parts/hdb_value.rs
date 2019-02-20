@@ -73,6 +73,10 @@ pub enum HdbValue<'a> {
     /// The DB returns all Strings as type STRING, independent of the concrete column type.
     STRING(String),
 
+    /// Can be used for avoiding cloning when sending large Strings to the database  (see
+    /// [`PreparedStatement::execute_row()`](struct.PreparedStatement.html#method.execute_row)).
+    STR(&'a str),
+
     /// Timestamp with 10^-7 seconds precision, uses eight bytes.
     LONGDATE(LongDate),
     /// TIMESTAMP with second precision.
@@ -125,7 +129,7 @@ impl<'a> HdbValue<'a> {
                 requested_type_id
             }
             HdbValue::BOOLEAN(_) => TypeId::BOOLEAN,
-            HdbValue::STRING(_) => TypeId::STRING,
+            HdbValue::STR(_) | HdbValue::STRING(_) => TypeId::STRING,
             HdbValue::LONGDATE(_) => TypeId::LONGDATE,
             HdbValue::SECONDDATE(_) => TypeId::SECONDDATE,
             HdbValue::DAYDATE(_) => TypeId::DAYDATE,
@@ -168,6 +172,7 @@ impl<'a> HdbValue<'a> {
                 HdbValue::SECONDTIME(ref st) => w.write_u32::<LittleEndian>(*st.ref_raw())?,
 
                 HdbValue::LOBSTREAM(None) => emit_lob_header(0, _data_pos, w)?,
+                HdbValue::STR(s) => emit_length_and_string(s, w)?,
                 HdbValue::STRING(ref s) => emit_length_and_string(s, w)?,
                 HdbValue::BINARY(ref v) | HdbValue::GEOMETRY(ref v) | HdbValue::POINT(ref v) => {
                     emit_length_and_bytes(v, w)?
@@ -221,6 +226,7 @@ impl<'a> HdbValue<'a> {
             | HdbValue::SECONDDATE(_) => 8,
 
             HdbValue::LOBSTREAM(None) => 9,
+            HdbValue::STR(s) => binary_length(util::cesu8_length(s)),
             HdbValue::STRING(ref s) => binary_length(util::cesu8_length(s)),
 
             HdbValue::BINARY(ref v) | HdbValue::GEOMETRY(ref v) | HdbValue::POINT(ref v) => {
@@ -563,6 +569,13 @@ impl<'a> std::fmt::Display for HdbValue<'a> {
 
             HdbValue::REAL(value) => write!(fmt, "{}", value),
             HdbValue::DOUBLE(value) => write!(fmt, "{}", value),
+            HdbValue::STR(value) => {
+                if value.len() < 10_000 {
+                    write!(fmt, "{}", value)
+                } else {
+                    write!(fmt, "<STRING length = {}>", value.len())
+                }
+            }
             HdbValue::STRING(ref value) => {
                 if value.len() < 10_000 {
                     write!(fmt, "{}", value)

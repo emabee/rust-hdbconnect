@@ -134,24 +134,36 @@ impl<'a> PreparedStatement {
     /// Note that streaming LOBs to the database only works if auto-commit is switched off.
     /// Consequently, you need to commit the update explicitly.
     ///
+    /// The first parameter in this example inserts a string into a normal NVARCHAR column;
+    /// if the content is big (NVARCHAR takes up to 5000 characters),
+    /// this may be a bit more efficient than `HdbValue::STRING`
+    /// if you can avoid cloning the String.
+    ///
+    /// The second parameter uses a mutable reference to a reader which is supposed to produce
+    /// the content you want to store in the LOB.
+    ///
     /// ``` rust, no_run
     /// # use hdbconnect::{Connection, HdbValue, HdbResult, IntoConnectParams};
     /// # fn main() -> HdbResult<()> {
     /// # let mut connection = Connection::new("".into_connect_params()?)?;
     ///   connection.set_auto_commit(false)?;
-    /// # let stmt_string = "insert into TEST_NCLOBS values(?, ?)".to_owned();
-    ///   let mut stmt = connection.prepare(&stmt_string)?;
+    /// # let insert_stmt_string = "insert into TEST_NCLOBS values(?, ?)".to_owned();
+    ///   let mut stmt = connection.prepare(&insert_stmt_string)?;
     /// # let b = Vec::<u8>::new();
     /// # let mut reader = &b[..];
-    ///
     ///   stmt.execute_row(vec![
-    ///       HdbValue::STRING("lsadksaldk".to_string()),
+    ///       HdbValue::STR("nice descriptive text, could be quite long"),
     ///       HdbValue::LOBSTREAM(Some(&mut reader)), // reader must implement std::io::Read
     ///   ])?;
     ///   connection.commit()?;
     /// # Ok(())
     /// # }
     /// ```
+    ///
+    /// `PreparedStatement::execute_row()` first executes the specified statement, with the given
+    ///  parameter values, where LOBSTREAM instances are replaced with placeholders.
+    /// After this call, the data from the readers are transferred to the database in additional
+    /// roundtrips.
     pub fn execute_row(&'a mut self, hdb_values: Vec<HdbValue<'a>>) -> HdbResult<HdbResponse> {
         if let Some(ref descriptors) = self.o_descriptors {
             if descriptors.has_in() {
