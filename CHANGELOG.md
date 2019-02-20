@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.14.2] 2019-02-20
+
+Add HdbValue::STR(&str), and allow LOB streaming to the database with HdbValue::LOBSTREAM.
+
 ## [0.14.1] 2019-02-08
 
 Improve HdbValue, TypedId, and handling of parameters in PreparedStatement.
