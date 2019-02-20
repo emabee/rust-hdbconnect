@@ -1,7 +1,7 @@
+use super::fetch::fetch_a_lob_chunk;
 use crate::conn_core::AmConnCore;
 use crate::protocol::parts::resultset::AmRsCore;
 use crate::protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
-use crate::types_impl::lob::fetch_a_lob_chunk;
 use crate::{HdbError, HdbResult};
 use std::boxed::Box;
 use std::io::{self, Write};

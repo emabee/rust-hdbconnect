@@ -4,16 +4,18 @@ use crate::protocol::part::Part;
 use crate::protocol::partkind::PartKind;
 use crate::protocol::parts::hdb_value::HdbValue;
 use crate::protocol::parts::parameter_descriptor::{ParameterDescriptor, ParameterDescriptors};
-use crate::protocol::parts::parameters::{ParameterRow, Parameters};
+use crate::protocol::parts::parameter_rows::ParameterRows;
 use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
+use crate::protocol::parts::type_id::TypeId;
 use crate::protocol::request::{Request, HOLD_CURSORS_OVER_COMMIT};
 use crate::protocol::request_type::RequestType;
+use crate::types_impl::lob::LobWriter;
 use crate::{HdbError, HdbResponse, HdbResult};
 
 use serde;
-use serde_db::ser::to_params;
 use serde_db::ser::SerializationError;
 
+use std::io::Write;
 use std::mem;
 
 /// Allows injection-safe SQL execution and repeated calls of the same statement
@@ -70,15 +72,18 @@ pub struct PreparedStatement {
     am_conn_core: AmConnCore,
     statement_id: u64,
     o_descriptors: Option<ParameterDescriptors>,
-    batch: Vec<ParameterRow>,
+    batch: ParameterRows<'static>,
     o_rs_md: Option<ResultSetMetadata>,
     _o_table_location: Option<Vec<i32>>,
 }
 
-impl PreparedStatement {
+impl<'a> PreparedStatement {
     /// Converts the input into a row of parameters,
-    /// if it is consistent with the metadata, and executes the statement immediately.
+    /// if it is consistent with the metadata, and
+    /// executes the statement with these parameters immediately.
     ///
+    /// The input conversion is done with the help of serde, so the input must implement
+    /// `serde::ser::Serialize`.
     ///
     /// ```rust,no_run
     /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
@@ -109,39 +114,121 @@ impl PreparedStatement {
         trace!("PreparedStatement::execute()");
         if let Some(ref descriptors) = self.o_descriptors {
             if descriptors.has_in() {
-                let par_row =
-                    ParameterRow::new(to_params(input, &mut descriptors.iter_in())?, &descriptors)?;
-                return self.execute_parameter_rows(Some(vec![par_row]));
+                let mut par_rows = ParameterRows::new();
+                par_rows.push(input, &descriptors)?;
+                return self.execute_parameter_rows(Some(par_rows));
             }
         }
         self.execute_parameter_rows(None)
     }
 
-    /// Consumes the input as a row of parameters for immediate execution.
+    /// Consumes the given HdbValues as a row of parameters for immediate execution.
     ///
-    /// Useful mainly for generic code.
-    /// In most cases [`execute()`](struct.PreparedStatement.html#method.execute)
-    /// is more convenient.
-    pub fn execute_row(&mut self, hdb_values: Vec<HdbValue>) -> HdbResult<HdbResponse> {
-        trace!("PreparedStatement::execute()");
+    /// While in most cases
+    /// [`PreparedStatement::execute()`](struct.PreparedStatement.html#method.execute)
+    /// might be more convenient, streaming LOBs to the database is an important exception -
+    /// it only works with this method!
+    ///
+    /// ## Example for streaming LOBs to the database
+    ///
+    /// Note that streaming LOBs to the database only works if auto-commit is switched off.
+    /// Consequently, you need to commit the update explicitly.
+    ///
+    /// ``` rust, no_run
+    /// # use hdbconnect::{Connection, HdbValue, HdbResult, IntoConnectParams};
+    /// # fn main() -> HdbResult<()> {
+    /// # let mut connection = Connection::new("".into_connect_params()?)?;
+    ///   connection.set_auto_commit(false)?;
+    /// # let stmt_string = "insert into TEST_NCLOBS values(?, ?)".to_owned();
+    ///   let mut stmt = connection.prepare(&stmt_string)?;
+    /// # let b = Vec::<u8>::new();
+    /// # let mut reader = &b[..];
+    ///
+    ///   stmt.execute_row(vec![
+    ///       HdbValue::STRING("lsadksaldk".to_string()),
+    ///       HdbValue::LOBSTREAM(Some(&mut reader)), // reader must implement std::io::Read
+    ///   ])?;
+    ///   connection.commit()?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn execute_row(&'a mut self, hdb_values: Vec<HdbValue<'a>>) -> HdbResult<HdbResponse> {
         if let Some(ref descriptors) = self.o_descriptors {
             if descriptors.has_in() {
-                let par_row = ParameterRow::new(hdb_values, &descriptors)?;
-                return self.execute_parameter_rows(Some(vec![par_row]));
+                let mut request = Request::new(RequestType::Execute, HOLD_CURSORS_OVER_COMMIT);
+
+                request.push(Part::new(
+                    PartKind::StatementId,
+                    Argument::StatementId(self.statement_id),
+                ));
+
+                // If readers were provided, pick them out and replace them with None
+                let mut readers: Vec<(HdbValue, TypeId)> = vec![];
+                let hdb_values = hdb_values
+                    .into_iter()
+                    .zip(descriptors.iter_in())
+                    .map(|(v, d)| {
+                        if let HdbValue::LOBSTREAM(Some(_)) = v {
+                            readers.push((v, d.type_id()));
+                            HdbValue::LOBSTREAM(None)
+                        } else {
+                            v
+                        }
+                    })
+                    .collect();
+
+                let mut par_rows = ParameterRows::new();
+                par_rows.push_hdb_values(hdb_values, &descriptors)?;
+                request.push(Part::new(
+                    PartKind::Parameters,
+                    Argument::Parameters(par_rows),
+                ));
+
+                let mut main_reply = self.am_conn_core.full_send(
+                    request,
+                    self.o_rs_md.as_ref(),
+                    self.o_descriptors.as_ref(),
+                    &mut None,
+                )?;
+
+                if let Some(Argument::WriteLobReply(wlr)) =
+                    main_reply.extract_first_arg_of_type(PartKind::WriteLobReply)
+                {
+                    let locator_ids = wlr.into_locator_ids();
+                    if locator_ids.len() != readers.len() {
+                        return Err(HdbError::Usage(format!(
+                            "The number of provided readers ({}) does not match \
+                             the number of required readers ({})",
+                            readers.len(),
+                            locator_ids.len()
+                        )));
+                    }
+                    for (locator_id, (reader, type_id)) in locator_ids.into_iter().zip(readers) {
+                        debug!("writing content to locator with id {:?}", locator_id);
+                        if let HdbValue::LOBSTREAM(Some(reader)) = reader {
+                            let mut writer =
+                                LobWriter::new(locator_id, type_id, self.am_conn_core.clone());
+                            std::io::copy(reader, &mut writer)?;
+                            writer.flush()?;
+                        }
+                    }
+                }
+                main_reply.into_hdbresponse(&mut (self.am_conn_core))
+            } else {
+                self.execute_parameter_rows(None)
             }
+        } else {
+            self.execute_parameter_rows(None)
         }
-        self.execute_parameter_rows(None)
     }
 
-    /// Converts the input into a row of parameters and adds it to the batch,
-    /// if it is consistent with the metadata.
+    /// Converts the input into a row of parameters and adds it to the batch of this
+    /// `PreparedStatement`, if it is consistent with the metadata.
     pub fn add_batch<T: serde::ser::Serialize>(&mut self, input: &T) -> HdbResult<()> {
         trace!("PreparedStatement::add_batch()");
         if let Some(ref descriptors) = self.o_descriptors {
             if descriptors.has_in() {
-                let par_row =
-                    ParameterRow::new(to_params(input, &mut descriptors.iter_in())?, &descriptors)?;
-                self.batch.push(par_row);
+                self.batch.push(input, &descriptors)?;
                 return Ok(());
             }
         }
@@ -155,12 +242,12 @@ impl PreparedStatement {
     /// Useful mainly for generic code.
     /// In most cases [`add_batch()`](struct.PreparedStatement.html#method.add_batch)
     /// is more convenient.
-    pub fn add_row_to_batch(&mut self, hdb_values: Vec<HdbValue>) -> HdbResult<()> {
+    /// Note that LOB streaming can not be combined with using the batch.
+    pub fn add_row_to_batch(&mut self, hdb_values: Vec<HdbValue<'static>>) -> HdbResult<()> {
         trace!("PreparedStatement::add_row_to_batch()");
         if let Some(ref descriptors) = self.o_descriptors {
             if descriptors.has_in() {
-                let par_row = ParameterRow::new(hdb_values, &descriptors)?;
-                self.batch.push(par_row);
+                self.batch.push_hdb_values(hdb_values, &descriptors)?;
                 return Ok(());
             }
         }
@@ -178,7 +265,7 @@ impl PreparedStatement {
                 "The batch is empty and cannot be executed".to_string(),
             ))
         } else {
-            let mut rows2 = Vec::<ParameterRow>::new();
+            let mut rows2 = ParameterRows::new();
             mem::swap(&mut self.batch, &mut rows2);
             self.execute_parameter_rows(Some(rows2))
         }
@@ -191,10 +278,7 @@ impl PreparedStatement {
             .map(|descr| descr.ref_inner().as_slice())
     }
 
-    fn execute_parameter_rows(
-        &mut self,
-        o_rows: Option<Vec<ParameterRow>>,
-    ) -> HdbResult<HdbResponse> {
+    fn execute_parameter_rows(&mut self, o_rows: Option<ParameterRows>) -> HdbResult<HdbResponse> {
         trace!("PreparedStatement::execute_parameter_rows()");
         let mut request = Request::new(RequestType::Execute, HOLD_CURSORS_OVER_COMMIT);
         request.push(Part::new(
@@ -202,10 +286,7 @@ impl PreparedStatement {
             Argument::StatementId(self.statement_id),
         ));
         if let Some(rows) = o_rows {
-            request.push(Part::new(
-                PartKind::Parameters,
-                Argument::Parameters(Parameters::new(rows)),
-            ));
+            request.push(Part::new(PartKind::Parameters, Argument::Parameters(rows)));
         }
 
         let reply = self.am_conn_core.full_send(
@@ -279,7 +360,7 @@ impl PreparedStatement {
         Ok(PreparedStatement {
             am_conn_core,
             statement_id,
-            batch: Vec::<ParameterRow>::new(),
+            batch: ParameterRows::new(),
             o_descriptors,
             o_rs_md,
             _o_table_location: o_table_location,

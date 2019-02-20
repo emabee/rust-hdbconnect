@@ -54,8 +54,11 @@ impl ResultSetCore {
             resultset_id,
         }))
     }
+}
 
-    fn drop_impl(&mut self) -> HdbResult<()> {
+impl Drop for ResultSetCore {
+    // inform the server in case the resultset is not yet closed, ignore all errors
+    fn drop(&mut self) {
         let rs_id = self.resultset_id;
         trace!("ResultSetCore::drop(), resultset_id {}", rs_id);
         if !self.attributes.resultset_is_closed() {
@@ -70,7 +73,7 @@ impl ResultSetCore {
                     conn_guard.roundtrip(request, &self.am_conn_core, None, None, &mut None)
                 {
                     let _ = reply.parts.pop_arg_if_kind(PartKind::StatementContext);
-                    for part in &reply.parts {
+                    while let Some(part) = reply.parts.pop() {
                         warn!(
                             "CloseResultSet got a reply with a part of kind {:?}",
                             part.kind()
@@ -78,16 +81,6 @@ impl ResultSetCore {
                     }
                 }
             }
-        }
-        Ok(())
-    }
-}
-
-impl Drop for ResultSetCore {
-    // inform the server in case the resultset is not yet closed, ignore all errors
-    fn drop(&mut self) {
-        if let Err(e) = self.drop_impl() {
-            warn!("CloseResultSet request failed with {:?}", e);
         }
     }
 }

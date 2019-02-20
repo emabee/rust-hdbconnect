@@ -52,8 +52,6 @@ pub enum TypeId {
     /// For database type BLOB;
     /// used with [`HdbValue::BLOB`](enum.HdbValue.html#variant.BLOB).
     BLOB,
-    /// For unicode locators. Used within NCLob.
-    NLOCATOR,
     /// For database type BOOLEAN;
     /// used with [`HdbValue::BOOLEAN`](enum.HdbValue.html#variant.BOOLEAN).
     BOOLEAN,
@@ -126,7 +124,7 @@ impl TypeId {
             29 => TypeId::STRING,
             30 => TypeId::NSTRING,
             // BLOCATOR: 31  FIXME not yet implemented
-            32 => TypeId::NLOCATOR,
+            // 32 => TypeId::NLOCATOR,
             33 => TypeId::BSTRING,
             // 34 - 46: docu unclear, likely unused
             // 47 => SMALLDECIMAL not needed on client-side
@@ -184,7 +182,6 @@ impl TypeId {
                 TypeId::BOOLEAN => 28,
                 TypeId::STRING => 29,
                 TypeId::NSTRING => 30,
-                TypeId::NLOCATOR => 32,
                 TypeId::BSTRING => 33,
                 TypeId::TEXT => 51,
                 TypeId::SHORTTEXT => 52,

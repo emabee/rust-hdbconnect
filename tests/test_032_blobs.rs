@@ -2,7 +2,7 @@ mod test_utils;
 
 use flexi_logger::ReconfigurationHandle;
 use hdbconnect::types::BLob;
-use hdbconnect::{Connection, HdbResult};
+use hdbconnect::{Connection, HdbValue, HdbResult};
 use log::{debug, info};
 use rand::{thread_rng, RngCore};
 use serde_bytes::{ByteBuf, Bytes};
@@ -16,21 +16,42 @@ pub fn test_032_blobs() -> HdbResult<()> {
     let mut loghandle = test_utils::init_logger();
     let mut connection = test_utils::get_authenticated_connection()?;
 
-    test_blobs(&mut loghandle, &mut connection)?;
+    let (random_bytes, fingerprint) = get_random_bytes();
+    test_blobs(&mut loghandle, &mut connection, &random_bytes, &fingerprint)?;
+    test_streaming(&mut loghandle, &mut connection, &random_bytes, &fingerprint)?;
 
     info!("{} calls to DB were executed", connection.get_call_count()?);
     Ok(())
 }
 
+const SIZE: usize = 5 * 1024 * 1024;
+
+fn get_random_bytes() -> (Vec<u8>, Vec<u8>) {
+
+    // create random byte data
+    let mut raw_data = Vec::<u8>::with_capacity(SIZE);
+    raw_data.resize(SIZE, 0_u8);
+    thread_rng().fill_bytes(&mut *raw_data);
+    assert_eq!(raw_data.len(), SIZE);
+
+    let mut hasher = Sha256::default();
+    hasher.input(&raw_data);
+    (raw_data, hasher.result().to_vec())
+}
+
 fn test_blobs(
     _loghandle: &mut ReconfigurationHandle,
     connection: &mut Connection,
+    random_bytes: &Vec<u8>, 
+    fingerprint: &Vec<u8>
 ) -> HdbResult<()> {
     info!("create a 5MB BLOB in the database, and read it in various ways");
     connection.set_lob_read_length(1_000_000)?;
 
     connection.multiple_statements_ignore_err(vec!["drop table TEST_BLOBS"]);
-    let stmts = vec!["create table TEST_BLOBS (desc NVARCHAR(10) not null, bindata BLOB, bindata_NN BLOB NOT NULL)"];
+    let stmts = vec!["\
+        create table TEST_BLOBS \
+        (desc NVARCHAR(10) not null, bindata BLOB, bindata_NN BLOB NOT NULL)"];
     connection.multiple_statements(stmts)?;
 
     #[derive(Serialize, Deserialize, Debug, PartialEq)]
@@ -45,22 +66,10 @@ fn test_blobs(
         bytes_nn: ByteBuf, // Vec<u8>,
     }
 
-    const SIZE: usize = 5 * 1024 * 1024;
-
-    // create random byte data
-    let mut raw_data = Vec::<u8>::with_capacity(SIZE);
-    raw_data.resize(SIZE, 0_u8);
-    thread_rng().fill_bytes(&mut *raw_data);
-    assert_eq!(raw_data.len(), SIZE);
-
-    let mut hasher = Sha256::default();
-    hasher.input(&raw_data);
-    let fingerprint1 = hasher.result();
-
     // insert it into HANA
     let mut insert_stmt =
         connection.prepare("insert into TEST_BLOBS (desc, bindata, bindata_NN) values (?,?,?)")?;
-    insert_stmt.add_batch(&("5MB", Bytes::new(&*raw_data), Bytes::new(&*raw_data)))?;
+    insert_stmt.add_batch(&("5MB", Bytes::new(&*random_bytes), Bytes::new(&*random_bytes)))?;
     insert_stmt.execute_batch()?;
 
     // and read it back
@@ -81,13 +90,13 @@ fn test_blobs(
     assert_eq!(SIZE, mydata.bytes_nn.len());
     let mut hasher = Sha256::default();
     hasher.input(&mydata.bytes_nn);
-    let fingerprint2 = hasher.result();
-    assert_eq!(fingerprint1, fingerprint2);
+    let fingerprint2 = hasher.result().to_vec();
+    assert_eq!(fingerprint, &fingerprint2);
 
     let mut hasher = Sha256::default();
     hasher.input(mydata.o_bytes.as_ref().unwrap());
-    let fingerprint2 = hasher.result();
-    assert_eq!(fingerprint1, fingerprint2);
+    let fingerprint2 = hasher.result().to_vec();
+    assert_eq!(fingerprint, &fingerprint2);
 
     // try again with small lob-read-length
     connection.set_lob_read_length(1024)?;
@@ -113,18 +122,18 @@ fn test_blobs(
 
     let mut streamed = Vec::<u8>::new();
     io::copy(&mut blob2, &mut streamed)?;
-    assert_eq!(raw_data.len(), streamed.len());
+    assert_eq!(random_bytes.len(), streamed.len());
     let mut hasher = Sha256::default();
     hasher.input(&streamed);
 
     let mut streamed = Vec::<u8>::new();
     io::copy(&mut blob, &mut streamed)?;
 
-    assert_eq!(raw_data.len(), streamed.len());
+    assert_eq!(random_bytes.len(), streamed.len());
     let mut hasher = Sha256::default();
     hasher.input(&streamed);
-    let fingerprint4 = hasher.result();
-    assert_eq!(fingerprint1, fingerprint4);
+    let fingerprint4 = hasher.result().to_vec();
+    assert_eq!(fingerprint, &fingerprint4);
 
     debug!("blob.max_buf_len(): {}", blob.max_buf_len());
     // io::copy works with 8MB, our buffer remains at about 200_000:
@@ -140,5 +149,50 @@ fn test_blobs(
         let _blob_slice = blob.read_slice(i, 100)?;
     }
 
+    Ok(())
+}
+
+fn test_streaming(
+    _log_handle: &mut flexi_logger::ReconfigurationHandle,
+    connection: &mut Connection,
+    random_bytes: &Vec<u8>,
+    fingerprint: &Vec<u8>,
+) -> HdbResult<()> {
+    info!("write and read big blob in streaming fashion");
+
+    connection.set_auto_commit(true)?;
+    connection.dml("delete from TEST_BLOBS")?;
+
+    debug!("write big blob in streaming fashion");
+    connection.set_auto_commit(false)?;
+
+    let mut stmt = connection.prepare("insert into TEST_BLOBS (desc, bindata_NN) values(?, ?)")?;
+    let mut reader = &random_bytes[..];
+
+    stmt.execute_row(vec![
+        HdbValue::STRING("lsadksaldk".to_string()),
+        HdbValue::LOBSTREAM(Some(&mut reader)),
+    ])?;
+    connection.commit()?;
+
+    debug!("read big blob in streaming fashion");
+    connection.set_lob_read_length(200_000)?;
+
+    let mut blob = connection
+        .query("select bindata_NN from TEST_BLOBS")?
+        .into_single_row()?
+        .into_single_value()?
+        .try_into_blob()?;
+    let mut buffer = Vec::<u8>::new();
+    std::io::copy(&mut blob, &mut buffer)?;
+
+    assert_eq!(random_bytes.len(), buffer.len());
+    let mut hasher = Sha256::default();
+    hasher.input(&buffer);
+    let fingerprint4 = hasher.result().to_vec();
+    assert_eq!(fingerprint, &fingerprint4);
+    assert!(blob.max_buf_len() < 210_000, "blob.max_buf_len() too big: {}", blob.max_buf_len());
+
+    connection.set_auto_commit(true)?;
     Ok(())
 }

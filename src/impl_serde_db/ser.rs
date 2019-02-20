@@ -17,9 +17,9 @@ use std::str::FromStr;
 use std::{i16, i32, i64, i8, u16, u32, u8};
 
 impl DbvFactory for &ParameterDescriptor {
-    type DBV = HdbValue;
+    type DBV = HdbValue<'static>;
 
-    fn from_bool(&self, value: bool) -> Result<HdbValue, SerializationError> {
+    fn from_bool(&self, value: bool) -> Result<HdbValue<'static>, SerializationError> {
         Ok(match self.type_id() {
             TypeId::BOOLEAN => HdbValue::BOOLEAN(value),
             TypeId::TINYINT => HdbValue::BOOLEAN(value),
@@ -30,7 +30,7 @@ impl DbvFactory for &ParameterDescriptor {
         })
     }
 
-    fn from_i8(&self, value: i8) -> Result<HdbValue, SerializationError> {
+    fn from_i8(&self, value: i8) -> Result<HdbValue<'static>, SerializationError> {
         let input_type = "i8";
         let tid = self.type_id();
         Ok(match tid {
@@ -51,7 +51,7 @@ impl DbvFactory for &ParameterDescriptor {
         })
     }
 
-    fn from_i16(&self, value: i16) -> Result<HdbValue, SerializationError> {
+    fn from_i16(&self, value: i16) -> Result<HdbValue<'static>, SerializationError> {
         let input_type = "i16";
         let tid = self.type_id();
         Ok(match tid {
@@ -72,7 +72,7 @@ impl DbvFactory for &ParameterDescriptor {
         })
     }
 
-    fn from_i32(&self, value: i32) -> Result<HdbValue, SerializationError> {
+    fn from_i32(&self, value: i32) -> Result<HdbValue<'static>, SerializationError> {
         let input_type = "i32";
         let tid = self.type_id();
         Ok(match tid {
@@ -97,7 +97,7 @@ impl DbvFactory for &ParameterDescriptor {
         })
     }
 
-    fn from_i64(&self, value: i64) -> Result<HdbValue, SerializationError> {
+    fn from_i64(&self, value: i64) -> Result<HdbValue<'static>, SerializationError> {
         let input_type = "i64";
         let tid = self.type_id();
         Ok(match tid {
@@ -125,7 +125,7 @@ impl DbvFactory for &ParameterDescriptor {
             _ => return Err(type_mismatch(input_type, self.descriptor())),
         })
     }
-    fn from_u8(&self, value: u8) -> Result<HdbValue, SerializationError> {
+    fn from_u8(&self, value: u8) -> Result<HdbValue<'static>, SerializationError> {
         let input_type = "u8";
         let tid = self.type_id();
         Ok(match tid {
@@ -142,7 +142,7 @@ impl DbvFactory for &ParameterDescriptor {
             _ => return Err(type_mismatch(input_type, self.descriptor())),
         })
     }
-    fn from_u16(&self, value: u16) -> Result<HdbValue, SerializationError> {
+    fn from_u16(&self, value: u16) -> Result<HdbValue<'static>, SerializationError> {
         let input_type = "u16";
         let tid = self.type_id();
         Ok(match tid {
@@ -166,7 +166,7 @@ impl DbvFactory for &ParameterDescriptor {
         })
     }
 
-    fn from_u32(&self, value: u32) -> Result<HdbValue, SerializationError> {
+    fn from_u32(&self, value: u32) -> Result<HdbValue<'static>, SerializationError> {
         let input_type = "u32";
         let tid = self.type_id();
         Ok(match tid {
@@ -193,7 +193,7 @@ impl DbvFactory for &ParameterDescriptor {
         })
     }
 
-    fn from_u64(&self, value: u64) -> Result<HdbValue, SerializationError> {
+    fn from_u64(&self, value: u64) -> Result<HdbValue<'static>, SerializationError> {
         let input_type = "u64";
         let tid = self.type_id();
         Ok(match tid {
@@ -222,7 +222,7 @@ impl DbvFactory for &ParameterDescriptor {
         })
     }
 
-    fn from_f32(&self, value: f32) -> Result<HdbValue, SerializationError> {
+    fn from_f32(&self, value: f32) -> Result<HdbValue<'static>, SerializationError> {
         let input_type = "f32";
         let tid = self.type_id();
         Ok(match tid {
@@ -237,7 +237,7 @@ impl DbvFactory for &ParameterDescriptor {
         })
     }
 
-    fn from_f64(&self, value: f64) -> Result<HdbValue, SerializationError> {
+    fn from_f64(&self, value: f64) -> Result<HdbValue<'static>, SerializationError> {
         let input_type = "f64";
         let tid = self.type_id();
         Ok(match tid {
@@ -252,7 +252,7 @@ impl DbvFactory for &ParameterDescriptor {
         })
     }
 
-    fn from_char(&self, value: char) -> Result<HdbValue, SerializationError> {
+    fn from_char(&self, value: char) -> Result<HdbValue<'static>, SerializationError> {
         Ok(match self.type_id() {
             TypeId::CHAR
             | TypeId::VARCHAR
@@ -266,7 +266,7 @@ impl DbvFactory for &ParameterDescriptor {
         })
     }
 
-    fn from_str(&self, value: &str) -> Result<HdbValue, SerializationError> {
+    fn from_str(&self, value: &str) -> Result<HdbValue<'static>, SerializationError> {
         let map_i = |e: ParseIntError| {
             parse_error(value, "some integer type".to_string(), Some(Box::new(e)))
         };
@@ -308,7 +308,7 @@ impl DbvFactory for &ParameterDescriptor {
         })
     }
 
-    fn from_bytes(&self, value: &[u8]) -> Result<HdbValue, SerializationError> {
+    fn from_bytes(&self, value: &[u8]) -> Result<HdbValue<'static>, SerializationError> {
         let tid = self.type_id();
         Ok(match tid {
             TypeId::BLOB | TypeId::BINARY | TypeId::VARBINARY => {
@@ -324,7 +324,7 @@ impl DbvFactory for &ParameterDescriptor {
         })
     }
 
-    fn from_none(&self) -> Result<HdbValue, SerializationError> {
+    fn from_none(&self) -> Result<HdbValue<'static>, SerializationError> {
         if self.is_nullable() {
             Ok(HdbValue::NULL)
         } else {

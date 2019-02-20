@@ -21,12 +21,4 @@ impl<T: OptionId<T> + Eq + PartialEq + Hash> MultilineOptionPart<T> {
         }
         Ok(MultilineOptionPart::<T>(option_parts))
     }
-
-    pub fn size(&self) -> usize {
-        let mut size = 0;
-        for host in &(self.0) {
-            size += 2 + host.size();
-        }
-        size
-    }
 }

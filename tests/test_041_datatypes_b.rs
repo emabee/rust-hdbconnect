@@ -107,7 +107,18 @@ fn write(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -
     )?;
 
     info!("insert nulls via prep-statement");
-    stmt.execute_row(std::iter::repeat(HdbValue::NULL).take(10).collect())?;
+    stmt.execute_row(vec![
+        HdbValue::NULL,
+        HdbValue::NULL,
+        HdbValue::NULL,
+        HdbValue::NULL,
+        HdbValue::NULL,
+        HdbValue::NULL,
+        HdbValue::NULL,
+        HdbValue::NULL,
+        HdbValue::NULL,
+        HdbValue::NULL,
+    ])?;
     Ok(())
 }
 

@@ -1,14 +1,13 @@
 mod test_utils;
 
-use flexi_logger::ReconfigurationHandle;
 use hdbconnect::types::NCLob;
-use hdbconnect::{Connection, HdbResult};
+use hdbconnect::{Connection, HdbResult, HdbValue};
 use log::{debug, info};
 use serde_bytes::Bytes;
 use serde_derive::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::fs::File;
-use std::io::{self, Read};
+use std::io::Read;
 
 // cargo test test_034_nclobs -- --nocapture
 #[test]
@@ -44,7 +43,7 @@ fn get_blabla() -> (String, Vec<u8>) {
 }
 
 fn test_nclobs(
-    _log_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut flexi_logger::ReconfigurationHandle,
     connection: &mut Connection,
     fifty_times_smp_blabla: &String,
     fingerprint: &Vec<u8>,
@@ -125,29 +124,27 @@ fn test_nclobs(
 }
 
 fn test_streaming(
-    _logger_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut flexi_logger::ReconfigurationHandle,
     connection: &mut Connection,
     fifty_times_smp_blabla: &String,
     fingerprint: &Vec<u8>,
 ) -> HdbResult<()> {
-    _logger_handle.parse_and_push_temp_spec("info, test = debug");
     info!("write and read big nclob in streaming fashion");
+
+    connection.set_auto_commit(true)?;
+    connection.dml("delete from TEST_NCLOBS")?;
+
     debug!("write big nclob in streaming fashion");
     connection.set_auto_commit(false)?;
-    connection.dml("delete from TEST_NCLOBS")?;
+
+    let mut stmt = connection.prepare("insert into TEST_NCLOBS values(?, ?)")?;
+    let mut reader = &fifty_times_smp_blabla.as_bytes()[..];
+
+    stmt.execute_row(vec![
+        HdbValue::STRING("lsadksaldk".to_string()),
+        HdbValue::LOBSTREAM(Some(&mut reader)),
+    ])?;
     connection.commit()?;
-    connection.dml("insert into TEST_NCLOBS values('test_streaming', '')")?;
-    connection.commit()?;
-    _logger_handle.parse_and_push_temp_spec("debug");
-    let mut nclob = connection.query("select chardata from TEST_NCLOBS for update ")?
-        .into_single_row()?
-        .into_single_value()?
-        .try_into_nclob()?;
-    let mut cursor = std::io::Cursor::new(fifty_times_smp_blabla);
-    debug!("HERE");
-    io::copy(&mut cursor, &mut nclob)?;
-    connection.commit()?;
-    debug!("HERE 2: {}", nclob.total_byte_length());
 
     debug!("read big nclob in streaming fashion");
     // Note: Connection.set_lob_read_length() affects NCLobs in chars (1, 2, or 3 bytes),
@@ -159,26 +156,25 @@ fn test_streaming(
         .into_single_row()?
         .into_single_value()?
         .try_into_nclob()?;
-    let mut streamed_chardata = Vec::<u8>::new();
-    io::copy(&mut nclob, &mut streamed_chardata)?;
+    let mut buffer = Vec::<u8>::new();
+    std::io::copy(&mut nclob, &mut buffer)?;
 
-    assert_eq!(fifty_times_smp_blabla.len(), streamed_chardata.len());
+    assert_eq!(fifty_times_smp_blabla.len(), buffer.len());
     let mut hasher = Sha256::default();
-    hasher.input(&streamed_chardata);
+    hasher.input(&buffer);
     let fingerprint4 = hasher.result().to_vec();
     assert_eq!(fingerprint, &fingerprint4);
+    assert!(nclob.max_buf_len() < 605_000, "nclob.max_buf_len() too big: {}", nclob.max_buf_len());
 
-    debug!("nclob.max_buf_len(): {}", nclob.max_buf_len());
-    assert!(nclob.max_buf_len() < 605_000);
-    _logger_handle.pop_temp_spec();
+    connection.set_auto_commit(true)?;
     Ok(())
 }
 
 fn test_bytes_to_nclobs(
-    _logger_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut flexi_logger::ReconfigurationHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
-    info!("create a NCLOB from bytes in the database, and read it in back to a String");
+    info!("create a NCLOB from bytes in the database, and read it back into a String");
 
     connection.multiple_statements_ignore_err(vec!["drop table TEST_NCLOBS_BYTES"]);
     let stmts = vec!["create table TEST_NCLOBS_BYTES (chardata NCLOB, chardata_nn NCLOB NOT NULL)"];

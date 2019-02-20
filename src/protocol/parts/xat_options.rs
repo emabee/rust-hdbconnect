@@ -22,13 +22,13 @@ impl XatOptions {
         self.set_value(XatOptionId::Flags, OptionValue::INT(flag.bits() as i32));
     }
 
-    pub fn set_count(&mut self, count: i64) {
-        self.set_value(XatOptionId::NumberOfXid, OptionValue::BIGINT(count));
-    }
+    // pub fn set_count(&mut self, count: i64) {
+    //     self.set_value(XatOptionId::NumberOfXid, OptionValue::BIGINT(count));
+    // }
 
-    pub fn set_onephase(&mut self, one_phase: bool) {
-        self.set_value(XatOptionId::OnePhase, OptionValue::BOOLEAN(one_phase));
-    }
+    // pub fn set_onephase(&mut self, one_phase: bool) {
+    //     self.set_value(XatOptionId::OnePhase, OptionValue::BOOLEAN(one_phase));
+    // }
 
     pub fn get_returncode(&self) -> Option<RmRc> {
         for (id, value) in self.iter() {

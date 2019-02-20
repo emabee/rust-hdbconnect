@@ -2,7 +2,7 @@ mod test_utils;
 
 use flexi_logger::ReconfigurationHandle;
 use hdbconnect::types::CLob;
-use hdbconnect::{Connection, HdbResult};
+use hdbconnect::{Connection, HdbValue, HdbResult};
 use log::{debug, info};
 use serde_derive::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -14,15 +14,37 @@ pub fn test_033_clobs() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     let mut connection = test_utils::get_authenticated_connection()?;
 
-    test_clobs(&mut log_handle, &mut connection)?;
+    let (blabla, fingerprint) = get_blabla();
+    test_clobs(&mut log_handle, &mut connection, &blabla, &fingerprint)?;
+    test_streaming(&mut log_handle, &mut connection, &blabla, &fingerprint)?;
 
     info!("{} calls to DB were executed", connection.get_call_count()?);
     Ok(())
 }
 
+fn get_blabla() -> (String, Vec<u8>) {
+    debug!("create big random String data");
+    let mut fifty_times_smp_blabla = String::new();
+    {
+        let mut f = File::open("tests/smp-blabla.txt").expect("file not found");
+        let mut blabla = String::new();
+        f.read_to_string(&mut blabla)
+            .expect("something went wrong reading the file");
+        for _ in 0..50 {
+            fifty_times_smp_blabla.push_str(&blabla);
+        }
+    }
+
+    let mut hasher = Sha256::default();
+    hasher.input(fifty_times_smp_blabla.as_bytes());
+    (fifty_times_smp_blabla, hasher.result().to_vec())
+}
+
 fn test_clobs(
     _log_handle: &mut ReconfigurationHandle,
     connection: &mut Connection,
+    fifty_times_smp_blabla: &String,
+    fingerprint: &Vec<u8>,
 ) -> HdbResult<()> {
     info!("create a big CLOB in the database, and read it in various ways");
     debug!("setup...");
@@ -42,26 +64,10 @@ fn test_clobs(
         o_s: Option<String>,
     }
 
-    debug!("create big random String data");
-    let mut three_times_blabla = String::new();
-    {
-        let mut f = File::open("tests/blabla.txt").expect("file not found");
-        let mut blabla = String::new();
-        f.read_to_string(&mut blabla)
-            .expect("something went wrong reading the file");
-        for _ in 0..3 {
-            three_times_blabla.push_str(&blabla);
-        }
-    }
-
-    let mut hasher = Sha256::default();
-    hasher.input(three_times_blabla.as_bytes());
-    let fingerprint1 = hasher.result();
-
     debug!("insert it into HANA");
     let mut insert_stmt =
         connection.prepare("insert into TEST_CLOBS (desc, chardata) values (?,?)")?;
-    insert_stmt.add_batch(&("3x blabla", &three_times_blabla))?;
+    insert_stmt.add_batch(&("3x blabla", &fifty_times_smp_blabla))?;
     insert_stmt.execute_batch()?;
 
     debug!("and read it back");
@@ -78,17 +84,17 @@ fn test_clobs(
     );
 
     // verify we get in both cases the same blabla back
-    assert_eq!(three_times_blabla.len(), mydata.s.len());
+    assert_eq!(fifty_times_smp_blabla.len(), mydata.s.len());
 
     let mut hasher = Sha256::default();
     hasher.input(mydata.s.as_bytes());
-    let fingerprint2 = hasher.result();
-    assert_eq!(fingerprint1, fingerprint2);
+    let fingerprint2 = hasher.result().to_vec();
+    assert_eq!(fingerprint, &fingerprint2);
 
     let mut hasher = Sha256::default();
     hasher.input(mydata.o_s.as_ref().unwrap().as_bytes());
-    let fingerprint3 = hasher.result();
-    assert_eq!(fingerprint1, fingerprint3);
+    let fingerprint3 = hasher.result().to_vec();
+    assert_eq!(fingerprint, &fingerprint3);
 
     // try again with smaller lob-read-length
     connection.set_lob_read_length(200_000)?;
@@ -114,11 +120,11 @@ fn test_clobs(
     let mut streamed = Vec::<u8>::new();
     io::copy(&mut clob, &mut streamed)?;
 
-    assert_eq!(three_times_blabla.len(), streamed.len());
+    assert_eq!(fifty_times_smp_blabla.len(), streamed.len());
     let mut hasher = Sha256::default();
     hasher.input(&streamed);
-    let fingerprint4 = hasher.result();
-    assert_eq!(fingerprint1, fingerprint4);
+    let fingerprint4 = hasher.result().to_vec();
+    assert_eq!(fingerprint, &fingerprint4);
 
     debug!("clob.max_buf_len(): {}", clob.max_buf_len());
     // io::copy works with 8MB, our buffer remains at about 200_000:
@@ -136,3 +142,49 @@ fn test_clobs(
 
     Ok(())
 }
+
+fn test_streaming(
+    _log_handle: &mut flexi_logger::ReconfigurationHandle,
+    connection: &mut Connection,
+    fifty_times_smp_blabla: &String,
+    fingerprint: &Vec<u8>,
+) -> HdbResult<()> {
+    info!("write and read big clob in streaming fashion");
+
+    connection.set_auto_commit(true)?;
+    connection.dml("delete from TEST_CLOBS")?;
+
+    debug!("write big clob in streaming fashion");
+    connection.set_auto_commit(false)?;
+
+    let mut stmt = connection.prepare("insert into TEST_CLOBS values(?, ?)")?;
+    let mut reader = &fifty_times_smp_blabla.as_bytes()[..];
+
+    stmt.execute_row(vec![
+        HdbValue::STRING("lsadksaldk".to_string()),
+        HdbValue::LOBSTREAM(Some(&mut reader)),
+    ])?;
+    connection.commit()?;
+
+    debug!("read big clob in streaming fashion");
+    connection.set_lob_read_length(200_000)?;
+
+    let mut clob = connection
+        .query("select chardata from TEST_CLOBS")?
+        .into_single_row()?
+        .into_single_value()?
+        .try_into_clob()?;
+    let mut buffer = Vec::<u8>::new();
+    std::io::copy(&mut clob, &mut buffer)?;
+
+    assert_eq!(fifty_times_smp_blabla.len(), buffer.len());
+    let mut hasher = Sha256::default();
+    hasher.input(&buffer);
+    let fingerprint4 = hasher.result().to_vec();
+    assert_eq!(fingerprint, &fingerprint4);
+    assert!(clob.max_buf_len() < 210_000, "clob.max_buf_len() too big: {}", clob.max_buf_len());
+
+    connection.set_auto_commit(true)?;
+    Ok(())
+}
+

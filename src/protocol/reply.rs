@@ -3,6 +3,7 @@ use crate::hdb_response::InternalReturnValue;
 use crate::protocol::argument::Argument;
 use crate::protocol::part::{Part, Parts};
 use crate::protocol::part_attributes::PartAttributes;
+use crate::protocol::partkind::PartKind;
 use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
 use crate::protocol::parts::resultset::ResultSet;
 use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
@@ -104,6 +105,12 @@ impl Reply {
         self.parts.push(part);
     }
 
+    pub fn extract_first_arg_of_type(&mut self, part_kind: PartKind) -> Option<Argument<'static>> {
+        self.parts
+            .extract_first_part_of_type(part_kind)
+            .map(|p| p.into_arg())
+    }
+
     pub fn into_hdbresponse(mut self, am_conn_core: &mut AmConnCore) -> HdbResult<HdbResponse> {
         // digest parts, collect InternalReturnValues
         let mut conn_core = am_conn_core.lock()?;
@@ -130,7 +137,7 @@ impl Reply {
                     int_return_values.push(InternalReturnValue::ResultSet(rs));
                 }
                 Argument::ResultSetMetadata(rsm) => match self.parts.pop() {
-                    Some(part) => match *part.arg() {
+                    Some(part) => match part.into_arg() {
                         Argument::ResultSetId(rs_id) => {
                             let rs = ResultSet::new(
                                 am_conn_core,
@@ -147,6 +154,9 @@ impl Reply {
                 },
                 Argument::ExecutionResult(vra) => {
                     int_return_values.push(InternalReturnValue::AffectedRows(vra));
+                }
+                Argument::WriteLobReply(wlr) => {
+                    int_return_values.push(InternalReturnValue::WriteLobReply(wlr));
                 }
                 _ => warn!(
                     "Reply::into_hdbresponse(): \
@@ -209,7 +219,7 @@ impl Reply {
 
 impl Drop for Reply {
     fn drop(&mut self) {
-        for part in &self.parts {
+        for part in self.parts.ref_inner() {
             warn!(
                 "reply of type {:?} is dropped, not all parts were evaluated: part-kind = {:?}",
                 self.replytype,

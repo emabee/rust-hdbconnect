@@ -13,7 +13,7 @@ pub(crate) fn parse_blob(
     o_am_rscore: &Option<AmRsCore>,
     nullable: bool,
     rdr: &mut io::BufRead,
-) -> HdbResult<HdbValue> {
+) -> HdbResult<HdbValue<'static>> {
     let (is_null, is_data_included, is_last_data) = parse_lob_1(rdr)?;
     if is_null {
         if nullable {
@@ -41,7 +41,7 @@ pub(crate) fn parse_clob(
     o_am_rscore: &Option<AmRsCore>,
     nullable: bool,
     rdr: &mut io::BufRead,
-) -> HdbResult<HdbValue> {
+) -> HdbResult<HdbValue<'static>> {
     let (is_null, is_data_included, is_last_data) = parse_lob_1(rdr)?;
     if is_null {
         if nullable {
@@ -71,7 +71,7 @@ pub(crate) fn parse_nclob(
     nullable: bool,
     type_id: TypeId,
     rdr: &mut io::BufRead,
-) -> HdbResult<HdbValue> {
+) -> HdbResult<HdbValue<'static>> {
     let (is_null, is_data_included, is_last_data) = parse_lob_1(rdr)?;
     if is_null {
         if nullable {

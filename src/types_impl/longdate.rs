@@ -97,7 +97,10 @@ impl LongDate {
     }
 }
 
-pub(crate) fn parse_longdate(nullable: bool, rdr: &mut io::BufRead) -> HdbResult<HdbValue> {
+pub(crate) fn parse_longdate(
+    nullable: bool,
+    rdr: &mut io::BufRead,
+) -> HdbResult<HdbValue<'static>> {
     let i = rdr.read_i64::<LittleEndian>()?;
     if i == NULL_REPRESENTATION {
         if nullable {

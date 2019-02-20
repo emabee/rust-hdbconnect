@@ -1,4 +1,5 @@
-use super::{fetch_a_lob_chunk, CharLobSlice};
+use super::fetch::fetch_a_lob_chunk;
+use super::CharLobSlice;
 use crate::conn_core::AmConnCore;
 use crate::protocol::parts::resultset::AmRsCore;
 use crate::protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
@@ -160,7 +161,7 @@ impl CLobHandle {
     ) -> CLobHandle {
         let acc_byte_length = cesu8.len();
 
-        let (utf8, buffer_cesu8) = util::to_string_and_tail(cesu8).unwrap(/* yes */);
+        let (utf8, buffer_cesu8) = util::cesu8_to_string_and_tail(cesu8).unwrap(/* yes */);
         let clob_handle = CLobHandle {
             am_conn_core: am_conn_core.clone(),
             o_am_rscore: match o_am_rscore {
@@ -230,14 +231,14 @@ impl CLobHandle {
 
         self.acc_byte_length += reply_data.len();
         if self.buffer_cesu8.is_empty() {
-            let (utf8, buffer) = util::to_string_and_tail(reply_data)?;
+            let (utf8, buffer) = util::cesu8_to_string_and_tail(reply_data)?;
             self.utf8.push_str(&utf8);
             self.buffer_cesu8 = buffer;
         } else {
             self.buffer_cesu8.append(&mut reply_data);
             let mut buffer_cesu8 = vec![];
             std::mem::swap(&mut buffer_cesu8, &mut self.buffer_cesu8);
-            let (utf8, buffer) = util::to_string_and_tail(buffer_cesu8)?;
+            let (utf8, buffer) = util::cesu8_to_string_and_tail(buffer_cesu8)?;
 
             self.utf8.push_str(&utf8);
             self.buffer_cesu8 = buffer;

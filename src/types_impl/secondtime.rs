@@ -58,7 +58,10 @@ impl SecondTime {
     }
 }
 
-pub(crate) fn parse_secondtime(nullable: bool, rdr: &mut io::BufRead) -> HdbResult<HdbValue> {
+pub(crate) fn parse_secondtime(
+    nullable: bool,
+    rdr: &mut io::BufRead,
+) -> HdbResult<HdbValue<'static>> {
     let i = rdr.read_i32::<LittleEndian>()?;
     if i == NULL_REPRESENTATION {
         if nullable {

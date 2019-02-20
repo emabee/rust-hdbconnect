@@ -98,7 +98,7 @@ impl<'a> Request<'a> {
         remaining_bufsize -= SEGMENT_HEADER_SIZE as u32;
         trace!("Headers are written");
         // PARTS
-        for part in &(self.parts) {
+        for part in self.parts.ref_inner() {
             remaining_bufsize = part.emit(remaining_bufsize, o_descriptors, w)?;
         }
         w.flush()?;
@@ -117,7 +117,7 @@ impl<'a> Request<'a> {
 
     fn seg_size(&self, o_descriptors: Option<&ParameterDescriptors>) -> HdbResult<usize> {
         let mut len = SEGMENT_HEADER_SIZE;
-        for part in &self.parts {
+        for part in self.parts.ref_inner() {
             len += part.size(true, o_descriptors)?;
         }
         Ok(len)

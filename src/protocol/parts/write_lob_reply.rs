@@ -4,12 +4,12 @@ use byteorder::{LittleEndian, ReadBytesExt};
 use std::io::BufRead;
 
 #[derive(Debug)]
-pub struct WriteLobReply {
+pub(crate) struct WriteLobReply {
     locator_ids: Vec<u64>,
 }
 impl WriteLobReply {
-    pub fn locator_ids(&self) -> &[u64] {
-        &self.locator_ids
+    pub fn into_locator_ids(self) -> Vec<u64> {
+        self.locator_ids
     }
 }
 

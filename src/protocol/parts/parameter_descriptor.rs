@@ -7,9 +7,6 @@ use std::u32;
 #[derive(Debug)]
 pub(crate) struct ParameterDescriptors(Vec<ParameterDescriptor>);
 impl ParameterDescriptors {
-    pub fn iter_all(&self) -> impl std::iter::Iterator<Item = &ParameterDescriptor> {
-        self.0.iter()
-    }
     pub fn iter_in(&self) -> impl std::iter::Iterator<Item = &ParameterDescriptor> {
         self.0.iter().filter(|ms| {
             (ms.direction == ParameterDirection::IN) | (ms.direction == ParameterDirection::INOUT)
@@ -23,9 +20,6 @@ impl ParameterDescriptors {
 
     pub fn has_in(&self) -> bool {
         self.iter_in().next().is_some()
-    }
-    pub fn has_out(&self) -> bool {
-        self.iter_out().next().is_some()
     }
 
     pub fn parse<T: std::io::BufRead>(

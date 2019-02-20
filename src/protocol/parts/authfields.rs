@@ -22,10 +22,6 @@ impl AuthFields {
     pub fn len(&self) -> usize {
         self.0.len()
     }
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
     pub fn pop(&mut self) -> Option<Vec<u8>> {
         self.0.pop().map(|af| af.data())
     }

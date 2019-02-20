@@ -16,15 +16,15 @@ use std::sync::Arc;
 ///
 /// You also can access individual values with `row[idx]`, or iterate over the values (with
 /// `row.iter()` or `for value in row {...}`).
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Row {
     metadata: Arc<ResultSetMetadata>,
-    value_iter: <Vec<HdbValue> as IntoIterator>::IntoIter,
+    value_iter: <Vec<HdbValue<'static>> as IntoIterator>::IntoIter,
 }
 
 impl Row {
     /// Factory for row.
-    pub(crate) fn new(metadata: Arc<ResultSetMetadata>, values: Vec<HdbValue>) -> Row {
+    pub(crate) fn new(metadata: Arc<ResultSetMetadata>, values: Vec<HdbValue<'static>>) -> Row {
         Row {
             metadata,
             value_iter: values.into_iter(),
@@ -41,7 +41,7 @@ impl Row {
     }
 
     /// Removes and returns the next value.
-    pub fn next_value(&mut self) -> Option<HdbValue> {
+    pub fn next_value(&mut self) -> Option<HdbValue<'static>> {
         self.value_iter.next()
     }
 
@@ -59,7 +59,7 @@ impl Row {
     /// Converts itself in the single contained value.
     ///
     /// Fails if the row is empty or has more than one value.
-    pub fn into_single_value(mut self) -> HdbResult<HdbValue> {
+    pub fn into_single_value(mut self) -> HdbResult<HdbValue<'static>> {
         if self.len() > 1 {
             Err(HdbError::Usage("Row has more than one field".to_owned()))
         } else {
@@ -113,16 +113,16 @@ impl Row {
 
 /// Support indexing.
 impl std::ops::Index<usize> for Row {
-    type Output = HdbValue;
-    fn index(&self, idx: usize) -> &HdbValue {
+    type Output = HdbValue<'static>;
+    fn index(&self, idx: usize) -> &HdbValue<'static> {
         &self.value_iter.as_slice()[idx]
     }
 }
 
 /// Row is an iterator with item = HdbValue.
 impl Iterator for Row {
-    type Item = HdbValue;
-    fn next(&mut self) -> Option<HdbValue> {
+    type Item = HdbValue<'static>;
+    fn next(&mut self) -> Option<HdbValue<'static>> {
         self.next_value()
     }
 }

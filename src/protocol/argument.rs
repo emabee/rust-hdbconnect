@@ -13,7 +13,7 @@ use crate::protocol::parts::fetch_options::FetchOptions;
 use crate::protocol::parts::lob_flags::LobFlags;
 use crate::protocol::parts::output_parameters::OutputParameters;
 use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
-use crate::protocol::parts::parameters::Parameters;
+use crate::protocol::parts::parameter_rows::ParameterRows;
 use crate::protocol::parts::partiton_information::PartitionInformation;
 use crate::protocol::parts::read_lob_reply::ReadLobReply;
 use crate::protocol::parts::read_lob_request::ReadLobRequest;
@@ -41,15 +41,18 @@ pub(crate) enum Argument<'a> {
     ClientInfo(ClientInfo),
     Command(&'a str),
     CommandInfo(CommandInfo),
+    #[allow(dead_code)] // FIXME make reasonable use of this
     CommitOptions(CommitOptions),
     ConnectOptions(ConnectOptions),
     Error(Vec<ServerError>),
+    #[allow(dead_code)] // FIXME make reasonable use of this
     FetchOptions(FetchOptions),
     FetchSize(u32),
+    #[allow(dead_code)] // FIXME make reasonable use of this
     LobFlags(LobFlags),
     OutputParameters(OutputParameters),
     ParameterMetadata(ParameterDescriptors),
-    Parameters(Parameters),
+    Parameters(ParameterRows<'a>),
     ReadLobRequest(ReadLobRequest),
     ReadLobReply(ReadLobReply),
     WriteLobRequest(WriteLobRequest<'a>),
@@ -245,6 +248,9 @@ impl<'a> Argument<'a> {
                 Argument::ParameterMetadata(ParameterDescriptors::parse(no_of_args, rdr)?)
             }
             PartKind::ReadLobReply => Argument::ReadLobReply(ReadLobReply::parse(rdr)?),
+            PartKind::WriteLobReply => {
+                Argument::WriteLobReply(WriteLobReply::parse(no_of_args, rdr)?)
+            }
             PartKind::ResultSet => {
                 let rs = ResultSet::parse(
                     no_of_args,
@@ -291,8 +297,8 @@ impl<'a> Argument<'a> {
             PartKind::XatOptions => Argument::XatOptions(XatOptions::parse(no_of_args, rdr)?),
             _ => {
                 return Err(HdbError::Impl(format!(
-                    "No handling implemented for received partkind value {}",
-                    kind.to_i8()
+                    "No handling implemented for received partkind {:?}",
+                    kind
                 )));
             }
         };

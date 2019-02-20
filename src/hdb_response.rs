@@ -3,6 +3,7 @@ use crate::protocol::parts::execution_result::ExecutionResult;
 use crate::protocol::parts::output_parameters::OutputParameters;
 use crate::protocol::parts::parameter_descriptor::ParameterDescriptor;
 use crate::protocol::parts::resultset::ResultSet;
+use crate::protocol::parts::write_lob_reply::WriteLobReply;
 use crate::{HdbError, HdbResult};
 
 /// Represents all possible non-error responses to a database command.
@@ -273,6 +274,9 @@ impl HdbResponse {
             Some(InternalReturnValue::ResultSet(_)) => Err(HdbError::Impl(
                 "Found ResultSet, but a single AffectedRows was expected".to_owned(),
             )),
+            Some(InternalReturnValue::WriteLobReply(_)) => Err(HdbError::Impl(
+                "Found WriteLobReply, but a single AffectedRows was expected".to_owned(),
+            )),
             None => Err(HdbError::Impl(
                 "Nothing found, but a single AffectedRows was expected".to_owned(),
             )),
@@ -335,6 +339,9 @@ impl HdbResponse {
             Some(InternalReturnValue::ResultSet(_)) => Err(HdbError::Impl(
                 "Found ResultSet, but a single Success was expected".to_owned(),
             )),
+            Some(InternalReturnValue::WriteLobReply(_)) => Err(HdbError::Impl(
+                "Found WriteLobReply, but a single Success was expected".to_owned(),
+            )),
             None => Err(HdbError::Impl(
                 "Nothing found, but a single Success was expected".to_owned(),
             )),
@@ -373,6 +380,11 @@ impl HdbResponse {
                 InternalReturnValue::ResultSet(rs) => {
                     vec_dbrv.push(HdbReturnValue::ResultSet(rs));
                 }
+                InternalReturnValue::WriteLobReply(_) => {
+                    return Err(HdbError::Impl(
+                        "found WriteLobReply in multiple_return_values()".to_owned(),
+                    ));
+                }
             }
         }
         Ok(HdbResponse {
@@ -402,4 +414,5 @@ pub(crate) enum InternalReturnValue {
     AffectedRows(Vec<ExecutionResult>),
     OutputParameters(OutputParameters),
     ParameterMetadata(Vec<ParameterDescriptor>),
+    WriteLobReply(WriteLobReply),
 }

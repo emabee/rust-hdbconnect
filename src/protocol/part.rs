@@ -20,17 +20,17 @@ pub(crate) struct Part<'a> {
 }
 
 impl<'a> Part<'a> {
-    pub fn new(kind: PartKind, arg: Argument) -> Part {
+    pub fn new(kind: PartKind, arg: Argument<'a>) -> Part<'a> {
         Part { kind, arg }
     }
     pub fn kind(&self) -> &PartKind {
         &self.kind
     }
-    pub fn arg(&self) -> &Argument {
-        &self.arg
-    }
     pub fn into_elements(self) -> (PartKind, Argument<'a>) {
         (self.kind, self.arg)
+    }
+    pub fn into_arg(self) -> Argument<'a> {
+        self.arg
     }
 
     pub fn emit<T: io::Write>(
@@ -85,7 +85,7 @@ impl<'a> Part<'a> {
         o_rs: &mut Option<&mut ResultSet>,
         last: bool,
         rdr: &mut T,
-    ) -> HdbResult<Part<'a>> {
+    ) -> HdbResult<Part<'static>> {
         trace!("Entering parse()");
         let (kind, attributes, arg_size, no_of_args) = parse_part_header(rdr)?;
         debug!(
@@ -146,11 +146,7 @@ impl<'a> Parts<'a> {
         self.0.len()
     }
 
-    pub fn clear(&mut self) {
-        self.0.clear()
-    }
-
-    pub fn extract_first_part_of_type(&mut self, part_kind: PartKind) -> Option<Part> {
+    pub fn extract_first_part_of_type(&mut self, part_kind: PartKind) -> Option<Part<'a>> {
         let part_code = part_kind.to_i8();
         let part_position = (&self.0).iter().position(|p| p.kind().to_i8() == part_code);
 
@@ -167,16 +163,16 @@ impl<'a> Parts<'a> {
     pub fn push(&mut self, part: Part<'a>) {
         self.0.push(part)
     }
-    pub fn pop(&mut self) -> Option<Part> {
+    pub fn pop(&mut self) -> Option<Part<'a>> {
         self.0.pop()
     }
-    pub fn pop_arg(&mut self) -> Option<Argument> {
+    pub fn pop_arg(&mut self) -> Option<Argument<'a>> {
         match self.0.pop() {
             Some(part) => Some(part.arg),
             None => None,
         }
     }
-    pub fn pop_arg_if_kind(&mut self, kind: PartKind) -> Option<Argument> {
+    pub fn pop_arg_if_kind(&mut self, kind: PartKind) -> Option<Argument<'a>> {
         match self.0.last() {
             Some(part) if part.kind.to_i8() == kind.to_i8() => { /* escape the borrow check */ }
             _ => return None,
@@ -188,23 +184,7 @@ impl<'a> Parts<'a> {
         self.0.retain(|part| part.kind.to_i8() != kind.to_i8());
     }
 
-    pub fn swap_remove(&mut self, index: usize) -> Part {
-        self.0.swap_remove(index)
-    }
-}
-
-impl<'a> IntoIterator for Parts<'a> {
-    type Item = Part<'a>;
-    type IntoIter = ::std::vec::IntoIter<Part<'a>>;
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
-    }
-}
-
-impl<'a> IntoIterator for &'a Parts<'a> {
-    type Item = &'a Part<'a>;
-    type IntoIter = ::std::slice::Iter<'a, Part<'a>>;
-    fn into_iter(self) -> Self::IntoIter {
-        (self.0).iter()
+    pub fn ref_inner(&self) -> &Vec<Part<'a>> {
+        &self.0
     }
 }

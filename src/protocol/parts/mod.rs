@@ -13,7 +13,7 @@ pub mod option_part;
 pub mod option_value;
 pub mod output_parameters;
 pub mod parameter_descriptor;
-pub mod parameters;
+pub mod parameter_rows;
 pub mod partiton_information;
 pub mod read_lob_reply;
 pub mod read_lob_request;

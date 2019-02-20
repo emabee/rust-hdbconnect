@@ -34,14 +34,14 @@ impl DeserializableResultset for ResultSet {
 }
 
 impl DeserializableRow for Row {
-    type V = HdbValue;
+    type V = HdbValue<'static>;
     type E = HdbError;
 
     fn len(&self) -> usize {
         Row::len(self)
     }
 
-    fn next(&mut self) -> Option<HdbValue> {
+    fn next(&mut self) -> Option<HdbValue<'static>> {
         Row::next_value(self)
     }
 
@@ -54,7 +54,7 @@ impl DeserializableRow for Row {
     }
 }
 
-impl DbValue for HdbValue {
+impl DbValue for HdbValue<'static> {
     fn is_null(&self) -> bool {
         match *self {
             HdbValue::NULL => true,
@@ -63,7 +63,7 @@ impl DbValue for HdbValue {
     }
 }
 
-impl DbValueInto<bool> for HdbValue {
+impl DbValueInto<bool> for HdbValue<'static> {
     fn try_into(self) -> Result<bool, ConversionError> {
         match self {
             HdbValue::BOOLEAN(b) => Ok(b),
@@ -80,7 +80,7 @@ impl DbValueInto<bool> for HdbValue {
     }
 }
 
-impl DbValueInto<u8> for HdbValue {
+impl DbValueInto<u8> for HdbValue<'static> {
     fn try_into(self) -> Result<u8, ConversionError> {
         match self {
             HdbValue::TINYINT(u) => Ok(u),
@@ -95,7 +95,7 @@ impl DbValueInto<u8> for HdbValue {
     }
 }
 
-impl DbValueInto<u16> for HdbValue {
+impl DbValueInto<u16> for HdbValue<'static> {
     fn try_into(self) -> Result<u16, ConversionError> {
         match self {
             HdbValue::TINYINT(u) => Ok(u16::from(u)),
@@ -110,7 +110,7 @@ impl DbValueInto<u16> for HdbValue {
     }
 }
 
-impl DbValueInto<u32> for HdbValue {
+impl DbValueInto<u32> for HdbValue<'static> {
     fn try_into(self) -> Result<u32, ConversionError> {
         match self {
             HdbValue::TINYINT(u) => Ok(u32::from(u)),
@@ -125,7 +125,7 @@ impl DbValueInto<u32> for HdbValue {
     }
 }
 
-impl DbValueInto<u64> for HdbValue {
+impl DbValueInto<u64> for HdbValue<'static> {
     fn try_into(self) -> Result<u64, ConversionError> {
         match self {
             HdbValue::TINYINT(u) => Ok(u64::from(u)),
@@ -140,7 +140,7 @@ impl DbValueInto<u64> for HdbValue {
     }
 }
 
-impl DbValueInto<i8> for HdbValue {
+impl DbValueInto<i8> for HdbValue<'static> {
     fn try_into(self) -> Result<i8, ConversionError> {
         match self {
             HdbValue::TINYINT(i) => {
@@ -157,7 +157,7 @@ impl DbValueInto<i8> for HdbValue {
     }
 }
 
-impl DbValueInto<i16> for HdbValue {
+impl DbValueInto<i16> for HdbValue<'static> {
     fn try_into(self) -> Result<i16, ConversionError> {
         match self {
             HdbValue::TINYINT(u) => Ok(i16::from(u)),
@@ -170,7 +170,7 @@ impl DbValueInto<i16> for HdbValue {
     }
 }
 
-impl DbValueInto<i32> for HdbValue {
+impl DbValueInto<i32> for HdbValue<'static> {
     fn try_into(self) -> Result<i32, ConversionError> {
         match self {
             HdbValue::TINYINT(u) => Ok(i32::from(u)),
@@ -183,7 +183,7 @@ impl DbValueInto<i32> for HdbValue {
     }
 }
 
-impl DbValueInto<i64> for HdbValue {
+impl DbValueInto<i64> for HdbValue<'static> {
     fn try_into(self) -> Result<i64, ConversionError> {
         match self {
             HdbValue::TINYINT(u) => Ok(i64::from(u)),
@@ -198,7 +198,7 @@ impl DbValueInto<i64> for HdbValue {
     }
 }
 
-impl DbValueInto<f32> for HdbValue {
+impl DbValueInto<f32> for HdbValue<'static> {
     fn try_into(self) -> Result<f32, ConversionError> {
         match self {
             HdbValue::DECIMAL(bigdec) => bigdec.to_f32().ok_or_else(|| decimal_range("f32")),
@@ -208,7 +208,7 @@ impl DbValueInto<f32> for HdbValue {
     }
 }
 
-impl DbValueInto<f64> for HdbValue {
+impl DbValueInto<f64> for HdbValue<'static> {
     fn try_into(self) -> Result<f64, ConversionError> {
         match self {
             HdbValue::DECIMAL(bigdec) => bigdec.to_f64().ok_or_else(|| decimal_range("f64")),
@@ -218,7 +218,7 @@ impl DbValueInto<f64> for HdbValue {
     }
 }
 
-impl DbValueInto<String> for HdbValue {
+impl DbValueInto<String> for HdbValue<'static> {
     fn try_into(self) -> Result<String, ConversionError> {
         trace!("try_into -> String");
         match self {
@@ -246,7 +246,7 @@ impl DbValueInto<String> for HdbValue {
     }
 }
 
-impl DbValueInto<NaiveDateTime> for HdbValue {
+impl DbValueInto<NaiveDateTime> for HdbValue<'static> {
     fn try_into(self) -> Result<NaiveDateTime, ConversionError> {
         trace!("try_into -> NaiveDateTime");
         match self {
@@ -271,7 +271,7 @@ impl DbValueInto<NaiveDateTime> for HdbValue {
     }
 }
 
-impl DbValueInto<Vec<u8>> for HdbValue {
+impl DbValueInto<Vec<u8>> for HdbValue<'static> {
     fn try_into(self) -> Result<Vec<u8>, ConversionError> {
         match self {
             HdbValue::BLOB(blob) => Ok(blob

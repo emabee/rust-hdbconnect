@@ -6,8 +6,7 @@ use crate::protocol::util;
 use crate::types::{BLob, CLob, DayDate, LongDate, NCLob, SecondDate, SecondTime};
 use crate::types_impl::daydate::parse_daydate;
 use crate::types_impl::decimal::{emit_decimal, parse_decimal};
-// use crate::types_impl::lob::{emit_blob_header, emit_clob_header, emit_nclob_header};
-use crate::types_impl::lob::{parse_blob, parse_clob, parse_nclob};
+use crate::types_impl::lob::{emit_lob_header, parse_blob, parse_clob, parse_nclob};
 use crate::types_impl::longdate::parse_longdate;
 use crate::types_impl::seconddate::parse_seconddate;
 use crate::types_impl::secondtime::parse_secondtime;
@@ -17,7 +16,6 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use cesu8;
 use serde;
 use serde_db::de::{ConversionError, DbValue};
-use std::fmt;
 
 const MAX_1_BYTE_LENGTH: u8 = 245;
 const MAX_2_BYTE_LENGTH: i16 = std::i16::MAX;
@@ -27,8 +25,7 @@ const LENGTH_INDICATOR_NULL: u8 = 255;
 
 /// Enum for all supported database value types.
 #[allow(non_camel_case_types)]
-#[derive(Clone, Debug)]
-pub enum HdbValue {
+pub enum HdbValue<'a> {
     /// Is swapped in where a real value (any of the others) is swapped out.
     NOTHING,
     /// Representation of a database NULL value.
@@ -67,6 +64,10 @@ pub enum HdbValue {
     /// Stores a large binary string.
     BLOB(BLob),
 
+    /// Used for streaming LOBs to the database (see
+    /// [`PreparedStatement::execute_row()`](struct.PreparedStatement.html#method.execute_row)).
+    LOBSTREAM(Option<&'a mut std::io::Read>),
+
     /// BOOLEAN stores boolean values, which are TRUE or FALSE.
     BOOLEAN(bool),
     /// The DB returns all Strings as type STRING, independent of the concrete column type.
@@ -87,7 +88,7 @@ pub enum HdbValue {
     POINT(Vec<u8>),
 }
 
-impl HdbValue {
+impl<'a> HdbValue<'a> {
     pub(crate) fn type_id_for_emit(&self, requested_type_id: TypeId) -> HdbResult<TypeId> {
         Ok(match *self {
             HdbValue::NOTHING => {
@@ -119,9 +120,10 @@ impl HdbValue {
             HdbValue::REAL(_) => TypeId::REAL,
             HdbValue::DOUBLE(_) => TypeId::DOUBLE,
             HdbValue::BINARY(_) => TypeId::BINARY,
-            HdbValue::CLOB(_) => TypeId::CLOB,
-            HdbValue::NCLOB(_) => TypeId::NCLOB,
-            HdbValue::BLOB(_) => TypeId::BLOB,
+
+            HdbValue::CLOB(_) | HdbValue::NCLOB(_) | HdbValue::BLOB(_) | HdbValue::LOBSTREAM(_) => {
+                requested_type_id
+            }
             HdbValue::BOOLEAN(_) => TypeId::BOOLEAN,
             HdbValue::STRING(_) => TypeId::STRING,
             HdbValue::LONGDATE(_) => TypeId::LONGDATE,
@@ -131,44 +133,6 @@ impl HdbValue {
             HdbValue::GEOMETRY(_) => TypeId::BINARY, // TypeId::GEOMETRY,
             HdbValue::POINT(_) => TypeId::BINARY,    // TypeId::POINT,
         })
-    }
-
-    /// Deserialize into a rust type
-    pub fn try_into<'x, T: serde::Deserialize<'x>>(self) -> HdbResult<T> {
-        Ok(DbValue::into_typed(self)?)
-    }
-
-    /// Convert into hdbconnect::BLob
-    pub fn try_into_blob(self) -> HdbResult<BLob> {
-        match self {
-            HdbValue::BLOB(blob) => Ok(blob),
-            tv => Err(HdbError::Conversion(ConversionError::ValueType(format!(
-                "The value {:?} cannot be converted into a BLOB",
-                tv
-            )))),
-        }
-    }
-
-    /// Convert into hdbconnect::CLob
-    pub fn try_into_clob(self) -> HdbResult<CLob> {
-        match self {
-            HdbValue::CLOB(clob) => Ok(clob),
-            tv => Err(HdbError::Conversion(ConversionError::ValueType(format!(
-                "The value {:?} cannot be converted into a CLOB",
-                tv
-            )))),
-        }
-    }
-
-    /// Convert into hdbconnect::NCLob
-    pub fn try_into_nclob(self) -> HdbResult<NCLob> {
-        match self {
-            HdbValue::NCLOB(nclob) => Ok(nclob),
-            tv => Err(HdbError::Conversion(ConversionError::ValueType(format!(
-                "HdbValue::try_into_nclob(): the database value {:?} cannot be converted into a NCLob",
-                tv
-            )))),
-        }
     }
 
     /// Returns true if the value is a NULL value.
@@ -202,20 +166,12 @@ impl HdbValue {
                 HdbValue::SECONDDATE(ref sd) => w.write_i64::<LittleEndian>(*sd.ref_raw())?,
                 HdbValue::DAYDATE(ref dd) => w.write_i32::<LittleEndian>(*dd.ref_raw())?,
                 HdbValue::SECONDTIME(ref st) => w.write_u32::<LittleEndian>(*st.ref_raw())?,
-                // HdbValue::CLOB(ref clob) => {
-                //     emit_clob_header(clob.total_byte_length(), data_pos, w)?
-                // }
-                // HdbValue::NCLOB(ref nclob) => {
-                //     emit_nclob_header(nclob.total_byte_length(), data_pos, w)?
-                // }
-                // HdbValue::BLOB(ref blob) => {
-                //     emit_blob_header(blob.total_byte_length(), data_pos, w)?
-                // }
+
+                HdbValue::LOBSTREAM(None) => emit_lob_header(0, _data_pos, w)?,
                 HdbValue::STRING(ref s) => emit_length_and_string(s, w)?,
                 HdbValue::BINARY(ref v) | HdbValue::GEOMETRY(ref v) | HdbValue::POINT(ref v) => {
                     emit_length_and_bytes(v, w)?
                 }
-
                 _ => {
                     return Err(HdbError::Usage(format!(
                         "HdbValue::{} cannot be sent to the database",
@@ -264,16 +220,63 @@ impl HdbValue {
             | HdbValue::LONGDATE(_)
             | HdbValue::SECONDDATE(_) => 8,
 
-            HdbValue::CLOB(ref clob) => 9 + clob.total_byte_length() as usize,
-            HdbValue::NCLOB(ref nclob) => 9 + nclob.total_byte_length() as usize,
-            HdbValue::BLOB(ref blob) => 9 + blob.total_byte_length() as usize,
-
+            HdbValue::LOBSTREAM(None) => 9,
             HdbValue::STRING(ref s) => binary_length(util::cesu8_length(s)),
 
             HdbValue::BINARY(ref v) | HdbValue::GEOMETRY(ref v) | HdbValue::POINT(ref v) => {
                 binary_length(v.len())
             }
+
+            HdbValue::CLOB(_)
+            | HdbValue::NCLOB(_)
+            | HdbValue::BLOB(_)
+            | HdbValue::LOBSTREAM(Some(_)) => {
+                return Err(HdbError::Impl(format!(
+                    "size(): can't send {:?} directly to the database",
+                    self
+                )));
+            }
         })
+    }
+}
+
+impl HdbValue<'static> {
+    /// Deserialize into a rust type
+    pub fn try_into<'x, T: serde::Deserialize<'x>>(self) -> HdbResult<T> {
+        Ok(DbValue::into_typed(self)?)
+    }
+
+    /// Convert into hdbconnect::BLob
+    pub fn try_into_blob(self) -> HdbResult<BLob> {
+        match self {
+            HdbValue::BLOB(blob) => Ok(blob),
+            tv => Err(HdbError::Conversion(ConversionError::ValueType(format!(
+                "The value {:?} cannot be converted into a BLOB",
+                tv
+            )))),
+        }
+    }
+
+    /// Convert into hdbconnect::CLob
+    pub fn try_into_clob(self) -> HdbResult<CLob> {
+        match self {
+            HdbValue::CLOB(clob) => Ok(clob),
+            tv => Err(HdbError::Conversion(ConversionError::ValueType(format!(
+                "The value {:?} cannot be converted into a CLOB",
+                tv
+            )))),
+        }
+    }
+
+    /// Convert into hdbconnect::NCLob
+    pub fn try_into_nclob(self) -> HdbResult<NCLob> {
+        match self {
+            HdbValue::NCLOB(nclob) => Ok(nclob),
+            tv => Err(HdbError::Conversion(ConversionError::ValueType(format!(
+                "HdbValue::try_into_nclob(): the database value {:?} cannot be converted into a NCLob",
+                tv
+            )))),
+        }
     }
 
     pub(crate) fn parse_from_reply(
@@ -283,7 +286,7 @@ impl HdbValue {
         am_conn_core: &AmConnCore,
         o_am_rscore: &Option<AmRsCore>,
         rdr: &mut std::io::BufRead,
-    ) -> HdbResult<HdbValue> {
+    ) -> HdbResult<HdbValue<'static>> {
         let t = type_id;
         match t {
             TypeId::TINYINT => Ok(parse_tinyint(nullable, rdr)?),
@@ -323,10 +326,6 @@ impl HdbValue {
             TypeId::SECONDDATE => Ok(parse_seconddate(nullable, rdr)?),
             TypeId::DAYDATE => Ok(parse_daydate(nullable, rdr)?),
             TypeId::SECONDTIME => Ok(parse_secondtime(nullable, rdr)?),
-
-            TypeId::NLOCATOR => Err(HdbError::Impl(
-                "no implementation for parsing NLOCATOR".to_string(),
-            )),
         }
     }
 }
@@ -355,7 +354,7 @@ fn parse_null(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<bool> {
     }
 }
 
-fn parse_tinyint(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValue> {
+fn parse_tinyint(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValue<'static>> {
     Ok(if parse_null(nullable, rdr)? {
         HdbValue::NULL
     } else {
@@ -363,21 +362,21 @@ fn parse_tinyint(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbVal
     })
 }
 
-fn parse_smallint(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValue> {
+fn parse_smallint(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValue<'static>> {
     Ok(if parse_null(nullable, rdr)? {
         HdbValue::NULL
     } else {
         HdbValue::SMALLINT(rdr.read_i16::<LittleEndian>()?)
     })
 }
-fn parse_int(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValue> {
+fn parse_int(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValue<'static>> {
     Ok(if parse_null(nullable, rdr)? {
         HdbValue::NULL
     } else {
         HdbValue::INT(rdr.read_i32::<LittleEndian>()?)
     })
 }
-fn parse_bigint(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValue> {
+fn parse_bigint(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValue<'static>> {
     Ok(if parse_null(nullable, rdr)? {
         HdbValue::NULL
     } else {
@@ -385,7 +384,7 @@ fn parse_bigint(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValu
     })
 }
 
-fn parse_real(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValue> {
+fn parse_real(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValue<'static>> {
     let mut vec: Vec<u8> = std::iter::repeat(0u8).take(4).collect();
     rdr.read_exact(&mut vec[..])?;
     let mut cursor = std::io::Cursor::new(&vec);
@@ -406,7 +405,7 @@ fn parse_real(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValue>
     }
 }
 
-fn parse_double(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValue> {
+fn parse_double(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValue<'static>> {
     let mut vec: Vec<u8> = std::iter::repeat(0u8).take(8).collect();
     rdr.read_exact(&mut vec[..])?;
     let mut cursor = std::io::Cursor::new(&vec);
@@ -427,7 +426,7 @@ fn parse_double(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValu
     }
 }
 
-fn parse_bool(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValue> {
+fn parse_bool(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValue<'static>> {
     //(0x00 = FALSE, 0x01 = NULL, 0x02 = TRUE)
     match rdr.read_u8()? {
         0 => Ok(HdbValue::BOOLEAN(false)),
@@ -447,7 +446,7 @@ fn parse_string(
     nullable: bool,
     type_id: TypeId,
     rdr: &mut std::io::BufRead,
-) -> HdbResult<HdbValue> {
+) -> HdbResult<HdbValue<'static>> {
     let l8 = rdr.read_u8()?; // B1
     let is_null = l8 == LENGTH_INDICATOR_NULL;
 
@@ -478,7 +477,7 @@ fn parse_binary(
     nullable: bool,
     type_id: TypeId,
     rdr: &mut std::io::BufRead,
-) -> HdbResult<HdbValue> {
+) -> HdbResult<HdbValue<'static>> {
     let l8 = rdr.read_u8()?; // B1
     let is_null = l8 == LENGTH_INDICATOR_NULL;
 
@@ -550,8 +549,8 @@ fn emit_length_and_bytes(v: &[u8], w: &mut std::io::Write) -> HdbResult<()> {
     Ok(())
 }
 
-impl fmt::Display for HdbValue {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+impl<'a> std::fmt::Display for HdbValue<'a> {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         match *self {
             HdbValue::NOTHING => write!(fmt, "<NOTHING>"),
             HdbValue::NULL => write!(fmt, "<NULL>"),
@@ -576,7 +575,7 @@ impl fmt::Display for HdbValue {
             HdbValue::CLOB(_) => write!(fmt, "<CLOB>"),
             HdbValue::NCLOB(_) => write!(fmt, "<NCLOB>"),
             HdbValue::BLOB(ref blob) => write!(fmt, "<BLOB length = {}>", blob.total_byte_length()),
-
+            HdbValue::LOBSTREAM(_) => write!(fmt, "<LOBSTREAM>"),
             HdbValue::BOOLEAN(value) => write!(fmt, "{}", value),
             HdbValue::LONGDATE(ref value) => write!(fmt, "{}", value),
             HdbValue::SECONDDATE(ref value) => write!(fmt, "{}", value),
@@ -588,8 +587,14 @@ impl fmt::Display for HdbValue {
     }
 }
 
+impl<'a> std::fmt::Debug for HdbValue<'a> {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        std::fmt::Display::fmt(&self, fmt)
+    }
+}
+
 // FIXME implement more of these...
-impl std::cmp::PartialEq<i32> for HdbValue {
+impl<'a> std::cmp::PartialEq<i32> for HdbValue<'a> {
     fn eq(&self, rhs: &i32) -> bool {
         match self {
             HdbValue::TINYINT(i) => i32::from(*i) == *rhs,
@@ -600,7 +605,7 @@ impl std::cmp::PartialEq<i32> for HdbValue {
         }
     }
 }
-impl std::cmp::PartialEq<&str> for HdbValue {
+impl<'a> std::cmp::PartialEq<&str> for HdbValue<'a> {
     fn eq(&self, rhs: &&str) -> bool {
         match self {
             HdbValue::STRING(ref s) => s == rhs,

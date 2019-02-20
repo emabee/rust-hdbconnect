@@ -29,7 +29,7 @@ impl HdbDecimal {
         nullable: bool,
         scale: i16,
         rdr: &mut std::io::BufRead,
-    ) -> HdbResult<HdbValue> {
+    ) -> HdbResult<HdbValue<'static>> {
         let mut raw = [0_u8; 16];
         rdr.read_exact(&mut raw[..])?;
 

@@ -10,10 +10,10 @@ use std::fmt;
 use std::mem;
 
 /// Describes output parameters, as they can be returned by procedure calls.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct OutputParameters {
     metadata: Vec<ParameterDescriptor>,
-    values: Vec<HdbValue>,
+    values: Vec<HdbValue<'static>>,
 }
 
 impl OutputParameters {

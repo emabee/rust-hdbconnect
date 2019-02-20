@@ -13,7 +13,7 @@ pub fn parse_decimal(
     type_id: TypeId,
     scale: i16,
     rdr: &mut io::BufRead,
-) -> HdbResult<HdbValue> {
+) -> HdbResult<HdbValue<'static>> {
     match type_id {
         TypeId::DECIMAL => HdbDecimal::parse_hdb_decimal(nullable, scale, rdr),
 
