@@ -30,6 +30,7 @@ fn prepare(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection)
          FIELD_CLOB CLOB, \
          FIELD_NCLOB NCLOB, \
          FIELD_BLOB BLOB, \
+         FIELD_BINTEXT BINTEXT, \
          FIELD_BOOLEAN BOOLEAN, \
          FIELD_TEXT TEXT, \
          FIELD_SHORTTEXT SHORTTEXT(99), \
@@ -47,11 +48,11 @@ fn write(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -
     connection.dml(
         "\
          insert into TEST_TYPES_B ( \
-         FIELD_CLOB, FIELD_NCLOB, FIELD_BLOB, \
+         FIELD_CLOB, FIELD_NCLOB, FIELD_BLOB, FIELD_BINTEXT, \
          FIELD_BOOLEAN, FIELD_SHORTTEXT, FIELD_TEXT, \
          FIELD_LONGDATE, FIELD_SECONDDATE, FIELD_DAYDATE, FIELD_SECONDTIME \
          ) values( \
-         'Hello world!', 'Hello world!', '0123456789abcdef', \
+         'Hello world!', 'Hello world!', '0123456789abcdef', '0123456789abcdef', \
          false, 'Hello world!', 'Hello world!', \
          '2019-01-18 01:02:03.456789', '2019-01-18 01:02:03', '2019-01-18', '01:02:03' \
          )",
@@ -61,14 +62,15 @@ fn write(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -
     let mut stmt = connection.prepare(
         "\
          insert into TEST_TYPES_B ( \
-         FIELD_CLOB, FIELD_NCLOB, FIELD_BLOB, \
+         FIELD_CLOB, FIELD_NCLOB, FIELD_BLOB, FIELD_BINTEXT, \
          FIELD_BOOLEAN, FIELD_SHORTTEXT, FIELD_TEXT, \
          FIELD_LONGDATE, FIELD_SECONDDATE, FIELD_DAYDATE, FIELD_SECONDTIME \
-         ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+         ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )?;
     stmt.execute(&(
         "Hello world!",
         "Hello world!",
+        Bytes::new(&parse_hex("0123456789abcdef")),
         Bytes::new(&parse_hex("0123456789abcdef")),
         false,
         "Hello world!",
@@ -80,6 +82,7 @@ fn write(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -
     ))?;
 
     stmt.execute_row(vec![
+        HdbValue::STRING("foo bar rab oof".to_string()),
         HdbValue::STRING("foo bar rab oof".to_string()),
         HdbValue::STRING("foo bar rab oof".to_string()),
         HdbValue::STRING("foo bar rab oof".to_string()),
@@ -96,11 +99,11 @@ fn write(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -
     connection.dml(
         "\
          insert into TEST_TYPES_B ( \
-         FIELD_CLOB, FIELD_NCLOB, FIELD_BLOB, \
+         FIELD_CLOB, FIELD_NCLOB, FIELD_BLOB, FIELD_BINTEXT, \
          FIELD_BOOLEAN, FIELD_SHORTTEXT, FIELD_TEXT, \
          FIELD_LONGDATE, FIELD_SECONDDATE, FIELD_DAYDATE, FIELD_SECONDTIME \
          ) values( \
-         NULL, NULL, NULL, \
+         NULL, NULL, NULL, NULL, \
          NULL, NULL, NULL, \
          NULL, NULL, NULL, NULL \
          )",
@@ -108,6 +111,7 @@ fn write(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -
 
     info!("insert nulls via prep-statement");
     stmt.execute_row(vec![
+        HdbValue::NULL,
         HdbValue::NULL,
         HdbValue::NULL,
         HdbValue::NULL,
@@ -129,6 +133,7 @@ struct Data {
     FIELD_CLOB: Option<String>,
     FIELD_NCLOB: Option<String>,
     FIELD_BLOB: Option<ByteBuf>,
+    FIELD_BINTEXT: Option<ByteBuf>,
     FIELD_BOOLEAN: Option<bool>,
     FIELD_TEXT: Option<String>,
     FIELD_SHORTTEXT: Option<String>,

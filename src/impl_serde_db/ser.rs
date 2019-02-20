@@ -311,7 +311,7 @@ impl DbvFactory for &ParameterDescriptor {
     fn from_bytes(&self, value: &[u8]) -> Result<HdbValue<'static>, SerializationError> {
         let tid = self.type_id();
         Ok(match tid {
-            TypeId::BLOB | TypeId::BINARY | TypeId::VARBINARY => {
+            TypeId::BLOB | TypeId::BLOCATOR | TypeId::BINARY | TypeId::VARBINARY => {
                 HdbValue::BINARY((*value).to_vec())
             }
             TypeId::GEOMETRY => HdbValue::GEOMETRY((*value).to_vec()),

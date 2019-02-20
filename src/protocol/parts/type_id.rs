@@ -61,6 +61,8 @@ pub enum TypeId {
     /// For database type NSTRING;
     /// used with [`HdbValue::STRING`](enum.HdbValue.html#variant.STRING).
     NSTRING,
+    ///
+    BLOCATOR,
     /// For database type BSTRING;
     /// used with [`HdbValue::BINARY`](enum.HdbValue.html#variant.BINARY).
     BSTRING,
@@ -70,6 +72,8 @@ pub enum TypeId {
     /// For database type SHORTTEXT;
     /// used with [`HdbValue::STRING`](enum.HdbValue.html#variant.STRING).
     SHORTTEXT,
+    ///
+    BINTEXT,
     /// For database type LONGDATE;
     /// used with [`HdbValue::LONGDATE`](enum.HdbValue.html#variant.LONGDATE).
     LONGDATE,
@@ -123,7 +127,7 @@ impl TypeId {
             28 => TypeId::BOOLEAN,
             29 => TypeId::STRING,
             30 => TypeId::NSTRING,
-            // BLOCATOR: 31  FIXME not yet implemented
+            31 => TypeId::BLOCATOR,
             // 32 => TypeId::NLOCATOR,
             33 => TypeId::BSTRING,
             // 34 - 46: docu unclear, likely unused
@@ -132,7 +136,8 @@ impl TypeId {
             // ARRAY: 50  FIXME not yet implemented
             51 => TypeId::TEXT,
             52 => TypeId::SHORTTEXT,
-            // 53, 54: Reserved, do not use
+            53 => TypeId::BINTEXT,
+            // 54: Reserved, do not use
             // 55: ALPHANUM  FIXME not yet implemented
             // 56: Reserved, do not use
             // 57 - 60: not documented
@@ -182,9 +187,11 @@ impl TypeId {
                 TypeId::BOOLEAN => 28,
                 TypeId::STRING => 29,
                 TypeId::NSTRING => 30,
+                TypeId::BLOCATOR => 31,
                 TypeId::BSTRING => 33,
                 TypeId::TEXT => 51,
                 TypeId::SHORTTEXT => 52,
+                TypeId::BINTEXT => 53,
                 TypeId::LONGDATE => 61,
                 TypeId::SECONDDATE => 62,
                 TypeId::DAYDATE => 63,
@@ -213,6 +220,7 @@ impl TypeId {
             (TypeId::STRING, _) => return Ok(()), // Allow all other cases
 
             (TypeId::BINARY, TypeId::BLOB) => return Ok(()),
+            (TypeId::BINARY, TypeId::BLOCATOR) => return Ok(()),
             (TypeId::BINARY, TypeId::VARBINARY) => return Ok(()),
             (TypeId::BINARY, TypeId::GEOMETRY) => return Ok(()),
             (TypeId::BINARY, TypeId::POINT) => return Ok(()),

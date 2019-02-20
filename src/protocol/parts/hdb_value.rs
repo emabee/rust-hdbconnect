@@ -322,7 +322,9 @@ impl HdbValue<'static> {
             | TypeId::GEOMETRY
             | TypeId::POINT => Ok(parse_binary(nullable, t, rdr)?),
 
-            TypeId::BLOB => Ok(parse_blob(am_conn_core, o_am_rscore, nullable, rdr)?),
+            TypeId::BLOCATOR | TypeId::BLOB | TypeId::BINTEXT => {
+                Ok(parse_blob(am_conn_core, o_am_rscore, nullable, rdr)?)
+            }
             TypeId::CLOB => Ok(parse_clob(am_conn_core, o_am_rscore, nullable, rdr)?),
             TypeId::NCLOB | TypeId::TEXT => {
                 Ok(parse_nclob(am_conn_core, o_am_rscore, nullable, t, rdr)?)
