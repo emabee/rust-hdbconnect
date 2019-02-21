@@ -291,6 +291,7 @@ impl DbvFactory for &ParameterDescriptor {
             | TypeId::NVARCHAR
             | TypeId::STRING
             | TypeId::NSTRING
+            | TypeId::ALPHANUM
             | TypeId::TEXT
             | TypeId::SHORTTEXT
             | TypeId::CLOB

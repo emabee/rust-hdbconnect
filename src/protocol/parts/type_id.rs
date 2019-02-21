@@ -61,10 +61,10 @@ pub enum TypeId {
     /// For database type NSTRING;
     /// used with [`HdbValue::STRING`](enum.HdbValue.html#variant.STRING).
     NSTRING,
-    ///
+    /// Maps to [`HdbValue::BINARY`](enum.HdbValue.html#variant.BINARY)
+    /// or [`HdbValue::BLOB`](enum.HdbValue.html#variant.BLOB).
     BLOCATOR,
-    /// For database type BSTRING;
-    /// used with [`HdbValue::BINARY`](enum.HdbValue.html#variant.BINARY).
+    /// Used with [`HdbValue::BINARY`](enum.HdbValue.html#variant.BINARY).
     BSTRING,
     /// For database type TEXT;
     /// used with [`HdbValue::TEXT`](enum.HdbValue.html#variant.TEXT).
@@ -72,8 +72,13 @@ pub enum TypeId {
     /// For database type SHORTTEXT;
     /// used with [`HdbValue::STRING`](enum.HdbValue.html#variant.STRING).
     SHORTTEXT,
-    ///
+    /// For database type BINTEXT;
+    /// Used with [`HdbValue::BINARY`](enum.HdbValue.html#variant.BINARY) or
+    /// [`HdbValue::BLOB`](enum.HdbValue.html#variant.BLOB).
     BINTEXT,
+    /// For database type ALPHANUM;
+    /// used with [`HdbValue::STRING`](enum.HdbValue.html#variant.STRING).
+    ALPHANUM,
     /// For database type LONGDATE;
     /// used with [`HdbValue::LONGDATE`](enum.HdbValue.html#variant.LONGDATE).
     LONGDATE,
@@ -138,7 +143,7 @@ impl TypeId {
             52 => TypeId::SHORTTEXT,
             53 => TypeId::BINTEXT,
             // 54: Reserved, do not use
-            // 55: ALPHANUM  FIXME not yet implemented
+            55 => TypeId::ALPHANUM,
             // 56: Reserved, do not use
             // 57 - 60: not documented
             61 => TypeId::LONGDATE,
@@ -192,6 +197,7 @@ impl TypeId {
                 TypeId::TEXT => 51,
                 TypeId::SHORTTEXT => 52,
                 TypeId::BINTEXT => 53,
+                TypeId::ALPHANUM => 55,
                 TypeId::LONGDATE => 61,
                 TypeId::SECONDDATE => 62,
                 TypeId::DAYDATE => 63,

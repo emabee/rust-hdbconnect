@@ -316,13 +316,21 @@ impl HdbValue<'static> {
             | TypeId::NSTRING
             | TypeId::SHORTTEXT => Ok(parse_string(nullable, t, rdr)?),
 
+            TypeId::ALPHANUM => {
+                let res = parse_alphanum(nullable, rdr)?;
+                Ok(res)
+            }
+
             TypeId::BINARY
             | TypeId::VARBINARY
             | TypeId::BSTRING
             | TypeId::GEOMETRY
             | TypeId::POINT => Ok(parse_binary(nullable, t, rdr)?),
 
-            TypeId::BLOCATOR | TypeId::BLOB | TypeId::BINTEXT => {
+            TypeId::BLOCATOR => Err(HdbError::Impl(
+                "parsing BLOCATOR not implemented".to_owned(),
+            )),
+            TypeId::BLOB | TypeId::BINTEXT => {
                 Ok(parse_blob(am_conn_core, o_am_rscore, nullable, rdr)?)
             }
             TypeId::CLOB => Ok(parse_clob(am_conn_core, o_am_rscore, nullable, rdr)?),
@@ -450,6 +458,32 @@ fn parse_bool(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValue<
     }
 }
 
+fn parse_alphanum(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValue<'static>> {
+    let l1 = rdr.read_u8()?;
+    let is_null = l1 == LENGTH_INDICATOR_NULL;
+    if is_null {
+        if nullable {
+            Ok(HdbValue::NULL)
+        } else {
+            Err(HdbError::Impl(
+                "found NULL value for NOT NULL ALPHANUM column".to_owned(),
+            ))
+        }
+    } else {
+        let data_length = l1 - 1;
+        let l2 = rdr.read_u8()?;
+        let field_length = l2 - 128;
+        let mut result = Vec::<u8>::with_capacity(field_length as usize);
+        for _ in 0..(field_length - data_length) {
+            result.push(48);
+        }
+        let mut numbers = util::parse_bytes(data_length as usize, rdr)?;
+        result.append(&mut numbers);
+        let s = util::string_from_cesu8(result)?;
+        Ok(HdbValue::STRING(s))
+    }
+}
+
 fn parse_string(
     nullable: bool,
     type_id: TypeId,
@@ -467,7 +501,7 @@ fn parse_string(
             ))
         }
     } else {
-        let s = util::string_from_cesu8(_read_bytes(l8, rdr)?)?;
+        let s = util::string_from_cesu8(parse_length_and_bytes(l8, rdr)?)?;
         Ok(match type_id {
             TypeId::CHAR
             | TypeId::VARCHAR
@@ -498,7 +532,7 @@ fn parse_binary(
             ))
         }
     } else {
-        let bytes = _read_bytes(l8, rdr)?;
+        let bytes = parse_length_and_bytes(l8, rdr)?;
         Ok(match type_id {
             TypeId::BSTRING | TypeId::VARBINARY | TypeId::BINARY => HdbValue::BINARY(bytes),
             TypeId::GEOMETRY => HdbValue::GEOMETRY(bytes),
@@ -508,7 +542,7 @@ fn parse_binary(
     }
 }
 
-fn _read_bytes(l8: u8, rdr: &mut std::io::BufRead) -> HdbResult<Vec<u8>> {
+fn parse_length_and_bytes(l8: u8, rdr: &mut std::io::BufRead) -> HdbResult<Vec<u8>> {
     let len = match l8 {
         l if l <= MAX_1_BYTE_LENGTH => l8 as usize,
         LENGTH_INDICATOR_2BYTE => rdr.read_i16::<LittleEndian>()? as usize, // I2

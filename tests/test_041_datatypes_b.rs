@@ -3,7 +3,7 @@ mod test_utils;
 // use chrono::NaiveDateTime;
 use flexi_logger::ReconfigurationHandle;
 use hdbconnect::{Connection, HdbResult, HdbValue};
-use log::{debug, info};
+use log::{debug, info, trace};
 use serde_bytes::{ByteBuf, Bytes};
 use serde_derive::Deserialize;
 
@@ -37,7 +37,11 @@ fn prepare(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection)
          FIELD_LONGDATE LONGDATE, \
          FIELD_SECONDDATE SECONDDATE, \
          FIELD_DAYDATE DAYDATE, \
-         FIELD_SECONDTIME SECONDTIME \
+         FIELD_SECONDTIME SECONDTIME, \
+         FIELD_DATE DATE, \
+         FIELD_TIME TIME, \
+         FIELD_TIMESTAMP TIMESTAMP, \
+         FIELD_ALPHANUM ALPHANUM(19)
          )",
     ])?;
     Ok(())
@@ -50,11 +54,13 @@ fn write(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -
          insert into TEST_TYPES_B ( \
          FIELD_CLOB, FIELD_NCLOB, FIELD_BLOB, FIELD_BINTEXT, \
          FIELD_BOOLEAN, FIELD_SHORTTEXT, FIELD_TEXT, \
-         FIELD_LONGDATE, FIELD_SECONDDATE, FIELD_DAYDATE, FIELD_SECONDTIME \
+         FIELD_LONGDATE, FIELD_SECONDDATE, FIELD_DAYDATE, FIELD_SECONDTIME, \
+         FIELD_DATE, FIELD_TIME, FIELD_TIMESTAMP, FIELD_ALPHANUM \
          ) values( \
          'Hello world!', 'Hello world!', '0123456789abcdef', '0123456789abcdef', \
          false, 'Hello world!', 'Hello world!', \
-         '2019-01-18 01:02:03.456789', '2019-01-18 01:02:03', '2019-01-18', '01:02:03' \
+         '2019-01-18 01:02:03.456789', '2019-01-18 01:02:03', '2019-01-18', '01:02:03', \
+         '2019-01-18', '01:02:03' , '2019-01-18 01:02:03', '123456789' \
          )",
     )?;
 
@@ -64,8 +70,9 @@ fn write(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -
          insert into TEST_TYPES_B ( \
          FIELD_CLOB, FIELD_NCLOB, FIELD_BLOB, FIELD_BINTEXT, \
          FIELD_BOOLEAN, FIELD_SHORTTEXT, FIELD_TEXT, \
-         FIELD_LONGDATE, FIELD_SECONDDATE, FIELD_DAYDATE, FIELD_SECONDTIME \
-         ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+         FIELD_LONGDATE, FIELD_SECONDDATE, FIELD_DAYDATE, FIELD_SECONDTIME, \
+         FIELD_DATE, FIELD_TIME, FIELD_TIMESTAMP, FIELD_ALPHANUM \
+         ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )?;
     stmt.execute(&(
         "Hello world!",
@@ -79,6 +86,10 @@ fn write(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -
         "2019-01-18 01:02:03",
         "2019-01-18",
         "01:02:03",
+        "2019-01-18",
+        "01:02:03",
+        "2019-01-18 01:02:03",
+        "123456789",
     ))?;
 
     stmt.execute_row(vec![
@@ -93,6 +104,10 @@ fn write(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -
         HdbValue::STRING("2019-01-31 04:04:04".to_string()),
         HdbValue::STRING("2019-01-31".to_string()),
         HdbValue::STRING("04:04:04".to_string()),
+        HdbValue::STRING("2019-01-31".to_string()),
+        HdbValue::STRING("04:04:04".to_string()),
+        HdbValue::STRING("2019-01-31 04:04:04".to_string()),
+        HdbValue::STRING("123456789".to_string()),
     ])?;
 
     info!("insert nulls directly");
@@ -101,16 +116,22 @@ fn write(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -
          insert into TEST_TYPES_B ( \
          FIELD_CLOB, FIELD_NCLOB, FIELD_BLOB, FIELD_BINTEXT, \
          FIELD_BOOLEAN, FIELD_SHORTTEXT, FIELD_TEXT, \
-         FIELD_LONGDATE, FIELD_SECONDDATE, FIELD_DAYDATE, FIELD_SECONDTIME \
+         FIELD_LONGDATE, FIELD_SECONDDATE, FIELD_DAYDATE, FIELD_SECONDTIME, \
+         FIELD_DATE, FIELD_TIME, FIELD_TIMESTAMP, FIELD_ALPHANUM \
          ) values( \
          NULL, NULL, NULL, NULL, \
          NULL, NULL, NULL, \
+         NULL, NULL, NULL, NULL, \
          NULL, NULL, NULL, NULL \
          )",
     )?;
 
     info!("insert nulls via prep-statement");
     stmt.execute_row(vec![
+        HdbValue::NULL,
+        HdbValue::NULL,
+        HdbValue::NULL,
+        HdbValue::NULL,
         HdbValue::NULL,
         HdbValue::NULL,
         HdbValue::NULL,
@@ -141,27 +162,33 @@ struct Data {
     FIELD_SECONDDATE: Option<chrono::NaiveDateTime>,
     FIELD_DAYDATE: Option<chrono::NaiveDate>,
     FIELD_SECONDTIME: Option<chrono::NaiveTime>,
+    FIELD_DATE: Option<chrono::NaiveDate>,
+    FIELD_TIME: Option<chrono::NaiveTime>,
+    FIELD_TIMESTAMP: Option<chrono::NaiveDateTime>,
+    FIELD_ALPHANUM: Option<String>,
 }
 
 fn read(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -> HdbResult<()> {
     {
         info!("read non-null values and evaluate via serde_db");
         let q = "select * from TEST_TYPES_B where id = 1";
-        let data: Data = connection.query(q)?.try_into()?;
-        debug!("data: {:?}", data);
+        let resultset = connection.query(q)?;
+        debug!("resultset: {}", resultset);
+        let data: Data = resultset.try_into()?;
+        trace!("data: {:?}", data);
     }
     {
         info!("read null values and evaluate via serde_db");
-        let q = "select * from TEST_TYPES_B where id = 3";
+        let q = "select * from TEST_TYPES_B where id = 4";
         let data: Data = connection.query(q)?.try_into()?;
         debug!("data: {:?}", data);
     }
     {
         info!("read non-null values and evaluate directly");
         let q = "select * from TEST_TYPES_B where id = 1";
-        let mut data = connection.query(q)?;
-        debug!("data: {:?}", data);
-        let row = data.next_row()?.unwrap();
+        let mut resultset = connection.query(q)?;
+        debug!("resultset: {}", resultset);
+        let row = resultset.next_row()?.unwrap();
         for value in row {
             assert!(!value.is_null());
         }

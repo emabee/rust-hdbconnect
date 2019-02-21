@@ -1,8 +1,10 @@
 # Changelog
 
-## [0.14.2] 2019-02-20
+## [0.14.2] 2019-02-21
 
 Add HdbValue::STR(&str), and allow LOB streaming to the database with HdbValue::LOBSTREAM.
+
+Add support for database columns of types ALPHANUM and BINTEXT.
 
 ## [0.14.1] 2019-02-08
 
