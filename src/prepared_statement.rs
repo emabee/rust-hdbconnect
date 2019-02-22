@@ -3,6 +3,7 @@ use crate::protocol::argument::Argument;
 use crate::protocol::part::Part;
 use crate::protocol::partkind::PartKind;
 use crate::protocol::parts::hdb_value::HdbValue;
+use crate::protocol::parts::lob_flags::LobFlags;
 use crate::protocol::parts::parameter_descriptor::{ParameterDescriptor, ParameterDescriptors};
 use crate::protocol::parts::parameter_rows::ParameterRows;
 use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
@@ -195,6 +196,19 @@ impl<'a> PreparedStatement {
                     PartKind::Parameters,
                     Argument::Parameters(par_rows),
                 ));
+
+                if self
+                    .am_conn_core
+                    .lock()?
+                    .connect_options()
+                    .get_implicit_lob_streaming()
+                    .unwrap_or(false)
+                {
+                    request.push(Part::new(
+                        PartKind::LobFlags,
+                        Argument::LobFlags(LobFlags::for_implicit_streaming()),
+                    ));
+                }
 
                 let mut main_reply = self.am_conn_core.full_send(
                     request,

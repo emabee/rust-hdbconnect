@@ -28,10 +28,18 @@ fn connect_successfully(_log_handle: &mut ReconfigurationHandle) {
 
 fn connect_options(_log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
     info!("test a successful connection");
+    _log_handle.parse_and_push_temp_spec("info, test = debug");
     let connection = test_utils::get_authenticated_connection()?;
-    connection.get_database_name()?;
-    connection.get_system_id()?;
-    connection.get_full_version_string()?;
+    let db_name = connection.get_database_name()?.unwrap();
+    let system_id = connection.get_system_id()?.unwrap();
+    let version = connection.get_full_version_string()?.unwrap();
+    debug!(
+        "db_name: {}, system_id: {}, version: {}",
+        db_name, system_id, version
+    );
+
+    debug!("Connection options: \n{}", connection.dump_connect_options()?);
+    _log_handle.pop_temp_spec();
     Ok(())
 }
 

@@ -1,5 +1,6 @@
 use crate::protocol::parts::option_value::OptionValue;
 use crate::HdbResult;
+use core::fmt::Debug;
 use std::collections::hash_map::IntoIter;
 use std::collections::hash_map::Iter;
 use std::collections::HashMap;
@@ -14,15 +15,17 @@ pub trait OptionId<T: OptionId<T>> {
 }
 
 #[derive(Clone, Debug)]
-pub struct OptionPart<T: OptionId<T> + Eq + PartialEq + Hash>(HashMap<T, OptionValue>);
+pub(crate) struct OptionPart<T: OptionId<T> + Debug + Eq + PartialEq + Hash>(
+    HashMap<T, OptionValue>,
+);
 
-impl<T: OptionId<T> + Eq + PartialEq + Hash> Default for OptionPart<T> {
+impl<T: OptionId<T> + Debug + Eq + PartialEq + Hash> Default for OptionPart<T> {
     fn default() -> OptionPart<T> {
         OptionPart(HashMap::new())
     }
 }
 
-impl<T: OptionId<T> + Eq + PartialEq + Hash> OptionPart<T> {
+impl<T: OptionId<T> + Debug + Eq + PartialEq + Hash> OptionPart<T> {
     pub fn set_value(&mut self, id: T, value: OptionValue) -> Option<OptionValue> {
         self.0.insert(id, value)
     }
@@ -69,12 +72,24 @@ impl<T: OptionId<T> + Eq + PartialEq + Hash> OptionPart<T> {
 
 impl<T> IntoIterator for OptionPart<T>
 where
-    T: OptionId<T> + Eq + PartialEq + Hash,
+    T: OptionId<T> + Debug + Eq + PartialEq + Hash,
 {
     type Item = (T, OptionValue);
     type IntoIter = IntoIter<T, OptionValue>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
+    }
+}
+
+impl<T> std::fmt::Display for OptionPart<T>
+where
+    T: OptionId<T> + Debug + Eq + PartialEq + Hash,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        for (k, v) in &self.0 {
+            writeln!(f, "{:?} = {}", k, v)?;
+        }
+        Ok(())
     }
 }

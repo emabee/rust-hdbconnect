@@ -300,6 +300,11 @@ impl Connection {
             .get_dataformat_version2())
     }
 
+    #[doc(hidden)]
+    pub fn dump_connect_options(&self) -> HdbResult<String> {
+        Ok(self.am_conn_core.lock()?.dump_connect_options())
+    }
+
     /// Returns the number of roundtrips to the database that
     /// have been done through this connection.
     pub fn get_call_count(&self) -> HdbResult<i32> {

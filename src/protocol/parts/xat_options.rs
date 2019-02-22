@@ -7,7 +7,7 @@ use dist_tx::rm::{Flags, RmRc};
 use dist_tx::tm::XaTransactionId;
 
 // An Options part that is used in XA related requests and responses.
-pub type XatOptions = OptionPart<XatOptionId>;
+pub(crate) type XatOptions = OptionPart<XatOptionId>;
 
 impl XatOptions {
     pub fn set_xatid(&mut self, xat_id: &XaTransactionId) {

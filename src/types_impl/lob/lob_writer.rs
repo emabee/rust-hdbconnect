@@ -142,6 +142,16 @@ fn write_a_lob_chunk(
         };
     server_resource_consumption_info.update(server_proc_time, server_cpu_time, server_memory_usage);
 
+    if let Some(Argument::TransactionFlags(ta_flags)) =
+        reply.parts.pop_arg_if_kind(PartKind::TransactionFlags)
+    {
+        if ta_flags.is_committed() {
+            trace!("is committed");
+        } else {
+            trace!("is not committed");
+        }
+    }
+
     match reply.parts.pop_arg_if_kind(PartKind::WriteLobReply) {
         Some(Argument::WriteLobReply(write_lob_reply)) => Ok(write_lob_reply.into_locator_ids()),
         _ => Err(HdbError::Impl(format!(

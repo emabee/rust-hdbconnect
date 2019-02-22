@@ -169,22 +169,31 @@ fn test_streaming(
     connection.dml("delete from TEST_BLOBS")?;
 
     debug!("write big blob in streaming fashion");
-    connection.set_auto_commit(false)?;
 
     let mut stmt = connection.prepare("insert into TEST_BLOBS (desc, bindata_NN) values(?, ?)")?;
-    let mut reader = &random_bytes[..];
 
+    // old style lob streaming: autocommit off before, explicit commit after:
+    connection.set_auto_commit(false)?;
+    let mut reader = &random_bytes[..];
     stmt.execute_row(vec![
-        HdbValue::STRING("lsadksaldk".to_string()),
+        HdbValue::STRING("streaming1".to_string()),
         HdbValue::LOBSTREAM(Some(&mut reader)),
     ])?;
     connection.commit()?;
+
+    // new style lob streaming: with autocommit
+    connection.set_auto_commit(true)?;
+    let mut reader = &random_bytes[..];
+    stmt.execute_row(vec![
+        HdbValue::STRING("streaming2".to_string()),
+        HdbValue::LOBSTREAM(Some(&mut reader)),
+    ])?;
 
     debug!("read big blob in streaming fashion");
     connection.set_lob_read_length(200_000)?;
 
     let mut blob = connection
-        .query("select bindata_NN from TEST_BLOBS")?
+        .query("select bindata_NN from TEST_BLOBS where desc = 'streaming2'")?
         .into_single_row()?
         .into_single_value()?
         .try_into_blob()?;

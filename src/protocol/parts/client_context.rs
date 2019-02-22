@@ -8,7 +8,7 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 // An Options part that is used by the client to specify client version, client
 // type, and application name.
-pub type ClientContext = OptionPart<ClientContextId>;
+pub(crate) type ClientContext = OptionPart<ClientContextId>;
 
 impl ClientContext {
     pub fn new() -> ClientContext {

@@ -23,6 +23,9 @@ const LENGTH_INDICATOR_2BYTE: u8 = 246;
 const LENGTH_INDICATOR_4BYTE: u8 = 247;
 const LENGTH_INDICATOR_NULL: u8 = 255;
 
+const ALPHANUM_PURELY_NUMERIC: u8 = 0b_1000_0000_u8;
+const ALPHANUM_LENGTH_MASK: u8 = 0b_0111_1111_u8;
+
 /// Enum for all supported database value types.
 #[allow(non_camel_case_types)]
 pub enum HdbValue<'a> {
@@ -459,9 +462,9 @@ fn parse_bool(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValue<
 }
 
 fn parse_alphanum(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValue<'static>> {
-    let l1 = rdr.read_u8()?;
-    let is_null = l1 == LENGTH_INDICATOR_NULL;
-    if is_null {
+    let indicator1 = rdr.read_u8()?;
+    if indicator1 == LENGTH_INDICATOR_NULL {
+        // value is null
         if nullable {
             Ok(HdbValue::NULL)
         } else {
@@ -470,16 +473,23 @@ fn parse_alphanum(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbVa
             ))
         }
     } else {
-        let data_length = l1 - 1;
-        let l2 = rdr.read_u8()?;
-        let field_length = l2 - 128;
-        let mut result = Vec::<u8>::with_capacity(field_length as usize);
-        for _ in 0..(field_length - data_length) {
-            result.push(48);
-        }
-        let mut numbers = util::parse_bytes(data_length as usize, rdr)?;
-        result.append(&mut numbers);
-        let s = util::string_from_cesu8(result)?;
+        let data_length = indicator1 - 1; // why?!?
+
+        let indicator2 = rdr.read_u8()?;
+        let mut value = util::parse_bytes(data_length as usize, rdr)?;
+
+        let s = util::string_from_cesu8(if indicator2 & ALPHANUM_PURELY_NUMERIC == 0 {
+            // no prefix
+            value
+        } else {
+            // purely numeric -> prefix with leading zeros
+            let field_length = indicator2 & ALPHANUM_LENGTH_MASK;
+            let mut prefix: Vec<u8> = std::iter::repeat(48) // '0'
+                .take((field_length - data_length) as usize)
+                .collect();
+            prefix.append(&mut value);
+            prefix
+        })?;
         Ok(HdbValue::STRING(s))
     }
 }
@@ -592,6 +602,7 @@ fn emit_length_and_bytes(v: &[u8], w: &mut std::io::Write) -> HdbResult<()> {
 }
 
 impl<'a> std::fmt::Display for HdbValue<'a> {
+    #[cfg_attr(tarpaulin, skip)]
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         match *self {
             HdbValue::NOTHING => write!(fmt, "<NOTHING>"),
@@ -659,6 +670,48 @@ impl<'a> std::cmp::PartialEq<&str> for HdbValue<'a> {
         match self {
             HdbValue::STRING(ref s) => s == rhs,
             _ => false,
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::types::{DayDate, LongDate, SecondDate, SecondTime};
+    use crate::HdbValue;
+    use bigdecimal::BigDecimal;
+    use num::bigint::BigInt;
+    use num::FromPrimitive;
+
+    #[test]
+    fn test_display() {
+        for value in vec![
+            HdbValue::STRING("foo".to_string()),
+            HdbValue::INT(42),
+            HdbValue::NOTHING,
+            HdbValue::NULL,
+            HdbValue::TINYINT(42),
+            HdbValue::SMALLINT(42),
+            HdbValue::INT(42),
+            HdbValue::BIGINT(42),
+            HdbValue::DECIMAL(BigDecimal::new(BigInt::from_i64(42_i64).unwrap(), 42_i64)),
+            HdbValue::REAL(42_f32),
+            HdbValue::DOUBLE(42_f64),
+            HdbValue::STR("foo bar"),
+            HdbValue::STRING("foo bar".to_string()),
+            HdbValue::BINARY(vec![42, 42, 42]),
+            // HdbValue::CLOB(_),
+            // HdbValue::NCLOB(_),
+            // HdbValue::BLOB(_),
+            // HdbValue::LOBSTREAM(_),
+            HdbValue::BOOLEAN(true),
+            HdbValue::LONGDATE(LongDate::new(100_i64)),
+            HdbValue::SECONDDATE(SecondDate::new(100_i64)),
+            HdbValue::DAYDATE(DayDate::new(100_i32)),
+            HdbValue::SECONDTIME(SecondTime::new(100_i32)),
+            // HdbValue::GEOMETRY(ref vec),
+            // HdbValue::POINT(ref vec),
+        ] {
+            let _s = value.to_string();
         }
     }
 }

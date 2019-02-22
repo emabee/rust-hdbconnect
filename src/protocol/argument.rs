@@ -6,10 +6,8 @@ use crate::protocol::parts::authfields::AuthFields;
 use crate::protocol::parts::client_context::ClientContext;
 use crate::protocol::parts::client_info::ClientInfo;
 use crate::protocol::parts::command_info::CommandInfo;
-use crate::protocol::parts::commit_options::CommitOptions;
 use crate::protocol::parts::connect_options::ConnectOptions;
 use crate::protocol::parts::execution_result::ExecutionResult;
-use crate::protocol::parts::fetch_options::FetchOptions;
 use crate::protocol::parts::lob_flags::LobFlags;
 use crate::protocol::parts::output_parameters::OutputParameters;
 use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
@@ -41,14 +39,11 @@ pub(crate) enum Argument<'a> {
     ClientInfo(ClientInfo),
     Command(&'a str),
     CommandInfo(CommandInfo),
-    #[allow(dead_code)] // FIXME make reasonable use of this
-    CommitOptions(CommitOptions),
+    // CommitOptions(super::parts::commit_options::CommitOptions), // not used by any client
     ConnectOptions(ConnectOptions),
     Error(Vec<ServerError>),
-    #[allow(dead_code)] // FIXME make reasonable use of this
-    FetchOptions(FetchOptions),
+    // FetchOptions(super::parts::fetch_options::FetchOptions),    // not used by any client
     FetchSize(u32),
-    #[allow(dead_code)] // FIXME make reasonable use of this
     LobFlags(LobFlags),
     OutputParameters(OutputParameters),
     ParameterMetadata(ParameterDescriptors),
@@ -86,9 +81,9 @@ impl<'a> Argument<'a> {
             Argument::WriteLobRequest(_) => 1,
             Argument::ClientInfo(ref client_info) => client_info.count(),
             Argument::CommandInfo(ref opts) => opts.count(),
-            Argument::CommitOptions(ref opts) => opts.count(),
+            // Argument::CommitOptions(ref opts) => opts.count(),
             Argument::ConnectOptions(ref opts) => opts.count(),
-            Argument::FetchOptions(ref opts) => opts.count(),
+            // Argument::FetchOptions(ref opts) => opts.count(),
             Argument::LobFlags(ref opts) => opts.count(),
             Argument::Parameters(ref pars) => pars.count(),
             Argument::SessionContext(ref opts) => opts.count(),
@@ -114,9 +109,9 @@ impl<'a> Argument<'a> {
             Argument::ClientInfo(ref client_info) => size += client_info.size(),
             Argument::Command(ref s) => size += util::cesu8_length(s),
             Argument::CommandInfo(ref opts) => size += opts.size(),
-            Argument::CommitOptions(ref opts) => size += opts.size(),
+            // Argument::CommitOptions(ref opts) => size += opts.size(),
             Argument::ConnectOptions(ref conn_opts) => size += conn_opts.size(),
-            Argument::FetchOptions(ref opts) => size += opts.size(),
+            // Argument::FetchOptions(ref opts) => size += opts.size(),
             Argument::FetchSize(_) => size += 4,
             Argument::LobFlags(ref opts) => size += opts.size(),
             Argument::Parameters(ref pars) => {
@@ -162,10 +157,10 @@ impl<'a> Argument<'a> {
             Argument::ClientInfo(ref client_info) => client_info.emit(w)?,
             Argument::Command(ref s) => w.write_all(&cesu8::to_cesu8(s))?,
             Argument::CommandInfo(ref opts) => opts.emit(w)?,
-            Argument::CommitOptions(ref opts) => opts.emit(w)?,
+            // Argument::CommitOptions(ref opts) => opts.emit(w)?,
             Argument::ConnectOptions(ref conn_opts) => conn_opts.emit(w)?,
 
-            Argument::FetchOptions(ref opts) => opts.emit(w)?,
+            // Argument::FetchOptions(ref opts) => opts.emit(w)?,
             Argument::FetchSize(fs) => {
                 w.write_u32::<LittleEndian>(fs)?;
             }

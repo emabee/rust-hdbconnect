@@ -2,13 +2,14 @@ use crate::hdb_error::HdbResult;
 use crate::protocol::parts::option_part::OptionId;
 use crate::protocol::parts::option_part::OptionPart;
 use byteorder::{LittleEndian, ReadBytesExt};
+use core::fmt::Debug;
 use std::hash::Hash;
 use std::io;
 
 #[derive(Debug)]
-pub struct MultilineOptionPart<T: OptionId<T> + Eq + PartialEq + Hash>(Vec<OptionPart<T>>);
+pub struct MultilineOptionPart<T: OptionId<T> + Debug + Eq + PartialEq + Hash>(Vec<OptionPart<T>>);
 
-impl<T: OptionId<T> + Eq + PartialEq + Hash> MultilineOptionPart<T> {
+impl<T: OptionId<T> + Debug + Eq + PartialEq + Hash> MultilineOptionPart<T> {
     pub fn parse<W: io::BufRead>(
         no_of_lines: usize,
         rdr: &mut W,

@@ -3,7 +3,7 @@ mod test_utils;
 use flexi_logger::ReconfigurationHandle;
 use hdbconnect::{Connection, HdbResult, TypeId};
 use log::{debug, info};
-use serde_bytes::ByteBuf;
+use serde_bytes::{ByteBuf, Bytes};
 
 #[test] // cargo test --test test_046_spatial
 fn test_046_spatial() -> HdbResult<()> {
@@ -113,10 +113,12 @@ fn test_points(
         .try_into()?;
     assert_eq!(count, 2);
 
-    // here we would get parameter type id 31 = BLOCATOR:
-    // let mut stmt = connection.prepare("insert into Points VALUES(?,NEW ST_POINT(?))")?;
-    // this seems to manipulate the statement itself !?!?
-    // stmt.add_batch(&(1, Bytes::new(b"Point(2.5 3.0)")))?;
+    // btw: here we get parameter type id 31 = BLOCATOR:
+    // so this seems to manipulate the statement itself !?!?
+    let mut stmt = connection.prepare("insert into Points VALUES(?,NEW ST_POINT(?))")?;
+    debug!("Descriptors: {:?}", stmt.parameter_descriptors());
+    stmt.add_batch(&(22, Bytes::new(b"Point(2.5 3.0)")))?;
+    stmt.execute_batch()?;
 
     // here just a POINT
     // let mut stmt = connection.prepare("insert into Points VALUES(?,?)")?;

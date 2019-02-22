@@ -10,12 +10,12 @@ pub(crate) type ConnectOptions = OptionPart<ConnOptId>;
 impl ConnectOptions {
     pub(crate) fn for_server(locale: &Option<String>, os_user: String) -> ConnectOptions {
         let connopts = ConnectOptions::default()
-            .set_complete_array_execution(true)
+            //.set_complete_array_execution(true)
+            //.set_row_slot_image_parameter(true)
+            //.set_enable_array_type(true)
+            // .set_select_for_update_ok(true)
             .set_dataformat_version2(8)
             .set_client_locale(locale)
-            .set_enable_array_type(true)
-            .set_select_for_update_ok(true)
-            .set_row_slot_image_parameter(true)
             .set_os_user(os_user);
         if cfg!(feature = "alpha_routing") {
             warn!("Feature alpha_routing is active!");
@@ -24,15 +24,15 @@ impl ConnectOptions {
                 .set_client_distribution_mode(0)
                 .set_distribution_protocol_version(1)
         } else {
-            debug!("Feature alpha_routing not is active.");
+            debug!("Feature alpha_routing is not active.");
             connopts
         }
     }
 
-    fn set_complete_array_execution(mut self, b: bool) -> ConnectOptions {
-        self.set_to_server(ConnOptId::CompleteArrayExecution, OptionValue::BOOLEAN(b));
-        self
-    }
+    // fn set_complete_array_execution(mut self, b: bool) -> ConnectOptions {
+    //     self.set_to_server(ConnOptId::CompleteArrayExecution, OptionValue::BOOLEAN(b));
+    //     self
+    // }
     fn set_dataformat_version2(mut self, v: i32) -> ConnectOptions {
         self.set_to_server(ConnOptId::DataFormatVersion2, OptionValue::INT(v));
         self
@@ -50,10 +50,10 @@ impl ConnectOptions {
         self
     }
 
-    fn set_enable_array_type(mut self, b: bool) -> ConnectOptions {
-        self.set_to_server(ConnOptId::EnableArrayType, OptionValue::BOOLEAN(b));
-        self
-    }
+    // fn set_enable_array_type(mut self, b: bool) -> ConnectOptions {
+    //     self.set_to_server(ConnOptId::EnableArrayType, OptionValue::BOOLEAN(b));
+    //     self
+    // }
 
     fn set_distribution_enabled(mut self, b: bool) -> ConnectOptions {
         self.set_to_server(ConnOptId::DistributionEnabled, OptionValue::BOOLEAN(b));
@@ -65,20 +65,20 @@ impl ConnectOptions {
         self
     }
 
-    fn set_select_for_update_ok(mut self, b: bool) -> ConnectOptions {
-        self.set_to_server(ConnOptId::SelectForUpdateOK, OptionValue::BOOLEAN(b));
-        self
-    }
+    // fn set_select_for_update_ok(mut self, b: bool) -> ConnectOptions {
+    //     self.set_to_server(ConnOptId::SelectForUpdateOK, OptionValue::BOOLEAN(b));
+    //     self
+    // }
 
     fn set_distribution_protocol_version(mut self, v: i32) -> ConnectOptions {
         self.set_to_server(ConnOptId::DistributionProtocolVersion, OptionValue::INT(v));
         self
     }
 
-    fn set_row_slot_image_parameter(mut self, b: bool) -> ConnectOptions {
-        self.set_to_server(ConnOptId::RowSlotImageParameter, OptionValue::BOOLEAN(b));
-        self
-    }
+    // fn set_row_slot_image_parameter(mut self, b: bool) -> ConnectOptions {
+    //     self.set_to_server(ConnOptId::RowSlotImageParameter, OptionValue::BOOLEAN(b));
+    //     self
+    // }
 
     fn set_os_user(mut self, s: String) -> ConnectOptions {
         self.set_to_server(ConnOptId::OSUser, OptionValue::STRING(s));
@@ -165,16 +165,17 @@ impl ConnectOptions {
             }
         }
     }
-    // fn get_bool(&self, id: &ConnOptId, s: &str) -> Option<&bool> {
-    //     match self.get_value(id) {
-    //         Some(&OptionValue::BOOLEAN(ref b)) => Some(b),
-    //         None => None,
-    //         Some(ref ov) => {
-    //             error!("{} with unexpected value type: {:?}", s, ov);
-    //             None
-    //         }
-    //     }
-    // }
+
+    fn get_bool(&self, id: &ConnOptId, s: &str) -> Option<bool> {
+        match self.get_value(id) {
+            Some(&OptionValue::BOOLEAN(b)) => Some(b),
+            None => None,
+            Some(ref ov) => {
+                error!("{} with unexpected value type: {:?}", s, ov);
+                None
+            }
+        }
+    }
 
     // The connection ID is filled by the server when the connection is established.
     // It can be used in DISCONNECT/KILL commands for command or session
@@ -239,7 +240,7 @@ impl ConnectOptions {
     //   (Support for ALPHANUM, TEXT, SHORTTEXT, LONGDATE, SECONDDATE, DAYDATE, and
     //   SECONDTIME.)
     // 6 Send data type BINTEXT to client.
-
+    //
     pub(crate) fn get_dataformat_version2(&self) -> Option<i32> {
         self.get_integer(&ConnOptId::DataFormatVersion2, "DataFormatVersion2")
     }
@@ -268,11 +269,11 @@ impl ConnectOptions {
     //     )
     // }
 
-    // // Is set by the server to indicate that it supports implicit LOB streaming
-    // // even though auto-commit is on instead of raising an error.
-    // pub(crate) fn get_implicit_lob_streaming(&self) -> Option<&bool> {
-    //     self.get_bool(&ConnOptId::ImplicitLobStreaming, "ImplicitLobStreaming")
-    // }
+    // Is set by the server to indicate that it supports implicit LOB streaming
+    // even though auto-commit is on instead of raising an error.
+    pub(crate) fn get_implicit_lob_streaming(&self) -> Option<bool> {
+        self.get_bool(&ConnOptId::ImplicitLobStreaming, "ImplicitLobStreaming")
+    }
 
     // // Is set to true if array commands continue to process remaining input
     // // when detecting an error in an input row.
@@ -604,6 +605,21 @@ impl OptionId<ConnOptId> for ConnOptId {
                 warn!("Unsupported value for ConnOptId received: {}", val);
                 ConnOptId::__Unexpected__(val)
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::protocol::parts::connect_options::ConnOptId;
+    use crate::protocol::parts::option_part::OptionId;
+
+    #[test]
+    fn test_display() {
+        for i in 0..=53 {
+            let conn_opt_id = ConnOptId::from_u8(i);
+            let i2 = conn_opt_id.to_u8();
+            assert_eq!(i, i2);
         }
     }
 }

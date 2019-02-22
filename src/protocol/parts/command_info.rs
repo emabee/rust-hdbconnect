@@ -3,7 +3,7 @@ use crate::protocol::parts::option_part::OptionPart;
 use crate::protocol::parts::option_value::OptionValue;
 
 // An Options part that provides source and line information.
-pub type CommandInfo = OptionPart<CommandInfoId>;
+pub(crate) type CommandInfo = OptionPart<CommandInfoId>;
 
 impl CommandInfo {
     pub fn new(linenumber: i32, module: &str) -> CommandInfo {

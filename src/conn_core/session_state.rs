@@ -3,7 +3,7 @@ use crate::protocol::parts::transactionflags::{TaFlagId, TransactionFlags};
 
 // Session state.
 #[derive(Debug)]
-pub struct SessionState {
+pub(crate) struct SessionState {
     pub ta_state: TransactionState,
     pub isolation_level: u8,
     pub ddl_commit_mode: bool, // unclear

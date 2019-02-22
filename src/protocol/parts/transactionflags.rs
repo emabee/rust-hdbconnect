@@ -1,4 +1,5 @@
 use crate::protocol::parts::option_part::{OptionId, OptionPart};
+use crate::protocol::parts::option_value::OptionValue;
 
 /// The part is sent from the server to signal
 ///
@@ -8,7 +9,7 @@ use crate::protocol::parts::option_part::{OptionId, OptionPart};
 /// (transaction isolation level has changed, DDL statements are
 /// automatically committed or not, it has become impossible to continue
 /// processing the session)
-pub type TransactionFlags = OptionPart<TaFlagId>;
+pub(crate) type TransactionFlags = OptionPart<TaFlagId>;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum TaFlagId {
@@ -51,6 +52,15 @@ impl OptionId<TaFlagId> for TaFlagId {
                 warn!("Invalid value for TaFlagId received: {}", val);
                 TaFlagId::__Unexpected__(val)
             }
+        }
+    }
+}
+
+impl TransactionFlags {
+    pub fn is_committed(&self) -> bool {
+        match self.get_value(&TaFlagId::Committed) {
+            Some(OptionValue::BOOLEAN(b)) => *b,
+            _ => false,
         }
     }
 }

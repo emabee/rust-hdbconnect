@@ -90,3 +90,16 @@ fn parse_length_and_binary(rdr: &mut io::BufRead) -> HdbResult<Vec<u8>> {
     let len = rdr.read_i16::<LittleEndian>()? as usize; // I2: length of value
     util::parse_bytes(len, rdr) // B (varying)
 }
+
+impl std::fmt::Display for OptionValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        match self {
+            OptionValue::INT(v) => write!(f, "{}", v),
+            OptionValue::BIGINT(v) => write!(f, "{}", v),
+            OptionValue::DOUBLE(v) => write!(f, "{}", v),
+            OptionValue::BOOLEAN(v) => write!(f, "{}", v),
+            OptionValue::STRING(v) => write!(f, "{}", v),
+            OptionValue::BSTRING(v) => write!(f, "{:?}", v),
+        }
+    }
+}

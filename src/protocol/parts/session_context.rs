@@ -3,7 +3,7 @@ use crate::protocol::parts::option_part::OptionPart;
 
 // An Options part that is used to differentiate between primary and secondary
 // connections.
-pub type SessionContext = OptionPart<SessionContextId>;
+pub(crate) type SessionContext = OptionPart<SessionContextId>;
 
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub enum SessionContextId {
