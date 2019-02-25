@@ -4,7 +4,6 @@ use byteorder::{LittleEndian, ReadBytesExt};
 use serde_derive::Serialize;
 use std::cmp;
 use std::fmt;
-use std::io;
 
 const NULL_REPRESENTATION: i64 = 3_155_380_704_000_000_001;
 
@@ -99,7 +98,7 @@ impl LongDate {
 
 pub(crate) fn parse_longdate(
     nullable: bool,
-    rdr: &mut io::BufRead,
+    rdr: &mut std::io::BufRead,
 ) -> HdbResult<HdbValue<'static>> {
     let i = rdr.read_i64::<LittleEndian>()?;
     if i == NULL_REPRESENTATION {

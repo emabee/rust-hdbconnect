@@ -4,7 +4,6 @@ use byteorder::{LittleEndian, ReadBytesExt};
 use serde_derive::Serialize;
 use std::cmp;
 use std::fmt;
-use std::io;
 
 const NULL_REPRESENTATION: i64 = 315_538_070_401;
 
@@ -98,7 +97,7 @@ impl SecondDate {
 
 pub(crate) fn parse_seconddate(
     nullable: bool,
-    rdr: &mut io::BufRead,
+    rdr: &mut std::io::BufRead,
 ) -> HdbResult<HdbValue<'static>> {
     let i = rdr.read_i64::<LittleEndian>()?;
     if i == NULL_REPRESENTATION {

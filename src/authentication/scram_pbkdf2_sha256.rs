@@ -6,7 +6,6 @@ use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use chrono::Local;
 use rand::{thread_rng, RngCore};
 use secstr::SecStr;
-use std::io;
 use std::io::Write;
 
 const CLIENT_PROOF_SIZE: usize = 32;
@@ -70,7 +69,7 @@ impl Authenticator for ScramPbkdf2Sha256 {
     }
 
     fn verify_server(&self, server_data: &[u8]) -> HdbResult<()> {
-        let mut af = AuthFields::parse(&mut io::Cursor::new(server_data))?;
+        let mut af = AuthFields::parse(&mut std::io::Cursor::new(server_data))?;
         let srv_proof = af.pop().unwrap();
 
         if let Some(ref s_p) = self.server_proof {
@@ -87,7 +86,7 @@ impl Authenticator for ScramPbkdf2Sha256 {
 
 // `server_data` is again an AuthFields, contains salt, server_nonce, iterations
 fn parse_first_server_data(server_data: &[u8]) -> HdbResult<(Vec<u8>, Vec<u8>, u32)> {
-    let mut auth_fields = AuthFields::parse(&mut io::Cursor::new(server_data))?;
+    let mut auth_fields = AuthFields::parse(&mut std::io::Cursor::new(server_data))?;
     if auth_fields.len() != 3 {
         return Err(HdbError::Impl(format!(
             "got {} auth fields, expected 3",
@@ -96,7 +95,7 @@ fn parse_first_server_data(server_data: &[u8]) -> HdbResult<(Vec<u8>, Vec<u8>, u
     }
 
     let iterations = {
-        let mut rdr = io::Cursor::new(auth_fields.pop().unwrap());
+        let mut rdr = std::io::Cursor::new(auth_fields.pop().unwrap());
         rdr.read_u32::<BigEndian>()?
     };
     let server_nonce = auth_fields.pop().unwrap();

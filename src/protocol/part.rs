@@ -9,7 +9,7 @@ use crate::{HdbError, HdbResult};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::cmp::max;
-use std::{i16, i32, io};
+use std::{i16, i32};
 
 const PART_HEADER_SIZE: usize = 16;
 
@@ -33,7 +33,7 @@ impl<'a> Part<'a> {
         self.arg
     }
 
-    pub fn emit<T: io::Write>(
+    pub fn emit<T: std::io::Write>(
         &self,
         mut remaining_bufsize: u32,
         o_descriptors: Option<&ParameterDescriptors>,
@@ -77,7 +77,7 @@ impl<'a> Part<'a> {
         Ok(result)
     }
 
-    pub fn parse<T: io::BufRead>(
+    pub fn parse<T: std::io::BufRead>(
         already_received_parts: &mut Parts,
         o_am_conn_core: Option<&AmConnCore>,
         rs_md: Option<&ResultSetMetadata>,
@@ -121,7 +121,9 @@ impl<'a> Part<'a> {
     }
 }
 
-fn parse_part_header(rdr: &mut io::BufRead) -> HdbResult<(PartKind, PartAttributes, usize, usize)> {
+fn parse_part_header(
+    rdr: &mut std::io::BufRead,
+) -> HdbResult<(PartKind, PartAttributes, usize, usize)> {
     // PART HEADER: 16 bytes
     let kind = PartKind::from_i8(rdr.read_i8()?)?; // I1
     let attributes = PartAttributes::new(rdr.read_u8()?); // U1 (documented as I1)

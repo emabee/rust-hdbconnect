@@ -4,7 +4,6 @@ use byteorder::{LittleEndian, ReadBytesExt};
 use serde_derive::Serialize;
 use std::cmp;
 use std::fmt;
-use std::io;
 
 const NULL_REPRESENTATION: i32 = 86_402;
 
@@ -60,7 +59,7 @@ impl SecondTime {
 
 pub(crate) fn parse_secondtime(
     nullable: bool,
-    rdr: &mut io::BufRead,
+    rdr: &mut std::io::BufRead,
 ) -> HdbResult<HdbValue<'static>> {
     let i = rdr.read_i32::<LittleEndian>()?;
     if i == NULL_REPRESENTATION {

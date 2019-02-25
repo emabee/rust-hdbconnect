@@ -8,7 +8,6 @@ use rand::{thread_rng, RngCore};
 use serde_bytes::{ByteBuf, Bytes};
 use serde_derive::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::io;
 
 // cargo test test_032_blobs -- --nocapture
 #[test]
@@ -126,13 +125,13 @@ fn test_blobs(
     let mut blob2: BLob = row.next_value().unwrap().try_into_blob()?;
 
     let mut streamed = Vec::<u8>::new();
-    io::copy(&mut blob2, &mut streamed)?;
+    std::io::copy(&mut blob2, &mut streamed)?;
     assert_eq!(random_bytes.len(), streamed.len());
     let mut hasher = Sha256::default();
     hasher.input(&streamed);
 
     let mut streamed = Vec::<u8>::new();
-    io::copy(&mut blob, &mut streamed)?;
+    std::io::copy(&mut blob, &mut streamed)?;
 
     assert_eq!(random_bytes.len(), streamed.len());
     let mut hasher = Sha256::default();
@@ -141,7 +140,7 @@ fn test_blobs(
     assert_eq!(fingerprint, &fingerprint4);
 
     debug!("blob.max_buf_len(): {}", blob.max_buf_len());
-    // io::copy works with 8MB, our buffer remains at about 200_000:
+    // std::io::copy works with 8MB, our buffer remains at about 200_000:
     assert!(blob.max_buf_len() < 210_000);
 
     info!("read from somewhere within");

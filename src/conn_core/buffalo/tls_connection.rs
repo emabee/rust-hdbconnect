@@ -2,7 +2,6 @@ use crate::conn_core::buffalo::tls_stream::TlsStream;
 use crate::conn_core::connect_params::ConnectParams;
 use std::cell::RefCell;
 use std::fmt;
-use std::io;
 
 pub struct TlsConnection {
     params: ConnectParams,
@@ -15,7 +14,7 @@ impl fmt::Debug for TlsConnection {
     }
 }
 impl TlsConnection {
-    pub fn try_new(params: ConnectParams) -> io::Result<(TlsConnection)> {
+    pub fn try_new(params: ConnectParams) -> std::io::Result<(TlsConnection)> {
         let tlsstream = TlsStream::try_new(&params)?;
         Ok(TlsConnection {
             params,
@@ -25,7 +24,7 @@ impl TlsConnection {
     }
 
     #[allow(dead_code)]
-    pub fn reconnect(&self) -> io::Result<()> {
+    pub fn reconnect(&self) -> std::io::Result<()> {
         let tlsstream = TlsStream::try_new(&self.params)?;
         self.reader
             .replace(io::BufReader::new(tlsstream.try_clone()?));

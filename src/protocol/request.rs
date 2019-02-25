@@ -9,7 +9,6 @@ use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
 use crate::protocol::parts::statement_context::StatementContext;
 use crate::HdbResult;
 use byteorder::{LittleEndian, WriteBytesExt};
-use std::io;
 
 const MESSAGE_HEADER_SIZE: u32 = 32;
 const SEGMENT_HEADER_SIZE: usize = 24; // same for in and out
@@ -53,7 +52,7 @@ impl<'a> Request<'a> {
         ));
     }
 
-    pub fn emit<T: io::Write>(
+    pub fn emit<T: std::io::Write>(
         self,
         session_id: i64,
         seq_number: i32,

@@ -2,7 +2,6 @@ use crate::protocol::util;
 use crate::{HdbError, HdbResult};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use std::io;
 
 #[derive(Debug, Default)]
 pub struct AuthFields(Vec<AuthField>);
@@ -10,7 +9,7 @@ impl AuthFields {
     pub fn with_capacity(count: usize) -> AuthFields {
         AuthFields(Vec::<AuthField>::with_capacity(count))
     }
-    pub fn parse<T: io::BufRead>(rdr: &mut T) -> HdbResult<AuthFields> {
+    pub fn parse<T: std::io::BufRead>(rdr: &mut T) -> HdbResult<AuthFields> {
         let field_count = rdr.read_i16::<LittleEndian>()? as usize; // I2
         let mut auth_fields: AuthFields = AuthFields(Vec::<AuthField>::with_capacity(field_count));
         for _ in 0..field_count {
@@ -34,7 +33,7 @@ impl AuthFields {
         size
     }
 
-    pub fn emit<T: io::Write>(&self, w: &mut T) -> HdbResult<()> {
+    pub fn emit<T: std::io::Write>(&self, w: &mut T) -> HdbResult<()> {
         w.write_i16::<LittleEndian>(self.0.len() as i16)?;
         for field in &self.0 {
             field.emit(w)?;
@@ -58,7 +57,7 @@ impl AuthField {
         self.0.to_vec()
     }
 
-    fn emit<T: io::Write>(&self, w: &mut T) -> HdbResult<()> {
+    fn emit<T: std::io::Write>(&self, w: &mut T) -> HdbResult<()> {
         match self.0.len() {
             l if l <= 250_usize => w.write_u8(l as u8)?, // B1: length of value
             l if l <= 65_535_usize => {
@@ -80,7 +79,7 @@ impl AuthField {
         1 + self.0.len()
     }
 
-    fn parse<T: io::BufRead>(rdr: &mut T) -> HdbResult<AuthField> {
+    fn parse<T: std::io::BufRead>(rdr: &mut T) -> HdbResult<AuthField> {
         let mut len = rdr.read_u8()? as usize; // B1
         match len {
             255 => {

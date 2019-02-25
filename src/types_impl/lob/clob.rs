@@ -123,8 +123,8 @@ impl CLob {
 }
 
 // Support for CLob streaming
-impl io::Read for CLob {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+impl std::io::Read for CLob {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         self.0.read(buf)
     }
 }
@@ -282,13 +282,13 @@ impl CLobHandle {
 }
 
 // Support for CLOB streaming
-impl io::Read for CLobHandle {
-    fn read(&mut self, mut buf: &mut [u8]) -> io::Result<usize> {
+impl std::io::Read for CLobHandle {
+    fn read(&mut self, mut buf: &mut [u8]) -> std::io::Result<usize> {
         trace!("CLobHandle::read() with buf of len {}", buf.len());
 
         while !self.is_data_complete && (buf.len() > self.utf8.len()) {
             self.fetch_next_chunk()
-                .map_err(|e| io::Error::new(io::ErrorKind::UnexpectedEof, e))?;
+                .map_err(|e| std::io::Error::new(io::ErrorKind::UnexpectedEof, e))?;
         }
 
         // we want to keep clean UTF-8 in utf8, so we cut off at good places only

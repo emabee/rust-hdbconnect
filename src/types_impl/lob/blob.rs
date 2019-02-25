@@ -110,8 +110,8 @@ impl BLob {
 }
 
 // Support for BLob streaming
-impl io::Read for BLob {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+impl std::io::Read for BLob {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         self.0.read(buf)
     }
 }
@@ -239,13 +239,13 @@ impl BLobHandle {
 }
 
 // Support for streaming
-impl io::Read for BLobHandle {
-    fn read(&mut self, mut buf: &mut [u8]) -> io::Result<usize> {
+impl std::io::Read for BLobHandle {
+    fn read(&mut self, mut buf: &mut [u8]) -> std::io::Result<usize> {
         trace!("BLobHandle::read() with buf of len {}", buf.len());
 
         while !self.is_data_complete && (buf.len() > self.data.len()) {
             self.fetch_next_chunk()
-                .map_err(|e| io::Error::new(io::ErrorKind::UnexpectedEof, e))?;
+                .map_err(|e| std::io::Error::new(io::ErrorKind::UnexpectedEof, e))?;
         }
 
         let count = std::cmp::min(self.data.len(), buf.len());

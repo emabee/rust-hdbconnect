@@ -4,7 +4,6 @@ use crate::HdbResult;
 
 use std::collections::HashMap;
 use std::env;
-use std::io;
 use std::path::Path;
 
 #[derive(Clone, Debug)]
@@ -50,7 +49,7 @@ impl ClientInfo {
         self.set(ClientInfoKey::DriverVersion, driver_version);
     }
 
-    pub fn emit<T: io::Write>(&self, w: &mut T) -> HdbResult<()> {
+    pub fn emit<T: std::io::Write>(&self, w: &mut T) -> HdbResult<()> {
         for (key, value) in &self.0 {
             emit_length_and_string(key.get_string(), w)?;
             emit_length_and_string(value, w)?;

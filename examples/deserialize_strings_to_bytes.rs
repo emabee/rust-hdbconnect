@@ -3,10 +3,9 @@ use hdbconnect::{ConnectParams, Connection, HdbResult, IntoConnectParams};
 use log::{debug, error, info};
 use serde_bytes::ByteBuf;
 use serde_derive::Deserialize;
-use std::fs::read_to_string;
 
 pub fn connect_params_from_file(s: &'static str) -> HdbResult<ConnectParams> {
-    let url = read_to_string(s)?;
+    let url = std::fs::read_to_string(s)?;
     url.into_connect_params()
 }
 

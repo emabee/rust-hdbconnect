@@ -1,6 +1,5 @@
 use crate::hdb_error::HdbResult;
 use byteorder::{LittleEndian, WriteBytesExt};
-use std::io;
 
 #[derive(Debug)]
 pub struct ReadLobRequest {
@@ -17,7 +16,7 @@ impl ReadLobRequest {
             length,
         }
     }
-    pub fn emit<T: io::Write>(&self, w: &mut T) -> HdbResult<()> {
+    pub fn emit<T: std::io::Write>(&self, w: &mut T) -> HdbResult<()> {
         trace!("read_lob_request::emit() {:?}", self);
         w.write_u64::<LittleEndian>(self.locator_id)?;
         w.write_u64::<LittleEndian>(self.offset)?;

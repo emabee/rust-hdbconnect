@@ -4,7 +4,6 @@ use crate::{HdbError, HdbResult};
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::fmt;
-use std::io;
 use std::u32;
 use vec_map::VecMap;
 
@@ -115,7 +114,10 @@ impl ResultSetMetadata {
         Ok(self.get(i)?.precision())
     }
 
-    pub(crate) fn parse<T: io::BufRead>(count: usize, rdr: &mut T) -> HdbResult<ResultSetMetadata> {
+    pub(crate) fn parse<T: std::io::BufRead>(
+        count: usize,
+        rdr: &mut T,
+    ) -> HdbResult<ResultSetMetadata> {
         let mut rsm = ResultSetMetadata {
             fields: Vec::<FieldMetadata>::new(),
             names: VecMap::<String>::new(),

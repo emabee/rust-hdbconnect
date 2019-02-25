@@ -3,7 +3,6 @@ use crate::HdbResult;
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::fmt;
-use std::io;
 
 /// Describes the success of a command.
 #[derive(Debug)]
@@ -16,7 +15,7 @@ pub enum ExecutionResult {
     Failure(Option<ServerError>), // -3
 }
 impl ExecutionResult {
-    pub(crate) fn parse<T: io::BufRead>(
+    pub(crate) fn parse<T: std::io::BufRead>(
         count: usize,
         rdr: &mut T,
     ) -> HdbResult<Vec<ExecutionResult>> {

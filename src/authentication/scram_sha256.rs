@@ -5,7 +5,6 @@ use crate::{HdbError, HdbResult};
 use byteorder::{BigEndian, WriteBytesExt};
 use rand::{thread_rng, RngCore};
 use secstr::SecStr;
-use std::io;
 use std::io::Write;
 
 const CLIENT_PROOF_SIZE: usize = 32;
@@ -70,7 +69,7 @@ impl Authenticator for ScramSha256 {
 // `server_data` is again an AuthFields; contains salt, and server_nonce
 // key
 fn parse_first_server_data(server_data: &[u8]) -> HdbResult<(Vec<u8>, Vec<u8>)> {
-    let mut rdr = io::Cursor::new(server_data);
+    let mut rdr = std::io::Cursor::new(server_data);
     let mut af = AuthFields::parse(&mut rdr)?;
     if af.len() != 2 {
         return Err(HdbError::Impl(format!(

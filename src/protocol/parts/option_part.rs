@@ -7,7 +7,6 @@ use std::collections::HashMap;
 use std::hash::Hash;
 
 use byteorder::{ReadBytesExt, WriteBytesExt};
-use std::io;
 
 pub trait OptionId<T: OptionId<T>> {
     fn from_u8(i: u8) -> T;
@@ -50,7 +49,7 @@ impl<T: OptionId<T> + Debug + Eq + PartialEq + Hash> OptionPart<T> {
         self.0.iter()
     }
 
-    pub fn emit<W: io::Write>(&self, w: &mut W) -> HdbResult<()> {
+    pub fn emit<W: std::io::Write>(&self, w: &mut W) -> HdbResult<()> {
         for (id, value) in &self.0 {
             w.write_u8(id.to_u8())?;
             value.emit(w)?;
@@ -58,7 +57,7 @@ impl<T: OptionId<T> + Debug + Eq + PartialEq + Hash> OptionPart<T> {
         Ok(())
     }
 
-    pub fn parse<R: io::BufRead>(count: usize, rdr: &mut R) -> HdbResult<OptionPart<T>> {
+    pub fn parse<R: std::io::BufRead>(count: usize, rdr: &mut R) -> HdbResult<OptionPart<T>> {
         let mut result = OptionPart::default();
         for _ in 0..count {
             let id = T::from_u8(rdr.read_u8()?);

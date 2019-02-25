@@ -3,7 +3,6 @@ use crate::HdbResult;
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::error::Error;
 use std::fmt;
-use std::io;
 
 /// Severity of a server message
 #[derive(Clone, Debug)]
@@ -100,7 +99,7 @@ impl ServerError {
         }
     }
 
-    pub(crate) fn parse<T: io::BufRead>(
+    pub(crate) fn parse<T: std::io::BufRead>(
         no_of_args: usize,
         rdr: &mut T,
     ) -> HdbResult<Vec<ServerError>> {

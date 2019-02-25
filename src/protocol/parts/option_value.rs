@@ -2,7 +2,6 @@ use crate::protocol::util;
 use crate::{HdbError, HdbResult};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use cesu8;
-use std::io;
 
 #[allow(non_camel_case_types)]
 #[derive(Clone, Debug, PartialEq)]
@@ -16,7 +15,7 @@ pub enum OptionValue {
 }
 
 impl OptionValue {
-    pub fn emit<T: io::Write>(&self, w: &mut T) -> HdbResult<()> {
+    pub fn emit<T: std::io::Write>(&self, w: &mut T) -> HdbResult<()> {
         w.write_u8(self.type_id())?; // I1
         match *self {
             // variable
@@ -51,12 +50,12 @@ impl OptionValue {
         }
     }
 
-    pub fn parse<T: io::BufRead>(rdr: &mut T) -> HdbResult<OptionValue> {
+    pub fn parse<T: std::io::BufRead>(rdr: &mut T) -> HdbResult<OptionValue> {
         let value_type = rdr.read_u8()?; // U1
         OptionValue::parse_value(value_type, rdr)
     }
 
-    fn parse_value(typecode: u8, rdr: &mut io::BufRead) -> HdbResult<OptionValue> {
+    fn parse_value(typecode: u8, rdr: &mut std::io::BufRead) -> HdbResult<OptionValue> {
         match typecode {
             3 => Ok(OptionValue::INT(rdr.read_i32::<LittleEndian>()?)), // I4
             4 => Ok(OptionValue::BIGINT(rdr.read_i64::<LittleEndian>()?)), // I8
@@ -72,21 +71,21 @@ impl OptionValue {
     }
 }
 
-fn emit_length_and_string(s: &str, w: &mut io::Write) -> HdbResult<()> {
+fn emit_length_and_string(s: &str, w: &mut std::io::Write) -> HdbResult<()> {
     emit_length_and_bytes(&cesu8::to_cesu8(s), w)
 }
 
-fn emit_length_and_bytes(v: &[u8], w: &mut io::Write) -> HdbResult<()> {
+fn emit_length_and_bytes(v: &[u8], w: &mut std::io::Write) -> HdbResult<()> {
     w.write_i16::<LittleEndian>(v.len() as i16)?; // I2: length of value
     w.write_all(v)?; // B (varying)
     Ok(())
 }
 
-fn parse_length_and_string(rdr: &mut io::BufRead) -> HdbResult<String> {
+fn parse_length_and_string(rdr: &mut std::io::BufRead) -> HdbResult<String> {
     util::string_from_cesu8(parse_length_and_binary(rdr)?)
 }
 
-fn parse_length_and_binary(rdr: &mut io::BufRead) -> HdbResult<Vec<u8>> {
+fn parse_length_and_binary(rdr: &mut std::io::BufRead) -> HdbResult<Vec<u8>> {
     let len = rdr.read_i16::<LittleEndian>()? as usize; // I2: length of value
     util::parse_bytes(len, rdr) // B (varying)
 }

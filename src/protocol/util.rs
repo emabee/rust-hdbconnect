@@ -2,11 +2,10 @@ use crate::types_impl::lob::CharLobSlice;
 use crate::{HdbError, HdbResult};
 use byteorder::ReadBytesExt;
 use cesu8;
-use std::io;
 use std::iter::repeat;
 
 /// Read n bytes from a `BufRead`, return as Vec<u8>
-pub fn parse_bytes(len: usize, rdr: &mut io::BufRead) -> HdbResult<Vec<u8>> {
+pub fn parse_bytes(len: usize, rdr: &mut std::io::BufRead) -> HdbResult<Vec<u8>> {
     let mut vec: Vec<u8> = repeat(255u8).take(len).collect();
     {
         let rf: &mut [u8] = &mut vec;
@@ -15,7 +14,7 @@ pub fn parse_bytes(len: usize, rdr: &mut io::BufRead) -> HdbResult<Vec<u8>> {
     Ok(vec)
 }
 
-pub fn skip_bytes(n: usize, rdr: &mut io::BufRead) -> HdbResult<()> {
+pub fn skip_bytes(n: usize, rdr: &mut std::io::BufRead) -> HdbResult<()> {
     for _ in 0..n {
         rdr.read_u8()?;
     }

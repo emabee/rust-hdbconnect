@@ -11,7 +11,6 @@ use crate::protocol::reply_type::ReplyType;
 use crate::protocol::util;
 use crate::{HdbError, HdbResponse, HdbResult};
 use byteorder::{LittleEndian, ReadBytesExt};
-use std::io;
 
 // Since there is obviously no usecase for multiple segments in one request,
 // we model message and segment together.
@@ -41,7 +40,7 @@ impl Reply {
     //    prepared statements
     // * `ResultSet` needs to be injected (and is extended and returned)
     //    in case of fetch requests
-    pub fn parse<T: io::BufRead>(
+    pub fn parse<T: std::io::BufRead>(
         o_rs_md: Option<&ResultSetMetadata>,
         o_descriptors: Option<&ParameterDescriptors>,
         o_rs: &mut Option<&mut ResultSet>,
@@ -229,7 +228,7 @@ impl Drop for Reply {
     }
 }
 
-fn parse_message_and_sequence_header<T: io::BufRead>(rdr: &mut T) -> HdbResult<(i16, Reply)> {
+fn parse_message_and_sequence_header<T: std::io::BufRead>(rdr: &mut T) -> HdbResult<(i16, Reply)> {
     // MESSAGE HEADER: 32 bytes
     let session_id: i64 = rdr.read_i64::<LittleEndian>()?; // I8
     let packet_seq_number: i32 = rdr.read_i32::<LittleEndian>()?; // I4

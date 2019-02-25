@@ -30,7 +30,6 @@ use crate::{HdbError, HdbResult};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use cesu8;
-use std::io;
 
 #[derive(Debug)]
 pub(crate) enum Argument<'a> {
@@ -145,7 +144,7 @@ impl<'a> Argument<'a> {
         Ok(size)
     }
 
-    pub fn emit<T: io::Write>(
+    pub fn emit<T: std::io::Write>(
         &self,
         remaining_bufsize: u32,
         o_descriptors: Option<&ParameterDescriptors>,
@@ -206,7 +205,7 @@ impl<'a> Argument<'a> {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn parse<T: io::BufRead>(
+    pub(crate) fn parse<T: std::io::BufRead>(
         kind: PartKind,
         attributes: PartAttributes,
         no_of_args: usize,

@@ -5,7 +5,6 @@ use serde_db::de::{ConversionError, DeserializationError};
 use serde_db::ser::SerializationError;
 use std::error::{self, Error};
 use std::fmt;
-use std::io;
 use std::result;
 use std::sync;
 
@@ -41,7 +40,7 @@ pub enum HdbError {
     Impl(String),
 
     /// IO error occured in communication with the database.
-    Io(io::Error),
+    Io(std::io::Error),
 
     /// Error occured in thread synchronization.
     Poison(String),
@@ -197,8 +196,8 @@ impl From<String> for HdbError {
     }
 }
 
-impl From<io::Error> for HdbError {
-    fn from(error: io::Error) -> HdbError {
+impl From<std::io::Error> for HdbError {
+    fn from(error: std::io::Error) -> HdbError {
         HdbError::Io(error)
     }
 }

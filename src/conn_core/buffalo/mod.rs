@@ -9,7 +9,6 @@ use crate::conn_core::buffalo::plain_connection::PlainConnection;
 use crate::conn_core::buffalo::tls_connection::TlsConnection;
 use crate::conn_core::connect_params::ConnectParams;
 use chrono::Local;
-use std::io;
 
 /// A buffered tcp connection, with or without TLS.
 #[derive(Debug)]
@@ -23,7 +22,7 @@ pub enum Buffalo {
 impl Buffalo {
     /// Constructs a buffered tcp connection, with or without TLS,
     /// depending on the given connect parameters.
-    pub fn try_new(params: ConnectParams) -> io::Result<Buffalo> {
+    pub fn try_new(params: ConnectParams) -> std::io::Result<Buffalo> {
         let start = Local::now();
         trace!("Connecting to {:?})", params.addr());
 
@@ -36,8 +35,8 @@ impl Buffalo {
 
         #[cfg(not(feature = "tls"))]
         let buffalo = if params.use_tls() {
-            return Err(io::Error::new(
-                io::ErrorKind::Other,
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
                 "In order to use TLS connections, please compile hdbconnect with feature TLS",
             ));
         } else {

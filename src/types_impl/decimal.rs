@@ -6,13 +6,12 @@ use bigdecimal::BigDecimal;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use num::bigint::BigInt;
 use num::{FromPrimitive, ToPrimitive};
-use std::io;
 
 pub fn parse_decimal(
     nullable: bool,
     type_id: TypeId,
     scale: i16,
-    rdr: &mut io::BufRead,
+    rdr: &mut std::io::BufRead,
 ) -> HdbResult<HdbValue<'static>> {
     match type_id {
         TypeId::DECIMAL => HdbDecimal::parse_hdb_decimal(nullable, scale, rdr),
@@ -67,7 +66,7 @@ pub(crate) fn emit_decimal(
     bd: &BigDecimal,
     type_id: TypeId,
     scale: i16,
-    w: &mut io::Write,
+    w: &mut std::io::Write,
 ) -> HdbResult<()> {
     match type_id {
         TypeId::DECIMAL => {

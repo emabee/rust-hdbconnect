@@ -1,6 +1,5 @@
 use crate::hdb_error::HdbResult;
 use byteorder::{LittleEndian, WriteBytesExt};
-use std::io;
 
 #[derive(Debug)]
 pub struct WriteLobRequest<'a> {
@@ -19,7 +18,7 @@ impl<'a> WriteLobRequest<'a> {
             last_data,
         }
     }
-    pub fn emit<T: io::Write>(&self, w: &mut T) -> HdbResult<()> {
+    pub fn emit<T: std::io::Write>(&self, w: &mut T) -> HdbResult<()> {
         // 1: NULL (not used here), 2: DATA_INCLUDED, 4: LASTDATA
         let options = if self.last_data { 6 } else { 2 };
         w.write_u64::<LittleEndian>(self.locator_id)?;

@@ -118,7 +118,7 @@ fn test_clobs(
     row.next_value().unwrap();
     let mut clob: CLob = row.next_value().unwrap().try_into_clob()?;
     let mut streamed = Vec::<u8>::new();
-    io::copy(&mut clob, &mut streamed)?;
+    std::io::copy(&mut clob, &mut streamed)?;
 
     assert_eq!(fifty_times_smp_blabla.len(), streamed.len());
     let mut hasher = Sha256::default();
@@ -127,7 +127,7 @@ fn test_clobs(
     assert_eq!(fingerprint, &fingerprint4);
 
     debug!("clob.max_buf_len(): {}", clob.max_buf_len());
-    // io::copy works with 8MB, our buffer remains at about 200_000:
+    // std::io::copy works with 8MB, our buffer remains at about 200_000:
     assert!(clob.max_buf_len() < 210_000);
 
     info!("read from somewhere within");

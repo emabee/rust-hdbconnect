@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.15.0] 2019-02-25
+
+Change HdbValue::LOBSTREAM to LOBSTREAM(Option<Arc<Mutex<Read + Send>>>).
+
+Let PreparedStatement::execute_batch() work with empty batch if no input pars are required.
+
 ## [0.14.2] 2019-02-21
 
 Add HdbValue::STR(&str), and allow LOB streaming to the database with HdbValue::LOBSTREAM.

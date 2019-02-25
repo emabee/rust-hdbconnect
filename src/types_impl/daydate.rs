@@ -4,7 +4,6 @@ use byteorder::{LittleEndian, ReadBytesExt};
 use serde_derive::Serialize;
 use std::cmp;
 use std::fmt;
-use std::io;
 
 const NULL_REPRESENTATION: i32 = 3_652_062;
 
@@ -79,7 +78,10 @@ impl DayDate {
     }
 }
 
-pub(crate) fn parse_daydate(nullable: bool, rdr: &mut io::BufRead) -> HdbResult<HdbValue<'static>> {
+pub(crate) fn parse_daydate(
+    nullable: bool,
+    rdr: &mut std::io::BufRead,
+) -> HdbResult<HdbValue<'static>> {
     let i = rdr.read_i32::<LittleEndian>()?;
     if i == NULL_REPRESENTATION {
         if nullable {
