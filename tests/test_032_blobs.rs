@@ -18,7 +18,7 @@ pub fn test_032_blobs() -> HdbResult<()> {
 
     let (random_bytes, fingerprint) = get_random_bytes();
     test_blobs(&mut loghandle, &mut connection, &random_bytes, &fingerprint)?;
-    test_streaming(&mut loghandle, &mut connection, &random_bytes, &fingerprint)?;
+    test_streaming(&mut loghandle, &mut connection, random_bytes, &fingerprint)?;
 
     info!("{} calls to DB were executed", connection.get_call_count()?);
     Ok(())
@@ -160,7 +160,7 @@ fn test_blobs(
 fn test_streaming(
     _log_handle: &mut flexi_logger::ReconfigurationHandle,
     connection: &mut Connection,
-    random_bytes: &Vec<u8>,
+    random_bytes: Vec<u8>,
     fingerprint: &Vec<u8>,
 ) -> HdbResult<()> {
     info!("write and read big blob in streaming fashion");
@@ -174,19 +174,23 @@ fn test_streaming(
 
     // old style lob streaming: autocommit off before, explicit commit after:
     connection.set_auto_commit(false)?;
-    let mut reader = &random_bytes[..];
+    let reader = std::sync::Arc::new(std::sync::Mutex::new(std::io::Cursor::new(
+        random_bytes.clone(),
+    )));
     stmt.execute_row(vec![
         HdbValue::STRING("streaming1".to_string()),
-        HdbValue::LOBSTREAM(Some(&mut reader)),
+        HdbValue::LOBSTREAM(Some(reader)),
     ])?;
     connection.commit()?;
 
     // new style lob streaming: with autocommit
     connection.set_auto_commit(true)?;
-    let mut reader = &random_bytes[..];
+    let reader = std::sync::Arc::new(std::sync::Mutex::new(std::io::Cursor::new(
+        random_bytes.clone(),
+    )));
     stmt.execute_row(vec![
         HdbValue::STRING("streaming2".to_string()),
-        HdbValue::LOBSTREAM(Some(&mut reader)),
+        HdbValue::LOBSTREAM(Some(reader)),
     ])?;
 
     debug!("read big blob in streaming fashion");

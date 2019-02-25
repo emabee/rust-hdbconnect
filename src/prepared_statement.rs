@@ -145,6 +145,7 @@ impl<'a> PreparedStatement {
     ///
     /// ``` rust, no_run
     /// # use hdbconnect::{Connection, HdbValue, HdbResult, IntoConnectParams};
+    /// # use std::sync::{Arc,Mutex};
     /// # fn main() -> HdbResult<()> {
     /// # let mut connection = Connection::new("".into_connect_params()?)?;
     ///   connection.set_auto_commit(false)?;
@@ -152,9 +153,10 @@ impl<'a> PreparedStatement {
     ///   let mut stmt = connection.prepare(&insert_stmt_string)?;
     /// # let b = Vec::<u8>::new();
     /// # let mut reader = &b[..];
+    /// # let reader = std::io::Cursor::new("foo bar");
     ///   stmt.execute_row(vec![
     ///       HdbValue::STR("nice descriptive text, could be quite long"),
-    ///       HdbValue::LOBSTREAM(Some(&mut reader)), // reader must implement std::io::Read
+    ///       HdbValue::LOBSTREAM(Some(Arc::new(Mutex::new(reader)))), // reader must implement std::io::Read
     ///   ])?;
     ///   connection.commit()?;
     /// # Ok(())
@@ -232,9 +234,10 @@ impl<'a> PreparedStatement {
                     for (locator_id, (reader, type_id)) in locator_ids.into_iter().zip(readers) {
                         debug!("writing content to locator with id {:?}", locator_id);
                         if let HdbValue::LOBSTREAM(Some(reader)) = reader {
+                            let mut reader = reader.lock().unwrap();
                             let mut writer =
                                 LobWriter::new(locator_id, type_id, self.am_conn_core.clone());
-                            std::io::copy(reader, &mut writer)?;
+                            std::io::copy(&mut *reader, &mut writer)?;
                             writer.flush()?;
                         }
                     }

@@ -17,7 +17,12 @@ pub fn test_034_nclobs() -> HdbResult<()> {
 
     let (blabla, fingerprint) = get_blabla();
     test_nclobs(&mut log_handle, &mut connection, &blabla, &fingerprint)?;
-    test_streaming(&mut log_handle, &mut connection, &blabla, &fingerprint)?;
+    test_streaming(
+        &mut log_handle,
+        &mut connection,
+        blabla.clone(),
+        &fingerprint,
+    )?;
     test_bytes_to_nclobs(&mut log_handle, &mut connection)?;
 
     info!("{} calls to DB were executed", connection.get_call_count()?);
@@ -126,7 +131,7 @@ fn test_nclobs(
 fn test_streaming(
     _log_handle: &mut flexi_logger::ReconfigurationHandle,
     connection: &mut Connection,
-    fifty_times_smp_blabla: &String,
+    fifty_times_smp_blabla: String,
     fingerprint: &Vec<u8>,
 ) -> HdbResult<()> {
     info!("write and read big nclob in streaming fashion");
@@ -138,11 +143,12 @@ fn test_streaming(
     connection.set_auto_commit(false)?;
 
     let mut stmt = connection.prepare("insert into TEST_NCLOBS values(?, ?)")?;
-    let mut reader = &fifty_times_smp_blabla.as_bytes()[..];
-
+    let reader = std::sync::Arc::new(std::sync::Mutex::new(std::io::Cursor::new(
+        fifty_times_smp_blabla.clone(),
+    )));
     stmt.execute_row(vec![
         HdbValue::STR("lsadksaldk"),
-        HdbValue::LOBSTREAM(Some(&mut reader)),
+        HdbValue::LOBSTREAM(Some(reader)),
     ])?;
     connection.commit()?;
 

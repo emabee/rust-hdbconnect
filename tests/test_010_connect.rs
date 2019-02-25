@@ -38,7 +38,10 @@ fn connect_options(_log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
         db_name, system_id, version
     );
 
-    debug!("Connection options: \n{}", connection.dump_connect_options()?);
+    debug!(
+        "Connection options: \n{}",
+        connection.dump_connect_options()?
+    );
     _log_handle.pop_temp_spec();
     Ok(())
 }

@@ -16,7 +16,7 @@ pub fn test_033_clobs() -> HdbResult<()> {
 
     let (blabla, fingerprint) = get_blabla();
     test_clobs(&mut log_handle, &mut connection, &blabla, &fingerprint)?;
-    test_streaming(&mut log_handle, &mut connection, &blabla, &fingerprint)?;
+    test_streaming(&mut log_handle, &mut connection, blabla, &fingerprint)?;
 
     info!("{} calls to DB were executed", connection.get_call_count()?);
     Ok(())
@@ -146,7 +146,7 @@ fn test_clobs(
 fn test_streaming(
     _log_handle: &mut flexi_logger::ReconfigurationHandle,
     connection: &mut Connection,
-    fifty_times_smp_blabla: &String,
+    fifty_times_smp_blabla: String,
     fingerprint: &Vec<u8>,
 ) -> HdbResult<()> {
     info!("write and read big clob in streaming fashion");
@@ -158,11 +158,13 @@ fn test_streaming(
     connection.set_auto_commit(false)?;
 
     let mut stmt = connection.prepare("insert into TEST_CLOBS values(?, ?)")?;
-    let mut reader = &fifty_times_smp_blabla.as_bytes()[..];
+    let reader = std::sync::Arc::new(std::sync::Mutex::new(std::io::Cursor::new(
+        fifty_times_smp_blabla.clone(),
+    )));
 
     stmt.execute_row(vec![
         HdbValue::STRING("lsadksaldk".to_string()),
-        HdbValue::LOBSTREAM(Some(&mut reader)),
+        HdbValue::LOBSTREAM(Some(reader)),
     ])?;
     connection.commit()?;
 
