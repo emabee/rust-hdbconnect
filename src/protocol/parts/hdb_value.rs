@@ -69,7 +69,7 @@ pub enum HdbValue<'a> {
 
     /// Used for streaming LOBs to the database (see
     /// [`PreparedStatement::execute_row()`](struct.PreparedStatement.html#method.execute_row)).
-    LOBSTREAM(Option<std::sync::Arc<std::sync::Mutex<std::io::Read>>>),
+    LOBSTREAM(Option<std::sync::Arc<std::sync::Mutex<std::io::Read + Send>>>),
 
     /// BOOLEAN stores boolean values, which are TRUE or FALSE.
     BOOLEAN(bool),

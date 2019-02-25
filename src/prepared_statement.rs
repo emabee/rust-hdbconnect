@@ -99,7 +99,7 @@ impl<'a> PreparedStatement {
     /// # }
     /// ```
     ///
-    /// If the statement has no parameter, execute it like this:
+    /// If the statement has no parameter, you can execute it like this
     ///
     /// ```rust, no_run
     /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, Row};
@@ -108,6 +108,19 @@ impl<'a> PreparedStatement {
     /// # let mut connection = Connection::new("".into_connect_params()?)?;
     /// # let mut stmt = connection.prepare("")?;
     /// let hdbresponse = stmt.execute(&())?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// or like this
+    ///
+    /// ```rust, no_run
+    /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, Row};
+    /// # fn main() { }
+    /// # fn foo() -> HdbResult<()> {
+    /// # let mut connection = Connection::new("".into_connect_params()?)?;
+    /// # let mut stmt = connection.prepare("")?;
+    /// let hdbresponse = stmt.execute_batch()?;
     /// # Ok(())
     /// # }
     /// ```
@@ -287,17 +300,22 @@ impl<'a> PreparedStatement {
 
     /// Executes the statement with the collected batch, and clears the batch.
     ///
-    /// Does nothing and returns with an error, if no batch exists.
+    /// Does nothing and returns with an error, if the statement needs input and no batch exists.
+    /// If the statement does not need input and the batch is empty,
+    /// a single execution is triggered.
     pub fn execute_batch(&mut self) -> HdbResult<HdbResponse> {
         if self.batch.is_empty() {
-            Err(HdbError::Usage(
-                "The batch is empty and cannot be executed".to_string(),
-            ))
-        } else {
-            let mut rows2 = ParameterRows::new();
-            mem::swap(&mut self.batch, &mut rows2);
-            self.execute_parameter_rows(Some(rows2))
+            if let Some(ref descriptors) = self.o_descriptors {
+                if descriptors.has_in() {
+                    return Err(HdbError::Usage(
+                        "The batch is empty and cannot be executed".to_string(),
+                    ));
+                }
+            }
         }
+        let mut rows2 = ParameterRows::new();
+        mem::swap(&mut self.batch, &mut rows2);
+        self.execute_parameter_rows(Some(rows2))
     }
 
     /// Descriptors of all parameters of the prepared statement (in, out, inout), if any.
