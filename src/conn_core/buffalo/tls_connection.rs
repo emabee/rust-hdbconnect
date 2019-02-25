@@ -5,8 +5,8 @@ use std::fmt;
 
 pub struct TlsConnection {
     params: ConnectParams,
-    reader: RefCell<io::BufReader<TlsStream>>,
-    writer: RefCell<io::BufWriter<TlsStream>>,
+    reader: RefCell<std::io::BufReader<TlsStream>>,
+    writer: RefCell<std::io::BufWriter<TlsStream>>,
 }
 impl fmt::Debug for TlsConnection {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
@@ -18,8 +18,8 @@ impl TlsConnection {
         let tlsstream = TlsStream::try_new(&params)?;
         Ok(TlsConnection {
             params,
-            reader: RefCell::new(io::BufReader::new(tlsstream.try_clone()?)),
-            writer: RefCell::new(io::BufWriter::new(tlsstream)),
+            reader: RefCell::new(std::io::BufReader::new(tlsstream.try_clone()?)),
+            writer: RefCell::new(std::io::BufWriter::new(tlsstream)),
         })
     }
 
@@ -27,16 +27,16 @@ impl TlsConnection {
     pub fn reconnect(&self) -> std::io::Result<()> {
         let tlsstream = TlsStream::try_new(&self.params)?;
         self.reader
-            .replace(io::BufReader::new(tlsstream.try_clone()?));
-        self.writer.replace(io::BufWriter::new(tlsstream));
+            .replace(std::io::BufReader::new(tlsstream.try_clone()?));
+        self.writer.replace(std::io::BufWriter::new(tlsstream));
         Ok(())
     }
 
-    pub fn writer(&self) -> &RefCell<io::BufWriter<TlsStream>> {
+    pub fn writer(&self) -> &RefCell<std::io::BufWriter<TlsStream>> {
         &self.writer
     }
 
-    pub fn reader(&self) -> &RefCell<io::BufReader<TlsStream>> {
+    pub fn reader(&self) -> &RefCell<std::io::BufReader<TlsStream>> {
         &self.reader
     }
 }

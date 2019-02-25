@@ -1,9 +1,5 @@
 use crate::conn_core::connect_params::{ConnectParams, ServerCerts};
-use rustls::ClientConfig;
-use rustls::{ClientSession, Session};
-use std::env;
-use std::fs::{read_dir, File};
-use std::std::io::{Cursor};
+use rustls::{ClientConfig, ClientSession, Session};
 use std::net::TcpStream;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -53,7 +49,7 @@ fn connect_tcp(
             ));
         }
         Some(ServerCerts::Direct(pem)) => {
-            let mut cursor = Cursor::new(pem);
+            let mut cursor = std::io::Cursor::new(pem);
             let (n_ok, n_err) = config.root_store.add_pem_file(&mut cursor).unwrap();
             if n_ok == 0 {
                 return Err(std::io::Error::new(
@@ -65,10 +61,10 @@ fn connect_tcp(
                 warn!("Not all provided server certificates were accepted");
             }
         }
-        Some(ServerCerts::Environment(env_var)) => match env::var(env_var) {
+        Some(ServerCerts::Environment(env_var)) => match std::env::var(env_var) {
             Ok(value) => {
                 trace!("trying with env var {:?}", env_var);
-                let mut cursor = Cursor::new(value);
+                let mut cursor = std::io::Cursor::new(value);
                 let (n_ok, n_err) = config.root_store.add_pem_file(&mut cursor).unwrap();
                 if n_ok == 0 {
                     return Err(std::io::Error::new(
@@ -90,7 +86,7 @@ fn connect_tcp(
         Some(ServerCerts::Directory(trust_anchor_dir)) => {
             debug!("Trust anchor directory = {}", trust_anchor_dir);
 
-            let trust_anchor_files: Vec<PathBuf> = read_dir(trust_anchor_dir)?
+            let trust_anchor_files: Vec<PathBuf> = std::fs::read_dir(trust_anchor_dir)?
                 .filter_map(|r_dir_entry| r_dir_entry.ok())
                 .filter(|dir_entry| {
                     dir_entry.file_type().is_ok() && dir_entry.file_type().unwrap().is_file()
@@ -107,7 +103,7 @@ fn connect_tcp(
             let mut t_err = 0;
             for trust_anchor_file in trust_anchor_files {
                 trace!("Trying trust anchor file {:?}", trust_anchor_file);
-                let mut rd = std::io::BufReader::new(File::open(trust_anchor_file)?);
+                let mut rd = std::io::BufReader::new(std::fs::File::open(trust_anchor_file)?);
                 let (n_ok, n_err) = config.root_store.add_pem_file(&mut rd).map_err(|_| {
                     std::io::Error::new(
                         std::io::ErrorKind::InvalidInput,
@@ -146,7 +142,10 @@ fn connect_tcp(
 
 impl std::io::Write for TlsStream {
     fn write(&mut self, request: &[u8]) -> std::io::Result<usize> {
-        trace!("std::io::Write::write() with request size {}", request.len());
+        trace!(
+            "std::io::Write::write() with request size {}",
+            request.len()
+        );
         let mut tlssession = self.tlssession.lock().unwrap();
 
         std::io::Write::write_all(&mut *tlssession, request)?;
