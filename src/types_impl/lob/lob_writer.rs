@@ -10,95 +10,103 @@ use crate::protocol::request_type::RequestType;
 use crate::protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
 use crate::protocol::util::utf8_to_cesu8_and_utf8_tail;
 use crate::{HdbError, HdbResult};
+use std::io::{Error, ErrorKind, Result, Write};
 
 pub(crate) struct LobWriter {
     locator_id: u64,
     type_id: TypeId,
     am_conn_core: AmConnCore,
     server_resource_consumption_info: ServerResourceConsumptionInfo,
-    tail: Vec<u8>,
+    buffer: Vec<u8>,
+    lob_write_length: usize,
 }
 impl LobWriter {
-    pub fn new(locator_id: u64, type_id: TypeId, am_conn_core: AmConnCore) -> LobWriter {
-        assert!(
-            type_id == TypeId::BLOB || type_id == TypeId::CLOB || type_id == TypeId::NCLOB,
-            "TypeId is {:?}",
-            type_id
-        );
-        LobWriter {
+    pub fn new(locator_id: u64, type_id: TypeId, am_conn_core: AmConnCore) -> HdbResult<LobWriter> {
+        if let TypeId::BLOB | TypeId::CLOB | TypeId::NCLOB = type_id {
+            // ok
+        } else {
+            return Err(HdbError::Impl(format!("Unsupported type-id {:?}", type_id)));
+        }
+        let lob_write_length = am_conn_core.lock()?.get_lob_write_length();
+        Ok(LobWriter {
             locator_id,
             type_id,
             am_conn_core,
             server_resource_consumption_info: Default::default(),
-            tail: Default::default(),
-        }
+            buffer: Vec::<u8>::with_capacity(lob_write_length + 8200),
+            lob_write_length,
+        })
     }
 }
 
-// first implementation: do a roundtrip on every write, just appending
-impl std::io::Write for LobWriter {
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        trace!("write() with buf of len {}", buf.len());
-        match self.type_id {
-            TypeId::CLOB | TypeId::NCLOB => {
-                // concatenate previous tail and new buf
-                let buf2 = if self.tail.is_empty() {
-                    buf.to_vec()
-                } else {
-                    let mut buf2 = Vec::<u8>::new();
-                    std::mem::swap(&mut buf2, &mut self.tail);
-                    buf2.append(&mut buf.to_vec());
-                    buf2
-                };
-
-                // cut off new tail and convert to cesu8
-                let (cesu8, utf8_tail) = utf8_to_cesu8_and_utf8_tail(buf2)
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-                self.tail = utf8_tail;
-                let locator_ids = write_a_lob_chunk(
-                    &mut self.am_conn_core,
-                    self.locator_id,
-                    LobWriteMode::Append(&cesu8),
-                    &mut self.server_resource_consumption_info,
-                )
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-                assert_eq!(locator_ids.len(), 1);
-                assert_eq!(locator_ids[0], self.locator_id);
-                Ok(buf.len())
-            }
-            TypeId::BLOB => {
-                let locator_ids = write_a_lob_chunk(
-                    &mut self.am_conn_core,
-                    self.locator_id,
-                    LobWriteMode::Append(buf),
-                    &mut self.server_resource_consumption_info,
-                )
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-                assert_eq!(locator_ids.len(), 1);
-                assert_eq!(locator_ids[0], self.locator_id);
-                Ok(buf.len())
-            }
-            _ => panic!("unexpected TypeId {:?}", self.type_id),
-        }
-    }
-    fn flush(&mut self) -> std::io::Result<()> {
-        // concatenate previous tail and new buf
-        if !self.tail.is_empty() {
-            Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "tail is not empty",
-            ))
+impl Write for LobWriter {
+    // Either buffers (in self.buffer) or writes buffer + input to the db
+    fn write(&mut self, input: &[u8]) -> Result<usize> {
+        trace!("write() with input of len {}", input.len());
+        if input.len() + self.buffer.len() < self.lob_write_length {
+            self.buffer.append(&mut input.to_vec());
         } else {
+            // concatenate buffer and input into payload_raw
+            let payload_raw = if self.buffer.is_empty() {
+                input.to_vec()
+            } else {
+                let mut payload_raw = Vec::<u8>::new();
+                std::mem::swap(&mut payload_raw, &mut self.buffer);
+                payload_raw.append(&mut input.to_vec());
+                payload_raw
+            };
+            debug_assert!(self.buffer.is_empty());
+
+            // if necessary, cut off new tail and convert to cesu8
+            let payload = if let TypeId::CLOB | TypeId::NCLOB = self.type_id {
+                let (cesu8, utf8_tail) = utf8_to_cesu8_and_utf8_tail(payload_raw)
+                    .map_err(|e| Error::new(ErrorKind::Other, e))?;
+                self.buffer = utf8_tail;
+                cesu8
+            } else {
+                payload_raw
+            };
+
             let locator_ids = write_a_lob_chunk(
                 &mut self.am_conn_core,
                 self.locator_id,
-                LobWriteMode::Last,
+                LobWriteMode::Append(&payload),
                 &mut self.server_resource_consumption_info,
             )
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-            assert_eq!(locator_ids.len(), 0);
-            Ok(())
+            .map_err(|e| Error::new(ErrorKind::Other, e))?;
+            debug_assert_eq!(locator_ids.len(), 1);
+            debug_assert_eq!(locator_ids[0], self.locator_id);
         }
+        Ok(input.len())
+    }
+
+    fn flush(&mut self) -> Result<()> {
+        trace!("flush(), with buffer of {} bytes", self.buffer.len());
+        let mut payload_raw = Vec::<u8>::new();
+        std::mem::swap(&mut payload_raw, &mut self.buffer);
+        let payload = if let TypeId::CLOB | TypeId::NCLOB = self.type_id {
+            let (cesu8, utf8_tail) = utf8_to_cesu8_and_utf8_tail(payload_raw)
+                .map_err(|e| Error::new(ErrorKind::Other, e))?;
+            if !utf8_tail.is_empty() {
+                return Err(Error::new(
+                    ErrorKind::Other,
+                    "stream is ending with invalid utf-8",
+                ));
+            }
+            cesu8
+        } else {
+            payload_raw
+        };
+
+        let locator_ids = write_a_lob_chunk(
+            &mut self.am_conn_core,
+            self.locator_id,
+            LobWriteMode::Last(&payload),
+            &mut self.server_resource_consumption_info,
+        )
+        .map_err(|e| Error::new(ErrorKind::Other, e))?;
+        debug_assert_eq!(locator_ids.len(), 0);
+        Ok(())
     }
 }
 
@@ -110,13 +118,12 @@ fn write_a_lob_chunk(
     lob_write_mode: LobWriteMode,
     server_resource_consumption_info: &mut ServerResourceConsumptionInfo,
 ) -> HdbResult<Vec<u64>> {
-    let dummy_buf: Vec<u8> = vec![];
     let mut request = Request::new(RequestType::WriteLob, 0);
     let write_lob_request = match lob_write_mode {
         // LobWriteMode::Offset(offset, buf) =>
         //     WriteLobRequest::new(locator_id, offset /* or offset + 1? */, buf, true),
         LobWriteMode::Append(buf) => WriteLobRequest::new(locator_id, -1_i64, buf, false),
-        LobWriteMode::Last => WriteLobRequest::new(locator_id, -1_i64, &dummy_buf, true),
+        LobWriteMode::Last(buf) => WriteLobRequest::new(locator_id, -1_i64, buf, true),
     };
     request.push(Part::new(
         PartKind::WriteLobRequest,
@@ -164,5 +171,5 @@ fn write_a_lob_chunk(
 enum LobWriteMode<'a> {
     //Offset(i64, &'a [u8]),
     Append(&'a [u8]),
-    Last,
+    Last(&'a [u8]),
 }

@@ -3,8 +3,6 @@ use crate::conn_core::connect_params::ConnectParams;
 use crate::conn_core::connect_params::ServerCerts;
 use crate::{HdbError, HdbResult};
 use secstr::SecStr;
-use std::env;
-use std::mem;
 
 /// A builder for `ConnectParams`.
 ///
@@ -82,7 +80,7 @@ impl ConnectParamsBuilder {
 
     /// Sets the client locale from the value of the environment variable LANG
     pub fn clientlocale_from_env_lang(&mut self) -> &mut ConnectParamsBuilder {
-        self.clientlocale = match env::var("LANG") {
+        self.clientlocale = match std::env::var("LANG") {
             Ok(l) => Some(l),
             Err(_) => None,
         };
@@ -149,8 +147,6 @@ impl ConnectParamsBuilder {
                 Some(_) => Some(self.clientlocale.take().unwrap()),
                 None => None,
             },
-            options: mem::replace(&mut self.options, vec![]),
-
             #[cfg(feature = "tls")]
             use_tls: self.server_certs.is_some(),
 
@@ -158,4 +154,23 @@ impl ConnectParamsBuilder {
             server_certs: self.server_certs.clone(),
         })
     }
+}
+
+#[cfg(test)]
+mod test {
+    use super::ConnectParamsBuilder;
+
+    #[test]
+    fn test_connect_params_builder() {
+        let connect_params = ConnectParamsBuilder::new()
+            .hostname("abcd123")
+            .port(2222)
+            .dbuser("MEIER")
+            .password("schlau")
+            .build()
+            .unwrap();
+
+        assert_eq!(connect_params.dbuser(), "MEIER");
+    }
+
 }

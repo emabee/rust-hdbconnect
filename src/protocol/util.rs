@@ -59,15 +59,20 @@ pub fn count_1_2_3_sequence_starts(cesu8: &[u8]) -> usize {
 
 pub fn to_string_and_surrogate(cesu8: Vec<u8>) -> HdbResult<(String, Option<Vec<u8>>)> {
     let (utf8, buffer_cesu8) = cesu8_to_string_and_tail(cesu8).unwrap(/* yes */);
-    let surrogate_buf = match buffer_cesu8.len() {
-        0 => None,
+    match buffer_cesu8.len() {
+        0 => Ok((utf8, None)),
         3 => {
             debug!("to_string_and_surrogate() found a split surrogate pair");
-            Some(vec![buffer_cesu8[0], buffer_cesu8[1], buffer_cesu8[2]])
+            Ok((
+                utf8,
+                Some(vec![buffer_cesu8[0], buffer_cesu8[1], buffer_cesu8[2]]),
+            ))
         }
-        _ => panic!("Unexpected buffer_cesu8 = {:?}", buffer_cesu8),
-    };
-    Ok((utf8, surrogate_buf))
+        _ => Err(HdbError::Impl(format!(
+            "Unexpected buffer_cesu8 = {:?}",
+            buffer_cesu8
+        ))),
+    }
 }
 
 pub fn cesu8_to_string_and_tail(mut cesu8: Vec<u8>) -> HdbResult<(String, Vec<u8>)> {
@@ -77,7 +82,7 @@ pub fn cesu8_to_string_and_tail(mut cesu8: Vec<u8>) -> HdbResult<(String, Vec<u8
         len => len - 7,
     };
 
-    let tail_len = get_cesu8_tail_len(&cesu8[start..]);
+    let tail_len = get_cesu8_tail_len(&cesu8[start..])?;
     let tail = cesu8.split_off(cesu8_length - tail_len);
     Ok((string_from_cesu8(cesu8)?, tail))
 }
@@ -89,7 +94,7 @@ pub fn utf8_to_cesu8_and_utf8_tail(mut utf8: Vec<u8>) -> HdbResult<(Vec<u8>, Vec
         len => len - 5,
     };
 
-    let tail_len = get_utf8_tail_len(&utf8[start..]);
+    let tail_len = get_utf8_tail_len(&utf8[start..])?;
     let tail = utf8.split_off(utf8_length - tail_len);
     Ok((
         cesu8::to_cesu8(&String::from_utf8(utf8).unwrap()).to_vec(),
@@ -99,10 +104,10 @@ pub fn utf8_to_cesu8_and_utf8_tail(mut utf8: Vec<u8>) -> HdbResult<(Vec<u8>, Vec
 
 // determine how many of the last characters must be cut off to ensure the string ends with
 // consistent cesu-8 that can be converted into utf-8
-fn get_cesu8_tail_len(bytes: &[u8]) -> usize {
+fn get_cesu8_tail_len(bytes: &[u8]) -> HdbResult<usize> {
     match bytes.last() {
-        None | Some(0...127) => 0,
-        Some(0xC0...0xDF) => 1,
+        None | Some(0...127) => Ok(0),
+        Some(0xC0...0xDF) => Ok(1),
         Some(_) => {
             let len = bytes.len();
             for i in 0..len - 1 {
@@ -119,23 +124,26 @@ fn get_cesu8_tail_len(bytes: &[u8]) -> usize {
                     | Cesu8CharType::Empty => None,
                 } {
                     if index + char_len > len {
-                        return len - index;
+                        return Ok(len - index);
                     } else if index + char_len == len {
-                        return 0;
+                        return Ok(0);
                     } else {
-                        return len - index - char_len;
+                        return Ok(len - index - char_len);
                     }
                 }
             }
-            panic!("no valid cesu8 cutoff point found for {:?}!", bytes)
+            Err(HdbError::Impl(format!(
+                "no valid cesu8 cutoff point found for {:?}!",
+                bytes,
+            )))
         }
     }
 }
 
-fn get_utf8_tail_len(bytes: &[u8]) -> usize {
+fn get_utf8_tail_len(bytes: &[u8]) -> HdbResult<usize> {
     match bytes.last() {
-        None | Some(0...127) => 0,
-        Some(0xC0...0xDF) => 1,
+        None | Some(0...127) => Ok(0),
+        Some(0xC0...0xDF) => Ok(1),
         Some(_) => {
             let len = bytes.len();
             for i in 0..len - 1 {
@@ -149,15 +157,18 @@ fn get_utf8_tail_len(bytes: &[u8]) -> usize {
                     Utf8CharType::NotAStart | Utf8CharType::Illegal | Utf8CharType::Empty => None,
                 } {
                     if index + char_len > len {
-                        return len - index;
+                        return Ok(len - index);
                     } else if index + char_len == len {
-                        return 0;
+                        return Ok(0);
                     } else {
-                        return len - index - char_len;
+                        return Ok(len - index - char_len);
                     }
                 }
             }
-            panic!("no valid utf8 cutoff point found for {:?}!", bytes)
+            Err(HdbError::Impl(format!(
+                "no valid utf8 cutoff point found for {:?}!",
+                bytes
+            )))
         }
     }
 }

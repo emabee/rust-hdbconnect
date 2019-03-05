@@ -23,9 +23,6 @@ use crate::{HdbError, HdbResult};
 use std::io::Write;
 use std::mem;
 
-pub const DEFAULT_FETCH_SIZE: u32 = 1000;
-pub const DEFAULT_LOB_READ_LENGTH: i32 = 1_000_000;
-
 #[derive(Debug)]
 pub(crate) struct ConnectionCore {
     authenticated: bool,
@@ -36,7 +33,8 @@ pub(crate) struct ConnectionCore {
     auto_commit: bool,
     server_resource_consumption_info: ServerResourceConsumptionInfo,
     fetch_size: u32,
-    lob_read_length: i32,
+    lob_read_length: u32,
+    lob_write_length: usize,
     session_state: SessionState,
     statement_sequence: Option<i64>, // statement sequence within the transaction
     connect_options: ConnectOptions,
@@ -56,8 +54,9 @@ impl<'a> ConnectionCore {
             seq_number: 0,
             auto_commit: true,
             server_resource_consumption_info: Default::default(),
-            fetch_size: DEFAULT_FETCH_SIZE,
-            lob_read_length: DEFAULT_LOB_READ_LENGTH,
+            fetch_size: crate::DEFAULT_FETCH_SIZE,
+            lob_read_length: crate::DEFAULT_LOB_READ_LENGTH,
+            lob_write_length: crate::DEFAULT_LOB_WRITE_LENGTH,
             client_info: Default::default(),
             client_info_touched: false,
             session_state: Default::default(),
@@ -139,12 +138,20 @@ impl<'a> ConnectionCore {
         self.fetch_size = fetch_size;
     }
 
-    pub(crate) fn get_lob_read_length(&self) -> i32 {
+    pub(crate) fn get_lob_read_length(&self) -> u32 {
         self.lob_read_length
     }
 
-    pub(crate) fn set_lob_read_length(&mut self, lob_read_length: i32) {
+    pub(crate) fn set_lob_read_length(&mut self, lob_read_length: u32) {
         self.lob_read_length = lob_read_length;
+    }
+
+    pub(crate) fn get_lob_write_length(&self) -> usize {
+        self.lob_write_length
+    }
+
+    pub(crate) fn set_lob_write_length(&mut self, lob_write_length: usize) {
+        self.lob_write_length = lob_write_length;
     }
 
     pub(crate) fn set_session_id(&mut self, session_id: i64) {

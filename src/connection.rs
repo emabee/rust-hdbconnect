@@ -51,7 +51,7 @@ impl Connection {
         )?;
 
         {
-            let guard = am_conn_core.lock()?;
+            let conn_core = am_conn_core.lock()?;
             debug!(
                 "user \"{}\" successfully logged on ({} µs) to {:?} of {:?} (HANA version: {:?})",
                 params.dbuser(),
@@ -59,9 +59,9 @@ impl Connection {
                     .signed_duration_since(start)
                     .num_microseconds()
                     .unwrap_or(-1),
-                guard.connect_options().get_database_name(),
-                guard.connect_options().get_system_id(),
-                guard.connect_options().get_full_version_string()
+                conn_core.connect_options().get_database_name(),
+                conn_core.connect_options().get_system_id(),
+                conn_core.connect_options().get_full_version_string()
             );
         }
         Ok(Connection {
@@ -262,12 +262,28 @@ impl Connection {
         Ok(())
     }
     /// Configures the connection's lob read length for future calls.
-    pub fn get_lob_read_length(&self) -> HdbResult<i32> {
+    pub fn get_lob_read_length(&self) -> HdbResult<u32> {
         Ok(self.am_conn_core.lock()?.get_lob_read_length())
     }
     /// Configures the connection's lob read length for future calls.
-    pub fn set_lob_read_length(&mut self, l: i32) -> HdbResult<()> {
+    pub fn set_lob_read_length(&mut self, l: u32) -> HdbResult<()> {
         self.am_conn_core.lock()?.set_lob_read_length(l);
+        Ok(())
+    }
+
+    /// Configures the connection's lob write length for future calls.
+    ///
+    /// The intention of the parameter is to allow reducing the number of roundtrips
+    /// to the database.
+    /// Values smaller than rust's buffer size (8k) will have little effect, since
+    /// each read() call to the Read impl in a `HdbValue::LOBSTREAM` will cause at most one
+    /// write roundtrip to the database.
+    pub fn get_lob_write_length(&self) -> HdbResult<usize> {
+        Ok(self.am_conn_core.lock()?.get_lob_write_length())
+    }
+    /// Configures the connection's lob write length for future calls.
+    pub fn set_lob_write_length(&mut self, l: usize) -> HdbResult<()> {
+        self.am_conn_core.lock()?.set_lob_write_length(l);
         Ok(())
     }
 

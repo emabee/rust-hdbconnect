@@ -15,9 +15,7 @@ fn get_authenticated_connection() -> HdbResult<Connection> {
 }
 
 pub fn main() {
-    Logger::with_env_or_str("info")
-        .start()
-        .unwrap_or_else(|e| panic!("Logger initialization failed with {}", e));
+    Logger::with_env_or_str("info").start().unwrap();
 
     match run() {
         Err(e) => {

@@ -99,7 +99,7 @@ impl CResourceManager for HdbCResourceManager {
                     return Ok(xat_options.get_transactions()?);
                 }
                 Some(part) => warn!("recover: found unexpected part {:?}", part),
-                None => panic!("recover: found None part"),
+                None => warn!("recover: did not find next part"),
             }
         }
 

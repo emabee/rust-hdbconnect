@@ -17,7 +17,7 @@ pub fn init_logger() -> ReconfigurationHandle {
         // .directory("test_logs")
         // .print_message()
         .format(opt_format)
-        .start_reconfigurable()
+        .start()
         .unwrap_or_else(|e| panic!("Logger initialization failed with {}", e))
 }
 

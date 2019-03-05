@@ -82,3 +82,24 @@ pub mod types {
     pub use crate::types_impl::secondtime::SecondTime;
 }
 pub use crate::protocol::parts::hdb_value::HdbValue;
+
+/// Default value for the number of resultset lines that are fetched
+/// with a single FETCH roundtrip; the constant's value is 100,000.
+///
+/// The value used at runtime can be changed with
+/// [Connection::set_fetch_size()](struct.Connection.html#method.set_fetch_size).
+pub const DEFAULT_FETCH_SIZE: u32 = 100_000;
+
+/// Number of bytes (for BLOBS and CLOBS) or 1-2-3-byte sequences (for NCLOBS)
+/// that are fetched in a single LOB READ roundtrip; the constant's value is 16,000,000.
+///
+/// The value used at runtime can be changed with
+/// [Connection::set_lob_read_length()](struct.Connection.html#method.set_lob_read_length).
+pub const DEFAULT_LOB_READ_LENGTH: u32 = 16_000_000;
+
+/// Number of bytes that are written in a single LOB WRITE roundtrip;
+/// the constant's value is 16,000,000.
+///
+/// The value used at runtime can be changed with
+/// [Connection::set_lob_write_length()](struct.Connection.html#method.set_lob_write_length).
+pub const DEFAULT_LOB_WRITE_LENGTH: usize = 16_000_000;

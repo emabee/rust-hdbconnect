@@ -64,7 +64,6 @@ pub struct ConnectParams {
     pub(crate) clientlocale: Option<String>,
     #[cfg(feature = "tls")]
     pub(crate) server_certs: Option<ServerCerts>,
-    pub(crate) options: Vec<(String, String)>,
 }
 impl ConnectParams {
     /// Returns a new builder for ConnectParams.
@@ -115,11 +114,6 @@ impl ConnectParams {
     /// The client locale.
     pub fn clientlocale(&self) -> &Option<String> {
         &self.clientlocale
-    }
-
-    /// Options to be passed to HANA.
-    pub fn options(&self) -> &[(String, String)] {
-        &self.options
     }
 }
 
@@ -208,7 +202,6 @@ impl IntoConnectParams for Url {
         #[cfg(feature = "tls")]
         let mut server_certs = None;
         let mut clientlocale = None;
-        let mut options = Vec::<(String, String)>::new();
         for (name, value) in self.query_pairs() {
             match name.as_ref() {
                 "client_locale" => clientlocale = Some(value.to_string()),
@@ -226,7 +219,7 @@ impl IntoConnectParams for Url {
                 "tls_certificate_env" => {
                     server_certs = Some(ServerCerts::Environment(value.to_string()))
                 }
-                _ => options.push((name.to_string(), value.to_string())),
+                _ => log::warn!("option {} not supported", name),
             }
         }
 
@@ -240,7 +233,6 @@ impl IntoConnectParams for Url {
             clientlocale,
             #[cfg(feature = "tls")]
             server_certs,
-            options,
         })
     }
 }

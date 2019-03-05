@@ -7,7 +7,7 @@ use log::{debug, info};
 use serde_derive::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::fs::File;
-use std::io::{self, Read};
+use std::io::Read;
 
 #[test]
 pub fn test_033_clobs() -> HdbResult<()> {

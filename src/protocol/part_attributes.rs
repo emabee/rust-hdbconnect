@@ -2,7 +2,7 @@ use std::fmt;
 
 // bit pattern for some attribute parts
 #[derive(Clone)]
-pub struct PartAttributes(u8);
+pub(crate) struct PartAttributes(u8);
 impl PartAttributes {
     pub fn new(bits: u8) -> PartAttributes {
         PartAttributes(bits)
@@ -37,7 +37,7 @@ impl PartAttributes {
 impl fmt::Debug for PartAttributes {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if self.0 == 0 {
-            write!(f, "(NONE)")
+            write!(f, "0")
         } else {
             let mut b = false;
             write!(f, "(")?;
@@ -77,4 +77,31 @@ fn w_and(b: bool, f: &mut fmt::Formatter) -> Result<bool, fmt::Error> {
         write!(f, " & ")?;
     }
     Ok(true)
+}
+
+#[cfg(test)]
+mod test {
+    use super::PartAttributes;
+
+    #[test]
+    fn test_part_attributes() {
+        let no = PartAttributes::new(0);
+        assert_eq!(false, no.has_next_packet());
+        assert_eq!(false, no.is_first_packet());
+        assert_eq!(false, no.is_last_packet());
+        assert_eq!(false, no.resultset_is_closed());
+        assert_eq!(false, no.row_not_found());
+
+        let yes = PartAttributes::new(0b_0001_1111);
+        assert_eq!(true, yes.has_next_packet());
+        assert_eq!(true, yes.is_first_packet());
+        assert_eq!(true, yes.is_last_packet());
+        assert_eq!(true, yes.resultset_is_closed());
+        assert_eq!(true, yes.row_not_found());
+
+        let sno = format!("{:?}", no);
+        let syes = format!("{:?}", yes);
+        println!("{}", sno);
+        println!("{}", syes);
+    }
 }

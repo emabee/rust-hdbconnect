@@ -147,9 +147,13 @@ impl Reply {
                             );
                             int_return_values.push(InternalReturnValue::ResultSet(rs));
                         }
-                        _ => panic!("wrong Argument variant: ResultSetID expected"),
+                        _ => panic!("impossible: wrong Argument variant: ResultSetID expected"),
                     },
-                    _ => panic!("Missing required part ResultSetID"),
+                    _ => {
+                        return Err(HdbError::Impl(
+                            "Missing required part ResultSetID".to_owned(),
+                        ));
+                    }
                 },
                 Argument::ExecutionResult(vra) => {
                     int_return_values.push(InternalReturnValue::AffectedRows(vra));

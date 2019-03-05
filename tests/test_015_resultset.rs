@@ -1,14 +1,19 @@
 mod test_utils;
 
 use chrono::NaiveDateTime;
-use flexi_logger::ReconfigurationHandle;
+use flexi_logger::{Duplicate, Logger, ReconfigurationHandle};
 use hdbconnect::{Connection, HdbResult};
 use log::{debug, info};
 use serde_derive::Deserialize;
 
 #[test] // cargo test --test test_015_resultset -- --nocapture
 pub fn test_015_resultset() -> HdbResult<()> {
-    let mut log_handle = test_utils::init_logger();
+    // let mut log_handle = test_utils::init_logger();
+    let mut log_handle = Logger::with_str("trace")
+        .duplicate_to_stderr(Duplicate::Info)
+        .do_not_log()
+        .start()
+        .unwrap();
     let mut connection = test_utils::get_authenticated_connection()?;
 
     evaluate_resultset(&mut log_handle, &mut connection)?;
@@ -61,7 +66,8 @@ fn evaluate_resultset(
     let stmt = "select * from TEST_RESULTSET";
 
     {
-        let _tmp = connection.query(stmt)?;
+        let resultset = connection.query(stmt)?;
+        debug!("resultset: {:?}", resultset);
         debug!("After query");
     }
     debug!("After drop of resultset");

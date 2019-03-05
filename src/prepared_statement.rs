@@ -249,7 +249,7 @@ impl<'a> PreparedStatement {
                         if let HdbValue::LOBSTREAM(Some(reader)) = reader {
                             let mut reader = reader.lock().unwrap();
                             let mut writer =
-                                LobWriter::new(locator_id, type_id, self.am_conn_core.clone());
+                                LobWriter::new(locator_id, type_id, self.am_conn_core.clone())?;
                             std::io::copy(&mut *reader, &mut writer)?;
                             writer.flush()?;
                         }

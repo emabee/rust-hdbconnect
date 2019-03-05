@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.15.2] 2019-03-05
+
+Add possibility to set the lob-write-length.
+
+Increase default values for fetch-size and lob-read-length.
+
+## [0.15.1] 2019-02-25
+
+Fix broken TLS feature.
+
 ## [0.15.0] 2019-02-25
 
 Change HdbValue::LOBSTREAM to LOBSTREAM(Option<Arc<Mutex<Read + Send>>>).
