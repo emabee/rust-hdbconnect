@@ -52,7 +52,7 @@ webpki = {version = "0.19.1", optional = true}
 serde_bytes = "0.10"
 # flexi_logger = {path = "../flexi_logger"}
 flexi_logger = "0.11"
-version-sync = "0.7"
+version-sync = "0.8"
 # geo = "0.12"
 # geo-types = "0.4.1"
 # wkb = "*"
