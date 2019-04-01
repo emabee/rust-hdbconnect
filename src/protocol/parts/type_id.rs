@@ -6,106 +6,106 @@ use serde_derive::Serialize;
 pub enum TypeId {
     /// For database type TINYINT;
     /// used with [`HdbValue::TINYINT`](enum.HdbValue.html#variant.TINYINT).
-    TINYINT,
+    TINYINT = 1,
     /// For database type SMALLINT;
     /// used with [`HdbValue::SMALLINT`](enum.HdbValue.html#variant.SMALLINT).
-    SMALLINT,
+    SMALLINT = 2,
     /// For database type INT;
     /// used with [`HdbValue::INT`](enum.HdbValue.html#variant.INT).
-    INT,
+    INT = 3,
     /// For database type BIGINT;
     /// used with [`HdbValue::BIGINT`](enum.HdbValue.html#variant.BIGINT).
-    BIGINT,
+    BIGINT = 4,
     /// For database type DECIMAL and SMALLDECIMAL;
     /// used with [`HdbValue::DECIMAL`](enum.HdbValue.html#variant.DECIMAL).
-    DECIMAL,
+    DECIMAL = 5,
     /// For database type REAL;
     /// used with [`HdbValue::REAL`](enum.HdbValue.html#variant.REAL).
-    REAL,
+    REAL = 6,
     /// For database type DOUBLE;
     /// used with [`HdbValue::DOUBLE`](enum.HdbValue.html#variant.DOUBLE).
-    DOUBLE,
+    DOUBLE = 7,
     /// For database type CHAR;
     /// used with [`HdbValue::STRING`](enum.HdbValue.html#variant.STRING).
-    CHAR,
+    CHAR = 8,
     /// For database type VARCHAR;
     /// used with [`HdbValue::STRING`](enum.HdbValue.html#variant.STRING).
-    VARCHAR,
+    VARCHAR = 9,
     /// For database type NCHAR;
     /// used with [`HdbValue::STRING`](enum.HdbValue.html#variant.STRING).
-    NCHAR,
+    NCHAR = 10,
     /// For database type NVARCHAR;
     /// used with [`HdbValue::STRING`](enum.HdbValue.html#variant.STRING).
-    NVARCHAR,
+    NVARCHAR = 11,
     /// For database type BINARY;
     /// used with [`HdbValue::BINARY`](enum.HdbValue.html#variant.BINARY).
-    BINARY,
+    BINARY = 12,
     /// For database type VARBINARY;
     /// used with [`HdbValue::BINARY`](enum.HdbValue.html#variant.BINARY).
-    VARBINARY,
+    VARBINARY = 13,
     /// For database type CLOB;
     /// used with [`HdbValue::CLOB`](enum.HdbValue.html#variant.CLOB).
-    CLOB,
+    CLOB = 25,
     /// For database type NCLOB;
     /// used with [`HdbValue::NCLOB`](enum.HdbValue.html#variant.NCLOB).
-    NCLOB,
+    NCLOB = 26,
     /// For database type BLOB;
     /// used with [`HdbValue::BLOB`](enum.HdbValue.html#variant.BLOB).
-    BLOB,
+    BLOB = 27,
     /// For database type BOOLEAN;
     /// used with [`HdbValue::BOOLEAN`](enum.HdbValue.html#variant.BOOLEAN).
-    BOOLEAN,
+    BOOLEAN = 28,
     /// For database type STRING;
     /// used with [`HdbValue::STRING`](enum.HdbValue.html#variant.STRING).
-    STRING,
+    STRING = 29,
     /// For database type NSTRING;
     /// used with [`HdbValue::STRING`](enum.HdbValue.html#variant.STRING).
-    NSTRING,
+    NSTRING = 30,
     /// Maps to [`HdbValue::BINARY`](enum.HdbValue.html#variant.BINARY)
     /// or [`HdbValue::BLOB`](enum.HdbValue.html#variant.BLOB).
-    BLOCATOR,
+    BLOCATOR = 31,
     /// Used with [`HdbValue::BINARY`](enum.HdbValue.html#variant.BINARY).
-    BSTRING,
+    BSTRING = 33,
     /// For database type TEXT;
     /// used with [`HdbValue::TEXT`](enum.HdbValue.html#variant.TEXT).
-    TEXT,
+    TEXT = 51,
     /// For database type SHORTTEXT;
     /// used with [`HdbValue::STRING`](enum.HdbValue.html#variant.STRING).
-    SHORTTEXT,
+    SHORTTEXT = 52,
     /// For database type BINTEXT;
     /// Used with [`HdbValue::BINARY`](enum.HdbValue.html#variant.BINARY) or
     /// [`HdbValue::BLOB`](enum.HdbValue.html#variant.BLOB).
-    BINTEXT,
+    BINTEXT = 53,
     /// For database type ALPHANUM;
     /// used with [`HdbValue::STRING`](enum.HdbValue.html#variant.STRING).
-    ALPHANUM,
+    ALPHANUM = 55,
     /// For database type LONGDATE;
     /// used with [`HdbValue::LONGDATE`](enum.HdbValue.html#variant.LONGDATE).
-    LONGDATE,
+    LONGDATE = 61,
     /// For database type SECONDDATE;
     /// used with [`HdbValue::SECONDDATE`](enum.HdbValue.html#variant.SECONDDATE).
-    SECONDDATE,
+    SECONDDATE = 62,
     /// For database type DAYDATE;
     /// used with [`HdbValue::DAYDATE`](enum.HdbValue.html#variant.DAYDATE).
-    DAYDATE,
+    DAYDATE = 63,
     /// For database type SECONDTIME;
     /// used with [`HdbValue::SECONDTIME`](enum.HdbValue.html#variant.SECONDTIME).
-    SECONDTIME,
+    SECONDTIME = 64,
     /// For database type GEOMETRY;
     /// used with [`HdbValue::GEOMETRY`](enum.HdbValue.html#variant.GEOMETRY).
-    GEOMETRY,
+    GEOMETRY = 74,
     /// For database type POINT;
     /// used with [`HdbValue::POINT`](enum.HdbValue.html#variant.POINT).
-    POINT,
+    POINT = 75,
     /// Transport format for database type DECIMAL;
     /// used with [`HdbValue::DECIMAL`](enum.HdbValue.html#variant.DECIMAL).
-    FIXED8,
+    FIXED8 = 81,
     /// Transport format for database type DECIMAL;
     /// used with [`HdbValue::DECIMAL`](enum.HdbValue.html#variant.DECIMAL).
-    FIXED12,
+    FIXED12 = 82,
     /// Transport format for database type DECIMAL;
     /// used with [`HdbValue::DECIMAL`](enum.HdbValue.html#variant.DECIMAL).
-    FIXED16,
+    FIXED16 = 76,
 }
 
 impl TypeId {
@@ -171,43 +171,7 @@ impl TypeId {
 
     // hdb protocol uses ids < 128 for non-null values, and ids > 128 for nullable values
     pub(crate) fn type_code(self, nullable: bool) -> u8 {
-        (if nullable { 128 } else { 0 })
-            + match self {
-                TypeId::TINYINT => 1,
-                TypeId::SMALLINT => 2,
-                TypeId::INT => 3,
-                TypeId::BIGINT => 4,
-                TypeId::DECIMAL => 5,
-                TypeId::REAL => 6,
-                TypeId::DOUBLE => 7,
-                TypeId::CHAR => 8,
-                TypeId::VARCHAR => 9,
-                TypeId::NCHAR => 10,
-                TypeId::NVARCHAR => 11,
-                TypeId::BINARY => 12,
-                TypeId::VARBINARY => 13,
-                TypeId::CLOB => 25,
-                TypeId::NCLOB => 26,
-                TypeId::BLOB => 27,
-                TypeId::BOOLEAN => 28,
-                TypeId::STRING => 29,
-                TypeId::NSTRING => 30,
-                TypeId::BLOCATOR => 31,
-                TypeId::BSTRING => 33,
-                TypeId::TEXT => 51,
-                TypeId::SHORTTEXT => 52,
-                TypeId::BINTEXT => 53,
-                TypeId::ALPHANUM => 55,
-                TypeId::LONGDATE => 61,
-                TypeId::SECONDDATE => 62,
-                TypeId::DAYDATE => 63,
-                TypeId::SECONDTIME => 64,
-                TypeId::GEOMETRY => 74,
-                TypeId::POINT => 75,
-                TypeId::FIXED16 => 76,
-                TypeId::FIXED8 => 81,
-                TypeId::FIXED12 => 82,
-            }
+        (if nullable { 128 } else { 0 }) + self as u8
     }
 
     pub(crate) fn matches_value_type(self, value_type: TypeId) -> HdbResult<()> {

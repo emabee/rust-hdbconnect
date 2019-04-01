@@ -87,7 +87,7 @@ impl<'a> Request<'a> {
         w.write_i16::<LittleEndian>(parts_len)?; // I2 Number of contained parts
         w.write_i16::<LittleEndian>(1)?; // I2 Number of this segment, starting with 1
         w.write_i8(1)?; // I1 Segment kind: always 1 = Request
-        w.write_i8(self.request_type.to_i8())?; // I1 "Message type"
+        w.write_i8(self.request_type as i8)?; // I1 "Message type"
         w.write_i8(auto_commit_flag)?; // I1 auto_commit on/off
         w.write_u8(self.command_options)?; // I1 Bit set for options
         for _ in 0..8 {

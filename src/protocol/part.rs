@@ -41,7 +41,7 @@ impl<'a> Part<'a> {
     ) -> HdbResult<u32> {
         debug!("Serializing part of kind {:?}", self.kind);
         // PART HEADER 16 bytes
-        w.write_i8(self.kind.to_i8())?;
+        w.write_i8(self.kind as i8)?;
         w.write_u8(0)?; // U1 Attributes not used in requests
         match self.arg.count()? {
             i if i < i16::MAX as usize => {
@@ -149,8 +149,8 @@ impl<'a> Parts<'a> {
     }
 
     pub fn extract_first_part_of_type(&mut self, part_kind: PartKind) -> Option<Part<'a>> {
-        let part_code = part_kind.to_i8();
-        let part_position = (&self.0).iter().position(|p| p.kind().to_i8() == part_code);
+        let part_code = part_kind as i8;
+        let part_position = (&self.0).iter().position(|p| (p.kind as i8) == part_code);
 
         match part_position {
             Some(pos) => Some(self.0.remove(pos)),
@@ -176,14 +176,14 @@ impl<'a> Parts<'a> {
     }
     pub fn pop_arg_if_kind(&mut self, kind: PartKind) -> Option<Argument<'a>> {
         match self.0.last() {
-            Some(part) if part.kind.to_i8() == kind.to_i8() => { /* escape the borrow check */ }
+            Some(part) if (part.kind as i8) == (kind as i8) => { /* escape the borrow check */ }
             _ => return None,
         }
         Some(self.0.pop().unwrap().arg)
     }
 
     pub fn drop_args_of_kind(&mut self, kind: PartKind) {
-        self.0.retain(|part| part.kind.to_i8() != kind.to_i8());
+        self.0.retain(|part| (part.kind as i8) != (kind as i8));
     }
 
     pub fn ref_inner(&self) -> &Vec<Part<'a>> {

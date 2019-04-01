@@ -2,7 +2,7 @@ use crate::{HdbError, HdbResult};
 
 // Identifies the nature of the statement or functionality that has been
 // prepared or executed. Is documented as Function Code.
-// Irrelevant numbers (ABAP stuff, "reserved") are not listed.
+// Irrelevant numbers (ABAP stuff, "reserved") are omitted.
 #[derive(Debug, Eq, PartialEq)]
 pub enum ReplyType {
     Nil,                       // Nil
@@ -49,14 +49,11 @@ impl ReplyType {
             14 => Ok(ReplyType::Connect),
             15 => Ok(ReplyType::WriteLob),
             16 => Ok(ReplyType::ReadLob),
-            // 17 -> Ping
             18 => Ok(ReplyType::Disconnect),
             19 => Ok(ReplyType::CloseCursor),
             20 => Ok(ReplyType::FindLob),
-            // 21 ABAPSTREAM
             22 => Ok(ReplyType::XaStart),
             23 => Ok(ReplyType::XaJoin),
-            // 24 -> ItabWrite
             25 => Ok(ReplyType::XAControl),
             26 => Ok(ReplyType::XAPrepare),
             27 => Ok(ReplyType::XARecover),
