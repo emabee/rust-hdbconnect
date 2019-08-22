@@ -87,7 +87,7 @@ fn connect_tcp(
             debug!("Trust anchor directory = {}", trust_anchor_dir);
 
             let trust_anchor_files: Vec<PathBuf> = std::fs::read_dir(trust_anchor_dir)?
-                .filter_map(|r_dir_entry| r_dir_entry.ok())
+                .filter_map(Result::ok)
                 .filter(|dir_entry| {
                     dir_entry.file_type().is_ok() && dir_entry.file_type().unwrap().is_file()
                 })

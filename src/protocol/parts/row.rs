@@ -82,7 +82,7 @@ impl Row {
         md: std::sync::Arc<ResultSetMetadata>,
         o_am_rscore: &Option<AmRsCore>,
         am_conn_core: &AmConnCore,
-        rdr: &mut std::io::BufRead,
+        rdr: &mut dyn std::io::BufRead,
     ) -> HdbResult<Row> {
         let no_of_cols = md.number_of_fields();
         let mut values = Vec::<HdbValue>::new();

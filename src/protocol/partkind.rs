@@ -31,8 +31,8 @@ pub enum PartKind {
     FetchSize = 45,             // Number of rows to fetch
     ParameterMetadata = 47,     // Parameter metadata (type and length information)
     ResultSetMetadata = 48,     // Result set metadata (type =  =, name, information)
-    FindLobRequest = 49,        // Request data of FINDLOB message // FIXME is missing
-    FindLobReply = 50,          // Reply data of FINDLOB message // FIXME is missing
+    FindLobRequest = 49,        // Request data of FINDLOB message // TODO is missing
+    FindLobReply = 50,          // Reply data of FINDLOB message // TODO is missing
     ClientInfo = 57,            // Client information values
     TransactionFlags = 64,      // Transaction handling flags
     LobFlags = 68,              // LOB flags

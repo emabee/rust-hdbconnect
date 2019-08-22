@@ -13,10 +13,26 @@ use url::Url;
 ///
 /// An instance of `ConnectParams` can be created in various ways:
 ///
-/// - using the [builder](struct.ConnectParams.html#method.builder)
-/// - using an implementation of `IntoConnectParams`
-///     - implementations are provided for URLs that are represented as `String` or as `Url`
-/// - the shortcut `ConnectParams::from_file` reads the URL from a file
+/// ## Using the [builder](struct.ConnectParams.html#method.builder)
+/// The builder allows specifying all necessary details programmatically.
+///
+/// ### Example with TLS
+///
+/// ```rust,ignore
+/// use hdbconnect::{ConnectParams, ServerCerts};
+/// # fn read_certificate() -> String {unimplemented!()};
+/// let certificate: String = read_certificate();
+/// let connect_params = ConnectParams::builder()
+///    .hostname("the_host")
+///    .port(2222)
+///    .dbuser("my_user")
+///    .password("my_passwd")
+///    .tls_with(ServerCerts::Direct(certificate))
+///    .build()
+///    .unwrap();
+/// ```
+///  
+/// ## Using a URL
 ///
 /// The URL is supposed to have the form
 ///
@@ -43,9 +59,7 @@ use url::Url;
 /// The client locale is used in language-dependent handling within the SAP HANA
 /// database calculation engine.
 ///
-/// If you want to provide the server certificate directly, then
-///
-/// # Example
+/// ### Example
 ///
 /// ```
 /// use hdbconnect::IntoConnectParams;
@@ -53,15 +67,21 @@ use url::Url;
 ///     .into_connect_params()
 ///     .unwrap();
 /// ```
+///
+/// ## Reading the URL from a file
+///
+/// The shortcut [`ConnectParams::from_file`](struct.ConnectParams.html#method.from_file)
+/// reads a URL from a file and converts it into an instance of `ConnectParams`.
+///
 #[derive(Clone)]
 pub struct ConnectParams {
-    #[cfg(feature = "tls")]
-    pub(crate) use_tls: bool,
     pub(crate) host: String,
     pub(crate) addr: String,
     pub(crate) dbuser: String,
     pub(crate) password: SecStr,
     pub(crate) clientlocale: Option<String>,
+    #[cfg(feature = "tls")]
+    pub(crate) use_tls: bool,
     #[cfg(feature = "tls")]
     pub(crate) server_certs: Option<ServerCerts>,
 }
@@ -224,13 +244,13 @@ impl IntoConnectParams for Url {
         }
 
         Ok(ConnectParams {
-            #[cfg(feature = "tls")]
-            use_tls,
             addr: format!("{}:{}", host, port),
             host,
             dbuser,
             password,
             clientlocale,
+            #[cfg(feature = "tls")]
+            use_tls,
             #[cfg(feature = "tls")]
             server_certs,
         })

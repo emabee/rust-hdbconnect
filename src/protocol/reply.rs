@@ -107,7 +107,7 @@ impl Reply {
     pub fn extract_first_arg_of_type(&mut self, part_kind: PartKind) -> Option<Argument<'static>> {
         self.parts
             .extract_first_part_of_type(part_kind)
-            .map(|p| p.into_arg())
+            .map(Part::into_arg)
     }
 
     pub fn into_hdbresponse(mut self, am_conn_core: &mut AmConnCore) -> HdbResult<HdbResponse> {
@@ -201,11 +201,11 @@ impl Reply {
             ReplyType::CloseCursor | ReplyType::Disconnect |
             ReplyType::XAControl | ReplyType::XARecover |
 
-            // FIXME: 2 ReplyTypes that occur only in not yet implemented calls:
+            // TODO: 2 ReplyTypes that occur only in not yet implemented calls:
             ReplyType::FindLob |
             ReplyType::WriteLob |
 
-            // FIXME: 4 ReplyTypes where it is unclear when they occur and what to return:
+            // TODO: 4 ReplyTypes where it is unclear when they occur and what to return:
             ReplyType::XaStart |
             ReplyType::XaJoin |
             ReplyType::XAPrepare => {

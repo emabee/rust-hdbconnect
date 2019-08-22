@@ -1,9 +1,12 @@
 # hdbconnect
 
-[![Merit](http://meritbadge.herokuapp.com/hdbconnect)](https://crates.io/crates/hdbconnect)
-[![Docu](https://docs.rs/hdbconnect/badge.svg)](https://docs.rs/hdbconnect)
-[![Coverage Status](https://coveralls.io/repos/github/PSeitz/rust-hdbconnect/badge.svg?branch=master)](https://coveralls.io/github/PSeitz/rust-hdbconnect?branch=master)
-[![License:MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![crates.io](https://meritbadge.herokuapp.com/hdbconnect)](
+    https://crates.io/crates/hdbconnect)
+[![docs](https://docs.rs/hdbconnect/badge.svg)](
+    https://docs.rs/hdbconnect)
+[![coverage](https://coveralls.io/repos/github/PSeitz/rust-hdbconnect/badge.svg?branch=master)](
+    https://coveralls.io/github/PSeitz/rust-hdbconnect)
+![License](https://img.shields.io/crates/l/hdbconnect.svg)
 
 A pure rust SQL driver for SAP HANA(TM).
 

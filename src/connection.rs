@@ -368,7 +368,7 @@ impl Connection {
 
     /// Returns an implementation of `dist_tx::rm::ResourceManager` that is
     /// based on this connection.
-    pub fn get_resource_manager(&self) -> Box<ResourceManager> {
+    pub fn get_resource_manager(&self) -> Box<dyn ResourceManager> {
         Box::new(new_resource_manager(self.am_conn_core.clone()))
     }
 

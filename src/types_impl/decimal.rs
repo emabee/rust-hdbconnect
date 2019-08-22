@@ -11,7 +11,7 @@ pub fn parse_decimal(
     nullable: bool,
     type_id: TypeId,
     scale: i16,
-    rdr: &mut std::io::BufRead,
+    rdr: &mut dyn std::io::BufRead,
 ) -> HdbResult<HdbValue<'static>> {
     match type_id {
         TypeId::DECIMAL => HdbDecimal::parse_hdb_decimal(nullable, scale, rdr),
@@ -51,7 +51,7 @@ pub fn parse_decimal(
     }
 }
 
-fn parse_null(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<bool> {
+fn parse_null(nullable: bool, rdr: &mut dyn std::io::BufRead) -> HdbResult<bool> {
     let is_null = rdr.read_u8()? == 0;
     if is_null && !nullable {
         Err(HdbError::Impl(
@@ -66,7 +66,7 @@ pub(crate) fn emit_decimal(
     bd: &BigDecimal,
     type_id: TypeId,
     scale: i16,
-    w: &mut std::io::Write,
+    w: &mut dyn std::io::Write,
 ) -> HdbResult<()> {
     match type_id {
         TypeId::DECIMAL => {

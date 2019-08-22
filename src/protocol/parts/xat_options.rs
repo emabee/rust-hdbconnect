@@ -14,7 +14,7 @@ impl XatOptions {
         self.set_value(XatOptionId::NumberOfXid, OptionValue::BIGINT(1));
         self.set_value(
             XatOptionId::XidList,
-            OptionValue::BSTRING(xat_id.as_bytes(true).unwrap(/* FIXME */)),
+            OptionValue::BSTRING(xat_id.as_bytes(true).unwrap(/* TODO */)),
         );
     }
 
@@ -55,7 +55,7 @@ impl XatOptions {
             for (id, value) in self.iter() {
                 if let XatOptionId::XidList = *id {
                     if let OptionValue::BSTRING(ref bytes) = *value {
-                        return Ok(XaTransactionId::parse(bytes, xid_count, true).unwrap(/*FIXME*/));
+                        return Ok(XaTransactionId::parse(bytes, xid_count, true).unwrap(/*TODO*/));
                     }
                 }
             }

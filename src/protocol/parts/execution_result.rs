@@ -5,7 +5,7 @@ use byteorder::{LittleEndian, ReadBytesExt};
 use std::fmt;
 
 /// Describes the success of a command.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum ExecutionResult {
     /// Number of rows that were affected by the successful execution.
     RowsAffected(usize),

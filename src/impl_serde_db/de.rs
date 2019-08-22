@@ -313,7 +313,7 @@ fn str_from<T: fmt::Display>(t: &T) -> String {
     format!("{}", t)
 }
 
-// FIXME: improve this implementation
+// TODO improve this implementation
 impl From<HdbError> for DeserializationError {
     fn from(e: HdbError) -> DeserializationError {
         DeserializationError::Usage(e.to_string())

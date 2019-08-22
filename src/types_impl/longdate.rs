@@ -98,7 +98,7 @@ impl LongDate {
 
 pub(crate) fn parse_longdate(
     nullable: bool,
-    rdr: &mut std::io::BufRead,
+    rdr: &mut dyn std::io::BufRead,
 ) -> HdbResult<HdbValue<'static>> {
     let i = rdr.read_i64::<LittleEndian>()?;
     if i == NULL_REPRESENTATION {

@@ -38,7 +38,7 @@ impl CResourceManager for HdbCResourceManager {
         // error if self.isDistributedTransaction()
         // error if self.is_xat_in_progress()
 
-        // FIXME later: xa seems only to work on primary!!
+        // TODO: xa seems only to work on primary!!
         // ClientConnectionID ccid = getPrimaryConnection();
 
         self.xa_send_receive(RequestType::XAStart, id, flags)

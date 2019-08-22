@@ -74,6 +74,6 @@ impl r2d2::ManageConnection for ConnectionManager {
     // Implementations that do not support this kind of fast health check may simply return false.
     fn has_broken(&self, _conn: &mut Self::Connection) -> bool {
         trace!("ConnectionManager::has_broken()");
-        false // TODO later
+        false // TODO
     }
 }

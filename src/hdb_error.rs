@@ -14,7 +14,6 @@ pub type HdbResult<T> = result::Result<T, HdbError>;
 /// Represents all possible errors that can occur in hdbconnect.
 #[derive(Debug)]
 pub enum HdbError {
-    // FIXME subsume into Deserialization?? -> has to be done in serde_db!
     /// Conversion of single db value to rust type failed.
     Conversion(ConversionError),
 
@@ -114,7 +113,7 @@ impl error::Error for HdbError {
         }
     }
 
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
             HdbError::Cesu8(ref e) => Some(e),
             HdbError::Conversion(ref error) => Some(error),

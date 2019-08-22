@@ -109,7 +109,7 @@ impl<'a> ConnectionCore {
             stmt_ctx.get_server_cpu_time(),
             stmt_ctx.get_server_memory_usage(),
         );
-        // FIXME do not ignore the other content of StatementContext
+        // todo do not ignore the other content of StatementContext
         // StatementContextId::SchemaName => 3,
         // StatementContextId::FlagSet => 4,
         // StatementContextId::QueryTimeout => 5,
@@ -290,6 +290,7 @@ impl<'a> ConnectionCore {
                     let (_, argument) = error_part.into_elements();
                     if let Argument::Error(server_errors) = argument {
                         // filter out warnings and add them to conn_core
+                        #[allow(clippy::unnecessary_filter_map)]
                         let errors: Vec<ServerError> = server_errors
                             .into_iter()
                             .filter_map(|se| match se.severity() {

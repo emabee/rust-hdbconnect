@@ -122,7 +122,7 @@ impl<'a> Part<'a> {
 }
 
 fn parse_part_header(
-    rdr: &mut std::io::BufRead,
+    rdr: &mut dyn std::io::BufRead,
 ) -> HdbResult<(PartKind, PartAttributes, usize, usize)> {
     // PART HEADER: 16 bytes
     let kind = PartKind::from_i8(rdr.read_i8()?)?; // I1

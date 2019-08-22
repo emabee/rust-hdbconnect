@@ -82,7 +82,6 @@ impl NCLob {
     /// # }
     /// ```
     pub fn into_string(self) -> HdbResult<String> {
-        trace!("NCLob::into_string()");
         self.0.into_string()
     }
 
@@ -260,7 +259,7 @@ impl NCLobHandle {
     }
 
     fn load_complete(&mut self) -> HdbResult<()> {
-        trace!("load_complete()");
+        trace!("NCLobHandle::load_complete()");
         while !self.is_data_complete {
             self.fetch_next_chunk()?;
         }
@@ -273,7 +272,7 @@ impl NCLobHandle {
 
     // Converts a NCLobHandle into a String containing its data.
     fn into_string(mut self) -> HdbResult<String> {
-        trace!("into_string()");
+        trace!("NCLobHandle::into_string()");
         self.load_complete()?;
         Ok(self.utf8)
     }

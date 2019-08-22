@@ -69,7 +69,7 @@ pub enum HdbValue<'a> {
 
     /// Used for streaming LOBs to the database (see
     /// [`PreparedStatement::execute_row()`](struct.PreparedStatement.html#method.execute_row)).
-    LOBSTREAM(Option<std::sync::Arc<std::sync::Mutex<std::io::Read + Send>>>),
+    LOBSTREAM(Option<std::sync::Arc<std::sync::Mutex<dyn std::io::Read + Send>>>),
 
     /// BOOLEAN stores boolean values, which are TRUE or FALSE.
     BOOLEAN(bool),
@@ -192,7 +192,11 @@ impl<'a> HdbValue<'a> {
     }
 
     // returns true if the value is a null value, false otherwise
-    fn emit_type_id(&self, requested_type_id: TypeId, w: &mut std::io::Write) -> HdbResult<bool> {
+    fn emit_type_id(
+        &self,
+        requested_type_id: TypeId,
+        w: &mut dyn std::io::Write,
+    ) -> HdbResult<bool> {
         let is_null = self.is_null();
         let type_code = self.type_id_for_emit(requested_type_id)?.type_code(is_null);
         w.write_u8(type_code)?;
@@ -294,7 +298,7 @@ impl HdbValue<'static> {
         nullable: bool,
         am_conn_core: &AmConnCore,
         o_am_rscore: &Option<AmRsCore>,
-        rdr: &mut std::io::BufRead,
+        rdr: &mut dyn std::io::BufRead,
     ) -> HdbResult<HdbValue<'static>> {
         let t = type_id;
         match t {
@@ -349,7 +353,7 @@ impl HdbValue<'static> {
     }
 }
 
-fn emit_bool(b: bool, w: &mut std::io::Write) -> HdbResult<()> {
+fn emit_bool(b: bool, w: &mut dyn std::io::Write) -> HdbResult<()> {
     // this is the version that works with dataformat_version2 = 4
     // w.write_u8(b as u8)?;
 
@@ -362,7 +366,7 @@ fn emit_bool(b: bool, w: &mut std::io::Write) -> HdbResult<()> {
 // - returns Ok(true) if the value is NULL
 // - returns Ok(false) if a normal value is to be expected
 // - throws an error if NULL is found but nullable is false
-fn parse_null(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<bool> {
+fn parse_null(nullable: bool, rdr: &mut dyn std::io::BufRead) -> HdbResult<bool> {
     let is_null = rdr.read_u8()? == 0;
     if is_null && !nullable {
         Err(HdbError::Impl(
@@ -373,7 +377,7 @@ fn parse_null(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<bool> {
     }
 }
 
-fn parse_tinyint(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValue<'static>> {
+fn parse_tinyint(nullable: bool, rdr: &mut dyn std::io::BufRead) -> HdbResult<HdbValue<'static>> {
     Ok(if parse_null(nullable, rdr)? {
         HdbValue::NULL
     } else {
@@ -381,21 +385,21 @@ fn parse_tinyint(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbVal
     })
 }
 
-fn parse_smallint(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValue<'static>> {
+fn parse_smallint(nullable: bool, rdr: &mut dyn std::io::BufRead) -> HdbResult<HdbValue<'static>> {
     Ok(if parse_null(nullable, rdr)? {
         HdbValue::NULL
     } else {
         HdbValue::SMALLINT(rdr.read_i16::<LittleEndian>()?)
     })
 }
-fn parse_int(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValue<'static>> {
+fn parse_int(nullable: bool, rdr: &mut dyn std::io::BufRead) -> HdbResult<HdbValue<'static>> {
     Ok(if parse_null(nullable, rdr)? {
         HdbValue::NULL
     } else {
         HdbValue::INT(rdr.read_i32::<LittleEndian>()?)
     })
 }
-fn parse_bigint(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValue<'static>> {
+fn parse_bigint(nullable: bool, rdr: &mut dyn std::io::BufRead) -> HdbResult<HdbValue<'static>> {
     Ok(if parse_null(nullable, rdr)? {
         HdbValue::NULL
     } else {
@@ -403,7 +407,7 @@ fn parse_bigint(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValu
     })
 }
 
-fn parse_real(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValue<'static>> {
+fn parse_real(nullable: bool, rdr: &mut dyn std::io::BufRead) -> HdbResult<HdbValue<'static>> {
     let mut vec: Vec<u8> = std::iter::repeat(0u8).take(4).collect();
     rdr.read_exact(&mut vec[..])?;
     let mut cursor = std::io::Cursor::new(&vec);
@@ -424,7 +428,7 @@ fn parse_real(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValue<
     }
 }
 
-fn parse_double(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValue<'static>> {
+fn parse_double(nullable: bool, rdr: &mut dyn std::io::BufRead) -> HdbResult<HdbValue<'static>> {
     let mut vec: Vec<u8> = std::iter::repeat(0u8).take(8).collect();
     rdr.read_exact(&mut vec[..])?;
     let mut cursor = std::io::Cursor::new(&vec);
@@ -445,7 +449,7 @@ fn parse_double(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValu
     }
 }
 
-fn parse_bool(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValue<'static>> {
+fn parse_bool(nullable: bool, rdr: &mut dyn std::io::BufRead) -> HdbResult<HdbValue<'static>> {
     //(0x00 = FALSE, 0x01 = NULL, 0x02 = TRUE)
     match rdr.read_u8()? {
         0 => Ok(HdbValue::BOOLEAN(false)),
@@ -461,7 +465,7 @@ fn parse_bool(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValue<
     }
 }
 
-fn parse_alphanum(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbValue<'static>> {
+fn parse_alphanum(nullable: bool, rdr: &mut dyn std::io::BufRead) -> HdbResult<HdbValue<'static>> {
     let indicator1 = rdr.read_u8()?;
     if indicator1 == LENGTH_INDICATOR_NULL {
         // value is null
@@ -497,7 +501,7 @@ fn parse_alphanum(nullable: bool, rdr: &mut std::io::BufRead) -> HdbResult<HdbVa
 fn parse_string(
     nullable: bool,
     type_id: TypeId,
-    rdr: &mut std::io::BufRead,
+    rdr: &mut dyn std::io::BufRead,
 ) -> HdbResult<HdbValue<'static>> {
     let l8 = rdr.read_u8()?; // B1
     let is_null = l8 == LENGTH_INDICATOR_NULL;
@@ -528,7 +532,7 @@ fn parse_string(
 fn parse_binary(
     nullable: bool,
     type_id: TypeId,
-    rdr: &mut std::io::BufRead,
+    rdr: &mut dyn std::io::BufRead,
 ) -> HdbResult<HdbValue<'static>> {
     let l8 = rdr.read_u8()?; // B1
     let is_null = l8 == LENGTH_INDICATOR_NULL;
@@ -552,7 +556,7 @@ fn parse_binary(
     }
 }
 
-fn parse_length_and_bytes(l8: u8, rdr: &mut std::io::BufRead) -> HdbResult<Vec<u8>> {
+fn parse_length_and_bytes(l8: u8, rdr: &mut dyn std::io::BufRead) -> HdbResult<Vec<u8>> {
     let len = match l8 {
         l if l <= MAX_1_BYTE_LENGTH => l8 as usize,
         LENGTH_INDICATOR_2BYTE => rdr.read_i16::<LittleEndian>()? as usize, // I2
@@ -579,11 +583,11 @@ pub(crate) fn binary_length(l: usize) -> usize {
     }
 }
 
-pub(crate) fn emit_length_and_string(s: &str, w: &mut std::io::Write) -> HdbResult<()> {
+pub(crate) fn emit_length_and_string(s: &str, w: &mut dyn std::io::Write) -> HdbResult<()> {
     emit_length_and_bytes(&cesu8::to_cesu8(s), w)
 }
 
-fn emit_length_and_bytes(v: &[u8], w: &mut std::io::Write) -> HdbResult<()> {
+fn emit_length_and_bytes(v: &[u8], w: &mut dyn std::io::Write) -> HdbResult<()> {
     match v.len() {
         l if l <= MAX_1_BYTE_LENGTH as usize => {
             w.write_u8(l as u8)?; // B1           LENGTH OF VALUE
@@ -653,7 +657,7 @@ impl<'a> std::fmt::Debug for HdbValue<'a> {
     }
 }
 
-// FIXME implement more of these...
+// TODO implement more of these...
 impl<'a> std::cmp::PartialEq<i32> for HdbValue<'a> {
     fn eq(&self, rhs: &i32) -> bool {
         match self {

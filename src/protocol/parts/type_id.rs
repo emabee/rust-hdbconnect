@@ -138,7 +138,7 @@ impl TypeId {
             // 34 - 46: docu unclear, likely unused
             // 47 => SMALLDECIMAL not needed on client-side
             // 48, 49: ABAP only?
-            // ARRAY: 50  FIXME not yet implemented
+            // ARRAY: 50  TODO not yet implemented
             51 => TypeId::TEXT,
             52 => TypeId::SHORTTEXT,
             53 => TypeId::BINTEXT,
@@ -152,19 +152,19 @@ impl TypeId {
             64 => TypeId::SECONDTIME,
             // 65 - 80: Reserved, do not use
 
-            // TypeCode_CLOCATOR                  =70,  // FIXME
+            // TypeCode_CLOCATOR                  =70,  // TODO
             // TypeCode_BLOB_DISK_RESERVED        =71,
             // TypeCode_CLOB_DISK_RESERVED        =72,
             // TypeCode_NCLOB_DISK_RESERVE        =73,
             74 => TypeId::GEOMETRY,
             75 => TypeId::POINT,
             76 => TypeId::FIXED16,
-            // TypeCode_ABAP_ITAB                 =77,  // FIXME
-            // TypeCode_RECORD_ROW_STORE         = 78,  // FIXME
-            // TypeCode_RECORD_COLUMN_STORE      = 79,  // FIXME
+            // TypeCode_ABAP_ITAB                 =77,  // TODO
+            // TypeCode_RECORD_ROW_STORE         = 78,  // TODO
+            // TypeCode_RECORD_COLUMN_STORE      = 79,  // TODO
             81 => TypeId::FIXED8,
             82 => TypeId::FIXED12,
-            // TypeCode_CIPHERTEXT               = 90,  // FIXME
+            // TypeCode_CIPHERTEXT               = 90,  // TODO
             tc => return Err(HdbError::Impl(format!("Illegal type code {}", tc))),
         })
     }

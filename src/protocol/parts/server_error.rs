@@ -52,6 +52,7 @@ impl fmt::Display for Severity {
 }
 
 /// Describes an error that is reported from the database.
+#[derive(Clone)]
 pub struct ServerError {
     code: i32,
     position: i32,

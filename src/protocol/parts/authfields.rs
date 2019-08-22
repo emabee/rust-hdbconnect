@@ -22,7 +22,7 @@ impl AuthFields {
         self.0.len()
     }
     pub fn pop(&mut self) -> Option<Vec<u8>> {
-        self.0.pop().map(|af| af.data())
+        self.0.pop().map(AuthField::data)
     }
 
     pub fn size(&self) -> usize {
@@ -85,7 +85,7 @@ impl AuthField {
             255 => {
                 len = rdr.read_u16::<LittleEndian>()? as usize; // (B1+)I2
             }
-            251...254 => {
+            251..=254 => {
                 return Err(HdbError::Impl(format!(
                     "Unknown length indicator for AuthField: {}",
                     len

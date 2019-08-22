@@ -403,7 +403,7 @@ impl ResultSet {
         }
     }
 
-    fn parse_rows(&mut self, no_of_rows: usize, rdr: &mut std::io::BufRead) -> HdbResult<()> {
+    fn parse_rows(&mut self, no_of_rows: usize, rdr: &mut dyn std::io::BufRead) -> HdbResult<()> {
         self.next_rows.reserve(no_of_rows);
         let no_of_cols = self.metadata.number_of_fields();
         debug!("parse_rows(): {} lines, {} columns", no_of_rows, no_of_cols);

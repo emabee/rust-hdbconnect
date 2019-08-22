@@ -5,7 +5,7 @@ use cesu8;
 use std::iter::repeat;
 
 /// Read n bytes from a `BufRead`, return as Vec<u8>
-pub fn parse_bytes(len: usize, rdr: &mut std::io::BufRead) -> HdbResult<Vec<u8>> {
+pub fn parse_bytes(len: usize, rdr: &mut dyn std::io::BufRead) -> HdbResult<Vec<u8>> {
     let mut vec: Vec<u8> = repeat(255u8).take(len).collect();
     {
         let rf: &mut [u8] = &mut vec;
@@ -14,7 +14,7 @@ pub fn parse_bytes(len: usize, rdr: &mut std::io::BufRead) -> HdbResult<Vec<u8>>
     Ok(vec)
 }
 
-pub fn skip_bytes(n: usize, rdr: &mut std::io::BufRead) -> HdbResult<()> {
+pub fn skip_bytes(n: usize, rdr: &mut dyn std::io::BufRead) -> HdbResult<()> {
     for _ in 0..n {
         rdr.read_u8()?;
     }
@@ -48,7 +48,7 @@ pub fn cesu8_length(s: &str) -> usize {
 
 pub fn is_utf8_char_start(b: u8) -> bool {
     match b {
-        0x00...0x7F | 0xC0...0xDF | 0xE0...0xEF | 0xF0...0xF7 => true,
+        0x00..=0x7F | 0xC0..=0xDF | 0xE0..=0xEF | 0xF0..=0xF7 => true,
         _ => false,
     }
 }
@@ -78,7 +78,7 @@ pub fn to_string_and_surrogate(cesu8: Vec<u8>) -> HdbResult<(String, Option<Vec<
 pub fn cesu8_to_string_and_tail(mut cesu8: Vec<u8>) -> HdbResult<(String, Vec<u8>)> {
     let cesu8_length = cesu8.len();
     let start = match cesu8_length {
-        0...7 => 0,
+        0..=7 => 0,
         len => len - 7,
     };
 
@@ -90,7 +90,7 @@ pub fn cesu8_to_string_and_tail(mut cesu8: Vec<u8>) -> HdbResult<(String, Vec<u8
 pub fn utf8_to_cesu8_and_utf8_tail(mut utf8: Vec<u8>) -> HdbResult<(Vec<u8>, Vec<u8>)> {
     let utf8_length = utf8.len();
     let start = match utf8_length {
-        0...5 => 0,
+        0..=5 => 0,
         len => len - 5,
     };
 
@@ -106,8 +106,8 @@ pub fn utf8_to_cesu8_and_utf8_tail(mut utf8: Vec<u8>) -> HdbResult<(Vec<u8>, Vec
 // consistent cesu-8 that can be converted into utf-8
 fn get_cesu8_tail_len(bytes: &[u8]) -> HdbResult<usize> {
     match bytes.last() {
-        None | Some(0...127) => Ok(0),
-        Some(0xC0...0xDF) => Ok(1),
+        None | Some(0..=127) => Ok(0),
+        Some(0xC0..=0xDF) => Ok(1),
         Some(_) => {
             let len = bytes.len();
             for i in 0..len - 1 {
@@ -142,8 +142,8 @@ fn get_cesu8_tail_len(bytes: &[u8]) -> HdbResult<usize> {
 
 fn get_utf8_tail_len(bytes: &[u8]) -> HdbResult<usize> {
     match bytes.last() {
-        None | Some(0...127) => Ok(0),
-        Some(0xC0...0xDF) => Ok(1),
+        None | Some(0..=127) => Ok(0),
+        Some(0xC0..=0xDF) => Ok(1),
         Some(_) => {
             let len = bytes.len();
             for i in 0..len - 1 {
@@ -254,16 +254,16 @@ fn get_cesu8_char_start(bytes: &[u8]) -> Cesu8CharType {
     match bytes.len() {
         0 => Cesu8CharType::Empty,
         1 => match bytes[0] {
-            0x00...0x7F => Cesu8CharType::One,
-            0xC0...0xDF => Cesu8CharType::Two,
+            0x00..=0x7F => Cesu8CharType::One,
+            0xC0..=0xDF => Cesu8CharType::Two,
             _ => Cesu8CharType::TooShort,
         },
         _ => match (bytes[0], bytes[1]) {
-            (0x00...0x7F, _) => Cesu8CharType::One,
-            (0xC0...0xDF, _) => Cesu8CharType::Two,
-            (0xED, 0xA0...0xAF) => Cesu8CharType::FirstHalfOfSurrogate,
-            (0xED, 0xB0...0xBF) => Cesu8CharType::SecondHalfOfSurrogate,
-            (0xE0...0xEF, 0x80...0xBF) => Cesu8CharType::Three,
+            (0x00..=0x7F, _) => Cesu8CharType::One,
+            (0xC0..=0xDF, _) => Cesu8CharType::Two,
+            (0xED, 0xA0..=0xAF) => Cesu8CharType::FirstHalfOfSurrogate,
+            (0xED, 0xB0..=0xBF) => Cesu8CharType::SecondHalfOfSurrogate,
+            (0xE0..=0xEF, 0x80..=0xBF) => Cesu8CharType::Three,
             (_, _) => Cesu8CharType::NotAStart,
         },
     }

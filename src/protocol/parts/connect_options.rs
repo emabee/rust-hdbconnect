@@ -121,9 +121,9 @@ impl ConnectOptions {
                 | ConnOptId::ItabParameter
                 | ConnOptId::ClientDistributionMode
                 | ConnOptId::ClientInfoNullValueOK
+                | ConnOptId::ClientReconnectWaitTimeout
                 | ConnOptId::FlagSet1 => {
-                    let old_value = old_co.get_value(&k);
-                    match old_value {
+                    match old_co.get_value(&k) {
                         Some(old_value) => {
                             if *old_value != v {
                                 debug!(
@@ -481,6 +481,8 @@ pub enum ConnOptId {
     ClientReconnectWaitTimeout,        // 51 // Client reconnection wait timeout
     OriginalAnchorConnectionID,        // 52 // ... to notify client's reconnect
     FlagSet1,                          // 53 // Flags for aggregating several options
+    TopologyNetworkGroup,              // 54 // Sent by client to choose topology mapping
+    IPAddress,                         // 55 // IP Address of the sender
     __Unexpected__(u8),
 }
 
@@ -541,6 +543,9 @@ impl OptionId<ConnOptId> for ConnOptId {
             ConnOptId::ClientReconnectWaitTimeout => 51,
             ConnOptId::OriginalAnchorConnectionID => 52,
             ConnOptId::FlagSet1 => 53,
+            ConnOptId::TopologyNetworkGroup => 54,
+            ConnOptId::IPAddress => 55,
+
             ConnOptId::__Unexpected__(n) => n,
         }
     }
@@ -601,6 +606,8 @@ impl OptionId<ConnOptId> for ConnOptId {
             51 => ConnOptId::ClientReconnectWaitTimeout,
             52 => ConnOptId::OriginalAnchorConnectionID,
             53 => ConnOptId::FlagSet1,
+            54 => ConnOptId::TopologyNetworkGroup,
+            55 => ConnOptId::IPAddress,
             val => {
                 warn!("Unsupported value for ConnOptId received: {}", val);
                 ConnOptId::__Unexpected__(val)
