@@ -33,7 +33,7 @@ pub struct HdbResponse {
 
     /// Parameter metadata, if any.
     ///
-    /// When executing prepared statements, the metadata of input parameters are returned here.
+    /// When executing prepared statements, the metadata of output parameters are returned here.
     parameter_metadata: Option<Vec<ParameterDescriptor>>,
 }
 

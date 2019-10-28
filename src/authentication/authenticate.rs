@@ -16,7 +16,6 @@ pub(crate) fn authenticate(
     am_conn_core: &mut AmConnCore,
     db_user: &str,
     password: &SecStr,
-    clientlocale: &Option<String>,
 ) -> HdbResult<()> {
     trace!("authenticate()");
 
@@ -42,13 +41,12 @@ pub(crate) fn authenticate(
         am_conn_core,
         db_user,
         password,
-        clientlocale,
         chosen_authenticator,
         &server_challenge_data,
     )?;
 
     let mut conn_core = am_conn_core.lock()?;
-    conn_core.set_authenticated(true);
+    conn_core.set_authenticated();
 
     Ok(())
 }

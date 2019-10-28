@@ -7,12 +7,10 @@ use crate::protocol::part::Part;
 use crate::protocol::partkind::PartKind;
 use crate::protocol::parts::authfields::AuthFields;
 use crate::protocol::parts::client_context::ClientContext;
-use crate::protocol::parts::connect_options::ConnectOptions;
 use crate::protocol::reply_type::ReplyType;
 use crate::protocol::request::Request;
 use crate::protocol::request_type::RequestType;
 use secstr::SecStr;
-use username;
 
 pub(crate) fn first_auth_request(
     am_conn_core: &mut AmConnCore,
@@ -64,7 +62,6 @@ pub(crate) fn second_auth_request(
     am_conn_core: &mut AmConnCore,
     db_user: &str,
     password: &SecStr,
-    clientlocale: &Option<String>,
     mut chosen_authenticator: Box<dyn Authenticator>,
     server_challenge_data: &[u8],
 ) -> HdbResult<()> {
@@ -81,11 +78,9 @@ pub(crate) fn second_auth_request(
         Argument::Auth(auth_fields),
     ));
 
-    // how about e.g. TABLEOUTPUTPARAMETER and DESCRIBETABLEOUTPUTPARAMETER?
-    let sent_co = ConnectOptions::for_server(clientlocale, get_os_user());
     request2.push(Part::new(
         PartKind::ConnectOptions,
-        Argument::ConnectOptions(sent_co.clone()),
+        Argument::ConnectOptions(am_conn_core.lock()?.connect_options().clone()),
     ));
 
     let mut reply = am_conn_core.send(request2)?;
@@ -104,9 +99,9 @@ pub(crate) fn second_auth_request(
     }
 
     match reply.parts.pop_arg_if_kind(PartKind::ConnectOptions) {
-        Some(Argument::ConnectOptions(received_co)) => {
-            conn_core.digest_server_connect_options(received_co, sent_co)?
-        }
+        Some(Argument::ConnectOptions(received_co)) => conn_core
+            .connect_options_mut()
+            .digest_server_connect_options(received_co)?,
         _ => {
             return Err(HdbError::Impl(
                 "second_auth_request(): expected ConnectOptions part".to_owned(),
@@ -131,10 +126,4 @@ pub(crate) fn second_auth_request(
             "second_auth_request(): expected Authentication part".to_owned(),
         )),
     }
-}
-
-fn get_os_user() -> String {
-    let os_user = username::get_user_name().unwrap_or_default();
-    trace!("OS user: {}", os_user);
-    os_user
 }

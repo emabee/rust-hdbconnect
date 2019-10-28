@@ -143,8 +143,11 @@ impl HdbCResourceManager {
         self.xa_send_receive_impl(request_type, id, flag)
             .map(|opt| opt.unwrap_or(RmRc::Ok))
             .map_err(|hdb_error| {
-                if let HdbError::DbError(ref se) = hdb_error {
-                    return RmError::new(error_code_from_hana_code(se.code()), se.text().clone());
+                if let HdbError::DbError(ref server_error) = hdb_error {
+                    return RmError::new(
+                        error_code_from_hana_code(server_error.code()),
+                        server_error.text().to_string(),
+                    );
                 } else if let HdbError::MixedResults(_) = hdb_error {
                     return RmError::new(ErrorCode::RmError, "HdbError::MixedResults".to_string());
                 };

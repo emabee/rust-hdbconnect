@@ -216,7 +216,7 @@ impl<'a> Argument<'a> {
         o_rs: &mut Option<&mut ResultSet>,
         rdr: &mut T,
     ) -> HdbResult<Argument<'a>> {
-        trace!("Entering parse(no_of_args={}, kind={:?})", no_of_args, kind);
+        trace!("parse(no_of_args={}, kind={:?})", no_of_args, kind);
 
         let arg = match kind {
             PartKind::Authentication => Argument::Auth(AuthFields::parse(rdr)?),

@@ -72,16 +72,16 @@ impl ServerError {
         self.position
     }
     /// Returns the Severity of the error.
-    pub fn severity(&self) -> Severity {
-        self.severity.clone()
+    pub fn severity(&self) -> &Severity {
+        &self.severity
     }
     /// Returns the SQL state of the error.
-    pub fn sqlstate(&self) -> Vec<u8> {
-        self.sqlstate.clone()
+    pub fn sqlstate(&self) -> &[u8] {
+        &self.sqlstate
     }
     /// Returns the description of the error.
-    pub fn text(&self) -> String {
-        self.text.clone()
+    pub fn text(&self) -> &str {
+        &self.text
     }
 
     pub(crate) fn new(
@@ -123,17 +123,6 @@ impl ServerError {
 
         Ok(server_errors)
     }
-
-    pub(crate) fn to_string(&self) -> String {
-        format!(
-            "{} [code: {}, sql state: {}] at position {}: \"{}\"",
-            self.severity,
-            self.code,
-            String::from_utf8_lossy(&self.sqlstate),
-            self.position,
-            self.text
-        )
-    }
 }
 
 impl Error for ServerError {}
@@ -142,7 +131,8 @@ impl fmt::Display for ServerError {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(
             fmt,
-            r#"code: {}, sql state: {}, position: {}, msg: "{}""#,
+            r#"{} [code: {}, sql state: {}] at position: {}: "{}""#,
+            self.severity,
             self.code,
             String::from_utf8_lossy(&self.sqlstate),
             self.position(),

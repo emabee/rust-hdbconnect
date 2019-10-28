@@ -7,11 +7,13 @@ use std::u32;
 #[derive(Debug)]
 pub(crate) struct ParameterDescriptors(Vec<ParameterDescriptor>);
 impl ParameterDescriptors {
+    // returns the in and inout parameters
     pub fn iter_in(&self) -> impl std::iter::Iterator<Item = &ParameterDescriptor> {
         self.0.iter().filter(|ms| {
             (ms.direction == ParameterDirection::IN) | (ms.direction == ParameterDirection::INOUT)
         })
     }
+    // returns the out and inout parameters
     pub fn iter_out(&self) -> impl std::iter::Iterator<Item = &ParameterDescriptor> {
         self.0.iter().filter(|ms| {
             (ms.direction == ParameterDirection::OUT) | (ms.direction == ParameterDirection::INOUT)

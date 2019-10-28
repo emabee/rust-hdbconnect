@@ -86,7 +86,7 @@ impl<'a> Part<'a> {
         last: bool,
         rdr: &mut T,
     ) -> HdbResult<Part<'static>> {
-        trace!("Entering parse()");
+        trace!("parse()");
         let (kind, attributes, arg_size, no_of_args) = parse_part_header(rdr)?;
         debug!(
             "parse() found part of kind {:?} with attributes {:?}, arg_size {} and no_of_args {}",

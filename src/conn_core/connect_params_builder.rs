@@ -172,5 +172,4 @@ mod test {
 
         assert_eq!(connect_params.dbuser(), "MEIER");
     }
-
 }

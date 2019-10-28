@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.16.0] 2019-10-28
+
+Add convenience method Connection::prepare_and_execute().
+
+Incompatible: revise API of OutputParameters: 
+allow iterating and using deserialization with `serde_db`, revise method names.
+
+Incompatible: Avoid cloning in accessors of ServerError.
+
 ## [0.15.2] 2019-03-05
 
 Add possibility to set the lob-write-length.

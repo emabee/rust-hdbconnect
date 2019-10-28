@@ -45,6 +45,7 @@ pub(crate) struct ConnectionCore {
 
 impl<'a> ConnectionCore {
     pub(crate) fn try_new(params: ConnectParams) -> HdbResult<ConnectionCore> {
+        let connect_options = ConnectOptions::for_server(params.clientlocale(), get_os_user());
         let mut buffalo = Buffalo::try_new(params)?;
         initial_request::send_and_receive(&mut buffalo)?;
 
@@ -61,7 +62,7 @@ impl<'a> ConnectionCore {
             client_info_touched: false,
             session_state: Default::default(),
             statement_sequence: None,
-            connect_options: Default::default(),
+            connect_options,
             topology: None,
             warnings: Vec::<ServerError>::new(),
             buffalo,
@@ -162,21 +163,12 @@ impl<'a> ConnectionCore {
         self.topology = Some(topology);
     }
 
-    pub(crate) fn digest_server_connect_options(
-        &mut self,
-        new_conn_opts: ConnectOptions,
-        old_conn_opts: ConnectOptions,
-    ) -> HdbResult<()> {
-        self.connect_options
-            .digest_server_connect_options(new_conn_opts, old_conn_opts)
-    }
-
     pub(crate) fn dump_connect_options(&self) -> String {
         self.connect_options().to_string()
     }
 
-    pub(crate) fn set_authenticated(&mut self, authenticated: bool) {
-        self.authenticated = authenticated;
+    pub(crate) fn set_authenticated(&mut self) {
+        self.authenticated = true;
     }
 
     pub(crate) fn statement_sequence(&self) -> &Option<i64> {
@@ -222,6 +214,10 @@ impl<'a> ConnectionCore {
 
     pub(crate) fn connect_options(&self) -> &ConnectOptions {
         &self.connect_options
+    }
+
+    pub(crate) fn connect_options_mut(&mut self) -> &mut ConnectOptions {
+        &mut self.connect_options
     }
 
     pub(crate) fn roundtrip(
@@ -398,4 +394,10 @@ impl Drop for ConnectionCore {
             warn!("Disconnect request failed with {:?}", e);
         }
     }
+}
+
+fn get_os_user() -> String {
+    let os_user = username::get_user_name().unwrap_or_default();
+    trace!("OS user: {}", os_user);
+    os_user
 }

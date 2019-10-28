@@ -6,98 +6,44 @@ use crate::protocol::parts::option_value::OptionValue;
 // It is used during authentication, both in requests and replies.
 pub(crate) type ConnectOptions = OptionPart<ConnOptId>;
 
-// Methods to send information to the server.
 impl ConnectOptions {
     pub fn for_server(locale: &Option<String>, os_user: String) -> ConnectOptions {
-        let connopts = ConnectOptions::default()
-            //.set_complete_array_execution(true)
-            //.set_row_slot_image_parameter(true)
-            //.set_enable_array_type(true)
-            // .set_select_for_update_ok(true)
-            .set_dataformat_version2(8)
-            .set_client_locale(locale)
-            .set_os_user(os_user);
+        let mut connopts = ConnectOptions::default();
+
+        let mut set_opt = |id: ConnOptId, value: OptionValue| {
+            debug!("Sending ConnectionOption to server: {:?} = {:?}", id, value);
+            connopts.set_value(id, value);
+        };
+
+        // set_opt(ConnOptId::CompleteArrayExecution, OptionValue::BOOLEAN(true));
+        // set_opt(ConnOptId::RowSlotImageParameter, OptionValue::BOOLEAN(true));
+        // set_opt(ConnOptId::EnableArrayType, OptionValue::BOOLEAN(true));
+        // set_opt(ConnOptId::SelectForUpdateOK, OptionValue::BOOLEAN(true));
+        // how about e.g. TABLEOUTPUTPARAMETER and DESCRIBETABLEOUTPUTPARAMETER?
+        set_opt(ConnOptId::DataFormatVersion2, OptionValue::INT(8));
+        set_opt(ConnOptId::OSUser, OptionValue::STRING(os_user));
+
+        if let Some(cl) = locale {
+            set_opt(ConnOptId::ClientLocale, OptionValue::STRING(cl.clone()));
+        }
+
         if cfg!(feature = "alpha_routing") {
             warn!("Feature alpha_routing is active!");
-            connopts
-                .set_distribution_enabled(true)
-                .set_client_distribution_mode(0)
-                .set_distribution_protocol_version(1)
+            set_opt(ConnOptId::DistributionEnabled, OptionValue::BOOLEAN(true));
+            set_opt(ConnOptId::ClientDistributionMode, OptionValue::INT(0));
+            set_opt(ConnOptId::DistributionProtocolVersion, OptionValue::INT(1));
         } else {
             debug!("Feature alpha_routing is not active.");
-            connopts
         }
+
+        connopts
     }
 
-    // fn set_complete_array_execution(mut self, b: bool) -> ConnectOptions {
-    //     self.set_to_server(ConnOptId::CompleteArrayExecution, OptionValue::BOOLEAN(b));
-    //     self
-    // }
-    fn set_dataformat_version2(mut self, v: i32) -> ConnectOptions {
-        self.set_to_server(ConnOptId::DataFormatVersion2, OptionValue::INT(v));
-        self
-    }
-
-    // The client locale is set by the client and used in language-dependent
-    // handling within the SAP HANA database calculation engine.
-    fn set_client_locale(mut self, s: &Option<String>) -> ConnectOptions {
-        match s {
-            Some(s) => {
-                self.set_to_server(ConnOptId::ClientLocale, OptionValue::STRING(s.to_string()));
-            }
-            None => {}
-        }
-        self
-    }
-
-    // fn set_enable_array_type(mut self, b: bool) -> ConnectOptions {
-    //     self.set_to_server(ConnOptId::EnableArrayType, OptionValue::BOOLEAN(b));
-    //     self
-    // }
-
-    fn set_distribution_enabled(mut self, b: bool) -> ConnectOptions {
-        self.set_to_server(ConnOptId::DistributionEnabled, OptionValue::BOOLEAN(b));
-        self
-    }
-
-    fn set_client_distribution_mode(mut self, v: i32) -> ConnectOptions {
-        self.set_to_server(ConnOptId::ClientDistributionMode, OptionValue::INT(v));
-        self
-    }
-
-    // fn set_select_for_update_ok(mut self, b: bool) -> ConnectOptions {
-    //     self.set_to_server(ConnOptId::SelectForUpdateOK, OptionValue::BOOLEAN(b));
-    //     self
-    // }
-
-    fn set_distribution_protocol_version(mut self, v: i32) -> ConnectOptions {
-        self.set_to_server(ConnOptId::DistributionProtocolVersion, OptionValue::INT(v));
-        self
-    }
-
-    // fn set_row_slot_image_parameter(mut self, b: bool) -> ConnectOptions {
-    //     self.set_to_server(ConnOptId::RowSlotImageParameter, OptionValue::BOOLEAN(b));
-    //     self
-    // }
-
-    fn set_os_user(mut self, s: String) -> ConnectOptions {
-        self.set_to_server(ConnOptId::OSUser, OptionValue::STRING(s));
-        self
-    }
-    fn set_to_server(&mut self, id: ConnOptId, value: OptionValue) -> Option<OptionValue> {
-        debug!("Sending ConnectionOption to server: {:?} = {:?}", id, value);
-        self.set_value(id, value)
-    }
-}
-
-// Methods to handle info we got from the server
-impl ConnectOptions {
-    pub fn digest_server_connect_options(
+    pub(crate) fn digest_server_connect_options(
         &mut self,
-        new_co: ConnectOptions,
-        old_co: ConnectOptions,
+        server_co: ConnectOptions,
     ) -> HdbResult<()> {
-        for (k, v) in new_co {
+        for (k, v) in server_co {
             match k {
                 ConnOptId::ConnectionID
                 | ConnOptId::SystemID
@@ -123,7 +69,7 @@ impl ConnectOptions {
                 | ConnOptId::ClientInfoNullValueOK
                 | ConnOptId::ClientReconnectWaitTimeout
                 | ConnOptId::FlagSet1 => {
-                    match old_co.get_value(&k) {
+                    match self.get_value(&k) {
                         Some(old_value) => {
                             if *old_value != v {
                                 debug!(
@@ -429,7 +375,7 @@ impl ConnectOptions {
 pub enum ConnOptId {
     ConnectionID,                 // 1 //
     CompleteArrayExecution,       // 2 // @deprecated Array execution semantics, always true.
-    ClientLocale,                 // 3 // Client locale information.
+    ClientLocale,                 // 3 // Is used within the calculation engine.
     SupportsLargeBulkOperations,  // 4 // Bulk operations >32K are supported.
     DistributionEnabled,          // 5 // @deprecated Distribution enabled (topology+call-routing)
     PrimaryConnectionId,          // 6 // @deprecated Id of primary connection (unused)

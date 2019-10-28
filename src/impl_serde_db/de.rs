@@ -1,4 +1,3 @@
-use crate::HdbError;
 use bigdecimal::ToPrimitive;
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use serde_db::de::{
@@ -9,8 +8,10 @@ use std::error::Error;
 use std::{fmt, i16, i32, i64, i8, u16, u32, u8};
 
 use crate::protocol::parts::hdb_value::HdbValue;
+use crate::protocol::parts::output_parameters::OutputParameters;
 use crate::protocol::parts::resultset::ResultSet;
 use crate::protocol::parts::row::Row;
+use crate::HdbError;
 
 impl DeserializableResultset for ResultSet {
     type ROW = Row;
@@ -51,6 +52,29 @@ impl DeserializableRow for Row {
 
     fn fieldname(&self, field_idx: usize) -> Option<&String> {
         Row::metadata(self).displayname(field_idx).ok()
+    }
+}
+
+impl DeserializableRow for OutputParameters {
+    type V = HdbValue<'static>;
+    type E = HdbError;
+
+    fn len(&self) -> usize {
+        self.values().len()
+    }
+
+    fn next(&mut self) -> Option<HdbValue<'static>> {
+        self.values_mut().next()
+    }
+
+    fn number_of_fields(&self) -> usize {
+        self.descriptors().len()
+    }
+
+    fn fieldname(&self, field_idx: usize) -> Option<&String> {
+        OutputParameters::descriptors(self)
+            .get(field_idx)
+            .and_then(|descriptor| descriptor.name())
     }
 }
 

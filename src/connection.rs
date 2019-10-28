@@ -38,17 +38,12 @@ impl Connection {
     /// ```
     #[allow(clippy::new_ret_no_self)]
     pub fn new(params: ConnectParams) -> HdbResult<Connection> {
-        trace!("Entering connect()");
+        trace!("connect()");
         let start = Local::now();
 
         let mut am_conn_core = AmConnCore::try_new(params.clone())?;
 
-        authentication::authenticate(
-            &mut (am_conn_core),
-            params.dbuser(),
-            params.password(),
-            params.clientlocale(),
-        )?;
+        authentication::authenticate(&mut am_conn_core, params.dbuser(), params.password())?;
 
         {
             let conn_core = am_conn_core.lock()?;
@@ -192,6 +187,16 @@ impl Connection {
             self.am_conn_core.clone(),
             stmt.as_ref(),
         )?)
+    }
+
+    /// Prepares a statement and executes it a single time.
+    pub fn prepare_and_execute<S, T>(&self, stmt: S, input: &T) -> HdbResult<HdbResponse>
+    where
+        S: AsRef<str>,
+        T: serde::ser::Serialize,
+    {
+        let mut stmt = PreparedStatement::try_new(self.am_conn_core.clone(), stmt.as_ref())?;
+        stmt.execute(input)
     }
 
     /// Commits the current transaction.

@@ -43,9 +43,9 @@ fn test_procedure_metadata(
 
     response.get_affected_rows()?;
 
-    let op = response.get_output_parameters()?;
-    let pd0 = op.parameter_descriptor(0)?;
-    let pd1 = op.parameter_descriptor(1)?;
+    let output_parameters = response.get_output_parameters()?;
+    let pd0 = output_parameters.descriptor(0)?;
+    let pd1 = output_parameters.descriptor(1)?;
     debug!("op-md: {:?}", pd0);
     assert_eq!(pd0.binding(), ParameterBinding::Optional);
     assert_eq!(pd0.name().unwrap(), "INOUT_DECIMAL");

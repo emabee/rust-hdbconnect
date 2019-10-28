@@ -1,6 +1,6 @@
 [package]
 name = "hdbconnect"
-version = "0.15.4"
+version = "0.16.0"
 authors = ["emabee <meinolf.block@sap.com>","Pascal Seitz <pascal.seitz@gmail.com>"]
 edition = "2018"
 license = "MIT/Apache-2.0"
@@ -27,7 +27,7 @@ cesu8 = "1.1"
 chrono = { version = "0.4", features = ["serde"] }
 #dist_tx = {path = "../dist_tx"}
 dist_tx = "0.2"
-hex = "0.3"
+hex = "0.4"
 hmac = "0.7.0"
 log = "0.4"
 num = "0.2"

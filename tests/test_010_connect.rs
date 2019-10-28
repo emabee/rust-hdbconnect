@@ -10,7 +10,6 @@ use std::env;
 #[test]
 pub fn test_010_connect() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
-
     connect_successfully(&mut log_handle);
     connect_options(&mut log_handle)?;
     connect_wrong_password(&mut log_handle);
