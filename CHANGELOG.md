@@ -1,10 +1,14 @@
 # Changelog
 
+## [0.16.0-actix-compatibility] 2019-10-29
+
+Stick to older version of rustls (0.15.1) and webpki (0.19.1) to stay compatible with actix.
+
 ## [0.16.0] 2019-10-28
 
 Add convenience method Connection::prepare_and_execute().
 
-Incompatible: revise API of OutputParameters: 
+Incompatible: revise API of OutputParameters:
 allow iterating and using deserialization with `serde_db`, revise method names.
 
 Incompatible: Avoid cloning in accessors of ServerError.

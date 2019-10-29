@@ -1,6 +1,6 @@
 [package]
 name = "hdbconnect"
-version = "0.16.0"
+version = "0.16.0-actix-compatibility"
 authors = ["emabee <meinolf.block@sap.com>","Pascal Seitz <pascal.seitz@gmail.com>"]
 edition = "2018"
 license = "MIT/Apache-2.0"
@@ -34,7 +34,7 @@ num = "0.2"
 pbkdf2 = {version = "0.3.0", default-features = false}
 r2d2 = "0.8"
 rand = "0.7"
-rustls = {version = "0.16", optional = true}
+rustls = {version = "0.15.1", optional = true}
 secstr = "0.3"
 serde = "1.0"
 # serde_db = { path = "../serde_db" }
@@ -45,7 +45,7 @@ sha2 = "0.8.0"
 url = "2.1"
 username = "0.2"
 vec_map = "0.8"
-webpki = {version = "0.21", optional = true}
+webpki = {version = "0.19.1", optional = true}
 
 [dev-dependencies]
 serde_bytes = "0.11"
