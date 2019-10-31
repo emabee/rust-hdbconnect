@@ -139,7 +139,7 @@ fn verify_row_ordering(
 
     let stmt = "select * from TEST_ROW_ORDERING order by f1 asc";
 
-    for fs in [10, 100, 1000, 2000].into_iter() {
+    for fs in [10, 100, 1000, 2000].iter() {
         debug!("verify_row_ordering with fetch_size {}", *fs);
         connection.set_fetch_size(*fs).unwrap();
 
