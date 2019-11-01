@@ -18,7 +18,7 @@ impl DeserializableResultset for ResultSet {
     type E = HdbError;
 
     fn has_multiple_rows(&mut self) -> Result<bool, DeserializationError> {
-        Ok(ResultSet::has_multiple_rows(self))
+        Ok(self.has_multiple_rows_impl())
     }
 
     fn next(&mut self) -> DeserializationResult<Option<Row>> {

@@ -10,7 +10,7 @@ use crate::protocol::parts::client_info::ClientInfo;
 use crate::protocol::parts::connect_options::ConnectOptions;
 use crate::protocol::parts::execution_result::ExecutionResult;
 use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
-use crate::protocol::parts::resultset::ResultSet;
+use crate::protocol::parts::resultset::RsState;
 use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
 use crate::protocol::parts::server_error::{ServerError, Severity};
 use crate::protocol::parts::statement_context::StatementContext;
@@ -227,7 +227,7 @@ impl<'a> ConnectionCore {
         am_conn_core: &AmConnCore,
         o_a_rsmd: Option<Arc<ResultSetMetadata>>,
         o_a_descriptors: Option<Arc<ParameterDescriptors>>,
-        o_rs: &mut Option<&mut ResultSet>,
+        o_rs: &mut Option<&mut RsState>,
     ) -> HdbResult<Reply> {
         let auto_commit_flag: i8 = if self.is_auto_commit() { 1 } else { 0 };
         let nsn = self.next_seq_number();

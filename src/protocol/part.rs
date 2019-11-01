@@ -1,10 +1,10 @@
 use super::argument::Argument;
 use super::part_attributes::PartAttributes;
 use super::partkind::PartKind;
-use super::parts::resultset::ResultSet;
 use super::parts::resultset_metadata::ResultSetMetadata;
 use crate::conn_core::AmConnCore;
 use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
+use crate::protocol::parts::resultset::RsState;
 use crate::{HdbError, HdbResult};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::cmp::max;
@@ -82,7 +82,7 @@ impl<'a> Part<'a> {
         o_am_conn_core: Option<&AmConnCore>,
         o_a_rsmd: &Option<Arc<ResultSetMetadata>>,
         o_a_descriptors: &Option<Arc<ParameterDescriptors>>,
-        o_rs: &mut Option<&mut ResultSet>,
+        o_rs: &mut Option<&mut RsState>,
         last: bool,
         rdr: &mut T,
     ) -> HdbResult<Part<'static>> {

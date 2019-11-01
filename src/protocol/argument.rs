@@ -16,6 +16,7 @@ use crate::protocol::parts::partiton_information::PartitionInformation;
 use crate::protocol::parts::read_lob_reply::ReadLobReply;
 use crate::protocol::parts::read_lob_request::ReadLobRequest;
 use crate::protocol::parts::resultset::ResultSet;
+use crate::protocol::parts::resultset::RsState;
 use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
 use crate::protocol::parts::server_error::ServerError;
 use crate::protocol::parts::session_context::SessionContext;
@@ -213,7 +214,7 @@ impl<'a> Argument<'a> {
         o_am_conn_core: Option<&AmConnCore>,
         o_a_rsmd: &Option<Arc<ResultSetMetadata>>,
         o_a_descriptors: &Option<Arc<ParameterDescriptors>>,
-        o_rs: &mut Option<&mut ResultSet>,
+        o_rs: &mut Option<&mut RsState>,
         rdr: &mut T,
     ) -> HdbResult<Argument<'a>> {
         trace!("parse(no_of_args={}, kind={:?})", no_of_args, kind);

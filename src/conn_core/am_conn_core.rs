@@ -5,7 +5,7 @@ use crate::protocol::argument::Argument;
 use crate::protocol::part::Part;
 use crate::protocol::partkind::PartKind;
 use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
-use crate::protocol::parts::resultset::ResultSet;
+use crate::protocol::parts::resultset::RsState;
 use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
 use crate::protocol::reply::Reply;
 use crate::protocol::request::Request;
@@ -35,7 +35,7 @@ impl AmConnCore {
         mut request: Request,
         o_a_rsmd: Option<Arc<ResultSetMetadata>>,
         o_a_descriptors: Option<Arc<ParameterDescriptors>>,
-        o_rs: &mut Option<&mut ResultSet>,
+        o_rs: &mut Option<&mut RsState>,
     ) -> HdbResult<Reply> {
         trace!(
             "AmConnCore::full_send() with requestType = {:?}",

@@ -6,6 +6,7 @@ use crate::protocol::part_attributes::PartAttributes;
 use crate::protocol::partkind::PartKind;
 use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
 use crate::protocol::parts::resultset::ResultSet;
+use crate::protocol::parts::resultset::RsState;
 use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
 use crate::protocol::reply_type::ReplyType;
 use crate::protocol::util;
@@ -44,7 +45,7 @@ impl Reply {
     pub fn parse<T: std::io::BufRead>(
         o_a_rsmd: Option<Arc<ResultSetMetadata>>,
         o_a_descriptors: Option<Arc<ParameterDescriptors>>,
-        o_rs: &mut Option<&mut ResultSet>,
+        o_rs: &mut Option<&mut RsState>,
         o_am_conn_core: Option<&AmConnCore>,
         rdr: &mut T,
     ) -> HdbResult<Reply> {

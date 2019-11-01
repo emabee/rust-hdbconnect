@@ -104,7 +104,7 @@ fn evaluate_resultset(
     }
 
     info!("Iterate over rows, filter_map, collect");
-    let mut resultset = connection.query(query_str)?;
+    let resultset = connection.query(query_str)?;
     resultset.fetch_all()?; // ensures that all rows are Ok
     assert_eq!(
         resultset
