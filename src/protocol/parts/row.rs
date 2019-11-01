@@ -45,6 +45,16 @@ impl Row {
         self.value_iter.next()
     }
 
+    /// Conveniently combines `next_value()` and the value's `try_into()`.
+    pub fn next_try_into<'de, T>(&mut self) -> HdbResult<T>
+    where
+        T: serde::de::Deserialize<'de>,
+    {
+        self.next_value()
+            .ok_or_else(|| HdbError::usage_("no more value"))?
+            .try_into()
+    }
+
     /// Returns the length of the row.
     pub fn len(&self) -> usize {
         trace!("Row::len()");

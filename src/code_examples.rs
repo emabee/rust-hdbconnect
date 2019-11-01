@@ -1,4 +1,3 @@
-//! Code examples for the usage of this database driver.
 //!
 //! # 1. Database connections
 //!
@@ -21,8 +20,9 @@
 //!
 //! The most generic way to fire SQL statements without preparation is using
 //! `Connection::statement()`.
-//! This generic method can handle very different kinds of calls (queries, dml, procedures),
-//! and thus has the most complex return type, `HdbResponse`.
+//! This generic method can handle very different kinds of calls
+//! (SQL queries, DML, procedure calls),
+//! and thus has the most complex return type, [`HdbResponse`](struct.HdbResponse.html).
 //!
 //! ```rust,no_run
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
@@ -35,13 +35,11 @@
 //! # Ok(())
 //! # }
 //! ```
-//!
-//! `HdbResponse` is a nested enum which covers all possible
+//![`HdbResponse`](struct.HdbResponse.html) covers all possible
 //! return values we can get from the database.
-//! You thus have to analyze it to come to the
-//! concrete response relevant for your call.
-//! You can do this either explicitly using `match` etc or with the
-//! adequate short-cut method, e.g.:
+//! You thus have to analyze it to get to the
+//! concrete response to your call. Or you use the respective short-cut method that
+//! fits to your statement.
 //!
 //! ```rust,no_run
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
@@ -61,14 +59,14 @@
 //!
 //! ## 2.2 More specific methods with tailored return values
 //!
-//! In many cases it will be more appropriate and convenient to use one of the
-//! specialized methods
+//! In many cases it will be more appropriate and convenient to send your database command
+//! with one of the more specialized methods
 //!
 //! * `connection.query(...) // ResultSet`
 //! * `connection.dml(...)   // usize`
 //! * `connection.exec(...)  // ()`
 //!
-//! where each has an adequate simple result type:
+//! which convert the database response directly into a simpler result type:
 //!
 //! ```rust,no_run
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
@@ -116,11 +114,16 @@
 //!
 //! # 3. Result set evaluation
 //!
+//! Some of the following examples use a method `try_into()`, on an individual `HdbValue`,
+//! a `Row`, or a `ResultSet`.
+//! These methods use return type polymorphism (based on `serde`), which means that you
+//! need to specify explicitly the desired type of the return value.
+//!
 //! # 3.1 Iterating over rows
 //!
 //! Evaluating a result set by iterating over the rows explicitly is possible, of course.
 //! Note that the row iterator returns `HdbResult<Row>`, not `Row`,
-//! because the result set might need to fetch more rows lazily from the server, which can fail.
+//! because the result set might need to fetch more rows lazily from the database, which can fail.
 //!
 //! ```rust,no_run
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
@@ -142,15 +145,12 @@
 //! makes it easy to write complex evaluations in an efficient and scalable manner.
 //!
 //! ```ignore
-//! let key_figure = resultset.into_iter()?.map(|r|{r?}).filter(...).fold(...);
+//! let key_figure = resultset.map(|r|{r.unwrap()}).map(...).fold(...).collect(...);
 //! ```
 //!
 //! # 3.2 Explicitly evaluating a single row
 //!
-//! You _can_ retrieve the field values of a row  individually, in arbitrary order.
-//! `hdbconnect::Row` provides for this a single
-//! method that is generalized by its return value,
-//! so you need to specify the target type explicitly:
+//! You _can_ retrieve the field values of a row individually, one after the other:
 //!
 //! ```rust,no_run
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams, Row};
@@ -163,13 +163,13 @@
 //! for row in resultset {
 //!     let mut row:Row = row?;
 //! # #[allow(unused_variables)]
-//!     let f1: String = row.next_value().unwrap().try_into()?;
+//!     let f1: String = row.next_try_into()?;
 //! # #[allow(unused_variables)]
-//!     let f2: Option<i32> = row.next_value().unwrap().try_into()?;
+//!     let f2: Option<i32> = row.next_try_into()?;
 //! # #[allow(unused_variables)]
-//!     let f3: i32 = row.next_value().unwrap().try_into()?;
+//!     let f3: i32 = row.next_try_into()?;
 //! # #[allow(unused_variables)]
-//!     let f4: chrono::NaiveDateTime = row.next_value().unwrap().try_into()?;
+//!     let f4: chrono::NaiveDateTime = row.next_try_into()?;
 //! }
 //! # Ok(())
 //! # }
@@ -199,9 +199,6 @@
 //! # }
 //! ```
 //!
-//! As hdbconnect uses return type polymorphism for this conversion (based on `serde`),
-//! you need to specify the type of your target variable explicitly.
-//!
 //! # 3.4 Direct conversion of entire result sets
 //!
 //! Even more convenient is the option to convert the complete result set in a single step.
@@ -210,7 +207,7 @@
 //!
 //! # 3.4.1 Matrix-structured result sets
 //!
-//! You can always, and __most often want to__, use a <code>Vec</code> of a struct or
+//! You can always, and __most often want to__, use a `Vec` of a struct or
 //! tuple that matches the fields of the result set.
 //!
 //! ```rust,no_run
@@ -234,7 +231,7 @@
 //!
 //! If the result set contains only a single line (e.g. because you specified
 //! TOP 1 in your select, or you qualified the full primary key),
-//! then you can choose to deserialize into a plain <code>`MyRow`</code> directly.
+//! then you can also deserialize directly into a plain `MyRow`.
 //!
 //!   ```rust,no_run
 //!   # use serde_derive::Deserialize;
@@ -254,9 +251,8 @@
 //! # 3.4.3 Single-column result sets
 //!
 //! If the result set contains only a single column, then you can choose to
-//! deserialize into a <code>Vec&lt;field&gt;</code>,
-//! where <code>field</code> is a type that matches the field of the result set.
-//! If a plain rust type is used, you don't even need to derive Deserialize:
+//! deserialize into a `Vec<field>`,
+//! where `field` is a type that matches the field of the result set.
 //!
 //!   ```rust, no_run
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
@@ -272,7 +268,7 @@
 //! # 3.4.4 Single-value result sets
 //!
 //! If the result set contains only a single value (one row with one column),
-//! then you can also deserialize into a plain <code>field</code>:
+//! then you can also deserialize into a plain `field`:
 //!
 //!   ```rust, no_run
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
@@ -292,7 +288,7 @@
 //! * You can e.g. convert values from a nullable column into a plain field,
 //!   provided that no NULL values are given in the result set.
 //!
-//! * Vice versa, you can use an Option<code>&lt;field&gt;</code> as target structure,
+//! * Vice versa, you can use an `Option<field>` as target structure,
 //!   even if the column is marked as NOT NULL.
 //!
 //! * Source and target integer types can differ from each other,
@@ -334,14 +330,20 @@
 //!
 //! # 6. LOBs
 //! Binary and Character LOBs can be treated like "normal" binary and String data, i.e.
-//! you can convert them with the methods described above into `ByteBuf` or String values.
+//! you can convert them with the methods described above into `ByteBuf` or String values
+//! (see [serde_bytes](https://docs.serde.rs/serde_bytes/) for serde's specialties regarding bytes).
 //!
-//! You can avoid materializing the complete "Large Object", e.g.
-//! if you want to stream it into a writer:
+//! If necessary, you can easily avoid materializing the complete "Large Object",
+//! and stream it e.g. into a writer. For doing so, you convert the value into one of
+//! `hdbconnect::{BLob, CLob, NCLob}`.
+//!
+//! In this example the [`NCLob`](types/struct.NCLob.html) will,
+//! while being read by `std::io::copy()`,
+//! continuously fetch more data from the database until it is completely transferred:
 //!
 //! ```rust, no_run
-//! # use hdbconnect::{Connection, HdbResult, IntoConnectParams, ResultSet};
-//! # use hdbconnect::types::NCLob;
+//! use hdbconnect::{Connection, HdbResult, IntoConnectParams, ResultSet};
+//! use hdbconnect::types::NCLob;
 //! # fn foo() -> HdbResult<()> {
 //! # let params = "".into_connect_params()?;
 //! # let query = "";
@@ -353,7 +355,4 @@
 //! # Ok(())
 //! # }
 //! ```
-//!
-//! While being read by `io::copy()`, the NCLOB will continuously fetch more data from the
-//! database until the complete NCLOB is processed.
 //!

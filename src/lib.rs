@@ -1,24 +1,30 @@
-//! Native rust database driver for SAP HANA(TM).
+//! Native rust database driver for SAP HANA (TM).
 //!
-//! `hdbconnect` uses [`serde_db`](https://docs.rs/serde_db)
-//! to simplify the data exchange between application code
-//! and the driver, both for input parameters to prepared statements
+//! `hdbconnect` provides a lean, fast, and easy-to-use rust-API for working with
+//! SAP HANA. The driver is written completely in rust. It comes
+//! with an API that interoperates elegantly with all data types that implement the standard
+//! `serde::Serialize` and/or `serde::Deserialize` traits, for input and output respectively.
+//!
+//! Instead of iterating over a resultset by rows and columns, you can
+//! assign the complete query result directly to any rust structure that fits the data
+//! semantics.
+//!
+//! `hdbconnect` implements this with the help of [`serde_db`](https://docs.rs/serde_db),
+//! a reusable library for simplifying the data exchange between application code
+//! and database drivers, both for input parameters (e.g. to prepared statements)
 //! and for results that are returned from the database.
-//! There is no need to iterate over a resultset by rows and columns, just
-//! assign query results directly to rust structures that fit the data
-//! semantics. This approach allows, in contrast to many ORM mapping variants,
-//! using the full flexibility of SQL (projection lists, all kinds of joins,
-//! unions, etc, etc). Whatever query you need, you just use it, and whatever
-//! result structure you need, you just use a corresponding rust structure into
-//! which you deserialize the data.
 //!
-//! See
-//! [code examples](code_examples/index.html)
-//! for an overview.
+//! In contrast to typical ORM mapping variants does this approach allow
+//! using the full flexibility of SQL (projection lists, all kinds of joins,
+//! unions, etc, etc). Whatever query you need, you just use it, without further ado
+//! for defining object models etc, and whatever result structure you want to read,
+//! you just use a corresponding rust structure into
+//! which you deserialize the data. It's hard to use less code!
+//!
+//! See [code examples](code_examples/index.html) for an overview.
 //!
 
-// #![feature(bufreader_buffer)]
-#![warn(missing_docs)]
+#![deny(missing_docs)]
 #![deny(missing_debug_implementations)]
 
 #[macro_use]

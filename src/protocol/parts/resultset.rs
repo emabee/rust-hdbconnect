@@ -32,12 +32,20 @@ pub(crate) type AmRsCore = Arc<Mutex<ResultSetCore>>;
 /// The Iterator-Item is thus not `Row`, but `HdbResult<Row>`.
 ///
 /// ```rust, no_run
-/// // Loop directly over the rows of a resultset:
+/// # use hdbconnect::{Connection,ConnectParams,HdbResult};
+/// # use serde_derive::Deserialize;
+/// # fn main() -> HdbResult<()> {
+/// # #[derive(Debug, Deserialize)]
+/// # struct Entity();
+/// # let mut connection = Connection::new(ConnectParams::builder().build()?)?;
+/// # let query_string = "";
 /// for row in connection.query(query_string)? {
 ///     // handle fetch errors and convert each line individually:
 ///     let entity: Entity = row?.try_into()?;
-///     println!("Got entity: {}", entity);
+///     println!("Got entity: {:?}", entity);
 /// }
+/// # Ok(())
+/// # }
 ///
 /// ```
 ///
