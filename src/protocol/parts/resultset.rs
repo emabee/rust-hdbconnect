@@ -21,11 +21,26 @@ pub(crate) type AmRsCore = Arc<Mutex<ResultSetCore>>;
 
 /// The result of a database query.
 ///
-/// This is essentially a set of `Row`s, which is a set of `HdbValue`s.
+/// This is essentially a set of `Row`s, and each `Row` is a set of `HdbValue`s.
 ///
-/// In most cases, you will want to use the powerful method
-/// [`try_into`](#method.try_into) to convert the data from this generic format
-/// into your application specific format.
+/// The method [`try_into`](#method.try_into) converts the data from this generic format
+/// in a singe step into your application specific format.
+///
+/// `ResultSet` implements `std::iter::Iterator`, so you can
+/// directly iterate over the rows of a resultset.
+/// While iterating, the not yet transported rows are fetched "silently" on demand, which can fail.
+/// The Iterator-Item is thus not `Row`, but `HdbResult<Row>`.
+///
+/// ```rust, no_run
+/// // Loop directly over the rows of a resultset:
+/// for row in connection.query(query_string)? {
+///     // handle fetch errors and convert each line individually:
+///     let entity: Entity = row?.try_into()?;
+///     println!("Got entity: {}", entity);
+/// }
+///
+/// ```
+///
 #[derive(Debug)]
 pub struct ResultSet {
     o_am_rscore: Option<AmRsCore>,
@@ -86,61 +101,58 @@ impl Drop for ResultSetCore {
 }
 
 impl ResultSet {
-    /// Translates a generic resultset into a given rust type that implements
-    /// serde::Deserialize. The implementation of this function uses serde_db.
-    /// See [there](https://docs.rs/serde_db/) for more details.
+    /// Conveniently translates the complete resultset into a rust type that implements
+    /// `serde::Deserialize` and has an adequate structure.
+    /// The implementation of this method uses
+    /// [serde_db::de](https://docs.rs/serde_db/*/serde_db/de/index.html).
     ///
     /// A resultset is essentially a two-dimensional structure, given as a list
-    /// of rows (a <code>Vec&lt;Row&gt;</code>),
-    /// where each row is a list of fields (a
-    /// <code>Vec&lt;HdbValue&gt;</code>); the name of each field is
+    /// of rows, where each row is a list of fields; the name of each field is
     /// given in the metadata of the resultset.
     ///
     /// The method supports a variety of target data structures, with the only
     /// strong limitation that no data loss is supported.
     ///
-    /// * It depends on the dimension of the resultset what target data
+    /// It depends on the dimension of the resultset what target data
     /// structure   you can choose for deserialization:
     ///
-    ///     * You can always use a <code>Vec&lt;line_struct&gt;</code>, where
-    ///       <code>line_struct</code> matches the field list of the resultset.
+    /// * You can always use a `Vec<line_struct>`, if the elements of
+    /// `line_struct` match the field list of the resultset.
     ///
     /// * If the resultset contains only a single line (e.g. because you
-    /// specified       TOP 1 in your select),
-    /// then you can optionally choose to deserialize into a plain
-    /// <code>line_struct</code>.
+    /// specified `TOP 1` in your select clause),
+    /// then you can optionally choose to deserialize directly into a plain
+    /// `line_struct`.
     ///
     /// * If the resultset contains only a single column, then you can
-    /// optionally choose to deserialize into a
-    /// <code>Vec&lt;plain_field&gt;</code>.
+    /// optionally choose to deserialize directly into a
+    /// `Vec<plain_field>`.
     ///
     /// * If the resultset contains only a single value (one row with one
     /// column), then you can optionally choose to deserialize into a
-    /// plain <code>line_struct</code>, or a
-    /// <code>Vec&lt;plain_field&gt;</code>, or a plain variable.
+    /// plain `line_struct`, or a `Vec<plain_field>`, or a `plain_field`.
     ///
-    /// * Also the translation of the individual field values provides a lot of
-    /// flexibility. You can e.g. convert values from a nullable column
+    /// Also the translation of the individual field values provides flexibility.
+    ///
+    /// * You can e.g. convert values from a nullable column
     /// into a plain field, provided that no NULL values are given in the
     /// resultset.
     ///
-    /// Vice versa, you always can use an
-    /// Option<code>&lt;plain_field&gt;</code>, even if the column is
+    /// * Vice versa, you can use an `Option<plain_field>`, even if the column is
     /// marked as NOT NULL.
     ///
     /// * Similarly, integer types can differ, as long as the concrete values
     /// can   be assigned without loss.
     ///
-    /// Note that you need to specify the type of your target variable
-    /// explicitly, so that <code>try_into()</code> can derive the type it
-    /// needs to serialize into:
+    /// As usual with serde deserialization, you need to specify the type of your target variable
+    /// explicitly, so that `try_into()` can derive the type it needs to instantiate:
     ///
     /// ```ignore
     /// #[derive(Deserialize)]
-    /// struct MyStruct {
+    /// struct Entity {
     ///     ...
     /// }
-    /// let typed_result: Vec<MyStruct> = resultset.try_into()?;
+    /// let typed_result: Vec<Entity> = resultset.try_into()?;
     /// ```
     ///
     pub fn try_into<'de, T>(self) -> HdbResult<T>
@@ -186,8 +198,6 @@ impl ResultSet {
     /// Consequently, the ResultSet has one row less after the call.
     /// May need to fetch further rows from the database, which can fail, and thus returns
     /// an HdbResult.
-    ///
-    /// Using ResultSet::into_iter() is preferrable due to better performance.
     pub fn next_row(&mut self) -> HdbResult<Option<Row>> {
         match self.row_iter.next() {
             Some(r) => Ok(Some(r)),
@@ -206,6 +216,20 @@ impl ResultSet {
         }
     }
 
+    /// Fetches all not yet transported result lines from the server.
+    ///
+    /// Bigger resultsets are typically not transported in one roundtrip from the database;
+    /// the number of roundtrips depends on the total number of rows in the resultset
+    /// and the configured fetch-size of the connection.
+    ///
+    /// Fetching can fail, e.g. if the network connection is broken.
+    pub fn fetch_all(&mut self) -> HdbResult<()> {
+        while !self.is_complete()? {
+            self.fetch_next()?;
+        }
+        Ok(())
+    }
+
     // Returns true if the resultset contains more than one row.
     pub(crate) fn has_multiple_rows(&mut self) -> bool {
         let is_complete = match self.is_complete() {
@@ -213,18 +237,6 @@ impl ResultSet {
             Err(_) => false,
         };
         !is_complete || (self.next_rows.len() + self.row_iter.len() > 1)
-    }
-
-    /// Fetches all not yet transported result lines from the server.
-    ///
-    /// Bigger resultsets are typically not transported in one roundtrip from the database;
-    /// the number of roundtrips depends on the total number of rows in the resultset
-    /// and the configured fetch-size of the connection.
-    pub fn fetch_all(&mut self) -> HdbResult<()> {
-        while !self.is_complete()? {
-            self.fetch_next()?;
-        }
-        Ok(())
     }
 
     fn fetch_next(&mut self) -> HdbResult<()> {
@@ -291,7 +303,7 @@ impl ResultSet {
         am_conn_core: &AmConnCore,
         attrs: PartAttributes,
         rs_id: u64,
-        rsm: ResultSetMetadata,
+        a_rsmd: Arc<ResultSetMetadata>,
         o_stmt_ctx: Option<StatementContext>,
     ) -> ResultSet {
         let mut server_resource_consumption_info: ServerResourceConsumptionInfo =
@@ -307,7 +319,7 @@ impl ResultSet {
 
         ResultSet {
             o_am_rscore: Some(ResultSetCore::new_am_rscore(am_conn_core, attrs, rs_id)),
-            metadata: Arc::new(rsm),
+            metadata: a_rsmd,
             next_rows: Vec::<Row>::new(),
             row_iter: Vec::<Row>::new().into_iter(),
             server_resource_consumption_info,
@@ -335,7 +347,7 @@ impl ResultSet {
         attributes: PartAttributes,
         parts: &mut Parts,
         am_conn_core: &AmConnCore,
-        rs_md: Option<&ResultSetMetadata>,
+        o_a_rsmd: &Option<Arc<ResultSetMetadata>>,
         o_rs: &mut Option<&mut ResultSet>,
         rdr: &mut T,
     ) -> HdbResult<Option<ResultSet>> {
@@ -357,10 +369,10 @@ impl ResultSet {
                     _ => return Err(HdbError::impl_("No ResultSetId part found for ResultSet")),
                 };
 
-                let rs_metadata = match parts.pop_arg_if_kind(PartKind::ResultSetMetadata) {
-                    Some(Argument::ResultSetMetadata(rsmd)) => rsmd,
-                    None => match rs_md {
-                        Some(rs_md) => rs_md.clone(),
+                let a_rsmd = match parts.pop_arg_if_kind(PartKind::ResultSetMetadata) {
+                    Some(Argument::ResultSetMetadata(rsmd)) => Arc::new(rsmd),
+                    None => match o_a_rsmd {
+                        Some(a_rsmd) => Arc::clone(a_rsmd),
                         _ => return Err(HdbError::impl_("No metadata provided for ResultSet")),
                     },
                     _ => {
@@ -371,7 +383,7 @@ impl ResultSet {
                 };
 
                 let mut result =
-                    ResultSet::new(am_conn_core, attributes, rs_id, rs_metadata, o_stmt_ctx);
+                    ResultSet::new(am_conn_core, attributes, rs_id, a_rsmd, o_stmt_ctx);
                 ResultSet::parse_rows(&mut result, no_of_rows, rdr)?;
                 Ok(Some(result))
             }

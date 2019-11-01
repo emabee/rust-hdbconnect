@@ -76,11 +76,11 @@ fn test_daydate(
         prep_stmt.add_batch(&(naive_time_values[2], naive_time_values[3]))?;
         trace!("calling execute_batch()");
         let mut response = prep_stmt.execute_batch()?;
-        let pd = response.get_parameter_descriptor()?;
-        debug!("Parameter Descriptor: {:?}", pd);
-        let pd = response.get_parameter_descriptor()?;
-        debug!("Parameter Descriptor: {:?}", pd);
-        assert!(response.get_parameter_descriptor().is_err());
+        let pds = response.get_parameter_descriptors()?;
+        debug!("1st Parameter Descriptor: {:?}", pds[0]);
+        debug!("2nd Parameter Descriptor: {:?}", pds[1]);
+        assert_eq!(pds.len(), 2);
+
         let typed_result: i32 = response.into_resultset()?.try_into()?;
         assert_eq!(typed_result, 31);
     }

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.0] unpublished
+
+Avoid cloning of metadata.
+
+TODO: Use inner mutability to hide the fact that fetching happens
+
+
 ## [0.16.0-actix-compatibility] 2019-10-29
 
 Stick to older version of rustls (0.15.1) and webpki (0.19.1) to stay compatible with actix.

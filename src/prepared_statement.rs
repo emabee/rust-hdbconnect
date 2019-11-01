@@ -12,12 +12,11 @@ use crate::protocol::request::{Request, HOLD_CURSORS_OVER_COMMIT};
 use crate::protocol::request_type::RequestType;
 use crate::types_impl::lob::LobWriter;
 use crate::{HdbError, HdbResponse, HdbResult};
-
 use serde;
 use serde_db::ser::SerializationError;
-
 use std::io::Write;
 use std::mem;
+use std::sync::Arc;
 
 /// Allows injection-safe SQL execution and repeated calls of the same statement
 /// with different parameters with as few roundtrips as possible.
@@ -67,14 +66,13 @@ use std::mem;
 /// If the database e.g. requests an INT, you can also send a String representation of the
 /// number, by using `HdbValue::STRING("1088")`, instead of the binary INT representation
 /// `HdbValue::INT(1088)`.
-
 #[derive(Debug)]
 pub struct PreparedStatement {
     am_conn_core: AmConnCore,
     statement_id: u64,
-    o_descriptors: Option<ParameterDescriptors>,
+    o_a_descriptors: Option<Arc<ParameterDescriptors>>,
+    o_a_rsmd: Option<Arc<ResultSetMetadata>>,
     batch: ParameterRows<'static>,
-    o_rs_md: Option<ResultSetMetadata>,
     _o_table_location: Option<Vec<i32>>,
 }
 
@@ -126,10 +124,10 @@ impl<'a> PreparedStatement {
     /// ```
     pub fn execute<T: serde::ser::Serialize>(&mut self, input: &T) -> HdbResult<HdbResponse> {
         trace!("PreparedStatement::execute()");
-        if let Some(ref descriptors) = self.o_descriptors {
-            if descriptors.has_in() {
+        if let Some(ref a_descriptors) = self.o_a_descriptors {
+            if a_descriptors.has_in() {
                 let mut par_rows = ParameterRows::new();
-                par_rows.push(input, &descriptors)?;
+                par_rows.push(input, &a_descriptors)?;
                 return self.execute_parameter_rows(Some(par_rows));
             }
         }
@@ -181,7 +179,7 @@ impl<'a> PreparedStatement {
     /// After this call, the data from the readers are transferred to the database in additional
     /// roundtrips.
     pub fn execute_row(&'a mut self, hdb_values: Vec<HdbValue<'a>>) -> HdbResult<HdbResponse> {
-        if let Some(ref descriptors) = self.o_descriptors {
+        if let Some(ref descriptors) = self.o_a_descriptors {
             if descriptors.has_in() {
                 let mut request = Request::new(RequestType::Execute, HOLD_CURSORS_OVER_COMMIT);
 
@@ -227,8 +225,8 @@ impl<'a> PreparedStatement {
 
                 let mut main_reply = self.am_conn_core.full_send(
                     request,
-                    self.o_rs_md.as_ref(),
-                    self.o_descriptors.as_ref(),
+                    self.o_a_rsmd.clone(),
+                    self.o_a_descriptors.clone(),
                     &mut None,
                 )?;
 
@@ -268,7 +266,7 @@ impl<'a> PreparedStatement {
     /// `PreparedStatement`, if it is consistent with the metadata.
     pub fn add_batch<T: serde::ser::Serialize>(&mut self, input: &T) -> HdbResult<()> {
         trace!("PreparedStatement::add_batch()");
-        if let Some(ref descriptors) = self.o_descriptors {
+        if let Some(ref descriptors) = self.o_a_descriptors {
             if descriptors.has_in() {
                 self.batch.push(input, &descriptors)?;
                 return Ok(());
@@ -287,7 +285,7 @@ impl<'a> PreparedStatement {
     /// Note that LOB streaming can not be combined with using the batch.
     pub fn add_row_to_batch(&mut self, hdb_values: Vec<HdbValue<'static>>) -> HdbResult<()> {
         trace!("PreparedStatement::add_row_to_batch()");
-        if let Some(ref descriptors) = self.o_descriptors {
+        if let Some(ref descriptors) = self.o_a_descriptors {
             if descriptors.has_in() {
                 self.batch.push_hdb_values(hdb_values, &descriptors)?;
                 return Ok(());
@@ -305,7 +303,7 @@ impl<'a> PreparedStatement {
     /// a single execution is triggered.
     pub fn execute_batch(&mut self) -> HdbResult<HdbResponse> {
         if self.batch.is_empty() {
-            if let Some(ref descriptors) = self.o_descriptors {
+            if let Some(ref descriptors) = self.o_a_descriptors {
                 if descriptors.has_in() {
                     return Err(HdbError::Usage(
                         "The batch is empty and cannot be executed".to_string(),
@@ -320,7 +318,7 @@ impl<'a> PreparedStatement {
 
     /// Descriptors of all parameters of the prepared statement (in, out, inout), if any.
     pub fn parameter_descriptors(&self) -> Option<&[ParameterDescriptor]> {
-        self.o_descriptors
+        self.o_a_descriptors
             .as_ref()
             .map(|descr| descr.ref_inner().as_slice())
     }
@@ -338,8 +336,8 @@ impl<'a> PreparedStatement {
 
         let reply = self.am_conn_core.full_send(
             request,
-            self.o_rs_md.as_ref(),
-            self.o_descriptors.as_ref(),
+            self.o_a_rsmd.clone(),
+            self.o_a_descriptors.clone(),
             &mut None,
         )?;
         reply.into_hdbresponse(&mut (self.am_conn_core))
@@ -360,13 +358,13 @@ impl<'a> PreparedStatement {
         // TableLocation, TransactionFlags,
         let mut o_table_location: Option<Vec<i32>> = None;
         let mut o_stmt_id: Option<u64> = None;
-        let mut o_descriptors: Option<ParameterDescriptors> = None;
-        let mut o_rs_md: Option<ResultSetMetadata> = None;
+        let mut o_a_descriptors: Option<Arc<ParameterDescriptors>> = None;
+        let mut o_a_rsmd: Option<Arc<ResultSetMetadata>> = None;
 
         while !reply.parts.is_empty() {
             match reply.parts.pop_arg() {
                 Some(Argument::ParameterMetadata(descriptors)) => {
-                    o_descriptors = Some(descriptors);
+                    o_a_descriptors = Some(Arc::new(descriptors));
                 }
                 Some(Argument::StatementId(id)) => {
                     o_stmt_id = Some(id);
@@ -379,7 +377,7 @@ impl<'a> PreparedStatement {
                     o_table_location = Some(vec_i);
                 }
                 Some(Argument::ResultSetMetadata(rs_md)) => {
-                    o_rs_md = Some(rs_md);
+                    o_a_rsmd = Some(Arc::new(rs_md));
                 }
 
                 Some(Argument::StatementContext(ref stmt_ctx)) => {
@@ -401,15 +399,15 @@ impl<'a> PreparedStatement {
 
         debug!(
             "PreparedStatement created with parameter descriptors = {:?}",
-            o_descriptors
+            o_a_descriptors
         );
 
         Ok(PreparedStatement {
             am_conn_core,
             statement_id,
             batch: ParameterRows::new(),
-            o_descriptors,
-            o_rs_md,
+            o_a_descriptors,
+            o_a_rsmd,
             _o_table_location: o_table_location,
         })
     }

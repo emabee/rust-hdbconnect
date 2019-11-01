@@ -22,6 +22,7 @@ use crate::protocol::server_resource_consumption_info::ServerResourceConsumption
 use crate::{HdbError, HdbResult};
 use std::io::Write;
 use std::mem;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub(crate) struct ConnectionCore {
@@ -224,8 +225,8 @@ impl<'a> ConnectionCore {
         &mut self,
         request: Request<'a>,
         am_conn_core: &AmConnCore,
-        o_rs_md: Option<&ResultSetMetadata>,
-        o_descriptors: Option<&ParameterDescriptors>,
+        o_a_rsmd: Option<Arc<ResultSetMetadata>>,
+        o_a_descriptors: Option<Arc<ParameterDescriptors>>,
         o_rs: &mut Option<&mut ResultSet>,
     ) -> HdbResult<Reply> {
         let auto_commit_flag: i8 = if self.is_auto_commit() { 1 } else { 0 };
@@ -238,7 +239,7 @@ impl<'a> ConnectionCore {
                     self.session_id(),
                     nsn,
                     auto_commit_flag,
-                    o_descriptors,
+                    &o_a_descriptors,
                     writer,
                 )?;
             }
@@ -249,7 +250,7 @@ impl<'a> ConnectionCore {
                     self.session_id(),
                     nsn,
                     auto_commit_flag,
-                    o_descriptors,
+                    &o_a_descriptors,
                     writer,
                 )?;
             }
@@ -258,12 +259,12 @@ impl<'a> ConnectionCore {
         let mut reply = match self.buffalo {
             Buffalo::Plain(ref pc) => {
                 let reader = &mut *(pc.reader()).borrow_mut();
-                Reply::parse(o_rs_md, o_descriptors, o_rs, Some(am_conn_core), reader)?
+                Reply::parse(o_a_rsmd, o_a_descriptors, o_rs, Some(am_conn_core), reader)?
             }
             #[cfg(feature = "tls")]
             Buffalo::Secure(ref sc) => {
                 let reader = &mut *(sc.reader()).borrow_mut();
-                Reply::parse(o_rs_md, o_descriptors, o_rs, Some(am_conn_core), reader)?
+                Reply::parse(o_a_rsmd, o_a_descriptors, o_rs, Some(am_conn_core), reader)?
             }
         };
 
@@ -371,13 +372,13 @@ impl<'a> ConnectionCore {
             match self.buffalo {
                 Buffalo::Plain(ref pc) => {
                     let writer = &mut *(pc.writer()).borrow_mut();
-                    request.emit(self.session_id(), nsn, 0, None, writer)?;
+                    request.emit(self.session_id(), nsn, 0, &None, writer)?;
                     writer.flush()?;
                 }
                 #[cfg(feature = "tls")]
                 Buffalo::Secure(ref sc) => {
                     let writer = &mut *(sc.writer()).borrow_mut();
-                    request.emit(self.session_id(), nsn, 0, None, writer)?;
+                    request.emit(self.session_id(), nsn, 0, &None, writer)?;
                     writer.flush()?;
                 }
             }

@@ -71,7 +71,7 @@ fn connect_and_select_with_explicit_clientlocale(
     let mut url = test_utils::get_std_connect_url()?;
     url.push_str("?client_locale=en_US");
     let conn_params = url.into_connect_params()?;
-    assert_eq!(conn_params.clientlocale().as_ref().unwrap(), "en_US");
+    assert_eq!(conn_params.clientlocale().unwrap(), "en_US");
 
     let mut connection = Connection::new(conn_params)?;
     select_version_and_user(&mut connection)?;
@@ -109,7 +109,6 @@ fn select_version_and_user(connection: &mut Connection) -> HdbResult<()> {
     debug!("calling connection.query(SELECT VERSION as ...)");
     let resultset = connection.query(stmt)?;
     let version_and_user: VersionAndUser = resultset.try_into()?;
-
     assert_eq!(
         &version_and_user.current_user,
         test_utils::get_std_connect_params()?.dbuser()

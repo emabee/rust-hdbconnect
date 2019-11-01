@@ -2,9 +2,11 @@ use crate::hdb_return_value::HdbReturnValue;
 use crate::protocol::parts::execution_result::ExecutionResult;
 use crate::protocol::parts::output_parameters::OutputParameters;
 use crate::protocol::parts::parameter_descriptor::ParameterDescriptor;
+use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
 use crate::protocol::parts::resultset::ResultSet;
 use crate::protocol::parts::write_lob_reply::WriteLobReply;
 use crate::{HdbError, HdbResult};
+use std::sync::Arc;
 
 /// Represents all possible non-error responses to a database command.
 ///
@@ -33,8 +35,8 @@ pub struct HdbResponse {
 
     /// Parameter metadata, if any.
     ///
-    /// When executing prepared statements, the metadata of output parameters are returned here.
-    parameter_metadata: Option<Vec<ParameterDescriptor>>,
+    /// When executing a prepared statement, we keep here the metadata of output parameters.
+    o_a_descriptors: Option<Arc<ParameterDescriptors>>,
 }
 
 impl HdbResponse {
@@ -119,14 +121,13 @@ impl HdbResponse {
         None
     }
 
-    /// Returns the next `ParameterDescriptor`, or an error if there is none.
-    pub fn get_parameter_descriptor(&mut self) -> HdbResult<ParameterDescriptor> {
-        if let Some(ref mut md) = self.parameter_metadata {
-            if !md.is_empty() {
-                return Ok(md.remove(0));
-            }
+    /// Returns a slice with the `ParameterDescriptor`s, or an error if there is none.
+    pub fn get_parameter_descriptors(&mut self) -> HdbResult<&[ParameterDescriptor]> {
+        if let Some(ref a_descriptors) = self.o_a_descriptors {
+            Ok(a_descriptors.ref_inner())
+        } else {
+            Err(self.get_err("parameter descriptor"))
         }
-        Err(self.get_err("parameter descriptor"))
     }
 
     /// Returns the next set of affected rows counters, or an error if there is
@@ -216,7 +217,7 @@ impl HdbResponse {
         Ok(match (int_return_values.pop(), int_return_values.pop()) {
             (Some(InternalReturnValue::ResultSet(rs)), None) => HdbResponse {
                 return_values: vec![HdbReturnValue::ResultSet(rs)],
-                parameter_metadata: None,
+                o_a_descriptors: None,
             },
 
             (
@@ -228,7 +229,7 @@ impl HdbResponse {
                 Some(InternalReturnValue::ResultSet(rs)),
             ) => HdbResponse {
                 return_values: vec![HdbReturnValue::ResultSet(rs)],
-                parameter_metadata: Some(pm),
+                o_a_descriptors: Some(pm),
             },
             (None, None) | (_, _) => {
                 return Err(HdbError::Impl(
@@ -262,7 +263,7 @@ impl HdbResponse {
                 }
                 Ok(HdbResponse {
                     return_values: vec![HdbReturnValue::AffectedRows(vec_i)],
-                    parameter_metadata: None,
+                    o_a_descriptors: None,
                 })
             }
             Some(InternalReturnValue::OutputParameters(_)) => Err(HdbError::Impl(
@@ -289,7 +290,7 @@ impl HdbResponse {
         if int_return_values.is_empty() {
             return Ok(HdbResponse {
                 return_values: vec![HdbReturnValue::Success],
-                parameter_metadata: None,
+                o_a_descriptors: None,
             });
         } else if int_return_values.len() > 1 {
             return Err(HdbError::Impl(
@@ -317,13 +318,13 @@ impl HdbResponse {
                         } else {
                             Ok(HdbResponse {
                                 return_values: vec![HdbReturnValue::Success],
-                                parameter_metadata: None,
+                                o_a_descriptors: None,
                             })
                         }
                     }
                     ExecutionResult::SuccessNoInfo => Ok(HdbResponse {
                         return_values: vec![HdbReturnValue::Success],
-                        parameter_metadata: None,
+                        o_a_descriptors: None,
                     }),
                     ExecutionResult::Failure(_) => Err(HdbError::Impl(
                         "Found unexpected returnvalue ExecutionFailed".to_owned(),
@@ -351,8 +352,8 @@ impl HdbResponse {
     pub(crate) fn multiple_return_values(
         mut int_return_values: Vec<InternalReturnValue>,
     ) -> HdbResult<HdbResponse> {
-        let mut vec_dbrv = Vec::<HdbReturnValue>::new();
-        let mut pardescs: Option<Vec<ParameterDescriptor>> = None;
+        let mut return_values = Vec::<HdbReturnValue>::new();
+        let mut o_a_descriptors: Option<Arc<ParameterDescriptors>> = None;
         int_return_values.reverse();
         for irv in int_return_values {
             match irv {
@@ -369,16 +370,16 @@ impl HdbResponse {
                             }
                         }
                     }
-                    vec_dbrv.push(HdbReturnValue::AffectedRows(vec_i));
+                    return_values.push(HdbReturnValue::AffectedRows(vec_i));
                 }
                 InternalReturnValue::OutputParameters(op) => {
-                    vec_dbrv.push(HdbReturnValue::OutputParameters(op));
+                    return_values.push(HdbReturnValue::OutputParameters(op));
                 }
                 InternalReturnValue::ParameterMetadata(pm) => {
-                    pardescs = Some(pm);
+                    o_a_descriptors = Some(pm);
                 }
                 InternalReturnValue::ResultSet(rs) => {
-                    vec_dbrv.push(HdbReturnValue::ResultSet(rs));
+                    return_values.push(HdbReturnValue::ResultSet(rs));
                 }
                 InternalReturnValue::WriteLobReply(_) => {
                     return Err(HdbError::Impl(
@@ -388,8 +389,8 @@ impl HdbResponse {
             }
         }
         Ok(HdbResponse {
-            return_values: vec_dbrv,
-            parameter_metadata: pardescs,
+            return_values,
+            o_a_descriptors,
         })
     }
 }
@@ -400,7 +401,7 @@ impl std::fmt::Display for HdbResponse {
         for dbretval in &self.return_values {
             write!(fmt, "{}, ", dbretval)?;
         }
-        for pm in &self.parameter_metadata {
+        for pm in &self.o_a_descriptors {
             write!(fmt, "{:?}, ", pm)?;
         }
         write!(fmt, "]")?;
@@ -413,6 +414,6 @@ pub(crate) enum InternalReturnValue {
     ResultSet(ResultSet),
     AffectedRows(Vec<ExecutionResult>),
     OutputParameters(OutputParameters),
-    ParameterMetadata(Vec<ParameterDescriptor>),
+    ParameterMetadata(Arc<ParameterDescriptors>),
     WriteLobReply(WriteLobReply),
 }

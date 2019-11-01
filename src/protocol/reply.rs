@@ -11,6 +11,7 @@ use crate::protocol::reply_type::ReplyType;
 use crate::protocol::util;
 use crate::{HdbError, HdbResponse, HdbResult};
 use byteorder::{LittleEndian, ReadBytesExt};
+use std::sync::Arc;
 
 // Since there is obviously no usecase for multiple segments in one request,
 // we model message and segment together.
@@ -41,8 +42,8 @@ impl Reply {
     // * `ResultSet` needs to be injected (and is extended and returned)
     //    in case of fetch requests
     pub fn parse<T: std::io::BufRead>(
-        o_rs_md: Option<&ResultSetMetadata>,
-        o_descriptors: Option<&ParameterDescriptors>,
+        o_a_rsmd: Option<Arc<ResultSetMetadata>>,
+        o_a_descriptors: Option<Arc<ParameterDescriptors>>,
         o_rs: &mut Option<&mut ResultSet>,
         o_am_conn_core: Option<&AmConnCore>,
         rdr: &mut T,
@@ -54,8 +55,8 @@ impl Reply {
             let part = Part::parse(
                 &mut (reply.parts),
                 o_am_conn_core,
-                o_rs_md,
-                o_descriptors,
+                &o_a_rsmd,
+                &o_a_descriptors,
                 o_rs,
                 i == no_of_parts - 1,
                 rdr,
@@ -130,19 +131,19 @@ impl Reply {
                     int_return_values.push(InternalReturnValue::OutputParameters(op));
                 }
                 Argument::ParameterMetadata(pm) => {
-                    int_return_values.push(InternalReturnValue::ParameterMetadata(pm.into_inner()));
+                    int_return_values.push(InternalReturnValue::ParameterMetadata(Arc::new(pm)));
                 }
                 Argument::ResultSet(Some(rs)) => {
                     int_return_values.push(InternalReturnValue::ResultSet(rs));
                 }
-                Argument::ResultSetMetadata(rsm) => match self.parts.pop() {
+                Argument::ResultSetMetadata(rsmd) => match self.parts.pop() {
                     Some(part) => match part.into_arg() {
                         Argument::ResultSetId(rs_id) => {
                             let rs = ResultSet::new(
                                 am_conn_core,
                                 PartAttributes::new(0b_0000_0100),
                                 rs_id,
-                                rsm,
+                                Arc::new(rsmd),
                                 None,
                             );
                             int_return_values.push(InternalReturnValue::ResultSet(rs));

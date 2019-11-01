@@ -27,9 +27,9 @@ use crate::protocol::parts::write_lob_request::WriteLobRequest;
 use crate::protocol::parts::xat_options::XatOptions;
 use crate::protocol::util;
 use crate::{HdbError, HdbResult};
-
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use cesu8;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub(crate) enum Argument<'a> {
@@ -99,7 +99,7 @@ impl<'a> Argument<'a> {
     pub fn size(
         &self,
         with_padding: bool,
-        o_descriptors: Option<&ParameterDescriptors>,
+        o_a_descriptors: &Option<Arc<ParameterDescriptors>>,
     ) -> HdbResult<usize> {
         let mut size = 0usize;
         match *self {
@@ -114,8 +114,8 @@ impl<'a> Argument<'a> {
             Argument::FetchSize(_) => size += 4,
             Argument::LobFlags(ref opts) => size += opts.size(),
             Argument::Parameters(ref pars) => {
-                size += match o_descriptors {
-                    Some(descriptors) => pars.size(descriptors)?,
+                size += match o_a_descriptors {
+                    Some(a_descriptors) => pars.size(&a_descriptors)?,
                     None => {
                         return Err(HdbError::Impl(
                             "Argument::Parameters::emit(): No metadata".to_string(),
@@ -147,7 +147,7 @@ impl<'a> Argument<'a> {
     pub fn emit<T: std::io::Write>(
         &self,
         remaining_bufsize: u32,
-        o_descriptors: Option<&ParameterDescriptors>,
+        o_a_descriptors: &Option<Arc<ParameterDescriptors>>,
         w: &mut T,
     ) -> HdbResult<u32> {
         match *self {
@@ -164,7 +164,7 @@ impl<'a> Argument<'a> {
                 w.write_u32::<LittleEndian>(fs)?;
             }
             Argument::LobFlags(ref opts) => opts.emit(w)?,
-            Argument::Parameters(ref parameters) => match o_descriptors {
+            Argument::Parameters(ref parameters) => match o_a_descriptors {
                 Some(descriptors) => parameters.emit(descriptors, w)?,
                 None => {
                     return Err(HdbError::Impl(
@@ -189,7 +189,7 @@ impl<'a> Argument<'a> {
             }
         }
 
-        let size = self.size(false, o_descriptors)?;
+        let size = self.size(false, o_a_descriptors)?;
         let padsize = padsize(size);
         for _ in 0..padsize {
             w.write_u8(0)?;
@@ -211,8 +211,8 @@ impl<'a> Argument<'a> {
         no_of_args: usize,
         parts: &mut Parts,
         o_am_conn_core: Option<&AmConnCore>,
-        o_rs_md: Option<&ResultSetMetadata>,
-        o_descriptors: Option<&ParameterDescriptors>,
+        o_a_rsmd: &Option<Arc<ResultSetMetadata>>,
+        o_a_descriptors: &Option<Arc<ParameterDescriptors>>,
         o_rs: &mut Option<&mut ResultSet>,
         rdr: &mut T,
     ) -> HdbResult<Argument<'a>> {
@@ -226,7 +226,7 @@ impl<'a> Argument<'a> {
             }
             PartKind::Error => Argument::Error(ServerError::parse(no_of_args, rdr)?),
             PartKind::OutputParameters => {
-                if let Some(descriptors) = o_descriptors {
+                if let Some(descriptors) = o_a_descriptors {
                     Argument::OutputParameters(OutputParameters::parse(
                         o_am_conn_core,
                         descriptors,
@@ -252,7 +252,7 @@ impl<'a> Argument<'a> {
                     parts,
                     o_am_conn_core
                         .ok_or_else(|| HdbError::impl_("ResultSet parsing requires a conn_core"))?,
-                    o_rs_md,
+                    o_a_rsmd,
                     o_rs,
                     rdr,
                 )?;

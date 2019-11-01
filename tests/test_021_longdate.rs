@@ -80,11 +80,12 @@ fn test_longdate(
             .prepare("select sum(number) from TEST_LONGDATE where mydate = ? or mydate = ?")?;
         let mut response =
             prep_stmt.execute(&(naive_datetime_values[2], naive_datetime_values[3]))?;
-        let pd = response.get_parameter_descriptor()?;
-        debug!("Parameter Descriptor: {:?}", pd);
-        let pd = response.get_parameter_descriptor()?;
-        debug!("Parameter Descriptor: {:?}", pd);
-        assert!(response.get_parameter_descriptor().is_err());
+
+        let pds = response.get_parameter_descriptors()?;
+        debug!("1st Parameter Descriptor: {:?}", pds[0]);
+        debug!("2nd Parameter Descriptor: {:?}", pds[1]);
+        assert_eq!(pds.len(), 2);
+
         let typed_result: i32 = response.into_resultset()?.try_into()?;
         assert_eq!(typed_result, 31);
 

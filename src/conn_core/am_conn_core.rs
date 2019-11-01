@@ -33,8 +33,8 @@ impl AmConnCore {
     pub fn full_send(
         &mut self,
         mut request: Request,
-        o_rs_md: Option<&ResultSetMetadata>,
-        o_descriptors: Option<&ParameterDescriptors>,
+        o_a_rsmd: Option<Arc<ResultSetMetadata>>,
+        o_a_descriptors: Option<Arc<ParameterDescriptors>>,
         o_rs: &mut Option<&mut ResultSet>,
     ) -> HdbResult<Reply> {
         trace!(
@@ -56,7 +56,7 @@ impl AmConnCore {
             ));
         }
 
-        let reply = conn_core.roundtrip(request, &self, o_rs_md, o_descriptors, o_rs)?;
+        let reply = conn_core.roundtrip(request, &self, o_a_rsmd, o_a_descriptors, o_rs)?;
 
         debug!(
             "AmConnCore::full_send() took {} ms",

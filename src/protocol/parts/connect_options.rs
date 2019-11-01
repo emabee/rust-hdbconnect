@@ -7,7 +7,7 @@ use crate::protocol::parts::option_value::OptionValue;
 pub(crate) type ConnectOptions = OptionPart<ConnOptId>;
 
 impl ConnectOptions {
-    pub fn for_server(locale: &Option<String>, os_user: String) -> ConnectOptions {
+    pub fn for_server(locale: Option<&String>, os_user: String) -> ConnectOptions {
         let mut connopts = ConnectOptions::default();
 
         let mut set_opt = |id: ConnOptId, value: OptionValue| {

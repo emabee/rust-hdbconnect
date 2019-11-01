@@ -9,6 +9,7 @@ use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
 use crate::protocol::parts::statement_context::StatementContext;
 use crate::HdbResult;
 use byteorder::{LittleEndian, WriteBytesExt};
+use std::sync::Arc;
 
 const MESSAGE_HEADER_SIZE: u32 = 32;
 const SEGMENT_HEADER_SIZE: usize = 24; // same for in and out
@@ -57,10 +58,10 @@ impl<'a> Request<'a> {
         session_id: i64,
         seq_number: i32,
         auto_commit_flag: i8,
-        o_descriptors: Option<&ParameterDescriptors>,
+        o_a_descriptors: &Option<Arc<ParameterDescriptors>>,
         w: &mut T,
     ) -> HdbResult<()> {
-        let varpart_size = self.varpart_size(o_descriptors)?;
+        let varpart_size = self.varpart_size(o_a_descriptors)?;
         let total_size = MESSAGE_HEADER_SIZE + varpart_size;
         trace!("Writing request with total size {}", total_size);
         let mut remaining_bufsize = total_size - MESSAGE_HEADER_SIZE;
@@ -81,7 +82,7 @@ impl<'a> Request<'a> {
 
         // SEGMENT HEADER
         let parts_len = self.parts.len() as i16;
-        let size = self.seg_size(o_descriptors)? as i32;
+        let size = self.seg_size(o_a_descriptors)? as i32;
         w.write_i32::<LittleEndian>(size)?; // I4  Length including the header
         w.write_i32::<LittleEndian>(0)?; // I4 Offset within the message buffer
         w.write_i16::<LittleEndian>(parts_len)?; // I2 Number of contained parts
@@ -98,7 +99,7 @@ impl<'a> Request<'a> {
         trace!("Headers are written");
         // PARTS
         for part in self.parts.ref_inner() {
-            remaining_bufsize = part.emit(remaining_bufsize, o_descriptors, w)?;
+            remaining_bufsize = part.emit(remaining_bufsize, o_a_descriptors, w)?;
         }
         w.flush()?;
         trace!("Parts are written");
@@ -107,17 +108,17 @@ impl<'a> Request<'a> {
 
     // Length in bytes of the variable part of the message, i.e. total message
     // without the header
-    fn varpart_size(&self, o_descriptors: Option<&ParameterDescriptors>) -> HdbResult<u32> {
+    fn varpart_size(&self, o_a_descriptors: &Option<Arc<ParameterDescriptors>>) -> HdbResult<u32> {
         let mut len = 0_u32;
-        len += self.seg_size(o_descriptors)? as u32;
+        len += self.seg_size(o_a_descriptors)? as u32;
         trace!("varpart_size = {}", len);
         Ok(len)
     }
 
-    fn seg_size(&self, o_descriptors: Option<&ParameterDescriptors>) -> HdbResult<usize> {
+    fn seg_size(&self, o_a_descriptors: &Option<Arc<ParameterDescriptors>>) -> HdbResult<usize> {
         let mut len = SEGMENT_HEADER_SIZE;
         for part in self.parts.ref_inner() {
-            len += part.size(true, o_descriptors)?;
+            len += part.size(true, o_a_descriptors)?;
         }
         Ok(len)
     }

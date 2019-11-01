@@ -132,8 +132,8 @@ impl ConnectParams {
     }
 
     /// The client locale.
-    pub fn clientlocale(&self) -> &Option<String> {
-        &self.clientlocale
+    pub fn clientlocale(&self) -> Option<&String> {
+        self.clientlocale.as_ref()
     }
 }
 

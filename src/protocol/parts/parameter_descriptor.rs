@@ -54,9 +54,6 @@ impl ParameterDescriptors {
         }
         Ok(ParameterDescriptors(vec_pd))
     }
-    pub fn into_inner(self) -> Vec<ParameterDescriptor> {
-        self.0
-    }
     pub fn ref_inner(&self) -> &Vec<ParameterDescriptor> {
         &self.0
     }

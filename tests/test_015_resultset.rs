@@ -63,17 +63,17 @@ fn evaluate_resultset(
         f4: NaiveDateTime,
     };
 
-    let stmt = "select * from TEST_RESULTSET";
+    let query_str = "select * from TEST_RESULTSET";
 
     {
-        let resultset = connection.query(stmt)?;
+        let resultset = connection.query(query_str)?;
         debug!("resultset: {:?}", resultset);
         debug!("After query");
     }
     debug!("After drop of resultset");
 
     info!("Loop over rows, loop over values, evaluate each individually");
-    for row in connection.query(stmt)? {
+    for row in connection.query(query_str)? {
         let mut row = row?;
         let f1: String = row.next_value().unwrap().try_into()?;
         let f2: Option<i32> = row.next_value().unwrap().try_into()?;
@@ -83,7 +83,7 @@ fn evaluate_resultset(
     }
 
     info!("Loop over rows (streaming support), convert row into struct");
-    for row in connection.query(stmt)? {
+    for row in connection.query(query_str)? {
         let td: TestData = row?.try_into()?;
         debug!(
             "Got struct with {}, {:?}, {}, {}",
@@ -92,7 +92,7 @@ fn evaluate_resultset(
     }
 
     info!("Loop over rows, convert row into tuple (avoid defining a struct)");
-    for row in connection.query(stmt)? {
+    for row in connection.query(query_str)? {
         let t: (String, Option<i32>, i32, NaiveDateTime) = row?.try_into()?;
         debug!("Got tuple with {}, {:?}, {}, {}", t.0, t.1, t.2, t.3);
     }
@@ -103,15 +103,27 @@ fn evaluate_resultset(
         debug!("Got single value: {}", f1);
     }
 
-    // trace!("Iterate over rows, filter, fold");
-    // connection
-    //  .query(stmt)?
-    //  .map(|r| r?)
-    //  .filter(|r|{let s:String = r.field_as(0)?;})
-    //  .fold(...)
+    info!("Iterate over rows, filter_map, collect");
+    let mut resultset = connection.query(query_str)?;
+    resultset.fetch_all()?; // ensures that all rows are Ok
+    assert_eq!(
+        resultset
+            .map(|res_row| res_row.unwrap(/*now save*/))
+            .filter_map(|row| {
+                let td = row.try_into::<TestData>().unwrap();
+                if td.f1.ends_with("0") {
+                    Some(td)
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>()
+            .len(),
+        10
+    );
 
     info!("Convert a whole resultset into a Vec of structs");
-    let vtd: Vec<TestData> = connection.query(stmt)?.try_into()?;
+    let vtd: Vec<TestData> = connection.query(query_str)?.try_into()?;
     for td in vtd {
         debug!("Got {}, {:?}, {}, {}", td.f1, td.f2, td.f3, td.f4);
     }
@@ -137,13 +149,13 @@ fn verify_row_ordering(
     }
     insert_stmt.execute_batch()?;
 
-    let stmt = "select * from TEST_ROW_ORDERING order by f1 asc";
+    let query_str = "select * from TEST_ROW_ORDERING order by f1 asc";
 
-    for fs in [10, 100, 1000, 2000].iter() {
-        debug!("verify_row_ordering with fetch_size {}", *fs);
-        connection.set_fetch_size(*fs).unwrap();
+    for fetch_size in [10, 100, 1000, 2000].iter() {
+        debug!("verify_row_ordering with fetch_size {}", *fetch_size);
+        connection.set_fetch_size(*fetch_size).unwrap();
 
-        for (index, row) in connection.query(stmt)?.into_iter().enumerate() {
+        for (index, row) in connection.query(query_str)?.into_iter().enumerate() {
             let (f1, f2): (usize, usize) = row?.try_into()?;
             if index % 100 == 0 {
                 debug!("pass 1: convert rows individually, {}", index);
@@ -152,7 +164,7 @@ fn verify_row_ordering(
             assert_eq!(index, f2);
         }
 
-        for (index, row) in connection.query(stmt)?.into_iter().enumerate() {
+        for (index, row) in connection.query(query_str)?.into_iter().enumerate() {
             if index % 100 == 0 {
                 debug!("pass 2: convert fields individually, {}", index);
             }
@@ -161,7 +173,7 @@ fn verify_row_ordering(
             assert_eq!(index, row.next_value().unwrap().try_into::<usize>()?);
         }
 
-        let result: Vec<(usize, usize)> = connection.query(stmt)?.try_into()?;
+        let result: Vec<(usize, usize)> = connection.query(query_str)?.try_into()?;
         for (index, (f1, f2)) in result.into_iter().enumerate() {
             if index % 100 == 0 {
                 debug!("pass 3: convert the whole resultset, {}", index);
