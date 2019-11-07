@@ -11,6 +11,7 @@ use serde_derive::Deserialize;
 #[test] // cargo test --test test_030_prepare -- --nocapture
 pub fn test_030_prepare() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
+    // log_handle.parse_new_spec("info, test=debug");
     let mut connection = test_utils::get_authenticated_connection()?;
 
     prepare_insert_statement(&mut log_handle, &mut connection)?;
@@ -115,9 +116,14 @@ fn prepare_statement_use_parameter_row(
 
     debug!("prepare & execute with rust types");
     let mut insert_stmt = connection.prepare(insert_stmt_str)?;
+    debug!("connection: {}", connection.server_usage()?);
+    debug!("insert_stmt: {}", insert_stmt.server_usage());
+
     insert_stmt.add_batch(&("conn1-auto1", 45_i32))?;
     insert_stmt.add_batch(&("conn1-auto2", 46_i32))?;
     insert_stmt.execute_batch()?;
+    debug!("connection: {}", connection.server_usage()?);
+    debug!("insert_stmt: {}", insert_stmt.server_usage());
 
     let typed_result: i32 = connection
         .query("select sum(F2_I) from TEST_PREPARE")?
@@ -125,24 +131,26 @@ fn prepare_statement_use_parameter_row(
     assert_eq!(typed_result, 91);
 
     debug!("prepare & execute with HdbValues");
-    let mut stmt = connection.prepare(insert_stmt_str)?;
     let my_string = String::from("foo");
-    stmt.add_row_to_batch(vec![
+    insert_stmt.add_row_to_batch(vec![
         HdbValue::STRING(my_string.clone()),
         HdbValue::INT(1000_i32),
     ])?;
     debug!("add to batch...");
-    stmt.add_row_to_batch(vec![
+    insert_stmt.add_row_to_batch(vec![
         HdbValue::STRING(my_string.clone()),
         HdbValue::INT(2100_i32),
     ])?;
-    stmt.add_row_to_batch(vec![
+    insert_stmt.add_row_to_batch(vec![
         HdbValue::STRING(my_string),
         HdbValue::STRING("25".to_string()),
     ])?;
 
     debug!("execute...");
-    stmt.execute_batch()?;
+    insert_stmt.execute_batch()?;
+    debug!("connection: {}", connection.server_usage()?);
+    debug!("insert_stmt: {}", insert_stmt.server_usage());
+
     connection.commit()?;
     debug!("checking...");
     let typed_result: i32 = connection

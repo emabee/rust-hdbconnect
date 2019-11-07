@@ -2,7 +2,7 @@ use super::fetch::fetch_a_lob_chunk;
 use super::CharLobSlice;
 use crate::conn_core::AmConnCore;
 use crate::protocol::parts::resultset::AmRsCore;
-use crate::protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
+use crate::protocol::server_usage::ServerUsage;
 use crate::protocol::util;
 use crate::{HdbError, HdbResult};
 use std::boxed::Box;
@@ -112,6 +112,12 @@ impl NCLob {
     pub fn cur_buf_len(&self) -> usize {
         self.0.cur_buf_len() as usize
     }
+
+    /// Provides information about the the server-side resource consumption that
+    /// is related to this `NCBLob` object.
+    pub fn server_usage(&self) -> ServerUsage {
+        self.0.server_usage
+    }
 }
 
 // Support for NCLob streaming.
@@ -140,7 +146,7 @@ struct NCLobHandle {
     max_buf_len: usize,
     acc_byte_length: usize,
     acc_char_length: usize,
-    server_resource_consumption_info: ServerResourceConsumptionInfo,
+    server_usage: ServerUsage,
 }
 impl NCLobHandle {
     fn new(
@@ -172,7 +178,7 @@ impl NCLobHandle {
             utf8,
             acc_byte_length,
             acc_char_length,
-            server_resource_consumption_info: Default::default(),
+            server_usage: Default::default(),
         };
 
         trace!(
@@ -194,7 +200,7 @@ impl NCLobHandle {
             self.locator_id,
             offset,
             length,
-            &mut self.server_resource_consumption_info,
+            &mut self.server_usage,
         )?;
         debug!("read_slice(): got {} bytes", reply_data.len());
         Ok(util::split_off_orphaned_surrogates(reply_data)?)
@@ -223,7 +229,7 @@ impl NCLobHandle {
             self.locator_id,
             self.acc_char_length as u64,
             read_length,
-            &mut self.server_resource_consumption_info,
+            &mut self.server_usage,
         )?;
 
         self.acc_byte_length += reply_data.len();

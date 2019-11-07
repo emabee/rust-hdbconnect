@@ -6,7 +6,7 @@ pub(crate) mod reply;
 pub(crate) mod reply_type;
 pub(crate) mod request;
 pub(crate) mod request_type;
-pub(crate) mod server_resource_consumption_info;
+pub(crate) mod server_usage;
 pub(crate) mod util;
 
 pub(crate) mod parts;

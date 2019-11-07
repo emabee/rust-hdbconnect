@@ -1,7 +1,7 @@
 use super::fetch::fetch_a_lob_chunk;
 use crate::conn_core::AmConnCore;
 use crate::protocol::parts::resultset::AmRsCore;
-use crate::protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
+use crate::protocol::server_usage::ServerUsage;
 use crate::{HdbError, HdbResult};
 use std::boxed::Box;
 use std::io::{self, Write};
@@ -107,6 +107,12 @@ impl BLob {
     pub fn cur_buf_len(&self) -> usize {
         self.0.cur_buf_len() as usize
     }
+
+    /// Provides information about the the server-side resource consumption that
+    /// is related to this `BLob` object.
+    pub fn server_usage(&self) -> ServerUsage {
+        self.0.server_usage
+    }
 }
 
 // Support for BLob streaming
@@ -130,7 +136,7 @@ struct BLobHandle {
     data: Vec<u8>,
     max_buf_len: usize,
     acc_byte_length: usize,
-    server_resource_consumption_info: ServerResourceConsumptionInfo,
+    server_usage: ServerUsage,
 }
 impl BLobHandle {
     fn new(
@@ -159,7 +165,7 @@ impl BLobHandle {
             max_buf_len: data.len(),
             acc_byte_length: data.len(),
             data,
-            server_resource_consumption_info: Default::default(),
+            server_usage: Default::default(),
         }
     }
 
@@ -169,7 +175,7 @@ impl BLobHandle {
             self.locator_id,
             offset,
             length,
-            &mut self.server_resource_consumption_info,
+            &mut self.server_usage,
         )?;
         debug!("read_slice(): got {} bytes", reply_data.len());
         Ok(reply_data)
@@ -198,7 +204,7 @@ impl BLobHandle {
             self.locator_id,
             self.acc_byte_length as u64,
             read_length,
-            &mut self.server_resource_consumption_info,
+            &mut self.server_usage,
         )?;
 
         self.acc_byte_length += reply_data.len();

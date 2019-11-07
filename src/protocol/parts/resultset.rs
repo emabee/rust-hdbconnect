@@ -9,7 +9,7 @@ use crate::protocol::parts::statement_context::StatementContext;
 use crate::protocol::reply_type::ReplyType;
 use crate::protocol::request::Request;
 use crate::protocol::request_type::RequestType;
-use crate::protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
+use crate::protocol::server_usage::ServerUsage;
 use crate::{HdbError, HdbResult};
 use serde;
 use serde_db::de::DeserializableResultset;
@@ -60,7 +60,7 @@ pub(crate) struct RsState {
     o_am_rscore: Option<AmRsCore>,
     next_rows: Vec<Row>,
     row_iter: <Vec<Row> as IntoIterator>::IntoIter,
-    server_resource_consumption_info: ServerResourceConsumptionInfo,
+    server_usage: ServerUsage,
 }
 impl RsState {
     fn fetch_all(&mut self, a_rsmd: &Arc<ResultSetMetadata>) -> HdbResult<()> {
@@ -366,14 +366,13 @@ impl ResultSet {
         a_rsmd: Arc<ResultSetMetadata>,
         o_stmt_ctx: Option<StatementContext>,
     ) -> ResultSet {
-        let mut server_resource_consumption_info: ServerResourceConsumptionInfo =
-            Default::default();
+        let mut server_usage: ServerUsage = Default::default();
 
         if let Some(stmt_ctx) = o_stmt_ctx {
-            server_resource_consumption_info.update(
-                stmt_ctx.get_server_processing_time(),
-                stmt_ctx.get_server_cpu_time(),
-                stmt_ctx.get_server_memory_usage(),
+            server_usage.update(
+                stmt_ctx.server_processing_time(),
+                stmt_ctx.server_cpu_time(),
+                stmt_ctx.server_memory_usage(),
             );
         }
 
@@ -383,7 +382,7 @@ impl ResultSet {
                 o_am_rscore: Some(ResultSetCore::new_am_rscore(am_conn_core, attrs, rs_id)),
                 next_rows: Vec::<Row>::new(),
                 row_iter: Vec::<Row>::new().into_iter(),
-                server_resource_consumption_info,
+                server_usage,
             }),
         }
     }
@@ -452,10 +451,10 @@ impl ResultSet {
             Some(ref mut fetching_state) => {
                 match parts.pop_arg_if_kind(PartKind::StatementContext) {
                     Some(Argument::StatementContext(stmt_ctx)) => {
-                        fetching_state.server_resource_consumption_info.update(
-                            stmt_ctx.get_server_processing_time(),
-                            stmt_ctx.get_server_cpu_time(),
-                            stmt_ctx.get_server_memory_usage(),
+                        fetching_state.server_usage.update(
+                            stmt_ctx.server_processing_time(),
+                            stmt_ctx.server_cpu_time(),
+                            stmt_ctx.server_memory_usage(),
                         );
                     }
                     None => {}
@@ -480,6 +479,12 @@ impl ResultSet {
                 Ok(None)
             }
         }
+    }
+
+    /// Provides information about the the server-side resource consumption that
+    /// is related to this `ResultSet` object.
+    pub fn server_usage(&self) -> ServerUsage {
+        self.state.borrow().server_usage
     }
 
     fn parse_rows<T: std::io::BufRead>(&self, no_of_rows: usize, rdr: &mut T) -> HdbResult<()> {

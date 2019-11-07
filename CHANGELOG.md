@@ -4,8 +4,9 @@
 
 Avoid cloning of metadata.
 
-TODO: Use inner mutability to hide the fact that fetching happens
+Use inner mutability to avoid mut for ResultSet iterations.
 
+Revise handling of server usage information.
 
 ## [0.16.0-actix-compatibility] 2019-10-29
 

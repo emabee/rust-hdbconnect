@@ -7,7 +7,7 @@ use crate::protocol::parts::write_lob_request::WriteLobRequest;
 use crate::protocol::reply_type::ReplyType;
 use crate::protocol::request::Request;
 use crate::protocol::request_type::RequestType;
-use crate::protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
+use crate::protocol::server_usage::ServerUsage;
 use crate::protocol::util::utf8_to_cesu8_and_utf8_tail;
 use crate::{HdbError, HdbResult};
 use std::io::{Error, ErrorKind, Result, Write};
@@ -16,7 +16,7 @@ pub(crate) struct LobWriter {
     locator_id: u64,
     type_id: TypeId,
     am_conn_core: AmConnCore,
-    server_resource_consumption_info: ServerResourceConsumptionInfo,
+    server_usage: ServerUsage,
     buffer: Vec<u8>,
     lob_write_length: usize,
 }
@@ -32,7 +32,7 @@ impl LobWriter {
             locator_id,
             type_id,
             am_conn_core,
-            server_resource_consumption_info: Default::default(),
+            server_usage: Default::default(),
             buffer: Vec::<u8>::with_capacity(lob_write_length + 8200),
             lob_write_length,
         })
@@ -71,7 +71,7 @@ impl Write for LobWriter {
                 &mut self.am_conn_core,
                 self.locator_id,
                 LobWriteMode::Append(&payload),
-                &mut self.server_resource_consumption_info,
+                &mut self.server_usage,
             )
             .map_err(|e| Error::new(ErrorKind::Other, e))?;
             debug_assert_eq!(locator_ids.len(), 1);
@@ -102,7 +102,7 @@ impl Write for LobWriter {
             &mut self.am_conn_core,
             self.locator_id,
             LobWriteMode::Last(&payload),
-            &mut self.server_resource_consumption_info,
+            &mut self.server_usage,
         )
         .map_err(|e| Error::new(ErrorKind::Other, e))?;
         debug_assert_eq!(locator_ids.len(), 0);
@@ -116,7 +116,7 @@ fn write_a_lob_chunk(
     am_conn_core: &mut AmConnCore,
     locator_id: u64,
     lob_write_mode: LobWriteMode,
-    server_resource_consumption_info: &mut ServerResourceConsumptionInfo,
+    server_usage: &mut ServerUsage,
 ) -> HdbResult<Vec<u64>> {
     let mut request = Request::new(RequestType::WriteLob, 0);
     let write_lob_request = match lob_write_mode {
@@ -136,9 +136,9 @@ fn write_a_lob_chunk(
     let (server_proc_time, server_cpu_time, server_memory_usage) =
         match reply.parts.pop_arg_if_kind(PartKind::StatementContext) {
             Some(Argument::StatementContext(stmt_ctx)) => (
-                stmt_ctx.get_server_processing_time(),
-                stmt_ctx.get_server_cpu_time(),
-                stmt_ctx.get_server_memory_usage(),
+                stmt_ctx.server_processing_time(),
+                stmt_ctx.server_cpu_time(),
+                stmt_ctx.server_memory_usage(),
             ),
             None => (None, None, None),
             _ => {
@@ -147,7 +147,7 @@ fn write_a_lob_chunk(
                 ));
             }
         };
-    server_resource_consumption_info.update(server_proc_time, server_cpu_time, server_memory_usage);
+    server_usage.update(server_proc_time, server_cpu_time, server_memory_usage);
 
     if let Some(Argument::TransactionFlags(ta_flags)) =
         reply.parts.pop_arg_if_kind(PartKind::TransactionFlags)

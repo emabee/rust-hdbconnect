@@ -2,7 +2,7 @@ use super::fetch::fetch_a_lob_chunk;
 use super::CharLobSlice;
 use crate::conn_core::AmConnCore;
 use crate::protocol::parts::resultset::AmRsCore;
-use crate::protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
+use crate::protocol::server_usage::ServerUsage;
 use crate::protocol::util;
 use crate::{HdbError, HdbResult};
 use std::boxed::Box;
@@ -120,6 +120,12 @@ impl CLob {
     pub fn cur_buf_len(&self) -> usize {
         self.0.cur_buf_len() as usize
     }
+
+    /// Provides information about the the server-side resource consumption that
+    /// is related to this `CBLob` object.
+    pub fn server_usage(&self) -> ServerUsage {
+        self.0.server_usage
+    }
 }
 
 // Support for CLob streaming
@@ -147,7 +153,7 @@ struct CLobHandle {
     utf8: String,
     max_buf_len: usize,
     acc_byte_length: usize,
-    server_resource_consumption_info: ServerResourceConsumptionInfo,
+    server_usage: ServerUsage,
 }
 impl CLobHandle {
     fn new(
@@ -176,7 +182,7 @@ impl CLobHandle {
             buffer_cesu8,
             utf8,
             acc_byte_length,
-            server_resource_consumption_info: Default::default(),
+            server_usage: Default::default(),
         };
         debug!(
             "CLobHandle::new() with: is_data_complete = {}, total_char_length = {}, total_byte_length = {}, \
@@ -197,7 +203,7 @@ impl CLobHandle {
             self.locator_id,
             offset,
             length,
-            &mut self.server_resource_consumption_info,
+            &mut self.server_usage,
         )?;
         debug!("read_slice(): got {} bytes", reply_data.len());
         Ok(util::split_off_orphaned_bytes(reply_data)?)
@@ -226,7 +232,7 @@ impl CLobHandle {
             self.locator_id,
             self.acc_byte_length as u64,
             read_length,
-            &mut self.server_resource_consumption_info,
+            &mut self.server_usage,
         )?;
 
         self.acc_byte_length += reply_data.len();

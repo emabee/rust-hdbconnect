@@ -10,7 +10,7 @@ use crate::protocol::parts::resultset::ResultSet;
 use crate::protocol::parts::server_error::ServerError;
 use crate::protocol::request::{Request, HOLD_CURSORS_OVER_COMMIT};
 use crate::protocol::request_type::RequestType;
-use crate::protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
+use crate::protocol::server_usage::ServerUsage;
 use crate::xa_impl::new_resource_manager;
 use crate::{HdbError, HdbResponse, HdbResult};
 use chrono::Local;
@@ -303,13 +303,10 @@ impl Connection {
             .get_connection_id())
     }
 
-    ///
-    pub fn get_server_resource_consumption_info(&self) -> HdbResult<ServerResourceConsumptionInfo> {
-        Ok(self
-            .am_conn_core
-            .lock()?
-            .server_resource_consumption_info()
-            .clone())
+    /// Provides information about the the server-side resource consumption that
+    /// is related to this Connection object.
+    pub fn server_usage(&self) -> HdbResult<ServerUsage> {
+        Ok(self.am_conn_core.lock()?.server_usage())
     }
 
     #[doc(hidden)]
@@ -456,5 +453,5 @@ where
     }
 
     let reply = am_conn_core.send(request)?;
-    reply.into_hdbresponse(am_conn_core)
+    reply.into_hdbresponse(am_conn_core, None)
 }

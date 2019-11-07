@@ -10,6 +10,7 @@ use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
 use crate::protocol::parts::type_id::TypeId;
 use crate::protocol::request::{Request, HOLD_CURSORS_OVER_COMMIT};
 use crate::protocol::request_type::RequestType;
+use crate::protocol::server_usage::ServerUsage;
 use crate::types_impl::lob::LobWriter;
 use crate::{HdbError, HdbResponse, HdbResult};
 use serde;
@@ -70,6 +71,7 @@ use std::sync::Arc;
 pub struct PreparedStatement {
     am_conn_core: AmConnCore,
     statement_id: u64,
+    server_usage: ServerUsage,
     o_a_descriptors: Option<Arc<ParameterDescriptors>>,
     o_a_rsmd: Option<Arc<ResultSetMetadata>>,
     batch: ParameterRows<'static>,
@@ -253,7 +255,7 @@ impl<'a> PreparedStatement {
                         }
                     }
                 }
-                main_reply.into_hdbresponse(&mut (self.am_conn_core))
+                main_reply.into_hdbresponse(&mut (self.am_conn_core), Some(&mut self.server_usage))
             } else {
                 self.execute_parameter_rows(None)
             }
@@ -340,7 +342,13 @@ impl<'a> PreparedStatement {
             self.o_a_descriptors.clone(),
             &mut None,
         )?;
-        reply.into_hdbresponse(&mut (self.am_conn_core))
+        reply.into_hdbresponse(&mut (self.am_conn_core), Some(&mut self.server_usage))
+    }
+
+    /// Provides information about the the server-side resource consumption that
+    /// is related to this `PreparedStatement` object.
+    pub fn server_usage(&self) -> ServerUsage {
+        self.server_usage
     }
 
     // Prepare a statement.
@@ -360,6 +368,7 @@ impl<'a> PreparedStatement {
         let mut o_stmt_id: Option<u64> = None;
         let mut o_a_descriptors: Option<Arc<ParameterDescriptors>> = None;
         let mut o_a_rsmd: Option<Arc<ResultSetMetadata>> = None;
+        let mut server_usage: ServerUsage = Default::default();
 
         while !reply.parts.is_empty() {
             match reply.parts.pop_arg() {
@@ -383,6 +392,11 @@ impl<'a> PreparedStatement {
                 Some(Argument::StatementContext(ref stmt_ctx)) => {
                     let mut guard = am_conn_core.lock()?;
                     (*guard).evaluate_statement_context(stmt_ctx)?;
+                    server_usage.update(
+                        stmt_ctx.server_processing_time(),
+                        stmt_ctx.server_cpu_time(),
+                        stmt_ctx.server_memory_usage(),
+                    );
                 }
                 x => warn!("prepare(): Unexpected reply part found {:?}", x),
             }
@@ -405,6 +419,7 @@ impl<'a> PreparedStatement {
         Ok(PreparedStatement {
             am_conn_core,
             statement_id,
+            server_usage,
             batch: ParameterRows::new(),
             o_a_descriptors,
             o_a_rsmd,

@@ -18,7 +18,7 @@ use crate::protocol::parts::topology::Topology;
 use crate::protocol::parts::transactionflags::TransactionFlags;
 use crate::protocol::reply::Reply;
 use crate::protocol::request::Request;
-use crate::protocol::server_resource_consumption_info::ServerResourceConsumptionInfo;
+use crate::protocol::server_usage::ServerUsage;
 use crate::{HdbError, HdbResult};
 use std::io::Write;
 use std::mem;
@@ -32,7 +32,7 @@ pub(crate) struct ConnectionCore {
     client_info_touched: bool,
     seq_number: i32,
     auto_commit: bool,
-    server_resource_consumption_info: ServerResourceConsumptionInfo,
+    server_usage: ServerUsage,
     fetch_size: u32,
     lob_read_length: u32,
     lob_write_length: usize,
@@ -55,7 +55,7 @@ impl<'a> ConnectionCore {
             session_id: 0,
             seq_number: 0,
             auto_commit: true,
-            server_resource_consumption_info: Default::default(),
+            server_usage: Default::default(),
             fetch_size: crate::DEFAULT_FETCH_SIZE,
             lob_read_length: crate::DEFAULT_LOB_READ_LENGTH,
             lob_write_length: crate::DEFAULT_LOB_WRITE_LENGTH,
@@ -103,13 +103,13 @@ impl<'a> ConnectionCore {
     ) -> HdbResult<()> {
         trace!(
             "Received StatementContext with sequence_info = {:?}",
-            stmt_ctx.get_statement_sequence_info()
+            stmt_ctx.statement_sequence_info()
         );
-        self.set_statement_sequence(stmt_ctx.get_statement_sequence_info());
-        self.server_resource_consumption_info.update(
-            stmt_ctx.get_server_processing_time(),
-            stmt_ctx.get_server_cpu_time(),
-            stmt_ctx.get_server_memory_usage(),
+        self.set_statement_sequence(stmt_ctx.statement_sequence_info());
+        self.server_usage.update(
+            stmt_ctx.server_processing_time(),
+            stmt_ctx.server_cpu_time(),
+            stmt_ctx.server_memory_usage(),
         );
         // todo do not ignore the other content of StatementContext
         // StatementContextId::SchemaName => 3,
@@ -128,8 +128,8 @@ impl<'a> ConnectionCore {
         self.auto_commit
     }
 
-    pub(crate) fn server_resource_consumption_info(&self) -> &ServerResourceConsumptionInfo {
-        &self.server_resource_consumption_info
+    pub(crate) fn server_usage(&self) -> ServerUsage {
+        self.server_usage
     }
 
     pub(crate) fn get_fetch_size(&self) -> u32 {

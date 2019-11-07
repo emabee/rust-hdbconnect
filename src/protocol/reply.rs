@@ -9,6 +9,7 @@ use crate::protocol::parts::resultset::ResultSet;
 use crate::protocol::parts::resultset::RsState;
 use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
 use crate::protocol::reply_type::ReplyType;
+use crate::protocol::server_usage::ServerUsage;
 use crate::protocol::util;
 use crate::{HdbError, HdbResponse, HdbResult};
 use byteorder::{LittleEndian, ReadBytesExt};
@@ -112,7 +113,11 @@ impl Reply {
             .map(Part::into_arg)
     }
 
-    pub fn into_hdbresponse(mut self, am_conn_core: &mut AmConnCore) -> HdbResult<HdbResponse> {
+    pub fn into_hdbresponse(
+        mut self,
+        am_conn_core: &mut AmConnCore,
+        mut o_additional_server_usage: Option<&mut ServerUsage>,
+    ) -> HdbResult<HdbResponse> {
         // digest parts, collect InternalReturnValues
         let mut conn_core = am_conn_core.lock()?;
         let mut int_return_values = Vec::<InternalReturnValue>::new();
@@ -123,6 +128,13 @@ impl Reply {
             match arg {
                 Argument::StatementContext(ref stmt_ctx) => {
                     (*conn_core).evaluate_statement_context(stmt_ctx)?;
+                    if let Some(ref mut server_usage) = o_additional_server_usage {
+                        server_usage.update(
+                            stmt_ctx.server_processing_time(),
+                            stmt_ctx.server_cpu_time(),
+                            stmt_ctx.server_memory_usage(),
+                        );
+                    }
                 }
                 Argument::TransactionFlags(ta_flags) => {
                     (*conn_core).evaluate_ta_flags(ta_flags)?;

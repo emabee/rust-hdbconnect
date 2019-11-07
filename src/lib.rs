@@ -59,17 +59,17 @@ pub use crate::hdb_error::{HdbError, HdbResult};
 pub use crate::hdb_response::HdbResponse;
 pub use crate::hdb_return_value::HdbReturnValue;
 pub use crate::prepared_statement::PreparedStatement;
-pub use crate::protocol::parts::output_parameters::OutputParameters;
-pub use crate::protocol::parts::resultset::ResultSet;
-pub use crate::protocol::parts::row::Row;
-pub use crate::protocol::parts::server_error::{ServerError, Severity};
-
 pub use crate::protocol::parts::execution_result::ExecutionResult;
+pub use crate::protocol::parts::output_parameters::OutputParameters;
 pub use crate::protocol::parts::parameter_descriptor::{
     ParameterBinding, ParameterDescriptor, ParameterDirection,
 };
+pub use crate::protocol::parts::resultset::ResultSet;
 pub use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
+pub use crate::protocol::parts::row::Row;
+pub use crate::protocol::parts::server_error::{ServerError, Severity};
 pub use crate::protocol::parts::type_id::TypeId;
+pub use crate::protocol::server_usage::ServerUsage;
 
 mod types_impl;
 
