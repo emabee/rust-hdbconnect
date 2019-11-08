@@ -1,19 +1,14 @@
 mod test_utils;
 
 use chrono::NaiveDateTime;
-use flexi_logger::{Duplicate, Logger, ReconfigurationHandle};
+use flexi_logger::ReconfigurationHandle;
 use hdbconnect::{Connection, HdbResult};
 use log::{debug, info};
 use serde_derive::Deserialize;
 
 #[test] // cargo test --test test_015_resultset -- --nocapture
 pub fn test_015_resultset() -> HdbResult<()> {
-    // let mut log_handle = test_utils::init_logger();
-    let mut log_handle = Logger::with_str("trace")
-        .duplicate_to_stderr(Duplicate::Info)
-        .do_not_log()
-        .start()
-        .unwrap();
+    let mut log_handle = test_utils::init_logger();
     let mut connection = test_utils::get_authenticated_connection()?;
 
     evaluate_resultset(&mut log_handle, &mut connection)?;
@@ -73,13 +68,19 @@ fn evaluate_resultset(
     debug!("After drop of resultset");
 
     info!("Loop over rows, loop over values, evaluate each individually");
-    for row in connection.query(query_str)? {
+    let rs = connection.query(query_str)?;
+    let metadata = rs.metadata();
+    let tablename = metadata.tablename(0)?;
+    for row in rs {
         let mut row = row?;
-        let f1: String = row.next_value().unwrap().try_into()?;
-        let f2: Option<i32> = row.next_value().unwrap().try_into()?;
-        let f3: i32 = row.next_value().unwrap().try_into()?;
-        let f4: NaiveDateTime = row.next().unwrap().try_into()?;
-        debug!("Got {}, {:?}, {}, {}", f1, f2, f3, f4);
+        let f1: String = row.next_try_into()?;
+        let f2: Option<i32> = row.next_try_into()?;
+        let f3: i32 = row.next_try_into()?;
+        let f4: NaiveDateTime = row.next_try_into()?;
+        debug!(
+            "From {}, got line {}, {:?}, {}, {}",
+            tablename, f1, f2, f3, f4
+        );
     }
 
     info!("Loop over rows (streaming support), convert row into struct");
@@ -93,8 +94,8 @@ fn evaluate_resultset(
 
     info!("Loop over rows, convert row into tuple (avoid defining a struct)");
     for row in connection.query(query_str)? {
-        let t: (String, Option<i32>, i32, NaiveDateTime) = row?.try_into()?;
-        debug!("Got tuple with {}, {:?}, {}, {}", t.0, t.1, t.2, t.3);
+        let (one, two, three, four): (String, Option<i32>, i32, NaiveDateTime) = row?.try_into()?;
+        debug!("Got tuple with {}, {:?}, {}, {}", one, two, three, four);
     }
 
     info!("Loop over rows (streaming support), convert row into single value");

@@ -53,12 +53,12 @@ fn main() {
     run_command!("cargo", "clippy");
     run_command!("cargo", "clippy", "--all-features");
 
+    // doc
+    run_command!("cargo", "doc", "--all-features", "--no-deps", "--open");
+
     // Run tests in important variants
     // REQUIRES TLS AUTOMATION run_command!("cargo", "test", "--release", "--all-features");
     run_command!("cargo", "test");
-
-    // doc
-    run_command!("cargo", "doc", "--all-features", "--no-deps", "--open");
 
     // check git status
     let mut cmd = command!("git", "status", "-s");

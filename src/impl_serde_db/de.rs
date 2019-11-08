@@ -1,3 +1,8 @@
+use crate::protocol::parts::hdb_value::HdbValue;
+use crate::protocol::parts::output_parameters::OutputParameters;
+use crate::protocol::parts::resultset::ResultSet;
+use crate::protocol::parts::row::Row;
+use crate::HdbError;
 use bigdecimal::ToPrimitive;
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use serde_db::de::{
@@ -6,12 +11,6 @@ use serde_db::de::{
 };
 use std::error::Error;
 use std::{fmt, i16, i32, i64, i8, u16, u32, u8};
-
-use crate::protocol::parts::hdb_value::HdbValue;
-use crate::protocol::parts::output_parameters::OutputParameters;
-use crate::protocol::parts::resultset::ResultSet;
-use crate::protocol::parts::row::Row;
-use crate::HdbError;
 
 impl DeserializableResultset for ResultSet {
     type ROW = Row;
@@ -22,15 +21,15 @@ impl DeserializableResultset for ResultSet {
     }
 
     fn next(&mut self) -> DeserializationResult<Option<Row>> {
-        Ok(ResultSet::next_row(self)?)
+        Ok(self.next_row()?)
     }
 
     fn number_of_fields(&self) -> usize {
-        ResultSet::metadata(self).number_of_fields()
+        self.metadata_ref().number_of_fields()
     }
 
     fn fieldname(&self, i: usize) -> Option<&String> {
-        ResultSet::metadata(self).displayname(i).ok()
+        self.metadata_ref().displayname(i).ok()
     }
 }
 
@@ -39,11 +38,11 @@ impl DeserializableRow for Row {
     type E = HdbError;
 
     fn len(&self) -> usize {
-        Row::len(self)
+        self.len()
     }
 
     fn next(&mut self) -> Option<HdbValue<'static>> {
-        Row::next_value(self)
+        self.next_value()
     }
 
     fn number_of_fields(&self) -> usize {
@@ -51,7 +50,7 @@ impl DeserializableRow for Row {
     }
 
     fn fieldname(&self, field_idx: usize) -> Option<&String> {
-        Row::metadata(self).displayname(field_idx).ok()
+        self.metadata().displayname(field_idx).ok()
     }
 }
 

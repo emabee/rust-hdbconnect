@@ -320,9 +320,14 @@ impl ResultSet {
         }
     }
 
-    /// Access to metadata.
-    pub fn metadata(&self) -> &ResultSetMetadata {
+    // Fast access to metadata, only for internal purposes.
+    pub(crate) fn metadata_ref(&self) -> &ResultSetMetadata {
         &self.metadata
+    }
+
+    /// Access to metadata.
+    pub fn metadata(&self) -> Arc<ResultSetMetadata> {
+        Arc::clone(&self.metadata)
     }
 
     /// Returns the total number of rows in the resultset,
