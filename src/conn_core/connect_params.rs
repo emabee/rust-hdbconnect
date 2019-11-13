@@ -45,16 +45,19 @@ use url::Url;
 /// > `<password>` = the password of the DB user  
 /// > `<host>` = the host where HANA can be found  
 /// > `<port>` = the port at which HANA can be found on `<host>`  
-/// > `<options>` = `?<key> = <value> [{&<key> = <value>}]`
+/// > `<options>` = `?<key>[=<value>][{&<key>[=<value>}]]`
 ///
 /// Special option keys are:
-/// > `client_locale`: `<value>` is used to specify the client's locale  
-/// > `client_locale_from_env`: if `<value>` is 1, the client's locale is read
-///   from the environment variabe LANG  
-/// > `tls_certificate_dir`: the `<value>` points to a folder with pem files that contain
-///   the server's certificates; all pem files in that folder are evaluated  
-/// > `tls_certificate_env`: the `<value>` denotes the environment variable that contains
-///   the server's certificate
+/// > `client_locale=<value>` specifies the client locale  
+/// > `client_locale_from_env` (no value): lets the driver read the client's locale from the
+///    environment variabe LANG  
+/// > `tls_certificate_dir=<value>`: points to a folder with pem files that contain
+///   certificates; all pem files in that folder are evaluated  
+/// > `tls_certificate_env=<value>`: denotes an environment variable that contains
+///   certificates
+/// > `use_mozillas_root_certificates` (no value): use the root certificates from
+///   [`https://mkcert.org/`](https://mkcert.org/)
+///
 ///
 /// The client locale is used in language-dependent handling within the SAP HANA
 /// database calculation engine.
@@ -68,7 +71,7 @@ use url::Url;
 ///     .unwrap();
 /// ```
 ///
-/// ## Reading the URL from a file
+/// ## Reading a URL from a file
 ///
 /// The shortcut [`ConnectParams::from_file`](struct.ConnectParams.html#method.from_file)
 /// reads a URL from a file and converts it into an instance of `ConnectParams`.
@@ -84,6 +87,8 @@ pub struct ConnectParams {
     pub(crate) use_tls: bool,
     #[cfg(feature = "tls")]
     pub(crate) server_certs: Option<ServerCerts>,
+    #[cfg(feature = "tls")]
+    pub(crate) use_mozillas_root_certificates: bool,
 }
 impl ConnectParams {
     /// Returns a new builder for ConnectParams.
@@ -219,17 +224,16 @@ impl IntoConnectParams for Url {
             }
         }
 
+        let mut clientlocale = None;
         #[cfg(feature = "tls")]
         let mut server_certs = None;
-        let mut clientlocale = None;
+        #[cfg(feature = "tls")]
+        let mut use_mozillas_root_certificates = false;
         for (name, value) in self.query_pairs() {
             match name.as_ref() {
                 "client_locale" => clientlocale = Some(value.to_string()),
                 "client_locale_from_env" => {
-                    clientlocale = match env::var("LANG") {
-                        Ok(l) => Some(l),
-                        Err(_) => None,
-                    };
+                    clientlocale = env::var("LANG").ok();
                 }
                 #[cfg(feature = "tls")]
                 "tls_certificate_dir" => {
@@ -238,6 +242,10 @@ impl IntoConnectParams for Url {
                 #[cfg(feature = "tls")]
                 "tls_certificate_env" => {
                     server_certs = Some(ServerCerts::Environment(value.to_string()))
+                }
+                #[cfg(feature = "tls")]
+                "use_mozillas_root_certificates" => {
+                    use_mozillas_root_certificates = true;
                 }
                 _ => log::warn!("option {} not supported", name),
             }
@@ -253,6 +261,8 @@ impl IntoConnectParams for Url {
             use_tls,
             #[cfg(feature = "tls")]
             server_certs,
+            #[cfg(feature = "tls")]
+            use_mozillas_root_certificates,
         })
     }
 }
@@ -275,13 +285,32 @@ mod tests {
 
     #[test]
     fn test_params_from_url() {
-        let params = "hdbsql://meier:schLau@abcd123:2222"
-            .into_connect_params()
-            .unwrap();
+        {
+            let params = "hdbsql://meier:schLau@abcd123:2222"
+                .into_connect_params()
+                .unwrap();
 
-        assert_eq!("meier", params.dbuser());
-        assert_eq!(b"schLau", params.password().unsecure());
-        assert_eq!("abcd123:2222", params.addr());
+            assert_eq!("meier", params.dbuser());
+            assert_eq!(b"schLau", params.password().unsecure());
+            assert_eq!("abcd123:2222", params.addr());
+            assert_eq!(None, params.clientlocale);
+            #[cfg(feature = "tls")]
+            assert_eq!(false, params.use_mozillas_root_certificates);
+        }
+        {
+            let params = "hdbsql://meier:schLau@abcd123:2222\
+                          ?client_locale=CL1\
+                          &tls_certificate_dir=TCD\
+                          &use_mozillas_root_certificates"
+                .into_connect_params()
+                .unwrap();
+
+            assert_eq!("meier", params.dbuser());
+            assert_eq!(b"schLau", params.password().unsecure());
+            assert_eq!(Some("CL1".to_string()), params.clientlocale);
+            #[cfg(feature = "tls")]
+            assert_eq!(true, params.use_mozillas_root_certificates);
+        }
     }
 
     #[test]

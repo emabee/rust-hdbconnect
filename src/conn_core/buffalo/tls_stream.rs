@@ -41,6 +41,12 @@ fn connect_tcp(
     trace!("tcpstream working");
 
     let mut config = ClientConfig::new();
+    if params.use_mozillas_root_certificates {
+        config
+            .root_store
+            .add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);
+    }
+
     match params.server_certs() {
         None => {
             return Err(std::io::Error::new(

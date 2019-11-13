@@ -30,6 +30,8 @@ pub struct ConnectParamsBuilder {
     clientlocale: Option<String>,
     #[cfg(feature = "tls")]
     server_certs: Option<ServerCerts>,
+    #[cfg(feature = "tls")]
+    use_mozillas_root_certificates: bool,
     options: Vec<(String, String)>,
 }
 
@@ -44,6 +46,8 @@ impl ConnectParamsBuilder {
             clientlocale: None,
             #[cfg(feature = "tls")]
             server_certs: None,
+            #[cfg(feature = "tls")]
+            use_mozillas_root_certificates: false,
             options: vec![],
         }
     }
@@ -85,6 +89,16 @@ impl ConnectParamsBuilder {
             Err(_) => None,
         };
 
+        self
+    }
+
+    /// Defines if the server roots from https://mkcert.org/ should be added to the
+    /// trust store for TLS.
+    ///
+    /// By default they are not added.
+    #[cfg(feature = "tls")]
+    pub fn use_root_certificates(&mut self, b: bool) -> &mut ConnectParamsBuilder {
+        self.use_mozillas_root_certificates = b;
         self
     }
 
@@ -152,6 +166,9 @@ impl ConnectParamsBuilder {
 
             #[cfg(feature = "tls")]
             server_certs: self.server_certs.clone(),
+
+            #[cfg(feature = "tls")]
+            use_mozillas_root_certificates: self.use_mozillas_root_certificates,
         })
     }
 }
@@ -162,14 +179,40 @@ mod test {
 
     #[test]
     fn test_connect_params_builder() {
-        let connect_params = ConnectParamsBuilder::new()
-            .hostname("abcd123")
-            .port(2222)
-            .dbuser("MEIER")
-            .password("schlau")
-            .build()
-            .unwrap();
+        {
+            let params = ConnectParamsBuilder::new()
+                .hostname("abcd123")
+                .port(2222)
+                .dbuser("MEIER")
+                .password("schLau")
+                .build()
+                .unwrap();
+            assert_eq!("MEIER", params.dbuser());
+            assert_eq!(b"schLau", params.password().unsecure());
+            assert_eq!("abcd123:2222", params.addr());
+            assert_eq!(None, params.clientlocale);
+            #[cfg(feature = "tls")]
+            assert_eq!(false, params.use_mozillas_root_certificates);
+        }
+        {
+            let mut builder = ConnectParamsBuilder::new();
+            builder
+                .hostname("abcd123")
+                .port(2222)
+                .dbuser("MEIER")
+                .password("schLau")
+                .clientlocale("CL1");
+            #[cfg(feature = "tls")]
+            builder.tls_with(crate::ServerCerts::Directory("TCD".to_string()));
+            #[cfg(feature = "tls")]
+            builder.use_root_certificates(true);
 
-        assert_eq!(connect_params.dbuser(), "MEIER");
+            let params = builder.build().unwrap();
+            assert_eq!("MEIER", params.dbuser());
+            assert_eq!(b"schLau", params.password().unsecure());
+            assert_eq!(Some("CL1".to_string()), params.clientlocale);
+            #[cfg(feature = "tls")]
+            assert_eq!(true, params.use_mozillas_root_certificates);
+        }
     }
 }

@@ -8,6 +8,8 @@ Use inner mutability to avoid mut for ResultSet iterations.
 
 Revise handling of server usage information.
 
+Add option to use Mozillas root certificates.
+
 ## [0.16.0-actix-compatibility] 2019-10-29
 
 Stick to older version of rustls (0.15.1) and webpki (0.19.1) to stay compatible with actix.
