@@ -1,17 +1,17 @@
 # Changelog
 
-## [0.17.0] unpublished
+## [0.17.0] 2019-11-21
 
-Avoid cloning of metadata.
-
-Use inner mutability to avoid mut for ResultSet iterations.
-
-Revise handling of server usage information.
+Bugfix: Let `ResultSet`s that were produced from a `PreparedStatement` keep
+the `PreparedStatement`'s Core alive.
 
 Add option to use Mozillas root certificates.
 
-Let `ResultSet`s that were produced from a `PreparedStatement` keep
-the `PreparedStatement`'s Core alive.
+Version bump due to incompatible API changes caused by
+
+- Avoid cloning of metadata
+- Use inner mutability to avoid mut for ResultSet iterations
+- Revise handling of server usage information
 
 ## [0.16.0-actix-compatibility] 2019-10-29
 
