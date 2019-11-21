@@ -17,7 +17,7 @@ use serde;
 use serde_db::ser::SerializationError;
 use std::io::Write;
 use std::mem;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 /// Allows injection-safe SQL execution and repeated calls of the same statement
 /// with different parameters with as few roundtrips as possible.
@@ -69,13 +69,20 @@ use std::sync::Arc;
 /// `HdbValue::INT(1088)`.
 #[derive(Debug)]
 pub struct PreparedStatement {
-    am_conn_core: AmConnCore,
-    statement_id: u64,
+    am_ps_core: Arc<Mutex<PreparedStatementCore>>,
     server_usage: ServerUsage,
     o_a_descriptors: Option<Arc<ParameterDescriptors>>,
     o_a_rsmd: Option<Arc<ResultSetMetadata>>,
     batch: ParameterRows<'static>,
     _o_table_location: Option<Vec<i32>>,
+}
+
+pub type AmPsCore = Arc<Mutex<PreparedStatementCore>>;
+
+#[derive(Debug)]
+pub struct PreparedStatementCore {
+    am_conn_core: AmConnCore,
+    statement_id: u64,
 }
 
 impl<'a> PreparedStatement {
@@ -187,7 +194,7 @@ impl<'a> PreparedStatement {
 
                 request.push(Part::new(
                     PartKind::StatementId,
-                    Argument::StatementId(self.statement_id),
+                    Argument::StatementId(self.am_ps_core.lock()?.statement_id),
                 ));
 
                 // If readers were provided, pick them out and replace them with None
@@ -213,6 +220,8 @@ impl<'a> PreparedStatement {
                 ));
 
                 if self
+                    .am_ps_core
+                    .lock()?
                     .am_conn_core
                     .lock()?
                     .connect_options()
@@ -225,7 +234,7 @@ impl<'a> PreparedStatement {
                     ));
                 }
 
-                let mut main_reply = self.am_conn_core.full_send(
+                let mut main_reply = self.am_ps_core.lock()?.am_conn_core.full_send(
                     request,
                     self.o_a_rsmd.clone(),
                     self.o_a_descriptors.clone(),
@@ -248,14 +257,20 @@ impl<'a> PreparedStatement {
                         debug!("writing content to locator with id {:?}", locator_id);
                         if let HdbValue::LOBSTREAM(Some(reader)) = reader {
                             let mut reader = reader.lock().unwrap();
-                            let mut writer =
-                                LobWriter::new(locator_id, type_id, self.am_conn_core.clone())?;
+                            let mut writer = LobWriter::new(
+                                locator_id,
+                                type_id,
+                                self.am_ps_core.lock()?.am_conn_core.clone(),
+                            )?;
                             std::io::copy(&mut *reader, &mut writer)?;
                             writer.flush()?;
                         }
                     }
                 }
-                main_reply.into_hdbresponse(&mut (self.am_conn_core), Some(&mut self.server_usage))
+                main_reply.into_hdbresponse(
+                    &mut (self.am_ps_core.lock()?.am_conn_core),
+                    Some(&mut self.server_usage),
+                )
             } else {
                 self.execute_parameter_rows(None)
             }
@@ -330,19 +345,24 @@ impl<'a> PreparedStatement {
         let mut request = Request::new(RequestType::Execute, HOLD_CURSORS_OVER_COMMIT);
         request.push(Part::new(
             PartKind::StatementId,
-            Argument::StatementId(self.statement_id),
+            Argument::StatementId(self.am_ps_core.lock()?.statement_id),
         ));
         if let Some(rows) = o_rows {
             request.push(Part::new(PartKind::Parameters, Argument::Parameters(rows)));
         }
 
-        let reply = self.am_conn_core.full_send(
+        let reply = self.am_ps_core.lock()?.am_conn_core.full_send(
             request,
             self.o_a_rsmd.clone(),
             self.o_a_descriptors.clone(),
             &mut None,
         )?;
-        reply.into_hdbresponse(&mut (self.am_conn_core), Some(&mut self.server_usage))
+        let mut response = reply.into_hdbresponse(
+            &mut (self.am_ps_core.lock()?.am_conn_core),
+            Some(&mut self.server_usage),
+        )?;
+        response.inject_statement_id(Arc::clone(&self.am_ps_core));
+        Ok(response)
     }
 
     /// Provides information about the the server-side resource consumption that
@@ -416,9 +436,12 @@ impl<'a> PreparedStatement {
             o_a_descriptors
         );
 
-        Ok(PreparedStatement {
+        let am_ps_core = Arc::new(Mutex::new(PreparedStatementCore {
             am_conn_core,
             statement_id,
+        }));
+        Ok(PreparedStatement {
+            am_ps_core,
             server_usage,
             batch: ParameterRows::new(),
             o_a_descriptors,
@@ -428,7 +451,7 @@ impl<'a> PreparedStatement {
     }
 }
 
-impl Drop for PreparedStatement {
+impl Drop for PreparedStatementCore {
     /// Frees all server-side ressources that belong to this prepared statement.
     fn drop(&mut self) {
         let mut request = Request::new(RequestType::DropStatementId, 0);

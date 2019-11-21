@@ -1,4 +1,5 @@
 use crate::conn_core::AmConnCore;
+use crate::prepared_statement::AmPsCore;
 use crate::protocol::argument::Argument;
 use crate::protocol::part::{Part, Parts};
 use crate::protocol::part_attributes::PartAttributes;
@@ -52,12 +53,16 @@ pub(crate) type AmRsCore = Arc<Mutex<ResultSetCore>>;
 #[derive(Debug)]
 pub struct ResultSet {
     metadata: Arc<ResultSetMetadata>,
+    // the state is packed into a RefCell to have inner mutability esp. for implicit fetching
     state: RefCell<RsState>,
 }
 
+// the references to the connection (core) and the prepared statement (core)
+// ensure that they are not dropped before all missing content is fetched
 #[derive(Debug)]
 pub(crate) struct RsState {
     o_am_rscore: Option<AmRsCore>,
+    o_am_pscore: Option<AmPsCore>,
     next_rows: Vec<Row>,
     row_iter: <Vec<Row> as IntoIterator>::IntoIter,
     server_usage: ServerUsage,
@@ -146,6 +151,7 @@ impl RsState {
         };
         if drop_rs_core {
             self.o_am_rscore = None;
+            self.o_am_pscore = None;
         }
         Ok(())
     }
@@ -385,6 +391,7 @@ impl ResultSet {
             metadata: a_rsmd,
             state: RefCell::new(RsState {
                 o_am_rscore: Some(ResultSetCore::new_am_rscore(am_conn_core, attrs, rs_id)),
+                o_am_pscore: None,
                 next_rows: Vec::<Row>::new(),
                 row_iter: Vec::<Row>::new().into_iter(),
                 server_usage,
@@ -496,6 +503,10 @@ impl ResultSet {
         self.state
             .borrow_mut()
             .parse_rows(no_of_rows, Arc::clone(&self.metadata), rdr)
+    }
+
+    pub(crate) fn inject_statement_id(&mut self, am_ps_core: AmPsCore) {
+        self.state.borrow_mut().o_am_pscore = Some(am_ps_core);
     }
 }
 

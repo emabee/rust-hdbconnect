@@ -1,4 +1,5 @@
 use crate::hdb_return_value::HdbReturnValue;
+use crate::prepared_statement::AmPsCore;
 use crate::protocol::parts::execution_result::ExecutionResult;
 use crate::protocol::parts::output_parameters::OutputParameters;
 use crate::protocol::parts::parameter_descriptor::ParameterDescriptor;
@@ -392,6 +393,14 @@ impl HdbResponse {
             return_values,
             o_a_descriptors,
         })
+    }
+
+    pub(crate) fn inject_statement_id(&mut self, am_ps_core: AmPsCore) {
+        for rv in &mut self.return_values {
+            if let HdbReturnValue::ResultSet(rs) = rv {
+                rs.inject_statement_id(Arc::clone(&am_ps_core));
+            }
+        }
     }
 }
 

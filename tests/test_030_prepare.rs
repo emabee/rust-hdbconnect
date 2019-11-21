@@ -19,6 +19,7 @@ pub fn test_030_prepare() -> HdbResult<()> {
     prepare_multiple_errors(&mut log_handle, &mut connection)?;
     prepare_select_with_pars(&mut log_handle, &mut connection)?;
     prepare_select_without_pars(&mut log_handle, &mut connection)?;
+    prepare_and_execute_with_fetch(&mut log_handle, &mut connection)?;
     info!("{} calls to DB were executed", connection.get_call_count()?);
     Ok(())
 }
@@ -234,5 +235,23 @@ fn prepare_select_without_pars(
     let sum_of_big_values: i64 = resultset.try_into()?;
     assert_eq!(sum_of_big_values, 501_i64);
 
+    Ok(())
+}
+
+fn prepare_and_execute_with_fetch(
+    _log_handle: &mut ReconfigurationHandle,
+    connection: &mut Connection,
+) -> HdbResult<()> {
+    info!("call prepare_and_execute() with implicit fetch");
+
+    let rs = connection
+        .prepare_and_execute("select * from M_TABLES", &())?
+        .into_resultset()?;
+    //force fetch
+    let mut _i = 0;
+    for row in rs {
+        let _row = row?;
+        _i += 1;
+    }
     Ok(())
 }
