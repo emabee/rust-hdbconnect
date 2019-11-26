@@ -1,30 +1,35 @@
 use crate::protocol::parts::type_id::TypeId;
 use crate::protocol::util;
-use crate::{HdbError, HdbResult};
+use crate::{HdbError, HdbResult, HdbValue};
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::u32;
 
+/// Describes a set of IN, INOUT, and OUT parameters. Can be empty.
 #[derive(Debug)]
-pub(crate) struct ParameterDescriptors(Vec<ParameterDescriptor>);
+pub struct ParameterDescriptors(Vec<ParameterDescriptor>);
 impl ParameterDescriptors {
-    // returns the in and inout parameters
+    pub(crate) fn new() -> ParameterDescriptors {
+        ParameterDescriptors(Vec::new())
+    }
+    /// Produces an iterator that returns the IN and INOUT parameters.
     pub fn iter_in(&self) -> impl std::iter::Iterator<Item = &ParameterDescriptor> {
         self.0.iter().filter(|ms| {
             (ms.direction == ParameterDirection::IN) | (ms.direction == ParameterDirection::INOUT)
         })
     }
-    // returns the out and inout parameters
+    /// Produces an iterator that returns the INOUT and OUT parameters.
     pub fn iter_out(&self) -> impl std::iter::Iterator<Item = &ParameterDescriptor> {
         self.0.iter().filter(|ms| {
             (ms.direction == ParameterDirection::OUT) | (ms.direction == ParameterDirection::INOUT)
         })
     }
 
+    /// Returns true if at least one IN or INOUT parameter is contained
     pub fn has_in(&self) -> bool {
         self.iter_in().next().is_some()
     }
 
-    pub fn parse<T: std::io::BufRead>(
+    pub(crate) fn parse<T: std::io::BufRead>(
         count: usize,
         rdr: &mut T,
     ) -> HdbResult<ParameterDescriptors> {
@@ -53,9 +58,6 @@ impl ParameterDescriptors {
             }
         }
         Ok(ParameterDescriptors(vec_pd))
-    }
-    pub fn ref_inner(&self) -> &Vec<ParameterDescriptor> {
-        &self.0
     }
 }
 
@@ -178,6 +180,11 @@ impl ParameterDescriptor {
                 v
             ))),
         }
+    }
+
+    /// Parse an HdbValue
+    pub fn parse_value<S: AsRef<str>>(&self, s: S) -> HdbResult<HdbValue<'static>> {
+        Ok(serde_db::ser::DbvFactory::from_str(&self, s.as_ref())?)
     }
 }
 

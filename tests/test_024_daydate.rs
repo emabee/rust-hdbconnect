@@ -75,11 +75,7 @@ fn test_daydate(
         trace!("calling add_batch()");
         prep_stmt.add_batch(&(naive_time_values[2], naive_time_values[3]))?;
         trace!("calling execute_batch()");
-        let mut response = prep_stmt.execute_batch()?;
-        let pds = response.get_parameter_descriptors()?;
-        debug!("1st Parameter Descriptor: {:?}", pds[0]);
-        debug!("2nd Parameter Descriptor: {:?}", pds[1]);
-        assert_eq!(pds.len(), 2);
+        let response = prep_stmt.execute_batch()?;
 
         let typed_result: i32 = response.into_resultset()?.try_into()?;
         assert_eq!(typed_result, 31);

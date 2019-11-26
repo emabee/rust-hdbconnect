@@ -62,7 +62,7 @@ pub use crate::prepared_statement::PreparedStatement;
 pub use crate::protocol::parts::execution_result::ExecutionResult;
 pub use crate::protocol::parts::output_parameters::OutputParameters;
 pub use crate::protocol::parts::parameter_descriptor::{
-    ParameterBinding, ParameterDescriptor, ParameterDirection,
+    ParameterBinding, ParameterDescriptor, ParameterDescriptors, ParameterDirection,
 };
 pub use crate::protocol::parts::resultset::ResultSet;
 pub use crate::protocol::parts::resultset_metadata::ResultSetMetadata;

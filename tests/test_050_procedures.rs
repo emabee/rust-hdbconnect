@@ -2,13 +2,15 @@ mod test_utils;
 
 use flexi_logger::ReconfigurationHandle;
 use hdbconnect::{
-    Connection, HdbResult, ParameterBinding, ParameterDirection, ResultSet, Row, TypeId,
+    Connection, HdbResult, HdbReturnValue, ParameterBinding, ParameterDirection, ResultSet, Row,
+    TypeId,
 };
 use log::{debug, info};
 
 // Test various procedures, from very simple to pretty complex
 #[test]
 pub fn test_050_procedures() -> HdbResult<()> {
+    let start = std::time::Instant::now();
     let mut log_handle = test_utils::init_logger();
     let mut connection = test_utils::get_authenticated_connection()?;
 
@@ -20,6 +22,11 @@ pub fn test_050_procedures() -> HdbResult<()> {
     procedure_with_in_nclob_non_consuming(&mut log_handle, &mut connection)?;
 
     info!("{} calls to DB were executed", connection.get_call_count()?);
+    info!(
+        "Elapsed time: {:?}, Accumulated server processing time: {:?}",
+        std::time::Instant::now().duration_since(start),
+        connection.server_usage()?.accum_proc_time
+    );
     Ok(())
 }
 
@@ -116,6 +123,24 @@ fn procedure_with_secret_resultsets(
     let l1 = response.get_resultset()?.total_number_of_rows()?;
     let l2 = response.get_resultset()?.total_number_of_rows()?;
     assert_eq!(2 * l1, l2);
+
+    let mut response: hdbconnect::HdbResponse =
+        connection.statement("call GET_PROCEDURES_SECRETLY()")?;
+    response.reverse();
+    for ret_val in response {
+        match ret_val {
+            HdbReturnValue::ResultSet(rs) => debug!("Got a resultset: {:?}", rs),
+            HdbReturnValue::AffectedRows(affected_rows) => {
+                debug!("Got affected_rows: {:?}", affected_rows)
+            }
+            HdbReturnValue::Success => debug!("Got success"),
+            HdbReturnValue::OutputParameters(output_parameters) => {
+                debug!("Got output_parameters: {:?}", output_parameters)
+            }
+            HdbReturnValue::XaTransactionIds(_) => debug!("cannot happen"),
+        }
+    }
+
     Ok(())
 }
 

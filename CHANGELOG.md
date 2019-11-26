@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.18.0-unpublished] 2019-11-26
+
+Revise HdbResponse:
+
+- remove public visibility to its elements (-> version bump)
+- remove parameter descriptors
+
+Simplify handling of ParameterDescriptors in PreparedStatement.
+
+Make `ParameterDescriptors` public.
+
 ## [0.17.0] 2019-11-21
 
 Bugfix: Let `ResultSet`s that were produced from a `PreparedStatement` keep

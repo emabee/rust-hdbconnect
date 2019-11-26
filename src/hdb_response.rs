@@ -2,7 +2,6 @@ use crate::hdb_return_value::HdbReturnValue;
 use crate::prepared_statement::AmPsCore;
 use crate::protocol::parts::execution_result::ExecutionResult;
 use crate::protocol::parts::output_parameters::OutputParameters;
-use crate::protocol::parts::parameter_descriptor::ParameterDescriptor;
 use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
 use crate::protocol::parts::resultset::ResultSet;
 use crate::protocol::parts::write_lob_reply::WriteLobReply;
@@ -11,33 +10,71 @@ use std::sync::Arc;
 
 /// Represents all possible non-error responses to a database command.
 ///
-/// Technically, it is a list of single database response values, each of which
+/// Technically, it is essentially a list of single database response values
+/// ([`HdbReturnValue`](enum.HdbReturnValue.html)), each of which
 /// can be
 ///
 /// * a resultset of a query
 /// * a list of numbers of affected rows
-/// * values of output parameters of a procedure call
+/// * output parameters of a procedure call
 /// * just an indication that a db call was successful
 /// * a list of `XaTransactionId`s
 ///
-/// Typically, i.e. in all simple cases, you just have a single database
-/// response value, and can use the respective `into_` message to convert the
-/// HdbResponse directly into this single value, whose type is predetermined by
+/// In all simple cases you have a single database
+/// response value and can use the respective `into_` message to convert the
+/// `HdbResponse` directly into this single value, whose type is predetermined by
 /// the nature of the database call.
 ///
-/// Procedure calls e.g. belong to the more complex cases where the database
-/// response can consist of e.g. multiple result sets. In this case, you need
-/// to evaluate the HdbResponse using the `get_` methods.
+///   ```rust, no_run
+/// # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
+/// # fn foo() -> HdbResult<()> {
+/// # let params = "".into_connect_params()?;
+/// # let mut connection = Connection::new(params)?;
+/// # let query_string = "";
+///   let response = connection.statement(query_string)?;  // HdbResponse
+///
+///   // We know that our simple query can only return a single resultset
+///   let rs = response.into_resultset()?;  // ResultSet
+/// # Ok(())
+/// # }
+///   ```
+///
+/// Procedure calls e.g. can yield complex database responses.
+/// Such an `HdbResponse` can consist e.g. of multiple resultsets and some output parameters.
+/// It is then necessary to evaluate the `HdbResponse` in an appropriate way,
+/// e.g. by iterating over the database response values.
+///
+///   ```rust, no_run
+/// # use hdbconnect::{Connection, HdbResult, HdbReturnValue, IntoConnectParams};
+/// # fn foo() -> HdbResult<()> {
+/// # let params = "".into_connect_params()?;
+/// # let mut connection = Connection::new(params)?;
+/// # let query_string = "";
+///   let mut response = connection.statement("call GET_PROCEDURES_SECRETLY()")?; // HdbResponse
+///   response.reverse(); // works because HdbResponse deref's into a Vec<HdbReturnValue>.
+///
+///   for ret_val in response {
+///       match ret_val {
+///           HdbReturnValue::ResultSet(rs) => println!("Got a resultset: {:?}", rs),
+///           HdbReturnValue::AffectedRows(affected_rows) => {
+///               println!("Got some affected rows counters: {:?}", affected_rows)
+///           }
+///           HdbReturnValue::Success => println!("Got success"),
+///           HdbReturnValue::OutputParameters(output_parameters) => {
+///               println!("Got output parameters: {:?}", output_parameters)
+///           }
+///           HdbReturnValue::XaTransactionIds(_) => println!("cannot happen"),
+///       }
+/// }
+/// # Ok(())
+/// # }
+///   ```
+
 ///
 #[derive(Debug)]
 pub struct HdbResponse {
     /// The return values: Result sets, output parameters, etc.
-    pub return_values: Vec<HdbReturnValue>,
-
-    /// Parameter metadata, if any.
-    ///
-    /// When executing a prepared statement, we keep here the metadata of output parameters.
-    o_a_descriptors: Option<Arc<ParameterDescriptors>>,
+    return_values: Vec<HdbReturnValue>,
 }
 
 impl HdbResponse {
@@ -122,15 +159,6 @@ impl HdbResponse {
         None
     }
 
-    /// Returns a slice with the `ParameterDescriptor`s, or an error if there is none.
-    pub fn get_parameter_descriptors(&mut self) -> HdbResult<&[ParameterDescriptor]> {
-        if let Some(ref a_descriptors) = self.o_a_descriptors {
-            Ok(a_descriptors.ref_inner())
-        } else {
-            Err(self.get_err("parameter descriptor"))
-        }
-    }
-
     /// Returns the next set of affected rows counters, or an error if there is
     /// none.
     pub fn get_affected_rows(&mut self) -> HdbResult<Vec<usize>> {
@@ -182,74 +210,22 @@ impl HdbResponse {
         HdbError::Evaluation(errmsg)
     }
 
-    pub(crate) fn resultset(
-        mut int_return_values: Vec<InternalReturnValue>,
-    ) -> HdbResult<HdbResponse> {
-        let mut rs_count = 0;
-        let mut pm_count = 0;
-        if int_return_values
-            .iter()
-            .filter(|irv| match irv {
-                InternalReturnValue::ResultSet(_) => {
-                    rs_count += 1;
-                    false
-                }
-                InternalReturnValue::ParameterMetadata(_) => {
-                    pm_count += 1;
-                    false
-                }
-                _ => true,
-            })
-            .count()
-            > 0
-        {
-            return Err(HdbError::Impl(format!(
-                "resultset(): Unexpected InternalReturnValue(s) received: {:?}",
-                int_return_values
-            )));
-        }
-
-        if rs_count > 1 || pm_count > 1 {
-            return Err(HdbError::Impl(
-                "resultset(): too many InternalReturnValue(s) of expected types received"
-                    .to_owned(),
-            ));
-        }
-        Ok(match (int_return_values.pop(), int_return_values.pop()) {
-            (Some(InternalReturnValue::ResultSet(rs)), None) => HdbResponse {
+    pub(crate) fn resultset(int_return_values: Vec<InternalReturnValue>) -> HdbResult<HdbResponse> {
+        match single(int_return_values)? {
+            InternalReturnValue::ResultSet(rs) => Ok(HdbResponse {
                 return_values: vec![HdbReturnValue::ResultSet(rs)],
-                o_a_descriptors: None,
-            },
-
-            (
-                Some(InternalReturnValue::ResultSet(rs)),
-                Some(InternalReturnValue::ParameterMetadata(pm)),
-            )
-            | (
-                Some(InternalReturnValue::ParameterMetadata(pm)),
-                Some(InternalReturnValue::ResultSet(rs)),
-            ) => HdbResponse {
-                return_values: vec![HdbReturnValue::ResultSet(rs)],
-                o_a_descriptors: Some(pm),
-            },
-            (None, None) | (_, _) => {
-                return Err(HdbError::Impl(
-                    "Nothing found, but a single Resultset was expected".to_owned(),
-                ));
-            }
-        })
+            }),
+            _ => Err(HdbError::Impl(
+                "Wrong InternalReturnValue, a single ResultSet was expected".to_owned(),
+            )),
+        }
     }
 
     pub(crate) fn rows_affected(
-        mut int_return_values: Vec<InternalReturnValue>,
+        int_return_values: Vec<InternalReturnValue>,
     ) -> HdbResult<HdbResponse> {
-        if int_return_values.len() > 1 {
-            return Err(HdbError::Impl(
-                "Only a single AffectedRows was expected".to_owned(),
-            ));
-        }
-        match int_return_values.pop() {
-            Some(InternalReturnValue::AffectedRows(vec_ra)) => {
+        match single(int_return_values)? {
+            InternalReturnValue::AffectedRows(vec_ra) => {
                 let mut vec_i = Vec::<usize>::new();
                 for ra in vec_ra {
                     match ra {
@@ -264,43 +240,17 @@ impl HdbResponse {
                 }
                 Ok(HdbResponse {
                     return_values: vec![HdbReturnValue::AffectedRows(vec_i)],
-                    o_a_descriptors: None,
                 })
             }
-            Some(InternalReturnValue::OutputParameters(_)) => Err(HdbError::Impl(
-                "Found OutputParameters, but a single AffectedRows was expected".to_owned(),
-            )),
-            Some(InternalReturnValue::ParameterMetadata(_)) => Err(HdbError::Impl(
-                "Found ParameterMetadata, but a single AffectedRows was expected".to_owned(),
-            )),
-            Some(InternalReturnValue::ResultSet(_)) => Err(HdbError::Impl(
-                "Found ResultSet, but a single AffectedRows was expected".to_owned(),
-            )),
-            Some(InternalReturnValue::WriteLobReply(_)) => Err(HdbError::Impl(
-                "Found WriteLobReply, but a single AffectedRows was expected".to_owned(),
-            )),
-            None => Err(HdbError::Impl(
-                "Nothing found, but a single AffectedRows was expected".to_owned(),
+            _ => Err(HdbError::Impl(
+                "Wrong InternalReturnValue, a single ResultSet was expected".to_owned(),
             )),
         }
     }
 
-    pub(crate) fn success(
-        mut int_return_values: Vec<InternalReturnValue>,
-    ) -> HdbResult<HdbResponse> {
-        if int_return_values.is_empty() {
-            return Ok(HdbResponse {
-                return_values: vec![HdbReturnValue::Success],
-                o_a_descriptors: None,
-            });
-        } else if int_return_values.len() > 1 {
-            return Err(HdbError::Impl(
-                "found multiple InternalReturnValues, but only a single Success was expected"
-                    .to_owned(),
-            ));
-        }
-        match int_return_values.pop() {
-            Some(InternalReturnValue::AffectedRows(mut vec_ra)) => {
+    pub(crate) fn success(int_return_values: Vec<InternalReturnValue>) -> HdbResult<HdbResponse> {
+        match single(int_return_values)? {
+            InternalReturnValue::AffectedRows(mut vec_ra) => {
                 if vec_ra.len() != 1 {
                     return Err(HdbError::Impl(
                         "found no or multiple affected-row-counts, but only a single Success was \
@@ -319,33 +269,19 @@ impl HdbResponse {
                         } else {
                             Ok(HdbResponse {
                                 return_values: vec![HdbReturnValue::Success],
-                                o_a_descriptors: None,
                             })
                         }
                     }
                     ExecutionResult::SuccessNoInfo => Ok(HdbResponse {
                         return_values: vec![HdbReturnValue::Success],
-                        o_a_descriptors: None,
                     }),
                     ExecutionResult::Failure(_) => Err(HdbError::Impl(
                         "Found unexpected returnvalue ExecutionFailed".to_owned(),
                     )),
                 }
             }
-            Some(InternalReturnValue::OutputParameters(_)) => Err(HdbError::Impl(
-                "Found OutputParameters, but a single Success was expected".to_owned(),
-            )),
-            Some(InternalReturnValue::ParameterMetadata(_)) => Err(HdbError::Impl(
-                "Found ParameterMetadata, but a single Success was expected".to_owned(),
-            )),
-            Some(InternalReturnValue::ResultSet(_)) => Err(HdbError::Impl(
-                "Found ResultSet, but a single Success was expected".to_owned(),
-            )),
-            Some(InternalReturnValue::WriteLobReply(_)) => Err(HdbError::Impl(
-                "Found WriteLobReply, but a single Success was expected".to_owned(),
-            )),
-            None => Err(HdbError::Impl(
-                "Nothing found, but a single Success was expected".to_owned(),
+            _ => Err(HdbError::Impl(
+                "Wrong InternalReturnValue, a single Success was expected".to_owned(),
             )),
         }
     }
@@ -354,7 +290,6 @@ impl HdbResponse {
         mut int_return_values: Vec<InternalReturnValue>,
     ) -> HdbResult<HdbResponse> {
         let mut return_values = Vec::<HdbReturnValue>::new();
-        let mut o_a_descriptors: Option<Arc<ParameterDescriptors>> = None;
         int_return_values.reverse();
         for irv in int_return_values {
             match irv {
@@ -376,9 +311,7 @@ impl HdbResponse {
                 InternalReturnValue::OutputParameters(op) => {
                     return_values.push(HdbReturnValue::OutputParameters(op));
                 }
-                InternalReturnValue::ParameterMetadata(pm) => {
-                    o_a_descriptors = Some(pm);
-                }
+                InternalReturnValue::ParameterMetadata(_pm) => {}
                 InternalReturnValue::ResultSet(rs) => {
                     return_values.push(HdbReturnValue::ResultSet(rs));
                 }
@@ -389,10 +322,7 @@ impl HdbResponse {
                 }
             }
         }
-        Ok(HdbResponse {
-            return_values,
-            o_a_descriptors,
-        })
+        Ok(HdbResponse { return_values })
     }
 
     pub(crate) fn inject_statement_id(&mut self, am_ps_core: AmPsCore) {
@@ -404,14 +334,54 @@ impl HdbResponse {
     }
 }
 
+// Drop ParameterMetadata, then ensure its exactly one
+fn single(int_return_values: Vec<InternalReturnValue>) -> HdbResult<InternalReturnValue> {
+    let mut int_return_values: Vec<InternalReturnValue> = int_return_values
+        .into_iter()
+        .filter(|irv| match irv {
+            InternalReturnValue::ParameterMetadata(_) => false,
+            _ => true,
+        })
+        .collect();
+
+    match int_return_values.len() {
+        0 => Err(HdbError::Impl(
+            "Nothing found, but a single Resultset was expected".to_owned(),
+        )),
+        1 => Ok(int_return_values.pop().unwrap(/*cannot fail*/)),
+        _ => Err(HdbError::Impl(format!(
+            "resultset(): Too many InternalReturnValue(s) received: {:?}",
+            int_return_values
+        ))),
+    }
+}
+
+impl std::ops::Deref for HdbResponse {
+    type Target = Vec<HdbReturnValue>;
+    fn deref(&self) -> &Self::Target {
+        &self.return_values
+    }
+}
+impl std::ops::DerefMut for HdbResponse {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.return_values
+    }
+}
+
+impl IntoIterator for HdbResponse {
+    type Item = HdbReturnValue;
+    type IntoIter = std::vec::IntoIter<HdbReturnValue>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.return_values.into_iter()
+    }
+}
+
 impl std::fmt::Display for HdbResponse {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(fmt, "HdbResponse [")?;
         for dbretval in &self.return_values {
             write!(fmt, "{}, ", dbretval)?;
-        }
-        for pm in &self.o_a_descriptors {
-            write!(fmt, "{:?}, ", pm)?;
         }
         write!(fmt, "]")?;
         Ok(())

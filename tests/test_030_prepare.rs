@@ -137,15 +137,20 @@ fn prepare_statement_use_parameter_row(
         HdbValue::STRING(my_string.clone()),
         HdbValue::INT(1000_i32),
     ])?;
-    debug!("add to batch...");
+    debug!("add row to batch...");
+    // create HdbValue instances manually
     insert_stmt.add_row_to_batch(vec![
         HdbValue::STRING(my_string.clone()),
         HdbValue::INT(2100_i32),
     ])?;
-    insert_stmt.add_row_to_batch(vec![
-        HdbValue::STRING(my_string),
-        HdbValue::STRING("25".to_string()),
-    ])?;
+    // use the ParameterDescriptors to create HdbValue instances
+    let values: Vec<HdbValue<'static>> = insert_stmt
+        .parameter_descriptors()
+        .iter_in()
+        .zip([my_string, "25".to_string()].iter())
+        .map(|(descriptor, s)| descriptor.parse_value(s).unwrap())
+        .collect();
+    insert_stmt.add_row_to_batch(values)?;
 
     debug!("execute...");
     insert_stmt.execute_batch()?;

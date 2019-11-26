@@ -78,13 +78,12 @@ fn test_longdate(
         info!("test the conversion NaiveDateTime -> LongDate -> wire -> DB");
         let mut prep_stmt = connection
             .prepare("select sum(number) from TEST_LONGDATE where mydate = ? or mydate = ?")?;
-        let mut response =
-            prep_stmt.execute(&(naive_datetime_values[2], naive_datetime_values[3]))?;
+        let response = prep_stmt.execute(&(naive_datetime_values[2], naive_datetime_values[3]))?;
 
-        let pds = response.get_parameter_descriptors()?;
-        debug!("1st Parameter Descriptor: {:?}", pds[0]);
-        debug!("2nd Parameter Descriptor: {:?}", pds[1]);
-        assert_eq!(pds.len(), 2);
+        // let pds = response.get_parameter_descriptors()?;
+        // debug!("1st Parameter Descriptor: {:?}", pds[0]);
+        // debug!("2nd Parameter Descriptor: {:?}", pds[1]);
+        // assert_eq!(pds.len(), 2);
 
         let typed_result: i32 = response.into_resultset()?.try_into()?;
         assert_eq!(typed_result, 31);
