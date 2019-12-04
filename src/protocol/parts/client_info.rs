@@ -27,7 +27,7 @@ impl Default for ClientInfo {
 }
 
 impl ClientInfo {
-    fn set_application<S: AsRef<str>>(&mut self, application: S) {
+    pub fn set_application<S: AsRef<str>>(&mut self, application: S) {
         self.set(ClientInfoKey::Application, application.as_ref());
     }
     pub fn set_application_version(&mut self, application_version: &str) {
