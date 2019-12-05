@@ -334,12 +334,10 @@ impl Connection {
     /// Example:
     ///
     /// ```ignore
-    /// connection.set_application("HANA Studio")?;
+    /// connection.set_application("MyApp, built in rust")?;
     /// ```
-    pub fn set_application<S: AsRef<str>>(&self, appl: S) -> HdbResult<()> {
-        self.am_conn_core
-            .lock()?
-            .set_application(appl.as_ref())
+    pub fn set_application<S: AsRef<str>>(&self, application: S) -> HdbResult<()> {
+        self.am_conn_core.lock()?.set_application(application)
     }
 
     /// Sets client information into a session variable on the server.
