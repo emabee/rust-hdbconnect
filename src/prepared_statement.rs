@@ -238,8 +238,10 @@ impl<'a> PreparedStatement {
                 &mut None,
             )?;
 
-            if let Some(Argument::WriteLobReply(wlr)) =
-                main_reply.extract_first_arg_of_type(PartKind::WriteLobReply)
+            if let Some(Argument::WriteLobReply(wlr)) = main_reply
+                .parts
+                .extract_first_of_type(PartKind::WriteLobReply)
+                .map(Part::into_arg)
             {
                 let locator_ids = wlr.into_locator_ids();
                 if locator_ids.len() != readers.len() {
@@ -445,7 +447,7 @@ impl Drop for PreparedStatementCore {
             Argument::StatementId(self.statement_id),
         ));
         if let Ok(mut reply) = self.am_conn_core.send(request) {
-            reply.parts.pop_arg_if_kind(PartKind::StatementContext);
+            reply.parts.pop_if_kind(PartKind::StatementContext);
         }
     }
 }

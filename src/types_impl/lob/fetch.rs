@@ -27,7 +27,10 @@ pub(crate) fn fetch_a_lob_chunk(
     let mut reply = am_conn_core.send(request)?;
     reply.assert_expected_reply_type(&ReplyType::ReadLob)?;
 
-    let (reply_data, reply_is_last_data) = match reply.parts.pop_arg_if_kind(PartKind::ReadLobReply)
+    let (reply_data, reply_is_last_data) = match reply
+        .parts
+        .pop_if_kind(PartKind::ReadLobReply)
+        .map(Part::into_arg)
     {
         Some(Argument::ReadLobReply(read_lob_reply)) => {
             if *read_lob_reply.locator_id() != locator_id {
@@ -40,20 +43,23 @@ pub(crate) fn fetch_a_lob_chunk(
         _ => return Err(HdbError::Impl("No ReadLobReply part found".to_owned())),
     };
 
-    let (server_proc_time, server_cpu_time, server_memory_usage) =
-        match reply.parts.pop_arg_if_kind(PartKind::StatementContext) {
-            Some(Argument::StatementContext(stmt_ctx)) => (
-                stmt_ctx.server_processing_time(),
-                stmt_ctx.server_cpu_time(),
-                stmt_ctx.server_memory_usage(),
-            ),
-            None => (None, None, None),
-            _ => {
-                return Err(HdbError::Impl(
-                    "Inconsistent StatementContext part found for ResultSet".to_owned(),
-                ));
-            }
-        };
+    let (server_proc_time, server_cpu_time, server_memory_usage) = match reply
+        .parts
+        .pop_if_kind(PartKind::StatementContext)
+        .map(Part::into_arg)
+    {
+        Some(Argument::StatementContext(stmt_ctx)) => (
+            stmt_ctx.server_processing_time(),
+            stmt_ctx.server_cpu_time(),
+            stmt_ctx.server_memory_usage(),
+        ),
+        None => (None, None, None),
+        _ => {
+            return Err(HdbError::Impl(
+                "Inconsistent StatementContext part found for ResultSet".to_owned(),
+            ));
+        }
+    };
     server_usage.update(server_proc_time, server_cpu_time, server_memory_usage);
 
     Ok((reply_data, reply_is_last_data))

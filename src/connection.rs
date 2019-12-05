@@ -18,7 +18,7 @@ use dist_tx::rm::ResourceManager;
 
 /// A connection to the database.
 ///
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Connection {
     params: ConnectParams,
     am_conn_core: AmConnCore,

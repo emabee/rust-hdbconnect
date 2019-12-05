@@ -4,7 +4,7 @@ use crate::conn_core::connect_params::ConnectParams;
 use crate::conn_core::initial_request;
 use crate::conn_core::session_state::SessionState;
 use crate::protocol::argument::Argument;
-use crate::protocol::part::Parts;
+use crate::protocol::part::{Part, Parts};
 use crate::protocol::partkind::PartKind;
 use crate::protocol::parts::client_info::ClientInfo;
 use crate::protocol::parts::connect_options::ConnectOptions;
@@ -163,7 +163,13 @@ impl<'a> ConnectionCore {
     }
 
     pub(crate) fn set_session_id(&mut self, session_id: i64) {
-        self.session_id = session_id;
+        if session_id != self.session_id {
+            debug!(
+                "ConnectionCore: setting session_id from {} to {}",
+                self.session_id, session_id
+            );
+            self.session_id = session_id;
+        }
     }
 
     pub(crate) fn set_topology(&mut self, topology: Topology) {
@@ -278,32 +284,26 @@ impl<'a> ConnectionCore {
         Ok(reply)
     }
 
-    fn handle_db_error(&mut self, parts: &mut Parts) -> HdbResult<()> {
+    fn handle_db_error(&mut self, parts: &mut Parts<'static>) -> HdbResult<()> {
         self.warnings.clear();
 
         // Retrieve errors from returned parts
         let mut errors = {
-            let opt_error_part = parts.extract_first_part_of_type(PartKind::Error);
-            match opt_error_part {
+            match parts
+                .extract_first_of_type(PartKind::Error)
+                .map(Part::into_arg)
+            {
                 None => {
-                    // No error part found, reply evaluation happens elsewhere
+                    // No error part found, regular reply evaluation happens elsewhere
                     return Ok(());
                 }
-                Some(error_part) => {
-                    let (_, argument) = error_part.into_elements();
+                Some(argument) => {
                     if let Argument::Error(server_errors) = argument {
-                        // filter out warnings and add them to conn_core
-                        #[allow(clippy::unnecessary_filter_map)]
-                        let errors: Vec<ServerError> = server_errors
-                            .into_iter()
-                            .filter_map(|se| match se.severity() {
-                                Severity::Warning => {
-                                    self.warnings.push(se);
-                                    None
-                                }
-                                _ => Some(se),
-                            })
-                            .collect();
+                        let (warnings, errors): (Vec<ServerError>, Vec<ServerError>) =
+                            server_errors
+                                .into_iter()
+                                .partition(|se| &Severity::Warning == se.severity());
+                        self.warnings = warnings;
                         if errors.is_empty() {
                             // Only warnings, so return Ok(())
                             return Ok(());
@@ -317,8 +317,8 @@ impl<'a> ConnectionCore {
             }
         };
 
-        // Evaluate the other parts
-        let mut opt_rows_affected = None;
+        // Evaluate the other parts that can come with an error part
+        let mut o_rows_affected = None;
         parts.reverse(); // digest with pop
         while let Some(part) = parts.pop() {
             let (kind, arg) = part.into_elements();
@@ -330,7 +330,7 @@ impl<'a> ConnectionCore {
                     self.evaluate_ta_flags(ta_flags)?;
                 }
                 Argument::ExecutionResult(vec) => {
-                    opt_rows_affected = Some(vec);
+                    o_rows_affected = Some(vec);
                 }
                 arg => warn!(
                     "Reply::handle_db_error(): ignoring unexpected part of kind {:?}, arg = {:?}",
@@ -339,7 +339,7 @@ impl<'a> ConnectionCore {
             }
         }
 
-        match opt_rows_affected {
+        match o_rows_affected {
             Some(rows_affected) => {
                 // mix errors into rows_affected
                 let mut err_iter = errors.into_iter();
@@ -370,7 +370,7 @@ impl<'a> ConnectionCore {
     }
 
     fn drop_impl(&mut self) -> HdbResult<()> {
-        trace!("Drop of ConnectionCore, session_id = {}", self.session_id);
+        debug!("Drop of ConnectionCore, session_id = {}", self.session_id);
         if self.authenticated {
             let request = Request::new_for_disconnect();
 

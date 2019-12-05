@@ -5,7 +5,7 @@ use std::error::Error;
 use std::fmt;
 
 /// Severity of a server message
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Severity {
     /// An additional warning is sent from the server to the client,
     /// along with the regular response.

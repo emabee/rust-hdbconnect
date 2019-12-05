@@ -93,7 +93,7 @@ impl CResourceManager for HdbCResourceManager {
 
         let mut reply: Reply = self.am_conn_core.send(request)?;
         while !reply.parts.is_empty() {
-            reply.parts.drop_args_of_kind(PartKind::StatementContext);
+            reply.parts.drop_parts_of_kind(PartKind::StatementContext);
             match reply.parts.pop_arg() {
                 Some(Argument::XatOptions(xat_options)) => {
                     return Ok(xat_options.get_transactions()?);
@@ -181,9 +181,11 @@ impl HdbCResourceManager {
 
         let mut reply = self.am_conn_core.send(request)?;
 
-        reply.parts.drop_args_of_kind(PartKind::StatementContext);
-        if let Some(Argument::XatOptions(xat_options)) =
-            reply.parts.pop_arg_if_kind(PartKind::XatOptions)
+        reply.parts.drop_parts_of_kind(PartKind::StatementContext);
+        if let Some(Argument::XatOptions(xat_options)) = reply
+            .parts
+            .pop_if_kind(PartKind::XatOptions)
+            .map(Part::into_arg)
         {
             debug!("received xat_options: {:?}", xat_options);
             return Ok(xat_options.get_returncode());

@@ -24,7 +24,7 @@ impl Buffalo {
     /// depending on the given connect parameters.
     pub fn try_new(params: ConnectParams) -> std::io::Result<Buffalo> {
         let start = Local::now();
-        trace!("Connecting to {:?})", params.addr());
+        trace!("Buffalo: Connecting to {:?})", params.addr());
 
         #[cfg(feature = "tls")]
         let buffalo = if params.use_tls() {
@@ -61,5 +61,10 @@ impl Buffalo {
             #[cfg(feature = "tls")]
             Buffalo::Secure(_) => "TLS",
         }
+    }
+}
+impl Drop for Buffalo {
+    fn drop(&mut self) {
+        trace!("Drop of Buffalo")
     }
 }

@@ -38,7 +38,11 @@ pub(crate) fn first_auth_request(
     let mut reply = am_conn_core.send(request1)?;
     reply.assert_expected_reply_type(&ReplyType::Nil)?;
 
-    match reply.parts.pop_arg_if_kind(PartKind::Authentication) {
+    match reply
+        .parts
+        .pop_if_kind(PartKind::Authentication)
+        .map(Part::into_arg)
+    {
         Some(Argument::Auth(mut auth_fields)) => {
             if auth_fields.len() != 2 {
                 Err(HdbError::Impl(format!(
@@ -89,7 +93,11 @@ pub(crate) fn second_auth_request(
     let mut conn_core = am_conn_core.lock()?;
     conn_core.set_session_id(reply.session_id());
 
-    match reply.parts.pop_arg_if_kind(PartKind::TopologyInformation) {
+    match reply
+        .parts
+        .pop_if_kind(PartKind::TopologyInformation)
+        .map(Part::into_arg)
+    {
         Some(Argument::TopologyInformation(topology)) => conn_core.set_topology(topology),
         _ => {
             return Err(HdbError::Impl(
@@ -98,7 +106,11 @@ pub(crate) fn second_auth_request(
         }
     }
 
-    match reply.parts.pop_arg_if_kind(PartKind::ConnectOptions) {
+    match reply
+        .parts
+        .pop_if_kind(PartKind::ConnectOptions)
+        .map(Part::into_arg)
+    {
         Some(Argument::ConnectOptions(received_co)) => conn_core
             .connect_options_mut()
             .digest_server_connect_options(received_co)?,
@@ -109,7 +121,11 @@ pub(crate) fn second_auth_request(
         }
     }
 
-    match reply.parts.pop_arg_if_kind(PartKind::Authentication) {
+    match reply
+        .parts
+        .pop_if_kind(PartKind::Authentication)
+        .map(Part::into_arg)
+    {
         Some(Argument::Auth(mut af)) => {
             if af.len() == 2 {
                 let server_proof = af.pop().unwrap();

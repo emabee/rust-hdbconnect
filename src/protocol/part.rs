@@ -139,6 +139,19 @@ fn parse_part_header(
 #[derive(Debug, Default)]
 pub(crate) struct Parts<'a>(Vec<Part<'a>>);
 
+impl Parts<'static> {
+    pub fn extract_first_of_type(&mut self, part_kind: PartKind) -> Option<Part<'static>> {
+        match self
+            .0
+            .iter()
+            .position(|p| (p.kind as i8) == part_kind as i8)
+        {
+            Some(pos) => Some(self.0.remove(pos)),
+            None => None,
+        }
+    }
+}
+
 impl<'a> Parts<'a> {
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
@@ -146,16 +159,6 @@ impl<'a> Parts<'a> {
 
     pub fn len(&self) -> usize {
         self.0.len()
-    }
-
-    pub fn extract_first_part_of_type(&mut self, part_kind: PartKind) -> Option<Part<'a>> {
-        let part_code = part_kind as i8;
-        let part_position = (&self.0).iter().position(|p| (p.kind as i8) == part_code);
-
-        match part_position {
-            Some(pos) => Some(self.0.remove(pos)),
-            None => None,
-        }
     }
 
     pub fn reverse(&mut self) {
@@ -174,15 +177,15 @@ impl<'a> Parts<'a> {
             None => None,
         }
     }
-    pub fn pop_arg_if_kind(&mut self, kind: PartKind) -> Option<Argument<'a>> {
+    pub fn pop_if_kind(&mut self, kind: PartKind) -> Option<Part<'a>> {
         match self.0.last() {
-            Some(part) if (part.kind as i8) == (kind as i8) => { /* escape the borrow check */ }
+            Some(part) if (part.kind as i8) == (kind as i8) => {}
             _ => return None,
         }
-        Some(self.0.pop().unwrap().arg)
+        self.0.pop()
     }
 
-    pub fn drop_args_of_kind(&mut self, kind: PartKind) {
+    pub fn drop_parts_of_kind(&mut self, kind: PartKind) {
         self.0.retain(|part| (part.kind as i8) != (kind as i8));
     }
 

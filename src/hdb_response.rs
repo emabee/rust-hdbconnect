@@ -334,7 +334,8 @@ impl HdbResponse {
     }
 }
 
-// Drop ParameterMetadata, then ensure its exactly one
+// Drop redundant ParameterMetadata (those that we need were consumed before),
+// then ensure its exactly one
 fn single(int_return_values: Vec<InternalReturnValue>) -> HdbResult<InternalReturnValue> {
     let mut int_return_values: Vec<InternalReturnValue> = int_return_values
         .into_iter()

@@ -3,7 +3,6 @@ use crate::hdb_response::InternalReturnValue;
 use crate::protocol::argument::Argument;
 use crate::protocol::part::{Part, Parts};
 use crate::protocol::part_attributes::PartAttributes;
-use crate::protocol::partkind::PartKind;
 use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
 use crate::protocol::parts::resultset::ResultSet;
 use crate::protocol::parts::resultset::RsState;
@@ -105,12 +104,6 @@ impl Reply {
 
     pub fn push(&mut self, part: Part<'static>) {
         self.parts.push(part);
-    }
-
-    pub fn extract_first_arg_of_type(&mut self, part_kind: PartKind) -> Option<Argument<'static>> {
-        self.parts
-            .extract_first_part_of_type(part_kind)
-            .map(Part::into_arg)
     }
 
     pub fn into_hdbresponse(

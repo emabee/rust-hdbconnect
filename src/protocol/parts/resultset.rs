@@ -143,7 +143,7 @@ impl RsState {
         let mut reply =
             conn_core.full_send(request, Some(Arc::clone(a_rsmd)), None, &mut Some(self))?;
         reply.assert_expected_reply_type(&ReplyType::Fetch)?;
-        reply.parts.pop_arg_if_kind(PartKind::ResultSet);
+        reply.parts.pop_if_kind(PartKind::ResultSet);
 
         let mut drop_rs_core = false;
         if let Some(ref am_rscore) = self.o_am_rscore {
@@ -234,7 +234,7 @@ impl Drop for ResultSetCore {
                 if let Ok(mut reply) =
                     conn_guard.roundtrip(request, &self.am_conn_core, None, None, &mut None)
                 {
-                    let _ = reply.parts.pop_arg_if_kind(PartKind::StatementContext);
+                    reply.parts.pop_if_kind(PartKind::StatementContext);
                     while let Some(part) = reply.parts.pop() {
                         warn!(
                             "CloseResultSet got a reply with a part of kind {:?}",
@@ -427,7 +427,10 @@ impl ResultSet {
         match *o_rs {
             None => {
                 // case a) or b)
-                let o_stmt_ctx = match parts.pop_arg_if_kind(PartKind::StatementContext) {
+                let o_stmt_ctx = match parts
+                    .pop_if_kind(PartKind::StatementContext)
+                    .map(Part::into_arg)
+                {
                     Some(Argument::StatementContext(stmt_ctx)) => Some(stmt_ctx),
                     None => None,
                     _ => {
@@ -442,7 +445,10 @@ impl ResultSet {
                     _ => return Err(HdbError::impl_("No ResultSetId part found for ResultSet")),
                 };
 
-                let a_rsmd = match parts.pop_arg_if_kind(PartKind::ResultSetMetadata) {
+                let a_rsmd = match parts
+                    .pop_if_kind(PartKind::ResultSetMetadata)
+                    .map(Part::into_arg)
+                {
                     Some(Argument::ResultSetMetadata(rsmd)) => Arc::new(rsmd),
                     None => match o_a_rsmd {
                         Some(a_rsmd) => Arc::clone(a_rsmd),
@@ -461,7 +467,10 @@ impl ResultSet {
             }
 
             Some(ref mut fetching_state) => {
-                match parts.pop_arg_if_kind(PartKind::StatementContext) {
+                match parts
+                    .pop_if_kind(PartKind::StatementContext)
+                    .map(Part::into_arg)
+                {
                     Some(Argument::StatementContext(stmt_ctx)) => {
                         fetching_state.server_usage.update(
                             stmt_ctx.server_processing_time(),
