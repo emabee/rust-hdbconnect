@@ -334,6 +334,17 @@ impl Connection {
     /// Example:
     ///
     /// ```ignore
+    /// connection.set_application("MyApp, built in rust")?;
+    /// ```
+    pub fn set_application<S: AsRef<str>>(&self, application: S) -> HdbResult<()> {
+        self.am_conn_core.lock()?.set_application(application)
+    }
+
+    /// Sets client information into a session variable on the server.
+    ///
+    /// Example:
+    ///
+    /// ```ignore
     /// connection.set_application_user("K2209657")?;
     /// ```
     pub fn set_application_user<S: AsRef<str>>(&self, appl_user: S) -> HdbResult<()> {

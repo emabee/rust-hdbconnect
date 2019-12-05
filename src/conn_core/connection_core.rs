@@ -70,6 +70,12 @@ impl<'a> ConnectionCore {
         })
     }
 
+    pub(crate) fn set_application<S: AsRef<str>>(&mut self, application: S) -> HdbResult<()> {
+        self.client_info.set_application(application);
+        self.client_info_touched = true;
+        Ok(())
+    }
+
     pub(crate) fn set_application_version(&mut self, version: &str) -> HdbResult<()> {
         self.client_info.set_application_version(version);
         self.client_info_touched = true;
