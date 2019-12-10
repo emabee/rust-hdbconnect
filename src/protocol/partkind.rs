@@ -2,7 +2,7 @@ use crate::{HdbError, HdbResult};
 
 // Here we list all those parts that are or should be implemented by this
 // driver. ABAP related stuff and "reserved" numbers is omitted.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PartKind {
     Command = 3,                // SQL Command Data
     ResultSet = 5,              // Tabular resultset data

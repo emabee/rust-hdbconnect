@@ -463,6 +463,9 @@ where
         ));
     }
 
-    let reply = am_conn_core.send(request)?;
-    reply.into_hdbresponse(am_conn_core, None)
+    let (internal_return_values, replytype) = am_conn_core
+        .send(request)?
+        .into_internal_return_values(am_conn_core, None)?;
+
+    HdbResponse::try_new(internal_return_values, replytype)
 }

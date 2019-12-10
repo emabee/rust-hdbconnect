@@ -100,7 +100,7 @@ impl<'a> Argument<'a> {
     pub fn size(
         &self,
         with_padding: bool,
-        o_a_descriptors: &Option<Arc<ParameterDescriptors>>,
+        o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
     ) -> HdbResult<usize> {
         let mut size = 0usize;
         match *self {
@@ -148,7 +148,7 @@ impl<'a> Argument<'a> {
     pub fn emit<T: std::io::Write>(
         &self,
         remaining_bufsize: u32,
-        o_a_descriptors: &Option<Arc<ParameterDescriptors>>,
+        o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
         w: &mut T,
     ) -> HdbResult<u32> {
         match *self {
@@ -212,8 +212,8 @@ impl<'a> Argument<'a> {
         no_of_args: usize,
         parts: &mut Parts,
         o_am_conn_core: Option<&AmConnCore>,
-        o_a_rsmd: &Option<Arc<ResultSetMetadata>>,
-        o_a_descriptors: &Option<Arc<ParameterDescriptors>>,
+        o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
+        o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
         o_rs: &mut Option<&mut RsState>,
         rdr: &mut T,
     ) -> HdbResult<Argument<'a>> {

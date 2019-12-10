@@ -36,7 +36,7 @@ pub(crate) fn first_auth_request(
     ));
 
     let mut reply = am_conn_core.send(request1)?;
-    reply.assert_expected_reply_type(&ReplyType::Nil)?;
+    reply.assert_expected_reply_type(ReplyType::Nil)?;
 
     match reply
         .parts
@@ -88,7 +88,7 @@ pub(crate) fn second_auth_request(
     ));
 
     let mut reply = am_conn_core.send(request2)?;
-    reply.assert_expected_reply_type(&ReplyType::Nil)?;
+    reply.assert_expected_reply_type(ReplyType::Nil)?;
 
     let mut conn_core = am_conn_core.lock()?;
     conn_core.set_session_id(reply.session_id());

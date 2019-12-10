@@ -10,7 +10,7 @@ use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
 use crate::protocol::reply_type::ReplyType;
 use crate::protocol::server_usage::ServerUsage;
 use crate::protocol::util;
-use crate::{HdbError, HdbResponse, HdbResult};
+use crate::{HdbError, HdbResult};
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::sync::Arc;
 
@@ -43,8 +43,8 @@ impl Reply {
     // * `ResultSet` needs to be injected (and is extended and returned)
     //    in case of fetch requests
     pub fn parse<T: std::io::BufRead>(
-        o_a_rsmd: Option<Arc<ResultSetMetadata>>,
-        o_a_descriptors: Option<Arc<ParameterDescriptors>>,
+        o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
+        o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
         o_rs: &mut Option<&mut RsState>,
         o_am_conn_core: Option<&AmConnCore>,
         rdr: &mut T,
@@ -56,8 +56,8 @@ impl Reply {
             let part = Part::parse(
                 &mut (reply.parts),
                 o_am_conn_core,
-                &o_a_rsmd,
-                &o_a_descriptors,
+                o_a_rsmd,
+                o_a_descriptors,
                 o_rs,
                 i == no_of_parts - 1,
                 rdr,
@@ -91,13 +91,13 @@ impl Reply {
         Ok(reply)
     }
 
-    pub fn assert_expected_reply_type(&self, reply_type: &ReplyType) -> HdbResult<()> {
-        if self.replytype == *reply_type {
+    pub fn assert_expected_reply_type(&self, reply_type: ReplyType) -> HdbResult<()> {
+        if self.replytype == reply_type {
             Ok(()) // we got what we expected
         } else {
             Err(HdbError::Impl(format!(
-                "unexpected reply_type {:?}",
-                self.replytype
+                "got unexpected reply_type {:?} instead of {:?}",
+                self.replytype, reply_type
             )))
         }
     }
@@ -106,12 +106,12 @@ impl Reply {
         self.parts.push(part);
     }
 
-    pub fn into_hdbresponse(
+    // digest parts, collect InternalReturnValues
+    pub fn into_internal_return_values(
         mut self,
         am_conn_core: &mut AmConnCore,
         mut o_additional_server_usage: Option<&mut ServerUsage>,
-    ) -> HdbResult<HdbResponse> {
-        // digest parts, collect InternalReturnValues
+    ) -> HdbResult<(Vec<InternalReturnValue>, ReplyType)> {
         let mut conn_core = am_conn_core.lock()?;
         let mut int_return_values = Vec::<InternalReturnValue>::new();
         self.parts.reverse(); // digest the last part first
@@ -175,55 +175,7 @@ impl Reply {
                 ),
             }
         }
-
-        // re-pack InternalReturnValues into appropriate HdbResponse
-        trace!(
-            "Reply::into_hdbresponse(): building HdbResponse for a reply of type {:?}",
-            self.replytype
-        );
-        trace!(
-            "The found InternalReturnValues are: {:?}",
-            int_return_values
-        );
-        match self.replytype {
-            ReplyType::Select |
-            ReplyType::SelectForUpdate => HdbResponse::resultset(int_return_values),
-
-            ReplyType::Ddl |
-            ReplyType::Commit |
-            ReplyType::Rollback => HdbResponse::success(int_return_values),
-
-            ReplyType::Nil |
-            ReplyType::Explain |
-            ReplyType::Insert |
-            ReplyType::Update |
-            ReplyType::Delete => HdbResponse::rows_affected(int_return_values),
-
-            ReplyType::DbProcedureCall |
-            ReplyType::DbProcedureCallWithResult =>
-                HdbResponse::multiple_return_values(int_return_values),
-
-            // ReplyTypes that are handled elsewhere and that should not go through this method:
-            ReplyType::Connect | ReplyType::Fetch | ReplyType::ReadLob |
-            ReplyType::CloseCursor | ReplyType::Disconnect |
-            ReplyType::XAControl | ReplyType::XARecover |
-
-            // TODO: 2 ReplyTypes that occur only in not yet implemented calls:
-            ReplyType::FindLob |
-            ReplyType::WriteLob |
-
-            // TODO: 4 ReplyTypes where it is unclear when they occur and what to return:
-            ReplyType::XaStart |
-            ReplyType::XaJoin |
-            ReplyType::XAPrepare => {
-                let s = format!(
-                    "unexpected reply type {:?} in Reply::into_hdbresponse(), \
-                     with these internal return values: {:?}", 
-                    self.replytype, int_return_values);
-                error!("{}",s);
-                Err(HdbError::impl_(s))
-            },
-        }
+        Ok((int_return_values, self.replytype))
     }
 }
 

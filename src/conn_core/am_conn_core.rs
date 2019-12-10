@@ -33,8 +33,8 @@ impl AmConnCore {
     pub fn full_send(
         &mut self,
         mut request: Request,
-        o_a_rsmd: Option<Arc<ResultSetMetadata>>,
-        o_a_descriptors: Option<Arc<ParameterDescriptors>>,
+        o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
+        o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
         o_rs: &mut Option<&mut RsState>,
     ) -> HdbResult<Reply> {
         trace!(

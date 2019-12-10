@@ -1,10 +1,10 @@
 use crate::hdb_return_value::HdbReturnValue;
-use crate::prepared_statement::AmPsCore;
 use crate::protocol::parts::execution_result::ExecutionResult;
 use crate::protocol::parts::output_parameters::OutputParameters;
 use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
 use crate::protocol::parts::resultset::ResultSet;
 use crate::protocol::parts::write_lob_reply::WriteLobReply;
+use crate::protocol::reply_type::ReplyType;
 use crate::{HdbError, HdbResult};
 use std::sync::Arc;
 
@@ -78,6 +78,173 @@ pub struct HdbResponse {
 }
 
 impl HdbResponse {
+    // Build HdbResponse from InternalReturnValues
+    pub(crate) fn try_new(
+        int_return_values: Vec<InternalReturnValue>,
+        replytype: ReplyType,
+    ) -> HdbResult<HdbResponse> {
+        trace!(
+            "Reply::into_hdbresponse(): building HdbResponse for a reply of type {:?}",
+            replytype
+        );
+        trace!(
+            "The found InternalReturnValues are: {:?}",
+            int_return_values
+        );
+        match replytype {
+                ReplyType::Select |
+                ReplyType::SelectForUpdate => HdbResponse::resultset(int_return_values),
+
+                ReplyType::Ddl |
+                ReplyType::Commit |
+                ReplyType::Rollback => HdbResponse::success(int_return_values),
+
+                ReplyType::Nil |
+                ReplyType::Explain |
+                ReplyType::Insert |
+                ReplyType::Update |
+                ReplyType::Delete => HdbResponse::rows_affected(int_return_values),
+
+                ReplyType::DbProcedureCall |
+                ReplyType::DbProcedureCallWithResult =>
+                    HdbResponse::multiple_return_values(int_return_values),
+
+                // ReplyTypes that are handled elsewhere and that should not go through this method:
+                ReplyType::Connect | ReplyType::Fetch | ReplyType::ReadLob |
+                ReplyType::CloseCursor | ReplyType::Disconnect |
+                ReplyType::XAControl | ReplyType::XARecover |
+                ReplyType::WriteLob |
+
+                // TODO: 2 ReplyTypes that occur only in not yet implemented calls:
+                ReplyType::FindLob |
+
+                // TODO: 4 ReplyTypes where it is unclear when they occur and what to return:
+                ReplyType::XaStart |
+                ReplyType::XaJoin |
+                ReplyType::XAPrepare => {
+                    let s = format!(
+                        "unexpected reply type {:?} in Reply::into_hdbresponse(), \
+                         with these internal return values: {:?}", 
+                        replytype, int_return_values);
+                    error!("{}",s);
+                    Err(HdbError::impl_(s))
+                },
+            }
+    }
+
+    fn resultset(int_return_values: Vec<InternalReturnValue>) -> HdbResult<HdbResponse> {
+        match single(int_return_values)? {
+            InternalReturnValue::ResultSet(rs) => Ok(HdbResponse {
+                return_values: vec![HdbReturnValue::ResultSet(rs)],
+            }),
+            _ => Err(HdbError::Impl(
+                "Wrong InternalReturnValue, a single ResultSet was expected".to_owned(),
+            )),
+        }
+    }
+
+    fn rows_affected(int_return_values: Vec<InternalReturnValue>) -> HdbResult<HdbResponse> {
+        match single(int_return_values)? {
+            InternalReturnValue::AffectedRows(vec_ra) => {
+                let mut vec_i = Vec::<usize>::new();
+                for ra in vec_ra {
+                    match ra {
+                        ExecutionResult::RowsAffected(i) => vec_i.push(i),
+                        ExecutionResult::SuccessNoInfo => vec_i.push(0),
+                        ExecutionResult::Failure(_) => {
+                            return Err(HdbError::Impl(
+                                "Found unexpected returnvalue ExecutionFailed".to_owned(),
+                            ));
+                        }
+                    }
+                }
+                Ok(HdbResponse {
+                    return_values: vec![HdbReturnValue::AffectedRows(vec_i)],
+                })
+            }
+            _ => Err(HdbError::Impl(
+                "Wrong InternalReturnValue, a single ResultSet was expected".to_owned(),
+            )),
+        }
+    }
+
+    fn success(int_return_values: Vec<InternalReturnValue>) -> HdbResult<HdbResponse> {
+        match single(int_return_values)? {
+            InternalReturnValue::AffectedRows(mut vec_ra) => {
+                if vec_ra.len() != 1 {
+                    return Err(HdbError::Impl(
+                        "found no or multiple affected-row-counts, but only a single Success was \
+                         expected"
+                            .to_owned(),
+                    ));
+                }
+                match vec_ra.pop().unwrap() {
+                    ExecutionResult::RowsAffected(i) => {
+                        if i > 0 {
+                            Err(HdbError::Impl(
+                                "found an affected-row-count > 0, but only a single Success was \
+                                 expected"
+                                    .to_owned(),
+                            ))
+                        } else {
+                            Ok(HdbResponse {
+                                return_values: vec![HdbReturnValue::Success],
+                            })
+                        }
+                    }
+                    ExecutionResult::SuccessNoInfo => Ok(HdbResponse {
+                        return_values: vec![HdbReturnValue::Success],
+                    }),
+                    ExecutionResult::Failure(_) => Err(HdbError::Impl(
+                        "Found unexpected returnvalue ExecutionFailed".to_owned(),
+                    )),
+                }
+            }
+            _ => Err(HdbError::Impl(
+                "Wrong InternalReturnValue, a single Success was expected".to_owned(),
+            )),
+        }
+    }
+
+    fn multiple_return_values(
+        mut int_return_values: Vec<InternalReturnValue>,
+    ) -> HdbResult<HdbResponse> {
+        let mut return_values = Vec::<HdbReturnValue>::new();
+        int_return_values.reverse();
+        for irv in int_return_values {
+            match irv {
+                InternalReturnValue::AffectedRows(vec_ra) => {
+                    let mut vec_i = Vec::<usize>::new();
+                    for ra in vec_ra {
+                        match ra {
+                            ExecutionResult::RowsAffected(i) => vec_i.push(i),
+                            ExecutionResult::SuccessNoInfo => vec_i.push(0),
+                            ExecutionResult::Failure(_) => {
+                                return Err(HdbError::Impl(
+                                    "Found unexpected returnvalue 'ExecutionFailed'".to_owned(),
+                                ));
+                            }
+                        }
+                    }
+                    return_values.push(HdbReturnValue::AffectedRows(vec_i));
+                }
+                InternalReturnValue::OutputParameters(op) => {
+                    return_values.push(HdbReturnValue::OutputParameters(op));
+                }
+                InternalReturnValue::ParameterMetadata(_pm) => {}
+                InternalReturnValue::ResultSet(rs) => {
+                    return_values.push(HdbReturnValue::ResultSet(rs));
+                }
+                InternalReturnValue::WriteLobReply(_) => {
+                    return Err(HdbError::Impl(
+                        "found WriteLobReply in multiple_return_values()".to_owned(),
+                    ));
+                }
+            }
+        }
+        Ok(HdbResponse { return_values })
+    }
+
     /// Returns the number of return values.
     pub fn count(&self) -> usize {
         self.return_values.len()
@@ -208,129 +375,6 @@ impl HdbResponse {
         }
         errmsg.push_str("]");
         HdbError::Evaluation(errmsg)
-    }
-
-    pub(crate) fn resultset(int_return_values: Vec<InternalReturnValue>) -> HdbResult<HdbResponse> {
-        match single(int_return_values)? {
-            InternalReturnValue::ResultSet(rs) => Ok(HdbResponse {
-                return_values: vec![HdbReturnValue::ResultSet(rs)],
-            }),
-            _ => Err(HdbError::Impl(
-                "Wrong InternalReturnValue, a single ResultSet was expected".to_owned(),
-            )),
-        }
-    }
-
-    pub(crate) fn rows_affected(
-        int_return_values: Vec<InternalReturnValue>,
-    ) -> HdbResult<HdbResponse> {
-        match single(int_return_values)? {
-            InternalReturnValue::AffectedRows(vec_ra) => {
-                let mut vec_i = Vec::<usize>::new();
-                for ra in vec_ra {
-                    match ra {
-                        ExecutionResult::RowsAffected(i) => vec_i.push(i),
-                        ExecutionResult::SuccessNoInfo => vec_i.push(0),
-                        ExecutionResult::Failure(_) => {
-                            return Err(HdbError::Impl(
-                                "Found unexpected returnvalue ExecutionFailed".to_owned(),
-                            ));
-                        }
-                    }
-                }
-                Ok(HdbResponse {
-                    return_values: vec![HdbReturnValue::AffectedRows(vec_i)],
-                })
-            }
-            _ => Err(HdbError::Impl(
-                "Wrong InternalReturnValue, a single ResultSet was expected".to_owned(),
-            )),
-        }
-    }
-
-    pub(crate) fn success(int_return_values: Vec<InternalReturnValue>) -> HdbResult<HdbResponse> {
-        match single(int_return_values)? {
-            InternalReturnValue::AffectedRows(mut vec_ra) => {
-                if vec_ra.len() != 1 {
-                    return Err(HdbError::Impl(
-                        "found no or multiple affected-row-counts, but only a single Success was \
-                         expected"
-                            .to_owned(),
-                    ));
-                }
-                match vec_ra.pop().unwrap() {
-                    ExecutionResult::RowsAffected(i) => {
-                        if i > 0 {
-                            Err(HdbError::Impl(
-                                "found an affected-row-count > 0, but only a single Success was \
-                                 expected"
-                                    .to_owned(),
-                            ))
-                        } else {
-                            Ok(HdbResponse {
-                                return_values: vec![HdbReturnValue::Success],
-                            })
-                        }
-                    }
-                    ExecutionResult::SuccessNoInfo => Ok(HdbResponse {
-                        return_values: vec![HdbReturnValue::Success],
-                    }),
-                    ExecutionResult::Failure(_) => Err(HdbError::Impl(
-                        "Found unexpected returnvalue ExecutionFailed".to_owned(),
-                    )),
-                }
-            }
-            _ => Err(HdbError::Impl(
-                "Wrong InternalReturnValue, a single Success was expected".to_owned(),
-            )),
-        }
-    }
-
-    pub(crate) fn multiple_return_values(
-        mut int_return_values: Vec<InternalReturnValue>,
-    ) -> HdbResult<HdbResponse> {
-        let mut return_values = Vec::<HdbReturnValue>::new();
-        int_return_values.reverse();
-        for irv in int_return_values {
-            match irv {
-                InternalReturnValue::AffectedRows(vec_ra) => {
-                    let mut vec_i = Vec::<usize>::new();
-                    for ra in vec_ra {
-                        match ra {
-                            ExecutionResult::RowsAffected(i) => vec_i.push(i),
-                            ExecutionResult::SuccessNoInfo => vec_i.push(0),
-                            ExecutionResult::Failure(_) => {
-                                return Err(HdbError::Impl(
-                                    "Found unexpected returnvalue 'ExecutionFailed'".to_owned(),
-                                ));
-                            }
-                        }
-                    }
-                    return_values.push(HdbReturnValue::AffectedRows(vec_i));
-                }
-                InternalReturnValue::OutputParameters(op) => {
-                    return_values.push(HdbReturnValue::OutputParameters(op));
-                }
-                InternalReturnValue::ParameterMetadata(_pm) => {}
-                InternalReturnValue::ResultSet(rs) => {
-                    return_values.push(HdbReturnValue::ResultSet(rs));
-                }
-                InternalReturnValue::WriteLobReply(_) => {
-                    return Err(HdbError::Impl(
-                        "found WriteLobReply in multiple_return_values()".to_owned(),
-                    ));
-                }
-            }
-        }
-        Ok(HdbResponse { return_values })
-    }
-
-    pub(crate) fn inject_statement_id(&mut self, am_ps_core: AmPsCore) {
-        for rv in &mut self.return_values {
-            if let HdbReturnValue::ResultSet(rs) = rv {
-                rs.inject_statement_id(Arc::clone(&am_ps_core));
-            }
-        }
     }
 }
 

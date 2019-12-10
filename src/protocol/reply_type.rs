@@ -3,7 +3,7 @@ use crate::{HdbError, HdbResult};
 // Identifies the nature of the statement or functionality that has been
 // prepared or executed. Is documented as Function Code.
 // Irrelevant numbers (ABAP stuff, "reserved") are omitted.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ReplyType {
     Nil,                       // Nil
     Ddl,                       // DDL statement

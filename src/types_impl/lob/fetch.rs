@@ -25,7 +25,7 @@ pub(crate) fn fetch_a_lob_chunk(
     ));
 
     let mut reply = am_conn_core.send(request)?;
-    reply.assert_expected_reply_type(&ReplyType::ReadLob)?;
+    reply.assert_expected_reply_type(ReplyType::ReadLob)?;
 
     let (reply_data, reply_is_last_data) = match reply
         .parts

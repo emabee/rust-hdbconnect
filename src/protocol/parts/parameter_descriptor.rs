@@ -24,9 +24,19 @@ impl ParameterDescriptors {
         })
     }
 
-    /// Returns true if at least one IN or INOUT parameter is contained
+    /// Returns true if at least one IN or INOUT parameter is contained.
     pub fn has_in(&self) -> bool {
         self.iter_in().next().is_some()
+    }
+
+    /// Returns number of contained descriptors.
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Returns true exactly if the lsit is empty.
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
     }
 
     pub(crate) fn parse<T: std::io::BufRead>(

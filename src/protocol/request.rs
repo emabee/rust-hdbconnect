@@ -58,7 +58,7 @@ impl<'a> Request<'a> {
         session_id: i64,
         seq_number: i32,
         auto_commit_flag: i8,
-        o_a_descriptors: &Option<Arc<ParameterDescriptors>>,
+        o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
         w: &mut T,
     ) -> HdbResult<()> {
         let varpart_size = self.varpart_size(o_a_descriptors)?;
@@ -108,14 +108,14 @@ impl<'a> Request<'a> {
 
     // Length in bytes of the variable part of the message, i.e. total message
     // without the header
-    fn varpart_size(&self, o_a_descriptors: &Option<Arc<ParameterDescriptors>>) -> HdbResult<u32> {
+    fn varpart_size(&self, o_a_descriptors: Option<&Arc<ParameterDescriptors>>) -> HdbResult<u32> {
         let mut len = 0_u32;
         len += self.seg_size(o_a_descriptors)? as u32;
         trace!("varpart_size = {}", len);
         Ok(len)
     }
 
-    fn seg_size(&self, o_a_descriptors: &Option<Arc<ParameterDescriptors>>) -> HdbResult<usize> {
+    fn seg_size(&self, o_a_descriptors: Option<&Arc<ParameterDescriptors>>) -> HdbResult<usize> {
         let mut len = SEGMENT_HEADER_SIZE;
         for part in self.parts.ref_inner() {
             len += part.size(true, o_a_descriptors)?;

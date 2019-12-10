@@ -20,6 +20,7 @@ pub fn test_050_procedures() -> HdbResult<()> {
     procedure_with_in_parameters(&mut log_handle, &mut connection)?;
     procedure_with_in_and_out_parameters(&mut log_handle, &mut connection)?;
     procedure_with_in_nclob_non_consuming(&mut log_handle, &mut connection)?;
+    procedure_with_in_nclob_and_out_nclob(&mut log_handle, &mut connection)?;
 
     info!("{} calls to DB were executed", connection.get_call_count()?);
     info!(
@@ -36,10 +37,9 @@ fn very_simple_procedure(
 ) -> HdbResult<()> {
     info!("very_simple_procedure(): run a simple sqlscript procedure");
 
-    connection.multiple_statements_ignore_err(vec!["drop procedure TEST_PROCEDURE"]);
     connection.multiple_statements(vec![
         "\
-         CREATE PROCEDURE TEST_PROCEDURE \
+         CREATE OR REPLACE PROCEDURE TEST_PROCEDURE \
          LANGUAGE SQLSCRIPT SQL SECURITY DEFINER \
          AS BEGIN \
          SELECT CURRENT_USER \"current user\" FROM DUMMY; \
@@ -49,7 +49,6 @@ fn very_simple_procedure(
     let mut response = connection.statement("call TEST_PROCEDURE")?;
     response.get_success()?;
     let _resultset = response.get_resultset()?;
-    connection.multiple_statements_ignore_err(vec!["drop procedure TEST_PROCEDURE"]);
     Ok(())
 }
 
@@ -62,10 +61,9 @@ fn procedure_with_out_resultsets(
          parameters"
     );
 
-    connection.multiple_statements_ignore_err(vec!["drop procedure GET_PROCEDURES"]);
     connection.multiple_statements(vec![
         "\
-         CREATE PROCEDURE \
+         CREATE OR REPLACE PROCEDURE \
          GET_PROCEDURES( \
          OUT table1 TABLE(schema_name NVARCHAR(256), procedure_name NVARCHAR(256) ), \
          OUT table2 TABLE(SEKURITATE NVARCHAR(256), DEFAULT_SCHEMA_NAME NVARCHAR(256) ) \
@@ -98,10 +96,9 @@ fn procedure_with_secret_resultsets(
 ) -> HdbResult<()> {
     info!("procedure_with_secret_resultsets(): run a sqlscript procedure with implicit resultsets");
 
-    connection.multiple_statements_ignore_err(vec!["drop procedure GET_PROCEDURES_SECRETLY"]);
     connection.multiple_statements(vec![
         "\
-         CREATE PROCEDURE \
+         CREATE OR REPLACE PROCEDURE \
          GET_PROCEDURES_SECRETLY() \
          AS BEGIN \
          SELECT schema_name, procedure_name \
@@ -150,10 +147,9 @@ fn procedure_with_in_parameters(
 ) -> HdbResult<()> {
     info!("procedure_with_in_parameters(): run a sqlscript procedure with input parameters");
 
-    connection.multiple_statements_ignore_err(vec!["drop procedure TEST_INPUT_PARS"]);
     connection.multiple_statements(vec![
         "\
-         CREATE PROCEDURE \
+         CREATE OR REPLACE PROCEDURE \
          TEST_INPUT_PARS( \
          IN some_number INT, \
          IN some_string NVARCHAR(20)) \
@@ -185,9 +181,8 @@ fn procedure_with_in_and_out_parameters(
          with input and output parameters"
     );
 
-    connection.multiple_statements_ignore_err(vec!["drop procedure TEST_INPUT_AND_OUTPUT_PARS"]);
     connection.multiple_statements(vec![
-        "CREATE  PROCEDURE \
+        "CREATE OR REPLACE PROCEDURE \
          TEST_INPUT_AND_OUTPUT_PARS( \
          IN some_number INT, OUT some_string NVARCHAR(40) ) \
          AS BEGIN \
@@ -225,10 +220,9 @@ fn procedure_with_in_nclob_non_consuming(
 ) -> HdbResult<()> {
     info!("procedure_with_in_nclob_non_consuming(): convert input parameter to nclob");
 
-    connection.multiple_statements_ignore_err(vec!["drop procedure TEST_CLOB_INPUT_PARS"]);
     connection.multiple_statements(vec![
         "\
-         CREATE PROCEDURE \
+         CREATE OR REPLACE PROCEDURE \
          TEST_CLOB_INPUT_PARS(IN some_string NCLOB) \
          AS BEGIN \
          SELECT some_string AS \"A\" FROM DUMMY; \
@@ -246,5 +240,35 @@ fn procedure_with_in_nclob_non_consuming(
     let value: String = row.next_value().unwrap().try_into()?;
     assert_eq!(value, "nclob string");
 
+    Ok(())
+}
+
+use hdbconnect::{types::NCLob, HdbValue};
+
+fn procedure_with_in_nclob_and_out_nclob(
+    _log_handle: &mut ReconfigurationHandle,
+    connection: &mut Connection,
+) -> HdbResult<()> {
+    info!("procedure_with_in_nclob_and_out_nclob");
+    let mut stmt = connection.prepare("CALL SYS.EXECUTE_MDS(?, '','','','', ?,?)")?;
+
+    let reader = std::sync::Arc::new(std::sync::Mutex::new(std::io::Cursor::new(
+        "Hello World!".to_string(),
+    )));
+
+    _log_handle.parse_new_spec("info, test=debug");
+    let mut result = stmt.execute_row(vec![
+        HdbValue::STRING("Analytics".to_string()),
+        HdbValue::LOBSTREAM(Some(reader)),
+    ])?;
+
+    let response: NCLob = result
+        .get_output_parameters()?
+        .values_mut()
+        .next()
+        .unwrap()
+        .try_into_nclob()?;
+
+    debug!("{}", response.into_string()?);
     Ok(())
 }

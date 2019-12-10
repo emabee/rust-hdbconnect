@@ -237,8 +237,8 @@ impl<'a> ConnectionCore {
         &mut self,
         request: Request<'a>,
         am_conn_core: &AmConnCore,
-        o_a_rsmd: Option<Arc<ResultSetMetadata>>,
-        o_a_descriptors: Option<Arc<ParameterDescriptors>>,
+        o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
+        o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
         o_rs: &mut Option<&mut RsState>,
     ) -> HdbResult<Reply> {
         let auto_commit_flag: i8 = if self.is_auto_commit() { 1 } else { 0 };
@@ -251,7 +251,7 @@ impl<'a> ConnectionCore {
                     self.session_id(),
                     nsn,
                     auto_commit_flag,
-                    &o_a_descriptors,
+                    o_a_descriptors,
                     writer,
                 )?;
             }
@@ -262,7 +262,7 @@ impl<'a> ConnectionCore {
                     self.session_id(),
                     nsn,
                     auto_commit_flag,
-                    &o_a_descriptors,
+                    o_a_descriptors,
                     writer,
                 )?;
             }
@@ -378,13 +378,13 @@ impl<'a> ConnectionCore {
             match self.buffalo {
                 Buffalo::Plain(ref pc) => {
                     let writer = &mut *(pc.writer()).borrow_mut();
-                    request.emit(self.session_id(), nsn, 0, &None, writer)?;
+                    request.emit(self.session_id(), nsn, 0, None, writer)?;
                     writer.flush()?;
                 }
                 #[cfg(feature = "tls")]
                 Buffalo::Secure(ref sc) => {
                     let writer = &mut *(sc.writer()).borrow_mut();
-                    request.emit(self.session_id(), nsn, 0, &None, writer)?;
+                    request.emit(self.session_id(), nsn, 0, None, writer)?;
                     writer.flush()?;
                 }
             }

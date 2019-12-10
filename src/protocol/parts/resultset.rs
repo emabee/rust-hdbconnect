@@ -140,9 +140,8 @@ impl RsState {
             Argument::FetchSize(fetch_size),
         ));
 
-        let mut reply =
-            conn_core.full_send(request, Some(Arc::clone(a_rsmd)), None, &mut Some(self))?;
-        reply.assert_expected_reply_type(&ReplyType::Fetch)?;
+        let mut reply = conn_core.full_send(request, Some(a_rsmd), None, &mut Some(self))?;
+        reply.assert_expected_reply_type(ReplyType::Fetch)?;
         reply.parts.pop_if_kind(PartKind::ResultSet);
 
         let mut drop_rs_core = false;
@@ -176,7 +175,7 @@ impl RsState {
     fn parse_rows(
         &mut self,
         no_of_rows: usize,
-        metadata: Arc<ResultSetMetadata>,
+        metadata: &Arc<ResultSetMetadata>,
         rdr: &mut dyn std::io::BufRead,
     ) -> HdbResult<()> {
         self.next_rows.reserve(no_of_rows);
@@ -420,7 +419,7 @@ impl ResultSet {
         attributes: PartAttributes,
         parts: &mut Parts,
         am_conn_core: &AmConnCore,
-        o_a_rsmd: &Option<Arc<ResultSetMetadata>>,
+        o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
         o_rs: &mut Option<&mut RsState>,
         rdr: &mut T,
     ) -> HdbResult<Option<ResultSet>> {
@@ -491,12 +490,12 @@ impl ResultSet {
                     rscore.attributes = attributes;
                 }
                 let a_rsmd = match o_a_rsmd {
-                    Some(a_rsmd) => a_rsmd.clone(),
+                    Some(a_rsmd) => Arc::clone(&a_rsmd),
                     None => {
                         return Err(HdbError::impl_("RsState provided without RsMetadata"));
                     }
                 };
-                fetching_state.parse_rows(no_of_rows, a_rsmd, rdr)?;
+                fetching_state.parse_rows(no_of_rows, &a_rsmd, rdr)?;
                 Ok(None)
             }
         }
@@ -511,7 +510,7 @@ impl ResultSet {
     fn parse_rows<T: std::io::BufRead>(&self, no_of_rows: usize, rdr: &mut T) -> HdbResult<()> {
         self.state
             .borrow_mut()
-            .parse_rows(no_of_rows, Arc::clone(&self.metadata), rdr)
+            .parse_rows(no_of_rows, &self.metadata, rdr)
     }
 
     pub(crate) fn inject_statement_id(&mut self, am_ps_core: AmPsCore) {

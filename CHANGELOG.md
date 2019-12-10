@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.18.0-unpublished] 2019-11-26
+## [0.18.0] 2019-12-10
 
 Revise HdbResponse:
 
@@ -10,6 +10,9 @@ Revise HdbResponse:
 Simplify handling of ParameterDescriptors in PreparedStatement.
 
 Make `ParameterDescriptors` public.
+
+Support database procedures with LOB input parameters
+(fix [issue 23](https://github.com/emabee/rust-hdbconnect/issues/23)).
 
 ## [0.17.0] 2019-11-21
 

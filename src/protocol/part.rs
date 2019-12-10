@@ -36,7 +36,7 @@ impl<'a> Part<'a> {
     pub fn emit<T: std::io::Write>(
         &self,
         mut remaining_bufsize: u32,
-        o_a_descriptors: &Option<Arc<ParameterDescriptors>>,
+        o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
         w: &mut T,
     ) -> HdbResult<u32> {
         debug!("Serializing part of kind {:?}", self.kind);
@@ -70,7 +70,7 @@ impl<'a> Part<'a> {
     pub fn size(
         &self,
         with_padding: bool,
-        o_a_descriptors: &Option<Arc<ParameterDescriptors>>,
+        o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
     ) -> HdbResult<usize> {
         let result = PART_HEADER_SIZE + self.arg.size(with_padding, o_a_descriptors)?;
         trace!("Part_size = {}", result);
@@ -80,8 +80,8 @@ impl<'a> Part<'a> {
     pub fn parse<T: std::io::BufRead>(
         already_received_parts: &mut Parts,
         o_am_conn_core: Option<&AmConnCore>,
-        o_a_rsmd: &Option<Arc<ResultSetMetadata>>,
-        o_a_descriptors: &Option<Arc<ParameterDescriptors>>,
+        o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
+        o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
         o_rs: &mut Option<&mut RsState>,
         last: bool,
         rdr: &mut T,
@@ -183,6 +183,16 @@ impl<'a> Parts<'a> {
             _ => return None,
         }
         self.0.pop()
+    }
+
+    pub fn remove_first_of_kind(&mut self, kind: PartKind) -> Option<Part<'a>> {
+        self.0
+            .iter()
+            .enumerate()
+            .skip_while(|(_, p)| *p.kind() != kind)
+            .next()
+            .map(|(i, _)| i)
+            .map(|i| self.0.remove(i))
     }
 
     pub fn drop_parts_of_kind(&mut self, kind: PartKind) {
