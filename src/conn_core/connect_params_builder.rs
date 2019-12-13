@@ -26,12 +26,10 @@ pub struct ConnectParamsBuilder {
     hostname: Option<String>,
     port: Option<u16>,
     dbuser: Option<String>,
-    password: Option<String>,
+    password: Option<SecStr>,
     clientlocale: Option<String>,
     #[cfg(feature = "tls")]
-    server_certs: Option<ServerCerts>,
-    #[cfg(feature = "tls")]
-    use_mozillas_root_certificates: bool,
+    server_certs: Vec<ServerCerts>,
     options: Vec<(String, String)>,
 }
 
@@ -45,9 +43,7 @@ impl ConnectParamsBuilder {
             password: None,
             clientlocale: None,
             #[cfg(feature = "tls")]
-            server_certs: None,
-            #[cfg(feature = "tls")]
-            use_mozillas_root_certificates: false,
+            server_certs: Default::default(),
             options: vec![],
         }
     }
@@ -72,7 +68,7 @@ impl ConnectParamsBuilder {
 
     /// Sets the password.
     pub fn password<P: AsRef<str>>(&mut self, pw: P) -> &mut ConnectParamsBuilder {
-        self.password = Some(pw.as_ref().to_owned());
+        self.password = Some(SecStr::new(pw.as_ref().as_bytes().to_vec()));
         self
     }
 
@@ -92,20 +88,12 @@ impl ConnectParamsBuilder {
         self
     }
 
-    /// Defines if the server roots from https://mkcert.org/ should be added to the
-    /// trust store for TLS.
-    ///
-    /// By default they are not added.
-    #[cfg(feature = "tls")]
-    pub fn use_root_certificates(&mut self, b: bool) -> &mut ConnectParamsBuilder {
-        self.use_mozillas_root_certificates = b;
-        self
-    }
-
     /// Makes the driver use TLS for the connection to the database.
     ///
     /// Requires that the server's certificate is provided with one of the
     /// enum variants of [`ServerCerts`](enum.ServerCerts.html).
+    ///
+    /// If needed, you can call this function multiple times with different `ServerCert` variants.
     ///
     /// Example:
     ///
@@ -121,61 +109,63 @@ impl ConnectParamsBuilder {
     /// This method is only available with feature `tls`.
     #[cfg(feature = "tls")]
     pub fn tls_with(&mut self, server_certs: ServerCerts) -> &mut ConnectParamsBuilder {
-        self.server_certs = Some(server_certs);
+        self.server_certs.push(server_certs);
         self
     }
 
     /// Adds a runtime parameter.
-    pub fn option<'a>(&'a mut self, name: &str, value: &str) -> &'a mut ConnectParamsBuilder {
+    pub fn option(&mut self, name: &str, value: &str) -> &mut ConnectParamsBuilder {
         self.options.push((name.to_string(), value.to_string()));
         self
     }
 
     /// Constructs a `ConnectParams` from the builder.
-    pub fn build(&mut self) -> HdbResult<ConnectParams> {
-        Ok(ConnectParams {
-            host: match self.hostname {
-                Some(ref s) => s.clone(),
-                None => return Err(HdbError::Usage("hostname is missing".to_owned())),
-            },
-            addr: format!(
-                "{}:{}",
-                match self.hostname {
-                    Some(ref s) => s,
-                    None => return Err(HdbError::Usage("hostname is missing".to_owned())),
-                },
-                match self.port {
-                    Some(ref p) => *p,
-                    None => return Err(HdbError::Usage("port is missing".to_owned())),
-                }
-            ),
-            dbuser: match self.dbuser {
-                Some(_) => self.dbuser.take().unwrap(),
-                None => return Err(HdbError::Usage("dbuser is missing".to_owned())),
-            },
-            password: match self.password {
-                Some(_) => SecStr::from(self.password.take().unwrap()),
-                None => return Err(HdbError::Usage("password is missing".to_owned())),
-            },
-            clientlocale: match self.clientlocale {
-                Some(_) => Some(self.clientlocale.take().unwrap()),
-                None => None,
-            },
-            #[cfg(feature = "tls")]
-            use_tls: self.server_certs.is_some(),
+    pub fn build(&self) -> HdbResult<ConnectParams> {
+        let host = match self.hostname {
+            Some(ref s) => s.clone(),
+            None => return Err(HdbError::Usage("hostname is missing".to_owned())),
+        };
 
-            #[cfg(feature = "tls")]
-            server_certs: self.server_certs.clone(),
+        let addr = format!(
+            "{}:{}",
+            host,
+            match self.port {
+                Some(p) => p,
+                None => return Err(HdbError::Usage("port is missing".to_owned())),
+            }
+        );
+        let dbuser = match self.dbuser {
+            Some(ref s) => s.clone(),
+            None => return Err(HdbError::Usage("dbuser is missing".to_owned())),
+        };
+        let password = match self.password {
+            Some(ref secstr) => secstr.clone(),
+            None => return Err(HdbError::Usage("password is missing".to_owned())),
+        };
 
-            #[cfg(feature = "tls")]
-            use_mozillas_root_certificates: self.use_mozillas_root_certificates,
-        })
+        #[cfg(feature = "tls")]
+        let conn_params = ConnectParams::new(
+            host,
+            addr,
+            dbuser,
+            password,
+            self.clientlocale.clone(),
+            self.server_certs.clone(),
+        );
+
+        #[cfg(not(feature = "tls"))]
+        let conn_params =
+            ConnectParams::new(host, addr, dbuser, password, self.clientlocale.clone());
+
+        Ok(conn_params)
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::ConnectParamsBuilder;
+    #[cfg(feature = "tls")]
+    use super::ServerCerts;
 
     #[test]
     fn test_connect_params_builder() {
@@ -190,9 +180,9 @@ mod test {
             assert_eq!("MEIER", params.dbuser());
             assert_eq!(b"schLau", params.password().unsecure());
             assert_eq!("abcd123:2222", params.addr());
-            assert_eq!(None, params.clientlocale);
+            assert_eq!(None, params.clientlocale());
             #[cfg(feature = "tls")]
-            assert_eq!(false, params.use_mozillas_root_certificates);
+            assert!(params.server_certs().is_empty());
         }
         {
             let mut builder = ConnectParamsBuilder::new();
@@ -205,14 +195,17 @@ mod test {
             #[cfg(feature = "tls")]
             builder.tls_with(crate::ServerCerts::Directory("TCD".to_string()));
             #[cfg(feature = "tls")]
-            builder.use_root_certificates(true);
+            builder.tls_with(crate::ServerCerts::RootCertificates);
 
             let params = builder.build().unwrap();
             assert_eq!("MEIER", params.dbuser());
             assert_eq!(b"schLau", params.password().unsecure());
-            assert_eq!(Some("CL1".to_string()), params.clientlocale);
+            assert_eq!(Some(&"CL1".to_string()), params.clientlocale());
             #[cfg(feature = "tls")]
-            assert_eq!(true, params.use_mozillas_root_certificates);
+            assert_eq!(
+                ServerCerts::RootCertificates,
+                *params.server_certs().get(0).unwrap()
+            );
         }
     }
 }

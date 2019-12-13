@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.18.1-unpublished]
+
+Improve ConnectParamsBuilder
+
+- move root-certificates option as an additional variant into ServerCerts enum
+- don't erase any information from them builder during build()
+
+Minor docu improvements.
+
 ## [0.18.0] 2019-12-10
 
 Revise HdbResponse:

@@ -78,19 +78,50 @@ use url::Url;
 ///
 #[derive(Clone)]
 pub struct ConnectParams {
-    pub(crate) host: String,
-    pub(crate) addr: String,
-    pub(crate) dbuser: String,
-    pub(crate) password: SecStr,
-    pub(crate) clientlocale: Option<String>,
+    host: String,
+    addr: String,
+    dbuser: String,
+    password: SecStr,
+    clientlocale: Option<String>,
     #[cfg(feature = "tls")]
-    pub(crate) use_tls: bool,
-    #[cfg(feature = "tls")]
-    pub(crate) server_certs: Option<ServerCerts>,
-    #[cfg(feature = "tls")]
-    pub(crate) use_mozillas_root_certificates: bool,
+    server_certs: Vec<ServerCerts>,
 }
 impl ConnectParams {
+    #[cfg(not(feature = "tls"))]
+    pub(crate) fn new(
+        host: String,
+        addr: String,
+        dbuser: String,
+        password: SecStr,
+        clientlocale: Option<String>,
+    ) -> ConnectParams {
+        ConnectParams {
+            host,
+            addr,
+            dbuser,
+            password,
+            clientlocale,
+        }
+    }
+    #[cfg(feature = "tls")]
+    pub(crate) fn new(
+        host: String,
+        addr: String,
+        dbuser: String,
+        password: SecStr,
+        clientlocale: Option<String>,
+        server_certs: Vec<ServerCerts>,
+    ) -> ConnectParams {
+        ConnectParams {
+            host,
+            addr,
+            dbuser,
+            password,
+            clientlocale,
+            server_certs,
+        }
+    }
+
     /// Returns a new builder for ConnectParams.
     pub fn builder() -> ConnectParamsBuilder {
         ConnectParamsBuilder::new()
@@ -103,8 +134,8 @@ impl ConnectParams {
 
     /// The ServerCerts.
     #[cfg(feature = "tls")]
-    pub fn server_certs(&self) -> Option<&ServerCerts> {
-        self.server_certs.as_ref()
+    pub fn server_certs(&self) -> &Vec<ServerCerts> {
+        &self.server_certs
     }
 
     /// The host.
@@ -120,7 +151,7 @@ impl ConnectParams {
     /// Whether TLS or a plain TCP connection is to be used.
     pub fn use_tls(&self) -> bool {
         #[cfg(feature = "tls")]
-        return self.use_tls;
+        return !self.server_certs.is_empty();
 
         #[cfg(not(feature = "tls"))]
         return false;
@@ -212,7 +243,6 @@ impl IntoConnectParams for Url {
                 )));
             }
         };
-
         #[cfg(not(feature = "tls"))]
         {
             if self.scheme() != "hdbsql" {
@@ -224,11 +254,10 @@ impl IntoConnectParams for Url {
             }
         }
 
+        #[cfg(feature = "tls")]
+        let mut server_certs = Vec::<ServerCerts>::new();
         let mut clientlocale = None;
-        #[cfg(feature = "tls")]
-        let mut server_certs = None;
-        #[cfg(feature = "tls")]
-        let mut use_mozillas_root_certificates = false;
+
         for (name, value) in self.query_pairs() {
             match name.as_ref() {
                 "client_locale" => clientlocale = Some(value.to_string()),
@@ -237,17 +266,26 @@ impl IntoConnectParams for Url {
                 }
                 #[cfg(feature = "tls")]
                 "tls_certificate_dir" => {
-                    server_certs = Some(ServerCerts::Directory(value.to_string()))
+                    server_certs.push(ServerCerts::Directory(value.to_string()));
                 }
                 #[cfg(feature = "tls")]
                 "tls_certificate_env" => {
-                    server_certs = Some(ServerCerts::Environment(value.to_string()))
+                    server_certs.push(ServerCerts::Environment(value.to_string()));
                 }
                 #[cfg(feature = "tls")]
                 "use_mozillas_root_certificates" => {
-                    use_mozillas_root_certificates = true;
+                    server_certs.push(ServerCerts::RootCertificates);
                 }
                 _ => log::warn!("option {} not supported", name),
+            }
+        }
+
+        #[cfg(feature = "tls")]
+        {
+            if use_tls && server_certs.is_empty() {
+                return Err(HdbError::Usage(
+                    "protocol 'hdbsqls' requires certificates, but none are specified".to_owned(),
+                ));
             }
         }
 
@@ -258,18 +296,14 @@ impl IntoConnectParams for Url {
             password,
             clientlocale,
             #[cfg(feature = "tls")]
-            use_tls,
-            #[cfg(feature = "tls")]
             server_certs,
-            #[cfg(feature = "tls")]
-            use_mozillas_root_certificates,
         })
     }
 }
 
 /// Expresses where Server Certificates are read from.
 #[cfg(feature = "tls")]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ServerCerts {
     /// Server Certificates are read from files in the specified folder.
     Directory(String),
@@ -277,11 +311,16 @@ pub enum ServerCerts {
     Environment(String),
     /// The Server Certificate is given directly.
     Direct(String),
+    /// Defines that the server roots from https://mkcert.org/ should be added to the
+    /// trust store for TLS.
+    RootCertificates,
 }
 
 #[cfg(test)]
 mod tests {
     use super::IntoConnectParams;
+    #[cfg(feature = "tls")]
+    use super::ServerCerts;
 
     #[test]
     fn test_params_from_url() {
@@ -295,7 +334,7 @@ mod tests {
             assert_eq!("abcd123:2222", params.addr());
             assert_eq!(None, params.clientlocale);
             #[cfg(feature = "tls")]
-            assert_eq!(false, params.use_mozillas_root_certificates);
+            assert!(params.server_certs().is_empty());
         }
         {
             let params = "hdbsql://meier:schLau@abcd123:2222\
@@ -309,7 +348,10 @@ mod tests {
             assert_eq!(b"schLau", params.password().unsecure());
             assert_eq!(Some("CL1".to_string()), params.clientlocale);
             #[cfg(feature = "tls")]
-            assert_eq!(true, params.use_mozillas_root_certificates);
+            assert_eq!(
+                ServerCerts::RootCertificates,
+                *params.server_certs().get(0).unwrap()
+            );
         }
     }
 

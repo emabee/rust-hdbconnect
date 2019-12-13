@@ -41,36 +41,15 @@ fn connect_tcp(
     trace!("tcpstream working");
 
     let mut config = ClientConfig::new();
-    if params.use_mozillas_root_certificates {
-        config
-            .root_store
-            .add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);
-    }
-
-    match params.server_certs() {
-        None => {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "No server certificates provided",
-            ));
-        }
-        Some(ServerCerts::Direct(pem)) => {
-            let mut cursor = std::io::Cursor::new(pem);
-            let (n_ok, n_err) = config.root_store.add_pem_file(&mut cursor).unwrap();
-            if n_ok == 0 {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    "None of the provided server certificates was accepted",
-                ));
+    for server_cert in params.server_certs() {
+        match server_cert {
+            ServerCerts::RootCertificates => {
+                config
+                    .root_store
+                    .add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);
             }
-            if n_err > 0 {
-                warn!("Not all provided server certificates were accepted");
-            }
-        }
-        Some(ServerCerts::Environment(env_var)) => match std::env::var(env_var) {
-            Ok(value) => {
-                trace!("trying with env var {:?}", env_var);
-                let mut cursor = std::io::Cursor::new(value);
+            ServerCerts::Direct(pem) => {
+                let mut cursor = std::io::Cursor::new(pem);
                 let (n_ok, n_err) = config.root_store.add_pem_file(&mut cursor).unwrap();
                 if n_ok == 0 {
                     return Err(std::io::Error::new(
@@ -82,51 +61,67 @@ fn connect_tcp(
                     warn!("Not all provided server certificates were accepted");
                 }
             }
-            Err(e) => {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::InvalidInput,
-                    format!("Environment variable {} not found, reason: {}", env_var, e),
-                ));
-            }
-        },
-        Some(ServerCerts::Directory(trust_anchor_dir)) => {
-            debug!("Trust anchor directory = {}", trust_anchor_dir);
-
-            let trust_anchor_files: Vec<PathBuf> = std::fs::read_dir(trust_anchor_dir)?
-                .filter_map(Result::ok)
-                .filter(|dir_entry| {
-                    dir_entry.file_type().is_ok() && dir_entry.file_type().unwrap().is_file()
-                })
-                .filter(|dir_entry| {
-                    let path = dir_entry.path();
-                    let ext = path.extension();
-                    ext.is_some() && ext.unwrap() == "pem"
-                })
-                .map(|dir_entry| dir_entry.path())
-                .collect();
-
-            let mut t_ok = 0;
-            let mut t_err = 0;
-            for trust_anchor_file in trust_anchor_files {
-                trace!("Trying trust anchor file {:?}", trust_anchor_file);
-                let mut rd = std::io::BufReader::new(std::fs::File::open(trust_anchor_file)?);
-                let (n_ok, n_err) = config.root_store.add_pem_file(&mut rd).map_err(|_| {
-                    std::io::Error::new(
+            ServerCerts::Environment(env_var) => match std::env::var(env_var) {
+                Ok(value) => {
+                    trace!("trying with env var {:?}", env_var);
+                    let mut cursor = std::io::Cursor::new(value);
+                    let (n_ok, n_err) = config.root_store.add_pem_file(&mut cursor).unwrap();
+                    if n_ok == 0 {
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::Other,
+                            "None of the provided server certificates was accepted",
+                        ));
+                    }
+                    if n_err > 0 {
+                        warn!("Not all provided server certificates were accepted");
+                    }
+                }
+                Err(e) => {
+                    return Err(std::io::Error::new(
                         std::io::ErrorKind::InvalidInput,
-                        "server certificates could not be parsed",
-                    )
-                })?;
-                t_ok += n_ok;
-                t_err += n_err;
-            }
-            if t_ok == 0 {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    "None of the provided server certificates was accepted",
-                ));
-            }
-            if t_err > 0 {
-                warn!("Not all provided server certificates were accepted");
+                        format!("Environment variable {} not found, reason: {}", env_var, e),
+                    ));
+                }
+            },
+            ServerCerts::Directory(trust_anchor_dir) => {
+                debug!("Trust anchor directory = {}", trust_anchor_dir);
+
+                let trust_anchor_files: Vec<PathBuf> = std::fs::read_dir(trust_anchor_dir)?
+                    .filter_map(Result::ok)
+                    .filter(|dir_entry| {
+                        dir_entry.file_type().is_ok() && dir_entry.file_type().unwrap().is_file()
+                    })
+                    .filter(|dir_entry| {
+                        let path = dir_entry.path();
+                        let ext = path.extension();
+                        ext.is_some() && ext.unwrap() == "pem"
+                    })
+                    .map(|dir_entry| dir_entry.path())
+                    .collect();
+
+                let mut t_ok = 0;
+                let mut t_err = 0;
+                for trust_anchor_file in trust_anchor_files {
+                    trace!("Trying trust anchor file {:?}", trust_anchor_file);
+                    let mut rd = std::io::BufReader::new(std::fs::File::open(trust_anchor_file)?);
+                    let (n_ok, n_err) = config.root_store.add_pem_file(&mut rd).map_err(|_| {
+                        std::io::Error::new(
+                            std::io::ErrorKind::InvalidInput,
+                            "server certificates could not be parsed",
+                        )
+                    })?;
+                    t_ok += n_ok;
+                    t_err += n_err;
+                }
+                if t_ok == 0 {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        "None of the provided server certificates was accepted",
+                    ));
+                }
+                if t_err > 0 {
+                    warn!("Not all provided server certificates were accepted");
+                }
             }
         }
     }

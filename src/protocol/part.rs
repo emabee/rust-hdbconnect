@@ -188,10 +188,7 @@ impl<'a> Parts<'a> {
     pub fn remove_first_of_kind(&mut self, kind: PartKind) -> Option<Part<'a>> {
         self.0
             .iter()
-            .enumerate()
-            .skip_while(|(_, p)| *p.kind() != kind)
-            .next()
-            .map(|(i, _)| i)
+            .position(|p| *p.kind() == kind)
             .map(|i| self.0.remove(i))
     }
 

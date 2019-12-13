@@ -68,7 +68,7 @@ impl Connection {
     /// Executes a statement on the database.
     ///
     /// This generic method can handle all kinds of calls,
-    /// and thus has the most powerful return type.
+    /// and thus has the most generic return type.
     /// In many cases it will be more convenient to use
     /// one of the dedicated methods `query()`, `dml()`, `exec()` below, which
     /// internally convert the `HdbResponse` to the

@@ -2,7 +2,7 @@
 //! # 1. Database connections
 //!
 //! Establish an authenticated connection to the database server
-//! (see also [`ConnectParams`](../struct.ConnectParams.html)):
+//! (see also [`ConnectParams`]):
 //!
 //! ```rust,no_run
 //! use hdbconnect::{Connection, IntoConnectParams};
@@ -19,10 +19,10 @@
 //! ## 2.1 Generic method: Connection.statement() and HdbResponse()
 //!
 //! The most generic way to fire SQL statements without preparation is using
-//! `Connection::statement()`.
+//! [`Connection`]`::`[`statement()`].
 //! This generic method can handle very different kinds of calls
 //! (SQL queries, DML, procedure calls),
-//! and thus has the most complex return type, [`HdbResponse`](struct.HdbResponse.html).
+//! and thus has the most generic OK return type, [`HdbResponse`].
 //!
 //! ```rust,no_run
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
@@ -35,7 +35,7 @@
 //! # Ok(())
 //! # }
 //! ```
-//![`HdbResponse`](struct.HdbResponse.html) covers all possible
+//![`HdbResponse`] covers all possible
 //! return values we can get from the database.
 //! You thus have to analyze it to get to the
 //! concrete response to your call. Or you use the respective short-cut method that
@@ -54,7 +54,7 @@
 //! # }
 //! ```
 //!
-//! You can do the same of course with `HdbResponse`s obtained from the execution
+//! You can do the same of course with [`HdbResponse`]s obtained from the execution
 //! of prepared statements.
 //!
 //! ## 2.2 More specific methods with tailored return values
@@ -62,9 +62,9 @@
 //! In many cases it will be more appropriate and convenient to send your database command
 //! with one of the more specialized methods
 //!
-//! * `connection.query(...) // ResultSet`
-//! * `connection.dml(...)   // usize`
-//! * `connection.exec(...)  // ()`
+//! * [`Connection`]`::`[`query()`]` // HdbResult<ResultSet>`
+//! * [`Connection`]`::`[`dml()`]`   // HdbResult<usize>`
+//! * [`Connection`]`::`[`exec()`]`  // HdbResult<()>`
 //!
 //! which convert the database response directly into a simpler result type:
 //!
@@ -114,8 +114,8 @@
 //!
 //! # 3. Result set evaluation
 //!
-//! Some of the following examples use a method `try_into()`, on an individual `HdbValue`,
-//! a `Row`, or a `ResultSet`.
+//! Some of the following examples use a method `try_into()`, on an individual [`HdbValue`],
+//! a [`Row`], or a [`ResultSet`].
 //! These methods use return type polymorphism (based on `serde`), which means that you
 //! need to specify explicitly the desired type of the return value.
 //!
@@ -303,8 +303,7 @@
 //! # 5. Binary Values
 //!
 //! So far, specialization support is not yet in rust stable. Without that, you  have to use
-//! [`serde_bytes::Bytes`](https://docs.serde.rs/serde_bytes/struct.Bytes.html) and
-//! [`serde_bytes::ByteBuf`](https://docs.serde.rs/serde_bytes/struct.ByteBuf.html)
+//! [`serde_bytes::Bytes`] and [`serde_bytes::ByteBuf`]
 //! as lean wrappers around `&[u8]` and `Vec<u8>`
 //! to serialize into or deserialize from binary database types.
 //!
@@ -330,15 +329,14 @@
 //!
 //! # 6. LOBs
 //! Binary and Character LOBs can be treated like "normal" binary and String data, i.e.
-//! you can convert them with the methods described above into `ByteBuf` or String values
-//! (see [serde_bytes](https://docs.serde.rs/serde_bytes/) for serde's specialties regarding bytes).
+//! you can convert them with the methods described above into [`serde_bytes::ByteBuf`]
+//! or String values (see [`serde_bytes`] for serde's specialties regarding bytes).
 //!
 //! If necessary, you can easily avoid materializing the complete "Large Object",
 //! and stream it e.g. into a writer. For doing so, you convert the value into one of
 //! `hdbconnect::{BLob, CLob, NCLob}`.
 //!
-//! In this example the [`NCLob`](types/struct.NCLob.html) will,
-//! while being read by `std::io::copy()`,
+//! In this example the [`NCLob`] will, while being read by `std::io::copy()`,
 //! continuously fetch more data from the database until it is completely transferred:
 //!
 //! ```rust, no_run
@@ -356,3 +354,17 @@
 //! # }
 //! ```
 //!
+//! [`Connection`]: ../struct.Connection.html
+//! [`statement()`]: ../struct.Connection.html#method.statement
+//! [`query()`]: ../struct.Connection.html#method.query
+//! [`dml()`]: ../struct.Connection.html#method.dml
+//! [`exec()`]: ../struct.Connection.html#method.exec
+//! [`ConnectParams`]: ../struct.ConnectParams.html
+//! [`HdbValue`]: ../enum.HdbValue.html
+//! [`HdbResponse`]: ../struct.HdbResponse.html
+//! [`NCLob`]: types/struct.NCLob.html
+//! [`Row`]: ../struct.Row.html
+//! [`ResultSet`]: ../struct.ResultSet.html
+//! [`serde_bytes`]: https://docs.serde.rs/serde_bytes/
+//! [`serde_bytes::Bytes`]: https://docs.serde.rs/serde_bytes/struct.Bytes.html
+//! [`serde_bytes::ByteBuf`]: https://docs.serde.rs/serde_bytes/struct.ByteBuf.html
