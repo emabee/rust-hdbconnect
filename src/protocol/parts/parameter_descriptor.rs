@@ -1,7 +1,8 @@
 use crate::protocol::parts::type_id::TypeId;
 use crate::protocol::util;
-use crate::{HdbError, HdbResult, HdbValue};
+use crate::{HdbErrorKind, HdbResult, HdbValue};
 use byteorder::{LittleEndian, ReadBytesExt};
+use failure::ResultExt;
 use std::u32;
 
 /// Describes a set of IN, INOUT, and OUT parameters. Can be empty.
@@ -42,7 +43,7 @@ impl ParameterDescriptors {
     pub(crate) fn parse<T: std::io::BufRead>(
         count: usize,
         rdr: &mut T,
-    ) -> HdbResult<ParameterDescriptors> {
+    ) -> std::io::Result<ParameterDescriptors> {
         let mut vec_pd = Vec::<ParameterDescriptor>::new();
         let mut name_offsets = Vec::<u32>::new();
         for _ in 0..count {
@@ -158,7 +159,7 @@ impl ParameterDescriptor {
         direction: ParameterDirection,
         precision: i16,
         scale: i16,
-    ) -> HdbResult<ParameterDescriptor> {
+    ) -> std::io::Result<ParameterDescriptor> {
         let nullable = (parameter_option & 0b_0000_0010_u8) != 0;
         let type_id = TypeId::try_new(type_code)?;
 
@@ -177,7 +178,7 @@ impl ParameterDescriptor {
         self.name = Some(name);
     }
 
-    fn direction_from_u8(v: u8) -> HdbResult<ParameterDirection> {
+    fn direction_from_u8(v: u8) -> std::io::Result<ParameterDirection> {
         // it's done with three bits where always exactly one is 1 and the others are 0;
         // the other bits are not used,
         // so we can avoid bit handling and do it the simple way
@@ -185,16 +186,17 @@ impl ParameterDescriptor {
             1 => Ok(ParameterDirection::IN),
             2 => Ok(ParameterDirection::INOUT),
             4 => Ok(ParameterDirection::OUT),
-            _ => Err(HdbError::impl_(&format!(
+            _ => Err(util::io_error(format!(
                 "invalid value for ParameterDirection: {}",
                 v
             ))),
         }
     }
 
-    /// Parse an HdbValue
+    /// Parse an HdbValue from a String.
     pub fn parse_value<S: AsRef<str>>(&self, s: S) -> HdbResult<HdbValue<'static>> {
-        Ok(serde_db::ser::DbvFactory::from_str(&self, s.as_ref())?)
+        Ok(serde_db::ser::DbvFactory::from_str(&self, s.as_ref())
+            .context(HdbErrorKind::Deserialization)?)
     }
 }
 

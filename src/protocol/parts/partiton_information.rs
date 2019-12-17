@@ -1,6 +1,4 @@
 use crate::protocol::util;
-use crate::{HdbError, HdbResult};
-
 use byteorder::{LittleEndian, ReadBytesExt};
 
 #[derive(Debug)]
@@ -18,12 +16,12 @@ enum PartitionMethod {
 }
 
 impl PartitionMethod {
-    pub fn from_i8(val: i8) -> HdbResult<PartitionMethod> {
+    pub fn from_i8(val: i8) -> std::io::Result<PartitionMethod> {
         match val {
             0 => Ok(PartitionMethod::Invalid),
             1 => Ok(PartitionMethod::RoundRobin),
             2 => Ok(PartitionMethod::Hash),
-            _ => Err(HdbError::Impl(format!(
+            _ => Err(util::io_error(format!(
                 "PartitionMethod {} not implemented",
                 val
             ))),
@@ -39,12 +37,12 @@ enum ParameterFunction {
 }
 
 impl ParameterFunction {
-    pub fn from_i8(val: i8) -> HdbResult<ParameterFunction> {
+    pub fn from_i8(val: i8) -> std::io::Result<ParameterFunction> {
         match val {
             0 => Ok(ParameterFunction::Invalid),
             1 => Ok(ParameterFunction::Year),
             2 => Ok(ParameterFunction::Month),
-            _ => Err(HdbError::Impl(format!(
+            _ => Err(util::io_error(format!(
                 "ParameterFunction {} not implemented",
                 val
             ))),
@@ -66,7 +64,7 @@ pub struct Partitions {
 }
 
 impl PartitionInformation {
-    pub fn parse<T: std::io::BufRead>(rdr: &mut T) -> HdbResult<PartitionInformation> {
+    pub fn parse<T: std::io::BufRead>(rdr: &mut T) -> std::io::Result<PartitionInformation> {
         let partition_method = PartitionMethod::from_i8(rdr.read_i8()?)?; // I1
         util::skip_bytes(7, rdr)?;
         let num_parameters = rdr.read_i32::<LittleEndian>()?;

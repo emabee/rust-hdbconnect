@@ -48,7 +48,7 @@ impl Reply {
         o_rs: &mut Option<&mut RsState>,
         o_am_conn_core: Option<&AmConnCore>,
         rdr: &mut T,
-    ) -> HdbResult<Reply> {
+    ) -> std::io::Result<Reply> {
         trace!("Reply::parse()");
         let (no_of_parts, mut reply) = parse_message_and_sequence_header(rdr)?;
 
@@ -91,13 +91,13 @@ impl Reply {
         Ok(reply)
     }
 
-    pub fn assert_expected_reply_type(&self, reply_type: ReplyType) -> HdbResult<()> {
-        if self.replytype == reply_type {
+    pub fn assert_expected_reply_type(&self, expected_reply_type: ReplyType) -> HdbResult<()> {
+        if self.replytype == expected_reply_type {
             Ok(()) // we got what we expected
         } else {
-            Err(HdbError::Impl(format!(
-                "got unexpected reply_type {:?} instead of {:?}",
-                self.replytype, reply_type
+            Err(HdbError::imp_detailed(format!(
+                "Expected reply type {:?}, got {:?}",
+                expected_reply_type, self.replytype,
             )))
         }
     }
@@ -157,9 +157,7 @@ impl Reply {
                         _ => panic!("impossible: wrong Argument variant: ResultSetID expected"),
                     },
                     _ => {
-                        return Err(HdbError::Impl(
-                            "Missing required part ResultSetID".to_owned(),
-                        ));
+                        return Err(HdbError::imp("Missing required part ResultSetID"));
                     }
                 },
                 Argument::ExecutionResult(vra) => {
@@ -191,7 +189,9 @@ impl Drop for Reply {
     }
 }
 
-fn parse_message_and_sequence_header<T: std::io::BufRead>(rdr: &mut T) -> HdbResult<(i16, Reply)> {
+fn parse_message_and_sequence_header<T: std::io::BufRead>(
+    rdr: &mut T,
+) -> std::io::Result<(i16, Reply)> {
     // MESSAGE HEADER: 32 bytes
     let session_id: i64 = rdr.read_i64::<LittleEndian>()?; // I8
     let packet_seq_number: i32 = rdr.read_i32::<LittleEndian>()?; // I4
@@ -199,13 +199,11 @@ fn parse_message_and_sequence_header<T: std::io::BufRead>(rdr: &mut T) -> HdbRes
     let remaining_bufsize: u32 = rdr.read_u32::<LittleEndian>()?; // UI4  not needed?
     let no_of_segs = rdr.read_i16::<LittleEndian>()?; // I2
     if no_of_segs == 0 {
-        return Err(HdbError::Impl(
-            "empty response (is ok for drop connection)".to_owned(),
-        ));
+        return Err(util::io_error("empty response (is ok for drop connection)"));
     }
 
     if no_of_segs > 1 {
-        return Err(HdbError::Impl(format!("no_of_segs = {} > 1", no_of_segs)));
+        return Err(util::io_error(format!("no_of_segs = {} > 1", no_of_segs)));
     }
 
     util::skip_bytes(10, rdr)?; // (I1 + B[9])
@@ -227,7 +225,7 @@ fn parse_message_and_sequence_header<T: std::io::BufRead>(rdr: &mut T) -> HdbRes
     );
 
     match seg_kind {
-        Kind::Request => Err(HdbError::Usage("Cannot _parse_ a request".to_string())),
+        Kind::Request => Err(util::io_error("Cannot _parse_ a request".to_string())),
         Kind::Reply | Kind::Error => {
             util::skip_bytes(1, rdr)?; // I1 reserved2
             let reply_type = ReplyType::from_i16(rdr.read_i16::<LittleEndian>()?)?; // I2
@@ -249,12 +247,12 @@ enum Kind {
     Error,
 }
 impl Kind {
-    fn from_i8(val: i8) -> HdbResult<Kind> {
+    fn from_i8(val: i8) -> std::io::Result<Kind> {
         match val {
             1 => Ok(Kind::Request),
             2 => Ok(Kind::Reply),
             5 => Ok(Kind::Error),
-            _ => Err(HdbError::Impl(format!(
+            _ => Err(util::io_error(format!(
                 "reply::Kind {} not implemented",
                 val
             ))),

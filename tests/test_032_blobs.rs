@@ -1,8 +1,9 @@
 mod test_utils;
 
+use failure::ResultExt;
 use flexi_logger::ReconfigurationHandle;
 use hdbconnect::types::BLob;
-use hdbconnect::{Connection, HdbResult, HdbValue};
+use hdbconnect::{Connection, HdbErrorKind, HdbResult, HdbValue};
 use log::{debug, info};
 use rand::{thread_rng, RngCore};
 use serde_bytes::{ByteBuf, Bytes};
@@ -125,13 +126,13 @@ fn test_blobs(
     let mut blob2: BLob = row.next_value().unwrap().try_into_blob()?;
 
     let mut streamed = Vec::<u8>::new();
-    std::io::copy(&mut blob2, &mut streamed)?;
+    std::io::copy(&mut blob2, &mut streamed).context(HdbErrorKind::LobStreaming)?;
     assert_eq!(random_bytes.len(), streamed.len());
     let mut hasher = Sha256::default();
     hasher.input(&streamed);
 
     let mut streamed = Vec::<u8>::new();
-    std::io::copy(&mut blob, &mut streamed)?;
+    std::io::copy(&mut blob, &mut streamed).context(HdbErrorKind::LobStreaming)?;
 
     assert_eq!(random_bytes.len(), streamed.len());
     let mut hasher = Sha256::default();
@@ -201,7 +202,7 @@ fn test_streaming(
         .into_single_value()?
         .try_into_blob()?;
     let mut buffer = Vec::<u8>::new();
-    std::io::copy(&mut blob, &mut buffer)?;
+    std::io::copy(&mut blob, &mut buffer).context(HdbErrorKind::LobStreaming)?;
 
     assert_eq!(random_bytes.len(), buffer.len());
     let mut hasher = Sha256::default();

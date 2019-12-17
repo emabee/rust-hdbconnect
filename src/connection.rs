@@ -12,7 +12,7 @@ use crate::protocol::request::{Request, HOLD_CURSORS_OVER_COMMIT};
 use crate::protocol::request_type::RequestType;
 use crate::protocol::server_usage::ServerUsage;
 use crate::xa_impl::new_resource_manager;
-use crate::{HdbError, HdbResponse, HdbResult};
+use crate::{HdbErrorKind, HdbResponse, HdbResult};
 use chrono::Local;
 use dist_tx::rm::ResourceManager;
 
@@ -136,9 +136,7 @@ impl Connection {
         let vec = &(self.statement(stmt)?.into_affected_rows()?);
         match vec.len() {
             1 => Ok(vec[0]),
-            _ => Err(HdbError::Usage(
-                "number of affected-rows-counts <> 1".to_owned(),
-            )),
+            _ => Err(HdbErrorKind::Usage("number of affected-rows-counts <> 1").into()),
         }
     }
 

@@ -2,7 +2,7 @@ mod test_utils;
 
 use chrono::NaiveDate;
 use flexi_logger::ReconfigurationHandle;
-use hdbconnect::{Connection, HdbError, HdbResult};
+use hdbconnect::{Connection, HdbErrorKind, HdbResult};
 use log::{debug, info};
 
 // From wikipedia:
@@ -21,8 +21,11 @@ pub fn test_031_transactions() -> HdbResult<()> {
     let mut connection = test_utils::get_authenticated_connection()?;
 
     connection.set_auto_commit(false)?;
-    if let Err(HdbError::DbError(server_error)) =
+    if let HdbErrorKind::DbError(server_error) =
         write1_read2(&mut log_handle, &mut connection, "READ UNCOMMITTED")
+            .err()
+            .unwrap()
+            .kind()
     {
         let error_info: (i32, String, String) = connection
             .query(&format!(

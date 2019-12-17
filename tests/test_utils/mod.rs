@@ -1,9 +1,10 @@
 // advisable because not all test modules use all functions of this module:
 #![allow(dead_code)]
 
+use failure::ResultExt;
 use flexi_logger::{opt_format, Logger, ReconfigurationHandle};
 use hdbconnect::{ConnectParams, IntoConnectParams};
-use hdbconnect::{Connection, HdbResult};
+use hdbconnect::{Connection, HdbErrorKind, HdbResult};
 use std::fs::read_to_string;
 
 // Returns a logger that prints out all info, warn and error messages.
@@ -62,11 +63,11 @@ fn get_version() -> &'static str {
 }
 
 fn connect_params_from_file(s: &str) -> HdbResult<ConnectParams> {
-    let url = read_to_string(s)?;
+    let url = read_to_string(s).context(HdbErrorKind::ConnParams)?;
     url.into_connect_params()
 }
 
 pub fn get_std_connect_url() -> HdbResult<String> {
     let s = format!("./.private/db_{}_std.url", get_version());
-    Ok(read_to_string(s)?)
+    Ok(read_to_string(s).context(HdbErrorKind::ConnParams)?)
 }

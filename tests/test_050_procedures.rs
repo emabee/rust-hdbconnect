@@ -250,7 +250,7 @@ fn procedure_with_in_nclob_and_out_nclob(
     connection: &mut Connection,
 ) -> HdbResult<()> {
     info!("procedure_with_in_nclob_and_out_nclob");
-    // FIXME switch to a self-written procedure, EXECUTE_MDS is moved into an AFL and
+    // TODO switch to a self-written procedure, EXECUTE_MDS is moved into an AFL and
     // might not be available
     let mut stmt = connection.prepare("CALL SYS.EXECUTE_MDS(?, '','','','', ?,?)")?;
 

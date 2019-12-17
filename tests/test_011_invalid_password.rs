@@ -1,6 +1,6 @@
 mod test_utils;
 
-use hdbconnect::{Connection, HdbError, HdbResult};
+use hdbconnect::{Connection, HdbErrorKind, HdbResult};
 use log::{debug, info};
 
 // cargo test --test test_011_invalid_password -- --nocapture
@@ -65,7 +65,7 @@ pub fn test_011_invalid_password() -> HdbResult<()> {
 
         debug!("select from dummy -> ensure getting the right error");
         let result = doedel_conn.query("select 1 from dummy");
-        if let Err(HdbError::DbError(ref server_error)) = result {
+        if let HdbErrorKind::DbError(ref server_error) = result.err().unwrap().kind() {
             debug!("Got this server error: {:?}", server_error);
             assert_eq!(
                 server_error.code(),

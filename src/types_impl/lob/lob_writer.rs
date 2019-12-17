@@ -12,9 +12,9 @@ use crate::protocol::reply_type::ReplyType;
 use crate::protocol::request::Request;
 use crate::protocol::request_type::RequestType;
 use crate::protocol::server_usage::ServerUsage;
-use crate::protocol::util::utf8_to_cesu8_and_utf8_tail;
+use crate::protocol::util;
 use crate::{HdbError, HdbResult};
-use std::io::{Error, ErrorKind, Result, Write};
+use std::io::Write;
 use std::sync::Arc;
 
 pub(crate) struct LobWriter<'a> {
@@ -39,7 +39,10 @@ impl<'a> LobWriter<'a> {
         if let TypeId::BLOB | TypeId::CLOB | TypeId::NCLOB = type_id {
             // ok
         } else {
-            return Err(HdbError::Impl(format!("Unsupported type-id {:?}", type_id)));
+            return Err(HdbError::imp_detailed(format!(
+                "Unsupported type-id {:?}",
+                type_id
+            )));
         }
         let lob_write_length = am_conn_core.lock()?.get_lob_write_length();
         Ok(LobWriter {
@@ -85,7 +88,7 @@ impl<'a> LobWriter<'a> {
             // last response of last IN parameter
             ReplyType::DbProcedureCall => self.evaluate_dbprocedure_call_reply(reply),
 
-            _ => Err(HdbError::impl_(format!(
+            _ => Err(HdbError::imp_detailed(format!(
                 "LobWriter::write_a_lob_chunk got a reply of type {:?}",
                 reply.replytype,
             ))),
@@ -105,8 +108,8 @@ impl<'a> LobWriter<'a> {
             ),
             None => (None, None, None),
             _ => {
-                return Err(HdbError::Impl(
-                    "Inconsistent StatementContext part found for ResultSet".to_owned(),
+                return Err(HdbError::imp(
+                    "Inconsistent StatementContext part found for ResultSet",
                 ));
             }
         };
@@ -133,7 +136,7 @@ impl<'a> LobWriter<'a> {
             Some(Argument::WriteLobReply(write_lob_reply)) => {
                 Ok(write_lob_reply.into_locator_ids())
             }
-            _ => Err(HdbError::Impl(format!(
+            _ => Err(HdbError::imp_detailed(format!(
                 "No WriteLobReply part found; parts = {:?}",
                 reply.parts
             ))),
@@ -153,9 +156,7 @@ impl<'a> LobWriter<'a> {
             ),
             None => (None, None, None),
             _ => {
-                return Err(HdbError::Impl(
-                    "Inconsistent StatementContext part found for ResultSet".to_owned(),
-                ));
+                return Err(HdbError::imp("Inconsistent StatementContext found"));
             }
         };
         self.server_usage
@@ -194,7 +195,7 @@ impl<'a> LobWriter<'a> {
 
 impl<'a> Write for LobWriter<'a> {
     // Either buffers (in self.buffer) or writes buffer + input to the db
-    fn write(&mut self, input: &[u8]) -> Result<usize> {
+    fn write(&mut self, input: &[u8]) -> std::io::Result<usize> {
         trace!("write() with input of len {}", input.len());
         if input.len() + self.buffer.len() < self.lob_write_length {
             self.buffer.append(&mut input.to_vec());
@@ -212,8 +213,8 @@ impl<'a> Write for LobWriter<'a> {
 
             // if necessary, cut off new tail and convert to cesu8
             let payload = if let TypeId::CLOB | TypeId::NCLOB = self.type_id {
-                let (cesu8, utf8_tail) = utf8_to_cesu8_and_utf8_tail(payload_raw)
-                    .map_err(|e| Error::new(ErrorKind::Other, e))?;
+                let (cesu8, utf8_tail) = util::utf8_to_cesu8_and_utf8_tail(payload_raw)
+                    .map_err(|e| util::io_error(e.to_string()))?;
                 self.buffer = utf8_tail;
                 cesu8
             } else {
@@ -222,23 +223,23 @@ impl<'a> Write for LobWriter<'a> {
 
             let locator_ids = self
                 .write_a_lob_chunk(LobWriteMode::Append(&payload))
-                .map_err(|e| Error::new(ErrorKind::Other, e))?;
+                .map_err(|e| util::io_error(e.to_string()))?;
             debug_assert_eq!(locator_ids.len(), 1);
             debug_assert_eq!(locator_ids[0], self.locator_id);
         }
         Ok(input.len())
     }
 
-    fn flush(&mut self) -> Result<()> {
+    fn flush(&mut self) -> std::io::Result<()> {
         trace!("flush(), with buffer of {} bytes", self.buffer.len());
         let mut payload_raw = Vec::<u8>::new();
         std::mem::swap(&mut payload_raw, &mut self.buffer);
         let payload = if let TypeId::CLOB | TypeId::NCLOB = self.type_id {
-            let (cesu8, utf8_tail) = utf8_to_cesu8_and_utf8_tail(payload_raw)
-                .map_err(|e| Error::new(ErrorKind::Other, e))?;
+            let (cesu8, utf8_tail) = util::utf8_to_cesu8_and_utf8_tail(payload_raw)
+                .map_err(|e| util::io_error(e.to_string()))?;
             if !utf8_tail.is_empty() {
-                return Err(Error::new(
-                    ErrorKind::Other,
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Other,
                     "stream is ending with invalid utf-8",
                 ));
             }
@@ -249,7 +250,7 @@ impl<'a> Write for LobWriter<'a> {
 
         let locator_ids = self
             .write_a_lob_chunk(LobWriteMode::Last(&payload))
-            .map_err(|e| Error::new(ErrorKind::Other, e))?;
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
         debug_assert_eq!(locator_ids.len(), 0);
         Ok(())
     }

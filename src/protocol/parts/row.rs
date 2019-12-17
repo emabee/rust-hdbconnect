@@ -2,8 +2,9 @@ use crate::conn_core::AmConnCore;
 use crate::protocol::parts::hdb_value::HdbValue;
 use crate::protocol::parts::resultset::AmRsCore;
 use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
-use crate::{HdbError, HdbResult};
-
+use crate::protocol::util;
+use crate::{HdbErrorKind, HdbResult};
+use failure::ResultExt;
 use serde;
 use serde_db::de::DeserializableRow;
 use std::fmt;
@@ -37,7 +38,7 @@ impl Row {
         T: serde::de::Deserialize<'de>,
     {
         trace!("Row::into_typed()");
-        Ok(DeserializableRow::into_typed(self)?)
+        Ok(DeserializableRow::into_typed(self).context(HdbErrorKind::Deserialization)?)
     }
 
     /// Removes and returns the next value.
@@ -51,7 +52,7 @@ impl Row {
         T: serde::de::Deserialize<'de>,
     {
         self.next_value()
-            .ok_or_else(|| HdbError::usage_("no more value"))?
+            .ok_or_else(|| HdbErrorKind::Usage("no more value"))?
             .try_into()
     }
 
@@ -71,10 +72,11 @@ impl Row {
     /// Fails if the row is empty or has more than one value.
     pub fn into_single_value(mut self) -> HdbResult<HdbValue<'static>> {
         if self.len() > 1 {
-            Err(HdbError::Usage("Row has more than one field".to_owned()))
+            Err(HdbErrorKind::Usage("Row has more than one field").into())
         } else {
-            self.next_value()
-                .ok_or_else(|| HdbError::Usage("Row is empty".to_owned()))
+            Ok(self
+                .next_value()
+                .ok_or_else(|| HdbErrorKind::Usage("Row is empty"))?)
         }
     }
 
@@ -93,13 +95,14 @@ impl Row {
         o_am_rscore: &Option<AmRsCore>,
         am_conn_core: &AmConnCore,
         rdr: &mut dyn std::io::BufRead,
-    ) -> HdbResult<Row> {
+    ) -> std::io::Result<Row> {
         let no_of_cols = md.number_of_fields();
         let mut values = Vec::<HdbValue>::new();
         for c in 0..no_of_cols {
-            let type_id = md.type_id(c)?;
-            let nullable = md.nullable(c)?;
-            let scale = md.scale(c)?;
+            let fmd = md.get(c).map_err(|e| util::io_error(e.to_string()))?;
+            let type_id = fmd.type_id();
+            let nullable = fmd.is_nullable();
+            let scale = fmd.scale();
             trace!(
                 "Parsing column {}, {}{:?}",
                 c,

@@ -1,6 +1,8 @@
 # Changelog
 
-## [0.18.1-unpublished]
+## [0.19.0-unpublished]
+
+Reconstruct HdbError, based on crate `failure`.
 
 Improve ConnectParamsBuilder
 

@@ -1,6 +1,7 @@
 //! Connection parameters
 use crate::conn_core::connect_params_builder::ConnectParamsBuilder;
-use crate::{HdbError, HdbResult};
+use crate::{HdbErrorKind, HdbResult};
+use failure::ResultExt;
 use secstr::SecStr;
 use std::env;
 use std::fmt;
@@ -129,7 +130,9 @@ impl ConnectParams {
 
     /// Reads a url from the given file and converts it into `ConnectParams`.
     pub fn from_file<P: AsRef<Path>>(path: P) -> HdbResult<ConnectParams> {
-        fs::read_to_string(path)?.into_connect_params()
+        fs::read_to_string(path)
+            .context(HdbErrorKind::ConnParams)?
+            .into_connect_params()
     }
 
     /// The ServerCerts.
@@ -197,10 +200,9 @@ impl IntoConnectParams for ConnectParams {
 
 impl<'a> IntoConnectParams for &'a str {
     fn into_connect_params(self) -> HdbResult<ConnectParams> {
-        match Url::parse(self) {
-            Ok(url) => url.into_connect_params(),
-            Err(_) => Err(HdbError::Usage("url parse error".to_owned())),
-        }
+        Url::parse(self)
+            .context(HdbErrorKind::ConnParams)?
+            .into_connect_params()
     }
 }
 
@@ -213,22 +215,22 @@ impl IntoConnectParams for String {
 impl IntoConnectParams for Url {
     fn into_connect_params(self) -> HdbResult<ConnectParams> {
         let host: String = match self.host_str() {
-            Some("") | None => return Err(HdbError::Usage("host is missing".to_owned())),
+            Some("") | None => return Err(HdbErrorKind::Usage("host is missing").into()),
             Some(host) => host.to_string(),
         };
 
         let port: u16 = match self.port() {
             Some(p) => p,
-            None => return Err(HdbError::Usage("port is missing".to_owned())),
+            None => return Err(HdbErrorKind::Usage("port is missing").into()),
         };
 
         let dbuser: String = match self.username() {
-            "" => return Err(HdbError::Usage("dbuser is missing".to_owned())),
+            "" => return Err(HdbErrorKind::Usage("dbuser is missing").into()),
             s => s.to_string(),
         };
 
         let password = SecStr::from(match self.password() {
-            None => return Err(HdbError::Usage("password is missing".to_owned())),
+            None => return Err(HdbErrorKind::Usage("password is missing").into()),
             Some(s) => s.to_string(),
         });
 
@@ -236,21 +238,21 @@ impl IntoConnectParams for Url {
         let use_tls = match self.scheme() {
             "hdbsql" => false,
             "hdbsqls" => true,
-            s => {
-                return Err(HdbError::Usage(format!(
-                    "Unknown protocol '{}'; only 'hdbsql' and 'hdbsqls' are supported",
-                    s
-                )));
+            _ => {
+                return Err(HdbErrorKind::Usage(
+                    "Unknown protocol, only 'hdbsql' and 'hdbsqls' are supported",
+                )
+                .into());
             }
         };
         #[cfg(not(feature = "tls"))]
         {
             if self.scheme() != "hdbsql" {
-                return Err(HdbError::Usage(format!(
-                    "Unknown protocol '{}'; only 'hdbsql' is supported; \
+                return Err(HdbErrorKind::Usage(
+                    "Unknown protocol, only 'hdbsql' is supported; \
                      for 'hdbsqls' the feature 'tls' must be used when compiling hdbconnect",
-                    self.scheme()
-                )));
+                )
+                .into());
             }
         }
 
@@ -283,9 +285,10 @@ impl IntoConnectParams for Url {
         #[cfg(feature = "tls")]
         {
             if use_tls && server_certs.is_empty() {
-                return Err(HdbError::Usage(
-                    "protocol 'hdbsqls' requires certificates, but none are specified".to_owned(),
-                ));
+                return Err(HdbErrorKind::Usage(
+                    "protocol 'hdbsqls' requires certificates, but none are specified",
+                )
+                .into());
             }
         }
 

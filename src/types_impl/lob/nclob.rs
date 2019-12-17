@@ -5,6 +5,7 @@ use crate::protocol::parts::resultset::AmRsCore;
 use crate::protocol::server_usage::ServerUsage;
 use crate::protocol::util;
 use crate::{HdbError, HdbResult};
+use failure::Fail;
 use std::boxed::Box;
 use std::io::Write;
 
@@ -67,7 +68,7 @@ impl NCLob {
     /// ```rust, no-run
     /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, Row};
     /// # fn main() { }
-    /// # fn foo() -> HdbResult<()> {
+    /// # fn foo() -> Result<(),failure::Error> {
     /// # let params = "".into_connect_params()?;
     /// # let mut connection = Connection::new(params)?;
     ///  let mut writer;
@@ -216,7 +217,7 @@ impl NCLobHandle {
 
     fn fetch_next_chunk(&mut self) -> HdbResult<()> {
         if self.is_data_complete {
-            return Err(HdbError::impl_("fetch_next_chunk(): already complete"));
+            return Err(HdbError::imp("already complete"));
         }
 
         let read_length = std::cmp::min(
@@ -291,7 +292,7 @@ impl std::io::Read for NCLobHandle {
 
         while !self.is_data_complete && (buf.len() > self.utf8.len()) {
             self.fetch_next_chunk()
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.compat()))?;
         }
 
         // we want to keep clean UTF-8 in utf8, so we cut off at good places only

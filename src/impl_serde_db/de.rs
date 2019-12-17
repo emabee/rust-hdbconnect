@@ -9,12 +9,11 @@ use serde_db::de::{
     ConversionError, DbValue, DbValueInto, DeserializableResultset, DeserializableRow,
     DeserializationError, DeserializationResult,
 };
-use std::error::Error;
 use std::{fmt, i16, i32, i64, i8, u16, u32, u8};
 
 impl DeserializableResultset for ResultSet {
     type ROW = Row;
-    type E = HdbError;
+    type E = DeserializationError;
 
     fn has_multiple_rows(&mut self) -> Result<bool, DeserializationError> {
         Ok(self.has_multiple_rows_impl())
@@ -35,7 +34,7 @@ impl DeserializableResultset for ResultSet {
 
 impl DeserializableRow for Row {
     type V = HdbValue<'static>;
-    type E = HdbError;
+    type E = DeserializationError;
 
     fn len(&self) -> usize {
         self.len()
@@ -56,7 +55,7 @@ impl DeserializableRow for Row {
 
 impl DeserializableRow for OutputParameters {
     type V = HdbValue<'static>;
-    type E = HdbError;
+    type E = DeserializationError;
 
     fn len(&self) -> usize {
         self.values().len()
@@ -260,10 +259,10 @@ impl DbValueInto<String> for HdbValue<'static> {
             HdbValue::DECIMAL(bigdec) => Ok(format!("{}", bigdec)),
             HdbValue::CLOB(clob) => Ok(clob
                 .into_string()
-                .map_err(|e| ConversionError::Incomplete(e.description().to_owned()))?),
+                .map_err(|e| ConversionError::Incomplete(e.to_string()))?),
             HdbValue::NCLOB(nclob) => Ok(nclob
                 .into_string()
-                .map_err(|e| ConversionError::Incomplete(e.description().to_owned()))?),
+                .map_err(|e| ConversionError::Incomplete(e.to_string()))?),
             value => Err(wrong_type(&value, "String")),
         }
     }
@@ -299,7 +298,7 @@ impl DbValueInto<Vec<u8>> for HdbValue<'static> {
         match self {
             HdbValue::BLOB(blob) => Ok(blob
                 .into_bytes()
-                .map_err(|e| ConversionError::Incomplete(e.description().to_owned()))?),
+                .map_err(|e| ConversionError::Incomplete(e.to_string()))?),
 
             HdbValue::BINARY(v) | HdbValue::GEOMETRY(v) | HdbValue::POINT(v) => Ok(v),
 

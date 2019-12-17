@@ -1,5 +1,4 @@
 use crate::protocol::parts::option_value::OptionValue;
-use crate::HdbResult;
 use core::fmt::Debug;
 use std::collections::hash_map::IntoIter;
 use std::collections::hash_map::Iter;
@@ -49,7 +48,7 @@ impl<T: OptionId<T> + Debug + Eq + PartialEq + Hash> OptionPart<T> {
         self.0.iter()
     }
 
-    pub fn emit<W: std::io::Write>(&self, w: &mut W) -> HdbResult<()> {
+    pub fn emit<W: std::io::Write>(&self, w: &mut W) -> std::io::Result<()> {
         for (id, value) in &self.0 {
             w.write_u8(id.to_u8())?;
             value.emit(w)?;
@@ -57,7 +56,7 @@ impl<T: OptionId<T> + Debug + Eq + PartialEq + Hash> OptionPart<T> {
         Ok(())
     }
 
-    pub fn parse<R: std::io::BufRead>(count: usize, rdr: &mut R) -> HdbResult<OptionPart<T>> {
+    pub fn parse<R: std::io::BufRead>(count: usize, rdr: &mut R) -> std::io::Result<OptionPart<T>> {
         let mut result = OptionPart::default();
         for _ in 0..count {
             let id = T::from_u8(rdr.read_u8()?);

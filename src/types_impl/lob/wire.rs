@@ -4,7 +4,6 @@ use crate::protocol::parts::resultset::AmRsCore;
 use crate::protocol::parts::type_id::TypeId;
 use crate::protocol::util;
 use crate::types_impl::lob::{BLob, CLob, NCLob};
-use crate::{HdbError, HdbResult};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 pub(crate) fn parse_blob(
@@ -12,15 +11,13 @@ pub(crate) fn parse_blob(
     o_am_rscore: &Option<AmRsCore>,
     nullable: bool,
     rdr: &mut dyn std::io::BufRead,
-) -> HdbResult<HdbValue<'static>> {
+) -> std::io::Result<HdbValue<'static>> {
     let (is_null, is_data_included, is_last_data) = parse_lob_1(rdr)?;
     if is_null {
         if nullable {
             Ok(HdbValue::NULL)
         } else {
-            Err(HdbError::Impl(
-                "found null value for not-null BLOB column".to_owned(),
-            ))
+            Err(util::io_error("found null value for not-null BLOB column"))
         }
     } else {
         let (_, length, locator_id, data) = parse_lob_2(rdr, is_data_included)?;
@@ -40,15 +37,13 @@ pub(crate) fn parse_clob(
     o_am_rscore: &Option<AmRsCore>,
     nullable: bool,
     rdr: &mut dyn std::io::BufRead,
-) -> HdbResult<HdbValue<'static>> {
+) -> std::io::Result<HdbValue<'static>> {
     let (is_null, is_data_included, is_last_data) = parse_lob_1(rdr)?;
     if is_null {
         if nullable {
             Ok(HdbValue::NULL)
         } else {
-            Err(HdbError::Impl(
-                "found null value for not-null CLOB column".to_owned(),
-            ))
+            Err(util::io_error("found null value for not-null CLOB column"))
         }
     } else {
         let (char_length, byte_length, locator_id, data) = parse_lob_2(rdr, is_data_included)?;
@@ -70,15 +65,13 @@ pub(crate) fn parse_nclob(
     nullable: bool,
     type_id: TypeId,
     rdr: &mut dyn std::io::BufRead,
-) -> HdbResult<HdbValue<'static>> {
+) -> std::io::Result<HdbValue<'static>> {
     let (is_null, is_data_included, is_last_data) = parse_lob_1(rdr)?;
     if is_null {
         if nullable {
             Ok(HdbValue::NULL)
         } else {
-            Err(HdbError::Impl(
-                "found null value for not-null NCLOB column".to_owned(),
-            ))
+            Err(util::io_error("found null value for not-null NCLOB column"))
         }
     } else {
         let (char_length, byte_length, locator_id, data) = parse_lob_2(rdr, is_data_included)?;
@@ -92,12 +85,12 @@ pub(crate) fn parse_nclob(
                 locator_id,
                 data,
             )),
-            _ => return Err(HdbError::Impl("unexpected type id for nclob".to_owned())),
+            _ => return Err(util::io_error("unexpected type id for nclob")),
         })
     }
 }
 
-fn parse_lob_1(rdr: &mut dyn std::io::BufRead) -> HdbResult<(bool, bool, bool)> {
+fn parse_lob_1(rdr: &mut dyn std::io::BufRead) -> std::io::Result<(bool, bool, bool)> {
     let _data_type = rdr.read_u8()?; // I1
     let options = rdr.read_u8()?; // I1
     let is_null = (options & 0b_1_u8) != 0;
@@ -109,7 +102,7 @@ fn parse_lob_1(rdr: &mut dyn std::io::BufRead) -> HdbResult<(bool, bool, bool)> 
 fn parse_lob_2(
     rdr: &mut dyn std::io::BufRead,
     is_data_included: bool,
-) -> HdbResult<(u64, u64, u64, Vec<u8>)> {
+) -> std::io::Result<(u64, u64, u64, Vec<u8>)> {
     util::skip_bytes(2, rdr)?; // U2 (filler)
     let total_char_length = rdr.read_u64::<LittleEndian>()?; // I8
     let total_byte_length = rdr.read_u64::<LittleEndian>()?; // I8
@@ -133,7 +126,7 @@ pub(crate) fn emit_lob_header(
     length: u64,
     offset: &mut i32,
     w: &mut dyn std::io::Write,
-) -> HdbResult<()> {
+) -> std::io::Result<()> {
     // bit 0: not used; bit 1: data is included; bit 2: no more data remaining
     w.write_u8(0b_000_u8)?; // I1           Bit set for options
     w.write_i32::<LittleEndian>(length as i32)?; // I4           LENGTH OF VALUE

@@ -1,8 +1,9 @@
 use super::authenticator::Authenticator;
 use super::crypto_util::scram_sha256;
 use crate::protocol::parts::authfields::AuthFields;
-use crate::{HdbError, HdbResult};
+use crate::{HdbError, HdbErrorKind, HdbResult};
 use byteorder::{BigEndian, WriteBytesExt};
+use failure::ResultExt;
 use rand::{thread_rng, RngCore};
 use secstr::SecStr;
 use std::io::Write;
@@ -41,15 +42,19 @@ impl Authenticator for ScramSha256 {
         let (salt, server_nonce) = parse_first_server_data(server_data).unwrap();
 
         let (client_proof, server_proof) =
-            scram_sha256(&salt, &server_nonce, &self.client_challenge, password)?;
+            scram_sha256(&salt, &server_nonce, &self.client_challenge, password);
 
         self.client_challenge.clear();
         self.server_proof = Some(server_proof);
 
+        const MSG: &str = "ClientProof";
         let mut buf = Vec::<u8>::with_capacity(3 + CLIENT_PROOF_SIZE);
-        buf.write_u16::<BigEndian>(1_u16)?;
-        buf.write_u8(CLIENT_PROOF_SIZE as u8)?;
-        buf.write_all(&client_proof)?;
+        buf.write_u16::<BigEndian>(1_u16)
+            .context(HdbErrorKind::Impl(MSG))?;
+        buf.write_u8(CLIENT_PROOF_SIZE as u8)
+            .context(HdbErrorKind::Impl(MSG))?;
+        buf.write_all(&client_proof)
+            .context(HdbErrorKind::Impl(MSG))?;
 
         Ok(buf)
     }
@@ -58,7 +63,7 @@ impl Authenticator for ScramSha256 {
         if server_proof.is_empty() {
             Ok(())
         } else {
-            Err(HdbError::Impl(format!(
+            Err(HdbError::imp_detailed(format!(
                 "verify_server(): non-empty server_proof: {:?}",
                 server_proof
             )))
@@ -70,10 +75,10 @@ impl Authenticator for ScramSha256 {
 // key
 fn parse_first_server_data(server_data: &[u8]) -> HdbResult<(Vec<u8>, Vec<u8>)> {
     let mut rdr = std::io::Cursor::new(server_data);
-    let mut af = AuthFields::parse(&mut rdr)?;
+    let mut af = AuthFields::parse(&mut rdr).context(HdbErrorKind::Database)?;
     if af.len() != 2 {
-        return Err(HdbError::Impl(format!(
-            "got {} auth fields instead of 2",
+        return Err(HdbError::imp_detailed(format!(
+            "expected 2 auth fields, got {}",
             af.len()
         )));
     }

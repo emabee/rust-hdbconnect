@@ -1,7 +1,4 @@
-use super::hdb_value::{emit_length_and_string, string_length};
-
-use crate::HdbResult;
-
+use crate::protocol::parts::hdb_value::{emit_length_and_string, string_length};
 use std::collections::HashMap;
 use std::env;
 use std::path::Path;
@@ -49,7 +46,7 @@ impl ClientInfo {
         self.set(ClientInfoKey::DriverVersion, driver_version);
     }
 
-    pub fn emit<T: std::io::Write>(&self, w: &mut T) -> HdbResult<()> {
+    pub fn emit<T: std::io::Write>(&self, w: &mut T) -> std::io::Result<()> {
         for (key, value) in &self.0 {
             emit_length_and_string(key.get_string(), w)?;
             emit_length_and_string(value, w)?;

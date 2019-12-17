@@ -1,7 +1,7 @@
 use crate::conn_core::connect_params::ConnectParams;
 #[cfg(feature = "tls")]
 use crate::conn_core::connect_params::ServerCerts;
-use crate::{HdbError, HdbResult};
+use crate::{HdbErrorKind, HdbResult};
 use secstr::SecStr;
 
 /// A builder for `ConnectParams`.
@@ -123,7 +123,7 @@ impl ConnectParamsBuilder {
     pub fn build(&self) -> HdbResult<ConnectParams> {
         let host = match self.hostname {
             Some(ref s) => s.clone(),
-            None => return Err(HdbError::Usage("hostname is missing".to_owned())),
+            None => return Err(HdbErrorKind::Usage("hostname is missing").into()),
         };
 
         let addr = format!(
@@ -131,16 +131,16 @@ impl ConnectParamsBuilder {
             host,
             match self.port {
                 Some(p) => p,
-                None => return Err(HdbError::Usage("port is missing".to_owned())),
+                None => return Err(HdbErrorKind::Usage("port is missing").into()),
             }
         );
         let dbuser = match self.dbuser {
             Some(ref s) => s.clone(),
-            None => return Err(HdbError::Usage("dbuser is missing".to_owned())),
+            None => return Err(HdbErrorKind::Usage("dbuser is missing").into()),
         };
         let password = match self.password {
             Some(ref secstr) => secstr.clone(),
-            None => return Err(HdbError::Usage("password is missing".to_owned())),
+            None => return Err(HdbErrorKind::Usage("password is missing").into()),
         };
 
         #[cfg(feature = "tls")]

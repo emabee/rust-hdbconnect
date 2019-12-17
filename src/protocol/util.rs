@@ -1,11 +1,20 @@
+use crate::protocol::util;
 use crate::types_impl::lob::CharLobSlice;
-use crate::{HdbError, HdbResult};
+use crate::{HdbError, HdbErrorKind, HdbResult};
 use byteorder::ReadBytesExt;
 use cesu8;
+use failure::ResultExt;
 use std::iter::repeat;
 
-/// Read n bytes from a `BufRead`, return as Vec<u8>
-pub fn parse_bytes(len: usize, rdr: &mut dyn std::io::BufRead) -> HdbResult<Vec<u8>> {
+pub fn io_error<E>(error: E) -> std::io::Error
+where
+    E: Into<Box<dyn std::error::Error + Send + Sync>>,
+{
+    std::io::Error::new(std::io::ErrorKind::Other, error)
+}
+
+// Read n bytes from a `BufRead`, return as Vec<u8>
+pub fn parse_bytes(len: usize, rdr: &mut dyn std::io::BufRead) -> std::io::Result<Vec<u8>> {
     let mut vec: Vec<u8> = repeat(255u8).take(len).collect();
     {
         let rf: &mut [u8] = &mut vec;
@@ -14,7 +23,7 @@ pub fn parse_bytes(len: usize, rdr: &mut dyn std::io::BufRead) -> HdbResult<Vec<
     Ok(vec)
 }
 
-pub fn skip_bytes(n: usize, rdr: &mut dyn std::io::BufRead) -> HdbResult<()> {
+pub fn skip_bytes(n: usize, rdr: &mut dyn std::io::BufRead) -> std::io::Result<()> {
     for _ in 0..n {
         rdr.read_u8()?;
     }
@@ -24,17 +33,19 @@ pub fn skip_bytes(n: usize, rdr: &mut dyn std::io::BufRead) -> HdbResult<()> {
 // --- CESU8 Stuff --- //
 
 // Consumes the cesu8 bytes, returns a String with minimal allocation
-pub fn string_from_cesu8(bytes: Vec<u8>) -> HdbResult<String> {
-    match String::from_utf8(bytes) {
-        Ok(s) => Ok(s),
-        Err(e) => Ok(cesu8::from_cesu8(e.as_bytes())?.to_string()),
-    }
+pub fn string_from_cesu8(bytes: Vec<u8>) -> Result<String, std::io::Error> {
+    Ok(match String::from_utf8(bytes) {
+        Ok(s) => s,
+        Err(e) => cesu8::from_cesu8(e.as_bytes())
+            .map_err(|e| util::io_error(e.to_string()))?
+            .to_string(),
+    })
 }
 
-/// cesu-8 is identical to utf-8, except for high code points
-/// which consume 4 bytes in utf-8 and 6 in cesu-8;
-/// the first byte of such a code point in utf8 has the bit pattern 11110xxx
-/// (240 -247)
+// cesu-8 is identical to utf-8, except for high code points
+// which consume 4 bytes in utf-8 and 6 in cesu-8;
+// the first byte of such a code point in utf8 has the bit pattern 11110xxx
+// (240 -247)
 pub fn cesu8_length(s: &str) -> usize {
     let mut len = s.len();
     for b in s.as_bytes() {
@@ -68,7 +79,7 @@ pub fn to_string_and_surrogate(cesu8: Vec<u8>) -> HdbResult<(String, Option<Vec<
                 Some(vec![buffer_cesu8[0], buffer_cesu8[1], buffer_cesu8[2]]),
             ))
         }
-        _ => Err(HdbError::Impl(format!(
+        _ => Err(HdbError::imp_detailed(format!(
             "Unexpected buffer_cesu8 = {:?}",
             buffer_cesu8
         ))),
@@ -84,7 +95,7 @@ pub fn cesu8_to_string_and_tail(mut cesu8: Vec<u8>) -> HdbResult<(String, Vec<u8
 
     let tail_len = get_cesu8_tail_len(&cesu8[start..])?;
     let tail = cesu8.split_off(cesu8_length - tail_len);
-    Ok((string_from_cesu8(cesu8)?, tail))
+    Ok((string_from_cesu8(cesu8).context(HdbErrorKind::Cesu8)?, tail))
 }
 
 pub fn utf8_to_cesu8_and_utf8_tail(mut utf8: Vec<u8>) -> HdbResult<(Vec<u8>, Vec<u8>)> {
@@ -132,7 +143,7 @@ fn get_cesu8_tail_len(bytes: &[u8]) -> HdbResult<usize> {
                     }
                 }
             }
-            Err(HdbError::Impl(format!(
+            Err(HdbError::imp_detailed(format!(
                 "no valid cesu8 cutoff point found for {:?}!",
                 bytes,
             )))
@@ -165,7 +176,7 @@ fn get_utf8_tail_len(bytes: &[u8]) -> HdbResult<usize> {
                     }
                 }
             }
-            Err(HdbError::Impl(format!(
+            Err(HdbError::imp_detailed(format!(
                 "no valid utf8 cutoff point found for {:?}!",
                 bytes
             )))
@@ -223,7 +234,7 @@ pub fn split_off_orphaned_surrogates(cesu8: Vec<u8>) -> HdbResult<CharLobSlice> 
             cesu8[3..].to_vec(),
         ),
         Cesu8CharType::NotAStart => {
-            return Err(HdbError::Impl("Unexpected value for NCLob".to_string()));
+            return Err(HdbError::imp("Unexpected value for NCLob"));
         }
         Cesu8CharType::Empty => (None, cesu8),
         Cesu8CharType::TooShort => (None, cesu8),

@@ -27,7 +27,6 @@ use crate::protocol::parts::write_lob_reply::WriteLobReply;
 use crate::protocol::parts::write_lob_request::WriteLobRequest;
 use crate::protocol::parts::xat_options::XatOptions;
 use crate::protocol::util;
-use crate::{HdbError, HdbResult};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use cesu8;
 use std::sync::Arc;
@@ -68,7 +67,7 @@ pub(crate) enum Argument<'a> {
 
 impl<'a> Argument<'a> {
     // only called on output (emit)
-    pub fn count(&self) -> HdbResult<usize> {
+    pub fn count(&self) -> std::io::Result<usize> {
         Ok(match *self {
             Argument::Auth(_)
             | Argument::ClientContext(_)
@@ -85,13 +84,13 @@ impl<'a> Argument<'a> {
             Argument::ConnectOptions(ref opts) => opts.count(),
             // Argument::FetchOptions(ref opts) => opts.count(),
             Argument::LobFlags(ref opts) => opts.count(),
-            Argument::Parameters(ref pars) => pars.count(),
+            Argument::Parameters(ref par_rows) => par_rows.count(),
             Argument::SessionContext(ref opts) => opts.count(),
             Argument::StatementContext(ref sc) => sc.count(),
             Argument::TransactionFlags(ref opts) => opts.count(),
             Argument::XatOptions(ref xat) => xat.count(),
             ref a => {
-                return Err(HdbError::Impl(format!("count() called on {:?}", a)));
+                return Err(util::io_error(format!("count() called on {:?}", a)));
             }
         })
     }
@@ -101,7 +100,7 @@ impl<'a> Argument<'a> {
         &self,
         with_padding: bool,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
-    ) -> HdbResult<usize> {
+    ) -> std::io::Result<usize> {
         let mut size = 0usize;
         match *self {
             Argument::Auth(ref af) => size += af.size(),
@@ -114,11 +113,11 @@ impl<'a> Argument<'a> {
             // Argument::FetchOptions(ref opts) => size += opts.size(),
             Argument::FetchSize(_) => size += 4,
             Argument::LobFlags(ref opts) => size += opts.size(),
-            Argument::Parameters(ref pars) => {
+            Argument::Parameters(ref par_rows) => {
                 size += match o_a_descriptors {
-                    Some(a_descriptors) => pars.size(&a_descriptors)?,
+                    Some(a_descriptors) => par_rows.size(&a_descriptors)?,
                     None => {
-                        return Err(HdbError::Impl(
+                        return Err(util::io_error(
                             "Argument::Parameters::emit(): No metadata".to_string(),
                         ));
                     }
@@ -135,7 +134,7 @@ impl<'a> Argument<'a> {
             Argument::XatOptions(ref xat) => size += xat.size(),
 
             ref arg => {
-                return Err(HdbError::Impl(format!("size() called on {:?}", arg)));
+                return Err(util::io_error(format!("size() called on {:?}", arg)));
             }
         }
         if with_padding {
@@ -150,7 +149,7 @@ impl<'a> Argument<'a> {
         remaining_bufsize: u32,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
         w: &mut T,
-    ) -> HdbResult<u32> {
+    ) -> std::io::Result<u32> {
         match *self {
             Argument::Auth(ref af) => af.emit(w)?,
             Argument::ClientContext(ref opts) => opts.emit(w)?,
@@ -168,7 +167,7 @@ impl<'a> Argument<'a> {
             Argument::Parameters(ref parameters) => match o_a_descriptors {
                 Some(descriptors) => parameters.emit(descriptors, w)?,
                 None => {
-                    return Err(HdbError::Impl(
+                    return Err(util::io_error(
                         "Argument::Parameters::emit(): No metadata".to_string(),
                     ));
                 }
@@ -186,7 +185,7 @@ impl<'a> Argument<'a> {
             Argument::WriteLobRequest(ref r) => r.emit(w)?,
             Argument::XatOptions(ref xatid) => xatid.emit(w)?,
             ref a => {
-                return Err(HdbError::Impl(format!("emit() called on {:?}", a)));
+                return Err(util::io_error(format!("emit() called on {:?}", a)));
             }
         }
 
@@ -216,7 +215,7 @@ impl<'a> Argument<'a> {
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
         o_rs: &mut Option<&mut RsState>,
         rdr: &mut T,
-    ) -> HdbResult<Argument<'a>> {
+    ) -> std::io::Result<Argument<'a>> {
         trace!("parse(no_of_args={}, kind={:?})", no_of_args, kind);
 
         let arg = match kind {
@@ -234,9 +233,7 @@ impl<'a> Argument<'a> {
                         rdr,
                     )?)
                 } else {
-                    return Err(HdbError::Impl(
-                        "Parsing output parameters needs metadata".to_owned(),
-                    ));
+                    return Err(util::io_error("Parsing output parameters needs metadata"));
                 }
             }
             PartKind::ParameterMetadata => {
@@ -252,7 +249,7 @@ impl<'a> Argument<'a> {
                     attributes,
                     parts,
                     o_am_conn_core
-                        .ok_or_else(|| HdbError::impl_("ResultSet parsing requires a conn_core"))?,
+                        .ok_or_else(|| util::io_error("ResultSet parsing requires a conn_core"))?,
                     o_a_rsmd,
                     o_rs,
                     rdr,
@@ -291,7 +288,7 @@ impl<'a> Argument<'a> {
             }
             PartKind::XatOptions => Argument::XatOptions(XatOptions::parse(no_of_args, rdr)?),
             _ => {
-                return Err(HdbError::Impl(format!(
+                return Err(util::io_error(format!(
                     "No handling implemented for received partkind {:?}",
                     kind
                 )));

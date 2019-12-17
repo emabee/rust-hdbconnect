@@ -1,4 +1,5 @@
 use crate::conn_core::connect_params::{ConnectParams, ServerCerts};
+use crate::protocol::util;
 use rustls::{ClientConfig, ClientSession, Session};
 use std::net::TcpStream;
 use std::path::PathBuf;
@@ -130,12 +131,8 @@ fn connect_tcp(
 
     let tlssession = ClientSession::new(
         &tlsconfig,
-        DNSNameRef::try_from_ascii_str(params.host()).map_err(|_| {
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("Cannot use {} for DNSNameRef", params.host()),
-            )
-        })?,
+        DNSNameRef::try_from_ascii_str(params.host())
+            .map_err(|_| util::io_error(format!("Cannot use {} for DNSNameRef", params.host())))?,
     );
 
     Ok((tcpstream, tlsconfig, tlssession))

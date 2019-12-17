@@ -1,4 +1,4 @@
-use crate::{HdbError, HdbResult};
+use crate::protocol::util;
 use serde_derive::Serialize;
 
 /// ID of the value type of a database column or a parameter.
@@ -109,7 +109,7 @@ pub enum TypeId {
 }
 
 impl TypeId {
-    pub(crate) fn try_new(id: u8) -> HdbResult<TypeId> {
+    pub(crate) fn try_new(id: u8) -> std::io::Result<TypeId> {
         Ok(match id {
             1 => TypeId::TINYINT,
             2 => TypeId::SMALLINT,
@@ -165,7 +165,7 @@ impl TypeId {
             81 => TypeId::FIXED8,
             82 => TypeId::FIXED12,
             // TypeCode_CIPHERTEXT               = 90,  // TODO
-            tc => return Err(HdbError::Impl(format!("Illegal type code {}", tc))),
+            tc => return Err(util::io_error(format!("Illegal type code {}", tc))),
         })
     }
 
@@ -174,7 +174,7 @@ impl TypeId {
         (if nullable { 128 } else { 0 }) + self as u8
     }
 
-    pub(crate) fn matches_value_type(self, value_type: TypeId) -> HdbResult<()> {
+    pub(crate) fn matches_value_type(self, value_type: TypeId) -> std::io::Result<()> {
         if value_type == self {
             return Ok(());
         }
@@ -201,7 +201,7 @@ impl TypeId {
             _ => {}
         }
 
-        Err(HdbError::Impl(format!(
+        Err(util::io_error(format!(
             "value type id {:?} does not match metadata {:?}",
             value_type, self
         )))

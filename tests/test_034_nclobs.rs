@@ -1,7 +1,8 @@
 mod test_utils;
 
+use failure::ResultExt;
 use hdbconnect::types::NCLob;
-use hdbconnect::{Connection, HdbResult, HdbValue};
+use hdbconnect::{Connection, HdbErrorKind, HdbResult, HdbValue};
 use log::{debug, info};
 use serde_bytes::Bytes;
 use serde_derive::{Deserialize, Serialize};
@@ -168,7 +169,7 @@ fn test_streaming(
         .into_single_value()?
         .try_into_nclob()?;
     let mut buffer = Vec::<u8>::new();
-    std::io::copy(&mut nclob, &mut buffer)?;
+    std::io::copy(&mut nclob, &mut buffer).context(HdbErrorKind::LobStreaming)?;
 
     assert_eq!(fifty_times_smp_blabla.len(), buffer.len());
     let mut hasher = Sha256::default();

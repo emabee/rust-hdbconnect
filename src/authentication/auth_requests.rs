@@ -45,8 +45,8 @@ pub(crate) fn first_auth_request(
     {
         Some(Argument::Auth(mut auth_fields)) => {
             if auth_fields.len() != 2 {
-                Err(HdbError::Impl(format!(
-                    "first_auth_request(): got {} auth_fields, expected 2",
+                Err(HdbError::imp_detailed(format!(
+                    "got {} auth_fields, expected 2",
                     auth_fields.len()
                 )))
             } else {
@@ -56,9 +56,7 @@ pub(crate) fn first_auth_request(
                 Ok((authenticator_name, server_challenge_data))
             }
         }
-        _ => Err(HdbError::Impl(
-            "first_auth_request(): expected Authentication part".to_owned(),
-        )),
+        _ => Err(HdbError::imp("expected Authentication part")),
     }
 }
 
@@ -100,9 +98,7 @@ pub(crate) fn second_auth_request(
     {
         Some(Argument::TopologyInformation(topology)) => conn_core.set_topology(topology),
         _ => {
-            return Err(HdbError::Impl(
-                "second_auth_request(): expected TopologyInformation part".to_owned(),
-            ));
+            return Err(HdbError::imp("Expected TopologyInformation part"));
         }
     }
 
@@ -115,9 +111,7 @@ pub(crate) fn second_auth_request(
             .connect_options_mut()
             .digest_server_connect_options(received_co)?,
         _ => {
-            return Err(HdbError::Impl(
-                "second_auth_request(): expected ConnectOptions part".to_owned(),
-            ));
+            return Err(HdbError::imp("Expected ConnectOptions part"));
         }
     }
 
@@ -132,14 +126,12 @@ pub(crate) fn second_auth_request(
                 let method = af.pop().unwrap();
                 chosen_authenticator.evaluate_second_response(&method, &server_proof)
             } else {
-                Err(HdbError::Impl(format!(
-                    "second_auth_request(): got {} authfields, expected 2",
+                Err(HdbError::imp_detailed(format!(
+                    "Expected 2 authfields, got {}",
                     af.len()
                 )))
             }
         }
-        _ => Err(HdbError::Impl(
-            "second_auth_request(): expected Authentication part".to_owned(),
-        )),
+        _ => Err(HdbError::imp("Expected Authentication part")),
     }
 }

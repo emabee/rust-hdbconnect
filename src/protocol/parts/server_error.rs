@@ -1,11 +1,10 @@
 use crate::protocol::util;
-use crate::HdbResult;
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::error::Error;
 use std::fmt;
 
 /// Severity of a server message
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Severity {
     /// An additional warning is sent from the server to the client,
     /// along with the regular response.
@@ -52,7 +51,7 @@ impl fmt::Display for Severity {
 }
 
 /// Describes an error that is reported from the database.
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct ServerError {
     code: i32,
     position: i32,
@@ -103,7 +102,7 @@ impl ServerError {
     pub(crate) fn parse<T: std::io::BufRead>(
         no_of_args: usize,
         rdr: &mut T,
-    ) -> HdbResult<Vec<ServerError>> {
+    ) -> std::io::Result<Vec<ServerError>> {
         let mut server_errors = Vec::<ServerError>::new();
         for _i in 0..no_of_args {
             let code = rdr.read_i32::<LittleEndian>()?; // I4

@@ -1,10 +1,11 @@
-use serde_db::de::DeserializableRow;
-
 use crate::conn_core::AmConnCore;
 use crate::protocol::parts::hdb_value::HdbValue;
 use crate::protocol::parts::parameter_descriptor::ParameterDescriptor;
 use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
-use crate::{HdbError, HdbResult};
+use crate::protocol::util;
+use crate::{HdbErrorKind, HdbResult};
+use failure::ResultExt;
+use serde_db::de::DeserializableRow;
 
 /// Describes output parameters, as they can be returned by procedure calls.
 #[derive(Debug)]
@@ -20,15 +21,16 @@ impl OutputParameters {
         T: serde::de::Deserialize<'de>,
     {
         trace!("OutputParameters::into_typed()");
-        Ok(DeserializableRow::into_typed(self)?)
+        Ok(DeserializableRow::into_typed(self).context(HdbErrorKind::Deserialization)?)
     }
 
     /// Returns the descriptor for the i'th parameter.
     pub fn descriptor(&self, i: usize) -> HdbResult<&ParameterDescriptor> {
         trace!("OutputParameters::descriptor()");
-        self.descriptors
+        Ok(self
+            .descriptors
             .get(i)
-            .ok_or_else(|| HdbError::usage_("wrong index: no such parameter"))
+            .ok_or_else(|| HdbErrorKind::Usage("wrong index: no such parameter"))?)
     }
 
     /// Returns the descriptors.
@@ -49,11 +51,10 @@ impl OutputParameters {
         o_am_conn_core: Option<&AmConnCore>,
         parameter_descriptors: &ParameterDescriptors,
         rdr: &mut T,
-    ) -> HdbResult<OutputParameters> {
+    ) -> std::io::Result<OutputParameters> {
         trace!("OutputParameters::parse()");
-        let am_conn_core = o_am_conn_core.ok_or_else(|| {
-            HdbError::impl_("Cannot parse output parameters without am_conn_core")
-        })?;
+        let am_conn_core = o_am_conn_core
+            .ok_or_else(|| util::io_error("Cannot parse output parameters without am_conn_core"))?;
 
         let mut descriptors = Vec::<ParameterDescriptor>::new();
         let mut values = Vec::<HdbValue>::new();

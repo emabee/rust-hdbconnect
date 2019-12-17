@@ -10,12 +10,12 @@ use crate::types_impl::lob::{emit_lob_header, parse_blob, parse_clob, parse_nclo
 use crate::types_impl::longdate::parse_longdate;
 use crate::types_impl::seconddate::parse_seconddate;
 use crate::types_impl::secondtime::parse_secondtime;
-use crate::{HdbError, HdbResult};
+use crate::{HdbErrorKind, HdbResult};
 use bigdecimal::BigDecimal;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use cesu8;
+use failure::ResultExt;
 use serde;
-use serde_db::de::{ConversionError, DbValue};
 
 const MAX_1_BYTE_LENGTH: u8 = 245;
 const MAX_2_BYTE_LENGTH: i16 = std::i16::MAX;
@@ -96,10 +96,10 @@ pub enum HdbValue<'a> {
 }
 
 impl<'a> HdbValue<'a> {
-    pub(crate) fn type_id_for_emit(&self, requested_type_id: TypeId) -> HdbResult<TypeId> {
+    pub(crate) fn type_id_for_emit(&self, requested_type_id: TypeId) -> std::io::Result<TypeId> {
         Ok(match *self {
             HdbValue::NOTHING => {
-                return Err(HdbError::Impl(
+                return Err(util::io_error(
                     "Can't send HdbValue::NOTHING to Database".to_string(),
                 ));
             }
@@ -118,7 +118,7 @@ impl<'a> HdbValue<'a> {
                     requested_type_id
                 }
                 _ => {
-                    return Err(HdbError::Impl(format!(
+                    return Err(util::io_error(format!(
                         "Can't send {} type for requested {:?} type",
                         "DECIMAL", requested_type_id
                     )));
@@ -155,7 +155,7 @@ impl<'a> HdbValue<'a> {
         _data_pos: &mut i32,
         descriptor: &ParameterDescriptor,
         w: &mut T,
-    ) -> HdbResult<()> {
+    ) -> std::io::Result<()> {
         if !self.emit_type_id(descriptor.type_id(), w)? {
             match *self {
                 HdbValue::NULL => {}
@@ -181,7 +181,7 @@ impl<'a> HdbValue<'a> {
                     emit_length_and_bytes(v, w)?
                 }
                 _ => {
-                    return Err(HdbError::Usage(format!(
+                    return Err(util::io_error(format!(
                         "HdbValue::{} cannot be sent to the database",
                         self
                     )));
@@ -196,7 +196,7 @@ impl<'a> HdbValue<'a> {
         &self,
         requested_type_id: TypeId,
         w: &mut dyn std::io::Write,
-    ) -> HdbResult<bool> {
+    ) -> std::io::Result<bool> {
         let is_null = self.is_null();
         let type_code = self.type_id_for_emit(requested_type_id)?.type_code(is_null);
         w.write_u8(type_code)?;
@@ -204,7 +204,7 @@ impl<'a> HdbValue<'a> {
     }
 
     // is used to calculate the argument size (in emit)
-    pub(crate) fn size(&self, type_id: TypeId) -> HdbResult<usize> {
+    pub(crate) fn size(&self, type_id: TypeId) -> std::io::Result<usize> {
         Ok(1 + match self {
             HdbValue::NOTHING | HdbValue::NULL => 0,
             HdbValue::BOOLEAN(_) | HdbValue::TINYINT(_) => 1,
@@ -215,7 +215,7 @@ impl<'a> HdbValue<'a> {
                 TypeId::FIXED12 => 12,
                 TypeId::FIXED16 => 16,
                 tid => {
-                    return Err(HdbError::Impl(format!(
+                    return Err(util::io_error(format!(
                         "invalid TypeId {:?} for DECIMAL",
                         tid
                     )));
@@ -244,7 +244,7 @@ impl<'a> HdbValue<'a> {
             | HdbValue::NCLOB(_)
             | HdbValue::BLOB(_)
             | HdbValue::LOBSTREAM(Some(_)) => {
-                return Err(HdbError::Impl(format!(
+                return Err(util::io_error(format!(
                     "size(): can't send {:?} directly to the database",
                     self
                 )));
@@ -256,17 +256,18 @@ impl<'a> HdbValue<'a> {
 impl HdbValue<'static> {
     /// Deserialize into a rust type
     pub fn try_into<'x, T: serde::Deserialize<'x>>(self) -> HdbResult<T> {
-        Ok(DbValue::into_typed(self)?)
+        Ok(serde_db::de::DbValue::into_typed(self).context(HdbErrorKind::Deserialization)?)
     }
 
     /// Convert into hdbconnect::BLob
     pub fn try_into_blob(self) -> HdbResult<BLob> {
         match self {
             HdbValue::BLOB(blob) => Ok(blob),
-            tv => Err(HdbError::Conversion(ConversionError::ValueType(format!(
+            v => Err(HdbErrorKind::UsageDetailed(format!(
                 "The value {:?} cannot be converted into a BLOB",
-                tv
-            )))),
+                v
+            ))
+            .into()),
         }
     }
 
@@ -274,10 +275,11 @@ impl HdbValue<'static> {
     pub fn try_into_clob(self) -> HdbResult<CLob> {
         match self {
             HdbValue::CLOB(clob) => Ok(clob),
-            tv => Err(HdbError::Conversion(ConversionError::ValueType(format!(
+            v => Err(HdbErrorKind::UsageDetailed(format!(
                 "The value {:?} cannot be converted into a CLOB",
-                tv
-            )))),
+                v
+            ))
+            .into()),
         }
     }
 
@@ -285,10 +287,11 @@ impl HdbValue<'static> {
     pub fn try_into_nclob(self) -> HdbResult<NCLob> {
         match self {
             HdbValue::NCLOB(nclob) => Ok(nclob),
-            tv => Err(HdbError::Conversion(ConversionError::ValueType(format!(
-                "HdbValue::try_into_nclob(): the database value {:?} cannot be converted into a NCLob",
-                tv
-            )))),
+            v => Err(HdbErrorKind::UsageDetailed(format!(
+                "The database value {:?} cannot be converted into a NCLob",
+                v
+            ))
+            .into()),
         }
     }
 
@@ -299,7 +302,7 @@ impl HdbValue<'static> {
         am_conn_core: &AmConnCore,
         o_am_rscore: &Option<AmRsCore>,
         rdr: &mut dyn std::io::BufRead,
-    ) -> HdbResult<HdbValue<'static>> {
+    ) -> std::io::Result<HdbValue<'static>> {
         let t = type_id;
         match t {
             TypeId::TINYINT => Ok(parse_tinyint(nullable, rdr)?),
@@ -334,9 +337,7 @@ impl HdbValue<'static> {
             | TypeId::GEOMETRY
             | TypeId::POINT => Ok(parse_binary(nullable, t, rdr)?),
 
-            TypeId::BLOCATOR => Err(HdbError::Impl(
-                "parsing BLOCATOR not implemented".to_owned(),
-            )),
+            TypeId::BLOCATOR => Err(util::io_error("parsing BLOCATOR not implemented")),
             TypeId::BLOB | TypeId::BINTEXT => {
                 Ok(parse_blob(am_conn_core, o_am_rscore, nullable, rdr)?)
             }
@@ -353,7 +354,7 @@ impl HdbValue<'static> {
     }
 }
 
-fn emit_bool(b: bool, w: &mut dyn std::io::Write) -> HdbResult<()> {
+fn emit_bool(b: bool, w: &mut dyn std::io::Write) -> std::io::Result<()> {
     // this is the version that works with dataformat_version2 = 4
     // w.write_u8(b as u8)?;
 
@@ -366,18 +367,19 @@ fn emit_bool(b: bool, w: &mut dyn std::io::Write) -> HdbResult<()> {
 // - returns Ok(true) if the value is NULL
 // - returns Ok(false) if a normal value is to be expected
 // - throws an error if NULL is found but nullable is false
-fn parse_null(nullable: bool, rdr: &mut dyn std::io::BufRead) -> HdbResult<bool> {
+fn parse_null(nullable: bool, rdr: &mut dyn std::io::BufRead) -> std::io::Result<bool> {
     let is_null = rdr.read_u8()? == 0;
     if is_null && !nullable {
-        Err(HdbError::Impl(
-            "found null value for not-null column".to_owned(),
-        ))
+        Err(util::io_error("found null value for not-null column"))
     } else {
         Ok(is_null)
     }
 }
 
-fn parse_tinyint(nullable: bool, rdr: &mut dyn std::io::BufRead) -> HdbResult<HdbValue<'static>> {
+fn parse_tinyint(
+    nullable: bool,
+    rdr: &mut dyn std::io::BufRead,
+) -> std::io::Result<HdbValue<'static>> {
     Ok(if parse_null(nullable, rdr)? {
         HdbValue::NULL
     } else {
@@ -385,21 +387,27 @@ fn parse_tinyint(nullable: bool, rdr: &mut dyn std::io::BufRead) -> HdbResult<Hd
     })
 }
 
-fn parse_smallint(nullable: bool, rdr: &mut dyn std::io::BufRead) -> HdbResult<HdbValue<'static>> {
+fn parse_smallint(
+    nullable: bool,
+    rdr: &mut dyn std::io::BufRead,
+) -> std::io::Result<HdbValue<'static>> {
     Ok(if parse_null(nullable, rdr)? {
         HdbValue::NULL
     } else {
         HdbValue::SMALLINT(rdr.read_i16::<LittleEndian>()?)
     })
 }
-fn parse_int(nullable: bool, rdr: &mut dyn std::io::BufRead) -> HdbResult<HdbValue<'static>> {
+fn parse_int(nullable: bool, rdr: &mut dyn std::io::BufRead) -> std::io::Result<HdbValue<'static>> {
     Ok(if parse_null(nullable, rdr)? {
         HdbValue::NULL
     } else {
         HdbValue::INT(rdr.read_i32::<LittleEndian>()?)
     })
 }
-fn parse_bigint(nullable: bool, rdr: &mut dyn std::io::BufRead) -> HdbResult<HdbValue<'static>> {
+fn parse_bigint(
+    nullable: bool,
+    rdr: &mut dyn std::io::BufRead,
+) -> std::io::Result<HdbValue<'static>> {
     Ok(if parse_null(nullable, rdr)? {
         HdbValue::NULL
     } else {
@@ -407,7 +415,10 @@ fn parse_bigint(nullable: bool, rdr: &mut dyn std::io::BufRead) -> HdbResult<Hdb
     })
 }
 
-fn parse_real(nullable: bool, rdr: &mut dyn std::io::BufRead) -> HdbResult<HdbValue<'static>> {
+fn parse_real(
+    nullable: bool,
+    rdr: &mut dyn std::io::BufRead,
+) -> std::io::Result<HdbValue<'static>> {
     let mut vec: Vec<u8> = std::iter::repeat(0u8).take(4).collect();
     rdr.read_exact(&mut vec[..])?;
     let mut cursor = std::io::Cursor::new(&vec);
@@ -418,9 +429,7 @@ fn parse_real(nullable: bool, rdr: &mut dyn std::io::BufRead) -> HdbResult<HdbVa
         if nullable {
             Ok(HdbValue::NULL)
         } else {
-            Err(HdbError::Impl(
-                "found NULL value for NOT NULL column".to_owned(),
-            ))
+            Err(util::io_error("found NULL value for NOT NULL column"))
         }
     } else {
         cursor.set_position(0);
@@ -428,7 +437,10 @@ fn parse_real(nullable: bool, rdr: &mut dyn std::io::BufRead) -> HdbResult<HdbVa
     }
 }
 
-fn parse_double(nullable: bool, rdr: &mut dyn std::io::BufRead) -> HdbResult<HdbValue<'static>> {
+fn parse_double(
+    nullable: bool,
+    rdr: &mut dyn std::io::BufRead,
+) -> std::io::Result<HdbValue<'static>> {
     let mut vec: Vec<u8> = std::iter::repeat(0u8).take(8).collect();
     rdr.read_exact(&mut vec[..])?;
     let mut cursor = std::io::Cursor::new(&vec);
@@ -439,9 +451,7 @@ fn parse_double(nullable: bool, rdr: &mut dyn std::io::BufRead) -> HdbResult<Hdb
         if nullable {
             Ok(HdbValue::NULL)
         } else {
-            Err(HdbError::Impl(
-                "found NULL value for NOT NULL column".to_owned(),
-            ))
+            Err(util::io_error("found NULL value for NOT NULL column"))
         }
     } else {
         cursor.set_position(0);
@@ -449,7 +459,10 @@ fn parse_double(nullable: bool, rdr: &mut dyn std::io::BufRead) -> HdbResult<Hdb
     }
 }
 
-fn parse_bool(nullable: bool, rdr: &mut dyn std::io::BufRead) -> HdbResult<HdbValue<'static>> {
+fn parse_bool(
+    nullable: bool,
+    rdr: &mut dyn std::io::BufRead,
+) -> std::io::Result<HdbValue<'static>> {
     //(0x00 = FALSE, 0x01 = NULL, 0x02 = TRUE)
     match rdr.read_u8()? {
         0 => Ok(HdbValue::BOOLEAN(false)),
@@ -458,22 +471,25 @@ fn parse_bool(nullable: bool, rdr: &mut dyn std::io::BufRead) -> HdbResult<HdbVa
             if nullable {
                 Ok(HdbValue::NULL)
             } else {
-                Err(HdbError::Impl("parse_bool: got null value".to_string()))
+                Err(util::io_error("parse_bool: got null value".to_string()))
             }
         }
-        i => Err(HdbError::Impl(format!("parse_bool: got bad value {}", i))),
+        i => Err(util::io_error(format!("parse_bool: got bad value {}", i))),
     }
 }
 
-fn parse_alphanum(nullable: bool, rdr: &mut dyn std::io::BufRead) -> HdbResult<HdbValue<'static>> {
+fn parse_alphanum(
+    nullable: bool,
+    rdr: &mut dyn std::io::BufRead,
+) -> std::io::Result<HdbValue<'static>> {
     let indicator1 = rdr.read_u8()?;
     if indicator1 == LENGTH_INDICATOR_NULL {
         // value is null
         if nullable {
             Ok(HdbValue::NULL)
         } else {
-            Err(HdbError::Impl(
-                "found NULL value for NOT NULL ALPHANUM column".to_owned(),
+            Err(util::io_error(
+                "found NULL value for NOT NULL ALPHANUM column",
             ))
         }
     } else {
@@ -502,7 +518,7 @@ fn parse_string(
     nullable: bool,
     type_id: TypeId,
     rdr: &mut dyn std::io::BufRead,
-) -> HdbResult<HdbValue<'static>> {
+) -> std::io::Result<HdbValue<'static>> {
     let l8 = rdr.read_u8()?; // B1
     let is_null = l8 == LENGTH_INDICATOR_NULL;
 
@@ -510,8 +526,8 @@ fn parse_string(
         if nullable {
             Ok(HdbValue::NULL)
         } else {
-            Err(HdbError::Impl(
-                "found NULL value for NOT NULL string column".to_owned(),
+            Err(util::io_error(
+                "found NULL value for NOT NULL string column",
             ))
         }
     } else {
@@ -524,7 +540,7 @@ fn parse_string(
             | TypeId::NSTRING
             | TypeId::SHORTTEXT
             | TypeId::STRING => HdbValue::STRING(s),
-            _ => return Err(HdbError::Impl("unexpected type id for string".to_owned())),
+            _ => return Err(util::io_error("unexpected type id for string")),
         })
     }
 }
@@ -533,7 +549,7 @@ fn parse_binary(
     nullable: bool,
     type_id: TypeId,
     rdr: &mut dyn std::io::BufRead,
-) -> HdbResult<HdbValue<'static>> {
+) -> std::io::Result<HdbValue<'static>> {
     let l8 = rdr.read_u8()?; // B1
     let is_null = l8 == LENGTH_INDICATOR_NULL;
 
@@ -541,8 +557,8 @@ fn parse_binary(
         if nullable {
             Ok(HdbValue::NULL)
         } else {
-            Err(HdbError::Impl(
-                "found NULL value for NOT NULL binary column".to_owned(),
+            Err(util::io_error(
+                "found NULL value for NOT NULL binary column",
             ))
         }
     } else {
@@ -551,18 +567,18 @@ fn parse_binary(
             TypeId::BSTRING | TypeId::VARBINARY | TypeId::BINARY => HdbValue::BINARY(bytes),
             TypeId::GEOMETRY => HdbValue::GEOMETRY(bytes),
             TypeId::POINT => HdbValue::POINT(bytes),
-            _ => return Err(HdbError::Impl("unexpected type id for binary".to_owned())),
+            _ => return Err(util::io_error("unexpected type id for binary")),
         })
     }
 }
 
-fn parse_length_and_bytes(l8: u8, rdr: &mut dyn std::io::BufRead) -> HdbResult<Vec<u8>> {
+fn parse_length_and_bytes(l8: u8, rdr: &mut dyn std::io::BufRead) -> std::io::Result<Vec<u8>> {
     let len = match l8 {
         l if l <= MAX_1_BYTE_LENGTH => l8 as usize,
         LENGTH_INDICATOR_2BYTE => rdr.read_i16::<LittleEndian>()? as usize, // I2
         LENGTH_INDICATOR_4BYTE => rdr.read_i32::<LittleEndian>()? as usize, // I4
         l => {
-            return Err(HdbError::Impl(format!(
+            return Err(util::io_error(format!(
                 "Unexpected value in length indicator: {}",
                 l
             )));
@@ -583,11 +599,11 @@ pub(crate) fn binary_length(l: usize) -> usize {
     }
 }
 
-pub(crate) fn emit_length_and_string(s: &str, w: &mut dyn std::io::Write) -> HdbResult<()> {
+pub(crate) fn emit_length_and_string(s: &str, w: &mut dyn std::io::Write) -> std::io::Result<()> {
     emit_length_and_bytes(&cesu8::to_cesu8(s), w)
 }
 
-fn emit_length_and_bytes(v: &[u8], w: &mut dyn std::io::Write) -> HdbResult<()> {
+fn emit_length_and_bytes(v: &[u8], w: &mut dyn std::io::Write) -> std::io::Result<()> {
     match v.len() {
         l if l <= MAX_1_BYTE_LENGTH as usize => {
             w.write_u8(l as u8)?; // B1           LENGTH OF VALUE

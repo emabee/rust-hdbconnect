@@ -1,5 +1,7 @@
 use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
-use crate::{HdbError, HdbResult, HdbValue};
+use crate::protocol::util;
+use crate::{HdbErrorKind, HdbResult, HdbValue};
+use failure::ResultExt;
 use serde_db::ser::to_params;
 use std::io::Write;
 
@@ -21,7 +23,7 @@ impl<'a> ParameterRows<'a> {
         &mut self,
         hdb_parameters: Vec<HdbValue<'a>>,
         descriptors: &ParameterDescriptors,
-    ) -> HdbResult<()> {
+    ) -> std::io::Result<()> {
         self.0
             .push(ParameterRow::new(hdb_parameters, &descriptors)?);
         Ok(())
@@ -31,7 +33,7 @@ impl<'a> ParameterRows<'a> {
         &self,
         descriptors: &ParameterDescriptors,
         w: &mut T,
-    ) -> HdbResult<()> {
+    ) -> std::io::Result<()> {
         for row in &self.0 {
             row.emit(descriptors, w)?;
         }
@@ -42,7 +44,7 @@ impl<'a> ParameterRows<'a> {
         self.0.len()
     }
 
-    pub(crate) fn size(&self, descriptors: &ParameterDescriptors) -> HdbResult<usize> {
+    pub(crate) fn size(&self, descriptors: &ParameterDescriptors) -> std::io::Result<usize> {
         let mut size = 0;
         for row in &self.0 {
             size += row.size(descriptors)?;
@@ -57,10 +59,14 @@ impl ParameterRows<'static> {
         input: &T,
         descriptors: &ParameterDescriptors,
     ) -> HdbResult<()> {
-        self.0.push(ParameterRow::new(
-            to_params(input, &mut descriptors.iter_in())?,
-            &descriptors,
-        )?);
+        self.0.push(
+            ParameterRow::new(
+                to_params(input, &mut descriptors.iter_in())
+                    .context(HdbErrorKind::Serialization)?,
+                &descriptors,
+            )
+            .context(HdbErrorKind::Serialization)?,
+        );
         Ok(())
     }
 }
@@ -71,10 +77,10 @@ struct ParameterRow<'a>(Vec<HdbValue<'a>>);
 
 impl<'a> ParameterRow<'a> {
     // Constructor, fails if the provided `HdbValue`s are not compatible with the in-descriptors.
-    pub fn new(
+    fn new(
         hdb_parameters: Vec<HdbValue<'a>>,
         descriptors: &ParameterDescriptors,
-    ) -> HdbResult<ParameterRow<'a>> {
+    ) -> std::io::Result<ParameterRow<'a>> {
         let mut in_descriptors = descriptors.iter_in();
         for hdb_value in &hdb_parameters {
             if let Some(descriptor) = in_descriptors.next() {
@@ -84,7 +90,7 @@ impl<'a> ParameterRow<'a> {
                         .matches_value_type(hdb_value.type_id_for_emit(descriptor.type_id())?)?;
                 }
             } else {
-                return Err(HdbError::Impl(
+                return Err(util::io_error(
                     "ParameterRow::new(): Not enough metadata".to_string(),
                 ));
             }
@@ -92,7 +98,7 @@ impl<'a> ParameterRow<'a> {
         Ok(ParameterRow(hdb_parameters))
     }
 
-    fn size(&self, descriptors: &ParameterDescriptors) -> HdbResult<usize> {
+    fn size(&self, descriptors: &ParameterDescriptors) -> std::io::Result<usize> {
         let mut size = 0;
         let mut in_descriptors = descriptors.iter_in();
         for value in &(self.0) {
@@ -101,7 +107,7 @@ impl<'a> ParameterRow<'a> {
                     size += value.size(descriptor.type_id())?;
                 }
                 None => {
-                    return Err(HdbError::Impl(
+                    return Err(util::io_error(
                         "ParameterRow::size(): Not enough metadata".to_string(),
                     ));
                 }
@@ -111,7 +117,7 @@ impl<'a> ParameterRow<'a> {
         Ok(size)
     }
 
-    fn emit<T: Write>(&self, descriptors: &ParameterDescriptors, w: &mut T) -> HdbResult<()> {
+    fn emit<T: Write>(&self, descriptors: &ParameterDescriptors, w: &mut T) -> std::io::Result<()> {
         let mut data_pos = 0_i32;
         let mut in_descriptors = descriptors.iter_in();
         for value in &(self.0) {
@@ -121,7 +127,7 @@ impl<'a> ParameterRow<'a> {
                     value.emit(&mut data_pos, descriptor, w)?;
                 }
                 None => {
-                    return Err(HdbError::Impl(
+                    return Err(util::io_error(
                         "ParameterRow::emit(): Not enough metadata".to_string(),
                     ));
                 }

@@ -5,7 +5,7 @@ use super::parts::resultset_metadata::ResultSetMetadata;
 use crate::conn_core::AmConnCore;
 use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
 use crate::protocol::parts::resultset::RsState;
-use crate::{HdbError, HdbResult};
+use crate::protocol::util;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::cmp::max;
 use std::sync::Arc;
@@ -38,7 +38,7 @@ impl<'a> Part<'a> {
         mut remaining_bufsize: u32,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
         w: &mut T,
-    ) -> HdbResult<u32> {
+    ) -> std::io::Result<u32> {
         debug!("Serializing part of kind {:?}", self.kind);
         // PART HEADER 16 bytes
         w.write_i8(self.kind as i8)?;
@@ -53,9 +53,7 @@ impl<'a> Part<'a> {
                 w.write_i32::<LittleEndian>(i as i32)?;
             }
             _ => {
-                return Err(HdbError::Impl(
-                    "argument count bigger than i32::MAX is not supported".to_owned(),
-                ));
+                return Err(util::io_error("argument count bigger than i32::MAX"));
             }
         }
         w.write_i32::<LittleEndian>(self.arg.size(false, o_a_descriptors)? as i32)?;
@@ -71,7 +69,7 @@ impl<'a> Part<'a> {
         &self,
         with_padding: bool,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
-    ) -> HdbResult<usize> {
+    ) -> std::io::Result<usize> {
         let result = PART_HEADER_SIZE + self.arg.size(with_padding, o_a_descriptors)?;
         trace!("Part_size = {}", result);
         Ok(result)
@@ -85,7 +83,7 @@ impl<'a> Part<'a> {
         o_rs: &mut Option<&mut RsState>,
         last: bool,
         rdr: &mut T,
-    ) -> HdbResult<Part<'static>> {
+    ) -> std::io::Result<Part<'static>> {
         trace!("parse()");
         let (kind, attributes, arg_size, no_of_args) = parse_part_header(rdr)?;
         debug!(
@@ -123,7 +121,7 @@ impl<'a> Part<'a> {
 
 fn parse_part_header(
     rdr: &mut dyn std::io::BufRead,
-) -> HdbResult<(PartKind, PartAttributes, usize, usize)> {
+) -> std::io::Result<(PartKind, PartAttributes, usize, usize)> {
     // PART HEADER: 16 bytes
     let kind = PartKind::from_i8(rdr.read_i8()?)?; // I1
     let attributes = PartAttributes::new(rdr.read_u8()?); // U1 (documented as I1)
@@ -138,19 +136,6 @@ fn parse_part_header(
 
 #[derive(Debug, Default)]
 pub(crate) struct Parts<'a>(Vec<Part<'a>>);
-
-impl Parts<'static> {
-    pub fn extract_first_of_type(&mut self, part_kind: PartKind) -> Option<Part<'static>> {
-        match self
-            .0
-            .iter()
-            .position(|p| (p.kind as i8) == part_kind as i8)
-        {
-            Some(pos) => Some(self.0.remove(pos)),
-            None => None,
-        }
-    }
-}
 
 impl<'a> Parts<'a> {
     pub fn is_empty(&self) -> bool {
@@ -172,17 +157,13 @@ impl<'a> Parts<'a> {
         self.0.pop()
     }
     pub fn pop_arg(&mut self) -> Option<Argument<'a>> {
-        match self.0.pop() {
-            Some(part) => Some(part.arg),
-            None => None,
-        }
+        self.0.pop().map(|part| part.arg)
     }
     pub fn pop_if_kind(&mut self, kind: PartKind) -> Option<Part<'a>> {
         match self.0.last() {
-            Some(part) if (part.kind as i8) == (kind as i8) => {}
-            _ => return None,
+            Some(part) if (part.kind as i8) == (kind as i8) => self.0.pop(),
+            _ => None,
         }
-        self.0.pop()
     }
 
     pub fn remove_first_of_kind(&mut self, kind: PartKind) -> Option<Part<'a>> {

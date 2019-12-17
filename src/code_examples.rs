@@ -342,7 +342,7 @@
 //! ```rust, no_run
 //! use hdbconnect::{Connection, HdbResult, IntoConnectParams, ResultSet};
 //! use hdbconnect::types::NCLob;
-//! # fn foo() -> HdbResult<()> {
+//! # fn foo() -> Result<(),failure::Error> {
 //! # let params = "".into_connect_params()?;
 //! # let query = "";
 //! # let mut connection = Connection::new(params)?;

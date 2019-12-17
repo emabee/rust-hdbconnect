@@ -1,5 +1,5 @@
 use crate::protocol::parts::hdb_value::HdbValue;
-use crate::{HdbError, HdbResult};
+use crate::protocol::util;
 use byteorder::{LittleEndian, ReadBytesExt};
 use serde_derive::Serialize;
 use std::cmp;
@@ -60,14 +60,14 @@ impl SecondTime {
 pub(crate) fn parse_secondtime(
     nullable: bool,
     rdr: &mut dyn std::io::BufRead,
-) -> HdbResult<HdbValue<'static>> {
+) -> std::io::Result<HdbValue<'static>> {
     let i = rdr.read_i32::<LittleEndian>()?;
     if i == NULL_REPRESENTATION {
         if nullable {
             Ok(HdbValue::NULL)
         } else {
-            Err(HdbError::Impl(
-                "found NULL value for NOT NULL scondtime column".to_owned(),
+            Err(util::io_error(
+                "found NULL value for NOT NULL SECONDTIME column",
             ))
         }
     } else {

@@ -1,4 +1,3 @@
-use crate::hdb_error::HdbResult;
 use pbkdf2::pbkdf2;
 use secstr::SecStr;
 use sha2::{Digest, Sha256};
@@ -10,7 +9,7 @@ pub fn scram_sha256(
     server_key: &[u8],
     client_challenge: &[u8],
     password: &SecStr,
-) -> HdbResult<(Vec<u8>, Vec<u8>)> {
+) -> (Vec<u8>, Vec<u8>) {
     //
     let salted_password = hmac(&password.unsecure().to_vec(), salt);
 
@@ -36,7 +35,7 @@ pub fn scram_sha256(
     let server_verifier = hmac(&salted_password, salt);
     let server_proof = hmac(&server_verifier, &content2);
 
-    Ok((client_proof, server_proof))
+    (client_proof, server_proof)
 }
 
 pub fn scram_pdkdf2_sha256(
@@ -45,7 +44,7 @@ pub fn scram_pdkdf2_sha256(
     client_nonce: &[u8],
     password: &SecStr,
     iterations: u32,
-) -> HdbResult<(Vec<u8>, Vec<u8>)> {
+) -> (Vec<u8>, Vec<u8>) {
     let salted_password = use_pbkdf2(&password.unsecure().to_vec(), salt, iterations as usize);
 
     let server_verifier = hmac(&salted_password, salt);
@@ -67,7 +66,7 @@ pub fn scram_pdkdf2_sha256(
     cn_s_sn[(cn + s)..].copy_from_slice(server_nonce);
     let server_proof = hmac(&server_verifier, &cn_s_sn);
 
-    Ok((client_proof, server_proof))
+    (client_proof, server_proof)
 }
 
 pub fn use_pbkdf2(key: &[u8], salt: &[u8], it: usize) -> Vec<u8> {

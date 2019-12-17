@@ -1,5 +1,5 @@
-use crate::hdb_error::{HdbError, HdbResult};
 use crate::protocol::parts::hdb_value::HdbValue;
+use crate::protocol::util;
 use bigdecimal::{BigDecimal, Zero};
 use byteorder::{ByteOrder, LittleEndian};
 use num::bigint::{BigInt, Sign};
@@ -29,7 +29,7 @@ impl HdbDecimal {
         nullable: bool,
         scale: i16,
         rdr: &mut dyn std::io::BufRead,
-    ) -> HdbResult<HdbValue<'static>> {
+    ) -> std::io::Result<HdbValue<'static>> {
         let mut raw = [0_u8; 16];
         rdr.read_exact(&mut raw[..])?;
 
@@ -38,9 +38,7 @@ impl HdbDecimal {
             if nullable {
                 Ok(HdbValue::NULL)
             } else {
-                Err(HdbError::Impl(
-                    "received null value for not-null column".to_owned(),
-                ))
+                Err(util::io_error("received null value for not-null column"))
             }
         } else {
             trace!("parse DECIMAL");

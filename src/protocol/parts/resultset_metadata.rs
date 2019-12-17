@@ -1,11 +1,13 @@
 use crate::protocol::parts::type_id::TypeId;
 use crate::protocol::util;
-use crate::{HdbError, HdbResult};
+use crate::{HdbErrorKind, HdbResult};
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::fmt;
 use std::u32;
 use vec_map::VecMap;
+
+const INVALID_FIELD_INDEX: &str = "invalid field index";
 
 /// Metadata for the fields in a result set.
 #[derive(Clone, Debug)]
@@ -33,10 +35,11 @@ impl ResultSetMetadata {
         }
     }
 
-    fn get(&self, index: usize) -> HdbResult<&FieldMetadata> {
-        self.fields
+    pub(crate) fn get(&self, index: usize) -> HdbResult<&FieldMetadata> {
+        Ok(self
+            .fields
             .get(index)
-            .ok_or_else(|| HdbError::usage_("schemaname(): invalid field index"))
+            .ok_or_else(|| HdbErrorKind::Usage(INVALID_FIELD_INDEX))?)
     }
 
     /// Database schema of the i'th column in the resultset.
@@ -44,7 +47,7 @@ impl ResultSetMetadata {
         Ok(self
             .names
             .get(self.get(i)?.schemaname_idx() as usize)
-            .ok_or_else(|| HdbError::usage_("get_fieldname(): invalid field index"))?)
+            .ok_or_else(|| HdbErrorKind::Usage(INVALID_FIELD_INDEX))?)
     }
 
     /// Database table of the i'th column in the resultset.
@@ -52,7 +55,7 @@ impl ResultSetMetadata {
         Ok(self
             .names
             .get(self.get(i)?.tablename_idx() as usize)
-            .ok_or_else(|| HdbError::usage_("tablename(): invalid field index"))?)
+            .ok_or_else(|| HdbErrorKind::Usage(INVALID_FIELD_INDEX))?)
     }
 
     /// Name of the i'th column in the resultset.
@@ -60,7 +63,7 @@ impl ResultSetMetadata {
         Ok(self
             .names
             .get(self.get(i)?.columnname_idx() as usize)
-            .ok_or_else(|| HdbError::usage_("columnname(): invalid field index"))?)
+            .ok_or_else(|| HdbErrorKind::Usage(INVALID_FIELD_INDEX))?)
     }
 
     // For large resultsets, this method will be called very often - is caching
@@ -71,7 +74,7 @@ impl ResultSetMetadata {
         Ok(self
             .names
             .get(self.get(index)?.displayname_idx() as usize)
-            .ok_or_else(|| HdbError::usage_("get_fieldname(): invalid field index"))?)
+            .ok_or_else(|| HdbErrorKind::Usage(INVALID_FIELD_INDEX))?)
     }
 
     /// True if column can contain NULL values.
@@ -117,7 +120,7 @@ impl ResultSetMetadata {
     pub(crate) fn parse<T: std::io::BufRead>(
         count: usize,
         rdr: &mut T,
-    ) -> HdbResult<ResultSetMetadata> {
+    ) -> std::io::Result<ResultSetMetadata> {
         let mut rsm = ResultSetMetadata {
             fields: Vec::<FieldMetadata>::new(),
             names: VecMap::<String>::new(),
@@ -184,7 +187,7 @@ impl fmt::Display for ResultSetMetadata {
 
 /// Describes a single field (column) in a result set.
 #[derive(Clone, Debug)]
-struct FieldMetadata {
+pub(crate) struct FieldMetadata {
     schemaname_idx: u32,
     tablename_idx: u32,
     columnname_idx: u32,

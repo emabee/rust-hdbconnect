@@ -1,9 +1,10 @@
 use super::authenticator::Authenticator;
 use super::crypto_util::scram_pdkdf2_sha256;
 use crate::protocol::parts::authfields::AuthFields;
-use crate::{HdbError, HdbResult};
+use crate::{HdbError, HdbErrorKind, HdbResult};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use chrono::Local;
+use failure::ResultExt;
 use rand::{thread_rng, RngCore};
 use secstr::SecStr;
 use std::io::Write;
@@ -48,7 +49,7 @@ impl Authenticator for ScramPbkdf2Sha256 {
             &self.client_challenge,
             password,
             iterations,
-        )?;
+        );
         debug!(
             "pbkdf2 took {} µs",
             Local::now()
@@ -60,16 +61,21 @@ impl Authenticator for ScramPbkdf2Sha256 {
         self.client_challenge.clear();
         self.server_proof = Some(server_proof);
 
+        const MSG: &str = "ClientProof";
         let mut buf = Vec::<u8>::with_capacity(3 + CLIENT_PROOF_SIZE);
-        buf.write_u16::<BigEndian>(1_u16)?;
-        buf.write_u8(CLIENT_PROOF_SIZE as u8)?;
-        buf.write_all(&client_proof)?;
+        buf.write_u16::<BigEndian>(1_u16)
+            .context(HdbErrorKind::Impl(MSG))?;
+        buf.write_u8(CLIENT_PROOF_SIZE as u8)
+            .context(HdbErrorKind::Impl(MSG))?;
+        buf.write_all(&client_proof)
+            .context(HdbErrorKind::Impl(MSG))?;
 
         Ok(buf)
     }
 
     fn verify_server(&self, server_data: &[u8]) -> HdbResult<()> {
-        let mut af = AuthFields::parse(&mut std::io::Cursor::new(server_data))?;
+        let mut af = AuthFields::parse(&mut std::io::Cursor::new(server_data))
+            .context(HdbErrorKind::Database)?;
         let srv_proof = af.pop().unwrap();
 
         if let Some(ref s_p) = self.server_proof {
@@ -77,18 +83,20 @@ impl Authenticator for ScramPbkdf2Sha256 {
                 return Ok(());
             }
         }
-
-        let msg = "Server proof failed - this indicates a severe security issue with the server!";
+        let msg = "Server proof failed - \
+                   this indicates a severe security issue with the server's identity!";
         warn!("{}", msg);
-        Err(HdbError::Usage(msg.to_string()))
+        Err(HdbErrorKind::Usage(msg).into())
     }
 }
 
 // `server_data` is again an AuthFields, contains salt, server_nonce, iterations
 fn parse_first_server_data(server_data: &[u8]) -> HdbResult<(Vec<u8>, Vec<u8>, u32)> {
-    let mut auth_fields = AuthFields::parse(&mut std::io::Cursor::new(server_data))?;
+    let mut auth_fields = AuthFields::parse(&mut std::io::Cursor::new(server_data))
+        .context(HdbErrorKind::Database)?;
+
     if auth_fields.len() != 3 {
-        return Err(HdbError::Impl(format!(
+        return Err(HdbError::imp_detailed(format!(
             "got {} auth fields, expected 3",
             auth_fields.len()
         )));
@@ -96,18 +104,22 @@ fn parse_first_server_data(server_data: &[u8]) -> HdbResult<(Vec<u8>, Vec<u8>, u
 
     let iterations = {
         let mut rdr = std::io::Cursor::new(auth_fields.pop().unwrap());
-        rdr.read_u32::<BigEndian>()?
+        rdr.read_u32::<BigEndian>()
+            .context(HdbErrorKind::Database)?
     };
     let server_nonce = auth_fields.pop().unwrap();
     let salt = auth_fields.pop().unwrap();
 
     if iterations < 15_000 {
-        Err(HdbError::Impl(format!(
+        Err(HdbError::imp_detailed(format!(
             "too few iterations: {}",
             iterations
         )))
     } else if salt.len() < 16 {
-        Err(HdbError::Impl(format!("too little salt: {}", salt.len())))
+        Err(HdbError::imp_detailed(format!(
+            "too little salt: {}",
+            salt.len()
+        )))
     } else {
         Ok((salt, server_nonce, iterations))
     }

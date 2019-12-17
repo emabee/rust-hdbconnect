@@ -29,6 +29,8 @@
 
 #[macro_use]
 extern crate log;
+#[macro_use]
+extern crate failure;
 
 pub use r2d2;
 pub use serde_db;
@@ -55,7 +57,7 @@ pub use crate::conn_core::connect_params::ServerCerts;
 
 pub use crate::connection::Connection;
 pub use crate::connection_manager::ConnectionManager;
-pub use crate::hdb_error::{HdbError, HdbResult};
+pub use crate::hdb_error::{HdbError, HdbErrorKind, HdbResult};
 pub use crate::hdb_response::HdbResponse;
 pub use crate::hdb_return_value::HdbReturnValue;
 pub use crate::prepared_statement::PreparedStatement;

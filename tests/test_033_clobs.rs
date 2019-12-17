@@ -1,8 +1,9 @@
 mod test_utils;
 
+use failure::ResultExt;
 use flexi_logger::ReconfigurationHandle;
 use hdbconnect::types::CLob;
-use hdbconnect::{Connection, HdbResult, HdbValue};
+use hdbconnect::{Connection, HdbErrorKind, HdbResult, HdbValue};
 use log::{debug, info};
 use serde_derive::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -118,7 +119,7 @@ fn test_clobs(
     row.next_value().unwrap();
     let mut clob: CLob = row.next_value().unwrap().try_into_clob()?;
     let mut streamed = Vec::<u8>::new();
-    std::io::copy(&mut clob, &mut streamed)?;
+    std::io::copy(&mut clob, &mut streamed).context(HdbErrorKind::LobStreaming)?;
 
     assert_eq!(fifty_times_smp_blabla.len(), streamed.len());
     let mut hasher = Sha256::default();
@@ -177,7 +178,7 @@ fn test_streaming(
         .into_single_value()?
         .try_into_clob()?;
     let mut buffer = Vec::<u8>::new();
-    std::io::copy(&mut clob, &mut buffer)?;
+    std::io::copy(&mut clob, &mut buffer).context(HdbErrorKind::LobStreaming)?;
 
     assert_eq!(fifty_times_smp_blabla.len(), buffer.len());
     let mut hasher = Sha256::default();

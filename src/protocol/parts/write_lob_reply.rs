@@ -1,5 +1,3 @@
-use crate::HdbResult;
-
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::io::BufRead;
 
@@ -14,7 +12,7 @@ impl WriteLobReply {
 }
 
 impl WriteLobReply {
-    pub fn parse<T: BufRead>(count: usize, rdr: &mut T) -> HdbResult<WriteLobReply> {
+    pub fn parse<T: BufRead>(count: usize, rdr: &mut T) -> std::io::Result<WriteLobReply> {
         debug!("called with count = {}", count);
         let mut locator_ids: Vec<u64> = Default::default();
         for _ in 0..count {

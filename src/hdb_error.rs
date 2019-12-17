@@ -1,58 +1,92 @@
 use crate::protocol::parts::execution_result::ExecutionResult;
 use crate::protocol::parts::server_error::ServerError;
-use cesu8::Cesu8DecodingError;
-use serde_db::de::{ConversionError, DeserializationError};
-use serde_db::ser::SerializationError;
-use std::error::{self, Error};
-use std::fmt;
-use std::result;
-use std::sync;
+use failure::{Backtrace, Context, Fail};
+
+/// A list specifying categories of [`HdbError`](struct.HdbError.html).
+///
+/// This list may grow over time and it is not recommended to exhaustively
+/// match against it.
+#[derive(Clone, Eq, PartialEq, Debug, Fail)] //Copy
+pub enum HdbErrorKind {
+    /// Error occured in deserialization.
+    #[fail(display = "Error occured in deserialization.")]
+    Deserialization,
+
+    /// Error occured in serialization.
+    #[fail(display = "Error occured in serialization.")]
+    Serialization,
+
+    /// Database server responded with an error.
+    #[fail(display = "Database server responded with an error.")]
+    DbError(ServerError),
+
+    /// An error occurred that requires the session to be terminated.
+    #[fail(display = "An error occurred that requires the session to be terminated.")]
+    SessionClosingTransactionError,
+
+    /// Database server responded with at least one error.
+    #[fail(display = "Database server responded with at least one error.")]
+    ExecutionResults(Vec<ExecutionResult>),
+
+    /// Some error occured while reading CESU-8.
+    #[fail(display = "Some error occured while reading CESU-8.")]
+    Cesu8,
+
+    /// Error occured while evaluating a HdbResponse or an HdbReturnValue.
+    #[fail(display = "Error occured while evaluating a HdbResponse or an HdbReturnValue.")]
+    Evaluation,
+
+    /// Error occured while streaming a LOB.
+    #[fail(display = "Error occured while streaming a LOB.")]
+    LobStreaming,
+
+    /// Implementation error.
+    #[fail(display = "Implementation error: {}", _0)]
+    Impl(&'static str),
+
+    /// Implementation error.
+    #[fail(display = "Implementation error: {}", _0)]
+    ImplDetailed(String),
+
+    /// Error occured in thread synchronization.
+    #[fail(display = "Error occured in thread synchronization.")]
+    Poison,
+
+    /// Error caused by wrong usage.
+    #[fail(display = "Wrong usage: {}", _0)]
+    Usage(&'static str),
+
+    /// Error caused by wrong usage.
+    #[fail(display = "Wrong usage: {}", _0)]
+    UsageDetailed(String),
+
+    /// Error occured in communication with the database.
+    #[fail(display = "Error occured in communication with the database")]
+    Database,
+
+    /// Erroneous Connection Parameters.
+    #[fail(display = "Erroneous Connection Parameters")]
+    ConnParams,
+}
 
 /// Abbreviation of `Result<T, HdbError>`.
-pub type HdbResult<T> = result::Result<T, HdbError>;
+pub type HdbResult<T> = std::result::Result<T, HdbError>;
 
 /// Represents all possible errors that can occur in hdbconnect.
 #[derive(Debug)]
-pub enum HdbError {
-    /// Conversion of single db value to rust type failed.
-    Conversion(ConversionError),
-
-    /// Error occured in deserialization of data structures into an application-defined structure.
-    Deserialization(DeserializationError),
-
-    /// Database server responded with an error.
-    DbError(ServerError),
-
-    /// Database server has a severe issue.
-    DbIssue(String),
-
-    /// Database server responded with at least one error.
-    MixedResults(Vec<ExecutionResult>),
-
-    /// Some error occured while reading CESU-8.
-    Cesu8(Cesu8DecodingError),
-
-    /// Error occured while evaluating a HdbResponse object.
-    Evaluation(String),
-
-    /// Missing or wrong implementation of HANA's wire protocol.
-    Impl(String),
-
-    /// IO error occured in communication with the database.
-    Io(std::io::Error),
-
-    /// Error occured in thread synchronization.
-    Poison(String),
-
-    /// Error occured in serialization of rust data into values for the
-    /// database.
-    Serialization(SerializationError),
-
-    /// Error due to wrong usage of API.
-    Usage(String),
+pub struct HdbError {
+    inner: Context<HdbErrorKind>,
 }
 
 impl HdbError {
+    pub(crate) fn imp(s: &'static str) -> HdbError {
+        HdbErrorKind::Impl(s).into()
+    }
+
+    pub(crate) fn imp_detailed(s: String) -> HdbError {
+        HdbErrorKind::ImplDetailed(s).into()
+    }
+
     /// Return the contained server_error, if any.
     ///
     /// This method helps in case you need programmatic access to e.g. the error code.
@@ -60,10 +94,10 @@ impl HdbError {
     /// Example:
     ///
     /// ```rust,no_run
-    /// # use hdbconnect::{Connection,HdbError, HdbResult};
+    /// # use hdbconnect::{Connection,HdbErrorKind, HdbResult};
     /// # use hdbconnect::IntoConnectParams;
-    /// # fn main() -> HdbResult<()> {
-    ///     # let hdb_result: HdbResult<()> = Err(HdbError::Usage("test".to_string()));
+    /// # fn main() -> Result<(),failure::Error> {
+    ///     # let hdb_result: HdbResult<()> = Err(HdbErrorKind::Usage("test").into());
     ///     # let mut connection = Connection::new("".into_connect_params()?)?;
     ///     if let Err(hdberror) = hdb_result {
     ///         if let Some(server_error) = hdberror.server_error() {
@@ -79,142 +113,50 @@ impl HdbError {
     /// # }
     /// ```
     pub fn server_error(&self) -> Option<&ServerError> {
-        match self {
-            HdbError::DbError(server_error) => Some(&server_error),
+        match self.inner.get_context() {
+            HdbErrorKind::DbError(server_error) => Some(&server_error),
             _ => None,
         }
     }
-}
-// Factory methods
-impl HdbError {
-    pub(crate) fn impl_<S: AsRef<str>>(s: S) -> HdbError {
-        HdbError::Impl(s.as_ref().to_owned())
-    }
-    pub(crate) fn usage_<S: AsRef<str>>(s: S) -> HdbError {
-        HdbError::Usage(s.as_ref().to_owned())
+
+    /// Get access to the error context.
+    pub fn kind(&self) -> HdbErrorKind {
+        self.inner.get_context().clone()
     }
 }
 
-impl error::Error for HdbError {
-    fn description(&self) -> &str {
-        match *self {
-            HdbError::DbError(_) => "Error from database server",
-            HdbError::DbIssue(_) => "Issue on database server",
-            HdbError::MixedResults(_) => "Database server responded with at least one error",
-            HdbError::Conversion(_) => "Conversion of database type to rust type failed",
-            HdbError::Deserialization(ref e) => e.description(),
-            HdbError::Cesu8(ref e) => e.description(),
-            HdbError::Io(ref e) => e.description(),
-            HdbError::Serialization(ref e) => e.description(),
-            HdbError::Impl(ref s)
-            | HdbError::Evaluation(ref s)
-            | HdbError::Usage(ref s)
-            | HdbError::Poison(ref s) => s,
-        }
+impl Fail for HdbError {
+    fn cause(&self) -> Option<&dyn Fail> {
+        self.inner.cause()
     }
 
-    fn cause(&self) -> Option<&dyn error::Error> {
-        match *self {
-            HdbError::Cesu8(ref e) => Some(e),
-            HdbError::Conversion(ref error) => Some(error),
-            HdbError::Deserialization(ref error) => Some(error),
-            HdbError::Io(ref error) => Some(error),
-            HdbError::Serialization(ref error) => Some(error),
-            HdbError::DbError(ref server_error) => Some(server_error),
-            HdbError::Impl(_)
-            | HdbError::DbIssue(_)
-            | HdbError::MixedResults(_)
-            | HdbError::Usage(_)
-            | HdbError::Poison(_)
-            | HdbError::Evaluation(_) => None,
+    fn backtrace(&self) -> Option<&Backtrace> {
+        self.inner.backtrace()
+    }
+}
+
+impl std::fmt::Display for HdbError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        std::fmt::Display::fmt(&self.inner, f)
+    }
+}
+
+impl<'a, T> From<std::sync::PoisonError<std::sync::MutexGuard<'a, T>>> for HdbError {
+    fn from(_error: std::sync::PoisonError<std::sync::MutexGuard<'a, T>>) -> HdbError {
+        HdbError {
+            inner: Context::new(HdbErrorKind::Poison),
         }
     }
 }
-
-impl fmt::Display for HdbError {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            HdbError::Cesu8(ref e) => write!(fmt, "{}", e),
-            HdbError::Conversion(ref e) => write!(fmt, "{}", e),
-            HdbError::Deserialization(ref error) => write!(fmt, "{:?}", error),
-            HdbError::Io(ref error) => write!(fmt, "{:?}", error),
-            HdbError::Impl(ref error) => write!(fmt, "{:?}", error),
-            HdbError::Serialization(ref error) => write!(fmt, "{:?}", error),
-            HdbError::Evaluation(ref s)
-            | HdbError::Usage(ref s)
-            | HdbError::Poison(ref s)
-            | HdbError::DbIssue(ref s) => write!(fmt, "{:?}", s),
-            HdbError::DbError(ref se) => write!(fmt, "{:?}", se),
-            HdbError::MixedResults(ref vec_rows_affected) => {
-                write!(fmt, "MixedResults[")?;
-                let mut first = true;
-                for ra in vec_rows_affected {
-                    if first {
-                        first = false;
-                    } else {
-                        write!(fmt, ", ")?;
-                    };
-                    match ra {
-                        ExecutionResult::Failure(Some(err)) => {
-                            write!(fmt, "Failure({:?})", err)?;
-                        }
-                        ExecutionResult::Failure(None) => {
-                            write!(fmt, "Failure()")?;
-                        }
-                        ra => write!(fmt, "{:?}", ra)?,
-                    }
-                }
-                write!(fmt, "]")?;
-                Ok(())
-            }
+impl From<HdbErrorKind> for HdbError {
+    fn from(kind: HdbErrorKind) -> HdbError {
+        HdbError {
+            inner: Context::new(kind),
         }
     }
 }
-
-impl From<ConversionError> for HdbError {
-    fn from(error: ConversionError) -> HdbError {
-        HdbError::Conversion(error)
-    }
-}
-
-impl From<DeserializationError> for HdbError {
-    fn from(error: DeserializationError) -> HdbError {
-        HdbError::Deserialization(error)
-    }
-}
-
-impl From<SerializationError> for HdbError {
-    fn from(error: SerializationError) -> HdbError {
-        HdbError::Serialization(error)
-    }
-}
-
-impl From<String> for HdbError {
-    fn from(s: String) -> HdbError {
-        HdbError::Usage(s)
-    }
-}
-
-impl From<std::io::Error> for HdbError {
-    fn from(error: std::io::Error) -> HdbError {
-        HdbError::Io(error)
-    }
-}
-
-impl From<fmt::Error> for HdbError {
-    fn from(error: fmt::Error) -> HdbError {
-        HdbError::Usage(error.description().to_owned())
-    }
-}
-
-impl From<Cesu8DecodingError> for HdbError {
-    fn from(error: Cesu8DecodingError) -> HdbError {
-        HdbError::Cesu8(error)
-    }
-}
-
-impl<'a, T> From<sync::PoisonError<sync::MutexGuard<'a, T>>> for HdbError {
-    fn from(error: sync::PoisonError<sync::MutexGuard<'a, T>>) -> HdbError {
-        HdbError::Poison(error.description().to_owned())
+impl From<Context<HdbErrorKind>> for HdbError {
+    fn from(inner: Context<HdbErrorKind>) -> HdbError {
+        HdbError { inner }
     }
 }

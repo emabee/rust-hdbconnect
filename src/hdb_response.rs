@@ -5,7 +5,7 @@ use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
 use crate::protocol::parts::resultset::ResultSet;
 use crate::protocol::parts::write_lob_reply::WriteLobReply;
 use crate::protocol::reply_type::ReplyType;
-use crate::{HdbError, HdbResult};
+use crate::{HdbError, HdbErrorKind, HdbResult};
 use std::sync::Arc;
 
 /// Represents all possible non-error responses to a database command.
@@ -127,7 +127,7 @@ impl HdbResponse {
                          with these internal return values: {:?}", 
                         replytype, int_return_values);
                     error!("{}",s);
-                    Err(HdbError::impl_(s))
+                    Err(HdbError::imp_detailed(s))
                 },
             }
     }
@@ -137,8 +137,8 @@ impl HdbResponse {
             InternalReturnValue::ResultSet(rs) => Ok(HdbResponse {
                 return_values: vec![HdbReturnValue::ResultSet(rs)],
             }),
-            _ => Err(HdbError::Impl(
-                "Wrong InternalReturnValue, a single ResultSet was expected".to_owned(),
+            _ => Err(HdbError::imp(
+                "Wrong InternalReturnValue, a single ResultSet was expected",
             )),
         }
     }
@@ -152,9 +152,7 @@ impl HdbResponse {
                         ExecutionResult::RowsAffected(i) => vec_i.push(i),
                         ExecutionResult::SuccessNoInfo => vec_i.push(0),
                         ExecutionResult::Failure(_) => {
-                            return Err(HdbError::Impl(
-                                "Found unexpected returnvalue ExecutionFailed".to_owned(),
-                            ));
+                            return Err(HdbError::imp("Found unexpected ExecutionResult::Failure"));
                         }
                     }
                 }
@@ -162,8 +160,8 @@ impl HdbResponse {
                     return_values: vec![HdbReturnValue::AffectedRows(vec_i)],
                 })
             }
-            _ => Err(HdbError::Impl(
-                "Wrong InternalReturnValue, a single ResultSet was expected".to_owned(),
+            _ => Err(HdbError::imp(
+                "Wrong InternalReturnValue, a single ResultSet was expected",
             )),
         }
     }
@@ -172,19 +170,15 @@ impl HdbResponse {
         match single(int_return_values)? {
             InternalReturnValue::AffectedRows(mut vec_ra) => {
                 if vec_ra.len() != 1 {
-                    return Err(HdbError::Impl(
-                        "found no or multiple affected-row-counts, but only a single Success was \
-                         expected"
-                            .to_owned(),
+                    return Err(HdbError::imp(
+                        "found no or multiple affected-row-counts, expected a single Success",
                     ));
                 }
                 match vec_ra.pop().unwrap() {
                     ExecutionResult::RowsAffected(i) => {
                         if i > 0 {
-                            Err(HdbError::Impl(
-                                "found an affected-row-count > 0, but only a single Success was \
-                                 expected"
-                                    .to_owned(),
+                            Err(HdbError::imp(
+                                "found an affected-row-count > 0, expected a single Success",
                             ))
                         } else {
                             Ok(HdbResponse {
@@ -195,13 +189,13 @@ impl HdbResponse {
                     ExecutionResult::SuccessNoInfo => Ok(HdbResponse {
                         return_values: vec![HdbReturnValue::Success],
                     }),
-                    ExecutionResult::Failure(_) => Err(HdbError::Impl(
-                        "Found unexpected returnvalue ExecutionFailed".to_owned(),
+                    ExecutionResult::Failure(_) => Err(HdbError::imp(
+                        "Found unexpected returnvalue ExecutionFailed",
                     )),
                 }
             }
-            _ => Err(HdbError::Impl(
-                "Wrong InternalReturnValue, a single Success was expected".to_owned(),
+            _ => Err(HdbError::imp(
+                "Wrong InternalReturnValue, a single Success was expected",
             )),
         }
     }
@@ -220,8 +214,8 @@ impl HdbResponse {
                             ExecutionResult::RowsAffected(i) => vec_i.push(i),
                             ExecutionResult::SuccessNoInfo => vec_i.push(0),
                             ExecutionResult::Failure(_) => {
-                                return Err(HdbError::Impl(
-                                    "Found unexpected returnvalue 'ExecutionFailed'".to_owned(),
+                                return Err(HdbError::imp(
+                                    "Found unexpected returnvalue 'ExecutionFailed'",
                                 ));
                             }
                         }
@@ -236,8 +230,8 @@ impl HdbResponse {
                     return_values.push(HdbReturnValue::ResultSet(rs));
                 }
                 InternalReturnValue::WriteLobReply(_) => {
-                    return Err(HdbError::Impl(
-                        "found WriteLobReply in multiple_return_values()".to_owned(),
+                    return Err(HdbError::imp(
+                        "found WriteLobReply in multiple_return_values()",
                     ));
                 }
             }
@@ -281,15 +275,15 @@ impl HdbResponse {
     }
 
     /// Turns itself into a single return value, if there is exactly one.
+    ///
+    /// Otherwise it produces an evaluation error.
     pub fn into_single_retval(mut self) -> HdbResult<HdbReturnValue> {
         if self.return_values.len() > 1 {
-            Err(HdbError::Evaluation(
-                "Not a single HdbReturnValue".to_string(),
-            ))
+            Err(HdbErrorKind::Evaluation.into())
         } else {
-            self.return_values.pop().ok_or_else(|| {
-                HdbError::Evaluation("expected a single HdbReturnValue, found none".to_string())
-            })
+            self.return_values
+                .pop()
+                .ok_or_else(|| HdbErrorKind::Evaluation.into())
         }
     }
 
@@ -374,7 +368,8 @@ impl HdbResponse {
             });
         }
         errmsg.push_str("]");
-        HdbError::Evaluation(errmsg)
+        error!("{}", errmsg);
+        HdbErrorKind::Evaluation.into()
     }
 }
 
@@ -390,11 +385,11 @@ fn single(int_return_values: Vec<InternalReturnValue>) -> HdbResult<InternalRetu
         .collect();
 
     match int_return_values.len() {
-        0 => Err(HdbError::Impl(
-            "Nothing found, but a single Resultset was expected".to_owned(),
+        0 => Err(HdbError::imp(
+            "Nothing found, but a single Resultset was expected",
         )),
         1 => Ok(int_return_values.pop().unwrap(/*cannot fail*/)),
-        _ => Err(HdbError::Impl(format!(
+        _ => Err(HdbError::imp_detailed(format!(
             "resultset(): Too many InternalReturnValue(s) received: {:?}",
             int_return_values
         ))),

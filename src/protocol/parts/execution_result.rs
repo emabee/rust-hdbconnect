@@ -1,11 +1,9 @@
 use crate::protocol::parts::server_error::ServerError;
-use crate::HdbResult;
-
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::fmt;
 
 /// Describes the success of a command.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ExecutionResult {
     /// Number of rows that were affected by the successful execution.
     RowsAffected(usize),
@@ -18,7 +16,7 @@ impl ExecutionResult {
     pub(crate) fn parse<T: std::io::BufRead>(
         count: usize,
         rdr: &mut T,
-    ) -> HdbResult<Vec<ExecutionResult>> {
+    ) -> std::io::Result<Vec<ExecutionResult>> {
         let mut vec = Vec::<ExecutionResult>::with_capacity(count);
         for _ in 0..count {
             match rdr.read_i32::<LittleEndian>()? {

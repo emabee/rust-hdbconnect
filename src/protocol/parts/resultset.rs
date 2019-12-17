@@ -11,7 +11,9 @@ use crate::protocol::reply_type::ReplyType;
 use crate::protocol::request::Request;
 use crate::protocol::request_type::RequestType;
 use crate::protocol::server_usage::ServerUsage;
-use crate::{HdbError, HdbResult};
+use crate::protocol::util;
+use crate::{HdbError, HdbErrorKind, HdbResult};
+use failure::ResultExt;
 use serde;
 use serde_db::de::DeserializableResultset;
 use std::cell::RefCell;
@@ -123,7 +125,7 @@ impl RsState {
                     (am_conn_core, rs_core.resultset_id, fetch_size)
                 }
                 None => {
-                    return Err(HdbError::impl_("Fetch no more possible"));
+                    return Err(HdbError::imp("Fetch no more possible"));
                 }
             }
         };
@@ -161,7 +163,7 @@ impl RsState {
             if (!rs_core.attributes.is_last_packet())
                 && (rs_core.attributes.row_not_found() || rs_core.attributes.resultset_is_closed())
             {
-                Err(HdbError::impl_(
+                Err(HdbError::imp(
                     "ResultSet attributes inconsistent: incomplete, but already closed on server",
                 ))
             } else {
@@ -177,13 +179,15 @@ impl RsState {
         no_of_rows: usize,
         metadata: &Arc<ResultSetMetadata>,
         rdr: &mut dyn std::io::BufRead,
-    ) -> HdbResult<()> {
+    ) -> std::io::Result<()> {
         self.next_rows.reserve(no_of_rows);
         let no_of_cols = metadata.number_of_fields();
         debug!("parse_rows(): {} lines, {} columns", no_of_rows, no_of_cols);
 
         if let Some(ref mut am_rscore) = self.o_am_rscore {
-            let rscore = am_rscore.lock()?;
+            let rscore = am_rscore
+                .lock()
+                .map_err(|e| util::io_error(e.to_string()))?;
             let am_conn_core: &AmConnCore = &rscore.am_conn_core;
             let o_am_rscore = Some(am_rscore.clone());
             for i in 0..no_of_rows {
@@ -306,7 +310,7 @@ impl ResultSet {
         T: serde::de::Deserialize<'de>,
     {
         trace!("Resultset::try_into()");
-        Ok(DeserializableResultset::into_typed(self)?)
+        Ok(DeserializableResultset::into_typed(self).context(HdbErrorKind::Deserialization)?)
     }
 
     /// Converts the resultset into a single row.
@@ -315,13 +319,11 @@ impl ResultSet {
     pub fn into_single_row(self) -> HdbResult<Row> {
         let mut state = self.state.borrow_mut();
         if state.has_multiple_rows() {
-            Err(HdbError::Usage(
-                "Resultset has more than one row".to_owned(),
-            ))
+            Err(HdbErrorKind::Usage("Resultset has more than one row").into())
         } else {
-            state
+            Ok(state
                 .next_row(&self.metadata)?
-                .ok_or_else(|| HdbError::Usage("Resultset is empty".to_owned()))
+                .ok_or_else(|| HdbErrorKind::Usage("Resultset is empty"))?)
         }
     }
 
@@ -422,7 +424,7 @@ impl ResultSet {
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
         o_rs: &mut Option<&mut RsState>,
         rdr: &mut T,
-    ) -> HdbResult<Option<ResultSet>> {
+    ) -> std::io::Result<Option<ResultSet>> {
         match *o_rs {
             None => {
                 // case a) or b)
@@ -432,16 +434,12 @@ impl ResultSet {
                 {
                     Some(Argument::StatementContext(stmt_ctx)) => Some(stmt_ctx),
                     None => None,
-                    _ => {
-                        return Err(HdbError::impl_(
-                            "Inconsistent StatementContext part found for ResultSet",
-                        ));
-                    }
+                    _ => return Err(util::io_error("Inconsistent StatementContext")),
                 };
 
                 let rs_id = match parts.pop_arg() {
                     Some(Argument::ResultSetId(rs_id)) => rs_id,
-                    _ => return Err(HdbError::impl_("No ResultSetId part found for ResultSet")),
+                    _ => return Err(util::io_error("ResultSetId missing")),
                 };
 
                 let a_rsmd = match parts
@@ -451,10 +449,10 @@ impl ResultSet {
                     Some(Argument::ResultSetMetadata(rsmd)) => Arc::new(rsmd),
                     None => match o_a_rsmd {
                         Some(a_rsmd) => Arc::clone(a_rsmd),
-                        _ => return Err(HdbError::impl_("No metadata provided for ResultSet")),
+                        _ => return Err(util::io_error("No metadata provided for ResultSet")),
                     },
                     _ => {
-                        return Err(HdbError::impl_(
+                        return Err(util::io_error(
                             "Inconsistent metadata part found for ResultSet",
                         ));
                     }
@@ -479,20 +477,22 @@ impl ResultSet {
                     }
                     None => {}
                     _ => {
-                        return Err(HdbError::impl_(
+                        return Err(util::io_error(
                             "Inconsistent StatementContext part found for ResultSet",
                         ));
                     }
                 };
 
                 if let Some(ref mut am_rscore) = fetching_state.o_am_rscore {
-                    let mut rscore = am_rscore.lock()?;
+                    let mut rscore = am_rscore
+                        .lock()
+                        .map_err(|e| util::io_error(e.to_string()))?;
                     rscore.attributes = attributes;
                 }
                 let a_rsmd = match o_a_rsmd {
                     Some(a_rsmd) => Arc::clone(&a_rsmd),
                     None => {
-                        return Err(HdbError::impl_("RsState provided without RsMetadata"));
+                        return Err(util::io_error("RsState provided without RsMetadata"));
                     }
                 };
                 fetching_state.parse_rows(no_of_rows, &a_rsmd, rdr)?;
@@ -507,7 +507,11 @@ impl ResultSet {
         self.state.borrow().server_usage
     }
 
-    fn parse_rows<T: std::io::BufRead>(&self, no_of_rows: usize, rdr: &mut T) -> HdbResult<()> {
+    fn parse_rows<T: std::io::BufRead>(
+        &self,
+        no_of_rows: usize,
+        rdr: &mut T,
+    ) -> std::io::Result<()> {
         self.state
             .borrow_mut()
             .parse_rows(no_of_rows, &self.metadata, rdr)

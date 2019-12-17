@@ -3,6 +3,7 @@ use crate::conn_core::AmConnCore;
 use crate::protocol::parts::resultset::AmRsCore;
 use crate::protocol::server_usage::ServerUsage;
 use crate::{HdbError, HdbResult};
+use failure::Fail;
 use std::boxed::Box;
 use std::io::{self, Write};
 
@@ -64,7 +65,7 @@ impl BLob {
     /// ```rust, no-run
     /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, Row};
     /// # fn main() { }
-    /// # fn foo() -> HdbResult<()> {
+    /// # fn foo() -> Result<(),failure::Error> {
     /// # let params = "".into_connect_params()?;
     /// # let mut connection = Connection::new(params)?;
     /// # let mut writer = Vec::<u8>::new();
@@ -191,7 +192,7 @@ impl BLobHandle {
 
     fn fetch_next_chunk(&mut self) -> HdbResult<()> {
         if self.is_data_complete {
-            return Err(HdbError::impl_("fetch_next_chunk(): already complete"));
+            return Err(HdbError::imp("fetch_next_chunk(): already complete"));
         }
 
         let read_length = std::cmp::min(
@@ -251,7 +252,7 @@ impl std::io::Read for BLobHandle {
 
         while !self.is_data_complete && (buf.len() > self.data.len()) {
             self.fetch_next_chunk()
-                .map_err(|e| std::io::Error::new(io::ErrorKind::UnexpectedEof, e))?;
+                .map_err(|e| std::io::Error::new(io::ErrorKind::UnexpectedEof, e.compat()))?;
         }
 
         let count = std::cmp::min(self.data.len(), buf.len());

@@ -1,7 +1,7 @@
 mod test_utils;
 
 use flexi_logger::ReconfigurationHandle;
-use hdbconnect::{Connection, HdbResult, HdbValue};
+use hdbconnect::{Connection, HdbErrorKind, HdbResult, HdbValue};
 use log::{debug, info};
 use serde_derive::Deserialize;
 
@@ -194,13 +194,13 @@ fn prepare_multiple_errors(
     let result = insert_stmt.execute_batch();
     assert!(result.is_err());
 
-    match result.err().unwrap() {
-        hdbconnect::HdbError::MixedResults(vec_rows_affected) => {
-            assert!(vec_rows_affected[0].is_failure());
-            assert!(!vec_rows_affected[1].is_failure());
-            assert!(vec_rows_affected[2].is_failure());
-            assert!(!vec_rows_affected[3].is_failure());
-            assert!(vec_rows_affected[4].is_failure());
+    match result.err().unwrap().kind() {
+        HdbErrorKind::ExecutionResults(execution_results) => {
+            assert!(execution_results[0].is_failure());
+            assert!(!execution_results[1].is_failure());
+            assert!(execution_results[2].is_failure());
+            assert!(!execution_results[3].is_failure());
+            assert!(execution_results[4].is_failure());
         }
         _ => assert!(false, "bad err"),
     }
