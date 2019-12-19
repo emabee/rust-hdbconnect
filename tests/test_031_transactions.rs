@@ -19,7 +19,6 @@ pub fn test_031_transactions() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     let start = std::time::Instant::now();
     let mut connection = test_utils::get_authenticated_connection()?;
-    let start = std::time::Instant::now();
     connection.set_auto_commit(false)?;
     if let HdbErrorKind::DbError(server_error) =
         write1_read2(&mut log_handle, &mut connection, "READ UNCOMMITTED")
