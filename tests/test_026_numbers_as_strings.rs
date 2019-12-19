@@ -7,12 +7,12 @@ use log::{debug, info};
 #[test] // cargo test --test test_026_numbers_as_strings -- --nocapture
 pub fn test_026_numbers_as_strings() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
+    let start = std::time::Instant::now();
     let mut connection = test_utils::get_authenticated_connection()?;
 
     evaluate_resultset(&mut log_handle, &mut connection)?;
 
-    info!("{} calls to DB were executed", connection.get_call_count()?);
-    Ok(())
+    test_utils::closing_info(connection, start)
 }
 
 fn evaluate_resultset(

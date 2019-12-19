@@ -14,14 +14,14 @@ use sha2::{Digest, Sha256};
 #[test]
 pub fn test_032_blobs() -> HdbResult<()> {
     let mut loghandle = test_utils::init_logger();
+    let start = std::time::Instant::now();
     let mut connection = test_utils::get_authenticated_connection()?;
 
     let (random_bytes, fingerprint) = get_random_bytes();
     test_blobs(&mut loghandle, &mut connection, &random_bytes, &fingerprint)?;
     test_streaming(&mut loghandle, &mut connection, random_bytes, &fingerprint)?;
 
-    info!("{} calls to DB were executed", connection.get_call_count()?);
-    Ok(())
+    test_utils::closing_info(connection, start)
 }
 
 const SIZE: usize = 5 * 1024 * 1024;

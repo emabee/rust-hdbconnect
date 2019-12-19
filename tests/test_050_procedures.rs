@@ -22,13 +22,7 @@ pub fn test_050_procedures() -> HdbResult<()> {
     procedure_with_in_nclob_non_consuming(&mut log_handle, &mut connection)?;
     procedure_with_in_nclob_and_out_nclob(&mut log_handle, &mut connection)?;
 
-    info!("{} calls to DB were executed", connection.get_call_count()?);
-    info!(
-        "Elapsed time: {:?}, Accumulated server processing time: {:?}",
-        std::time::Instant::now().duration_since(start),
-        connection.server_usage()?.accum_proc_time
-    );
-    Ok(())
+    test_utils::closing_info(connection, start)
 }
 
 fn very_simple_procedure(
@@ -250,18 +244,28 @@ fn procedure_with_in_nclob_and_out_nclob(
     connection: &mut Connection,
 ) -> HdbResult<()> {
     info!("procedure_with_in_nclob_and_out_nclob");
-    // TODO switch to a self-written procedure, EXECUTE_MDS is moved into an AFL and
-    // might not be available
-    let mut stmt = connection.prepare("CALL SYS.EXECUTE_MDS(?, '','','','', ?,?)")?;
+    connection.multiple_statements(vec![
+        "\
+         CREATE OR REPLACE PROCEDURE \
+         USE_LOBS_IN_AND_OUT(IN gimme NCLOB, IN more NCLOB, OUT take_that NCLOB) \
+         AS BEGIN \
+         take_that = gimme || CHAR(32) || more; \
+         END;",
+    ])?;
 
-    let reader = std::sync::Arc::new(std::sync::Mutex::new(std::io::Cursor::new(
+    let mut stmt = connection.prepare("CALL USE_LOBS_IN_AND_OUT(?, ?, ?)")?;
+
+    let reader1 = std::sync::Arc::new(std::sync::Mutex::new(std::io::Cursor::new(
         "Hello World!".to_string(),
     )));
 
-    _log_handle.parse_new_spec("info, test=debug");
+    let reader2 = std::sync::Arc::new(std::sync::Mutex::new(std::io::Cursor::new(
+        "Can you read that??".to_string(),
+    )));
+
     let mut result = stmt.execute_row(vec![
-        HdbValue::STRING("Analytics".to_string()),
-        HdbValue::LOBSTREAM(Some(reader)),
+        HdbValue::LOBSTREAM(Some(reader1)),
+        HdbValue::LOBSTREAM(Some(reader2)),
     ])?;
 
     let response: NCLob = result

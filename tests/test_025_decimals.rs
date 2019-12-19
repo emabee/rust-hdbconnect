@@ -11,6 +11,7 @@ use serde_derive::Deserialize;
 #[test]
 fn test_025_decimals() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
+    let start = std::time::Instant::now();
     let mut connection = test_utils::get_authenticated_connection()?;
 
     match connection.data_format_version_2()? {
@@ -31,8 +32,7 @@ fn test_025_decimals() -> HdbResult<()> {
         }
     }
 
-    info!("{} calls to DB were executed", connection.get_call_count()?);
-    Ok(())
+    test_utils::closing_info(connection, start)
 }
 
 enum TS {

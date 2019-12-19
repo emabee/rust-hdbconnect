@@ -8,6 +8,7 @@ use log::{debug, info};
 #[test] // cargo test --test test_090_xa_transactions -- --nocapture
 pub fn test_090_xa_transactions() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
+    let start = std::time::Instant::now();
     let mut connection = test_utils::get_authenticated_connection()?;
 
     prepare(&mut log_handle, &mut connection)?;
@@ -16,9 +17,7 @@ pub fn test_090_xa_transactions() -> HdbResult<()> {
     xa_rollback(&mut log_handle, &mut connection)?;
     xa_repeated(&mut log_handle, &mut connection)?;
     xa_conflicts(&mut log_handle, &mut connection)?;
-
-    info!("{} calls to DB were executed", connection.get_call_count()?);
-    Ok(())
+    test_utils::closing_info(connection, start)
 }
 
 // prepare the db table

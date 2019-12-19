@@ -10,6 +10,7 @@ const QUERY: &'static str = "select * FROM TEST_NUMERIC_CONVERSION";
 #[test]
 pub fn test_042_numeric_conversion() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
+    let start = std::time::Instant::now();
     let mut connection = test_utils::get_authenticated_connection()?;
 
     info!("create numeric fields and try different number conversions");
@@ -22,8 +23,7 @@ pub fn test_042_numeric_conversion() -> HdbResult<()> {
     test_decimal(&mut log_handle, &mut connection)?;
     conversion_error(&mut log_handle, &mut connection)?;
 
-    info!("{} calls to DB were executed", connection.get_call_count()?);
-    Ok(())
+    test_utils::closing_info(connection, start)
 }
 
 fn test_tiny_int(

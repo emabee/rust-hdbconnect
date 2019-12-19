@@ -11,6 +11,7 @@ use serde_derive::Deserialize;
 #[test] // cargo test --test test_030_prepare -- --nocapture
 pub fn test_030_prepare() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
+    let start = std::time::Instant::now();
     // log_handle.parse_new_spec("info, test=debug");
     let mut connection = test_utils::get_authenticated_connection()?;
 
@@ -20,8 +21,7 @@ pub fn test_030_prepare() -> HdbResult<()> {
     prepare_select_with_pars(&mut log_handle, &mut connection)?;
     prepare_select_without_pars(&mut log_handle, &mut connection)?;
     prepare_and_execute_with_fetch(&mut log_handle, &mut connection)?;
-    info!("{} calls to DB were executed", connection.get_call_count()?);
-    Ok(())
+    test_utils::closing_info(connection, start)
 }
 
 fn prepare_insert_statement(

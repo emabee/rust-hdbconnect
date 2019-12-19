@@ -3,7 +3,6 @@ mod test_utils;
 use chrono::NaiveDate;
 use flexi_logger::ReconfigurationHandle;
 use hdbconnect::{Connection, HdbErrorKind, HdbResult};
-use log::{debug, info};
 
 // From wikipedia:
 //
@@ -18,6 +17,7 @@ use log::{debug, info};
 #[test] // cargo test --test test_031_transactions -- --nocapture
 pub fn test_031_transactions() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
+    let start = std::time::Instant::now();
     let mut connection = test_utils::get_authenticated_connection()?;
 
     connection.set_auto_commit(false)?;
@@ -35,7 +35,7 @@ pub fn test_031_transactions() -> HdbResult<()> {
             .try_into()?;
         assert_eq!(error_info.0, 7);
         assert_eq!(error_info.1, "ERR_FEATURE_NOT_SUPPORTED");
-        info!("error_info: {:?}", error_info);
+        log::info!("error_info: {:?}", error_info);
     } else {
         assert!(false, "did not receive ServerError");
     }
@@ -49,8 +49,7 @@ pub fn test_031_transactions() -> HdbResult<()> {
     // SET TRANSACTION LOCK WAIT TIMEOUT <unsigned_integer> // (milliseconds)
     // let result = conn.exec("SET TRANSACTION LOCK WAIT TIMEOUT 3000")?; // (milliseconds)
 
-    debug!("{} calls to DB were executed", connection.get_call_count()?);
-    Ok(())
+    test_utils::closing_info(connection, start)
 }
 
 fn write1_read2(
@@ -58,10 +57,10 @@ fn write1_read2(
     connection1: &mut Connection,
     isolation: &str,
 ) -> HdbResult<()> {
-    info!("Test isolation level {}", isolation);
+    log::info!("Test isolation level {}", isolation);
     connection1.exec(&format!("SET TRANSACTION ISOLATION LEVEL {}", isolation))?;
 
-    info!(
+    log::info!(
         "verify that we can read uncommitted data in same connection, but not on other connection"
     );
     connection1.multiple_statements_ignore_err(vec!["drop table TEST_TRANSACTIONS"]);
