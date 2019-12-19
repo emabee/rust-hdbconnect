@@ -17,6 +17,7 @@ pub fn test_090_xa_transactions() -> HdbResult<()> {
     xa_rollback(&mut log_handle, &mut connection)?;
     xa_repeated(&mut log_handle, &mut connection)?;
     xa_conflicts(&mut log_handle, &mut connection)?;
+
     test_utils::closing_info(connection, start)
 }
 

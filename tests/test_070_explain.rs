@@ -11,6 +11,7 @@ pub fn test_070_explain() -> HdbResult<()> {
     let mut connection = test_utils::get_authenticated_connection()?;
 
     test_explain(&mut log_handle, &mut connection)?;
+
     test_utils::closing_info(connection, start)
 }
 

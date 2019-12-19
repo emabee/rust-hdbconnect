@@ -244,6 +244,7 @@ fn procedure_with_in_nclob_and_out_nclob(
     connection: &mut Connection,
 ) -> HdbResult<()> {
     info!("procedure_with_in_nclob_and_out_nclob");
+
     connection.multiple_statements(vec![
         "\
          CREATE OR REPLACE PROCEDURE \

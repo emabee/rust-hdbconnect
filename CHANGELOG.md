@@ -6,6 +6,8 @@ Remove wrong debug asserts from lob_writer (adding to the fix for issue 23).
 
 Reconstruct HdbError, based on crate `failure`.
 
+Remove wrong debug asserts from lob_writer (adding to the fix for issue 23).
+
 Improve ConnectParamsBuilder
 
 - move root-certificates option as an additional variant into ServerCerts enum

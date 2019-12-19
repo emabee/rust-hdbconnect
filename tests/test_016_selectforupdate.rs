@@ -8,8 +8,8 @@ use std::time::Duration;
 
 #[test] // cargo test --test test_016_selectforupdate -- --nocapture
 pub fn test_016_selectforupdate() -> HdbResult<()> {
-    let start = std::time::Instant::now();
     let mut log_handle = test_utils::init_logger();
+    let start = std::time::Instant::now();
     let mut connection = test_utils::get_authenticated_connection()?;
 
     prepare(&mut log_handle, &mut connection)?;
