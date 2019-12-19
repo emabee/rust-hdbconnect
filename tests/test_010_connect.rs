@@ -6,10 +6,12 @@ use hdbconnect::{ConnectParams, Connection, HdbResult, IntoConnectParams};
 use log::*;
 use serde_derive::{Deserialize, Serialize};
 use std::env;
+use std::time::Instant;
 
 #[test]
 pub fn test_010_connect() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
+    let start = Instant::now();
     connect_successfully(&mut log_handle);
     connect_options(&mut log_handle)?;
     connect_wrong_password(&mut log_handle);
@@ -17,6 +19,7 @@ pub fn test_010_connect() -> HdbResult<()> {
     connect_and_select_with_clientlocale_from_env(&mut log_handle)?;
     client_info(&mut log_handle)?;
     command_info(&mut log_handle)?;
+    info!("Elapsed time: {:?}", Instant::now().duration_since(start));
     Ok(())
 }
 
@@ -75,7 +78,6 @@ fn connect_and_select_with_explicit_clientlocale(
 
     let mut connection = Connection::new(conn_params)?;
     select_version_and_user(&mut connection)?;
-    info!("{} calls to DB were executed", connection.get_call_count()?);
     Ok(())
 }
 
@@ -94,7 +96,6 @@ fn connect_and_select_with_clientlocale_from_env(
 
     let mut connection = Connection::new(conn_params)?;
     select_version_and_user(&mut connection)?;
-    info!("{} calls to DB were executed", connection.get_call_count()?);
     Ok(())
 }
 

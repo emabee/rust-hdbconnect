@@ -3,7 +3,7 @@ mod test_utils;
 use chrono::NaiveDate;
 use flexi_logger::ReconfigurationHandle;
 use hdbconnect::{Connection, HdbError, HdbResult};
-use log::{debug, info};
+use log::info;
 
 // From wikipedia:
 //
@@ -19,7 +19,7 @@ use log::{debug, info};
 pub fn test_031_transactions() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     let mut connection = test_utils::get_authenticated_connection()?;
-
+    let start = std::time::Instant::now();
     connection.set_auto_commit(false)?;
     if let Err(HdbError::DbError(server_error)) =
         write1_read2(&mut log_handle, &mut connection, "READ UNCOMMITTED")
@@ -46,8 +46,7 @@ pub fn test_031_transactions() -> HdbResult<()> {
     // SET TRANSACTION LOCK WAIT TIMEOUT <unsigned_integer> // (milliseconds)
     // let result = conn.exec("SET TRANSACTION LOCK WAIT TIMEOUT 3000")?; // (milliseconds)
 
-    debug!("{} calls to DB were executed", connection.get_call_count()?);
-    Ok(())
+    test_utils::closing_info(connection, start)
 }
 
 fn write1_read2(

@@ -220,11 +220,9 @@ impl<'a> Write for LobWriter<'a> {
                 payload_raw
             };
 
-            let locator_ids = self
-                .write_a_lob_chunk(LobWriteMode::Append(&payload))
+            self.write_a_lob_chunk(LobWriteMode::Append(&payload))
+                .map(|_locator_ids| ())
                 .map_err(|e| Error::new(ErrorKind::Other, e))?;
-            debug_assert_eq!(locator_ids.len(), 1);
-            debug_assert_eq!(locator_ids[0], self.locator_id);
         }
         Ok(input.len())
     }
@@ -247,10 +245,9 @@ impl<'a> Write for LobWriter<'a> {
             payload_raw
         };
 
-        let locator_ids = self
-            .write_a_lob_chunk(LobWriteMode::Last(&payload))
+        self.write_a_lob_chunk(LobWriteMode::Last(&payload))
+            .map(|_locator_ids| ())
             .map_err(|e| Error::new(ErrorKind::Other, e))?;
-        debug_assert_eq!(locator_ids.len(), 0);
         Ok(())
     }
 }

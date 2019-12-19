@@ -8,12 +8,12 @@ use log::{debug, info, trace};
 #[test] // cargo test --test test_021_longdate
 pub fn test_021_longdate() -> HdbResult<()> {
     let mut loghandle = test_utils::init_logger();
+    let start = std::time::Instant::now();
     let mut connection = test_utils::get_authenticated_connection()?;
 
     test_longdate(&mut loghandle, &mut connection)?;
 
-    info!("{} calls to DB were executed", connection.get_call_count()?);
-    Ok(())
+    test_utils::closing_info(connection, start)
 }
 
 // Test the conversion of timestamps

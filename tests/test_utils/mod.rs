@@ -21,6 +21,18 @@ pub fn init_logger() -> ReconfigurationHandle {
         .unwrap_or_else(|e| panic!("Logger initialization failed with {}", e))
 }
 
+pub fn closing_info(connection: Connection, start: std::time::Instant) -> HdbResult<()> {
+    log::info!(
+        "{} calls to DB were executed; \
+         elapsed time: {:?}, \
+         accumulated server processing time: {:?}",
+        connection.get_call_count()?,
+        std::time::Instant::now().duration_since(start),
+        connection.server_usage()?.accum_proc_time
+    );
+    Ok(())
+}
+
 pub fn get_authenticated_connection() -> HdbResult<Connection> {
     let params = get_std_connect_params()?;
     Connection::new(params)

@@ -2,10 +2,13 @@
 
 ## [0.18.1-unpublished]
 
+Remove wrong debug asserts from lob_writer (adding to the fix for issue 23).
+
 Improve ConnectParamsBuilder
 
 - move root-certificates option as an additional variant into ServerCerts enum
 - don't erase any information from them builder during build()
+- implement Display, and derive Debug, for ConnectParams
 
 Minor docu improvements.
 

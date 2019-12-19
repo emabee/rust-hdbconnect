@@ -10,15 +10,14 @@ use serde_derive::Deserialize;
 #[test] // cargo test --test <test_040_datatypes_a> -- --nocapture
 pub fn test_040_datatypes_a() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
+    let start = std::time::Instant::now();
     let mut connection = test_utils::get_authenticated_connection()?;
 
     prepare(&mut log_handle, &mut connection)?;
     write(&mut log_handle, &mut connection)?;
     read(&mut log_handle, &mut connection)?;
 
-    info!("{} calls to DB were executed", connection.get_call_count()?);
-
-    Ok(())
+    test_utils::closing_info(connection, start)
 }
 
 fn prepare(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -> HdbResult<()> {

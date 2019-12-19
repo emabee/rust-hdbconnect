@@ -3,7 +3,6 @@ use crate::conn_core::connect_params_builder::ConnectParamsBuilder;
 use crate::{HdbError, HdbResult};
 use secstr::SecStr;
 use std::env;
-use std::fmt;
 use std::fs;
 use std::path::Path;
 use url::Url;
@@ -19,8 +18,9 @@ use url::Url;
 /// ### Example with TLS
 ///
 /// ```rust,ignore
+/// # // norun cannot be used because the snippet requires feature tls
 /// use hdbconnect::{ConnectParams, ServerCerts};
-/// # fn read_certificate() -> String {unimplemented!()};
+/// # fn read_certificate() -> String {String::from("can't do that")};
 /// let certificate: String = read_certificate();
 /// let connect_params = ConnectParams::builder()
 ///    .hostname("the_host")
@@ -76,7 +76,7 @@ use url::Url;
 /// The shortcut [`ConnectParams::from_file`](struct.ConnectParams.html#method.from_file)
 /// reads a URL from a file and converts it into an instance of `ConnectParams`.
 ///
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ConnectParams {
     host: String,
     addr: String,
@@ -173,8 +173,8 @@ impl ConnectParams {
     }
 }
 
-impl fmt::Debug for ConnectParams {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl std::fmt::Display for ConnectParams {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
             "ConnectParams {{ addr: {}, dbuser: {}, clientlocale: {:?} }}",

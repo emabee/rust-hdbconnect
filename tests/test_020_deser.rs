@@ -13,6 +13,7 @@ use serde_derive::Deserialize;
 pub fn deser() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
 
+    let start = std::time::Instant::now();
     let mut connection = test_utils::get_authenticated_connection()?;
 
     deser_option_into_option(&mut log_handle, &mut connection)?;
@@ -25,8 +26,7 @@ pub fn deser() -> HdbResult<()> {
     deser_singlevalue_into_plain(&mut log_handle, &mut connection)?;
     deser_all_to_string(&mut log_handle, &mut connection)?;
 
-    info!("{} calls to DB were executed", connection.get_call_count()?);
-    Ok(())
+    test_utils::closing_info(connection, start)
 }
 
 #[derive(Deserialize, Debug)]

@@ -8,13 +8,13 @@ use serde_bytes::{ByteBuf, Bytes};
 #[test] // cargo test --test test_046_spatial
 fn test_046_spatial() -> HdbResult<()> {
     let mut loghandle = test_utils::init_logger();
+    let start = std::time::Instant::now();
     let mut connection = test_utils::get_authenticated_connection()?;
 
     test_geometries(&mut loghandle, &mut connection)?;
     test_points(&mut loghandle, &mut connection)?;
 
-    info!("{} calls to DB were executed", connection.get_call_count()?);
-    Ok(())
+    test_utils::closing_info(connection, start)
 }
 
 fn test_geometries(
