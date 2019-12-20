@@ -31,6 +31,8 @@
 extern crate log;
 #[macro_use]
 extern crate failure;
+#[macro_use]
+extern crate serde_derive;
 
 pub use r2d2;
 pub use serde_db;
