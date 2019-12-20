@@ -79,7 +79,7 @@ pub fn test_011_invalid_password() -> HdbResult<()> {
         debug!("reset the password");
         doedel_conn.exec(&format!("ALTER USER {} PASSWORD \"DoeDoe5678\"", user))?;
 
-        debug!("select again -> ensure its working");
+        debug!("select again -> ensure it's working");
         let result = doedel_conn.query("select 1 from dummy");
         if let Err(_) = result {
             panic!("Changing password did not reopen the connection");

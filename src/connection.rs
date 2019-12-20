@@ -1,5 +1,5 @@
 use crate::authentication;
-use crate::conn_core::connect_params::ConnectParams;
+use crate::conn_core::connect_params::{ConnectParams, IntoConnectParams};
 use crate::conn_core::AmConnCore;
 use crate::prepared_statement::PreparedStatement;
 use crate::protocol::argument::Argument;
@@ -30,17 +30,14 @@ impl Connection {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use hdbconnect::{Connection, IntoConnectParams};
-    /// let params = "hdbsql://my_user:my_passwd@the_host:2222"
-    ///     .into_connect_params()
-    ///     .unwrap();
-    /// let mut connection = Connection::new(params).unwrap();
+    /// use hdbconnect::Connection;
+    /// let mut connection = Connection::new("hdbsql://my_user:my_passwd@the_host:2222").unwrap();
     /// ```
     #[allow(clippy::new_ret_no_self)]
-    pub fn new(params: ConnectParams) -> HdbResult<Connection> {
+    pub fn new<P: IntoConnectParams>(params: P) -> HdbResult<Connection> {
         trace!("connect()");
         let start = Local::now();
-
+        let params = params.into_connect_params()?;
         let mut am_conn_core = AmConnCore::try_new(params.clone())?;
 
         authentication::authenticate(&mut am_conn_core, params.dbuser(), params.password())?;

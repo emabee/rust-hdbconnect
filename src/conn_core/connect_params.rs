@@ -198,6 +198,12 @@ impl IntoConnectParams for ConnectParams {
     }
 }
 
+impl IntoConnectParams for ConnectParamsBuilder {
+    fn into_connect_params(self) -> HdbResult<ConnectParams> {
+        self.build()
+    }
+}
+
 impl<'a> IntoConnectParams for &'a str {
     fn into_connect_params(self) -> HdbResult<ConnectParams> {
         Url::parse(self)
