@@ -3,7 +3,6 @@ use crate::conn_core::connect_params_builder::ConnectParamsBuilder;
 use crate::{HdbErrorKind, HdbResult};
 use failure::ResultExt;
 use secstr::SecStr;
-use std::env;
 use std::fs;
 use std::path::Path;
 use url::Url;
@@ -232,93 +231,8 @@ impl IntoConnectParams for String {
 
 impl IntoConnectParams for Url {
     fn into_connect_params(self) -> HdbResult<ConnectParams> {
-        let host: String = match self.host_str() {
-            Some("") | None => return Err(HdbErrorKind::Usage("host is missing").into()),
-            Some(host) => host.to_string(),
-        };
-
-        let port: u16 = match self.port() {
-            Some(p) => p,
-            None => return Err(HdbErrorKind::Usage("port is missing").into()),
-        };
-
-        let dbuser: String = match self.username() {
-            "" => return Err(HdbErrorKind::Usage("dbuser is missing").into()),
-            s => s.to_string(),
-        };
-
-        let password = SecStr::from(match self.password() {
-            None => return Err(HdbErrorKind::Usage("password is missing").into()),
-            Some(s) => s.to_string(),
-        });
-
-        #[cfg(feature = "tls")]
-        let use_tls = match self.scheme() {
-            "hdbsql" => false,
-            "hdbsqls" => true,
-            _ => {
-                return Err(HdbErrorKind::Usage(
-                    "Unknown protocol, only 'hdbsql' and 'hdbsqls' are supported",
-                )
-                .into());
-            }
-        };
-        #[cfg(not(feature = "tls"))]
-        {
-            if self.scheme() != "hdbsql" {
-                return Err(HdbErrorKind::Usage(
-                    "Unknown protocol, only 'hdbsql' is supported; \
-                     for 'hdbsqls' the feature 'tls' must be used when compiling hdbconnect",
-                )
-                .into());
-            }
-        }
-
-        #[cfg(feature = "tls")]
-        let mut server_certs = Vec::<ServerCerts>::new();
-        let mut clientlocale = None;
-
-        for (name, value) in self.query_pairs() {
-            match name.as_ref() {
-                "client_locale" => clientlocale = Some(value.to_string()),
-                "client_locale_from_env" => {
-                    clientlocale = env::var("LANG").ok();
-                }
-                #[cfg(feature = "tls")]
-                "tls_certificate_dir" => {
-                    server_certs.push(ServerCerts::Directory(value.to_string()));
-                }
-                #[cfg(feature = "tls")]
-                "tls_certificate_env" => {
-                    server_certs.push(ServerCerts::Environment(value.to_string()));
-                }
-                #[cfg(feature = "tls")]
-                "use_mozillas_root_certificates" => {
-                    server_certs.push(ServerCerts::RootCertificates);
-                }
-                _ => log::warn!("option {} not supported", name),
-            }
-        }
-
-        #[cfg(feature = "tls")]
-        {
-            if use_tls && server_certs.is_empty() {
-                return Err(HdbErrorKind::Usage(
-                    "protocol 'hdbsqls' requires certificates, but none are specified",
-                )
-                .into());
-            }
-        }
-
-        Ok(ConnectParams {
-            addr: format!("{}:{}", host, port),
-            host,
-            dbuser,
-            password,
-            clientlocale,
-            #[cfg(feature = "tls")]
-            server_certs,
-        })
+        let builder = ConnectParamsBuilder::from_url(self)?;
+        Ok(builder.into_connect_params()?)
     }
 }
 

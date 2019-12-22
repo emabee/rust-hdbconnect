@@ -70,7 +70,7 @@ impl Connection {
     /// # let params = "hdbsql://my_user:my_passwd@the_host:2222"
     /// #     .into_connect_params()
     /// #     .unwrap();
-    /// # let mut connection = Connection::new(params).unwrap();
+    /// # let mut connection = Connection::try_new(params).unwrap();
     /// # let statement_string = "";
     /// let mut response = connection.statement(&statement_string)?; // HdbResponse
     /// # Ok(())
@@ -92,7 +92,7 @@ impl Connection {
     /// # let params = "hdbsql://my_user:my_passwd@the_host:2222"
     /// #     .into_connect_params()
     /// #     .unwrap();
-    /// # let mut connection = Connection::new(params).unwrap();
+    /// # let mut connection = Connection::try_new(params).unwrap();
     /// # let statement_string = "";
     /// let mut rs = connection.query(&statement_string)?; // ResultSet
     /// # Ok(())
@@ -114,7 +114,7 @@ impl Connection {
     /// # let params = "hdbsql://my_user:my_passwd@the_host:2222"
     /// #     .into_connect_params()
     /// #     .unwrap();
-    /// # let mut connection = Connection::new(params).unwrap();
+    /// # let mut connection = Connection::try_new(params).unwrap();
     /// # let statement_string = "";
     /// let count = connection.dml(&statement_string)?; //usize
     /// # Ok(())
@@ -140,7 +140,7 @@ impl Connection {
     /// # let params = "hdbsql://my_user:my_passwd@the_host:2222"
     /// #     .into_connect_params()
     /// #     .unwrap();
-    /// # let mut connection = Connection::new(params).unwrap();
+    /// # let mut connection = Connection::try_new(params).unwrap();
     /// # let statement_string = "";
     /// connection.exec(&statement_string)?;
     /// # Ok(())
@@ -162,7 +162,7 @@ impl Connection {
     /// # let params = "hdbsql://my_user:my_passwd@the_host:2222"
     /// #     .into_connect_params()
     /// #     .unwrap();
-    /// # let mut connection = Connection::new(params).unwrap();
+    /// # let mut connection = Connection::try_new(params).unwrap();
     /// let query_string = "select * from phrases where ID = ? and text = ?";
     /// let mut statement = connection.prepare(query_string)?; //PreparedStatement
     /// # Ok(())

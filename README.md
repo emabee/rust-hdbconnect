@@ -31,7 +31,7 @@ pub fn main() -> HdbResult<()> {
     // Get a connection
     let params = "hdbsql://HORST:SECRET@hxehost:39013";
     let mut connection =
-        Connection::new(params.into_connect_params()?)?;
+        Connection::try_new(params.into_connect_params()?)?;
 
     // Cleanup if necessary, and set up a test table
     connection.multiple_statements_ignore_err(vec![

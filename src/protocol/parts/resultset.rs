@@ -40,7 +40,7 @@ pub(crate) type AmRsCore = Arc<Mutex<ResultSetCore>>;
 /// # fn main() -> HdbResult<()> {
 /// # #[derive(Debug, Deserialize)]
 /// # struct Entity();
-/// # let mut connection = Connection::new(ConnectParams::builder().build()?)?;
+/// # let mut connection = Connection::try_new(ConnectParams::builder().build()?)?;
 /// # let query_string = "";
 /// for row in connection.query(query_string)? {
 ///     // handle fetch errors and convert each line individually:

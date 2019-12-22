@@ -23,7 +23,7 @@ use r2d2;
 ///     .password("schlau")
 ///     .build()
 ///     .unwrap();
-/// let manager = ConnectionManager::new(&connect_params);
+/// let manager = ConnectionManager::try_new(&connect_params).unwrap();
 /// let pool = r2d2::Pool::builder().max_size(POOL_SIZE).build(manager).unwrap();
 ///
 /// for _ in 0..NUM_THREADS {

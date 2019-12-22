@@ -133,7 +133,9 @@ impl<'a> LobWriter<'a> {
             .pop_if_kind(PartKind::WriteLobReply)
             .map(Part::into_arg)
         {
-            Some(Argument::WriteLobReply(write_lob_reply)) => Ok(write_lob_reply.into_locator_ids()),
+            Some(Argument::WriteLobReply(write_lob_reply)) => {
+                Ok(write_lob_reply.into_locator_ids())
+            }
             _ => Err(HdbError::imp_detailed(format!(
                 "No WriteLobReply part found; parts = {:?}",
                 reply.parts

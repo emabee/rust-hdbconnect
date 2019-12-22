@@ -98,7 +98,7 @@ impl HdbError {
     /// # use hdbconnect::IntoConnectParams;
     /// # fn main() -> Result<(),failure::Error> {
     ///     # let hdb_result: HdbResult<()> = Err(HdbErrorKind::Usage("test").into());
-    ///     # let mut connection = Connection::new("".into_connect_params()?)?;
+    ///     # let mut connection = Connection::try_new("".into_connect_params()?)?;
     ///     if let Err(hdberror) = hdb_result {
     ///         if let Some(server_error) = hdberror.server_error() {
     ///             let sys_m_error_code: (i32, String, String) = connection

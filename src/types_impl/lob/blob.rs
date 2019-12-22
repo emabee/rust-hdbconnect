@@ -45,7 +45,7 @@ impl BLob {
     /// # fn main() { }
     /// # fn foo() -> HdbResult<()> {
     /// # let params = "".into_connect_params()?;
-    /// # let mut connection = Connection::new(params)?;
+    /// # let mut connection = Connection::try_new(params)?;
     /// # let query = "";
     ///  let mut resultset = connection.query(query)?;
     ///  let mut blob = resultset.into_single_row()?.into_single_value()?.try_into_blob()?;
@@ -67,7 +67,7 @@ impl BLob {
     /// # fn main() { }
     /// # fn foo() -> Result<(),failure::Error> {
     /// # let params = "".into_connect_params()?;
-    /// # let mut connection = Connection::new(params)?;
+    /// # let mut connection = Connection::try_new(params)?;
     /// # let mut writer = Vec::<u8>::new();
     /// # let query = "select chardata from TEST_NCLOBS";
     /// # let mut resultset = connection.query(query)?;

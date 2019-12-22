@@ -49,7 +49,7 @@ impl NCLob {
     /// # fn main() { }
     /// # fn foo() -> HdbResult<()> {
     /// # let params = "".into_connect_params()?;
-    /// # let mut connection = Connection::new(params)?;
+    /// # let mut connection = Connection::try_new(params)?;
     /// # let query = "";
     ///  let mut resultset = connection.query(query)?;
     ///  let mut nclob = resultset.into_single_row()?.into_single_value()?.try_into_nclob()?;
@@ -70,7 +70,7 @@ impl NCLob {
     /// # fn main() { }
     /// # fn foo() -> Result<(),failure::Error> {
     /// # let params = "".into_connect_params()?;
-    /// # let mut connection = Connection::new(params)?;
+    /// # let mut connection = Connection::try_new(params)?;
     ///  let mut writer;
     ///  // ... writer gets instantiated, is an implementation of std::io::Write;
     ///  # writer = Vec::<u8>::new();

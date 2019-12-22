@@ -29,7 +29,7 @@ use std::sync::Arc;
 /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
 /// # fn foo() -> HdbResult<()> {
 /// # let params = "".into_connect_params()?;
-/// # let mut connection = Connection::new(params)?;
+/// # let mut connection = Connection::try_new(params)?;
 /// # let query_string = "";
 ///   let response = connection.statement(query_string)?;  // HdbResponse
 ///
@@ -48,7 +48,7 @@ use std::sync::Arc;
 /// # use hdbconnect::{Connection, HdbResult, HdbReturnValue, IntoConnectParams};
 /// # fn foo() -> HdbResult<()> {
 /// # let params = "".into_connect_params()?;
-/// # let mut connection = Connection::new(params)?;
+/// # let mut connection = Connection::try_new(params)?;
 /// # let query_string = "";
 ///   let mut response = connection.statement("call GET_PROCEDURES_SECRETLY()")?; // HdbResponse
 ///   response.reverse(); // works because HdbResponse deref's into a Vec<HdbReturnValue>.

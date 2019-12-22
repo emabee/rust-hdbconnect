@@ -110,7 +110,7 @@ impl<'a> PreparedStatement {
     /// # let params = "hdbsql://my_user:my_passwd@the_host:2222"
     /// #     .into_connect_params()
     /// #     .unwrap();
-    /// # let mut connection = Connection::new(params).unwrap();
+    /// # let mut connection = Connection::try_new(params).unwrap();
     /// let mut statement = connection.prepare("select * from phrases where ID = ? and text = ?")?;
     /// let hdbresponse = statement.execute(&(42, "Foo is bar"))?;
     /// # Ok(())
@@ -123,7 +123,7 @@ impl<'a> PreparedStatement {
     /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, Row};
     /// # fn main() { }
     /// # fn foo() -> HdbResult<()> {
-    /// # let mut connection = Connection::new("".into_connect_params()?)?;
+    /// # let mut connection = Connection::try_new("".into_connect_params()?)?;
     /// # let mut stmt = connection.prepare("")?;
     /// let hdbresponse = stmt.execute(&())?;
     /// # Ok(())
@@ -136,7 +136,7 @@ impl<'a> PreparedStatement {
     /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, Row};
     /// # fn main() { }
     /// # fn foo() -> HdbResult<()> {
-    /// # let mut connection = Connection::new("".into_connect_params()?)?;
+    /// # let mut connection = Connection::try_new("".into_connect_params()?)?;
     /// # let mut stmt = connection.prepare("")?;
     /// let hdbresponse = stmt.execute_batch()?;
     /// # Ok(())
@@ -177,7 +177,7 @@ impl<'a> PreparedStatement {
     /// use std::io::Cursor;
     /// use std::sync::{Arc,Mutex};
     /// # fn main() -> HdbResult<()> {
-    /// # let mut connection = Connection::new("".into_connect_params()?)?;
+    /// # let mut connection = Connection::try_new("".into_connect_params()?)?;
     /// # connection.set_auto_commit(false)?;
     /// # let insert_stmt_string = "insert into TEST_NCLOBS values(?, ?)".to_owned();
     ///   let mut stmt = connection.prepare(&insert_stmt_string)?;
