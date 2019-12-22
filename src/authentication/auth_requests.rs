@@ -10,11 +10,9 @@ use crate::protocol::parts::client_context::ClientContext;
 use crate::protocol::reply_type::ReplyType;
 use crate::protocol::request::Request;
 use crate::protocol::request_type::RequestType;
-use secstr::SecStr;
 
 pub(crate) fn first_auth_request(
     am_conn_core: &mut AmConnCore,
-    db_user: &str,
     authenticators: &[Box<dyn Authenticator>],
 ) -> HdbResult<(String, Vec<u8>)> {
     let mut request1 = Request::new(RequestType::Authenticate, 0);
@@ -24,7 +22,7 @@ pub(crate) fn first_auth_request(
     ));
 
     let mut auth_fields = AuthFields::with_capacity(4);
-    auth_fields.push(db_user.as_bytes().to_vec());
+    auth_fields.push_string(am_conn_core.lock()?.connect_params().dbuser());
     for authenticator in authenticators {
         debug!("proposing {}", authenticator.name());
         auth_fields.push(authenticator.name_as_bytes());
@@ -62,8 +60,6 @@ pub(crate) fn first_auth_request(
 
 pub(crate) fn second_auth_request(
     am_conn_core: &mut AmConnCore,
-    db_user: &str,
-    password: &SecStr,
     mut chosen_authenticator: Box<dyn Authenticator>,
     server_challenge_data: &[u8],
 ) -> HdbResult<()> {
@@ -72,9 +68,15 @@ pub(crate) fn second_auth_request(
     debug!("authenticating with {}", chosen_authenticator.name());
 
     let mut auth_fields = AuthFields::with_capacity(3);
-    auth_fields.push(db_user.as_bytes().to_vec());
-    auth_fields.push(chosen_authenticator.name_as_bytes());
-    auth_fields.push(chosen_authenticator.client_proof(server_challenge_data, password)?);
+    {
+        let acc = am_conn_core.lock()?;
+        auth_fields.push_string(acc.connect_params().dbuser());
+        auth_fields.push(chosen_authenticator.name_as_bytes());
+        auth_fields.push(
+            chosen_authenticator
+                .client_proof(server_challenge_data, acc.connect_params().password())?,
+        );
+    }
     request2.push(Part::new(
         PartKind::Authentication,
         Argument::Auth(auth_fields),

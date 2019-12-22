@@ -51,11 +51,11 @@ fn connect_options(_log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
 fn connect_wrong_password(_log_handle: &mut ReconfigurationHandle) {
     info!("test connect failure on wrong credentials");
     let start = Local::now();
-    let conn_params: ConnectParams =
-        test_utils::get_wrong_connect_params(None, Some("blabla")).unwrap();
+    let s = test_utils::get_wrong_connect_string(None, Some("blabla")).unwrap();
+    let conn_params: ConnectParams = s.into_connect_params().unwrap();
     assert_eq!(conn_params.password().unsecure(), b"blabla");
 
-    let err = Connection::new(conn_params).err().unwrap();
+    let err = Connection::try_new(conn_params).err().unwrap();
     info!(
         "connect with wrong password failed as expected, after {} µs with {}.",
         Local::now()
@@ -71,12 +71,12 @@ fn connect_and_select_with_explicit_clientlocale(
 ) -> HdbResult<()> {
     info!("connect and do some simple select with explicit clientlocale");
 
-    let mut url = test_utils::get_std_connect_url()?;
+    let mut url = test_utils::get_std_connect_string()?;
     url.push_str("?client_locale=en_US");
-    let conn_params = url.into_connect_params()?;
+    let conn_params: ConnectParams = url.into_connect_params()?;
     assert_eq!(conn_params.clientlocale().unwrap(), "en_US");
 
-    let mut connection = Connection::new(conn_params)?;
+    let mut connection = Connection::try_new(conn_params)?;
     select_version_and_user(&mut connection)?;
     Ok(())
 }
@@ -89,12 +89,12 @@ fn connect_and_select_with_clientlocale_from_env(
         env::set_var("LANG", "en_US.UTF-8");
     }
 
-    let mut url = test_utils::get_std_connect_url()?;
+    let mut url = test_utils::get_std_connect_string()?;
     url.push_str("?client_locale_from_env=1");
     let conn_params: ConnectParams = url.into_connect_params()?;
     assert!(conn_params.clientlocale().is_some());
 
-    let mut connection = Connection::new(conn_params)?;
+    let mut connection = Connection::try_new(conn_params)?;
     select_version_and_user(&mut connection)?;
     Ok(())
 }
@@ -110,10 +110,8 @@ fn select_version_and_user(connection: &mut Connection) -> HdbResult<()> {
     debug!("calling connection.query(SELECT VERSION as ...)");
     let resultset = connection.query(stmt)?;
     let version_and_user: VersionAndUser = resultset.try_into()?;
-    assert_eq!(
-        &version_and_user.current_user,
-        test_utils::get_std_connect_params()?.dbuser()
-    );
+    let conn_params: ConnectParams = test_utils::get_std_connect_string()?.into_connect_params()?;
+    assert_eq!(&version_and_user.current_user, conn_params.dbuser());
 
     debug!("VersionAndUser: {:?}", version_and_user);
     Ok(())

@@ -1,6 +1,6 @@
 //! Connection Pooling with r2d2.
 //!
-use crate::{ConnectParams, Connection, HdbError};
+use crate::{ConnectParams, Connection, HdbError, HdbResult, IntoConnectParams};
 use failure::ResultExt;
 use r2d2;
 
@@ -42,11 +42,11 @@ pub struct ConnectionManager {
 }
 
 impl ConnectionManager {
-    ///
-    pub fn new(connect_params: &ConnectParams) -> ConnectionManager {
-        ConnectionManager {
-            connect_params: connect_params.clone(),
-        }
+    /// Creates a new ConnectionManager.
+    pub fn try_new<P: IntoConnectParams>(p: P) -> HdbResult<ConnectionManager> {
+        Ok(ConnectionManager {
+            connect_params: p.into_connect_params()?,
+        })
     }
 }
 
@@ -57,7 +57,7 @@ impl r2d2::ManageConnection for ConnectionManager {
     // Attempts to create a new connection.
     fn connect(&self) -> Result<Self::Connection, Self::Error> {
         trace!("ConnectionManager::connect()");
-        Connection::new(self.connect_params.clone()).compat()
+        Connection::try_new(&self.connect_params).compat()
     }
 
     // Determines if the connection is still connected to the database.

@@ -20,6 +20,10 @@ impl PlainConnection {
         })
     }
 
+    pub fn connect_params(&self) -> &ConnectParams {
+        &self.params
+    }
+
     pub fn writer(&self) -> &RefCell<std::io::BufWriter<TcpStream>> {
         &self.writer
     }

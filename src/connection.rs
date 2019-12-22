@@ -1,5 +1,4 @@
 use crate::authentication;
-use crate::conn_core::connect_params::{ConnectParams, IntoConnectParams};
 use crate::conn_core::AmConnCore;
 use crate::prepared_statement::PreparedStatement;
 use crate::protocol::argument::Argument;
@@ -12,7 +11,7 @@ use crate::protocol::request::{Request, HOLD_CURSORS_OVER_COMMIT};
 use crate::protocol::request_type::RequestType;
 use crate::protocol::server_usage::ServerUsage;
 use crate::xa_impl::new_resource_manager;
-use crate::{HdbErrorKind, HdbResponse, HdbResult};
+use crate::{HdbErrorKind, HdbResponse, HdbResult, IntoConnectParams};
 use chrono::Local;
 use dist_tx::rm::ResourceManager;
 
@@ -20,7 +19,6 @@ use dist_tx::rm::ResourceManager;
 ///
 #[derive(Clone, Debug)]
 pub struct Connection {
-    params: ConnectParams,
     am_conn_core: AmConnCore,
 }
 
@@ -31,22 +29,18 @@ impl Connection {
     ///
     /// ```rust,no_run
     /// use hdbconnect::Connection;
-    /// let mut connection = Connection::new("hdbsql://my_user:my_passwd@the_host:2222").unwrap();
+    /// let mut conn = Connection::try_new("hdbsql://my_user:my_passwd@the_host:2222").unwrap();
     /// ```
-    #[allow(clippy::new_ret_no_self)]
-    pub fn new<P: IntoConnectParams>(params: P) -> HdbResult<Connection> {
+    pub fn try_new<P: IntoConnectParams>(p: P) -> HdbResult<Connection> {
         trace!("connect()");
         let start = Local::now();
-        let params = params.into_connect_params()?;
-        let mut am_conn_core = AmConnCore::try_new(params.clone())?;
-
-        authentication::authenticate(&mut am_conn_core, params.dbuser(), params.password())?;
-
+        let mut am_conn_core = AmConnCore::try_new(p.into_connect_params()?)?;
+        authentication::authenticate(&mut am_conn_core)?;
         {
             let conn_core = am_conn_core.lock()?;
             debug!(
                 "user \"{}\" successfully logged on ({} µs) to {:?} of {:?} (HANA version: {:?})",
-                params.dbuser(),
+                conn_core.connect_params().dbuser(),
                 Local::now()
                     .signed_duration_since(start)
                     .num_microseconds()
@@ -56,10 +50,7 @@ impl Connection {
                 conn_core.connect_options().get_full_version_string()
             );
         }
-        Ok(Connection {
-            params,
-            am_conn_core,
-        })
+        Ok(Connection { am_conn_core })
     }
 
     /// Executes a statement on the database.
@@ -207,14 +198,12 @@ impl Connection {
     /// Creates a new connection object with the same settings and
     /// authentication.
     pub fn spawn(&self) -> HdbResult<Connection> {
-        let mut other_conn = Connection::new(self.params.clone())?;
-        {
-            let am_conn_core = self.am_conn_core.lock()?;
-            other_conn.set_auto_commit(am_conn_core.is_auto_commit())?;
-            other_conn.set_fetch_size(am_conn_core.get_fetch_size())?;
-            other_conn.set_lob_read_length(am_conn_core.get_lob_read_length())?;
-        }
-        Ok(other_conn)
+        let am_conn_core = self.am_conn_core.lock()?;
+        let mut other = Connection::try_new(am_conn_core.connect_params())?;
+        other.set_auto_commit(am_conn_core.is_auto_commit())?;
+        other.set_fetch_size(am_conn_core.get_fetch_size())?;
+        other.set_lob_read_length(am_conn_core.get_lob_read_length())?;
+        Ok(other)
     }
 
     /// Utility method to fire a couple of statements, ignoring errors and

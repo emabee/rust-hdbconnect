@@ -1,18 +1,17 @@
 use failure::ResultExt;
 use flexi_logger::Logger;
-use hdbconnect::{ConnectParams, Connection, HdbErrorKind, HdbResult, IntoConnectParams};
+use hdbconnect::{Connection, HdbErrorKind, HdbResult};
 use log::{debug, error, info};
 use serde_bytes::ByteBuf;
 use serde_derive::Deserialize;
 
-pub fn connect_params_from_file(s: &'static str) -> HdbResult<ConnectParams> {
-    let url = std::fs::read_to_string(s).context(HdbErrorKind::ConnParams)?;
-    url.into_connect_params()
+pub fn connect_string_from_file(s: &'static str) -> HdbResult<String> {
+    Ok(std::fs::read_to_string(s).context(HdbErrorKind::ConnParams)?)
 }
 
 fn get_authenticated_connection() -> HdbResult<Connection> {
-    let params = connect_params_from_file("db_access.json")?;
-    Connection::new(params)
+    let s = connect_string_from_file("db_access.json")?;
+    Connection::try_new(s)
 }
 
 pub fn main() {

@@ -198,7 +198,19 @@ impl IntoConnectParams for ConnectParams {
     }
 }
 
+impl IntoConnectParams for &ConnectParams {
+    fn into_connect_params(self) -> HdbResult<ConnectParams> {
+        Ok(self.clone())
+    }
+}
+
 impl IntoConnectParams for ConnectParamsBuilder {
+    fn into_connect_params(self) -> HdbResult<ConnectParams> {
+        self.build()
+    }
+}
+
+impl IntoConnectParams for &ConnectParamsBuilder {
     fn into_connect_params(self) -> HdbResult<ConnectParams> {
         self.build()
     }

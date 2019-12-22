@@ -10,18 +10,18 @@ use crate::conn_core::buffalo::tls_connection::TlsConnection;
 use crate::conn_core::connect_params::ConnectParams;
 use chrono::Local;
 
-/// A buffered tcp connection, with or without TLS.
+// A buffered tcp connection, with or without TLS.
 #[derive(Debug)]
 pub enum Buffalo {
-    /// A buffered tcp connection without TLS.
+    // A buffered tcp connection without TLS.
     Plain(PlainConnection),
-    /// A buffered tcp connection with TLS.
+    // A buffered tcp connection with TLS.
     #[cfg(feature = "tls")]
     Secure(TlsConnection),
 }
 impl Buffalo {
-    /// Constructs a buffered tcp connection, with or without TLS,
-    /// depending on the given connect parameters.
+    // Constructs a buffered tcp connection, with or without TLS,
+    // depending on the given connect parameters.
     pub fn try_new(params: ConnectParams) -> std::io::Result<Buffalo> {
         let start = Local::now();
         trace!("Buffalo: Connecting to {:?})", params.addr());
@@ -54,7 +54,7 @@ impl Buffalo {
         Ok(buffalo)
     }
 
-    /// Returns a descriptor of the chosen type
+    // Returns a descriptor of the chosen type
     pub fn s_type(&self) -> &'static str {
         match self {
             Buffalo::Plain(_) => "Plain TCP",

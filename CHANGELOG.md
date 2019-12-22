@@ -2,17 +2,24 @@
 
 ## [0.19.0-unpublished]
 
-Remove wrong debug asserts from lob_writer (adding to the fix for issue 23).
+### API changes
+
+In Connection and ConnectionManager, replace ::new() with the more flexible
+and more idiomatic ::try_new(), which takes P: IntoConnectParams.
 
 Reconstruct HdbError, based on crate `failure`.
-
-Remove wrong debug asserts from lob_writer (adding to the fix for issue 23).
 
 Improve ConnectParamsBuilder
 
 - move root-certificates option as an additional variant into ServerCerts enum
 - don't erase any information from them builder during build()
 - implement Display, and derive Debug, for ConnectParams
+
+### Fixes
+
+Remove redundant ConnectParams in Connection (it is in AmConnCore anyway).
+
+Remove wrong debug asserts from lob_writer (adding to the fix for issue 23).
 
 Minor docu improvements.
 

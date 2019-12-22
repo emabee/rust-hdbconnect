@@ -23,6 +23,10 @@ impl TlsConnection {
         })
     }
 
+    pub fn connect_params(&self) -> &ConnectParams {
+        &self.params
+    }
+
     #[allow(dead_code)]
     pub fn reconnect(&self) -> std::io::Result<()> {
         let tlsstream = TlsStream::try_new(&self.params)?;

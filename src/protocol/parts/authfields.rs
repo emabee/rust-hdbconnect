@@ -42,6 +42,9 @@ impl AuthFields {
     pub fn push(&mut self, vec: Vec<u8>) {
         self.0.push(AuthField::new(vec))
     }
+    pub fn push_string(&mut self, s: &str) {
+        self.0.push(AuthField::new(s.as_bytes().to_vec()))
+    }
 }
 
 #[derive(Debug)]

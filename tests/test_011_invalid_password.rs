@@ -1,6 +1,6 @@
 mod test_utils;
 
-use hdbconnect::{Connection, HdbErrorKind, HdbResult};
+use hdbconnect::{ConnectParams, Connection, HdbErrorKind, HdbResult, IntoConnectParams};
 use log::{debug, info};
 
 // cargo test --test test_011_invalid_password -- --nocapture
@@ -54,13 +54,12 @@ pub fn test_011_invalid_password() -> HdbResult<()> {
         ]);
 
         debug!("logon as {}", user);
-        let conn_params =
-            test_utils::get_wrong_connect_params(Some(&user), Some("Doebcd1234")).unwrap();
-
+        let s = test_utils::get_wrong_connect_string(Some(&user), Some("Doebcd1234")).unwrap();
+        let conn_params: ConnectParams = s.into_connect_params()?;
         assert_eq!(conn_params.dbuser(), &user);
         assert_eq!(conn_params.password().unsecure(), b"Doebcd1234");
 
-        let mut doedel_conn = Connection::new(conn_params)?;
+        let mut doedel_conn = Connection::try_new(conn_params)?;
         debug!("{} is connected", user);
 
         debug!("select from dummy -> ensure getting the right error");
