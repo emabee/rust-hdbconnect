@@ -312,7 +312,7 @@ impl IntoConnectParams for Url {
 
 /// Expresses where Server Certificates are read from.
 #[cfg(feature = "tls")]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ServerCerts {
     /// Server Certificates are read from files in the specified folder.
     Directory(String),

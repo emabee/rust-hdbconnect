@@ -3,6 +3,10 @@ use crate::conn_core::connect_params::ConnectParams;
 use crate::conn_core::connect_params::ServerCerts;
 use crate::{HdbErrorKind, HdbResult};
 use secstr::SecStr;
+#[cfg(feature = "tls")]
+use serde::{Deserialize, Serialize};
+use std::env;
+use url::Url;
 
 /// A builder for `ConnectParams`.
 ///
@@ -21,11 +25,12 @@ use secstr::SecStr;
 ///     .build()
 ///     .unwrap();
 /// ```
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ConnectParamsBuilder {
     hostname: Option<String>,
     port: Option<u16>,
     dbuser: Option<String>,
+    #[serde(skip)]
     password: Option<SecStr>,
     clientlocale: Option<String>,
     #[cfg(feature = "tls")]
@@ -144,7 +149,7 @@ impl ConnectParamsBuilder {
         };
 
         #[cfg(feature = "tls")]
-        let conn_params = ConnectParams::new(
+            let conn_params = ConnectParams::new(
             host,
             addr,
             dbuser,
@@ -154,10 +159,200 @@ impl ConnectParamsBuilder {
         );
 
         #[cfg(not(feature = "tls"))]
-        let conn_params =
+            let conn_params =
             ConnectParams::new(host, addr, dbuser, password, self.clientlocale.clone());
 
         Ok(conn_params)
+    }
+
+    /// Create ConnectParamsBuilder from url
+    pub fn from_url(url: Url) -> HdbResult<ConnectParamsBuilder> {
+        let host: String = match url.host_str() {
+            Some("") | None => return Err(HdbErrorKind::Usage("host is missing").into()),
+            Some(host) => host.to_string(),
+        };
+
+        let port: u16 = match url.port() {
+            Some(p) => p,
+            None => return Err(HdbErrorKind::Usage("port is missing").into()),
+        };
+
+        let dbuser: String = match url.username() {
+            "" => return Err(HdbErrorKind::Usage("dbuser is missing").into()),
+            s => s.to_string(),
+        };
+
+        let password = match url.password() {
+            None => return Err(HdbErrorKind::Usage("password is missing").into()),
+            Some(s) => s.to_string(),
+        };
+
+        #[cfg(feature = "tls")]
+            let use_tls = match url.scheme() {
+            "hdbsql" => false,
+            "hdbsqls" => true,
+            _ => {
+                return Err(HdbErrorKind::Usage(
+                    "Unknown protocol, only 'hdbsql' and 'hdbsqls' are supported",
+                )
+                    .into());
+            }
+        };
+        #[cfg(not(feature = "tls"))]
+            {
+                if url.scheme() != "hdbsql" {
+                    return Err(HdbErrorKind::Usage(
+                        "Unknown protocol, only 'hdbsql' is supported; \
+                     for 'hdbsqls' the feature 'tls' must be used when compiling hdbconnect",
+                    )
+                        .into());
+                }
+            }
+
+        #[cfg(feature = "tls")]
+            let mut server_certs = Vec::<ServerCerts>::new();
+        let mut clientlocale = None;
+
+        for (name, value) in url.query_pairs() {
+            match name.as_ref() {
+                "client_locale" => clientlocale = Some(value.to_string()),
+                "client_locale_from_env" => {
+                    clientlocale = env::var("LANG").ok();
+                }
+                #[cfg(feature = "tls")]
+                "tls_certificate_dir" => {
+                    server_certs.push(ServerCerts::Directory(value.to_string()));
+                }
+                #[cfg(feature = "tls")]
+                "tls_certificate_env" => {
+                    server_certs.push(ServerCerts::Environment(value.to_string()));
+                }
+                #[cfg(feature = "tls")]
+                "use_mozillas_root_certificates" => {
+                    server_certs.push(ServerCerts::RootCertificates);
+                }
+                _ => log::warn!("option {} not supported", name),
+            }
+        }
+
+        #[cfg(feature = "tls")]
+            {
+                if use_tls && server_certs.is_empty() {
+                    return Err(HdbErrorKind::Usage(
+                        "protocol 'hdbsqls' requires certificates, but none are specified",
+                    )
+                        .into());
+                }
+            }
+
+        let mut builder = ConnectParamsBuilder::new();
+        builder.hostname(host);
+        builder.dbuser(dbuser);
+        builder.port(port);
+        builder.password(password);
+
+        if let Some(cl) = clientlocale {
+            builder.clientlocale(cl);
+        }
+
+        #[cfg(feature = "tls")]
+            {
+                for cert in server_certs {
+                    builder.tls_with(cert);
+                }
+            }
+
+        Ok(builder.to_owned())
+    }
+
+    /// Returns the url for this connection
+    pub fn to_url(&self) -> HdbResult<String> {
+        if let Some(dbuser) = &self.dbuser {
+            if let Some(hostname) = &self.hostname {
+                if let Some(port) = &self.port {
+                    return Ok(format!(
+                        "{}://{}@{}:{}{}",
+                        self.get_protocol_name()?.to_string(),
+                        dbuser,
+                        hostname,
+                        port,
+                        self.get_options_as_parameters()?
+                    ));
+                }
+            }
+        }
+
+        Err(HdbErrorKind::Usage("missing data. not possible to build url").into())
+    }
+
+    fn get_protocol_name(&self) -> HdbResult<&str> {
+        #[cfg(feature = "tls")]
+            {
+                if self.server_certs.is_empty() {
+                    Ok("hdbsql")
+                } else {
+                    Ok("hdbsqls")
+                }
+            }
+
+        #[cfg(not(feature = "tls"))]
+            Ok("hdbsql")
+    }
+
+    fn get_options_as_parameters(&self) -> HdbResult<String> {
+        let mut options: String = "".parse().unwrap();
+        for (key, value) in self.options.clone() {
+            let prefix = if options.is_empty() { "?" } else { "&" };
+            options = format!("{}{}={}", prefix, key, value);
+        }
+        Ok(options)
+    }
+
+    /// Getter
+    pub fn get_hostname(&self) -> Option<&String> {
+        self.hostname.as_ref()
+    }
+
+    /// Getter
+    pub fn get_dbuser(&self) -> Option<&String> {
+        self.dbuser.as_ref()
+    }
+
+    /// Getter
+    pub fn get_password(&self) -> Option<&SecStr> {
+        self.password.as_ref()
+    }
+
+    /// Getter
+    pub fn get_port(&self) -> Option<u16> {
+        self.port
+    }
+
+    /// Getter
+    pub fn get_clientlocale(&self) -> Option<&String> {
+        self.clientlocale.as_ref()
+    }
+
+    /// Getter
+    #[cfg(feature = "tls")]
+    pub fn get_server_certs(&self) -> &Vec<ServerCerts> {
+        &self.server_certs
+    }
+
+    /// Getter
+    pub fn get_options(&self) -> &Vec<(String, String)> {
+        &self.options
+    }
+}
+
+impl From<Url> for ConnectParamsBuilder {
+    fn from(u: Url) -> ConnectParamsBuilder {
+        match ConnectParamsBuilder::from_url(u) {
+            Ok(connect_params_builder) => connect_params_builder,
+            Err(error) => {
+                panic!(error);
+            }
+        }
     }
 }
 
@@ -193,9 +388,9 @@ mod test {
                 .password("schLau")
                 .clientlocale("CL1");
             #[cfg(feature = "tls")]
-            builder.tls_with(crate::ServerCerts::Directory("TCD".to_string()));
+                builder.tls_with(crate::ServerCerts::Directory("TCD".to_string()));
             #[cfg(feature = "tls")]
-            builder.tls_with(crate::ServerCerts::RootCertificates);
+                builder.tls_with(crate::ServerCerts::RootCertificates);
 
             let params = builder.build().unwrap();
             assert_eq!("MEIER", params.dbuser());
