@@ -7,7 +7,7 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use num::bigint::BigInt;
 use num::{FromPrimitive, ToPrimitive};
 
-pub fn parse_decimal(
+pub fn parse(
     nullable: bool,
     type_id: TypeId,
     scale: i16,
@@ -60,7 +60,7 @@ fn parse_null(nullable: bool, rdr: &mut dyn std::io::BufRead) -> std::io::Result
     }
 }
 
-pub(crate) fn emit_decimal(
+pub(crate) fn emit(
     bd: &BigDecimal,
     type_id: TypeId,
     scale: i16,

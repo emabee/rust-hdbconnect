@@ -15,7 +15,7 @@ where
 
 // Read n bytes from a `BufRead`, return as Vec<u8>
 pub fn parse_bytes(len: usize, rdr: &mut dyn std::io::BufRead) -> std::io::Result<Vec<u8>> {
-    let mut vec: Vec<u8> = repeat(255u8).take(len).collect();
+    let mut vec: Vec<u8> = repeat(255_u8).take(len).collect();
     {
         let rf: &mut [u8] = &mut vec;
         rdr.read_exact(rf)?;
@@ -187,20 +187,20 @@ fn get_utf8_tail_len(bytes: &[u8]) -> HdbResult<usize> {
 // find first cesu8-start,
 // find tail
 // determine in-between (can be empty)
-pub fn split_off_orphaned_bytes(cesu8: Vec<u8>) -> HdbResult<CharLobSlice> {
+pub fn split_off_orphaned_bytes(cesu8: &[u8]) -> HdbResult<CharLobSlice> {
     let mut split = 0;
     for start in 0..cesu8.len() {
         split = match get_cesu8_char_start(&cesu8[start..]) {
             Cesu8CharType::One
             | Cesu8CharType::Two
             | Cesu8CharType::Three
-            | Cesu8CharType::FirstHalfOfSurrogate => start,
+            | Cesu8CharType::FirstHalfOfSurrogate
+            | Cesu8CharType::Empty
+            | Cesu8CharType::TooShort => start,
             Cesu8CharType::SecondHalfOfSurrogate => start + 3,
             Cesu8CharType::NotAStart => {
                 continue;
             }
-            Cesu8CharType::Empty => start,
-            Cesu8CharType::TooShort => start,
         };
         break;
     }
@@ -228,7 +228,9 @@ pub fn split_off_orphaned_surrogates(cesu8: Vec<u8>) -> HdbResult<CharLobSlice> 
         Cesu8CharType::One
         | Cesu8CharType::Two
         | Cesu8CharType::Three
-        | Cesu8CharType::FirstHalfOfSurrogate => (None, cesu8),
+        | Cesu8CharType::FirstHalfOfSurrogate
+        | Cesu8CharType::Empty
+        | Cesu8CharType::TooShort => (None, cesu8),
         Cesu8CharType::SecondHalfOfSurrogate => (
             Some(vec![cesu8[0], cesu8[1], cesu8[2]]),
             cesu8[3..].to_vec(),
@@ -236,8 +238,6 @@ pub fn split_off_orphaned_surrogates(cesu8: Vec<u8>) -> HdbResult<CharLobSlice> 
         Cesu8CharType::NotAStart => {
             return Err(HdbError::imp("Unexpected value for NCLob"));
         }
-        Cesu8CharType::Empty => (None, cesu8),
-        Cesu8CharType::TooShort => (None, cesu8),
     };
 
     let (data, postfix) = to_string_and_surrogate(cesu8)?;

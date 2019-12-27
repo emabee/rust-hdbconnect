@@ -51,7 +51,7 @@ impl<'a> LobWriter<'a> {
             am_conn_core,
             o_a_rsmd,
             o_a_descriptors,
-            server_usage: Default::default(),
+            server_usage: ServerUsage::default(),
             buffer: Vec::<u8>::with_capacity(lob_write_length + 8200),
             lob_write_length,
             proc_result: None,
@@ -64,7 +64,7 @@ impl<'a> LobWriter<'a> {
 
     // Note that requested_length and offset count either bytes (for BLOB, CLOB),
     // or 1-2-3-chars (for NCLOB)
-    fn write_a_lob_chunk(&mut self, lob_write_mode: LobWriteMode) -> HdbResult<Vec<u64>> {
+    fn write_a_lob_chunk(&mut self, lob_write_mode: &LobWriteMode) -> HdbResult<Vec<u64>> {
         let mut request = Request::new(RequestType::WriteLob, 0);
         let write_lob_request = match lob_write_mode {
             // LobWriteMode::Offset(offset, buf) =>
@@ -180,7 +180,7 @@ impl<'a> LobWriter<'a> {
             .map(Part::into_arg)
         {
             Some(Argument::WriteLobReply(write_lob_reply)) => write_lob_reply.into_locator_ids(),
-            _ => Default::default(),
+            _ => Vec::default(),
         };
 
         reply.parts.remove_first_of_kind(PartKind::WriteLobReply);
@@ -221,7 +221,7 @@ impl<'a> Write for LobWriter<'a> {
                 payload_raw
             };
 
-            self.write_a_lob_chunk(LobWriteMode::Append(&payload))
+            self.write_a_lob_chunk(&LobWriteMode::Append(&payload))
                 .map(|_locator_ids| ())
                 .map_err(|e| util::io_error(e.to_string()))?;
         }
@@ -246,7 +246,7 @@ impl<'a> Write for LobWriter<'a> {
             payload_raw
         };
 
-        self.write_a_lob_chunk(LobWriteMode::Last(&payload))
+        self.write_a_lob_chunk(&LobWriteMode::Last(&payload))
             .map(|_locator_ids| ())
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
         Ok(())

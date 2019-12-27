@@ -11,8 +11,8 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub(crate) type ClientContext = OptionPart<ClientContextId>;
 
 impl ClientContext {
-    pub fn new() -> ClientContext {
-        let mut cc: ClientContext = Default::default();
+    pub fn new() -> Self {
+        let mut cc: Self = Self::default();
 
         cc.set_value(
             ClientContextId::ClientVersion,
@@ -45,21 +45,21 @@ pub enum ClientContextId {
 impl OptionId<ClientContextId> for ClientContextId {
     fn to_u8(&self) -> u8 {
         match *self {
-            ClientContextId::ClientVersion => 1,
-            ClientContextId::ClientType => 2,
-            ClientContextId::ClientApplicationProgramm => 3,
-            ClientContextId::__Unexpected__(val) => val,
+            Self::ClientVersion => 1,
+            Self::ClientType => 2,
+            Self::ClientApplicationProgramm => 3,
+            Self::__Unexpected__(val) => val,
         }
     }
 
-    fn from_u8(val: u8) -> ClientContextId {
+    fn from_u8(val: u8) -> Self {
         match val {
-            1 => ClientContextId::ClientVersion,
-            2 => ClientContextId::ClientType,
-            3 => ClientContextId::ClientApplicationProgramm,
+            1 => Self::ClientVersion,
+            2 => Self::ClientType,
+            3 => Self::ClientApplicationProgramm,
             val => {
                 warn!("Unsupported value for ClientContextId received: {}", val);
-                ClientContextId::__Unexpected__(val)
+                Self::__Unexpected__(val)
             }
         }
     }

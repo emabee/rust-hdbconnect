@@ -7,8 +7,8 @@ use std::path::Path;
 pub(crate) struct ClientInfo(HashMap<ClientInfoKey, String>);
 
 impl Default for ClientInfo {
-    fn default() -> ClientInfo {
-        let mut ci = ClientInfo(HashMap::<ClientInfoKey, String>::new());
+    fn default() -> Self {
+        let mut ci = Self(HashMap::<ClientInfoKey, String>::new());
 
         if let Some(os_str) = env::args_os().next() {
             let p = Path::new(&os_str);
@@ -84,13 +84,13 @@ enum ClientInfoKey {
 impl ClientInfoKey {
     fn get_string(&self) -> &str {
         match &self {
-            ClientInfoKey::Application => "APPLICATION",
-            ClientInfoKey::ApplicationVersion => "APPLICATIONVERSION",
-            ClientInfoKey::ApplicationSource => "APPLICATIONSOURCE",
-            ClientInfoKey::ApplicationUser => "APPLICATIONUSER",
-            ClientInfoKey::Driver => "DRIVER",
-            ClientInfoKey::DriverInfo => "DRIVERINFO",
-            ClientInfoKey::DriverVersion => "DRIVERVERSION",
+            Self::Application => "APPLICATION",
+            Self::ApplicationVersion => "APPLICATIONVERSION",
+            Self::ApplicationSource => "APPLICATIONSOURCE",
+            Self::ApplicationUser => "APPLICATIONUSER",
+            Self::Driver => "DRIVER",
+            Self::DriverInfo => "DRIVERINFO",
+            Self::DriverVersion => "DRIVERVERSION",
         }
     }
 }

@@ -117,9 +117,9 @@ fn test_tiny_int(
     assert!(insert_stmt.execute(&(-1i64)).is_err());
 
     //in range tinyint
-    assert!(insert_stmt.execute(&(255u16)).is_ok());
-    assert!(insert_stmt.execute(&(255u32)).is_ok());
-    assert!(insert_stmt.execute(&(255u64)).is_ok());
+    assert!(insert_stmt.execute(&(255_u16)).is_ok());
+    assert!(insert_stmt.execute(&(255_u32)).is_ok());
+    assert!(insert_stmt.execute(&(255_u64)).is_ok());
     assert!(insert_stmt.execute(&(255i16)).is_ok());
     assert!(insert_stmt.execute(&(255i32)).is_ok());
     assert!(insert_stmt.execute(&(255i64)).is_ok());

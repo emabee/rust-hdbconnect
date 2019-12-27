@@ -16,28 +16,29 @@ impl ExecutionResult {
     pub(crate) fn parse<T: std::io::BufRead>(
         count: usize,
         rdr: &mut T,
-    ) -> std::io::Result<Vec<ExecutionResult>> {
-        let mut vec = Vec::<ExecutionResult>::with_capacity(count);
+    ) -> std::io::Result<Vec<Self>> {
+        let mut vec = Vec::<Self>::with_capacity(count);
         for _ in 0..count {
             match rdr.read_i32::<LittleEndian>()? {
-                -2 => vec.push(ExecutionResult::SuccessNoInfo),
-                -3 => vec.push(ExecutionResult::Failure(None)),
-                i => vec.push(ExecutionResult::RowsAffected(i as usize)),
+                -2 => vec.push(Self::SuccessNoInfo),
+                -3 => vec.push(Self::Failure(None)),
+                #[allow(clippy::cast_sign_loss)]
+                i => vec.push(Self::RowsAffected(i as usize)),
             }
         }
         Ok(vec)
     }
-    /// True if it is an instance of ExecutionResult::Failure.
+    /// True if it is an instance of Self::Failure.
     pub fn is_failure(&self) -> bool {
         match self {
-            ExecutionResult::Failure(_) => true,
+            Self::Failure(_) => true,
             _ => false,
         }
     }
-    /// True if it is an instance of ExecutionResult::RowsAffected.
+    /// True if it is an instance of Self::RowsAffected.
     pub fn is_rows_affected(&self) -> bool {
         match self {
-            ExecutionResult::RowsAffected(_) => true,
+            Self::RowsAffected(_) => true,
             _ => false,
         }
     }
@@ -46,19 +47,17 @@ impl ExecutionResult {
 impl fmt::Display for ExecutionResult {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            ExecutionResult::RowsAffected(count) => {
-                writeln!(fmt, "Number of affected rows: {}, ", count)?
-            }
-            ExecutionResult::SuccessNoInfo => writeln!(
+            Self::RowsAffected(count) => writeln!(fmt, "Number of affected rows: {}, ", count)?,
+            Self::SuccessNoInfo => writeln!(
                 fmt,
                 "Command successfully executed but number of affected rows cannot be determined"
             )?,
-            ExecutionResult::Failure(Some(ref server_error)) => writeln!(
+            Self::Failure(Some(ref server_error)) => writeln!(
                 fmt,
                 "Execution of statement or processing of row has failed with {:?}",
                 server_error
             )?,
-            ExecutionResult::Failure(None) => writeln!(
+            Self::Failure(None) => writeln!(
                 fmt,
                 "Execution of statement or processing of row has failed"
             )?,

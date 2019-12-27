@@ -24,8 +24,8 @@ pub(crate) struct Reply {
     pub parts: Parts<'static>,
 }
 impl Reply {
-    fn new(session_id: i64, replytype: ReplyType) -> Reply {
-        Reply {
+    fn new(session_id: i64, replytype: ReplyType) -> Self {
+        Self {
             session_id,
             replytype,
             parts: Parts::default(),
@@ -48,7 +48,7 @@ impl Reply {
         o_rs: &mut Option<&mut RsState>,
         o_am_conn_core: Option<&AmConnCore>,
         rdr: &mut T,
-    ) -> std::io::Result<Reply> {
+    ) -> std::io::Result<Self> {
         trace!("Reply::parse()");
         let (no_of_parts, mut reply) = parse_message_and_sequence_header(rdr)?;
 
@@ -142,24 +142,25 @@ impl Reply {
                 Argument::ResultSet(Some(rs)) => {
                     int_return_values.push(InternalReturnValue::ResultSet(rs));
                 }
-                Argument::ResultSetMetadata(rsmd) => match self.parts.pop() {
-                    Some(part) => match part.into_arg() {
-                        Argument::ResultSetId(rs_id) => {
-                            let rs = ResultSet::new(
-                                am_conn_core,
-                                PartAttributes::new(0b_0000_0100),
-                                rs_id,
-                                Arc::new(rsmd),
-                                None,
-                            );
-                            int_return_values.push(InternalReturnValue::ResultSet(rs));
+                Argument::ResultSetMetadata(rsmd) => {
+                    if let Some(part) = self.parts.pop() {
+                        match part.into_arg() {
+                            Argument::ResultSetId(rs_id) => {
+                                let rs = ResultSet::new(
+                                    am_conn_core,
+                                    PartAttributes::new(0b_0000_0100),
+                                    rs_id,
+                                    Arc::new(rsmd),
+                                    None,
+                                );
+                                int_return_values.push(InternalReturnValue::ResultSet(rs));
+                            }
+                            _ => panic!("impossible: wrong Argument variant: ResultSetID expected"),
                         }
-                        _ => panic!("impossible: wrong Argument variant: ResultSetID expected"),
-                    },
-                    _ => {
+                    } else {
                         return Err(HdbError::imp("Missing required part ResultSetID"));
                     }
-                },
+                }
                 Argument::ExecutionResult(vra) => {
                     int_return_values.push(InternalReturnValue::AffectedRows(vra));
                 }
@@ -247,11 +248,11 @@ enum Kind {
     Error,
 }
 impl Kind {
-    fn from_i8(val: i8) -> std::io::Result<Kind> {
+    fn from_i8(val: i8) -> std::io::Result<Self> {
         match val {
-            1 => Ok(Kind::Request),
-            2 => Ok(Kind::Reply),
-            5 => Ok(Kind::Error),
+            1 => Ok(Self::Request),
+            2 => Ok(Self::Reply),
+            5 => Ok(Self::Error),
             _ => Err(util::io_error(format!(
                 "reply::Kind {} not implemented",
                 val

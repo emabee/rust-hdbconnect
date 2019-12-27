@@ -5,7 +5,7 @@ use crate::protocol::parts::type_id::TypeId;
 use crate::protocol::util;
 use crate::types::{BLob, CLob, DayDate, LongDate, NCLob, SecondDate, SecondTime};
 use crate::types_impl::daydate::parse_daydate;
-use crate::types_impl::decimal::{emit_decimal, parse_decimal};
+use crate::types_impl::decimal;
 use crate::types_impl::lob::{emit_lob_header, parse_blob, parse_clob, parse_nclob};
 use crate::types_impl::longdate::parse_longdate;
 use crate::types_impl::seconddate::parse_seconddate;
@@ -18,7 +18,7 @@ use failure::ResultExt;
 use serde;
 
 const MAX_1_BYTE_LENGTH: u8 = 245;
-const MAX_2_BYTE_LENGTH: i16 = std::i16::MAX;
+const MAX_2_BYTE_LENGTH: i16 = i16::max_value();
 const LENGTH_INDICATOR_2BYTE: u8 = 246;
 const LENGTH_INDICATOR_4BYTE: u8 = 247;
 const LENGTH_INDICATOR_NULL: u8 = 255;
@@ -126,19 +126,19 @@ impl<'a> HdbValue<'a> {
             },
             HdbValue::REAL(_) => TypeId::REAL,
             HdbValue::DOUBLE(_) => TypeId::DOUBLE,
-            HdbValue::BINARY(_) => TypeId::BINARY,
 
-            HdbValue::CLOB(_) | HdbValue::NCLOB(_) | HdbValue::BLOB(_) | HdbValue::LOBSTREAM(_) => {
-                requested_type_id
-            }
+            HdbValue::CLOB(_) | HdbValue::NCLOB(_) | HdbValue::BLOB(_) | HdbValue::LOBSTREAM(_) =>
+                requested_type_id,
+
             HdbValue::BOOLEAN(_) => TypeId::BOOLEAN,
             HdbValue::STR(_) | HdbValue::STRING(_) => TypeId::STRING,
             HdbValue::LONGDATE(_) => TypeId::LONGDATE,
             HdbValue::SECONDDATE(_) => TypeId::SECONDDATE,
             HdbValue::DAYDATE(_) => TypeId::DAYDATE,
             HdbValue::SECONDTIME(_) => TypeId::SECONDTIME,
-            HdbValue::GEOMETRY(_) => TypeId::BINARY, // TypeId::GEOMETRY,
-            HdbValue::POINT(_) => TypeId::BINARY,    // TypeId::POINT,
+            HdbValue::GEOMETRY(_) | // TypeId::GEOMETRY,
+            HdbValue::POINT(_) |    // TypeId::POINT,
+            HdbValue::BINARY(_) => TypeId::BINARY,
         })
     }
 
@@ -152,7 +152,7 @@ impl<'a> HdbValue<'a> {
 
     pub(crate) fn emit<T: std::io::Write>(
         &self,
-        _data_pos: &mut i32,
+        data_pos: &mut i32,
         descriptor: &ParameterDescriptor,
         w: &mut T,
     ) -> std::io::Result<()> {
@@ -164,7 +164,7 @@ impl<'a> HdbValue<'a> {
                 HdbValue::INT(i) => w.write_i32::<LittleEndian>(i)?,
                 HdbValue::BIGINT(i) => w.write_i64::<LittleEndian>(i)?,
                 HdbValue::DECIMAL(ref bigdec) => {
-                    emit_decimal(bigdec, descriptor.type_id(), descriptor.scale(), w)?
+                    decimal::emit(bigdec, descriptor.type_id(), descriptor.scale(), w)?
                 }
                 HdbValue::REAL(f) => w.write_f32::<LittleEndian>(f)?,
                 HdbValue::DOUBLE(f) => w.write_f64::<LittleEndian>(f)?,
@@ -174,7 +174,7 @@ impl<'a> HdbValue<'a> {
                 HdbValue::DAYDATE(ref dd) => w.write_i32::<LittleEndian>(*dd.ref_raw())?,
                 HdbValue::SECONDTIME(ref st) => w.write_u32::<LittleEndian>(*st.ref_raw())?,
 
-                HdbValue::LOBSTREAM(None) => emit_lob_header(0, _data_pos, w)?,
+                HdbValue::LOBSTREAM(None) => emit_lob_header(0, data_pos, w)?,
                 HdbValue::STR(s) => emit_length_and_string(s, w)?,
                 HdbValue::STRING(ref s) => emit_length_and_string(s, w)?,
                 HdbValue::BINARY(ref v) | HdbValue::GEOMETRY(ref v) | HdbValue::POINT(ref v) => {
@@ -210,10 +210,9 @@ impl<'a> HdbValue<'a> {
             HdbValue::BOOLEAN(_) | HdbValue::TINYINT(_) => 1,
             HdbValue::SMALLINT(_) => 2,
             HdbValue::DECIMAL(_) => match type_id {
-                TypeId::DECIMAL => 16,
                 TypeId::FIXED8 => 8,
                 TypeId::FIXED12 => 12,
-                TypeId::FIXED16 => 16,
+                TypeId::FIXED16 | TypeId::DECIMAL => 16,
                 tid => {
                     return Err(util::io_error(format!(
                         "invalid TypeId {:?} for DECIMAL",
@@ -315,7 +314,7 @@ impl HdbValue<'static> {
             TypeId::BOOLEAN => Ok(parse_bool(nullable, rdr)?),
 
             TypeId::DECIMAL | TypeId::FIXED8 | TypeId::FIXED12 | TypeId::FIXED16 => {
-                Ok(parse_decimal(nullable, t, scale, rdr)?)
+                Ok(decimal::parse(nullable, t, scale, rdr)?)
             }
 
             TypeId::CHAR
@@ -419,11 +418,11 @@ fn parse_real(
     nullable: bool,
     rdr: &mut dyn std::io::BufRead,
 ) -> std::io::Result<HdbValue<'static>> {
-    let mut vec: Vec<u8> = std::iter::repeat(0u8).take(4).collect();
+    let mut vec: Vec<u8> = std::iter::repeat(0_u8).take(4).collect();
     rdr.read_exact(&mut vec[..])?;
     let mut cursor = std::io::Cursor::new(&vec);
     let tmp = cursor.read_u32::<LittleEndian>()?;
-    let is_null = tmp == std::u32::MAX;
+    let is_null = tmp == u32::max_value();
 
     if is_null {
         if nullable {
@@ -441,11 +440,11 @@ fn parse_double(
     nullable: bool,
     rdr: &mut dyn std::io::BufRead,
 ) -> std::io::Result<HdbValue<'static>> {
-    let mut vec: Vec<u8> = std::iter::repeat(0u8).take(8).collect();
+    let mut vec: Vec<u8> = std::iter::repeat(0_u8).take(8).collect();
     rdr.read_exact(&mut vec[..])?;
     let mut cursor = std::io::Cursor::new(&vec);
     let tmp = cursor.read_u64::<LittleEndian>()?;
-    let is_null = tmp == std::u64::MAX;
+    let is_null = tmp == u64::max_value();
 
     if is_null {
         if nullable {
@@ -572,6 +571,7 @@ fn parse_binary(
     }
 }
 
+#[allow(clippy::cast_sign_loss)]
 fn parse_length_and_bytes(l8: u8, rdr: &mut dyn std::io::BufRead) -> std::io::Result<Vec<u8>> {
     let len = match l8 {
         l if l <= MAX_1_BYTE_LENGTH => l8 as usize,
@@ -603,6 +603,8 @@ pub(crate) fn emit_length_and_string(s: &str, w: &mut dyn std::io::Write) -> std
     emit_length_and_bytes(&cesu8::to_cesu8(s), w)
 }
 
+#[allow(clippy::cast_possible_truncation)]
+#[allow(clippy::cast_possible_wrap)]
 fn emit_length_and_bytes(v: &[u8], w: &mut dyn std::io::Write) -> std::io::Result<()> {
     match v.len() {
         l if l <= MAX_1_BYTE_LENGTH as usize => {

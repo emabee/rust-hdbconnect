@@ -6,8 +6,8 @@ use crate::protocol::parts::option_value::OptionValue;
 pub(crate) type CommandInfo = OptionPart<CommandInfoId>;
 
 impl CommandInfo {
-    pub fn new(linenumber: i32, module: &str) -> CommandInfo {
-        let mut ci: CommandInfo = Default::default();
+    pub fn new(linenumber: i32, module: &str) -> Self {
+        let mut ci = Self::default();
         ci.set_value(CommandInfoId::LineNumber, OptionValue::INT(linenumber));
         ci.set_value(
             CommandInfoId::SourceModule,
@@ -27,19 +27,19 @@ pub enum CommandInfoId {
 impl OptionId<CommandInfoId> for CommandInfoId {
     fn to_u8(&self) -> u8 {
         match *self {
-            CommandInfoId::LineNumber => 1,
-            CommandInfoId::SourceModule => 2,
-            CommandInfoId::__Unexpected__(val) => val,
+            Self::LineNumber => 1,
+            Self::SourceModule => 2,
+            Self::__Unexpected__(val) => val,
         }
     }
 
-    fn from_u8(val: u8) -> CommandInfoId {
+    fn from_u8(val: u8) -> Self {
         match val {
-            1 => CommandInfoId::LineNumber,
-            2 => CommandInfoId::SourceModule,
+            1 => Self::LineNumber,
+            2 => Self::SourceModule,
             val => {
-                warn!("Unsupported value for CommandInfoId received: {}", val);
-                CommandInfoId::__Unexpected__(val)
+                warn!("Unsupported value for Self received: {}", val);
+                Self::__Unexpected__(val)
             }
         }
     }

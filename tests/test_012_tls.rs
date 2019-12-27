@@ -17,7 +17,7 @@ fn test_012_tls() -> HdbResult<()> {
     debug!("url = {}", url);
 
     if cfg!(feature = "tls") {
-        match Connection::try_new(url) {
+        match Connection::new(url) {
             Ok(mut connection) => {
                 select_version_and_user(&mut connection)?;
             }

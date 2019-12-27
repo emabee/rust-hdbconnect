@@ -3,14 +3,13 @@ use crate::protocol::util;
 use crate::{HdbErrorKind, HdbResult, HdbValue};
 use byteorder::{LittleEndian, ReadBytesExt};
 use failure::ResultExt;
-use std::u32;
 
 /// Describes a set of IN, INOUT, and OUT parameters. Can be empty.
 #[derive(Debug)]
 pub struct ParameterDescriptors(Vec<ParameterDescriptor>);
 impl ParameterDescriptors {
-    pub(crate) fn new() -> ParameterDescriptors {
-        ParameterDescriptors(Vec::new())
+    pub(crate) fn new() -> Self {
+        Self(Vec::new())
     }
     /// Produces an iterator that returns the IN and INOUT parameters.
     pub fn iter_in(&self) -> impl std::iter::Iterator<Item = &ParameterDescriptor> {
@@ -40,10 +39,7 @@ impl ParameterDescriptors {
         self.0.is_empty()
     }
 
-    pub(crate) fn parse<T: std::io::BufRead>(
-        count: usize,
-        rdr: &mut T,
-    ) -> std::io::Result<ParameterDescriptors> {
+    pub(crate) fn parse<T: std::io::BufRead>(count: usize, rdr: &mut T) -> std::io::Result<Self> {
         let mut vec_pd = Vec::<ParameterDescriptor>::new();
         let mut name_offsets = Vec::<u32>::new();
         for _ in 0..count {
@@ -62,13 +58,13 @@ impl ParameterDescriptors {
         }
         // read the parameter names
         for (descriptor, name_offset) in vec_pd.iter_mut().zip(name_offsets.iter()) {
-            if name_offset != &u32::MAX {
+            if name_offset != &u32::max_value() {
                 let length = rdr.read_u8()?;
                 let name = util::string_from_cesu8(util::parse_bytes(length as usize, rdr)?)?;
                 descriptor.set_name(name);
             }
         }
-        Ok(ParameterDescriptors(vec_pd))
+        Ok(Self(vec_pd))
     }
 }
 
@@ -88,6 +84,7 @@ pub struct ParameterDescriptor {
 impl ParameterDescriptor {
     /// Describes whether a parameter can be NULL or not, or if it has a
     /// default value.
+    #[allow(clippy::if_not_else)]
     pub fn binding(&self) -> ParameterBinding {
         if self.parameter_option & 0b_0000_0001_u8 != 0 {
             ParameterBinding::Mandatory
@@ -159,11 +156,11 @@ impl ParameterDescriptor {
         direction: ParameterDirection,
         precision: i16,
         scale: i16,
-    ) -> std::io::Result<ParameterDescriptor> {
+    ) -> std::io::Result<Self> {
         let nullable = (parameter_option & 0b_0000_0010_u8) != 0;
         let type_id = TypeId::try_new(type_code)?;
 
-        Ok(ParameterDescriptor {
+        Ok(Self {
             parameter_option,
             type_id,
             nullable,

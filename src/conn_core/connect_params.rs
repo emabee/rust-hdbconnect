@@ -1,11 +1,10 @@
 //! Connection parameters
 use crate::conn_core::connect_params_builder::ConnectParamsBuilder;
-use crate::{HdbErrorKind, HdbResult};
+use crate::{HdbErrorKind, HdbResult, IntoConnectParams};
 use failure::ResultExt;
 use secstr::SecStr;
 use std::fs;
 use std::path::Path;
-use url::Url;
 
 /// An immutable struct with all information necessary to open a new connection
 /// to a HANA database.
@@ -94,8 +93,8 @@ impl ConnectParams {
         dbuser: String,
         password: SecStr,
         clientlocale: Option<String>,
-    ) -> ConnectParams {
-        ConnectParams {
+    ) -> Self {
+        Self {
             host,
             addr,
             dbuser,
@@ -111,8 +110,8 @@ impl ConnectParams {
         password: SecStr,
         clientlocale: Option<String>,
         server_certs: Vec<ServerCerts>,
-    ) -> ConnectParams {
-        ConnectParams {
+    ) -> Self {
+        Self {
             host,
             addr,
             dbuser,
@@ -128,7 +127,7 @@ impl ConnectParams {
     }
 
     /// Reads a url from the given file and converts it into `ConnectParams`.
-    pub fn from_file<P: AsRef<Path>>(path: P) -> HdbResult<ConnectParams> {
+    pub fn from_file<P: AsRef<Path>>(path: P) -> HdbResult<Self> {
         fs::read_to_string(path)
             .context(HdbErrorKind::ConnParams)?
             .into_connect_params()
@@ -185,57 +184,6 @@ impl std::fmt::Display for ConnectParams {
     }
 }
 
-/// A trait implemented by types that can be converted into a `ConnectParams`.
-pub trait IntoConnectParams {
-    /// Converts the value of `self` into a `ConnectParams`.
-    fn into_connect_params(self) -> HdbResult<ConnectParams>;
-}
-
-impl IntoConnectParams for ConnectParams {
-    fn into_connect_params(self) -> HdbResult<ConnectParams> {
-        Ok(self)
-    }
-}
-
-impl IntoConnectParams for &ConnectParams {
-    fn into_connect_params(self) -> HdbResult<ConnectParams> {
-        Ok(self.clone())
-    }
-}
-
-impl IntoConnectParams for ConnectParamsBuilder {
-    fn into_connect_params(self) -> HdbResult<ConnectParams> {
-        self.build()
-    }
-}
-
-impl IntoConnectParams for &ConnectParamsBuilder {
-    fn into_connect_params(self) -> HdbResult<ConnectParams> {
-        self.build()
-    }
-}
-
-impl<'a> IntoConnectParams for &'a str {
-    fn into_connect_params(self) -> HdbResult<ConnectParams> {
-        Url::parse(self)
-            .context(HdbErrorKind::ConnParams)?
-            .into_connect_params()
-    }
-}
-
-impl IntoConnectParams for String {
-    fn into_connect_params(self) -> HdbResult<ConnectParams> {
-        self.as_str().into_connect_params()
-    }
-}
-
-impl IntoConnectParams for Url {
-    fn into_connect_params(self) -> HdbResult<ConnectParams> {
-        let builder = ConnectParamsBuilder::from_url(self)?;
-        Ok(builder.into_connect_params()?)
-    }
-}
-
 /// Expresses where Server Certificates are read from.
 #[cfg(feature = "tls")]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -284,8 +232,13 @@ mod tests {
             assert_eq!(Some("CL1".to_string()), params.clientlocale);
             #[cfg(feature = "tls")]
             assert_eq!(
-                ServerCerts::RootCertificates,
+                ServerCerts::Directory("TCD".to_string()),
                 *params.server_certs().get(0).unwrap()
+            );
+            #[cfg(feature = "tls")]
+            assert_eq!(
+                ServerCerts::RootCertificates,
+                *params.server_certs().get(1).unwrap()
             );
         }
     }

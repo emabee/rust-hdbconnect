@@ -4,7 +4,6 @@ use crate::{HdbErrorKind, HdbResult};
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::fmt;
-use std::u32;
 use vec_map::VecMap;
 
 const INVALID_FIELD_INDEX: &str = "invalid field index";
@@ -27,7 +26,7 @@ impl ResultSetMetadata {
     }
 
     fn add_to_names(&mut self, offset: u32) {
-        if offset != u32::MAX {
+        if offset != u32::max_value() {
             let tn = offset as usize;
             if !self.names.contains_key(tn) {
                 self.names.insert(tn, "".to_string());
@@ -117,11 +116,8 @@ impl ResultSetMetadata {
         Ok(self.get(i)?.precision())
     }
 
-    pub(crate) fn parse<T: std::io::BufRead>(
-        count: usize,
-        rdr: &mut T,
-    ) -> std::io::Result<ResultSetMetadata> {
-        let mut rsm = ResultSetMetadata {
+    pub(crate) fn parse<T: std::io::BufRead>(count: usize, rdr: &mut T) -> std::io::Result<Self> {
+        let mut rsm = Self {
             fields: Vec::<FieldMetadata>::new(),
             names: VecMap::<String>::new(),
         };

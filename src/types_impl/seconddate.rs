@@ -36,21 +36,24 @@ impl fmt::Display for SecondDate {
 }
 
 impl cmp::PartialEq<SecondDate> for SecondDate {
-    fn eq(&self, other: &SecondDate) -> bool {
+    fn eq(&self, other: &Self) -> bool {
         self.0 == other.0
     }
 }
 
 impl SecondDate {
-    pub(crate) fn new(raw: i64) -> SecondDate {
-        SecondDate(raw)
+    pub(crate) fn new(raw: i64) -> Self {
+        Self(raw)
     }
 
     pub(crate) fn ref_raw(&self) -> &i64 {
         &self.0
     }
 
-    /// Convert into tuple of "elements".
+    // Convert into tuple of "elements".
+    #[allow(clippy::cast_possible_truncation)]
+    #[allow(clippy::cast_precision_loss)]
+    #[allow(clippy::cast_sign_loss)]
     pub(crate) fn as_ymd_hms(&self) -> (i32, u32, u32, u32, u32, u32) {
         let value = match self.0 {
             0 => 0, // maps the special value '' == 0 to '0001-01-01 00:00:00.000000000' = 1

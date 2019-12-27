@@ -33,11 +33,11 @@ pub fn closing_info(connection: Connection, start: std::time::Instant) -> HdbRes
 }
 
 pub fn get_authenticated_connection() -> HdbResult<Connection> {
-    Connection::try_new(get_std_connect_string()?)
+    Connection::new(get_std_connect_string()?)
 }
 
 pub fn get_system_connection() -> HdbResult<Connection> {
-    Connection::try_new(get_system_connect_string()?)
+    Connection::new(get_system_connect_string()?)
 }
 
 pub fn get_wrong_connect_string(user: Option<&str>, pw: Option<&str>) -> HdbResult<String> {

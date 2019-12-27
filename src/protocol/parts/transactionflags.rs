@@ -26,31 +26,31 @@ pub enum TaFlagId {
 impl OptionId<TaFlagId> for TaFlagId {
     fn to_u8(&self) -> u8 {
         match *self {
-            TaFlagId::RolledBack => 0,
-            TaFlagId::Committed => 1,
-            TaFlagId::NewIsolationlevel => 2,
-            TaFlagId::DdlCommitmodeChanged => 3,
-            TaFlagId::WriteTaStarted => 4,
-            TaFlagId::NoWriteTaStarted => 5,
-            TaFlagId::SessionclosingTaError => 6,
-            TaFlagId::ReadOnlyMode => 7,
-            TaFlagId::__Unexpected__(val) => val,
+            Self::RolledBack => 0,
+            Self::Committed => 1,
+            Self::NewIsolationlevel => 2,
+            Self::DdlCommitmodeChanged => 3,
+            Self::WriteTaStarted => 4,
+            Self::NoWriteTaStarted => 5,
+            Self::SessionclosingTaError => 6,
+            Self::ReadOnlyMode => 7,
+            Self::__Unexpected__(val) => val,
         }
     }
 
-    fn from_u8(val: u8) -> TaFlagId {
+    fn from_u8(val: u8) -> Self {
         match val {
-            0 => TaFlagId::RolledBack,
-            1 => TaFlagId::Committed,
-            2 => TaFlagId::NewIsolationlevel,
-            3 => TaFlagId::DdlCommitmodeChanged,
-            4 => TaFlagId::WriteTaStarted,
-            5 => TaFlagId::NoWriteTaStarted,
-            6 => TaFlagId::SessionclosingTaError,
-            7 => TaFlagId::ReadOnlyMode,
+            0 => Self::RolledBack,
+            1 => Self::Committed,
+            2 => Self::NewIsolationlevel,
+            3 => Self::DdlCommitmodeChanged,
+            4 => Self::WriteTaStarted,
+            5 => Self::NoWriteTaStarted,
+            6 => Self::SessionclosingTaError,
+            7 => Self::ReadOnlyMode,
             val => {
                 warn!("Invalid value for TaFlagId received: {}", val);
-                TaFlagId::__Unexpected__(val)
+                Self::__Unexpected__(val)
             }
         }
     }

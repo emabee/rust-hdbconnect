@@ -38,51 +38,51 @@ pub struct ConnectParamsBuilder {
 
 impl ConnectParamsBuilder {
     /// Creates a new builder.
-    pub fn new() -> ConnectParamsBuilder {
-        ConnectParamsBuilder {
+    pub fn new() -> Self {
+        Self {
             hostname: None,
             port: None,
             dbuser: None,
             password: None,
             clientlocale: None,
             #[cfg(feature = "tls")]
-            server_certs: Default::default(),
+            server_certs: Vec::<ServerCerts>::default(),
             options: vec![],
         }
     }
 
     /// Sets the hostname.
-    pub fn hostname<H: AsRef<str>>(&mut self, hostname: H) -> &mut ConnectParamsBuilder {
+    pub fn hostname<H: AsRef<str>>(&mut self, hostname: H) -> &mut Self {
         self.hostname = Some(hostname.as_ref().to_owned());
         self
     }
 
     /// Sets the port.
-    pub fn port(&mut self, port: u16) -> &mut ConnectParamsBuilder {
+    pub fn port(&mut self, port: u16) -> &mut Self {
         self.port = Some(port);
         self
     }
 
     /// Sets the database user.
-    pub fn dbuser<D: AsRef<str>>(&mut self, dbuser: D) -> &mut ConnectParamsBuilder {
+    pub fn dbuser<D: AsRef<str>>(&mut self, dbuser: D) -> &mut Self {
         self.dbuser = Some(dbuser.as_ref().to_owned());
         self
     }
 
     /// Sets the password.
-    pub fn password<P: AsRef<str>>(&mut self, pw: P) -> &mut ConnectParamsBuilder {
+    pub fn password<P: AsRef<str>>(&mut self, pw: P) -> &mut Self {
         self.password = Some(SecStr::new(pw.as_ref().as_bytes().to_vec()));
         self
     }
 
     /// Sets the client locale.
-    pub fn clientlocale<P: AsRef<str>>(&mut self, cl: P) -> &mut ConnectParamsBuilder {
+    pub fn clientlocale<P: AsRef<str>>(&mut self, cl: P) -> &mut Self {
         self.clientlocale = Some(cl.as_ref().to_owned());
         self
     }
 
     /// Sets the client locale from the value of the environment variable LANG
-    pub fn clientlocale_from_env_lang(&mut self) -> &mut ConnectParamsBuilder {
+    pub fn clientlocale_from_env_lang(&mut self) -> &mut Self {
         self.clientlocale = match std::env::var("LANG") {
             Ok(l) => Some(l),
             Err(_) => None,
@@ -111,13 +111,13 @@ impl ConnectParamsBuilder {
     ///
     /// This method is only available with feature `tls`.
     #[cfg(feature = "tls")]
-    pub fn tls_with(&mut self, server_certs: ServerCerts) -> &mut ConnectParamsBuilder {
+    pub fn tls_with(&mut self, server_certs: ServerCerts) -> &mut Self {
         self.server_certs.push(server_certs);
         self
     }
 
     /// Adds a runtime parameter.
-    pub fn option(&mut self, name: &str, value: &str) -> &mut ConnectParamsBuilder {
+    pub fn option(&mut self, name: &str, value: &str) -> &mut Self {
         self.options.push((name.to_string(), value.to_string()));
         self
     }
@@ -164,7 +164,7 @@ impl ConnectParamsBuilder {
     }
 
     /// Create ConnectParamsBuilder from url
-    pub fn from_url(url: Url) -> HdbResult<ConnectParamsBuilder> {
+    pub fn from_url(url: &Url) -> HdbResult<Self> {
         let host: String = match url.host_str() {
             Some("") | None => return Err(HdbErrorKind::Usage("host is missing").into()),
             Some(host) => host.to_string(),
@@ -243,7 +243,7 @@ impl ConnectParamsBuilder {
             }
         }
 
-        let mut builder = ConnectParamsBuilder::new();
+        let mut builder = Self::new();
         builder.hostname(host);
         builder.dbuser(dbuser);
         builder.port(port);
@@ -344,8 +344,8 @@ impl ConnectParamsBuilder {
 }
 
 impl From<Url> for ConnectParamsBuilder {
-    fn from(u: Url) -> ConnectParamsBuilder {
-        match ConnectParamsBuilder::from_url(u) {
+    fn from(u: Url) -> Self {
+        match Self::from_url(&u) {
             Ok(connect_params_builder) => connect_params_builder,
             Err(error) => {
                 panic!(error);
@@ -396,8 +396,13 @@ mod test {
             assert_eq!(Some(&"CL1".to_string()), params.clientlocale());
             #[cfg(feature = "tls")]
             assert_eq!(
-                ServerCerts::RootCertificates,
+                ServerCerts::Directory("TCD".to_string()),
                 *params.server_certs().get(0).unwrap()
+            );
+            #[cfg(feature = "tls")]
+            assert_eq!(
+                ServerCerts::RootCertificates,
+                *params.server_certs().get(1).unwrap()
             );
         }
     }

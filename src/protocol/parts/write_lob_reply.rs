@@ -12,14 +12,14 @@ impl WriteLobReply {
 }
 
 impl WriteLobReply {
-    pub fn parse<T: BufRead>(count: usize, rdr: &mut T) -> std::io::Result<WriteLobReply> {
+    pub fn parse<T: BufRead>(count: usize, rdr: &mut T) -> std::io::Result<Self> {
         debug!("called with count = {}", count);
-        let mut locator_ids: Vec<u64> = Default::default();
+        let mut locator_ids = Vec::<u64>::default();
         for _ in 0..count {
             let locator_id = rdr.read_u64::<LittleEndian>()?; // I8
             locator_ids.push(locator_id);
         }
 
-        Ok(WriteLobReply { locator_ids })
+        Ok(Self { locator_ids })
     }
 }

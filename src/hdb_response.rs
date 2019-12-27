@@ -29,7 +29,7 @@ use std::sync::Arc;
 /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
 /// # fn foo() -> HdbResult<()> {
 /// # let params = "".into_connect_params()?;
-/// # let mut connection = Connection::try_new(params)?;
+/// # let mut connection = Connection::new(params)?;
 /// # let query_string = "";
 ///   let response = connection.statement(query_string)?;  // HdbResponse
 ///
@@ -48,7 +48,7 @@ use std::sync::Arc;
 /// # use hdbconnect::{Connection, HdbResult, HdbReturnValue, IntoConnectParams};
 /// # fn foo() -> HdbResult<()> {
 /// # let params = "".into_connect_params()?;
-/// # let mut connection = Connection::try_new(params)?;
+/// # let mut connection = Connection::new(params)?;
 /// # let query_string = "";
 ///   let mut response = connection.statement("call GET_PROCEDURES_SECRETLY()")?; // HdbResponse
 ///   response.reverse(); // works because HdbResponse deref's into a Vec<HdbReturnValue>.
@@ -82,7 +82,7 @@ impl HdbResponse {
     pub(crate) fn try_new(
         int_return_values: Vec<InternalReturnValue>,
         replytype: ReplyType,
-    ) -> HdbResult<HdbResponse> {
+    ) -> HdbResult<Self> {
         trace!(
             "Reply::into_hdbresponse(): building HdbResponse for a reply of type {:?}",
             replytype
@@ -93,21 +93,21 @@ impl HdbResponse {
         );
         match replytype {
                 ReplyType::Select |
-                ReplyType::SelectForUpdate => HdbResponse::resultset(int_return_values),
+                ReplyType::SelectForUpdate => Self::resultset(int_return_values),
 
                 ReplyType::Ddl |
                 ReplyType::Commit |
-                ReplyType::Rollback => HdbResponse::success(int_return_values),
+                ReplyType::Rollback => Self::success(int_return_values),
 
                 ReplyType::Nil |
                 ReplyType::Explain |
                 ReplyType::Insert |
                 ReplyType::Update |
-                ReplyType::Delete => HdbResponse::rows_affected(int_return_values),
+                ReplyType::Delete => Self::rows_affected(int_return_values),
 
                 ReplyType::DbProcedureCall |
                 ReplyType::DbProcedureCallWithResult =>
-                    HdbResponse::multiple_return_values(int_return_values),
+                    Self::multiple_return_values(int_return_values),
 
                 // ReplyTypes that are handled elsewhere and that should not go through this method:
                 ReplyType::Connect | ReplyType::Fetch | ReplyType::ReadLob |
@@ -132,9 +132,9 @@ impl HdbResponse {
             }
     }
 
-    fn resultset(int_return_values: Vec<InternalReturnValue>) -> HdbResult<HdbResponse> {
+    fn resultset(int_return_values: Vec<InternalReturnValue>) -> HdbResult<Self> {
         match single(int_return_values)? {
-            InternalReturnValue::ResultSet(rs) => Ok(HdbResponse {
+            InternalReturnValue::ResultSet(rs) => Ok(Self {
                 return_values: vec![HdbReturnValue::ResultSet(rs)],
             }),
             _ => Err(HdbError::imp(
@@ -143,7 +143,7 @@ impl HdbResponse {
         }
     }
 
-    fn rows_affected(int_return_values: Vec<InternalReturnValue>) -> HdbResult<HdbResponse> {
+    fn rows_affected(int_return_values: Vec<InternalReturnValue>) -> HdbResult<Self> {
         match single(int_return_values)? {
             InternalReturnValue::AffectedRows(vec_ra) => {
                 let mut vec_i = Vec::<usize>::new();
@@ -156,7 +156,7 @@ impl HdbResponse {
                         }
                     }
                 }
-                Ok(HdbResponse {
+                Ok(Self {
                     return_values: vec![HdbReturnValue::AffectedRows(vec_i)],
                 })
             }
@@ -166,7 +166,7 @@ impl HdbResponse {
         }
     }
 
-    fn success(int_return_values: Vec<InternalReturnValue>) -> HdbResult<HdbResponse> {
+    fn success(int_return_values: Vec<InternalReturnValue>) -> HdbResult<Self> {
         match single(int_return_values)? {
             InternalReturnValue::AffectedRows(mut vec_ra) => {
                 if vec_ra.len() != 1 {
@@ -181,12 +181,12 @@ impl HdbResponse {
                                 "found an affected-row-count > 0, expected a single Success",
                             ))
                         } else {
-                            Ok(HdbResponse {
+                            Ok(Self {
                                 return_values: vec![HdbReturnValue::Success],
                             })
                         }
                     }
-                    ExecutionResult::SuccessNoInfo => Ok(HdbResponse {
+                    ExecutionResult::SuccessNoInfo => Ok(Self {
                         return_values: vec![HdbReturnValue::Success],
                     }),
                     ExecutionResult::Failure(_) => Err(HdbError::imp(
@@ -200,9 +200,7 @@ impl HdbResponse {
         }
     }
 
-    fn multiple_return_values(
-        mut int_return_values: Vec<InternalReturnValue>,
-    ) -> HdbResult<HdbResponse> {
+    fn multiple_return_values(mut int_return_values: Vec<InternalReturnValue>) -> HdbResult<Self> {
         let mut return_values = Vec::<HdbReturnValue>::new();
         int_return_values.reverse();
         for irv in int_return_values {
@@ -236,7 +234,7 @@ impl HdbResponse {
                 }
             }
         }
-        Ok(HdbResponse { return_values })
+        Ok(Self { return_values })
     }
 
     /// Returns the number of return values.

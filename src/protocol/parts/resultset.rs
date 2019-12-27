@@ -40,7 +40,7 @@ pub(crate) type AmRsCore = Arc<Mutex<ResultSetCore>>;
 /// # fn main() -> HdbResult<()> {
 /// # #[derive(Debug, Deserialize)]
 /// # struct Entity();
-/// # let mut connection = Connection::try_new(ConnectParams::builder().build()?)?;
+/// # let mut connection = Connection::new(ConnectParams::builder().build()?)?;
 /// # let query_string = "";
 /// for row in connection.query(query_string)? {
 ///     // handle fetch errors and convert each line individually:
@@ -87,20 +87,19 @@ impl RsState {
     }
 
     fn next_row(&mut self, a_rsmd: &Arc<ResultSetMetadata>) -> HdbResult<Option<Row>> {
-        match self.row_iter.next() {
-            Some(r) => Ok(Some(r)),
-            None => {
-                if self.next_rows.is_empty() {
-                    if self.is_complete()? {
-                        return Ok(None);
-                    }
-                    self.fetch_next(a_rsmd)?;
+        if let Some(r) = self.row_iter.next() {
+            Ok(Some(r))
+        } else {
+            if self.next_rows.is_empty() {
+                if self.is_complete()? {
+                    return Ok(None);
                 }
-                let mut tmp_vec = Vec::<Row>::new();
-                std::mem::swap(&mut tmp_vec, &mut self.next_rows);
-                self.row_iter = tmp_vec.into_iter();
-                Ok(self.row_iter.next())
+                self.fetch_next(a_rsmd)?;
             }
+            let mut tmp_vec = Vec::<Row>::new();
+            std::mem::swap(&mut tmp_vec, &mut self.next_rows);
+            self.row_iter = tmp_vec.into_iter();
+            Ok(self.row_iter.next())
         }
     }
 
@@ -117,16 +116,13 @@ impl RsState {
         trace!("ResultSet::fetch_next()");
         let (mut conn_core, resultset_id, fetch_size) = {
             // scope the borrow
-            match self.o_am_rscore {
-                Some(ref am_rscore) => {
-                    let rs_core = am_rscore.lock()?;
-                    let am_conn_core = rs_core.am_conn_core.clone();
-                    let fetch_size = { am_conn_core.lock()?.get_fetch_size() };
-                    (am_conn_core, rs_core.resultset_id, fetch_size)
-                }
-                None => {
-                    return Err(HdbError::imp("Fetch no more possible"));
-                }
+            if let Some(ref am_rscore) = self.o_am_rscore {
+                let rs_core = am_rscore.lock()?;
+                let am_conn_core = rs_core.am_conn_core.clone();
+                let fetch_size = { am_conn_core.lock()?.get_fetch_size() };
+                (am_conn_core, rs_core.resultset_id, fetch_size)
+            } else {
+                return Err(HdbError::imp("Fetch no more possible"));
             }
         };
 
@@ -212,8 +208,8 @@ impl ResultSetCore {
         am_conn_core: &AmConnCore,
         attributes: PartAttributes,
         resultset_id: u64,
-    ) -> Arc<Mutex<ResultSetCore>> {
-        Arc::new(Mutex::new(ResultSetCore {
+    ) -> Arc<Mutex<Self>> {
+        Arc::new(Mutex::new(Self {
             am_conn_core: am_conn_core.clone(),
             attributes,
             resultset_id,
@@ -377,8 +373,8 @@ impl ResultSet {
         rs_id: u64,
         a_rsmd: Arc<ResultSetMetadata>,
         o_stmt_ctx: Option<StatementContext>,
-    ) -> ResultSet {
-        let mut server_usage: ServerUsage = Default::default();
+    ) -> Self {
+        let mut server_usage: ServerUsage = ServerUsage::default();
 
         if let Some(stmt_ctx) = o_stmt_ctx {
             server_usage.update(
@@ -388,7 +384,7 @@ impl ResultSet {
             );
         }
 
-        ResultSet {
+        Self {
             metadata: a_rsmd,
             state: RefCell::new(RsState {
                 o_am_rscore: Some(ResultSetCore::new_am_rscore(am_conn_core, attrs, rs_id)),
@@ -424,7 +420,7 @@ impl ResultSet {
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
         o_rs: &mut Option<&mut RsState>,
         rdr: &mut T,
-    ) -> std::io::Result<Option<ResultSet>> {
+    ) -> std::io::Result<Option<Self>> {
         match *o_rs {
             None => {
                 // case a) or b)
@@ -458,7 +454,7 @@ impl ResultSet {
                     }
                 };
 
-                let rs = ResultSet::new(am_conn_core, attributes, rs_id, a_rsmd, o_stmt_ctx);
+                let rs = Self::new(am_conn_core, attributes, rs_id, a_rsmd, o_stmt_ctx);
                 rs.parse_rows(no_of_rows, rdr)?;
                 Ok(Some(rs))
             }
@@ -489,11 +485,10 @@ impl ResultSet {
                         .map_err(|e| util::io_error(e.to_string()))?;
                     rscore.attributes = attributes;
                 }
-                let a_rsmd = match o_a_rsmd {
-                    Some(a_rsmd) => Arc::clone(&a_rsmd),
-                    None => {
-                        return Err(util::io_error("RsState provided without RsMetadata"));
-                    }
+                let a_rsmd = if let Some(a_rsmd) = o_a_rsmd {
+                    Arc::clone(&a_rsmd)
+                } else {
+                    return Err(util::io_error("RsState provided without RsMetadata"));
                 };
                 fetching_state.parse_rows(no_of_rows, &a_rsmd, rdr)?;
                 Ok(None)

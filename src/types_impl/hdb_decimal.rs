@@ -22,8 +22,8 @@ pub struct HdbDecimal {
     raw: [u8; 16],
 }
 impl HdbDecimal {
-    pub fn new(raw: [u8; 16]) -> HdbDecimal {
-        HdbDecimal { raw }
+    pub fn new(raw: [u8; 16]) -> Self {
+        Self { raw }
     }
     pub fn parse_hdb_decimal(
         nullable: bool,
@@ -42,13 +42,15 @@ impl HdbDecimal {
             }
         } else {
             trace!("parse DECIMAL");
-            let bd = HdbDecimal::new(raw).into_bigdecimal_with_scale(scale);
+            let bd = Self::new(raw).into_bigdecimal_with_scale(scale);
             Ok(HdbValue::DECIMAL(bd))
         }
     }
 
     // Creates an HdbDecimal from a BigDecimal.
-    pub fn from_bigdecimal(bigdecimal: &BigDecimal) -> Result<HdbDecimal, SerializationError> {
+    #[allow(clippy::cast_possible_truncation)]
+    #[allow(clippy::cast_sign_loss)]
+    pub fn from_bigdecimal(bigdecimal: &BigDecimal) -> Result<Self, SerializationError> {
         let ten = BigInt::from(10_u8);
         let (sign, mantissa, exponent) = {
             let (mut bigint, neg_exponent) = bigdecimal.as_bigint_and_exponent();
@@ -94,13 +96,12 @@ impl HdbDecimal {
         if let Sign::Minus = sign {
             raw[15] |= 0b_1000_0000_u8;
         }
-        let hdbdecimal = HdbDecimal { raw };
-        Ok(hdbdecimal)
+        Ok(Self { raw })
     }
 
     pub fn into_bigdecimal_with_scale(self, scale: i16) -> BigDecimal {
         let mut bd = self.into_bigdecimal();
-        if scale < std::i16::MAX {
+        if scale < i16::max_value() {
             bd = bd.with_scale(i64::from(scale));
         }
         bd

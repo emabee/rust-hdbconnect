@@ -7,9 +7,9 @@ pub struct ReadLobRequest {
     length: u32,
 }
 impl ReadLobRequest {
-    pub fn new(locator_id: u64, offset: u64, length: u32) -> ReadLobRequest {
+    pub fn new(locator_id: u64, offset: u64, length: u32) -> Self {
         trace!("Offset = {}, length = {}", offset, length);
-        ReadLobRequest {
+        Self {
             locator_id,
             offset,
             length,

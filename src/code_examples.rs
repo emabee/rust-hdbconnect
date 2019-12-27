@@ -8,14 +8,14 @@
 //! use hdbconnect::{Connection, IntoConnectParams};
 //! # use hdbconnect::HdbResult;
 //! # fn foo() -> HdbResult<()> {
-//! let mut connection = Connection::try_new("hdbsql://my_user:my_passwd@the_host:2222")?;
+//! let mut connection = Connection::new("hdbsql://my_user:my_passwd@the_host:2222")?;
 //! # Ok(())
 //! # }
 //! ```
 //!
 //! # 2. Queries and other database calls
 //!
-//! ## 2.1 Generic method: Connection.statement() and HdbResponse()
+//! ## 2.1 Generic method: `Connection::statement()` and `HdbResponse`
 //!
 //! The most generic way to fire SQL statements without preparation is using
 //! [`Connection`]`::`[`statement()`].
@@ -26,7 +26,7 @@
 //! ```rust,no_run
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
 //! # fn foo() -> HdbResult<()> {
-//! # let mut connection = Connection::try_new("...")?;
+//! # let mut connection = Connection::new("...")?;
 //! let query = "SELECT foo FROM bar";
 //! # #[allow(unused_variables)]
 //! let response = connection.statement(query)?; // HdbResponse
@@ -42,7 +42,7 @@
 //! ```rust,no_run
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
 //! # fn foo() -> HdbResult<()> {
-//! # let mut connection = Connection::try_new("...")?;
+//! # let mut connection = Connection::new("...")?;
 //! # let query = "SELECT foo FROM bar";
 //! let response = connection.statement(query)?; // HdbResponse
 //! # #[allow(unused_variables)]
@@ -68,7 +68,7 @@
 //! ```rust,no_run
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
 //! # fn foo() -> HdbResult<()> {
-//! # let mut connection = Connection::try_new("...")?;
+//! # let mut connection = Connection::new("...")?;
 //! let qry = "SELECT foo FROM bar";
 //! let resultset = connection.query(qry)?; // ResultSet
 //! # Ok(())
@@ -82,7 +82,7 @@
 //! ```rust,no_run
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
 //! # fn foo() -> HdbResult<()> {
-//! # let mut connection = Connection::try_new("...")?;
+//! # let mut connection = Connection::new("...")?;
 //! let stmt_str = "insert into TEST_PREPARE (F_STRING, F_INTEGER) values(?, ?)";
 //! let mut stmt = connection.prepare(stmt_str)?;
 //! stmt.add_batch(&("foo", 45_i32))?;
@@ -97,7 +97,7 @@
 //! ```rust,no_run
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
 //! # fn foo() -> HdbResult<()> {
-//! # let mut connection = Connection::try_new("...")?;
+//! # let mut connection = Connection::new("...")?;
 //! let stmt_str = "select NAME, CITY from TEST_TABLE where age > ?";
 //! let mut stmt = connection.prepare(stmt_str)?;
 //! stmt.add_batch(&(45_i32))?;
@@ -122,7 +122,7 @@
 //! ```rust,no_run
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
 //! # fn foo() -> HdbResult<()> {
-//! # let mut connection = Connection::try_new("...")?;
+//! # let mut connection = Connection::new("...")?;
 //! # let qry = "";
 //! # let resultset = connection.query(qry)?;
 //! for row in resultset {
@@ -149,7 +149,7 @@
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams, Row};
 //! # fn main() { }
 //! # fn foo() -> HdbResult<()> {
-//! # let mut connection = Connection::try_new("...")?;
+//! # let mut connection = Connection::new("...")?;
 //! # let qry = "";
 //! # let resultset = connection.query(qry)?;
 //! for row in resultset {
@@ -177,7 +177,7 @@
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
 //! # fn main() { }
 //! # fn foo() -> HdbResult<()> {
-//! # let mut connection = Connection::try_new("...")?;
+//! # let mut connection = Connection::new("...")?;
 //! # let qry = "";
 //! # let resultset = connection.query(qry)?;
 //! #[derive(Deserialize)]
@@ -206,7 +206,7 @@
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
 //! # fn main() { }
 //! # fn foo() -> HdbResult<()> {
-//! # let mut connection = Connection::try_new("...")?;
+//! # let mut connection = Connection::new("...")?;
 //! # let qry = "";
 //! #[derive(Deserialize)]
 //! struct MyRow {/* ...*/}
@@ -228,7 +228,7 @@
 //!   # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
 //!   # fn main() { }
 //!   # fn foo() -> HdbResult<()> {
-//!   # let mut connection = Connection::try_new("hdbsql://my_user:my_passwd@the_host:2222")?;
+//!   # let mut connection = Connection::new("hdbsql://my_user:my_passwd@the_host:2222")?;
 //!   # let qry = "SELECT foo FROM bar";
 //!   # #[derive(Deserialize)]
 //!   # struct MyRow {/* ...*/}
@@ -246,7 +246,7 @@
 //!   ```rust, no_run
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
 //! # fn foo() -> HdbResult<()> {
-//! # let mut connection = Connection::try_new("...")?;
+//! # let mut connection = Connection::new("...")?;
 //! # let qry = "";
 //!   let result: Vec<u32> = connection.query(qry)?.try_into()?;
 //! # Ok(())
@@ -261,7 +261,7 @@
 //!   ```rust, no_run
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
 //! # fn foo() -> HdbResult<()> {
-//! # let mut connection = Connection::try_new("...")?;
+//! # let mut connection = Connection::new("...")?;
 //! # let qry = "";
 //!   let result: u32 = connection.query(qry)?.try_into()?;
 //! # Ok(())
@@ -304,7 +304,7 @@
 //! # use hdbconnect::{Connection, ResultSet, HdbResult, IntoConnectParams};
 //! # fn foo() -> HdbResult<()> {
 //! # let qry = "";
-//! # let mut connection = Connection::try_new("...")?;
+//! # let mut connection = Connection::new("...")?;
 //! # let resultset: ResultSet = connection.query(qry)?;
 //! let bindata: serde_bytes::ByteBuf = resultset.try_into()?; // single binary field
 //! let first_byte = bindata[0];
@@ -330,7 +330,7 @@
 //! use hdbconnect::types::NCLob;
 //! # fn foo() -> Result<(),failure::Error> {
 //! # let query = "";
-//! # let mut connection = Connection::try_new("...")?;
+//! # let mut connection = Connection::new("...")?;
 //! # let mut resultset: ResultSet = connection.query(query)?;
 //! # let mut writer: Vec<u8> = vec![];
 //! let mut nclob: NCLob = resultset.into_single_row()?.into_single_value()?.try_into_nclob()?;

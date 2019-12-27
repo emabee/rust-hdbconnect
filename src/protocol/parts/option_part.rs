@@ -18,8 +18,8 @@ pub(crate) struct OptionPart<T: OptionId<T> + Debug + Eq + PartialEq + Hash>(
 );
 
 impl<T: OptionId<T> + Debug + Eq + PartialEq + Hash> Default for OptionPart<T> {
-    fn default() -> OptionPart<T> {
-        OptionPart(HashMap::new())
+    fn default() -> Self {
+        Self(HashMap::new())
     }
 }
 
@@ -56,8 +56,8 @@ impl<T: OptionId<T> + Debug + Eq + PartialEq + Hash> OptionPart<T> {
         Ok(())
     }
 
-    pub fn parse<R: std::io::BufRead>(count: usize, rdr: &mut R) -> std::io::Result<OptionPart<T>> {
-        let mut result = OptionPart::default();
+    pub fn parse<R: std::io::BufRead>(count: usize, rdr: &mut R) -> std::io::Result<Self> {
+        let mut result = Self::default();
         for _ in 0..count {
             let id = T::from_u8(rdr.read_u8()?);
             let value = OptionValue::parse(rdr)?;

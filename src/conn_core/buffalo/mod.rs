@@ -22,15 +22,15 @@ pub enum Buffalo {
 impl Buffalo {
     // Constructs a buffered tcp connection, with or without TLS,
     // depending on the given connect parameters.
-    pub fn try_new(params: ConnectParams) -> std::io::Result<Buffalo> {
+    pub fn try_new(params: ConnectParams) -> std::io::Result<Self> {
         let start = Local::now();
         trace!("Buffalo: Connecting to {:?})", params.addr());
 
         #[cfg(feature = "tls")]
         let buffalo = if params.use_tls() {
-            Buffalo::Secure(TlsConnection::try_new(params)?)
+            Self::Secure(TlsConnection::try_new(params)?)
         } else {
-            Buffalo::Plain(PlainConnection::try_new(params)?)
+            Self::Plain(PlainConnection::try_new(params)?)
         };
 
         #[cfg(not(feature = "tls"))]
@@ -40,7 +40,7 @@ impl Buffalo {
                 "In order to use TLS connections, please compile hdbconnect with feature TLS",
             ));
         } else {
-            Buffalo::Plain(PlainConnection::try_new(params)?)
+            Self::Plain(PlainConnection::try_new(params)?)
         };
 
         trace!(
@@ -57,9 +57,9 @@ impl Buffalo {
     // Returns a descriptor of the chosen type
     pub fn s_type(&self) -> &'static str {
         match self {
-            Buffalo::Plain(_) => "Plain TCP",
+            Self::Plain(_) => "Plain TCP",
             #[cfg(feature = "tls")]
-            Buffalo::Secure(_) => "TLS",
+            Self::Secure(_) => "TLS",
         }
     }
 }

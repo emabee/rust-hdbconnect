@@ -29,8 +29,8 @@ impl CLob {
         total_byte_length: u64,
         locator_id: u64,
         data: Vec<u8>,
-    ) -> CLob {
-        CLob(Box::new(CLobHandle::new(
+    ) -> Self {
+        Self(Box::new(CLobHandle::new(
             am_conn_core,
             o_am_rscore,
             is_data_complete,
@@ -56,7 +56,7 @@ impl CLob {
     /// # fn main() { }
     /// # fn foo() -> HdbResult<()> {
     /// # let params = "".into_connect_params()?;
-    /// # let mut connection = Connection::try_new(params)?;
+    /// # let mut connection = Connection::new(params)?;
     /// # let query = "";
     ///  let mut resultset = connection.query(query)?;
     ///  let mut clob = resultset.into_single_row()?.into_single_value()?.try_into_clob()?;
@@ -77,7 +77,7 @@ impl CLob {
     /// # fn main() { }
     /// # fn foo() -> Result<(),failure::Error> {
     /// # let params = "".into_connect_params()?;
-    /// # let mut connection = Connection::try_new(params)?;
+    /// # let mut connection = Connection::new(params)?;
     ///  let mut writer;
     ///  // ... writer gets instantiated, is an implementation of std::io::Write;
     ///  # writer = Vec::<u8>::new();
@@ -165,11 +165,11 @@ impl CLobHandle {
         total_byte_length: u64,
         locator_id: u64,
         cesu8: Vec<u8>,
-    ) -> CLobHandle {
+    ) -> Self {
         let acc_byte_length = cesu8.len();
 
         let (utf8, buffer_cesu8) = util::cesu8_to_string_and_tail(cesu8).unwrap(/* yes */);
-        let clob_handle = CLobHandle {
+        let clob_handle = Self {
             am_conn_core: am_conn_core.clone(),
             o_am_rscore: match o_am_rscore {
                 Some(ref am_rscore) => Some(am_rscore.clone()),
@@ -183,7 +183,7 @@ impl CLobHandle {
             buffer_cesu8,
             utf8,
             acc_byte_length,
-            server_usage: Default::default(),
+            server_usage: ServerUsage::default(),
         };
         debug!(
             "CLobHandle::new() with: is_data_complete = {}, total_char_length = {}, total_byte_length = {}, \
@@ -207,7 +207,7 @@ impl CLobHandle {
             &mut self.server_usage,
         )?;
         debug!("read_slice(): got {} bytes", reply_data.len());
-        Ok(util::split_off_orphaned_bytes(reply_data)?)
+        Ok(util::split_off_orphaned_bytes(&reply_data)?)
     }
 
     fn total_byte_length(&self) -> u64 {
@@ -218,6 +218,7 @@ impl CLobHandle {
         self.utf8.len()
     }
 
+    #[allow(clippy::cast_possible_truncation)]
     fn fetch_next_chunk(&mut self) -> HdbResult<()> {
         if self.is_data_complete {
             return Err(HdbError::imp("fetch_next_chunk(): already complete"));

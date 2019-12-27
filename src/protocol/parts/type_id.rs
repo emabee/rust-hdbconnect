@@ -109,61 +109,61 @@ pub enum TypeId {
 }
 
 impl TypeId {
-    pub(crate) fn try_new(id: u8) -> std::io::Result<TypeId> {
+    pub(crate) fn try_new(id: u8) -> std::io::Result<Self> {
         Ok(match id {
-            1 => TypeId::TINYINT,
-            2 => TypeId::SMALLINT,
-            3 => TypeId::INT,
-            4 => TypeId::BIGINT,
-            5 => TypeId::DECIMAL,
-            6 => TypeId::REAL,
-            7 => TypeId::DOUBLE,
-            8 => TypeId::CHAR,
-            9 => TypeId::VARCHAR,
-            10 => TypeId::NCHAR,
-            11 => TypeId::NVARCHAR,
-            12 => TypeId::BINARY,
-            13 => TypeId::VARBINARY,
+            1 => Self::TINYINT,
+            2 => Self::SMALLINT,
+            3 => Self::INT,
+            4 => Self::BIGINT,
+            5 => Self::DECIMAL,
+            6 => Self::REAL,
+            7 => Self::DOUBLE,
+            8 => Self::CHAR,
+            9 => Self::VARCHAR,
+            10 => Self::NCHAR,
+            11 => Self::NVARCHAR,
+            12 => Self::BINARY,
+            13 => Self::VARBINARY,
             // DATE: 14, TIME: 15, TIMESTAMP: 16 (all deprecated with protocol version 3)
             // 17 - 24: reserved, do not use
-            25 => TypeId::CLOB,
-            26 => TypeId::NCLOB,
-            27 => TypeId::BLOB,
-            28 => TypeId::BOOLEAN,
-            29 => TypeId::STRING,
-            30 => TypeId::NSTRING,
-            31 => TypeId::BLOCATOR,
-            // 32 => TypeId::NLOCATOR,
-            33 => TypeId::BSTRING,
+            25 => Self::CLOB,
+            26 => Self::NCLOB,
+            27 => Self::BLOB,
+            28 => Self::BOOLEAN,
+            29 => Self::STRING,
+            30 => Self::NSTRING,
+            31 => Self::BLOCATOR,
+            // 32 => Self::NLOCATOR,
+            33 => Self::BSTRING,
             // 34 - 46: docu unclear, likely unused
             // 47 => SMALLDECIMAL not needed on client-side
             // 48, 49: ABAP only?
             // ARRAY: 50  TODO not yet implemented
-            51 => TypeId::TEXT,
-            52 => TypeId::SHORTTEXT,
-            53 => TypeId::BINTEXT,
+            51 => Self::TEXT,
+            52 => Self::SHORTTEXT,
+            53 => Self::BINTEXT,
             // 54: Reserved, do not use
-            55 => TypeId::ALPHANUM,
+            55 => Self::ALPHANUM,
             // 56: Reserved, do not use
             // 57 - 60: not documented
-            61 => TypeId::LONGDATE,
-            62 => TypeId::SECONDDATE,
-            63 => TypeId::DAYDATE,
-            64 => TypeId::SECONDTIME,
+            61 => Self::LONGDATE,
+            62 => Self::SECONDDATE,
+            63 => Self::DAYDATE,
+            64 => Self::SECONDTIME,
             // 65 - 80: Reserved, do not use
 
             // TypeCode_CLOCATOR                  =70,  // TODO
             // TypeCode_BLOB_DISK_RESERVED        =71,
             // TypeCode_CLOB_DISK_RESERVED        =72,
             // TypeCode_NCLOB_DISK_RESERVE        =73,
-            74 => TypeId::GEOMETRY,
-            75 => TypeId::POINT,
-            76 => TypeId::FIXED16,
+            74 => Self::GEOMETRY,
+            75 => Self::POINT,
+            76 => Self::FIXED16,
             // TypeCode_ABAP_ITAB                 =77,  // TODO
             // TypeCode_RECORD_ROW_STORE         = 78,  // TODO
             // TypeCode_RECORD_COLUMN_STORE      = 79,  // TODO
-            81 => TypeId::FIXED8,
-            82 => TypeId::FIXED12,
+            81 => Self::FIXED8,
+            82 => Self::FIXED12,
             // TypeCode_CIPHERTEXT               = 90,  // TODO
             tc => return Err(util::io_error(format!("Illegal type code {}", tc))),
         })
@@ -174,30 +174,31 @@ impl TypeId {
         (if nullable { 128 } else { 0 }) + self as u8
     }
 
-    pub(crate) fn matches_value_type(self, value_type: TypeId) -> std::io::Result<()> {
+    pub(crate) fn matches_value_type(self, value_type: Self) -> std::io::Result<()> {
         if value_type == self {
             return Ok(());
         }
         // From To Conversions
+        #[allow(clippy::match_same_arms)]
         match (value_type, self) {
-            (TypeId::BOOLEAN, TypeId::TINYINT) => return Ok(()),
-            (TypeId::BOOLEAN, TypeId::SMALLINT) => return Ok(()),
-            (TypeId::BOOLEAN, TypeId::INT) => return Ok(()),
-            (TypeId::BOOLEAN, TypeId::BIGINT) => return Ok(()),
+            (Self::BOOLEAN, Self::TINYINT)
+            | (Self::BOOLEAN, Self::SMALLINT)
+            | (Self::BOOLEAN, Self::INT)
+            | (Self::BOOLEAN, Self::BIGINT) => return Ok(()),
 
-            (TypeId::STRING, TypeId::GEOMETRY) => {} // no clear strategy for GEO stuff yet, so be restrictive
-            (TypeId::STRING, TypeId::POINT) => {} // no clear strategy for GEO stuff yet, so be restrictive
-            (TypeId::STRING, _) => return Ok(()), // Allow all other cases
+            // no clear strategy for GEO stuff yet, so be restrictive
+            (Self::STRING, Self::GEOMETRY) | (Self::STRING, Self::POINT) => {}
+            (Self::STRING, _) => return Ok(()), // Allow all other cases
 
-            (TypeId::BINARY, TypeId::BLOB) => return Ok(()),
-            (TypeId::BINARY, TypeId::BLOCATOR) => return Ok(()),
-            (TypeId::BINARY, TypeId::VARBINARY) => return Ok(()),
-            (TypeId::BINARY, TypeId::GEOMETRY) => return Ok(()),
-            (TypeId::BINARY, TypeId::POINT) => return Ok(()),
+            (Self::BINARY, Self::BLOB)
+            | (Self::BINARY, Self::BLOCATOR)
+            | (Self::BINARY, Self::VARBINARY)
+            | (Self::BINARY, Self::GEOMETRY)
+            | (Self::BINARY, Self::POINT)
+            | (Self::DECIMAL, Self::FIXED8)
+            | (Self::DECIMAL, Self::FIXED12)
+            | (Self::DECIMAL, Self::FIXED16) => return Ok(()),
 
-            (TypeId::DECIMAL, TypeId::FIXED8) => return Ok(()),
-            (TypeId::DECIMAL, TypeId::FIXED12) => return Ok(()),
-            (TypeId::DECIMAL, TypeId::FIXED16) => return Ok(()),
             _ => {}
         }
 

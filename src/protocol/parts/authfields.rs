@@ -4,12 +4,12 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 #[derive(Debug, Default)]
 pub struct AuthFields(Vec<AuthField>);
 impl AuthFields {
-    pub fn with_capacity(count: usize) -> AuthFields {
-        AuthFields(Vec::<AuthField>::with_capacity(count))
+    pub fn with_capacity(count: usize) -> Self {
+        Self(Vec::<AuthField>::with_capacity(count))
     }
-    pub fn parse<T: std::io::BufRead>(rdr: &mut T) -> std::io::Result<AuthFields> {
-        let field_count = rdr.read_i16::<LittleEndian>()? as usize; // I2
-        let mut auth_fields: AuthFields = AuthFields(Vec::<AuthField>::with_capacity(field_count));
+    pub fn parse<T: std::io::BufRead>(rdr: &mut T) -> std::io::Result<Self> {
+        let field_count = rdr.read_u16::<LittleEndian>()? as usize; // I2
+        let mut auth_fields: Self = Self(Vec::<AuthField>::with_capacity(field_count));
         for _ in 0..field_count {
             auth_fields.0.push(AuthField::parse(rdr)?)
         }
@@ -32,6 +32,8 @@ impl AuthFields {
     }
 
     pub fn emit<T: std::io::Write>(&self, w: &mut T) -> std::io::Result<()> {
+        #[allow(clippy::cast_possible_truncation)]
+        #[allow(clippy::cast_possible_wrap)]
         w.write_i16::<LittleEndian>(self.0.len() as i16)?;
         for field in &self.0 {
             field.emit(w)?;
@@ -50,14 +52,15 @@ impl AuthFields {
 #[derive(Debug)]
 struct AuthField(Vec<u8>);
 impl AuthField {
-    fn new(vec: Vec<u8>) -> AuthField {
-        AuthField(vec)
+    fn new(vec: Vec<u8>) -> Self {
+        Self(vec)
     }
 
     fn data(self) -> Vec<u8> {
         self.0.to_vec()
     }
 
+    #[allow(clippy::cast_possible_truncation)]
     fn emit<T: std::io::Write>(&self, w: &mut T) -> std::io::Result<()> {
         match self.0.len() {
             l if l <= 250_usize => w.write_u8(l as u8)?, // B1: length of value
@@ -80,7 +83,7 @@ impl AuthField {
         1 + self.0.len()
     }
 
-    fn parse<T: std::io::BufRead>(rdr: &mut T) -> std::io::Result<AuthField> {
+    fn parse<T: std::io::BufRead>(rdr: &mut T) -> std::io::Result<Self> {
         let mut len = rdr.read_u8()? as usize; // B1
         match len {
             255 => {
@@ -94,6 +97,6 @@ impl AuthField {
             }
             _ => {}
         }
-        Ok(AuthField(util::parse_bytes(len, rdr)?))
+        Ok(Self(util::parse_bytes(len, rdr)?))
     }
 }

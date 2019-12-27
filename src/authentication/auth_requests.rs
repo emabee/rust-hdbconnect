@@ -42,16 +42,16 @@ pub(crate) fn first_auth_request(
         .map(Part::into_arg)
     {
         Some(Argument::Auth(mut auth_fields)) => {
-            if auth_fields.len() != 2 {
-                Err(HdbError::imp_detailed(format!(
-                    "got {} auth_fields, expected 2",
-                    auth_fields.len()
-                )))
-            } else {
+            if auth_fields.len() == 2 {
                 let server_challenge_data: Vec<u8> = auth_fields.pop().unwrap();
                 let authenticator_name: String =
                     String::from_utf8_lossy(&auth_fields.pop().unwrap()).to_string();
                 Ok((authenticator_name, server_challenge_data))
+            } else {
+                Err(HdbError::imp_detailed(format!(
+                    "got {} auth_fields, expected 2",
+                    auth_fields.len()
+                )))
             }
         }
         _ => Err(HdbError::imp("expected Authentication part")),
@@ -93,28 +93,26 @@ pub(crate) fn second_auth_request(
     let mut conn_core = am_conn_core.lock()?;
     conn_core.set_session_id(reply.session_id());
 
-    match reply
+    if let Some(Argument::TopologyInformation(topology)) = reply
         .parts
         .pop_if_kind(PartKind::TopologyInformation)
         .map(Part::into_arg)
     {
-        Some(Argument::TopologyInformation(topology)) => conn_core.set_topology(topology),
-        _ => {
-            return Err(HdbError::imp("Expected TopologyInformation part"));
-        }
+        conn_core.set_topology(topology)
+    } else {
+        return Err(HdbError::imp("Expected TopologyInformation part"));
     }
 
-    match reply
+    if let Some(Argument::ConnectOptions(received_co)) = reply
         .parts
         .pop_if_kind(PartKind::ConnectOptions)
         .map(Part::into_arg)
     {
-        Some(Argument::ConnectOptions(received_co)) => conn_core
+        conn_core
             .connect_options_mut()
-            .digest_server_connect_options(received_co)?,
-        _ => {
-            return Err(HdbError::imp("Expected ConnectOptions part"));
-        }
+            .digest_server_connect_options(received_co)?
+    } else {
+        return Err(HdbError::imp("Expected ConnectOptions part"));
     }
 
     match reply

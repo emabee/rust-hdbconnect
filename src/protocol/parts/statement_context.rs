@@ -64,31 +64,31 @@ pub enum StatementContextId {
 impl OptionId<StatementContextId> for StatementContextId {
     fn to_u8(&self) -> u8 {
         match *self {
-            StatementContextId::StatementSequenceInfo => 1,
-            StatementContextId::ServerProcessingTime => 2,
-            StatementContextId::SchemaName => 3,
-            StatementContextId::FlagSet => 4,
-            StatementContextId::QueryTimeout => 5,
-            StatementContextId::ClientReconnectionWaitTimeout => 6,
-            StatementContextId::ServerCPUTime => 7,
-            StatementContextId::ServerMemoryUsage => 8,
-            StatementContextId::__Unexpected__(val) => val,
+            Self::StatementSequenceInfo => 1,
+            Self::ServerProcessingTime => 2,
+            Self::SchemaName => 3,
+            Self::FlagSet => 4,
+            Self::QueryTimeout => 5,
+            Self::ClientReconnectionWaitTimeout => 6,
+            Self::ServerCPUTime => 7,
+            Self::ServerMemoryUsage => 8,
+            Self::__Unexpected__(val) => val,
         }
     }
 
-    fn from_u8(val: u8) -> StatementContextId {
+    fn from_u8(val: u8) -> Self {
         match val {
-            1 => StatementContextId::StatementSequenceInfo,
-            2 => StatementContextId::ServerProcessingTime,
-            3 => StatementContextId::SchemaName,
-            4 => StatementContextId::FlagSet,
-            5 => StatementContextId::QueryTimeout,
-            6 => StatementContextId::ClientReconnectionWaitTimeout,
-            7 => StatementContextId::ServerCPUTime,
-            8 => StatementContextId::ServerMemoryUsage,
+            1 => Self::StatementSequenceInfo,
+            2 => Self::ServerProcessingTime,
+            3 => Self::SchemaName,
+            4 => Self::FlagSet,
+            5 => Self::QueryTimeout,
+            6 => Self::ClientReconnectionWaitTimeout,
+            7 => Self::ServerCPUTime,
+            8 => Self::ServerMemoryUsage,
             val => {
                 warn!("Unknown value for StatementContextId received: {}", val);
-                StatementContextId::__Unexpected__(val)
+                Self::__Unexpected__(val)
             }
         }
     }

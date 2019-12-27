@@ -19,8 +19,8 @@ impl BLob {
         total_byte_length: u64,
         locator_id: u64,
         data: Vec<u8>,
-    ) -> BLob {
-        BLob(Box::new(BLobHandle::new(
+    ) -> Self {
+        Self(Box::new(BLobHandle::new(
             am_conn_core,
             o_am_rscore,
             is_data_complete,
@@ -45,7 +45,7 @@ impl BLob {
     /// # fn main() { }
     /// # fn foo() -> HdbResult<()> {
     /// # let params = "".into_connect_params()?;
-    /// # let mut connection = Connection::try_new(params)?;
+    /// # let mut connection = Connection::new(params)?;
     /// # let query = "";
     ///  let mut resultset = connection.query(query)?;
     ///  let mut blob = resultset.into_single_row()?.into_single_value()?.try_into_blob()?;
@@ -67,7 +67,7 @@ impl BLob {
     /// # fn main() { }
     /// # fn foo() -> Result<(),failure::Error> {
     /// # let params = "".into_connect_params()?;
-    /// # let mut connection = Connection::try_new(params)?;
+    /// # let mut connection = Connection::new(params)?;
     /// # let mut writer = Vec::<u8>::new();
     /// # let query = "select chardata from TEST_NCLOBS";
     /// # let mut resultset = connection.query(query)?;
@@ -147,14 +147,14 @@ impl BLobHandle {
         total_byte_length: u64,
         locator_id: u64,
         data: Vec<u8>,
-    ) -> BLobHandle {
+    ) -> Self {
         trace!(
             "BLobHandle::new() with total_byte_length = {}, is_data_complete = {}, data.length() = {}",
             total_byte_length,
             is_data_complete,
             data.len()
         );
-        BLobHandle {
+        Self {
             am_conn_core: am_conn_core.clone(),
             o_am_rscore: match o_am_rscore {
                 Some(ref am_rscore) => Some(am_rscore.clone()),
@@ -166,7 +166,7 @@ impl BLobHandle {
             max_buf_len: data.len(),
             acc_byte_length: data.len(),
             data,
-            server_usage: Default::default(),
+            server_usage: ServerUsage::default(),
         }
     }
 
@@ -190,6 +190,7 @@ impl BLobHandle {
         self.data.len()
     }
 
+    #[allow(clippy::cast_possible_truncation)]
     fn fetch_next_chunk(&mut self) -> HdbResult<()> {
         if self.is_data_complete {
             return Err(HdbError::imp("fetch_next_chunk(): already complete"));

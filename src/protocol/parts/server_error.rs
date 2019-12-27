@@ -20,31 +20,31 @@ pub enum Severity {
     __UNKNOWN__(i8),
 }
 impl Severity {
-    pub(crate) fn from_i8(i: i8) -> Severity {
+    pub(crate) fn from_i8(i: i8) -> Self {
         match i {
-            0 => Severity::Warning,
-            1 => Severity::Error,
-            2 => Severity::Fatal,
-            i => Severity::__UNKNOWN__(i),
+            0 => Self::Warning,
+            1 => Self::Error,
+            2 => Self::Fatal,
+            i => Self::__UNKNOWN__(i),
         }
     }
     /// Returns the number encoding of the severity.
     pub fn to_i8(&self) -> i8 {
         match *self {
-            Severity::Warning => 0,
-            Severity::Error => 1,
-            Severity::Fatal => 2,
-            Severity::__UNKNOWN__(i) => i,
+            Self::Warning => 0,
+            Self::Error => 1,
+            Self::Fatal => 2,
+            Self::__UNKNOWN__(i) => i,
         }
     }
 }
 impl fmt::Display for Severity {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Severity::Warning => write!(f, "warning")?,
-            Severity::Error => write!(f, "error")?,
-            Severity::Fatal => write!(f, "fatal error")?,
-            Severity::__UNKNOWN__(i) => write!(f, "message of unknown severity ({})", i)?,
+            Self::Warning => write!(f, "warning")?,
+            Self::Error => write!(f, "error")?,
+            Self::Fatal => write!(f, "fatal error")?,
+            Self::__UNKNOWN__(i) => write!(f, "message of unknown severity ({})", i)?,
         }
         Ok(())
     }
@@ -89,8 +89,8 @@ impl ServerError {
         severity: Severity,
         sqlstate: Vec<u8>,
         text: String,
-    ) -> ServerError {
-        ServerError {
+    ) -> Self {
+        Self {
             code,
             position,
             severity,
@@ -99,11 +99,12 @@ impl ServerError {
         }
     }
 
+    #[allow(clippy::cast_sign_loss)]
     pub(crate) fn parse<T: std::io::BufRead>(
         no_of_args: usize,
         rdr: &mut T,
-    ) -> std::io::Result<Vec<ServerError>> {
-        let mut server_errors = Vec::<ServerError>::new();
+    ) -> std::io::Result<Vec<Self>> {
+        let mut server_errors = Vec::<Self>::new();
         for _i in 0..no_of_args {
             let code = rdr.read_i32::<LittleEndian>()?; // I4
             let position = rdr.read_i32::<LittleEndian>()?; // I4
@@ -115,7 +116,7 @@ impl ServerError {
             let pad = 8 - (BASE_SIZE + text_length) % 8;
             util::skip_bytes(pad as usize, rdr)?;
 
-            let server_error = ServerError::new(code, position, severity, sqlstate, text);
+            let server_error = Self::new(code, position, severity, sqlstate, text);
             debug!("ServerError::parse(): found server error {}", server_error);
             server_errors.push(server_error);
         }

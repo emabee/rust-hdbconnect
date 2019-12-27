@@ -4,8 +4,8 @@ use std::fmt;
 #[derive(Clone)]
 pub(crate) struct PartAttributes(u8);
 impl PartAttributes {
-    pub fn new(bits: u8) -> PartAttributes {
-        PartAttributes(bits)
+    pub fn new(bits: u8) -> Self {
+        Self(bits)
     }
 
     // Last part in a sequence of parts (FETCH, array command EXECUTE):

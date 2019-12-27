@@ -25,8 +25,8 @@ pub struct Row {
 
 impl Row {
     /// Factory for row.
-    pub(crate) fn new(metadata: Arc<ResultSetMetadata>, values: Vec<HdbValue<'static>>) -> Row {
-        Row {
+    pub(crate) fn new(metadata: Arc<ResultSetMetadata>, values: Vec<HdbValue<'static>>) -> Self {
+        Self {
             metadata,
             value_iter: values.into_iter(),
         }
@@ -95,7 +95,7 @@ impl Row {
         o_am_rscore: &Option<AmRsCore>,
         am_conn_core: &AmConnCore,
         rdr: &mut dyn std::io::BufRead,
-    ) -> std::io::Result<Row> {
+    ) -> std::io::Result<Self> {
         let no_of_cols = md.number_of_fields();
         let mut values = Vec::<HdbValue>::new();
         for c in 0..no_of_cols {
@@ -119,7 +119,7 @@ impl Row {
             )?;
             values.push(value);
         }
-        let row = Row::new(md, values);
+        let row = Self::new(md, values);
         Ok(row)
     }
 }
@@ -132,7 +132,7 @@ impl std::ops::Index<usize> for Row {
     }
 }
 
-/// Row is an iterator with item = HdbValue.
+/// Row is an iterator with item `HdbValue`.
 impl Iterator for Row {
     type Item = HdbValue<'static>;
     fn next(&mut self) -> Option<HdbValue<'static>> {

@@ -51,7 +51,7 @@ impl OutputParameters {
         o_am_conn_core: Option<&AmConnCore>,
         parameter_descriptors: &ParameterDescriptors,
         rdr: &mut T,
-    ) -> std::io::Result<OutputParameters> {
+    ) -> std::io::Result<Self> {
         trace!("OutputParameters::parse()");
         let am_conn_core = o_am_conn_core
             .ok_or_else(|| util::io_error("Cannot parse output parameters without am_conn_core"))?;
@@ -73,7 +73,7 @@ impl OutputParameters {
             descriptors.push(descriptor.clone());
             values.push(value);
         }
-        Ok(OutputParameters {
+        Ok(Self {
             descriptors,
             value_iter: values.into_iter(),
         })

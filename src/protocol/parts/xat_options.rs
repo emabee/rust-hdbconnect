@@ -19,6 +19,7 @@ impl XatOptions {
     }
 
     pub fn set_flags(&mut self, flag: Flags) {
+        #[allow(clippy::cast_possible_wrap)]
         self.set_value(XatOptionId::Flags, OptionValue::INT(flag.bits() as i32));
     }
 
@@ -41,6 +42,7 @@ impl XatOptions {
         None
     }
 
+    #[allow(clippy::cast_sign_loss)]
     pub fn get_transactions(&self) -> HdbResult<Vec<XaTransactionId>> {
         let mut xid_count = 0;
         for (id, value) in self.iter() {
@@ -77,28 +79,28 @@ pub enum XatOptionId {
 }
 
 impl OptionId<XatOptionId> for XatOptionId {
-    fn from_u8(i: u8) -> XatOptionId {
+    fn from_u8(i: u8) -> Self {
         match i {
-            1 => XatOptionId::Flags,
-            2 => XatOptionId::Returncode,
-            3 => XatOptionId::OnePhase,
-            4 => XatOptionId::NumberOfXid,
-            5 => XatOptionId::XidList,
+            1 => Self::Flags,
+            2 => Self::Returncode,
+            3 => Self::OnePhase,
+            4 => Self::NumberOfXid,
+            5 => Self::XidList,
             val => {
                 warn!("Unsupported value for XatOptionId received: {}", val);
-                XatOptionId::__Unexpected__(val)
+                Self::__Unexpected__(val)
             }
         }
     }
 
     fn to_u8(&self) -> u8 {
         match *self {
-            XatOptionId::Flags => 1,
-            XatOptionId::Returncode => 2,
-            XatOptionId::OnePhase => 3,
-            XatOptionId::NumberOfXid => 4,
-            XatOptionId::XidList => 5,
-            XatOptionId::__Unexpected__(val) => val,
+            Self::Flags => 1,
+            Self::Returncode => 2,
+            Self::OnePhase => 3,
+            Self::NumberOfXid => 4,
+            Self::XidList => 5,
+            Self::__Unexpected__(val) => val,
         }
     }
 }

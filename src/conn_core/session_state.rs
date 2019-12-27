@@ -11,8 +11,8 @@ pub(crate) struct SessionState {
     pub dead: bool,
 }
 impl Default for SessionState {
-    fn default() -> SessionState {
-        SessionState {
+    fn default() -> Self {
+        Self {
             ta_state: TransactionState::Initial,
             isolation_level: 0,
             ddl_commit_mode: true,
@@ -24,6 +24,8 @@ impl Default for SessionState {
 impl SessionState {
     pub fn update(&mut self, transaction_flags: TransactionFlags) {
         for (id, value) in transaction_flags {
+            #[allow(clippy::cast_sign_loss)]
+            #[allow(clippy::cast_possible_truncation)]
             match (id, value) {
                 (TaFlagId::RolledBack, OptionValue::BOOLEAN(true)) => {
                     self.ta_state = TransactionState::RolledBack

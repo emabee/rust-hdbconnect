@@ -8,7 +8,7 @@ use rand::{thread_rng, RngCore};
 use secstr::SecStr;
 use std::io::Write;
 
-const CLIENT_PROOF_SIZE: usize = 32;
+const CLIENT_PROOF_SIZE: u8 = 32;
 
 pub struct ScramSha256 {
     client_challenge: Vec<u8>,
@@ -16,10 +16,10 @@ pub struct ScramSha256 {
 }
 impl ScramSha256 {
     pub fn boxed_authenticator() -> Box<dyn Authenticator> {
-        let mut client_challenge = [0u8; 64];
+        let mut client_challenge = [0_u8; 64];
         let mut rng = thread_rng();
         rng.fill_bytes(&mut client_challenge);
-        Box::new(ScramSha256 {
+        Box::new(Self {
             client_challenge: client_challenge.to_vec(),
             server_proof: None,
         })
@@ -39,6 +39,7 @@ impl Authenticator for ScramSha256 {
     }
 
     fn client_proof(&mut self, server_data: &[u8], password: &SecStr) -> HdbResult<Vec<u8>> {
+        const CONTEXT_CLIENT_PROOF: &str = "ClientProof";
         let (salt, server_nonce) = parse_first_server_data(server_data).unwrap();
 
         let (client_proof, server_proof) =
@@ -47,14 +48,13 @@ impl Authenticator for ScramSha256 {
         self.client_challenge.clear();
         self.server_proof = Some(server_proof);
 
-        const MSG: &str = "ClientProof";
-        let mut buf = Vec::<u8>::with_capacity(3 + CLIENT_PROOF_SIZE);
+        let mut buf = Vec::<u8>::with_capacity(3 + CLIENT_PROOF_SIZE as usize);
         buf.write_u16::<BigEndian>(1_u16)
-            .context(HdbErrorKind::Impl(MSG))?;
-        buf.write_u8(CLIENT_PROOF_SIZE as u8)
-            .context(HdbErrorKind::Impl(MSG))?;
+            .context(HdbErrorKind::Impl(CONTEXT_CLIENT_PROOF))?;
+        buf.write_u8(CLIENT_PROOF_SIZE)
+            .context(HdbErrorKind::Impl(CONTEXT_CLIENT_PROOF))?;
         buf.write_all(&client_proof)
-            .context(HdbErrorKind::Impl(MSG))?;
+            .context(HdbErrorKind::Impl(CONTEXT_CLIENT_PROOF))?;
 
         Ok(buf)
     }

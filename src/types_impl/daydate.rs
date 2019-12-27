@@ -27,21 +27,23 @@ impl fmt::Display for DayDate {
 }
 
 impl cmp::PartialEq<DayDate> for DayDate {
-    fn eq(&self, other: &DayDate) -> bool {
+    fn eq(&self, other: &Self) -> bool {
         self.0 == other.0
     }
 }
 
 impl DayDate {
-    pub(crate) fn new(raw: i32) -> DayDate {
+    pub(crate) fn new(raw: i32) -> Self {
         assert!(raw < NULL_REPRESENTATION && raw >= 0);
-        DayDate(raw)
+        Self(raw)
     }
     pub(crate) fn ref_raw(&self) -> &i32 {
         &self.0
     }
 
-    /// Convert into tuple of "elements".
+    // Convert into tuple of "elements".
+    #[allow(clippy::cast_possible_truncation)]
+    #[allow(clippy::cast_sign_loss)]
     pub(crate) fn as_ymd(&self) -> (i32, u32, u32) {
         let datevalue = match self.0 {
             0 => 0, // maps the special value '' == 0 to '0001-01-01' = 1

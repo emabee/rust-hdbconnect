@@ -11,9 +11,9 @@ pub struct PlainConnection {
 
 impl PlainConnection {
     /// Returns an initialized plain tcp connection
-    pub fn try_new(params: ConnectParams) -> std::io::Result<PlainConnection> {
+    pub fn try_new(params: ConnectParams) -> std::io::Result<Self> {
         let tcpstream = TcpStream::connect(params.addr())?;
-        Ok(PlainConnection {
+        Ok(Self {
             params,
             writer: RefCell::new(std::io::BufWriter::new(tcpstream.try_clone()?)),
             reader: RefCell::new(std::io::BufReader::new(tcpstream)),

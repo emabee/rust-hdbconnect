@@ -22,8 +22,8 @@ impl NCLob {
         total_byte_length: u64,
         locator_id: u64,
         data: Vec<u8>,
-    ) -> NCLob {
-        NCLob(Box::new(NCLobHandle::new(
+    ) -> Self {
+        Self(Box::new(NCLobHandle::new(
             am_conn_core,
             o_am_rscore,
             is_data_complete,
@@ -49,7 +49,7 @@ impl NCLob {
     /// # fn main() { }
     /// # fn foo() -> HdbResult<()> {
     /// # let params = "".into_connect_params()?;
-    /// # let mut connection = Connection::try_new(params)?;
+    /// # let mut connection = Connection::new(params)?;
     /// # let query = "";
     ///  let mut resultset = connection.query(query)?;
     ///  let mut nclob = resultset.into_single_row()?.into_single_value()?.try_into_nclob()?;
@@ -70,7 +70,7 @@ impl NCLob {
     /// # fn main() { }
     /// # fn foo() -> Result<(),failure::Error> {
     /// # let params = "".into_connect_params()?;
-    /// # let mut connection = Connection::try_new(params)?;
+    /// # let mut connection = Connection::new(params)?;
     ///  let mut writer;
     ///  // ... writer gets instantiated, is an implementation of std::io::Write;
     ///  # writer = Vec::<u8>::new();
@@ -158,13 +158,13 @@ impl NCLobHandle {
         total_byte_length: u64,
         locator_id: u64,
         cesu8: Vec<u8>,
-    ) -> NCLobHandle {
+    ) -> Self {
         let acc_byte_length = cesu8.len();
         let acc_char_length = util::count_1_2_3_sequence_starts(&cesu8);
 
         let (utf8, surrogate_buf) = util::to_string_and_surrogate(cesu8).unwrap(/* yes */);
 
-        let nclob_handle = NCLobHandle {
+        let nclob_handle = Self {
             am_conn_core: am_conn_core.clone(),
             o_am_rscore: match o_am_rscore {
                 Some(ref am_rscore) => Some(am_rscore.clone()),
@@ -179,7 +179,7 @@ impl NCLobHandle {
             utf8,
             acc_byte_length,
             acc_char_length,
-            server_usage: Default::default(),
+            server_usage: ServerUsage::default(),
         };
 
         trace!(
@@ -215,6 +215,7 @@ impl NCLobHandle {
         self.utf8.len()
     }
 
+    #[allow(clippy::cast_possible_truncation)]
     fn fetch_next_chunk(&mut self) -> HdbResult<()> {
         if self.is_data_complete {
             return Err(HdbError::imp("already complete"));

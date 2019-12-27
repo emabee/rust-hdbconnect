@@ -21,11 +21,9 @@ impl DbvFactory for &ParameterDescriptor {
 
     fn from_bool(&self, value: bool) -> Result<HdbValue<'static>, SerializationError> {
         Ok(match self.type_id() {
-            TypeId::BOOLEAN => HdbValue::BOOLEAN(value),
-            TypeId::TINYINT => HdbValue::BOOLEAN(value),
-            TypeId::SMALLINT => HdbValue::BOOLEAN(value),
-            TypeId::INT => HdbValue::BOOLEAN(value),
-            TypeId::BIGINT => HdbValue::BOOLEAN(value),
+            TypeId::BOOLEAN | TypeId::TINYINT | TypeId::SMALLINT | TypeId::INT | TypeId::BIGINT => {
+                HdbValue::BOOLEAN(value)
+            }
             _ => return Err(type_mismatch("boolean", self.descriptor())),
         })
     }
@@ -295,16 +293,16 @@ impl DbvFactory for &ParameterDescriptor {
             | TypeId::TEXT
             | TypeId::SHORTTEXT
             | TypeId::CLOB
-            | TypeId::NCLOB => HdbValue::STRING(String::from(value)),
+            | TypeId::NCLOB
+            | TypeId::LONGDATE
+            | TypeId::SECONDDATE
+            | TypeId::DAYDATE
+            | TypeId::SECONDTIME => HdbValue::STRING(String::from(value)),
 
             TypeId::DECIMAL | TypeId::FIXED8 | TypeId::FIXED12 | TypeId::FIXED16 => {
                 HdbValue::DECIMAL(BigDecimal::from_str(value).map_err(map_bd)?)
             }
 
-            TypeId::LONGDATE => HdbValue::STRING(String::from(value)),
-            TypeId::SECONDDATE => HdbValue::STRING(String::from(value)),
-            TypeId::DAYDATE => HdbValue::STRING(String::from(value)),
-            TypeId::SECONDTIME => HdbValue::STRING(String::from(value)),
             _ => return Err(type_mismatch("&str", self.descriptor())),
         })
     }

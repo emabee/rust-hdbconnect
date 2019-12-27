@@ -23,7 +23,7 @@ use r2d2;
 ///     .password("schlau")
 ///     .build()
 ///     .unwrap();
-/// let manager = ConnectionManager::try_new(&connect_params).unwrap();
+/// let manager = ConnectionManager::new(&connect_params).unwrap();
 /// let pool = r2d2::Pool::builder().max_size(POOL_SIZE).build(manager).unwrap();
 ///
 /// for _ in 0..NUM_THREADS {
@@ -43,8 +43,8 @@ pub struct ConnectionManager {
 
 impl ConnectionManager {
     /// Creates a new ConnectionManager.
-    pub fn try_new<P: IntoConnectParams>(p: P) -> HdbResult<ConnectionManager> {
-        Ok(ConnectionManager {
+    pub fn new<P: IntoConnectParams>(p: P) -> HdbResult<Self> {
+        Ok(Self {
             connect_params: p.into_connect_params()?,
         })
     }
@@ -57,7 +57,7 @@ impl r2d2::ManageConnection for ConnectionManager {
     // Attempts to create a new connection.
     fn connect(&self) -> Result<Self::Connection, Self::Error> {
         trace!("ConnectionManager::connect()");
-        Connection::try_new(&self.connect_params).compat()
+        Connection::new(&self.connect_params).compat()
     }
 
     // Determines if the connection is still connected to the database.

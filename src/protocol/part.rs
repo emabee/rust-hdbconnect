@@ -8,6 +8,7 @@ use crate::protocol::parts::resultset::RsState;
 use crate::protocol::util;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::cmp::max;
+use std::convert::TryFrom;
 use std::sync::Arc;
 use std::{i16, i32};
 
@@ -33,6 +34,8 @@ impl<'a> Part<'a> {
         self.arg
     }
 
+    #[allow(clippy::cast_possible_truncation)]
+    #[allow(clippy::cast_possible_wrap)]
     pub fn emit<T: std::io::Write>(
         &self,
         mut remaining_bufsize: u32,
@@ -44,11 +47,12 @@ impl<'a> Part<'a> {
         w.write_i8(self.kind as i8)?;
         w.write_u8(0)?; // U1 Attributes not used in requests
         match self.arg.count()? {
-            i if i < i16::MAX as usize => {
+            i if i < i16::max_value() as usize => {
                 w.write_i16::<LittleEndian>(i as i16)?;
                 w.write_i32::<LittleEndian>(0)?;
             }
-            i if i <= i32::MAX as usize => {
+            // i if i <= i32::max_value() as usize => {
+            i if i32::try_from(i).is_ok() => {
                 w.write_i16::<LittleEndian>(-1)?;
                 w.write_i32::<LittleEndian>(i as i32)?;
             }
@@ -119,6 +123,7 @@ impl<'a> Part<'a> {
     }
 }
 
+#[allow(clippy::cast_sign_loss)]
 fn parse_part_header(
     rdr: &mut dyn std::io::BufRead,
 ) -> std::io::Result<(PartKind, PartAttributes, usize, usize)> {

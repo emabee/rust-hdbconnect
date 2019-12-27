@@ -20,7 +20,7 @@ pub(crate) use self::wire::{emit_lob_header, parse_blob, parse_clob, parse_nclob
 ///   in CESU8, it may happen that the specified boundaries of the slice do not coincide with the
 ///   begin or end of a unicode-codepoint. The byte slice then begins and/or ends with a byte
 ///   sequence that cannot be converted into UTF-8, the unicode-encoding used by Rust.
-///   The prefix and the postfix members of the CharLobSlice
+///   The prefix and the postfix members of the `CharLobSlice`
 ///   thus optionally contain 1-5 bytes. The main part of the data is represented as Rust String.
 /// * `NCLob::read_slice()` interprets these numbers as numbers of 123-chars, applied to the
 ///   HANA-internally used CESU8-encoding. Unicode codepoints in BMP-0 are represented as 1, 2, or
@@ -31,7 +31,7 @@ pub(crate) use self::wire::{emit_lob_header, parse_blob, parse_clob, parse_nclob
 ///   begin or end of a unicode-codepoint, if the slice begins with a second surrogate or ends
 ///   with a first surrogate. Again, half surrogate pairs cannot be
 ///   converted into UTF-8, the unicode-encoding used by Rust.
-///   The prefix and the postfix members of the CharLobSlice
+///   The prefix and the postfix members of the `CharLobSlice`
 ///   thus can optionally contain 3 bytes. The rest of the data is represented as Rust String.
 ///
 #[derive(Debug)]

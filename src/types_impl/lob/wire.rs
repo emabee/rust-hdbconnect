@@ -122,6 +122,7 @@ fn parse_lob_2(
     }
 }
 
+#[allow(clippy::cast_possible_truncation)]
 pub(crate) fn emit_lob_header(
     length: u64,
     offset: &mut i32,

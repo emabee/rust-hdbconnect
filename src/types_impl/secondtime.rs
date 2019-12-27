@@ -30,15 +30,16 @@ impl fmt::Display for SecondTime {
 }
 
 impl cmp::PartialEq<SecondTime> for SecondTime {
-    fn eq(&self, other: &SecondTime) -> bool {
+    fn eq(&self, other: &Self) -> bool {
         self.0 == other.0
     }
 }
 
 impl SecondTime {
-    pub(crate) fn new(raw: i32) -> SecondTime {
+    #[allow(clippy::cast_sign_loss)]
+    pub(crate) fn new(raw: i32) -> Self {
         assert!(raw < NULL_REPRESENTATION && raw >= 0);
-        SecondTime(raw as u32)
+        Self(raw as u32)
     }
 
     pub(crate) fn ref_raw(&self) -> &u32 {

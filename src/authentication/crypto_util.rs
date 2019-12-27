@@ -92,7 +92,7 @@ pub fn sha256(input: &[u8]) -> Vec<u8> {
 pub fn xor(a: &[u8], b: &[u8]) -> Vec<u8> {
     assert_eq!(a.len(), b.len(), "xor needs two equally long parameters");
 
-    let mut bytes: Vec<u8> = std::iter::repeat(0u8).take(a.len()).collect();
+    let mut bytes: Vec<u8> = std::iter::repeat(0_u8).take(a.len()).collect();
     for i in 0..a.len() {
         bytes[i] = a[i] ^ b[i];
     }

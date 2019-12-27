@@ -14,9 +14,9 @@ impl fmt::Debug for TlsConnection {
     }
 }
 impl TlsConnection {
-    pub fn try_new(params: ConnectParams) -> std::io::Result<TlsConnection> {
+    pub fn try_new(params: ConnectParams) -> std::io::Result<Self> {
         let tlsstream = TlsStream::try_new(&params)?;
-        Ok(TlsConnection {
+        Ok(Self {
             params,
             reader: RefCell::new(std::io::BufReader::new(tlsstream.try_clone()?)),
             writer: RefCell::new(std::io::BufWriter::new(tlsstream)),

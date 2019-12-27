@@ -11,7 +11,7 @@ pub fn connect_string_from_file(s: &'static str) -> HdbResult<String> {
 
 fn get_authenticated_connection() -> HdbResult<Connection> {
     let s = connect_string_from_file("db_access.json")?;
-    Connection::try_new(s)
+    Connection::new(s)
 }
 
 pub fn main() {

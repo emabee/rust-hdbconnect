@@ -15,25 +15,25 @@ pub enum LobFlagsId {
 impl OptionId<LobFlagsId> for LobFlagsId {
     fn to_u8(&self) -> u8 {
         match *self {
-            LobFlagsId::ImplicitStreaming => 0,
-            LobFlagsId::__Unexpected__(val) => val,
+            Self::ImplicitStreaming => 0,
+            Self::__Unexpected__(val) => val,
         }
     }
 
-    fn from_u8(val: u8) -> LobFlagsId {
+    fn from_u8(val: u8) -> Self {
         match val {
-            0 => LobFlagsId::ImplicitStreaming,
+            0 => Self::ImplicitStreaming,
             val => {
                 warn!("Unsupported value for LobFlagsId received: {}", val);
-                LobFlagsId::__Unexpected__(val)
+                Self::__Unexpected__(val)
             }
         }
     }
 }
 
 impl LobFlags {
-    pub fn for_implicit_streaming() -> LobFlags {
-        let mut lob_flags = LobFlags::default();
+    pub fn for_implicit_streaming() -> Self {
+        let mut lob_flags = Self::default();
         lob_flags.set_value(LobFlagsId::ImplicitStreaming, OptionValue::BOOLEAN(true));
         lob_flags
     }

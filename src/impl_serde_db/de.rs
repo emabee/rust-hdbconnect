@@ -1,5 +1,6 @@
 use crate::protocol::parts::hdb_value::HdbValue;
 use crate::protocol::parts::output_parameters::OutputParameters;
+use crate::protocol::parts::parameter_descriptor::ParameterDescriptor;
 use crate::protocol::parts::resultset::ResultSet;
 use crate::protocol::parts::row::Row;
 use crate::HdbError;
@@ -70,9 +71,9 @@ impl DeserializableRow for OutputParameters {
     }
 
     fn fieldname(&self, field_idx: usize) -> Option<&String> {
-        OutputParameters::descriptors(self)
+        Self::descriptors(self)
             .get(field_idx)
-            .and_then(|descriptor| descriptor.name())
+            .and_then(ParameterDescriptor::name)
     }
 }
 
@@ -337,7 +338,7 @@ fn str_from<T: fmt::Display>(t: &T) -> String {
 
 // TODO improve this implementation
 impl From<HdbError> for DeserializationError {
-    fn from(e: HdbError) -> DeserializationError {
-        DeserializationError::Usage(e.to_string())
+    fn from(e: HdbError) -> Self {
+        Self::Usage(e.to_string())
     }
 }

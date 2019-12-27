@@ -24,6 +24,7 @@ impl<'a> WriteLobRequest<'a> {
         w.write_u8(options)?;
         w.write_i64::<LittleEndian>(self.offset)?;
 
+        #[allow(clippy::cast_possible_truncation)]
         w.write_u32::<LittleEndian>(self.buf.len() as u32)?;
         w.write_all(self.buf)?;
 

@@ -19,27 +19,27 @@ pub enum SessionContextId {
 impl OptionId<SessionContextId> for SessionContextId {
     fn to_u8(&self) -> u8 {
         match *self {
-            SessionContextId::PrimaryConnectionID => 1,
-            SessionContextId::PrimaryHostname => 2,
-            SessionContextId::PrimaryHostPortNumber => 3,
-            SessionContextId::MasterConnectionID => 4,
-            SessionContextId::MasterHostname => 5,
-            SessionContextId::MasterHostPortNumber => 6,
-            SessionContextId::__Unexpected__(val) => val,
+            Self::PrimaryConnectionID => 1,
+            Self::PrimaryHostname => 2,
+            Self::PrimaryHostPortNumber => 3,
+            Self::MasterConnectionID => 4,
+            Self::MasterHostname => 5,
+            Self::MasterHostPortNumber => 6,
+            Self::__Unexpected__(val) => val,
         }
     }
 
-    fn from_u8(val: u8) -> SessionContextId {
+    fn from_u8(val: u8) -> Self {
         match val {
-            1 => SessionContextId::PrimaryConnectionID,
-            2 => SessionContextId::PrimaryHostname,
-            3 => SessionContextId::PrimaryHostPortNumber,
-            4 => SessionContextId::MasterConnectionID,
-            5 => SessionContextId::MasterHostname,
-            6 => SessionContextId::MasterHostPortNumber,
+            1 => Self::PrimaryConnectionID,
+            2 => Self::PrimaryHostname,
+            3 => Self::PrimaryHostPortNumber,
+            4 => Self::MasterConnectionID,
+            5 => Self::MasterHostname,
+            6 => Self::MasterHostPortNumber,
             val => {
                 warn!("Unsupported value for SessionContextId received: {}", val);
-                SessionContextId::__Unexpected__(val)
+                Self::__Unexpected__(val)
             }
         }
     }

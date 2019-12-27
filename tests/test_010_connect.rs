@@ -55,7 +55,7 @@ fn connect_wrong_password(_log_handle: &mut ReconfigurationHandle) {
     let conn_params: ConnectParams = s.into_connect_params().unwrap();
     assert_eq!(conn_params.password().unsecure(), b"blabla");
 
-    let err = Connection::try_new(conn_params).err().unwrap();
+    let err = Connection::new(conn_params).err().unwrap();
     info!(
         "connect with wrong password failed as expected, after {} µs with {}.",
         Local::now()
@@ -76,7 +76,7 @@ fn connect_and_select_with_explicit_clientlocale(
     let conn_params: ConnectParams = url.into_connect_params()?;
     assert_eq!(conn_params.clientlocale().unwrap(), "en_US");
 
-    let mut connection = Connection::try_new(conn_params)?;
+    let mut connection = Connection::new(conn_params)?;
     select_version_and_user(&mut connection)?;
     Ok(())
 }
@@ -94,7 +94,7 @@ fn connect_and_select_with_clientlocale_from_env(
     let conn_params: ConnectParams = url.into_connect_params()?;
     assert!(conn_params.clientlocale().is_some());
 
-    let mut connection = Connection::try_new(conn_params)?;
+    let mut connection = Connection::new(conn_params)?;
     select_version_and_user(&mut connection)?;
     Ok(())
 }

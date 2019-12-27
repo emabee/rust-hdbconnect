@@ -68,6 +68,7 @@ pub(crate) enum Argument<'a> {
 impl<'a> Argument<'a> {
     // only called on output (emit)
     pub fn count(&self) -> std::io::Result<usize> {
+        // | Argument::TopologyInformation(_)
         Ok(match *self {
             Argument::Auth(_)
             | Argument::ClientContext(_)
@@ -75,9 +76,8 @@ impl<'a> Argument<'a> {
             | Argument::FetchSize(_)
             | Argument::ResultSetId(_)
             | Argument::StatementId(_)
-            // | Argument::TopologyInformation(_)
-            | Argument::ReadLobRequest(_) => 1,
-            Argument::WriteLobRequest(_) => 1,
+            | Argument::ReadLobRequest(_)
+            | Argument::WriteLobRequest(_) => 1,
             Argument::ClientInfo(ref client_info) => client_info.count(),
             Argument::CommandInfo(ref opts) => opts.count(),
             // Argument::CommitOptions(ref opts) => opts.count(),
@@ -101,7 +101,7 @@ impl<'a> Argument<'a> {
         with_padding: bool,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
     ) -> std::io::Result<usize> {
-        let mut size = 0usize;
+        let mut size = 0_usize;
         match *self {
             Argument::Auth(ref af) => size += af.size(),
             Argument::ClientContext(ref opts) => size += opts.size(),
@@ -114,13 +114,12 @@ impl<'a> Argument<'a> {
             Argument::FetchSize(_) => size += 4,
             Argument::LobFlags(ref opts) => size += opts.size(),
             Argument::Parameters(ref par_rows) => {
-                size += match o_a_descriptors {
-                    Some(a_descriptors) => par_rows.size(&a_descriptors)?,
-                    None => {
-                        return Err(util::io_error(
-                            "Argument::Parameters::emit(): No metadata".to_string(),
-                        ));
-                    }
+                size += if let Some(a_descriptors) = o_a_descriptors {
+                    par_rows.size(&a_descriptors)?
+                } else {
+                    return Err(util::io_error(
+                        "Argument::Parameters::emit(): No metadata".to_string(),
+                    ));
                 }
             }
             Argument::ReadLobRequest(ref r) => size += r.size(),
@@ -164,14 +163,15 @@ impl<'a> Argument<'a> {
                 w.write_u32::<LittleEndian>(fs)?;
             }
             Argument::LobFlags(ref opts) => opts.emit(w)?,
-            Argument::Parameters(ref parameters) => match o_a_descriptors {
-                Some(descriptors) => parameters.emit(descriptors, w)?,
-                None => {
+            Argument::Parameters(ref parameters) => {
+                if let Some(descriptors) = o_a_descriptors {
+                    parameters.emit(descriptors, w)?
+                } else {
                     return Err(util::io_error(
                         "Argument::Parameters::emit(): No metadata".to_string(),
                     ));
                 }
-            },
+            }
             Argument::ReadLobRequest(ref r) => r.emit(w)?,
             Argument::ResultSetId(rs_id) => {
                 w.write_u64::<LittleEndian>(rs_id)?;
@@ -201,6 +201,7 @@ impl<'a> Argument<'a> {
             size,
             padsize
         );
+        #[allow(clippy::cast_possible_truncation)]
         Ok(remaining_bufsize - size as u32 - padsize as u32)
     }
 

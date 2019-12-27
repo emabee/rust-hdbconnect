@@ -40,7 +40,7 @@ impl<'a> Request<'a> {
     }
 
     pub fn add_statement_context(&mut self, ssi_value: i64) {
-        let mut stmt_ctx: StatementContext = Default::default();
+        let mut stmt_ctx = StatementContext::default();
         stmt_ctx.set_statement_sequence_info(ssi_value);
         trace!(
             "Sending StatementContext with sequence_info = {:?}",
@@ -52,6 +52,8 @@ impl<'a> Request<'a> {
         ));
     }
 
+    #[allow(clippy::cast_possible_truncation)]
+    #[allow(clippy::cast_possible_wrap)]
     pub fn emit<T: std::io::Write>(
         self,
         session_id: i64,
@@ -107,6 +109,7 @@ impl<'a> Request<'a> {
 
     // Length in bytes of the variable part of the message, i.e. total message
     // without the header
+    #[allow(clippy::cast_possible_truncation)]
     fn varpart_size(
         &self,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,

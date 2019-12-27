@@ -7,8 +7,8 @@ use crate::protocol::parts::option_value::OptionValue;
 pub(crate) type ConnectOptions = OptionPart<ConnOptId>;
 
 impl ConnectOptions {
-    pub fn for_server(locale: Option<&String>, os_user: String) -> ConnectOptions {
-        let mut connopts = ConnectOptions::default();
+    pub fn for_server(locale: Option<&String>, os_user: String) -> Self {
+        let mut connopts = Self::default();
 
         let mut set_opt = |id: ConnOptId, value: OptionValue| {
             debug!("Sending ConnectionOption to server: {:?} = {:?}", id, value);
@@ -39,10 +39,7 @@ impl ConnectOptions {
         connopts
     }
 
-    pub(crate) fn digest_server_connect_options(
-        &mut self,
-        server_co: ConnectOptions,
-    ) -> HdbResult<()> {
+    pub(crate) fn digest_server_connect_options(&mut self, server_co: Self) -> HdbResult<()> {
         for (k, v) in server_co {
             match k {
                 ConnOptId::ConnectionID
@@ -69,17 +66,16 @@ impl ConnectOptions {
                 | ConnOptId::ClientInfoNullValueOK
                 | ConnOptId::ClientReconnectWaitTimeout
                 | ConnOptId::FlagSet1 => {
-                    match self.get_value(&k) {
-                        Some(old_value) => {
-                            if *old_value != v {
-                                debug!(
-                                    "Server changes ConnectionOption {:?} from value {:?} \
-                                     to {:?}",
-                                    k, old_value, v
-                                )
-                            }
+                    if let Some(old_value) = self.get_value(&k) {
+                        if *old_value != v {
+                            debug!(
+                                "Server changes ConnectionOption {:?} from value {:?} \
+                                 to {:?}",
+                                k, old_value, v
+                            )
                         }
-                        None => debug!("Got from server ConnectionOption: {:?} = {:?}", k, v),
+                    } else {
+                        debug!("Got from server ConnectionOption: {:?} = {:?}", k, v)
                     }
                     self.set_value(k, v);
                 }
@@ -435,128 +431,128 @@ pub enum ConnOptId {
 impl OptionId<ConnOptId> for ConnOptId {
     fn to_u8(&self) -> u8 {
         match *self {
-            ConnOptId::ConnectionID => 1,
-            ConnOptId::CompleteArrayExecution => 2,
-            ConnOptId::ClientLocale => 3,
-            ConnOptId::SupportsLargeBulkOperations => 4,
-            ConnOptId::DistributionEnabled => 5,
-            ConnOptId::PrimaryConnectionId => 6,
-            ConnOptId::PrimaryConnectionHost => 7,
-            ConnOptId::PrimaryConnectionPort => 8,
-            ConnOptId::CompleteDatatypeSupport => 9,
-            ConnOptId::LargeNumberOfParametersOK => 10,
-            ConnOptId::SystemID => 11,
-            ConnOptId::DataFormatVersion => 12,
-            ConnOptId::AbapVarcharMode => 13,
-            ConnOptId::SelectForUpdateOK => 14,
-            ConnOptId::ClientDistributionMode => 15,
-            ConnOptId::EngineDataFormatVersion => 16,
-            ConnOptId::DistributionProtocolVersion => 17,
-            ConnOptId::SplitBatchCommands => 18,
-            ConnOptId::UseTransactionFlagsOnly => 19,
-            ConnOptId::RowSlotImageParameter => 20,
-            ConnOptId::IgnoreUnknownParts => 21,
-            ConnOptId::TableOutputParMetadataOK => 22,
-            ConnOptId::DataFormatVersion2 => 23,
-            ConnOptId::ItabParameter => 24,
-            ConnOptId::DescribeTableOutputParameter => 25,
-            ConnOptId::ColumnarResultSet => 26,
-            ConnOptId::ScrollableResultSet => 27,
-            ConnOptId::ClientInfoNullValueOK => 28,
-            ConnOptId::AssociatedConnectionID => 29,
-            ConnOptId::NonTransactionalPrepare => 30,
-            ConnOptId::FdaEnabled => 31,
-            ConnOptId::OSUser => 32,
-            ConnOptId::RowSlotImageResultSet => 33,
-            ConnOptId::Endianness => 34,
-            ConnOptId::UpdateTopologyAnwhere => 35,
-            ConnOptId::EnableArrayType => 36,
-            ConnOptId::ImplicitLobStreaming => 37,
-            ConnOptId::CachedViewProperty => 38,
-            ConnOptId::XOpenXAProtocolOK => 39,
-            ConnOptId::MasterCommitRedirectionOK => 40,
-            ConnOptId::ActiveActiveProtocolVersion => 41,
-            ConnOptId::ActiveActiveConnOriginSite => 42,
-            ConnOptId::QueryTimeoutOK => 43,
-            ConnOptId::FullVersionString => 44,
-            ConnOptId::DatabaseName => 45,
-            ConnOptId::BuildPlatform => 46,
-            ConnOptId::ImplicitXASessionOK => 47,
-            ConnOptId::ClientSideColumnEncryptionVersion => 48,
-            ConnOptId::CompressionLevelAndFlags => 49,
-            ConnOptId::ClientSideReExecutionSupported => 50,
+            Self::ConnectionID => 1,
+            Self::CompleteArrayExecution => 2,
+            Self::ClientLocale => 3,
+            Self::SupportsLargeBulkOperations => 4,
+            Self::DistributionEnabled => 5,
+            Self::PrimaryConnectionId => 6,
+            Self::PrimaryConnectionHost => 7,
+            Self::PrimaryConnectionPort => 8,
+            Self::CompleteDatatypeSupport => 9,
+            Self::LargeNumberOfParametersOK => 10,
+            Self::SystemID => 11,
+            Self::DataFormatVersion => 12,
+            Self::AbapVarcharMode => 13,
+            Self::SelectForUpdateOK => 14,
+            Self::ClientDistributionMode => 15,
+            Self::EngineDataFormatVersion => 16,
+            Self::DistributionProtocolVersion => 17,
+            Self::SplitBatchCommands => 18,
+            Self::UseTransactionFlagsOnly => 19,
+            Self::RowSlotImageParameter => 20,
+            Self::IgnoreUnknownParts => 21,
+            Self::TableOutputParMetadataOK => 22,
+            Self::DataFormatVersion2 => 23,
+            Self::ItabParameter => 24,
+            Self::DescribeTableOutputParameter => 25,
+            Self::ColumnarResultSet => 26,
+            Self::ScrollableResultSet => 27,
+            Self::ClientInfoNullValueOK => 28,
+            Self::AssociatedConnectionID => 29,
+            Self::NonTransactionalPrepare => 30,
+            Self::FdaEnabled => 31,
+            Self::OSUser => 32,
+            Self::RowSlotImageResultSet => 33,
+            Self::Endianness => 34,
+            Self::UpdateTopologyAnwhere => 35,
+            Self::EnableArrayType => 36,
+            Self::ImplicitLobStreaming => 37,
+            Self::CachedViewProperty => 38,
+            Self::XOpenXAProtocolOK => 39,
+            Self::MasterCommitRedirectionOK => 40,
+            Self::ActiveActiveProtocolVersion => 41,
+            Self::ActiveActiveConnOriginSite => 42,
+            Self::QueryTimeoutOK => 43,
+            Self::FullVersionString => 44,
+            Self::DatabaseName => 45,
+            Self::BuildPlatform => 46,
+            Self::ImplicitXASessionOK => 47,
+            Self::ClientSideColumnEncryptionVersion => 48,
+            Self::CompressionLevelAndFlags => 49,
+            Self::ClientSideReExecutionSupported => 50,
 
-            ConnOptId::ClientReconnectWaitTimeout => 51,
-            ConnOptId::OriginalAnchorConnectionID => 52,
-            ConnOptId::FlagSet1 => 53,
-            ConnOptId::TopologyNetworkGroup => 54,
-            ConnOptId::IPAddress => 55,
+            Self::ClientReconnectWaitTimeout => 51,
+            Self::OriginalAnchorConnectionID => 52,
+            Self::FlagSet1 => 53,
+            Self::TopologyNetworkGroup => 54,
+            Self::IPAddress => 55,
 
-            ConnOptId::__Unexpected__(n) => n,
+            Self::__Unexpected__(n) => n,
         }
     }
 
-    fn from_u8(val: u8) -> ConnOptId {
+    fn from_u8(val: u8) -> Self {
         match val {
-            1 => ConnOptId::ConnectionID,
-            2 => ConnOptId::CompleteArrayExecution,
-            3 => ConnOptId::ClientLocale,
-            4 => ConnOptId::SupportsLargeBulkOperations,
-            5 => ConnOptId::DistributionEnabled,
-            6 => ConnOptId::PrimaryConnectionId,
-            7 => ConnOptId::PrimaryConnectionHost,
-            8 => ConnOptId::PrimaryConnectionPort,
-            9 => ConnOptId::CompleteDatatypeSupport,
-            10 => ConnOptId::LargeNumberOfParametersOK,
-            11 => ConnOptId::SystemID,
-            12 => ConnOptId::DataFormatVersion,
-            13 => ConnOptId::AbapVarcharMode,
-            14 => ConnOptId::SelectForUpdateOK,
-            15 => ConnOptId::ClientDistributionMode,
-            16 => ConnOptId::EngineDataFormatVersion,
-            17 => ConnOptId::DistributionProtocolVersion,
-            18 => ConnOptId::SplitBatchCommands,
-            19 => ConnOptId::UseTransactionFlagsOnly,
-            20 => ConnOptId::RowSlotImageParameter,
-            21 => ConnOptId::IgnoreUnknownParts,
-            22 => ConnOptId::TableOutputParMetadataOK,
-            23 => ConnOptId::DataFormatVersion2,
-            24 => ConnOptId::ItabParameter,
-            25 => ConnOptId::DescribeTableOutputParameter,
-            26 => ConnOptId::ColumnarResultSet,
-            27 => ConnOptId::ScrollableResultSet,
-            28 => ConnOptId::ClientInfoNullValueOK,
-            29 => ConnOptId::AssociatedConnectionID,
-            30 => ConnOptId::NonTransactionalPrepare,
-            31 => ConnOptId::FdaEnabled,
-            32 => ConnOptId::OSUser,
-            33 => ConnOptId::RowSlotImageResultSet,
-            34 => ConnOptId::Endianness,
-            35 => ConnOptId::UpdateTopologyAnwhere,
-            36 => ConnOptId::EnableArrayType,
-            37 => ConnOptId::ImplicitLobStreaming,
-            38 => ConnOptId::CachedViewProperty,
-            39 => ConnOptId::XOpenXAProtocolOK,
-            40 => ConnOptId::MasterCommitRedirectionOK,
-            41 => ConnOptId::ActiveActiveProtocolVersion,
-            42 => ConnOptId::ActiveActiveConnOriginSite,
-            43 => ConnOptId::QueryTimeoutOK,
-            44 => ConnOptId::FullVersionString,
-            45 => ConnOptId::DatabaseName,
-            46 => ConnOptId::BuildPlatform,
-            47 => ConnOptId::ImplicitXASessionOK,
-            48 => ConnOptId::ClientSideColumnEncryptionVersion,
-            49 => ConnOptId::CompressionLevelAndFlags,
-            50 => ConnOptId::ClientSideReExecutionSupported,
+            1 => Self::ConnectionID,
+            2 => Self::CompleteArrayExecution,
+            3 => Self::ClientLocale,
+            4 => Self::SupportsLargeBulkOperations,
+            5 => Self::DistributionEnabled,
+            6 => Self::PrimaryConnectionId,
+            7 => Self::PrimaryConnectionHost,
+            8 => Self::PrimaryConnectionPort,
+            9 => Self::CompleteDatatypeSupport,
+            10 => Self::LargeNumberOfParametersOK,
+            11 => Self::SystemID,
+            12 => Self::DataFormatVersion,
+            13 => Self::AbapVarcharMode,
+            14 => Self::SelectForUpdateOK,
+            15 => Self::ClientDistributionMode,
+            16 => Self::EngineDataFormatVersion,
+            17 => Self::DistributionProtocolVersion,
+            18 => Self::SplitBatchCommands,
+            19 => Self::UseTransactionFlagsOnly,
+            20 => Self::RowSlotImageParameter,
+            21 => Self::IgnoreUnknownParts,
+            22 => Self::TableOutputParMetadataOK,
+            23 => Self::DataFormatVersion2,
+            24 => Self::ItabParameter,
+            25 => Self::DescribeTableOutputParameter,
+            26 => Self::ColumnarResultSet,
+            27 => Self::ScrollableResultSet,
+            28 => Self::ClientInfoNullValueOK,
+            29 => Self::AssociatedConnectionID,
+            30 => Self::NonTransactionalPrepare,
+            31 => Self::FdaEnabled,
+            32 => Self::OSUser,
+            33 => Self::RowSlotImageResultSet,
+            34 => Self::Endianness,
+            35 => Self::UpdateTopologyAnwhere,
+            36 => Self::EnableArrayType,
+            37 => Self::ImplicitLobStreaming,
+            38 => Self::CachedViewProperty,
+            39 => Self::XOpenXAProtocolOK,
+            40 => Self::MasterCommitRedirectionOK,
+            41 => Self::ActiveActiveProtocolVersion,
+            42 => Self::ActiveActiveConnOriginSite,
+            43 => Self::QueryTimeoutOK,
+            44 => Self::FullVersionString,
+            45 => Self::DatabaseName,
+            46 => Self::BuildPlatform,
+            47 => Self::ImplicitXASessionOK,
+            48 => Self::ClientSideColumnEncryptionVersion,
+            49 => Self::CompressionLevelAndFlags,
+            50 => Self::ClientSideReExecutionSupported,
 
-            51 => ConnOptId::ClientReconnectWaitTimeout,
-            52 => ConnOptId::OriginalAnchorConnectionID,
-            53 => ConnOptId::FlagSet1,
-            54 => ConnOptId::TopologyNetworkGroup,
-            55 => ConnOptId::IPAddress,
+            51 => Self::ClientReconnectWaitTimeout,
+            52 => Self::OriginalAnchorConnectionID,
+            53 => Self::FlagSet1,
+            54 => Self::TopologyNetworkGroup,
+            55 => Self::IPAddress,
             val => {
                 warn!("Unsupported value for ConnOptId received: {}", val);
-                ConnOptId::__Unexpected__(val)
+                Self::__Unexpected__(val)
             }
         }
     }

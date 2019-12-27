@@ -24,35 +24,35 @@ pub enum TopologyAttrId {
 impl OptionId<TopologyAttrId> for TopologyAttrId {
     fn to_u8(&self) -> u8 {
         match *self {
-            TopologyAttrId::HostName => 1,
-            TopologyAttrId::HostPortNumber => 2,
-            TopologyAttrId::TenantName => 3,
-            TopologyAttrId::LoadFactor => 4,
-            TopologyAttrId::VolumeID => 5,
-            TopologyAttrId::IsMaster => 6,
-            TopologyAttrId::IsCurrentSession => 7,
-            TopologyAttrId::ServiceType => 8,
-            TopologyAttrId::IsStandby => 10,
-            TopologyAttrId::SiteType => 13,
-            TopologyAttrId::__Unexpected__(i) => i,
+            Self::HostName => 1,
+            Self::HostPortNumber => 2,
+            Self::TenantName => 3,
+            Self::LoadFactor => 4,
+            Self::VolumeID => 5,
+            Self::IsMaster => 6,
+            Self::IsCurrentSession => 7,
+            Self::ServiceType => 8,
+            Self::IsStandby => 10,
+            Self::SiteType => 13,
+            Self::__Unexpected__(i) => i,
         }
     }
 
-    fn from_u8(val: u8) -> TopologyAttrId {
+    fn from_u8(val: u8) -> Self {
         match val {
-            1 => TopologyAttrId::HostName,
-            2 => TopologyAttrId::HostPortNumber,
-            3 => TopologyAttrId::TenantName,
-            4 => TopologyAttrId::LoadFactor,
-            5 => TopologyAttrId::VolumeID,
-            6 => TopologyAttrId::IsMaster,
-            7 => TopologyAttrId::IsCurrentSession,
-            8 => TopologyAttrId::ServiceType,
-            10 => TopologyAttrId::IsStandby,
-            13 => TopologyAttrId::SiteType,
+            1 => Self::HostName,
+            2 => Self::HostPortNumber,
+            3 => Self::TenantName,
+            4 => Self::LoadFactor,
+            5 => Self::VolumeID,
+            6 => Self::IsMaster,
+            7 => Self::IsCurrentSession,
+            8 => Self::ServiceType,
+            10 => Self::IsStandby,
+            13 => Self::SiteType,
             val => {
                 warn!("Invalid value for TopologyAttrId received: {}", val);
-                TopologyAttrId::__Unexpected__(val)
+                Self::__Unexpected__(val)
             }
         }
     }

@@ -17,9 +17,9 @@ use std::sync::{Arc, LockResult, Mutex, MutexGuard};
 pub(crate) struct AmConnCore(Arc<Mutex<ConnectionCore>>);
 
 impl AmConnCore {
-    pub fn try_new(conn_params: ConnectParams) -> HdbResult<AmConnCore> {
+    pub fn try_new(conn_params: ConnectParams) -> HdbResult<Self> {
         let conn_core = ConnectionCore::try_new(conn_params)?;
-        Ok(AmConnCore(Arc::new(Mutex::new(conn_core))))
+        Ok(Self(Arc::new(Mutex::new(conn_core))))
     }
 
     pub fn lock(&self) -> LockResult<MutexGuard<ConnectionCore>> {
@@ -41,7 +41,7 @@ impl AmConnCore {
             "AmConnCore::full_send() with requestType = {:?}",
             request.request_type,
         );
-        let _start = Local::now();
+        let start = Local::now();
         let mut conn_core = self.lock()?;
 
         match conn_core.statement_sequence() {
@@ -60,14 +60,14 @@ impl AmConnCore {
 
         debug!(
             "AmConnCore::full_send() took {} ms",
-            (Local::now().signed_duration_since(_start)).num_milliseconds()
+            (Local::now().signed_duration_since(start)).num_milliseconds()
         );
         Ok(reply)
     }
 }
 
 impl Clone for AmConnCore {
-    fn clone(&self) -> AmConnCore {
-        AmConnCore(self.0.clone())
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
     }
 }

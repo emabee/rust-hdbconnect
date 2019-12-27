@@ -16,13 +16,13 @@ pub trait Authenticator {
     fn verify_server(&self, server_proof: &[u8]) -> HdbResult<()>;
 
     fn evaluate_second_response(&self, method: &[u8], server_proof: &[u8]) -> HdbResult<()> {
-        if method != self.name().as_bytes() {
+        if method == self.name().as_bytes() {
+            self.verify_server(server_proof)
+        } else {
             Err(HdbError::imp_detailed(format!(
                 "Wrong method name detected: {}",
                 String::from_utf8_lossy(method)
             )))
-        } else {
-            self.verify_server(server_proof)
         }
     }
 }

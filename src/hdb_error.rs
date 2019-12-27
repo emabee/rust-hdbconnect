@@ -79,11 +79,11 @@ pub struct HdbError {
 }
 
 impl HdbError {
-    pub(crate) fn imp(s: &'static str) -> HdbError {
+    pub(crate) fn imp(s: &'static str) -> Self {
         HdbErrorKind::Impl(s).into()
     }
 
-    pub(crate) fn imp_detailed(s: String) -> HdbError {
+    pub(crate) fn imp_detailed(s: String) -> Self {
         HdbErrorKind::ImplDetailed(s).into()
     }
 
@@ -98,7 +98,7 @@ impl HdbError {
     /// # use hdbconnect::IntoConnectParams;
     /// # fn main() -> Result<(),failure::Error> {
     ///     # let hdb_result: HdbResult<()> = Err(HdbErrorKind::Usage("test").into());
-    ///     # let mut connection = Connection::try_new("".into_connect_params()?)?;
+    ///     # let mut connection = Connection::new("".into_connect_params()?)?;
     ///     if let Err(hdberror) = hdb_result {
     ///         if let Some(server_error) = hdberror.server_error() {
     ///             let sys_m_error_code: (i32, String, String) = connection
@@ -142,21 +142,21 @@ impl std::fmt::Display for HdbError {
 }
 
 impl<'a, T> From<std::sync::PoisonError<std::sync::MutexGuard<'a, T>>> for HdbError {
-    fn from(_error: std::sync::PoisonError<std::sync::MutexGuard<'a, T>>) -> HdbError {
-        HdbError {
+    fn from(_error: std::sync::PoisonError<std::sync::MutexGuard<'a, T>>) -> Self {
+        Self {
             inner: Context::new(HdbErrorKind::Poison),
         }
     }
 }
 impl From<HdbErrorKind> for HdbError {
-    fn from(kind: HdbErrorKind) -> HdbError {
-        HdbError {
+    fn from(kind: HdbErrorKind) -> Self {
+        Self {
             inner: Context::new(kind),
         }
     }
 }
 impl From<Context<HdbErrorKind>> for HdbError {
-    fn from(inner: Context<HdbErrorKind>) -> HdbError {
-        HdbError { inner }
+    fn from(inner: Context<HdbErrorKind>) -> Self {
+        Self { inner }
     }
 }

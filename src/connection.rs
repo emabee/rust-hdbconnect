@@ -16,7 +16,6 @@ use chrono::Local;
 use dist_tx::rm::ResourceManager;
 
 /// A connection to the database.
-///
 #[derive(Clone, Debug)]
 pub struct Connection {
     am_conn_core: AmConnCore,
@@ -29,9 +28,9 @@ impl Connection {
     ///
     /// ```rust,no_run
     /// use hdbconnect::Connection;
-    /// let mut conn = Connection::try_new("hdbsql://my_user:my_passwd@the_host:2222").unwrap();
+    /// let mut conn = Connection::new("hdbsql://my_user:my_passwd@the_host:2222").unwrap();
     /// ```
-    pub fn try_new<P: IntoConnectParams>(p: P) -> HdbResult<Connection> {
+    pub fn new<P: IntoConnectParams>(p: P) -> HdbResult<Self> {
         trace!("connect()");
         let start = Local::now();
         let mut am_conn_core = AmConnCore::try_new(p.into_connect_params()?)?;
@@ -50,7 +49,7 @@ impl Connection {
                 conn_core.connect_options().get_full_version_string()
             );
         }
-        Ok(Connection { am_conn_core })
+        Ok(Self { am_conn_core })
     }
 
     /// Executes a statement on the database.
@@ -70,7 +69,7 @@ impl Connection {
     /// # let params = "hdbsql://my_user:my_passwd@the_host:2222"
     /// #     .into_connect_params()
     /// #     .unwrap();
-    /// # let mut connection = Connection::try_new(params).unwrap();
+    /// # let mut connection = Connection::new(params).unwrap();
     /// # let statement_string = "";
     /// let mut response = connection.statement(&statement_string)?; // HdbResponse
     /// # Ok(())
@@ -92,7 +91,7 @@ impl Connection {
     /// # let params = "hdbsql://my_user:my_passwd@the_host:2222"
     /// #     .into_connect_params()
     /// #     .unwrap();
-    /// # let mut connection = Connection::try_new(params).unwrap();
+    /// # let mut connection = Connection::new(params).unwrap();
     /// # let statement_string = "";
     /// let mut rs = connection.query(&statement_string)?; // ResultSet
     /// # Ok(())
@@ -114,7 +113,7 @@ impl Connection {
     /// # let params = "hdbsql://my_user:my_passwd@the_host:2222"
     /// #     .into_connect_params()
     /// #     .unwrap();
-    /// # let mut connection = Connection::try_new(params).unwrap();
+    /// # let mut connection = Connection::new(params).unwrap();
     /// # let statement_string = "";
     /// let count = connection.dml(&statement_string)?; //usize
     /// # Ok(())
@@ -140,7 +139,7 @@ impl Connection {
     /// # let params = "hdbsql://my_user:my_passwd@the_host:2222"
     /// #     .into_connect_params()
     /// #     .unwrap();
-    /// # let mut connection = Connection::try_new(params).unwrap();
+    /// # let mut connection = Connection::new(params).unwrap();
     /// # let statement_string = "";
     /// connection.exec(&statement_string)?;
     /// # Ok(())
@@ -162,7 +161,7 @@ impl Connection {
     /// # let params = "hdbsql://my_user:my_passwd@the_host:2222"
     /// #     .into_connect_params()
     /// #     .unwrap();
-    /// # let mut connection = Connection::try_new(params).unwrap();
+    /// # let mut connection = Connection::new(params).unwrap();
     /// let query_string = "select * from phrases where ID = ? and text = ?";
     /// let mut statement = connection.prepare(query_string)?; //PreparedStatement
     /// # Ok(())
@@ -197,9 +196,9 @@ impl Connection {
 
     /// Creates a new connection object with the same settings and
     /// authentication.
-    pub fn spawn(&self) -> HdbResult<Connection> {
+    pub fn spawn(&self) -> HdbResult<Self> {
         let am_conn_core = self.am_conn_core.lock()?;
-        let mut other = Connection::try_new(am_conn_core.connect_params())?;
+        let mut other = Self::new(am_conn_core.connect_params())?;
         other.set_auto_commit(am_conn_core.is_auto_commit())?;
         other.set_fetch_size(am_conn_core.get_fetch_size())?;
         other.set_lob_read_length(am_conn_core.get_lob_read_length())?;

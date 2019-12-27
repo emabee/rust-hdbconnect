@@ -46,23 +46,23 @@ pub(crate) struct ConnectionCore {
 }
 
 impl<'a> ConnectionCore {
-    pub(crate) fn try_new(params: ConnectParams) -> HdbResult<ConnectionCore> {
+    pub(crate) fn try_new(params: ConnectParams) -> HdbResult<Self> {
         let connect_options = ConnectOptions::for_server(params.clientlocale(), get_os_user());
         let mut buffalo = Buffalo::try_new(params).context(HdbErrorKind::Database)?;
         initial_request::send_and_receive(&mut buffalo).context(HdbErrorKind::Database)?;
 
-        Ok(ConnectionCore {
+        Ok(Self {
             authenticated: false,
             session_id: 0,
             seq_number: 0,
             auto_commit: true,
-            server_usage: Default::default(),
+            server_usage: ServerUsage::default(),
             fetch_size: crate::DEFAULT_FETCH_SIZE,
             lob_read_length: crate::DEFAULT_LOB_READ_LENGTH,
             lob_write_length: crate::DEFAULT_LOB_WRITE_LENGTH,
-            client_info: Default::default(),
+            client_info: ClientInfo::default(),
             client_info_touched: false,
-            session_state: Default::default(),
+            session_state: SessionState::default(),
             statement_sequence: None,
             connect_options,
             topology: None,

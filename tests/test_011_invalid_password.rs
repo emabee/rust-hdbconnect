@@ -59,7 +59,7 @@ pub fn test_011_invalid_password() -> HdbResult<()> {
         assert_eq!(conn_params.dbuser(), &user);
         assert_eq!(conn_params.password().unsecure(), b"Doebcd1234");
 
-        let mut doedel_conn = Connection::try_new(conn_params)?;
+        let mut doedel_conn = Connection::new(conn_params)?;
         debug!("{} is connected", user);
 
         debug!("select from dummy -> ensure getting the right error");

@@ -40,7 +40,7 @@ use std::sync::{Arc, Mutex};
 ///   [`TypeId`](enum.TypeId.html) enumerates a somewhat reduced superset
 ///   of the server-side and the wire type system.
 ///
-/// ## From Rust types to HdbValue
+/// ## From Rust types to `HdbValue`
 ///
 /// Prepared statements typically take one or more input parameter(s).
 /// As part of the statement preparation, the database server provides the client
@@ -56,7 +56,7 @@ use std::sync::{Arc, Mutex};
 /// instances and by that
 /// enforce the usage of a different wire type and of server-side type conversions.
 ///
-/// ## Sending HdbValues to the database
+/// ## Sending `HdbValue`s to the database
 ///
 /// The protocol for sending values can be version-specific. Sending e.g. an
 /// `HdbValue::DECIMAL` to the database occurs in different formats:
@@ -110,7 +110,7 @@ impl<'a> PreparedStatement {
     /// # let params = "hdbsql://my_user:my_passwd@the_host:2222"
     /// #     .into_connect_params()
     /// #     .unwrap();
-    /// # let mut connection = Connection::try_new(params).unwrap();
+    /// # let mut connection = Connection::new(params).unwrap();
     /// let mut statement = connection.prepare("select * from phrases where ID = ? and text = ?")?;
     /// let hdbresponse = statement.execute(&(42, "Foo is bar"))?;
     /// # Ok(())
@@ -123,7 +123,7 @@ impl<'a> PreparedStatement {
     /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, Row};
     /// # fn main() { }
     /// # fn foo() -> HdbResult<()> {
-    /// # let mut connection = Connection::try_new("".into_connect_params()?)?;
+    /// # let mut connection = Connection::new("".into_connect_params()?)?;
     /// # let mut stmt = connection.prepare("")?;
     /// let hdbresponse = stmt.execute(&())?;
     /// # Ok(())
@@ -136,7 +136,7 @@ impl<'a> PreparedStatement {
     /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, Row};
     /// # fn main() { }
     /// # fn foo() -> HdbResult<()> {
-    /// # let mut connection = Connection::try_new("".into_connect_params()?)?;
+    /// # let mut connection = Connection::new("".into_connect_params()?)?;
     /// # let mut stmt = connection.prepare("")?;
     /// let hdbresponse = stmt.execute_batch()?;
     /// # Ok(())
@@ -177,7 +177,7 @@ impl<'a> PreparedStatement {
     /// use std::io::Cursor;
     /// use std::sync::{Arc,Mutex};
     /// # fn main() -> HdbResult<()> {
-    /// # let mut connection = Connection::try_new("".into_connect_params()?)?;
+    /// # let mut connection = Connection::new("".into_connect_params()?)?;
     /// # connection.set_auto_commit(false)?;
     /// # let insert_stmt_string = "insert into TEST_NCLOBS values(?, ?)".to_owned();
     ///   let mut stmt = connection.prepare(&insert_stmt_string)?;
@@ -402,10 +402,7 @@ impl<'a> PreparedStatement {
     }
 
     // Prepare a statement.
-    pub(crate) fn try_new(
-        mut am_conn_core: AmConnCore,
-        stmt: &str,
-    ) -> HdbResult<PreparedStatement> {
+    pub(crate) fn try_new(mut am_conn_core: AmConnCore, stmt: &str) -> HdbResult<Self> {
         let mut request = Request::new(RequestType::Prepare, HOLD_CURSORS_OVER_COMMIT);
         request.push(Part::new(PartKind::Command, Argument::Command(stmt)));
 
@@ -418,7 +415,7 @@ impl<'a> PreparedStatement {
         let mut o_stmt_id: Option<u64> = None;
         let mut a_descriptors: Arc<ParameterDescriptors> = Arc::new(ParameterDescriptors::new());
         let mut o_a_rsmd: Option<Arc<ResultSetMetadata>> = None;
-        let mut server_usage: ServerUsage = Default::default();
+        let mut server_usage = ServerUsage::default();
 
         while !reply.parts.is_empty() {
             match reply.parts.pop_arg() {
@@ -452,11 +449,10 @@ impl<'a> PreparedStatement {
             }
         }
 
-        let statement_id = match o_stmt_id {
-            Some(id) => id,
-            None => {
-                return Err(HdbError::imp("No StatementId received"));
-            }
+        let statement_id = if let Some(id) = o_stmt_id {
+            id
+        } else {
+            return Err(HdbError::imp("No StatementId received"));
         };
 
         debug!(
@@ -468,7 +464,7 @@ impl<'a> PreparedStatement {
             am_conn_core,
             statement_id,
         }));
-        Ok(PreparedStatement {
+        Ok(Self {
             am_ps_core,
             server_usage,
             batch: ParameterRows::new(),

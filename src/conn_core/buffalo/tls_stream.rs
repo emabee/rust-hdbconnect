@@ -13,17 +13,17 @@ pub struct TlsStream {
     tlssession: Arc<Mutex<ClientSession>>,
 }
 impl TlsStream {
-    pub fn try_new(params: &ConnectParams) -> std::io::Result<TlsStream> {
+    pub fn try_new(params: &ConnectParams) -> std::io::Result<Self> {
         let (tcpstream, tlsconfig, tlssession) = connect_tcp(params)?;
-        Ok(TlsStream {
+        Ok(Self {
             is_handshaking: true,
             tcpstream,
             tlsconfig,
             tlssession: Arc::new(Mutex::new(tlssession)),
         })
     }
-    pub fn try_clone(&self) -> std::io::Result<TlsStream> {
-        Ok(TlsStream {
+    pub fn try_clone(&self) -> std::io::Result<Self> {
+        Ok(Self {
             is_handshaking: false,
             tcpstream: self.tcpstream.try_clone()?,
             tlsconfig: Arc::clone(&self.tlsconfig),
@@ -87,6 +87,7 @@ fn connect_tcp(
             ServerCerts::Directory(trust_anchor_dir) => {
                 debug!("Trust anchor directory = {}", trust_anchor_dir);
 
+                #[allow(clippy::filter_map)]
                 let trust_anchor_files: Vec<PathBuf> = std::fs::read_dir(trust_anchor_dir)?
                     .filter_map(Result::ok)
                     .filter(|dir_entry| {
@@ -170,9 +171,10 @@ impl std::io::Write for TlsStream {
             if self.is_handshaking && !tlssession.is_handshaking() {
                 self.is_handshaking = false;
 
-                match tlssession.get_protocol_version() {
-                    Some(protocol) => debug!("Protocol {:?} negotiated", protocol),
-                    None => debug!("No TLS Protocol negotiated"),
+                if let Some(protocol) = tlssession.get_protocol_version() {
+                    debug!("Protocol {:?} negotiated", protocol)
+                } else {
+                    debug!("No TLS Protocol negotiated")
                 }
             }
 

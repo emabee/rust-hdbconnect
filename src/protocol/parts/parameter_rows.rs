@@ -102,15 +102,12 @@ impl<'a> ParameterRow<'a> {
         let mut size = 0;
         let mut in_descriptors = descriptors.iter_in();
         for value in &(self.0) {
-            match in_descriptors.next() {
-                Some(descriptor) => {
-                    size += value.size(descriptor.type_id())?;
-                }
-                None => {
-                    return Err(util::io_error(
-                        "ParameterRow::size(): Not enough metadata".to_string(),
-                    ));
-                }
+            if let Some(descriptor) = in_descriptors.next() {
+                size += value.size(descriptor.type_id())?;
+            } else {
+                return Err(util::io_error(
+                    "ParameterRow::size(): Not enough metadata".to_string(),
+                ));
             }
         }
 
@@ -122,15 +119,12 @@ impl<'a> ParameterRow<'a> {
         let mut in_descriptors = descriptors.iter_in();
         for value in &(self.0) {
             // emit the value
-            match in_descriptors.next() {
-                Some(descriptor) => {
-                    value.emit(&mut data_pos, descriptor, w)?;
-                }
-                None => {
-                    return Err(util::io_error(
-                        "ParameterRow::emit(): Not enough metadata".to_string(),
-                    ));
-                }
+            if let Some(descriptor) = in_descriptors.next() {
+                value.emit(&mut data_pos, descriptor, w)?;
+            } else {
+                return Err(util::io_error(
+                    "ParameterRow::emit(): Not enough metadata".to_string(),
+                ));
             }
         }
         Ok(())
