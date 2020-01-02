@@ -40,7 +40,7 @@ impl Authenticator for ScramSha256 {
 
     fn client_proof(&mut self, server_data: &[u8], password: &SecStr) -> HdbResult<Vec<u8>> {
         const CONTEXT_CLIENT_PROOF: &str = "ClientProof";
-        let (salt, server_nonce) = parse_first_server_data(server_data).unwrap();
+        let (salt, server_nonce) = parse_first_server_data(server_data)?;
 
         let (client_proof, server_proof) =
             scram_sha256(&salt, &server_nonce, &self.client_challenge, password);
@@ -72,19 +72,14 @@ impl Authenticator for ScramSha256 {
 }
 
 // `server_data` is again an AuthFields; contains salt, and server_nonce
-// key
 fn parse_first_server_data(server_data: &[u8]) -> HdbResult<(Vec<u8>, Vec<u8>)> {
-    let mut rdr = std::io::Cursor::new(server_data);
-    let mut af = AuthFields::parse(&mut rdr).context(HdbErrorKind::Database)?;
-    if af.len() != 2 {
-        return Err(HdbError::imp_detailed(format!(
-            "expected 2 auth fields, got {}",
-            af.len()
-        )));
+    let mut af = AuthFields::parse(&mut std::io::Cursor::new(server_data))
+        .context(HdbErrorKind::Database)?;
+
+    match (af.pop(), af.pop(), af.pop()) {
+        (Some(server_nonce), Some(salt), None) => Ok((salt, server_nonce)),
+        (_, _, _) => Err(HdbError::imp("expected 2 auth fields")),
     }
-    let server_nonce = af.pop().unwrap();
-    let salt = af.pop().unwrap();
-    Ok((salt, server_nonce))
 }
 
 #[cfg(test)]

@@ -87,7 +87,7 @@ impl HdbError {
         HdbErrorKind::ImplDetailed(s).into()
     }
 
-    /// Return the contained server_error, if any.
+    /// Returns the contained `ServerError`, if any.
     ///
     /// This method helps in case you need programmatic access to e.g. the error code.
     ///
@@ -141,8 +141,8 @@ impl std::fmt::Display for HdbError {
     }
 }
 
-impl<'a, T> From<std::sync::PoisonError<std::sync::MutexGuard<'a, T>>> for HdbError {
-    fn from(_error: std::sync::PoisonError<std::sync::MutexGuard<'a, T>>) -> Self {
+impl<G> From<std::sync::PoisonError<G>> for HdbError {
+    fn from(_error: std::sync::PoisonError<G>) -> Self {
         Self {
             inner: Context::new(HdbErrorKind::Poison),
         }

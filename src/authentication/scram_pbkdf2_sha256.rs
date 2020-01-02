@@ -41,7 +41,7 @@ impl Authenticator for ScramPbkdf2Sha256 {
 
     fn client_proof(&mut self, server_data: &[u8], password: &SecStr) -> HdbResult<Vec<u8>> {
         const CONTEXT_CLIENT_PROOF: &str = "ClientProof";
-        let (salt, server_nonce, iterations) = parse_first_server_data(server_data).unwrap();
+        let (salt, server_nonce, iterations) = parse_first_server_data(server_data)?;
 
         let start = Local::now();
         let (client_proof, server_proof) = scram_pdkdf2_sha256(
@@ -74,9 +74,10 @@ impl Authenticator for ScramPbkdf2Sha256 {
     }
 
     fn verify_server(&self, server_data: &[u8]) -> HdbResult<()> {
-        let mut af = AuthFields::parse(&mut std::io::Cursor::new(server_data))
-            .context(HdbErrorKind::Database)?;
-        let srv_proof = af.pop().unwrap();
+        let srv_proof = AuthFields::parse(&mut std::io::Cursor::new(server_data))
+            .context(HdbErrorKind::Database)?
+            .pop()
+            .ok_or_else(|| HdbError::imp("expected non-empty list of auth fields"))?;
 
         if let Some(ref s_p) = self.server_proof {
             if s_p as &[u8] == &srv_proof as &[u8] {
@@ -92,35 +93,28 @@ impl Authenticator for ScramPbkdf2Sha256 {
 
 // `server_data` is again an AuthFields, contains salt, server_nonce, iterations
 fn parse_first_server_data(server_data: &[u8]) -> HdbResult<(Vec<u8>, Vec<u8>, u32)> {
-    let mut auth_fields = AuthFields::parse(&mut std::io::Cursor::new(server_data))
+    let mut af = AuthFields::parse(&mut std::io::Cursor::new(server_data))
         .context(HdbErrorKind::Database)?;
 
-    if auth_fields.len() != 3 {
-        return Err(HdbError::imp_detailed(format!(
-            "got {} auth fields, expected 3",
-            auth_fields.len()
-        )));
-    }
-
-    let iterations = {
-        let mut rdr = std::io::Cursor::new(auth_fields.pop().unwrap());
-        rdr.read_u32::<BigEndian>()
-            .context(HdbErrorKind::Database)?
-    };
-    let server_nonce = auth_fields.pop().unwrap();
-    let salt = auth_fields.pop().unwrap();
-
-    if iterations < 15_000 {
-        Err(HdbError::imp_detailed(format!(
-            "too few iterations: {}",
-            iterations
-        )))
-    } else if salt.len() < 16 {
-        Err(HdbError::imp_detailed(format!(
-            "too little salt: {}",
-            salt.len()
-        )))
-    } else {
-        Ok((salt, server_nonce, iterations))
+    match (af.pop(), af.pop(), af.pop(), af.pop()) {
+        (Some(it_bytes), Some(server_nonce), Some(salt), None) => {
+            let iterations = std::io::Cursor::new(it_bytes)
+                .read_u32::<BigEndian>()
+                .context(HdbErrorKind::Database)?;
+            if iterations < 15_000 {
+                Err(HdbError::imp_detailed(format!(
+                    "not enough iterations: {}",
+                    iterations
+                )))
+            } else if salt.len() < 16 {
+                Err(HdbError::imp_detailed(format!(
+                    "too little salt: {}",
+                    salt.len()
+                )))
+            } else {
+                Ok((salt, server_nonce, iterations))
+            }
+        }
+        (_, _, _, _) => Err(HdbError::imp("expected 3 auth fields")),
     }
 }

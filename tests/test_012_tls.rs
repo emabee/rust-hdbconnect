@@ -1,6 +1,6 @@
 mod test_utils;
 
-use hdbconnect::{Connection, HdbResult, IntoConnectParams};
+use hdbconnect::{Connection, HdbResult};
 use log::{debug, info};
 use serde_derive::{Deserialize, Serialize};
 
@@ -8,7 +8,6 @@ use serde_derive::{Deserialize, Serialize};
 #[test]
 fn test_012_tls() -> HdbResult<()> {
     let mut _log_handle = test_utils::init_logger();
-    _log_handle.parse_new_spec("info, test = debug");
     info!("test tls");
 
     let mut url = test_utils::get_std_connect_string()?;
@@ -16,22 +15,17 @@ fn test_012_tls() -> HdbResult<()> {
     url.push_str("?tls_certificate_dir=.%2F.private");
     debug!("url = {}", url);
 
-    if cfg!(feature = "tls") {
-        match Connection::new(url) {
-            Ok(mut connection) => {
-                select_version_and_user(&mut connection)?;
-            }
-            Err(e) => {
-                log::warn!(
-                    "connection failed with {}, likely due to an incomplete test setup",
-                    e
-                );
-            }
-        };
-    } else {
-        assert!(url.into_connect_params().is_err());
-        debug!("got error from trying tls, as expected");
-    }
+    match Connection::new(url) {
+        Ok(mut connection) => {
+            select_version_and_user(&mut connection)?;
+        }
+        Err(e) => {
+            log::warn!(
+                "connection failed with {}, likely due to an incomplete test setup",
+                e
+            );
+        }
+    };
 
     Ok(())
 }

@@ -23,7 +23,7 @@ impl ReadLobRequest {
         w.write_u32::<LittleEndian>(0_u32)?; // FILLER
         Ok(())
     }
-    pub fn size(&self) -> usize {
+    pub fn size() -> usize {
         24
     }
 }

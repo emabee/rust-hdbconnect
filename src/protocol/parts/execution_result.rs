@@ -28,14 +28,14 @@ impl ExecutionResult {
         }
         Ok(vec)
     }
-    /// True if it is an instance of Self::Failure.
+    /// True if it is an instance of `Self::Failure`.
     pub fn is_failure(&self) -> bool {
         match self {
             Self::Failure(_) => true,
             _ => false,
         }
     }
-    /// True if it is an instance of Self::RowsAffected.
+    /// True if it is an instance of `Self::RowsAffected`.
     pub fn is_rows_affected(&self) -> bool {
         match self {
             Self::RowsAffected(_) => true,

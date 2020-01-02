@@ -79,7 +79,7 @@ impl Connection {
         execute(&mut self.am_conn_core, stmt.as_ref(), None)
     }
 
-    /// Executes a statement and expects a single ResultSet.
+    /// Executes a statement and expects a single `ResultSet`.
     ///
     /// Should be used for query statements (like "SELECT ...") which return a single resultset.
     ///
@@ -392,7 +392,7 @@ impl Connection {
             .cloned())
     }
 
-    /// The SystemID is set by the server with the SAPSYSTEMNAME of the
+    /// The system id is set by the server with the SAPSYSTEMNAME of the
     /// connected instance (for tracing and supportability purposes).
     pub fn get_system_id(&self) -> HdbResult<Option<String>> {
         Ok(self

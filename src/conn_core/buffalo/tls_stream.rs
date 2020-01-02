@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use webpki::DNSNameRef;
 
-pub struct TlsStream {
+pub(crate) struct TlsStream {
     is_handshaking: bool,
     tcpstream: TcpStream,
     tlsconfig: Arc<ClientConfig>,
@@ -37,10 +37,6 @@ fn connect_tcp(
 ) -> std::io::Result<(TcpStream, Arc<ClientConfig>, ClientSession)> {
     debug!("connect_tcp(): Connecting to {:?}", params.addr());
 
-    let tcpstream = TcpStream::connect(params.addr())?;
-
-    trace!("tcpstream working");
-
     let mut config = ClientConfig::new();
     for server_cert in params.server_certs() {
         match server_cert {
@@ -51,30 +47,27 @@ fn connect_tcp(
             }
             ServerCerts::Direct(pem) => {
                 let mut cursor = std::io::Cursor::new(pem);
-                let (n_ok, n_err) = config.root_store.add_pem_file(&mut cursor).unwrap();
+                let (n_ok, n_err) = config
+                    .root_store
+                    .add_pem_file(&mut cursor)
+                    .unwrap_or((0, 0));
                 if n_ok == 0 {
-                    return Err(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        "None of the provided server certificates was accepted",
-                    ));
-                }
-                if n_err > 0 {
-                    warn!("Not all provided server certificates were accepted");
+                    info!("None of the directly provided server certificates was accepted");
+                } else if n_err > 0 {
+                    info!("Not all directly provided server certificates were accepted");
                 }
             }
             ServerCerts::Environment(env_var) => match std::env::var(env_var) {
                 Ok(value) => {
-                    trace!("trying with env var {:?}", env_var);
                     let mut cursor = std::io::Cursor::new(value);
-                    let (n_ok, n_err) = config.root_store.add_pem_file(&mut cursor).unwrap();
+                    let (n_ok, n_err) = config
+                        .root_store
+                        .add_pem_file(&mut cursor)
+                        .unwrap_or((0, 0));
                     if n_ok == 0 {
-                        return Err(std::io::Error::new(
-                            std::io::ErrorKind::Other,
-                            "None of the provided server certificates was accepted",
-                        ));
-                    }
-                    if n_err > 0 {
-                        warn!("Not all provided server certificates were accepted");
+                        info!("None of the env-provided server certificates was accepted");
+                    } else if n_err > 0 {
+                        info!("Not all env-provided server certificates were accepted");
                     }
                 }
                 Err(e) => {
@@ -85,8 +78,6 @@ fn connect_tcp(
                 }
             },
             ServerCerts::Directory(trust_anchor_dir) => {
-                debug!("Trust anchor directory = {}", trust_anchor_dir);
-
                 #[allow(clippy::filter_map)]
                 let trust_anchor_files: Vec<PathBuf> = std::fs::read_dir(trust_anchor_dir)?
                     .filter_map(Result::ok)
@@ -96,7 +87,7 @@ fn connect_tcp(
                     .filter(|dir_entry| {
                         let path = dir_entry.path();
                         let ext = path.extension();
-                        ext.is_some() && ext.unwrap() == "pem"
+                        Some(AsRef::<std::ffi::OsStr>::as_ref("pem")) == ext
                     })
                     .map(|dir_entry| dir_entry.path())
                     .collect();
@@ -109,26 +100,25 @@ fn connect_tcp(
                     let (n_ok, n_err) = config.root_store.add_pem_file(&mut rd).map_err(|_| {
                         std::io::Error::new(
                             std::io::ErrorKind::InvalidInput,
-                            "server certificates could not be parsed",
+                            "server certificates in directory could not be parsed",
                         )
                     })?;
                     t_ok += n_ok;
                     t_err += n_err;
                 }
                 if t_ok == 0 {
-                    return Err(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        "None of the provided server certificates was accepted",
-                    ));
-                }
-                if t_err > 0 {
-                    warn!("Not all provided server certificates were accepted");
+                    warn!("None of the server certificates in the directory was accepted");
+                } else if t_err > 0 {
+                    warn!("Not all server certificates in the directory were accepted");
                 }
             }
         }
     }
 
     let tlsconfig = Arc::new(config);
+
+    let tcpstream = TcpStream::connect(params.addr())?;
+    trace!("tcpstream working");
 
     let tlssession = ClientSession::new(
         &tlsconfig,

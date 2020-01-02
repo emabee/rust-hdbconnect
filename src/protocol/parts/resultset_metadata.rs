@@ -3,7 +3,6 @@ use crate::protocol::util;
 use crate::{HdbErrorKind, HdbResult};
 
 use byteorder::{LittleEndian, ReadBytesExt};
-use std::fmt;
 use vec_map::VecMap;
 
 const INVALID_FIELD_INDEX: &str = "invalid field index";
@@ -166,15 +165,14 @@ impl ResultSetMetadata {
     }
 }
 
-// this just writes a headline with field names as it is handy in Display for
-// ResultSet
-impl fmt::Display for ResultSetMetadata {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(fmt).unwrap();
+// this just writes a headline with field names as it is handy in Display for ResultSet
+impl std::fmt::Display for ResultSetMetadata {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        writeln!(fmt)?;
         for field_metadata in &self.fields {
             match self.names.get(field_metadata.displayname_idx as usize) {
-                Some(fieldname) => write!(fmt, "{}, ", fieldname).unwrap(),
-                None => write!(fmt, "<unnamed>, ").unwrap(),
+                Some(fieldname) => write!(fmt, "{}, ", fieldname)?,
+                None => write!(fmt, "<unnamed>, ")?,
             };
         }
         Ok(())

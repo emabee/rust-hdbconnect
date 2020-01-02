@@ -42,7 +42,7 @@ pub struct ConnectionManager {
 }
 
 impl ConnectionManager {
-    /// Creates a new ConnectionManager.
+    /// Creates a new `ConnectionManager`.
     pub fn new<P: IntoConnectParams>(p: P) -> HdbResult<Self> {
         Ok(Self {
             connect_params: p.into_connect_params()?,

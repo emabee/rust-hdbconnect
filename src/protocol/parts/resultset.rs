@@ -250,7 +250,7 @@ impl ResultSet {
     /// Conveniently translates the complete resultset into a rust type that implements
     /// `serde::Deserialize` and has an adequate structure.
     /// The implementation of this method uses
-    /// [serde_db::de](https://docs.rs/serde_db/*/serde_db/de/index.html).
+    /// [`serde_db::de`](https://docs.rs/serde_db/*/serde_db/de/index.html).
     ///
     /// A resultset is essentially a two-dimensional structure, given as a list
     /// of rows, where each row is a list of fields; the name of each field is
@@ -343,11 +343,11 @@ impl ResultSet {
         self.state.borrow_mut().total_number_of_rows(&self.metadata)
     }
 
-    /// Removes the next row and returns it, or None if the ResultSet is empty.
+    /// Removes the next row and returns it, or None if the `ResultSet` is empty.
     ///
-    /// Consequently, the ResultSet has one row less after the call.
+    /// Consequently, the `ResultSet` has one row less after the call.
     /// May need to fetch further rows from the database, which can fail, and thus returns
-    /// an HdbResult.
+    /// an `HdbResult`.
     pub fn next_row(&mut self) -> HdbResult<Option<Row>> {
         self.state.borrow_mut().next_row(&self.metadata)
     }

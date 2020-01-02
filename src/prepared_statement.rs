@@ -121,7 +121,6 @@ impl<'a> PreparedStatement {
     ///
     /// ```rust, no_run
     /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, Row};
-    /// # fn main() { }
     /// # fn foo() -> HdbResult<()> {
     /// # let mut connection = Connection::new("".into_connect_params()?)?;
     /// # let mut stmt = connection.prepare("")?;
@@ -134,7 +133,6 @@ impl<'a> PreparedStatement {
     ///
     /// ```rust, no_run
     /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, Row};
-    /// # fn main() { }
     /// # fn foo() -> HdbResult<()> {
     /// # let mut connection = Connection::new("".into_connect_params()?)?;
     /// # let mut stmt = connection.prepare("")?;
@@ -152,7 +150,7 @@ impl<'a> PreparedStatement {
         self.execute_parameter_rows(None)
     }
 
-    /// Consumes the given HdbValues as a row of parameters for immediate execution.
+    /// Consumes the given `HdbValue`s as a row of parameters for immediate execution.
     ///
     /// In most cases
     /// [`PreparedStatement::execute()`](struct.PreparedStatement.html#method.execute)
@@ -277,7 +275,7 @@ impl<'a> PreparedStatement {
                 for (locator_id, (reader, type_id)) in locator_ids.into_iter().zip(readers) {
                     debug!("writing content to locator with id {:?}", locator_id);
                     if let HdbValue::LOBSTREAM(Some(reader)) = reader {
-                        let mut reader = reader.lock().unwrap();
+                        let mut reader = reader.lock()?;
                         let mut writer = LobWriter::new(
                             locator_id,
                             type_id,

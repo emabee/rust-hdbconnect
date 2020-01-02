@@ -74,7 +74,6 @@ impl<'a> ConnectionCore {
     pub(crate) fn connect_params(&self) -> &ConnectParams {
         match self.buffalo {
             Buffalo::Plain(ref pc) => pc.connect_params(),
-            #[cfg(feature = "tls")]
             Buffalo::Secure(ref sc) => sc.connect_params(),
         }
     }
@@ -264,7 +263,6 @@ impl<'a> ConnectionCore {
                     )
                     .context(HdbErrorKind::Database)?;
             }
-            #[cfg(feature = "tls")]
             Buffalo::Secure(ref sc) => {
                 let writer = &mut *(sc.writer()).borrow_mut();
                 request
@@ -284,7 +282,6 @@ impl<'a> ConnectionCore {
                 let reader = &mut *(pc.reader()).borrow_mut();
                 Reply::parse(o_a_rsmd, o_a_descriptors, o_rs, Some(am_conn_core), reader)
             }
-            #[cfg(feature = "tls")]
             Buffalo::Secure(ref sc) => {
                 let reader = &mut *(sc.reader()).borrow_mut();
                 Reply::parse(o_a_rsmd, o_a_descriptors, o_rs, Some(am_conn_core), reader)
@@ -393,7 +390,6 @@ impl<'a> ConnectionCore {
                     request.emit(self.session_id(), nsn, 0, None, writer)?;
                     writer.flush()?;
                 }
-                #[cfg(feature = "tls")]
                 Buffalo::Secure(ref sc) => {
                     let writer = &mut *(sc.writer()).borrow_mut();
                     request.emit(self.session_id(), nsn, 0, None, writer)?;

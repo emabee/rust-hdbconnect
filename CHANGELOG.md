@@ -1,27 +1,30 @@
 # Changelog
 
-## [0.19.0-unpublished]
+## [0.19.0] 2020-01-02
 
 ### API changes
 
-In Connection and ConnectionManager, replace ::new() with the more flexible
-and more idiomatic ::try_new(), which takes P: IntoConnectParams.
+Make `Connection::new()` and `ConnectionManager::new()` more flexible by
+taking a `P: IntoConnectParams` rather than a `ConnectParams`.
 
-Reconstruct HdbError, based on crate `failure`.
+Reconstruct `HdbError`, based on crate `failure`.
 
-Improve ConnectParamsBuilder
+Improve `ConnectParamsBuilder`:
 
 - move root-certificates option as an additional variant into ServerCerts enum
-- don't erase any information from them builder during build()
-- implement Display, and derive Debug, for ConnectParams
+- don't erase any information from the `ConnectParamsBuilder` during build()
 
-### Fixes
+Make feature "tls" permanent - so it disappears from the list of cargo features!
 
-Remove redundant ConnectParams in Connection (it is in AmConnCore anyway).
+### Fixes and Improvements
 
-Remove wrong debug asserts from lob_writer (adding to the fix for issue 23).
+Remove redundant `ConnectParams` in `Connection` (it is in AmConnCore anyway).
 
-Minor docu improvements.
+Remove wrong debug asserts from lob_writer (adding to the fix for [issue 23]).
+
+Implement `Display`, and derive `Debug`, for `ConnectParams`.
+
+Fix pedantic clippies, and some docu.
 
 ## [0.18.0] 2019-12-10
 
@@ -34,8 +37,7 @@ Simplify handling of ParameterDescriptors in PreparedStatement.
 
 Make `ParameterDescriptors` public.
 
-Support database procedures with LOB input parameters
-(fix [issue 23](https://github.com/emabee/rust-hdbconnect/issues/23)).
+Support database procedures with LOB input parameters (fix [issue 23]).
 
 ## [0.17.0] 2019-11-21
 
@@ -293,3 +295,5 @@ Replace `Row::field_as()` with `Row::field_into()` to allow field-wise access wi
 ## [0.2.0] 2017-11-01
 
 Extract the serde-usage into a separate crate (serde_db).
+
+[issue 23]: (https://github.com/emabee/rust-hdbconnect/issues/23)

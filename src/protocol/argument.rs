@@ -122,11 +122,10 @@ impl<'a> Argument<'a> {
                     ));
                 }
             }
-            Argument::ReadLobRequest(ref r) => size += r.size(),
+            Argument::ReadLobRequest(_) => size += ReadLobRequest::size(),
             Argument::WriteLobRequest(ref r) => size += r.size(),
-            Argument::ResultSetId(_) => size += 8,
+            Argument::ResultSetId(_) | Argument::StatementId(_) => size += 8,
             Argument::SessionContext(ref opts) => size += opts.size(),
-            Argument::StatementId(_) => size += 8,
             Argument::StatementContext(ref sc) => size += sc.size(),
             // Argument::TopologyInformation(ref topology) => size += topology.size(),
             Argument::TransactionFlags(ref taflags) => size += taflags.size(),

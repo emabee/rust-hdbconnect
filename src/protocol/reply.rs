@@ -65,29 +65,6 @@ impl Reply {
             reply.push(part);
         }
 
-        // Make sure that here (after parsing) the buffer is empty.
-        // The following only works with nightly, because `.buffer()`
-        // is on its way, but not yet in stable (https://github.com/rust-lang/rust/pull/49139)
-        // and needs additionally to activate feature(bufreader_buffer) in lib.rs
-        #[cfg(feature = "check_buffer")]
-        {
-            use std::io::BufRead;
-
-            let buf_len = {
-                let buf = rdr.buffer();
-                if !buf.is_empty() {
-                    error!(
-                        "Buffer is not empty after Reply::parse() \'{:?}\'",
-                        buf.to_vec()
-                    );
-                } else {
-                    debug!("Reply::parse(): buffer is empty");
-                }
-                buf.len()
-            };
-            rdr.consume(buf_len);
-        }
-
         Ok(reply)
     }
 
@@ -161,8 +138,8 @@ impl Reply {
                         return Err(HdbError::imp("Missing required part ResultSetID"));
                     }
                 }
-                Argument::ExecutionResult(vra) => {
-                    int_return_values.push(InternalReturnValue::AffectedRows(vra));
+                Argument::ExecutionResult(vec_er) => {
+                    int_return_values.push(InternalReturnValue::ExecutionResults(vec_er));
                 }
                 Argument::WriteLobReply(wlr) => {
                     int_return_values.push(InternalReturnValue::WriteLobReply(wlr));

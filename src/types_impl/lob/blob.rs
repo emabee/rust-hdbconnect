@@ -30,11 +30,11 @@ impl BLob {
         )))
     }
 
-    /// Converts the BLob into a Vec<u8>.
+    /// Converts the `BLob` into a Vec<u8>.
     ///
     /// All outstanding data (data that were not yet fetched from the server) are fetched
-    /// _into_ this BLob object,
-    /// before the complete data, as far as they were not yet read _from_ this BLob object,
+    /// _into_ this `BLob` object,
+    /// before the complete data, as far as they were not yet read _from_ this `BLob` object,
     /// are returned.
     ///
     ///
@@ -42,7 +42,6 @@ impl BLob {
     ///
     /// ```rust, no-run
     /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, Row};
-    /// # fn main() { }
     /// # fn foo() -> HdbResult<()> {
     /// # let params = "".into_connect_params()?;
     /// # let mut connection = Connection::new(params)?;
@@ -57,14 +56,13 @@ impl BLob {
     ///
     /// # Alternative
     ///
-    /// For larger objects, a streaming approach using the `Read` implementation of BLob
+    /// For larger objects, a streaming approach using the `Read` implementation of `BLob`
     /// might by more appropriate, to avoid total allocation of the large object.
     ///
     /// ## Example
     ///
     /// ```rust, no-run
     /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, Row};
-    /// # fn main() { }
     /// # fn foo() -> Result<(),failure::Error> {
     /// # let params = "".into_connect_params()?;
     /// # let mut connection = Connection::new(params)?;
@@ -91,7 +89,7 @@ impl BLob {
         self.0.total_byte_length()
     }
 
-    /// Returns true if the BLob does not contain data.
+    /// Returns true if the `BLob` does not contain data.
     pub fn is_empty(&self) -> bool {
         self.total_byte_length() == 0
     }

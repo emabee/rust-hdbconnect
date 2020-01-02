@@ -42,16 +42,12 @@ pub(crate) fn first_auth_request(
         .map(Part::into_arg)
     {
         Some(Argument::Auth(mut auth_fields)) => {
-            if auth_fields.len() == 2 {
-                let server_challenge_data: Vec<u8> = auth_fields.pop().unwrap();
-                let authenticator_name: String =
-                    String::from_utf8_lossy(&auth_fields.pop().unwrap()).to_string();
-                Ok((authenticator_name, server_challenge_data))
-            } else {
-                Err(HdbError::imp_detailed(format!(
-                    "got {} auth_fields, expected 2",
-                    auth_fields.len()
-                )))
+            match (auth_fields.pop(), auth_fields.pop(), auth_fields.pop()) {
+                (Some(server_challenge_data), Some(raw_name), None) => {
+                    let authenticator_name = String::from_utf8_lossy(&raw_name).to_string();
+                    Ok((authenticator_name, server_challenge_data))
+                }
+                (_, _, _) => Err(HdbError::imp("expected 2 auth_fields")),
             }
         }
         _ => Err(HdbError::imp("expected Authentication part")),
@@ -120,18 +116,12 @@ pub(crate) fn second_auth_request(
         .pop_if_kind(PartKind::Authentication)
         .map(Part::into_arg)
     {
-        Some(Argument::Auth(mut af)) => {
-            if af.len() == 2 {
-                let server_proof = af.pop().unwrap();
-                let method = af.pop().unwrap();
+        Some(Argument::Auth(mut af)) => match (af.pop(), af.pop(), af.pop()) {
+            (Some(server_proof), Some(method), None) => {
                 chosen_authenticator.evaluate_second_response(&method, &server_proof)
-            } else {
-                Err(HdbError::imp_detailed(format!(
-                    "Expected 2 authfields, got {}",
-                    af.len()
-                )))
             }
-        }
+            (_, _, _) => Err(HdbError::imp("Expected 2 authfields")),
+        },
         _ => Err(HdbError::imp("Expected Authentication part")),
     }
 }

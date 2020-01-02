@@ -3,7 +3,7 @@ use crate::conn_core::connect_params::ConnectParams;
 use std::cell::RefCell;
 use std::fmt;
 
-pub struct TlsConnection {
+pub(crate) struct TlsConnection {
     params: ConnectParams,
     reader: RefCell<std::io::BufReader<TlsStream>>,
     writer: RefCell<std::io::BufWriter<TlsStream>>,

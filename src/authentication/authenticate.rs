@@ -3,7 +3,7 @@ use crate::authentication::authenticator::Authenticator;
 use crate::authentication::scram_pbkdf2_sha256::ScramPbkdf2Sha256;
 use crate::authentication::scram_sha256::ScramSha256;
 use crate::conn_core::AmConnCore;
-use crate::hdb_error::HdbResult;
+use crate::hdb_error::{HdbError, HdbResult};
 
 // Do the authentication.
 //
@@ -28,7 +28,7 @@ pub(crate) fn authenticate(am_conn_core: &mut AmConnCore) -> HdbResult<()> {
     let chosen_authenticator: Box<dyn Authenticator> = authenticators
         .into_iter()
         .find(|a11r| a11r.name() == selected)
-        .unwrap();
+        .ok_or_else(|| HdbError::imp("None of the available authenticators was accepted"))?;
 
     // ...and use it for the second request
     second_auth_request(am_conn_core, chosen_authenticator, &server_challenge_data)?;

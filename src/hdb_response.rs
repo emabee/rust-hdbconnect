@@ -145,10 +145,10 @@ impl HdbResponse {
 
     fn rows_affected(int_return_values: Vec<InternalReturnValue>) -> HdbResult<Self> {
         match single(int_return_values)? {
-            InternalReturnValue::AffectedRows(vec_ra) => {
+            InternalReturnValue::ExecutionResults(vec_er) => {
                 let mut vec_i = Vec::<usize>::new();
-                for ra in vec_ra {
-                    match ra {
+                for er in vec_er {
+                    match er {
                         ExecutionResult::RowsAffected(i) => vec_i.push(i),
                         ExecutionResult::SuccessNoInfo => vec_i.push(0),
                         ExecutionResult::Failure(_) => {
@@ -168,13 +168,9 @@ impl HdbResponse {
 
     fn success(int_return_values: Vec<InternalReturnValue>) -> HdbResult<Self> {
         match single(int_return_values)? {
-            InternalReturnValue::AffectedRows(mut vec_ra) => {
-                if vec_ra.len() != 1 {
-                    return Err(HdbError::imp(
-                        "found no or multiple affected-row-counts, expected a single Success",
-                    ));
-                }
-                match vec_ra.pop().unwrap() {
+            InternalReturnValue::ExecutionResults(mut vec_er) => match (vec_er.pop(), vec_er.pop())
+            {
+                (Some(er), None) => match er {
                     ExecutionResult::RowsAffected(i) => {
                         if i > 0 {
                             Err(HdbError::imp(
@@ -192,10 +188,13 @@ impl HdbResponse {
                     ExecutionResult::Failure(_) => Err(HdbError::imp(
                         "Found unexpected returnvalue ExecutionFailed",
                     )),
-                }
-            }
+                },
+                (_, _) => Err(HdbError::imp(
+                    "Expected a single Execution Result, found none or multiple ones",
+                )),
+            },
             _ => Err(HdbError::imp(
-                "Wrong InternalReturnValue, a single Success was expected",
+                "Wrong InternalReturnValue, a single Execution Result was expected",
             )),
         }
     }
@@ -205,10 +204,10 @@ impl HdbResponse {
         int_return_values.reverse();
         for irv in int_return_values {
             match irv {
-                InternalReturnValue::AffectedRows(vec_ra) => {
+                InternalReturnValue::ExecutionResults(vec_er) => {
                     let mut vec_i = Vec::<usize>::new();
-                    for ra in vec_ra {
-                        match ra {
+                    for er in vec_er {
+                        match er {
                             ExecutionResult::RowsAffected(i) => vec_i.push(i),
                             ExecutionResult::SuccessNoInfo => vec_i.push(0),
                             ExecutionResult::Failure(_) => {
@@ -429,7 +428,7 @@ impl std::fmt::Display for HdbResponse {
 #[derive(Debug)]
 pub(crate) enum InternalReturnValue {
     ResultSet(ResultSet),
-    AffectedRows(Vec<ExecutionResult>),
+    ExecutionResults(Vec<ExecutionResult>),
     OutputParameters(OutputParameters),
     ParameterMetadata(Arc<ParameterDescriptors>),
     WriteLobReply(WriteLobReply),

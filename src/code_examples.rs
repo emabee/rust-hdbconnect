@@ -147,7 +147,6 @@
 //!
 //! ```rust,no_run
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams, Row};
-//! # fn main() { }
 //! # fn foo() -> HdbResult<()> {
 //! # let mut connection = Connection::new("...")?;
 //! # let qry = "";
@@ -175,7 +174,6 @@
 //! ```rust,no_run
 //! # use serde_derive::Deserialize;
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
-//! # fn main() { }
 //! # fn foo() -> HdbResult<()> {
 //! # let mut connection = Connection::new("...")?;
 //! # let qry = "";
@@ -204,7 +202,6 @@
 //! ```rust,no_run
 //! # use serde_derive::Deserialize;
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
-//! # fn main() { }
 //! # fn foo() -> HdbResult<()> {
 //! # let mut connection = Connection::new("...")?;
 //! # let qry = "";
@@ -226,7 +223,6 @@
 //!   ```rust,no_run
 //!   # use serde_derive::Deserialize;
 //!   # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
-//!   # fn main() { }
 //!   # fn foo() -> HdbResult<()> {
 //!   # let mut connection = Connection::new("hdbsql://my_user:my_passwd@the_host:2222")?;
 //!   # let qry = "SELECT foo FROM bar";

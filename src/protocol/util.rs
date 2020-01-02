@@ -108,7 +108,7 @@ pub fn utf8_to_cesu8_and_utf8_tail(mut utf8: Vec<u8>) -> HdbResult<(Vec<u8>, Vec
     let tail_len = get_utf8_tail_len(&utf8[start..])?;
     let tail = utf8.split_off(utf8_length - tail_len);
     Ok((
-        cesu8::to_cesu8(&String::from_utf8(utf8).unwrap()).to_vec(),
+        cesu8::to_cesu8(&String::from_utf8(utf8).context(HdbErrorKind::Cesu8)?).to_vec(),
         tail,
     ))
 }
@@ -134,13 +134,11 @@ fn get_cesu8_tail_len(bytes: &[u8]) -> HdbResult<usize> {
                     | Cesu8CharType::TooShort
                     | Cesu8CharType::Empty => None,
                 } {
-                    if index + char_len > len {
-                        return Ok(len - index);
-                    } else if index + char_len == len {
-                        return Ok(0);
-                    } else {
-                        return Ok(len - index - char_len);
-                    }
+                    return Ok(match (index + char_len).cmp(&len) {
+                        std::cmp::Ordering::Greater => len - index,
+                        std::cmp::Ordering::Equal => 0,
+                        std::cmp::Ordering::Less => len - index - char_len,
+                    });
                 }
             }
             Err(HdbError::imp_detailed(format!(
@@ -167,13 +165,11 @@ fn get_utf8_tail_len(bytes: &[u8]) -> HdbResult<usize> {
                     Utf8CharType::Four => Some(4),
                     Utf8CharType::NotAStart | Utf8CharType::Illegal | Utf8CharType::Empty => None,
                 } {
-                    if index + char_len > len {
-                        return Ok(len - index);
-                    } else if index + char_len == len {
-                        return Ok(0);
-                    } else {
-                        return Ok(len - index - char_len);
-                    }
+                    return Ok(match (index + char_len).cmp(&len) {
+                        std::cmp::Ordering::Greater => len - index,
+                        std::cmp::Ordering::Equal => 0,
+                        std::cmp::Ordering::Less => len - index - char_len,
+                    });
                 }
             }
             Err(HdbError::imp_detailed(format!(

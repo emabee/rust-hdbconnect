@@ -41,19 +41,16 @@ impl CLob {
         )))
     }
 
-    /// Converts the CLob into the contained String.
+    /// Converts the `CLob` into the contained String.
     ///
     /// All outstanding data (data that were not yet fetched from the server) are fetched
-    /// _into_ this CLob object,
-    /// before the complete data, as far as they were not yet read _from_ this NCLob object,
-    /// are returned.
-    ///
+    /// _into_ this `CLob` object, before the complete data,
+    /// as far as they were not yet read _from_ this `CLob` object, are returned.
     ///
     /// ## Example
     ///
     /// ```rust, no-run
     /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, Row};
-    /// # fn main() { }
     /// # fn foo() -> HdbResult<()> {
     /// # let params = "".into_connect_params()?;
     /// # let mut connection = Connection::new(params)?;
@@ -67,14 +64,13 @@ impl CLob {
     ///
     /// # Alternative
     ///
-    /// For larger objects, a streaming approach using the `Read` implementation of CLob
+    /// For larger objects, a streaming approach using the `Read` implementation of `CLob`
     /// might by more appropriate, to avoid total allocation of the large object.
     ///
     /// ## Example
     ///
     /// ```rust, no-run
     /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, Row};
-    /// # fn main() { }
     /// # fn foo() -> Result<(),failure::Error> {
     /// # let params = "".into_connect_params()?;
     /// # let mut connection = Connection::new(params)?;
@@ -104,7 +100,7 @@ impl CLob {
         self.0.total_byte_length()
     }
 
-    /// Returns true if the CLob does not contain data.
+    /// Returns true if the `CLob` does not contain data.
     pub fn is_empty(&self) -> bool {
         self.total_byte_length() == 0
     }

@@ -2,7 +2,7 @@ use crate::protocol::util;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 #[derive(Debug, Default)]
-pub struct AuthFields(Vec<AuthField>);
+pub(crate) struct AuthFields(Vec<AuthField>);
 impl AuthFields {
     pub fn with_capacity(count: usize) -> Self {
         Self(Vec::<AuthField>::with_capacity(count))
@@ -16,9 +16,6 @@ impl AuthFields {
         Ok(auth_fields)
     }
 
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
     pub fn pop(&mut self) -> Option<Vec<u8>> {
         self.0.pop().map(AuthField::data)
     }
@@ -57,7 +54,7 @@ impl AuthField {
     }
 
     fn data(self) -> Vec<u8> {
-        self.0.to_vec()
+        self.0
     }
 
     #[allow(clippy::cast_possible_truncation)]

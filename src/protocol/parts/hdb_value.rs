@@ -258,7 +258,7 @@ impl HdbValue<'static> {
         Ok(serde_db::de::DbValue::into_typed(self).context(HdbErrorKind::Deserialization)?)
     }
 
-    /// Convert into hdbconnect::BLob
+    /// Convert into `hdbconnect::BLob`
     pub fn try_into_blob(self) -> HdbResult<BLob> {
         match self {
             HdbValue::BLOB(blob) => Ok(blob),
@@ -270,7 +270,7 @@ impl HdbValue<'static> {
         }
     }
 
-    /// Convert into hdbconnect::CLob
+    /// Convert into `hdbconnect::CLob`
     pub fn try_into_clob(self) -> HdbResult<CLob> {
         match self {
             HdbValue::CLOB(clob) => Ok(clob),
@@ -282,7 +282,7 @@ impl HdbValue<'static> {
         }
     }
 
-    /// Convert into hdbconnect::NCLob
+    /// Convert into `hdbconnect::NCLob`
     pub fn try_into_nclob(self) -> HdbResult<NCLob> {
         match self {
             HdbValue::NCLOB(nclob) => Ok(nclob),

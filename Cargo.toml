@@ -17,7 +17,6 @@ all-features = true
 
 [features]
 default = []
-tls = ["rustls","webpki","webpki-roots"]
 alpha_routing = []
 
 [dependencies]
@@ -35,7 +34,7 @@ num = "0.2"
 pbkdf2 = {version = "0.3.0", default-features = false}
 r2d2 = "0.8"
 rand = "0.7"
-rustls = {version = "0.16", optional = true}
+rustls = "0.16"
 secstr = "0.3"
 serde = "1.0"
 # serde_db = { path = "../serde_db" }
@@ -46,8 +45,8 @@ sha2 = "0.8.0"
 url = "2.1"
 username = "0.2"
 vec_map = "0.8"
-webpki = {version = "0.21", optional = true}
-webpki-roots = {version = "0.18", optional = true}
+webpki = "0.21"
+webpki-roots = "0.18"
 
 [dev-dependencies]
 serde_bytes = "0.11"

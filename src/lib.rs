@@ -30,6 +30,7 @@
 #![deny(clippy::pedantic)]
 #![allow(clippy::module_name_repetitions)]
 #![allow(clippy::non_ascii_literal)]
+#![allow(clippy::must_use_candidate)]
 
 #[macro_use]
 extern crate log;
@@ -59,7 +60,6 @@ pub use crate::conn_core::connect_params::ConnectParams;
 pub use crate::conn_core::connect_params_builder::ConnectParamsBuilder;
 pub use crate::conn_core::into_connect_params::IntoConnectParams;
 
-#[cfg(feature = "tls")]
 pub use crate::conn_core::connect_params::ServerCerts;
 
 pub use crate::connection::Connection;

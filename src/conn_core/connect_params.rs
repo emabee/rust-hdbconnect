@@ -16,8 +16,7 @@ use std::path::Path;
 ///
 /// ### Example with TLS
 ///
-/// ```rust,ignore
-/// # // norun cannot be used because the snippet requires feature tls
+/// ```rust,norun
 /// use hdbconnect::{ConnectParams, ServerCerts};
 /// # fn read_certificate() -> String {String::from("can't do that")};
 /// let certificate: String = read_certificate();
@@ -82,27 +81,9 @@ pub struct ConnectParams {
     dbuser: String,
     password: SecStr,
     clientlocale: Option<String>,
-    #[cfg(feature = "tls")]
     server_certs: Vec<ServerCerts>,
 }
 impl ConnectParams {
-    #[cfg(not(feature = "tls"))]
-    pub(crate) fn new(
-        host: String,
-        addr: String,
-        dbuser: String,
-        password: SecStr,
-        clientlocale: Option<String>,
-    ) -> Self {
-        Self {
-            host,
-            addr,
-            dbuser,
-            password,
-            clientlocale,
-        }
-    }
-    #[cfg(feature = "tls")]
     pub(crate) fn new(
         host: String,
         addr: String,
@@ -121,7 +102,7 @@ impl ConnectParams {
         }
     }
 
-    /// Returns a new builder for ConnectParams.
+    /// Returns a new builder for `ConnectParams`.
     pub fn builder() -> ConnectParamsBuilder {
         ConnectParamsBuilder::new()
     }
@@ -133,8 +114,7 @@ impl ConnectParams {
             .into_connect_params()
     }
 
-    /// The ServerCerts.
-    #[cfg(feature = "tls")]
+    /// The `ServerCerts`.
     pub fn server_certs(&self) -> &Vec<ServerCerts> {
         &self.server_certs
     }
@@ -151,11 +131,7 @@ impl ConnectParams {
 
     /// Whether TLS or a plain TCP connection is to be used.
     pub fn use_tls(&self) -> bool {
-        #[cfg(feature = "tls")]
-        return !self.server_certs.is_empty();
-
-        #[cfg(not(feature = "tls"))]
-        return false;
+        !self.server_certs.is_empty()
     }
 
     /// The database user.
@@ -185,7 +161,6 @@ impl std::fmt::Display for ConnectParams {
 }
 
 /// Expresses where Server Certificates are read from.
-#[cfg(feature = "tls")]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ServerCerts {
     /// Server Certificates are read from files in the specified folder.
@@ -202,7 +177,6 @@ pub enum ServerCerts {
 #[cfg(test)]
 mod tests {
     use super::IntoConnectParams;
-    #[cfg(feature = "tls")]
     use super::ServerCerts;
 
     #[test]
@@ -216,7 +190,6 @@ mod tests {
             assert_eq!(b"schLau", params.password().unsecure());
             assert_eq!("abcd123:2222", params.addr());
             assert_eq!(None, params.clientlocale);
-            #[cfg(feature = "tls")]
             assert!(params.server_certs().is_empty());
         }
         {
@@ -230,12 +203,10 @@ mod tests {
             assert_eq!("meier", params.dbuser());
             assert_eq!(b"schLau", params.password().unsecure());
             assert_eq!(Some("CL1".to_string()), params.clientlocale);
-            #[cfg(feature = "tls")]
             assert_eq!(
                 ServerCerts::Directory("TCD".to_string()),
                 *params.server_certs().get(0).unwrap()
             );
-            #[cfg(feature = "tls")]
             assert_eq!(
                 ServerCerts::RootCertificates,
                 *params.server_certs().get(1).unwrap()

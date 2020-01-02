@@ -77,7 +77,11 @@ pub(crate) fn emit(
             trace!("emit FIXED8");
             let bd = bd.with_scale(i64::from(scale));
             let (bigint, _exponent) = bd.as_bigint_and_exponent();
-            w.write_i64::<LittleEndian>(bigint.to_i64().unwrap())?;
+            w.write_i64::<LittleEndian>(
+                bigint
+                    .to_i64()
+                    .ok_or_else(|| util::io_error("conversion to FIXED8 fails"))?,
+            )?;
         }
         TypeId::FIXED12 => {
             trace!("emit FIXED12");
@@ -104,7 +108,11 @@ pub(crate) fn emit(
             trace!("emit FIXED16");
             let bd = bd.with_scale(i64::from(scale));
             let (bigint, _exponent) = bd.as_bigint_and_exponent();
-            w.write_i128::<LittleEndian>(bigint.to_i128().unwrap())?;
+            w.write_i128::<LittleEndian>(
+                bigint
+                    .to_i128()
+                    .ok_or_else(|| util::io_error("conversion to FIXED16 fails"))?,
+            )?;
         }
         _ => return Err(util::io_error("unexpected type id for decimal")),
     }
