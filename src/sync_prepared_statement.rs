@@ -1,4 +1,4 @@
-use crate::conn_core::AmConnCore;
+use crate::conn::AmConnCore;
 use crate::hdb_response::InternalReturnValue;
 use crate::protocol::argument::Argument;
 use crate::protocol::part::Part;
@@ -242,7 +242,7 @@ impl<'a> PreparedStatement {
                 ));
             }
 
-            let mut main_reply = ps_core_guard.am_conn_core.full_send(
+            let mut main_reply = ps_core_guard.am_conn_core.full_send_sync(
                 request,
                 self.o_a_rsmd.as_ref(),
                 Some(&self.a_descriptors),
@@ -375,7 +375,7 @@ impl<'a> PreparedStatement {
 
         let (mut internal_return_values, replytype) = ps_core_guard
             .am_conn_core
-            .full_send(
+            .full_send_sync(
                 request,
                 self.o_a_rsmd.as_ref(),
                 Some(&self.a_descriptors),
@@ -404,7 +404,7 @@ impl<'a> PreparedStatement {
         let mut request = Request::new(RequestType::Prepare, HOLD_CURSORS_OVER_COMMIT);
         request.push(Part::new(PartKind::Command, Argument::Command(stmt)));
 
-        let mut reply = am_conn_core.send(request)?;
+        let mut reply = am_conn_core.send_sync(request)?;
 
         // ParameterMetadata, ResultSetMetadata
         // StatementContext, StatementId,
@@ -481,7 +481,7 @@ impl Drop for PreparedStatementCore {
             PartKind::StatementId,
             Argument::StatementId(self.statement_id),
         ));
-        if let Ok(mut reply) = self.am_conn_core.send(request) {
+        if let Ok(mut reply) = self.am_conn_core.send_sync(request) {
             reply.parts.pop_if_kind(PartKind::StatementContext);
         }
     }

@@ -1,5 +1,5 @@
-use crate::conn_core::connect_params::{ConnectParams, ServerCerts};
 use crate::protocol::util;
+use crate::{ConnectParams, ServerCerts};
 use rustls::{ClientConfig, ClientSession, Session};
 use std::net::TcpStream;
 use std::path::PathBuf;

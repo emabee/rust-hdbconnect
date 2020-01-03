@@ -1,6 +1,6 @@
 use super::authenticator::Authenticator;
 
-use crate::conn_core::AmConnCore;
+use crate::conn::AmConnCore;
 use crate::hdb_error::{HdbError, HdbResult};
 use crate::protocol::argument::Argument;
 use crate::protocol::part::Part;
@@ -33,7 +33,7 @@ pub(crate) fn first_auth_request(
         Argument::Auth(auth_fields),
     ));
 
-    let mut reply = am_conn_core.send(request1)?;
+    let mut reply = am_conn_core.send_sync(request1)?;
     reply.assert_expected_reply_type(ReplyType::Nil)?;
 
     match reply
@@ -83,7 +83,7 @@ pub(crate) fn second_auth_request(
         Argument::ConnectOptions(am_conn_core.lock()?.connect_options().clone()),
     ));
 
-    let mut reply = am_conn_core.send(request2)?;
+    let mut reply = am_conn_core.send_sync(request2)?;
     reply.assert_expected_reply_type(ReplyType::Nil)?;
 
     let mut conn_core = am_conn_core.lock()?;

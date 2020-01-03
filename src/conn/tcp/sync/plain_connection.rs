@@ -1,4 +1,4 @@
-use crate::conn_core::connect_params::ConnectParams;
+use crate::ConnectParams;
 use std::cell::RefCell;
 use std::net::TcpStream;
 

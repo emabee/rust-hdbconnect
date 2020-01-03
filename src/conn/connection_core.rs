@@ -1,8 +1,4 @@
-use crate::conn_core::am_conn_core::AmConnCore;
-use crate::conn_core::buffalo::Buffalo;
-use crate::conn_core::connect_params::ConnectParams;
-use crate::conn_core::initial_request;
-use crate::conn_core::session_state::SessionState;
+use crate::conn::{initial_request, AmConnCore, ConnectParams, SessionState, TcpConn};
 use crate::protocol::argument::Argument;
 use crate::protocol::part::{Part, Parts};
 use crate::protocol::partkind::PartKind;
@@ -42,14 +38,14 @@ pub(crate) struct ConnectionCore {
     connect_options: ConnectOptions,
     topology: Option<Topology>,
     pub warnings: Vec<ServerError>,
-    buffalo: Buffalo,
+    tcp_conn: TcpConn,
 }
 
 impl<'a> ConnectionCore {
     pub(crate) fn try_new(params: ConnectParams) -> HdbResult<Self> {
         let connect_options = ConnectOptions::for_server(params.clientlocale(), get_os_user());
-        let mut buffalo = Buffalo::try_new(params).context(HdbErrorKind::Database)?;
-        initial_request::send_and_receive(&mut buffalo).context(HdbErrorKind::Database)?;
+        let mut tcp_conn = TcpConn::try_new(params).context(HdbErrorKind::Database)?;
+        initial_request::send_and_receive(&mut tcp_conn).context(HdbErrorKind::Database)?;
 
         Ok(Self {
             authenticated: false,
@@ -67,14 +63,14 @@ impl<'a> ConnectionCore {
             connect_options,
             topology: None,
             warnings: Vec::<ServerError>::new(),
-            buffalo,
+            tcp_conn,
         })
     }
 
     pub(crate) fn connect_params(&self) -> &ConnectParams {
-        match self.buffalo {
-            Buffalo::Plain(ref pc) => pc.connect_params(),
-            Buffalo::Secure(ref sc) => sc.connect_params(),
+        match self.tcp_conn {
+            TcpConn::SyncPlain(ref pc) => pc.connect_params(),
+            TcpConn::SyncSecure(ref sc) => sc.connect_params(),
         }
     }
 
@@ -239,7 +235,7 @@ impl<'a> ConnectionCore {
         &mut self.connect_options
     }
 
-    pub(crate) fn roundtrip(
+    pub(crate) fn roundtrip_sync(
         &mut self,
         request: Request<'a>,
         am_conn_core: &AmConnCore,
@@ -250,8 +246,8 @@ impl<'a> ConnectionCore {
         let auto_commit_flag: i8 = if self.is_auto_commit() { 1 } else { 0 };
         let nsn = self.next_seq_number();
 
-        match self.buffalo {
-            Buffalo::Plain(ref pc) => {
+        match self.tcp_conn {
+            TcpConn::SyncPlain(ref pc) => {
                 let writer = &mut *(pc.writer()).borrow_mut();
                 request
                     .emit(
@@ -263,7 +259,7 @@ impl<'a> ConnectionCore {
                     )
                     .context(HdbErrorKind::Database)?;
             }
-            Buffalo::Secure(ref sc) => {
+            TcpConn::SyncSecure(ref sc) => {
                 let writer = &mut *(sc.writer()).borrow_mut();
                 request
                     .emit(
@@ -277,12 +273,12 @@ impl<'a> ConnectionCore {
             }
         }
 
-        let mut reply = match self.buffalo {
-            Buffalo::Plain(ref pc) => {
+        let mut reply = match self.tcp_conn {
+            TcpConn::SyncPlain(ref pc) => {
                 let reader = &mut *(pc.reader()).borrow_mut();
                 Reply::parse(o_a_rsmd, o_a_descriptors, o_rs, Some(am_conn_core), reader)
             }
-            Buffalo::Secure(ref sc) => {
+            TcpConn::SyncSecure(ref sc) => {
                 let reader = &mut *(sc.reader()).borrow_mut();
                 Reply::parse(o_a_rsmd, o_a_descriptors, o_rs, Some(am_conn_core), reader)
             }
@@ -384,13 +380,13 @@ impl<'a> ConnectionCore {
             let request = Request::new_for_disconnect();
 
             let nsn = self.next_seq_number();
-            match self.buffalo {
-                Buffalo::Plain(ref pc) => {
+            match self.tcp_conn {
+                TcpConn::SyncPlain(ref pc) => {
                     let writer = &mut *(pc.writer()).borrow_mut();
                     request.emit(self.session_id(), nsn, 0, None, writer)?;
                     writer.flush()?;
                 }
-                Buffalo::Secure(ref sc) => {
+                TcpConn::SyncSecure(ref sc) => {
                     let writer = &mut *(sc.writer()).borrow_mut();
                     request.emit(self.session_id(), nsn, 0, None, writer)?;
                     writer.flush()?;

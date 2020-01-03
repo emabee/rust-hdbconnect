@@ -1,4 +1,4 @@
-use crate::conn_core::AmConnCore;
+use crate::conn::AmConnCore;
 use crate::protocol::argument::Argument;
 use crate::protocol::part::Part;
 use crate::protocol::partkind::PartKind;
@@ -24,7 +24,7 @@ pub(crate) fn fetch_a_lob_chunk(
         Argument::ReadLobRequest(ReadLobRequest::new(locator_id, offset, length)),
     ));
 
-    let mut reply = am_conn_core.send(request)?;
+    let mut reply = am_conn_core.send_sync(request)?;
     reply.assert_expected_reply_type(ReplyType::ReadLob)?;
 
     let (reply_data, reply_is_last_data) = match reply

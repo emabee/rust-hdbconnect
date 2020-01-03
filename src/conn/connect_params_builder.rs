@@ -1,5 +1,4 @@
-use crate::conn_core::connect_params::{ConnectParams, ServerCerts};
-use crate::{HdbErrorKind, HdbResult};
+use crate::{ConnectParams, HdbErrorKind, HdbResult, ServerCerts};
 use secstr::SecStr;
 use std::env;
 use url::Url;

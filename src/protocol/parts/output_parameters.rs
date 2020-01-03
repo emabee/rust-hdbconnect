@@ -1,4 +1,4 @@
-use crate::conn_core::AmConnCore;
+use crate::conn::AmConnCore;
 use crate::protocol::parts::hdb_value::HdbValue;
 use crate::protocol::parts::parameter_descriptor::ParameterDescriptor;
 use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;

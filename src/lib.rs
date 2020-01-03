@@ -43,31 +43,25 @@ pub use r2d2;
 pub use serde_db;
 
 mod authentication;
-mod conn_core;
-mod connection;
-mod connection_manager;
+mod conn;
 mod hdb_error;
 mod hdb_response;
 mod hdb_return_value;
-mod impl_serde_db;
-mod prepared_statement;
 mod protocol;
+mod serde_db_impl;
+mod sync_connection;
+mod sync_connection_manager;
+mod sync_prepared_statement;
+mod types_impl;
 mod xa_impl;
 
 pub mod code_examples;
 
-pub use crate::conn_core::connect_params::ConnectParams;
-pub use crate::conn_core::connect_params_builder::ConnectParamsBuilder;
-pub use crate::conn_core::into_connect_params::IntoConnectParams;
+pub use crate::conn::{ConnectParams, ConnectParamsBuilder, IntoConnectParams, ServerCerts};
 
-pub use crate::conn_core::connect_params::ServerCerts;
-
-pub use crate::connection::Connection;
-pub use crate::connection_manager::ConnectionManager;
 pub use crate::hdb_error::{HdbError, HdbErrorKind, HdbResult};
 pub use crate::hdb_response::HdbResponse;
 pub use crate::hdb_return_value::HdbReturnValue;
-pub use crate::prepared_statement::PreparedStatement;
 pub use crate::protocol::parts::execution_result::ExecutionResult;
 pub use crate::protocol::parts::output_parameters::OutputParameters;
 pub use crate::protocol::parts::parameter_descriptor::{
@@ -79,8 +73,9 @@ pub use crate::protocol::parts::row::Row;
 pub use crate::protocol::parts::server_error::{ServerError, Severity};
 pub use crate::protocol::parts::type_id::TypeId;
 pub use crate::protocol::server_usage::ServerUsage;
-
-mod types_impl;
+pub use crate::sync_connection::Connection;
+pub use crate::sync_connection_manager::ConnectionManager;
+pub use crate::sync_prepared_statement::PreparedStatement;
 
 /// Non-standard types that are used within the
 /// [`HdbValue`](enum.HdbValue.html)s in a [`ResultSet`](struct.ResultSet.html).

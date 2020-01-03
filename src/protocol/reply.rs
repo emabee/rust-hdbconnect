@@ -1,4 +1,4 @@
-use crate::conn_core::AmConnCore;
+use crate::conn::AmConnCore;
 use crate::hdb_response::InternalReturnValue;
 use crate::protocol::argument::Argument;
 use crate::protocol::part::{Part, Parts};

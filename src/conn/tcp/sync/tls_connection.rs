@@ -1,5 +1,5 @@
-use crate::conn_core::buffalo::tls_stream::TlsStream;
-use crate::conn_core::connect_params::ConnectParams;
+use super::tls_stream::TlsStream;
+use crate::ConnectParams;
 use std::cell::RefCell;
 use std::fmt;
 

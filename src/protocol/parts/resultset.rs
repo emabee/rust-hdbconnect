@@ -1,5 +1,4 @@
-use crate::conn_core::AmConnCore;
-use crate::prepared_statement::AmPsCore;
+use crate::conn::AmConnCore;
 use crate::protocol::argument::Argument;
 use crate::protocol::part::{Part, Parts};
 use crate::protocol::part_attributes::PartAttributes;
@@ -12,6 +11,7 @@ use crate::protocol::request::Request;
 use crate::protocol::request_type::RequestType;
 use crate::protocol::server_usage::ServerUsage;
 use crate::protocol::util;
+use crate::sync_prepared_statement::AmPsCore;
 use crate::{HdbError, HdbErrorKind, HdbResult};
 use failure::ResultExt;
 use serde;
@@ -138,7 +138,7 @@ impl RsState {
             Argument::FetchSize(fetch_size),
         ));
 
-        let mut reply = conn_core.full_send(request, Some(a_rsmd), None, &mut Some(self))?;
+        let mut reply = conn_core.full_send_sync(request, Some(a_rsmd), None, &mut Some(self))?;
         reply.assert_expected_reply_type(ReplyType::Fetch)?;
         reply.parts.pop_if_kind(PartKind::ResultSet);
 
@@ -231,7 +231,7 @@ impl Drop for ResultSetCore {
                 ));
 
                 if let Ok(mut reply) =
-                    conn_guard.roundtrip(request, &self.am_conn_core, None, None, &mut None)
+                    conn_guard.roundtrip_sync(request, &self.am_conn_core, None, None, &mut None)
                 {
                     reply.parts.pop_if_kind(PartKind::StatementContext);
                     while let Some(part) = reply.parts.pop() {

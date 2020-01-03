@@ -2,7 +2,7 @@ use crate::authentication::auth_requests::{first_auth_request, second_auth_reque
 use crate::authentication::authenticator::Authenticator;
 use crate::authentication::scram_pbkdf2_sha256::ScramPbkdf2Sha256;
 use crate::authentication::scram_sha256::ScramSha256;
-use crate::conn_core::AmConnCore;
+use crate::conn::AmConnCore;
 use crate::hdb_error::{HdbError, HdbResult};
 
 // Do the authentication.

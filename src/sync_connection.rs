@@ -1,6 +1,5 @@
 use crate::authentication;
-use crate::conn_core::AmConnCore;
-use crate::prepared_statement::PreparedStatement;
+use crate::conn::AmConnCore;
 use crate::protocol::argument::Argument;
 use crate::protocol::part::Part;
 use crate::protocol::partkind::PartKind;
@@ -10,12 +9,14 @@ use crate::protocol::parts::server_error::ServerError;
 use crate::protocol::request::{Request, HOLD_CURSORS_OVER_COMMIT};
 use crate::protocol::request_type::RequestType;
 use crate::protocol::server_usage::ServerUsage;
+use crate::sync_prepared_statement::PreparedStatement;
 use crate::xa_impl::new_resource_manager;
 use crate::{HdbErrorKind, HdbResponse, HdbResult, IntoConnectParams};
 use chrono::Local;
 use dist_tx::rm::ResourceManager;
 
-/// A connection to the database.
+// TODO Rename to SyncConnection
+/// A synchronous connection to the database.
 #[derive(Clone, Debug)]
 pub struct Connection {
     am_conn_core: AmConnCore,
@@ -76,7 +77,7 @@ impl Connection {
     /// # }
     /// ```
     pub fn statement<S: AsRef<str>>(&mut self, stmt: S) -> HdbResult<HdbResponse> {
-        execute(&mut self.am_conn_core, stmt.as_ref(), None)
+        self.execute(stmt.as_ref(), None)
     }
 
     /// Executes a statement and expects a single `ResultSet`.
@@ -316,8 +317,12 @@ impl Connection {
     ///
     /// Example:
     ///
-    /// ```ignore
+    /// ```rust,no_run
+    /// # use hdbconnect::{Connection,HdbResult};
+    /// # fn foo() -> HdbResult<()> {
+    /// # let mut connection = Connection::new("hdbsql://my_user:my_passwd@the_host:2222")?;
     /// connection.set_application("MyApp, built in rust")?;
+    /// # Ok(()) }
     /// ```
     pub fn set_application<S: AsRef<str>>(&self, application: S) -> HdbResult<()> {
         self.am_conn_core.lock()?.set_application(application)
@@ -327,8 +332,12 @@ impl Connection {
     ///
     /// Example:
     ///
-    /// ```ignore
+    /// ```rust,no_run
+    /// # use hdbconnect::{Connection,HdbResult};
+    /// # fn foo() -> HdbResult<()> {
+    /// # let mut connection = Connection::new("hdbsql://my_user:my_passwd@the_host:2222")?;
     /// connection.set_application_user("K2209657")?;
+    /// # Ok(()) }
     /// ```
     pub fn set_application_user<S: AsRef<str>>(&self, appl_user: S) -> HdbResult<()> {
         self.am_conn_core
@@ -340,8 +349,12 @@ impl Connection {
     ///
     /// Example:
     ///
-    /// ```ignore
+    /// ```rust,no_run
+    /// # use hdbconnect::{Connection,HdbResult};
+    /// # fn foo() -> HdbResult<()> {
+    /// # let mut connection = Connection::new("hdbsql://my_user:my_passwd@the_host:2222")?;
     /// connection.set_application_version("5.3.23")?;
+    /// # Ok(()) }
     /// ```
     pub fn set_application_version<S: AsRef<str>>(&mut self, version: S) -> HdbResult<()> {
         self.am_conn_core
@@ -353,8 +366,12 @@ impl Connection {
     ///
     /// Example:
     ///
-    /// ```ignore
-    /// connection.set_application_source("5.3.23","update_customer.rs")?;
+    /// ```rust,no_run
+    /// # use hdbconnect::{Connection,HdbResult};
+    /// # fn foo() -> HdbResult<()> {
+    /// # let mut connection = Connection::new("hdbsql://my_user:my_passwd@the_host:2222")?;
+    /// connection.set_application_source("update_customer.rs")?;
+    /// # Ok(()) }
     /// ```
     pub fn set_application_source<S: AsRef<str>>(&mut self, source: S) -> HdbResult<()> {
         self.am_conn_core
@@ -375,11 +392,7 @@ impl Connection {
         module: S,
         line: i32,
     ) -> HdbResult<HdbResponse> {
-        execute(
-            &mut self.am_conn_core,
-            stmt,
-            Some(CommandInfo::new(line, module.as_ref())),
-        )
+        self.execute(stmt, Some(CommandInfo::new(line, module.as_ref())))
     }
 
     /// (MDC) Database name.
@@ -412,43 +425,41 @@ impl Connection {
             .get_full_version_string()
             .cloned())
     }
-}
 
-fn execute<S>(
-    am_conn_core: &mut AmConnCore,
-    stmt: S,
-    o_command_info: Option<CommandInfo>,
-) -> HdbResult<HdbResponse>
-where
-    S: AsRef<str>,
-{
-    debug!(
-        "connection[{:?}]::execute()",
-        am_conn_core.lock()?.connect_options().get_connection_id()
-    );
-    let mut request = Request::new(RequestType::ExecuteDirect, HOLD_CURSORS_OVER_COMMIT);
+    fn execute<S>(&mut self, stmt: S, o_command_info: Option<CommandInfo>) -> HdbResult<HdbResponse>
+    where
+        S: AsRef<str>,
     {
-        let conn_core = am_conn_core.lock()?;
-        let fetch_size = conn_core.get_fetch_size();
-        request.push(Part::new(
-            PartKind::FetchSize,
-            Argument::FetchSize(fetch_size),
-        ));
-        if let Some(command_info) = o_command_info {
+        debug!(
+            "connection[{:?}]::execute()",
+            self.am_conn_core
+                .lock()?
+                .connect_options()
+                .get_connection_id()
+        );
+        let mut request = Request::new(RequestType::ExecuteDirect, HOLD_CURSORS_OVER_COMMIT);
+        {
+            let conn_core = self.am_conn_core.lock()?;
+            let fetch_size = conn_core.get_fetch_size();
             request.push(Part::new(
-                PartKind::CommandInfo,
-                Argument::CommandInfo(command_info),
+                PartKind::FetchSize,
+                Argument::FetchSize(fetch_size),
+            ));
+            if let Some(command_info) = o_command_info {
+                request.push(Part::new(
+                    PartKind::CommandInfo,
+                    Argument::CommandInfo(command_info),
+                ));
+            }
+            request.push(Part::new(
+                PartKind::Command,
+                Argument::Command(stmt.as_ref()),
             ));
         }
-        request.push(Part::new(
-            PartKind::Command,
-            Argument::Command(stmt.as_ref()),
-        ));
+        let (internal_return_values, replytype) = self
+            .am_conn_core
+            .send_sync(request)?
+            .into_internal_return_values(&mut self.am_conn_core, None)?;
+        HdbResponse::try_new(internal_return_values, replytype)
     }
-
-    let (internal_return_values, replytype) = am_conn_core
-        .send(request)?
-        .into_internal_return_values(am_conn_core, None)?;
-
-    HdbResponse::try_new(internal_return_values, replytype)
 }

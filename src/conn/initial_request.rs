@@ -1,27 +1,27 @@
-use crate::conn_core::buffalo::Buffalo;
+use crate::conn::TcpConn;
 use crate::protocol::util;
 
 use byteorder::{BigEndian, WriteBytesExt};
 
-pub(crate) fn send_and_receive(buffalo: &mut Buffalo) -> std::io::Result<()> {
+pub(crate) fn send_and_receive(tcp_conn: &mut TcpConn) -> std::io::Result<()> {
     trace!("send_and_receive()");
-    match buffalo {
-        Buffalo::Plain(ref pc) => {
+    match tcp_conn {
+        TcpConn::SyncPlain(ref pc) => {
             let writer = &mut *(pc.writer()).borrow_mut();
             emit_initial_request(writer)?;
         }
-        Buffalo::Secure(ref sc) => {
+        TcpConn::SyncSecure(ref sc) => {
             let writer = &mut *(sc.writer()).borrow_mut();
             emit_initial_request(writer)?;
         }
     }
 
-    match buffalo {
-        Buffalo::Plain(ref pc) => {
+    match tcp_conn {
+        TcpConn::SyncPlain(ref pc) => {
             let reader = &mut *(pc.reader()).borrow_mut();
             util::skip_bytes(8, reader)?; // ignore the response content
         }
-        Buffalo::Secure(ref sc) => {
+        TcpConn::SyncSecure(ref sc) => {
             let reader = &mut *(sc.reader()).borrow_mut();
             util::skip_bytes(8, reader)?; // ignore the response content
         }

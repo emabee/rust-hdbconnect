@@ -1,4 +1,4 @@
-use crate::conn_core::AmConnCore;
+use crate::conn::AmConnCore;
 use crate::hdb_error::{HdbErrorKind, HdbResult};
 use crate::protocol::argument::Argument;
 use crate::protocol::part::Part;
@@ -91,7 +91,7 @@ impl CResourceManager for HdbCResourceManager {
             Argument::XatOptions(xat_options),
         ));
 
-        let mut reply: Reply = self.am_conn_core.send(request)?;
+        let mut reply: Reply = self.am_conn_core.send_sync(request)?;
         while !reply.parts.is_empty() {
             reply.parts.drop_parts_of_kind(PartKind::StatementContext);
             match reply.parts.pop_arg() {
@@ -183,7 +183,7 @@ impl HdbCResourceManager {
             Argument::XatOptions(xat_options),
         ));
 
-        let mut reply = self.am_conn_core.send(request)?;
+        let mut reply = self.am_conn_core.send_sync(request)?;
 
         reply.parts.drop_parts_of_kind(PartKind::StatementContext);
         if let Some(Argument::XatOptions(xat_options)) = reply

@@ -1,6 +1,5 @@
 //! Connection parameters
-use crate::conn_core::connect_params_builder::ConnectParamsBuilder;
-use crate::{HdbErrorKind, HdbResult, IntoConnectParams};
+use crate::{ConnectParamsBuilder, HdbErrorKind, HdbResult, IntoConnectParams};
 use failure::ResultExt;
 use secstr::SecStr;
 use std::fs;

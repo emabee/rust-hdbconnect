@@ -2,7 +2,7 @@ use super::argument::Argument;
 use super::part_attributes::PartAttributes;
 use super::partkind::PartKind;
 use super::parts::resultset_metadata::ResultSetMetadata;
-use crate::conn_core::AmConnCore;
+use crate::conn::AmConnCore;
 use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
 use crate::protocol::parts::resultset::RsState;
 use crate::protocol::util;

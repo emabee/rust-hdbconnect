@@ -1,6 +1,4 @@
-use crate::conn_core::connect_params::ConnectParams;
-use crate::conn_core::connect_params_builder::ConnectParamsBuilder;
-use crate::hdb_error::{HdbErrorKind, HdbResult};
+use crate::{ConnectParams, ConnectParamsBuilder, HdbErrorKind, HdbResult};
 use failure::ResultExt;
 use url::Url;
 

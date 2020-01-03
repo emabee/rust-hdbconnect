@@ -1,4 +1,4 @@
-use crate::conn_core::AmConnCore;
+use crate::conn::AmConnCore;
 use crate::protocol::parts::hdb_value::HdbValue;
 use crate::protocol::parts::resultset::AmRsCore;
 use crate::protocol::parts::resultset_metadata::ResultSetMetadata;

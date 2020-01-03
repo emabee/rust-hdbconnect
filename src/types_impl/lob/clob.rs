@@ -1,6 +1,6 @@
 use super::fetch::fetch_a_lob_chunk;
 use super::CharLobSlice;
-use crate::conn_core::AmConnCore;
+use crate::conn::AmConnCore;
 use crate::protocol::parts::resultset::AmRsCore;
 use crate::protocol::server_usage::ServerUsage;
 use crate::protocol::util;

@@ -1,3 +1,4 @@
+//! Code examples.
 //!
 //! # 1. Database connections
 //!

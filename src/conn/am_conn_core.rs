@@ -1,5 +1,5 @@
 use super::connection_core::ConnectionCore;
-use crate::conn_core::connect_params::ConnectParams;
+use crate::conn::ConnectParams;
 use crate::hdb_error::HdbResult;
 use crate::protocol::argument::Argument;
 use crate::protocol::part::Part;
@@ -26,11 +26,11 @@ impl AmConnCore {
         self.0.lock()
     }
 
-    pub fn send(&mut self, request: Request) -> HdbResult<Reply> {
-        self.full_send(request, None, None, &mut None)
+    pub fn send_sync(&mut self, request: Request) -> HdbResult<Reply> {
+        self.full_send_sync(request, None, None, &mut None)
     }
 
-    pub fn full_send(
+    pub fn full_send_sync(
         &mut self,
         mut request: Request,
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
@@ -45,8 +45,8 @@ impl AmConnCore {
         let mut conn_core = self.lock()?;
 
         match conn_core.statement_sequence() {
-            None => {}
             Some(ssi_value) => request.add_statement_context(*ssi_value),
+            None => {}
         }
 
         if conn_core.is_client_info_touched() {
@@ -56,7 +56,7 @@ impl AmConnCore {
             ));
         }
 
-        let reply = conn_core.roundtrip(request, &self, o_a_rsmd, o_a_descriptors, o_rs)?;
+        let reply = conn_core.roundtrip_sync(request, &self, o_a_rsmd, o_a_descriptors, o_rs)?;
 
         debug!(
             "AmConnCore::full_send() took {} ms",

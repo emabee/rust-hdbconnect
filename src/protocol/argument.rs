@@ -1,4 +1,4 @@
-use crate::conn_core::AmConnCore;
+use crate::conn::AmConnCore;
 use crate::protocol::part::Parts;
 use crate::protocol::part_attributes::PartAttributes;
 use crate::protocol::partkind::PartKind;

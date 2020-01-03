@@ -1,4 +1,4 @@
-use crate::conn_core::AmConnCore;
+use crate::conn::AmConnCore;
 use crate::hdb_response::InternalReturnValue;
 use crate::protocol::argument::Argument;
 use crate::protocol::part::Part;
@@ -77,9 +77,12 @@ impl<'a> LobWriter<'a> {
             Argument::WriteLobRequest(write_lob_request),
         ));
 
-        let reply =
-            self.am_conn_core
-                .full_send(request, self.o_a_rsmd, self.o_a_descriptors, &mut None)?;
+        let reply = self.am_conn_core.full_send_sync(
+            request,
+            self.o_a_rsmd,
+            self.o_a_descriptors,
+            &mut None,
+        )?;
 
         match reply.replytype {
             // regular response
