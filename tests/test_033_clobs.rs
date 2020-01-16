@@ -1,9 +1,8 @@
 mod test_utils;
 
-use failure::ResultExt;
 use flexi_logger::ReconfigurationHandle;
 use hdbconnect::types::CLob;
-use hdbconnect::{Connection, HdbErrorKind, HdbResult, HdbValue};
+use hdbconnect::{Connection, HdbError, HdbResult, HdbValue};
 use log::{debug, info};
 use serde_derive::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -44,8 +43,8 @@ fn get_blabla() -> (String, Vec<u8>) {
 fn test_clobs(
     _log_handle: &mut ReconfigurationHandle,
     connection: &mut Connection,
-    fifty_times_smp_blabla: &String,
-    fingerprint: &Vec<u8>,
+    fifty_times_smp_blabla: &str,
+    fingerprint: &[u8],
 ) -> HdbResult<()> {
     info!("create a big CLOB in the database, and read it in various ways");
     debug!("setup...");
@@ -90,12 +89,12 @@ fn test_clobs(
     let mut hasher = Sha256::default();
     hasher.input(mydata.s.as_bytes());
     let fingerprint2 = hasher.result().to_vec();
-    assert_eq!(fingerprint, &fingerprint2);
+    assert_eq!(fingerprint, fingerprint2.as_slice());
 
     let mut hasher = Sha256::default();
     hasher.input(mydata.o_s.as_ref().unwrap().as_bytes());
     let fingerprint3 = hasher.result().to_vec();
-    assert_eq!(fingerprint, &fingerprint3);
+    assert_eq!(fingerprint, fingerprint3.as_slice());
 
     // try again with smaller lob-read-length
     connection.set_lob_read_length(200_000)?;
@@ -119,13 +118,13 @@ fn test_clobs(
     row.next_value().unwrap();
     let mut clob: CLob = row.next_value().unwrap().try_into_clob()?;
     let mut streamed = Vec::<u8>::new();
-    std::io::copy(&mut clob, &mut streamed).context(HdbErrorKind::LobStreaming)?;
+    std::io::copy(&mut clob, &mut streamed).map_err(HdbError::LobStreaming)?;
 
     assert_eq!(fifty_times_smp_blabla.len(), streamed.len());
     let mut hasher = Sha256::default();
     hasher.input(&streamed);
     let fingerprint4 = hasher.result().to_vec();
-    assert_eq!(fingerprint, &fingerprint4);
+    assert_eq!(fingerprint, fingerprint4.as_slice());
 
     debug!("clob.max_buf_len(): {}", clob.max_buf_len());
     // std::io::copy works with 8MB, our buffer remains at about 200_000:
@@ -148,7 +147,7 @@ fn test_streaming(
     _log_handle: &mut flexi_logger::ReconfigurationHandle,
     connection: &mut Connection,
     fifty_times_smp_blabla: String,
-    fingerprint: &Vec<u8>,
+    fingerprint: &[u8],
 ) -> HdbResult<()> {
     info!("write and read big clob in streaming fashion");
 
@@ -178,13 +177,13 @@ fn test_streaming(
         .into_single_value()?
         .try_into_clob()?;
     let mut buffer = Vec::<u8>::new();
-    std::io::copy(&mut clob, &mut buffer).context(HdbErrorKind::LobStreaming)?;
+    std::io::copy(&mut clob, &mut buffer).map_err(HdbError::LobStreaming)?;
 
     assert_eq!(fifty_times_smp_blabla.len(), buffer.len());
     let mut hasher = Sha256::default();
     hasher.input(&buffer);
     let fingerprint4 = hasher.result().to_vec();
-    assert_eq!(fingerprint, &fingerprint4);
+    assert_eq!(fingerprint, fingerprint4.as_slice());
     assert!(
         clob.max_buf_len() < 210_000,
         "clob.max_buf_len() too big: {}",

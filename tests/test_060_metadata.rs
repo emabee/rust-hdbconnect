@@ -15,6 +15,7 @@ pub fn test_060_metadata() -> HdbResult<()> {
     test_utils::closing_info(connection, start)
 }
 
+#[allow(clippy::cognitive_complexity)]
 fn test_procedure_metadata(
     _log_handle: &mut ReconfigurationHandle,
     connection: &mut Connection,

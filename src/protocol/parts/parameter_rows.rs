@@ -1,7 +1,6 @@
 use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
 use crate::protocol::util;
-use crate::{HdbErrorKind, HdbResult, HdbValue};
-use failure::ResultExt;
+use crate::{HdbError, HdbResult, HdbValue};
 use serde_db::ser::to_params;
 use std::io::Write;
 
@@ -23,7 +22,7 @@ impl<'a> ParameterRows<'a> {
         &mut self,
         hdb_parameters: Vec<HdbValue<'a>>,
         descriptors: &ParameterDescriptors,
-    ) -> std::io::Result<()> {
+    ) -> HdbResult<()> {
         self.0
             .push(ParameterRow::new(hdb_parameters, &descriptors)?);
         Ok(())
@@ -59,14 +58,10 @@ impl ParameterRows<'static> {
         input: &T,
         descriptors: &ParameterDescriptors,
     ) -> HdbResult<()> {
-        self.0.push(
-            ParameterRow::new(
-                to_params(input, &mut descriptors.iter_in())
-                    .context(HdbErrorKind::Serialization)?,
-                &descriptors,
-            )
-            .context(HdbErrorKind::Serialization)?,
-        );
+        self.0.push(ParameterRow::new(
+            to_params(input, &mut descriptors.iter_in())?,
+            &descriptors,
+        )?);
         Ok(())
     }
 }
@@ -80,7 +75,7 @@ impl<'a> ParameterRow<'a> {
     fn new(
         hdb_parameters: Vec<HdbValue<'a>>,
         descriptors: &ParameterDescriptors,
-    ) -> std::io::Result<ParameterRow<'a>> {
+    ) -> HdbResult<ParameterRow<'a>> {
         let mut in_descriptors = descriptors.iter_in();
         for hdb_value in &hdb_parameters {
             if let Some(descriptor) = in_descriptors.next() {
@@ -90,9 +85,7 @@ impl<'a> ParameterRow<'a> {
                         .matches_value_type(hdb_value.type_id_for_emit(descriptor.type_id())?)?;
                 }
             } else {
-                return Err(util::io_error(
-                    "ParameterRow::new(): Not enough metadata".to_string(),
-                ));
+                return Err(HdbError::Impl("ParameterRow::new(): Not enough metadata"));
             }
         }
         Ok(ParameterRow(hdb_parameters))

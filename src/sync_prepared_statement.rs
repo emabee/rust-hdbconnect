@@ -13,8 +13,7 @@ use crate::protocol::request::{Request, HOLD_CURSORS_OVER_COMMIT};
 use crate::protocol::request_type::RequestType;
 use crate::protocol::server_usage::ServerUsage;
 use crate::types_impl::lob::LobWriter;
-use crate::{HdbError, HdbErrorKind, HdbResponse, HdbResult};
-use failure::ResultExt;
+use crate::{HdbError, HdbResponse, HdbResult};
 use serde;
 use std::io::Write;
 use std::sync::{Arc, Mutex};
@@ -221,9 +220,7 @@ impl<'a> PreparedStatement {
                 .collect();
 
             let mut par_rows = ParameterRows::new();
-            par_rows
-                .push_hdb_values(hdb_values, &self.a_descriptors)
-                .context(HdbErrorKind::Serialization)?;
+            par_rows.push_hdb_values(hdb_values, &self.a_descriptors)?;
             request.push(Part::new(
                 PartKind::Parameters,
                 Argument::Parameters(par_rows),
@@ -264,13 +261,12 @@ impl<'a> PreparedStatement {
             if let Some(Argument::WriteLobReply(wlr)) = write_lob_reply {
                 let locator_ids = wlr.into_locator_ids();
                 if locator_ids.len() != readers.len() {
-                    return Err(HdbErrorKind::UsageDetailed(format!(
+                    return Err(HdbError::UsageDetailed(format!(
                         "The number of provided readers ({}) does not match \
                          the number of required readers ({})",
                         readers.len(),
                         locator_ids.len()
-                    ))
-                    .into());
+                    )));
                 }
                 for (locator_id, (reader, type_id)) in locator_ids.into_iter().zip(readers) {
                     debug!("writing content to locator with id {:?}", locator_id);
@@ -283,9 +279,8 @@ impl<'a> PreparedStatement {
                             self.o_a_rsmd.as_ref(),
                             Some(&self.a_descriptors),
                         )?;
-                        std::io::copy(&mut *reader, &mut writer)
-                            .context(HdbErrorKind::LobStreaming)?;
-                        writer.flush().context(HdbErrorKind::LobStreaming)?;
+                        std::io::copy(&mut *reader, &mut writer).map_err(HdbError::LobStreaming)?;
+                        writer.flush().map_err(HdbError::LobStreaming)?;
                         if let Some(mut irvs) = writer.into_internal_return_values() {
                             internal_return_values.append(&mut irvs);
                         }
@@ -310,15 +305,12 @@ impl<'a> PreparedStatement {
     pub fn add_batch<T: serde::ser::Serialize>(&mut self, input: &T) -> HdbResult<()> {
         trace!("PreparedStatement::add_batch()");
         if self.a_descriptors.has_in() {
-            self.batch
-                .push(input, &self.a_descriptors)
-                .context(HdbErrorKind::Serialization)?;
+            self.batch.push(input, &self.a_descriptors)?;
             return Ok(());
         }
-        Err(
-            HdbErrorKind::Usage("Batch not usable for PreparedStatements without input parameter")
-                .into(),
-        )
+        Err(HdbError::Usage(
+            "Batch not usable for PreparedStatements without input parameter",
+        ))
     }
 
     /// Consumes the input as a row of parameters for the batch.
@@ -331,14 +323,12 @@ impl<'a> PreparedStatement {
         trace!("PreparedStatement::add_row_to_batch()");
         if self.a_descriptors.has_in() {
             self.batch
-                .push_hdb_values(hdb_values, &self.a_descriptors)
-                .context(HdbErrorKind::Serialization)?;
+                .push_hdb_values(hdb_values, &self.a_descriptors)?;
             return Ok(());
         }
-        Err(
-            HdbErrorKind::Usage("Batch not possible, PreparedStatement has no input parameter")
-                .into(),
-        )
+        Err(HdbError::Usage(
+            "Batch not possible, PreparedStatement has no input parameter",
+        ))
     }
 
     /// Executes the statement with the collected batch, and clears the batch.
@@ -348,7 +338,7 @@ impl<'a> PreparedStatement {
     /// a single execution is triggered.
     pub fn execute_batch(&mut self) -> HdbResult<HdbResponse> {
         if self.batch.is_empty() && self.a_descriptors.has_in() {
-            return Err(HdbErrorKind::Usage("Empty batch cannot be executed").into());
+            return Err(HdbError::Usage("Empty batch cannot be executed"));
         }
         let mut rows2 = ParameterRows::new();
         std::mem::swap(&mut self.batch, &mut rows2);
@@ -450,7 +440,7 @@ impl<'a> PreparedStatement {
         let statement_id = if let Some(id) = o_stmt_id {
             id
         } else {
-            return Err(HdbError::imp("No StatementId received"));
+            return Err( HdbError::Impl("No StatementId received"));
         };
 
         debug!(

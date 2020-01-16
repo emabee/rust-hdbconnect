@@ -11,7 +11,7 @@ use crate::protocol::request_type::RequestType;
 use crate::protocol::server_usage::ServerUsage;
 use crate::sync_prepared_statement::PreparedStatement;
 use crate::xa_impl::new_resource_manager;
-use crate::{HdbErrorKind, HdbResponse, HdbResult, IntoConnectParams};
+use crate::{HdbError, HdbResponse, HdbResult, IntoConnectParams};
 use chrono::Local;
 use dist_tx::rm::ResourceManager;
 
@@ -124,7 +124,7 @@ impl Connection {
         let vec = &(self.statement(stmt)?.into_affected_rows()?);
         match vec.len() {
             1 => Ok(vec[0]),
-            _ => Err(HdbErrorKind::Usage("number of affected-rows-counts <> 1").into()),
+            _ => Err(HdbError::Usage("number of affected-rows-counts <> 1")),
         }
     }
 

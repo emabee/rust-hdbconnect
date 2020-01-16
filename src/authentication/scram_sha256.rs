@@ -1,9 +1,8 @@
 use super::authenticator::Authenticator;
 use super::crypto_util::scram_sha256;
 use crate::protocol::parts::authfields::AuthFields;
-use crate::{HdbError, HdbErrorKind, HdbResult};
+use crate::{HdbError, HdbResult};
 use byteorder::{BigEndian, WriteBytesExt};
-use failure::ResultExt;
 use rand::{thread_rng, RngCore};
 use secstr::SecStr;
 use std::io::Write;
@@ -50,11 +49,11 @@ impl Authenticator for ScramSha256 {
 
         let mut buf = Vec::<u8>::with_capacity(3 + CLIENT_PROOF_SIZE as usize);
         buf.write_u16::<BigEndian>(1_u16)
-            .context(HdbErrorKind::Impl(CONTEXT_CLIENT_PROOF))?;
+            .map_err(|_e| HdbError::Impl(CONTEXT_CLIENT_PROOF))?;
         buf.write_u8(CLIENT_PROOF_SIZE)
-            .context(HdbErrorKind::Impl(CONTEXT_CLIENT_PROOF))?;
+            .map_err(|_e| HdbError::Impl(CONTEXT_CLIENT_PROOF))?;
         buf.write_all(&client_proof)
-            .context(HdbErrorKind::Impl(CONTEXT_CLIENT_PROOF))?;
+            .map_err(|_e| HdbError::Impl(CONTEXT_CLIENT_PROOF))?;
 
         Ok(buf)
     }
@@ -63,7 +62,7 @@ impl Authenticator for ScramSha256 {
         if server_proof.is_empty() {
             Ok(())
         } else {
-            Err(HdbError::imp_detailed(format!(
+            Err(HdbError::ImplDetailed(format!(
                 "verify_server(): non-empty server_proof: {:?}",
                 server_proof
             )))
@@ -73,12 +72,11 @@ impl Authenticator for ScramSha256 {
 
 // `server_data` is again an AuthFields; contains salt, and server_nonce
 fn parse_first_server_data(server_data: &[u8]) -> HdbResult<(Vec<u8>, Vec<u8>)> {
-    let mut af = AuthFields::parse(&mut std::io::Cursor::new(server_data))
-        .context(HdbErrorKind::Database)?;
+    let mut af = AuthFields::parse(&mut std::io::Cursor::new(server_data))?;
 
     match (af.pop(), af.pop(), af.pop()) {
         (Some(server_nonce), Some(salt), None) => Ok((salt, server_nonce)),
-        (_, _, _) => Err(HdbError::imp("expected 2 auth fields")),
+        (_, _, _) => Err(HdbError::Impl("expected 2 auth fields")),
     }
 }
 

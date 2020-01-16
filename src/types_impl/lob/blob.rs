@@ -3,9 +3,8 @@ use crate::conn::AmConnCore;
 use crate::protocol::parts::resultset::AmRsCore;
 use crate::protocol::server_usage::ServerUsage;
 use crate::{HdbError, HdbResult};
-use failure::Fail;
 use std::boxed::Box;
-use std::io::{self, Write};
+use std::io::Write;
 
 /// Binary LOB implementation that is used within `HdbValue::BLOB`.
 #[derive(Clone, Debug)]
@@ -191,7 +190,7 @@ impl BLobHandle {
     #[allow(clippy::cast_possible_truncation)]
     fn fetch_next_chunk(&mut self) -> HdbResult<()> {
         if self.is_data_complete {
-            return Err(HdbError::imp("fetch_next_chunk(): already complete"));
+            return Err(HdbError::Impl("fetch_next_chunk(): already complete"));
         }
 
         let read_length = std::cmp::min(
@@ -250,8 +249,9 @@ impl std::io::Read for BLobHandle {
         trace!("BLobHandle::read() with buf of len {}", buf.len());
 
         while !self.is_data_complete && (buf.len() > self.data.len()) {
-            self.fetch_next_chunk()
-                .map_err(|e| std::io::Error::new(io::ErrorKind::UnexpectedEof, e.compat()))?;
+            self.fetch_next_chunk().map_err(|e| {
+                std::io::Error::new(std::io::ErrorKind::UnexpectedEof, e.to_string())
+            })?;
         }
 
         let count = std::cmp::min(self.data.len(), buf.len());

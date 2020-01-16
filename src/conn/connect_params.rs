@@ -1,6 +1,5 @@
 //! Connection parameters
-use crate::{ConnectParamsBuilder, HdbErrorKind, HdbResult, IntoConnectParams};
-use failure::ResultExt;
+use crate::{ConnectParamsBuilder, HdbError, HdbResult, IntoConnectParams};
 use secstr::SecStr;
 use std::fs;
 use std::path::Path;
@@ -109,7 +108,9 @@ impl ConnectParams {
     /// Reads a url from the given file and converts it into `ConnectParams`.
     pub fn from_file<P: AsRef<Path>>(path: P) -> HdbResult<Self> {
         fs::read_to_string(path)
-            .context(HdbErrorKind::ConnParams)?
+            .map_err(|e| HdbError::ConnParams {
+                source: Box::new(e),
+            })?
             .into_connect_params()
     }
 

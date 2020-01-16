@@ -1,12 +1,15 @@
-use failure::ResultExt;
 use flexi_logger::Logger;
-use hdbconnect::{Connection, HdbErrorKind, HdbResult};
+use hdbconnect::{Connection, HdbError, HdbResult};
 use log::{debug, error, info};
 use serde_bytes::ByteBuf;
 use serde_derive::Deserialize;
 
 pub fn connect_string_from_file(s: &'static str) -> HdbResult<String> {
-    Ok(std::fs::read_to_string(s).context(HdbErrorKind::ConnParams)?)
+    Ok(
+        std::fs::read_to_string(s).map_err(|e| HdbError::ConnParams {
+            source: Box::new(e),
+        })?,
+    )
 }
 
 fn get_authenticated_connection() -> HdbResult<Connection> {
@@ -20,7 +23,7 @@ pub fn main() {
     match run() {
         Err(e) => {
             error!("run() failed with {:?}", e);
-            assert!(false)
+            std::process::exit(-1);
         }
         Ok(_) => debug!("run() ended successful"),
     }

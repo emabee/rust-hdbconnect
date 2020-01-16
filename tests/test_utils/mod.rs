@@ -1,9 +1,8 @@
 // advisable because not all test modules use all functions of this module:
 #![allow(dead_code)]
 
-use failure::ResultExt;
 use flexi_logger::{opt_format, Logger, ReconfigurationHandle};
-use hdbconnect::{Connection, HdbErrorKind, HdbResult};
+use hdbconnect::{Connection, HdbError, HdbResult};
 
 // Returns a logger that prints out all info, warn and error messages.
 //
@@ -43,8 +42,8 @@ pub fn get_system_connection() -> HdbResult<Connection> {
 pub fn get_wrong_connect_string(user: Option<&str>, pw: Option<&str>) -> HdbResult<String> {
     let mut s = get_std_connect_string()?;
     let sep1 = s.find("://").unwrap();
-    let sep3 = s[sep1 + 3..].find("@").unwrap();
-    let sep2 = s[sep1 + 3..sep3].find(":").unwrap();
+    let sep3 = s[sep1 + 3..].find('@').unwrap();
+    let sep2 = s[sep1 + 3..sep3].find(':').unwrap();
     if let Some(pw) = pw {
         s.replace_range((sep1 + 3 + sep2 + 1)..(sep1 + 3 + sep3), pw);
     }
@@ -71,5 +70,9 @@ pub fn get_system_connect_string() -> HdbResult<String> {
 }
 
 fn connect_string_from_file(s: &str) -> HdbResult<String> {
-    Ok(std::fs::read_to_string(s).context(HdbErrorKind::ConnParams)?)
+    Ok(
+        std::fs::read_to_string(s).map_err(|e| HdbError::ConnParams {
+            source: Box::new(e),
+        })?,
+    )
 }

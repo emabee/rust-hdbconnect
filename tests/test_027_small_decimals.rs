@@ -60,8 +60,8 @@ fn test_small_decimals(
     let mut insert_stmt = connection.prepare(insert_stmt_str)?;
     insert_stmt.add_batch(&(
         "75.53500",
-        BigDecimal::from_f32(75.53500).unwrap(),
-        BigDecimal::from_f32(75.53500).unwrap(),
+        BigDecimal::from_f32(75.535).unwrap(),
+        BigDecimal::from_f32(75.535).unwrap(),
         10,
     ))?;
     insert_stmt.add_batch(&("87.65432", 87.654_32_f32, 87.654_32_f32, 10))?;
@@ -89,7 +89,7 @@ fn test_small_decimals(
             debug!("precision = {}, scale = {}", precision, scale);
             assert_eq!(format!("{}", &row[0]), format!("{0:.1$}", bd, scale));
         } else {
-            assert!(false, "Unexpected value type");
+            panic!("Unexpected value type");
         }
     }
 
@@ -100,8 +100,8 @@ fn test_small_decimals(
     let result: Vec<TestData> = resultset.try_into()?;
     for td in result {
         debug!("{:?}, {:?}", td.f1, td.f2);
-        assert_eq!(td.f1, format!("{}", format!("{0:.1$}", td.f2, scale)));
-        assert_eq!(td.f1, format!("{}", format!("{0:.1$}", td.f2_nn, scale)));
+        assert_eq!(td.f1, format!("{0:.1$}", td.f2, scale));
+        assert_eq!(td.f1, format!("{0:.1$}", td.f2_nn, scale));
         assert_eq!(td.f3_nn, 10);
     }
 

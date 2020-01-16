@@ -72,7 +72,7 @@ impl Reply {
         if self.replytype == expected_reply_type {
             Ok(()) // we got what we expected
         } else {
-            Err(HdbError::imp_detailed(format!(
+            Err(HdbError::ImplDetailed(format!(
                 "Expected reply type {:?}, got {:?}",
                 expected_reply_type, self.replytype,
             )))
@@ -135,7 +135,7 @@ impl Reply {
                             _ => panic!("impossible: wrong Argument variant: ResultSetID expected"),
                         }
                     } else {
-                        return Err(HdbError::imp("Missing required part ResultSetID"));
+                        return Err(HdbError::Impl("Missing required part ResultSetID"));
                     }
                 }
                 Argument::ExecutionResult(vec_er) => {

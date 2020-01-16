@@ -28,7 +28,7 @@ pub(crate) fn authenticate(am_conn_core: &mut AmConnCore) -> HdbResult<()> {
     let chosen_authenticator: Box<dyn Authenticator> = authenticators
         .into_iter()
         .find(|a11r| a11r.name() == selected)
-        .ok_or_else(|| HdbError::imp("None of the available authenticators was accepted"))?;
+        .ok_or_else(|| HdbError::Impl("None of the available authenticators was accepted"))?;
 
     // ...and use it for the second request
     second_auth_request(am_conn_core, chosen_authenticator, &server_challenge_data)?;

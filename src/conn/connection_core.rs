@@ -15,8 +15,7 @@ use crate::protocol::parts::transactionflags::TransactionFlags;
 use crate::protocol::reply::Reply;
 use crate::protocol::request::Request;
 use crate::protocol::server_usage::ServerUsage;
-use crate::{HdbErrorKind, HdbResult};
-use failure::ResultExt;
+use crate::{HdbError, HdbResult};
 use std::io::Write;
 use std::mem;
 use std::sync::Arc;
@@ -44,8 +43,8 @@ pub(crate) struct ConnectionCore {
 impl<'a> ConnectionCore {
     pub(crate) fn try_new(params: ConnectParams) -> HdbResult<Self> {
         let connect_options = ConnectOptions::for_server(params.clientlocale(), get_os_user());
-        let mut tcp_conn = TcpConn::try_new(params).context(HdbErrorKind::Database)?;
-        initial_request::send_and_receive(&mut tcp_conn).context(HdbErrorKind::Database)?;
+        let mut tcp_conn = TcpConn::try_new(params)?;
+        initial_request::send_and_receive(&mut tcp_conn)?;
 
         Ok(Self {
             authenticated: false,
@@ -211,7 +210,7 @@ impl<'a> ConnectionCore {
     pub(crate) fn evaluate_ta_flags(&mut self, ta_flags: TransactionFlags) -> HdbResult<()> {
         self.session_state.update(ta_flags);
         if self.session_state.dead {
-            Err(HdbErrorKind::SessionClosingTransactionError.into())
+            Err(HdbError::SessionClosingTransactionError)
         } else {
             Ok(())
         }
@@ -249,27 +248,23 @@ impl<'a> ConnectionCore {
         match self.tcp_conn {
             TcpConn::SyncPlain(ref pc) => {
                 let writer = &mut *(pc.writer()).borrow_mut();
-                request
-                    .emit(
-                        self.session_id(),
-                        nsn,
-                        auto_commit_flag,
-                        o_a_descriptors,
-                        writer,
-                    )
-                    .context(HdbErrorKind::Database)?;
+                request.emit(
+                    self.session_id(),
+                    nsn,
+                    auto_commit_flag,
+                    o_a_descriptors,
+                    writer,
+                )?;
             }
             TcpConn::SyncSecure(ref sc) => {
                 let writer = &mut *(sc.writer()).borrow_mut();
-                request
-                    .emit(
-                        self.session_id(),
-                        nsn,
-                        auto_commit_flag,
-                        o_a_descriptors,
-                        writer,
-                    )
-                    .context(HdbErrorKind::Database)?;
+                request.emit(
+                    self.session_id(),
+                    nsn,
+                    auto_commit_flag,
+                    o_a_descriptors,
+                    writer,
+                )?;
             }
         }
 
@@ -282,8 +277,7 @@ impl<'a> ConnectionCore {
                 let reader = &mut *(sc.reader()).borrow_mut();
                 Reply::parse(o_a_rsmd, o_a_descriptors, o_rs, Some(am_conn_core), reader)
             }
-        }
-        .context(HdbErrorKind::Database)?;
+        }?;
 
         self.handle_db_error(&mut reply.parts)?;
         Ok(reply)
@@ -362,11 +356,11 @@ impl<'a> ConnectionCore {
                     );
                     rows_affected.push(ExecutionResult::Failure(Some(e)));
                 }
-                Err(HdbErrorKind::ExecutionResults(rows_affected).into())
+                Err(HdbError::ExecutionResults(rows_affected))
             }
             None => {
                 if errors.len() == 1 {
-                    Err(HdbErrorKind::DbError(errors.remove(0)).into())
+                    Err(HdbError::from(errors.remove(0)))
                 } else {
                     unreachable!("hopefully...")
                 }

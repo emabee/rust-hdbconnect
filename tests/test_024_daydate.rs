@@ -19,6 +19,7 @@ pub fn test_024_daydate() -> HdbResult<()> {
 // Test the conversion of time values
 // - during serialization (input to prepared_statements)
 // - during deserialization (result)
+#[allow(clippy::cognitive_complexity)]
 fn test_daydate(
     _loghandle: &mut ReconfigurationHandle,
     connection: &mut Connection,

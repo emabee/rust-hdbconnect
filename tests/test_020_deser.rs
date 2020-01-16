@@ -226,6 +226,7 @@ fn deser_singlevalue_into_plain(
     Ok(())
 }
 
+#[allow(clippy::cognitive_complexity)]
 fn deser_all_to_string(
     _log_handle: &mut ReconfigurationHandle,
     connection: &mut Connection,

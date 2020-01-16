@@ -10,11 +10,10 @@ use crate::types_impl::lob::{emit_lob_header, parse_blob, parse_clob, parse_nclo
 use crate::types_impl::longdate::parse_longdate;
 use crate::types_impl::seconddate::parse_seconddate;
 use crate::types_impl::secondtime::parse_secondtime;
-use crate::{HdbErrorKind, HdbResult};
+use crate::{HdbError, HdbResult};
 use bigdecimal::BigDecimal;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use cesu8;
-use failure::ResultExt;
 use serde;
 
 const MAX_1_BYTE_LENGTH: u8 = 245;
@@ -96,11 +95,11 @@ pub enum HdbValue<'a> {
 }
 
 impl<'a> HdbValue<'a> {
-    pub(crate) fn type_id_for_emit(&self, requested_type_id: TypeId) -> std::io::Result<TypeId> {
+    pub(crate) fn type_id_for_emit(&self, requested_type_id: TypeId) -> HdbResult<TypeId> {
         Ok(match *self {
             HdbValue::NOTHING => {
-                return Err(util::io_error(
-                    "Can't send HdbValue::NOTHING to Database".to_string(),
+                return Err(HdbError::Usage(
+                    "Can't send HdbValue::NOTHING to Database",
                 ));
             }
             HdbValue::NULL => match requested_type_id {
@@ -118,7 +117,7 @@ impl<'a> HdbValue<'a> {
                     requested_type_id
                 }
                 _ => {
-                    return Err(util::io_error(format!(
+                    return Err( HdbError::ImplDetailed(format!(
                         "Can't send {} type for requested {:?} type",
                         "DECIMAL", requested_type_id
                     )));
@@ -191,14 +190,17 @@ impl<'a> HdbValue<'a> {
         Ok(())
     }
 
-    // returns true if the value is a null value, false otherwise
+    // emits the type-id; returns true if the value is a null value, false otherwise
     fn emit_type_id(
         &self,
         requested_type_id: TypeId,
         w: &mut dyn std::io::Write,
     ) -> std::io::Result<bool> {
         let is_null = self.is_null();
-        let type_code = self.type_id_for_emit(requested_type_id)?.type_code(is_null);
+        let type_code = self
+            .type_id_for_emit(requested_type_id)
+            .map_err(|e| util::io_error(e.to_string()))?
+            .type_code(is_null);
         w.write_u8(type_code)?;
         Ok(is_null)
     }
@@ -255,18 +257,17 @@ impl<'a> HdbValue<'a> {
 impl HdbValue<'static> {
     /// Deserialize into a rust type
     pub fn try_into<'x, T: serde::Deserialize<'x>>(self) -> HdbResult<T> {
-        Ok(serde_db::de::DbValue::into_typed(self).context(HdbErrorKind::Deserialization)?)
+        Ok(serde_db::de::DbValue::into_typed(self)?)
     }
 
     /// Convert into `hdbconnect::BLob`
     pub fn try_into_blob(self) -> HdbResult<BLob> {
         match self {
             HdbValue::BLOB(blob) => Ok(blob),
-            v => Err(HdbErrorKind::UsageDetailed(format!(
+            v => Err(HdbError::UsageDetailed(format!(
                 "The value {:?} cannot be converted into a BLOB",
                 v
-            ))
-            .into()),
+            ))),
         }
     }
 
@@ -274,11 +275,10 @@ impl HdbValue<'static> {
     pub fn try_into_clob(self) -> HdbResult<CLob> {
         match self {
             HdbValue::CLOB(clob) => Ok(clob),
-            v => Err(HdbErrorKind::UsageDetailed(format!(
+            v => Err(HdbError::UsageDetailed(format!(
                 "The value {:?} cannot be converted into a CLOB",
                 v
-            ))
-            .into()),
+            ))),
         }
     }
 
@@ -286,11 +286,10 @@ impl HdbValue<'static> {
     pub fn try_into_nclob(self) -> HdbResult<NCLob> {
         match self {
             HdbValue::NCLOB(nclob) => Ok(nclob),
-            v => Err(HdbErrorKind::UsageDetailed(format!(
+            v => Err(HdbError::UsageDetailed(format!(
                 "The database value {:?} cannot be converted into a NCLob",
                 v
-            ))
-            .into()),
+            ))),
         }
     }
 
@@ -508,7 +507,8 @@ fn parse_alphanum(
                 .collect();
             prefix.append(&mut value);
             prefix
-        })?;
+        })
+        .map_err(util::io_error)?;
         Ok(HdbValue::STRING(s))
     }
 }
@@ -530,7 +530,8 @@ fn parse_string(
             ))
         }
     } else {
-        let s = util::string_from_cesu8(parse_length_and_bytes(l8, rdr)?)?;
+        let s =
+            util::string_from_cesu8(parse_length_and_bytes(l8, rdr)?).map_err(util::io_error)?;
         Ok(match type_id {
             TypeId::CHAR
             | TypeId::VARCHAR

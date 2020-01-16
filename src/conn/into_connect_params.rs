@@ -1,5 +1,4 @@
-use crate::{ConnectParams, ConnectParamsBuilder, HdbErrorKind, HdbResult};
-use failure::ResultExt;
+use crate::{ConnectParams, ConnectParamsBuilder, HdbError, HdbResult};
 use url::Url;
 
 /// A trait implemented by types that can be converted into a `ConnectParams`.
@@ -35,7 +34,7 @@ impl IntoConnectParams for &ConnectParamsBuilder {
 impl<'a> IntoConnectParams for &'a str {
     fn into_connect_params(self) -> HdbResult<ConnectParams> {
         Url::parse(self)
-            .context(HdbErrorKind::ConnParams)?
+            .map_err(|e| HdbError::conn_params(Box::new(e)))?
             .into_connect_params()
     }
 }

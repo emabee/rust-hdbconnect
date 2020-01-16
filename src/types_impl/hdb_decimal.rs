@@ -183,16 +183,16 @@ mod tests {
     fn str_2_big_2_hdb_2_big(input: &str) {
         debug!("input:  {}", input);
         let bigdec = BigDecimal::from_str(input).unwrap();
-        big_2_hdb_2_big(bigdec);
+        big_2_hdb_2_big(&bigdec);
     }
 
     fn me_2_big_2_hdb_2_big(mantissa: BigInt, exponent: i64) {
         debug!("mantissa: {}, exponent: {}", mantissa, exponent);
         let bigdec = BigDecimal::new(mantissa, -exponent);
-        big_2_hdb_2_big(bigdec);
+        big_2_hdb_2_big(&bigdec);
     }
 
-    fn big_2_hdb_2_big(bigdec: BigDecimal) {
+    fn big_2_hdb_2_big(bigdec: &BigDecimal) {
         let hdbdec = HdbDecimal::from_bigdecimal(&bigdec).unwrap();
         let (s, m, e) = hdbdec.clone().into_elements();
         let bigdec2 = hdbdec.clone().into_bigdecimal();
@@ -200,6 +200,6 @@ mod tests {
         debug!("hdbdec:  {:?}", hdbdec);
         debug!("s: {:?}, m: {}, e: {}", s, m, e);
         debug!("bigdec2: {:?}\n", bigdec2);
-        assert_eq!(bigdec, bigdec2, "start != end");
+        assert_eq!(*bigdec, bigdec2, "start != end");
     }
 }

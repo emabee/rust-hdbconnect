@@ -34,11 +34,11 @@ pub(crate) fn fetch_a_lob_chunk(
     {
         Some(Argument::ReadLobReply(read_lob_reply)) => {
             if *read_lob_reply.locator_id() != locator_id {
-                return Err(HdbError::imp("locator ids do not match"));
+                return Err(HdbError::Impl("locator ids do not match"));
             }
             read_lob_reply.into_data_and_last()
         }
-        _ => return Err(HdbError::imp("No ReadLobReply part found")),
+        _ => return Err(HdbError::Impl("No ReadLobReply part found")),
     };
 
     let (server_proc_time, server_cpu_time, server_memory_usage) = match reply
@@ -53,7 +53,7 @@ pub(crate) fn fetch_a_lob_chunk(
         ),
         None => (None, None, None),
         _ => {
-            return Err(HdbError::imp("Inconsistent StatementContext found"));
+            return Err(HdbError::Impl("Inconsistent StatementContext found"));
         }
     };
     server_usage.update(server_proc_time, server_cpu_time, server_memory_usage);

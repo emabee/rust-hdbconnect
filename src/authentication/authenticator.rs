@@ -19,7 +19,7 @@ pub trait Authenticator {
         if method == self.name().as_bytes() {
             self.verify_server(server_proof)
         } else {
-            Err(HdbError::imp_detailed(format!(
+            Err(HdbError::ImplDetailed(format!(
                 "Wrong method name detected: {}",
                 String::from_utf8_lossy(method)
             )))

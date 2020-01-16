@@ -83,7 +83,7 @@ fn emit_length_and_bytes(v: &[u8], w: &mut dyn std::io::Write) -> std::io::Resul
 }
 
 fn parse_length_and_string(rdr: &mut dyn std::io::BufRead) -> std::io::Result<String> {
-    util::string_from_cesu8(parse_length_and_binary(rdr)?)
+    util::string_from_cesu8(parse_length_and_binary(rdr)?).map_err(util::io_error)
 }
 
 #[allow(clippy::clippy::cast_sign_loss)]

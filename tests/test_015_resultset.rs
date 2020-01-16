@@ -111,14 +111,13 @@ fn evaluate_resultset(
             .map(|res_row| res_row.unwrap(/*now save*/))
             .filter_map(|row| {
                 let td = row.try_into::<TestData>().unwrap();
-                if td.f1.ends_with("0") {
+                if td.f1.ends_with('0') {
                     Some(td)
                 } else {
                     None
                 }
             })
-            .collect::<Vec<_>>()
-            .len(),
+            .count(),
         10
     );
 
@@ -155,7 +154,7 @@ fn verify_row_ordering(
         debug!("verify_row_ordering with fetch_size {}", *fetch_size);
         connection.set_fetch_size(*fetch_size).unwrap();
 
-        for (index, row) in connection.query(query_str)?.into_iter().enumerate() {
+        for (index, row) in connection.query(query_str)?.enumerate() {
             let (f1, f2): (usize, usize) = row?.try_into()?;
             if index % 100 == 0 {
                 debug!("pass 1: convert rows individually, {}", index);
@@ -164,7 +163,7 @@ fn verify_row_ordering(
             assert_eq!(index, f2);
         }
 
-        for (index, row) in connection.query(query_str)?.into_iter().enumerate() {
+        for (index, row) in connection.query(query_str)?.enumerate() {
             if index % 100 == 0 {
                 debug!("pass 2: convert fields individually, {}", index);
             }

@@ -1,6 +1,6 @@
 mod test_utils;
 
-use hdbconnect::{ConnectParams, Connection, HdbErrorKind, HdbResult, IntoConnectParams};
+use hdbconnect::{ConnectParams, Connection, HdbResult, IntoConnectParams};
 use log::{debug, info};
 
 // cargo test --test test_011_invalid_password -- --nocapture
@@ -64,7 +64,7 @@ pub fn test_011_invalid_password() -> HdbResult<()> {
 
         debug!("select from dummy -> ensure getting the right error");
         let result = doedel_conn.query("select 1 from dummy");
-        if let HdbErrorKind::DbError(ref server_error) = result.err().unwrap().kind() {
+        if let Some(ref server_error) = result.err().unwrap().server_error() {
             debug!("Got this server error: {:?}", server_error);
             assert_eq!(
                 server_error.code(),
@@ -80,7 +80,7 @@ pub fn test_011_invalid_password() -> HdbResult<()> {
 
         debug!("select again -> ensure it's working");
         let result = doedel_conn.query("select 1 from dummy");
-        if let Err(_) = result {
+        if result.is_err() {
             panic!("Changing password did not reopen the connection");
         }
     }

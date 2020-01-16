@@ -83,7 +83,7 @@ fn test_025_decimals_impl(
 
     info!("prepare & execute");
     let mut insert_stmt = connection.prepare(insert_stmt_str)?;
-    insert_stmt.add_batch(&("75.53500", BigDecimal::from_f32(75.53500).unwrap()))?;
+    insert_stmt.add_batch(&("75.53500", BigDecimal::from_f32(75.535).unwrap()))?;
     insert_stmt.add_batch(&("87.65432", 87.654_32_f32))?;
     insert_stmt.add_batch(&("0.00500", 0.005_f32))?;
     insert_stmt.add_batch(&("-0.00600", -0.006_00_f64))?;
@@ -104,7 +104,7 @@ fn test_025_decimals_impl(
         if let HdbValue::DECIMAL(ref bd) = &row[1] {
             assert_eq!(format!("{}", &row[0]), format!("{}", bd));
         } else {
-            assert!(false, "Unexpected value type");
+            panic!("Unexpected value type");
         }
     }
 
@@ -114,7 +114,7 @@ fn test_025_decimals_impl(
     let result: Vec<TestData> = resultset.try_into()?;
     for td in result {
         debug!("{:?}, {:?}", td.f1, td.f2);
-        assert_eq!(td.f1, format!("{}", format!("{0:.1$}", td.f2, scale)));
+        assert_eq!(td.f1, format!("{0:.1$}", td.f2, scale));
     }
 
     info!("Read and verify decimals to tuple");

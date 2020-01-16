@@ -3,8 +3,7 @@ use crate::protocol::parts::hdb_value::HdbValue;
 use crate::protocol::parts::parameter_descriptor::ParameterDescriptor;
 use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
 use crate::protocol::util;
-use crate::{HdbErrorKind, HdbResult};
-use failure::ResultExt;
+use crate::{HdbError, HdbResult};
 use serde_db::de::DeserializableRow;
 
 /// Describes output parameters, as they can be returned by procedure calls.
@@ -21,7 +20,7 @@ impl OutputParameters {
         T: serde::de::Deserialize<'de>,
     {
         trace!("OutputParameters::into_typed()");
-        Ok(DeserializableRow::into_typed(self).context(HdbErrorKind::Deserialization)?)
+        Ok(DeserializableRow::into_typed(self)?)
     }
 
     /// Returns the descriptor for the i'th parameter.
@@ -30,7 +29,7 @@ impl OutputParameters {
         Ok(self
             .descriptors
             .get(i)
-            .ok_or_else(|| HdbErrorKind::Usage("wrong index: no such parameter"))?)
+            .ok_or_else(|| HdbError::Usage("wrong index: no such parameter"))?)
     }
 
     /// Returns the descriptors.

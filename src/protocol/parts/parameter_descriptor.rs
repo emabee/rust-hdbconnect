@@ -1,9 +1,7 @@
 use crate::protocol::parts::type_id::TypeId;
 use crate::protocol::util;
-use crate::{HdbErrorKind, HdbResult, HdbValue};
+use crate::{HdbResult, HdbValue};
 use byteorder::{LittleEndian, ReadBytesExt};
-use failure::ResultExt;
-
 /// Describes a set of IN, INOUT, and OUT parameters. Can be empty.
 #[derive(Debug)]
 pub struct ParameterDescriptors(Vec<ParameterDescriptor>);
@@ -60,7 +58,8 @@ impl ParameterDescriptors {
         for (descriptor, name_offset) in vec_pd.iter_mut().zip(name_offsets.iter()) {
             if name_offset != &u32::max_value() {
                 let length = rdr.read_u8()?;
-                let name = util::string_from_cesu8(util::parse_bytes(length as usize, rdr)?)?;
+                let name = util::string_from_cesu8(util::parse_bytes(length as usize, rdr)?)
+                    .map_err(util::io_error)?;
                 descriptor.set_name(name);
             }
         }
@@ -192,8 +191,7 @@ impl ParameterDescriptor {
 
     /// Parse an `HdbValue` from a String.
     pub fn parse_value<S: AsRef<str>>(&self, s: S) -> HdbResult<HdbValue<'static>> {
-        Ok(serde_db::ser::DbvFactory::from_str(&self, s.as_ref())
-            .context(HdbErrorKind::Deserialization)?)
+        Ok(serde_db::ser::DbvFactory::from_str(&self, s.as_ref())?)
     }
 }
 

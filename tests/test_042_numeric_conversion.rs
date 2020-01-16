@@ -4,7 +4,7 @@ use flexi_logger::ReconfigurationHandle;
 use hdbconnect::{Connection, HdbResult};
 use log::{debug, info};
 
-const QUERY: &'static str = "select * FROM TEST_NUMERIC_CONVERSION";
+const QUERY: &str = "select * FROM TEST_NUMERIC_CONVERSION";
 
 // cargo test test_042_numeric_conversion -- --nocapture
 #[test]
@@ -26,6 +26,7 @@ pub fn test_042_numeric_conversion() -> HdbResult<()> {
     test_utils::closing_info(connection, start)
 }
 
+#[allow(clippy::cognitive_complexity)]
 fn test_tiny_int(
     _log_handle: &mut ReconfigurationHandle,
     connection: &mut Connection,
@@ -145,6 +146,7 @@ fn test_tiny_int(
     Ok(())
 }
 
+#[allow(clippy::cognitive_complexity)]
 fn test_small_int(
     _log_handle: &mut ReconfigurationHandle,
     connection: &mut Connection,
@@ -272,6 +274,7 @@ fn test_small_int(
     Ok(())
 }
 
+#[allow(clippy::cognitive_complexity)]
 fn test_integer(
     _log_handle: &mut ReconfigurationHandle,
     connection: &mut Connection,
@@ -393,6 +396,7 @@ fn test_integer(
     Ok(())
 }
 
+#[allow(clippy::cognitive_complexity)]
 fn test_big_int(
     _log_handle: &mut ReconfigurationHandle,
     connection: &mut Connection,
@@ -521,6 +525,7 @@ fn test_big_int(
     Ok(())
 }
 
+#[allow(clippy::cognitive_complexity)]
 fn test_decimal(
     _log_handle: &mut ReconfigurationHandle,
     connection: &mut Connection,

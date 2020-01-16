@@ -1,5 +1,4 @@
 use crate::conn::AmConnCore;
-use crate::hdb_error::{HdbErrorKind, HdbResult};
 use crate::protocol::argument::Argument;
 use crate::protocol::part::Part;
 use crate::protocol::partkind::PartKind;
@@ -7,7 +6,7 @@ use crate::protocol::parts::xat_options::XatOptions;
 use crate::protocol::reply::Reply;
 use crate::protocol::request::Request;
 use crate::protocol::request_type::RequestType;
-use crate::HdbError;
+use crate::{HdbError, HdbResult};
 use dist_tx::rm::{CResourceManager, CRmWrapper, ErrorCode, Flags, RmError, RmRc, RmResult};
 use dist_tx::tm::XaTransactionId;
 
@@ -148,7 +147,7 @@ impl HdbCResourceManager {
                         error_code_from_hana_code(server_error.code()),
                         server_error.text().to_string(),
                     );
-                } else if let HdbErrorKind::ExecutionResults(_) = hdb_error.kind() {
+                } else if let HdbError::ExecutionResults(_) = hdb_error {
                     return RmError::new(
                         ErrorCode::RmError,
                         "HdbError::ExecutionResults".to_string(),
@@ -165,10 +164,9 @@ impl HdbCResourceManager {
         flags: Flags,
     ) -> HdbResult<Option<RmRc>> {
         if self.am_conn_core.lock()?.is_auto_commit() {
-            return Err(HdbErrorKind::Usage(
+            return Err(HdbError::Usage(
                 "xa_*() not possible, connection is set to auto_commit",
-            )
-            .into());
+            ));
         }
 
         let mut xat_options = XatOptions::default();

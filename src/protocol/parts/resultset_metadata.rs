@@ -1,6 +1,6 @@
 use crate::protocol::parts::type_id::TypeId;
 use crate::protocol::util;
-use crate::{HdbErrorKind, HdbResult};
+use crate::{HdbError, HdbResult};
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use vec_map::VecMap;
@@ -37,7 +37,7 @@ impl ResultSetMetadata {
         Ok(self
             .fields
             .get(index)
-            .ok_or_else(|| HdbErrorKind::Usage(INVALID_FIELD_INDEX))?)
+            .ok_or_else(|| HdbError::Usage(INVALID_FIELD_INDEX))?)
     }
 
     /// Database schema of the i'th column in the resultset.
@@ -45,7 +45,7 @@ impl ResultSetMetadata {
         Ok(self
             .names
             .get(self.get(i)?.schemaname_idx() as usize)
-            .ok_or_else(|| HdbErrorKind::Usage(INVALID_FIELD_INDEX))?)
+            .ok_or_else(|| HdbError::Usage(INVALID_FIELD_INDEX))?)
     }
 
     /// Database table of the i'th column in the resultset.
@@ -53,7 +53,7 @@ impl ResultSetMetadata {
         Ok(self
             .names
             .get(self.get(i)?.tablename_idx() as usize)
-            .ok_or_else(|| HdbErrorKind::Usage(INVALID_FIELD_INDEX))?)
+            .ok_or_else(|| HdbError::Usage(INVALID_FIELD_INDEX))?)
     }
 
     /// Name of the i'th column in the resultset.
@@ -61,7 +61,7 @@ impl ResultSetMetadata {
         Ok(self
             .names
             .get(self.get(i)?.columnname_idx() as usize)
-            .ok_or_else(|| HdbErrorKind::Usage(INVALID_FIELD_INDEX))?)
+            .ok_or_else(|| HdbError::Usage(INVALID_FIELD_INDEX))?)
     }
 
     // For large resultsets, this method will be called very often - is caching
@@ -72,7 +72,7 @@ impl ResultSetMetadata {
         Ok(self
             .names
             .get(self.get(index)?.displayname_idx() as usize)
-            .ok_or_else(|| HdbErrorKind::Usage(INVALID_FIELD_INDEX))?)
+            .ok_or_else(|| HdbError::Usage(INVALID_FIELD_INDEX))?)
     }
 
     /// True if column can contain NULL values.
@@ -156,7 +156,8 @@ impl ResultSetMetadata {
         let mut offset = 0;
         for _ in 0..rsm.names.len() {
             let nl = rdr.read_u8()?; // UI1
-            let name = util::string_from_cesu8(util::parse_bytes(nl as usize, rdr)?)?; // variable
+            let name = util::string_from_cesu8(util::parse_bytes(nl as usize, rdr)?)
+                .map_err(util::io_error)?; // variable
             trace!("offset = {}, name = {}", offset, name);
             rsm.names.insert(offset as usize, name.to_string());
             offset += u32::from(nl) + 1;

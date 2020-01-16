@@ -47,10 +47,10 @@ pub(crate) fn first_auth_request(
                     let authenticator_name = String::from_utf8_lossy(&raw_name).to_string();
                     Ok((authenticator_name, server_challenge_data))
                 }
-                (_, _, _) => Err(HdbError::imp("expected 2 auth_fields")),
+                (_, _, _) => Err(HdbError::Impl("expected 2 auth_fields")),
             }
         }
-        _ => Err(HdbError::imp("expected Authentication part")),
+        _ => Err(HdbError::Impl("expected Authentication part")),
     }
 }
 
@@ -96,7 +96,7 @@ pub(crate) fn second_auth_request(
     {
         conn_core.set_topology(topology)
     } else {
-        return Err(HdbError::imp("Expected TopologyInformation part"));
+        return Err(HdbError::Impl("Expected TopologyInformation part"));
     }
 
     if let Some(Argument::ConnectOptions(received_co)) = reply
@@ -108,7 +108,7 @@ pub(crate) fn second_auth_request(
             .connect_options_mut()
             .digest_server_connect_options(received_co)?
     } else {
-        return Err(HdbError::imp("Expected ConnectOptions part"));
+        return Err(HdbError::Impl("Expected ConnectOptions part"));
     }
 
     match reply
@@ -120,8 +120,8 @@ pub(crate) fn second_auth_request(
             (Some(server_proof), Some(method), None) => {
                 chosen_authenticator.evaluate_second_response(&method, &server_proof)
             }
-            (_, _, _) => Err(HdbError::imp("Expected 2 authfields")),
+            (_, _, _) => Err(HdbError::Impl("Expected 2 authfields")),
         },
-        _ => Err(HdbError::imp("Expected Authentication part")),
+        _ => Err(HdbError::Impl("Expected Authentication part")),
     }
 }

@@ -1,4 +1,4 @@
-use crate::{ConnectParams, HdbErrorKind, HdbResult, ServerCerts};
+use crate::{ConnectParams, HdbError, HdbResult, ServerCerts};
 use secstr::SecStr;
 use std::env;
 use url::Url;
@@ -115,7 +115,7 @@ impl ConnectParamsBuilder {
     pub fn build(&self) -> HdbResult<ConnectParams> {
         let host = match self.hostname {
             Some(ref s) => s.clone(),
-            None => return Err(HdbErrorKind::Usage("hostname is missing").into()),
+            None => return Err(HdbError::Usage("hostname is missing")),
         };
 
         let addr = format!(
@@ -123,16 +123,16 @@ impl ConnectParamsBuilder {
             host,
             match self.port {
                 Some(p) => p,
-                None => return Err(HdbErrorKind::Usage("port is missing").into()),
+                None => return Err(HdbError::Usage("port is missing")),
             }
         );
         let dbuser = match self.dbuser {
             Some(ref s) => s.clone(),
-            None => return Err(HdbErrorKind::Usage("dbuser is missing").into()),
+            None => return Err(HdbError::Usage("dbuser is missing")),
         };
         let password = match self.password {
             Some(ref secstr) => secstr.clone(),
-            None => return Err(HdbErrorKind::Usage("password is missing").into()),
+            None => return Err(HdbError::Usage("password is missing")),
         };
 
         Ok(ConnectParams::new(
@@ -148,22 +148,22 @@ impl ConnectParamsBuilder {
     /// Create `ConnectParamsBuilder` from url
     pub fn from_url(url: &Url) -> HdbResult<Self> {
         let host: String = match url.host_str() {
-            Some("") | None => return Err(HdbErrorKind::Usage("host is missing").into()),
+            Some("") | None => return Err(HdbError::Usage("host is missing")),
             Some(host) => host.to_string(),
         };
 
         let port: u16 = match url.port() {
             Some(p) => p,
-            None => return Err(HdbErrorKind::Usage("port is missing").into()),
+            None => return Err(HdbError::Usage("port is missing")),
         };
 
         let dbuser: String = match url.username() {
-            "" => return Err(HdbErrorKind::Usage("dbuser is missing").into()),
+            "" => return Err(HdbError::Usage("dbuser is missing")),
             s => s.to_string(),
         };
 
         let password = match url.password() {
-            None => return Err(HdbErrorKind::Usage("password is missing").into()),
+            None => return Err(HdbError::Usage("password is missing")),
             Some(s) => s.to_string(),
         };
 
@@ -171,10 +171,9 @@ impl ConnectParamsBuilder {
             "hdbsql" => false,
             "hdbsqls" => true,
             _ => {
-                return Err(HdbErrorKind::Usage(
+                return Err(HdbError::Usage(
                     "Unknown protocol, only 'hdbsql' and 'hdbsqls' are supported",
-                )
-                .into());
+                ));
             }
         };
 
@@ -201,10 +200,9 @@ impl ConnectParamsBuilder {
         }
 
         if use_tls && server_certs.is_empty() {
-            return Err(HdbErrorKind::Usage(
+            return Err(HdbError::Usage(
                 "protocol 'hdbsqls' requires certificates, but none are specified",
-            )
-            .into());
+            ));
         }
 
         let mut builder = Self::new();
@@ -241,7 +239,7 @@ impl ConnectParamsBuilder {
             }
         }
 
-        Err(HdbErrorKind::Usage("missing data. not possible to build url").into())
+        Err(HdbError::Usage("missing data. not possible to build url"))
     }
 
     fn get_protocol_name(&self) -> &str {
@@ -299,12 +297,10 @@ impl ConnectParamsBuilder {
 
 impl From<Url> for ConnectParamsBuilder {
     fn from(u: Url) -> Self {
-        match Self::from_url(&u) {
-            Ok(connect_params_builder) => connect_params_builder,
-            Err(error) => {
-                panic!(error);
-            }
-        }
+        Self::from_url(&u).unwrap_or_else(|e| {
+            warn!("ConnectParamsBuilder::from(Url) failed with {}", e);
+            Self::default()
+        })
     }
 }
 

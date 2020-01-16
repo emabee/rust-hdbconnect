@@ -2,7 +2,7 @@ mod test_utils;
 
 use chrono::NaiveDate;
 use flexi_logger::ReconfigurationHandle;
-use hdbconnect::{Connection, HdbErrorKind, HdbResult};
+use hdbconnect::{Connection, HdbResult};
 
 // From wikipedia:
 //
@@ -20,11 +20,11 @@ pub fn test_031_transactions() -> HdbResult<()> {
     let start = std::time::Instant::now();
     let mut connection = test_utils::get_authenticated_connection()?;
     connection.set_auto_commit(false)?;
-    if let HdbErrorKind::DbError(server_error) =
+    if let Some(ref server_error) =
         write1_read2(&mut log_handle, &mut connection, "READ UNCOMMITTED")
             .err()
             .unwrap()
-            .kind()
+            .server_error()
     {
         let error_info: (i32, String, String) = connection
             .query(&format!(
@@ -36,7 +36,7 @@ pub fn test_031_transactions() -> HdbResult<()> {
         assert_eq!(error_info.1, "ERR_FEATURE_NOT_SUPPORTED");
         log::info!("error_info: {:?}", error_info);
     } else {
-        assert!(false, "did not receive ServerError");
+        panic!("did not receive ServerError");
     }
 
     write1_read2(&mut log_handle, &mut connection, "READ COMMITTED")?;

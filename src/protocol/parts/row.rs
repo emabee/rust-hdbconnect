@@ -3,8 +3,7 @@ use crate::protocol::parts::hdb_value::HdbValue;
 use crate::protocol::parts::resultset::AmRsCore;
 use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
 use crate::protocol::util;
-use crate::{HdbErrorKind, HdbResult};
-use failure::ResultExt;
+use crate::{HdbError, HdbResult};
 use serde;
 use serde_db::de::DeserializableRow;
 use std::fmt;
@@ -38,7 +37,7 @@ impl Row {
         T: serde::de::Deserialize<'de>,
     {
         trace!("Row::into_typed()");
-        Ok(DeserializableRow::into_typed(self).context(HdbErrorKind::Deserialization)?)
+        Ok(DeserializableRow::into_typed(self)?)
     }
 
     /// Removes and returns the next value.
@@ -52,7 +51,7 @@ impl Row {
         T: serde::de::Deserialize<'de>,
     {
         self.next_value()
-            .ok_or_else(|| HdbErrorKind::Usage("no more value"))?
+            .ok_or_else(|| HdbError::Usage("no more value"))?
             .try_into()
     }
 
@@ -72,11 +71,11 @@ impl Row {
     /// Fails if the row is empty or has more than one value.
     pub fn into_single_value(mut self) -> HdbResult<HdbValue<'static>> {
         if self.len() > 1 {
-            Err(HdbErrorKind::Usage("Row has more than one field").into())
+            Err(HdbError::Usage("Row has more than one field"))
         } else {
             Ok(self
                 .next_value()
-                .ok_or_else(|| HdbErrorKind::Usage("Row is empty"))?)
+                .ok_or_else(|| HdbError::Usage("Row is empty"))?)
         }
     }
 

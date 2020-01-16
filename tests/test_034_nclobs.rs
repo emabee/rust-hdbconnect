@@ -1,8 +1,6 @@
 mod test_utils;
 
-use failure::ResultExt;
-use hdbconnect::types::NCLob;
-use hdbconnect::{Connection, HdbErrorKind, HdbResult, HdbValue};
+use hdbconnect::{types::NCLob, Connection, HdbError, HdbResult, HdbValue};
 use log::{debug, info};
 use serde_bytes::Bytes;
 use serde_derive::{Deserialize, Serialize};
@@ -19,12 +17,7 @@ pub fn test_034_nclobs() -> HdbResult<()> {
 
     let (blabla, fingerprint) = get_blabla();
     test_nclobs(&mut log_handle, &mut connection, &blabla, &fingerprint)?;
-    test_streaming(
-        &mut log_handle,
-        &mut connection,
-        blabla.clone(),
-        &fingerprint,
-    )?;
+    test_streaming(&mut log_handle, &mut connection, blabla, &fingerprint)?;
     test_bytes_to_nclobs(&mut log_handle, &mut connection)?;
 
     test_utils::closing_info(connection, start)
@@ -51,8 +44,8 @@ fn get_blabla() -> (String, Vec<u8>) {
 fn test_nclobs(
     _log_handle: &mut flexi_logger::ReconfigurationHandle,
     connection: &mut Connection,
-    fifty_times_smp_blabla: &String,
-    fingerprint: &Vec<u8>,
+    fifty_times_smp_blabla: &str,
+    fingerprint: &[u8],
 ) -> HdbResult<()> {
     info!("create a big NCLOB in the database, and read it in various ways");
 
@@ -98,12 +91,12 @@ fn test_nclobs(
     let mut hasher = Sha256::default();
     hasher.input(mydata.s.as_bytes());
     let fingerprint2 = hasher.result().to_vec();
-    assert_eq!(fingerprint, &fingerprint2);
+    assert_eq!(fingerprint, fingerprint2.as_slice());
 
     let mut hasher = Sha256::default();
     hasher.input(mydata.o_s.as_ref().unwrap().as_bytes());
     let fingerprint3 = hasher.result().to_vec();
-    assert_eq!(fingerprint, &fingerprint3);
+    assert_eq!(fingerprint, fingerprint3.as_slice());
 
     // try again with smaller lob-read-length
     connection.set_lob_read_length(5_000)?;
@@ -133,7 +126,7 @@ fn test_streaming(
     _log_handle: &mut flexi_logger::ReconfigurationHandle,
     connection: &mut Connection,
     fifty_times_smp_blabla: String,
-    fingerprint: &Vec<u8>,
+    fingerprint: &[u8],
 ) -> HdbResult<()> {
     info!("write and read big nclob in streaming fashion");
 
@@ -169,13 +162,13 @@ fn test_streaming(
         .into_single_value()?
         .try_into_nclob()?;
     let mut buffer = Vec::<u8>::new();
-    std::io::copy(&mut nclob, &mut buffer).context(HdbErrorKind::LobStreaming)?;
+    std::io::copy(&mut nclob, &mut buffer).map_err(HdbError::LobStreaming)?;
 
     assert_eq!(fifty_times_smp_blabla.len(), buffer.len());
     let mut hasher = Sha256::default();
     hasher.input(&buffer);
     let fingerprint4 = hasher.result().to_vec();
-    assert_eq!(fingerprint, &fingerprint4);
+    assert_eq!(fingerprint, fingerprint4.as_slice());
     assert!(
         nclob.max_buf_len() < 605_000,
         "nclob.max_buf_len() too big: {}",

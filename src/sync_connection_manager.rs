@@ -1,7 +1,6 @@
 //! Connection Pooling with r2d2.
 //!
 use crate::{ConnectParams, Connection, HdbError, HdbResult, IntoConnectParams};
-use failure::ResultExt;
 use r2d2;
 
 /// Implementation of r2d2's
@@ -52,12 +51,12 @@ impl ConnectionManager {
 
 impl r2d2::ManageConnection for ConnectionManager {
     type Connection = Connection;
-    type Error = failure::Compat<HdbError>;
+    type Error = HdbError;
 
     // Attempts to create a new connection.
     fn connect(&self) -> Result<Self::Connection, Self::Error> {
         trace!("ConnectionManager::connect()");
-        Connection::new(&self.connect_params).compat()
+        Connection::new(&self.connect_params)
     }
 
     // Determines if the connection is still connected to the database.
@@ -65,8 +64,7 @@ impl r2d2::ManageConnection for ConnectionManager {
     fn is_valid(&self, conn: &mut Self::Connection) -> Result<(), Self::Error> {
         trace!("ConnectionManager::is_valid()");
         conn.query("SELECT 'IsConnectionStillAlive' from dummy")
-            .compat()?;
-        Ok(())
+            .map(|_| ())
     }
 
     // *Quickly* determines if the connection is no longer usable.

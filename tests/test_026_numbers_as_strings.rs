@@ -45,10 +45,12 @@ fn evaluate_resultset(
     insert_stmt.add_batch(&("88", "88", "88", "88", "88", "88", "88", "88", "88"))?;
     insert_stmt.execute_batch()?;
 
+    #[allow(clippy::type_complexity)]
     let _result: Vec<(String, i8, i16, i32, i64, i8, i16, i32, i64)> = connection
         .query("select * from TEST_INTEGERS")?
         .try_into()?;
 
+    #[allow(clippy::type_complexity)]
     let result: Vec<(
         String,
         String,

@@ -39,7 +39,7 @@ impl<'a> LobWriter<'a> {
         if let TypeId::BLOB | TypeId::CLOB | TypeId::NCLOB = type_id {
             // ok
         } else {
-            return Err(HdbError::imp_detailed(format!(
+            return Err(HdbError::ImplDetailed(format!(
                 "Unsupported type-id {:?}",
                 type_id
             )));
@@ -91,7 +91,7 @@ impl<'a> LobWriter<'a> {
             // last response of last IN parameter
             ReplyType::DbProcedureCall => self.evaluate_dbprocedure_call_reply(reply),
 
-            _ => Err(HdbError::imp_detailed(format!(
+            _ => Err(HdbError::ImplDetailed(format!(
                 "LobWriter::write_a_lob_chunk got a reply of type {:?}",
                 reply.replytype,
             ))),
@@ -111,7 +111,7 @@ impl<'a> LobWriter<'a> {
             ),
             None => (None, None, None),
             _ => {
-                return Err(HdbError::imp(
+                return Err(HdbError::Impl(
                     "Inconsistent StatementContext part found for ResultSet",
                 ));
             }
@@ -139,7 +139,7 @@ impl<'a> LobWriter<'a> {
             Some(Argument::WriteLobReply(write_lob_reply)) => {
                 Ok(write_lob_reply.into_locator_ids())
             }
-            _ => Err(HdbError::imp_detailed(format!(
+            _ => Err(HdbError::ImplDetailed(format!(
                 "No WriteLobReply part found; parts = {:?}",
                 reply.parts
             ))),
@@ -159,7 +159,7 @@ impl<'a> LobWriter<'a> {
             ),
             None => (None, None, None),
             _ => {
-                return Err(HdbError::imp("Inconsistent StatementContext found"));
+                return Err(HdbError::Impl("Inconsistent StatementContext found"));
             }
         };
         self.server_usage

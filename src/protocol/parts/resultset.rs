@@ -12,8 +12,7 @@ use crate::protocol::request_type::RequestType;
 use crate::protocol::server_usage::ServerUsage;
 use crate::protocol::util;
 use crate::sync_prepared_statement::AmPsCore;
-use crate::{HdbError, HdbErrorKind, HdbResult};
-use failure::ResultExt;
+use crate::{HdbError, HdbResult};
 use serde;
 use serde_db::de::DeserializableResultset;
 use std::cell::RefCell;
@@ -122,7 +121,7 @@ impl RsState {
                 let fetch_size = { am_conn_core.lock()?.get_fetch_size() };
                 (am_conn_core, rs_core.resultset_id, fetch_size)
             } else {
-                return Err(HdbError::imp("Fetch no more possible"));
+                return Err(HdbError::Impl("Fetch no more possible"));
             }
         };
 
@@ -159,7 +158,7 @@ impl RsState {
             if (!rs_core.attributes.is_last_packet())
                 && (rs_core.attributes.row_not_found() || rs_core.attributes.resultset_is_closed())
             {
-                Err(HdbError::imp(
+                Err(HdbError::Impl(
                     "ResultSet attributes inconsistent: incomplete, but already closed on server",
                 ))
             } else {
@@ -306,7 +305,7 @@ impl ResultSet {
         T: serde::de::Deserialize<'de>,
     {
         trace!("Resultset::try_into()");
-        Ok(DeserializableResultset::into_typed(self).context(HdbErrorKind::Deserialization)?)
+        Ok(DeserializableResultset::into_typed(self)?)
     }
 
     /// Converts the resultset into a single row.
@@ -315,11 +314,11 @@ impl ResultSet {
     pub fn into_single_row(self) -> HdbResult<Row> {
         let mut state = self.state.borrow_mut();
         if state.has_multiple_rows() {
-            Err(HdbErrorKind::Usage("Resultset has more than one row").into())
+            Err(HdbError::Usage("Resultset has more than one row"))
         } else {
             Ok(state
                 .next_row(&self.metadata)?
-                .ok_or_else(|| HdbErrorKind::Usage("Resultset is empty"))?)
+                .ok_or_else(|| HdbError::Usage("Resultset is empty"))?)
         }
     }
 

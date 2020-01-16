@@ -1,6 +1,6 @@
 use crate::protocol::parts::output_parameters::OutputParameters;
 use crate::protocol::parts::resultset::ResultSet;
-use crate::{HdbErrorKind, HdbResult};
+use crate::{HdbError, HdbResult};
 use dist_tx::tm::XaTransactionId;
 use std::fmt;
 
@@ -26,7 +26,7 @@ impl HdbReturnValue {
     pub fn into_resultset(self) -> HdbResult<ResultSet> {
         match self {
             Self::ResultSet(rs) => Ok(rs),
-            _ => Err(HdbErrorKind::Evaluation.into()),
+            _ => Err(HdbError::Evaluation("Not a HdbReturnValue::ResultSet")),
         }
     }
 
@@ -38,7 +38,7 @@ impl HdbReturnValue {
     pub fn into_affected_rows(self) -> HdbResult<Vec<usize>> {
         match self {
             Self::AffectedRows(array) => Ok(array),
-            _ => Err(HdbErrorKind::Evaluation.into()),
+            _ => Err(HdbError::Evaluation("Not a HdbReturnValue::AffectedRows")),
         }
     }
 
@@ -50,7 +50,9 @@ impl HdbReturnValue {
     pub fn into_output_parameters(self) -> HdbResult<OutputParameters> {
         match self {
             Self::OutputParameters(op) => Ok(op),
-            _ => Err(HdbErrorKind::Evaluation.into()),
+            _ => Err(HdbError::Evaluation(
+                "Not a HdbReturnValue::OutputParameters",
+            )),
         }
     }
 
@@ -65,12 +67,14 @@ impl HdbReturnValue {
                 if self.is_success() {
                     Ok(())
                 } else {
-                    Err(HdbErrorKind::Evaluation.into())
+                    Err(HdbError::Evaluation(
+                        "HdbReturnValue::AffectedRows contained value > 0",
+                    ))
                 }
             }
-            Self::OutputParameters(_) | Self::ResultSet(_) | Self::XaTransactionIds(_) => {
-                Err(HdbErrorKind::Evaluation.into())
-            }
+            Self::OutputParameters(_) | Self::ResultSet(_) | Self::XaTransactionIds(_) => Err(
+                HdbError::Evaluation("Not a HdbReturnValue::AffectedRows or ::Success"),
+            ),
         }
     }
 
