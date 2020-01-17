@@ -1,13 +1,11 @@
 # Changelog
 
-## [0.19.0] 2020-01-02
+## [0.19.0] 2020-01-16
 
 ### API changes
 
 Make `Connection::new()` and `ConnectionManager::new()` more flexible by
 taking a `P: IntoConnectParams` rather than a `ConnectParams`.
-
-Reconstruct `HdbError`, based on crate `failure`.
 
 Improve `ConnectParamsBuilder`:
 

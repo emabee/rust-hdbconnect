@@ -14,10 +14,10 @@
 //! and database drivers, both for input parameters (e.g. to prepared statements)
 //! and for results that are returned from the database.
 //!
-//! In contrast to typical ORM mapping variants does this approach allow
+//! In contrast to typical ORM mapping variants, this approach allows
 //! using the full flexibility of SQL (projection lists, all kinds of joins,
-//! unions, etc, etc). Whatever query you need, you just use it, without further ado
-//! for defining object models etc, and whatever result structure you want to read,
+//! unions, nested queries, etc). Whatever query you need, you just use it, without further ado
+//! for defining object models etc., and whatever result structure you want to read,
 //! you just use a corresponding rust structure into
 //! which you deserialize the data. It's hard to use less code!
 //!

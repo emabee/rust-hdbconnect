@@ -440,7 +440,7 @@ impl<'a> PreparedStatement {
         let statement_id = if let Some(id) = o_stmt_id {
             id
         } else {
-            return Err( HdbError::Impl("No StatementId received"));
+            return Err(HdbError::Impl("No StatementId received"));
         };
 
         debug!(

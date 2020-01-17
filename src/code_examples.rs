@@ -325,7 +325,7 @@
 //! ```rust, no_run
 //! use hdbconnect::{Connection, HdbResult, IntoConnectParams, ResultSet};
 //! use hdbconnect::types::NCLob;
-//! # fn foo() -> Result<(),failure::Error> {
+//! # fn foo() -> HdbResult<()> {
 //! # let query = "";
 //! # let mut connection = Connection::new("...")?;
 //! # let mut resultset: ResultSet = connection.query(query)?;

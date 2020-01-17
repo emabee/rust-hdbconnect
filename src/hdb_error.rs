@@ -112,7 +112,7 @@ impl HdbError {
     /// ```rust,no_run
     /// # use hdbconnect::{Connection, HdbError, HdbResult};
     /// # use hdbconnect::IntoConnectParams;
-    /// # fn main() -> Result<(),failure::Error> {
+    /// # fn main() -> HdbResult<()> {
     ///     # let hdb_result: HdbResult<()> = Err(HdbError::Usage("test"));
     ///     # let mut connection = Connection::new("".into_connect_params()?)?;
     ///     if let Err(hdberror) = hdb_result {

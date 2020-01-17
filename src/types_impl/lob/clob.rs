@@ -70,7 +70,7 @@ impl CLob {
     ///
     /// ```rust, no-run
     /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, Row};
-    /// # fn foo() -> Result<(),failure::Error> {
+    /// # fn foo() -> HdbResult<()> {
     /// # let params = "".into_connect_params()?;
     /// # let mut connection = Connection::new(params)?;
     ///  let mut writer;
