@@ -55,7 +55,8 @@ mod xa_impl;
 
 pub mod code_examples;
 
-pub use crate::conn::{ConnectParams, ConnectParamsBuilder, IntoConnectParams, ServerCerts};
+pub use crate::conn::{ConnectParams, IntoConnectParams, ServerCerts};
+pub use crate::conn::{ConnectParamsBuilder, IntoConnectParamsBuilder};
 
 pub use crate::hdb_error::{HdbError, HdbResult};
 pub use crate::hdb_response::HdbResponse;

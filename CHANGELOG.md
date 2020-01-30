@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.19.1-unpublished] 2020-01-16
+
+Make `ResultsSet` thread-safe.
+
+Add `IntoConnectParamsBuilder` and implementations for `&str` and `String` and `Url`.
+
 ## [0.19.0] 2020-01-16
 
 ### API changes

@@ -306,6 +306,7 @@ impl From<Url> for ConnectParamsBuilder {
 
 #[cfg(test)]
 mod test {
+    use super::super::into_connect_params_builder::IntoConnectParamsBuilder;
     use super::ConnectParamsBuilder;
     use super::ServerCerts;
 
@@ -348,6 +349,17 @@ mod test {
                 ServerCerts::RootCertificates,
                 *params.server_certs().get(1).unwrap()
             );
+        }
+        {
+            let builder = "hdbsql://MEIER:schLau@abcd123:2222"
+                .into_connect_params_builder()
+                .unwrap();
+            assert_eq!("MEIER", builder.get_dbuser().unwrap());
+            assert_eq!(b"schLau", builder.get_password().unwrap().unsecure());
+            assert_eq!("abcd123", builder.get_hostname().unwrap());
+            assert_eq!(2222, builder.get_port().unwrap());
+            assert_eq!(None, builder.get_clientlocale());
+            assert!(builder.get_server_certs().is_empty());
         }
     }
 }
