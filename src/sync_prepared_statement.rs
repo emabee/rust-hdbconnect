@@ -291,7 +291,7 @@ impl<'a> PreparedStatement {
             // inject statement id
             for rv in &mut internal_return_values {
                 if let InternalReturnValue::ResultSet(rs) = rv {
-                    rs.inject_statement_id(Arc::clone(&self.am_ps_core));
+                    rs.inject_statement_id(Arc::clone(&self.am_ps_core))?;
                 }
             }
             HdbResponse::try_new(internal_return_values, replytype)
@@ -376,7 +376,7 @@ impl<'a> PreparedStatement {
         // inject statement id
         for rv in &mut internal_return_values {
             if let InternalReturnValue::ResultSet(rs) = rv {
-                rs.inject_statement_id(Arc::clone(&self.am_ps_core));
+                rs.inject_statement_id(Arc::clone(&self.am_ps_core))?;
             }
         }
 

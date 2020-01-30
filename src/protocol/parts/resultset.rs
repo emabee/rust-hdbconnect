@@ -15,7 +15,6 @@ use crate::sync_prepared_statement::AmPsCore;
 use crate::{HdbError, HdbResult};
 use serde;
 use serde_db::de::DeserializableResultset;
-use std::cell::RefCell;
 use std::fmt;
 use std::sync::{Arc, Mutex};
 
@@ -54,8 +53,7 @@ pub(crate) type AmRsCore = Arc<Mutex<ResultSetCore>>;
 #[derive(Debug)]
 pub struct ResultSet {
     metadata: Arc<ResultSetMetadata>,
-    // the state is packed into a RefCell to have inner mutability esp. for implicit fetching
-    state: RefCell<RsState>,
+    state: Arc<Mutex<RsState>>,
 }
 
 // the references to the connection (core) and the prepared statement (core)
@@ -312,7 +310,7 @@ impl ResultSet {
     ///
     /// Fails if the resultset contains more than a single row, or is empty.
     pub fn into_single_row(self) -> HdbResult<Row> {
-        let mut state = self.state.borrow_mut();
+        let mut state = self.state.lock()?;
         if state.has_multiple_rows() {
             Err(HdbError::Usage("Resultset has more than one row"))
         } else {
@@ -339,7 +337,7 @@ impl ResultSet {
     /// This method can be expensive, and it can fail, since it fetches all yet
     /// outstanding rows from the database.
     pub fn total_number_of_rows(&self) -> HdbResult<usize> {
-        self.state.borrow_mut().total_number_of_rows(&self.metadata)
+        self.state.lock()?.total_number_of_rows(&self.metadata)
     }
 
     /// Removes the next row and returns it, or None if the `ResultSet` is empty.
@@ -348,7 +346,7 @@ impl ResultSet {
     /// May need to fetch further rows from the database, which can fail, and thus returns
     /// an `HdbResult`.
     pub fn next_row(&mut self) -> HdbResult<Option<Row>> {
-        self.state.borrow_mut().next_row(&self.metadata)
+        self.state.lock()?.next_row(&self.metadata)
     }
 
     /// Fetches all not yet transported result lines from the server.
@@ -359,11 +357,14 @@ impl ResultSet {
     ///
     /// Fetching can fail, e.g. if the network connection is broken.
     pub fn fetch_all(&self) -> HdbResult<()> {
-        self.state.borrow_mut().fetch_all(&self.metadata)
+        self.state.lock()?.fetch_all(&self.metadata)
     }
 
     pub(crate) fn has_multiple_rows_impl(&self) -> bool {
-        self.state.borrow().has_multiple_rows()
+        self.state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .has_multiple_rows()
     }
 
     pub(crate) fn new(
@@ -385,13 +386,13 @@ impl ResultSet {
 
         Self {
             metadata: a_rsmd,
-            state: RefCell::new(RsState {
+            state: Arc::new(Mutex::new(RsState {
                 o_am_rscore: Some(ResultSetCore::new_am_rscore(am_conn_core, attrs, rs_id)),
                 o_am_pscore: None,
                 next_rows: Vec::<Row>::new(),
                 row_iter: Vec::<Row>::new().into_iter(),
                 server_usage,
-            }),
+            })),
         }
     }
 
@@ -498,7 +499,10 @@ impl ResultSet {
     /// Provides information about the the server-side resource consumption that
     /// is related to this `ResultSet` object.
     pub fn server_usage(&self) -> ServerUsage {
-        self.state.borrow().server_usage
+        self.state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .server_usage
     }
 
     fn parse_rows<T: std::io::BufRead>(
@@ -507,12 +511,14 @@ impl ResultSet {
         rdr: &mut T,
     ) -> std::io::Result<()> {
         self.state
-            .borrow_mut()
+            .lock()
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?
             .parse_rows(no_of_rows, &self.metadata, rdr)
     }
 
-    pub(crate) fn inject_statement_id(&mut self, am_ps_core: AmPsCore) {
-        self.state.borrow_mut().o_am_pscore = Some(am_ps_core);
+    pub(crate) fn inject_statement_id(&mut self, am_ps_core: AmPsCore) -> HdbResult<()> {
+        self.state.lock()?.o_am_pscore = Some(am_ps_core);
+        Ok(())
     }
 }
 
@@ -520,7 +526,10 @@ impl fmt::Display for ResultSet {
     // Writes a header and then the data
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         writeln!(fmt, "{}\n", &self.metadata)?;
-        let state = self.state.borrow();
+        let state = self
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         for row in state.row_iter.as_slice() {
             writeln!(fmt, "{}\n", &row)?;
         }
