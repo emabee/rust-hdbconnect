@@ -1,7 +1,5 @@
 use crate::{ConnectParams, HdbError, HdbResult, ServerCerts};
 use secstr::SecStr;
-use std::env;
-use url::Url;
 
 /// A builder for `ConnectParams`.
 ///
@@ -145,83 +143,6 @@ impl ConnectParamsBuilder {
         ))
     }
 
-    /// Create `ConnectParamsBuilder` from url
-    pub fn from_url(url: &Url) -> HdbResult<Self> {
-        let host: String = match url.host_str() {
-            Some("") | None => return Err(HdbError::Usage("host is missing")),
-            Some(host) => host.to_string(),
-        };
-
-        let port: u16 = match url.port() {
-            Some(p) => p,
-            None => return Err(HdbError::Usage("port is missing")),
-        };
-
-        let dbuser: String = match url.username() {
-            "" => return Err(HdbError::Usage("dbuser is missing")),
-            s => s.to_string(),
-        };
-
-        let password = match url.password() {
-            None => return Err(HdbError::Usage("password is missing")),
-            Some(s) => s.to_string(),
-        };
-
-        let use_tls = match url.scheme() {
-            "hdbsql" => false,
-            "hdbsqls" => true,
-            _ => {
-                return Err(HdbError::Usage(
-                    "Unknown protocol, only 'hdbsql' and 'hdbsqls' are supported",
-                ));
-            }
-        };
-
-        let mut server_certs = Vec::<ServerCerts>::new();
-        let mut clientlocale = None;
-
-        for (name, value) in url.query_pairs() {
-            match name.as_ref() {
-                "client_locale" => clientlocale = Some(value.to_string()),
-                "client_locale_from_env" => {
-                    clientlocale = env::var("LANG").ok();
-                }
-                "tls_certificate_dir" => {
-                    server_certs.push(ServerCerts::Directory(value.to_string()));
-                }
-                "tls_certificate_env" => {
-                    server_certs.push(ServerCerts::Environment(value.to_string()));
-                }
-                "use_mozillas_root_certificates" => {
-                    server_certs.push(ServerCerts::RootCertificates);
-                }
-                _ => log::warn!("option {} not supported", name),
-            }
-        }
-
-        if use_tls && server_certs.is_empty() {
-            return Err(HdbError::Usage(
-                "protocol 'hdbsqls' requires certificates, but none are specified",
-            ));
-        }
-
-        let mut builder = Self::new();
-        builder.hostname(host);
-        builder.dbuser(dbuser);
-        builder.port(port);
-        builder.password(password);
-
-        if let Some(cl) = clientlocale {
-            builder.clientlocale(cl);
-        }
-
-        for cert in server_certs {
-            builder.tls_with(cert);
-        }
-
-        Ok(builder)
-    }
-
     /// Returns the url for this connection
     pub fn to_url(&self) -> HdbResult<String> {
         if let Some(dbuser) = &self.dbuser {
@@ -292,15 +213,6 @@ impl ConnectParamsBuilder {
     /// Getter
     pub fn get_options(&self) -> &Vec<(String, String)> {
         &self.options
-    }
-}
-
-impl From<Url> for ConnectParamsBuilder {
-    fn from(u: Url) -> Self {
-        Self::from_url(&u).unwrap_or_else(|e| {
-            warn!("ConnectParamsBuilder::from(Url) failed with {}", e);
-            Self::default()
-        })
     }
 }
 

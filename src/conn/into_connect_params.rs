@@ -47,7 +47,7 @@ impl IntoConnectParams for String {
 
 impl IntoConnectParams for Url {
     fn into_connect_params(self) -> HdbResult<ConnectParams> {
-        let builder = ConnectParamsBuilder::from_url(&self)?;
-        Ok(builder.into_connect_params()?)
+        let builder = crate::IntoConnectParamsBuilder::into_connect_params_builder(self)?;
+        Ok(builder.build()?)
     }
 }
