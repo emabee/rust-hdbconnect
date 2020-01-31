@@ -15,6 +15,10 @@ pub struct OutputParameters {
 
 impl OutputParameters {
     /// Converts the contained values in into a plain rust value or a tuple, etc.
+    ///
+    /// # Errors
+    ///
+    /// `HdbError::Deserialization` if the conversion is not implemented.
     pub fn try_into<'de, T>(self) -> HdbResult<T>
     where
         T: serde::de::Deserialize<'de>,
@@ -24,6 +28,10 @@ impl OutputParameters {
     }
 
     /// Returns the descriptor for the i'th parameter.
+    ///
+    /// # Errors
+    ///
+    /// `HdbError::Usage` if there is no i'th parameter.
     pub fn descriptor(&self, i: usize) -> HdbResult<&ParameterDescriptor> {
         trace!("OutputParameters::descriptor()");
         Ok(self

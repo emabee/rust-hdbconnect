@@ -255,12 +255,20 @@ impl<'a> HdbValue<'a> {
 }
 
 impl HdbValue<'static> {
-    /// Deserialize into a rust type
+    /// Deserialize into a rust type.
+    ///
+    /// # Errors
+    ///
+    /// `HdbError::DeserializationError` if the target type does not fit.
     pub fn try_into<'x, T: serde::Deserialize<'x>>(self) -> HdbResult<T> {
         Ok(serde_db::de::DbValue::into_typed(self)?)
     }
 
-    /// Convert into `hdbconnect::BLob`
+    /// Convert into `BLob`.
+    ///
+    /// # Errors
+    ///
+    /// `HdbError::UsageDetailed` if this is not a `HdbValue::BLOB`.
     pub fn try_into_blob(self) -> HdbResult<BLob> {
         match self {
             HdbValue::BLOB(blob) => Ok(blob),
@@ -271,7 +279,11 @@ impl HdbValue<'static> {
         }
     }
 
-    /// Convert into `hdbconnect::CLob`
+    /// Convert into `CLob`.
+    ///
+    /// # Errors
+    ///
+    /// `HdbError::UsageDetailed` if this is not a `HdbValue::CLOB`.
     pub fn try_into_clob(self) -> HdbResult<CLob> {
         match self {
             HdbValue::CLOB(clob) => Ok(clob),
@@ -282,7 +294,11 @@ impl HdbValue<'static> {
         }
     }
 
-    /// Convert into `hdbconnect::NCLob`
+    /// Convert into `NCLob`.
+    ///
+    /// # Errors
+    ///
+    /// `HdbError::UsageDetailed` if this is not a `HdbValue::NCLOB`.
     pub fn try_into_nclob(self) -> HdbResult<NCLob> {
         match self {
             HdbValue::NCLOB(nclob) => Ok(nclob),

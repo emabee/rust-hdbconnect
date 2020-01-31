@@ -245,7 +245,9 @@ impl HdbResponse {
 
     /// Turns itself into a single resultset.
     ///
-    /// If this cannot be done without loss of information, an error is returned.
+    /// # Errors
+    ///
+    /// `HdbError::Evaluation` if information would get lost.
     pub fn into_resultset(self) -> HdbResult<ResultSet> {
         self.into_single_retval()?.into_resultset()
     }
@@ -253,7 +255,9 @@ impl HdbResponse {
     /// Turns itself into a Vector of numbers (each number representing a
     /// number of affected rows).
     ///
-    /// If this cannot be done without loss of information, an error is returned.
+    /// # Errors
+    ///
+    /// `HdbError::Evaluation` if information would get lost.
     pub fn into_affected_rows(self) -> HdbResult<Vec<usize>> {
         self.into_single_retval()?.into_affected_rows()
     }
@@ -261,21 +265,27 @@ impl HdbResponse {
     /// Turns itself into a Vector of numbers (each number representing a
     /// number of affected rows).
     ///
-    /// If this cannot be done without loss of information, an error is returned.
+    /// # Errors
+    ///
+    /// `HdbError::Evaluation` if information would get lost.
     pub fn into_output_parameters(self) -> HdbResult<OutputParameters> {
         self.into_single_retval()?.into_output_parameters()
     }
 
     /// Turns itself into (), if the statement had returned successfully.
     ///
-    /// If this cannot be done without loss of information, an error is returned.
+    /// # Errors
+    ///
+    /// `HdbError::Evaluation` if information would get lost.
     pub fn into_success(self) -> HdbResult<()> {
         self.into_single_retval()?.into_success()
     }
 
     /// Turns itself into a single return value, if there is exactly one.
     ///
-    /// Otherwise it produces an evaluation error.
+    /// # Errors
+    ///
+    /// `HdbError::Evaluation` if information would get lost.
     pub fn into_single_retval(mut self) -> HdbResult<HdbReturnValue> {
         if self.return_values.len() > 1 {
             Err(HdbError::Evaluation("More than one HdbReturnValue"))
@@ -287,7 +297,11 @@ impl HdbResponse {
     }
 
     /// Returns () if a successful execution was signaled by the database
-    /// explicitly, or an error otherwise.
+    /// explicitly.
+    ///
+    /// # Errors
+    ///
+    /// `HdbError` if information would get lost.
     pub fn get_success(&mut self) -> HdbResult<()> {
         if let Some(i) = self.find_success() {
             return self.return_values.remove(i).into_success();
@@ -303,7 +317,11 @@ impl HdbResponse {
         None
     }
 
-    /// Returns the next `ResultSet`, or an error if there is none.
+    /// Returns the next `ResultSet`.
+    ///
+    /// # Errors
+    ///
+    /// `HdbError` if there is no further `ResultSet`.
     pub fn get_resultset(&mut self) -> HdbResult<ResultSet> {
         if let Some(i) = self.find_resultset() {
             return self.return_values.remove(i).into_resultset();
@@ -319,8 +337,11 @@ impl HdbResponse {
         None
     }
 
-    /// Returns the next set of affected rows counters, or an error if there is
-    /// none.
+    /// Returns the next set of affected rows counters.
+    ///
+    /// # Errors
+    ///
+    /// `HdbError` if there is no further set of affected rows counters.
     pub fn get_affected_rows(&mut self) -> HdbResult<Vec<usize>> {
         if let Some(i) = self.find_affected_rows() {
             return self.return_values.remove(i).into_affected_rows();
@@ -336,7 +357,11 @@ impl HdbResponse {
         None
     }
 
-    /// Returns the next `OutputParameters`, or an error if there is none.
+    /// Returns the next `OutputParameters`.
+    ///
+    /// # Errors
+    ///
+    /// `HdbError` if there is none.
     pub fn get_output_parameters(&mut self) -> HdbResult<OutputParameters> {
         if let Some(i) = self.find_output_parameters() {
             return self.return_values.remove(i).into_output_parameters();

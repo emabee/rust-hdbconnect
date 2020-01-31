@@ -79,11 +79,19 @@ impl NCLob {
     /// # Ok(())
     /// # }
     /// ```
+    ///
+    /// # Errors
+    ///
+    /// Several variants of `HdbError` can occur.
     pub fn into_string(self) -> HdbResult<String> {
         self.0.into_string()
     }
 
     /// Reads from given offset and the given length, in number of 123-byte sequences.
+    ///
+    /// # Errors
+    ///
+    /// Several variants of `HdbError` can occur.
     pub fn read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
         self.0.read_slice(offset, length)
     }

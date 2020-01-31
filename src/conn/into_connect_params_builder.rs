@@ -4,7 +4,7 @@ use url::Url;
 
 /// A trait implemented by types that can be converted into a `ConnectParamsBuilder`.
 ///
-/// Example:
+/// # Example
 /// ```rust
 ///     use hdbconnect::IntoConnectParamsBuilder;
 ///
@@ -16,6 +16,9 @@ use url::Url;
 /// ```
 pub trait IntoConnectParamsBuilder {
     /// Converts the value of `self` into a `ConnectParamsBuilder`.
+    ///
+    /// # Errors
+    /// `HdbError::Usage` if wrong information was provided
     fn into_connect_params_builder(self) -> HdbResult<ConnectParamsBuilder>;
 }
 

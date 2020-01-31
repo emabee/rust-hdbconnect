@@ -110,6 +110,10 @@ impl ConnectParamsBuilder {
     }
 
     /// Constructs a `ConnectParams` from the builder.
+    ///
+    /// # Errors
+    /// `HdbError::Usage` if the builder was not yet configured to
+    /// create a meaningful `ConnectParams`
     pub fn build(&self) -> HdbResult<ConnectParams> {
         let host = match self.hostname {
             Some(ref s) => s.clone(),
@@ -144,6 +148,11 @@ impl ConnectParamsBuilder {
     }
 
     /// Returns the url for this connection
+    ///
+    /// # Errors
+    ///
+    /// `HdbError::Usage` if the builder was not yet configured to
+    /// build a correct url
     pub fn to_url(&self) -> HdbResult<String> {
         if let Some(dbuser) = &self.dbuser {
             if let Some(hostname) = &self.hostname {

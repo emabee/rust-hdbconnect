@@ -190,6 +190,10 @@ impl ParameterDescriptor {
     }
 
     /// Parse an `HdbValue` from a String.
+    ///
+    /// # Errors
+    ///
+    /// `HdbError::Deserialization` if parsing fails.
     pub fn parse_value<S: AsRef<str>>(&self, s: S) -> HdbResult<HdbValue<'static>> {
         Ok(serde_db::ser::DbvFactory::from_str(&self, s.as_ref())?)
     }

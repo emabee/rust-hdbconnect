@@ -106,6 +106,9 @@ impl ConnectParams {
     }
 
     /// Reads a url from the given file and converts it into `ConnectParams`.
+    ///
+    /// # Errors
+    /// `HdbError::ConnParams`
     pub fn from_file<P: AsRef<Path>>(path: P) -> HdbResult<Self> {
         fs::read_to_string(path)
             .map_err(|e| HdbError::ConnParams {

@@ -298,6 +298,9 @@ impl ResultSet {
     /// let typed_result: Vec<Entity> = resultset.try_into()?;
     /// ```
     ///
+    /// # Errors
+    ///
+    /// `HdbError::Deserialization` if the deserialization into the target type is not possible.
     pub fn try_into<'de, T>(self) -> HdbResult<T>
     where
         T: serde::de::Deserialize<'de>,
@@ -308,7 +311,9 @@ impl ResultSet {
 
     /// Converts the resultset into a single row.
     ///
-    /// Fails if the resultset contains more than a single row, or is empty.
+    /// # Errors
+    ///
+    /// `HdbError::Usage` if the resultset contains more than a single row, or is empty.
     pub fn into_single_row(self) -> HdbResult<Row> {
         let mut state = self.state.lock()?;
         if state.has_multiple_rows() {
@@ -336,6 +341,10 @@ impl ResultSet {
     ///
     /// This method can be expensive, and it can fail, since it fetches all yet
     /// outstanding rows from the database.
+    ///
+    /// # Errors
+    ///
+    /// Several variants of `HdbError` are possible.
     pub fn total_number_of_rows(&self) -> HdbResult<usize> {
         self.state.lock()?.total_number_of_rows(&self.metadata)
     }
@@ -343,8 +352,11 @@ impl ResultSet {
     /// Removes the next row and returns it, or None if the `ResultSet` is empty.
     ///
     /// Consequently, the `ResultSet` has one row less after the call.
-    /// May need to fetch further rows from the database, which can fail, and thus returns
-    /// an `HdbResult`.
+    /// May need to fetch further rows from the database, which can fail.
+    ///
+    /// # Errors
+    ///
+    /// Several variants of `HdbError` are possible.
     pub fn next_row(&mut self) -> HdbResult<Option<Row>> {
         self.state.lock()?.next_row(&self.metadata)
     }
@@ -356,6 +368,10 @@ impl ResultSet {
     /// and the configured fetch-size of the connection.
     ///
     /// Fetching can fail, e.g. if the network connection is broken.
+    ///
+    /// # Errors
+    ///
+    /// Several variants of `HdbError` are possible.
     pub fn fetch_all(&self) -> HdbResult<()> {
         self.state.lock()?.fetch_all(&self.metadata)
     }

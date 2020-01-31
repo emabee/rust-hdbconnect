@@ -42,6 +42,10 @@ pub struct ConnectionManager {
 
 impl ConnectionManager {
     /// Creates a new `ConnectionManager`.
+    ///
+    /// # Errors
+    ///
+    /// `HdbError::Usage` if not enough or inconsistent information was provided
     pub fn new<P: IntoConnectParams>(p: P) -> HdbResult<Self> {
         Ok(Self {
             connect_params: p.into_connect_params()?,

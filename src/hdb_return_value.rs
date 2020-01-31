@@ -21,8 +21,9 @@ pub enum HdbReturnValue {
 impl HdbReturnValue {
     /// Turns itself into a single resultset.
     ///
-    /// If this cannot be done without loss of information, an error is
-    /// returned.
+    /// # Errors
+    ///
+    /// `HdbError::Evaluation` for other variants than `HdbReturnValue::ResultSet`.
     pub fn into_resultset(self) -> HdbResult<ResultSet> {
         match self {
             Self::ResultSet(rs) => Ok(rs),
@@ -33,8 +34,9 @@ impl HdbReturnValue {
     /// Turns itself into a Vector of numbers (each number representing a
     /// number of affected rows).
     ///
-    /// If this cannot be done without loss of information, an error is
-    /// returned.
+    /// # Errors
+    ///
+    /// `HdbError::Evaluation` for other variants than `HdbReturnValue::AffectedRows`.
     pub fn into_affected_rows(self) -> HdbResult<Vec<usize>> {
         match self {
             Self::AffectedRows(array) => Ok(array),
@@ -45,8 +47,9 @@ impl HdbReturnValue {
     /// Turns itself into a Vector of numbers (each number representing a
     /// number of affected rows).
     ///
-    /// If this cannot be done without loss of information, an error is
-    /// returned.
+    /// # Errors
+    ///
+    /// `HdbError::Evaluation` for other variants than `HdbReturnValue::OutputParameters`.
     pub fn into_output_parameters(self) -> HdbResult<OutputParameters> {
         match self {
             Self::OutputParameters(op) => Ok(op),
@@ -58,8 +61,9 @@ impl HdbReturnValue {
 
     /// Turns itself into (), if the statement had returned successfully.
     ///
-    /// If this cannot be done without loss of information, an error is
-    /// returned.
+    /// # Errors
+    ///
+    /// `HdbError::Evaluation` for other variants of `HdbReturnValue`.
     pub fn into_success(self) -> HdbResult<()> {
         match self {
             Self::Success => Ok(()),

@@ -41,6 +41,10 @@ impl ResultSetMetadata {
     }
 
     /// Database schema of the i'th column in the resultset.
+    ///
+    /// # Errors
+    ///
+    /// `HdbError::Usage` if the index is invalid
     pub fn schemaname(&self, i: usize) -> HdbResult<&String> {
         Ok(self
             .names
@@ -49,6 +53,10 @@ impl ResultSetMetadata {
     }
 
     /// Database table of the i'th column in the resultset.
+    ///
+    /// # Errors
+    ///
+    /// `HdbError::Usage` if the index is invalid
     pub fn tablename(&self, i: usize) -> HdbResult<&String> {
         Ok(self
             .names
@@ -57,6 +65,10 @@ impl ResultSetMetadata {
     }
 
     /// Name of the i'th column in the resultset.
+    ///
+    /// # Errors
+    ///
+    /// `HdbError::Usage` if the index is invalid
     pub fn columnname(&self, i: usize) -> HdbResult<&String> {
         Ok(self
             .names
@@ -64,9 +76,13 @@ impl ResultSetMetadata {
             .ok_or_else(|| HdbError::Usage(INVALID_FIELD_INDEX))?)
     }
 
-    // For large resultsets, this method will be called very often - is caching
+    // todo For large resultsets, this method will be called very often - is caching
     // meaningful?
     /// Display name of the column.
+    ///
+    /// # Errors
+    ///
+    /// `HdbError::Usage` if the index is invalid
     #[inline]
     pub fn displayname(&self, index: usize) -> HdbResult<&String> {
         Ok(self
@@ -76,41 +92,73 @@ impl ResultSetMetadata {
     }
 
     /// True if column can contain NULL values.
+    ///
+    /// # Errors
+    ///
+    /// `HdbError::Usage` if the index is invalid
     pub fn nullable(&self, i: usize) -> HdbResult<bool> {
         Ok(self.get(i)?.is_nullable())
     }
 
     /// Returns true if the column has a default value.
+    ///
+    /// # Errors
+    ///
+    /// `HdbError::Usage` if the index is invalid
     pub fn has_default(&self, i: usize) -> HdbResult<bool> {
         Ok(self.get(i)?.has_default())
     }
     // 3 = Escape_char
     // ???
     ///  Returns true if the column is read-only.
+    ///
+    /// # Errors
+    ///
+    /// `HdbError::Usage` if the index is invalid
     pub fn read_only(&self, i: usize) -> HdbResult<bool> {
         Ok(self.get(i)?.read_only())
     }
     /// Returns true if the column is auto-incremented.
+    ///
+    /// # Errors
+    ///
+    /// `HdbError::Usage` if the index is invalid
     pub fn is_auto_incremented(&self, i: usize) -> HdbResult<bool> {
         Ok(self.get(i)?.is_auto_incremented())
     }
     // 6 = ArrayType
     /// Returns true if the column is of array type.
+    ///
+    /// # Errors
+    ///
+    /// `HdbError::Usage` if the index is invalid
     pub fn is_array_type(&self, i: usize) -> HdbResult<bool> {
         Ok(self.get(i)?.is_array_type())
     }
 
     /// Returns the id of the value type.
+    ///
+    /// # Errors
+    ///
+    /// `HdbError::Usage` if the index is invalid
     pub fn type_id(&self, i: usize) -> HdbResult<TypeId> {
         Ok(self.get(i)?.type_id())
     }
 
     /// Scale length (for some numeric types only).
+    ///
+    /// # Errors
+    ///
+    /// `HdbError::Usage` if the index is invalid
     pub fn scale(&self, i: usize) -> HdbResult<i16> {
         Ok(self.get(i)?.scale())
     }
 
     /// Precision (for some numeric types only).
+    ///
+    /// # Errors
+    ///
+    /// `HdbError::Usage` if the index is invalid
     pub fn precision(&self, i: usize) -> HdbResult<i16> {
         Ok(self.get(i)?.precision())
     }

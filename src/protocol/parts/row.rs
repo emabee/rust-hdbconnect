@@ -32,6 +32,10 @@ impl Row {
     }
 
     /// Converts the entire Row into a rust value.
+    ///
+    /// # Errors
+    ///
+    /// `HdbError::Deserialization` if deserialization into the target type is not possible.
     pub fn try_into<'de, T>(self) -> HdbResult<T>
     where
         T: serde::de::Deserialize<'de>,
@@ -46,6 +50,12 @@ impl Row {
     }
 
     /// Conveniently combines `next_value()` and the value's `try_into()`.
+    ///
+    /// # Errors
+    ///
+    /// `HdbError::Usage` if there is no more element.
+    ///
+    /// `HdbError::Deserialization` if deserialization into the target type is not possible.
     pub fn next_try_into<'de, T>(&mut self) -> HdbResult<T>
     where
         T: serde::de::Deserialize<'de>,
@@ -68,7 +78,9 @@ impl Row {
 
     /// Converts itself in the single contained value.
     ///
-    /// Fails if the row is empty or has more than one value.
+    /// # Errors
+    ///
+    /// `HdbError::Usage` if the row is empty or has more than one value.
     pub fn into_single_value(mut self) -> HdbResult<HdbValue<'static>> {
         if self.len() > 1 {
             Err(HdbError::Usage("Row has more than one field"))

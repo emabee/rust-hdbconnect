@@ -31,6 +31,10 @@ impl Connection {
     /// use hdbconnect::Connection;
     /// let mut conn = Connection::new("hdbsql://my_user:my_passwd@the_host:2222").unwrap();
     /// ```
+    ///
+    /// # Errors
+    ///
+    /// Several variants of `HdbError` can occur.
     pub fn new<P: IntoConnectParams>(p: P) -> HdbResult<Self> {
         trace!("connect()");
         let start = Local::now();
@@ -76,6 +80,10 @@ impl Connection {
     /// # Ok(())
     /// # }
     /// ```
+    ///
+    /// # Errors
+    ///
+    /// Several variants of `HdbError` can occur.
     pub fn statement<S: AsRef<str>>(&mut self, stmt: S) -> HdbResult<HdbResponse> {
         self.execute(stmt.as_ref(), None)
     }
@@ -98,6 +106,10 @@ impl Connection {
     /// # Ok(())
     /// # }
     /// ```
+    ///
+    /// # Errors
+    ///
+    /// Several variants of `HdbError` can occur.
     pub fn query<S: AsRef<str>>(&mut self, stmt: S) -> HdbResult<ResultSet> {
         self.statement(stmt)?.into_resultset()
     }
@@ -120,6 +132,10 @@ impl Connection {
     /// # Ok(())
     /// # }
     /// ```
+    ///
+    /// # Errors
+    ///
+    /// Several variants of `HdbError` can occur.
     pub fn dml<S: AsRef<str>>(&mut self, stmt: S) -> HdbResult<usize> {
         let vec = &(self.statement(stmt)?.into_affected_rows()?);
         match vec.len() {
@@ -145,6 +161,11 @@ impl Connection {
     /// connection.exec(&statement_string)?;
     /// # Ok(())
     /// # }
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Several variants of `HdbError` can occur.
     pub fn exec<S: AsRef<str>>(&mut self, stmt: S) -> HdbResult<()> {
         self.statement(stmt)?.into_success()
     }
@@ -168,6 +189,10 @@ impl Connection {
     /// # Ok(())
     /// # }
     /// ```
+    ///
+    /// # Errors
+    ///
+    /// Several variants of `HdbError` can occur.
     pub fn prepare<S: AsRef<str>>(&self, stmt: S) -> HdbResult<PreparedStatement> {
         Ok(PreparedStatement::try_new(
             self.am_conn_core.clone(),
@@ -176,6 +201,10 @@ impl Connection {
     }
 
     /// Prepares a statement and executes it a single time.
+    ///
+    /// # Errors
+    ///
+    /// Several variants of `HdbError` can occur.
     pub fn prepare_and_execute<S, T>(&self, stmt: S, input: &T) -> HdbResult<HdbResponse>
     where
         S: AsRef<str>,
@@ -186,17 +215,29 @@ impl Connection {
     }
 
     /// Commits the current transaction.
+    ///
+    /// # Errors
+    ///
+    /// Several variants of `HdbError` can occur.
     pub fn commit(&mut self) -> HdbResult<()> {
         self.statement("commit")?.into_success()
     }
 
     /// Rolls back the current transaction.
+    ///
+    /// # Errors
+    ///
+    /// Several variants of `HdbError` can occur.
     pub fn rollback(&mut self) -> HdbResult<()> {
         self.statement("rollback")?.into_success()
     }
 
     /// Creates a new connection object with the same settings and
     /// authentication.
+    ///
+    /// # Errors
+    ///
+    /// Several variants of `HdbError` can occur.
     pub fn spawn(&self) -> HdbResult<Self> {
         let am_conn_core = self.am_conn_core.lock()?;
         let mut other = Self::new(am_conn_core.connect_params())?;
@@ -207,7 +248,11 @@ impl Connection {
     }
 
     /// Utility method to fire a couple of statements, ignoring errors and
-    /// return values
+    /// return values.
+    ///
+    /// # Errors
+    ///
+    /// Several variants of `HdbError` can occur.
     pub fn multiple_statements_ignore_err<S: AsRef<str>>(&mut self, stmts: Vec<S>) {
         for s in stmts {
             trace!("multiple_statements_ignore_err: firing \"{}\"", s.as_ref());
@@ -220,7 +265,11 @@ impl Connection {
     }
 
     /// Utility method to fire a couple of statements, ignoring their return
-    /// values; the method returns with the first error, or with  ()
+    /// values; the method returns with the first error, or with `()`.
+    ///
+    /// # Errors
+    ///
+    /// Several variants of `HdbError` can occur.
     pub fn multiple_statements<S: AsRef<str>>(&mut self, stmts: Vec<S>) -> HdbResult<()> {
         for s in stmts {
             self.statement(s)?;
@@ -230,31 +279,55 @@ impl Connection {
 
     /// Returns warnings that were returned from the server since the last call
     /// to this method.
+    ///
+    /// # Errors
+    ///
+    /// Only `HdbError::Poison` can occur.
     pub fn pop_warnings(&self) -> HdbResult<Option<Vec<ServerError>>> {
         self.am_conn_core.lock()?.pop_warnings()
     }
 
     /// Sets the connection's auto-commit behavior for future calls.
+    ///
+    /// # Errors
+    ///
+    /// Only `HdbError::Poison` can occur.
     pub fn set_auto_commit(&mut self, ac: bool) -> HdbResult<()> {
         self.am_conn_core.lock()?.set_auto_commit(ac);
         Ok(())
     }
 
     /// Returns the connection's auto-commit behavior.
+    ///
+    /// # Errors
+    ///
+    /// Only `HdbError::POóison` can occur.
     pub fn is_auto_commit(&self) -> HdbResult<bool> {
         Ok(self.am_conn_core.lock()?.is_auto_commit())
     }
 
     /// Configures the connection's fetch size for future calls.
+    ///
+    /// # Errors
+    ///
+    /// Only `HdbError::Poison` can occur.
     pub fn set_fetch_size(&mut self, fetch_size: u32) -> HdbResult<()> {
         self.am_conn_core.lock()?.set_fetch_size(fetch_size);
         Ok(())
     }
     /// Configures the connection's lob read length for future calls.
+    ///
+    /// # Errors
+    ///
+    /// Only `HdbError::Poison` can occur.
     pub fn get_lob_read_length(&self) -> HdbResult<u32> {
         Ok(self.am_conn_core.lock()?.get_lob_read_length())
     }
     /// Configures the connection's lob read length for future calls.
+    ///
+    /// # Errors
+    ///
+    /// Only `HdbError::Poison` can occur.
     pub fn set_lob_read_length(&mut self, l: u32) -> HdbResult<()> {
         self.am_conn_core.lock()?.set_lob_read_length(l);
         Ok(())
@@ -267,10 +340,18 @@ impl Connection {
     /// Values smaller than rust's buffer size (8k) will have little effect, since
     /// each read() call to the Read impl in a `HdbValue::LOBSTREAM` will cause at most one
     /// write roundtrip to the database.
+    ///
+    /// # Errors
+    ///
+    /// Only `HdbError::Poison` can occur.
     pub fn get_lob_write_length(&self) -> HdbResult<usize> {
         Ok(self.am_conn_core.lock()?.get_lob_write_length())
     }
     /// Configures the connection's lob write length for future calls.
+    ///
+    /// # Errors
+    ///
+    /// Only `HdbError::Poison` can occur.
     pub fn set_lob_write_length(&mut self, l: usize) -> HdbResult<()> {
         self.am_conn_core.lock()?.set_lob_write_length(l);
         Ok(())
@@ -279,6 +360,10 @@ impl Connection {
     /// Returns the ID of the connection.
     ///
     /// The ID is set by the server. Can be handy for logging.
+    ///
+    /// # Errors
+    ///
+    /// Only `HdbError::Poison` can occur.
     pub fn id(&self) -> HdbResult<i32> {
         Ok(self
             .am_conn_core
@@ -289,6 +374,10 @@ impl Connection {
 
     /// Provides information about the the server-side resource consumption that
     /// is related to this Connection object.
+    ///
+    /// # Errors
+    ///
+    /// Only `HdbError::Poison` can occur.
     pub fn server_usage(&self) -> HdbResult<ServerUsage> {
         Ok(self.am_conn_core.lock()?.server_usage())
     }
@@ -309,6 +398,10 @@ impl Connection {
 
     /// Returns the number of roundtrips to the database that
     /// have been done through this connection.
+    ///
+    /// # Errors
+    ///
+    /// Only `HdbError::Poison` can occur.
     pub fn get_call_count(&self) -> HdbResult<i32> {
         Ok(self.am_conn_core.lock()?.last_seq_number())
     }
@@ -324,6 +417,10 @@ impl Connection {
     /// connection.set_application("MyApp, built in rust")?;
     /// # Ok(()) }
     /// ```
+    ///
+    /// # Errors
+    ///
+    /// Only `HdbError::Poison` can occur.
     pub fn set_application<S: AsRef<str>>(&self, application: S) -> HdbResult<()> {
         self.am_conn_core.lock()?.set_application(application)
     }
@@ -339,6 +436,10 @@ impl Connection {
     /// connection.set_application_user("K2209657")?;
     /// # Ok(()) }
     /// ```
+    ///
+    /// # Errors
+    ///
+    /// Only `HdbError::Poison` can occur.
     pub fn set_application_user<S: AsRef<str>>(&self, appl_user: S) -> HdbResult<()> {
         self.am_conn_core
             .lock()?
@@ -356,6 +457,10 @@ impl Connection {
     /// connection.set_application_version("5.3.23")?;
     /// # Ok(()) }
     /// ```
+    ///
+    /// # Errors
+    ///
+    /// Only `HdbError::Poison` can occur.
     pub fn set_application_version<S: AsRef<str>>(&mut self, version: S) -> HdbResult<()> {
         self.am_conn_core
             .lock()?
@@ -373,6 +478,10 @@ impl Connection {
     /// connection.set_application_source("update_customer.rs")?;
     /// # Ok(()) }
     /// ```
+    ///
+    /// # Errors
+    ///
+    /// Only `HdbError::Poison` can occur.
     pub fn set_application_source<S: AsRef<str>>(&mut self, source: S) -> HdbResult<()> {
         self.am_conn_core
             .lock()?
@@ -385,7 +494,11 @@ impl Connection {
         Box::new(new_resource_manager(self.am_conn_core.clone()))
     }
 
-    /// Tools like debuggers can provide additional information while stepping through a source
+    /// Tools like debuggers can provide additional information while stepping through a source.
+    ///
+    /// # Errors
+    ///
+    /// Several variants of `HdbError` can occur.
     pub fn execute_with_debuginfo<S: AsRef<str>>(
         &mut self,
         stmt: S,
@@ -396,6 +509,10 @@ impl Connection {
     }
 
     /// (MDC) Database name.
+    ///
+    /// # Errors
+    ///
+    /// Only `HdbError::Poison` can occur.
     pub fn get_database_name(&self) -> HdbResult<Option<String>> {
         Ok(self
             .am_conn_core
@@ -407,6 +524,10 @@ impl Connection {
 
     /// The system id is set by the server with the SAPSYSTEMNAME of the
     /// connected instance (for tracing and supportability purposes).
+    ///
+    /// # Errors
+    ///
+    /// Only `HdbError::Poison` can occur.
     pub fn get_system_id(&self) -> HdbResult<Option<String>> {
         Ok(self
             .am_conn_core
@@ -417,6 +538,10 @@ impl Connection {
     }
 
     /// HANA Full version string.
+    ///
+    /// # Errors
+    ///
+    /// Only `HdbError::Poison` can occur.
     pub fn get_full_version_string(&self) -> HdbResult<Option<String>> {
         Ok(self
             .am_conn_core

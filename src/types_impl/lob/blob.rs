@@ -73,12 +73,20 @@ impl BLob {
     /// # Ok(())
     /// # }
     /// ```
+    ///
+    /// # Errors
+    ///
+    /// Several variants of `HdbError` can occur.
     pub fn into_bytes(self) -> HdbResult<Vec<u8>> {
         trace!("BLob::into_bytes()");
         self.0.into_bytes()
     }
 
     /// Reads from given offset and the given length, in bytes.
+    ///
+    /// # Errors
+    ///
+    /// Several variants of `HdbError` can occur.
     pub fn read_slice(&mut self, offset: u64, length: u32) -> HdbResult<Vec<u8>> {
         self.0.read_slice(offset, length)
     }

@@ -139,6 +139,10 @@ impl<'a> PreparedStatement {
     /// # Ok(())
     /// # }
     /// ```
+    ///
+    /// # Errors
+    ///
+    /// Several variants of `HdbError` can occur.
     pub fn execute<T: serde::ser::Serialize>(&mut self, input: &T) -> HdbResult<HdbResponse> {
         trace!("PreparedStatement::execute()");
         if self.a_descriptors.has_in() {
@@ -193,6 +197,10 @@ impl<'a> PreparedStatement {
     /// Subsequently the data from the readers are transferred to the database in additional
     /// roundtrips. Upon completion of the last LOB chunk transfer, the database really executes
     /// the procedure and returns its results.
+    ///
+    /// # Errors
+    ///
+    /// Several variants of `HdbError` can occur.
     pub fn execute_row(&'a mut self, hdb_values: Vec<HdbValue<'a>>) -> HdbResult<HdbResponse> {
         if self.a_descriptors.has_in() {
             let mut ps_core_guard = self.am_ps_core.lock()?;
@@ -302,6 +310,10 @@ impl<'a> PreparedStatement {
 
     /// Converts the input into a row of parameters and adds it to the batch of this
     /// `PreparedStatement`, if it is consistent with the metadata.
+    ///
+    /// # Errors
+    ///
+    /// Several variants of `HdbError` can occur.
     pub fn add_batch<T: serde::ser::Serialize>(&mut self, input: &T) -> HdbResult<()> {
         trace!("PreparedStatement::add_batch()");
         if self.a_descriptors.has_in() {
@@ -319,6 +331,10 @@ impl<'a> PreparedStatement {
     /// In most cases [`add_batch()`](struct.PreparedStatement.html#method.add_batch)
     /// is more convenient.
     /// Note that LOB streaming can not be combined with using the batch.
+    ///
+    /// # Errors
+    ///
+    /// Several variants of `HdbError` can occur.
     pub fn add_row_to_batch(&mut self, hdb_values: Vec<HdbValue<'static>>) -> HdbResult<()> {
         trace!("PreparedStatement::add_row_to_batch()");
         if self.a_descriptors.has_in() {
@@ -336,6 +352,10 @@ impl<'a> PreparedStatement {
     /// Does nothing and returns with an error, if the statement needs input and no batch exists.
     /// If the statement does not need input and the batch is empty,
     /// a single execution is triggered.
+    ///
+    /// # Errors
+    ///
+    /// Several variants of `HdbError` can occur.
     pub fn execute_batch(&mut self) -> HdbResult<HdbResponse> {
         if self.batch.is_empty() && self.a_descriptors.has_in() {
             return Err(HdbError::Usage("Empty batch cannot be executed"));

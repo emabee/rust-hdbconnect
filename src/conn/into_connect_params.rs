@@ -4,6 +4,10 @@ use url::Url;
 /// A trait implemented by types that can be converted into a `ConnectParams`.
 pub trait IntoConnectParams {
     /// Converts the value of `self` into a `ConnectParams`.
+    ///
+    /// # Errors
+    ///
+    /// `HdbError::Usage` if not enough or inconsistent information was provided
     fn into_connect_params(self) -> HdbResult<ConnectParams>;
 }
 
