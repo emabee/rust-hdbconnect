@@ -1,6 +1,12 @@
 # Changelog
 
-## [0.19.1-unpublished] 2020-01-16
+## [0.20.0] 2020-01-31
+
+### API changes
+
+Replace &String with &str in return value types.
+
+### Fixes and Improvements
 
 Make `ResultsSet` thread-safe.
 

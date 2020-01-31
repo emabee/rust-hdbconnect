@@ -7,7 +7,7 @@ use crate::protocol::parts::option_value::OptionValue;
 pub(crate) type ConnectOptions = OptionPart<ConnOptId>;
 
 impl ConnectOptions {
-    pub fn for_server(locale: Option<&String>, os_user: String) -> Self {
+    pub fn for_server(locale: Option<&str>, os_user: String) -> Self {
         let mut connopts = Self::default();
 
         let mut set_opt = |id: ConnOptId, value: OptionValue| {
@@ -24,7 +24,7 @@ impl ConnectOptions {
         set_opt(ConnOptId::OSUser, OptionValue::STRING(os_user));
 
         if let Some(cl) = locale {
-            set_opt(ConnOptId::ClientLocale, OptionValue::STRING(cl.clone()));
+            set_opt(ConnOptId::ClientLocale, OptionValue::STRING(cl.to_owned()));
         }
 
         if cfg!(feature = "alpha_routing") {
@@ -97,7 +97,7 @@ impl ConnectOptions {
             }
         }
     }
-    fn get_string(&self, id: &ConnOptId, s: &str) -> Option<&String> {
+    fn get_string(&self, id: &ConnOptId, s: &str) -> Option<&str> {
         match self.get_value(id) {
             Some(&OptionValue::STRING(ref s)) => Some(s),
             None => None,
@@ -129,17 +129,17 @@ impl ConnectOptions {
 
     // The SystemID is set by the server with the SAPSYSTEMNAME of the
     // connected instance (for tracing and supportability purposes).
-    pub fn get_system_id(&self) -> Option<&String> {
+    pub fn get_system_id(&self) -> Option<&str> {
         self.get_string(&ConnOptId::SystemID, "SystemID")
     }
 
     // (MDC) Database name.
-    pub fn get_database_name(&self) -> Option<&String> {
+    pub fn get_database_name(&self) -> Option<&str> {
         self.get_string(&ConnOptId::DatabaseName, "DatabaseName")
     }
 
     // Full version string.
-    pub fn get_full_version_string(&self) -> Option<&String> {
+    pub fn get_full_version_string(&self) -> Option<&str> {
         self.get_string(&ConnOptId::FullVersionString, "FullVersionString")
     }
 

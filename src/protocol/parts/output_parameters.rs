@@ -92,11 +92,7 @@ impl std::fmt::Display for OutputParameters {
         // write a header
         writeln!(fmt)?;
         for parameter_descriptor in &self.descriptors {
-            write!(
-                fmt,
-                "{}, ",
-                parameter_descriptor.name().unwrap_or(&String::new())
-            )?;
+            write!(fmt, "{}, ", parameter_descriptor.name().unwrap_or(""))?;
         }
         writeln!(fmt)?;
 

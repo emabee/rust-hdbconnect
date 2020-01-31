@@ -190,13 +190,13 @@ impl ConnectParamsBuilder {
     }
 
     /// Getter
-    pub fn get_hostname(&self) -> Option<&String> {
-        self.hostname.as_ref()
+    pub fn get_hostname(&self) -> Option<&str> {
+        self.hostname.as_ref().map(String::as_str)
     }
 
     /// Getter
-    pub fn get_dbuser(&self) -> Option<&String> {
-        self.dbuser.as_ref()
+    pub fn get_dbuser(&self) -> Option<&str> {
+        self.dbuser.as_ref().map(String::as_str)
     }
 
     /// Getter
@@ -210,8 +210,8 @@ impl ConnectParamsBuilder {
     }
 
     /// Getter
-    pub fn get_clientlocale(&self) -> Option<&String> {
-        self.clientlocale.as_ref()
+    pub fn get_clientlocale(&self) -> Option<&str> {
+        self.clientlocale.as_ref().map(String::as_str)
     }
 
     /// Getter
@@ -261,7 +261,7 @@ mod test {
             let params = builder.build().unwrap();
             assert_eq!("MEIER", params.dbuser());
             assert_eq!(b"schLau", params.password().unsecure());
-            assert_eq!(Some(&"CL1".to_string()), params.clientlocale());
+            assert_eq!(Some("CL1"), params.clientlocale());
             assert_eq!(
                 ServerCerts::Directory("TCD".to_string()),
                 *params.server_certs().get(0).unwrap()

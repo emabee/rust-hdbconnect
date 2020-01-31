@@ -28,7 +28,7 @@ impl DeserializableResultset for ResultSet {
         self.metadata_ref().number_of_fields()
     }
 
-    fn fieldname(&self, i: usize) -> Option<&String> {
+    fn fieldname(&self, i: usize) -> Option<&str> {
         self.metadata_ref().displayname(i).ok()
     }
 }
@@ -49,7 +49,7 @@ impl DeserializableRow for Row {
         self.number_of_fields()
     }
 
-    fn fieldname(&self, field_idx: usize) -> Option<&String> {
+    fn fieldname(&self, field_idx: usize) -> Option<&str> {
         self.metadata().displayname(field_idx).ok()
     }
 }
@@ -70,7 +70,7 @@ impl DeserializableRow for OutputParameters {
         self.descriptors().len()
     }
 
-    fn fieldname(&self, field_idx: usize) -> Option<&String> {
+    fn fieldname(&self, field_idx: usize) -> Option<&str> {
         Self::descriptors(self)
             .get(field_idx)
             .and_then(ParameterDescriptor::name)

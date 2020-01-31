@@ -519,7 +519,7 @@ impl Connection {
             .lock()?
             .connect_options()
             .get_database_name()
-            .cloned())
+            .map(ToOwned::to_owned))
     }
 
     /// The system id is set by the server with the SAPSYSTEMNAME of the
@@ -534,7 +534,7 @@ impl Connection {
             .lock()?
             .connect_options()
             .get_system_id()
-            .cloned())
+            .map(ToOwned::to_owned))
     }
 
     /// HANA Full version string.
@@ -548,7 +548,7 @@ impl Connection {
             .lock()?
             .connect_options()
             .get_full_version_string()
-            .cloned())
+            .map(ToOwned::to_owned))
     }
 
     fn execute<S>(&mut self, stmt: S, o_command_info: Option<CommandInfo>) -> HdbResult<HdbResponse>

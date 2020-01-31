@@ -84,7 +84,7 @@ impl ResultSetMetadata {
     ///
     /// `HdbError::Usage` if the index is invalid
     #[inline]
-    pub fn displayname(&self, index: usize) -> HdbResult<&String> {
+    pub fn displayname(&self, index: usize) -> HdbResult<&str> {
         Ok(self
             .names
             .get(self.get(index)?.displayname_idx() as usize)

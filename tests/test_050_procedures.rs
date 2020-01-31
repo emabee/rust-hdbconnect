@@ -196,7 +196,7 @@ fn procedure_with_in_and_out_parameters(
         assert_eq!(par_desc.binding(), ParameterBinding::Optional);
         assert_eq!(par_desc.type_id(), TypeId::NVARCHAR);
         assert_eq!(par_desc.direction(), ParameterDirection::OUT);
-        assert_eq!(par_desc.name(), Some(&"SOME_STRING".to_string()));
+        assert_eq!(par_desc.name(), Some("SOME_STRING"));
     }
     let value: String = output_parameters.try_into()?;
     assert_eq!(value, "some output parameter");

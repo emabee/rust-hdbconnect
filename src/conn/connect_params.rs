@@ -138,8 +138,8 @@ impl ConnectParams {
     }
 
     /// The database user.
-    pub fn dbuser(&self) -> &String {
-        &self.dbuser
+    pub fn dbuser(&self) -> &str {
+        self.dbuser.as_str()
     }
 
     /// The password.
@@ -148,8 +148,8 @@ impl ConnectParams {
     }
 
     /// The client locale.
-    pub fn clientlocale(&self) -> Option<&String> {
-        self.clientlocale.as_ref()
+    pub fn clientlocale(&self) -> Option<&str> {
+        self.clientlocale.as_ref().map(String::as_str)
     }
 }
 

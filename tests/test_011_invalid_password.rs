@@ -56,7 +56,7 @@ pub fn test_011_invalid_password() -> HdbResult<()> {
         debug!("logon as {}", user);
         let s = test_utils::get_wrong_connect_string(Some(&user), Some("Doebcd1234")).unwrap();
         let conn_params: ConnectParams = s.into_connect_params()?;
-        assert_eq!(conn_params.dbuser(), &user);
+        assert_eq!(conn_params.dbuser(), user);
         assert_eq!(conn_params.password().unsecure(), b"Doebcd1234");
 
         let mut doedel_conn = Connection::new(conn_params)?;
