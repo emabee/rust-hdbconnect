@@ -32,6 +32,19 @@ impl TlsStream {
     }
 }
 
+struct NoCertificateVerification {}
+impl rustls::ServerCertVerifier for NoCertificateVerification {
+    fn verify_server_cert(
+        &self,
+        _roots: &rustls::RootCertStore,
+        _presented_certs: &[rustls::Certificate],
+        _dns_name: webpki::DNSNameRef<'_>,
+        _ocsp: &[u8],
+    ) -> Result<rustls::ServerCertVerified, rustls::TLSError> {
+        Ok(rustls::ServerCertVerified::assertion())
+    }
+}
+
 fn connect_tcp(
     params: &ConnectParams,
 ) -> std::io::Result<(TcpStream, Arc<ClientConfig>, ClientSession)> {
@@ -40,6 +53,11 @@ fn connect_tcp(
     let mut config = ClientConfig::new();
     for server_cert in params.server_certs() {
         match server_cert {
+            ServerCerts::None => {
+                config
+                    .dangerous()
+                    .set_certificate_verifier(Arc::new(NoCertificateVerification {}));
+            }
             ServerCerts::RootCertificates => {
                 config
                     .root_store

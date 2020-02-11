@@ -175,6 +175,9 @@ pub enum ServerCerts {
     /// Defines that the server roots from https://mkcert.org/ should be added to the
     /// trust store for TLS.
     RootCertificates,
+    /// Defines that the server's identity is not validated. Don't use this
+    /// option in productive setups!
+    None,
 }
 
 #[cfg(test)]

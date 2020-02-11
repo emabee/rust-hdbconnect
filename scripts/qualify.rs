@@ -57,7 +57,6 @@ fn main() {
     run_command!("cargo", "doc", "--all-features", "--no-deps", "--open");
 
     // Run tests in important variants
-    // REQUIRES TLS AUTOMATION run_command!("cargo", "test", "--release", "--all-features");
     run_command!("cargo", "test");
 
     // check git status
