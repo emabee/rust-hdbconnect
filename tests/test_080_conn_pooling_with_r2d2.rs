@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate serde_derive;
+
 mod test_utils;
 
 use hdbconnect::{ConnectionManager, HdbResult};
@@ -8,7 +11,7 @@ use std::thread::{self, JoinHandle};
 fn test_080_conn_pooling_with_r2d2() -> HdbResult<()> {
     //let mut log_handle = test_utils::init_logger();
 
-    let manager = ConnectionManager::new(test_utils::get_std_connect_string()?)?;
+    let manager = ConnectionManager::new(test_utils::get_std_cp_builder()?)?;
     let pool = r2d2::Pool::builder().max_size(15).build(manager).unwrap();
 
     let no_of_workers: usize = 20;

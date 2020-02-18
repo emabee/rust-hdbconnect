@@ -1,6 +1,8 @@
+#[macro_use]
+extern crate serde_derive;
+
 mod test_utils;
 
-// use chrono::NaiveDateTime;
 use flexi_logger::ReconfigurationHandle;
 use hdbconnect::{Connection, HdbResult, HdbValue};
 use log::{debug, info, trace};
@@ -22,6 +24,7 @@ pub fn test_041_datatypes_b() -> HdbResult<()> {
 
 fn prepare(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -> HdbResult<()> {
     // prepare the db table
+    // select * from data_types order by type_name
     connection.multiple_statements_ignore_err(vec!["drop table TEST_TYPES_B"]);
     connection.multiple_statements(vec![
         "create table TEST_TYPES_B ( \
@@ -29,19 +32,19 @@ fn prepare(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection)
          FIELD_CLOB CLOB, \
          FIELD_NCLOB NCLOB, \
          FIELD_BLOB BLOB, \
-         FIELD_BINTEXT BINTEXT, \
          FIELD_BOOLEAN BOOLEAN, \
-         FIELD_TEXT TEXT, \
-         FIELD_SHORTTEXT SHORTTEXT(99), \
          FIELD_LONGDATE LONGDATE, \
          FIELD_SECONDDATE SECONDDATE, \
          FIELD_DAYDATE DAYDATE, \
          FIELD_SECONDTIME SECONDTIME, \
          FIELD_DATE DATE, \
          FIELD_TIME TIME, \
-         FIELD_TIMESTAMP TIMESTAMP, \
-         FIELD_ALPHANUM ALPHANUM(19)
-         )",
+         FIELD_TIMESTAMP TIMESTAMP \
+        )",
+        // FIELD_BINTEXT BINTEXT, \
+        // FIELD_TEXT TEXT, \
+        // FIELD_SHORTTEXT SHORTTEXT(99), \
+        // , FIELD_ALPHANUM ALPHANUM(19)
     ])?;
     Ok(())
 }
@@ -51,36 +54,42 @@ fn write(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -
     connection.dml(
         "\
          insert into TEST_TYPES_B ( \
-         FIELD_CLOB, FIELD_NCLOB, FIELD_BLOB, FIELD_BINTEXT, \
-         FIELD_BOOLEAN, FIELD_SHORTTEXT, FIELD_TEXT, \
+         FIELD_CLOB, FIELD_NCLOB, FIELD_BLOB, \
+         FIELD_BOOLEAN, \
          FIELD_LONGDATE, FIELD_SECONDDATE, FIELD_DAYDATE, FIELD_SECONDTIME, \
-         FIELD_DATE, FIELD_TIME, FIELD_TIMESTAMP, FIELD_ALPHANUM \
-         ) values( \
-         'Hello world!', 'Hello world!', '0123456789abcdef', '0123456789abcdef', \
-         false, 'Hello world!', 'Hello world!', \
-         '2019-01-18 01:02:03.456789', '2019-01-18 01:02:03', '2019-01-18', '01:02:03', \
-         '2019-01-18', '01:02:03' , '2019-01-18 01:02:03', '123456789' \
-         )",
+         FIELD_DATE, FIELD_TIME, FIELD_TIMESTAMP \
+        ) values( \
+            'Hello world!', 'Hello world!', '0123456789abcdef',  \
+            false, \
+            '2019-01-18 01:02:03.456789', '2019-01-18 01:02:03', '2019-01-18', '01:02:03', \
+            '2019-01-18', '01:02:03' , '2019-01-18 01:02:03' \
+        )",
+        // FIELD_BINTEXT, '0123456789abcdef',
+        // FIELD_TEXT, 'Hello world!',
+        // FIELD_SHORTTEXT, 'Hello world!',
+        // , FIELD_ALPHANUM, '123456789'
     )?;
 
     info!("insert values via prep-statement");
     let mut stmt = connection.prepare(
         "\
          insert into TEST_TYPES_B ( \
-         FIELD_CLOB, FIELD_NCLOB, FIELD_BLOB, FIELD_BINTEXT, \
-         FIELD_BOOLEAN, FIELD_SHORTTEXT, FIELD_TEXT, \
+         FIELD_CLOB, FIELD_NCLOB, FIELD_BLOB,  \
+         FIELD_BOOLEAN, \
          FIELD_LONGDATE, FIELD_SECONDDATE, FIELD_DAYDATE, FIELD_SECONDTIME, \
-         FIELD_DATE, FIELD_TIME, FIELD_TIMESTAMP, FIELD_ALPHANUM \
-         ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+         FIELD_DATE, FIELD_TIME, FIELD_TIMESTAMP \
+         ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        // FIELD_BINTEXT,
+        // FIELD_TEXT,
+        // FIELD_SHORTTEXT,
+        // , FIELD_ALPHANUM
+        // , ?, ?, ?, ?
     )?;
     stmt.execute(&(
         "Hello world!",
         "Hello world!",
         Bytes::new(&parse_hex("0123456789abcdef")),
-        Bytes::new(&parse_hex("0123456789abcdef")),
         false,
-        "Hello world!",
-        "Hello world!",
         "2019-01-18 01:02:03.456789",
         "2019-01-18 01:02:03",
         "2019-01-18",
@@ -88,17 +97,17 @@ fn write(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -
         "2019-01-18",
         "01:02:03",
         "2019-01-18 01:02:03",
-        "123456789",
     ))?;
+    // Bytes::new(&parse_hex("0123456789abcdef")),
+    // "Hello world!",
+    // "Hello world!",
+    // "123456789",
 
     stmt.execute_row(vec![
         HdbValue::STRING("foo bar rab oof".to_string()),
         HdbValue::STRING("foo bar rab oof".to_string()),
         HdbValue::STRING("foo bar rab oof".to_string()),
-        HdbValue::STRING("foo bar rab oof".to_string()),
         HdbValue::STRING("true".to_string()),
-        HdbValue::STRING("foo bar rab oof".to_string()),
-        HdbValue::STRING("foo bar rab oof".to_string()),
         HdbValue::STRING("2019-01-31 04:04:04.400000000".to_string()),
         HdbValue::STRING("2019-01-31 04:04:04".to_string()),
         HdbValue::STRING("2019-01-31".to_string()),
@@ -106,23 +115,30 @@ fn write(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -
         HdbValue::STRING("2019-01-31".to_string()),
         HdbValue::STRING("04:04:04".to_string()),
         HdbValue::STRING("2019-01-31 04:04:04".to_string()),
-        HdbValue::STRING("123456789".to_string()),
     ])?;
+    // HdbValue::STRING("foo bar rab oof".to_string()),
+    // HdbValue::STRING("foo bar rab oof".to_string()),
+    // HdbValue::STRING("foo bar rab oof".to_string()),
+    // HdbValue::STRING("123456789".to_string()),
 
     info!("insert nulls directly");
     connection.dml(
         "\
          insert into TEST_TYPES_B ( \
-         FIELD_CLOB, FIELD_NCLOB, FIELD_BLOB, FIELD_BINTEXT, \
-         FIELD_BOOLEAN, FIELD_SHORTTEXT, FIELD_TEXT, \
+         FIELD_CLOB, FIELD_NCLOB, FIELD_BLOB, \
+         FIELD_BOOLEAN, \
          FIELD_LONGDATE, FIELD_SECONDDATE, FIELD_DAYDATE, FIELD_SECONDTIME, \
-         FIELD_DATE, FIELD_TIME, FIELD_TIMESTAMP, FIELD_ALPHANUM \
+         FIELD_DATE, FIELD_TIME, FIELD_TIMESTAMP \
          ) values( \
          NULL, NULL, NULL, NULL, \
          NULL, NULL, NULL, \
-         NULL, NULL, NULL, NULL, \
          NULL, NULL, NULL, NULL \
-         )",
+        )",
+        // FIELD_BINTEXT,
+        // FIELD_TEXT,
+        // FIELD_SHORTTEXT,
+        // , FIELD_ALPHANUM
+        // , NULL, NULL, NULL, NULL \
     )?;
 
     info!("insert nulls via prep-statement");
@@ -138,11 +154,11 @@ fn write(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -
         HdbValue::NULL,
         HdbValue::NULL,
         HdbValue::NULL,
-        HdbValue::NULL,
-        HdbValue::NULL,
-        HdbValue::NULL,
-        HdbValue::NULL,
     ])?;
+    // HdbValue::NULL,
+    // HdbValue::NULL,
+    // HdbValue::NULL,
+    // HdbValue::NULL,
     Ok(())
 }
 
@@ -153,10 +169,10 @@ struct Data {
     FIELD_CLOB: Option<String>,
     FIELD_NCLOB: Option<String>,
     FIELD_BLOB: Option<ByteBuf>,
-    FIELD_BINTEXT: Option<ByteBuf>,
+    // FIELD_BINTEXT: Option<ByteBuf>,
     FIELD_BOOLEAN: Option<bool>,
-    FIELD_TEXT: Option<String>,
-    FIELD_SHORTTEXT: Option<String>,
+    // FIELD_TEXT: Option<String>,
+    // FIELD_SHORTTEXT: Option<String>,
     FIELD_LONGDATE: Option<chrono::NaiveDateTime>,
     FIELD_SECONDDATE: Option<chrono::NaiveDateTime>,
     FIELD_DAYDATE: Option<chrono::NaiveDate>,
@@ -164,7 +180,7 @@ struct Data {
     FIELD_DATE: Option<chrono::NaiveDate>,
     FIELD_TIME: Option<chrono::NaiveTime>,
     FIELD_TIMESTAMP: Option<chrono::NaiveDateTime>,
-    FIELD_ALPHANUM: Option<String>,
+    // FIELD_ALPHANUM: Option<String>,
 }
 
 fn read(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -> HdbResult<()> {

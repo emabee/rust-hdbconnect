@@ -2,9 +2,12 @@ use crate::conn::TcpConn;
 use crate::protocol::util;
 
 use byteorder::{BigEndian, WriteBytesExt};
+#[cfg(feature = "alpha_nonblocking")]
+use std::io::Write;
 
 pub(crate) fn send_and_receive(tcp_conn: &mut TcpConn) -> std::io::Result<()> {
     trace!("send_and_receive()");
+    trace!("send_and_receive(): send");
     match tcp_conn {
         TcpConn::SyncPlain(ref pc) => {
             let writer = &mut *(pc.writer()).borrow_mut();
@@ -14,19 +17,33 @@ pub(crate) fn send_and_receive(tcp_conn: &mut TcpConn) -> std::io::Result<()> {
             let writer = &mut *(sc.writer()).borrow_mut();
             emit_initial_request(writer)?;
         }
+        #[cfg(feature = "alpha_nonblocking")]
+        TcpConn::OtherSyncSecure(ref mut tc) => {
+            emit_initial_request(tc)?;
+            tc.flush()?;
+        }
     }
 
+    trace!("send_and_receive(): receive");
     match tcp_conn {
         TcpConn::SyncPlain(ref pc) => {
             let reader = &mut *(pc.reader()).borrow_mut();
-            util::skip_bytes(8, reader)?; // ignore the response content
+            util::skip_bytes(8, reader) // ignore the response content
         }
         TcpConn::SyncSecure(ref sc) => {
             let reader = &mut *(sc.reader()).borrow_mut();
-            util::skip_bytes(8, reader)?; // ignore the response content
+            util::skip_bytes(8, reader) // ignore the response content
+        }
+        #[cfg(feature = "alpha_nonblocking")]
+        TcpConn::OtherSyncSecure(ref mut tc) => {
+            let mut bufreader = std::io::BufReader::new(tc);
+            util::skip_bytes(8, &mut bufreader) // ignore the response content
         }
     }
-
+    .map_err(|e| {
+        trace!("Skipping over empty initial response failed with {:?}", e);
+        e
+    })?;
     debug!("successfully initialized");
     Ok(())
 }

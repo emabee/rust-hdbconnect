@@ -537,6 +537,16 @@ impl Connection {
             .map(ToOwned::to_owned))
     }
 
+    /// Returns a connect url (excluding the password) that reflects the options that were
+    /// used to establish this connection.
+    ///
+    /// # Errors
+    ///
+    /// Only `HdbError::Poison` can occur.
+    pub fn connect_string(&self) -> HdbResult<String> {
+        Ok((*self.am_conn_core.lock()?).connect_string())
+    }
+
     /// HANA Full version string.
     ///
     /// # Errors

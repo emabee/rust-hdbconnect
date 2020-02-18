@@ -45,7 +45,7 @@ impl ResultSetMetadata {
     /// # Errors
     ///
     /// `HdbError::Usage` if the index is invalid
-    pub fn schemaname(&self, i: usize) -> HdbResult<&String> {
+    pub fn schemaname(&self, i: usize) -> HdbResult<&str> {
         Ok(self
             .names
             .get(self.get(i)?.schemaname_idx() as usize)
@@ -57,7 +57,7 @@ impl ResultSetMetadata {
     /// # Errors
     ///
     /// `HdbError::Usage` if the index is invalid
-    pub fn tablename(&self, i: usize) -> HdbResult<&String> {
+    pub fn tablename(&self, i: usize) -> HdbResult<&str> {
         Ok(self
             .names
             .get(self.get(i)?.tablename_idx() as usize)
@@ -69,7 +69,7 @@ impl ResultSetMetadata {
     /// # Errors
     ///
     /// `HdbError::Usage` if the index is invalid
-    pub fn columnname(&self, i: usize) -> HdbResult<&String> {
+    pub fn columnname(&self, i: usize) -> HdbResult<&str> {
         Ok(self
             .names
             .get(self.get(i)?.columnname_idx() as usize)

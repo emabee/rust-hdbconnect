@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate serde_derive;
+
 mod test_utils;
 
 use chrono::Local;
@@ -14,7 +17,7 @@ pub fn test_010_connect() -> HdbResult<()> {
     let start = Instant::now();
     connect_successfully(&mut log_handle);
     connect_options(&mut log_handle)?;
-    connect_wrong_password(&mut log_handle);
+    connect_wrong_credentials(&mut log_handle);
     connect_and_select_with_explicit_clientlocale(&mut log_handle)?;
     connect_and_select_with_clientlocale_from_env(&mut log_handle)?;
     client_info(&mut log_handle)?;
@@ -24,8 +27,11 @@ pub fn test_010_connect() -> HdbResult<()> {
 }
 
 fn connect_successfully(_log_handle: &mut ReconfigurationHandle) {
-    info!("test a successful connection");
-    test_utils::get_authenticated_connection().unwrap();
+    let conn = test_utils::get_authenticated_connection().unwrap();
+    info!(
+        "\n\n TESTING AGAINST {}\n\n",
+        conn.connect_string().unwrap()
+    );
 }
 
 fn connect_options(_log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
@@ -48,16 +54,17 @@ fn connect_options(_log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
     Ok(())
 }
 
-fn connect_wrong_password(_log_handle: &mut ReconfigurationHandle) {
+fn connect_wrong_credentials(_log_handle: &mut ReconfigurationHandle) {
     info!("test connect failure on wrong credentials");
     let start = Local::now();
-    let s = test_utils::get_wrong_connect_string(None, Some("blabla")).unwrap();
-    let conn_params: ConnectParams = s.into_connect_params().unwrap();
+    let mut cp_builder = test_utils::get_std_cp_builder().unwrap();
+    cp_builder.dbuser("didi").password("blabla");
+    let conn_params: ConnectParams = cp_builder.into_connect_params().unwrap();
     assert_eq!(conn_params.password().unsecure(), b"blabla");
 
     let err = Connection::new(conn_params).err().unwrap();
     info!(
-        "connect with wrong password failed as expected, after {} µs with {}.",
+        "connect with wrong credentials failed as expected, after {} µs with {}.",
         Local::now()
             .signed_duration_since(start)
             .num_microseconds()
@@ -71,9 +78,9 @@ fn connect_and_select_with_explicit_clientlocale(
 ) -> HdbResult<()> {
     info!("connect and do some simple select with explicit clientlocale");
 
-    let mut url = test_utils::get_std_connect_string()?;
-    url.push_str("?client_locale=en_US");
-    let conn_params: ConnectParams = url.into_connect_params()?;
+    let mut cp_builder = test_utils::get_std_cp_builder()?;
+    cp_builder.clientlocale("en_US");
+    let conn_params: ConnectParams = cp_builder.build()?;
     assert_eq!(conn_params.clientlocale().unwrap(), "en_US");
 
     let mut connection = Connection::new(conn_params)?;
@@ -89,9 +96,9 @@ fn connect_and_select_with_clientlocale_from_env(
         env::set_var("LANG", "en_US.UTF-8");
     }
 
-    let mut url = test_utils::get_std_connect_string()?;
-    url.push_str("?client_locale_from_env=1");
-    let conn_params: ConnectParams = url.into_connect_params()?;
+    let mut cp_builder = test_utils::get_std_cp_builder()?;
+    cp_builder.clientlocale_from_env_lang();
+    let conn_params: ConnectParams = cp_builder.build()?;
     assert!(conn_params.clientlocale().is_some());
 
     let mut connection = Connection::new(conn_params)?;
@@ -110,7 +117,7 @@ fn select_version_and_user(connection: &mut Connection) -> HdbResult<()> {
     debug!("calling connection.query(SELECT VERSION as ...)");
     let resultset = connection.query(stmt)?;
     let version_and_user: VersionAndUser = resultset.try_into()?;
-    let conn_params: ConnectParams = test_utils::get_std_connect_string()?.into_connect_params()?;
+    let conn_params: ConnectParams = test_utils::get_std_cp_builder()?.into_connect_params()?;
     assert_eq!(&version_and_user.current_user, conn_params.dbuser());
 
     debug!("VersionAndUser: {:?}", version_and_user);

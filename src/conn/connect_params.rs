@@ -1,4 +1,5 @@
 //! Connection parameters
+use crate::conn::cp_url;
 use crate::{ConnectParamsBuilder, HdbError, HdbResult, IntoConnectParams};
 use secstr::SecStr;
 use std::fs;
@@ -10,9 +11,11 @@ use std::path::Path;
 /// An instance of `ConnectParams` can be created in various ways:
 ///
 /// ## Using the [builder](struct.ConnectParams.html#method.builder)
-/// The builder allows specifying all necessary details programmatically.
+/// This is the most flexible way for instantiating `ConnectParams`.
+/// The builder can be instantiated empty or from a minimal URL,
+/// and allows specifying all necessary details programmatically.
 ///
-/// ### Example with TLS
+/// ### Example
 ///
 /// ```rust,norun
 /// use hdbconnect::{ConnectParams, ServerCerts};
@@ -60,18 +63,12 @@ use std::path::Path;
 ///
 /// ### Example
 ///
-/// ```
+/// ```rust
 /// use hdbconnect::IntoConnectParams;
 /// let conn_params = "hdbsql://my_user:my_passwd@the_host:2222"
 ///     .into_connect_params()
 ///     .unwrap();
 /// ```
-///
-/// ## Reading a URL from a file
-///
-/// The shortcut [`ConnectParams::from_file`](struct.ConnectParams.html#method.from_file)
-/// reads a URL from a file and converts it into an instance of `ConnectParams`.
-///
 #[derive(Clone, Debug)]
 pub struct ConnectParams {
     host: String,
@@ -80,6 +77,8 @@ pub struct ConnectParams {
     password: SecStr,
     clientlocale: Option<String>,
     server_certs: Vec<ServerCerts>,
+    #[cfg(feature = "alpha_nonblocking")]
+    use_nonblocking: bool,
 }
 impl ConnectParams {
     pub(crate) fn new(
@@ -89,6 +88,7 @@ impl ConnectParams {
         password: SecStr,
         clientlocale: Option<String>,
         server_certs: Vec<ServerCerts>,
+        #[cfg(feature = "alpha_nonblocking")] use_nonblocking: bool,
     ) -> Self {
         Self {
             host,
@@ -97,6 +97,8 @@ impl ConnectParams {
             password,
             clientlocale,
             server_certs,
+            #[cfg(feature = "alpha_nonblocking")]
+            use_nonblocking,
         }
     }
 
@@ -137,6 +139,11 @@ impl ConnectParams {
         !self.server_certs.is_empty()
     }
 
+    #[cfg(feature = "alpha_nonblocking")]
+    pub(crate) fn use_nonblocking(&self) -> bool {
+        self.use_nonblocking
+    }
+
     /// The database user.
     pub fn dbuser(&self) -> &str {
         self.dbuser.as_str()
@@ -151,19 +158,58 @@ impl ConnectParams {
     pub fn clientlocale(&self) -> Option<&str> {
         self.clientlocale.as_ref().map(String::as_str)
     }
+
+    fn option_string(&self) -> String {
+        if self.server_certs.is_empty() && self.clientlocale.is_none() {
+            String::from("")
+        } else {
+            let mut s = String::with_capacity(200);
+
+            let it = self.server_certs.iter().map(ServerCerts::to_string);
+            let it = it.chain(
+                self.clientlocale
+                    .iter()
+                    .map(|cl| format!("{}={}", cp_url::OPTION_CLIENT_LOCALE, cl)),
+            );
+            #[cfg(feature = "alpha_nonblocking")]
+            let it = it.chain(
+                {
+                    if self.use_nonblocking {
+                        Some(cp_url::OPTION_NONBLOCKING.to_string())
+                    } else {
+                        None
+                    }
+                }
+                .into_iter(),
+            );
+
+            for (i, assignment) in it.enumerate() {
+                if i > 0 {
+                    s.push('&');
+                }
+                s.push_str(&assignment);
+            }
+            s
+        }
+    }
 }
 
 impl std::fmt::Display for ConnectParams {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let option_string = self.option_string();
         write!(
             f,
-            "ConnectParams {{ addr: {}, dbuser: {}, clientlocale: {:?} }}",
-            self.addr, self.dbuser, self.clientlocale,
+            "hdbsql{}://{}@{}{}{}",
+            if self.use_tls() { "s" } else { "" },
+            self.dbuser,
+            self.addr,
+            if option_string.is_empty() { "" } else { "?" },
+            option_string
         )
     }
 }
 
-/// Expresses where Server Certificates are read from.
+/// Expresses where Certificates for TLS are read from.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ServerCerts {
     /// Server Certificates are read from files in the specified folder.
@@ -179,7 +225,17 @@ pub enum ServerCerts {
     /// option in productive setups!
     None,
 }
-
+impl std::fmt::Display for ServerCerts {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::Directory(s) => write!(f, "{}={}", cp_url::OPTION_CERT_DIR, s),
+            Self::Environment(s) => write!(f, "{}={}", cp_url::OPTION_CERT_ENV, s),
+            Self::Direct(_s) => write!(f, "{}=<...>", cp_url::OPTION_CERT_DIRECT),
+            Self::RootCertificates => write!(f, "{}", cp_url::OPTION_CERT_MOZILLA),
+            Self::None => write!(f, "{}", cp_url::OPTION_INSECURE_NO_CHECK),
+        }
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::IntoConnectParams;
@@ -199,7 +255,7 @@ mod tests {
             assert!(params.server_certs().is_empty());
         }
         {
-            let params = "hdbsql://meier:schLau@abcd123:2222\
+            let params = "hdbsqls://meier:schLau@abcd123:2222\
                           ?client_locale=CL1\
                           &tls_certificate_dir=TCD\
                           &use_mozillas_root_certificates"
@@ -217,6 +273,27 @@ mod tests {
                 ServerCerts::RootCertificates,
                 *params.server_certs().get(1).unwrap()
             );
+            assert_eq!(
+                params.to_string(),
+                "hdbsqls://meier@abcd123:2222\
+                ?tls_certificate_dir=TCD\
+                &use_mozillas_root_certificates&client_locale=CL1"
+                    .to_owned() // no password
+            )
+        }
+        {
+            let params = "hdbsqls://meier:schLau@abcd123:2222\
+                          ?insecure_omit_server_certificate_check"
+                .into_connect_params()
+                .unwrap();
+
+            assert_eq!("meier", params.dbuser());
+            assert_eq!(b"schLau", params.password().unsecure());
+            assert_eq!(ServerCerts::None, *params.server_certs().get(0).unwrap());
+            assert_eq!(
+                params.to_string(),
+                "hdbsqls://meier@abcd123:2222?insecure_omit_server_certificate_check".to_owned() // no password
+            )
         }
     }
 

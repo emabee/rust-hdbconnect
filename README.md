@@ -25,13 +25,12 @@ and you can log on to it as user `HORST` with password `SECRET`.
 Then a first simple test might look like this:
 
 ```rust
-use hdbconnect::{Connection, HdbResult, IntoConnectParams};
+use hdbconnect::{Connection, HdbResult};
 
 pub fn main() -> HdbResult<()> {
     // Get a connection
-    let params = "hdbsql://HORST:SECRET@hxehost:39013";
-    let mut connection =
-        Connection::new(params.into_connect_params()?)?;
+    let url = "hdbsql://HORST:SECRET@hxehost:39013";
+    let mut connection = Connection::new(url)?;
 
     // Cleanup if necessary, and set up a test table
     connection.multiple_statements_ignore_err(vec![
@@ -58,8 +57,8 @@ pub fn main() -> HdbResult<()> {
 
     // Verify ...
     for (idx, (n, square)) in n_square.into_iter().enumerate() {
-        assert_eq!(idx, n);
-        assert_eq!(idx * idx, square);
+        assert_eq!(idx as i32, n);
+        assert_eq!((idx * idx) as u64, square);
     }
     Ok(())
 }

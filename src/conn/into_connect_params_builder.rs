@@ -1,4 +1,5 @@
 use crate::conn::connect_params::ServerCerts;
+use crate::conn::cp_url;
 use crate::{ConnectParamsBuilder, HdbError, HdbResult};
 use url::Url;
 
@@ -62,41 +63,61 @@ impl IntoConnectParamsBuilder for Url {
             builder.password(password);
         }
 
-        match self.scheme() {
-            "hdbsql" | "hdbsqls" => {}
+        let use_tls = match self.scheme() {
+            "hdbsql" => false,
+            "hdbsqls" => true,
             _ => {
                 return Err(HdbError::Usage(
                     "Unknown protocol, only 'hdbsql' and 'hdbsqls' are supported",
                 ));
             }
-        }
+        };
 
         let mut server_certs = Vec::<ServerCerts>::new();
-        let mut clientlocale = None;
 
         for (name, value) in self.query_pairs() {
             match name.as_ref() {
-                "client_locale" => clientlocale = Some(value.to_string()),
-                "client_locale_from_env" => {
-                    clientlocale = std::env::var("LANG").ok();
+                cp_url::OPTION_CLIENT_LOCALE => {
+                    builder.clientlocale(value.to_string());
                 }
-                "tls_certificate_dir" => {
+                cp_url::OPTION_CLIENT_LOCALE_FROM_ENV => {
+                    if let Ok(s) = std::env::var(value.to_string()) {
+                        builder.clientlocale(s);
+                    }
+                }
+                cp_url::OPTION_CERT_DIR => {
                     server_certs.push(ServerCerts::Directory(value.to_string()));
                 }
-                "tls_certificate_env" => {
+                cp_url::OPTION_CERT_ENV => {
                     server_certs.push(ServerCerts::Environment(value.to_string()));
                 }
-                "use_mozillas_root_certificates" => {
+                cp_url::OPTION_CERT_MOZILLA => {
                     server_certs.push(ServerCerts::RootCertificates);
+                }
+                cp_url::OPTION_INSECURE_NO_CHECK => {
+                    server_certs.push(ServerCerts::None);
+                }
+                cp_url::OPTION_NONBLOCKING => {
+                    #[cfg(feature = "alpha_nonblocking")]
+                    builder.use_nonblocking();
+
+                    #[cfg(not(feature = "alpha_nonblocking"))]
+                    return Err(HdbError::UsageDetailed(format!(
+                        "url option {} requires feature alpha_nonblocking",
+                        cp_url::OPTION_NONBLOCKING
+                    )));
                 }
                 _ => log::warn!("option {} not supported", name),
             }
         }
 
-        if let Some(cl) = clientlocale {
-            builder.clientlocale(cl);
+        if use_tls && server_certs.is_empty() {
+            return Err(HdbError::Usage(
+                "Using 'hdbsqls' requires one of the url-options 'tls_certificate_dir', \
+                'tls_certificate_env', 'tls_certificate_direct', \
+                'use_mozillas_root_certificates', or 'insecure_omit_server_certificate_check'",
+            ));
         }
-
         for cert in server_certs {
             builder.tls_with(cert);
         }

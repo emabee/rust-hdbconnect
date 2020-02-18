@@ -2,7 +2,15 @@
 #![allow(dead_code)]
 
 use flexi_logger::{opt_format, Logger, ReconfigurationHandle};
-use hdbconnect::{Connection, HdbError, HdbResult};
+use hdbconnect::{
+    ConnectParamsBuilder, Connection, HdbError, HdbResult, IntoConnectParamsBuilder, ServerCerts,
+};
+
+// const DB: &str = "./.private/2_0.db";
+const DB: &str = "./.private/2_3.db";
+// const DB: &str = "./.private/C5_02.db";
+// const DB: &str = "./.private/C5_02_insecure.db";
+// const DB: &str = "./.private/C5_02_insecure_nonblocking.db";
 
 // Returns a logger that prints out all info, warn and error messages.
 //
@@ -32,47 +40,63 @@ pub fn closing_info(connection: Connection, start: std::time::Instant) -> HdbRes
 }
 
 pub fn get_authenticated_connection() -> HdbResult<Connection> {
-    Connection::new(get_std_connect_string()?)
+    Connection::new(get_std_cp_builder()?)
 }
 
-pub fn get_system_connection() -> HdbResult<Connection> {
-    Connection::new(get_system_connect_string()?)
+pub fn get_um_connection() -> HdbResult<Connection> {
+    Connection::new(get_um_cp_builder()?)
 }
 
-pub fn get_wrong_connect_string(user: Option<&str>, pw: Option<&str>) -> HdbResult<String> {
-    let mut s = get_std_connect_string()?;
-    let sep1 = s.find("://").unwrap();
-    let sep3 = s[sep1 + 3..].find('@').unwrap();
-    let sep2 = s[sep1 + 3..sep3].find(':').unwrap();
-    if let Some(pw) = pw {
-        s.replace_range((sep1 + 3 + sep2 + 1)..(sep1 + 3 + sep3), pw);
-    }
-    if let Some(u) = user {
-        s.replace_range((sep1 + 3)..(sep1 + 3 + sep2), u);
-    }
-    Ok(s)
+pub fn get_std_cp_builder() -> HdbResult<ConnectParamsBuilder> {
+    cp_builder_from_file("std")
 }
 
-fn get_version() -> &'static str {
-    // "2_0"
-    "2_3"
-    // "pascal"
+pub fn get_um_cp_builder() -> HdbResult<ConnectParamsBuilder> {
+    cp_builder_from_file("um")
 }
 
-pub fn get_std_connect_string() -> HdbResult<String> {
-    let filename = format!("./.private/db_{}_std.url", get_version());
-    connect_string_from_file(filename.as_ref())
-}
-
-pub fn get_system_connect_string() -> HdbResult<String> {
-    let filename = format!("./.private/db_{}_system.url", get_version());
-    connect_string_from_file(filename.as_ref())
-}
-
-fn connect_string_from_file(s: &str) -> HdbResult<String> {
-    Ok(
-        std::fs::read_to_string(s).map_err(|e| HdbError::ConnParams {
+fn cp_builder_from_file(purpose: &str) -> HdbResult<ConnectParamsBuilder> {
+    let content = std::fs::read_to_string(std::path::Path::new(DB.clone())).map_err(|e| {
+        HdbError::ConnParams {
             source: Box::new(e),
-        })?,
-    )
+        }
+    })?;
+
+    #[derive(Deserialize)]
+    struct Cred<'a> {
+        name: &'a str,
+        pw: &'a str,
+    }
+    #[derive(Deserialize)]
+    struct Db<'a> {
+        url: &'a str,
+        std: Cred<'a>,
+        um: Cred<'a>,
+    }
+
+    let db: Db = serde_json::from_str(&content).unwrap();
+    let (url, std, um) = (db.url, db.std, db.um);
+    let mut cp_builder = url.into_connect_params_builder()?;
+    match purpose {
+        "std" => {
+            cp_builder.dbuser(std.name).password(std.pw);
+        }
+        "um" => {
+            cp_builder.dbuser(um.name).password(um.pw);
+        }
+        _ => panic!("unknown purpose: {}",),
+    }
+    if let Ok(ref s) = std::env::var("HDBCONNECT_FORCE_TEST_WITH_TLS") {
+        match s.as_ref() {
+            "DIRECTORY" => {
+                cp_builder.tls_with(ServerCerts::Directory(".private/certificates".to_string()));
+            }
+            "INSECURE" => {
+                cp_builder.tls_with(ServerCerts::None);
+            }
+            _ => {}
+        }
+    };
+
+    Ok(cp_builder)
 }

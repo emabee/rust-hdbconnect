@@ -70,7 +70,13 @@ impl<'a> ConnectionCore {
         match self.tcp_conn {
             TcpConn::SyncPlain(ref pc) => pc.connect_params(),
             TcpConn::SyncSecure(ref sc) => sc.connect_params(),
+            #[cfg(feature = "alpha_nonblocking")]
+            TcpConn::OtherSyncSecure(ref tc) => tc.connect_params(),
         }
+    }
+
+    pub(crate) fn connect_string(&self) -> String {
+        format!("{}", self.connect_params())
     }
 
     pub(crate) fn set_application<S: AsRef<str>>(&mut self, application: S) -> HdbResult<()> {
@@ -245,26 +251,19 @@ impl<'a> ConnectionCore {
         let auto_commit_flag: i8 = if self.is_auto_commit() { 1 } else { 0 };
         let nsn = self.next_seq_number();
 
+        let session_id = self.session_id();
         match self.tcp_conn {
             TcpConn::SyncPlain(ref pc) => {
                 let writer = &mut *(pc.writer()).borrow_mut();
-                request.emit(
-                    self.session_id(),
-                    nsn,
-                    auto_commit_flag,
-                    o_a_descriptors,
-                    writer,
-                )?;
+                request.emit(session_id, nsn, auto_commit_flag, o_a_descriptors, writer)?;
             }
             TcpConn::SyncSecure(ref sc) => {
                 let writer = &mut *(sc.writer()).borrow_mut();
-                request.emit(
-                    self.session_id(),
-                    nsn,
-                    auto_commit_flag,
-                    o_a_descriptors,
-                    writer,
-                )?;
+                request.emit(session_id, nsn, auto_commit_flag, o_a_descriptors, writer)?;
+            }
+            #[cfg(feature = "alpha_nonblocking")]
+            TcpConn::OtherSyncSecure(ref mut tc) => {
+                request.emit(session_id, nsn, auto_commit_flag, o_a_descriptors, tc)?;
             }
         }
 
@@ -276,6 +275,17 @@ impl<'a> ConnectionCore {
             TcpConn::SyncSecure(ref sc) => {
                 let reader = &mut *(sc.reader()).borrow_mut();
                 Reply::parse(o_a_rsmd, o_a_descriptors, o_rs, Some(am_conn_core), reader)
+            }
+            #[cfg(feature = "alpha_nonblocking")]
+            TcpConn::OtherSyncSecure(ref mut tc) => {
+                let mut bufreader = std::io::BufReader::new(tc);
+                Reply::parse(
+                    o_a_rsmd,
+                    o_a_descriptors,
+                    o_rs,
+                    Some(am_conn_core),
+                    &mut bufreader,
+                )
             }
         }?;
 
@@ -372,18 +382,23 @@ impl<'a> ConnectionCore {
         debug!("Drop of ConnectionCore, session_id = {}", self.session_id);
         if self.authenticated {
             let request = Request::new_for_disconnect();
-
+            let session_id = self.session_id();
             let nsn = self.next_seq_number();
             match self.tcp_conn {
                 TcpConn::SyncPlain(ref pc) => {
                     let writer = &mut *(pc.writer()).borrow_mut();
-                    request.emit(self.session_id(), nsn, 0, None, writer)?;
+                    request.emit(session_id, nsn, 0, None, writer)?;
                     writer.flush()?;
                 }
                 TcpConn::SyncSecure(ref sc) => {
                     let writer = &mut *(sc.writer()).borrow_mut();
-                    request.emit(self.session_id(), nsn, 0, None, writer)?;
+                    request.emit(session_id, nsn, 0, None, writer)?;
                     writer.flush()?;
+                }
+                #[cfg(feature = "alpha_nonblocking")]
+                TcpConn::OtherSyncSecure(ref mut tc) => {
+                    request.emit(session_id, nsn, 0, None, tc)?;
+                    tc.flush()?;
                 }
             }
             trace!("Disconnect: request successfully sent");

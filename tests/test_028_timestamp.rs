@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate serde_derive;
+
 mod test_utils;
 
 use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};

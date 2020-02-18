@@ -131,6 +131,14 @@ impl<'a> LobWriter<'a> {
             }
         }
 
+        if let Some(Argument::ExecutionResult(_)) = reply
+            .parts
+            .pop_if_kind(PartKind::ExecutionResult)
+            .map(Part::into_arg)
+        {
+            //todo can we do better than just ignore this?
+        }
+
         match reply
             .parts
             .pop_if_kind(PartKind::WriteLobReply)

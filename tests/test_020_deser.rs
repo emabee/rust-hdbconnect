@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate serde_derive;
+
 mod test_utils;
 
 use chrono::NaiveDateTime;
@@ -12,6 +15,7 @@ use serde_derive::Deserialize;
 #[test] // cargo test --test test_020_deser -- --nocapture
 pub fn deser() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
+    // log_handle.parse_new_spec("trace");
     let start = std::time::Instant::now();
     let mut connection = test_utils::get_authenticated_connection()?;
 

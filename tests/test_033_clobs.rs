@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate serde_derive;
+
 mod test_utils;
 
 use flexi_logger::ReconfigurationHandle;
@@ -15,11 +18,32 @@ pub fn test_033_clobs() -> HdbResult<()> {
     let start = std::time::Instant::now();
     let mut connection = test_utils::get_authenticated_connection()?;
 
+    if !prepare_test(&mut connection)? {
+        info!("TEST ABANDONED since database does not support CLOB columns");
+        return Ok(());
+    }
+
     let (blabla, fingerprint) = get_blabla();
     test_clobs(&mut log_handle, &mut connection, &blabla, &fingerprint)?;
     test_streaming(&mut log_handle, &mut connection, blabla, &fingerprint)?;
 
     test_utils::closing_info(connection, start)
+}
+
+fn prepare_test(connection: &mut Connection) -> HdbResult<bool> {
+    connection.multiple_statements_ignore_err(vec!["drop table TEST_CLOBS"]);
+    let stmts = vec!["create table TEST_CLOBS (desc NVARCHAR(10) not null, chardata CLOB)"];
+    connection.multiple_statements(stmts)?;
+
+    // stop gracefully if chardata is not a CLOB
+    let coltype: String = connection
+        .query(
+            "select data_type_name \
+            from table_columns \
+            where table_name = 'TEST_CLOBS' and COLUMN_NAME = 'CHARDATA'",
+        )?
+        .try_into()?;
+    Ok(coltype == "CLOB")
 }
 
 fn get_blabla() -> (String, Vec<u8>) {
@@ -49,10 +73,6 @@ fn test_clobs(
     info!("create a big CLOB in the database, and read it in various ways");
     debug!("setup...");
     connection.set_lob_read_length(1_000_000)?;
-
-    connection.multiple_statements_ignore_err(vec!["drop table TEST_CLOBS"]);
-    let stmts = vec!["create table TEST_CLOBS (desc NVARCHAR(10) not null, chardata CLOB)"];
-    connection.multiple_statements(stmts)?;
 
     #[derive(Serialize, Deserialize, Debug, PartialEq)]
     struct MyData {

@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate serde_derive;
+
 mod test_utils;
 
 use hdbconnect::{types::NCLob, Connection, HdbError, HdbResult, HdbValue};

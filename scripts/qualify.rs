@@ -51,10 +51,9 @@ fn main() {
 
     // Clippy in important variants
     run_command!("cargo", "clippy");
-    run_command!("cargo", "clippy", "--all-features");
 
     // doc
-    run_command!("cargo", "doc", "--all-features", "--no-deps", "--open");
+    run_command!("cargo", "doc", "--no-deps", "--open");
 
     // Run tests in important variants
     run_command!("cargo", "test");

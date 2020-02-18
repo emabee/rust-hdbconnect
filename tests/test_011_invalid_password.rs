@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate serde_derive;
+
 mod test_utils;
 
 use hdbconnect::{ConnectParams, Connection, HdbResult, IntoConnectParams};
@@ -9,7 +12,7 @@ pub fn test_011_invalid_password() -> HdbResult<()> {
     let mut _log_handle = test_utils::init_logger();
 
     info!("test warnings");
-    let mut sys_conn = test_utils::get_system_connection()?;
+    let mut sys_conn = test_utils::get_um_connection()?;
 
     debug!("drop user DOEDEL, and recreate it with need to set password");
     sys_conn.multiple_statements_ignore_err(vec![
@@ -54,8 +57,9 @@ pub fn test_011_invalid_password() -> HdbResult<()> {
         ]);
 
         debug!("logon as {}", user);
-        let s = test_utils::get_wrong_connect_string(Some(&user), Some("Doebcd1234")).unwrap();
-        let conn_params: ConnectParams = s.into_connect_params()?;
+        let mut cp_builder = test_utils::get_std_cp_builder().unwrap();
+        cp_builder.dbuser(&user).password("Doebcd1234");
+        let conn_params: ConnectParams = cp_builder.into_connect_params()?;
         assert_eq!(conn_params.dbuser(), user);
         assert_eq!(conn_params.password().unsecure(), b"Doebcd1234");
 

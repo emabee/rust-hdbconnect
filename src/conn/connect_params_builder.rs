@@ -5,11 +5,34 @@ use secstr::SecStr;
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use hdbconnect::ConnectParams;
+///
 /// let connect_params = ConnectParams::builder()
 ///     .hostname("abcd123")
 ///     .port(2222)
+///     .dbuser("MEIER")
+///     .password("schlau")
+///     .build()
+///     .unwrap();
+/// ```
+///
+/// ## Instantiating a `ConnectParamsBuilder` from a URL
+///
+/// The URL is supposed to have the same form as for `ConnectParams`
+/// (i.e. `<scheme>://<username>:<password>@<host>:<port>[<options>]`,
+/// see [Using a URL](struct.ConnectParams.html#using-a-url)),
+/// but only scheme and host
+/// are mandatory.
+///
+/// ### Example
+///
+/// ```rust
+/// use hdbconnect::IntoConnectParamsBuilder;
+///
+/// let conn_params = "hdbsql://abcd123:2222"
+///     .into_connect_params_builder()
+///     .unwrap()
 ///     .dbuser("MEIER")
 ///     .password("schlau")
 ///     .build()
@@ -25,6 +48,8 @@ pub struct ConnectParamsBuilder {
     clientlocale: Option<String>,
     server_certs: Vec<ServerCerts>,
     options: Vec<(String, String)>,
+    #[cfg(feature = "alpha_nonblocking")]
+    use_nonblocking: bool,
 }
 
 impl ConnectParamsBuilder {
@@ -38,6 +63,8 @@ impl ConnectParamsBuilder {
             clientlocale: None,
             server_certs: Vec::<ServerCerts>::default(),
             options: vec![],
+            #[cfg(feature = "alpha_nonblocking")]
+            use_nonblocking: false,
         }
     }
 
@@ -78,6 +105,13 @@ impl ConnectParamsBuilder {
             Err(_) => None,
         };
 
+        self
+    }
+
+    /// Sets the client locale.
+    #[cfg(feature = "alpha_nonblocking")]
+    pub fn use_nonblocking(&mut self) -> &mut Self {
+        self.use_nonblocking = true;
         self
     }
 
@@ -144,6 +178,8 @@ impl ConnectParamsBuilder {
             password,
             self.clientlocale.clone(),
             self.server_certs.clone(),
+            #[cfg(feature = "alpha_nonblocking")]
+            self.use_nonblocking,
         ))
     }
 
