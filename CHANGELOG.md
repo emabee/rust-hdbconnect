@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.20.1-unpublished] 2020-02-12
+## [0.20.1] 2020-02-18
 
 Add variant `ServerCerts::None` to use TLS without server validation.
 
