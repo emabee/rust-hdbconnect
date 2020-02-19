@@ -149,11 +149,11 @@ impl<'a> HdbValue<'a> {
         }
     }
 
-    pub(crate) fn emit<T: std::io::Write>(
+    pub(crate) fn emit(
         &self,
         data_pos: &mut i32,
         descriptor: &ParameterDescriptor,
-        w: &mut T,
+        w: &mut dyn std::io::Write,
     ) -> std::io::Result<()> {
         if !self.emit_type_id(descriptor.type_id(), w)? {
             match *self {
@@ -205,7 +205,7 @@ impl<'a> HdbValue<'a> {
         Ok(is_null)
     }
 
-    // is used to calculate the argument size (in emit)
+    // is used to calculate the part size (in emit)
     pub(crate) fn size(&self, type_id: TypeId) -> std::io::Result<usize> {
         Ok(1 + match self {
             HdbValue::NOTHING | HdbValue::NULL => 0,
@@ -315,7 +315,7 @@ impl HdbValue<'static> {
         nullable: bool,
         am_conn_core: &AmConnCore,
         o_am_rscore: &Option<AmRsCore>,
-        rdr: &mut dyn std::io::BufRead,
+        rdr: &mut dyn std::io::Read,
     ) -> std::io::Result<HdbValue<'static>> {
         let t = type_id;
         match t {
@@ -381,7 +381,7 @@ fn emit_bool(b: bool, w: &mut dyn std::io::Write) -> std::io::Result<()> {
 // - returns Ok(true) if the value is NULL
 // - returns Ok(false) if a normal value is to be expected
 // - throws an error if NULL is found but nullable is false
-fn parse_null(nullable: bool, rdr: &mut dyn std::io::BufRead) -> std::io::Result<bool> {
+fn parse_null(nullable: bool, rdr: &mut dyn std::io::Read) -> std::io::Result<bool> {
     let is_null = rdr.read_u8()? == 0;
     if is_null && !nullable {
         Err(util::io_error("found null value for not-null column"))
@@ -392,7 +392,7 @@ fn parse_null(nullable: bool, rdr: &mut dyn std::io::BufRead) -> std::io::Result
 
 fn parse_tinyint(
     nullable: bool,
-    rdr: &mut dyn std::io::BufRead,
+    rdr: &mut dyn std::io::Read,
 ) -> std::io::Result<HdbValue<'static>> {
     Ok(if parse_null(nullable, rdr)? {
         HdbValue::NULL
@@ -403,7 +403,7 @@ fn parse_tinyint(
 
 fn parse_smallint(
     nullable: bool,
-    rdr: &mut dyn std::io::BufRead,
+    rdr: &mut dyn std::io::Read,
 ) -> std::io::Result<HdbValue<'static>> {
     Ok(if parse_null(nullable, rdr)? {
         HdbValue::NULL
@@ -411,17 +411,14 @@ fn parse_smallint(
         HdbValue::SMALLINT(rdr.read_i16::<LittleEndian>()?)
     })
 }
-fn parse_int(nullable: bool, rdr: &mut dyn std::io::BufRead) -> std::io::Result<HdbValue<'static>> {
+fn parse_int(nullable: bool, rdr: &mut dyn std::io::Read) -> std::io::Result<HdbValue<'static>> {
     Ok(if parse_null(nullable, rdr)? {
         HdbValue::NULL
     } else {
         HdbValue::INT(rdr.read_i32::<LittleEndian>()?)
     })
 }
-fn parse_bigint(
-    nullable: bool,
-    rdr: &mut dyn std::io::BufRead,
-) -> std::io::Result<HdbValue<'static>> {
+fn parse_bigint(nullable: bool, rdr: &mut dyn std::io::Read) -> std::io::Result<HdbValue<'static>> {
     Ok(if parse_null(nullable, rdr)? {
         HdbValue::NULL
     } else {
@@ -429,10 +426,7 @@ fn parse_bigint(
     })
 }
 
-fn parse_real(
-    nullable: bool,
-    rdr: &mut dyn std::io::BufRead,
-) -> std::io::Result<HdbValue<'static>> {
+fn parse_real(nullable: bool, rdr: &mut dyn std::io::Read) -> std::io::Result<HdbValue<'static>> {
     let mut vec: Vec<u8> = std::iter::repeat(0_u8).take(4).collect();
     rdr.read_exact(&mut vec[..])?;
     let mut cursor = std::io::Cursor::new(&vec);
@@ -451,10 +445,7 @@ fn parse_real(
     }
 }
 
-fn parse_double(
-    nullable: bool,
-    rdr: &mut dyn std::io::BufRead,
-) -> std::io::Result<HdbValue<'static>> {
+fn parse_double(nullable: bool, rdr: &mut dyn std::io::Read) -> std::io::Result<HdbValue<'static>> {
     let mut vec: Vec<u8> = std::iter::repeat(0_u8).take(8).collect();
     rdr.read_exact(&mut vec[..])?;
     let mut cursor = std::io::Cursor::new(&vec);
@@ -473,10 +464,7 @@ fn parse_double(
     }
 }
 
-fn parse_bool(
-    nullable: bool,
-    rdr: &mut dyn std::io::BufRead,
-) -> std::io::Result<HdbValue<'static>> {
+fn parse_bool(nullable: bool, rdr: &mut dyn std::io::Read) -> std::io::Result<HdbValue<'static>> {
     //(0x00 = FALSE, 0x01 = NULL, 0x02 = TRUE)
     match rdr.read_u8()? {
         0 => Ok(HdbValue::BOOLEAN(false)),
@@ -494,7 +482,7 @@ fn parse_bool(
 
 fn parse_alphanum(
     nullable: bool,
-    rdr: &mut dyn std::io::BufRead,
+    rdr: &mut dyn std::io::Read,
 ) -> std::io::Result<HdbValue<'static>> {
     let indicator1 = rdr.read_u8()?;
     if indicator1 == LENGTH_INDICATOR_NULL {
@@ -532,7 +520,7 @@ fn parse_alphanum(
 fn parse_string(
     nullable: bool,
     type_id: TypeId,
-    rdr: &mut dyn std::io::BufRead,
+    rdr: &mut dyn std::io::Read,
 ) -> std::io::Result<HdbValue<'static>> {
     let l8 = rdr.read_u8()?; // B1
     let is_null = l8 == LENGTH_INDICATOR_NULL;
@@ -564,7 +552,7 @@ fn parse_string(
 fn parse_binary(
     nullable: bool,
     type_id: TypeId,
-    rdr: &mut dyn std::io::BufRead,
+    rdr: &mut dyn std::io::Read,
 ) -> std::io::Result<HdbValue<'static>> {
     let l8 = rdr.read_u8()?; // B1
     let is_null = l8 == LENGTH_INDICATOR_NULL;
@@ -589,7 +577,7 @@ fn parse_binary(
 }
 
 #[allow(clippy::cast_sign_loss)]
-fn parse_length_and_bytes(l8: u8, rdr: &mut dyn std::io::BufRead) -> std::io::Result<Vec<u8>> {
+fn parse_length_and_bytes(l8: u8, rdr: &mut dyn std::io::Read) -> std::io::Result<Vec<u8>> {
     let len = match l8 {
         l if l <= MAX_1_BYTE_LENGTH => l8 as usize,
         LENGTH_INDICATOR_2BYTE => rdr.read_i16::<LittleEndian>()? as usize, // I2

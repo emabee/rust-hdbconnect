@@ -54,10 +54,10 @@ impl OutputParameters {
         &mut self.value_iter
     }
 
-    pub(crate) fn parse<T: std::io::BufRead>(
+    pub(crate) fn parse(
         o_am_conn_core: Option<&AmConnCore>,
         parameter_descriptors: &ParameterDescriptors,
-        rdr: &mut T,
+        rdr: &mut dyn std::io::Read,
     ) -> std::io::Result<Self> {
         trace!("OutputParameters::parse()");
         let am_conn_core = o_am_conn_core

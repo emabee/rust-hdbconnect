@@ -1,5 +1,4 @@
 use byteorder::{LittleEndian, ReadBytesExt};
-use std::io::BufRead;
 
 #[derive(Debug)]
 pub(crate) struct WriteLobReply {
@@ -12,7 +11,7 @@ impl WriteLobReply {
 }
 
 impl WriteLobReply {
-    pub fn parse<T: BufRead>(count: usize, rdr: &mut T) -> std::io::Result<Self> {
+    pub fn parse(count: usize, rdr: &mut dyn std::io::Read) -> std::io::Result<Self> {
         debug!("called with count = {}", count);
         let mut locator_ids = Vec::<u64>::default();
         for _ in 0..count {

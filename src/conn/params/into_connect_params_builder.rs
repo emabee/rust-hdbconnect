@@ -1,6 +1,7 @@
-use crate::conn::connect_params::ServerCerts;
-use crate::conn::cp_url;
-use crate::{ConnectParamsBuilder, HdbError, HdbResult};
+use super::connect_params::ServerCerts;
+use super::connect_params_builder::ConnectParamsBuilder;
+use super::cp_url;
+use crate::{HdbError, HdbResult};
 use url::Url;
 
 /// A trait implemented by types that can be converted into a `ConnectParamsBuilder`.

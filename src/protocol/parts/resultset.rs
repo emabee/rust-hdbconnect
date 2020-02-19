@@ -1,11 +1,11 @@
 use crate::conn::AmConnCore;
-use crate::protocol::argument::Argument;
-use crate::protocol::part::{Part, Parts};
+use crate::protocol::part::Part;
 use crate::protocol::part_attributes::PartAttributes;
 use crate::protocol::partkind::PartKind;
 use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
 use crate::protocol::parts::row::Row;
 use crate::protocol::parts::statement_context::StatementContext;
+use crate::protocol::parts::Parts;
 use crate::protocol::reply_type::ReplyType;
 use crate::protocol::request::Request;
 use crate::protocol::request_type::RequestType;
@@ -126,14 +126,8 @@ impl RsState {
         // build the request, provide resultset-id and fetch-size
         debug!("ResultSet::fetch_next() with fetch_size = {}", fetch_size);
         let mut request = Request::new(RequestType::FetchNext, 0);
-        request.push(Part::new(
-            PartKind::ResultSetId,
-            Argument::ResultSetId(resultset_id),
-        ));
-        request.push(Part::new(
-            PartKind::FetchSize,
-            Argument::FetchSize(fetch_size),
-        ));
+        request.push(Part::ResultSetId(resultset_id));
+        request.push(Part::FetchSize(fetch_size));
 
         let mut reply = conn_core.full_send_sync(request, Some(a_rsmd), None, &mut Some(self))?;
         reply.assert_expected_reply_type(ReplyType::Fetch)?;
@@ -171,7 +165,7 @@ impl RsState {
         &mut self,
         no_of_rows: usize,
         metadata: &Arc<ResultSetMetadata>,
-        rdr: &mut dyn std::io::BufRead,
+        rdr: &mut dyn std::io::Read,
     ) -> std::io::Result<()> {
         self.next_rows.reserve(no_of_rows);
         let no_of_cols = metadata.number_of_fields();
@@ -222,10 +216,7 @@ impl Drop for ResultSetCore {
         if !self.attributes.resultset_is_closed() {
             if let Ok(mut conn_guard) = self.am_conn_core.lock() {
                 let mut request = Request::new(RequestType::CloseResultSet, 0);
-                request.push(Part::new(
-                    PartKind::ResultSetId,
-                    Argument::ResultSetId(rs_id),
-                ));
+                request.push(Part::ResultSetId(rs_id));
 
                 if let Ok(mut reply) =
                     conn_guard.roundtrip_sync(request, &self.am_conn_core, None, None, &mut None)
@@ -428,37 +419,31 @@ impl ResultSet {
     // For first resultset packets, we create and return a new ResultSet object.
     // We then expect the previous three parts to be
     // a matching ResultSetMetadata, a ResultSetId, and a StatementContext.
-    pub(crate) fn parse<T: std::io::BufRead>(
+    pub(crate) fn parse(
         no_of_rows: usize,
         attributes: PartAttributes,
         parts: &mut Parts,
         am_conn_core: &AmConnCore,
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
         o_rs: &mut Option<&mut RsState>,
-        rdr: &mut T,
+        rdr: &mut dyn std::io::Read,
     ) -> std::io::Result<Option<Self>> {
         match *o_rs {
             None => {
                 // case a) or b)
-                let o_stmt_ctx = match parts
-                    .pop_if_kind(PartKind::StatementContext)
-                    .map(Part::into_arg)
-                {
-                    Some(Argument::StatementContext(stmt_ctx)) => Some(stmt_ctx),
+                let o_stmt_ctx = match parts.pop_if_kind(PartKind::StatementContext) {
+                    Some(Part::StatementContext(stmt_ctx)) => Some(stmt_ctx),
                     None => None,
                     _ => return Err(util::io_error("Inconsistent StatementContext")),
                 };
 
-                let rs_id = match parts.pop_arg() {
-                    Some(Argument::ResultSetId(rs_id)) => rs_id,
+                let rs_id = match parts.pop() {
+                    Some(Part::ResultSetId(rs_id)) => rs_id,
                     _ => return Err(util::io_error("ResultSetId missing")),
                 };
 
-                let a_rsmd = match parts
-                    .pop_if_kind(PartKind::ResultSetMetadata)
-                    .map(Part::into_arg)
-                {
-                    Some(Argument::ResultSetMetadata(rsmd)) => Arc::new(rsmd),
+                let a_rsmd = match parts.pop_if_kind(PartKind::ResultSetMetadata) {
+                    Some(Part::ResultSetMetadata(rsmd)) => Arc::new(rsmd),
                     None => match o_a_rsmd {
                         Some(a_rsmd) => Arc::clone(a_rsmd),
                         _ => return Err(util::io_error("No metadata provided for ResultSet")),
@@ -476,11 +461,8 @@ impl ResultSet {
             }
 
             Some(ref mut fetching_state) => {
-                match parts
-                    .pop_if_kind(PartKind::StatementContext)
-                    .map(Part::into_arg)
-                {
-                    Some(Argument::StatementContext(stmt_ctx)) => {
+                match parts.pop_if_kind(PartKind::StatementContext) {
+                    Some(Part::StatementContext(stmt_ctx)) => {
                         fetching_state.server_usage.update(
                             stmt_ctx.server_processing_time(),
                             stmt_ctx.server_cpu_time(),
@@ -521,11 +503,7 @@ impl ResultSet {
             .server_usage
     }
 
-    fn parse_rows<T: std::io::BufRead>(
-        &self,
-        no_of_rows: usize,
-        rdr: &mut T,
-    ) -> std::io::Result<()> {
+    fn parse_rows(&self, no_of_rows: usize, rdr: &mut dyn std::io::Read) -> std::io::Result<()> {
         self.state
             .lock()
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?

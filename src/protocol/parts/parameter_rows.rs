@@ -2,7 +2,6 @@ use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
 use crate::protocol::util;
 use crate::{HdbError, HdbResult, HdbValue};
 use serde_db::ser::to_params;
-use std::io::Write;
 
 // Implementation of the PARAMETERS part.
 //
@@ -28,10 +27,10 @@ impl<'a> ParameterRows<'a> {
         Ok(())
     }
 
-    pub(crate) fn emit<T: Write>(
+    pub(crate) fn emit(
         &self,
         descriptors: &ParameterDescriptors,
-        w: &mut T,
+        w: &mut dyn std::io::Write,
     ) -> std::io::Result<()> {
         for row in &self.0 {
             row.emit(descriptors, w)?;
@@ -107,7 +106,11 @@ impl<'a> ParameterRow<'a> {
         Ok(size)
     }
 
-    fn emit<T: Write>(&self, descriptors: &ParameterDescriptors, w: &mut T) -> std::io::Result<()> {
+    fn emit(
+        &self,
+        descriptors: &ParameterDescriptors,
+        w: &mut dyn std::io::Write,
+    ) -> std::io::Result<()> {
         let mut data_pos = 0_i32;
         let mut in_descriptors = descriptors.iter_in();
         for value in &(self.0) {

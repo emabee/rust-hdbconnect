@@ -3,13 +3,13 @@ use std::cell::RefCell;
 use std::net::TcpStream;
 
 #[derive(Debug)]
-pub struct PlainConnection {
+pub struct PlainTcpClient {
     params: ConnectParams,
     reader: RefCell<std::io::BufReader<TcpStream>>,
     writer: RefCell<std::io::BufWriter<TcpStream>>,
 }
 
-impl PlainConnection {
+impl PlainTcpClient {
     /// Returns an initialized plain tcp connection
     pub fn try_new(params: ConnectParams) -> std::io::Result<Self> {
         let tcpstream = TcpStream::connect(params.addr())?;

@@ -1,41 +1,41 @@
 #[cfg(feature = "alpha_nonblocking")]
-use super::tcp::TlsClient;
-use super::tcp::{PlainConnection, TlsConnection};
-use super::ConnectParams;
+use super::NonblockingTlsClient;
+use super::{PlainTcpClient, TlsTcpClient};
+use crate::ConnectParams;
 use chrono::Local;
 
 // A buffered tcp connection, with or without TLS.
-#[allow(clippy::large_enum_variant)] // FIXME
+#[allow(clippy::enum_variant_names, clippy::large_enum_variant)] // FIXME
 #[derive(Debug)]
-pub(crate) enum TcpConn {
+pub(crate) enum TcpClient {
     // A buffered tcp connection without TLS.
-    SyncPlain(PlainConnection),
-    // A buffered tcp connection with TLS.
-    SyncSecure(TlsConnection),
-    // A buffered tcp connection with TLS.
+    SyncPlain(PlainTcpClient),
+    // A buffered blocking tcp connection with TLS.
+    SyncTls(TlsTcpClient),
+    // A buffered non-blocking tcp connection with TLS.
     #[cfg(feature = "alpha_nonblocking")]
-    OtherSyncSecure(TlsClient),
+    SyncNonblockingTls(NonblockingTlsClient),
 }
-impl TcpConn {
+impl TcpClient {
     // Constructs a buffered tcp connection, with or without TLS,
     // depending on the given connect parameters.
     pub fn try_new(params: ConnectParams) -> std::io::Result<Self> {
         let start = Local::now();
-        trace!("TcpConn: Connecting to {:?})", params.addr());
+        trace!("TcpClient: Connecting to {:?})", params.addr());
 
         let tcp_conn = if params.use_tls() {
             #[cfg(feature = "alpha_nonblocking")]
             {
                 if params.use_nonblocking() {
-                    Self::OtherSyncSecure(TlsClient::try_new(params)?)
+                    Self::SyncNonblockingTls(NonblockingTlsClient::try_new(params)?)
                 } else {
-                    Self::SyncSecure(TlsConnection::try_new(params)?)
+                    Self::SyncTls(TlsTcpClient::try_new(params)?)
                 }
             }
             #[cfg(not(feature = "alpha_nonblocking"))]
-            Self::SyncSecure(TlsConnection::try_new(params)?)
+            Self::SyncTls(TlsTcpClient::try_new(params)?)
         } else {
-            Self::SyncPlain(PlainConnection::try_new(params)?)
+            Self::SyncPlain(PlainTcpClient::try_new(params)?)
         };
 
         trace!(
@@ -53,14 +53,14 @@ impl TcpConn {
     pub fn s_type(&self) -> &'static str {
         match self {
             Self::SyncPlain(_) => "Plain TCP",
-            Self::SyncSecure(_) => "TLS",
+            Self::SyncTls(_) => "TLS",
             #[cfg(feature = "alpha_nonblocking")]
-            Self::OtherSyncSecure(_) => "Other TLS",
+            Self::SyncNonblockingTls(_) => "Other TLS",
         }
     }
 }
-impl Drop for TcpConn {
+impl Drop for TcpClient {
     fn drop(&mut self) {
-        trace!("Drop of TcpConn")
+        trace!("Drop of TcpClient")
     }
 }

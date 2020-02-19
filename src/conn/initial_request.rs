@@ -1,43 +1,35 @@
-use crate::conn::TcpConn;
+use crate::conn::TcpClient;
 use crate::protocol::util;
 
 use byteorder::{BigEndian, WriteBytesExt};
-#[cfg(feature = "alpha_nonblocking")]
-use std::io::Write;
 
-pub(crate) fn send_and_receive(tcp_conn: &mut TcpConn) -> std::io::Result<()> {
+pub(crate) fn send_and_receive(tcp_conn: &mut TcpClient) -> std::io::Result<()> {
     trace!("send_and_receive()");
     trace!("send_and_receive(): send");
     match tcp_conn {
-        TcpConn::SyncPlain(ref pc) => {
-            let writer = &mut *(pc.writer()).borrow_mut();
-            emit_initial_request(writer)?;
+        TcpClient::SyncPlain(ref pc) => {
+            emit_initial_request(&mut *(pc.writer()).borrow_mut())?;
         }
-        TcpConn::SyncSecure(ref sc) => {
-            let writer = &mut *(sc.writer()).borrow_mut();
-            emit_initial_request(writer)?;
+        TcpClient::SyncTls(ref tc) => {
+            emit_initial_request(&mut *(tc.writer()).borrow_mut())?;
         }
         #[cfg(feature = "alpha_nonblocking")]
-        TcpConn::OtherSyncSecure(ref mut tc) => {
-            emit_initial_request(tc)?;
-            tc.flush()?;
+        TcpClient::SyncNonblockingTls(ref mut nbtc) => {
+            emit_initial_request(nbtc)?;
         }
     }
 
     trace!("send_and_receive(): receive");
     match tcp_conn {
-        TcpConn::SyncPlain(ref pc) => {
-            let reader = &mut *(pc.reader()).borrow_mut();
-            util::skip_bytes(8, reader) // ignore the response content
+        TcpClient::SyncPlain(ref pc) => {
+            util::skip_bytes(8, &mut *(pc.reader()).borrow_mut()) // ignore the response content
         }
-        TcpConn::SyncSecure(ref sc) => {
-            let reader = &mut *(sc.reader()).borrow_mut();
-            util::skip_bytes(8, reader) // ignore the response content
+        TcpClient::SyncTls(ref tc) => {
+            util::skip_bytes(8, &mut *(tc.reader()).borrow_mut()) // ignore the response content
         }
         #[cfg(feature = "alpha_nonblocking")]
-        TcpConn::OtherSyncSecure(ref mut tc) => {
-            let mut bufreader = std::io::BufReader::new(tc);
-            util::skip_bytes(8, &mut bufreader) // ignore the response content
+        TcpClient::SyncNonblockingTls(ref mut nbtc) => {
+            util::skip_bytes(8, nbtc) // ignore the response content
         }
     }
     .map_err(|e| {
@@ -48,7 +40,7 @@ pub(crate) fn send_and_receive(tcp_conn: &mut TcpConn) -> std::io::Result<()> {
     Ok(())
 }
 
-fn emit_initial_request<W: std::io::Write>(w: &mut W) -> std::io::Result<()> {
+fn emit_initial_request(w: &mut dyn std::io::Write) -> std::io::Result<()> {
     const FILLER: i32 = -1;
     const MAJOR_PRODUCT_VERSION: i8 = 4;
     const MINOR_PRODUCT_VERSION: i16 = 20;

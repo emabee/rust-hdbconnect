@@ -1,8 +1,6 @@
 use crate::authentication;
 use crate::conn::AmConnCore;
-use crate::protocol::argument::Argument;
 use crate::protocol::part::Part;
-use crate::protocol::partkind::PartKind;
 use crate::protocol::parts::command_info::CommandInfo;
 use crate::protocol::parts::resultset::ResultSet;
 use crate::protocol::parts::server_error::ServerError;
@@ -576,20 +574,11 @@ impl Connection {
         {
             let conn_core = self.am_conn_core.lock()?;
             let fetch_size = conn_core.get_fetch_size();
-            request.push(Part::new(
-                PartKind::FetchSize,
-                Argument::FetchSize(fetch_size),
-            ));
+            request.push(Part::FetchSize(fetch_size));
             if let Some(command_info) = o_command_info {
-                request.push(Part::new(
-                    PartKind::CommandInfo,
-                    Argument::CommandInfo(command_info),
-                ));
+                request.push(Part::CommandInfo(command_info));
             }
-            request.push(Part::new(
-                PartKind::Command,
-                Argument::Command(stmt.as_ref()),
-            ));
+            request.push(Part::Command(stmt.as_ref()));
         }
         let (internal_return_values, replytype) = self
             .am_conn_core

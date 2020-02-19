@@ -163,7 +163,7 @@ impl ResultSetMetadata {
         Ok(self.get(i)?.precision())
     }
 
-    pub(crate) fn parse<T: std::io::BufRead>(count: usize, rdr: &mut T) -> std::io::Result<Self> {
+    pub(crate) fn parse(count: usize, rdr: &mut dyn std::io::Read) -> std::io::Result<Self> {
         let mut rsm = Self {
             fields: Vec::<FieldMetadata>::new(),
             names: VecMap::<String>::new(),

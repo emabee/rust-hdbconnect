@@ -64,7 +64,7 @@ pub struct Partitions {
 }
 
 impl PartitionInformation {
-    pub fn parse<T: std::io::BufRead>(rdr: &mut T) -> std::io::Result<Self> {
+    pub fn parse(rdr: &mut dyn std::io::Read) -> std::io::Result<Self> {
         let partition_method = PartitionMethod::from_i8(rdr.read_i8()?)?; // I1
         util::skip_bytes(7, rdr)?;
         let num_parameters = rdr.read_i32::<LittleEndian>()?;

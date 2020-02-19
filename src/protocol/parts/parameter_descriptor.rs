@@ -37,7 +37,7 @@ impl ParameterDescriptors {
         self.0.is_empty()
     }
 
-    pub(crate) fn parse<T: std::io::BufRead>(count: usize, rdr: &mut T) -> std::io::Result<Self> {
+    pub(crate) fn parse(count: usize, rdr: &mut dyn std::io::Read) -> std::io::Result<Self> {
         let mut vec_pd = Vec::<ParameterDescriptor>::new();
         let mut name_offsets = Vec::<u32>::new();
         for _ in 0..count {

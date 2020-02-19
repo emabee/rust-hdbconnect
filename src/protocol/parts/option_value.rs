@@ -14,7 +14,7 @@ pub enum OptionValue {
 }
 
 impl OptionValue {
-    pub fn emit<T: std::io::Write>(&self, w: &mut T) -> std::io::Result<()> {
+    pub fn emit(&self, w: &mut dyn std::io::Write) -> std::io::Result<()> {
         w.write_u8(self.type_id())?; // I1
         match *self {
             // variable
@@ -49,12 +49,12 @@ impl OptionValue {
         }
     }
 
-    pub fn parse<T: std::io::BufRead>(rdr: &mut T) -> std::io::Result<Self> {
+    pub fn parse(rdr: &mut dyn std::io::Read) -> std::io::Result<Self> {
         let value_type = rdr.read_u8()?; // U1
         Self::parse_value(value_type, rdr)
     }
 
-    fn parse_value(typecode: u8, rdr: &mut dyn std::io::BufRead) -> std::io::Result<Self> {
+    fn parse_value(typecode: u8, rdr: &mut dyn std::io::Read) -> std::io::Result<Self> {
         match typecode {
             3 => Ok(Self::INT(rdr.read_i32::<LittleEndian>()?)), // I4
             4 => Ok(Self::BIGINT(rdr.read_i64::<LittleEndian>()?)), // I8
@@ -82,12 +82,12 @@ fn emit_length_and_bytes(v: &[u8], w: &mut dyn std::io::Write) -> std::io::Resul
     Ok(())
 }
 
-fn parse_length_and_string(rdr: &mut dyn std::io::BufRead) -> std::io::Result<String> {
+fn parse_length_and_string(rdr: &mut dyn std::io::Read) -> std::io::Result<String> {
     util::string_from_cesu8(parse_length_and_binary(rdr)?).map_err(util::io_error)
 }
 
 #[allow(clippy::clippy::cast_sign_loss)]
-fn parse_length_and_binary(rdr: &mut dyn std::io::BufRead) -> std::io::Result<Vec<u8>> {
+fn parse_length_and_binary(rdr: &mut dyn std::io::Read) -> std::io::Result<Vec<u8>> {
     let len = rdr.read_i16::<LittleEndian>()? as usize; // I2: length of value
     util::parse_bytes(len, rdr) // B (varying)
 }

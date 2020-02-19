@@ -10,7 +10,7 @@ pub(crate) fn parse_blob(
     am_conn_core: &AmConnCore,
     o_am_rscore: &Option<AmRsCore>,
     nullable: bool,
-    rdr: &mut dyn std::io::BufRead,
+    rdr: &mut dyn std::io::Read,
 ) -> std::io::Result<HdbValue<'static>> {
     let (is_null, is_data_included, is_last_data) = parse_lob_1(rdr)?;
     if is_null {
@@ -36,7 +36,7 @@ pub(crate) fn parse_clob(
     am_conn_core: &AmConnCore,
     o_am_rscore: &Option<AmRsCore>,
     nullable: bool,
-    rdr: &mut dyn std::io::BufRead,
+    rdr: &mut dyn std::io::Read,
 ) -> std::io::Result<HdbValue<'static>> {
     let (is_null, is_data_included, is_last_data) = parse_lob_1(rdr)?;
     if is_null {
@@ -64,7 +64,7 @@ pub(crate) fn parse_nclob(
     o_am_rscore: &Option<AmRsCore>,
     nullable: bool,
     type_id: TypeId,
-    rdr: &mut dyn std::io::BufRead,
+    rdr: &mut dyn std::io::Read,
 ) -> std::io::Result<HdbValue<'static>> {
     let (is_null, is_data_included, is_last_data) = parse_lob_1(rdr)?;
     if is_null {
@@ -90,7 +90,7 @@ pub(crate) fn parse_nclob(
     }
 }
 
-fn parse_lob_1(rdr: &mut dyn std::io::BufRead) -> std::io::Result<(bool, bool, bool)> {
+fn parse_lob_1(rdr: &mut dyn std::io::Read) -> std::io::Result<(bool, bool, bool)> {
     let _data_type = rdr.read_u8()?; // I1
     let options = rdr.read_u8()?; // I1
     let is_null = (options & 0b_1_u8) != 0;
@@ -100,7 +100,7 @@ fn parse_lob_1(rdr: &mut dyn std::io::BufRead) -> std::io::Result<(bool, bool, b
 }
 
 fn parse_lob_2(
-    rdr: &mut dyn std::io::BufRead,
+    rdr: &mut dyn std::io::Read,
     is_data_included: bool,
 ) -> std::io::Result<(u64, u64, u64, Vec<u8>)> {
     util::skip_bytes(2, rdr)?; // U2 (filler)

@@ -48,7 +48,7 @@ impl<T: OptionId<T> + Debug + Eq + PartialEq + Hash> OptionPart<T> {
         self.0.iter()
     }
 
-    pub fn emit<W: std::io::Write>(&self, w: &mut W) -> std::io::Result<()> {
+    pub fn emit(&self, w: &mut dyn std::io::Write) -> std::io::Result<()> {
         for (id, value) in &self.0 {
             w.write_u8(id.to_u8())?;
             value.emit(w)?;
@@ -56,7 +56,7 @@ impl<T: OptionId<T> + Debug + Eq + PartialEq + Hash> OptionPart<T> {
         Ok(())
     }
 
-    pub fn parse<R: std::io::BufRead>(count: usize, rdr: &mut R) -> std::io::Result<Self> {
+    pub fn parse(count: usize, rdr: &mut dyn std::io::Read) -> std::io::Result<Self> {
         let mut result = Self::default();
         for _ in 0..count {
             let id = T::from_u8(rdr.read_u8()?);

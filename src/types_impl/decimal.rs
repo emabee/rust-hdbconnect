@@ -11,7 +11,7 @@ pub fn parse(
     nullable: bool,
     type_id: TypeId,
     scale: i16,
-    rdr: &mut dyn std::io::BufRead,
+    rdr: &mut dyn std::io::Read,
 ) -> std::io::Result<HdbValue<'static>> {
     match type_id {
         TypeId::DECIMAL => HdbDecimal::parse_hdb_decimal(nullable, scale, rdr),
@@ -51,7 +51,7 @@ pub fn parse(
     }
 }
 
-fn parse_null(nullable: bool, rdr: &mut dyn std::io::BufRead) -> std::io::Result<bool> {
+fn parse_null(nullable: bool, rdr: &mut dyn std::io::Read) -> std::io::Result<bool> {
     let is_null = rdr.read_u8()? == 0;
     if is_null && !nullable {
         Err(util::io_error("found null value for not-null column"))

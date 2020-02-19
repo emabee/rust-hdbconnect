@@ -28,7 +28,7 @@ impl HdbDecimal {
     pub fn parse_hdb_decimal(
         nullable: bool,
         scale: i16,
-        rdr: &mut dyn std::io::BufRead,
+        rdr: &mut dyn std::io::Read,
     ) -> std::io::Result<HdbValue<'static>> {
         let mut raw = [0_u8; 16];
         rdr.read_exact(&mut raw[..])?;

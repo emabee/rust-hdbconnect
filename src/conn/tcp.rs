@@ -1,7 +1,10 @@
 mod a_sync;
 mod sync;
+mod tcp_client;
 
-pub(crate) use sync::plain_connection::PlainConnection;
+use sync::plain_tcp_client::PlainTcpClient;
 #[cfg(feature = "alpha_nonblocking")]
-pub(crate) use sync::rustls_connection::TlsClient;
-pub(crate) use sync::tls_connection::TlsConnection;
+use sync::tls_nonblocking_client::NonblockingTlsClient;
+use sync::tls_tcp_client::TlsTcpClient;
+
+pub(crate) use tcp_client::TcpClient;

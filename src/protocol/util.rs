@@ -11,8 +11,8 @@ where
     std::io::Error::new(std::io::ErrorKind::Other, error)
 }
 
-// Read n bytes from a `BufRead`, return as Vec<u8>
-pub fn parse_bytes(len: usize, rdr: &mut dyn std::io::BufRead) -> std::io::Result<Vec<u8>> {
+// Read n bytes, return as Vec<u8>
+pub fn parse_bytes(len: usize, rdr: &mut dyn std::io::Read) -> std::io::Result<Vec<u8>> {
     let mut vec: Vec<u8> = repeat(255_u8).take(len).collect();
     {
         let rf: &mut [u8] = &mut vec;
@@ -21,7 +21,7 @@ pub fn parse_bytes(len: usize, rdr: &mut dyn std::io::BufRead) -> std::io::Resul
     Ok(vec)
 }
 
-pub fn skip_bytes(n: usize, rdr: &mut dyn std::io::BufRead) -> std::io::Result<()> {
+pub fn skip_bytes(n: usize, rdr: &mut dyn std::io::Read) -> std::io::Result<()> {
     for _ in 0..n {
         rdr.read_u8()?;
     }

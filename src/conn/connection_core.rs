@@ -1,6 +1,5 @@
-use crate::conn::{initial_request, AmConnCore, ConnectParams, SessionState, TcpConn};
-use crate::protocol::argument::Argument;
-use crate::protocol::part::{Part, Parts};
+use crate::conn::{initial_request, AmConnCore, ConnectParams, SessionState, TcpClient};
+use crate::protocol::part::Part;
 use crate::protocol::partkind::PartKind;
 use crate::protocol::parts::client_info::ClientInfo;
 use crate::protocol::parts::connect_options::ConnectOptions;
@@ -12,6 +11,7 @@ use crate::protocol::parts::server_error::{ServerError, Severity};
 use crate::protocol::parts::statement_context::StatementContext;
 use crate::protocol::parts::topology::Topology;
 use crate::protocol::parts::transactionflags::TransactionFlags;
+use crate::protocol::parts::Parts;
 use crate::protocol::reply::Reply;
 use crate::protocol::request::Request;
 use crate::protocol::server_usage::ServerUsage;
@@ -37,13 +37,13 @@ pub(crate) struct ConnectionCore {
     connect_options: ConnectOptions,
     topology: Option<Topology>,
     pub warnings: Vec<ServerError>,
-    tcp_conn: TcpConn,
+    tcp_conn: TcpClient,
 }
 
 impl<'a> ConnectionCore {
     pub(crate) fn try_new(params: ConnectParams) -> HdbResult<Self> {
         let connect_options = ConnectOptions::for_server(params.clientlocale(), get_os_user());
-        let mut tcp_conn = TcpConn::try_new(params)?;
+        let mut tcp_conn = TcpClient::try_new(params)?;
         initial_request::send_and_receive(&mut tcp_conn)?;
 
         Ok(Self {
@@ -68,10 +68,10 @@ impl<'a> ConnectionCore {
 
     pub(crate) fn connect_params(&self) -> &ConnectParams {
         match self.tcp_conn {
-            TcpConn::SyncPlain(ref pc) => pc.connect_params(),
-            TcpConn::SyncSecure(ref sc) => sc.connect_params(),
+            TcpClient::SyncPlain(ref pc) => pc.connect_params(),
+            TcpClient::SyncTls(ref sc) => sc.connect_params(),
             #[cfg(feature = "alpha_nonblocking")]
-            TcpConn::OtherSyncSecure(ref tc) => tc.connect_params(),
+            TcpClient::SyncNonblockingTls(ref tc) => tc.connect_params(),
         }
     }
 
@@ -248,44 +248,37 @@ impl<'a> ConnectionCore {
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
         o_rs: &mut Option<&mut RsState>,
     ) -> HdbResult<Reply> {
-        let auto_commit_flag: i8 = if self.is_auto_commit() { 1 } else { 0 };
-        let nsn = self.next_seq_number();
-
         let session_id = self.session_id();
+        let nsn = self.next_seq_number();
+        let auto_commit = self.is_auto_commit();
+
         match self.tcp_conn {
-            TcpConn::SyncPlain(ref pc) => {
-                let writer = &mut *(pc.writer()).borrow_mut();
-                request.emit(session_id, nsn, auto_commit_flag, o_a_descriptors, writer)?;
+            TcpClient::SyncPlain(ref pc) => {
+                let writer: &mut dyn Write = &mut *(pc.writer()).borrow_mut();
+                request.emit(session_id, nsn, auto_commit, o_a_descriptors, writer)?;
             }
-            TcpConn::SyncSecure(ref sc) => {
+            TcpClient::SyncTls(ref sc) => {
                 let writer = &mut *(sc.writer()).borrow_mut();
-                request.emit(session_id, nsn, auto_commit_flag, o_a_descriptors, writer)?;
+                request.emit(session_id, nsn, auto_commit, o_a_descriptors, writer)?;
             }
             #[cfg(feature = "alpha_nonblocking")]
-            TcpConn::OtherSyncSecure(ref mut tc) => {
-                request.emit(session_id, nsn, auto_commit_flag, o_a_descriptors, tc)?;
+            TcpClient::SyncNonblockingTls(ref mut tc) => {
+                request.emit(session_id, nsn, auto_commit, o_a_descriptors, tc)?;
             }
         }
 
         let mut reply = match self.tcp_conn {
-            TcpConn::SyncPlain(ref pc) => {
+            TcpClient::SyncPlain(ref pc) => {
                 let reader = &mut *(pc.reader()).borrow_mut();
                 Reply::parse(o_a_rsmd, o_a_descriptors, o_rs, Some(am_conn_core), reader)
             }
-            TcpConn::SyncSecure(ref sc) => {
-                let reader = &mut *(sc.reader()).borrow_mut();
+            TcpClient::SyncTls(ref tc) => {
+                let reader = &mut *(tc.reader()).borrow_mut();
                 Reply::parse(o_a_rsmd, o_a_descriptors, o_rs, Some(am_conn_core), reader)
             }
             #[cfg(feature = "alpha_nonblocking")]
-            TcpConn::OtherSyncSecure(ref mut tc) => {
-                let mut bufreader = std::io::BufReader::new(tc);
-                Reply::parse(
-                    o_a_rsmd,
-                    o_a_descriptors,
-                    o_rs,
-                    Some(am_conn_core),
-                    &mut bufreader,
-                )
+            TcpClient::SyncNonblockingTls(ref mut nbtc) => {
+                Reply::parse(o_a_rsmd, o_a_descriptors, o_rs, Some(am_conn_core), nbtc)
             }
         }?;
 
@@ -298,31 +291,24 @@ impl<'a> ConnectionCore {
 
         // Retrieve errors from returned parts
         let mut errors = {
-            match parts
-                .remove_first_of_kind(PartKind::Error)
-                .map(Part::into_arg)
-            {
+            match parts.remove_first_of_kind(PartKind::Error) {
                 None => {
                     // No error part found, regular reply evaluation happens elsewhere
                     return Ok(());
                 }
-                Some(argument) => {
-                    if let Argument::Error(server_errors) = argument {
-                        let (warnings, errors): (Vec<ServerError>, Vec<ServerError>) =
-                            server_errors
-                                .into_iter()
-                                .partition(|se| &Severity::Warning == se.severity());
-                        self.warnings = warnings;
-                        if errors.is_empty() {
-                            // Only warnings, so return Ok(())
-                            return Ok(());
-                        } else {
-                            errors
-                        }
+                Some(Part::Error(server_errors)) => {
+                    let (warnings, errors): (Vec<ServerError>, Vec<ServerError>) = server_errors
+                        .into_iter()
+                        .partition(|se| &Severity::Warning == se.severity());
+                    self.warnings = warnings;
+                    if errors.is_empty() {
+                        // Only warnings, so return Ok(())
+                        return Ok(());
                     } else {
-                        unreachable!("129837938423")
+                        errors
                     }
                 }
+                _ => unreachable!("129837938423"),
             }
         };
 
@@ -330,20 +316,19 @@ impl<'a> ConnectionCore {
         let mut o_rows_affected = None;
         parts.reverse(); // digest with pop
         while let Some(part) = parts.pop() {
-            let (kind, arg) = part.into_elements();
-            match arg {
-                Argument::StatementContext(ref stmt_ctx) => {
+            match part {
+                Part::StatementContext(ref stmt_ctx) => {
                     self.evaluate_statement_context(stmt_ctx)?;
                 }
-                Argument::TransactionFlags(ta_flags) => {
+                Part::TransactionFlags(ta_flags) => {
                     self.evaluate_ta_flags(ta_flags)?;
                 }
-                Argument::ExecutionResult(vec) => {
+                Part::ExecutionResult(vec) => {
                     o_rows_affected = Some(vec);
                 }
-                arg => warn!(
-                    "Reply::handle_db_error(): ignoring unexpected part of kind {:?}, arg = {:?}",
-                    kind, arg
+                part => warn!(
+                    "Reply::handle_db_error(): ignoring unexpected part of kind {:?}",
+                    part.kind()
                 ),
             }
         }
@@ -385,19 +370,19 @@ impl<'a> ConnectionCore {
             let session_id = self.session_id();
             let nsn = self.next_seq_number();
             match self.tcp_conn {
-                TcpConn::SyncPlain(ref pc) => {
+                TcpClient::SyncPlain(ref pc) => {
                     let writer = &mut *(pc.writer()).borrow_mut();
-                    request.emit(session_id, nsn, 0, None, writer)?;
+                    request.emit(session_id, nsn, false, None, writer)?;
                     writer.flush()?;
                 }
-                TcpConn::SyncSecure(ref sc) => {
+                TcpClient::SyncTls(ref sc) => {
                     let writer = &mut *(sc.writer()).borrow_mut();
-                    request.emit(session_id, nsn, 0, None, writer)?;
+                    request.emit(session_id, nsn, false, None, writer)?;
                     writer.flush()?;
                 }
                 #[cfg(feature = "alpha_nonblocking")]
-                TcpConn::OtherSyncSecure(ref mut tc) => {
-                    request.emit(session_id, nsn, 0, None, tc)?;
+                TcpClient::SyncNonblockingTls(ref mut tc) => {
+                    request.emit(session_id, nsn, false, None, tc)?;
                     tc.flush()?;
                 }
             }

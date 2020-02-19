@@ -1,9 +1,11 @@
 //! Connection parameters
-use crate::conn::cp_url;
+use super::cp_url;
 use crate::{ConnectParamsBuilder, HdbError, HdbResult, IntoConnectParams};
+use rustls::ClientConfig;
 use secstr::SecStr;
-use std::fs;
 use std::path::Path;
+use std::path::PathBuf;
+use std::sync::Arc;
 
 /// An immutable struct with all information necessary to open a new connection
 /// to a HANA database.
@@ -56,6 +58,8 @@ use std::path::Path;
 ///   certificates
 /// > `use_mozillas_root_certificates` (no value): use the root certificates from
 ///   [`https://mkcert.org/`](https://mkcert.org/)
+/// > `insecure_omit_server_certificate_check` (no value): lets the driver omit the validation of
+///   the server's identity. Don't use this option in productive setups!
 ///
 ///
 /// The client locale is used in language-dependent handling within the SAP HANA
@@ -112,7 +116,7 @@ impl ConnectParams {
     /// # Errors
     /// `HdbError::ConnParams`
     pub fn from_file<P: AsRef<Path>>(path: P) -> HdbResult<Self> {
-        fs::read_to_string(path)
+        std::fs::read_to_string(path)
             .map_err(|e| HdbError::ConnParams {
                 source: Box::new(e),
             })?
@@ -157,6 +161,94 @@ impl ConnectParams {
     /// The client locale.
     pub fn clientlocale(&self) -> Option<&str> {
         self.clientlocale.as_ref().map(String::as_str)
+    }
+
+    pub(crate) fn rustls_clientconfig(&self) -> std::io::Result<ClientConfig> {
+        let mut config = ClientConfig::new();
+        for server_cert in self.server_certs() {
+            match server_cert {
+                ServerCerts::None => {
+                    config
+                        .dangerous()
+                        .set_certificate_verifier(Arc::new(NoCertificateVerification {}));
+                }
+                ServerCerts::RootCertificates => {
+                    config
+                        .root_store
+                        .add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);
+                }
+                ServerCerts::Direct(pem) => {
+                    let mut cursor = std::io::Cursor::new(pem);
+                    let (n_ok, n_err) = config
+                        .root_store
+                        .add_pem_file(&mut cursor)
+                        .unwrap_or((0, 0));
+                    if n_ok == 0 {
+                        info!("None of the directly provided server certificates was accepted");
+                    } else if n_err > 0 {
+                        info!("Not all directly provided server certificates were accepted");
+                    }
+                }
+                ServerCerts::Environment(env_var) => match std::env::var(env_var) {
+                    Ok(value) => {
+                        let mut cursor = std::io::Cursor::new(value);
+                        let (n_ok, n_err) = config
+                            .root_store
+                            .add_pem_file(&mut cursor)
+                            .unwrap_or((0, 0));
+                        if n_ok == 0 {
+                            info!("None of the env-provided server certificates was accepted");
+                        } else if n_err > 0 {
+                            info!("Not all env-provided server certificates were accepted");
+                        }
+                    }
+                    Err(e) => {
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::InvalidInput,
+                            format!("Environment variable {} not found, reason: {}", env_var, e),
+                        ));
+                    }
+                },
+                ServerCerts::Directory(trust_anchor_dir) => {
+                    #[allow(clippy::filter_map)]
+                    let trust_anchor_files: Vec<PathBuf> = std::fs::read_dir(trust_anchor_dir)?
+                        .filter_map(Result::ok)
+                        .filter(|dir_entry| {
+                            dir_entry.file_type().is_ok()
+                                && dir_entry.file_type().unwrap().is_file()
+                        })
+                        .filter(|dir_entry| {
+                            let path = dir_entry.path();
+                            let ext = path.extension();
+                            Some(AsRef::<std::ffi::OsStr>::as_ref("pem")) == ext
+                        })
+                        .map(|dir_entry| dir_entry.path())
+                        .collect();
+                    let mut t_ok = 0;
+                    let mut t_err = 0;
+                    for trust_anchor_file in trust_anchor_files {
+                        trace!("Trying trust anchor file {:?}", trust_anchor_file);
+                        let mut rd =
+                            std::io::BufReader::new(std::fs::File::open(trust_anchor_file)?);
+                        let (n_ok, n_err) =
+                            config.root_store.add_pem_file(&mut rd).map_err(|_| {
+                                std::io::Error::new(
+                                    std::io::ErrorKind::InvalidInput,
+                                    "server certificates in directory could not be parsed",
+                                )
+                            })?;
+                        t_ok += n_ok;
+                        t_err += n_err;
+                    }
+                    if t_ok == 0 {
+                        warn!("None of the server certificates in the directory was accepted");
+                    } else if t_err > 0 {
+                        warn!("Not all server certificates in the directory were accepted");
+                    }
+                }
+            }
+        }
+        Ok(config)
     }
 
     fn option_string(&self) -> String {
@@ -236,6 +328,20 @@ impl std::fmt::Display for ServerCerts {
         }
     }
 }
+
+struct NoCertificateVerification {}
+impl rustls::ServerCertVerifier for NoCertificateVerification {
+    fn verify_server_cert(
+        &self,
+        _roots: &rustls::RootCertStore,
+        _presented_certs: &[rustls::Certificate],
+        _dns_name: webpki::DNSNameRef<'_>,
+        _ocsp: &[u8],
+    ) -> Result<rustls::ServerCertVerified, rustls::TLSError> {
+        Ok(rustls::ServerCertVerified::assertion())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::IntoConnectParams;

@@ -1,6 +1,5 @@
 use crate::conn::AmConnCore;
 use crate::hdb_response::InternalReturnValue;
-use crate::protocol::argument::Argument;
 use crate::protocol::part::Part;
 use crate::protocol::partkind::PartKind;
 use crate::protocol::parts::hdb_value::HdbValue;
@@ -207,10 +206,7 @@ impl<'a> PreparedStatement {
 
             let mut request = Request::new(RequestType::Execute, HOLD_CURSORS_OVER_COMMIT);
 
-            request.push(Part::new(
-                PartKind::StatementId,
-                Argument::StatementId(ps_core_guard.statement_id),
-            ));
+            request.push(Part::StatementId(ps_core_guard.statement_id));
 
             // If readers were provided, pick them out and replace them with None
             let mut readers: Vec<(HdbValue, TypeId)> = vec![];
@@ -229,10 +225,7 @@ impl<'a> PreparedStatement {
 
             let mut par_rows = ParameterRows::new();
             par_rows.push_hdb_values(hdb_values, &self.a_descriptors)?;
-            request.push(Part::new(
-                PartKind::Parameters,
-                Argument::Parameters(par_rows),
-            ));
+            request.push(Part::Parameters(par_rows));
 
             if ps_core_guard
                 .am_conn_core
@@ -241,10 +234,7 @@ impl<'a> PreparedStatement {
                 .get_implicit_lob_streaming()
                 .unwrap_or(false)
             {
-                request.push(Part::new(
-                    PartKind::LobFlags,
-                    Argument::LobFlags(LobFlags::for_implicit_streaming()),
-                ));
+                request.push(Part::LobFlags(LobFlags::for_implicit_streaming()));
             }
 
             let mut main_reply = ps_core_guard.am_conn_core.full_send_sync(
@@ -260,13 +250,16 @@ impl<'a> PreparedStatement {
             // will be received with the response to the last input-LOB transfer-roundtrip.
             let write_lob_reply = main_reply
                 .parts
-                .remove_first_of_kind(PartKind::WriteLobReply)
-                .map(Part::into_arg);
+                .remove_first_of_kind(PartKind::WriteLobReply);
 
-            let (mut internal_return_values, replytype) =
-                main_reply.into_internal_return_values(&mut ps_core_guard.am_conn_core, None)?;
+            let (mut internal_return_values, replytype) = (
+                main_reply
+                    .parts
+                    .into_internal_return_values(&mut ps_core_guard.am_conn_core, None)?,
+                main_reply.replytype,
+            );
 
-            if let Some(Argument::WriteLobReply(wlr)) = write_lob_reply {
+            if let Some(Part::WriteLobReply(wlr)) = write_lob_reply {
                 let locator_ids = wlr.into_locator_ids();
                 if locator_ids.len() != readers.len() {
                     return Err(HdbError::UsageDetailed(format!(
@@ -375,12 +368,9 @@ impl<'a> PreparedStatement {
 
         let mut ps_core_guard = self.am_ps_core.lock()?;
         let mut request = Request::new(RequestType::Execute, HOLD_CURSORS_OVER_COMMIT);
-        request.push(Part::new(
-            PartKind::StatementId,
-            Argument::StatementId(ps_core_guard.statement_id),
-        ));
+        request.push(Part::StatementId(ps_core_guard.statement_id));
         if let Some(rows) = o_rows {
-            request.push(Part::new(PartKind::Parameters, Argument::Parameters(rows)));
+            request.push(Part::Parameters(rows));
         }
 
         let (mut internal_return_values, replytype) = ps_core_guard
@@ -412,39 +402,36 @@ impl<'a> PreparedStatement {
     // Prepare a statement.
     pub(crate) fn try_new(mut am_conn_core: AmConnCore, stmt: &str) -> HdbResult<Self> {
         let mut request = Request::new(RequestType::Prepare, HOLD_CURSORS_OVER_COMMIT);
-        request.push(Part::new(PartKind::Command, Argument::Command(stmt)));
+        request.push(Part::Command(stmt));
 
-        let mut reply = am_conn_core.send_sync(request)?;
+        let reply = am_conn_core.send_sync(request)?;
 
-        // ParameterMetadata, ResultSetMetadata
-        // StatementContext, StatementId,
-        // TableLocation, TransactionFlags,
         let mut o_table_location: Option<Vec<i32>> = None;
         let mut o_stmt_id: Option<u64> = None;
         let mut a_descriptors: Arc<ParameterDescriptors> = Arc::new(ParameterDescriptors::new());
         let mut o_a_rsmd: Option<Arc<ResultSetMetadata>> = None;
         let mut server_usage = ServerUsage::default();
 
-        while !reply.parts.is_empty() {
-            match reply.parts.pop_arg() {
-                Some(Argument::ParameterMetadata(descriptors)) => {
+        for part in reply.parts.into_iter() {
+            match part {
+                Part::ParameterMetadata(descriptors) => {
                     a_descriptors = Arc::new(descriptors);
                 }
-                Some(Argument::StatementId(id)) => {
+                Part::StatementId(id) => {
                     o_stmt_id = Some(id);
                 }
-                Some(Argument::TransactionFlags(ta_flags)) => {
+                Part::TransactionFlags(ta_flags) => {
                     let mut guard = am_conn_core.lock()?;
                     (*guard).evaluate_ta_flags(ta_flags)?;
                 }
-                Some(Argument::TableLocation(vec_i)) => {
+                Part::TableLocation(vec_i) => {
                     o_table_location = Some(vec_i);
                 }
-                Some(Argument::ResultSetMetadata(rs_md)) => {
+                Part::ResultSetMetadata(rs_md) => {
                     o_a_rsmd = Some(Arc::new(rs_md));
                 }
 
-                Some(Argument::StatementContext(ref stmt_ctx)) => {
+                Part::StatementContext(ref stmt_ctx) => {
                     let mut guard = am_conn_core.lock()?;
                     (*guard).evaluate_statement_context(stmt_ctx)?;
                     server_usage.update(
@@ -453,7 +440,7 @@ impl<'a> PreparedStatement {
                         stmt_ctx.server_memory_usage(),
                     );
                 }
-                x => warn!("prepare(): Unexpected reply part found {:?}", x),
+                x => warn!("try_new(): Unexpected reply part found {:?}", x),
             }
         }
 
@@ -484,13 +471,10 @@ impl<'a> PreparedStatement {
 }
 
 impl Drop for PreparedStatementCore {
-    /// Frees all server-side ressources that belong to this prepared statement.
+    /// Frees all server-side resources that belong to this prepared statement.
     fn drop(&mut self) {
         let mut request = Request::new(RequestType::DropStatementId, 0);
-        request.push(Part::new(
-            PartKind::StatementId,
-            Argument::StatementId(self.statement_id),
-        ));
+        request.push(Part::StatementId(self.statement_id));
         if let Ok(mut reply) = self.am_conn_core.send_sync(request) {
             reply.parts.pop_if_kind(PartKind::StatementContext);
         }

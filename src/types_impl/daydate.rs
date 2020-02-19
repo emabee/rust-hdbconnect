@@ -82,7 +82,7 @@ impl DayDate {
 
 pub(crate) fn parse_daydate(
     nullable: bool,
-    rdr: &mut dyn std::io::BufRead,
+    rdr: &mut dyn std::io::Read,
 ) -> std::io::Result<HdbValue<'static>> {
     let i = rdr.read_i32::<LittleEndian>()?;
     if i == NULL_REPRESENTATION {

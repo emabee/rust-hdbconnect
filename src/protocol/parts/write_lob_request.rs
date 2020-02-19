@@ -17,7 +17,7 @@ impl<'a> WriteLobRequest<'a> {
             last_data,
         }
     }
-    pub fn emit<T: std::io::Write>(&self, w: &mut T) -> std::io::Result<()> {
+    pub fn emit(&self, w: &mut dyn std::io::Write) -> std::io::Result<()> {
         // 1: NULL (not used here), 2: DATA_INCLUDED, 4: LASTDATA
         let options = if self.last_data { 6 } else { 2 };
         w.write_u64::<LittleEndian>(self.locator_id)?;

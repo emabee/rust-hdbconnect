@@ -7,7 +7,7 @@ impl AuthFields {
     pub fn with_capacity(count: usize) -> Self {
         Self(Vec::<AuthField>::with_capacity(count))
     }
-    pub fn parse<T: std::io::BufRead>(rdr: &mut T) -> std::io::Result<Self> {
+    pub fn parse(rdr: &mut dyn std::io::Read) -> std::io::Result<Self> {
         let field_count = rdr.read_u16::<LittleEndian>()? as usize; // I2
         let mut auth_fields: Self = Self(Vec::<AuthField>::with_capacity(field_count));
         for _ in 0..field_count {
@@ -28,7 +28,7 @@ impl AuthFields {
         size
     }
 
-    pub fn emit<T: std::io::Write>(&self, w: &mut T) -> std::io::Result<()> {
+    pub fn emit(&self, w: &mut dyn std::io::Write) -> std::io::Result<()> {
         #[allow(clippy::cast_possible_truncation)]
         #[allow(clippy::cast_possible_wrap)]
         w.write_i16::<LittleEndian>(self.0.len() as i16)?;
@@ -58,7 +58,7 @@ impl AuthField {
     }
 
     #[allow(clippy::cast_possible_truncation)]
-    fn emit<T: std::io::Write>(&self, w: &mut T) -> std::io::Result<()> {
+    fn emit(&self, w: &mut dyn std::io::Write) -> std::io::Result<()> {
         match self.0.len() {
             l if l <= 250_usize => w.write_u8(l as u8)?, // B1: length of value
             l if l <= 65_535_usize => {
@@ -80,7 +80,7 @@ impl AuthField {
         1 + self.0.len()
     }
 
-    fn parse<T: std::io::BufRead>(rdr: &mut T) -> std::io::Result<Self> {
+    fn parse(rdr: &mut dyn std::io::Read) -> std::io::Result<Self> {
         let mut len = rdr.read_u8()? as usize; // B1
         match len {
             255 => {

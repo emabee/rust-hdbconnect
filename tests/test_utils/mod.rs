@@ -7,9 +7,9 @@ use hdbconnect::{
 };
 
 // const DB: &str = "./.private/2_0.db";
-const DB: &str = "./.private/2_3.db";
+// const DB: &str = "./.private/2_3.db";
 // const DB: &str = "./.private/C5_02.db";
-// const DB: &str = "./.private/C5_02_insecure.db";
+const DB: &str = "./.private/C5_02_insecure.db";
 // const DB: &str = "./.private/C5_02_insecure_nonblocking.db";
 
 // Returns a logger that prints out all info, warn and error messages.

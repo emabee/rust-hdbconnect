@@ -1,6 +1,5 @@
 use crate::conn::AmConnCore;
 use crate::hdb_response::InternalReturnValue;
-use crate::protocol::argument::Argument;
 use crate::protocol::part::Part;
 use crate::protocol::partkind::PartKind;
 use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
@@ -72,10 +71,7 @@ impl<'a> LobWriter<'a> {
             LobWriteMode::Append(buf) => WriteLobRequest::new(self.locator_id, -1_i64, buf, false),
             LobWriteMode::Last(buf) => WriteLobRequest::new(self.locator_id, -1_i64, buf, true),
         };
-        request.push(Part::new(
-            PartKind::WriteLobRequest,
-            Argument::WriteLobRequest(write_lob_request),
-        ));
+        request.push(Part::WriteLobRequest(write_lob_request));
 
         let reply = self.am_conn_core.full_send_sync(
             request,
@@ -98,85 +94,60 @@ impl<'a> LobWriter<'a> {
         }
     }
 
-    fn evaluate_write_lob_reply(&mut self, mut reply: Reply) -> HdbResult<Vec<u64>> {
-        let (server_proc_time, server_cpu_time, server_memory_usage) = match reply
-            .parts
-            .pop_if_kind(PartKind::StatementContext)
-            .map(Part::into_arg)
-        {
-            Some(Argument::StatementContext(stmt_ctx)) => (
-                stmt_ctx.server_processing_time(),
-                stmt_ctx.server_cpu_time(),
-                stmt_ctx.server_memory_usage(),
-            ),
-            None => (None, None, None),
-            _ => {
-                return Err(HdbError::Impl(
-                    "Inconsistent StatementContext part found for ResultSet",
-                ));
-            }
-        };
-        self.server_usage
-            .update(server_proc_time, server_cpu_time, server_memory_usage);
+    fn evaluate_write_lob_reply(&mut self, reply: Reply) -> HdbResult<Vec<u64>> {
+        let mut result = None;
 
-        if let Some(Argument::TransactionFlags(ta_flags)) = reply
-            .parts
-            .pop_if_kind(PartKind::TransactionFlags)
-            .map(Part::into_arg)
-        {
-            if ta_flags.is_committed() {
-                trace!("is committed");
-            } else {
-                trace!("is not committed");
+        for part in reply.parts.into_iter() {
+            match part {
+                Part::StatementContext(stmt_ctx) => {
+                    self.server_usage.update(
+                        stmt_ctx.server_processing_time(),
+                        stmt_ctx.server_cpu_time(),
+                        stmt_ctx.server_memory_usage(),
+                    );
+                }
+                Part::TransactionFlags(ta_flags) => {
+                    if ta_flags.is_committed() {
+                        trace!("is committed");
+                    } else {
+                        trace!("is not committed");
+                    }
+                }
+                Part::ExecutionResult(_) => {
+                    //todo can we do better than just ignore this?
+                }
+                Part::WriteLobReply(write_lob_reply) => {
+                    result = Some(write_lob_reply.into_locator_ids());
+                }
+
+                _ => warn!(
+                    "evaluate_write_lob_reply: unexpected part {:?}",
+                    part.kind()
+                ),
             }
         }
 
-        if let Some(Argument::ExecutionResult(_)) = reply
-            .parts
-            .pop_if_kind(PartKind::ExecutionResult)
-            .map(Part::into_arg)
-        {
-            //todo can we do better than just ignore this?
-        }
-
-        match reply
-            .parts
-            .pop_if_kind(PartKind::WriteLobReply)
-            .map(Part::into_arg)
-        {
-            Some(Argument::WriteLobReply(write_lob_reply)) => {
-                Ok(write_lob_reply.into_locator_ids())
-            }
-            _ => Err(HdbError::ImplDetailed(format!(
-                "No WriteLobReply part found; parts = {:?}",
-                reply.parts
-            ))),
-        }
+        result.ok_or(HdbError::Impl("No WriteLobReply part found"))
     }
 
     fn evaluate_dbprocedure_call_reply(&mut self, mut reply: Reply) -> HdbResult<Vec<u64>> {
-        let (server_proc_time, server_cpu_time, server_memory_usage) = match reply
-            .parts
-            .pop_if_kind(PartKind::StatementContext)
-            .map(Part::into_arg)
-        {
-            Some(Argument::StatementContext(stmt_ctx)) => (
-                stmt_ctx.server_processing_time(),
-                stmt_ctx.server_cpu_time(),
-                stmt_ctx.server_memory_usage(),
-            ),
-            None => (None, None, None),
-            _ => {
-                return Err(HdbError::Impl("Inconsistent StatementContext found"));
-            }
-        };
+        let (server_proc_time, server_cpu_time, server_memory_usage) =
+            match reply.parts.pop_if_kind(PartKind::StatementContext) {
+                Some(Part::StatementContext(stmt_ctx)) => (
+                    stmt_ctx.server_processing_time(),
+                    stmt_ctx.server_cpu_time(),
+                    stmt_ctx.server_memory_usage(),
+                ),
+                None => (None, None, None),
+                _ => {
+                    return Err(HdbError::Impl("Inconsistent StatementContext found"));
+                }
+            };
         self.server_usage
             .update(server_proc_time, server_cpu_time, server_memory_usage);
 
-        if let Some(Argument::TransactionFlags(ta_flags)) = reply
-            .parts
-            .pop_if_kind(PartKind::TransactionFlags)
-            .map(Part::into_arg)
+        if let Some(Part::TransactionFlags(ta_flags)) =
+            reply.parts.pop_if_kind(PartKind::TransactionFlags)
         {
             if ta_flags.is_committed() {
                 trace!("is committed");
@@ -185,18 +156,15 @@ impl<'a> LobWriter<'a> {
             }
         }
 
-        let locator_ids = match reply
-            .parts
-            .pop_if_kind(PartKind::WriteLobReply)
-            .map(Part::into_arg)
-        {
-            Some(Argument::WriteLobReply(write_lob_reply)) => write_lob_reply.into_locator_ids(),
+        let locator_ids = match reply.parts.pop_if_kind(PartKind::WriteLobReply) {
+            Some(Part::WriteLobReply(write_lob_reply)) => write_lob_reply.into_locator_ids(),
             _ => Vec::default(),
         };
 
         reply.parts.remove_first_of_kind(PartKind::WriteLobReply);
 
-        let (internal_return_values, _) = reply
+        let internal_return_values = reply
+            .parts
             .into_internal_return_values(&mut self.am_conn_core, Some(&mut self.server_usage))?;
 
         self.proc_result = Some(internal_return_values);

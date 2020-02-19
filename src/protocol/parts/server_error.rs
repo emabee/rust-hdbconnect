@@ -100,9 +100,9 @@ impl ServerError {
     }
 
     #[allow(clippy::cast_sign_loss)]
-    pub(crate) fn parse<T: std::io::BufRead>(
+    pub(crate) fn parse(
         no_of_args: usize,
-        rdr: &mut T,
+        rdr: &mut dyn std::io::Read,
     ) -> std::io::Result<Vec<Self>> {
         let mut server_errors = Vec::<Self>::new();
         for _i in 0..no_of_args {

@@ -1,5 +1,4 @@
-pub mod plain_connection;
+pub mod plain_tcp_client;
 #[cfg(feature = "alpha_nonblocking")]
-pub mod rustls_connection;
-pub mod tls_connection;
-mod tls_stream;
+pub mod tls_nonblocking_client;
+pub mod tls_tcp_client;
