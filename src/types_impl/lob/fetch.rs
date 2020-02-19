@@ -1,7 +1,6 @@
 use crate::conn::AmConnCore;
-use crate::protocol::argument::Argument;
 use crate::protocol::part::Part;
-use crate::protocol::partkind::PartKind;
+use crate::protocol::parts::read_lob_reply::ReadLobReply;
 use crate::protocol::parts::read_lob_request::ReadLobRequest;
 use crate::protocol::reply_type::ReplyType;
 use crate::protocol::request::Request;
@@ -19,44 +18,33 @@ pub(crate) fn fetch_a_lob_chunk(
 ) -> HdbResult<(Vec<u8>, bool)> {
     let mut request = Request::new(RequestType::ReadLob, 0);
     let offset = offset + 1;
-    request.push(Part::new(
-        PartKind::ReadLobRequest,
-        Argument::ReadLobRequest(ReadLobRequest::new(locator_id, offset, length)),
-    ));
+    request.push(Part::ReadLobRequest(ReadLobRequest::new(
+        locator_id, offset, length,
+    )));
 
-    let mut reply = am_conn_core.send_sync(request)?;
+    let reply = am_conn_core.send_sync(request)?;
     reply.assert_expected_reply_type(ReplyType::ReadLob)?;
 
-    let (reply_data, reply_is_last_data) = match reply
-        .parts
-        .pop_if_kind(PartKind::ReadLobReply)
-        .map(Part::into_arg)
-    {
-        Some(Argument::ReadLobReply(read_lob_reply)) => {
-            if *read_lob_reply.locator_id() != locator_id {
-                return Err(HdbError::Impl("locator ids do not match"));
+    let mut o_read_lob_reply = None;
+    for part in reply.parts.into_iter() {
+        match part {
+            Part::ReadLobReply(read_lob_reply) => {
+                if *read_lob_reply.locator_id() != locator_id {
+                    return Err(HdbError::Impl("locator ids do not match"));
+                }
+                o_read_lob_reply = Some(read_lob_reply);
             }
-            read_lob_reply.into_data_and_last()
-        }
-        _ => return Err(HdbError::Impl("No ReadLobReply part found")),
-    };
 
-    let (server_proc_time, server_cpu_time, server_memory_usage) = match reply
-        .parts
-        .pop_if_kind(PartKind::StatementContext)
-        .map(Part::into_arg)
-    {
-        Some(Argument::StatementContext(stmt_ctx)) => (
-            stmt_ctx.server_processing_time(),
-            stmt_ctx.server_cpu_time(),
-            stmt_ctx.server_memory_usage(),
-        ),
-        None => (None, None, None),
-        _ => {
-            return Err(HdbError::Impl("Inconsistent StatementContext found"));
+            Part::StatementContext(stmt_ctx) => server_usage.update(
+                stmt_ctx.server_processing_time(),
+                stmt_ctx.server_cpu_time(),
+                stmt_ctx.server_memory_usage(),
+            ),
+            _ => warn!("Weweew"),
         }
-    };
-    server_usage.update(server_proc_time, server_cpu_time, server_memory_usage);
+    }
 
-    Ok((reply_data, reply_is_last_data))
+    o_read_lob_reply
+        .map(ReadLobReply::into_data_and_last)
+        .ok_or(HdbError::Impl("dsdadasd"))
 }

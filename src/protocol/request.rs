@@ -1,12 +1,11 @@
 //! Since there is obviously no usecase for multiple segments in one request,
 //! we model message and segment together.
 //! But we differentiate explicitly between request messages and reply messages.
-use super::argument::Argument;
-use super::part::{Part, Parts};
-use super::partkind::PartKind;
-use super::request_type::RequestType;
+use crate::protocol::part::Part;
 use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
 use crate::protocol::parts::statement_context::StatementContext;
+use crate::protocol::parts::Parts;
+use crate::protocol::request_type::RequestType;
 use byteorder::{LittleEndian, WriteBytesExt};
 use std::sync::Arc;
 
@@ -46,10 +45,7 @@ impl<'a> Request<'a> {
             "Sending StatementContext with sequence_info = {:?}",
             ssi_value
         );
-        self.push(Part::new(
-            PartKind::StatementContext,
-            Argument::StatementContext(stmt_ctx),
-        ));
+        self.push(Part::StatementContext(stmt_ctx));
     }
 
     #[allow(clippy::cast_possible_truncation)]

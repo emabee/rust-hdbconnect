@@ -1,5 +1,4 @@
 use crate::conn::AmConnCore;
-use crate::protocol::argument::Argument;
 use crate::protocol::part::Part;
 use crate::protocol::partkind::PartKind;
 use crate::protocol::parts::xat_options::XatOptions;
@@ -85,16 +84,13 @@ impl CResourceManager for HdbCResourceManager {
 
         let mut xat_options = XatOptions::default();
         xat_options.set_flags(flags);
-        request.push(Part::new(
-            PartKind::XatOptions,
-            Argument::XatOptions(xat_options),
-        ));
+        request.push(Part::XatOptions(xat_options));
 
         let mut reply: Reply = self.am_conn_core.send_sync(request)?;
         while !reply.parts.is_empty() {
             reply.parts.drop_parts_of_kind(PartKind::StatementContext);
-            match reply.parts.pop_arg() {
-                Some(Argument::XatOptions(xat_options)) => {
+            match reply.parts.pop() {
+                Some(Part::XatOptions(xat_options)) => {
                     return Ok(xat_options.get_transactions()?);
                 }
                 Some(part) => warn!("recover: found unexpected part {:?}", part),
@@ -176,19 +172,12 @@ impl HdbCResourceManager {
         }
 
         let mut request = Request::new(request_type, 0);
-        request.push(Part::new(
-            PartKind::XatOptions,
-            Argument::XatOptions(xat_options),
-        ));
+        request.push(Part::XatOptions(xat_options));
 
         let mut reply = self.am_conn_core.send_sync(request)?;
 
         reply.parts.drop_parts_of_kind(PartKind::StatementContext);
-        if let Some(Argument::XatOptions(xat_options)) = reply
-            .parts
-            .pop_if_kind(PartKind::XatOptions)
-            .map(Part::into_arg)
-        {
+        if let Some(Part::XatOptions(xat_options)) = reply.parts.pop_if_kind(PartKind::XatOptions) {
             debug!("received xat_options: {:?}", xat_options);
             return Ok(xat_options.get_returncode());
         }

@@ -1,12 +1,10 @@
 use crate::conn::AmConnCore;
 use crate::hdb_response::InternalReturnValue;
-use crate::protocol::argument::Argument;
-use crate::protocol::part::{Part, Parts};
-use crate::protocol::part_attributes::PartAttributes;
+use crate::protocol::part::Part;
 use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
-use crate::protocol::parts::resultset::ResultSet;
 use crate::protocol::parts::resultset::RsState;
 use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
+use crate::protocol::parts::Parts;
 use crate::protocol::reply_type::ReplyType;
 use crate::protocol::server_usage::ServerUsage;
 use crate::protocol::util;
@@ -85,85 +83,15 @@ impl Reply {
 
     // digest parts, collect InternalReturnValues
     pub fn into_internal_return_values(
-        mut self,
+        self,
         am_conn_core: &mut AmConnCore,
-        mut o_additional_server_usage: Option<&mut ServerUsage>,
+        o_additional_server_usage: Option<&mut ServerUsage>,
     ) -> HdbResult<(Vec<InternalReturnValue>, ReplyType)> {
-        let mut conn_core = am_conn_core.lock()?;
-        let mut int_return_values = Vec::<InternalReturnValue>::new();
-        self.parts.reverse(); // digest the last part first
-        while let Some(part) = self.parts.pop() {
-            let (kind, arg) = part.into_elements();
-            debug!("Reply::into_hdbresponse(): found part of kind {:?}", kind);
-            match arg {
-                Argument::StatementContext(ref stmt_ctx) => {
-                    (*conn_core).evaluate_statement_context(stmt_ctx)?;
-                    if let Some(ref mut server_usage) = o_additional_server_usage {
-                        server_usage.update(
-                            stmt_ctx.server_processing_time(),
-                            stmt_ctx.server_cpu_time(),
-                            stmt_ctx.server_memory_usage(),
-                        );
-                    }
-                }
-                Argument::TransactionFlags(ta_flags) => {
-                    (*conn_core).evaluate_ta_flags(ta_flags)?;
-                }
-
-                Argument::OutputParameters(op) => {
-                    int_return_values.push(InternalReturnValue::OutputParameters(op));
-                }
-                Argument::ParameterMetadata(pm) => {
-                    int_return_values.push(InternalReturnValue::ParameterMetadata(Arc::new(pm)));
-                }
-                Argument::ResultSet(Some(rs)) => {
-                    int_return_values.push(InternalReturnValue::ResultSet(rs));
-                }
-                Argument::ResultSetMetadata(rsmd) => {
-                    if let Some(part) = self.parts.pop() {
-                        match part.into_arg() {
-                            Argument::ResultSetId(rs_id) => {
-                                let rs = ResultSet::new(
-                                    am_conn_core,
-                                    PartAttributes::new(0b_0000_0100),
-                                    rs_id,
-                                    Arc::new(rsmd),
-                                    None,
-                                );
-                                int_return_values.push(InternalReturnValue::ResultSet(rs));
-                            }
-                            _ => panic!("impossible: wrong Argument variant: ResultSetID expected"),
-                        }
-                    } else {
-                        return Err(HdbError::Impl("Missing required part ResultSetID"));
-                    }
-                }
-                Argument::ExecutionResult(vec_er) => {
-                    int_return_values.push(InternalReturnValue::ExecutionResults(vec_er));
-                }
-                Argument::WriteLobReply(wlr) => {
-                    int_return_values.push(InternalReturnValue::WriteLobReply(wlr));
-                }
-                _ => warn!(
-                    "Reply::into_hdbresponse(): \
-                     ignoring unexpected part of kind {:?}, , arg = {:?}, reply-type is {:?}",
-                    kind, arg, self.replytype
-                ),
-            }
-        }
-        Ok((int_return_values, self.replytype))
-    }
-}
-
-impl Drop for Reply {
-    fn drop(&mut self) {
-        for part in self.parts.ref_inner() {
-            warn!(
-                "reply of type {:?} is dropped, not all parts were evaluated: part-kind = {:?}",
-                self.replytype,
-                part.kind()
-            );
-        }
+        Ok((
+            self.parts
+                .into_internal_return_values(am_conn_core, o_additional_server_usage)?,
+            self.replytype,
+        ))
     }
 }
 

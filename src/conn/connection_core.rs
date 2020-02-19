@@ -1,6 +1,5 @@
 use crate::conn::{initial_request, AmConnCore, ConnectParams, SessionState, TcpConn};
-use crate::protocol::argument::Argument;
-use crate::protocol::part::{Part, Parts};
+use crate::protocol::part::Part;
 use crate::protocol::partkind::PartKind;
 use crate::protocol::parts::client_info::ClientInfo;
 use crate::protocol::parts::connect_options::ConnectOptions;
@@ -12,6 +11,7 @@ use crate::protocol::parts::server_error::{ServerError, Severity};
 use crate::protocol::parts::statement_context::StatementContext;
 use crate::protocol::parts::topology::Topology;
 use crate::protocol::parts::transactionflags::TransactionFlags;
+use crate::protocol::parts::Parts;
 use crate::protocol::reply::Reply;
 use crate::protocol::request::Request;
 use crate::protocol::server_usage::ServerUsage;
@@ -298,31 +298,24 @@ impl<'a> ConnectionCore {
 
         // Retrieve errors from returned parts
         let mut errors = {
-            match parts
-                .remove_first_of_kind(PartKind::Error)
-                .map(Part::into_arg)
-            {
+            match parts.remove_first_of_kind(PartKind::Error) {
                 None => {
                     // No error part found, regular reply evaluation happens elsewhere
                     return Ok(());
                 }
-                Some(argument) => {
-                    if let Argument::Error(server_errors) = argument {
-                        let (warnings, errors): (Vec<ServerError>, Vec<ServerError>) =
-                            server_errors
-                                .into_iter()
-                                .partition(|se| &Severity::Warning == se.severity());
-                        self.warnings = warnings;
-                        if errors.is_empty() {
-                            // Only warnings, so return Ok(())
-                            return Ok(());
-                        } else {
-                            errors
-                        }
+                Some(Part::Error(server_errors)) => {
+                    let (warnings, errors): (Vec<ServerError>, Vec<ServerError>) = server_errors
+                        .into_iter()
+                        .partition(|se| &Severity::Warning == se.severity());
+                    self.warnings = warnings;
+                    if errors.is_empty() {
+                        // Only warnings, so return Ok(())
+                        return Ok(());
                     } else {
-                        unreachable!("129837938423")
+                        errors
                     }
                 }
+                _ => unreachable!("129837938423"),
             }
         };
 
@@ -330,20 +323,19 @@ impl<'a> ConnectionCore {
         let mut o_rows_affected = None;
         parts.reverse(); // digest with pop
         while let Some(part) = parts.pop() {
-            let (kind, arg) = part.into_elements();
-            match arg {
-                Argument::StatementContext(ref stmt_ctx) => {
+            match part {
+                Part::StatementContext(ref stmt_ctx) => {
                     self.evaluate_statement_context(stmt_ctx)?;
                 }
-                Argument::TransactionFlags(ta_flags) => {
+                Part::TransactionFlags(ta_flags) => {
                     self.evaluate_ta_flags(ta_flags)?;
                 }
-                Argument::ExecutionResult(vec) => {
+                Part::ExecutionResult(vec) => {
                     o_rows_affected = Some(vec);
                 }
-                arg => warn!(
-                    "Reply::handle_db_error(): ignoring unexpected part of kind {:?}, arg = {:?}",
-                    kind, arg
+                part => warn!(
+                    "Reply::handle_db_error(): ignoring unexpected part of kind {:?}",
+                    part.kind()
                 ),
             }
         }

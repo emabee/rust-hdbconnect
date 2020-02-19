@@ -205,7 +205,7 @@ impl<'a> HdbValue<'a> {
         Ok(is_null)
     }
 
-    // is used to calculate the argument size (in emit)
+    // is used to calculate the part size (in emit)
     pub(crate) fn size(&self, type_id: TypeId) -> std::io::Result<usize> {
         Ok(1 + match self {
             HdbValue::NOTHING | HdbValue::NULL => 0,

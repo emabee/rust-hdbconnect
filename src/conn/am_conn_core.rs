@@ -1,9 +1,7 @@
 use super::connection_core::ConnectionCore;
 use crate::conn::ConnectParams;
 use crate::hdb_error::HdbResult;
-use crate::protocol::argument::Argument;
 use crate::protocol::part::Part;
-use crate::protocol::partkind::PartKind;
 use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
 use crate::protocol::parts::resultset::RsState;
 use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
@@ -50,10 +48,7 @@ impl AmConnCore {
         }
 
         if conn_core.is_client_info_touched() {
-            request.push(Part::new(
-                PartKind::ClientInfo,
-                Argument::ClientInfo(conn_core.get_client_info_for_sending()),
-            ));
+            request.push(Part::ClientInfo(conn_core.get_client_info_for_sending()));
         }
 
         let reply = conn_core.roundtrip_sync(request, &self, o_a_rsmd, o_a_descriptors, o_rs)?;
