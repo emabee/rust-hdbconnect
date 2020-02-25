@@ -1,6 +1,11 @@
 # Changelog
 
-## [0.20.2] unpublished
+## [0.20.2] 2020-02-25
+
+### Fixes and Improvements
+
+Change serialization format of ConnectParamsBuilder to URL; the serialization to url
+includes all information except password.
 
 Some code maintenance.
 
@@ -95,7 +100,7 @@ Fix broken TLS feature.
 
 ## [0.15.0] 2019-02-25
 
-Change HdbValue::LOBSTREAM to LOBSTREAM(Option<Arc<Mutex<Read + Send>>>).
+Change `HdbValue::LOBSTREAM` to `LOBSTREAM(Option<Arc<Mutex<Read + Send>>>)`.
 
 Let PreparedStatement::execute_batch() work with empty batch if no input pars are required.
 

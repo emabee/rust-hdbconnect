@@ -16,7 +16,6 @@ use crate::protocol::reply::Reply;
 use crate::protocol::request::Request;
 use crate::protocol::server_usage::ServerUsage;
 use crate::{HdbError, HdbResult};
-use std::io::Write;
 use std::mem;
 use std::sync::Arc;
 
@@ -253,13 +252,11 @@ impl<'a> ConnectionCore {
         let auto_commit = self.is_auto_commit();
 
         match self.tcp_conn {
-            TcpClient::SyncPlain(ref pc) => {
-                let writer: &mut dyn Write = &mut *(pc.writer()).borrow_mut();
-                request.emit(session_id, nsn, auto_commit, o_a_descriptors, writer)?;
+            TcpClient::SyncPlain(ref mut pc) => {
+                request.emit(session_id, nsn, auto_commit, o_a_descriptors, pc.writer())?;
             }
-            TcpClient::SyncTls(ref sc) => {
-                let writer = &mut *(sc.writer()).borrow_mut();
-                request.emit(session_id, nsn, auto_commit, o_a_descriptors, writer)?;
+            TcpClient::SyncTls(ref mut tc) => {
+                request.emit(session_id, nsn, auto_commit, o_a_descriptors, tc.writer())?;
             }
             #[cfg(feature = "alpha_nonblocking")]
             TcpClient::SyncNonblockingTls(ref mut tc) => {
@@ -268,12 +265,12 @@ impl<'a> ConnectionCore {
         }
 
         let mut reply = match self.tcp_conn {
-            TcpClient::SyncPlain(ref pc) => {
-                let reader = &mut *(pc.reader()).borrow_mut();
+            TcpClient::SyncPlain(ref mut pc) => {
+                let reader = pc.reader();
                 Reply::parse(o_a_rsmd, o_a_descriptors, o_rs, Some(am_conn_core), reader)
             }
-            TcpClient::SyncTls(ref tc) => {
-                let reader = &mut *(tc.reader()).borrow_mut();
+            TcpClient::SyncTls(ref mut tc) => {
+                let reader = tc.reader();
                 Reply::parse(o_a_rsmd, o_a_descriptors, o_rs, Some(am_conn_core), reader)
             }
             #[cfg(feature = "alpha_nonblocking")]
@@ -370,20 +367,15 @@ impl<'a> ConnectionCore {
             let session_id = self.session_id();
             let nsn = self.next_seq_number();
             match self.tcp_conn {
-                TcpClient::SyncPlain(ref pc) => {
-                    let writer = &mut *(pc.writer()).borrow_mut();
-                    request.emit(session_id, nsn, false, None, writer)?;
-                    writer.flush()?;
+                TcpClient::SyncPlain(ref mut pc) => {
+                    request.emit(session_id, nsn, false, None, pc.writer())?;
                 }
-                TcpClient::SyncTls(ref sc) => {
-                    let writer = &mut *(sc.writer()).borrow_mut();
-                    request.emit(session_id, nsn, false, None, writer)?;
-                    writer.flush()?;
+                TcpClient::SyncTls(ref mut tc) => {
+                    request.emit(session_id, nsn, false, None, tc.writer())?;
                 }
                 #[cfg(feature = "alpha_nonblocking")]
-                TcpClient::SyncNonblockingTls(ref mut tc) => {
-                    request.emit(session_id, nsn, false, None, tc)?;
-                    tc.flush()?;
+                TcpClient::SyncNonblockingTls(ref mut nbtc) => {
+                    request.emit(session_id, nsn, false, None, nbtc)?;
                 }
             }
             trace!("Disconnect: request successfully sent");

@@ -2,14 +2,12 @@
 #![allow(dead_code)]
 
 use flexi_logger::{opt_format, Logger, ReconfigurationHandle};
-use hdbconnect::{
-    ConnectParamsBuilder, Connection, HdbError, HdbResult, IntoConnectParamsBuilder, ServerCerts,
-};
+use hdbconnect::{ConnectParamsBuilder, Connection, HdbError, HdbResult, ServerCerts};
 
 // const DB: &str = "./.private/2_0.db";
-// const DB: &str = "./.private/2_3.db";
+const DB: &str = "./.private/2_3.db";
 // const DB: &str = "./.private/C5_02.db";
-const DB: &str = "./.private/C5_02_insecure.db";
+// const DB: &str = "./.private/C5_02_insecure.db";
 // const DB: &str = "./.private/C5_02_insecure_nonblocking.db";
 
 // Returns a logger that prints out all info, warn and error messages.
@@ -63,20 +61,20 @@ fn cp_builder_from_file(purpose: &str) -> HdbResult<ConnectParamsBuilder> {
     })?;
 
     #[derive(Deserialize)]
-    struct Cred<'a> {
-        name: &'a str,
-        pw: &'a str,
+    struct Cred {
+        name: String,
+        pw: String,
     }
     #[derive(Deserialize)]
-    struct Db<'a> {
-        url: &'a str,
-        std: Cred<'a>,
-        um: Cred<'a>,
+    struct Db {
+        #[serde(rename = "url")]
+        cp_builder: ConnectParamsBuilder,
+        std: Cred,
+        um: Cred,
     }
 
     let db: Db = serde_json::from_str(&content).unwrap();
-    let (url, std, um) = (db.url, db.std, db.um);
-    let mut cp_builder = url.into_connect_params_builder()?;
+    let (mut cp_builder, std, um) = (db.cp_builder, db.std, db.um);
     match purpose {
         "std" => {
             cp_builder.dbuser(std.name).password(std.pw);

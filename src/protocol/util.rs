@@ -1,6 +1,5 @@
 use crate::types_impl::lob::CharLobSlice;
 use crate::{HdbError, HdbResult};
-use byteorder::ReadBytesExt;
 use cesu8;
 use std::iter::repeat;
 
@@ -22,10 +21,13 @@ pub fn parse_bytes(len: usize, rdr: &mut dyn std::io::Read) -> std::io::Result<V
 }
 
 pub fn skip_bytes(n: usize, rdr: &mut dyn std::io::Read) -> std::io::Result<()> {
-    for _ in 0..n {
-        rdr.read_u8()?;
+    const MAXBUFLEN: usize = 16;
+    if n > MAXBUFLEN {
+        Err(crate::protocol::util::io_error("impl: n > MAXBUFLEN (16)"))
+    } else {
+        let mut buffer = [0_u8; MAXBUFLEN];
+        rdr.read_exact(&mut buffer[0..n])
     }
-    Ok(())
 }
 
 // --- CESU8 Stuff --- //

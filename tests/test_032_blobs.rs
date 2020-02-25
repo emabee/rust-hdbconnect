@@ -106,7 +106,7 @@ fn test_blobs(
     assert_eq!(fingerprint, fingerprint2.as_slice());
 
     // try again with small lob-read-length
-    connection.set_lob_read_length(1024)?;
+    connection.set_lob_read_length(10_000)?;
     let before = connection.get_call_count()?;
     let resultset = connection.query(query)?;
     let second: MyData = resultset.try_into()?;
@@ -120,7 +120,7 @@ fn test_blobs(
     // stream a blob from the database into a sink
     info!("read big blob in streaming fashion");
 
-    connection.set_lob_read_length(200_000)?;
+    connection.set_lob_read_length(500_000)?;
 
     let query = "select bindata as BL1, bindata as BL2, bindata_NN as BL3 from TEST_BLOBS";
     let mut row = connection.query(query)?.into_single_row()?;
@@ -144,7 +144,7 @@ fn test_blobs(
 
     debug!("blob.max_buf_len(): {}", blob.max_buf_len());
     // std::io::copy works with 8MB, our buffer remains at about 200_000:
-    assert!(blob.max_buf_len() < 210_000);
+    assert!(blob.max_buf_len() < 510_000);
 
     info!("read from somewhere within");
     let mut blob: BLob = connection

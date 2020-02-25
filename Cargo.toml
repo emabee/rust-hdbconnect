@@ -1,6 +1,6 @@
 [package]
 name = "hdbconnect"
-version = "0.20.1"
+version = "0.20.2"
 authors = ["emabee <meinolf.block@sap.com>","Pascal Seitz <pascal.seitz@gmail.com>"]
 edition = "2018"
 license = "MIT/Apache-2.0"
@@ -30,6 +30,7 @@ ct-logs = {version = "0.6", optional = true}
 dist_tx = "0.2"
 hex = "0.4"
 hmac = "0.7.0"
+lazy_static = "1.4.0"
 log = "0.4"
 mio = {version = "0.6", optional = true}
 num = "0.2"

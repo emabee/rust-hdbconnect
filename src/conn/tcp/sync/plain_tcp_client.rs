@@ -1,12 +1,11 @@
 use crate::ConnectParams;
-use std::cell::RefCell;
 use std::net::TcpStream;
 
 #[derive(Debug)]
 pub struct PlainTcpClient {
     params: ConnectParams,
-    reader: RefCell<std::io::BufReader<TcpStream>>,
-    writer: RefCell<std::io::BufWriter<TcpStream>>,
+    reader: std::io::BufReader<TcpStream>,
+    writer: std::io::BufWriter<TcpStream>,
 }
 
 impl PlainTcpClient {
@@ -15,8 +14,8 @@ impl PlainTcpClient {
         let tcpstream = TcpStream::connect(params.addr())?;
         Ok(Self {
             params,
-            writer: RefCell::new(std::io::BufWriter::new(tcpstream.try_clone()?)),
-            reader: RefCell::new(std::io::BufReader::new(tcpstream)),
+            writer: std::io::BufWriter::new(tcpstream.try_clone()?),
+            reader: std::io::BufReader::new(tcpstream),
         })
     }
 
@@ -24,20 +23,19 @@ impl PlainTcpClient {
         &self.params
     }
 
-    pub fn writer(&self) -> &RefCell<std::io::BufWriter<TcpStream>> {
-        &self.writer
+    pub fn writer(&mut self) -> &mut std::io::BufWriter<TcpStream> {
+        &mut self.writer
     }
 
-    pub fn reader(&self) -> &RefCell<std::io::BufReader<TcpStream>> {
-        &self.reader
+    pub fn reader(&mut self) -> &mut std::io::BufReader<TcpStream> {
+        &mut self.reader
     }
 
     #[allow(dead_code)]
-    pub fn reconnect(&self) -> std::io::Result<()> {
+    pub fn reconnect(&mut self) -> std::io::Result<()> {
         let tcpstream = TcpStream::connect(self.params.addr())?;
-        self.writer
-            .replace(std::io::BufWriter::new(tcpstream.try_clone()?));
-        self.reader.replace(std::io::BufReader::new(tcpstream));
+        self.writer = std::io::BufWriter::new(tcpstream.try_clone()?);
+        self.reader = std::io::BufReader::new(tcpstream);
         Ok(())
     }
 }

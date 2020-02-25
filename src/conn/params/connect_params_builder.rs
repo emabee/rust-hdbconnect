@@ -1,4 +1,4 @@
-use crate::{ConnectParams, HdbError, HdbResult, ServerCerts};
+use crate::{ConnectParams, HdbError, HdbResult, IntoConnectParamsBuilder, ServerCerts};
 use secstr::SecStr;
 
 /// A builder for `ConnectParams`.
@@ -38,7 +38,8 @@ use secstr::SecStr;
 ///     .build()
 ///     .unwrap();
 /// ```
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+#[serde(into = "String")]
 pub struct ConnectParamsBuilder {
     hostname: Option<String>,
     port: Option<u16>,
@@ -89,6 +90,12 @@ impl ConnectParamsBuilder {
     /// Sets the password.
     pub fn password<P: AsRef<str>>(&mut self, pw: P) -> &mut Self {
         self.password = Some(SecStr::new(pw.as_ref().as_bytes().to_vec()));
+        self
+    }
+
+    /// Unsets the password.
+    pub fn unset_password(&mut self) -> &mut Self {
+        self.password = None;
         self
     }
 
@@ -218,9 +225,26 @@ impl ConnectParamsBuilder {
 
     fn get_options_as_parameters(&self) -> String {
         let mut result = String::with_capacity(200);
-        for (index, (key, value)) in self.options.iter().enumerate() {
+        for (index, s) in self
+            .options
+            .iter()
+            .map(|(k, v)| {
+                if v.is_empty() {
+                    k.clone()
+                } else {
+                    format!("{}={}", k, v)
+                }
+            })
+            .chain(self.server_certs.iter().map(ToString::to_string))
+            .chain(
+                self.clientlocale
+                    .iter()
+                    .map(|l| format!("{}={}", super::cp_url::OPTION_CLIENT_LOCALE, l)),
+            )
+            .enumerate()
+        {
             let prefix = if index == 0 { "?" } else { "&" };
-            result.push_str(&format!("{}{}={}", prefix, key, value));
+            result.push_str(&format!("{}{}", prefix, s));
         }
         result
     }
@@ -261,6 +285,38 @@ impl ConnectParamsBuilder {
     }
 }
 
+impl<'de> serde::de::Deserialize<'de> for ConnectParamsBuilder {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::de::Deserializer<'de>,
+    {
+        let visitor = Visitor();
+        deserializer.deserialize_str(visitor)
+    }
+}
+
+struct Visitor();
+impl<'de> serde::de::Visitor<'de> for Visitor {
+    type Value = ConnectParamsBuilder;
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("a String in the form of a url")
+    }
+
+    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        IntoConnectParamsBuilder::into_connect_params_builder(v).map_err(E::custom)
+    }
+}
+
+impl Into<String> for ConnectParamsBuilder {
+    fn into(mut self) -> String {
+        self.unset_password();
+        self.to_url().unwrap()
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::super::into_connect_params_builder::IntoConnectParamsBuilder;
@@ -290,14 +346,14 @@ mod test {
                 .port(2222)
                 .dbuser("MEIER")
                 .password("schLau")
-                .clientlocale("CL1");
+                .clientlocale("de_DE");
             builder.tls_with(crate::ServerCerts::Directory("TCD".to_string()));
             builder.tls_with(crate::ServerCerts::RootCertificates);
 
             let params = builder.build().unwrap();
             assert_eq!("MEIER", params.dbuser());
             assert_eq!(b"schLau", params.password().unsecure());
-            assert_eq!(Some("CL1"), params.clientlocale());
+            assert_eq!(Some("de_DE"), params.clientlocale());
             assert_eq!(
                 ServerCerts::Directory("TCD".to_string()),
                 *params.server_certs().get(0).unwrap()
@@ -318,5 +374,36 @@ mod test {
             assert_eq!(None, builder.get_clientlocale());
             assert!(builder.get_server_certs().is_empty());
         }
+    }
+
+    #[test]
+    fn serde_test() {
+        #[derive(Serialize, Deserialize, Debug)]
+        struct Data {
+            x: ConnectParamsBuilder,
+        }
+
+        let mut data = Data {
+            x: ConnectParamsBuilder::new(),
+        };
+        data.x
+            .hostname("abcd123")
+            .port(2222)
+            .dbuser("MEIER")
+            .password("schLau")
+            .clientlocale("de_DE")
+            .tls_with(crate::ServerCerts::Directory("TCD".to_string()))
+            .tls_with(crate::ServerCerts::RootCertificates);
+
+        let serialized = serde_json::to_string(&data).unwrap();
+        assert_eq!(
+            r#"{"x":"hdbsqls://MEIER@abcd123:2222?tls_certificate_dir=TCD&use_mozillas_root_certificates&client_locale=de_DE"}"#,
+            serialized
+        );
+
+        let deserialized: Data = serde_json::from_str(&serialized).unwrap();
+        assert_ne!(data.x, deserialized.x);
+        data.x.unset_password();
+        assert_eq!(data.x, deserialized.x);
     }
 }
