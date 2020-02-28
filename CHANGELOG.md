@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.20.3] 2020-02-28
+
+Add value conversions from Strings to number types (using `std::fmt::Display`)
+and from number types to Strings (using `parse()`).
+
 ## [0.20.2] 2020-02-25
 
 ### Fixes and Improvements

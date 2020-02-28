@@ -45,6 +45,9 @@ impl DbvFactory for &ParameterDescriptor {
                     BigDecimal::from_i8(value).ok_or_else(|| decimal_range(input_type))?,
                 )
             }
+            TypeId::VARCHAR | TypeId::NVARCHAR | TypeId::TEXT | TypeId::SHORTTEXT => {
+                HdbValue::STRING(format!("{}", value))
+            }
             _ => return Err(type_mismatch(input_type, self.descriptor())),
         })
     }
@@ -65,6 +68,9 @@ impl DbvFactory for &ParameterDescriptor {
                 HdbValue::DECIMAL(
                     BigDecimal::from_i16(value).ok_or_else(|| decimal_range(input_type))?,
                 )
+            }
+            TypeId::VARCHAR | TypeId::NVARCHAR | TypeId::TEXT | TypeId::SHORTTEXT => {
+                HdbValue::STRING(format!("{}", value))
             }
             _ => return Err(type_mismatch(input_type, self.descriptor())),
         })
@@ -91,6 +97,9 @@ impl DbvFactory for &ParameterDescriptor {
             }
             TypeId::DAYDATE => HdbValue::DAYDATE(DayDate::new(value)),
             TypeId::SECONDTIME => HdbValue::SECONDTIME(SecondTime::new(value)),
+            TypeId::VARCHAR | TypeId::NVARCHAR | TypeId::TEXT | TypeId::SHORTTEXT => {
+                HdbValue::STRING(format!("{}", value))
+            }
             _ => return Err(type_mismatch(input_type, self.descriptor())),
         })
     }
@@ -120,6 +129,9 @@ impl DbvFactory for &ParameterDescriptor {
                     BigDecimal::from_i64(value).ok_or_else(|| decimal_range(input_type))?,
                 )
             }
+            TypeId::VARCHAR | TypeId::NVARCHAR | TypeId::TEXT | TypeId::SHORTTEXT => {
+                HdbValue::STRING(format!("{}", value))
+            }
             _ => return Err(type_mismatch(input_type, self.descriptor())),
         })
     }
@@ -136,6 +148,9 @@ impl DbvFactory for &ParameterDescriptor {
                 HdbValue::DECIMAL(
                     BigDecimal::from_u8(value).ok_or_else(|| decimal_range(input_type))?,
                 )
+            }
+            TypeId::VARCHAR | TypeId::NVARCHAR | TypeId::TEXT | TypeId::SHORTTEXT => {
+                HdbValue::STRING(format!("{}", value))
             }
             _ => return Err(type_mismatch(input_type, self.descriptor())),
         })
@@ -159,6 +174,9 @@ impl DbvFactory for &ParameterDescriptor {
                 HdbValue::DECIMAL(
                     BigDecimal::from_u16(value).ok_or_else(|| decimal_range(input_type))?,
                 )
+            }
+            TypeId::VARCHAR | TypeId::NVARCHAR | TypeId::TEXT | TypeId::SHORTTEXT => {
+                HdbValue::STRING(format!("{}", value))
             }
             _ => return Err(type_mismatch(input_type, self.descriptor())),
         })
@@ -186,6 +204,9 @@ impl DbvFactory for &ParameterDescriptor {
                 HdbValue::DECIMAL(
                     BigDecimal::from_u32(value).ok_or_else(|| decimal_range(input_type))?,
                 )
+            }
+            TypeId::VARCHAR | TypeId::NVARCHAR | TypeId::TEXT | TypeId::SHORTTEXT => {
+                HdbValue::STRING(format!("{}", value))
             }
             _ => return Err(type_mismatch(input_type, self.descriptor())),
         })
@@ -216,6 +237,9 @@ impl DbvFactory for &ParameterDescriptor {
                     BigDecimal::from_u64(value).ok_or_else(|| decimal_range(input_type))?,
                 )
             }
+            TypeId::VARCHAR | TypeId::NVARCHAR | TypeId::TEXT | TypeId::SHORTTEXT => {
+                HdbValue::STRING(format!("{}", value))
+            }
             _ => return Err(type_mismatch(input_type, self.descriptor())),
         })
     }
@@ -231,6 +255,9 @@ impl DbvFactory for &ParameterDescriptor {
                     BigDecimal::from_f32(value).ok_or_else(|| decimal_range(input_type))?,
                 )
             }
+            TypeId::VARCHAR | TypeId::NVARCHAR | TypeId::TEXT | TypeId::SHORTTEXT => {
+                HdbValue::STRING(format!("{}", value))
+            }
             _ => return Err(type_mismatch("f32", self.descriptor())),
         })
     }
@@ -245,6 +272,9 @@ impl DbvFactory for &ParameterDescriptor {
                 HdbValue::DECIMAL(
                     BigDecimal::from_f64(value).ok_or_else(|| decimal_range(input_type))?,
                 )
+            }
+            TypeId::VARCHAR | TypeId::NVARCHAR | TypeId::TEXT | TypeId::SHORTTEXT => {
+                HdbValue::STRING(format!("{}", value))
             }
             _ => return Err(type_mismatch("f64", self.descriptor())),
         })

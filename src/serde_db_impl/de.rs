@@ -10,6 +10,8 @@ use serde_db::de::{
     ConversionError, DbValue, DbValueInto, DeserializableResultset, DeserializableRow,
     DeserializationError, DeserializationResult,
 };
+use std::num::ParseFloatError;
+use std::num::ParseIntError;
 use std::{fmt, i16, i32, i64, i8, u16, u32, u8};
 
 impl DeserializableResultset for ResultSet {
@@ -94,6 +96,11 @@ impl DbValueInto<bool> for HdbValue<'static> {
             | HdbValue::SMALLINT(1)
             | HdbValue::INT(1)
             | HdbValue::BIGINT(1) => Ok(true),
+            HdbValue::STRING(ref s) => match s.as_ref() {
+                "true" | "TRUE" | "True" => Ok(true),
+                "false" | "FALSE" | "False" => Ok(false),
+                _ => Err(wrong_type(&self, "bool")),
+            },
             HdbValue::TINYINT(0)
             | HdbValue::SMALLINT(0)
             | HdbValue::INT(0)
@@ -113,6 +120,7 @@ impl DbValueInto<u8> for HdbValue<'static> {
             HdbValue::INT(i) => Ok(num::cast(i).ok_or_else(|| number_range(i64::from(i), "u8"))?),
             HdbValue::BIGINT(i) => Ok(num::cast(i).ok_or_else(|| number_range(i, "u8"))?),
             HdbValue::DECIMAL(bigdec) => bigdec.to_u8().ok_or_else(|| decimal_range("u8")),
+            HdbValue::STRING(s) => s.parse().map_err(|e: ParseIntError| parse_int_err(&e)),
             value => Err(wrong_type(&value, "u8")),
         }
     }
@@ -128,6 +136,7 @@ impl DbValueInto<u16> for HdbValue<'static> {
             HdbValue::INT(i) => Ok(num::cast(i).ok_or_else(|| number_range(i64::from(i), "u16"))?),
             HdbValue::BIGINT(i) => Ok(num::cast(i).ok_or_else(|| number_range(i, "u16"))?),
             HdbValue::DECIMAL(bigdec) => bigdec.to_u16().ok_or_else(|| decimal_range("u16")),
+            HdbValue::STRING(s) => s.parse().map_err(|e: ParseIntError| parse_int_err(&e)),
             value => Err(wrong_type(&value, "u16")),
         }
     }
@@ -143,6 +152,7 @@ impl DbValueInto<u32> for HdbValue<'static> {
             HdbValue::INT(i) => Ok(num::cast(i).ok_or_else(|| number_range(i64::from(i), "u32"))?),
             HdbValue::BIGINT(i) => Ok(num::cast(i).ok_or_else(|| number_range(i, "u32"))?),
             HdbValue::DECIMAL(bigdec) => bigdec.to_u32().ok_or_else(|| decimal_range("u32")),
+            HdbValue::STRING(s) => s.parse().map_err(|e: ParseIntError| parse_int_err(&e)),
             value => Err(wrong_type(&value, "u32")),
         }
     }
@@ -158,6 +168,7 @@ impl DbValueInto<u64> for HdbValue<'static> {
             HdbValue::INT(i) => Ok(num::cast(i).ok_or_else(|| number_range(i64::from(i), "u64"))?),
             HdbValue::BIGINT(i) => Ok(num::cast(i).ok_or_else(|| number_range(i, "u64"))?),
             HdbValue::DECIMAL(bigdec) => bigdec.to_u64().ok_or_else(|| decimal_range("u64")),
+            HdbValue::STRING(s) => s.parse().map_err(|e: ParseIntError| parse_int_err(&e)),
             value => Err(wrong_type(&value, "u64")),
         }
     }
@@ -175,6 +186,7 @@ impl DbValueInto<i8> for HdbValue<'static> {
             HdbValue::INT(i) => Ok(num::cast(i).ok_or_else(|| number_range(i64::from(i), "i8"))?),
             HdbValue::BIGINT(i) => Ok(num::cast(i).ok_or_else(|| number_range(i, "i8"))?),
             HdbValue::DECIMAL(bigdec) => bigdec.to_i8().ok_or_else(|| decimal_range("i8")),
+            HdbValue::STRING(s) => s.parse().map_err(|e: ParseIntError| parse_int_err(&e)),
             value => Err(wrong_type(&value, "i8")),
         }
     }
@@ -188,6 +200,7 @@ impl DbValueInto<i16> for HdbValue<'static> {
             HdbValue::INT(i) => Ok(num::cast(i).ok_or_else(|| number_range(i64::from(i), "u8"))?),
             HdbValue::BIGINT(i) => Ok(num::cast(i).ok_or_else(|| number_range(i, "u8"))?),
             HdbValue::DECIMAL(bigdec) => bigdec.to_i16().ok_or_else(|| decimal_range("i16")),
+            HdbValue::STRING(s) => s.parse().map_err(|e: ParseIntError| parse_int_err(&e)),
             value => Err(wrong_type(&value, "i16")),
         }
     }
@@ -201,6 +214,7 @@ impl DbValueInto<i32> for HdbValue<'static> {
             HdbValue::INT(i) => Ok(i),
             HdbValue::BIGINT(i) => Ok(num::cast(i).ok_or_else(|| number_range(i, "i32"))?),
             HdbValue::DECIMAL(bigdec) => bigdec.to_i32().ok_or_else(|| decimal_range("i32")),
+            HdbValue::STRING(s) => s.parse().map_err(|e: ParseIntError| parse_int_err(&e)),
             value => Err(wrong_type(&value, "i32")),
         }
     }
@@ -216,6 +230,7 @@ impl DbValueInto<i64> for HdbValue<'static> {
             HdbValue::LONGDATE(ld) => Ok(*ld.ref_raw()),
             HdbValue::SECONDDATE(sd) => Ok(*sd.ref_raw()),
             HdbValue::DECIMAL(bigdec) => bigdec.to_i64().ok_or_else(|| decimal_range("i64")),
+            HdbValue::STRING(s) => s.parse().map_err(|e: ParseIntError| parse_int_err(&e)),
             value => Err(wrong_type(&value, "i64")),
         }
     }
@@ -226,6 +241,7 @@ impl DbValueInto<f32> for HdbValue<'static> {
         match self {
             HdbValue::DECIMAL(bigdec) => bigdec.to_f32().ok_or_else(|| decimal_range("f32")),
             HdbValue::REAL(f) => Ok(f),
+            HdbValue::STRING(s) => s.parse().map_err(|e: ParseFloatError| parse_float_err(&e)),
             value => Err(wrong_type(&value, "f32")),
         }
     }
@@ -236,6 +252,7 @@ impl DbValueInto<f64> for HdbValue<'static> {
         match self {
             HdbValue::DECIMAL(bigdec) => bigdec.to_f64().ok_or_else(|| decimal_range("f64")),
             HdbValue::DOUBLE(f) => Ok(f),
+            HdbValue::STRING(s) => s.parse().map_err(|e: ParseFloatError| parse_float_err(&e)),
             value => Err(wrong_type(&value, "f64")),
         }
     }
@@ -329,6 +346,14 @@ fn decimal_range(ovt: &str) -> ConversionError {
         "The given decimal value cannot be converted into a number of type {}",
         ovt
     ))
+}
+
+fn parse_int_err(e: &ParseIntError) -> ConversionError {
+    ConversionError::ValueType(e.to_string())
+}
+
+fn parse_float_err(e: &ParseFloatError) -> ConversionError {
+    ConversionError::ValueType(e.to_string())
 }
 
 /// Deserializes a `LongDate` into a String format.

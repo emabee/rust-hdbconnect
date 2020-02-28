@@ -1,6 +1,6 @@
 [package]
 name = "hdbconnect"
-version = "0.20.2"
+version = "0.20.3"
 authors = ["emabee <meinolf.block@sap.com>","Pascal Seitz <pascal.seitz@gmail.com>"]
 edition = "2018"
 license = "MIT/Apache-2.0"
@@ -56,7 +56,7 @@ webpki-roots = "0.19"
 [dev-dependencies]
 serde_bytes = "0.11"
 # flexi_logger = {path = "../flexi_logger"}
-flexi_logger = "0.14"
+flexi_logger = "0.15"
 version-sync = "0.8"
 # geo = "0.12"
 # geo-types = "0.4.1"

@@ -13,29 +13,40 @@ pub fn test_026_numbers_as_strings() -> HdbResult<()> {
     let start = std::time::Instant::now();
     let mut connection = test_utils::get_authenticated_connection()?;
 
-    evaluate_resultset(&mut log_handle, &mut connection)?;
+    setup(&mut log_handle, &mut connection)?;
+    test_table_with_integers(&mut log_handle, &mut connection)?;
+    test_table_with_floats(&mut log_handle, &mut connection)?;
+    test_table_with_strings(&mut log_handle, &mut connection)?;
 
     test_utils::closing_info(connection, start)
 }
 
-fn evaluate_resultset(
+fn setup(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -> HdbResult<()> {
+    debug!("prepare the db tables");
+    connection.multiple_statements_ignore_err(vec![
+        "drop table TEST_INTEGERS",
+        "drop table TEST_FLOATS",
+        "drop table TEST_STRINGS",
+    ]);
+    let stmts = vec![
+        "create table TEST_INTEGERS \
+            (f1 NVARCHAR(100) primary key, f2 TINYINT, f3 SMALLINT, f4 INTEGER, f5 BIGINT, \
+            f2_NN TINYINT NOT NULL, f3_NN SMALLINT NOT NULL, f4_NN INTEGER NOT NULL, \
+            f5_NN BIGINT NOT NULL)",
+        "create table TEST_FLOATS \
+            (f1 NVARCHAR(100) primary key, f2 REAL, F3 DOUBLE, \
+            f2_NN REAL NOT NULL, F3_NN DOUBLE NOT NULL)",
+        "create table TEST_STRINGS \
+            (f1 NVARCHAR(100) primary key, f2 NVARCHAR(20), F2_NN NVARCHAR(20) NOT NULL)",
+    ];
+    connection.multiple_statements(stmts)
+}
+
+fn test_table_with_integers(
     _log_handle: &mut ReconfigurationHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
-    info!("Read and write integer variables as numeric values and as Strings");
-    debug!("prepare the db table");
-    connection
-        .multiple_statements_ignore_err(vec!["drop table TEST_INTEGERS", "drop table TEST_FLOATS"]);
-    let stmts = vec![
-        "create table TEST_INTEGERS \
-         (f1 NVARCHAR(100) primary key, f2 TINYINT, f3 SMALLINT, f4 INTEGER, f5 BIGINT, \
-         f2_NN TINYINT NOT NULL, f3_NN SMALLINT NOT NULL, f4_NN INTEGER NOT NULL, \
-         f5_NN BIGINT NOT NULL)",
-        "create table TEST_FLOATS \
-         (f1 NVARCHAR(100) primary key, f2 REAL, F3 DOUBLE, \
-         f2_NN REAL NOT NULL, F3_NN DOUBLE NOT NULL)",
-    ];
-    connection.multiple_statements(stmts)?;
+    info!("Read and write integer table fields as numeric values and as Strings");
 
     debug!("test integers");
     let mut insert_stmt = connection.prepare(
@@ -77,8 +88,14 @@ fn evaluate_resultset(
         assert_eq!(row.0, row.7);
         assert_eq!(row.0, row.8);
     }
+    Ok(())
+}
 
-    debug!("test floats");
+fn test_table_with_floats(
+    _log_handle: &mut ReconfigurationHandle,
+    connection: &mut Connection,
+) -> HdbResult<()> {
+    info!("Read and write float table fields as numeric values and as Strings");
     let mut insert_stmt = connection
         .prepare("insert into TEST_FLOATS (f1, f2, f3, f2_NN, f3_NN) values(?, ?, ?, ?, ?)")?;
     insert_stmt.add_batch(&(
@@ -102,6 +119,38 @@ fn evaluate_resultset(
         assert_eq!(row.0, row.3);
         assert_eq!(row.0, row.4);
     }
+
+    Ok(())
+}
+
+fn test_table_with_strings(
+    _log_handle: &mut ReconfigurationHandle,
+    connection: &mut Connection,
+) -> HdbResult<()> {
+    info!("Read and write String table fields as numeric values");
+    let mut insert_stmt =
+        connection.prepare("insert into TEST_STRINGS (f1, f2, f2_NN) values(?, ?, ?)")?;
+    insert_stmt.add_batch(&("f32", 123.456_f32, 123.456_f32))?;
+    insert_stmt.add_batch(&("f64", 123.456_f64, 123.456_f64))?;
+    insert_stmt.add_batch(&("u8", 123_u8, 123_u8))?;
+    insert_stmt.add_batch(&("i64", 123_i64, 123_i64))?;
+    insert_stmt.execute_batch()?;
+
+    let _result: (String, f32, f32) = connection
+        .query("select * from TEST_STRINGS where f1 = 'f32'")?
+        .try_into()?;
+
+    let _result: (String, f64, f64) = connection
+        .query("select * from TEST_STRINGS where f1 = 'f64'")?
+        .try_into()?;
+
+    let _result: (String, u8, u8) = connection
+        .query("select * from TEST_STRINGS where f1 = 'u8'")?
+        .try_into()?;
+
+    let _result: (String, i64, i64) = connection
+        .query("select * from TEST_STRINGS where f1 = 'i64'")?
+        .try_into()?;
 
     Ok(())
 }
