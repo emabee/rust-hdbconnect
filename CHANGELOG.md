@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.20.4] 2020-03-02
+
+### API extension
+
+Add `Connection::client_info`.
+
 ## [0.20.3] 2020-02-28
 
 Add value conversions from Strings to number types (using `std::fmt::Display`)

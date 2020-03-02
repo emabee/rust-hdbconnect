@@ -24,15 +24,15 @@ impl<T: OptionId<T> + Debug + Eq + PartialEq + Hash> Default for OptionPart<T> {
 }
 
 impl<T: OptionId<T> + Debug + Eq + PartialEq + Hash> OptionPart<T> {
-    pub fn set_value(&mut self, id: T, value: OptionValue) -> Option<OptionValue> {
+    pub fn insert(&mut self, id: T, value: OptionValue) -> Option<OptionValue> {
         self.0.insert(id, value)
     }
 
-    pub fn get_value(&self, id: &T) -> Option<&OptionValue> {
+    pub fn get(&self, id: &T) -> Option<&OptionValue> {
         self.0.get(id)
     }
 
-    pub fn count(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.0.len()
     }
 
@@ -46,6 +46,10 @@ impl<T: OptionId<T> + Debug + Eq + PartialEq + Hash> OptionPart<T> {
 
     pub fn iter(&self) -> Iter<T, OptionValue> {
         self.0.iter()
+    }
+
+    pub fn remove_entry(&mut self, k: &T) -> Option<(T, OptionValue)> {
+        self.0.remove_entry(k)
     }
 
     pub fn emit(&self, w: &mut dyn std::io::Write) -> std::io::Result<()> {

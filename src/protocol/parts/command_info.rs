@@ -8,8 +8,8 @@ pub(crate) type CommandInfo = OptionPart<CommandInfoId>;
 impl CommandInfo {
     pub fn new(linenumber: i32, module: &str) -> Self {
         let mut ci = Self::default();
-        ci.set_value(CommandInfoId::LineNumber, OptionValue::INT(linenumber));
-        ci.set_value(
+        ci.insert(CommandInfoId::LineNumber, OptionValue::INT(linenumber));
+        ci.insert(
             CommandInfoId::SourceModule,
             OptionValue::STRING(module.to_string()),
         );

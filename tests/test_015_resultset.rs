@@ -137,6 +137,8 @@ fn verify_row_ordering(
     _log_handle: &mut ReconfigurationHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
+    _log_handle.parse_and_push_temp_spec("info");
+    // , hdbconnect::protocol::request = trace, hdbconnect::conn::tcp::sync::tls_tcp_client = debug
     info!("verify row ordering");
     // prepare the db table
     connection.multiple_statements_ignore_err(vec!["drop table TEST_ROW_ORDERING"]);
@@ -146,6 +148,7 @@ fn verify_row_ordering(
     let mut insert_stmt =
         connection.prepare("insert into TEST_ROW_ORDERING (f1, f2) values(?,?)")?;
 
+    debug!("insert data (one batch with 3000 lines)");
     for i in 0..3000 {
         insert_stmt.add_batch(&(i, i))?;
     }
@@ -157,6 +160,7 @@ fn verify_row_ordering(
         debug!("verify_row_ordering with fetch_size {}", *fetch_size);
         connection.set_fetch_size(*fetch_size).unwrap();
 
+        debug!("pass 1: query");
         for (index, row) in connection.query(query_str)?.enumerate() {
             let (f1, f2): (usize, usize) = row?.try_into()?;
             if index % 100 == 0 {
@@ -166,6 +170,7 @@ fn verify_row_ordering(
             assert_eq!(index, f2);
         }
 
+        debug!("pass 2: query");
         for (index, row) in connection.query(query_str)?.enumerate() {
             if index % 100 == 0 {
                 debug!("pass 2: convert fields individually, {}", index);
@@ -175,15 +180,17 @@ fn verify_row_ordering(
             assert_eq!(index, row.next_value().unwrap().try_into::<usize>()?);
         }
 
+        debug!("pass 3: query, and convert the whole resultset");
         let result: Vec<(usize, usize)> = connection.query(query_str)?.try_into()?;
         for (index, (f1, f2)) in result.into_iter().enumerate() {
             if index % 100 == 0 {
-                debug!("pass 3: convert the whole resultset, {}", index);
+                debug!("pass 3: loop over the resultset, {}", index);
             }
             assert_eq!(index, f1);
             assert_eq!(index, f2);
         }
     }
+    // _log_handle.pop_temp_spec();
 
     Ok(())
 }

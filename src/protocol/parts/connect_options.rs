@@ -12,7 +12,7 @@ impl ConnectOptions {
 
         let mut set_opt = |id: ConnOptId, value: OptionValue| {
             debug!("Sending ConnectionOption to server: {:?} = {:?}", id, value);
-            connopts.set_value(id, value);
+            connopts.insert(id, value);
         };
 
         // set_opt(ConnOptId::CompleteArrayExecution, OptionValue::BOOLEAN(true));
@@ -66,7 +66,7 @@ impl ConnectOptions {
                 | ConnOptId::ClientInfoNullValueOK
                 | ConnOptId::ClientReconnectWaitTimeout
                 | ConnOptId::FlagSet1 => {
-                    if let Some(old_value) = self.get_value(&k) {
+                    if let Some(old_value) = self.get(&k) {
                         if *old_value != v {
                             debug!(
                                 "Server changes ConnectionOption {:?} from value {:?} \
@@ -77,7 +77,7 @@ impl ConnectOptions {
                     } else {
                         debug!("Got from server ConnectionOption: {:?} = {:?}", k, v)
                     }
-                    self.set_value(k, v);
+                    self.insert(k, v);
                 }
                 k => {
                     warn!("Unexpected ConnectOption coming from server ({:?})", k);
@@ -88,7 +88,7 @@ impl ConnectOptions {
     }
 
     fn get_integer(&self, id: &ConnOptId, s: &str) -> Option<i32> {
-        match self.get_value(id) {
+        match self.get(id) {
             Some(&OptionValue::INT(i)) => Some(i),
             None => None,
             Some(ref ov) => {
@@ -98,7 +98,7 @@ impl ConnectOptions {
         }
     }
     fn get_string(&self, id: &ConnOptId, s: &str) -> Option<&str> {
-        match self.get_value(id) {
+        match self.get(id) {
             Some(&OptionValue::STRING(ref s)) => Some(s),
             None => None,
             Some(ref ov) => {
@@ -109,7 +109,7 @@ impl ConnectOptions {
     }
 
     fn get_bool(&self, id: &ConnOptId, s: &str) -> Option<bool> {
-        match self.get_value(id) {
+        match self.get(id) {
             Some(&OptionValue::BOOLEAN(b)) => Some(b),
             None => None,
             Some(ref ov) => {

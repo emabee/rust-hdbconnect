@@ -6,7 +6,7 @@ use std::env;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-// An Options part that is used by the client to specify client version, client
+// An Options part that is used by the client to specify the client version, client
 // type, and application name.
 pub(crate) type ClientContext = OptionPart<ClientContextId>;
 
@@ -14,15 +14,18 @@ impl ClientContext {
     pub fn new() -> Self {
         let mut cc: Self = Self::default();
 
-        cc.set_value(
+        cc.insert(
             ClientContextId::ClientVersion,
             OptionValue::STRING(VERSION.to_string()),
         );
-        cc.set_value(
+        cc.insert(
             ClientContextId::ClientType,
-            OptionValue::STRING("hdbconnect (rust native, see crates.io)".to_string()),
+            OptionValue::STRING(
+                "hdbconnect (rust native HANA driver, https://crates.io/crates/hdbconnect)"
+                    .to_string(),
+            ),
         );
-        cc.set_value(
+        cc.insert(
             ClientContextId::ClientApplicationProgramm,
             OptionValue::STRING(
                 env::args()
@@ -62,5 +65,28 @@ impl OptionId<ClientContextId> for ClientContextId {
                 Self::__Unexpected__(val)
             }
         }
+    }
+}
+
+impl std::fmt::Display for ClientContextId {
+    fn fmt(&self, w: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            w,
+            "{}",
+            match *self {
+                Self::ClientVersion => "ClientVersion",
+                Self::ClientType => "ClientType",
+                Self::ClientApplicationProgramm => "ClientApplicationProgram",
+                Self::__Unexpected__(val) => unreachable!("illegal value: {}", val),
+            }
+        )
+    }
+}
+
+#[cfg(test)]
+mod test {
+    #[test]
+    fn test_to_string() {
+        println!("{}", super::ClientContext::new())
     }
 }

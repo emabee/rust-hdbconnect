@@ -34,7 +34,7 @@ impl OptionId<LobFlagsId> for LobFlagsId {
 impl LobFlags {
     pub fn for_implicit_streaming() -> Self {
         let mut lob_flags = Self::default();
-        lob_flags.set_value(LobFlagsId::ImplicitStreaming, OptionValue::BOOLEAN(true));
+        lob_flags.insert(LobFlagsId::ImplicitStreaming, OptionValue::BOOLEAN(true));
         lob_flags
     }
 }

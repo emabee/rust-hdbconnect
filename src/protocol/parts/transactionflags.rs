@@ -58,7 +58,7 @@ impl OptionId<TaFlagId> for TaFlagId {
 
 impl TransactionFlags {
     pub fn is_committed(&self) -> bool {
-        match self.get_value(&TaFlagId::Committed) {
+        match self.get(&TaFlagId::Committed) {
             Some(OptionValue::BOOLEAN(b)) => *b,
             _ => false,
         }

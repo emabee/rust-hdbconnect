@@ -5,8 +5,8 @@ use flexi_logger::{opt_format, Logger, ReconfigurationHandle};
 use hdbconnect::{ConnectParamsBuilder, Connection, HdbError, HdbResult, ServerCerts};
 
 // const DB: &str = "./.private/2_0.db";
-const DB: &str = "./.private/2_3.db";
-// const DB: &str = "./.private/C5_02.db";
+// const DB: &str = "./.private/2_3.db";
+const DB: &str = "./.private/C5_02_secure.db";
 // const DB: &str = "./.private/C5_02_insecure.db";
 // const DB: &str = "./.private/C5_02_insecure_nonblocking.db";
 
@@ -38,7 +38,9 @@ pub fn closing_info(connection: Connection, start: std::time::Instant) -> HdbRes
 }
 
 pub fn get_authenticated_connection() -> HdbResult<Connection> {
-    Connection::new(get_std_cp_builder()?)
+    let connection = Connection::new(get_std_cp_builder()?)?;
+    log::info!("TESTING WITH {}", connection.connect_string().unwrap());
+    Ok(connection)
 }
 
 pub fn get_um_connection() -> HdbResult<Connection> {

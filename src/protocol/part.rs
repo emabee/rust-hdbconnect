@@ -117,16 +117,16 @@ impl<'a> Part<'a> {
             | Part::ReadLobRequest(_)
             | Part::WriteLobRequest(_) => 1,
             Part::ClientInfo(ref client_info) => client_info.count(),
-            Part::CommandInfo(ref opts) => opts.count(),
+            Part::CommandInfo(ref opts) => opts.len(),
             // Part::CommitOptions(ref opts) => opts.count(),
-            Part::ConnectOptions(ref opts) => opts.count(),
+            Part::ConnectOptions(ref opts) => opts.len(),
             // Part::FetchOptions(ref opts) => opts.count(),
-            Part::LobFlags(ref opts) => opts.count(),
+            Part::LobFlags(ref opts) => opts.len(),
             Part::Parameters(ref par_rows) => par_rows.count(),
-            Part::SessionContext(ref opts) => opts.count(),
-            Part::StatementContext(ref sc) => sc.count(),
-            Part::TransactionFlags(ref opts) => opts.count(),
-            Part::XatOptions(ref xat) => xat.count(),
+            Part::SessionContext(ref opts) => opts.len(),
+            Part::StatementContext(ref sc) => sc.len(),
+            Part::TransactionFlags(ref opts) => opts.len(),
+            Part::XatOptions(ref xat) => xat.len(),
             ref a => {
                 return Err(util::io_error(format!("count() called on {:?}", a)));
             }

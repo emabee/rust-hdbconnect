@@ -10,21 +10,21 @@ pub(crate) type StatementContext = OptionPart<StatementContextId>;
 
 impl StatementContext {
     pub fn statement_sequence_info(&self) -> Option<i64> {
-        match self.get_value(&StatementContextId::StatementSequenceInfo) {
+        match self.get(&StatementContextId::StatementSequenceInfo) {
             Some(&OptionValue::BIGINT(value)) => Some(value),
             _ => None,
         }
     }
 
     pub fn set_statement_sequence_info(&mut self, value: i64) {
-        self.set_value(
+        self.insert(
             StatementContextId::StatementSequenceInfo,
             OptionValue::BIGINT(value),
         );
     }
 
     pub fn server_processing_time(&self) -> Option<Duration> {
-        match self.get_value(&StatementContextId::ServerProcessingTime) {
+        match self.get(&StatementContextId::ServerProcessingTime) {
             Some(&OptionValue::BIGINT(value)) => {
                 Some(Duration::from_micros(value.try_into().unwrap_or(0)))
             }
@@ -33,7 +33,7 @@ impl StatementContext {
     }
 
     pub fn server_cpu_time(&self) -> Option<Duration> {
-        match self.get_value(&StatementContextId::ServerCPUTime) {
+        match self.get(&StatementContextId::ServerCPUTime) {
             Some(&OptionValue::BIGINT(value)) => {
                 Some(Duration::from_micros(value.try_into().unwrap_or(0)))
             }
@@ -42,7 +42,7 @@ impl StatementContext {
     }
 
     pub fn server_memory_usage(&self) -> Option<u64> {
-        match self.get_value(&StatementContextId::ServerMemoryUsage) {
+        match self.get(&StatementContextId::ServerMemoryUsage) {
             Some(&OptionValue::BIGINT(value)) => Some(value.try_into().unwrap_or(0)),
             _ => None,
         }

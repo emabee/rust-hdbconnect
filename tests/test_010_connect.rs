@@ -15,7 +15,7 @@ use std::time::Instant;
 pub fn test_010_connect() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     let start = Instant::now();
-    connect_successfully(&mut log_handle);
+    connect_successfully(&mut log_handle)?;
     connect_options(&mut log_handle)?;
     connect_wrong_credentials(&mut log_handle);
     connect_and_select_with_explicit_clientlocale(&mut log_handle)?;
@@ -26,12 +26,9 @@ pub fn test_010_connect() -> HdbResult<()> {
     Ok(())
 }
 
-fn connect_successfully(_log_handle: &mut ReconfigurationHandle) {
-    let conn = test_utils::get_authenticated_connection().unwrap();
-    info!(
-        "\n\n TESTING AGAINST {}\n\n",
-        conn.connect_string().unwrap()
-    );
+fn connect_successfully(_log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
+    test_utils::get_authenticated_connection()?;
+    Ok(())
 }
 
 fn connect_options(_log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
@@ -50,6 +47,11 @@ fn connect_options(_log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
         "Connection options: \n{}",
         connection.dump_connect_options()?
     );
+
+    debug!("Client info:");
+    for (k, v) in connection.client_info()? {
+        debug!("    {:?} = {:?}", k, v);
+    }
     _log_handle.pop_temp_spec();
     Ok(())
 }

@@ -1,7 +1,10 @@
 use crate::authentication;
 use crate::conn::AmConnCore;
 use crate::protocol::part::Part;
+use crate::protocol::parts::client_context::{ClientContext, ClientContextId};
 use crate::protocol::parts::command_info::CommandInfo;
+use crate::protocol::parts::connect_options::ConnOptId;
+use crate::protocol::parts::option_value::OptionValue;
 use crate::protocol::parts::resultset::ResultSet;
 use crate::protocol::parts::server_error::ServerError;
 use crate::protocol::request::{Request, HOLD_CURSORS_OVER_COMMIT};
@@ -535,6 +538,34 @@ impl Connection {
             .map(ToOwned::to_owned))
     }
 
+    /// Returns the information that is given to the server as client context.
+    /// # Errors
+    ///
+    /// Only `HdbError::Poison` can occur.
+    pub fn client_info(&self) -> HdbResult<Vec<(String, String)>> {
+        let mut result = Vec::<(String, String)>::with_capacity(7);
+        let mut cc = ClientContext::new();
+        for k in &[
+            ClientContextId::ClientType,
+            ClientContextId::ClientVersion,
+            ClientContextId::ClientApplicationProgramm,
+        ] {
+            if let Some((k, OptionValue::STRING(s))) = cc.remove_entry(&k) {
+                result.push((k.to_string(), s));
+            }
+        }
+
+        let conn_core = self.am_conn_core.lock()?;
+        let conn_opts = conn_core.connect_options();
+        if let Some(OptionValue::STRING(s)) = conn_opts.get(&ConnOptId::OSUser) {
+            result.push((format!("{:?}", ConnOptId::OSUser), s.clone()));
+        }
+        if let Some(OptionValue::INT(i)) = conn_opts.get(&ConnOptId::ConnectionID) {
+            result.push((format!("{:?}", ConnOptId::ConnectionID), i.to_string()));
+        }
+        Ok(result)
+    }
+
     /// Returns a connect url (excluding the password) that reflects the options that were
     /// used to establish this connection.
     ///
@@ -542,7 +573,7 @@ impl Connection {
     ///
     /// Only `HdbError::Poison` can occur.
     pub fn connect_string(&self) -> HdbResult<String> {
-        Ok((*self.am_conn_core.lock()?).connect_string())
+        Ok(self.am_conn_core.lock()?.connect_string())
     }
 
     /// HANA Full version string.

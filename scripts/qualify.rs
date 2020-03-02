@@ -56,6 +56,7 @@ fn main() {
     run_command!("cargo", "doc", "--no-deps", "--open");
 
     // Run tests in important variants
+    run_command!("cargo", "test", "--release");
     run_command!("cargo", "test");
 
     // check git status

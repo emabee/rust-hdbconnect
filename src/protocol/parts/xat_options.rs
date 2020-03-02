@@ -11,8 +11,8 @@ pub(crate) type XatOptions = OptionPart<XatOptionId>;
 
 impl XatOptions {
     pub fn set_xatid(&mut self, xat_id: &XaTransactionId) {
-        self.set_value(XatOptionId::NumberOfXid, OptionValue::BIGINT(1));
-        self.set_value(
+        self.insert(XatOptionId::NumberOfXid, OptionValue::BIGINT(1));
+        self.insert(
             XatOptionId::XidList,
             OptionValue::BSTRING(xat_id.as_bytes(true).unwrap(/* TODO */)),
         );
@@ -20,7 +20,7 @@ impl XatOptions {
 
     pub fn set_flags(&mut self, flag: Flags) {
         #[allow(clippy::cast_possible_wrap)]
-        self.set_value(XatOptionId::Flags, OptionValue::INT(flag.bits() as i32));
+        self.insert(XatOptionId::Flags, OptionValue::INT(flag.bits() as i32));
     }
 
     // pub fn set_count(&mut self, count: i64) {
