@@ -160,7 +160,7 @@ impl ConnectParams {
 
     /// The client locale.
     pub fn clientlocale(&self) -> Option<&str> {
-        self.clientlocale.as_ref().map(String::as_str)
+        self.clientlocale.as_deref()
     }
 
     pub(crate) fn rustls_clientconfig(&self) -> std::io::Result<ClientConfig> {

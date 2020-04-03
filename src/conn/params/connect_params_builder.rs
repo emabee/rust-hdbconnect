@@ -251,12 +251,12 @@ impl ConnectParamsBuilder {
 
     /// Getter
     pub fn get_hostname(&self) -> Option<&str> {
-        self.hostname.as_ref().map(String::as_str)
+        self.hostname.as_deref()
     }
 
     /// Getter
     pub fn get_dbuser(&self) -> Option<&str> {
-        self.dbuser.as_ref().map(String::as_str)
+        self.dbuser.as_deref()
     }
 
     /// Getter
@@ -271,7 +271,7 @@ impl ConnectParamsBuilder {
 
     /// Getter
     pub fn get_clientlocale(&self) -> Option<&str> {
-        self.clientlocale.as_ref().map(String::as_str)
+        self.clientlocale.as_deref()
     }
 
     /// Getter

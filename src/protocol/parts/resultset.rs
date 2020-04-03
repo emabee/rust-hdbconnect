@@ -61,7 +61,6 @@ pub struct ResultSet {
 #[derive(Debug)]
 pub(crate) struct RsState {
     o_am_rscore: Option<AmRsCore>,
-    o_am_pscore: Option<AmPsCore>,
     next_rows: Vec<Row>,
     row_iter: <Vec<Row> as IntoIterator>::IntoIter,
     server_usage: ServerUsage,
@@ -139,7 +138,6 @@ impl RsState {
         };
         if drop_rs_core {
             self.o_am_rscore = None;
-            self.o_am_pscore = None;
         }
         Ok(())
     }
@@ -190,6 +188,7 @@ impl RsState {
 #[derive(Debug)]
 pub struct ResultSetCore {
     am_conn_core: AmConnCore,
+    o_am_pscore: Option<AmPsCore>,
     attributes: PartAttributes,
     resultset_id: u64,
 }
@@ -202,9 +201,14 @@ impl ResultSetCore {
     ) -> Arc<Mutex<Self>> {
         Arc::new(Mutex::new(Self {
             am_conn_core: am_conn_core.clone(),
+            o_am_pscore: None,
             attributes,
             resultset_id,
         }))
+    }
+
+    fn inject_statement_id(&mut self, am_ps_core: AmPsCore) {
+        self.o_am_pscore = Some(am_ps_core);
     }
 }
 
@@ -395,7 +399,6 @@ impl ResultSet {
             metadata: a_rsmd,
             state: Arc::new(Mutex::new(RsState {
                 o_am_rscore: Some(ResultSetCore::new_am_rscore(am_conn_core, attrs, rs_id)),
-                o_am_pscore: None,
                 next_rows: Vec::<Row>::new(),
                 row_iter: Vec::<Row>::new().into_iter(),
                 server_usage,
@@ -511,7 +514,9 @@ impl ResultSet {
     }
 
     pub(crate) fn inject_statement_id(&mut self, am_ps_core: AmPsCore) -> HdbResult<()> {
-        self.state.lock()?.o_am_pscore = Some(am_ps_core);
+        if let Some(rs_core) = &(self.state.lock()?).o_am_rscore {
+            rs_core.lock()?.inject_statement_id(am_ps_core);
+        }
         Ok(())
     }
 }

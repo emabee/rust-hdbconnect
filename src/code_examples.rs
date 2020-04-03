@@ -78,16 +78,31 @@
 //!
 //! ## 2.3 Prepared statements
 //!
-//! With prepared statements, the code will look like this:
+//! With prepared statements you can use parameters in a database statement, and provide one or
+//! more sets of these parameters in separate API calls before executing the statement.
+//! A parameter set is provided as a reference to a rust value that implements
+//! `serde`'s `Serialize`,
+//! and the serialized field structure must be convertible into the expected parameter value types.
+//!
+//! Using a prepared statement could look like this:
 //!
 //! ```rust,no_run
+//! # #[macro_use] extern crate serde_derive;
+//! # use serde_derive::Serialize;
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
 //! # fn foo() -> HdbResult<()> {
 //! # let mut connection = Connection::new("...")?;
-//! let stmt_str = "insert into TEST_PREPARE (F_STRING, F_INTEGER) values(?, ?)";
-//! let mut stmt = connection.prepare(stmt_str)?;
-//! stmt.add_batch(&("foo", 45_i32))?;
-//! stmt.add_batch(&("bar", 46_i32))?;
+//! #[derive(Serialize)]
+//! struct Values{
+//!    s: &'static str,
+//!    i: i32,
+//! };
+//! let v1 = Values{s: "foo", i:45};
+//! let v2 = Values{s: "bar", i:46};
+//!
+//! let mut stmt = connection.prepare("insert into COUNTERS (S_KEY, I_VALUE) values(?, ?)")?;
+//! stmt.add_batch(&v1)?;
+//! stmt.add_batch(&v2)?;
 //! stmt.execute_batch()?;
 //! # Ok(())
 //! # }
@@ -99,9 +114,8 @@
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
 //! # fn foo() -> HdbResult<()> {
 //! # let mut connection = Connection::new("...")?;
-//! let stmt_str = "select NAME, CITY from TEST_TABLE where age > ?";
-//! let mut stmt = connection.prepare(stmt_str)?;
-//! stmt.add_batch(&(45_i32))?;
+//! let mut stmt = connection.prepare("select NAME, CITY from PEOPLE where iq > ? and age > ?")?;
+//! stmt.add_batch(&(100_u8, 45_i32))?;
 //! let resultset = stmt.execute_batch()?.into_resultset()?;
 //! # Ok(())
 //! # }
@@ -109,10 +123,10 @@
 //!
 //! # 3. Result set evaluation
 //!
-//! Some of the following examples use a method `try_into()`, on an individual [`HdbValue`],
+//! Some of the following examples use the method `try_into()`, on an individual [`HdbValue`],
 //! a [`Row`], or a [`ResultSet`].
-//! These methods use return type polymorphism (based on `serde`), which means that you
-//! need to specify explicitly the desired type of the return value.
+//! These methods are based on the deserialization part of `serde` and use return type polymorphism,
+//! which means that you need to specify explicitly the desired type of the return value.
 //!
 //! # 3.1 Iterating over rows
 //!
@@ -180,7 +194,7 @@
 //! # let qry = "";
 //! # let resultset = connection.query(qry)?;
 //! #[derive(Deserialize)]
-//! struct TestData {/* ...*/}
+//! struct TestData {/* ...*/};
 //! let qry = "select * from TEST_RESULTSET";
 //! for row in connection.query(qry)? {
 //!     let td: TestData = row?.try_into()?;

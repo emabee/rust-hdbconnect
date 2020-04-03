@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.20.5] 2020-04-02
+
+### Fixes and Improvements
+
+Improve ease-of-use for lob objects by letting lob objects keep their result set core object
+and their prepared statement core object alive until they are completely loaded.
+
 ## [0.20.4] 2020-03-02
 
 ### API extension

@@ -146,7 +146,7 @@ impl ParameterDescriptor {
 
     /// Returns the name of the parameter.
     pub fn name(&self) -> Option<&str> {
-        self.name.as_ref().map(String::as_str)
+        self.name.as_deref()
     }
 
     fn try_new(

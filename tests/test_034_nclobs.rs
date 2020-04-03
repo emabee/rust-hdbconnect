@@ -22,6 +22,7 @@ pub fn test_034_nclobs() -> HdbResult<()> {
     test_nclobs(&mut log_handle, &mut connection, &blabla, &fingerprint)?;
     test_streaming(&mut log_handle, &mut connection, blabla, &fingerprint)?;
     test_bytes_to_nclobs(&mut log_handle, &mut connection)?;
+    test_loblifecycle(&mut log_handle, &mut connection)?;
 
     test_utils::closing_info(connection, start)
 }
@@ -219,5 +220,45 @@ fn test_bytes_to_nclobs(
     assert_eq!(mydata.0, test_string);
     assert_eq!(mydata.1, test_string);
 
+    Ok(())
+}
+
+fn test_loblifecycle(
+    _log_handle: &mut flexi_logger::ReconfigurationHandle,
+    connection: &mut Connection,
+) -> HdbResult<()> {
+    connection.multiple_statements_ignore_err(vec!["drop table TEST_NCLOBS2"]);
+    let stmts = vec!["create table TEST_NCLOBS2 (desc NVARCHAR(20) not null, chardata NCLOB)"];
+    connection.multiple_statements(stmts)?;
+
+    let mut f = File::open("tests/smp-blabla.txt").expect("file not found");
+    let mut blabla = String::new();
+    f.read_to_string(&mut blabla).unwrap();
+
+    debug!("insert it into HANA");
+    {
+        let mut insert_stmt =
+            connection.prepare("insert into TEST_NCLOBS2 (desc, chardata) values (?,?)")?;
+        insert_stmt.add_batch(&("blabla 1", &blabla))?;
+        insert_stmt.add_batch(&("blabla 2", &blabla))?;
+        insert_stmt.add_batch(&("blabla 3", &blabla))?;
+        insert_stmt.add_batch(&("blabla 4", &blabla))?;
+        insert_stmt.add_batch(&("blabla 5", &blabla))?;
+        insert_stmt.execute_batch()?;
+    }
+
+    let lobs: Vec<hdbconnect::HdbValue> = {
+        let mut read_stmt =
+            connection.prepare("select chardata from TEST_NCLOBS2 where desc like ?")?;
+        let rs = read_stmt.execute(&"blabla %")?.into_resultset()?;
+        rs.map(|r| r.unwrap().next_value().unwrap()).collect()
+    };
+
+    debug!("Statements and Resultset are dropped");
+
+    for value in lobs.into_iter() {
+        info!("fetching a lob");
+        let _s: String = value.try_into()?;
+    }
     Ok(())
 }
