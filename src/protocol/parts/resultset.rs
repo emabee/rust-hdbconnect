@@ -34,7 +34,7 @@ pub(crate) type AmRsCore = Arc<Mutex<ResultSetCore>>;
 ///
 /// ```rust, no_run
 /// # use hdbconnect::{Connection,ConnectParams,HdbResult};
-/// # use serde_derive::Deserialize;
+/// # use serde::Deserialize;
 /// # fn main() -> HdbResult<()> {
 /// # #[derive(Debug, Deserialize)]
 /// # struct Entity();

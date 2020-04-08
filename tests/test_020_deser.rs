@@ -1,5 +1,5 @@
 #[macro_use]
-extern crate serde_derive;
+extern crate serde;
 
 mod test_utils;
 
@@ -7,7 +7,7 @@ use chrono::NaiveDateTime;
 use flexi_logger::ReconfigurationHandle;
 use hdbconnect::{Connection, HdbResult};
 use log::info;
-use serde_derive::Deserialize;
+use serde::Deserialize;
 
 // Test the graceful conversion during deserialization,
 // in regards to nullable fields, and to simplified result structures

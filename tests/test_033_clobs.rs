@@ -1,5 +1,5 @@
 #[macro_use]
-extern crate serde_derive;
+extern crate serde;
 
 mod test_utils;
 
@@ -7,7 +7,7 @@ use flexi_logger::ReconfigurationHandle;
 use hdbconnect::types::CLob;
 use hdbconnect::{Connection, HdbError, HdbResult, HdbValue};
 use log::{debug, info};
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::fs::File;
 use std::io::Read;

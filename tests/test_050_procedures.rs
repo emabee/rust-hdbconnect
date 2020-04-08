@@ -1,5 +1,5 @@
 #[macro_use]
-extern crate serde_derive;
+extern crate serde;
 
 mod test_utils;
 
@@ -195,7 +195,7 @@ fn procedure_with_in_and_out_parameters(
     response.get_success()?;
     let output_parameters = response.get_output_parameters()?;
     {
-        let par_desc = output_parameters.descriptor(0)?;
+        let par_desc = &output_parameters.descriptors()[0];
         assert_eq!(par_desc.binding(), ParameterBinding::Optional);
         assert_eq!(par_desc.type_id(), TypeId::NVARCHAR);
         assert_eq!(par_desc.direction(), ParameterDirection::OUT);
@@ -274,7 +274,8 @@ fn procedure_with_in_nclob_and_out_nclob(
 
     let response: NCLob = result
         .get_output_parameters()?
-        .values_mut()
+        .into_values()
+        .into_iter()
         .next()
         .unwrap()
         .try_into_nclob()?;

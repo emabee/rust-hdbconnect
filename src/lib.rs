@@ -37,7 +37,7 @@ extern crate lazy_static;
 #[macro_use]
 extern crate log;
 #[macro_use]
-extern crate serde_derive;
+extern crate serde;
 
 pub use r2d2;
 pub use serde_db;

@@ -1,5 +1,5 @@
 #[macro_use]
-extern crate serde_derive;
+extern crate serde;
 
 mod test_utils;
 
@@ -48,8 +48,8 @@ fn test_procedure_metadata(
     response.get_affected_rows()?;
 
     let output_parameters = response.get_output_parameters()?;
-    let pd0 = output_parameters.descriptor(0)?;
-    let pd1 = output_parameters.descriptor(1)?;
+    let pd0 = &output_parameters.descriptors()[0];
+    let pd1 = &output_parameters.descriptors()[1];
     debug!("op-md: {:?}", pd0);
     assert_eq!(pd0.binding(), ParameterBinding::Optional);
     assert_eq!(pd0.name().unwrap(), "INOUT_DECIMAL");

@@ -1,9 +1,6 @@
 use crate::protocol::parts::hdb_value::HdbValue;
 use crate::protocol::util;
 use byteorder::{LittleEndian, ReadBytesExt};
-use serde_derive::Serialize;
-use std::cmp;
-use std::fmt;
 
 const NULL_REPRESENTATION: i32 = 86_402;
 
@@ -21,15 +18,15 @@ const HOUR_FACTOR: u32 = 3_600;
 #[derive(Clone, Debug, Serialize)]
 pub struct SecondTime(u32);
 
-impl fmt::Display for SecondTime {
+impl std::fmt::Display for SecondTime {
     // The format chosen supports the conversion to chrono types.
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         let (hour, minute, second) = self.as_hms();
         write!(fmt, "{:02}:{:02}:{:02}", hour, minute, second)
     }
 }
 
-impl cmp::PartialEq<SecondTime> for SecondTime {
+impl std::cmp::PartialEq<SecondTime> for SecondTime {
     fn eq(&self, other: &Self) -> bool {
         self.0 == other.0
     }

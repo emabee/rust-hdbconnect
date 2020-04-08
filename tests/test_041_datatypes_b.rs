@@ -1,13 +1,13 @@
 #[macro_use]
-extern crate serde_derive;
+extern crate serde;
 
 mod test_utils;
 
 use flexi_logger::ReconfigurationHandle;
 use hdbconnect::{Connection, HdbResult, HdbValue};
 use log::{debug, info, trace};
+use serde::Deserialize;
 use serde_bytes::{ByteBuf, Bytes};
-use serde_derive::Deserialize;
 
 #[test] // cargo test --test test_041_datatypes_b -- --nocapture
 pub fn test_041_datatypes_b() -> HdbResult<()> {

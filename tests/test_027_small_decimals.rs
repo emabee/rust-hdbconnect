@@ -1,5 +1,5 @@
 #[macro_use]
-extern crate serde_derive;
+extern crate serde;
 
 mod test_utils;
 
@@ -9,7 +9,7 @@ use flexi_logger::ReconfigurationHandle;
 use hdbconnect::{Connection, HdbResult, HdbValue};
 use log::{debug, info};
 use num::FromPrimitive;
-use serde_derive::Deserialize;
+use serde::Deserialize;
 
 //cargo test --test test_027_small_decimals -- --nocapture
 #[test]

@@ -1,5 +1,5 @@
 #[macro_use]
-extern crate serde_derive;
+extern crate serde;
 
 mod test_utils;
 
@@ -7,7 +7,7 @@ use chrono::Local;
 use flexi_logger::ReconfigurationHandle;
 use hdbconnect::{ConnectParams, Connection, HdbResult, IntoConnectParams};
 use log::*;
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use std::env;
 use std::time::Instant;
 

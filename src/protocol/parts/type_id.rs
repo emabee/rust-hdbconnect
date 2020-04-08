@@ -1,5 +1,5 @@
 use crate::protocol::util;
-use serde_derive::Serialize;
+// use serde::Serialize;
 
 /// ID of the value type of a database column or a parameter.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]

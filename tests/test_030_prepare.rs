@@ -1,12 +1,12 @@
 #[macro_use]
-extern crate serde_derive;
+extern crate serde;
 
 mod test_utils;
 
 use flexi_logger::ReconfigurationHandle;
 use hdbconnect::{Connection, HdbError, HdbResult, HdbValue};
 use log::{debug, info};
-use serde_derive::Deserialize;
+use serde::Deserialize;
 
 // Test prepared statements, transactional correctness,
 // incl. parameter serialization (and resultset deserialization)

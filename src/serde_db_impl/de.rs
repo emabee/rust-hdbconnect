@@ -56,24 +56,38 @@ impl DeserializableRow for Row {
     }
 }
 
-impl DeserializableRow for OutputParameters {
+pub(crate) struct DeserializableOutputParameters {
+    descriptors: Vec<ParameterDescriptor>,
+    value_iter: <Vec<HdbValue<'static>> as IntoIterator>::IntoIter,
+}
+impl DeserializableOutputParameters {
+    pub(crate) fn new(op: OutputParameters) -> DeserializableOutputParameters {
+        let (descriptors, values) = op.into_descriptors_and_values();
+        DeserializableOutputParameters {
+            descriptors,
+            value_iter: values.into_iter(),
+        }
+    }
+}
+
+impl DeserializableRow for DeserializableOutputParameters {
     type V = HdbValue<'static>;
     type E = DeserializationError;
 
     fn len(&self) -> usize {
-        self.values().len()
+        self.value_iter.len()
     }
 
     fn next(&mut self) -> Option<HdbValue<'static>> {
-        self.values_mut().next()
+        self.value_iter.next()
     }
 
     fn number_of_fields(&self) -> usize {
-        self.descriptors().len()
+        self.descriptors.len()
     }
 
     fn fieldname(&self, field_idx: usize) -> Option<&str> {
-        Self::descriptors(self)
+        self.descriptors
             .get(field_idx)
             .and_then(ParameterDescriptor::name)
     }

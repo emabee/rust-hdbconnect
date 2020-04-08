@@ -1,9 +1,6 @@
 use crate::protocol::parts::hdb_value::HdbValue;
 use crate::protocol::util;
 use byteorder::{LittleEndian, ReadBytesExt};
-use serde_derive::Serialize;
-use std::cmp;
-use std::fmt;
 
 const NULL_REPRESENTATION: i32 = 3_652_062;
 
@@ -18,15 +15,15 @@ const JGREG: i32 = 2_299_161;
 #[derive(Clone, Debug, Serialize)]
 pub struct DayDate(i32);
 
-impl fmt::Display for DayDate {
+impl std::fmt::Display for DayDate {
     // The format chosen supports the conversion to chrono types.
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         let (year, month, day) = self.as_ymd();
         write!(fmt, "{:04}-{:02}-{:02}", year, month, day)
     }
 }
 
-impl cmp::PartialEq<DayDate> for DayDate {
+impl std::cmp::PartialEq<DayDate> for DayDate {
     fn eq(&self, other: &Self) -> bool {
         self.0 == other.0
     }

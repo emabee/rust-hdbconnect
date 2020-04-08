@@ -1,8 +1,8 @@
 use flexi_logger::Logger;
 use hdbconnect::{Connection, HdbError, HdbResult};
 use log::{debug, error, info};
+use serde::Deserialize;
 use serde_bytes::ByteBuf;
-use serde_derive::Deserialize;
 
 pub fn connect_string_from_file(s: &'static str) -> HdbResult<String> {
     Ok(

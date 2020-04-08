@@ -1,12 +1,12 @@
 #[macro_use]
-extern crate serde_derive;
+extern crate serde;
 
 mod test_utils;
 
 use hdbconnect::{types::NCLob, Connection, HdbError, HdbResult, HdbValue};
 use log::{debug, info};
+use serde::{Deserialize, Serialize};
 use serde_bytes::Bytes;
-use serde_derive::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::fs::File;
 use std::io::Read;

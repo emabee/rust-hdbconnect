@@ -87,8 +87,8 @@
 //! Using a prepared statement could look like this:
 //!
 //! ```rust,no_run
-//! # #[macro_use] extern crate serde_derive;
-//! # use serde_derive::Serialize;
+//! # #[macro_use] extern crate serde;
+//! # use serde::Serialize;
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
 //! # fn foo() -> HdbResult<()> {
 //! # let mut connection = Connection::new("...")?;
@@ -187,7 +187,7 @@
 //! or tuple or struct:
 //!
 //! ```rust,no_run
-//! # use serde_derive::Deserialize;
+//! # use serde::Deserialize;
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
 //! # fn foo() -> HdbResult<()> {
 //! # let mut connection = Connection::new("...")?;
@@ -215,7 +215,7 @@
 //! tuple that matches the fields of the result set.
 //!
 //! ```rust,no_run
-//! # use serde_derive::Deserialize;
+//! # use serde::Deserialize;
 //! # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
 //! # fn foo() -> HdbResult<()> {
 //! # let mut connection = Connection::new("...")?;
@@ -236,7 +236,7 @@
 //! then you can also deserialize directly into a plain `MyRow`.
 //!
 //!   ```rust,no_run
-//!   # use serde_derive::Deserialize;
+//!   # use serde::Deserialize;
 //!   # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
 //!   # fn foo() -> HdbResult<()> {
 //!   # let mut connection = Connection::new("hdbsql://my_user:my_passwd@the_host:2222")?;

@@ -1,5 +1,5 @@
 #[macro_use]
-extern crate serde_derive;
+extern crate serde;
 
 mod test_utils;
 
@@ -7,8 +7,8 @@ use bigdecimal::BigDecimal;
 use flexi_logger::ReconfigurationHandle;
 use hdbconnect::{Connection, HdbResult, HdbValue};
 use log::{debug, info};
+use serde::Deserialize;
 use serde_bytes::{ByteBuf, Bytes};
-use serde_derive::Deserialize;
 
 #[test] // cargo test --test <test_040_datatypes_a> -- --nocapture
 pub fn test_040_datatypes_a() -> HdbResult<()> {

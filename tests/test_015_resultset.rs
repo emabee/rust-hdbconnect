@@ -1,5 +1,5 @@
 #[macro_use]
-extern crate serde_derive;
+extern crate serde;
 
 mod test_utils;
 
@@ -7,7 +7,7 @@ use chrono::NaiveDateTime;
 use flexi_logger::ReconfigurationHandle;
 use hdbconnect::{Connection, HdbResult};
 use log::{debug, info};
-use serde_derive::Deserialize;
+use serde::Deserialize;
 
 #[test] // cargo test --test test_015_resultset -- --nocapture
 pub fn test_015_resultset() -> HdbResult<()> {

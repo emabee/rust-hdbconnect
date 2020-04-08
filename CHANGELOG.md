@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.21.0] 2020-04-08
+
+### API changes
+
+Simplify API of `OutputParameters`.
+
+### Fixes and Improvements
+
+Remove direct dependency to `serde_derive`.
+
+Add test for using HANA's management console.
+
 ## [0.20.5] 2020-04-02
 
 ### Fixes and Improvements

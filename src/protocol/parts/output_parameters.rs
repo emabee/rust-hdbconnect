@@ -3,14 +3,19 @@ use crate::protocol::parts::hdb_value::HdbValue;
 use crate::protocol::parts::parameter_descriptor::ParameterDescriptor;
 use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
 use crate::protocol::util;
-use crate::{HdbError, HdbResult};
+use crate::serde_db_impl::de::DeserializableOutputParameters;
+use crate::HdbResult;
 use serde_db::de::DeserializableRow;
 
-/// Describes output parameters, as they can be returned by procedure calls.
+/// A set of output parameters, as they can be returned by procedure calls.
+///
+/// Contains metadata (the descriptors), and the values.
+///
+///
 #[derive(Debug)]
 pub struct OutputParameters {
     descriptors: Vec<ParameterDescriptor>,
-    value_iter: <Vec<HdbValue<'static>> as IntoIterator>::IntoIter,
+    values: Vec<HdbValue<'static>>,
 }
 
 impl OutputParameters {
@@ -24,20 +29,9 @@ impl OutputParameters {
         T: serde::de::Deserialize<'de>,
     {
         trace!("OutputParameters::into_typed()");
-        Ok(DeserializableRow::into_typed(self)?)
-    }
-
-    /// Returns the descriptor for the i'th parameter.
-    ///
-    /// # Errors
-    ///
-    /// `HdbError::Usage` if there is no i'th parameter.
-    pub fn descriptor(&self, i: usize) -> HdbResult<&ParameterDescriptor> {
-        trace!("OutputParameters::descriptor()");
-        Ok(self
-            .descriptors
-            .get(i)
-            .ok_or_else(|| HdbError::Usage("wrong index: no such parameter"))?)
+        Ok(DeserializableRow::into_typed(
+            DeserializableOutputParameters::new(self),
+        )?)
     }
 
     /// Returns the descriptors.
@@ -45,13 +39,14 @@ impl OutputParameters {
         &(self.descriptors)
     }
 
-    pub(crate) fn values(&self) -> &<Vec<HdbValue<'static>> as IntoIterator>::IntoIter {
-        &self.value_iter
+    /// Converts into an iterator of the contained values.
+    pub fn into_values(self) -> Vec<HdbValue<'static>> {
+        self.values
     }
 
-    /// Returns an iterator of the contained values.
-    pub fn values_mut(&mut self) -> &mut <Vec<HdbValue<'static>> as IntoIterator>::IntoIter {
-        &mut self.value_iter
+    /// Converts into a vec of the parameter descriptors and a vec of the contained values.
+    pub fn into_descriptors_and_values(self) -> (Vec<ParameterDescriptor>, Vec<HdbValue<'static>>) {
+        (self.descriptors, self.values)
     }
 
     pub(crate) fn parse(
@@ -64,7 +59,7 @@ impl OutputParameters {
             .ok_or_else(|| util::io_error("Cannot parse output parameters without am_conn_core"))?;
 
         let mut descriptors = Vec::<ParameterDescriptor>::new();
-        let mut values = Vec::<HdbValue>::new();
+        let mut values = Vec::<HdbValue<'static>>::new();
 
         for descriptor in parameter_descriptors.iter_out() {
             trace!("Parsing value with descriptor {}", descriptor);
@@ -82,7 +77,7 @@ impl OutputParameters {
         }
         Ok(Self {
             descriptors,
-            value_iter: values.into_iter(),
+            values,
         })
     }
 }
@@ -97,8 +92,8 @@ impl std::fmt::Display for OutputParameters {
         writeln!(fmt)?;
 
         // write the data
-        for value in self.value_iter.as_slice() {
-            write!(fmt, "{}, ", &value)?;
+        for value in &self.values {
+            write!(fmt, "{}, ", value)?;
         }
         writeln!(fmt)?;
         Ok(())

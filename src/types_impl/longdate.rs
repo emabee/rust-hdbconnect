@@ -1,9 +1,6 @@
 use crate::protocol::parts::hdb_value::HdbValue;
 use crate::protocol::util;
 use byteorder::{LittleEndian, ReadBytesExt};
-use serde_derive::Serialize;
-use std::cmp;
-use std::fmt;
 
 const NULL_REPRESENTATION: i64 = 3_155_380_704_000_000_001;
 
@@ -23,9 +20,9 @@ const JGREG: i64 = 2_299_161;
 #[derive(Clone, Debug, Serialize)]
 pub struct LongDate(i64);
 
-impl fmt::Display for LongDate {
+impl std::fmt::Display for LongDate {
     // The format chosen supports the conversion to chrono types.
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         let (year, month, day, hour, minute, second, fraction) = self.as_ymd_hms_f();
         write!(
             fmt,
@@ -35,7 +32,7 @@ impl fmt::Display for LongDate {
     }
 }
 
-impl cmp::PartialEq<LongDate> for LongDate {
+impl std::cmp::PartialEq<LongDate> for LongDate {
     fn eq(&self, other: &Self) -> bool {
         self.0 == other.0
     }
