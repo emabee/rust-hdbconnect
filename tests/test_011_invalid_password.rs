@@ -16,7 +16,7 @@ pub fn test_011_invalid_password() {
 
     debug!("drop user DOEDEL, and recreate it with need to set password");
     sys_conn.multiple_statements_ignore_err(vec![
-        "ALTER SYSTEM ALTER CONFIGURATION ('nameserver.ini', 'system') \
+        "ALTER SYSTEM ALTER CONFIGURATION ('indexserver.ini', 'system') \
          SET ('password policy', 'force_first_password_change') = 'true' WITH RECONFIGURE",
         "ALTER SYSTEM ALTER CONFIGURATION ('nameserver.ini', 'system') \
          SET ('password policy', 'minimal_password_length') = '8' WITH RECONFIGURE",

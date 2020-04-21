@@ -126,17 +126,17 @@ fn select_version_and_user(connection: &mut Connection) -> HdbResult<()> {
     Ok(())
 }
 
-#[allow(non_snake_case)]
 #[derive(Eq, PartialEq, Serialize, Deserialize, Debug)]
+#[serde(rename_all = "UPPERCASE")]
 struct SessCtx {
-    KEY: String,
-    VALUE: String,
+    key: String,
+    value: String,
 }
 impl SessCtx {
     fn new(key: &str, value: &str) -> SessCtx {
         SessCtx {
-            KEY: key.to_string(),
-            VALUE: value.to_string(),
+            key: key.to_string(),
+            value: value.to_string(),
         }
     }
 }

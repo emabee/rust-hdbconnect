@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.21.1] 2020-04-21
+
+### Fixes and Improvements
+
+Add support for CONNECT (switch user).
+
 ## [0.21.0] 2020-04-08
 
 ### API changes

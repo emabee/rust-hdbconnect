@@ -84,7 +84,7 @@ impl HdbResponse {
         replytype: ReplyType,
     ) -> HdbResult<Self> {
         trace!(
-            "Reply::into_hdbresponse(): building HdbResponse for a reply of type {:?}",
+            "HdbResponse::try_new(): building HdbResponse for a reply of type {:?}",
             replytype
         );
         trace!(
@@ -95,6 +95,7 @@ impl HdbResponse {
                 ReplyType::Select |
                 ReplyType::SelectForUpdate => Self::resultset(int_return_values),
 
+                ReplyType::Connect |
                 ReplyType::Ddl |
                 ReplyType::Commit |
                 ReplyType::Rollback => Self::success(int_return_values),
@@ -109,8 +110,9 @@ impl HdbResponse {
                 ReplyType::DbProcedureCallWithResult =>
                     Self::multiple_return_values(int_return_values),
 
+
                 // ReplyTypes that are handled elsewhere and that should not go through this method:
-                ReplyType::Connect | ReplyType::Fetch | ReplyType::ReadLob |
+                ReplyType::Fetch | ReplyType::ReadLob |
                 ReplyType::CloseCursor | ReplyType::Disconnect |
                 ReplyType::XAControl | ReplyType::XARecover |
                 ReplyType::WriteLob |
@@ -123,7 +125,7 @@ impl HdbResponse {
                 ReplyType::XaJoin |
                 ReplyType::XAPrepare => {
                     let s = format!(
-                        "unexpected reply type {:?} in Reply::into_hdbresponse(), \
+                        "unexpected reply type {:?} in HdbResponse::try_new(), \
                          with these internal return values: {:?}", 
                         replytype, int_return_values);
                     error!("{}",s);
