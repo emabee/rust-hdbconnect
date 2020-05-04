@@ -69,8 +69,6 @@ impl<'a> ConnectionCore {
         match self.tcp_conn {
             TcpClient::SyncPlain(ref pc) => pc.connect_params(),
             TcpClient::SyncTls(ref sc) => sc.connect_params(),
-            #[cfg(feature = "alpha_nonblocking")]
-            TcpClient::SyncNonblockingTls(ref tc) => tc.connect_params(),
         }
     }
 
@@ -258,10 +256,6 @@ impl<'a> ConnectionCore {
             TcpClient::SyncTls(ref mut tc) => {
                 request.emit(session_id, nsn, auto_commit, o_a_descriptors, tc.writer())?;
             }
-            #[cfg(feature = "alpha_nonblocking")]
-            TcpClient::SyncNonblockingTls(ref mut tc) => {
-                request.emit(session_id, nsn, auto_commit, o_a_descriptors, tc)?;
-            }
         }
 
         let mut reply = match self.tcp_conn {
@@ -272,10 +266,6 @@ impl<'a> ConnectionCore {
             TcpClient::SyncTls(ref mut tc) => {
                 let reader = tc.reader();
                 Reply::parse(o_a_rsmd, o_a_descriptors, o_rs, Some(am_conn_core), reader)
-            }
-            #[cfg(feature = "alpha_nonblocking")]
-            TcpClient::SyncNonblockingTls(ref mut nbtc) => {
-                Reply::parse(o_a_rsmd, o_a_descriptors, o_rs, Some(am_conn_core), nbtc)
             }
         }?;
 
@@ -372,10 +362,6 @@ impl<'a> ConnectionCore {
                 }
                 TcpClient::SyncTls(ref mut tc) => {
                     request.emit(session_id, nsn, false, None, tc.writer())?;
-                }
-                #[cfg(feature = "alpha_nonblocking")]
-                TcpClient::SyncNonblockingTls(ref mut nbtc) => {
-                    request.emit(session_id, nsn, false, None, nbtc)?;
                 }
             }
             trace!("Disconnect: request successfully sent");

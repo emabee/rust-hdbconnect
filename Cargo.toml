@@ -18,22 +18,18 @@ all-features = false
 [features]
 default = []
 alpha_routing = []
-alpha_nonblocking = ["mio", "ct-logs","vecio" ]
 
 [dependencies]
 bigdecimal = {version = "0.1", features = ["serde"]}
 byteorder = "1.3"
 cesu8 = "1.1"
 chrono = { version = "0.4", features = ["serde"] }
-ct-logs = {version = "0.6", optional = true}
 #dist_tx = {path = "../dist_tx"}
 dist_tx = "0.2"
 hex = "0.4"
 hmac = "0.7.0"
 lazy_static = "1.4.0"
 log = "0.4"
-mio = {version = "0.6", optional = true}
-#mio = {version = "0.7", optional = true, features = ["tcp", "os-poll"]}
 num = "0.2"
 pbkdf2 = {version = "0.3.0", default-features = false}
 r2d2 = "0.8"
@@ -48,7 +44,6 @@ sha2 = "0.8.0"
 thiserror="1.0"
 url = "2.1"
 username = "0.2"
-vecio =  {version = "0.1", optional = true}
 vec_map = "0.8"
 webpki = "0.21"
 webpki-roots = "0.19"

@@ -143,11 +143,6 @@ impl ConnectParams {
         !self.server_certs.is_empty()
     }
 
-    #[cfg(feature = "alpha_nonblocking")]
-    pub(crate) fn use_nonblocking(&self) -> bool {
-        self.use_nonblocking
-    }
-
     /// The database user.
     pub fn dbuser(&self) -> &str {
         self.dbuser.as_str()

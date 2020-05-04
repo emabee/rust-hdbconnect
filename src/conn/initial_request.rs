@@ -13,10 +13,6 @@ pub(crate) fn send_and_receive(tcp_conn: &mut TcpClient) -> std::io::Result<()> 
         TcpClient::SyncTls(ref mut tc) => {
             emit_initial_request(tc.writer())?;
         }
-        #[cfg(feature = "alpha_nonblocking")]
-        TcpClient::SyncNonblockingTls(ref mut nbtc) => {
-            emit_initial_request(nbtc)?;
-        }
     }
 
     trace!("send_and_receive(): receive");
@@ -26,10 +22,6 @@ pub(crate) fn send_and_receive(tcp_conn: &mut TcpClient) -> std::io::Result<()> 
         }
         TcpClient::SyncTls(ref mut tc) => {
             util::skip_bytes(8, tc.reader()) // ignore the response content
-        }
-        #[cfg(feature = "alpha_nonblocking")]
-        TcpClient::SyncNonblockingTls(ref mut nbtc) => {
-            util::skip_bytes(8, nbtc) // ignore the response content
         }
     }
     .map_err(|e| {
