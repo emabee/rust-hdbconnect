@@ -18,7 +18,7 @@ pub fn test_012_connect_other_user() -> HdbResult<()> {
 }
 
 fn connect_other_user(_log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
-    _log_handle.parse_and_push_temp_spec("test = debug, info");
+    // _log_handle.parse_and_push_temp_spec("test = debug, info");
 
     let other_user = "THEOTHERONE".to_string();
     let mut sys_conn = test_utils::get_um_connection().unwrap();
@@ -43,6 +43,6 @@ fn connect_other_user(_log_handle: &mut ReconfigurationHandle) -> HdbResult<()> 
         .try_into()?;
     assert_eq!(after, "THEOTHERONE".to_string());
 
-    _log_handle.pop_temp_spec();
+    // _log_handle.pop_temp_spec();
     Ok(())
 }

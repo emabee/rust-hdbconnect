@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.21.2] 2020-05-04
+
+### Fixes and Improvements
+
+Add method `NCLob::total_char_length`, improve docu.
+
 ## [0.21.1] 2020-04-21
 
 ### Fixes and Improvements

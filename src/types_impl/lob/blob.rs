@@ -6,7 +6,15 @@ use crate::{HdbError, HdbResult};
 use std::boxed::Box;
 use std::io::Write;
 
-/// Binary LOB implementation that is used within `HdbValue::BLOB`.
+/// LOB implementation for binary values that is used within `HdbValue::BLOB` instances coming
+/// from the database.
+///
+/// Bigger LOBs are not transferred completely in the first roundtrip, instead more data are
+/// fetched in subsequent roundtrips when they are needed.
+///
+/// `BLob` respects the Connection's lob read length
+/// (see [`Connection::set_lob_read_length`](struct.Connection.html#method.set_lob_read_length)),
+/// by transferring per fetch request `lob_read_length` bytes.
 #[derive(Clone, Debug)]
 pub struct BLob(Box<BLobHandle>);
 
@@ -101,10 +109,12 @@ impl BLob {
         self.total_byte_length() == 0
     }
 
-    /// Returns the maximum size of the internal buffer, in bytes.
+    /// Returns the maximum size the internal buffers ever had, in bytes.
     ///
-    /// With streaming, this value should not exceed `lob_read_size` plus
-    /// the buffer size used by the reader.
+    /// This method exists mainly for debugging purposes. With streaming, the returned value is
+    /// not supposed to exceed `lob_read_length` (see
+    /// [`Connection::set_lob_read_length`](../struct.Connection.html#method.set_lob_read_length))
+    /// plus the buffer size used by the reader.
     pub fn max_buf_len(&self) -> usize {
         self.0.max_buf_len()
     }

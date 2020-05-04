@@ -166,6 +166,8 @@ fn test_streaming(
         .into_single_value()?
         .try_into_nclob()?;
     let mut buffer = Vec::<u8>::new();
+    assert_eq!(nclob.total_char_length(), 3343700);
+    assert_eq!(nclob.total_byte_length(), 5342100);
     std::io::copy(&mut nclob, &mut buffer).map_err(HdbError::LobStreaming)?;
 
     assert_eq!(fifty_times_smp_blabla.len(), buffer.len());
@@ -216,7 +218,7 @@ fn test_bytes_to_nclobs(
 
     let mydata: (String, String) = resultset.try_into()?;
 
-    // verify we get in both cases the same blabla back
+    // verify we get in both cases the same value back
     assert_eq!(mydata.0, test_string);
     assert_eq!(mydata.1, test_string);
 

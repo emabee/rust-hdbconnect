@@ -9,13 +9,14 @@ use std::boxed::Box;
 use std::cmp::max;
 use std::io::Write;
 
-/// Character LOB implementation that is used with `HdbValue::CLOB`.
+/// LOB implementation for unicode Strings that is used with `HdbValue::CLOB` (which is deprecated).
 ///
 /// Note that the CLOB type is not recommended for use.
-///
 /// CLOB fields are supposed to only store ASCII7, but HANA doesn't check this.
-/// So the implementation is a mixture of BLOB implementation (the protocol counts bytes, not chars)
-/// and NCLOB implementation (the exposed data are chars, not bytes).
+///
+/// `CLob` respects the Connection's lob read length
+/// (see [`Connection::set_lob_read_length`](struct.Connection.html#method.set_lob_read_length)),
+/// by transferring per fetch request `lob_read_length` bytes.
 #[derive(Clone, Debug)]
 pub struct CLob(Box<CLobHandle>);
 
@@ -114,8 +115,10 @@ impl CLob {
 
     /// Returns the maximum size of the internal buffer, in bytes.
     ///
-    /// With streaming, this value should not exceed `lob_read_size` plus
-    /// the buffer size used by the reader.
+    /// This method exists mainly for debugging purposes. With streaming, the returned value is
+    /// not supposed to exceed `lob_read_length` (see
+    /// [`Connection::set_lob_read_length`](../struct.Connection.html#method.set_lob_read_length))
+    /// plus the buffer size used by the reader.
     pub fn max_buf_len(&self) -> usize {
         self.0.max_buf_len()
     }

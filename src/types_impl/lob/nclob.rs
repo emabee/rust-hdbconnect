@@ -8,7 +8,17 @@ use crate::{HdbError, HdbResult};
 use std::boxed::Box;
 use std::io::Write;
 
-/// Unicode LOB implementation that is used with `HdbValue::NCLOB`.
+/// LOB implementation for unicode Strings that is used with `HdbValue::NCLOB` instances coming
+/// from the database.
+///
+/// Bigger LOBs are not transferred completely in the first roundtrip, instead more data are
+/// fetched in subsequent roundtrips when they are needed.
+///
+/// `NCLob` respects the Connection's lob read length
+/// (see [`Connection::set_lob_read_length`](struct.Connection.html#method.set_lob_read_length)),
+/// by transferring per fetch request `lob_read_length` unicode characters (rather than bytes).
+/// Note that due to the way how HANA represents unicode internally,
+/// all BMP-0 characters count as 1, non-BMP-0 characters count as 2.
 #[derive(Clone, Debug)]
 pub struct NCLob(Box<NCLobHandle>);
 
@@ -87,7 +97,10 @@ impl NCLob {
         self.0.into_string()
     }
 
-    /// Reads from given offset and the given length, in number of 123-byte sequences.
+    /// Reads from given offset and the given length, in number of unicode characters.
+    ///
+    /// Note that due to the way how HANA represents unicode internally,
+    /// all BMP-0 characters count as 1, non-BMP-0 characters count as 2.
     ///
     /// # Errors
     ///
@@ -101,15 +114,25 @@ impl NCLob {
         self.0.total_byte_length()
     }
 
+    /// Total length of data, in characters.
+    ///
+    /// Note that due to the way how HANA represents unicode internally,
+    /// all BMP-0 characters count as 1, non-BMP-0 characters count as 2.
+    pub fn total_char_length(&self) -> u64 {
+        self.0.total_char_length()
+    }
+
     /// Returns true if the `NCLob` does not contain data.
     pub fn is_empty(&self) -> bool {
         self.total_byte_length() == 0
     }
 
-    /// Returns the maximum size of the internal buffers, in bytes.
+    /// Returns the maximum size the internal buffers ever had, in bytes.
     ///
-    /// With streaming, this value should not exceed `lob_read_size` plus
-    /// the buffer size used by the reader.
+    /// This method exists mainly for debugging purposes. With streaming, the returned value is
+    /// not supposed to exceed 3 times `lob_read_length` (see
+    /// [`Connection::set_lob_read_length`](../struct.Connection.html#method.set_lob_read_length))
+    /// plus the buffer size used by the reader.
     pub fn max_buf_len(&self) -> usize {
         self.0.max_buf_len()
     }
@@ -214,6 +237,10 @@ impl NCLobHandle {
 
     fn total_byte_length(&self) -> u64 {
         self.total_byte_length
+    }
+
+    fn total_char_length(&self) -> u64 {
+        self.total_char_length
     }
 
     fn cur_buf_len(&self) -> usize {

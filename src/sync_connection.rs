@@ -316,7 +316,7 @@ impl Connection {
         self.am_conn_core.lock()?.set_fetch_size(fetch_size);
         Ok(())
     }
-    /// Configures the connection's lob read length for future calls.
+    /// Returns the connection's lob read length.
     ///
     /// # Errors
     ///
