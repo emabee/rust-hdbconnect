@@ -1,13 +1,7 @@
 use crate::conn::AmConnCore;
 use crate::hdb_response::InternalReturnValue;
-use crate::protocol::part::Part;
-use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
-use crate::protocol::parts::resultset::RsState;
-use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
-use crate::protocol::parts::Parts;
-use crate::protocol::reply_type::ReplyType;
-use crate::protocol::server_usage::ServerUsage;
-use crate::protocol::util;
+use crate::protocol::parts::{ParameterDescriptors, Parts, ResultSetMetadata, RsState};
+use crate::protocol::{util, Part, ReplyType, ServerUsage};
 use crate::{HdbError, HdbResult};
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::sync::Arc;

@@ -211,8 +211,7 @@ impl ConnectParamsBuilder {
                 }
             }
         }
-
-        Err(HdbError::Usage("missing data. not possible to build url"))
+        Err(HdbError::Usage("URL requires dbuser, hostname, and port"))
     }
 
     fn get_protocol_name(&self) -> &str {

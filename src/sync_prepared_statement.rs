@@ -1,19 +1,13 @@
 use crate::conn::AmConnCore;
 use crate::hdb_response::InternalReturnValue;
-use crate::protocol::part::Part;
-use crate::protocol::partkind::PartKind;
-use crate::protocol::parts::hdb_value::HdbValue;
-use crate::protocol::parts::lob_flags::LobFlags;
-use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
-use crate::protocol::parts::parameter_rows::ParameterRows;
-use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
-use crate::protocol::parts::type_id::TypeId;
-use crate::protocol::request::{Request, HOLD_CURSORS_OVER_COMMIT};
-use crate::protocol::request_type::RequestType;
-use crate::protocol::server_usage::ServerUsage;
+use crate::protocol::parts::{
+    HdbValue, LobFlags, ParameterDescriptors, ParameterRows, ResultSetMetadata, TypeId,
+};
+use crate::protocol::{
+    Part, PartKind, Request, RequestType, ServerUsage, HOLD_CURSORS_OVER_COMMIT,
+};
 use crate::types_impl::lob::LobWriter;
 use crate::{HdbError, HdbResponse, HdbResult};
-use serde;
 use std::io::Write;
 use std::sync::{Arc, Mutex};
 
@@ -444,21 +438,15 @@ impl<'a> PreparedStatement {
             }
         }
 
-        let statement_id = if let Some(id) = o_stmt_id {
-            id
-        } else {
-            return Err(HdbError::Impl("No StatementId received"));
-        };
-
-        debug!(
-            "PreparedStatement created with parameter descriptors = {:?}",
-            a_descriptors
-        );
-
+        let statement_id = o_stmt_id.ok_or_else(|| HdbError::Impl("No StatementId received"))?;
         let am_ps_core = Arc::new(Mutex::new(PreparedStatementCore {
             am_conn_core,
             statement_id,
         }));
+        debug!(
+            "PreparedStatement created with parameter descriptors = {:?}",
+            a_descriptors
+        );
         Ok(Self {
             am_ps_core,
             server_usage,

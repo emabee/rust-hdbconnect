@@ -1,10 +1,6 @@
 use crate::conn::AmConnCore;
-use crate::protocol::part::Part;
-use crate::protocol::partkind::PartKind;
-use crate::protocol::parts::xat_options::XatOptions;
-use crate::protocol::reply::Reply;
-use crate::protocol::request::Request;
-use crate::protocol::request_type::RequestType;
+use crate::protocol::parts::XatOptions;
+use crate::protocol::{Part, PartKind, Reply, Request, RequestType};
 use crate::{HdbError, HdbResult};
 use dist_tx::rm::{CResourceManager, CRmWrapper, ErrorCode, Flags, RmError, RmRc, RmResult};
 use dist_tx::tm::XaTransactionId;

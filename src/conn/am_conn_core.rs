@@ -1,12 +1,8 @@
 use super::connection_core::ConnectionCore;
 use crate::conn::ConnectParams;
-use crate::hdb_error::HdbResult;
-use crate::protocol::part::Part;
-use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
-use crate::protocol::parts::resultset::RsState;
-use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
-use crate::protocol::reply::Reply;
-use crate::protocol::request::Request;
+use crate::protocol::parts::{ResultSetMetadata, RsState};
+use crate::protocol::{Part, Reply, Request};
+use crate::{HdbResult, ParameterDescriptors};
 use chrono::Local;
 use std::sync::{Arc, LockResult, Mutex, MutexGuard};
 

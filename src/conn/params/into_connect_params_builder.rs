@@ -47,22 +47,14 @@ impl IntoConnectParamsBuilder for String {
 impl IntoConnectParamsBuilder for Url {
     fn into_connect_params_builder(self) -> HdbResult<ConnectParamsBuilder> {
         let mut builder = ConnectParamsBuilder::new();
-        if let Some(host) = self.host_str() {
-            builder.hostname(host);
-        }
-
-        if let Some(port) = self.port() {
-            builder.port(port);
-        }
+        self.host_str().as_ref().map(|host| builder.hostname(host));
+        self.port().as_ref().map(|port| builder.port(*port));
 
         let dbuser = self.username();
         if !dbuser.is_empty() {
             builder.dbuser(dbuser);
         }
-
-        if let Some(password) = self.password() {
-            builder.password(password);
-        }
+        self.password().as_ref().map(|pw| builder.password(pw));
 
         let use_tls = match self.scheme() {
             "hdbsql" => false,
@@ -82,9 +74,9 @@ impl IntoConnectParamsBuilder for Url {
                     builder.clientlocale(value.to_string());
                 }
                 cp_url::OPTION_CLIENT_LOCALE_FROM_ENV => {
-                    if let Ok(s) = std::env::var(value.to_string()) {
-                        builder.clientlocale(s);
-                    }
+                    std::env::var(value.to_string())
+                        .ok()
+                        .map(|s| builder.clientlocale(s));
                 }
                 cp_url::OPTION_CERT_DIR => {
                     server_certs.push(ServerCerts::Directory(value.to_string()));

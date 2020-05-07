@@ -1,6 +1,6 @@
 use super::authenticator::Authenticator;
 use super::crypto_util::scram_pdkdf2_sha256;
-use crate::protocol::parts::authfields::AuthFields;
+use crate::protocol::parts::AuthFields;
 use crate::{HdbError, HdbResult};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use chrono::Local;
@@ -82,7 +82,7 @@ impl Authenticator for ScramPbkdf2Sha256 {
                 return Ok(());
             }
         }
-        let msg = "Server proof failed - \
+        let msg = "PBKDF2: Server proof failed - \
                    this indicates a severe security issue with the server's identity!";
         warn!("{}", msg);
         Err(HdbError::Usage(msg))

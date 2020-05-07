@@ -1,7 +1,5 @@
 use crate::conn::AmConnCore;
-use crate::protocol::parts::parameter_descriptor::ParameterDescriptor;
-use crate::protocol::parts::resultset::AmRsCore;
-use crate::protocol::parts::type_id::TypeId;
+use crate::protocol::parts::{AmRsCore, ParameterDescriptor, TypeId};
 use crate::protocol::util;
 use crate::types::{BLob, CLob, DayDate, LongDate, NCLob, SecondDate, SecondTime};
 use crate::types_impl::daydate::parse_daydate;
@@ -13,8 +11,6 @@ use crate::types_impl::secondtime::parse_secondtime;
 use crate::{HdbError, HdbResult};
 use bigdecimal::BigDecimal;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use cesu8;
-use serde;
 
 const MAX_1_BYTE_LENGTH: u8 = 245;
 const MAX_2_BYTE_LENGTH: i16 = i16::max_value();

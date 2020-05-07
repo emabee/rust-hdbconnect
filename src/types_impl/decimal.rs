@@ -1,7 +1,6 @@
-use crate::protocol::parts::hdb_value::HdbValue;
-use crate::protocol::parts::type_id::TypeId;
 use crate::protocol::util;
 use crate::types_impl::hdb_decimal::HdbDecimal;
+use crate::{HdbValue, TypeId};
 use bigdecimal::BigDecimal;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use num::bigint::BigInt;

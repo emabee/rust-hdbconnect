@@ -1,5 +1,5 @@
-use crate::protocol::parts::hdb_value::HdbValue;
 use crate::protocol::util;
+use crate::HdbValue;
 use byteorder::{LittleEndian, ReadBytesExt};
 
 const NULL_REPRESENTATION: i32 = 3_652_062;

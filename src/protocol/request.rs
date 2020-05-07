@@ -1,11 +1,8 @@
 //! Since there is obviously no usecase for multiple segments in one request,
 //! we model message and segment together.
 //! But we differentiate explicitly between request messages and reply messages.
-use crate::protocol::part::Part;
-use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
-use crate::protocol::parts::statement_context::StatementContext;
-use crate::protocol::parts::Parts;
-use crate::protocol::request_type::RequestType;
+use crate::protocol::parts::{ParameterDescriptors, Parts, StatementContext};
+use crate::protocol::{Part, RequestType};
 use byteorder::{LittleEndian, WriteBytesExt};
 use std::sync::Arc;
 

@@ -1,20 +1,9 @@
 use crate::conn::{initial_request, AmConnCore, ConnectParams, SessionState, TcpClient};
-use crate::protocol::part::Part;
-use crate::protocol::partkind::PartKind;
-use crate::protocol::parts::client_info::ClientInfo;
-use crate::protocol::parts::connect_options::ConnectOptions;
-use crate::protocol::parts::execution_result::ExecutionResult;
-use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
-use crate::protocol::parts::resultset::RsState;
-use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
-use crate::protocol::parts::server_error::{ServerError, Severity};
-use crate::protocol::parts::statement_context::StatementContext;
-use crate::protocol::parts::topology::Topology;
-use crate::protocol::parts::transactionflags::TransactionFlags;
-use crate::protocol::parts::Parts;
-use crate::protocol::reply::Reply;
-use crate::protocol::request::Request;
-use crate::protocol::server_usage::ServerUsage;
+use crate::protocol::parts::{
+    ClientInfo, ConnectOptions, ExecutionResult, ParameterDescriptors, Parts, ResultSetMetadata,
+    RsState, ServerError, Severity, StatementContext, Topology, TransactionFlags,
+};
+use crate::protocol::{Part, PartKind, Reply, Request, ServerUsage};
 use crate::{HdbError, HdbResult};
 use std::mem;
 use std::sync::Arc;

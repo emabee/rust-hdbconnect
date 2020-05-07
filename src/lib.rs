@@ -57,23 +57,18 @@ mod xa_impl;
 
 pub mod code_examples;
 
-pub use crate::conn::{ConnectParams, IntoConnectParams, ServerCerts};
-pub use crate::conn::{ConnectParamsBuilder, IntoConnectParamsBuilder};
-
+pub use crate::conn::{
+    ConnectParams, ConnectParamsBuilder, IntoConnectParams, IntoConnectParamsBuilder, ServerCerts,
+};
 pub use crate::hdb_error::{HdbError, HdbResult};
 pub use crate::hdb_response::HdbResponse;
 pub use crate::hdb_return_value::HdbReturnValue;
-pub use crate::protocol::parts::execution_result::ExecutionResult;
-pub use crate::protocol::parts::output_parameters::OutputParameters;
-pub use crate::protocol::parts::parameter_descriptor::{
-    ParameterBinding, ParameterDescriptor, ParameterDescriptors, ParameterDirection,
+pub use crate::protocol::parts::{
+    ExecutionResult, HdbValue, OutputParameters, ParameterBinding, ParameterDescriptor,
+    ParameterDescriptors, ParameterDirection, ResultSet, ResultSetMetadata, Row, ServerError,
+    Severity, TypeId,
 };
-pub use crate::protocol::parts::resultset::ResultSet;
-pub use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
-pub use crate::protocol::parts::row::Row;
-pub use crate::protocol::parts::server_error::{ServerError, Severity};
-pub use crate::protocol::parts::type_id::TypeId;
-pub use crate::protocol::server_usage::ServerUsage;
+pub use crate::protocol::ServerUsage;
 pub use crate::sync_connection::Connection;
 pub use crate::sync_connection_manager::ConnectionManager;
 pub use crate::sync_prepared_statement::PreparedStatement;
@@ -92,7 +87,6 @@ pub mod types {
     pub use crate::types_impl::seconddate::SecondDate;
     pub use crate::types_impl::secondtime::SecondTime;
 }
-pub use crate::protocol::parts::hdb_value::HdbValue;
 
 /// Default value for the number of resultset lines that are fetched
 /// with a single FETCH roundtrip; the constant's value is 100,000.

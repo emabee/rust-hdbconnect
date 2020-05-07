@@ -1,9 +1,8 @@
 use crate::conn::AmConnCore;
-use crate::protocol::parts::hdb_value::HdbValue;
-use crate::protocol::parts::resultset::AmRsCore;
-use crate::protocol::parts::type_id::TypeId;
+use crate::protocol::parts::{AmRsCore, TypeId};
 use crate::protocol::util;
-use crate::types_impl::lob::{BLob, CLob, NCLob};
+use crate::types::{BLob, CLob, NCLob};
+use crate::HdbValue;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 pub(crate) fn parse_blob(

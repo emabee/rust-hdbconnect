@@ -1,7 +1,6 @@
 //! Connection Pooling with r2d2.
 //!
 use crate::{ConnectParams, Connection, HdbError, HdbResult, IntoConnectParams};
-use r2d2;
 
 /// Implementation of r2d2's
 /// [`ManageConnection`](https://docs.rs/r2d2/*/r2d2/trait.ManageConnection.html)

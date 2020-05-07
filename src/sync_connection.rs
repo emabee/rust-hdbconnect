@@ -1,15 +1,9 @@
 use crate::authentication;
 use crate::conn::AmConnCore;
-use crate::protocol::part::Part;
-use crate::protocol::parts::client_context::{ClientContext, ClientContextId};
-use crate::protocol::parts::command_info::CommandInfo;
-use crate::protocol::parts::connect_options::ConnOptId;
-use crate::protocol::parts::option_value::OptionValue;
-use crate::protocol::parts::resultset::ResultSet;
-use crate::protocol::parts::server_error::ServerError;
-use crate::protocol::request::{Request, HOLD_CURSORS_OVER_COMMIT};
-use crate::protocol::request_type::RequestType;
-use crate::protocol::server_usage::ServerUsage;
+use crate::protocol::parts::{
+    ClientContext, ClientContextId, CommandInfo, ConnOptId, OptionValue, ResultSet, ServerError,
+};
+use crate::protocol::{Part, Request, RequestType, ServerUsage, HOLD_CURSORS_OVER_COMMIT};
 use crate::sync_prepared_statement::PreparedStatement;
 use crate::xa_impl::new_resource_manager;
 use crate::{HdbError, HdbResponse, HdbResult, IntoConnectParams};

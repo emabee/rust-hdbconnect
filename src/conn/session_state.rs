@@ -1,5 +1,4 @@
-use crate::protocol::parts::option_value::OptionValue;
-use crate::protocol::parts::transactionflags::{TaFlagId, TransactionFlags};
+use crate::protocol::parts::{OptionValue, TaFlagId, TransactionFlags};
 
 // Session state.
 #[derive(Debug)]

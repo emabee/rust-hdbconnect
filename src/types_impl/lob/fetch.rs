@@ -1,11 +1,6 @@
 use crate::conn::AmConnCore;
-use crate::protocol::part::Part;
-use crate::protocol::parts::read_lob_reply::ReadLobReply;
-use crate::protocol::parts::read_lob_request::ReadLobRequest;
-use crate::protocol::reply_type::ReplyType;
-use crate::protocol::request::Request;
-use crate::protocol::request_type::RequestType;
-use crate::protocol::server_usage::ServerUsage;
+use crate::protocol::parts::{ReadLobReply, ReadLobRequest};
+use crate::protocol::{Part, ReplyType, Request, RequestType, ServerUsage};
 use crate::{HdbError, HdbResult};
 
 // Note that requested_length and offset count either bytes (BLOB, CLOB), or 1-2-3-chars (NCLOB)

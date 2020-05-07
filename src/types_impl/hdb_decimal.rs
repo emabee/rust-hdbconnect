@@ -1,5 +1,5 @@
-use crate::protocol::parts::hdb_value::HdbValue;
 use crate::protocol::util;
+use crate::HdbValue;
 use bigdecimal::{BigDecimal, Zero};
 use byteorder::{ByteOrder, LittleEndian};
 use num::bigint::{BigInt, Sign};

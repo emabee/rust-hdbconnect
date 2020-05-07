@@ -1,5 +1,4 @@
-use crate::protocol::parts::execution_result::ExecutionResult;
-use crate::protocol::parts::server_error::ServerError;
+use crate::protocol::parts::{ExecutionResult, ServerError};
 // use std::backtrace::Backtrace;
 use thiserror::Error;
 

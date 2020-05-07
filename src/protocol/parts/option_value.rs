@@ -1,6 +1,5 @@
 use crate::protocol::util;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use cesu8;
 
 #[allow(non_camel_case_types)]
 #[derive(Clone, Debug, PartialEq)]

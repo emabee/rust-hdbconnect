@@ -1,13 +1,8 @@
-use super::authenticator::Authenticator;
-
+use crate::authentication::Authenticator;
 use crate::conn::AmConnCore;
-use crate::hdb_error::{HdbError, HdbResult};
-use crate::protocol::part::Part;
-use crate::protocol::parts::authfields::AuthFields;
-use crate::protocol::parts::client_context::ClientContext;
-use crate::protocol::reply_type::ReplyType;
-use crate::protocol::request::Request;
-use crate::protocol::request_type::RequestType;
+use crate::protocol::parts::{AuthFields, ClientContext};
+use crate::protocol::{Part, ReplyType, Request, RequestType};
+use crate::{HdbError, HdbResult};
 
 pub(crate) fn first_auth_request(
     am_conn_core: &mut AmConnCore,

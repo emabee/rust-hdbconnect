@@ -1,42 +1,70 @@
-pub mod authfields;
-pub mod client_context;
-pub mod client_info;
-pub mod command_info;
-pub mod commit_options;
-pub mod connect_options;
-pub mod execution_result;
-pub mod fetch_options;
-pub mod hdb_value;
-pub mod lob_flags;
-pub mod multiline_option_part;
-pub mod option_part;
-pub mod option_value;
-pub mod output_parameters;
-pub mod parameter_descriptor;
-pub mod parameter_rows;
-pub mod partition_information;
-pub mod read_lob_reply;
-pub mod read_lob_request;
-pub mod resultset;
-pub mod resultset_metadata;
-pub mod row;
-pub mod server_error;
-pub mod session_context;
-pub mod statement_context;
-pub mod topology;
-pub mod transactionflags;
-pub mod type_id;
-pub mod write_lob_reply;
-pub mod write_lob_request;
-pub mod xat_options;
+mod authfields;
+mod client_context;
+mod client_info;
+mod command_info;
+mod commit_options;
+mod connect_options;
+mod execution_result;
+mod fetch_options;
+mod hdb_value;
+mod lob_flags;
+mod multiline_option_part;
+mod option_part;
+mod option_value;
+mod output_parameters;
+mod parameter_descriptor;
+mod parameter_rows;
+mod partition_information;
+mod read_lob_reply;
+mod read_lob_request;
+mod resultset;
+mod resultset_metadata;
+mod row;
+mod server_error;
+mod session_context;
+mod statement_context;
+mod topology;
+mod transactionflags;
+mod type_id;
+mod write_lob_reply;
+mod write_lob_request;
+mod xat_options;
 
-use super::part::Part;
-use super::partkind::PartKind;
+pub(crate) use self::{
+    authfields::AuthFields,
+    client_context::ClientContext,
+    client_context::ClientContextId,
+    client_info::ClientInfo,
+    command_info::CommandInfo,
+    connect_options::ConnOptId,
+    connect_options::ConnectOptions,
+    lob_flags::LobFlags,
+    option_value::OptionValue,
+    parameter_rows::ParameterRows,
+    partition_information::PartitionInformation,
+    read_lob_reply::ReadLobReply,
+    read_lob_request::ReadLobRequest,
+    resultset::{AmRsCore, RsState},
+    session_context::SessionContext,
+    statement_context::StatementContext,
+    topology::Topology,
+    transactionflags::{TaFlagId, TransactionFlags},
+    write_lob_reply::WriteLobReply,
+    write_lob_request::WriteLobRequest,
+    xat_options::XatOptions,
+};
+pub use self::{
+    execution_result::ExecutionResult, hdb_value::HdbValue, output_parameters::OutputParameters,
+    parameter_descriptor::ParameterBinding, parameter_descriptor::ParameterDescriptor,
+    parameter_descriptor::ParameterDescriptors, parameter_descriptor::ParameterDirection,
+    resultset::ResultSet, resultset_metadata::ResultSetMetadata, row::Row,
+    server_error::ServerError, server_error::Severity, type_id::TypeId,
+};
+
+use super::{Part, PartKind};
 use crate::conn::AmConnCore;
 use crate::hdb_response::InternalReturnValue;
-use crate::protocol::part_attributes::PartAttributes;
-use crate::protocol::parts::resultset::ResultSet;
-use crate::protocol::server_usage::ServerUsage;
+use crate::protocol::{PartAttributes, ServerUsage};
 use crate::{HdbError, HdbResult};
 use std::sync::Arc;
 

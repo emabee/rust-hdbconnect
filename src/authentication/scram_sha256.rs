@@ -1,6 +1,6 @@
 use super::authenticator::Authenticator;
 use super::crypto_util::scram_sha256;
-use crate::protocol::parts::authfields::AuthFields;
+use crate::protocol::parts::AuthFields;
 use crate::{HdbError, HdbResult};
 use byteorder::{BigEndian, WriteBytesExt};
 use rand::{thread_rng, RngCore};

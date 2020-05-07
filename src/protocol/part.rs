@@ -1,34 +1,13 @@
 use crate::conn::AmConnCore;
-use crate::protocol::part_attributes::PartAttributes;
-use crate::protocol::partkind::PartKind;
-use crate::protocol::parts::authfields::AuthFields;
-use crate::protocol::parts::client_context::ClientContext;
-use crate::protocol::parts::client_info::ClientInfo;
-use crate::protocol::parts::command_info::CommandInfo;
-use crate::protocol::parts::connect_options::ConnectOptions;
-use crate::protocol::parts::execution_result::ExecutionResult;
-use crate::protocol::parts::lob_flags::LobFlags;
-use crate::protocol::parts::output_parameters::OutputParameters;
-use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
-use crate::protocol::parts::parameter_rows::ParameterRows;
-use crate::protocol::parts::partition_information::PartitionInformation;
-use crate::protocol::parts::read_lob_reply::ReadLobReply;
-use crate::protocol::parts::read_lob_request::ReadLobRequest;
-use crate::protocol::parts::resultset::ResultSet;
-use crate::protocol::parts::resultset::RsState;
-use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
-use crate::protocol::parts::server_error::ServerError;
-use crate::protocol::parts::session_context::SessionContext;
-use crate::protocol::parts::statement_context::StatementContext;
-use crate::protocol::parts::topology::Topology;
-use crate::protocol::parts::transactionflags::TransactionFlags;
-use crate::protocol::parts::write_lob_reply::WriteLobReply;
-use crate::protocol::parts::write_lob_request::WriteLobRequest;
-use crate::protocol::parts::xat_options::XatOptions;
-use crate::protocol::parts::Parts;
-use crate::protocol::util;
+use crate::protocol::parts::{
+    AuthFields, ClientContext, ClientInfo, CommandInfo, ConnectOptions, ExecutionResult, LobFlags,
+    OutputParameters, ParameterDescriptors, ParameterRows, PartitionInformation, Parts,
+    ReadLobReply, ReadLobRequest, ResultSet, ResultSetMetadata, RsState, ServerError,
+    SessionContext, StatementContext, Topology, TransactionFlags, WriteLobReply, WriteLobRequest,
+    XatOptions,
+};
+use crate::protocol::{util, PartAttributes, PartKind};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use cesu8;
 use std::cmp::max;
 use std::convert::TryFrom;
 use std::sync::Arc;
@@ -158,13 +137,11 @@ impl<'a> Part<'a> {
             Part::FetchSize(_) => size += 4,
             Part::LobFlags(ref opts) => size += opts.size(),
             Part::Parameters(ref par_rows) => {
-                size += if let Some(a_descriptors) = o_a_descriptors {
-                    par_rows.size(&a_descriptors)?
-                } else {
-                    return Err(util::io_error(
-                        "Part::Parameters::emit(): No metadata".to_string(),
-                    ));
-                }
+                size += o_a_descriptors
+                    .ok_or_else(|| {
+                        util::io_error("Part::body_size(): No parameter descriptors".to_string())
+                    })
+                    .and_then(|descriptors| par_rows.size(descriptors))?;
             }
             Part::ReadLobRequest(_) => size += ReadLobRequest::size(),
             Part::WriteLobRequest(ref r) => size += r.size(),
@@ -241,13 +218,11 @@ impl<'a> Part<'a> {
             }
             Part::LobFlags(ref opts) => opts.emit(w)?,
             Part::Parameters(ref parameters) => {
-                if let Some(descriptors) = o_a_descriptors {
-                    parameters.emit(descriptors, w)?
-                } else {
-                    return Err(util::io_error(
-                        "Part::Parameters::emit(): No metadata".to_string(),
-                    ));
-                }
+                o_a_descriptors
+                    .ok_or_else(|| {
+                        util::io_error("Part::Parameters::emit(): No metadata".to_string())
+                    })
+                    .and_then(|descriptors| parameters.emit(descriptors, w))?;
             }
             Part::ReadLobRequest(ref r) => r.emit(w)?,
             Part::ResultSetId(rs_id) => {
@@ -346,17 +321,10 @@ impl<'a> Part<'a> {
                 Part::ConnectOptions(ConnectOptions::parse(no_of_args, rdr)?)
             }
             PartKind::Error => Part::Error(ServerError::parse(no_of_args, rdr)?),
-            PartKind::OutputParameters => {
-                if let Some(descriptors) = o_a_descriptors {
-                    Part::OutputParameters(OutputParameters::parse(
-                        o_am_conn_core,
-                        descriptors,
-                        rdr,
-                    )?)
-                } else {
-                    return Err(util::io_error("Parsing output parameters needs metadata"));
-                }
-            }
+            PartKind::OutputParameters => o_a_descriptors
+                .ok_or_else(|| util::io_error("Parsing output parameters needs metadata"))
+                .and_then(|descriptors| OutputParameters::parse(o_am_conn_core, descriptors, rdr))
+                .map(Part::OutputParameters)?,
             PartKind::ParameterMetadata => {
                 Part::ParameterMetadata(ParameterDescriptors::parse(no_of_args, rdr)?)
             }

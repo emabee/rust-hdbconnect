@@ -1,6 +1,5 @@
 use crate::types_impl::lob::CharLobSlice;
 use crate::{HdbError, HdbResult};
-use cesu8;
 use std::iter::repeat;
 
 pub fn io_error<E>(error: E) -> std::io::Error
@@ -317,7 +316,6 @@ enum Utf8CharType {
 
 #[cfg(test)]
 mod tests {
-    use super::cesu8_to_string_and_tail;
     use cesu8;
 
     #[test]
@@ -342,7 +340,7 @@ mod tests {
 
             // split the first part in valid unicode plus the tail
             let (mut f_utf8, mut tail_cesu8) =
-                cesu8_to_string_and_tail(first_cesu8.to_vec()).unwrap();
+                super::cesu8_to_string_and_tail(first_cesu8.to_vec()).unwrap();
 
             // make sure the tail is shorter than 6
             assert!(tail_cesu8.len() < 6);

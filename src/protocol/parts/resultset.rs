@@ -1,19 +1,10 @@
 use crate::conn::AmConnCore;
-use crate::protocol::part::Part;
-use crate::protocol::part_attributes::PartAttributes;
-use crate::protocol::partkind::PartKind;
-use crate::protocol::parts::resultset_metadata::ResultSetMetadata;
-use crate::protocol::parts::row::Row;
-use crate::protocol::parts::statement_context::StatementContext;
-use crate::protocol::parts::Parts;
-use crate::protocol::reply_type::ReplyType;
-use crate::protocol::request::Request;
-use crate::protocol::request_type::RequestType;
-use crate::protocol::server_usage::ServerUsage;
-use crate::protocol::util;
+use crate::protocol::parts::{Parts, ResultSetMetadata, Row, StatementContext};
+use crate::protocol::{
+    util, Part, PartAttributes, PartKind, ReplyType, Request, RequestType, ServerUsage,
+};
 use crate::sync_prepared_statement::AmPsCore;
 use crate::{HdbError, HdbResult};
-use serde;
 use serde_db::de::DeserializableResultset;
 use std::fmt;
 use std::sync::{Arc, Mutex};

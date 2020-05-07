@@ -1,11 +1,8 @@
-use crate::hdb_return_value::HdbReturnValue;
-use crate::protocol::parts::execution_result::ExecutionResult;
-use crate::protocol::parts::output_parameters::OutputParameters;
-use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
-use crate::protocol::parts::resultset::ResultSet;
-use crate::protocol::parts::write_lob_reply::WriteLobReply;
-use crate::protocol::reply_type::ReplyType;
-use crate::{HdbError, HdbResult};
+use crate::protocol::parts::{
+    ExecutionResult, OutputParameters, ParameterDescriptors, ResultSet, WriteLobReply,
+};
+use crate::protocol::ReplyType;
+use crate::{HdbError, HdbResult, HdbReturnValue};
 use std::sync::Arc;
 
 /// Represents all possible non-error responses to a database command.
@@ -306,9 +303,10 @@ impl HdbResponse {
     /// `HdbError` if information would get lost.
     pub fn get_success(&mut self) -> HdbResult<()> {
         if let Some(i) = self.find_success() {
-            return self.return_values.remove(i).into_success();
+            self.return_values.remove(i).into_success()
+        } else {
+            Err(self.get_err("success"))
         }
-        Err(self.get_err("success"))
     }
     fn find_success(&self) -> Option<usize> {
         for (i, rt) in self.return_values.iter().enumerate().rev() {
