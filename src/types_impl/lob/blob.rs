@@ -4,6 +4,7 @@ use crate::protocol::parts::AmRsCore;
 use crate::protocol::ServerUsage;
 use crate::{HdbError, HdbResult};
 use std::boxed::Box;
+use std::collections::VecDeque;
 use std::io::Write;
 
 /// LOB implementation for binary values that is used within `HdbValue::BLOB` instances coming
@@ -149,7 +150,7 @@ struct BLobHandle {
     is_data_complete: bool,
     total_byte_length: u64,
     locator_id: u64,
-    data: Vec<u8>,
+    data: VecDeque<u8>,
     max_buf_len: usize,
     acc_byte_length: usize,
     server_usage: ServerUsage,
@@ -163,12 +164,7 @@ impl BLobHandle {
         locator_id: u64,
         data: Vec<u8>,
     ) -> Self {
-        trace!(
-            "BLobHandle::new() with total_byte_length = {}, is_data_complete = {}, data.length() = {}",
-            total_byte_length,
-            is_data_complete,
-            data.len()
-        );
+        let data = VecDeque::from(data);
         Self {
             am_conn_core: am_conn_core.clone(),
             o_am_rscore: match o_am_rscore {
@@ -216,7 +212,7 @@ impl BLobHandle {
             (self.total_byte_length - self.acc_byte_length as u64) as u32,
         );
 
-        let (mut reply_data, reply_is_last_data) = fetch_a_lob_chunk(
+        let (reply_data, reply_is_last_data) = fetch_a_lob_chunk(
             &mut self.am_conn_core,
             self.locator_id,
             self.acc_byte_length as u64,
@@ -225,7 +221,7 @@ impl BLobHandle {
         )?;
 
         self.acc_byte_length += reply_data.len();
-        self.data.append(&mut reply_data);
+        self.data.append(&mut VecDeque::from(reply_data));
         self.is_data_complete = reply_is_last_data;
         self.max_buf_len = std::cmp::max(self.data.len(), self.max_buf_len);
 
@@ -257,23 +253,32 @@ impl BLobHandle {
     fn into_bytes(mut self) -> HdbResult<Vec<u8>> {
         trace!("into_bytes()");
         self.load_complete()?;
-        Ok(self.data)
+        Ok(Vec::from(self.data))
     }
 }
 
 // Support for streaming
 impl std::io::Read for BLobHandle {
     fn read(&mut self, mut buf: &mut [u8]) -> std::io::Result<usize> {
-        trace!("BLobHandle::read() with buf of len {}", buf.len());
+        let buf_len = buf.len();
+        trace!("BLobHandle::read() with buf of len {}", buf_len);
 
-        while !self.is_data_complete && (buf.len() > self.data.len()) {
+        while !self.is_data_complete && (buf_len > self.data.len()) {
             self.fetch_next_chunk().map_err(|e| {
                 std::io::Error::new(std::io::ErrorKind::UnexpectedEof, e.to_string())
             })?;
         }
 
-        let count = std::cmp::min(self.data.len(), buf.len());
-        buf.write_all(&self.data[0..count])?;
+        let count = std::cmp::min(self.data.len(), buf_len);
+        let (s1, s2) = self.data.as_slices();
+        if count <= s1.len() {
+            // write count bytes from s1
+            buf.write_all(&s1[0..count])?;
+        } else {
+            // write s1 completely, then take the rest from s2
+            buf.write_all(&s1)?;
+            buf.write_all(&s2[0..(count - s1.len())])?;
+        }
         self.data.drain(0..count);
         Ok(count)
     }

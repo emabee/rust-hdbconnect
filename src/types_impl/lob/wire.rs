@@ -46,15 +46,18 @@ pub(crate) fn parse_clob(
         }
     } else {
         let (char_length, byte_length, locator_id, data) = parse_lob_2(rdr, is_data_included)?;
-        Ok(HdbValue::CLOB(CLob::new(
-            am_conn_core,
-            o_am_rscore,
-            is_last_data,
-            char_length,
-            byte_length,
-            locator_id,
-            data,
-        )))
+        Ok(HdbValue::CLOB(
+            CLob::new(
+                am_conn_core,
+                o_am_rscore,
+                is_last_data,
+                char_length,
+                byte_length,
+                locator_id,
+                data,
+            )
+            .map_err(|e| util::io_error(e.to_string()))?,
+        ))
     }
 }
 
@@ -75,15 +78,18 @@ pub(crate) fn parse_nclob(
     } else {
         let (char_length, byte_length, locator_id, data) = parse_lob_2(rdr, is_data_included)?;
         Ok(match type_id {
-            TypeId::TEXT | TypeId::NCLOB => HdbValue::NCLOB(NCLob::new(
-                am_conn_core,
-                o_am_rscore,
-                is_last_data,
-                char_length,
-                byte_length,
-                locator_id,
-                data,
-            )),
+            TypeId::TEXT | TypeId::NCLOB => HdbValue::NCLOB(
+                NCLob::new(
+                    am_conn_core,
+                    o_am_rscore,
+                    is_last_data,
+                    char_length,
+                    byte_length,
+                    locator_id,
+                    data,
+                )
+                .map_err(|e| util::io_error(e.to_string()))?,
+            ),
             _ => return Err(util::io_error("unexpected type id for nclob")),
         })
     }

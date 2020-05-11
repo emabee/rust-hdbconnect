@@ -5,7 +5,7 @@ use crate::protocol::parts::AmRsCore;
 use crate::protocol::{util, ServerUsage};
 use crate::{HdbError, HdbResult};
 use std::boxed::Box;
-use std::cmp::max;
+use std::collections::VecDeque;
 use std::io::Write;
 
 /// LOB implementation for unicode Strings that is used with `HdbValue::CLOB` (which is deprecated).
@@ -28,8 +28,8 @@ impl CLob {
         total_byte_length: u64,
         locator_id: u64,
         data: Vec<u8>,
-    ) -> Self {
-        Self(Box::new(CLobHandle::new(
+    ) -> HdbResult<Self> {
+        Ok(Self(Box::new(CLobHandle::new(
             am_conn_core,
             o_am_rscore,
             is_data_complete,
@@ -37,7 +37,7 @@ impl CLob {
             total_byte_length,
             locator_id,
             data,
-        )))
+        )?)))
     }
 
     /// Converts the `CLob` into the contained String.
@@ -155,8 +155,8 @@ struct CLobHandle {
     total_char_length: u64,
     total_byte_length: u64,
     locator_id: u64,
-    buffer_cesu8: Vec<u8>,
-    utf8: String,
+    cesu8: VecDeque<u8>,
+    cesu8_tail_len: usize,
     max_buf_len: usize,
     acc_byte_length: usize,
     server_usage: ServerUsage,
@@ -170,10 +170,12 @@ impl CLobHandle {
         total_byte_length: u64,
         locator_id: u64,
         cesu8: Vec<u8>,
-    ) -> Self {
+    ) -> HdbResult<Self> {
+        let cesu8 = VecDeque::from(cesu8);
         let acc_byte_length = cesu8.len();
 
-        let (utf8, buffer_cesu8) = util::cesu8_to_string_and_tail(cesu8).unwrap(/* yes */);
+        let cesu8_tail_len = util::get_cesu8_tail_len(&cesu8, 0, cesu8.len() - 1)?;
+
         let clob_handle = Self {
             am_conn_core: am_conn_core.clone(),
             o_am_rscore: match o_am_rscore {
@@ -184,23 +186,23 @@ impl CLobHandle {
             total_byte_length,
             is_data_complete,
             locator_id,
-            max_buf_len: utf8.len() + buffer_cesu8.len(),
-            buffer_cesu8,
-            utf8,
+            max_buf_len: cesu8.len(),
+            cesu8,
+            cesu8_tail_len,
             acc_byte_length,
             server_usage: ServerUsage::default(),
         };
         debug!(
             "CLobHandle::new() with: is_data_complete = {}, total_char_length = {}, total_byte_length = {}, \
-             locator_id = {}, buffer_cesu8.len() = {}, utf8.len() = {}",
+             locator_id = {}, cesu8_tail_len = {}, cesu8.len() = {}",
             clob_handle.is_data_complete,
             clob_handle.total_char_length,
             clob_handle.total_byte_length,
             clob_handle.locator_id,
-            clob_handle.buffer_cesu8.len(),
-            clob_handle.utf8.len()
+            clob_handle.cesu8_tail_len,
+            clob_handle.cesu8.len()
         );
-        clob_handle
+        Ok(clob_handle)
     }
 
     fn read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
@@ -220,7 +222,7 @@ impl CLobHandle {
     }
 
     fn cur_buf_len(&self) -> usize {
-        self.utf8.len()
+        self.cesu8.len()
     }
 
     #[allow(clippy::cast_possible_truncation)]
@@ -234,7 +236,7 @@ impl CLobHandle {
             (self.total_byte_length - self.acc_byte_length as u64) as u32,
         );
 
-        let (mut reply_data, reply_is_last_data) = fetch_a_lob_chunk(
+        let (reply_data, reply_is_last_data) = fetch_a_lob_chunk(
             &mut self.am_conn_core,
             self.locator_id,
             self.acc_byte_length as u64,
@@ -243,34 +245,22 @@ impl CLobHandle {
         )?;
 
         self.acc_byte_length += reply_data.len();
-        if self.buffer_cesu8.is_empty() {
-            let (utf8, buffer) = util::cesu8_to_string_and_tail(reply_data)?;
-            self.utf8.push_str(&utf8);
-            self.buffer_cesu8 = buffer;
-        } else {
-            self.buffer_cesu8.append(&mut reply_data);
-            let mut buffer_cesu8 = vec![];
-            std::mem::swap(&mut buffer_cesu8, &mut self.buffer_cesu8);
-            let (utf8, buffer) = util::cesu8_to_string_and_tail(buffer_cesu8)?;
 
-            self.utf8.push_str(&utf8);
-            self.buffer_cesu8 = buffer;
-        }
+        self.cesu8.append(&mut VecDeque::from(reply_data));
+        self.cesu8_tail_len = util::get_cesu8_tail_len(&self.cesu8, 0, self.cesu8.len() - 1)?;
 
         self.is_data_complete = reply_is_last_data;
-        self.max_buf_len = max(self.utf8.len() + self.buffer_cesu8.len(), self.max_buf_len);
+        self.max_buf_len = std::cmp::max(self.cesu8.len(), self.max_buf_len);
 
-        if self.is_data_complete {
-            if self.total_byte_length != self.acc_byte_length as u64 {
-                warn!(
-                    "is_data_complete: {}, total_byte_length: {}, acc_byte_length: {}",
-                    self.is_data_complete, self.total_byte_length, self.acc_byte_length,
-                );
-            }
-            assert_eq!(self.total_byte_length, self.acc_byte_length as u64);
-        } else {
-            assert!(self.total_byte_length != self.acc_byte_length as u64);
-        }
+        assert_eq!(
+            self.is_data_complete,
+            self.total_byte_length == self.acc_byte_length as u64
+        );
+        trace!(
+            "fetch_next_chunk: is_data_complete = {}, cesu8.len() = {}",
+            self.is_data_complete,
+            self.cesu8.len()
+        );
         Ok(())
     }
 
@@ -290,7 +280,7 @@ impl CLobHandle {
     fn into_string(mut self) -> HdbResult<String> {
         trace!("into_string()");
         self.load_complete()?;
-        Ok(self.utf8)
+        Ok(util::string_from_cesu8(Vec::from(self.cesu8))?)
     }
 }
 
@@ -299,25 +289,29 @@ impl std::io::Read for CLobHandle {
     fn read(&mut self, mut buf: &mut [u8]) -> std::io::Result<usize> {
         trace!("CLobHandle::read() with buf of len {}", buf.len());
 
-        while !self.is_data_complete && (buf.len() > self.utf8.len()) {
-            self.fetch_next_chunk().map_err(|e| {
-                std::io::Error::new(std::io::ErrorKind::UnexpectedEof, e.to_string())
-            })?;
+        while !self.is_data_complete && (buf.len() > self.cesu8.len() - self.cesu8_tail_len) {
+            self.fetch_next_chunk()
+                .map_err(|e| util::io_error(e.to_string()))?;
         }
 
-        // we want to keep clean UTF-8 in utf8, so we cut off at good places only
-        let count: usize = if self.utf8.len() < buf.len() {
-            self.utf8.len()
+        // we want to write only clean UTF-8 into buf, so we cut off at good places only;
+        // utf8 is equally long as cesu8, or shorter (6->4 bytes for BMP1)
+        // so we cut of at the latest char start before buf-len
+        let drain_len = std::cmp::min(buf.len(), self.cesu8.len());
+        let cesu8_buf: Vec<u8> = self.cesu8.drain(0..drain_len).collect();
+        let cut_off_position = if cesu8_buf.is_empty() {
+            0
         } else {
-            let mut tmp = buf.len();
-            while !util::is_utf8_char_start(self.utf8.as_bytes()[tmp]) {
-                tmp -= 1;
-            }
-            tmp
+            cesu8_buf.len() - util::get_cesu8_tail_len(&cesu8_buf, 0, cesu8_buf.len() - 1)?
         };
 
-        buf.write_all(&self.utf8.as_bytes()[0..count])?;
-        self.utf8.drain(0..count);
-        Ok(count)
+        // convert the valid part to utf-8 and push the tail back
+        let utf8 = cesu8::from_cesu8(&cesu8_buf[0..cut_off_position]).map_err(util::io_error)?;
+        for i in (cut_off_position..cesu8_buf.len()).rev() {
+            self.cesu8.push_front(cesu8_buf[i]);
+        }
+
+        buf.write_all(utf8.as_bytes())?;
+        Ok(utf8.len())
     }
 }

@@ -259,7 +259,7 @@ fn test_loblifecycle(
     debug!("Statements and Resultset are dropped");
 
     for value in lobs.into_iter() {
-        info!("fetching a lob");
+        debug!("fetching a lob");
         let _s: String = value.try_into()?;
     }
     Ok(())

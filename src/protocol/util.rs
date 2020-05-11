@@ -2,7 +2,7 @@ use crate::types_impl::lob::CharLobSlice;
 use crate::{HdbError, HdbResult};
 use std::iter::repeat;
 
-pub fn io_error<E>(error: E) -> std::io::Error
+pub(crate) fn io_error<E>(error: E) -> std::io::Error
 where
     E: Into<Box<dyn std::error::Error + Send + Sync>>,
 {
@@ -10,7 +10,7 @@ where
 }
 
 // Read n bytes, return as Vec<u8>
-pub fn parse_bytes(len: usize, rdr: &mut dyn std::io::Read) -> std::io::Result<Vec<u8>> {
+pub(crate) fn parse_bytes(len: usize, rdr: &mut dyn std::io::Read) -> std::io::Result<Vec<u8>> {
     let mut vec: Vec<u8> = repeat(255_u8).take(len).collect();
     {
         let rf: &mut [u8] = &mut vec;
@@ -19,7 +19,7 @@ pub fn parse_bytes(len: usize, rdr: &mut dyn std::io::Read) -> std::io::Result<V
     Ok(vec)
 }
 
-pub fn skip_bytes(n: usize, rdr: &mut dyn std::io::Read) -> std::io::Result<()> {
+pub(crate) fn skip_bytes(n: usize, rdr: &mut dyn std::io::Read) -> std::io::Result<()> {
     const MAXBUFLEN: usize = 16;
     if n > MAXBUFLEN {
         Err(crate::protocol::util::io_error("impl: n > MAXBUFLEN (16)"))
@@ -32,7 +32,7 @@ pub fn skip_bytes(n: usize, rdr: &mut dyn std::io::Read) -> std::io::Result<()> 
 // --- CESU8 Stuff --- //
 
 // Consumes the cesu8 bytes, returns a String with minimal allocation
-pub fn string_from_cesu8(bytes: Vec<u8>) -> Result<String, cesu8::Cesu8DecodingError> {
+pub(crate) fn string_from_cesu8(bytes: Vec<u8>) -> Result<String, cesu8::Cesu8DecodingError> {
     String::from_utf8(bytes).or_else(|e| Ok(cesu8::from_cesu8(e.as_bytes())?.to_string()))
 }
 
@@ -40,7 +40,7 @@ pub fn string_from_cesu8(bytes: Vec<u8>) -> Result<String, cesu8::Cesu8DecodingE
 // which consume 4 bytes in utf-8 and 6 in cesu-8;
 // the first byte of such a code point in utf8 has the bit pattern 11110xxx
 // (240 -247)
-pub fn cesu8_length(s: &str) -> usize {
+pub(crate) fn cesu8_length(s: &str) -> usize {
     let mut len = s.len();
     for b in s.as_bytes() {
         if *b >= 240_u8 {
@@ -51,77 +51,19 @@ pub fn cesu8_length(s: &str) -> usize {
     len
 }
 
-pub fn is_utf8_char_start(b: u8) -> bool {
-    match b {
-        0x00..=0x7F | 0xC0..=0xDF | 0xE0..=0xEF | 0xF0..=0xF7 => true,
-        _ => false,
-    }
-}
-
-pub fn count_1_2_3_sequence_starts(cesu8: &[u8]) -> usize {
-    cesu8.iter().filter(|b| is_utf8_char_start(**b)).count()
-}
-
-pub fn to_string_and_surrogate(cesu8: Vec<u8>) -> HdbResult<(String, Option<Vec<u8>>)> {
-    let (utf8, buffer_cesu8) = cesu8_to_string_and_tail(cesu8).unwrap(/* yes */);
-    match buffer_cesu8.len() {
-        0 => Ok((utf8, None)),
-        3 => {
-            debug!("to_string_and_surrogate() found a split surrogate pair");
-            Ok((
-                utf8,
-                Some(vec![buffer_cesu8[0], buffer_cesu8[1], buffer_cesu8[2]]),
-            ))
-        }
-        _ => Err(HdbError::ImplDetailed(format!(
-            "Unexpected buffer_cesu8 = {:?}",
-            buffer_cesu8
-        ))),
-    }
-}
-
-pub fn cesu8_to_string_and_tail(mut cesu8: Vec<u8>) -> HdbResult<(String, Vec<u8>)> {
-    let cesu8_length = cesu8.len();
-    let start = match cesu8_length {
-        0..=7 => 0,
-        len => len - 7,
-    };
-
-    let tail_len = get_cesu8_tail_len(&cesu8[start..])?;
-    let tail = cesu8.split_off(cesu8_length - tail_len);
-    Ok((string_from_cesu8(cesu8)?, tail))
-}
-
-pub fn utf8_to_cesu8_and_utf8_tail(mut utf8: Vec<u8>) -> HdbResult<(Vec<u8>, Vec<u8>)> {
-    let utf8_length = utf8.len();
-    let start = match utf8_length {
-        0..=5 => 0,
-        len => len - 5,
-    };
-
-    let tail_len = get_utf8_tail_len(&utf8[start..])?;
-    let tail = utf8.split_off(utf8_length - tail_len);
-    Ok((
-        cesu8::to_cesu8(
-            &String::from_utf8(utf8).map_err(|_e| HdbError::Impl("utf8_to_cesu8_and_utf8_tail"))?,
-        )
-        .to_vec(),
-        tail,
-    ))
-}
-
-// determine how many of the last characters must be cut off to ensure the string ends with
+// determine how many of the last characters must be cut off to ensure the remaining bytes end with
 // consistent cesu-8 that can be converted into utf-8
-fn get_cesu8_tail_len(bytes: &[u8]) -> HdbResult<usize> {
-    match bytes.last() {
-        None | Some(0..=127) => Ok(0),
-        Some(0xC0..=0xDF) => Ok(1),
-        Some(_) => {
-            let len = bytes.len();
-            for i in 0..len - 1 {
-                let index = len - 2 - i;
-                let cesu8_char_start = get_cesu8_char_start(&bytes[index..]);
-                if let Some(char_len) = match cesu8_char_start {
+#[allow(clippy::ptr_arg)]
+pub(crate) fn get_cesu8_tail_len<T>(bytes: &T, first: usize, last: usize) -> std::io::Result<usize>
+where
+    T: std::fmt::Debug + std::ops::Index<usize, Output = u8>,
+{
+    match bytes[last] {
+        0..=127 => Ok(0),     // last byte is ASCII-7, no need to cut anything off
+        0xC0..=0xDF => Ok(1), // last byte is start of two-byte sequence, cut off here
+        _ => {
+            for index in (first..=last).rev() {
+                if let Some(char_len) = match cesu8_char_type(bytes, index, last) {
                     Cesu8CharType::One => Some(1),
                     Cesu8CharType::Two => Some(2),
                     Cesu8CharType::Three => Some(3),
@@ -131,59 +73,49 @@ fn get_cesu8_tail_len(bytes: &[u8]) -> HdbResult<usize> {
                     | Cesu8CharType::TooShort
                     | Cesu8CharType::Empty => None,
                 } {
-                    return Ok(match (index + char_len).cmp(&len) {
-                        std::cmp::Ordering::Greater => len - index,
+                    return Ok(match (last - index + 1).cmp(&char_len) {
+                        std::cmp::Ordering::Greater => last - index + 1 - char_len,
                         std::cmp::Ordering::Equal => 0,
-                        std::cmp::Ordering::Less => len - index - char_len,
+                        std::cmp::Ordering::Less => last - index + 1,
                     });
                 }
             }
-            Err(HdbError::ImplDetailed(format!(
-                "no valid cesu8 cutoff point found for {:?}!",
-                bytes,
-            )))
+            Err(io_error("no valid cesu8 cutoff point found"))
         }
     }
 }
 
-fn get_utf8_tail_len(bytes: &[u8]) -> HdbResult<usize> {
-    match bytes.last() {
-        None | Some(0..=127) => Ok(0),
-        Some(0xC0..=0xDF) => Ok(1),
-        Some(_) => {
-            let len = bytes.len();
-            for i in 0..len - 1 {
-                let index = len - 2 - i;
-                let utf8_char_start = get_utf8_char_start(&bytes[index..]);
-                if let Some(char_len) = match utf8_char_start {
-                    Utf8CharType::One => Some(1),
-                    Utf8CharType::Two => Some(2),
-                    Utf8CharType::Three => Some(3),
-                    Utf8CharType::Four => Some(4),
-                    Utf8CharType::NotAStart | Utf8CharType::Illegal | Utf8CharType::Empty => None,
-                } {
-                    return Ok(match (index + char_len).cmp(&len) {
-                        std::cmp::Ordering::Greater => len - index,
-                        std::cmp::Ordering::Equal => 0,
-                        std::cmp::Ordering::Less => len - index - char_len,
-                    });
-                }
-            }
-            Err(HdbError::ImplDetailed(format!(
-                "no valid utf8 cutoff point found for {:?}!",
-                bytes
-            )))
+pub(crate) fn split_off_orphaned_surrogates(cesu8: Vec<u8>) -> HdbResult<CharLobSlice> {
+    let (prefix, cesu8) = match cesu8_char_type(&cesu8, 0, cesu8.len()) {
+        Cesu8CharType::One
+        | Cesu8CharType::Two
+        | Cesu8CharType::Three
+        | Cesu8CharType::FirstHalfOfSurrogate
+        | Cesu8CharType::Empty => (None, cesu8),
+        Cesu8CharType::SecondHalfOfSurrogate => (
+            Some(vec![cesu8[0], cesu8[1], cesu8[2]]),
+            cesu8[3..].to_vec(),
+        ),
+        Cesu8CharType::NotAStart | Cesu8CharType::TooShort => {
+            return Err(HdbError::Impl("Unexpected value for NCLob"));
         }
-    }
+    };
+    let (data, postfix) = cesu8_to_string_and_surrogate(cesu8)?;
+    Ok(CharLobSlice {
+        prefix,
+        data,
+        postfix,
+    })
 }
 
 // find first cesu8-start,
 // find tail
 // determine in-between (can be empty)
-pub fn split_off_orphaned_bytes(cesu8: &[u8]) -> HdbResult<CharLobSlice> {
+#[allow(clippy::ptr_arg)]
+pub(crate) fn split_off_orphaned_bytes(cesu8: &Vec<u8>) -> HdbResult<CharLobSlice> {
     let mut split = 0;
     for start in 0..cesu8.len() {
-        split = match get_cesu8_char_start(&cesu8[start..]) {
+        split = match cesu8_char_type(cesu8, start, cesu8.len()) {
             Cesu8CharType::One
             | Cesu8CharType::Two
             | Cesu8CharType::Three
@@ -216,30 +148,32 @@ pub fn split_off_orphaned_bytes(cesu8: &[u8]) -> HdbResult<CharLobSlice> {
     })
 }
 
-pub fn split_off_orphaned_surrogates(cesu8: Vec<u8>) -> HdbResult<CharLobSlice> {
-    let (prefix, cesu8) = match get_cesu8_char_start(&cesu8) {
-        Cesu8CharType::One
-        | Cesu8CharType::Two
-        | Cesu8CharType::Three
-        | Cesu8CharType::FirstHalfOfSurrogate
-        | Cesu8CharType::Empty
-        | Cesu8CharType::TooShort => (None, cesu8),
-        Cesu8CharType::SecondHalfOfSurrogate => (
-            Some(vec![cesu8[0], cesu8[1], cesu8[2]]),
-            cesu8[3..].to_vec(),
-        ),
-        Cesu8CharType::NotAStart => {
-            return Err(HdbError::Impl("Unexpected value for NCLob"));
+fn cesu8_to_string_and_surrogate(cesu8: Vec<u8>) -> HdbResult<(String, Option<Vec<u8>>)> {
+    let (utf8, buffer_cesu8) = cesu8_to_string_and_tail(cesu8).unwrap(/* yes */);
+    match buffer_cesu8.len() {
+        0 => Ok((utf8, None)),
+        3 => {
+            debug!("cesu8_to_string_and_surrogate() found a split surrogate pair");
+            Ok((
+                utf8,
+                Some(vec![buffer_cesu8[0], buffer_cesu8[1], buffer_cesu8[2]]),
+            ))
         }
+        _ => Err(HdbError::ImplDetailed(format!(
+            "Unexpected buffer_cesu8 = {:?}",
+            buffer_cesu8
+        ))),
+    }
+}
+
+fn cesu8_to_string_and_tail(mut cesu8: Vec<u8>) -> HdbResult<(String, Vec<u8>)> {
+    let tail_len = if cesu8.is_empty() {
+        0
+    } else {
+        get_cesu8_tail_len(&cesu8, 0, cesu8.len() - 1)?
     };
-
-    let (data, postfix) = to_string_and_surrogate(cesu8)?;
-
-    Ok(CharLobSlice {
-        prefix,
-        data,
-        postfix,
-    })
+    let tail = cesu8.split_off(cesu8.len() - tail_len);
+    Ok((string_from_cesu8(cesu8)?, tail))
 }
 
 // First half:
@@ -254,24 +188,28 @@ pub fn split_off_orphaned_surrogates(cesu8: Vec<u8>) -> HdbResult<CharLobSlice> 
 //  11100000 10000000 10000000  to  11101111 10111111 10111111
 //  E   0    8   0                  E   F    B   F
 //
-fn get_cesu8_char_start(bytes: &[u8]) -> Cesu8CharType {
-    match bytes.len() {
-        0 => Cesu8CharType::Empty,
-        1 => match bytes[0] {
+fn cesu8_char_type<T>(cesu8: &T, first: usize, last: usize) -> Cesu8CharType
+where
+    T: std::ops::Index<usize, Output = u8>,
+{
+    if first == last {
+        match cesu8[first] {
             0x00..=0x7F => Cesu8CharType::One,
             0xC0..=0xDF => Cesu8CharType::Two,
             _ => Cesu8CharType::TooShort,
-        },
-        _ => match (bytes[0], bytes[1]) {
+        }
+    } else {
+        match (cesu8[first], cesu8[first + 1]) {
             (0x00..=0x7F, _) => Cesu8CharType::One,
             (0xC0..=0xDF, _) => Cesu8CharType::Two,
             (0xED, 0xA0..=0xAF) => Cesu8CharType::FirstHalfOfSurrogate,
             (0xED, 0xB0..=0xBF) => Cesu8CharType::SecondHalfOfSurrogate,
             (0xE0..=0xEF, 0x80..=0xBF) => Cesu8CharType::Three,
             (_, _) => Cesu8CharType::NotAStart,
-        },
+        }
     }
 }
+
 #[derive(Debug)]
 enum Cesu8CharType {
     Empty,
@@ -282,36 +220,6 @@ enum Cesu8CharType {
     Three, // ...non-surrogate three-byte char
     FirstHalfOfSurrogate,
     SecondHalfOfSurrogate,
-}
-
-//   1: 0000_0000 to 0111_1111 (00 to 7F)
-//cont: 1000_0000 to 1011_1111 (80 to BF)
-//   2: 1100_0000 to 1101_1111 (C0 to DF)
-//   3: 1110_0000 to 1110_1111 (E0 to EF)
-//   4: 1111_0000 to 1111_0111 (F0 to F7)
-// ill: 1111_1000 to 1111_1111 (F8 to FF)
-fn get_utf8_char_start(bytes: &[u8]) -> Utf8CharType {
-    match bytes.len() {
-        0 => Utf8CharType::Empty,
-        _ => match bytes[0] {
-            0x00..=0x7F => Utf8CharType::One,
-            0x80..=0xBF => Utf8CharType::NotAStart,
-            0xC0..=0xDF => Utf8CharType::Two,
-            0xE0..=0xEF => Utf8CharType::Three,
-            0xF0..=0xF7 => Utf8CharType::Four,
-            _ => Utf8CharType::Illegal,
-        },
-    }
-}
-
-enum Utf8CharType {
-    Empty,
-    Illegal,
-    NotAStart,
-    One,   // ...plain ascii
-    Two,   // ...two-byte char
-    Three, // ...three-byte char
-    Four,  // ...four-byte char
 }
 
 #[cfg(test)]
@@ -333,7 +241,6 @@ mod tests {
         let v_cesu8 = cesu8::to_cesu8(&s_utf8);
 
         assert_eq!(s_utf8, cesu8::from_cesu8(&v_cesu8).unwrap());
-
         for i in 0..v_cesu8.len() {
             // forcefully split in two parts that may be invalid unicode
             let (first_cesu8, second_cesu8) = v_cesu8.split_at(i);
