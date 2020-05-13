@@ -139,7 +139,7 @@ fn verify_row_ordering(
 ) -> HdbResult<()> {
     _log_handle.parse_and_push_temp_spec("info");
     // , hdbconnect::protocol::request = trace, hdbconnect::conn::tcp::sync::tls_tcp_client = debug
-    info!("verify row ordering");
+    info!("verify row ordering with various fetch sizes");
     // prepare the db table
     connection.multiple_statements_ignore_err(vec!["drop table TEST_ROW_ORDERING"]);
     connection.multiple_statements(vec![

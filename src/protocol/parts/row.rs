@@ -106,17 +106,10 @@ impl Row {
     ) -> std::io::Result<Self> {
         let no_of_cols = md.number_of_fields();
         let mut values = Vec::<HdbValue>::new();
-        for c in 0..no_of_cols {
-            let fmd = md.get(c).map_err(|e| util::io_error(e.to_string()))?;
-            let type_id = fmd.type_id();
-            let nullable = fmd.is_nullable();
-            let scale = fmd.scale();
-            trace!(
-                "Parsing column {}, {}{:?}",
-                c,
-                if nullable { "Nullable " } else { "" },
-                type_id,
-            );
+        for col_idx in 0..no_of_cols {
+            let (type_id, nullable, scale) = md
+                .typeid_nullable_scale(col_idx)
+                .map_err(|e| util::io_error(e.to_string()))?;
             let value = HdbValue::parse_from_reply(
                 type_id,
                 scale,

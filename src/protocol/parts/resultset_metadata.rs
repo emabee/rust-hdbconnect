@@ -33,11 +33,16 @@ impl ResultSetMetadata {
         }
     }
 
-    pub(crate) fn get(&self, index: usize) -> HdbResult<&FieldMetadata> {
+    fn field_metadata(&self, index: usize) -> HdbResult<&FieldMetadata> {
         Ok(self
             .fields
             .get(index)
             .ok_or_else(|| HdbError::Usage(INVALID_FIELD_INDEX))?)
+    }
+
+    pub(crate) fn typeid_nullable_scale(&self, index: usize) -> HdbResult<(TypeId, bool, i16)> {
+        let fmd = self.field_metadata(index)?;
+        Ok((fmd.type_id, fmd.is_nullable(), fmd.scale))
     }
 
     /// Database schema of the i'th column in the resultset.
@@ -48,7 +53,7 @@ impl ResultSetMetadata {
     pub fn schemaname(&self, i: usize) -> HdbResult<&str> {
         Ok(self
             .names
-            .get(self.get(i)?.schemaname_idx() as usize)
+            .get(self.field_metadata(i)?.schemaname_idx as usize)
             .ok_or_else(|| HdbError::Usage(INVALID_FIELD_INDEX))?)
     }
 
@@ -60,7 +65,7 @@ impl ResultSetMetadata {
     pub fn tablename(&self, i: usize) -> HdbResult<&str> {
         Ok(self
             .names
-            .get(self.get(i)?.tablename_idx() as usize)
+            .get(self.field_metadata(i)?.tablename_idx as usize)
             .ok_or_else(|| HdbError::Usage(INVALID_FIELD_INDEX))?)
     }
 
@@ -72,7 +77,7 @@ impl ResultSetMetadata {
     pub fn columnname(&self, i: usize) -> HdbResult<&str> {
         Ok(self
             .names
-            .get(self.get(i)?.columnname_idx() as usize)
+            .get(self.field_metadata(i)?.columnname_idx as usize)
             .ok_or_else(|| HdbError::Usage(INVALID_FIELD_INDEX))?)
     }
 
@@ -87,7 +92,7 @@ impl ResultSetMetadata {
     pub fn displayname(&self, index: usize) -> HdbResult<&str> {
         Ok(self
             .names
-            .get(self.get(index)?.displayname_idx() as usize)
+            .get(self.field_metadata(index)?.displayname_idx as usize)
             .ok_or_else(|| HdbError::Usage(INVALID_FIELD_INDEX))?)
     }
 
@@ -97,7 +102,7 @@ impl ResultSetMetadata {
     ///
     /// `HdbError::Usage` if the index is invalid
     pub fn nullable(&self, i: usize) -> HdbResult<bool> {
-        Ok(self.get(i)?.is_nullable())
+        Ok(self.field_metadata(i)?.is_nullable())
     }
 
     /// Returns true if the column has a default value.
@@ -106,7 +111,7 @@ impl ResultSetMetadata {
     ///
     /// `HdbError::Usage` if the index is invalid
     pub fn has_default(&self, i: usize) -> HdbResult<bool> {
-        Ok(self.get(i)?.has_default())
+        Ok(self.field_metadata(i)?.has_default())
     }
     // 3 = Escape_char
     // ???
@@ -116,7 +121,7 @@ impl ResultSetMetadata {
     ///
     /// `HdbError::Usage` if the index is invalid
     pub fn read_only(&self, i: usize) -> HdbResult<bool> {
-        Ok(self.get(i)?.read_only())
+        Ok(self.field_metadata(i)?.read_only())
     }
     /// Returns true if the column is auto-incremented.
     ///
@@ -124,7 +129,7 @@ impl ResultSetMetadata {
     ///
     /// `HdbError::Usage` if the index is invalid
     pub fn is_auto_incremented(&self, i: usize) -> HdbResult<bool> {
-        Ok(self.get(i)?.is_auto_incremented())
+        Ok(self.field_metadata(i)?.is_auto_incremented())
     }
     // 6 = ArrayType
     /// Returns true if the column is of array type.
@@ -133,7 +138,7 @@ impl ResultSetMetadata {
     ///
     /// `HdbError::Usage` if the index is invalid
     pub fn is_array_type(&self, i: usize) -> HdbResult<bool> {
-        Ok(self.get(i)?.is_array_type())
+        Ok(self.field_metadata(i)?.is_array_type())
     }
 
     /// Returns the id of the value type.
@@ -142,7 +147,7 @@ impl ResultSetMetadata {
     ///
     /// `HdbError::Usage` if the index is invalid
     pub fn type_id(&self, i: usize) -> HdbResult<TypeId> {
-        Ok(self.get(i)?.type_id())
+        Ok(self.field_metadata(i)?.type_id)
     }
 
     /// Scale length (for some numeric types only).
@@ -151,7 +156,7 @@ impl ResultSetMetadata {
     ///
     /// `HdbError::Usage` if the index is invalid
     pub fn scale(&self, i: usize) -> HdbResult<i16> {
-        Ok(self.get(i)?.scale())
+        Ok(self.field_metadata(i)?.scale)
     }
 
     /// Precision (for some numeric types only).
@@ -160,7 +165,7 @@ impl ResultSetMetadata {
     ///
     /// `HdbError::Usage` if the index is invalid
     pub fn precision(&self, i: usize) -> HdbResult<i16> {
-        Ok(self.get(i)?.precision())
+        Ok(self.field_metadata(i)?.precision)
     }
 
     pub(crate) fn parse(count: usize, rdr: &mut dyn std::io::Read) -> std::io::Result<Self> {
@@ -184,12 +189,10 @@ impl ResultSetMetadata {
             let displayname_idx = rdr.read_u32::<LittleEndian>()?; // I4
             rsm.add_to_names(displayname_idx);
 
-            let nullable = (column_options & 0b_0000_0010_u8) != 0;
             let type_id = TypeId::try_new(type_code)?;
             let fm = FieldMetadata {
                 column_options,
                 type_id,
-                nullable,
                 scale,
                 precision,
                 tablename_idx,
@@ -230,7 +233,7 @@ impl std::fmt::Display for ResultSetMetadata {
 
 /// Describes a single field (column) in a result set.
 #[derive(Clone, Debug)]
-pub(crate) struct FieldMetadata {
+struct FieldMetadata {
     schemaname_idx: u32,
     tablename_idx: u32,
     columnname_idx: u32,
@@ -246,62 +249,32 @@ pub(crate) struct FieldMetadata {
     // 6 = ArrayType
     column_options: u8,
     type_id: TypeId,
-    nullable: bool,
     // scale (for some numeric types only)
     scale: i16,
     // Precision (for some numeric types only)
     precision: i16,
 }
 impl FieldMetadata {
-    // Database schema.
-    pub fn schemaname_idx(&self) -> u32 {
-        self.schemaname_idx
-    }
-    // Database table.
-    pub fn tablename_idx(&self) -> u32 {
-        self.tablename_idx
-    }
-    // Name of the column.
-    pub fn columnname_idx(&self) -> u32 {
-        self.columnname_idx
-    }
-    // Display name of a column.
-    pub fn displayname_idx(&self) -> u32 {
-        self.displayname_idx
-    }
     // Returns true if the column can contain NULL values.
-    pub fn is_nullable(&self) -> bool {
+    fn is_nullable(&self) -> bool {
         (self.column_options & 0b_0000_0010_u8) != 0
     }
     // Returns true if the column has a default value.
-    pub fn has_default(&self) -> bool {
+    fn has_default(&self) -> bool {
         (self.column_options & 0b_0000_0100_u8) != 0
     }
     // 3 = Escape_char
     // ???
     //  Returns true if the column is read-only
-    pub fn read_only(&self) -> bool {
+    fn read_only(&self) -> bool {
         (self.column_options & 0b_0001_0000_u8) != 0
     }
     // Returns true if the column is auto-incremented.
-    pub fn is_auto_incremented(&self) -> bool {
+    fn is_auto_incremented(&self) -> bool {
         (self.column_options & 0b_0010_0000_u8) != 0
     }
     // 6 = ArrayType
-    pub fn is_array_type(&self) -> bool {
+    fn is_array_type(&self) -> bool {
         (self.column_options & 0b_0100_0000_u8) != 0
-    }
-
-    /// The id of the value type.
-    pub fn type_id(&self) -> TypeId {
-        self.type_id
-    }
-    /// Scale (for some numeric types only).
-    pub fn scale(&self) -> i16 {
-        self.scale
-    }
-    /// Precision (for some numeric types only).
-    pub fn precision(&self) -> i16 {
-        self.precision
     }
 }
