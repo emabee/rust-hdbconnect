@@ -1,3 +1,5 @@
+#![allow(clippy::used_underscore_binding)]
+
 use crate::protocol::parts::{ExecutionResult, ServerError};
 // use std::backtrace::Backtrace;
 use thiserror::Error;

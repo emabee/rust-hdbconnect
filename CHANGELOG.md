@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.21.3] 2020-05-18
+
+### Fixes and Improvements
+
+Implement automatic reconnect (only wokrs within the server's reconnect-wait-timeout).
+
+Make `HdbError` thread-safe (again) - Kudos to Mark Obad!
+
 ## [0.21.2] 2020-05-04
 
 ### Fixes and Improvements
