@@ -39,7 +39,7 @@ pub enum HdbError {
     #[error("Erroneous Connection Parameters")]
     ConnParams {
         /// The causing Error.
-        source: Box<dyn std::error::Error>,
+        source: Box<dyn std::error::Error + Send + Sync + 'static>,
         // backtrace: Backtrace,
     },
 
@@ -136,7 +136,7 @@ impl HdbError {
         }
     }
 
-    pub(crate) fn conn_params(error: Box<dyn std::error::Error>) -> Self {
+    pub(crate) fn conn_params(error: Box<dyn std::error::Error + Send + Sync + 'static>) -> Self {
         Self::ConnParams { source: error }
     }
 }
