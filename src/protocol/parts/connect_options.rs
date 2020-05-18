@@ -14,6 +14,8 @@ impl ConnectOptions {
             debug!("Sending ConnectionOption to server: {:?} = {:?}", id, value);
             connopts.insert(id, value);
         };
+        // concrete value is overridden by server to 600:
+        set_opt(ConnOptId::ClientReconnectWaitTimeout, OptionValue::INT(678));
 
         // set_opt(ConnOptId::CompleteArrayExecution, OptionValue::BOOLEAN(true));
         // set_opt(ConnOptId::RowSlotImageParameter, OptionValue::BOOLEAN(true));

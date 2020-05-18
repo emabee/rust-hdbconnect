@@ -32,12 +32,10 @@ mod xat_options;
 
 pub(crate) use self::{
     authfields::AuthFields,
-    client_context::ClientContext,
-    client_context::ClientContextId,
+    client_context::{ClientContext, ClientContextId},
     client_info::ClientInfo,
     command_info::CommandInfo,
-    connect_options::ConnOptId,
-    connect_options::ConnectOptions,
+    connect_options::{ConnOptId, ConnectOptions},
     lob_flags::LobFlags,
     option_value::OptionValue,
     parameter_rows::ParameterRows,

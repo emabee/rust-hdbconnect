@@ -1,7 +1,7 @@
 // Defines the action requested from the database server.
 // Is documented as Message Type.
 // Irrelevant RequestTypes (abap related, "reserved" stuff) are omitted.
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum RequestType {
     ExecuteDirect = 2,    // Directly execute SQL statement
     Prepare = 3,          // Prepare an SQL statement

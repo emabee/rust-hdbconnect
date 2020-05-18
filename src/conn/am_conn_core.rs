@@ -1,8 +1,7 @@
-use super::connection_core::ConnectionCore;
-use crate::conn::ConnectParams;
+use crate::conn::ConnectionCore;
 use crate::protocol::parts::{ResultSetMetadata, RsState};
-use crate::protocol::{Part, Reply, Request};
-use crate::{HdbResult, ParameterDescriptors};
+use crate::protocol::{Reply, Request};
+use crate::{ConnectParams, HdbError, HdbResult, ParameterDescriptors};
 use chrono::Local;
 use std::sync::{Arc, LockResult, Mutex, MutexGuard};
 
@@ -12,7 +11,22 @@ pub(crate) struct AmConnCore(Arc<Mutex<ConnectionCore>>);
 
 impl AmConnCore {
     pub fn try_new(conn_params: ConnectParams) -> HdbResult<Self> {
+        trace!("trying to connect to {}", conn_params);
+        let start = Local::now();
         let conn_core = ConnectionCore::try_new(conn_params)?;
+        {
+            debug!(
+                "user \"{}\" successfully logged on ({} µs) to {:?} of {:?} (HANA version: {:?})",
+                conn_core.connect_params().dbuser(),
+                Local::now()
+                    .signed_duration_since(start)
+                    .num_microseconds()
+                    .unwrap_or(-1),
+                conn_core.connect_options().get_database_name(),
+                conn_core.connect_options().get_system_id(),
+                conn_core.connect_options().get_full_version_string()
+            );
+        }
         Ok(Self(Arc::new(Mutex::new(conn_core))))
     }
 
@@ -37,23 +51,26 @@ impl AmConnCore {
         );
         let start = Local::now();
         let mut conn_core = self.lock()?;
+        conn_core.prepare_request(&mut request);
 
-        match conn_core.statement_sequence() {
-            Some(ssi_value) => request.add_statement_context(*ssi_value),
-            None => {}
+        match conn_core.roundtrip_sync(&request, Some(&self), o_a_rsmd, o_a_descriptors, o_rs) {
+            Ok(reply) => {
+                trace!(
+                    "full_send_sync() took {} ms",
+                    (Local::now().signed_duration_since(start)).num_milliseconds()
+                );
+                Ok(reply)
+            }
+            Err(HdbError::Tcp { source })
+                if std::io::ErrorKind::ConnectionReset == source.kind() =>
+            {
+                debug!("full_send_sync(): reconnecting after ConnectionReset error...");
+                conn_core.reconnect()?;
+                debug!("full_send_sync(): repeating request after reconnect...");
+                conn_core.roundtrip_sync(&request, Some(&self), o_a_rsmd, o_a_descriptors, o_rs)
+            }
+            Err(e) => Err(e),
         }
-
-        if conn_core.is_client_info_touched() {
-            request.push(Part::ClientInfo(conn_core.get_client_info_for_sending()));
-        }
-
-        let reply = conn_core.roundtrip_sync(request, &self, o_a_rsmd, o_a_descriptors, o_rs)?;
-
-        debug!(
-            "AmConnCore::full_send() took {} ms",
-            (Local::now().signed_duration_since(start)).num_milliseconds()
-        );
-        Ok(reply)
     }
 }
 

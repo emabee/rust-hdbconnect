@@ -42,7 +42,6 @@ extern crate serde;
 pub use r2d2;
 pub use serde_db;
 
-mod authentication;
 mod conn;
 mod hdb_error;
 mod hdb_response;

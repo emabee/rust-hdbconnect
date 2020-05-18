@@ -209,21 +209,10 @@ impl Drop for ResultSetCore {
         let rs_id = self.resultset_id;
         trace!("ResultSetCore::drop(), resultset_id {}", rs_id);
         if !self.attributes.resultset_is_closed() {
-            if let Ok(mut conn_guard) = self.am_conn_core.lock() {
-                let mut request = Request::new(RequestType::CloseResultSet, 0);
-                request.push(Part::ResultSetId(rs_id));
-
-                if let Ok(mut reply) =
-                    conn_guard.roundtrip_sync(request, &self.am_conn_core, None, None, &mut None)
-                {
-                    reply.parts.pop_if_kind(PartKind::StatementContext);
-                    while let Some(part) = reply.parts.pop() {
-                        warn!(
-                            "CloseResultSet got a reply with a part of kind {:?}",
-                            part.kind()
-                        );
-                    }
-                }
+            let mut request = Request::new(RequestType::CloseResultSet, 0);
+            request.push(Part::ResultSetId(rs_id));
+            if let Ok(mut reply) = self.am_conn_core.send_sync(request) {
+                reply.parts.pop_if_kind(PartKind::StatementContext);
             }
         }
     }

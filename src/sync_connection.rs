@@ -1,4 +1,3 @@
-use crate::authentication;
 use crate::conn::AmConnCore;
 use crate::protocol::parts::{
     ClientContext, ClientContextId, CommandInfo, ConnOptId, OptionValue, ResultSet, ServerError,
@@ -7,7 +6,6 @@ use crate::protocol::{Part, Request, RequestType, ServerUsage, HOLD_CURSORS_OVER
 use crate::sync_prepared_statement::PreparedStatement;
 use crate::xa_impl::new_resource_manager;
 use crate::{HdbError, HdbResponse, HdbResult, IntoConnectParams};
-use chrono::Local;
 use dist_tx::rm::ResourceManager;
 
 // TODO Rename to SyncConnection
@@ -31,25 +29,9 @@ impl Connection {
     ///
     /// Several variants of `HdbError` can occur.
     pub fn new<P: IntoConnectParams>(p: P) -> HdbResult<Self> {
-        trace!("connect()");
-        let start = Local::now();
-        let mut am_conn_core = AmConnCore::try_new(p.into_connect_params()?)?;
-        authentication::authenticate(&mut am_conn_core)?;
-        {
-            let conn_core = am_conn_core.lock()?;
-            debug!(
-                "user \"{}\" successfully logged on ({} µs) to {:?} of {:?} (HANA version: {:?})",
-                conn_core.connect_params().dbuser(),
-                Local::now()
-                    .signed_duration_since(start)
-                    .num_microseconds()
-                    .unwrap_or(-1),
-                conn_core.connect_options().get_database_name(),
-                conn_core.connect_options().get_system_id(),
-                conn_core.connect_options().get_full_version_string()
-            );
-        }
-        Ok(Self { am_conn_core })
+        Ok(Self {
+            am_conn_core: AmConnCore::try_new(p.into_connect_params()?)?,
+        })
     }
 
     /// Executes a statement on the database.

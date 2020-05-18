@@ -1,4 +1,4 @@
-use crate::conn::TcpClient;
+use super::TcpClient;
 use crate::protocol::util;
 use byteorder::{BigEndian, WriteBytesExt};
 use std::io::Write;
@@ -28,7 +28,7 @@ pub(crate) fn send_and_receive(tcp_conn: &mut TcpClient) -> std::io::Result<()> 
         trace!("Skipping over empty initial response failed with {:?}", e);
         e
     })?;
-    debug!("successfully initialized");
+    debug!("Successfully initialized");
     Ok(())
 }
 

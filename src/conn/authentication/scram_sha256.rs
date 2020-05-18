@@ -1,5 +1,4 @@
-use super::authenticator::Authenticator;
-use super::crypto_util::scram_sha256;
+use super::{crypto_util, Authenticator};
 use crate::protocol::parts::AuthFields;
 use crate::{HdbError, HdbResult};
 use byteorder::{BigEndian, WriteBytesExt};
@@ -42,7 +41,7 @@ impl Authenticator for ScramSha256 {
         let (salt, server_nonce) = parse_first_server_data(server_data)?;
 
         let (client_proof, server_proof) =
-            scram_sha256(&salt, &server_nonce, &self.client_challenge, password);
+            crypto_util::scram_sha256(&salt, &server_nonce, &self.client_challenge, password);
 
         self.client_challenge.clear();
         self.server_proof = Some(server_proof);
@@ -83,7 +82,7 @@ fn parse_first_server_data(server_data: &[u8]) -> HdbResult<(Vec<u8>, Vec<u8>)> 
 #[cfg(test)]
 mod tests {
     use super::ScramSha256;
-    use crate::authentication::authenticator::Authenticator;
+    use crate::conn::authentication::authenticator::Authenticator;
     use secstr::SecStr;
 
     // cargo

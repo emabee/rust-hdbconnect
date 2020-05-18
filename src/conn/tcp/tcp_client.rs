@@ -42,6 +42,13 @@ impl TcpClient {
             Self::SyncTls(_) => "TLS",
         }
     }
+
+    pub fn connect_params(&self) -> &ConnectParams {
+        match self {
+            Self::SyncPlain(client) => client.connect_params(),
+            Self::SyncTls(client) => client.connect_params(),
+        }
+    }
 }
 impl Drop for TcpClient {
     fn drop(&mut self) {

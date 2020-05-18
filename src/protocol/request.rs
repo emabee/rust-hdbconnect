@@ -48,7 +48,7 @@ impl<'a> Request<'a> {
     #[allow(clippy::cast_possible_truncation)]
     #[allow(clippy::cast_possible_wrap)]
     pub fn emit(
-        self,
+        &self,
         session_id: i64,
         seq_number: i32,
         auto_commit: bool,

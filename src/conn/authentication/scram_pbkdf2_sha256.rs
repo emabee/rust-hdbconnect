@@ -1,5 +1,4 @@
-use super::authenticator::Authenticator;
-use super::crypto_util::scram_pdkdf2_sha256;
+use super::{crypto_util, Authenticator};
 use crate::protocol::parts::AuthFields;
 use crate::{HdbError, HdbResult};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
@@ -43,7 +42,7 @@ impl Authenticator for ScramPbkdf2Sha256 {
         let (salt, server_nonce, iterations) = parse_first_server_data(server_data)?;
 
         let start = Local::now();
-        let (client_proof, server_proof) = scram_pdkdf2_sha256(
+        let (client_proof, server_proof) = crypto_util::scram_pdkdf2_sha256(
             &salt,
             &server_nonce,
             &self.client_challenge,

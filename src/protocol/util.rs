@@ -224,8 +224,6 @@ enum Cesu8CharType {
 
 #[cfg(test)]
 mod tests {
-    use cesu8;
-
     #[test]
     fn check_tail_detection() {
         let s_utf8 =

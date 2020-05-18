@@ -1,18 +1,18 @@
-use crate::authentication::Authenticator;
-use crate::conn::AmConnCore;
-use crate::protocol::parts::{AuthFields, ClientContext};
+use super::Authenticator;
+use crate::conn::ConnectionCore;
+use crate::protocol::parts::{AuthFields, ClientContext, ConnOptId, OptionValue};
 use crate::protocol::{Part, ReplyType, Request, RequestType};
 use crate::{HdbError, HdbResult};
 
 pub(crate) fn first_auth_request(
-    am_conn_core: &mut AmConnCore,
+    conn_core: &mut ConnectionCore,
     authenticators: &[Box<dyn Authenticator>],
 ) -> HdbResult<(String, Vec<u8>)> {
     let mut request1 = Request::new(RequestType::Authenticate, 0);
     request1.push(Part::ClientContext(ClientContext::new()));
 
     let mut auth_fields = AuthFields::with_capacity(4);
-    auth_fields.push_string(am_conn_core.lock()?.connect_params().dbuser());
+    auth_fields.push_string(conn_core.connect_params().dbuser());
     for authenticator in authenticators {
         debug!("proposing {}", authenticator.name());
         auth_fields.push(authenticator.name_as_bytes());
@@ -20,7 +20,7 @@ pub(crate) fn first_auth_request(
     }
     request1.push(Part::Auth(auth_fields));
 
-    let reply = am_conn_core.send_sync(request1)?;
+    let reply = conn_core.roundtrip_sync(&request1, None, None, None, &mut None)?;
     reply.assert_expected_reply_type(ReplyType::Nil)?;
 
     let mut result = None;
@@ -41,9 +41,10 @@ pub(crate) fn first_auth_request(
 }
 
 pub(crate) fn second_auth_request(
-    am_conn_core: &mut AmConnCore,
+    conn_core: &mut ConnectionCore,
     mut chosen_authenticator: Box<dyn Authenticator>,
     server_challenge_data: &[u8],
+    reconnect: bool,
 ) -> HdbResult<()> {
     let mut request2 = Request::new(RequestType::Connect, 0);
 
@@ -51,24 +52,27 @@ pub(crate) fn second_auth_request(
 
     let mut auth_fields = AuthFields::with_capacity(3);
     {
-        let acc = am_conn_core.lock()?;
-        auth_fields.push_string(acc.connect_params().dbuser());
+        auth_fields.push_string(conn_core.connect_params().dbuser());
         auth_fields.push(chosen_authenticator.name_as_bytes());
         auth_fields.push(
             chosen_authenticator
-                .client_proof(server_challenge_data, acc.connect_params().password())?,
+                .client_proof(server_challenge_data, conn_core.connect_params().password())?,
         );
     }
     request2.push(Part::Auth(auth_fields));
 
-    request2.push(Part::ConnectOptions(
-        am_conn_core.lock()?.connect_options().clone(),
-    ));
+    let mut conn_opts = conn_core.connect_options().clone();
+    if reconnect {
+        conn_opts.insert(
+            ConnOptId::OriginalAnchorConnectionID,
+            OptionValue::INT(conn_core.connect_options().get_connection_id()),
+        );
+    }
+    request2.push(Part::ConnectOptions(conn_opts));
 
-    let reply = am_conn_core.send_sync(request2)?;
+    let reply = conn_core.roundtrip_sync(&request2, None, None, None, &mut None)?;
     reply.assert_expected_reply_type(ReplyType::Nil)?;
 
-    let mut conn_core = am_conn_core.lock()?;
     conn_core.set_session_id(reply.session_id());
 
     for part in reply.parts.into_iter() {

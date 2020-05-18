@@ -1,9 +1,11 @@
-use crate::conn::{initial_request, AmConnCore, ConnectParams, SessionState, TcpClient};
+use crate::conn::{
+    authentication, initial_request, AmConnCore, ConnectParams, SessionState, TcpClient,
+};
 use crate::protocol::parts::{
     ClientInfo, ConnectOptions, ExecutionResult, ParameterDescriptors, Parts, ResultSetMetadata,
     RsState, ServerError, Severity, StatementContext, Topology, TransactionFlags,
 };
-use crate::protocol::{Part, PartKind, Reply, Request, ServerUsage};
+use crate::protocol::{Part, PartKind, Reply, Request, RequestType, ServerUsage};
 use crate::{HdbError, HdbResult};
 use std::mem;
 use std::sync::Arc;
@@ -33,8 +35,7 @@ impl<'a> ConnectionCore {
         let connect_options = ConnectOptions::for_server(params.clientlocale(), get_os_user());
         let mut tcp_conn = TcpClient::try_new(params)?;
         initial_request::send_and_receive(&mut tcp_conn)?;
-
-        Ok(Self {
+        let mut conn_core = Self {
             authenticated: false,
             session_id: 0,
             seq_number: 0,
@@ -51,7 +52,24 @@ impl<'a> ConnectionCore {
             topology: None,
             warnings: Vec::<ServerError>::new(),
             tcp_conn,
-        })
+        };
+        authentication::authenticate(&mut conn_core, false)?;
+        Ok(conn_core)
+    }
+
+    pub(crate) fn reconnect(&mut self) -> HdbResult<()> {
+        debug!("Trying to reconnect");
+        let mut tcp_conn = TcpClient::try_new(self.tcp_conn.connect_params().clone())?;
+        initial_request::send_and_receive(&mut tcp_conn)?;
+        self.tcp_conn = tcp_conn;
+        self.authenticated = false;
+        self.session_id = 0;
+        // fetch_size, lob_read_length, lob_write_length are considered automatically
+
+        debug!("Successfully reconnected, not yet authenticated");
+        authentication::authenticate(self, true)?;
+        debug!("Successfully re-authenticated");
+        Ok(())
     }
 
     pub(crate) fn connect_params(&self) -> &ConnectParams {
@@ -226,16 +244,30 @@ impl<'a> ConnectionCore {
         &mut self.connect_options
     }
 
+    pub(crate) fn prepare_request(&mut self, request: &mut Request<'a>) {
+        if self.authenticated {
+            if let Some(ssi_value) = self.statement_sequence() {
+                request.add_statement_context(*ssi_value);
+            }
+            if self.is_client_info_touched() {
+                request.push(Part::ClientInfo(self.get_client_info_for_sending()));
+            }
+        }
+    }
+
     pub(crate) fn roundtrip_sync(
         &mut self,
-        request: Request<'a>,
-        am_conn_core: &AmConnCore,
+        request: &'a Request<'a>,
+        o_am_conn_core: Option<&AmConnCore>,
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
         o_rs: &mut Option<&mut RsState>,
     ) -> HdbResult<Reply> {
-        let session_id = self.session_id();
-        let nsn = self.next_seq_number();
+        let (session_id, nsn) = if let RequestType::Authenticate = request.request_type {
+            (0, 1)
+        } else {
+            (self.session_id(), self.next_seq_number())
+        };
         let auto_commit = self.is_auto_commit();
 
         match self.tcp_conn {
@@ -250,11 +282,11 @@ impl<'a> ConnectionCore {
         let mut reply = match self.tcp_conn {
             TcpClient::SyncPlain(ref mut pc) => {
                 let reader = pc.reader();
-                Reply::parse(o_a_rsmd, o_a_descriptors, o_rs, Some(am_conn_core), reader)
+                Reply::parse(o_a_rsmd, o_a_descriptors, o_rs, o_am_conn_core, reader)
             }
             TcpClient::SyncTls(ref mut tc) => {
                 let reader = tc.reader();
-                Reply::parse(o_a_rsmd, o_a_descriptors, o_rs, Some(am_conn_core), reader)
+                Reply::parse(o_a_rsmd, o_a_descriptors, o_rs, o_am_conn_core, reader)
             }
         }?;
 
