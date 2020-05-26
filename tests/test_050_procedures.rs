@@ -181,15 +181,15 @@ fn procedure_with_in_and_out_parameters(
     connection.multiple_statements(vec![
         "CREATE OR REPLACE PROCEDURE \
          TEST_INPUT_AND_OUTPUT_PARS( \
-         IN some_number INT, OUT some_string NVARCHAR(40) ) \
+            IN in_number INT, INOUT inout_timestamp TIMESTAMP, OUT out_string NVARCHAR(40) ) \
          AS BEGIN \
-         some_string = 'some output parameter'; \
-         SELECT some_number AS \"I\" FROM DUMMY;\
+         out_string = 'some output string'; \
+         SELECT in_number AS \"I\" FROM DUMMY;\
          END;",
     ])?;
 
-    let mut prepared_stmt = connection.prepare("call TEST_INPUT_AND_OUTPUT_PARS(?,?)")?;
-    prepared_stmt.add_batch(&42)?;
+    let mut prepared_stmt = connection.prepare("call TEST_INPUT_AND_OUTPUT_PARS(?,?,?)")?;
+    prepared_stmt.add_batch(&(42, chrono::Local::now()))?;
 
     let mut response = prepared_stmt.execute_batch()?;
     response.get_success()?;
@@ -197,12 +197,19 @@ fn procedure_with_in_and_out_parameters(
     {
         let par_desc = &output_parameters.descriptors()[0];
         assert_eq!(par_desc.binding(), ParameterBinding::Optional);
+        assert_eq!(par_desc.type_id(), TypeId::LONGDATE);
+        assert_eq!(par_desc.direction(), ParameterDirection::INOUT);
+        assert_eq!(par_desc.name(), Some("INOUT_TIMESTAMP"));
+
+        let par_desc = &output_parameters.descriptors()[1];
+        assert_eq!(par_desc.binding(), ParameterBinding::Optional);
         assert_eq!(par_desc.type_id(), TypeId::NVARCHAR);
         assert_eq!(par_desc.direction(), ParameterDirection::OUT);
-        assert_eq!(par_desc.name(), Some("SOME_STRING"));
+        assert_eq!(par_desc.name(), Some("OUT_STRING"));
     }
-    let value: String = output_parameters.try_into()?;
-    assert_eq!(value, "some output parameter");
+    info!("output_parameters: {:?}", output_parameters);
+    let (_inout_ts, out_s): (String, String) = output_parameters.try_into()?;
+    assert_eq!(out_s, "some output string");
 
     let mut rs = response.get_resultset()?;
     let value: i32 = rs.next_row()?.unwrap().next_value().unwrap().try_into()?;

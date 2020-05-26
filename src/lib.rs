@@ -1,12 +1,12 @@
 //! Native rust database driver for SAP HANA (TM).
 //!
 //! `hdbconnect` provides a lean, fast, and easy-to-use rust-API for working with
-//! SAP HANA. The driver is written completely in rust. It comes
-//! with an API that interoperates elegantly with all data types that implement the standard
+//! SAP HANA. The driver is written completely in rust.
+
+//! It interoperates elegantly with all data types that implement the standard
 //! `serde::Serialize` and/or `serde::Deserialize` traits, for input and output respectively.
-//!
-//! Instead of iterating over a resultset by rows and columns, you can
-//! assign the complete query result directly to any rust structure that fits the data
+//! So, instead of iterating over a resultset by rows and columns, you can
+//! assign the complete resultset directly to any rust structure that fits the data
 //! semantics.
 //!
 //! `hdbconnect` implements this with the help of [`serde_db`](https://docs.rs/serde_db),

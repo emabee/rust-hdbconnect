@@ -4,7 +4,7 @@ extern crate serde;
 mod test_utils;
 
 use hdbconnect::{types::NCLob, Connection, HdbError, HdbResult, HdbValue};
-use log::{debug, info};
+use log::{debug, info, trace};
 use serde::{Deserialize, Serialize};
 use serde_bytes::Bytes;
 use sha2::{Digest, Sha256};
@@ -134,6 +134,13 @@ fn test_streaming(
 ) -> HdbResult<()> {
     info!("write and read big nclob in streaming fashion");
 
+    let utf8_byte_len = fifty_times_smp_blabla.len();
+    let utf8_char_count = fifty_times_smp_blabla.chars().count();
+    let cesu8_byte_len = cesu8::to_cesu8(&fifty_times_smp_blabla).len();
+    trace!("utf8 byte length: {}", utf8_byte_len);
+    trace!("utf8 char count: {}", utf8_char_count);
+    trace!("cesu8 byte length: {}", cesu8_byte_len);
+
     connection.set_auto_commit(true)?;
     connection.dml("delete from TEST_NCLOBS")?;
 
@@ -157,7 +164,7 @@ fn test_streaming(
 
     debug!("read big nclob in streaming fashion");
     // Note: Connection.set_lob_read_length() affects NCLobs in chars (1, 2, or 3 bytes),
-    // while NCLob::max_buf_len() (see below) is in bytes
+    //       while NCLob::max_buf_len() (see below) is in bytes
     connection.set_lob_read_length(200_000)?;
 
     let mut nclob = connection
@@ -165,12 +172,22 @@ fn test_streaming(
         .into_single_row()?
         .into_single_value()?
         .try_into_nclob()?;
+    assert_eq!(
+        nclob.total_byte_length() as usize,
+        cesu8_byte_len,
+        "mismatch of cesu8 length"
+    );
+    assert_eq!(
+        cesu8_byte_len as usize - utf8_byte_len,
+        (nclob.total_char_length() as usize - utf8_char_count) * 2,
+        "mismatch with surrogate pairs?"
+    );
+
     let mut buffer = Vec::<u8>::new();
-    assert_eq!(nclob.total_char_length(), 3343700);
-    assert_eq!(nclob.total_byte_length(), 5342100);
     std::io::copy(&mut nclob, &mut buffer).map_err(HdbError::LobStreaming)?;
 
     assert_eq!(fifty_times_smp_blabla.len(), buffer.len());
+    assert_eq!(fifty_times_smp_blabla.as_bytes(), buffer.as_slice());
     let mut hasher = Sha256::default();
     hasher.input(&buffer);
     let fingerprint4 = hasher.result().to_vec();
