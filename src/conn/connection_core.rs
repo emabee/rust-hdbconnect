@@ -2,10 +2,10 @@ use crate::conn::{
     authentication, initial_request, AmConnCore, ConnectParams, SessionState, TcpClient,
 };
 use crate::protocol::parts::{
-    ClientInfo, ConnectOptions, ExecutionResult, ParameterDescriptors, Parts, ResultSetMetadata,
-    RsState, ServerError, Severity, StatementContext, Topology, TransactionFlags,
+    ClientInfo, ConnectOptions, ParameterDescriptors, ResultSetMetadata, RsState, ServerError,
+    StatementContext, Topology, TransactionFlags,
 };
-use crate::protocol::{Part, PartKind, Reply, Request, RequestType, ServerUsage};
+use crate::protocol::{Part, Reply, Request, RequestType, ServerUsage};
 use crate::{HdbError, HdbResult};
 use std::mem;
 use std::sync::Arc;
@@ -290,85 +290,8 @@ impl<'a> ConnectionCore {
             }
         }?;
 
-        self.handle_db_error(&mut reply.parts)?;
+        reply.handle_db_error(self)?;
         Ok(reply)
-    }
-
-    fn handle_db_error(&mut self, parts: &mut Parts<'static>) -> HdbResult<()> {
-        self.warnings.clear();
-
-        // Retrieve errors from returned parts
-        let mut errors = {
-            match parts.remove_first_of_kind(PartKind::Error) {
-                None => {
-                    // No error part found, regular reply evaluation happens elsewhere
-                    return Ok(());
-                }
-                Some(Part::Error(server_errors)) => {
-                    let (warnings, errors): (Vec<ServerError>, Vec<ServerError>) = server_errors
-                        .into_iter()
-                        .partition(|se| &Severity::Warning == se.severity());
-                    self.warnings = warnings;
-                    if errors.is_empty() {
-                        // Only warnings, so return Ok(())
-                        return Ok(());
-                    } else {
-                        errors
-                    }
-                }
-                _ => unreachable!("129837938423"),
-            }
-        };
-
-        // Evaluate the other parts that can come with an error part
-        let mut o_rows_affected = None;
-        parts.reverse(); // digest with pop
-        while let Some(part) = parts.pop() {
-            match part {
-                Part::StatementContext(ref stmt_ctx) => {
-                    self.evaluate_statement_context(stmt_ctx)?;
-                }
-                Part::TransactionFlags(ta_flags) => {
-                    self.evaluate_ta_flags(ta_flags)?;
-                }
-                Part::ExecutionResult(vec) => {
-                    o_rows_affected = Some(vec);
-                }
-                part => warn!(
-                    "Reply::handle_db_error(): ignoring unexpected part of kind {:?}",
-                    part.kind()
-                ),
-            }
-        }
-
-        match o_rows_affected {
-            Some(rows_affected) => {
-                // mix errors into rows_affected
-                let mut err_iter = errors.into_iter();
-                let mut rows_affected = rows_affected
-                    .into_iter()
-                    .map(|ra| match ra {
-                        ExecutionResult::Failure(_) => ExecutionResult::Failure(err_iter.next()),
-                        _ => ra,
-                    })
-                    .collect::<Vec<ExecutionResult>>();
-                for e in err_iter {
-                    warn!(
-                        "Reply::handle_db_error(): \
-                         found more errors than instances of ExecutionResult::Failure"
-                    );
-                    rows_affected.push(ExecutionResult::Failure(Some(e)));
-                }
-                Err(HdbError::ExecutionResults(rows_affected))
-            }
-            None => {
-                if errors.len() == 1 {
-                    Err(HdbError::from(errors.remove(0)))
-                } else {
-                    unreachable!("hopefully...")
-                }
-            }
-        }
     }
 
     fn drop_impl(&mut self) -> std::io::Result<()> {

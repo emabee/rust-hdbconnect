@@ -6,10 +6,10 @@ mod connection_core;
 mod initial_request;
 mod params;
 mod session_state;
-mod tcp;
+mod tcp_client;
 
 pub(crate) use am_conn_core::AmConnCore;
-use connection_core::ConnectionCore;
+pub(crate) use connection_core::ConnectionCore;
 pub use params::{
     connect_params::{ConnectParams, ServerCerts},
     connect_params_builder::ConnectParamsBuilder,
@@ -17,4 +17,4 @@ pub use params::{
     into_connect_params_builder::IntoConnectParamsBuilder,
 };
 use session_state::SessionState;
-use tcp::TcpClient;
+use tcp_client::TcpClient;

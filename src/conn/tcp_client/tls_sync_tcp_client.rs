@@ -4,17 +4,17 @@ use rustls::{ClientSession, Session};
 use std::sync::{Arc, Mutex};
 use webpki::DNSNameRef;
 
-pub(crate) struct TlsTcpClient {
+pub(crate) struct TlsSyncTcpClient {
     params: ConnectParams,
     reader: Stream,
     writer: std::io::BufWriter<Stream>,
 }
-impl std::fmt::Debug for TlsTcpClient {
+impl std::fmt::Debug for TlsSyncTcpClient {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
         write!(f, "TlsTcpClient {{params: {:?}, ... }}", &self.params)
     }
 }
-impl TlsTcpClient {
+impl TlsSyncTcpClient {
     pub fn try_new(params: ConnectParams) -> std::io::Result<Self> {
         let stream = Stream::try_new(&params)?;
         Ok(Self {
@@ -26,14 +26,6 @@ impl TlsTcpClient {
 
     pub fn connect_params(&self) -> &ConnectParams {
         &self.params
-    }
-
-    #[allow(dead_code)]
-    pub fn reconnect(&mut self) -> std::io::Result<()> {
-        let tlsstream = Stream::try_new(&self.params)?;
-        self.reader = tlsstream.try_clone()?;
-        self.writer = std::io::BufWriter::new(tlsstream);
-        Ok(())
     }
 
     pub(crate) fn writer(&mut self) -> &mut dyn std::io::Write {

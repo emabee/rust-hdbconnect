@@ -1,7 +1,9 @@
-use crate::conn::AmConnCore;
+use crate::conn::{AmConnCore, ConnectionCore};
 use crate::hdb_response::InternalReturnValue;
-use crate::protocol::parts::{ParameterDescriptors, Parts, ResultSetMetadata, RsState};
-use crate::protocol::{util, Part, ReplyType, ServerUsage};
+use crate::protocol::parts::{
+    ExecutionResult, ParameterDescriptors, Parts, ResultSetMetadata, RsState, ServerError, Severity,
+};
+use crate::protocol::{util, Part, PartKind, ReplyType, ServerUsage};
 use crate::{HdbError, HdbResult};
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::sync::Arc;
@@ -86,6 +88,84 @@ impl Reply {
                 .into_internal_return_values(am_conn_core, o_additional_server_usage)?,
             self.replytype,
         ))
+    }
+
+    pub(crate) fn handle_db_error(&mut self, conn_core: &mut ConnectionCore) -> HdbResult<()> {
+        conn_core.warnings.clear();
+
+        // Retrieve server_errors from returned parts
+        let mut server_errors = {
+            match self.parts.remove_first_of_kind(PartKind::Error) {
+                None => {
+                    // No error part found, regular reply evaluation happens elsewhere
+                    return Ok(());
+                }
+                Some(Part::Error(server_warnings_and_errors)) => {
+                    let (mut warnings, server_errors): (Vec<ServerError>, Vec<ServerError>) =
+                        server_warnings_and_errors
+                            .into_iter()
+                            .partition(|se| &Severity::Warning == se.severity());
+                    std::mem::swap(&mut conn_core.warnings, &mut warnings);
+                    if server_errors.is_empty() {
+                        // Only warnings, so return Ok(())
+                        return Ok(());
+                    } else {
+                        server_errors
+                    }
+                }
+                Some(_non_error_part) => unreachable!("129837938423"),
+            }
+        };
+
+        // Evaluate the other parts that can come with an error part
+        let mut o_execution_results = None;
+        self.parts.reverse(); // digest with pop
+        while let Some(part) = self.parts.pop() {
+            match part {
+                Part::StatementContext(ref stmt_ctx) => {
+                    conn_core.evaluate_statement_context(stmt_ctx)?;
+                }
+                Part::TransactionFlags(ta_flags) => {
+                    conn_core.evaluate_ta_flags(ta_flags)?;
+                }
+                Part::ExecutionResult(vec) => {
+                    o_execution_results = Some(vec);
+                }
+                part => warn!(
+                    "Reply::handle_db_error(): ignoring unexpected part of kind {:?}",
+                    part.kind()
+                ),
+            }
+        }
+
+        match o_execution_results {
+            Some(execution_results) => {
+                // mix server_errors into execution results
+                let mut err_iter = server_errors.into_iter();
+                let mut execution_results = execution_results
+                    .into_iter()
+                    .map(|er| match er {
+                        ExecutionResult::Failure(_) => ExecutionResult::Failure(err_iter.next()),
+                        _ => er,
+                    })
+                    .collect::<Vec<ExecutionResult>>();
+                for e in err_iter {
+                    warn!(
+                        "Reply::handle_db_error(): \
+                         found more server_errors than instances of ExecutionResult::Failure"
+                    );
+                    execution_results.push(ExecutionResult::Failure(Some(e)));
+                }
+                Err(HdbError::ExecutionResults(execution_results))
+            }
+            None => {
+                if server_errors.len() == 1 {
+                    Err(HdbError::from(server_errors.remove(0)))
+                } else {
+                    unreachable!("hopefully...")
+                }
+            }
+        }
     }
 }
 

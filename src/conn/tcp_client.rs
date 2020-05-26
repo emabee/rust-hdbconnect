@@ -1,15 +1,18 @@
-use super::{PlainTcpClient, TlsTcpClient};
+mod plain_sync_tcp_client;
+mod tls_sync_tcp_client;
+
 use crate::ConnectParams;
 use chrono::Local;
+use plain_sync_tcp_client::PlainSyncTcpClient;
+use tls_sync_tcp_client::TlsSyncTcpClient;
 
 // A buffered tcp connection, with or without TLS.
 #[derive(Debug)]
 pub(crate) enum TcpClient {
     // A buffered tcp connection without TLS.
-    SyncPlain(PlainTcpClient),
+    SyncPlain(PlainSyncTcpClient),
     // A buffered blocking tcp connection with TLS.
-    SyncTls(TlsTcpClient),
-    // A buffered non-blocking tcp connection with TLS.
+    SyncTls(TlsSyncTcpClient),
 }
 impl TcpClient {
     // Constructs a buffered tcp connection, with or without TLS,
@@ -19,9 +22,9 @@ impl TcpClient {
         trace!("TcpClient: Connecting to {:?})", params.addr());
 
         let tcp_conn = if params.use_tls() {
-            Self::SyncTls(TlsTcpClient::try_new(params)?)
+            Self::SyncTls(TlsSyncTcpClient::try_new(params)?)
         } else {
-            Self::SyncPlain(PlainTcpClient::try_new(params)?)
+            Self::SyncPlain(PlainSyncTcpClient::try_new(params)?)
         };
 
         trace!(

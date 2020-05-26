@@ -2,13 +2,13 @@ use crate::ConnectParams;
 use std::net::TcpStream;
 
 #[derive(Debug)]
-pub struct PlainTcpClient {
+pub struct PlainSyncTcpClient {
     params: ConnectParams,
     reader: std::io::BufReader<TcpStream>,
     writer: std::io::BufWriter<TcpStream>,
 }
 
-impl PlainTcpClient {
+impl PlainSyncTcpClient {
     /// Returns an initialized plain tcp connection
     pub fn try_new(params: ConnectParams) -> std::io::Result<Self> {
         let tcpstream = TcpStream::connect(params.addr())?;
@@ -29,13 +29,5 @@ impl PlainTcpClient {
 
     pub fn reader(&mut self) -> &mut std::io::BufReader<TcpStream> {
         &mut self.reader
-    }
-
-    #[allow(dead_code)]
-    pub fn reconnect(&mut self) -> std::io::Result<()> {
-        let tcpstream = TcpStream::connect(self.params.addr())?;
-        self.writer = std::io::BufWriter::new(tcpstream.try_clone()?);
-        self.reader = std::io::BufReader::new(tcpstream);
-        Ok(())
     }
 }
