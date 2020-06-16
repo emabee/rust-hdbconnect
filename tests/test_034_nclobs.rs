@@ -41,8 +41,8 @@ fn get_blabla() -> (String, Vec<u8>) {
     }
 
     let mut hasher = Sha256::default();
-    hasher.input(fifty_times_smp_blabla.as_bytes());
-    (fifty_times_smp_blabla, hasher.result().to_vec())
+    hasher.update(fifty_times_smp_blabla.as_bytes());
+    (fifty_times_smp_blabla, hasher.finalize().to_vec())
 }
 
 fn test_nclobs(
@@ -93,13 +93,13 @@ fn test_nclobs(
     assert_eq!(fifty_times_smp_blabla.len(), mydata.s.len());
 
     let mut hasher = Sha256::default();
-    hasher.input(mydata.s.as_bytes());
-    let fingerprint2 = hasher.result().to_vec();
+    hasher.update(mydata.s.as_bytes());
+    let fingerprint2 = hasher.finalize().to_vec();
     assert_eq!(fingerprint, fingerprint2.as_slice());
 
     let mut hasher = Sha256::default();
-    hasher.input(mydata.o_s.as_ref().unwrap().as_bytes());
-    let fingerprint3 = hasher.result().to_vec();
+    hasher.update(mydata.o_s.as_ref().unwrap().as_bytes());
+    let fingerprint3 = hasher.finalize().to_vec();
     assert_eq!(fingerprint, fingerprint3.as_slice());
 
     // try again with smaller lob-read-length
@@ -189,8 +189,8 @@ fn test_streaming(
     assert_eq!(fifty_times_smp_blabla.len(), buffer.len());
     assert_eq!(fifty_times_smp_blabla.as_bytes(), buffer.as_slice());
     let mut hasher = Sha256::default();
-    hasher.input(&buffer);
-    let fingerprint4 = hasher.result().to_vec();
+    hasher.update(&buffer);
+    let fingerprint4 = hasher.finalize().to_vec();
     assert_eq!(fingerprint, fingerprint4.as_slice());
     assert!(
         nclob.max_buf_len() < 605_000,

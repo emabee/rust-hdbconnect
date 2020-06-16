@@ -335,6 +335,24 @@ impl rustls::ServerCertVerifier for NoCertificateVerification {
     ) -> Result<rustls::ServerCertVerified, rustls::TLSError> {
         Ok(rustls::ServerCertVerified::assertion())
     }
+
+    // fn verify_tls12_signature(
+    //     &self,
+    //     _message: &[u8],
+    //     _cert: &rustls::Certificate,
+    //     _dss: &rustls::internal::msgs::handshake::DigitallySignedStruct,
+    // ) -> Result<rustls::HandshakeSignatureValid, rustls::TLSError> {
+    //     Ok(rustls::HandshakeSignatureValid::assertion())
+    // }
+
+    // fn verify_tls13_signature(
+    //     &self,
+    //     _message: &[u8],
+    //     _cert: &rustls::Certificate,
+    //     _dss: &rustls::internal::msgs::handshake::DigitallySignedStruct,
+    // ) -> Result<rustls::HandshakeSignatureValid, rustls::TLSError> {
+    //     Ok(rustls::HandshakeSignatureValid::assertion())
+    // }
 }
 
 #[cfg(test)]

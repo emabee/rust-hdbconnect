@@ -36,8 +36,8 @@ fn get_random_bytes() -> (Vec<u8>, Vec<u8>) {
     assert_eq!(raw_data.len(), SIZE);
 
     let mut hasher = Sha256::default();
-    hasher.input(&raw_data);
-    (raw_data, hasher.result().to_vec())
+    hasher.update(&raw_data);
+    (raw_data, hasher.finalize().to_vec())
 }
 
 fn test_blobs(
@@ -93,16 +93,16 @@ fn test_blobs(
     // verify we get the same bytes back
     assert_eq!(SIZE, mydata.bytes.len());
     let mut hasher = Sha256::default();
-    hasher.input(&mydata.bytes);
+    hasher.update(&mydata.bytes);
     assert_eq!(SIZE, mydata.bytes_nn.len());
     let mut hasher = Sha256::default();
-    hasher.input(&mydata.bytes_nn);
-    let fingerprint2 = hasher.result().to_vec();
+    hasher.update(&mydata.bytes_nn);
+    let fingerprint2 = hasher.finalize().to_vec();
     assert_eq!(fingerprint, fingerprint2.as_slice());
 
     let mut hasher = Sha256::default();
-    hasher.input(mydata.o_bytes.as_ref().unwrap());
-    let fingerprint2 = hasher.result().to_vec();
+    hasher.update(mydata.o_bytes.as_ref().unwrap());
+    let fingerprint2 = hasher.finalize().to_vec();
     assert_eq!(fingerprint, fingerprint2.as_slice());
 
     // try again with small lob-read-length
@@ -131,15 +131,15 @@ fn test_blobs(
     std::io::copy(&mut blob2, &mut streamed).map_err(HdbError::LobStreaming)?;
     assert_eq!(random_bytes.len(), streamed.len());
     let mut hasher = Sha256::default();
-    hasher.input(&streamed);
+    hasher.update(&streamed);
 
     let mut streamed = Vec::<u8>::new();
     std::io::copy(&mut blob, &mut streamed).map_err(HdbError::LobStreaming)?;
 
     assert_eq!(random_bytes.len(), streamed.len());
     let mut hasher = Sha256::default();
-    hasher.input(&streamed);
-    let fingerprint4 = hasher.result().to_vec();
+    hasher.update(&streamed);
+    let fingerprint4 = hasher.finalize().to_vec();
     assert_eq!(fingerprint, fingerprint4.as_slice());
 
     debug!("blob.max_buf_len(): {}", blob.max_buf_len());
@@ -208,8 +208,8 @@ fn test_streaming(
 
     assert_eq!(random_bytes.len(), buffer.len());
     let mut hasher = Sha256::default();
-    hasher.input(&buffer);
-    let fingerprint4 = hasher.result().to_vec();
+    hasher.update(&buffer);
+    let fingerprint4 = hasher.finalize().to_vec();
     assert_eq!(fingerprint, fingerprint4.as_slice());
     assert!(
         blob.max_buf_len() < 210_000,
