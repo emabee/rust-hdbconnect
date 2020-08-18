@@ -99,9 +99,9 @@ mod test {
         assert_eq!(true, yes.resultset_is_closed());
         assert_eq!(true, yes.row_not_found());
 
-        let sno = format!("{:?}", no);
-        let syes = format!("{:?}", yes);
-        println!("{}", sno);
-        println!("{}", syes);
+        let s_no = format!("{:?}", no);
+        let s_yes = format!("{:?}", yes);
+        println!("{}", s_no);
+        println!("{}", s_yes);
     }
 }

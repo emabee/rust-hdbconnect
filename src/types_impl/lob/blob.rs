@@ -48,7 +48,7 @@ impl BLob {
     ///
     /// ## Example
     ///
-    /// ```rust, no-run
+    /// ```rust, no_run
     /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, Row};
     /// # fn foo() -> HdbResult<()> {
     /// # let params = "".into_connect_params()?;
@@ -69,7 +69,7 @@ impl BLob {
     ///
     /// ## Example
     ///
-    /// ```rust, no-run
+    /// ```rust, no_run
     /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, Row};
     /// # fn foo() -> HdbResult<()> {
     /// # let params = "".into_connect_params()?;

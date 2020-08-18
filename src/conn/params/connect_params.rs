@@ -19,7 +19,7 @@ use std::sync::Arc;
 ///
 /// ### Example
 ///
-/// ```rust,norun
+/// ```rust,no_run
 /// use hdbconnect::{ConnectParams, ServerCerts};
 /// # fn read_certificate() -> String {String::from("can't do that")};
 /// let certificate: String = read_certificate();

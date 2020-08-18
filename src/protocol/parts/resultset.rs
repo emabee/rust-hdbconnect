@@ -417,7 +417,7 @@ impl ResultSet {
                 let o_stmt_ctx = match parts.pop_if_kind(PartKind::StatementContext) {
                     Some(Part::StatementContext(stmt_ctx)) => Some(stmt_ctx),
                     None => None,
-                    _ => return Err(util::io_error("Inconsistent StatementContext")),
+                    Some(_) => return Err(util::io_error("Inconsistent StatementContext")),
                 };
 
                 let rs_id = match parts.pop() {
@@ -429,9 +429,9 @@ impl ResultSet {
                     Some(Part::ResultSetMetadata(rsmd)) => Arc::new(rsmd),
                     None => match o_a_rsmd {
                         Some(a_rsmd) => Arc::clone(a_rsmd),
-                        _ => return Err(util::io_error("No metadata provided for ResultSet")),
+                        None => return Err(util::io_error("No metadata provided for ResultSet")),
                     },
-                    _ => {
+                    Some(_) => {
                         return Err(util::io_error(
                             "Inconsistent metadata part found for ResultSet",
                         ));
@@ -453,7 +453,7 @@ impl ResultSet {
                         );
                     }
                     None => {}
-                    _ => {
+                    Some(_) => {
                         return Err(util::io_error(
                             "Inconsistent StatementContext part found for ResultSet",
                         ));

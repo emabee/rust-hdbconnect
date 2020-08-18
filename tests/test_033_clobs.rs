@@ -26,6 +26,7 @@ pub fn test_033_clobs() -> HdbResult<()> {
     let (blabla, fingerprint) = get_blabla();
     test_clobs(&mut log_handle, &mut connection, &blabla, &fingerprint)?;
     test_streaming(&mut log_handle, &mut connection, blabla, &fingerprint)?;
+    test_zero_length(&mut log_handle, &mut connection)?;
 
     test_utils::closing_info(connection, start)
 }
@@ -211,5 +212,20 @@ fn test_streaming(
     );
 
     connection.set_auto_commit(true)?;
+    Ok(())
+}
+
+fn test_zero_length(
+    _log_handle: &mut flexi_logger::ReconfigurationHandle,
+    connection: &mut Connection,
+) -> HdbResult<()> {
+    info!("write and read empty clob");
+    let mut stmt = connection.prepare("insert into TEST_CLOBS values(?, ?)")?;
+    stmt.execute(&("empty", ""))?;
+    connection.commit()?;
+    let empty: String = connection
+        .query("select chardata from TEST_CLOBS where desc = 'empty'")?
+        .try_into()?;
+    assert!(empty.is_empty());
     Ok(())
 }

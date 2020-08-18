@@ -1,12 +1,22 @@
 # Changelog
 
+## [0.21.4] 2020-08-19
+
+### Fixes and Improvements
+
+Fix issue with empty LOBs being read from the database (introduced with 0.21.3).
+
+Update dependencies.
+
 ## [0.21.3] 2020-05-18
 
 ### Fixes and Improvements
 
-Implement automatic reconnect (only wokrs within the server's reconnect-wait-timeout).
+Implement automatic reconnect (only works within the server's reconnect-wait-timeout).
 
 Make `HdbError` thread-safe (again) - Kudos to Mark Obad!
+
+Minor  performance improvement in LOB implementation.
 
 ## [0.21.2] 2020-05-04
 

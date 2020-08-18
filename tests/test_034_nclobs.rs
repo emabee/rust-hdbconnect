@@ -23,6 +23,7 @@ pub fn test_034_nclobs() -> HdbResult<()> {
     test_streaming(&mut log_handle, &mut connection, blabla, &fingerprint)?;
     test_bytes_to_nclobs(&mut log_handle, &mut connection)?;
     test_loblifecycle(&mut log_handle, &mut connection)?;
+    test_zero_length(&mut log_handle, &mut connection)?;
 
     test_utils::closing_info(connection, start)
 }
@@ -279,5 +280,19 @@ fn test_loblifecycle(
         debug!("fetching a lob");
         let _s: String = value.try_into()?;
     }
+    Ok(())
+}
+fn test_zero_length(
+    _log_handle: &mut flexi_logger::ReconfigurationHandle,
+    connection: &mut Connection,
+) -> HdbResult<()> {
+    info!("write and read empty nclob");
+    let mut stmt = connection.prepare("insert into TEST_NCLOBS values(?, ?)")?;
+    stmt.execute(&("empty", ""))?;
+    connection.commit()?;
+    let empty: String = connection
+        .query("select chardata from TEST_CLOBS where desc = 'empty'")?
+        .try_into()?;
+    assert!(empty.is_empty());
     Ok(())
 }

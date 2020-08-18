@@ -129,7 +129,7 @@ impl<'a> LobWriter<'a> {
                     stmt_ctx.server_memory_usage(),
                 ),
                 None => (None, None, None),
-                _ => {
+                Some(_) => {
                     return Err(HdbError::Impl("Inconsistent StatementContext found"));
                 }
             };

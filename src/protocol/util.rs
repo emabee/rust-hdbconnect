@@ -51,19 +51,21 @@ pub(crate) fn cesu8_length(s: &str) -> usize {
     len
 }
 
-// determine how many of the last characters must be cut off to ensure the remaining bytes end with
+// determine how many of the len characters must be cut off to ensure the remaining bytes end with
 // consistent cesu-8 that can be converted into utf-8
-#[allow(clippy::ptr_arg)]
-pub(crate) fn get_cesu8_tail_len<T>(bytes: &T, first: usize, last: usize) -> std::io::Result<usize>
+pub(crate) fn get_cesu8_tail_len<T>(bytes: &T, len: usize) -> std::io::Result<usize>
 where
     T: std::fmt::Debug + std::ops::Index<usize, Output = u8>,
 {
-    match bytes[last] {
-        0..=127 => Ok(0),     // last byte is ASCII-7, no need to cut anything off
-        0xC0..=0xDF => Ok(1), // last byte is start of two-byte sequence, cut off here
+    if len == 0 {
+        return Ok(0);
+    }
+    match bytes[len - 1] {
+        0..=127 => Ok(0),     // len byte is ASCII-7, no need to cut anything off
+        0xC0..=0xDF => Ok(1), // len byte is start of two-byte sequence, cut off here
         _ => {
-            for index in (first..=last).rev() {
-                if let Some(char_len) = match cesu8_char_type(bytes, index, last) {
+            for index in (0..len).rev() {
+                if let Some(char_len) = match cesu8_char_type(bytes, index, len) {
                     Cesu8CharType::One => Some(1),
                     Cesu8CharType::Two => Some(2),
                     Cesu8CharType::Three => Some(3),
@@ -73,10 +75,10 @@ where
                     | Cesu8CharType::TooShort
                     | Cesu8CharType::Empty => None,
                 } {
-                    return Ok(match (last - index + 1).cmp(&char_len) {
-                        std::cmp::Ordering::Greater => last - index + 1 - char_len,
+                    return Ok(match (len - index).cmp(&char_len) {
+                        std::cmp::Ordering::Greater => len - index - char_len,
                         std::cmp::Ordering::Equal => 0,
-                        std::cmp::Ordering::Less => last - index + 1,
+                        std::cmp::Ordering::Less => len - index,
                     });
                 }
             }
@@ -167,11 +169,7 @@ fn cesu8_to_string_and_surrogate(cesu8: Vec<u8>) -> HdbResult<(String, Option<Ve
 }
 
 fn cesu8_to_string_and_tail(mut cesu8: Vec<u8>) -> HdbResult<(String, Vec<u8>)> {
-    let tail_len = if cesu8.is_empty() {
-        0
-    } else {
-        get_cesu8_tail_len(&cesu8, 0, cesu8.len() - 1)?
-    };
+    let tail_len = get_cesu8_tail_len(&cesu8, cesu8.len())?;
     let tail = cesu8.split_off(cesu8.len() - tail_len);
     Ok((string_from_cesu8(cesu8)?, tail))
 }
@@ -188,11 +186,11 @@ fn cesu8_to_string_and_tail(mut cesu8: Vec<u8>) -> HdbResult<(String, Vec<u8>)> 
 //  11100000 10000000 10000000  to  11101111 10111111 10111111
 //  E   0    8   0                  E   F    B   F
 //
-fn cesu8_char_type<T>(cesu8: &T, first: usize, last: usize) -> Cesu8CharType
+fn cesu8_char_type<T>(cesu8: &T, first: usize, len: usize) -> Cesu8CharType
 where
     T: std::ops::Index<usize, Output = u8>,
 {
-    if first == last {
+    if first == len - 1 {
         match cesu8[first] {
             0x00..=0x7F => Cesu8CharType::One,
             0xC0..=0xDF => Cesu8CharType::Two,

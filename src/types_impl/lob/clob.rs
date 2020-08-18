@@ -48,7 +48,7 @@ impl CLob {
     ///
     /// ## Example
     ///
-    /// ```rust, no-run
+    /// ```rust, no_run
     /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, Row};
     /// # fn foo() -> HdbResult<()> {
     /// # let params = "".into_connect_params()?;
@@ -68,7 +68,7 @@ impl CLob {
     ///
     /// ## Example
     ///
-    /// ```rust, no-run
+    /// ```rust, no_run
     /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, Row};
     /// # fn foo() -> HdbResult<()> {
     /// # let params = "".into_connect_params()?;
@@ -174,7 +174,7 @@ impl CLobHandle {
         let cesu8 = VecDeque::from(cesu8);
         let acc_byte_length = cesu8.len();
 
-        let cesu8_tail_len = util::get_cesu8_tail_len(&cesu8, 0, cesu8.len() - 1)?;
+        let cesu8_tail_len = util::get_cesu8_tail_len(&cesu8, cesu8.len())?;
 
         let clob_handle = Self {
             am_conn_core: am_conn_core.clone(),
@@ -247,7 +247,7 @@ impl CLobHandle {
         self.acc_byte_length += reply_data.len();
 
         self.cesu8.append(&mut VecDeque::from(reply_data));
-        self.cesu8_tail_len = util::get_cesu8_tail_len(&self.cesu8, 0, self.cesu8.len() - 1)?;
+        self.cesu8_tail_len = util::get_cesu8_tail_len(&self.cesu8, self.cesu8.len())?;
 
         self.is_data_complete = reply_is_last_data;
         self.max_buf_len = std::cmp::max(self.cesu8.len(), self.max_buf_len);
@@ -299,11 +299,8 @@ impl std::io::Read for CLobHandle {
         // so we cut of at the latest char start before buf-len
         let drain_len = std::cmp::min(buf.len(), self.cesu8.len());
         let cesu8_buf: Vec<u8> = self.cesu8.drain(0..drain_len).collect();
-        let cut_off_position = if cesu8_buf.is_empty() {
-            0
-        } else {
-            cesu8_buf.len() - util::get_cesu8_tail_len(&cesu8_buf, 0, cesu8_buf.len() - 1)?
-        };
+        let cut_off_position =
+            cesu8_buf.len() - util::get_cesu8_tail_len(&cesu8_buf, cesu8_buf.len())?;
 
         // convert the valid part to utf-8 and push the tail back
         let utf8 = cesu8::from_cesu8(&cesu8_buf[0..cut_off_position]).map_err(util::io_error)?;
