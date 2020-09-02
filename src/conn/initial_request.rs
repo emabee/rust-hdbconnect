@@ -4,7 +4,6 @@ use byteorder::{BigEndian, WriteBytesExt};
 use std::io::Write;
 
 pub(crate) fn send_and_receive(tcp_conn: &mut TcpClient) -> std::io::Result<()> {
-    trace!("send_and_receive()");
     trace!("send_and_receive(): send");
     match tcp_conn {
         TcpClient::SyncPlain(ref mut pc) => {

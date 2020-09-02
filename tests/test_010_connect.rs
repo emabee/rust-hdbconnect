@@ -17,10 +17,10 @@ pub fn test_010_connect() -> HdbResult<()> {
     let start = Instant::now();
     connect_successfully(&mut log_handle)?;
     connect_options(&mut log_handle)?;
+    client_info(&mut log_handle)?;
     connect_wrong_credentials(&mut log_handle);
     connect_and_select_with_explicit_clientlocale(&mut log_handle)?;
     connect_and_select_with_clientlocale_from_env(&mut log_handle)?;
-    client_info(&mut log_handle)?;
     command_info(&mut log_handle)?;
     info!("Elapsed time: {:?}", Instant::now().duration_since(start));
     Ok(())
@@ -35,25 +35,83 @@ fn connect_options(_log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
     info!("test a successful connection");
     _log_handle.parse_and_push_temp_spec("info, test = debug");
     let connection = test_utils::get_authenticated_connection()?;
-    let db_name = connection.get_database_name()?.unwrap();
-    let system_id = connection.get_system_id()?.unwrap();
-    let version = connection.get_full_version_string()?.unwrap();
-    debug!(
-        "db_name: {}, system_id: {}, version: {}",
-        db_name, system_id, version
-    );
 
     debug!(
-        "Connection options: \n{}",
+        "Connection options:\n{}",
         connection.dump_connect_options()?
     );
 
-    debug!("Client info:");
-    for (k, v) in connection.client_info()? {
-        debug!("    {:?} = {:?}", k, v);
-    }
     _log_handle.pop_temp_spec();
     Ok(())
+}
+
+fn client_info(_log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
+    info!("client info, make sure it arrives in with SESSION_CONTEXT");
+    _log_handle.parse_and_push_temp_spec("info, test = debug");
+    let mut connection = test_utils::get_authenticated_connection().unwrap();
+    let connection_id: i32 = connection.id()?;
+
+    debug!("verify original client info appears in session context");
+    let mut prep_stmt = connection.prepare(
+        "\
+         SELECT KEY, VALUE \
+         FROM M_SESSION_CONTEXT \
+         WHERE CONNECTION_ID = ? \
+         AND (\
+         KEY = 'APPLICATION' \
+         OR KEY = 'APPLICATIONSOURCE' \
+         OR KEY = 'APPLICATIONUSER' \
+         OR KEY = 'APPLICATIONVERSION') \
+         ORDER BY KEY",
+    )?;
+    let result: Vec<SessCtx> = prep_stmt
+        .execute(&connection_id)?
+        .into_resultset()?
+        .try_into()?;
+    check_session_context(true, &result);
+
+    debug!("overwrite the client info, check that it appears in session context");
+    connection.set_application("TEST 1 - 2 - 3")?;
+    connection.set_application_user("OTTO")?;
+    connection.set_application_version("0.8.15")?;
+    connection.set_application_source("dummy.rs")?;
+
+    let result: Vec<SessCtx> = prep_stmt
+        .execute(&connection_id)?
+        .into_resultset()?
+        .try_into()?;
+    check_session_context(false, &result);
+
+    debug!("verify that the updated client info remains set");
+    let _result: Vec<SessCtx> = prep_stmt
+        .execute(&connection_id)?
+        .into_resultset()?
+        .try_into()?;
+
+    let _result: Vec<SessCtx> = prep_stmt
+        .execute(&connection_id)?
+        .into_resultset()?
+        .try_into()?;
+    let result: Vec<SessCtx> = prep_stmt
+        .execute(&connection_id)?
+        .into_resultset()?
+        .try_into()?;
+    check_session_context(false, &result);
+    _log_handle.pop_temp_spec();
+    Ok(())
+}
+
+fn check_session_context(orig: bool, result: &[SessCtx]) {
+    if orig {
+        assert_eq!(result.len(), 1);
+        assert!(result[0].value.starts_with("test_010_connect"));
+    } else {
+        assert_eq!(result.len(), 4);
+        assert_eq!(result[0], SessCtx::new("APPLICATION", "TEST 1 - 2 - 3"));
+        assert_eq!(result[1], SessCtx::new("APPLICATIONSOURCE", "dummy.rs"));
+        assert_eq!(result[2], SessCtx::new("APPLICATIONUSER", "OTTO"));
+        assert_eq!(result[3], SessCtx::new("APPLICATIONVERSION", "0.8.15"));
+    }
 }
 
 fn connect_wrong_credentials(_log_handle: &mut ReconfigurationHandle) {
@@ -139,58 +197,6 @@ impl SessCtx {
             value: value.to_string(),
         }
     }
-}
-
-fn client_info(_log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
-    info!("client info");
-    let mut connection = test_utils::get_authenticated_connection().unwrap();
-    let connection_id: i32 = connection.id()?;
-
-    debug!("make sure the client info is set ...");
-    connection.set_application_user("OTTO")?;
-    connection.set_application_version("0.8.15")?;
-    connection.set_application_source("dummy.rs")?;
-
-    let mut prep_stmt = connection.prepare(
-        "\
-         SELECT KEY, VALUE \
-         FROM M_SESSION_CONTEXT \
-         WHERE CONNECTION_ID = ? \
-         AND (\
-         KEY = 'APPLICATIONSOURCE' \
-         OR KEY = 'APPLICATIONUSER' \
-         OR KEY = 'APPLICATIONVERSION') \
-         ORDER BY KEY",
-    )?;
-    let result: Vec<SessCtx> = prep_stmt
-        .execute(&connection_id)?
-        .into_resultset()?
-        .try_into()?;
-    check_result(&result);
-
-    debug!("... and remains set");
-    let _result: Vec<SessCtx> = prep_stmt
-        .execute(&connection_id)?
-        .into_resultset()?
-        .try_into()?;
-
-    let _result: Vec<SessCtx> = prep_stmt
-        .execute(&connection_id)?
-        .into_resultset()?
-        .try_into()?;
-    let result: Vec<SessCtx> = prep_stmt
-        .execute(&connection_id)?
-        .into_resultset()?
-        .try_into()?;
-    check_result(&result);
-
-    Ok(())
-}
-
-fn check_result(result: &[SessCtx]) {
-    assert_eq!(result[0], SessCtx::new("APPLICATIONSOURCE", "dummy.rs"));
-    assert_eq!(result[1], SessCtx::new("APPLICATIONUSER", "OTTO"));
-    assert_eq!(result[2], SessCtx::new("APPLICATIONVERSION", "0.8.15"));
 }
 
 fn command_info(_log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {

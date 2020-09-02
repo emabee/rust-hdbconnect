@@ -1,8 +1,5 @@
-use crate::protocol::parts::option_part::OptionId;
-use crate::protocol::parts::option_part::OptionPart;
+use crate::protocol::parts::option_part::{OptionId, OptionPart};
 use crate::protocol::parts::option_value::OptionValue;
-
-use std::env;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -28,7 +25,7 @@ impl ClientContext {
         cc.insert(
             ClientContextId::ClientApplicationProgramm,
             OptionValue::STRING(
-                env::args()
+                std::env::args()
                     .next()
                     .unwrap_or_else(|| "<unknown>".to_string()),
             ),

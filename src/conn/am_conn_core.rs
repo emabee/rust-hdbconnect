@@ -51,7 +51,7 @@ impl AmConnCore {
         );
         let start = Local::now();
         let mut conn_core = self.lock()?;
-        conn_core.prepare_request(&mut request);
+        conn_core.augment_request(&mut request);
 
         match conn_core.roundtrip_sync(&request, Some(&self), o_a_rsmd, o_a_descriptors, o_rs) {
             Ok(reply) => {

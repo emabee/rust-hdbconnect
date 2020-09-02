@@ -45,7 +45,7 @@ impl<'a> ConnectionCore {
             lob_read_length: crate::DEFAULT_LOB_READ_LENGTH,
             lob_write_length: crate::DEFAULT_LOB_WRITE_LENGTH,
             client_info: ClientInfo::default(),
-            client_info_touched: false,
+            client_info_touched: true,
             session_state: SessionState::default(),
             statement_sequence: None,
             connect_options,
@@ -189,8 +189,12 @@ impl<'a> ConnectionCore {
         self.topology = Some(topology);
     }
 
+    pub(crate) fn dump_client_info(&self) -> String {
+        self.client_info.to_string()
+    }
+
     pub(crate) fn dump_connect_options(&self) -> String {
-        self.connect_options().to_string()
+        self.connect_options.to_string()
     }
 
     pub(crate) fn set_authenticated(&mut self) {
@@ -244,7 +248,7 @@ impl<'a> ConnectionCore {
         &mut self.connect_options
     }
 
-    pub(crate) fn prepare_request(&mut self, request: &mut Request<'a>) {
+    pub(crate) fn augment_request(&mut self, request: &mut Request<'a>) {
         if self.authenticated {
             if let Some(ssi_value) = self.statement_sequence() {
                 request.add_statement_context(*ssi_value);

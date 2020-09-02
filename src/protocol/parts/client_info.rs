@@ -18,8 +18,17 @@ impl Default for ClientInfo {
         }
         ci.set_driver(env!("CARGO_PKG_NAME"));
         ci.set_driver_version(env!("CARGO_PKG_VERSION"));
-        ci.set_driver_info("rust rocks!");
+        ci.set_driver_info("https://crates.io/crates/hdbconnect");
         ci
+    }
+}
+
+impl std::fmt::Display for ClientInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        for (k, v) in &self.0 {
+            writeln!(f, "{:?} = {}", k, v)?;
+        }
+        Ok(())
     }
 }
 

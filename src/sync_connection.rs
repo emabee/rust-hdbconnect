@@ -372,6 +372,10 @@ impl Connection {
     pub fn dump_connect_options(&self) -> HdbResult<String> {
         Ok(self.am_conn_core.lock()?.dump_connect_options())
     }
+    #[doc(hidden)]
+    pub fn dump_client_info(&self) -> HdbResult<String> {
+        Ok(self.am_conn_core.lock()?.dump_client_info())
+    }
 
     /// Returns the number of roundtrips to the database that
     /// have been done through this connection.

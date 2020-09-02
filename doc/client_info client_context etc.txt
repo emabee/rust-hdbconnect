@@ -1,0 +1,49 @@
+ClientInfo
+	comprises
+		- Application
+		- ApplicationVersion
+		- ApplicationSource
+		- ApplicationUser
+		- Driver
+		- DriverInfo
+		- DriverVersion
+
+	of these, hdbconnect sets initially
+		- Application
+		- Driver
+		- DriverInfo
+		- DriverVersion
+
+	is sent to server only after authentication (and only if it was changed)	
+
+	values appear in M_SESSION_CONTEXT
+		
+
+
+ClientContext
+	comprises 
+		- ClientApplicationProgramm
+		- ClientType
+		- ClientVersion
+
+	hdbconnect sets them all
+
+	is sent to server with the first authentication request
+
+	values appear where??
+
+
+ConnectOptions
+	primarily for detailed protocol negotiation and some behaviors
+
+	not exposed for change by the application
+
+	some values set by client
+	
+	hdbconnect sets eg
+		- OSUser
+
+	many values set by server, including
+		- DatabaseName
+		- FullVersionString
+		- BuildPlatform
