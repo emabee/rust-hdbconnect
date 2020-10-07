@@ -11,6 +11,7 @@ documentation = "https://docs.rs/hdbconnect/"
 description = "A pure rust driver for SAP HANA(TM)"
 keywords = ["relational", "database", "driver", "serde", "HANA"]
 categories = ["database"]
+include = ["src/**/*", "LICENSE-*", "README.md", "CHANGELOG.md"]
 
 [package.metadata.docs.rs]
 all-features = false
