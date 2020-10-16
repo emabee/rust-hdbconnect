@@ -2,7 +2,7 @@ use crate::protocol::util;
 use crate::HdbValue;
 use bigdecimal::{BigDecimal, Zero};
 use byteorder::{ByteOrder, LittleEndian};
-use num::bigint::{BigInt, Sign};
+use num_bigint::{BigInt, Sign};
 use serde_db::ser::SerializationError;
 
 // MANTISSA     113-bit     Integer mantissa

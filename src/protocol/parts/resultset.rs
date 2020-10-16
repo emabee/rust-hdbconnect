@@ -157,7 +157,7 @@ impl RsState {
         rdr: &mut dyn std::io::Read,
     ) -> std::io::Result<()> {
         self.next_rows.reserve(no_of_rows);
-        let no_of_cols = metadata.number_of_fields();
+        let no_of_cols = metadata.len();
         debug!("parse_rows(): {} lines, {} columns", no_of_rows, no_of_cols);
 
         if let Some(ref mut am_rscore) = self.o_am_rscore {
@@ -306,6 +306,25 @@ impl ResultSet {
     }
 
     /// Access to metadata.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust,ignore
+    /// let rs: ResultSet;
+    /// //...
+    /// // get the precision of the second field
+    /// let prec: i16 = resultset.metadata()[1].precision();
+    /// ```
+    ///
+    /// or
+    ///
+    /// ```rust,ignore
+    /// let rs: ResultSet;
+    /// //...
+    /// for field_metadata in &*rs.metadata() {
+    ///     // evaluate metadata of a field
+    /// }
+    /// ```
     pub fn metadata(&self) -> Arc<ResultSetMetadata> {
         Arc::clone(&self.metadata)
     }
@@ -504,7 +523,14 @@ impl ResultSet {
 impl fmt::Display for ResultSet {
     // Writes a header and then the data
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(fmt, "{}\n", &self.metadata)?;
+        // writeln!(fmt, "{}\n", &self.metadata)?;
+
+        writeln!(fmt)?;
+        for field_metadata in Arc::as_ref(&self.metadata) {
+            write!(fmt, "{}, ", field_metadata.displayname())?;
+        }
+        writeln!(fmt)?;
+
         let state = self
             .state
             .lock()
@@ -518,6 +544,23 @@ impl fmt::Display for ResultSet {
         Ok(())
     }
 }
+
+// this just writes a headline with field names as it is handy in Display for ResultSet
+// impl std::fmt::Display for ResultSetMetadata {
+//     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+//         writeln!(fmt)?;
+//         for field_metadata in &self.fields {
+//             match self
+//                 .names
+//                 .get(field_metadata.inner.displayname_idx as usize)
+//             {
+//                 Some(fieldname) => write!(fmt, "{}, ", fieldname)?,
+//                 None => write!(fmt, "<unnamed>, ")?,
+//             };
+//         }
+//         Ok(())
+//     }
+// }
 
 impl Iterator for ResultSet {
     type Item = HdbResult<Row>;

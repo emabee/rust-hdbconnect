@@ -113,7 +113,7 @@ fn test_025_decimals_impl(
 
     info!("Read and verify decimals to struct");
     let resultset = connection.query("select f1, f2 from TEST_DECIMALS order by f2")?;
-    let scale = resultset.metadata().scale(1)? as usize;
+    let scale = resultset.metadata()[1].scale() as usize;
     let result: Vec<TestData> = resultset.try_into()?;
     for td in result {
         debug!("{:?}, {:?}", td.f1, td.f2);

@@ -72,7 +72,7 @@ fn evaluate_resultset(
     info!("Loop over rows, loop over values, evaluate each individually");
     let rs = connection.query(query_str)?;
     let metadata = rs.metadata();
-    let tablename = metadata.tablename(0)?;
+    let tablename = metadata[0].tablename();
     for row in rs {
         let mut row = row?;
         let f1: String = row.next_try_into()?;

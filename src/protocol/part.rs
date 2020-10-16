@@ -1,10 +1,10 @@
 use crate::conn::AmConnCore;
 use crate::protocol::parts::{
-    AuthFields, ClientContext, ClientInfo, CommandInfo, ConnectOptions, ExecutionResult, LobFlags,
-    OutputParameters, ParameterDescriptors, ParameterRows, PartitionInformation, Parts,
-    ReadLobReply, ReadLobRequest, ResultSet, ResultSetMetadata, RsState, ServerError,
-    SessionContext, StatementContext, Topology, TransactionFlags, WriteLobReply, WriteLobRequest,
-    XatOptions,
+    parse_resultset_metadata, AuthFields, ClientContext, ClientInfo, CommandInfo, ConnectOptions,
+    ExecutionResult, LobFlags, OutputParameters, ParameterDescriptors, ParameterRows,
+    PartitionInformation, Parts, ReadLobReply, ReadLobRequest, ResultSet, ResultSetMetadata,
+    RsState, ServerError, SessionContext, StatementContext, Topology, TransactionFlags,
+    WriteLobReply, WriteLobRequest, XatOptions,
 };
 use crate::protocol::{util, PartAttributes, PartKind};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -345,7 +345,7 @@ impl<'a> Part<'a> {
             }
             PartKind::ResultSetId => Part::ResultSetId(rdr.read_u64::<LittleEndian>()?),
             PartKind::ResultSetMetadata => {
-                Part::ResultSetMetadata(ResultSetMetadata::parse(no_of_args, rdr)?)
+                Part::ResultSetMetadata(parse_resultset_metadata(no_of_args, rdr)?)
             }
             PartKind::ExecutionResult => {
                 Part::ExecutionResult(ExecutionResult::parse(no_of_args, rdr)?)

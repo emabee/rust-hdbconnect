@@ -139,10 +139,7 @@ impl<'a> HdbValue<'a> {
 
     /// Returns true if the value is a NULL value.
     pub fn is_null(&self) -> bool {
-        match *self {
-            HdbValue::NULL => true,
-            _ => false,
-        }
+        matches!(*self, HdbValue::NULL)
     }
 
     pub(crate) fn emit(

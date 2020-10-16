@@ -21,11 +21,11 @@ impl DeserializableResultset for ResultSet {
     }
 
     fn number_of_fields(&self) -> usize {
-        self.metadata_ref().number_of_fields()
+        self.metadata_ref().len()
     }
 
     fn fieldname(&self, i: usize) -> Option<&str> {
-        self.metadata_ref().displayname(i).ok()
+        Some(self.metadata_ref()[i].displayname())
     }
 }
 
@@ -42,11 +42,11 @@ impl DeserializableRow for Row {
     }
 
     fn number_of_fields(&self) -> usize {
-        self.number_of_fields()
+        self.metadata().len()
     }
 
     fn fieldname(&self, field_idx: usize) -> Option<&str> {
-        self.metadata().displayname(field_idx).ok()
+        Some(self.metadata()[field_idx].displayname())
     }
 }
 
@@ -89,10 +89,7 @@ impl DeserializableRow for DeserializableOutputParameters {
 
 impl DbValue for HdbValue<'static> {
     fn is_null(&self) -> bool {
-        match *self {
-            HdbValue::NULL => true,
-            _ => false,
-        }
+        matches!(*self, HdbValue::NULL)
     }
 }
 

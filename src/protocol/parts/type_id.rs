@@ -208,3 +208,48 @@ impl TypeId {
         )))
     }
 }
+
+impl std::fmt::Display for TypeId {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            fmt,
+            "{}",
+            match self {
+                Self::TINYINT => "TINYINT",
+                Self::SMALLINT => "SMALLINT",
+                Self::INT => "INT",
+                Self::BIGINT => "BIGINT",
+                Self::DECIMAL => "DECIMAL",
+                Self::REAL => "REAL",
+                Self::DOUBLE => "DOUBLE",
+                Self::CHAR => "CHAR",
+                Self::VARCHAR => "VARCHAR",
+                Self::NCHAR => "NCHAR",
+                Self::NVARCHAR => "NVARCHAR",
+                Self::BINARY => "BINARY",
+                Self::VARBINARY => "VARBINARY",
+                Self::CLOB => "CLOB",
+                Self::NCLOB => "NCLOB",
+                Self::BLOB => "BLOB",
+                Self::BOOLEAN => "BOOLEAN",
+                Self::STRING => "STRING",
+                Self::NSTRING => "NSTRING",
+                Self::BLOCATOR => "BLOCATOR",
+                Self::BSTRING => "BSTRING",
+                Self::TEXT => "TEXT",
+                Self::SHORTTEXT => "SHORTTEXT",
+                Self::BINTEXT => "BINTEXT",
+                Self::ALPHANUM => "ALPHANUM",
+                Self::LONGDATE => "LONGDATE",
+                Self::SECONDDATE => "SECONDDATE",
+                Self::DAYDATE => "DAYDATE",
+                Self::SECONDTIME => "SECONDTIME",
+                Self::GEOMETRY => "GEOMETRY",
+                Self::POINT => "POINT",
+                Self::FIXED16 => "FIXED16",
+                Self::FIXED8 => "FIXED8",
+                Self::FIXED12 => "FIXED12",
+            }
+        )
+    }
+}

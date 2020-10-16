@@ -73,13 +73,13 @@ fn test_procedure_metadata(
     assert_eq!(row[1], "is between 41 and 43");
 
     let rs_md = rs.metadata();
-    assert_eq!(rs_md.columnname(0)?, "I");
-    assert_eq!(rs_md.displayname(0)?, "I");
-    assert_eq!(rs_md.has_default(0)?, false);
-    assert_eq!(rs_md.is_array_type(0)?, false);
-    assert_eq!(rs_md.nullable(0)?, true);
-    assert_eq!(rs_md.read_only(0)?, false);
-    assert_eq!(rs_md.precision(0)?, 10);
-    assert_eq!(rs_md.scale(0)?, 0);
+    assert_eq!(rs_md[0].columnname(), "I");
+    assert_eq!(rs_md[0].displayname(), "I");
+    assert_eq!(rs_md[0].has_default(), false);
+    assert_eq!(rs_md[0].is_array_type(), false);
+    assert_eq!(rs_md[0].is_nullable(), true);
+    assert_eq!(rs_md[0].is_read_only(), false);
+    assert_eq!(rs_md[0].precision(), 10);
+    assert_eq!(rs_md[0].scale(), 0);
     Ok(())
 }

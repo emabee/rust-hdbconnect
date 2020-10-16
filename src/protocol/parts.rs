@@ -43,6 +43,7 @@ pub(crate) use self::{
     read_lob_reply::ReadLobReply,
     read_lob_request::ReadLobRequest,
     resultset::{AmRsCore, RsState},
+    resultset_metadata::{parse_resultset_metadata, ResultSetMetadata},
     session_context::SessionContext,
     statement_context::StatementContext,
     topology::Topology,
@@ -55,8 +56,8 @@ pub use self::{
     execution_result::ExecutionResult, hdb_value::HdbValue, output_parameters::OutputParameters,
     parameter_descriptor::ParameterBinding, parameter_descriptor::ParameterDescriptor,
     parameter_descriptor::ParameterDescriptors, parameter_descriptor::ParameterDirection,
-    resultset::ResultSet, resultset_metadata::ResultSetMetadata, row::Row,
-    server_error::ServerError, server_error::Severity, type_id::TypeId,
+    resultset::ResultSet, resultset_metadata::FieldMetadata, row::Row, server_error::ServerError,
+    server_error::Severity, type_id::TypeId,
 };
 
 use super::{Part, PartKind};

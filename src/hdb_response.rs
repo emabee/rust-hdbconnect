@@ -302,11 +302,10 @@ impl HdbResponse {
     ///
     /// `HdbError` if information would get lost.
     pub fn get_success(&mut self) -> HdbResult<()> {
-        if let Some(i) = self.find_success() {
-            self.return_values.remove(i).into_success()
-        } else {
-            Err(self.get_err("success"))
-        }
+        self.find_success()
+            .map_or(Err(self.get_err("success")), |i| {
+                self.return_values.remove(i).into_success()
+            })
     }
     fn find_success(&self) -> Option<usize> {
         for (i, rt) in self.return_values.iter().enumerate().rev() {
@@ -402,10 +401,7 @@ impl HdbResponse {
 fn single(int_return_values: Vec<InternalReturnValue>) -> HdbResult<InternalReturnValue> {
     let mut int_return_values: Vec<InternalReturnValue> = int_return_values
         .into_iter()
-        .filter(|irv| match irv {
-            InternalReturnValue::ParameterMetadata(_) => false,
-            _ => true,
-        })
+        .filter(|irv| !matches!(irv, InternalReturnValue::ParameterMetadata(_)))
         .collect();
 
     match int_return_values.len() {

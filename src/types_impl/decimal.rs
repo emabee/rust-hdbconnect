@@ -3,8 +3,8 @@ use crate::types_impl::hdb_decimal::HdbDecimal;
 use crate::{HdbValue, TypeId};
 use bigdecimal::BigDecimal;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use num::bigint::BigInt;
 use num::{FromPrimitive, ToPrimitive};
+use num_bigint::BigInt;
 
 pub fn parse(
     nullable: bool,

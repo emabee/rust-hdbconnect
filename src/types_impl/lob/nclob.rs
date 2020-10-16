@@ -340,8 +340,5 @@ fn count_1_2_3_sequence_starts(cesu8: &[u8]) -> usize {
     cesu8.iter().filter(|b| is_utf8_char_start(**b)).count()
 }
 fn is_utf8_char_start(b: u8) -> bool {
-    match b {
-        0x00..=0x7F | 0xC0..=0xDF | 0xE0..=0xEF | 0xF0..=0xF7 => true,
-        _ => false,
-    }
+    matches!(b, 0x00..=0x7F | 0xC0..=0xDF | 0xE0..=0xEF | 0xF0..=0xF7)
 }

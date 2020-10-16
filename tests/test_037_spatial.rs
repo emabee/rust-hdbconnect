@@ -55,7 +55,7 @@ fn test_geometries(
 
     debug!("select and deserialize (use serde)");
     let resultset = connection.query("select shape from SpatialShapes")?;
-    assert_eq!(resultset.metadata().type_id(0)?, TypeId::GEOMETRY);
+    assert_eq!(resultset.metadata()[0].type_id(), TypeId::GEOMETRY);
     debug!("Resultset = {}", resultset);
     let shapes: Vec<ByteBuf> = resultset.try_into()?;
 
@@ -101,7 +101,7 @@ fn test_points(
 
     debug!("select and deserialize (use serde)");
     let resultset = connection.query("select shape1 from Points")?;
-    assert_eq!(resultset.metadata().type_id(0)?, TypeId::POINT);
+    assert_eq!(resultset.metadata()[0].type_id(), TypeId::POINT);
     let shapes: Vec<ByteBuf> = resultset.try_into()?;
 
     debug!("insert via parameters (use serde)");

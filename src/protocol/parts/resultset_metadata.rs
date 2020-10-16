@@ -1,239 +1,89 @@
 use crate::protocol::parts::type_id::TypeId;
 use crate::protocol::util;
-use crate::{HdbError, HdbResult};
 
 use byteorder::{LittleEndian, ReadBytesExt};
+use std::rc::Rc;
 use vec_map::VecMap;
 
-const INVALID_FIELD_INDEX: &str = "invalid field index";
+pub(crate) type ResultSetMetadata = Vec<FieldMetadata>;
 
-/// Metadata for the fields in a result set.
-#[derive(Clone, Debug)]
-pub struct ResultSetMetadata {
-    fields: Vec<FieldMetadata>,
-    names: VecMap<String>,
-}
-impl ResultSetMetadata {
-    /// Returns the number of fields.
-    pub fn number_of_fields(&self) -> usize {
-        self.fields.len()
-    }
-
-    /// Returns true if the set of fields is empty.
-    pub fn is_empty(&self) -> bool {
-        self.fields.len() == 0
-    }
-
-    fn add_to_names(&mut self, offset: u32) {
+pub(crate) fn parse_resultset_metadata(
+    count: usize,
+    rdr: &mut dyn std::io::Read,
+) -> std::io::Result<Vec<FieldMetadata>> {
+    fn add_to_names(names: &mut VecMap<String>, offset: u32) {
         if offset != u32::max_value() {
-            let tn = offset as usize;
-            if !self.names.contains_key(tn) {
-                self.names.insert(tn, "".to_string());
+            let offset = offset as usize;
+            if !names.contains_key(offset) {
+                names.insert(offset, "".to_string());
             };
         }
     }
 
-    fn field_metadata(&self, index: usize) -> HdbResult<&FieldMetadata> {
-        Ok(self
-            .fields
-            .get(index)
-            .ok_or_else(|| HdbError::Usage(INVALID_FIELD_INDEX))?)
-    }
+    let mut inner_fms = Vec::<InnerFieldMetadata>::new();
+    let mut names = VecMap::<String>::new();
 
-    pub(crate) fn typeid_nullable_scale(&self, index: usize) -> HdbResult<(TypeId, bool, i16)> {
-        let fmd = self.field_metadata(index)?;
-        Ok((fmd.type_id, fmd.is_nullable(), fmd.scale))
-    }
+    trace!("Got count {}", count);
+    for _ in 0..count {
+        let column_options = rdr.read_u8()?; // U1 (documented as I1)
+        let type_code = rdr.read_u8()?; // I1
+        let scale = rdr.read_i16::<LittleEndian>()?; // I2
+        let precision = rdr.read_i16::<LittleEndian>()?; // I2
+        rdr.read_i16::<LittleEndian>()?; // I2
+        let tablename_idx = rdr.read_u32::<LittleEndian>()?; // I4
+        add_to_names(&mut names, tablename_idx);
+        let schemaname_idx = rdr.read_u32::<LittleEndian>()?; // I4
+        add_to_names(&mut names, schemaname_idx);
+        let columnname_idx = rdr.read_u32::<LittleEndian>()?; // I4
+        add_to_names(&mut names, columnname_idx);
+        let displayname_idx = rdr.read_u32::<LittleEndian>()?; // I4
+        add_to_names(&mut names, displayname_idx);
 
-    /// Database schema of the i'th column in the resultset.
-    ///
-    /// # Errors
-    ///
-    /// `HdbError::Usage` if the index is invalid
-    pub fn schemaname(&self, i: usize) -> HdbResult<&str> {
-        Ok(self
-            .names
-            .get(self.field_metadata(i)?.schemaname_idx as usize)
-            .ok_or_else(|| HdbError::Usage(INVALID_FIELD_INDEX))?)
-    }
-
-    /// Database table of the i'th column in the resultset.
-    ///
-    /// # Errors
-    ///
-    /// `HdbError::Usage` if the index is invalid
-    pub fn tablename(&self, i: usize) -> HdbResult<&str> {
-        Ok(self
-            .names
-            .get(self.field_metadata(i)?.tablename_idx as usize)
-            .ok_or_else(|| HdbError::Usage(INVALID_FIELD_INDEX))?)
-    }
-
-    /// Name of the i'th column in the resultset.
-    ///
-    /// # Errors
-    ///
-    /// `HdbError::Usage` if the index is invalid
-    pub fn columnname(&self, i: usize) -> HdbResult<&str> {
-        Ok(self
-            .names
-            .get(self.field_metadata(i)?.columnname_idx as usize)
-            .ok_or_else(|| HdbError::Usage(INVALID_FIELD_INDEX))?)
-    }
-
-    // todo For large resultsets, this method will be called very often - is caching
-    // meaningful?
-    /// Display name of the column.
-    ///
-    /// # Errors
-    ///
-    /// `HdbError::Usage` if the index is invalid
-    #[inline]
-    pub fn displayname(&self, index: usize) -> HdbResult<&str> {
-        Ok(self
-            .names
-            .get(self.field_metadata(index)?.displayname_idx as usize)
-            .ok_or_else(|| HdbError::Usage(INVALID_FIELD_INDEX))?)
-    }
-
-    /// True if column can contain NULL values.
-    ///
-    /// # Errors
-    ///
-    /// `HdbError::Usage` if the index is invalid
-    pub fn nullable(&self, i: usize) -> HdbResult<bool> {
-        Ok(self.field_metadata(i)?.is_nullable())
-    }
-
-    /// Returns true if the column has a default value.
-    ///
-    /// # Errors
-    ///
-    /// `HdbError::Usage` if the index is invalid
-    pub fn has_default(&self, i: usize) -> HdbResult<bool> {
-        Ok(self.field_metadata(i)?.has_default())
-    }
-    // 3 = Escape_char
-    // ???
-    ///  Returns true if the column is read-only.
-    ///
-    /// # Errors
-    ///
-    /// `HdbError::Usage` if the index is invalid
-    pub fn read_only(&self, i: usize) -> HdbResult<bool> {
-        Ok(self.field_metadata(i)?.read_only())
-    }
-    /// Returns true if the column is auto-incremented.
-    ///
-    /// # Errors
-    ///
-    /// `HdbError::Usage` if the index is invalid
-    pub fn is_auto_incremented(&self, i: usize) -> HdbResult<bool> {
-        Ok(self.field_metadata(i)?.is_auto_incremented())
-    }
-    // 6 = ArrayType
-    /// Returns true if the column is of array type.
-    ///
-    /// # Errors
-    ///
-    /// `HdbError::Usage` if the index is invalid
-    pub fn is_array_type(&self, i: usize) -> HdbResult<bool> {
-        Ok(self.field_metadata(i)?.is_array_type())
-    }
-
-    /// Returns the id of the value type.
-    ///
-    /// # Errors
-    ///
-    /// `HdbError::Usage` if the index is invalid
-    pub fn type_id(&self, i: usize) -> HdbResult<TypeId> {
-        Ok(self.field_metadata(i)?.type_id)
-    }
-
-    /// Scale length (for some numeric types only).
-    ///
-    /// # Errors
-    ///
-    /// `HdbError::Usage` if the index is invalid
-    pub fn scale(&self, i: usize) -> HdbResult<i16> {
-        Ok(self.field_metadata(i)?.scale)
-    }
-
-    /// Precision (for some numeric types only).
-    ///
-    /// # Errors
-    ///
-    /// `HdbError::Usage` if the index is invalid
-    pub fn precision(&self, i: usize) -> HdbResult<i16> {
-        Ok(self.field_metadata(i)?.precision)
-    }
-
-    pub(crate) fn parse(count: usize, rdr: &mut dyn std::io::Read) -> std::io::Result<Self> {
-        let mut rsm = Self {
-            fields: Vec::<FieldMetadata>::new(),
-            names: VecMap::<String>::new(),
+        let type_id = TypeId::try_new(type_code)?;
+        let fm = InnerFieldMetadata {
+            column_options,
+            type_id,
+            scale,
+            precision,
+            tablename_idx,
+            schemaname_idx,
+            columnname_idx,
+            displayname_idx,
         };
-        trace!("Got count {}", count);
-        for _ in 0..count {
-            let column_options = rdr.read_u8()?; // U1 (documented as I1)
-            let type_code = rdr.read_u8()?; // I1
-            let scale = rdr.read_i16::<LittleEndian>()?; // I2
-            let precision = rdr.read_i16::<LittleEndian>()?; // I2
-            rdr.read_i16::<LittleEndian>()?; // I2
-            let tablename_idx = rdr.read_u32::<LittleEndian>()?; // I4
-            rsm.add_to_names(tablename_idx);
-            let schemaname_idx = rdr.read_u32::<LittleEndian>()?; // I4
-            rsm.add_to_names(schemaname_idx);
-            let columnname_idx = rdr.read_u32::<LittleEndian>()?; // I4
-            rsm.add_to_names(columnname_idx);
-            let displayname_idx = rdr.read_u32::<LittleEndian>()?; // I4
-            rsm.add_to_names(displayname_idx);
-
-            let type_id = TypeId::try_new(type_code)?;
-            let fm = FieldMetadata {
-                column_options,
-                type_id,
-                scale,
-                precision,
-                tablename_idx,
-                schemaname_idx,
-                columnname_idx,
-                displayname_idx,
-            };
-            rsm.fields.push(fm);
-        }
-        trace!("Read ResultSetMetadata phase 1: {:?}", rsm);
-        // now we read the names
-        let mut offset = 0;
-        for _ in 0..rsm.names.len() {
-            let nl = rdr.read_u8()?; // UI1
-            let name = util::string_from_cesu8(util::parse_bytes(nl as usize, rdr)?)
-                .map_err(util::io_error)?; // variable
-            trace!("offset = {}, name = {}", offset, name);
-            rsm.names.insert(offset as usize, name.to_string());
-            offset += u32::from(nl) + 1;
-        }
-        Ok(rsm)
+        inner_fms.push(fm);
     }
+    // now we read the names
+    let mut offset = 0;
+    for _ in 0..names.len() {
+        let nl = rdr.read_u8()?; // UI1
+        let name = util::string_from_cesu8(util::parse_bytes(nl as usize, rdr)?)
+            .map_err(util::io_error)?; // variable
+        trace!("offset = {}, name = {}", offset, name);
+        names.insert(offset as usize, name.to_string());
+        offset += u32::from(nl) + 1;
+    }
+
+    let names = Rc::new(names);
+
+    Ok(inner_fms
+        .into_iter()
+        .map(|inner| FieldMetadata {
+            inner,
+            names: Rc::clone(&names),
+        })
+        .collect())
 }
 
-// this just writes a headline with field names as it is handy in Display for ResultSet
-impl std::fmt::Display for ResultSetMetadata {
-    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-        writeln!(fmt)?;
-        for field_metadata in &self.fields {
-            match self.names.get(field_metadata.displayname_idx as usize) {
-                Some(fieldname) => write!(fmt, "{}, ", fieldname)?,
-                None => write!(fmt, "<unnamed>, ")?,
-            };
-        }
-        Ok(())
-    }
+/// Metadata of a field in a `ResultSet`.
+#[derive(Clone, Debug)]
+pub struct FieldMetadata {
+    inner: InnerFieldMetadata,
+    names: Rc<VecMap<String>>,
 }
 
 /// Describes a single field (column) in a result set.
-#[derive(Clone, Debug)]
-struct FieldMetadata {
+#[derive(Clone, Copy, Debug)]
+struct InnerFieldMetadata {
     schemaname_idx: u32,
     tablename_idx: u32,
     columnname_idx: u32,
@@ -249,32 +99,82 @@ struct FieldMetadata {
     // 6 = ArrayType
     column_options: u8,
     type_id: TypeId,
-    // scale (for some numeric types only)
+    // scale
     scale: i16,
-    // Precision (for some numeric types only)
+    // Precision
     precision: i16,
 }
+
 impl FieldMetadata {
-    // Returns true if the column can contain NULL values.
-    fn is_nullable(&self) -> bool {
-        (self.column_options & 0b_0000_0010_u8) != 0
+    /// Database schema of the field.
+    pub fn schemaname(&self) -> &str {
+        self.names
+            .get(self.inner.schemaname_idx as usize)
+            .map_or("", String::as_str)
     }
-    // Returns true if the column has a default value.
-    fn has_default(&self) -> bool {
-        (self.column_options & 0b_0000_0100_u8) != 0
+
+    /// Database table.
+    pub fn tablename(&self) -> &str {
+        self.names
+            .get(self.inner.tablename_idx as usize)
+            .map_or("", String::as_str)
     }
-    // 3 = Escape_char
-    // ???
-    //  Returns true if the column is read-only
-    fn read_only(&self) -> bool {
-        (self.column_options & 0b_0001_0000_u8) != 0
+
+    /// Column name.
+    pub fn columnname(&self) -> &str {
+        self.names
+            .get(self.inner.columnname_idx as usize)
+            .map_or("", String::as_str)
     }
-    // Returns true if the column is auto-incremented.
-    fn is_auto_incremented(&self) -> bool {
-        (self.column_options & 0b_0010_0000_u8) != 0
+
+    /// Display name of the column.
+    pub fn displayname(&self) -> &str {
+        self.names
+            .get(self.inner.displayname_idx as usize)
+            .map_or("", String::as_str)
     }
-    // 6 = ArrayType
-    fn is_array_type(&self) -> bool {
-        (self.column_options & 0b_0100_0000_u8) != 0
+
+    /// Returns the id of the value type.
+    pub fn type_id(&self) -> TypeId {
+        self.inner.type_id
+    }
+
+    /// True if column can contain NULL values.
+    pub fn is_nullable(&self) -> bool {
+        (self.inner.column_options & 0b_0000_0010_u8) != 0
+    }
+
+    /// The length or the precision of the value.
+    ///
+    /// Is `-1` for LOB types.
+    pub fn precision(&self) -> i16 {
+        self.inner.precision
+    }
+
+    /// The scale of the value.
+    ///
+    /// Is `0` for all types where a scale does not make sense.
+    pub fn scale(&self) -> i16 {
+        self.inner.scale
+    }
+
+    /// Returns true if the column has a default value.
+    pub fn has_default(&self) -> bool {
+        (self.inner.column_options & 0b_0000_0100_u8) != 0
+    }
+
+    ///  Returns true if the column is read-only.
+    pub fn is_read_only(&self) -> bool {
+        (self.inner.column_options & 0b_0100_0000_u8) != 0
+    }
+
+    /// Returns true if the column is auto-incremented.
+    pub fn is_auto_incremented(&self) -> bool {
+        (self.inner.column_options & 0b_0010_0000_u8) != 0
+    }
+
+    /// Returns true if the column is of array type.
+    pub fn is_array_type(&self) -> bool {
+        (self.inner.column_options & 0b_0100_0000_u8) != 0
     }
 }

@@ -83,7 +83,7 @@ fn test_small_decimals(
     info!("Read and verify decimals");
     let resultset =
         connection.query("select f1, f2, f3_NN, f2_NN from TEST_SMALL_DECIMALS order by f2")?;
-    let precision = resultset.metadata().precision(1)?;
+    let precision = resultset.metadata()[1].precision();
     debug!("metadata: {:?}", resultset.metadata());
     let scale = 5; //resultset.metadata().scale(1)? as usize;
     for row in resultset {

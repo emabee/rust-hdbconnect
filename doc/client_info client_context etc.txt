@@ -15,6 +15,7 @@ ClientInfo
 		- DriverVersion
 
 	is sent to server only after authentication (and only if it was changed)	
+	!! could be sent with CONNECT already
 
 	values appear in M_SESSION_CONTEXT
 		
@@ -30,7 +31,8 @@ ClientContext
 
 	is sent to server with the first authentication request
 
-	values appear where??
+	values are (said to be) important for HANA Trust, and can be used in Audit log entries, 
+	if configured correspondingly.
 
 
 ConnectOptions

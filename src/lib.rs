@@ -63,8 +63,8 @@ pub use crate::hdb_error::{HdbError, HdbResult};
 pub use crate::hdb_response::HdbResponse;
 pub use crate::hdb_return_value::HdbReturnValue;
 pub use crate::protocol::parts::{
-    ExecutionResult, HdbValue, OutputParameters, ParameterBinding, ParameterDescriptor,
-    ParameterDescriptors, ParameterDirection, ResultSet, ResultSetMetadata, Row, ServerError,
+    ExecutionResult, FieldMetadata, HdbValue, OutputParameters, ParameterBinding,
+    ParameterDescriptor, ParameterDescriptors, ParameterDirection, ResultSet, Row, ServerError,
     Severity, TypeId,
 };
 pub use crate::protocol::ServerUsage;

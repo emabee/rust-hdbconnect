@@ -131,11 +131,11 @@ impl ParameterDescriptor {
         self.nullable
     }
 
-    /// Scale (for some numeric types only).
+    /// Scale.
     pub fn scale(&self) -> i16 {
         self.scale
     }
-    /// Precision (for some numeric types only).
+    /// Precision.
     pub fn precision(&self) -> i16 {
         self.precision
     }

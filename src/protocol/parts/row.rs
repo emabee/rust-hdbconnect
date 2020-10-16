@@ -1,6 +1,5 @@
 use crate::conn::AmConnCore;
 use crate::protocol::parts::{AmRsCore, HdbValue, ResultSetMetadata};
-use crate::protocol::util;
 use crate::{HdbError, HdbResult};
 use serde_db::de::DeserializableRow;
 use std::fmt;
@@ -94,26 +93,18 @@ impl Row {
         &(self.metadata)
     }
 
-    pub(crate) fn number_of_fields(&self) -> usize {
-        self.metadata.number_of_fields()
-    }
-
     pub(crate) fn parse(
         md: std::sync::Arc<ResultSetMetadata>,
         o_am_rscore: &Option<AmRsCore>,
         am_conn_core: &AmConnCore,
         rdr: &mut dyn std::io::Read,
     ) -> std::io::Result<Self> {
-        let no_of_cols = md.number_of_fields();
         let mut values = Vec::<HdbValue>::new();
-        for col_idx in 0..no_of_cols {
-            let (type_id, nullable, scale) = md
-                .typeid_nullable_scale(col_idx)
-                .map_err(|e| util::io_error(e.to_string()))?;
+        for col_md in Arc::as_ref(&md) {
             let value = HdbValue::parse_from_reply(
-                type_id,
-                scale,
-                nullable,
+                col_md.type_id(),
+                col_md.scale(),
+                col_md.is_nullable(),
                 am_conn_core,
                 o_am_rscore,
                 rdr,

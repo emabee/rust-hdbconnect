@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.22.0] 2020-10-16
+
+### API changes
+
+Revise handling of ResultSetMetadata to make it much more ergonomic (and idiomatic).
+
+- ResulSset now provides direct access to a `Vec<FieldMetadata>`, and
+`FieldMetadata` exposes the metadata of each field.
+- The type `ResultSetMetadata` with its awkward API is gone (-> version bump).
+
+Update dependencies.
+
 ## [0.21.4] 2020-08-19
 
 ### Fixes and Improvements
