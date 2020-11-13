@@ -1,5 +1,3 @@
-#![allow(clippy::used_underscore_binding)]
-
 use crate::protocol::parts::{ExecutionResult, ServerError};
 // use std::backtrace::Backtrace;
 use thiserror::Error;
@@ -11,7 +9,7 @@ use thiserror::Error;
 #[derive(Error, Debug)] //Copy, Clone, Eq, PartialEq,
 pub enum HdbError {
     /// Error occured in deserialization.
-    #[error("Error occured in deserialization.")]
+    #[error("Error occured in deserialization")]
     Deserialization {
         /// The causing Error.
         #[from]
@@ -20,7 +18,7 @@ pub enum HdbError {
     },
 
     /// Error occured in serialization.
-    #[error("Error occured in serialization.")]
+    #[error("Error occured in serialization")]
     Serialization {
         /// The causing Error.
         #[from]
@@ -29,7 +27,7 @@ pub enum HdbError {
     },
 
     /// Some error occured while decoding CESU-8.
-    #[error("Some error occured while decoding CESU-8.")]
+    #[error("Some error occured while decoding CESU-8")]
     Cesu8 {
         /// The causing Error.
         #[from]
@@ -46,7 +44,7 @@ pub enum HdbError {
     },
 
     /// Database server responded with an error.
-    #[error("Database server responded with an error.")]
+    #[error("Database server responded with an error")]
     DbError {
         /// The causing Error.
         #[from]
@@ -55,15 +53,15 @@ pub enum HdbError {
     },
 
     /// Error occured while evaluating a HdbResponse or an HdbReturnValue.
-    #[error("Error occured while evaluating a HdbResponse or an HdbReturnValue.")]
+    #[error("Error occured while evaluating a HdbResponse or an HdbReturnValue")]
     Evaluation(&'static str),
 
     /// Database server responded with at least one error.
-    #[error("Database server responded with at least one error.")]
+    #[error("Database server responded with at least one error")]
     ExecutionResults(Vec<ExecutionResult>),
 
     /// Error occured while streaming a LOB.
-    #[error("Error occured while streaming a LOB.")]
+    #[error("Error occured while streaming a LOB")]
     LobStreaming(std::io::Error),
 
     /// Implementation error.
@@ -75,11 +73,11 @@ pub enum HdbError {
     ImplDetailed(String),
 
     /// Error occured in thread synchronization.
-    #[error("Error occured in thread synchronization.")]
+    #[error("Error occured in thread synchronization")]
     Poison,
 
     /// An error occurred on the server that requires the session to be terminated.
-    #[error("An error occurred on the server that requires the session to be terminated.")]
+    #[error("An error occurred on the server that requires the session to be terminated")]
     SessionClosingTransactionError,
 
     /// Error occured in communication with the database.

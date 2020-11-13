@@ -70,55 +70,64 @@ impl ParameterDescriptors {
 /// Metadata for a parameter.
 #[derive(Clone, Debug)]
 pub struct ParameterDescriptor {
-    // bit 0: mandatory; 1: optional, 2: has_default
-    parameter_option: u8,
+    name: Option<String>,
     type_id: TypeId,
-    nullable: bool,
+    binding: ParameterBinding,
     scale: i16,
     precision: i16,
-    // whether the parameter is input and/or output
     direction: ParameterDirection,
-    name: Option<String>,
+    auto_incremented: bool,
+    array_type: bool,
 }
 impl ParameterDescriptor {
-    /// Describes whether a parameter can be NULL or not, or if it has a
-    /// default value.
-    #[allow(clippy::if_not_else)]
+    fn try_new(
+        parameter_option: u8,
+        type_code: u8,
+        direction: ParameterDirection,
+        precision: i16,
+        scale: i16,
+    ) -> std::io::Result<Self> {
+        let type_id = TypeId::try_new(type_code)?;
+        let (binding, auto_incremented, array_type) = evaluate_option(parameter_option);
+        Ok(Self {
+            binding,
+            type_id,
+            direction,
+            precision,
+            scale,
+            name: None,
+            auto_incremented,
+            array_type,
+        })
+    }
+
+    /// Describes whether a parameter can be NULL or not, or if it has a default value.
     pub fn binding(&self) -> ParameterBinding {
-        if self.parameter_option & 0b_0000_0001_u8 != 0 {
-            ParameterBinding::Mandatory
-        } else if self.parameter_option & 0b_0000_0010_u8 != 0 {
-            ParameterBinding::Optional
-        } else {
-            // we do not check the third bit here,
-            // we rely on HANA sending always exactly one of the first three bits as 1
-            ParameterBinding::HasDefault
-        }
+        self.binding
     }
 
     /// Returns true if the column can contain NULL values.
+    ///
+    /// Is a shortcut for matching against the parameter binding.
     pub fn is_nullable(&self) -> bool {
-        (self.parameter_option & 0b_0000_0010_u8) != 0
+        matches!(self.binding, ParameterBinding::Optional)
     }
+
     /// Returns true if the column has a default value.
+    ///
+    /// Is a shortcut for matching against the parameter binding.
     pub fn has_default(&self) -> bool {
-        (self.parameter_option & 0b_0000_0100_u8) != 0
+        matches!(self.binding, ParameterBinding::HasDefault)
     }
-    // 3 = Escape_char
-    // ???
-    // //  Returns true if the column is readonly __ ?? can this be meaningful??
-    // pub fn is_readonly(&self) -> bool {
-    //     (self.parameter_option & 0b_0001_0000_u8) != 0
-    // }
 
     /// Returns true if the column is auto-incremented.
     pub fn is_auto_incremented(&self) -> bool {
-        (self.parameter_option & 0b_0010_0000_u8) != 0
+        self.auto_incremented
     }
     // 6 = ArrayType
     /// Returns true if the parameter is of array type
     pub fn is_array_type(&self) -> bool {
-        (self.parameter_option & 0b_0100_0000_u8) != 0
+        self.array_type
     }
 
     /// Returns the type id of the parameter.
@@ -126,9 +135,11 @@ impl ParameterDescriptor {
         self.type_id
     }
 
-    /// Returns true if and only if a NULL value is accepted for this parameter.
+    /// Tells if the parameter can be NULL.
+    ///
+    #[deprecated(since = "0.22.1", note = "use ParameterDescriptor::is_nullable()")]
     pub fn nullable(&self) -> bool {
-        self.nullable
+        self.is_nullable()
     }
 
     /// Scale.
@@ -147,27 +158,6 @@ impl ParameterDescriptor {
     /// Returns the name of the parameter.
     pub fn name(&self) -> Option<&str> {
         self.name.as_deref()
-    }
-
-    fn try_new(
-        parameter_option: u8,
-        type_code: u8,
-        direction: ParameterDirection,
-        precision: i16,
-        scale: i16,
-    ) -> std::io::Result<Self> {
-        let nullable = (parameter_option & 0b_0000_0010_u8) != 0;
-        let type_id = TypeId::try_new(type_code)?;
-
-        Ok(Self {
-            parameter_option,
-            type_id,
-            nullable,
-            direction,
-            precision,
-            scale,
-            name: None,
-        })
     }
 
     fn set_name(&mut self, name: String) {
@@ -199,6 +189,24 @@ impl ParameterDescriptor {
     }
 }
 
+fn evaluate_option(parameter_option: u8) -> (ParameterBinding, bool, bool) {
+    (
+        // documented are only: bit 0: mandatory; 1: optional, 2: has_default
+        if parameter_option & 0b_0000_0001_u8 > 0 {
+            ParameterBinding::Mandatory
+        } else if parameter_option & 0b_0000_0010_u8 > 0 {
+            ParameterBinding::Optional
+        } else {
+            if parameter_option & 0b_0000_0010_u8 == 0 {
+                log::warn!("ParameterDescriptor got invalid parameter_option, assuming HasDefault");
+            }
+            ParameterBinding::HasDefault
+        },
+        (parameter_option & 0b_0010_0000_u8) != 0,
+        (parameter_option & 0b_0100_0000_u8) != 0,
+    )
+}
+
 impl std::fmt::Display for ParameterDescriptor {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         if let Some(ref s) = self.name {
@@ -206,8 +214,7 @@ impl std::fmt::Display for ParameterDescriptor {
         }
         write!(
             fmt,
-            "{:?}{:?} {:?} {:?},  Scale({}), Precision({})",
-            if self.nullable { "Nullable " } else { "" },
+            "{:?} {:?} {:?},  Scale({}), Precision({})",
             self.type_id,
             self.binding(),
             self.direction(),
@@ -220,7 +227,7 @@ impl std::fmt::Display for ParameterDescriptor {
 
 /// Describes whether a parameter is Nullable or not or if it has a default
 /// value.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ParameterBinding {
     /// Parameter is nullable (can be set to NULL).
     Optional,

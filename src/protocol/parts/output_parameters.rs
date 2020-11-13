@@ -66,7 +66,7 @@ impl OutputParameters {
             let value = HdbValue::parse_from_reply(
                 descriptor.type_id(),
                 descriptor.scale(),
-                descriptor.nullable(),
+                descriptor.is_nullable(),
                 am_conn_core,
                 &None,
                 rdr,

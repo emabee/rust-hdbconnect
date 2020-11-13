@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.22.1] 2020-11-13
+
+Minor improvements, code maintenance.
+
 ## [0.22.0] 2020-10-16
 
 ### API changes
