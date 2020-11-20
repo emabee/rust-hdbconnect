@@ -103,6 +103,7 @@ impl Row {
         for col_md in Arc::as_ref(&md) {
             let value = HdbValue::parse_from_reply(
                 col_md.type_id(),
+                col_md.is_array_type(),
                 col_md.scale(),
                 col_md.is_nullable(),
                 am_conn_core,

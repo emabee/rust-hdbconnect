@@ -17,9 +17,11 @@ impl ConnectOptions {
         // concrete value is overridden by server to 600:
         set_opt(ConnOptId::ClientReconnectWaitTimeout, OptionValue::INT(678));
 
+        // unclear; is related to LOBs, not to Array Type
         // set_opt(ConnOptId::CompleteArrayExecution, OptionValue::BOOLEAN(true));
+
         // set_opt(ConnOptId::RowSlotImageParameter, OptionValue::BOOLEAN(true));
-        // set_opt(ConnOptId::EnableArrayType, OptionValue::BOOLEAN(true));
+        set_opt(ConnOptId::EnableArrayType, OptionValue::BOOLEAN(true));
         // set_opt(ConnOptId::SelectForUpdateOK, OptionValue::BOOLEAN(true));
         // how about e.g. TABLEOUTPUTPARAMETER and DESCRIBETABLEOUTPUTPARAMETER?
         set_opt(ConnOptId::DataFormatVersion2, OptionValue::INT(8));

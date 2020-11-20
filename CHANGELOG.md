@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.22.2] 2020-11-22
+
+Add support for array-type.
+
 ## [0.22.1] 2020-11-13
 
 Minor improvements, code maintenance.

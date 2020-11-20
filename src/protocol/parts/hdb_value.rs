@@ -24,8 +24,6 @@ const ALPHANUM_LENGTH_MASK: u8 = 0b_0111_1111_u8;
 /// Enum for all supported database value types.
 #[allow(non_camel_case_types)]
 pub enum HdbValue<'a> {
-    /// Is swapped in where a real value (any of the others) is swapped out.
-    NOTHING,
     /// Representation of a database NULL value.
     NULL,
     /// Stores an 8-bit unsigned integer.
@@ -88,16 +86,14 @@ pub enum HdbValue<'a> {
     GEOMETRY(Vec<u8>),
     /// Spatial type POINT.
     POINT(Vec<u8>),
+
+    /// HANA's array type
+    ARRAY(Vec<HdbValue<'a>>),
 }
 
 impl<'a> HdbValue<'a> {
     pub(crate) fn type_id_for_emit(&self, requested_type_id: TypeId) -> HdbResult<TypeId> {
         Ok(match *self {
-            HdbValue::NOTHING => {
-                return Err(HdbError::Usage(
-                    "Can't send HdbValue::NOTHING to Database",
-                ));
-            }
             HdbValue::NULL => match requested_type_id {
                 // work around a bug in HANA: it doesn't accept NULL SECONDTIME values
                 TypeId::SECONDTIME => TypeId::SECONDDATE,
@@ -134,6 +130,7 @@ impl<'a> HdbValue<'a> {
             HdbValue::GEOMETRY(_) | // TypeId::GEOMETRY,
             HdbValue::POINT(_) |    // TypeId::POINT,
             HdbValue::BINARY(_) => TypeId::BINARY,
+            HdbValue::ARRAY(_) => unimplemented!("Can't send array type to DB; not yet supported FIXME"),
         })
     }
 
@@ -201,7 +198,7 @@ impl<'a> HdbValue<'a> {
     // is used to calculate the part size (in emit)
     pub(crate) fn size(&self, type_id: TypeId) -> std::io::Result<usize> {
         Ok(1 + match self {
-            HdbValue::NOTHING | HdbValue::NULL => 0,
+            HdbValue::NULL => 0,
             HdbValue::BOOLEAN(_) | HdbValue::TINYINT(_) => 1,
             HdbValue::SMALLINT(_) => 2,
             HdbValue::DECIMAL(_) => match type_id {
@@ -242,6 +239,10 @@ impl<'a> HdbValue<'a> {
                     "size(): can't send {:?} directly to the database",
                     self
                 )));
+            }
+
+            HdbValue::ARRAY(_) => {
+                unimplemented!(" size(): can't handle ARRAY; not yet implemented")
             }
         })
     }
@@ -304,59 +305,75 @@ impl HdbValue<'static> {
 
     pub(crate) fn parse_from_reply(
         type_id: TypeId,
+        array_type: bool,
         scale: i16,
         nullable: bool,
         am_conn_core: &AmConnCore,
         o_am_rscore: &Option<AmRsCore>,
         rdr: &mut dyn std::io::Read,
     ) -> std::io::Result<HdbValue<'static>> {
-        let t = type_id;
-        match t {
-            TypeId::TINYINT => Ok(parse_tinyint(nullable, rdr)?),
-            TypeId::SMALLINT => Ok(parse_smallint(nullable, rdr)?),
-            TypeId::INT => Ok(parse_int(nullable, rdr)?),
-            TypeId::BIGINT => Ok(parse_bigint(nullable, rdr)?),
-            TypeId::REAL => Ok(parse_real(nullable, rdr)?),
-            TypeId::DOUBLE => Ok(parse_double(nullable, rdr)?),
-
-            TypeId::BOOLEAN => Ok(parse_bool(nullable, rdr)?),
-
-            TypeId::DECIMAL | TypeId::FIXED8 | TypeId::FIXED12 | TypeId::FIXED16 => {
-                Ok(decimal::parse(nullable, t, scale, rdr)?)
+        if array_type {
+            let l8 = rdr.read_u8()?;
+            let _bytelen = parse_length_of_bytes(l8, rdr)?;
+            let mut values = vec![];
+            for _i in 0..rdr.read_i32::<LittleEndian>()? {
+                let value = HdbValue::parse_from_reply(
+                    type_id,
+                    false, // nested array_types are not allowed
+                    scale,
+                    true, // nullable,
+                    am_conn_core,
+                    o_am_rscore,
+                    rdr,
+                )?;
+                values.push(value);
             }
-
-            TypeId::CHAR
-            | TypeId::VARCHAR
-            | TypeId::NCHAR
-            | TypeId::NVARCHAR
-            | TypeId::STRING
-            | TypeId::NSTRING
-            | TypeId::SHORTTEXT => Ok(parse_string(nullable, t, rdr)?),
-
-            TypeId::ALPHANUM => {
-                let res = parse_alphanum(nullable, rdr)?;
-                Ok(res)
+            Ok(HdbValue::ARRAY(values))
+        } else {
+            match type_id {
+                TypeId::TINYINT => Ok(parse_tinyint(nullable, rdr)?),
+                TypeId::SMALLINT => Ok(parse_smallint(nullable, rdr)?),
+                TypeId::INT => Ok(parse_int(nullable, rdr)?),
+                TypeId::BIGINT => Ok(parse_bigint(nullable, rdr)?),
+                TypeId::REAL => Ok(parse_real(nullable, rdr)?),
+                TypeId::DOUBLE => Ok(parse_double(nullable, rdr)?),
+                TypeId::BOOLEAN => Ok(parse_bool(nullable, rdr)?),
+                TypeId::DECIMAL | TypeId::FIXED8 | TypeId::FIXED12 | TypeId::FIXED16 => {
+                    Ok(decimal::parse(nullable, type_id, scale, rdr)?)
+                }
+                TypeId::CHAR
+                | TypeId::VARCHAR
+                | TypeId::NCHAR
+                | TypeId::NVARCHAR
+                | TypeId::STRING
+                | TypeId::NSTRING
+                | TypeId::SHORTTEXT => Ok(parse_string(nullable, type_id, rdr)?),
+                TypeId::ALPHANUM => {
+                    let res = parse_alphanum(nullable, rdr)?;
+                    Ok(res)
+                }
+                TypeId::BINARY
+                | TypeId::VARBINARY
+                | TypeId::BSTRING
+                | TypeId::GEOMETRY
+                | TypeId::POINT => Ok(parse_binary(nullable, type_id, rdr)?),
+                TypeId::BLOCATOR => Err(util::io_error("parsing BLOCATOR not implemented")),
+                TypeId::BLOB | TypeId::BINTEXT => {
+                    Ok(parse_blob(am_conn_core, o_am_rscore, nullable, rdr)?)
+                }
+                TypeId::CLOB => Ok(parse_clob(am_conn_core, o_am_rscore, nullable, rdr)?),
+                TypeId::NCLOB | TypeId::TEXT => Ok(parse_nclob(
+                    am_conn_core,
+                    o_am_rscore,
+                    nullable,
+                    type_id,
+                    rdr,
+                )?),
+                TypeId::LONGDATE => Ok(parse_longdate(nullable, rdr)?),
+                TypeId::SECONDDATE => Ok(parse_seconddate(nullable, rdr)?),
+                TypeId::DAYDATE => Ok(parse_daydate(nullable, rdr)?),
+                TypeId::SECONDTIME => Ok(parse_secondtime(nullable, rdr)?),
             }
-
-            TypeId::BINARY
-            | TypeId::VARBINARY
-            | TypeId::BSTRING
-            | TypeId::GEOMETRY
-            | TypeId::POINT => Ok(parse_binary(nullable, t, rdr)?),
-
-            TypeId::BLOCATOR => Err(util::io_error("parsing BLOCATOR not implemented")),
-            TypeId::BLOB | TypeId::BINTEXT => {
-                Ok(parse_blob(am_conn_core, o_am_rscore, nullable, rdr)?)
-            }
-            TypeId::CLOB => Ok(parse_clob(am_conn_core, o_am_rscore, nullable, rdr)?),
-            TypeId::NCLOB | TypeId::TEXT => {
-                Ok(parse_nclob(am_conn_core, o_am_rscore, nullable, t, rdr)?)
-            }
-
-            TypeId::LONGDATE => Ok(parse_longdate(nullable, rdr)?),
-            TypeId::SECONDDATE => Ok(parse_seconddate(nullable, rdr)?),
-            TypeId::DAYDATE => Ok(parse_daydate(nullable, rdr)?),
-            TypeId::SECONDTIME => Ok(parse_secondtime(nullable, rdr)?),
         }
     }
 }
@@ -569,20 +586,22 @@ fn parse_binary(
     }
 }
 
-#[allow(clippy::cast_sign_loss)]
 fn parse_length_and_bytes(l8: u8, rdr: &mut dyn std::io::Read) -> std::io::Result<Vec<u8>> {
-    let len = match l8 {
-        l if l <= MAX_1_BYTE_LENGTH => l8 as usize,
-        LENGTH_INDICATOR_2BYTE => rdr.read_i16::<LittleEndian>()? as usize, // I2
-        LENGTH_INDICATOR_4BYTE => rdr.read_i32::<LittleEndian>()? as usize, // I4
-        l => {
-            return Err(util::io_error(format!(
-                "Unexpected value in length indicator: {}",
-                l
-            )));
-        }
-    };
+    let len = parse_length_of_bytes(l8, rdr)?;
     util::parse_bytes(len, rdr)
+}
+
+#[allow(clippy::cast_sign_loss)]
+fn parse_length_of_bytes(l8: u8, rdr: &mut dyn std::io::Read) -> std::io::Result<usize> {
+    match l8 {
+        l if l <= MAX_1_BYTE_LENGTH => Ok(l8 as usize),
+        LENGTH_INDICATOR_2BYTE => Ok(rdr.read_i16::<LittleEndian>()? as usize), // I2
+        LENGTH_INDICATOR_4BYTE => Ok(rdr.read_i32::<LittleEndian>()? as usize), // I4
+        l => Err(util::io_error(format!(
+            "Unexpected value in length indicator: {}",
+            l
+        ))),
+    }
 }
 
 pub(crate) fn string_length(s: &str) -> usize {
@@ -625,7 +644,6 @@ impl<'a> std::fmt::Display for HdbValue<'a> {
     #[cfg_attr(tarpaulin, skip)]
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         match *self {
-            HdbValue::NOTHING => write!(fmt, "<NOTHING>"),
             HdbValue::NULL => write!(fmt, "<NULL>"),
             HdbValue::TINYINT(value) => write!(fmt, "{}", value),
             HdbValue::SMALLINT(value) => write!(fmt, "{}", value),
@@ -663,6 +681,16 @@ impl<'a> std::fmt::Display for HdbValue<'a> {
             HdbValue::SECONDTIME(ref value) => write!(fmt, "{}", value),
             HdbValue::GEOMETRY(ref vec) => write!(fmt, "<GEOMETRY length = {}>", vec.len()),
             HdbValue::POINT(ref vec) => write!(fmt, "<POINT length = {}>", vec.len()),
+            HdbValue::ARRAY(ref vec) => {
+                write!(fmt, "[")?;
+                for (val, i) in vec.iter().zip((0..vec.len()).rev()) {
+                    std::fmt::Display::fmt(val, fmt)?;
+                    if i > 0 {
+                        write!(fmt, ", ")?;
+                    }
+                }
+                write!(fmt, "]")
+            }
         }
     }
 }
@@ -707,7 +735,6 @@ mod test {
         for value in vec![
             HdbValue::STRING("foo".to_string()),
             HdbValue::INT(42),
-            HdbValue::NOTHING,
             HdbValue::NULL,
             HdbValue::TINYINT(42),
             HdbValue::SMALLINT(42),

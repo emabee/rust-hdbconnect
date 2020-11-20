@@ -40,6 +40,8 @@ macro_rules! command {
 // }
 
 fn main() {
+    println!("Qualify hdbconnect");
+
     // Format
     run_command!("cargo", "fmt");
 

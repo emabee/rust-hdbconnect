@@ -65,6 +65,7 @@ impl OutputParameters {
             trace!("Parsing value with descriptor {}", descriptor);
             let value = HdbValue::parse_from_reply(
                 descriptor.type_id(),
+                descriptor.is_array_type(),
                 descriptor.scale(),
                 descriptor.is_nullable(),
                 am_conn_core,
