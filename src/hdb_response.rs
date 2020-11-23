@@ -291,7 +291,7 @@ impl HdbResponse {
         } else {
             self.return_values
                 .pop()
-                .ok_or_else(|| HdbError::Evaluation("No HdbReturnValue"))
+                .ok_or(HdbError::Evaluation("No HdbReturnValue"))
         }
     }
 
@@ -390,7 +390,7 @@ impl HdbResponse {
                 HdbReturnValue::XaTransactionIds(_) => "XaTransactionIds, ",
             });
         }
-        errmsg.push_str("]");
+        errmsg.push(']');
         error!("{}", errmsg);
         HdbError::UsageDetailed(errmsg)
     }

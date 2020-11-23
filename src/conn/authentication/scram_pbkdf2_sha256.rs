@@ -74,7 +74,7 @@ impl Authenticator for ScramPbkdf2Sha256 {
     fn verify_server(&self, server_data: &[u8]) -> HdbResult<()> {
         let srv_proof = AuthFields::parse(&mut std::io::Cursor::new(server_data))?
             .pop()
-            .ok_or_else(|| HdbError::Impl("expected non-empty list of auth fields"))?;
+            .ok_or(HdbError::Impl("expected non-empty list of auth fields"))?;
 
         if let Some(ref s_p) = self.server_proof {
             if s_p as &[u8] == &srv_proof as &[u8] {

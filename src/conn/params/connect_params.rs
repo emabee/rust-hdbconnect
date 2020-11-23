@@ -225,6 +225,7 @@ impl ConnectParams {
                         trace!("Trying trust anchor file {:?}", trust_anchor_file);
                         let mut rd =
                             std::io::BufReader::new(std::fs::File::open(trust_anchor_file)?);
+                        #[allow(clippy::map_err_ignore)]
                         let (n_ok, n_err) =
                             config.root_store.add_pem_file(&mut rd).map_err(|_| {
                                 std::io::Error::new(

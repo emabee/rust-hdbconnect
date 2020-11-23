@@ -50,9 +50,7 @@ impl Stream {
 
         let am_client_session = Arc::new(Mutex::new(ClientSession::new(
             &Arc::new(params.rustls_clientconfig()?),
-            DNSNameRef::try_from_ascii_str(params.host()).map_err(|_| {
-                util::io_error(format!("Cannot use {} for DNSNameRef", params.host()))
-            })?,
+            DNSNameRef::try_from_ascii_str(params.host()).map_err(util::io_error)?,
         )));
 
         Ok(Self {

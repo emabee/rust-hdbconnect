@@ -295,8 +295,7 @@ impl ResultSet {
             Err(HdbError::Usage("Resultset has more than one row"))
         } else {
             Ok(state
-                .next_row(&self.metadata)?
-                .ok_or_else(|| HdbError::Usage("Resultset is empty"))?)
+                .next_row(&self.metadata)?.ok_or(HdbError::Usage("Resultset is empty"))?)
         }
     }
 

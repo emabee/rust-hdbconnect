@@ -26,7 +26,9 @@ pub(crate) fn authenticate(conn_core: &mut ConnectionCore, reconnect: bool) -> H
     let authenticator: Box<dyn Authenticator> = authenticators
         .into_iter()
         .find(|authenticator| authenticator.name() == selected)
-        .ok_or_else(|| HdbError::Impl("None of the available authenticators was accepted"))?;
+        .ok_or(HdbError::Impl(
+            "None of the available authenticators was accepted",
+        ))?;
 
     // ...and use it for the second request
     second_auth_request(conn_core, authenticator, &server_challenge, reconnect)?;
