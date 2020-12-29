@@ -14,6 +14,7 @@ pub enum RequestType {
     DropStatementId = 70, // Drops prepared statement identifier
     FetchNext = 71,       // Fetches next data from resultset
     Disconnect = 77,      // Disconnects session
+    DbConnectInfo = 82,   // Request/receive database connect information
     XAStart = 83,
     XAEnd = 84,
     XAPrepare = 85,
@@ -30,5 +31,4 @@ pub enum RequestType {
     // FetchRelative = 73,   // Like above, but moves the cursor relative to the current position
     // FetchFirst = 74,      // Moves the cursor to the first row and fetches the data
     // FetchLast = 75,       // Moves the cursor to the last row and fetches the data
-    // DbConnectInfo = 82,   // Request/receive database connect information
 }

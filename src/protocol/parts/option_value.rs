@@ -1,4 +1,5 @@
 use crate::protocol::util;
+use crate::{HdbError, HdbResult};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 #[allow(non_camel_case_types)]
@@ -13,6 +14,54 @@ pub enum OptionValue {
 }
 
 impl OptionValue {
+    pub fn get_int(&self) -> HdbResult<i32> {
+        if let Self::INT(i) = self {
+            Ok(*i)
+        } else {
+            Err(HdbError::Impl("Not a INT-typed OptionValue"))
+        }
+    }
+
+    // pub fn get_bigint(&self) -> HdbResult<i64> {
+    //     if let Self::BIGINT(i) = self {
+    //         Ok(*i)
+    //     } else {
+    //         Err(HdbError::Impl("Not a BIGINT-typed OptionValue"))
+    //     }
+    // }
+
+    // pub fn get_double(&self) -> HdbResult<f64> {
+    //     if let Self::DOUBLE(d) = self {
+    //         Ok(*d)
+    //     } else {
+    //         Err(HdbError::Impl("Not a DOUBLE-typed OptionValue"))
+    //     }
+    // }
+
+    pub fn get_bool(&self) -> HdbResult<bool> {
+        if let Self::BOOLEAN(b) = self {
+            Ok(*b)
+        } else {
+            Err(HdbError::Impl("Not a BOOLEAN-typed OptionValue"))
+        }
+    }
+
+    pub fn get_string(&self) -> HdbResult<&String> {
+        if let Self::STRING(ref s) = self {
+            Ok(s)
+        } else {
+            Err(HdbError::Impl("Not a STRING-typed OptionValue"))
+        }
+    }
+
+    // pub fn get_bstring(&self) -> HdbResult<&Vec<u8>> {
+    //     if let Self::BSTRING(ref s) = self {
+    //         Ok(s)
+    //     } else {
+    //         Err(HdbError::Impl("Not a BSTRING-typed OptionValue"))
+    //     }
+    // }
+
     pub fn emit(&self, w: &mut dyn std::io::Write) -> std::io::Result<()> {
         w.write_u8(self.type_id())?; // I1
         match *self {

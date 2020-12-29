@@ -43,4 +43,8 @@ impl OptionId<CommandInfoId> for CommandInfoId {
             }
         }
     }
+
+    fn part_type(&self) -> &'static str {
+        "CommandInfo"
+    }
 }

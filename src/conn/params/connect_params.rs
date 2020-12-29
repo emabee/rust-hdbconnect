@@ -1,8 +1,8 @@
 //! Connection parameters
-use super::cp_url;
+use super::cp_url::format_as_url;
 use crate::{ConnectParamsBuilder, HdbError, HdbResult, IntoConnectParams};
 use rustls::ClientConfig;
-use secstr::SecStr;
+use secstr::SecUtf8;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -10,14 +10,9 @@ use std::sync::Arc;
 /// An immutable struct with all information necessary to open a new connection
 /// to a HANA database.
 ///
-/// An instance of `ConnectParams` can be created in various ways:
+/// # Instantiating a `ConnectParams` using the `ConnectParamsBuilder`
 ///
-/// ## Using the [builder](struct.ConnectParams.html#method.builder)
-/// This is the most flexible way for instantiating `ConnectParams`.
-/// The builder can be instantiated empty or from a minimal URL,
-/// and allows specifying all necessary details programmatically.
-///
-/// ### Example
+/// See [`ConnectParamsBuilder`](struct.ConnectParamsBuilder.html) for details.
 ///
 /// ```rust,no_run
 /// use hdbconnect::{ConnectParams, ServerCerts};
@@ -33,39 +28,9 @@ use std::sync::Arc;
 ///    .unwrap();
 /// ```
 ///  
-/// ## Using a URL
+/// # Instantiating a `ConnectParams` from a URL
 ///
-/// The URL is supposed to have the form
-///
-/// ```text
-/// <scheme>://<username>:<password>@<host>:<port>[<options>]
-/// ```
-/// where
-/// > `<scheme>` = `hdbsql` | `hdbsqls`  
-/// > `<username>` = the name of the DB user to log on  
-/// > `<password>` = the password of the DB user  
-/// > `<host>` = the host where HANA can be found  
-/// > `<port>` = the port at which HANA can be found on `<host>`  
-/// > `<options>` = `?<key>[=<value>][{&<key>[=<value>}]]`
-///
-/// Special option keys are:
-/// > `client_locale=<value>` specifies the client locale  
-/// > `client_locale_from_env` (no value): lets the driver read the client's locale from the
-///    environment variabe LANG  
-/// > `tls_certificate_dir=<value>`: points to a folder with pem files that contain
-///   certificates; all pem files in that folder are evaluated  
-/// > `tls_certificate_env=<value>`: denotes an environment variable that contains
-///   certificates
-/// > `use_mozillas_root_certificates` (no value): use the root certificates from
-///   [`https://mkcert.org/`](https://mkcert.org/)
-/// > `insecure_omit_server_certificate_check` (no value): lets the driver omit the validation of
-///   the server's identity. Don't use this option in productive setups!
-///
-///
-/// The client locale is used in language-dependent handling within the SAP HANA
-/// database calculation engine.
-///
-/// ### Example
+/// See module [`url`](url/index.html) for details about the supported URLs.
 ///
 /// ```rust
 /// use hdbconnect::IntoConnectParams;
@@ -78,29 +43,36 @@ pub struct ConnectParams {
     host: String,
     addr: String,
     dbuser: String,
-    password: SecStr,
+    dbname: Option<String>,
+    network_group: Option<String>,
+    password: SecUtf8,
     clientlocale: Option<String>,
     server_certs: Vec<ServerCerts>,
     #[cfg(feature = "alpha_nonblocking")]
     use_nonblocking: bool,
 }
 impl ConnectParams {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         host: String,
-        addr: String,
+        port: u16,
         dbuser: String,
-        password: SecStr,
+        password: SecUtf8,
+        dbname: Option<String>,
+        network_group: Option<String>,
         clientlocale: Option<String>,
         server_certs: Vec<ServerCerts>,
         #[cfg(feature = "alpha_nonblocking")] use_nonblocking: bool,
     ) -> Self {
         Self {
+            addr: format!("{}:{}", host, port),
             host,
-            addr,
             dbuser,
             password,
             clientlocale,
             server_certs,
+            dbname,
+            network_group,
             #[cfg(feature = "alpha_nonblocking")]
             use_nonblocking,
         }
@@ -109,6 +81,13 @@ impl ConnectParams {
     /// Returns a new builder for `ConnectParams`.
     pub fn builder() -> ConnectParamsBuilder {
         ConnectParamsBuilder::new()
+    }
+
+    pub(crate) fn redirect(&self, host: &str, port: u16) -> ConnectParams {
+        let mut new_params = self.clone();
+        new_params.host = host.to_string();
+        new_params.addr = format!("{}:{}", host, port);
+        new_params
     }
 
     /// Reads a url from the given file and converts it into `ConnectParams`.
@@ -149,13 +128,23 @@ impl ConnectParams {
     }
 
     /// The password.
-    pub fn password(&self) -> &SecStr {
+    pub fn password(&self) -> &SecUtf8 {
         &self.password
     }
 
     /// The client locale.
     pub fn clientlocale(&self) -> Option<&str> {
         self.clientlocale.as_deref()
+    }
+
+    /// The name of the (MDC) database.
+    pub fn dbname(&self) -> Option<String> {
+        self.dbname.as_ref().map(ToString::to_string)
+    }
+
+    /// The name of a network group.
+    pub fn network_group(&self) -> Option<String> {
+        self.network_group.as_ref().map(ToString::to_string)
     }
 
     pub(crate) fn rustls_clientconfig(&self) -> std::io::Result<ClientConfig> {
@@ -246,53 +235,19 @@ impl ConnectParams {
         }
         Ok(config)
     }
-
-    fn option_string(&self) -> String {
-        if self.server_certs.is_empty() && self.clientlocale.is_none() {
-            String::from("")
-        } else {
-            let mut s = String::with_capacity(200);
-
-            let it = self.server_certs.iter().map(ServerCerts::to_string);
-            let it = it.chain(
-                self.clientlocale
-                    .iter()
-                    .map(|cl| format!("{}={}", cp_url::OPTION_CLIENT_LOCALE, cl)),
-            );
-            #[cfg(feature = "alpha_nonblocking")]
-            let it = it.chain(
-                {
-                    if self.use_nonblocking {
-                        Some(cp_url::OPTION_NONBLOCKING.to_string())
-                    } else {
-                        None
-                    }
-                }
-                .into_iter(),
-            );
-
-            for (i, assignment) in it.enumerate() {
-                if i > 0 {
-                    s.push('&');
-                }
-                s.push_str(&assignment);
-            }
-            s
-        }
-    }
 }
 
 impl std::fmt::Display for ConnectParams {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let option_string = self.option_string();
-        write!(
+        format_as_url(
+            self.use_tls(),
+            &self.addr,
+            &self.dbuser,
+            &self.dbname,
+            &self.network_group,
+            &self.server_certs,
+            &self.clientlocale,
             f,
-            "hdbsql{}://{}@{}{}{}",
-            if self.use_tls() { "s" } else { "" },
-            self.dbuser,
-            self.addr,
-            if option_string.is_empty() { "" } else { "?" },
-            option_string
         )
     }
 }
@@ -312,17 +267,6 @@ pub enum ServerCerts {
     /// Defines that the server's identity is not validated. Don't use this
     /// option in productive setups!
     None,
-}
-impl std::fmt::Display for ServerCerts {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            Self::Directory(s) => write!(f, "{}={}", cp_url::OPTION_CERT_DIR, s),
-            Self::Environment(s) => write!(f, "{}={}", cp_url::OPTION_CERT_ENV, s),
-            Self::Direct(_s) => write!(f, "{}=<...>", cp_url::OPTION_CERT_DIRECT),
-            Self::RootCertificates => write!(f, "{}", cp_url::OPTION_CERT_MOZILLA),
-            Self::None => write!(f, "{}", cp_url::OPTION_INSECURE_NO_CHECK),
-        }
-    }
 }
 
 struct NoCertificateVerification {}
@@ -369,7 +313,7 @@ mod tests {
                 .unwrap();
 
             assert_eq!("meier", params.dbuser());
-            assert_eq!(b"schLau", params.password().unsecure());
+            assert_eq!("schLau", params.password().unsecure());
             assert_eq!("abcd123:2222", params.addr());
             assert_eq!(None, params.clientlocale);
             assert!(params.server_certs().is_empty());
@@ -383,7 +327,7 @@ mod tests {
                 .unwrap();
 
             assert_eq!("meier", params.dbuser());
-            assert_eq!(b"schLau", params.password().unsecure());
+            assert_eq!("schLau", params.password().unsecure());
             assert_eq!(Some("CL1".to_string()), params.clientlocale);
             assert_eq!(
                 ServerCerts::Directory("TCD".to_string()),
@@ -408,7 +352,7 @@ mod tests {
                 .unwrap();
 
             assert_eq!("meier", params.dbuser());
-            assert_eq!(b"schLau", params.password().unsecure());
+            assert_eq!("schLau", params.password().unsecure());
             assert_eq!(ServerCerts::None, *params.server_certs().get(0).unwrap());
             assert_eq!(
                 params.to_string(),

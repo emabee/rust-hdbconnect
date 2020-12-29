@@ -64,7 +64,7 @@ impl Reply {
 
     pub fn assert_expected_reply_type(&self, expected_reply_type: ReplyType) -> HdbResult<()> {
         if self.replytype == expected_reply_type {
-            Ok(()) // we got what we expected
+            Ok(())
         } else {
             Err(HdbError::ImplDetailed(format!(
                 "Expected reply type {:?}, got {:?}",

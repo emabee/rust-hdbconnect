@@ -1,8 +1,9 @@
 use crate::protocol::parts::option_value::OptionValue;
-use core::fmt::Debug;
+use crate::{HdbError, HdbResult};
 use std::collections::hash_map::IntoIter;
 use std::collections::hash_map::Iter;
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::hash::Hash;
 
 use byteorder::{ReadBytesExt, WriteBytesExt};
@@ -10,6 +11,7 @@ use byteorder::{ReadBytesExt, WriteBytesExt};
 pub trait OptionId<T: OptionId<T>> {
     fn from_u8(i: u8) -> T;
     fn to_u8(&self) -> u8;
+    fn part_type(&self) -> &'static str;
 }
 
 #[derive(Clone, Debug)]
@@ -28,8 +30,10 @@ impl<T: OptionId<T> + Debug + Eq + PartialEq + Hash> OptionPart<T> {
         self.0.insert(id, value)
     }
 
-    pub fn get(&self, id: &T) -> Option<&OptionValue> {
-        self.0.get(id)
+    pub fn get(&self, id: &T) -> HdbResult<&OptionValue> {
+        self.0.get(id).ok_or_else(|| {
+            HdbError::ImplDetailed(format!("{:?} not provided in {}", id, id.part_type()))
+        })
     }
 
     pub fn len(&self) -> usize {

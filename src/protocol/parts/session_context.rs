@@ -43,4 +43,8 @@ impl OptionId<SessionContextId> for SessionContextId {
             }
         }
     }
+
+    fn part_type(&self) -> &'static str {
+        "SessionContext"
+    }
 }

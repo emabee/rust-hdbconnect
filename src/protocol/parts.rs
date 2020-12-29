@@ -4,6 +4,7 @@ mod client_info;
 mod command_info;
 mod commit_options;
 mod connect_options;
+mod db_connect_info;
 mod execution_result;
 mod fetch_options;
 mod hdb_value;
@@ -36,6 +37,7 @@ pub(crate) use self::{
     client_info::ClientInfo,
     command_info::CommandInfo,
     connect_options::{ConnOptId, ConnectOptions},
+    db_connect_info::DbConnectInfo,
     lob_flags::LobFlags,
     option_value::OptionValue,
     parameter_rows::ParameterRows,

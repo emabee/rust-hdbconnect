@@ -130,7 +130,7 @@ impl<'a> HdbValue<'a> {
             HdbValue::GEOMETRY(_) | // TypeId::GEOMETRY,
             HdbValue::POINT(_) |    // TypeId::POINT,
             HdbValue::BINARY(_) => TypeId::BINARY,
-            HdbValue::ARRAY(_) => unimplemented!("Can't send array type to DB; not yet supported FIXME"),
+            HdbValue::ARRAY(_) => unimplemented!("Can't send array type to DB; not yet supported"),
         })
     }
 

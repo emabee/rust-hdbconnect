@@ -9,7 +9,11 @@
 //! use hdbconnect::{Connection, IntoConnectParams};
 //! # use hdbconnect::HdbResult;
 //! # fn foo() -> HdbResult<()> {
-//! let mut connection = Connection::new("hdbsql://my_user:my_passwd@the_host:2222")?;
+//! // connect directly to a database:
+//! let mut connection1 = Connection::new("hdbsql://my_user:my_passwd@the_host:30815")?;
+//!
+//! // connect to the port of the system db and let the db redirect to the correct host and port:
+//! let mut connection2 = Connection::new("hdbsql://my_user:my_passwd@the_host:30813?db=MEI")?;
 //! # Ok(())
 //! # }
 //! ```

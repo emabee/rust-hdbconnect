@@ -63,7 +63,7 @@ pub fn test_011_invalid_password() {
         cp_builder.dbuser(&user).password("Doebcd1234");
         let conn_params: ConnectParams = cp_builder.into_connect_params().unwrap();
         assert_eq!(conn_params.dbuser(), user);
-        assert_eq!(conn_params.password().unsecure(), b"Doebcd1234");
+        assert_eq!(conn_params.password().unsecure(), "Doebcd1234");
 
         let mut doedel_conn = Connection::new(conn_params).unwrap();
         debug!("{} is connected", user);

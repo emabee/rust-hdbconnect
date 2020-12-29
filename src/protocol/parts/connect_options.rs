@@ -70,7 +70,7 @@ impl ConnectOptions {
                 | ConnOptId::ClientInfoNullValueOK
                 | ConnOptId::ClientReconnectWaitTimeout
                 | ConnOptId::FlagSet1 => {
-                    if let Some(old_value) = self.get(&k) {
+                    if let Ok(old_value) = self.get(&k) {
                         if *old_value != v {
                             debug!(
                                 "Server changes ConnectionOption {:?} from value {:?} \
@@ -91,60 +91,27 @@ impl ConnectOptions {
         Ok(())
     }
 
-    fn get_integer(&self, id: &ConnOptId, s: &str) -> Option<i32> {
-        match self.get(id) {
-            Some(&OptionValue::INT(i)) => Some(i),
-            None => None,
-            Some(ref ov) => {
-                error!("{} with unexpected value type: {:?}", s, ov);
-                None
-            }
-        }
-    }
-    fn get_string(&self, id: &ConnOptId, s: &str) -> Option<&str> {
-        match self.get(id) {
-            Some(&OptionValue::STRING(ref s)) => Some(s),
-            None => None,
-            Some(ref ov) => {
-                error!("{} with unexpected value type: {:?}", s, ov);
-                None
-            }
-        }
-    }
-
-    fn get_bool(&self, id: &ConnOptId, s: &str) -> Option<bool> {
-        match self.get(id) {
-            Some(&OptionValue::BOOLEAN(b)) => Some(b),
-            None => None,
-            Some(ref ov) => {
-                error!("{} with unexpected value type: {:?}", s, ov);
-                None
-            }
-        }
-    }
-
     // The connection ID is filled by the server when the connection is established.
     // It can be used in DISCONNECT/KILL commands for command or session
     // cancellation.
-    pub fn get_connection_id(&self) -> i32 {
-        self.get_integer(&ConnOptId::ConnectionID, "ConnectionID")
-            .expect("Could not read connection id")
+    pub fn get_connection_id(&self) -> HdbResult<i32> {
+        self.get(&ConnOptId::ConnectionID)?.get_int()
     }
 
     // The SystemID is set by the server with the SAPSYSTEMNAME of the
     // connected instance (for tracing and supportability purposes).
-    pub fn get_system_id(&self) -> Option<&str> {
-        self.get_string(&ConnOptId::SystemID, "SystemID")
+    pub fn get_system_id(&self) -> HdbResult<&String> {
+        self.get(&ConnOptId::SystemID)?.get_string()
     }
 
     // (MDC) Database name.
-    pub fn get_database_name(&self) -> Option<&str> {
-        self.get_string(&ConnOptId::DatabaseName, "DatabaseName")
+    pub fn get_database_name(&self) -> HdbResult<&String> {
+        self.get(&ConnOptId::DatabaseName)?.get_string()
     }
 
     // Full version string.
-    pub fn get_full_version_string(&self) -> Option<&str> {
-        self.get_string(&ConnOptId::FullVersionString, "FullVersionString")
+    pub fn get_full_version_string(&self) -> HdbResult<&String> {
+        self.get(&ConnOptId::FullVersionString)?.get_string()
     }
 
     // Build platform.
@@ -187,8 +154,8 @@ impl ConnectOptions {
     //   SECONDTIME.)
     // 6 Send data type BINTEXT to client.
     //
-    pub fn get_dataformat_version2(&self) -> Option<i32> {
-        self.get_integer(&ConnOptId::DataFormatVersion2, "DataFormatVersion2")
+    pub fn get_dataformat_version2(&self) -> HdbResult<i32> {
+        self.get(&ConnOptId::DataFormatVersion2)?.get_int()
     }
 
     // // NonTransactionalPrepare
@@ -217,8 +184,8 @@ impl ConnectOptions {
 
     // Is set by the server to indicate that it supports implicit LOB streaming
     // even though auto-commit is on instead of raising an error.
-    pub fn get_implicit_lob_streaming(&self) -> Option<bool> {
-        self.get_bool(&ConnOptId::ImplicitLobStreaming, "ImplicitLobStreaming")
+    pub fn get_implicit_lob_streaming(&self) -> HdbResult<bool> {
+        self.get(&ConnOptId::ImplicitLobStreaming)?.get_bool()
     }
 
     // // Is set to true if array commands continue to process remaining input
@@ -559,6 +526,10 @@ impl OptionId<ConnOptId> for ConnOptId {
                 Self::__Unexpected__(val)
             }
         }
+    }
+
+    fn part_type(&self) -> &'static str {
+        "ConnectOptions"
     }
 }
 

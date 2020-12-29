@@ -17,22 +17,19 @@ fn test_025_decimals() -> HdbResult<()> {
     let start = std::time::Instant::now();
     let mut connection = test_utils::get_authenticated_connection()?;
 
-    match connection.data_format_version_2()? {
-        Some(version) if version > 7 => {
-            info!("=== run test for FIXED8 ===");
-            test_025_decimals_impl(TS::FIXED8, &mut log_handle, &mut connection)?;
+    if connection.data_format_version_2()? > 7 {
+        info!("=== run test for FIXED8 ===");
+        test_025_decimals_impl(TS::FIXED8, &mut log_handle, &mut connection)?;
 
-            info!("=== run test for FIXED12 ===");
-            test_025_decimals_impl(TS::FIXED12, &mut log_handle, &mut connection)?;
+        info!("=== run test for FIXED12 ===");
+        test_025_decimals_impl(TS::FIXED12, &mut log_handle, &mut connection)?;
 
-            info!("=== run test for FIXED16 ===");
-            test_025_decimals_impl(TS::FIXED16, &mut log_handle, &mut connection)?;
-        }
-        _ => {
-            // Old HdbDecimal implementation
-            info!("=== run test for HdbDecimal ===");
-            test_025_decimals_impl(TS::DECIMAL, &mut log_handle, &mut connection)?;
-        }
+        info!("=== run test for FIXED16 ===");
+        test_025_decimals_impl(TS::FIXED16, &mut log_handle, &mut connection)?;
+    } else {
+        // Old HdbDecimal implementation
+        info!("=== run test for HdbDecimal ===");
+        test_025_decimals_impl(TS::DECIMAL, &mut log_handle, &mut connection)?;
     }
 
     test_utils::closing_info(connection, start)

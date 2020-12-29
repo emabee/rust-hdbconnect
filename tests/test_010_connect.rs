@@ -16,6 +16,7 @@ pub fn test_010_connect() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     let start = Instant::now();
     connect_successfully(&mut log_handle)?;
+    reconnect(&mut log_handle)?;
     connect_options(&mut log_handle)?;
     client_info(&mut log_handle)?;
     connect_wrong_credentials(&mut log_handle);
@@ -27,12 +28,23 @@ pub fn test_010_connect() -> HdbResult<()> {
 }
 
 fn connect_successfully(_log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
+    info!("test a successful connection");
     test_utils::get_authenticated_connection()?;
     Ok(())
 }
 
+fn reconnect(_log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
+    info!("test reconnect");
+    _log_handle.parse_and_push_temp_spec("info, hdbconnect::conn= debug, test=debug");
+    let cpb = test_utils::get_std_redirect_cp_builder()?;
+    debug!("Attempting connect to {}", cpb.to_url()?);
+    let _conn = Connection::new(cpb)?;
+    _log_handle.pop_temp_spec();
+    Ok(())
+}
+
 fn connect_options(_log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
-    info!("test a successful connection");
+    info!("test connect options");
     _log_handle.parse_and_push_temp_spec("info, test = debug");
     let connection = test_utils::get_authenticated_connection()?;
 
@@ -46,7 +58,7 @@ fn connect_options(_log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
 }
 
 fn client_info(_log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
-    info!("client info, make sure it arrives in with SESSION_CONTEXT");
+    info!("client info");
     _log_handle.parse_and_push_temp_spec("info, test = debug");
     let mut connection = test_utils::get_authenticated_connection().unwrap();
     let connection_id: i32 = connection.id()?;
@@ -120,7 +132,7 @@ fn connect_wrong_credentials(_log_handle: &mut ReconfigurationHandle) {
     let mut cp_builder = test_utils::get_std_cp_builder().unwrap();
     cp_builder.dbuser("didi").password("blabla");
     let conn_params: ConnectParams = cp_builder.into_connect_params().unwrap();
-    assert_eq!(conn_params.password().unsecure(), b"blabla");
+    assert_eq!(conn_params.password().unsecure(), "blabla");
 
     let err = Connection::new(conn_params).err().unwrap();
     info!(

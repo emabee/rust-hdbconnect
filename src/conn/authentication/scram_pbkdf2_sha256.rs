@@ -4,7 +4,7 @@ use crate::{HdbError, HdbResult};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use chrono::Local;
 use rand::{thread_rng, RngCore};
-use secstr::SecStr;
+use secstr::SecUtf8;
 use std::io::Write;
 
 const CLIENT_PROOF_SIZE: u8 = 32;
@@ -37,7 +37,7 @@ impl Authenticator for ScramPbkdf2Sha256 {
         &(self.client_challenge)
     }
 
-    fn client_proof(&mut self, server_data: &[u8], password: &SecStr) -> HdbResult<Vec<u8>> {
+    fn client_proof(&mut self, server_data: &[u8], password: &SecUtf8) -> HdbResult<Vec<u8>> {
         const CONTEXT_CLIENT_PROOF: &str = "ClientProof";
         let (salt, server_nonce, iterations) = parse_first_server_data(server_data)?;
 

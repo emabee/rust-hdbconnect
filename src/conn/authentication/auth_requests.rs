@@ -4,6 +4,7 @@ use crate::protocol::parts::{AuthFields, ClientContext, ConnOptId, OptionValue};
 use crate::protocol::{Part, ReplyType, Request, RequestType};
 use crate::{HdbError, HdbResult};
 
+// TODO for HC-redirect, we might need a returntype like HdbResult<Enum[(String, Vec)|DbConnectInfo]>
 pub(crate) fn first_auth_request(
     conn_core: &mut ConnectionCore,
     authenticators: &[Box<dyn Authenticator>],
@@ -11,19 +12,33 @@ pub(crate) fn first_auth_request(
     let mut request1 = Request::new(RequestType::Authenticate, 0);
     request1.push(Part::ClientContext(ClientContext::new()));
 
-    let mut auth_fields = AuthFields::with_capacity(4);
-    auth_fields.push_string(conn_core.connect_params().dbuser());
+    let mut auth_fields_out = AuthFields::with_capacity(3);
+    auth_fields_out.push_string(conn_core.connect_params().dbuser());
     for authenticator in authenticators {
         debug!("proposing {}", authenticator.name());
-        auth_fields.push(authenticator.name_as_bytes());
-        auth_fields.push(authenticator.client_challenge().to_vec());
+        auth_fields_out.push(authenticator.name_as_bytes());
+        auth_fields_out.push(authenticator.client_challenge().to_vec());
     }
-    request1.push(Part::Auth(auth_fields));
+    request1.push(Part::Auth(auth_fields_out));
+
+    // TODO for HC-redirect, we might get here an error part and a DbConnectInfo part
+    // but roundtrip_sync() calls already handle_db_error(), which must not be done in this case
+    // we should evaluate explicitly
+    // if first is part::Error
+    //     if second is DbConnectInfo
+    //        -> HC-redirect!
+    //     else
+    //        error
+    // else if first is part::Auth
+    //     evaluate like now
+    // endif
+    // digest excess parts, with warning
 
     let reply = conn_core.roundtrip_sync(&request1, None, None, None, &mut None)?;
     reply.assert_expected_reply_type(ReplyType::Nil)?;
 
     let mut result = None;
+    // match reply.parts.remove_first_of_kind(PartKind::Error) {
     for part in reply.parts.into_iter() {
         if let Part::Auth(mut auth_fields) = part {
             match (auth_fields.pop(), auth_fields.pop(), auth_fields.pop()) {
@@ -65,7 +80,7 @@ pub(crate) fn second_auth_request(
     if reconnect {
         conn_opts.insert(
             ConnOptId::OriginalAnchorConnectionID,
-            OptionValue::INT(conn_core.connect_options().get_connection_id()),
+            OptionValue::INT(conn_core.connect_options().get_connection_id()?),
         );
     }
     request2.push(Part::ConnectOptions(conn_opts));

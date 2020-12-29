@@ -5,13 +5,12 @@ use std::time::Duration;
 
 // An options part that is populated from previously received statement context
 // information. The binary option content is opaque to the client.
-// Assumption: it's used to support automatic reconnects (but we don't make use of that: TODO)
 pub(crate) type StatementContext = OptionPart<StatementContextId>;
 
 impl StatementContext {
     pub fn statement_sequence_info(&self) -> Option<i64> {
         match self.get(&StatementContextId::StatementSequenceInfo) {
-            Some(&OptionValue::BIGINT(value)) => Some(value),
+            Ok(&OptionValue::BIGINT(value)) => Some(value),
             _ => None,
         }
     }
@@ -25,7 +24,7 @@ impl StatementContext {
 
     pub fn server_processing_time(&self) -> Option<Duration> {
         match self.get(&StatementContextId::ServerProcessingTime) {
-            Some(&OptionValue::BIGINT(value)) => {
+            Ok(&OptionValue::BIGINT(value)) => {
                 Some(Duration::from_micros(value.try_into().unwrap_or(0)))
             }
             _ => None,
@@ -34,7 +33,7 @@ impl StatementContext {
 
     pub fn server_cpu_time(&self) -> Option<Duration> {
         match self.get(&StatementContextId::ServerCPUTime) {
-            Some(&OptionValue::BIGINT(value)) => {
+            Ok(&OptionValue::BIGINT(value)) => {
                 Some(Duration::from_micros(value.try_into().unwrap_or(0)))
             }
             _ => None,
@@ -43,7 +42,7 @@ impl StatementContext {
 
     pub fn server_memory_usage(&self) -> Option<u64> {
         match self.get(&StatementContextId::ServerMemoryUsage) {
-            Some(&OptionValue::BIGINT(value)) => Some(value.try_into().unwrap_or(0)),
+            Ok(&OptionValue::BIGINT(value)) => Some(value.try_into().unwrap_or(0)),
             _ => None,
         }
     }
@@ -91,5 +90,9 @@ impl OptionId<StatementContextId> for StatementContextId {
                 Self::__Unexpected__(val)
             }
         }
+    }
+
+    fn part_type(&self) -> &'static str {
+        "StatementContext"
     }
 }

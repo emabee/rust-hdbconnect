@@ -63,6 +63,10 @@ impl OptionId<ClientContextId> for ClientContextId {
             }
         }
     }
+
+    fn part_type(&self) -> &'static str {
+        "ClientContext"
+    }
 }
 
 impl std::fmt::Display for ClientContextId {

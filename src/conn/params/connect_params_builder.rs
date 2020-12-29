@@ -1,9 +1,10 @@
+use super::cp_url::format_as_url;
 use crate::{ConnectParams, HdbError, HdbResult, IntoConnectParamsBuilder, ServerCerts};
-use secstr::SecStr;
+use secstr::SecUtf8;
 
 /// A builder for `ConnectParams`.
 ///
-/// # Example
+/// # Instantiating a `ConnectParamsBuilder` programmatically
 ///
 /// ```rust
 /// use hdbconnect::ConnectParams;
@@ -17,15 +18,9 @@ use secstr::SecStr;
 ///     .unwrap();
 /// ```
 ///
-/// ## Instantiating a `ConnectParamsBuilder` from a URL
+/// # Instantiating a `ConnectParamsBuilder` from a URL
 ///
-/// The URL is supposed to have the same form as for `ConnectParams`
-/// (i.e. `<scheme>://<username>:<password>@<host>:<port>[<options>]`,
-/// see [Using a URL](struct.ConnectParams.html#using-a-url)),
-/// but only scheme and host
-/// are mandatory.
-///
-/// ### Example
+/// See module [`url`](url/index.html) for details about the supported URLs.
 ///
 /// ```rust
 /// use hdbconnect::IntoConnectParamsBuilder;
@@ -45,10 +40,11 @@ pub struct ConnectParamsBuilder {
     port: Option<u16>,
     dbuser: Option<String>,
     #[serde(skip)]
-    password: Option<SecStr>,
+    password: Option<SecUtf8>,
+    dbname: Option<String>,
+    network_group: Option<String>,
     clientlocale: Option<String>,
     server_certs: Vec<ServerCerts>,
-    options: Vec<(String, String)>,
     #[cfg(feature = "alpha_nonblocking")]
     use_nonblocking: bool,
 }
@@ -61,9 +57,10 @@ impl ConnectParamsBuilder {
             port: None,
             dbuser: None,
             password: None,
+            dbname: None,
+            network_group: None,
             clientlocale: None,
             server_certs: Vec::<ServerCerts>::default(),
-            options: vec![],
             #[cfg(feature = "alpha_nonblocking")]
             use_nonblocking: false,
         }
@@ -89,13 +86,28 @@ impl ConnectParamsBuilder {
 
     /// Sets the password.
     pub fn password<P: AsRef<str>>(&mut self, pw: P) -> &mut Self {
-        self.password = Some(SecStr::new(pw.as_ref().as_bytes().to_vec()));
+        self.password = Some(SecUtf8::from(pw.as_ref()));
         self
     }
 
     /// Unsets the password.
     pub fn unset_password(&mut self) -> &mut Self {
         self.password = None;
+        self
+    }
+
+    /// Sets the database name.
+    ///
+    /// This allows specifying host and port of the system DB
+    /// and getting automatically redirected and connected to the specified tenant database.
+    pub fn dbname<D: AsRef<str>>(&mut self, dbname: D) -> &mut Self {
+        self.dbname = Some(dbname.as_ref().to_owned());
+        self
+    }
+
+    /// Sets the network group.
+    pub fn network_group<D: AsRef<str>>(&mut self, network_group: D) -> &mut Self {
+        self.network_group = Some(network_group.as_ref().to_owned());
         self
     }
 
@@ -144,12 +156,6 @@ impl ConnectParamsBuilder {
         self
     }
 
-    /// Adds a runtime parameter.
-    pub fn option(&mut self, name: &str, value: &str) -> &mut Self {
-        self.options.push((name.to_string(), value.to_string()));
-        self
-    }
-
     /// Constructs a `ConnectParams` from the builder.
     ///
     /// # Errors
@@ -160,15 +166,10 @@ impl ConnectParamsBuilder {
             Some(ref s) => s.clone(),
             None => return Err(HdbError::Usage("hostname is missing")),
         };
-
-        let addr = format!(
-            "{}:{}",
-            host,
-            match self.port {
-                Some(p) => p,
-                None => return Err(HdbError::Usage("port is missing")),
-            }
-        );
+        let port = match self.port {
+            Some(p) => p,
+            None => return Err(HdbError::Usage("port is missing")),
+        };
         let dbuser = match self.dbuser {
             Some(ref s) => s.clone(),
             None => return Err(HdbError::Usage("dbuser is missing")),
@@ -180,9 +181,11 @@ impl ConnectParamsBuilder {
 
         Ok(ConnectParams::new(
             host,
-            addr,
+            port,
             dbuser,
             password,
+            self.dbname.clone(),
+            self.network_group.clone(),
             self.clientlocale.clone(),
             self.server_certs.clone(),
             #[cfg(feature = "alpha_nonblocking")]
@@ -190,62 +193,13 @@ impl ConnectParamsBuilder {
         ))
     }
 
-    /// Returns the url for this connection
+    /// Returns the url for this connection, without the password.
     ///
     /// # Errors
     ///
-    /// `HdbError::Usage` if the builder was not yet configured to
-    /// build a correct url
+    /// `HdbError::Usage` if the builder was not yet configured to build a correct url
     pub fn to_url(&self) -> HdbResult<String> {
-        if let Some(dbuser) = &self.dbuser {
-            if let Some(hostname) = &self.hostname {
-                if let Some(port) = &self.port {
-                    return Ok(format!(
-                        "{}://{}@{}:{}{}",
-                        self.get_protocol_name(),
-                        dbuser,
-                        hostname,
-                        port,
-                        self.get_options_as_parameters()
-                    ));
-                }
-            }
-        }
-        Err(HdbError::Usage("URL requires dbuser, hostname, and port"))
-    }
-
-    fn get_protocol_name(&self) -> &str {
-        if self.server_certs.is_empty() {
-            "hdbsql"
-        } else {
-            "hdbsqls"
-        }
-    }
-
-    fn get_options_as_parameters(&self) -> String {
-        let mut result = String::with_capacity(200);
-        for (index, s) in self
-            .options
-            .iter()
-            .map(|(k, v)| {
-                if v.is_empty() {
-                    k.clone()
-                } else {
-                    format!("{}={}", k, v)
-                }
-            })
-            .chain(self.server_certs.iter().map(ToString::to_string))
-            .chain(
-                self.clientlocale
-                    .iter()
-                    .map(|l| format!("{}={}", super::cp_url::OPTION_CLIENT_LOCALE, l)),
-            )
-            .enumerate()
-        {
-            let prefix = if index == 0 { "?" } else { "&" };
-            result.push_str(&format!("{}{}", prefix, s));
-        }
-        result
+        Ok(self.to_string())
     }
 
     /// Getter
@@ -259,7 +213,7 @@ impl ConnectParamsBuilder {
     }
 
     /// Getter
-    pub fn get_password(&self) -> Option<&SecStr> {
+    pub fn get_password(&self) -> Option<&SecUtf8> {
         self.password.as_ref()
     }
 
@@ -276,11 +230,6 @@ impl ConnectParamsBuilder {
     /// Getter
     pub fn get_server_certs(&self) -> &Vec<ServerCerts> {
         &self.server_certs
-    }
-
-    /// Getter
-    pub fn get_options(&self) -> &Vec<(String, String)> {
-        &self.options
     }
 }
 
@@ -312,7 +261,26 @@ impl<'de> serde::de::Visitor<'de> for Visitor {
 impl Into<String> for ConnectParamsBuilder {
     fn into(mut self) -> String {
         self.unset_password();
-        self.to_url().unwrap()
+        self.to_string()
+    }
+}
+
+impl std::fmt::Display for ConnectParamsBuilder {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        format_as_url(
+            !self.server_certs.is_empty(),
+            &format!(
+                "{}:{}",
+                self.hostname.as_deref().unwrap_or(""),
+                self.port.unwrap_or_default()
+            ),
+            self.dbuser.as_deref().unwrap_or(""),
+            &self.dbname,
+            &self.network_group,
+            &self.server_certs,
+            &self.clientlocale,
+            f,
+        )
     }
 }
 
@@ -333,7 +301,7 @@ mod test {
                 .build()
                 .unwrap();
             assert_eq!("MEIER", params.dbuser());
-            assert_eq!(b"schLau", params.password().unsecure());
+            assert_eq!("schLau", params.password().unsecure());
             assert_eq!("abcd123:2222", params.addr());
             assert_eq!(None, params.clientlocale());
             assert!(params.server_certs().is_empty());
@@ -351,7 +319,7 @@ mod test {
 
             let params = builder.build().unwrap();
             assert_eq!("MEIER", params.dbuser());
-            assert_eq!(b"schLau", params.password().unsecure());
+            assert_eq!("schLau", params.password().unsecure());
             assert_eq!(Some("de_DE"), params.clientlocale());
             assert_eq!(
                 ServerCerts::Directory("TCD".to_string()),
@@ -367,7 +335,7 @@ mod test {
                 .into_connect_params_builder()
                 .unwrap();
             assert_eq!("MEIER", builder.get_dbuser().unwrap());
-            assert_eq!(b"schLau", builder.get_password().unwrap().unsecure());
+            assert_eq!("schLau", builder.get_password().unwrap().unsecure());
             assert_eq!("abcd123", builder.get_hostname().unwrap());
             assert_eq!(2222, builder.get_port().unwrap());
             assert_eq!(None, builder.get_clientlocale());

@@ -1,6 +1,6 @@
 use super::connect_params::ServerCerts;
 use super::connect_params_builder::ConnectParamsBuilder;
-use super::cp_url;
+use super::cp_url::UrlOpt;
 use crate::{HdbError, HdbResult};
 use url::Url;
 
@@ -69,38 +69,48 @@ impl IntoConnectParamsBuilder for Url {
         let mut server_certs = Vec::<ServerCerts>::new();
 
         for (name, value) in self.query_pairs() {
-            match name.as_ref() {
-                cp_url::OPTION_CLIENT_LOCALE => {
+            match UrlOpt::from(name.as_ref()) {
+                Some(UrlOpt::ClientLocale) => {
                     builder.clientlocale(value.to_string());
                 }
-                cp_url::OPTION_CLIENT_LOCALE_FROM_ENV => {
+                Some(UrlOpt::ClientLocaleFromEnv) => {
                     std::env::var(value.to_string())
                         .ok()
                         .map(|s| builder.clientlocale(s));
                 }
-                cp_url::OPTION_CERT_DIR => {
+                Some(UrlOpt::TlsCertificateDir) => {
                     server_certs.push(ServerCerts::Directory(value.to_string()));
                 }
-                cp_url::OPTION_CERT_ENV => {
+                Some(UrlOpt::TlsCertificateEnv) => {
                     server_certs.push(ServerCerts::Environment(value.to_string()));
                 }
-                cp_url::OPTION_CERT_MOZILLA => {
+                Some(UrlOpt::TlsCertificateMozilla) => {
                     server_certs.push(ServerCerts::RootCertificates);
                 }
-                cp_url::OPTION_INSECURE_NO_CHECK => {
+                Some(UrlOpt::InsecureOmitServerCheck) => {
                     server_certs.push(ServerCerts::None);
                 }
-                cp_url::OPTION_NONBLOCKING => {
-                    #[cfg(feature = "alpha_nonblocking")]
+                #[cfg(feature = "alpha_nonblocking")]
+                Some(UrlOpt::NonBlocking) => {
                     builder.use_nonblocking();
 
-                    #[cfg(not(feature = "alpha_nonblocking"))]
                     return Err(HdbError::UsageDetailed(format!(
                         "url option {} requires feature alpha_nonblocking",
-                        cp_url::OPTION_NONBLOCKING
+                        UrlOpt::NonBlocking.name()
                     )));
                 }
-                _ => log::warn!("option {} not supported", name),
+                Some(UrlOpt::Database) => {
+                    builder.dbname(value.to_string());
+                }
+                Some(UrlOpt::NetworkGroup) => {
+                    builder.network_group(value.to_string());
+                }
+                None => {
+                    return Err(HdbError::UsageDetailed(format!(
+                        "option '{}' not supported",
+                        name
+                    )));
+                }
             }
         }
 

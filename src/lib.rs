@@ -57,7 +57,8 @@ mod xa_impl;
 pub mod code_examples;
 
 pub use crate::conn::{
-    ConnectParams, ConnectParamsBuilder, IntoConnectParams, IntoConnectParamsBuilder, ServerCerts,
+    url, ConnectParams, ConnectParamsBuilder, IntoConnectParams, IntoConnectParamsBuilder,
+    ServerCerts,
 };
 pub use crate::hdb_error::{HdbError, HdbResult};
 pub use crate::hdb_response::HdbResponse;

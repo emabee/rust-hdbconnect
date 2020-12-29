@@ -342,11 +342,10 @@ impl Connection {
     ///
     /// Only `HdbError::Poison` can occur.
     pub fn id(&self) -> HdbResult<i32> {
-        Ok(self
-            .am_conn_core
+        self.am_conn_core
             .lock()?
             .connect_options()
-            .get_connection_id())
+            .get_connection_id()
     }
 
     /// Provides information about the the server-side resource consumption that
@@ -360,12 +359,11 @@ impl Connection {
     }
 
     #[doc(hidden)]
-    pub fn data_format_version_2(&self) -> HdbResult<Option<i32>> {
-        Ok(self
-            .am_conn_core
+    pub fn data_format_version_2(&self) -> HdbResult<i32> {
+        self.am_conn_core
             .lock()?
             .connect_options()
-            .get_dataformat_version2())
+            .get_dataformat_version2()
     }
 
     #[doc(hidden)]
@@ -493,14 +491,16 @@ impl Connection {
     ///
     /// # Errors
     ///
-    /// Only `HdbError::Poison` can occur.
-    pub fn get_database_name(&self) -> HdbResult<Option<String>> {
-        Ok(self
-            .am_conn_core
+    /// Errors are unlikely to occur.
+    ///
+    /// - `HdbError::ImplDetailed` if the database name was not provided by the database server.
+    /// - `HdbError::Poison` if the shared mutex of the inner connection object is poisened.
+    pub fn get_database_name(&self) -> HdbResult<String> {
+        self.am_conn_core
             .lock()?
             .connect_options()
             .get_database_name()
-            .map(ToOwned::to_owned))
+            .map(ToOwned::to_owned)
     }
 
     /// The system id is set by the server with the SAPSYSTEMNAME of the
@@ -508,14 +508,16 @@ impl Connection {
     ///
     /// # Errors
     ///
-    /// Only `HdbError::Poison` can occur.
-    pub fn get_system_id(&self) -> HdbResult<Option<String>> {
-        Ok(self
-            .am_conn_core
+    /// Errors are unlikely to occur.
+    ///
+    /// - `HdbError::ImplDetailed` if the system id was not provided by the database server.
+    /// - `HdbError::Poison` if the shared mutex of the inner connection object is poisened.
+    pub fn get_system_id(&self) -> HdbResult<String> {
+        self.am_conn_core
             .lock()?
             .connect_options()
             .get_system_id()
-            .map(ToOwned::to_owned))
+            .map(ToOwned::to_owned)
     }
 
     /// Returns the information that is given to the server as client context.
@@ -537,10 +539,10 @@ impl Connection {
 
         let conn_core = self.am_conn_core.lock()?;
         let conn_opts = conn_core.connect_options();
-        if let Some(OptionValue::STRING(s)) = conn_opts.get(&ConnOptId::OSUser) {
+        if let Ok(OptionValue::STRING(s)) = conn_opts.get(&ConnOptId::OSUser) {
             result.push((format!("{:?}", ConnOptId::OSUser), s.clone()));
         }
-        if let Some(OptionValue::INT(i)) = conn_opts.get(&ConnOptId::ConnectionID) {
+        if let Ok(OptionValue::INT(i)) = conn_opts.get(&ConnOptId::ConnectionID) {
             result.push((format!("{:?}", ConnOptId::ConnectionID), i.to_string()));
         }
         Ok(result)
@@ -560,14 +562,16 @@ impl Connection {
     ///
     /// # Errors
     ///
-    /// Only `HdbError::Poison` can occur.
-    pub fn get_full_version_string(&self) -> HdbResult<Option<String>> {
-        Ok(self
-            .am_conn_core
+    /// Errors are unlikely to occur.
+    ///
+    /// - `HdbError::ImplDetailed` if the version string was not provided by the database server.
+    /// - `HdbError::Poison` if the shared mutex of the inner connection object is poisened.
+    pub fn get_full_version_string(&self) -> HdbResult<String> {
+        self.am_conn_core
             .lock()?
             .connect_options()
             .get_full_version_string()
-            .map(ToOwned::to_owned))
+            .map(ToOwned::to_owned)
     }
 
     fn execute<S>(&mut self, stmt: S, o_command_info: Option<CommandInfo>) -> HdbResult<HdbResponse>

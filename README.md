@@ -16,7 +16,7 @@ Add hdbconnect to the dependencies section in your project's `Cargo.toml`:
 
 ```toml
 [dependencies]
-hdbconnect = "0.22"
+hdbconnect = "0.23"
 ```
 
 Assume you have a HANA accessible at port `39013` on host `hxehost`,

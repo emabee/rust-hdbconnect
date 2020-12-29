@@ -56,6 +56,10 @@ impl OptionId<TopologyAttrId> for TopologyAttrId {
             }
         }
     }
+
+    fn part_type(&self) -> &'static str {
+        "Topology"
+    }
 }
 
 /*

@@ -29,6 +29,10 @@ impl OptionId<LobFlagsId> for LobFlagsId {
             }
         }
     }
+
+    fn part_type(&self) -> &'static str {
+        "LobFlags"
+    }
 }
 
 impl LobFlags {

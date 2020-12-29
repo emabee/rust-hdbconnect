@@ -10,6 +10,7 @@ mod tcp_client;
 
 pub(crate) use am_conn_core::AmConnCore;
 pub(crate) use connection_core::ConnectionCore;
+pub use params::cp_url::url;
 pub use params::{
     connect_params::{ConnectParams, ServerCerts},
     connect_params_builder::ConnectParamsBuilder,

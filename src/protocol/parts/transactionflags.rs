@@ -1,5 +1,4 @@
 use crate::protocol::parts::option_part::{OptionId, OptionPart};
-use crate::protocol::parts::option_value::OptionValue;
 
 /// The part is sent from the server to signal
 ///
@@ -54,13 +53,16 @@ impl OptionId<TaFlagId> for TaFlagId {
             }
         }
     }
+
+    fn part_type(&self) -> &'static str {
+        "TransactionFlags"
+    }
 }
 
 impl TransactionFlags {
     pub fn is_committed(&self) -> bool {
-        match self.get(&TaFlagId::Committed) {
-            Some(OptionValue::BOOLEAN(b)) => *b,
-            _ => false,
-        }
+        self.get(&TaFlagId::Committed)
+            .map(|bv| bv.get_bool().unwrap_or(false))
+            .unwrap_or(false)
     }
 }

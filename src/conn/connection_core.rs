@@ -2,10 +2,10 @@ use crate::conn::{
     authentication, initial_request, AmConnCore, ConnectParams, SessionState, TcpClient,
 };
 use crate::protocol::parts::{
-    ClientInfo, ConnectOptions, ParameterDescriptors, ResultSetMetadata, RsState, ServerError,
-    StatementContext, Topology, TransactionFlags,
+    ClientInfo, ConnectOptions, DbConnectInfo, ParameterDescriptors, ResultSetMetadata, RsState,
+    ServerError, StatementContext, Topology, TransactionFlags,
 };
-use crate::protocol::{Part, Reply, Request, RequestType, ServerUsage};
+use crate::protocol::{Part, Reply, ReplyType, Request, RequestType, ServerUsage};
 use crate::{HdbError, HdbResult};
 use std::mem;
 use std::sync::Arc;
@@ -32,10 +32,50 @@ pub(crate) struct ConnectionCore {
 
 impl<'a> ConnectionCore {
     pub(crate) fn try_new(params: ConnectParams) -> HdbResult<Self> {
+        // If dbname is specified, run the redirect flow
+        let mut conn_core = if let Some(dbname) = params.dbname() {
+            let network_group = params.network_group().unwrap_or_default();
+            let mut tentative_conn_core = ConnectionCore::try_new_initialized(params.clone())?;
+            trace!("Trying redirect flow");
+            // send a dbinfo-request with a single part of kind DbConnectInfo,
+            // in which the dbname and the network group are specified. TODO WTF is a network group?
+            let mut request1 = Request::new(RequestType::DbConnectInfo, 0);
+            let db_connect_info: DbConnectInfo = DbConnectInfo::new(dbname, &network_group);
+            request1.push(Part::DbConnectInfo(db_connect_info));
+            let reply =
+                tentative_conn_core.roundtrip_sync(&request1, None, None, None, &mut None)?;
+            reply.assert_expected_reply_type(ReplyType::Nil)?;
+
+            let o_part = reply.parts.into_iter().next();
+            if let Some(Part::DbConnectInfo(db_connect_info)) = o_part {
+                trace!("Received DbConnectInfo");
+                if db_connect_info.on_correct_database()? {
+                    trace!("We're on the right database already");
+                    tentative_conn_core
+                } else {
+                    trace!("Retrieving correct host and port");
+                    let redirect_params =
+                        params.redirect(db_connect_info.host()?, db_connect_info.port()?);
+                    debug!("Redirected to {}", redirect_params);
+                    ConnectionCore::try_new_initialized(redirect_params)?
+                }
+            } else {
+                warn!("Did not find a DbConnectInfo; got {:?}", o_part);
+                tentative_conn_core
+            }
+        } else {
+            ConnectionCore::try_new_initialized(params)?
+        };
+
+        authentication::authenticate(&mut conn_core, false)?;
+        Ok(conn_core)
+    }
+
+    fn try_new_initialized(params: ConnectParams) -> HdbResult<Self> {
         let connect_options = ConnectOptions::for_server(params.clientlocale(), get_os_user());
         let mut tcp_conn = TcpClient::try_new(params)?;
         initial_request::send_and_receive(&mut tcp_conn)?;
-        let mut conn_core = Self {
+        Ok(Self {
             authenticated: false,
             session_id: 0,
             seq_number: 0,
@@ -52,9 +92,7 @@ impl<'a> ConnectionCore {
             topology: None,
             warnings: Vec::<ServerError>::new(),
             tcp_conn,
-        };
-        authentication::authenticate(&mut conn_core, false)?;
-        Ok(conn_core)
+        })
     }
 
     pub(crate) fn reconnect(&mut self) -> HdbResult<()> {

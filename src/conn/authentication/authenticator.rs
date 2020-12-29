@@ -1,5 +1,5 @@
 use crate::{HdbError, HdbResult};
-use secstr::SecStr;
+use secstr::SecUtf8;
 
 pub trait Authenticator {
     fn name(&self) -> &str;
@@ -11,7 +11,7 @@ pub trait Authenticator {
     fn client_proof(
         &mut self,
         server_challenge_data: &[u8],
-        password: &SecStr,
+        password: &SecUtf8,
     ) -> HdbResult<Vec<u8>>;
     fn verify_server(&self, server_proof: &[u8]) -> HdbResult<()>;
 

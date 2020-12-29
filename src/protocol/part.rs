@@ -1,10 +1,10 @@
 use crate::conn::AmConnCore;
 use crate::protocol::parts::{
     parse_resultset_metadata, AuthFields, ClientContext, ClientInfo, CommandInfo, ConnectOptions,
-    ExecutionResult, LobFlags, OutputParameters, ParameterDescriptors, ParameterRows,
-    PartitionInformation, Parts, ReadLobReply, ReadLobRequest, ResultSet, ResultSetMetadata,
-    RsState, ServerError, SessionContext, StatementContext, Topology, TransactionFlags,
-    WriteLobReply, WriteLobRequest, XatOptions,
+    DbConnectInfo, ExecutionResult, LobFlags, OutputParameters, ParameterDescriptors,
+    ParameterRows, PartitionInformation, Parts, ReadLobReply, ReadLobRequest, ResultSet,
+    ResultSetMetadata, RsState, ServerError, SessionContext, StatementContext, Topology,
+    TransactionFlags, WriteLobReply, WriteLobRequest, XatOptions,
 };
 use crate::protocol::{util, PartAttributes, PartKind};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -24,6 +24,7 @@ pub(crate) enum Part<'a> {
     CommandInfo(CommandInfo),
     // CommitOptions(super::parts::commit_options::CommitOptions), // not used by any client
     ConnectOptions(ConnectOptions),
+    DbConnectInfo(DbConnectInfo),
     Error(Vec<ServerError>),
     // FetchOptions(super::parts::fetch_options::FetchOptions),    // not used by any client
     FetchSize(u32),
@@ -58,6 +59,7 @@ impl<'a> Part<'a> {
             Self::Command(_) => PartKind::Command,
             Self::CommandInfo(_) => PartKind::CommandInfo,
             Self::ConnectOptions(_) => PartKind::ConnectOptions,
+            Self::DbConnectInfo(_) => PartKind::DbConnectInfo,
             Self::Error(_) => PartKind::Error,
             Self::FetchSize(_) => PartKind::FetchSize,
             Self::LobFlags(_) => PartKind::LobFlags,
@@ -99,6 +101,7 @@ impl<'a> Part<'a> {
             Part::CommandInfo(ref opts) => opts.len(),
             // Part::CommitOptions(ref opts) => opts.count(),
             Part::ConnectOptions(ref opts) => opts.len(),
+            Part::DbConnectInfo(ref opts) => opts.len(),
             // Part::FetchOptions(ref opts) => opts.count(),
             Part::LobFlags(ref opts) => opts.len(),
             Part::Parameters(ref par_rows) => par_rows.count(),
@@ -134,6 +137,7 @@ impl<'a> Part<'a> {
             // Part::CommitOptions(ref opts) => size += opts.size(),
             Part::ConnectOptions(ref conn_opts) => size += conn_opts.size(),
             // Part::FetchOptions(ref opts) => size += opts.size(),
+            Part::DbConnectInfo(ref conn_info) => size += conn_info.size(),
             Part::FetchSize(_) => size += 4,
             Part::LobFlags(ref opts) => size += opts.size(),
             Part::Parameters(ref par_rows) => {
@@ -211,6 +215,7 @@ impl<'a> Part<'a> {
             Part::CommandInfo(ref opts) => opts.emit(w)?,
             // Part::CommitOptions(ref opts) => opts.emit(w)?,
             Part::ConnectOptions(ref conn_opts) => conn_opts.emit(w)?,
+            Part::DbConnectInfo(ref db_conn_info) => db_conn_info.emit(w)?,
 
             // Part::FetchOptions(ref opts) => opts.emit(w)?,
             Part::FetchSize(fs) => {
@@ -320,6 +325,7 @@ impl<'a> Part<'a> {
             PartKind::ConnectOptions => {
                 Part::ConnectOptions(ConnectOptions::parse(no_of_args, rdr)?)
             }
+            PartKind::DbConnectInfo => Part::DbConnectInfo(DbConnectInfo::parse(no_of_args, rdr)?),
             PartKind::Error => Part::Error(ServerError::parse(no_of_args, rdr)?),
             PartKind::OutputParameters => o_a_descriptors
                 .ok_or_else(|| util::io_error("Parsing output parameters needs metadata"))

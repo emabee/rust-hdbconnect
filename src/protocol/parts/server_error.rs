@@ -9,14 +9,12 @@ pub enum Severity {
     /// An additional warning is sent from the server to the client,
     /// along with the regular response.
     Warning,
-    /// The request sent to the server was not correct or could not be answered
-    /// correctly.
+    /// The request sent to the server was not correct or could not be answered correctly.
     Error,
     /// A fatal, session-terminating error occured.
     Fatal,
 
-    /// The request sent to the server could not be answered, for an unknown
-    /// reason.
+    /// The request sent to the server could not be answered, for an unknown reason.
     __UNKNOWN__(i8),
 }
 impl Severity {

@@ -35,6 +35,7 @@ pub enum PartKind {
     FindLobReply = 50,          // Reply data of FINDLOB message // TODO is missing
     ClientInfo = 57,            // Client information values
     TransactionFlags = 64,      // Transaction handling flags
+    DbConnectInfo = 67,         // Part of redirect response
     LobFlags = 68,              // LOB flags
     ResultsetOptions = 69,      // Additional context data for result sets
     XatOptions = 70,            // XA transaction information (XA transaction ID)
@@ -77,6 +78,7 @@ impl PartKind {
             50 => Ok(Self::FindLobReply),
             57 => Ok(Self::ClientInfo),
             64 => Ok(Self::TransactionFlags),
+            67 => Ok(Self::DbConnectInfo),
             68 => Ok(Self::LobFlags),
             69 => Ok(Self::ResultsetOptions),
             70 => Ok(Self::XatOptions),

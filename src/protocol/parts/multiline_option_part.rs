@@ -1,7 +1,7 @@
 use crate::protocol::parts::option_part::OptionId;
 use crate::protocol::parts::option_part::OptionPart;
 use byteorder::{LittleEndian, ReadBytesExt};
-use core::fmt::Debug;
+use std::fmt::Debug;
 use std::hash::Hash;
 
 #[derive(Debug)]

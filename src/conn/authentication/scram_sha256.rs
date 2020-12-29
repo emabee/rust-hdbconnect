@@ -3,7 +3,7 @@ use crate::protocol::parts::AuthFields;
 use crate::{HdbError, HdbResult};
 use byteorder::{BigEndian, WriteBytesExt};
 use rand::{thread_rng, RngCore};
-use secstr::SecStr;
+use secstr::SecUtf8;
 use std::io::Write;
 
 const CLIENT_PROOF_SIZE: u8 = 32;
@@ -36,7 +36,7 @@ impl Authenticator for ScramSha256 {
         &(self.client_challenge)
     }
 
-    fn client_proof(&mut self, server_data: &[u8], password: &SecStr) -> HdbResult<Vec<u8>> {
+    fn client_proof(&mut self, server_data: &[u8], password: &SecUtf8) -> HdbResult<Vec<u8>> {
         const CONTEXT_CLIENT_PROOF: &str = "ClientProof";
         let (salt, server_nonce) = parse_first_server_data(server_data)?;
 
@@ -83,7 +83,7 @@ fn parse_first_server_data(server_data: &[u8]) -> HdbResult<(Vec<u8>, Vec<u8>)> 
 mod tests {
     use super::ScramSha256;
     use crate::conn::authentication::authenticator::Authenticator;
-    use secstr::SecStr;
+    use secstr::SecUtf8;
 
     // cargo
     // test authenticate::scram_sha256::tests::test_client_proof -- --nocapture
@@ -106,7 +106,7 @@ mod tests {
             \x16\x6a\xc9\x7e\xfc\x9a\x6b\xde\x4f\xe9\
             \xe5\xda\xcc\xb5\x0a\xcf\xce\x56"
             .to_vec();
-        let password = SecStr::from("manager");
+        let password = SecUtf8::from("manager");
         let correct_client_proof: Vec<u8> = b"\x00\x01\x20\x17\x26\x25\xab\x29\x71\xd8\
             \x58\x74\x32\x5d\x21\xbc\x3d\x68\x37\x71\
             \x80\x5c\x9a\xfe\x38\xd0\x95\x1d\xad\x46\

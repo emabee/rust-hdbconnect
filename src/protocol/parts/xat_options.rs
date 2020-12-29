@@ -103,4 +103,8 @@ impl OptionId<XatOptionId> for XatOptionId {
             Self::__Unexpected__(val) => val,
         }
     }
+
+    fn part_type(&self) -> &'static str {
+        "XatOptions"
+    }
 }

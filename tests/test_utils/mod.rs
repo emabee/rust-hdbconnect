@@ -48,14 +48,21 @@ pub fn get_um_connection() -> HdbResult<Connection> {
 }
 
 pub fn get_std_cp_builder() -> HdbResult<ConnectParamsBuilder> {
-    cp_builder_from_file("std")
+    let (cp_builder, _) = cp_builder_from_file("std")?;
+    Ok(cp_builder)
+}
+
+pub fn get_std_redirect_cp_builder() -> HdbResult<ConnectParamsBuilder> {
+    let (_, redirect_cp_builder) = cp_builder_from_file("std")?;
+    Ok(redirect_cp_builder)
 }
 
 pub fn get_um_cp_builder() -> HdbResult<ConnectParamsBuilder> {
-    cp_builder_from_file("um")
+    let (cp_builder, _) = cp_builder_from_file("um")?;
+    Ok(cp_builder)
 }
 
-fn cp_builder_from_file(purpose: &str) -> HdbResult<ConnectParamsBuilder> {
+fn cp_builder_from_file(purpose: &str) -> HdbResult<(ConnectParamsBuilder, ConnectParamsBuilder)> {
     let content = std::fs::read_to_string(std::path::Path::new(DB.clone())).map_err(|e| {
         HdbError::ConnParams {
             source: Box::new(e),
@@ -69,20 +76,25 @@ fn cp_builder_from_file(purpose: &str) -> HdbResult<ConnectParamsBuilder> {
     }
     #[derive(Deserialize)]
     struct Db {
-        #[serde(rename = "url")]
+        #[serde(rename = "direct_url")]
         cp_builder: ConnectParamsBuilder,
+        #[serde(rename = "redirect_url")]
+        redirect_cp_builder: ConnectParamsBuilder,
         std: Cred,
         um: Cred,
     }
 
     let db: Db = serde_json::from_str(&content).unwrap();
-    let (mut cp_builder, std, um) = (db.cp_builder, db.std, db.um);
+    let (mut cp_builder, mut redirect_cp_builder, std, um) =
+        (db.cp_builder, db.redirect_cp_builder, db.std, db.um);
     match purpose {
         "std" => {
-            cp_builder.dbuser(std.name).password(std.pw);
+            cp_builder.dbuser(&std.name).password(&std.pw);
+            redirect_cp_builder.dbuser(&std.name).password(&std.pw);
         }
         "um" => {
-            cp_builder.dbuser(um.name).password(um.pw);
+            cp_builder.dbuser(&um.name).password(&um.pw);
+            redirect_cp_builder.dbuser(&um.name).password(&um.pw);
         }
         _ => panic!("unknown purpose: {}",),
     }
@@ -90,13 +102,16 @@ fn cp_builder_from_file(purpose: &str) -> HdbResult<ConnectParamsBuilder> {
         match s.as_ref() {
             "DIRECTORY" => {
                 cp_builder.tls_with(ServerCerts::Directory(".private/certificates".to_string()));
+                redirect_cp_builder
+                    .tls_with(ServerCerts::Directory(".private/certificates".to_string()));
             }
             "INSECURE" => {
                 cp_builder.tls_with(ServerCerts::None);
+                redirect_cp_builder.tls_with(ServerCerts::None);
             }
             _ => {}
         }
     };
 
-    Ok(cp_builder)
+    Ok((cp_builder, redirect_cp_builder))
 }

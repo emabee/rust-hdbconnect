@@ -1,6 +1,6 @@
 [package]
 name = "hdbconnect"
-version = "0.22.3-alpha"
+version = "0.23.0"
 authors = ["emabee <meinolf.block@sap.com>","Pascal Seitz <pascal.seitz@gmail.com>"]
 edition = "2018"
 license = "MIT/Apache-2.0"
@@ -28,15 +28,15 @@ chrono = { version = "0.4", features = ["serde"] }
 #dist_tx = {path = "../dist_tx"}
 dist_tx = "0.2"
 hex = "0.4"
-hmac = "0.9.0"
+hmac = "0.10"
 lazy_static = "1.4.0"
 log = "0.4"
 num = "0.3"
 num-bigint = "0.3.0"
-pbkdf2 = {version = "0.5.0", default-features = false}
+pbkdf2 = {version = "0.6.0", default-features = false}
 r2d2 = "0.8"
-rand = "0.7"
-rustls = {version = "0.18", features = ["dangerous_configuration"]}
+rand = "0.8"
+rustls = {version = "0.19", features = ["dangerous_configuration"]}
 secstr = "0.4"
 serde = { version = "1.0", features = ["derive"] }
 #serde_db = { path = "../serde_db" }
@@ -48,7 +48,7 @@ url = "2.1"
 username = "0.2"
 vec_map = "0.8"
 webpki = "0.21"
-webpki-roots = "0.20"
+webpki-roots = "0.21"
 
 [dev-dependencies]
 serde_bytes = "0.11"

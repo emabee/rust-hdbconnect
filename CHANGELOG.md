@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.23.0] 2020-12-29
+
+Add redirect support: target database can be specified by name.
+
+Some minor API smoothing (-> version bump):
+
+- Connection::`get_database_name()`, `get_system_id()`, and `get_full_version_string()`,
+  return `HdbResult<String>`, rather than `HdbResult<Option<String>>`
+- ConnectParamsBuilder
+  - `get_password` returns a `SecUtf8` instead of a `SecStr`
+  - `get_options` is removed
+
 ## [0.22.2] 2020-11-22
 
 Add support for array-type.
