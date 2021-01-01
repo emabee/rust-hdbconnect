@@ -20,7 +20,7 @@ use secstr::SecUtf8;
 ///
 /// # Instantiating a `ConnectParamsBuilder` from a URL
 ///
-/// See module [`url`](url/index.html) for details about the supported URLs.
+/// See module [`url`](crate::url) for details about the supported URLs.
 ///
 /// ```rust
 /// use hdbconnect::IntoConnectParamsBuilder;
@@ -137,7 +137,7 @@ impl ConnectParamsBuilder {
     /// Makes the driver use TLS for the connection to the database.
     ///
     /// Requires that the server's certificate is provided with one of the
-    /// enum variants of [`ServerCerts`](enum.ServerCerts.html).
+    /// enum variants of [`ServerCerts`](crate::ServerCerts).
     ///
     /// If needed, you can call this function multiple times with different `ServerCert` variants.
     ///

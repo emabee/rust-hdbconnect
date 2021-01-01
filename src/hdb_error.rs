@@ -2,7 +2,7 @@ use crate::protocol::parts::{ExecutionResult, ServerError};
 // use std::backtrace::Backtrace;
 use thiserror::Error;
 
-/// A list specifying categories of [`HdbError`](struct.HdbError.html).
+/// A list specifying categories of [`HdbError`](crate::HdbError).
 ///
 /// This list may grow over time and it is not recommended to exhaustively
 /// match against it.

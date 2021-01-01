@@ -8,7 +8,7 @@ use std::sync::Arc;
 /// Represents all possible non-error responses to a database command.
 ///
 /// Technically, it is essentially a list of single database response values
-/// ([`HdbReturnValue`](enum.HdbReturnValue.html)), each of which
+/// ([`HdbReturnValue`](crate::HdbReturnValue)), each of which
 /// can be
 ///
 /// * a resultset of a query

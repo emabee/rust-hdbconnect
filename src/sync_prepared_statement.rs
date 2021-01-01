@@ -20,7 +20,7 @@ use std::sync::{Arc, Mutex};
 ///
 /// Type system**s**, really? Yes, there are in fact four type systems involved!
 /// * Your application is written in rust, and uses the _rust type system_.
-/// * `hdbconnect`'s _driver API_ represents values with the `enum` [`HdbValue`](enum.HdbValue.html);
+/// * `hdbconnect`'s _driver API_ represents values with the `enum` [`HdbValue`](crate::HdbValue);
 ///   this type system aims to be as close to the rust type system as possible
 ///   and hides the complexity of the following two internal type systems.
 /// * The _wire_ has its own type system - it's focus is on efficient data transfer.
@@ -29,7 +29,7 @@ use std::sync::{Arc, Mutex};
 ///   to represent values, like TINYINT, FLOAT, NVARCHAR, and many others.
 ///   This type system is NOT directly visible to `hdbconnect`.
 ///
-///   [`TypeId`](enum.TypeId.html) enumerates a somewhat reduced superset
+///   [`TypeId`](crate::TypeId) enumerates a somewhat reduced superset
 ///   of the server-side and the wire type system.
 ///
 /// ## From Rust types to `HdbValue`
@@ -39,12 +39,12 @@ use std::sync::{Arc, Mutex};
 /// with detailed metadata for these parameters, which are kept by the `PreparedStatement`.
 ///
 /// The parameter values can be handed over to the `PreparedStatement` either as
-/// `Serializable` rust types, or explicitly as [`HdbValue`](enum.HdbValue.html) instances.
+/// `Serializable` rust types, or explicitly as [`HdbValue`](crate::HdbValue) instances.
 /// If they are handed over as `Serializable` rust types, then the built-in
 /// [`serde_db`](https://docs.rs/serde_db)-based
-/// conversion will convert them directly into those [`HdbValue`](enum.HdbValue.html) variants
+/// conversion will convert them directly into those [`HdbValue`](crate::HdbValue) variants
 /// that correspond to the `TypeId` that the server has requested.
-/// The application can also provide the values explicitly as [`HdbValue`](enum.HdbValue.html)
+/// The application can also provide the values explicitly as [`HdbValue`](crate::HdbValue)
 /// instances and by that
 /// enforce the usage of a different wire type and of server-side type conversions.
 ///
@@ -55,9 +55,9 @@ use std::sync::{Arc, Mutex};
 /// * with older HANA versions, a proprietary DECIMAL format is used that is independent
 ///   of the number range of the concrete field.
 /// * In newer HANA versions, three different formats are used
-///   ([`TypeId::FIXED8`](enum.TypeId.html#variant.FIXED8),
-///   [`TypeId::FIXED12`](enum.TypeId.html#variant.FIXED12) and
-///   [`TypeId::FIXED16`](enum.TypeId.html#variant.FIXED16))
+///   ([`TypeId::FIXED8`](crate::TypeId::FIXED8),
+///   [`TypeId::FIXED12`](crate::TypeId::FIXED12) and
+///   [`TypeId::FIXED16`](crate::TypeId::FIXED16))
 ///   that together allow for a wider value range and a lower bandwidth.
 ///
 ///  `hdbconnect` cares about these details.
@@ -149,7 +149,7 @@ impl<'a> PreparedStatement {
     /// Consumes the given `HdbValue`s as a row of parameters for immediate execution.
     ///
     /// In most cases
-    /// [`PreparedStatement::execute()`](struct.PreparedStatement.html#method.execute)
+    /// [`PreparedStatement::execute()`](crate::PreparedStatement::execute)
     /// will be more convenient. Streaming LOBs to the database however is an important exception -
     /// it only works with this method!
     ///
@@ -162,7 +162,7 @@ impl<'a> PreparedStatement {
     /// We're using a `HdbValue::STR` here which allows passing the String as reference
     /// (compared to `HdbValue::STRING`, which needs to own the String).
     ///
-    /// The second parameter of type [`HdbValue::LOBSTREAM`](enum.HdbValue.html#variant.LOBSTREAM)
+    /// The second parameter of type [`HdbValue::LOBSTREAM`](crate::HdbValue::LOBSTREAM)
     /// wraps a shared mutable reference to a reader object
     /// which is supposed to produce the content you want to store.
     ///
@@ -315,7 +315,7 @@ impl<'a> PreparedStatement {
     /// Consumes the input as a row of parameters for the batch.
     ///
     /// Useful mainly for generic code.
-    /// In most cases [`add_batch()`](struct.PreparedStatement.html#method.add_batch)
+    /// In most cases [`add_batch()`](crate::PreparedStatement::add_batch)
     /// is more convenient.
     /// Note that LOB streaming can not be combined with using the batch.
     ///

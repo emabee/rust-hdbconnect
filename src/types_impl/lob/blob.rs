@@ -14,7 +14,7 @@ use std::io::Write;
 /// fetched in subsequent roundtrips when they are needed.
 ///
 /// `BLob` respects the Connection's lob read length
-/// (see [`Connection::set_lob_read_length`](struct.Connection.html#method.set_lob_read_length)),
+/// (see [`Connection::set_lob_read_length`](crate::Connection::set_lob_read_length)),
 /// by transferring per fetch request `lob_read_length` bytes.
 #[derive(Clone, Debug)]
 pub struct BLob(Box<BLobHandle>);
@@ -114,7 +114,7 @@ impl BLob {
     ///
     /// This method exists mainly for debugging purposes. With streaming, the returned value is
     /// not supposed to exceed `lob_read_length` (see
-    /// [`Connection::set_lob_read_length`](../struct.Connection.html#method.set_lob_read_length))
+    /// [`Connection::set_lob_read_length`](crate::Connection::set_lob_read_length))
     /// plus the buffer size used by the reader.
     pub fn max_buf_len(&self) -> usize {
         self.0.max_buf_len()

@@ -21,7 +21,7 @@
 //! you just use a corresponding rust structure into
 //! which you deserialize the data. It's hard to use less code!
 //!
-//! See [code examples](code_examples/index.html) for an overview.
+//! See [code examples](crate::code_examples) for an overview.
 //!
 
 #![deny(missing_docs)]
@@ -74,7 +74,7 @@ pub use crate::sync_connection_manager::ConnectionManager;
 pub use crate::sync_prepared_statement::PreparedStatement;
 
 /// Non-standard types that are used within the
-/// [`HdbValue`](enum.HdbValue.html)s in a [`ResultSet`](struct.ResultSet.html).
+/// [`HdbValue`](crate::HdbValue)s in a [`ResultSet`](crate::ResultSet).
 ///
 /// A `ResultSet` contains a sequence of Rows, each row is a sequence of
 /// `HdbValue`s. Some of the `HdbValue`s are implemented using `LongDate`,
@@ -92,19 +92,19 @@ pub mod types {
 /// with a single FETCH roundtrip; the constant's value is 100,000.
 ///
 /// The value used at runtime can be changed with
-/// [`Connection::set_fetch_size()`](struct.Connection.html#method.set_fetch_size).
+/// [`Connection::set_fetch_size()`](crate::Connection::set_fetch_size).
 pub const DEFAULT_FETCH_SIZE: u32 = 100_000;
 
 /// Number of bytes (for BLOBS and CLOBS) or 1-2-3-byte sequences (for NCLOBS)
 /// that are fetched in a single LOB READ roundtrip; the constant's value is 16,000,000.
 ///
 /// The value used at runtime can be changed with
-/// [`Connection::set_lob_read_length()`](struct.Connection.html#method.set_lob_read_length).
+/// [`Connection::set_lob_read_length()`](crate::Connection::set_lob_read_length).
 pub const DEFAULT_LOB_READ_LENGTH: u32 = 16_000_000;
 
 /// Number of bytes that are written in a single LOB WRITE roundtrip;
 /// the constant's value is 16,000,000.
 ///
 /// The value used at runtime can be changed with
-/// [`Connection::set_lob_write_length()`](struct.Connection.html#method.set_lob_write_length).
+/// [`Connection::set_lob_write_length()`](crate::Connection::set_lob_write_length).
 pub const DEFAULT_LOB_WRITE_LENGTH: usize = 16_000_000;

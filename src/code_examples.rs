@@ -354,17 +354,17 @@
 //! # }
 //! ```
 //!
-//! [`Connection`]: ../struct.Connection.html
-//! [`statement()`]: ../struct.Connection.html#method.statement
-//! [`query()`]: ../struct.Connection.html#method.query
-//! [`dml()`]: ../struct.Connection.html#method.dml
-//! [`exec()`]: ../struct.Connection.html#method.exec
-//! [`ConnectParams`]: ../struct.ConnectParams.html
-//! [`HdbValue`]: ../enum.HdbValue.html
-//! [`HdbResponse`]: ../struct.HdbResponse.html
-//! [`NCLob`]: types/struct.NCLob.html
-//! [`Row`]: ../struct.Row.html
-//! [`ResultSet`]: ../struct.ResultSet.html
+//! [`Connection`]: crate::Connection
+//! [`statement()`]: crate::Connection::statement
+//! [`query()`]: crate::Connection::query
+//! [`dml()`]: crate::Connection::dml
+//! [`exec()`]: crate::Connection::exec
+//! [`ConnectParams`]: crate::ConnectParams
+//! [`HdbValue`]: crate::HdbValue
+//! [`HdbResponse`]: crate::HdbResponse
+//! [`NCLob`]: crate::types::NCLob
+//! [`Row`]: crate::Row
+//! [`ResultSet`]: crate::ResultSet
 //! [`serde_bytes`]: https://docs.serde.rs/serde_bytes/
 //! [`serde_bytes::Bytes`]: https://docs.serde.rs/serde_bytes/struct.Bytes.html
 //! [`serde_bytes::ByteBuf`]: https://docs.serde.rs/serde_bytes/struct.ByteBuf.html

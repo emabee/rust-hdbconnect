@@ -222,7 +222,7 @@ impl ResultSet {
     /// Conveniently translates the complete resultset into a rust type that implements
     /// `serde::Deserialize` and has an adequate structure.
     /// The implementation of this method uses
-    /// [`serde_db::de`](https://docs.rs/serde_db/*/serde_db/de/index.html).
+    /// [`serde_db::de`](https://docs.rs/serde_db/latest/serde_db/de/index.html).
     ///
     /// A resultset is essentially a two-dimensional structure, given as a list
     /// of rows, where each row is a list of fields; the name of each field is

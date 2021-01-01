@@ -5,106 +5,105 @@ use crate::protocol::util;
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 pub enum TypeId {
     /// For database type TINYINT;
-    /// used with [`HdbValue::TINYINT`](enum.HdbValue.html#variant.TINYINT).
+    /// used with [`HdbValue::TINYINT`](crate::HdbValue::TINYINT).
     TINYINT = 1,
     /// For database type SMALLINT;
-    /// used with [`HdbValue::SMALLINT`](enum.HdbValue.html#variant.SMALLINT).
+    /// used with [`HdbValue::SMALLINT`](crate::HdbValue::SMALLINT).
     SMALLINT = 2,
     /// For database type INT;
-    /// used with [`HdbValue::INT`](enum.HdbValue.html#variant.INT).
+    /// used with [`HdbValue::INT`](crate::HdbValue::INT).
     INT = 3,
     /// For database type BIGINT;
-    /// used with [`HdbValue::BIGINT`](enum.HdbValue.html#variant.BIGINT).
+    /// used with [`HdbValue::BIGINT`](crate::HdbValue::BIGINT).
     BIGINT = 4,
     /// For database type DECIMAL and SMALLDECIMAL;
-    /// used with [`HdbValue::DECIMAL`](enum.HdbValue.html#variant.DECIMAL).
+    /// used with [`HdbValue::DECIMAL`](crate::HdbValue::DECIMAL).
     DECIMAL = 5,
     /// For database type REAL;
-    /// used with [`HdbValue::REAL`](enum.HdbValue.html#variant.REAL).
+    /// used with [`HdbValue::REAL`](crate::HdbValue::REAL).
     REAL = 6,
     /// For database type DOUBLE;
-    /// used with [`HdbValue::DOUBLE`](enum.HdbValue.html#variant.DOUBLE).
+    /// used with [`HdbValue::DOUBLE`](crate::HdbValue::DOUBLE).
     DOUBLE = 7,
     /// For database type CHAR;
-    /// used with [`HdbValue::STRING`](enum.HdbValue.html#variant.STRING).
+    /// used with [`HdbValue::STRING`](crate::HdbValue::STRING).
     CHAR = 8,
     /// For database type VARCHAR;
-    /// used with [`HdbValue::STRING`](enum.HdbValue.html#variant.STRING).
+    /// used with [`HdbValue::STRING`](crate::HdbValue::STRING).
     VARCHAR = 9,
     /// For database type NCHAR;
-    /// used with [`HdbValue::STRING`](enum.HdbValue.html#variant.STRING).
+    /// used with [`HdbValue::STRING`](crate::HdbValue::STRING).
     NCHAR = 10,
     /// For database type NVARCHAR;
-    /// used with [`HdbValue::STRING`](enum.HdbValue.html#variant.STRING).
+    /// used with [`HdbValue::STRING`](crate::HdbValue::STRING).
     NVARCHAR = 11,
     /// For database type BINARY;
-    /// used with [`HdbValue::BINARY`](enum.HdbValue.html#variant.BINARY).
+    /// used with [`HdbValue::BINARY`](crate::HdbValue::BINARY).
     BINARY = 12,
     /// For database type VARBINARY;
-    /// used with [`HdbValue::BINARY`](enum.HdbValue.html#variant.BINARY).
+    /// used with [`HdbValue::BINARY`](crate::HdbValue::BINARY).
     VARBINARY = 13,
     /// For database type CLOB;
-    /// used with [`HdbValue::CLOB`](enum.HdbValue.html#variant.CLOB).
+    /// used with [`HdbValue::CLOB`](crate::HdbValue::CLOB).
     CLOB = 25,
     /// For database type NCLOB;
-    /// used with [`HdbValue::NCLOB`](enum.HdbValue.html#variant.NCLOB).
+    /// used with [`HdbValue::NCLOB`](crate::HdbValue::NCLOB).
     NCLOB = 26,
     /// For database type BLOB;
-    /// used with [`HdbValue::BLOB`](enum.HdbValue.html#variant.BLOB).
+    /// used with [`HdbValue::BLOB`](crate::HdbValue::BLOB).
     BLOB = 27,
     /// For database type BOOLEAN;
-    /// used with [`HdbValue::BOOLEAN`](enum.HdbValue.html#variant.BOOLEAN).
+    /// used with [`HdbValue::BOOLEAN`](crate::HdbValue::BOOLEAN).
     BOOLEAN = 28,
     /// For database type STRING;
-    /// used with [`HdbValue::STRING`](enum.HdbValue.html#variant.STRING).
+    /// used with [`HdbValue::STRING`](crate::HdbValue::STRING).
     STRING = 29,
     /// For database type NSTRING;
-    /// used with [`HdbValue::STRING`](enum.HdbValue.html#variant.STRING).
+    /// used with [`HdbValue::STRING`](crate::HdbValue::STRING).
     NSTRING = 30,
-    /// Maps to [`HdbValue::BINARY`](enum.HdbValue.html#variant.BINARY)
-    /// or [`HdbValue::BLOB`](enum.HdbValue.html#variant.BLOB).
+    /// Maps to [`HdbValue::BINARY`](crate::HdbValue::BINARY)
+    /// or [`HdbValue::BLOB`](crate::HdbValue::BLOB).
     BLOCATOR = 31,
-    /// Used with [`HdbValue::BINARY`](enum.HdbValue.html#variant.BINARY).
+    /// Used with [`HdbValue::BINARY`](crate::HdbValue::BINARY).
     BSTRING = 33,
-    /// For database type TEXT;
-    /// used with [`HdbValue::TEXT`](enum.HdbValue.html#variant.TEXT).
+    /// For database type TEXT.
     TEXT = 51,
     /// For database type SHORTTEXT;
-    /// used with [`HdbValue::STRING`](enum.HdbValue.html#variant.STRING).
+    /// used with [`HdbValue::STRING`](crate::HdbValue::STRING).
     SHORTTEXT = 52,
     /// For database type BINTEXT;
-    /// Used with [`HdbValue::BINARY`](enum.HdbValue.html#variant.BINARY) or
-    /// [`HdbValue::BLOB`](enum.HdbValue.html#variant.BLOB).
+    /// Used with [`HdbValue::BINARY`](crate::HdbValue::BINARY) or
+    /// [`HdbValue::BLOB`](crate::HdbValue::BLOB).
     BINTEXT = 53,
     /// For database type ALPHANUM;
-    /// used with [`HdbValue::STRING`](enum.HdbValue.html#variant.STRING).
+    /// used with [`HdbValue::STRING`](crate::HdbValue::STRING).
     ALPHANUM = 55,
     /// For database type LONGDATE;
-    /// used with [`HdbValue::LONGDATE`](enum.HdbValue.html#variant.LONGDATE).
+    /// used with [`HdbValue::LONGDATE`](crate::HdbValue::LONGDATE).
     LONGDATE = 61,
     /// For database type SECONDDATE;
-    /// used with [`HdbValue::SECONDDATE`](enum.HdbValue.html#variant.SECONDDATE).
+    /// used with [`HdbValue::SECONDDATE`](crate::HdbValue::SECONDDATE).
     SECONDDATE = 62,
     /// For database type DAYDATE;
-    /// used with [`HdbValue::DAYDATE`](enum.HdbValue.html#variant.DAYDATE).
+    /// used with [`HdbValue::DAYDATE`](crate::HdbValue::DAYDATE).
     DAYDATE = 63,
     /// For database type SECONDTIME;
-    /// used with [`HdbValue::SECONDTIME`](enum.HdbValue.html#variant.SECONDTIME).
+    /// used with [`HdbValue::SECONDTIME`](crate::HdbValue::SECONDTIME).
     SECONDTIME = 64,
     /// For database type GEOMETRY;
-    /// used with [`HdbValue::GEOMETRY`](enum.HdbValue.html#variant.GEOMETRY).
+    /// used with [`HdbValue::GEOMETRY`](crate::HdbValue::GEOMETRY).
     GEOMETRY = 74,
     /// For database type POINT;
-    /// used with [`HdbValue::POINT`](enum.HdbValue.html#variant.POINT).
+    /// used with [`HdbValue::POINT`](crate::HdbValue::POINT).
     POINT = 75,
     /// Transport format for database type DECIMAL;
-    /// used with [`HdbValue::DECIMAL`](enum.HdbValue.html#variant.DECIMAL).
+    /// used with [`HdbValue::DECIMAL`](crate::HdbValue::DECIMAL).
     FIXED8 = 81,
     /// Transport format for database type DECIMAL;
-    /// used with [`HdbValue::DECIMAL`](enum.HdbValue.html#variant.DECIMAL).
+    /// used with [`HdbValue::DECIMAL`](crate::HdbValue::DECIMAL).
     FIXED12 = 82,
     /// Transport format for database type DECIMAL;
-    /// used with [`HdbValue::DECIMAL`](enum.HdbValue.html#variant.DECIMAL).
+    /// used with [`HdbValue::DECIMAL`](crate::HdbValue::DECIMAL).
     FIXED16 = 76,
 }
 

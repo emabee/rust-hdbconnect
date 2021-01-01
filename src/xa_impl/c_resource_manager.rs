@@ -9,8 +9,7 @@ use dist_tx::tm::XaTransactionId;
 /// transaction manager.
 ///
 /// Is based on the connection from which it is obtained
-/// (see [`Connection::get_resource_manager`](
-/// ../struct.Connection.html#method.get_resource_manager)).
+/// (see [`Connection::get_resource_manager`](crate::Connection::get_resource_manager)).
 ///
 #[derive(Debug)]
 pub(crate) struct HdbCResourceManager {

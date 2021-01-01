@@ -12,7 +12,7 @@ use std::sync::Arc;
 ///
 /// # Instantiating a `ConnectParams` using the `ConnectParamsBuilder`
 ///
-/// See [`ConnectParamsBuilder`](struct.ConnectParamsBuilder.html) for details.
+/// See [`ConnectParamsBuilder`](crate::ConnectParamsBuilder) for details.
 ///
 /// ```rust,no_run
 /// use hdbconnect::{ConnectParams, ServerCerts};
@@ -30,7 +30,7 @@ use std::sync::Arc;
 ///  
 /// # Instantiating a `ConnectParams` from a URL
 ///
-/// See module [`url`](url/index.html) for details about the supported URLs.
+/// See module [`url`](crate::url) for details about the supported URLs.
 ///
 /// ```rust
 /// use hdbconnect::IntoConnectParams;

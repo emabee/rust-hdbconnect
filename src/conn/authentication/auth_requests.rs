@@ -21,7 +21,7 @@ pub(crate) fn first_auth_request(
     }
     request1.push(Part::Auth(auth_fields_out));
 
-    // TODO for HC-redirect, we might get here an error part and a DbConnectInfo part
+    // TODO for HC-redirect, we might get here an ErrorPart + DBConnectInfoPart
     // but roundtrip_sync() calls already handle_db_error(), which must not be done in this case
     // we should evaluate explicitly
     // if first is part::Error

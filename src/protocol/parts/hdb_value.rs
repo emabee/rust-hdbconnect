@@ -61,7 +61,7 @@ pub enum HdbValue<'a> {
     BLOB(BLob),
 
     /// Used for streaming LOBs to the database (see
-    /// [`PreparedStatement::execute_row()`](struct.PreparedStatement.html#method.execute_row)).
+    /// [`PreparedStatement::execute_row()`](crate::PreparedStatement::execute_row)).
     LOBSTREAM(Option<std::sync::Arc<std::sync::Mutex<dyn std::io::Read + Send>>>),
 
     /// BOOLEAN stores boolean values, which are TRUE or FALSE.
@@ -70,7 +70,7 @@ pub enum HdbValue<'a> {
     STRING(String),
 
     /// Can be used for avoiding cloning when sending large Strings to the database  (see
-    /// [`PreparedStatement::execute_row()`](struct.PreparedStatement.html#method.execute_row)).
+    /// [`PreparedStatement::execute_row()`](crate::PreparedStatement::execute_row)).
     STR(&'a str),
 
     /// Timestamp with 10^-7 seconds precision, uses eight bytes.

@@ -3,8 +3,6 @@ use crate::protocol::parts::option_value::OptionValue;
 use crate::{HdbError, HdbResult};
 use std::convert::TryInto;
 
-// see https://explore.me.sap.corp/master/master/api/Communication/Protocol/Part.cpp.html#_ZN13Communication8Protocol17DBConnectInfoPart20addOnCorrectDatabaseEb
-
 // Part of redirect response to authentiation request
 pub(crate) type DbConnectInfo = OptionPart<DbConnectInfoId>;
 
