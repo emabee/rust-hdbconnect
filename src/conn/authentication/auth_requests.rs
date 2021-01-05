@@ -1,14 +1,18 @@
 use super::Authenticator;
 use crate::conn::ConnectionCore;
-use crate::protocol::parts::{AuthFields, ClientContext, ConnOptId, OptionValue};
+use crate::protocol::parts::{AuthFields, ClientContext, ConnOptId, DbConnectInfo, OptionValue};
 use crate::protocol::{Part, ReplyType, Request, RequestType};
 use crate::{HdbError, HdbResult};
 
-// TODO for HC-redirect, we might need a returntype like HdbResult<Enum[(String, Vec)|DbConnectInfo]>
+pub(crate) enum FirstAuthResponse {
+    AuthenticatorAndChallenge(String, Vec<u8>),
+    RedirectInfo(DbConnectInfo),
+}
+
 pub(crate) fn first_auth_request(
     conn_core: &mut ConnectionCore,
     authenticators: &[Box<dyn Authenticator>],
-) -> HdbResult<(String, Vec<u8>)> {
+) -> HdbResult<FirstAuthResponse> {
     let mut request1 = Request::new(RequestType::Authenticate, 0);
     request1.push(Part::ClientContext(ClientContext::new()));
 
@@ -21,38 +25,47 @@ pub(crate) fn first_auth_request(
     }
     request1.push(Part::Auth(auth_fields_out));
 
-    // TODO for HC-redirect, we might get here an ErrorPart + DBConnectInfoPart
-    // but roundtrip_sync() calls already handle_db_error(), which must not be done in this case
-    // we should evaluate explicitly
-    // if first is part::Error
-    //     if second is DbConnectInfo
-    //        -> HC-redirect!
-    //     else
-    //        error
-    // else if first is part::Auth
-    //     evaluate like now
-    // endif
-    // digest excess parts, with warning
-
+    // For RequestType::Authenticate, the default error handling in roundtrip_sync is switched off:
     let reply = conn_core.roundtrip_sync(&request1, None, None, None, &mut None)?;
     reply.assert_expected_reply_type(ReplyType::Nil)?;
-
-    let mut result = None;
-    // match reply.parts.remove_first_of_kind(PartKind::Error) {
-    for part in reply.parts.into_iter() {
-        if let Part::Auth(mut auth_fields) = part {
+    let mut parts_iter = reply.parts.into_iter();
+    let result = match (parts_iter.next(), parts_iter.next()) {
+        (Some(Part::Auth(mut auth_fields)), p2) => {
+            if let Some(part) = p2 {
+                warn!("first_auth_request: ignoring unexpected part = {:?}", part);
+            }
             match (auth_fields.pop(), auth_fields.pop(), auth_fields.pop()) {
                 (Some(server_challenge_data), Some(raw_name), None) => {
                     let authenticator_name = String::from_utf8_lossy(&raw_name).to_string();
-                    result = Some((authenticator_name, server_challenge_data));
+                    Ok(FirstAuthResponse::AuthenticatorAndChallenge(
+                        authenticator_name,
+                        server_challenge_data,
+                    ))
                 }
                 (_, _, _) => return Err(HdbError::Impl("expected 2 auth_fields")),
             }
-        } else {
-            warn!("first_auth_request: ignoring unexpected part = {:?}", part);
         }
+        (Some(Part::Error(_vec_server_error)), Some(Part::DbConnectInfo(db_connect_info))) => {
+            // for HANA Cloud redirect, we get here an Error and a DBConnectInfo
+            Ok(FirstAuthResponse::RedirectInfo(db_connect_info))
+        }
+        (Some(Part::Error(mut server_errors)), None) => {
+            Err(HdbError::from(server_errors.remove(0)))
+        }
+        (p1, p2) => Err(HdbError::ImplDetailed(format!(
+            "Unexpected db response with parts: {:?}, {:?}",
+            p1, p2
+        ))),
+    };
+
+    for part in parts_iter {
+        warn!(
+            "first_auth_request(): ignoring unexpected part = {:?}",
+            part
+        );
     }
-    result.ok_or(HdbError::Impl("No Authentication part found"))
+
+    result
 }
 
 pub(crate) fn second_auth_request(

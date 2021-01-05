@@ -9,6 +9,7 @@ mod session_state;
 mod tcp_client;
 
 pub(crate) use am_conn_core::AmConnCore;
+use authentication::AuthenticationResult;
 pub(crate) use connection_core::ConnectionCore;
 pub use params::cp_url::url;
 pub use params::{

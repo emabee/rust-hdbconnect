@@ -38,6 +38,14 @@ use std::sync::Arc;
 ///     .into_connect_params()
 ///     .unwrap();
 /// ```
+///
+/// # Redirects
+///
+/// `hdbconnect` supports redirects.
+/// You can connect to an MDC tenant database by specifying the host and port of the
+/// system database, and the name of the database to which you want to be connected
+/// with url parameter "db" or with [`ConnectParamsBuilder::dbname`].
+///
 #[derive(Clone, Debug)]
 pub struct ConnectParams {
     host: String,
@@ -85,6 +93,7 @@ impl ConnectParams {
 
     pub(crate) fn redirect(&self, host: &str, port: u16) -> ConnectParams {
         let mut new_params = self.clone();
+        new_params.dbname = None;
         new_params.host = host.to_string();
         new_params.addr = format!("{}:{}", host, port);
         new_params
@@ -317,6 +326,26 @@ mod tests {
             assert_eq!("abcd123:2222", params.addr());
             assert_eq!(None, params.clientlocale);
             assert!(params.server_certs().is_empty());
+        }
+        {
+            let params = "hdbsql://meier:schLau@abcd123:2222?db=JOE"
+                .into_connect_params()
+                .unwrap();
+
+            assert_eq!("meier", params.dbuser());
+            assert_eq!("schLau", params.password().unsecure());
+            assert_eq!("abcd123:2222", params.addr());
+            assert_eq!(None, params.clientlocale);
+            assert!(params.server_certs().is_empty());
+            assert_eq!(Some("JOE".to_string()), params.dbname());
+
+            let redirect_params = params.redirect("xyz9999", 11);
+            assert_eq!("meier", redirect_params.dbuser());
+            assert_eq!("schLau", redirect_params.password().unsecure());
+            assert_eq!("xyz9999:11", redirect_params.addr());
+            assert_eq!(None, redirect_params.clientlocale);
+            assert!(redirect_params.server_certs().is_empty());
+            assert_eq!(None, redirect_params.dbname());
         }
         {
             let params = "hdbsqls://meier:schLau@abcd123:2222\

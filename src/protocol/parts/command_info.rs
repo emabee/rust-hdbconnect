@@ -38,7 +38,7 @@ impl OptionId<CommandInfoId> for CommandInfoId {
             1 => Self::LineNumber,
             2 => Self::SourceModule,
             val => {
-                warn!("Unsupported value for Self received: {}", val);
+                warn!("Unsupported value for CommandInfoId received: {}", val);
                 Self::__Unexpected__(val)
             }
         }

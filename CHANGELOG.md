@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unpublished] 2021-01-06
+
+Implement implicit redirect (the server can trigger a redirect in case that e.g. an SMVR failover 
+has taken place). IS NOT YET TESTED!
+
 ## [0.23.0] 2020-12-29
 
 Add redirect support: target database can be specified by name.

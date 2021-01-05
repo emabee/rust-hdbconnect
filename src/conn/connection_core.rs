@@ -1,5 +1,6 @@
 use crate::conn::{
-    authentication, initial_request, AmConnCore, ConnectParams, SessionState, TcpClient,
+    authentication, initial_request, AmConnCore, AuthenticationResult, ConnectParams, SessionState,
+    TcpClient,
 };
 use crate::protocol::parts::{
     ClientInfo, ConnectOptions, DbConnectInfo, ParameterDescriptors, ResultSetMetadata, RsState,
@@ -32,43 +33,53 @@ pub(crate) struct ConnectionCore {
 
 impl<'a> ConnectionCore {
     pub(crate) fn try_new(params: ConnectParams) -> HdbResult<Self> {
-        // If dbname is specified, run the redirect flow
-        let mut conn_core = if let Some(dbname) = params.dbname() {
-            let network_group = params.network_group().unwrap_or_default();
-            let mut tentative_conn_core = ConnectionCore::try_new_initialized(params.clone())?;
-            trace!("Trying redirect flow");
-            // send a dbinfo-request with a single part of kind DbConnectInfo,
-            // in which the dbname and the network group are specified. TODO WTF is a network group?
-            let mut request1 = Request::new(RequestType::DbConnectInfo, 0);
-            let db_connect_info: DbConnectInfo = DbConnectInfo::new(dbname, &network_group);
-            request1.push(Part::DbConnectInfo(db_connect_info));
-            let reply =
-                tentative_conn_core.roundtrip_sync(&request1, None, None, None, &mut None)?;
+        let o_dbname = params.dbname();
+        let network_group = params.network_group().unwrap_or_default();
+        let mut conn_core = ConnectionCore::try_new_initialized(params)?;
+        if let Some(dbname) = o_dbname {
+            // since a dbname is specified, we ask explicitly for a redirect
+            trace!("Redirect initiated by client");
+            let mut request = Request::new(RequestType::DbConnectInfo, 0);
+            request.push(Part::DbConnectInfo(DbConnectInfo::new(
+                dbname,
+                &network_group,
+            )));
+            let reply = conn_core.roundtrip_sync(&request, None, None, None, &mut None)?;
             reply.assert_expected_reply_type(ReplyType::Nil)?;
 
-            let o_part = reply.parts.into_iter().next();
-            if let Some(Part::DbConnectInfo(db_connect_info)) = o_part {
-                trace!("Received DbConnectInfo");
-                if db_connect_info.on_correct_database()? {
-                    trace!("We're on the right database already");
-                    tentative_conn_core
-                } else {
-                    trace!("Retrieving correct host and port");
-                    let redirect_params =
-                        params.redirect(db_connect_info.host()?, db_connect_info.port()?);
-                    debug!("Redirected to {}", redirect_params);
-                    ConnectionCore::try_new_initialized(redirect_params)?
+            match reply.parts.into_iter().next() {
+                Some(Part::DbConnectInfo(db_connect_info)) => {
+                    trace!("Received DbConnectInfo");
+                    if db_connect_info.on_correct_database()? {
+                        trace!("Already connected to the right database");
+                    } else {
+                        let redirect_params = conn_core
+                            .connect_params()
+                            .redirect(db_connect_info.host()?, db_connect_info.port()?);
+                        debug!("Redirected (1) to {}", redirect_params);
+                        conn_core = ConnectionCore::try_new_initialized(redirect_params)?;
+                    }
                 }
-            } else {
-                warn!("Did not find a DbConnectInfo; got {:?}", o_part);
-                tentative_conn_core
+                o_part => {
+                    warn!("Did not find a DbConnectInfo; got {:?}", o_part);
+                }
             }
-        } else {
-            ConnectionCore::try_new_initialized(params)?
         };
 
-        authentication::authenticate(&mut conn_core, false)?;
-        Ok(conn_core)
+        // here we can encounter an additional implicit redirect, triggered by HANA itself
+        loop {
+            match authentication::authenticate(&mut conn_core, false)? {
+                AuthenticationResult::Ok => return Ok(conn_core),
+                AuthenticationResult::Redirect(db_connect_info) => {
+                    trace!("Redirect initiated by HANA");
+                    let redirect_params = conn_core
+                        .connect_params()
+                        .redirect(db_connect_info.host()?, db_connect_info.port()?);
+                    debug!("Redirected (2) to {}", redirect_params);
+                    conn_core = ConnectionCore::try_new_initialized(redirect_params)?;
+                }
+            }
+        }
     }
 
     fn try_new_initialized(params: ConnectParams) -> HdbResult<Self> {
@@ -97,17 +108,30 @@ impl<'a> ConnectionCore {
 
     pub(crate) fn reconnect(&mut self) -> HdbResult<()> {
         debug!("Trying to reconnect");
-        let mut tcp_conn = TcpClient::try_new(self.tcp_conn.connect_params().clone())?;
-        initial_request::send_and_receive(&mut tcp_conn)?;
-        self.tcp_conn = tcp_conn;
-        self.authenticated = false;
-        self.session_id = 0;
-        // fetch_size, lob_read_length, lob_write_length are considered automatically
+        let mut conn_params = self.tcp_conn.connect_params().clone();
+        loop {
+            let mut tcp_conn = TcpClient::try_new(conn_params.clone())?;
+            initial_request::send_and_receive(&mut tcp_conn)?;
+            self.tcp_conn = tcp_conn;
+            self.authenticated = false;
+            self.session_id = 0;
+            // fetch_size, lob_read_length, lob_write_length are considered automatically
 
-        debug!("Successfully reconnected, not yet authenticated");
-        authentication::authenticate(self, true)?;
-        debug!("Successfully re-authenticated");
-        Ok(())
+            debug!("Reconnected, not yet authenticated");
+            match authentication::authenticate(self, true)? {
+                AuthenticationResult::Ok => {
+                    debug!("Re-authenticated");
+                    return Ok(());
+                }
+                AuthenticationResult::Redirect(db_connect_info) => {
+                    debug!("Redirected");
+                    conn_params = self
+                        .tcp_conn
+                        .connect_params()
+                        .redirect(db_connect_info.host()?, db_connect_info.port()?);
+                }
+            }
+        }
     }
 
     pub(crate) fn connect_params(&self) -> &ConnectParams {
@@ -305,11 +329,12 @@ impl<'a> ConnectionCore {
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
         o_rs: &mut Option<&mut RsState>,
     ) -> HdbResult<Reply> {
-        let (session_id, nsn) = if let RequestType::Authenticate = request.request_type {
-            (0, 1)
-        } else {
-            (self.session_id(), self.next_seq_number())
-        };
+        let (session_id, nsn, default_error_handling) =
+            if let RequestType::Authenticate = request.request_type {
+                (0, 1, false)
+            } else {
+                (self.session_id(), self.next_seq_number(), true)
+            };
         let auto_commit = self.is_auto_commit();
 
         match self.tcp_conn {
@@ -332,7 +357,9 @@ impl<'a> ConnectionCore {
             }
         }?;
 
-        reply.handle_db_error(self)?;
+        if default_error_handling {
+            reply.handle_db_error(self)?;
+        }
         Ok(reply)
     }
 

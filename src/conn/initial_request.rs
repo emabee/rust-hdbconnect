@@ -32,6 +32,7 @@ pub(crate) fn send_and_receive(tcp_conn: &mut TcpClient) -> std::io::Result<()> 
 }
 
 fn emit_initial_request(w: &mut dyn std::io::Write) -> std::io::Result<()> {
+    // Hardcoded InfoRequest
     lazy_static! {
         pub(crate) static ref INITIAL_REQUEST: Box<[u8]> = {
             const FILLER: i32 = -1;
