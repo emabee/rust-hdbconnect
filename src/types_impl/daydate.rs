@@ -31,7 +31,7 @@ impl std::cmp::PartialEq<DayDate> for DayDate {
 
 impl DayDate {
     pub(crate) fn new(raw: i32) -> Self {
-        assert!(raw < NULL_REPRESENTATION && raw >= 0);
+        assert!((0..NULL_REPRESENTATION).contains(&raw));
         Self(raw)
     }
     pub(crate) fn ref_raw(&self) -> &i32 {

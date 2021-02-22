@@ -4,7 +4,7 @@ extern crate serde;
 mod test_utils;
 
 use chrono::NaiveDateTime;
-use flexi_logger::ReconfigurationHandle;
+use flexi_logger::LoggerHandle;
 use hdbconnect::{Connection, HdbResult};
 use log::info;
 use serde::Deserialize;
@@ -43,7 +43,7 @@ struct TS<S, I, D> {
 }
 
 fn deser_option_into_option(
-    _log_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     info!("deserialize Option values into Option values, test null and not-null values");
@@ -66,7 +66,7 @@ fn deser_option_into_option(
 }
 
 fn deser_plain_into_plain(
-    _log_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     info!("deserialize plain values into plain values");
@@ -90,7 +90,7 @@ fn deser_plain_into_plain(
 }
 
 fn deser_plain_into_option(
-    _log_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     info!("deserialize plain values into Option values");
@@ -114,7 +114,7 @@ fn deser_plain_into_option(
 }
 
 fn deser_option_into_plain(
-    _log_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     info!(
@@ -156,7 +156,7 @@ fn deser_option_into_plain(
 }
 
 fn deser_singleline_into_struct(
-    _log_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     info!(
@@ -191,7 +191,7 @@ fn deser_singleline_into_struct(
 }
 
 fn deser_singlevalue_into_plain(
-    _log_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     info!(
@@ -232,7 +232,7 @@ fn deser_singlevalue_into_plain(
 
 #[allow(clippy::cognitive_complexity)]
 fn deser_all_to_string(
-    _log_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     // NULL to not Option
@@ -639,7 +639,7 @@ fn deser_all_to_string(
 }
 
 fn deser_singlecolumn_into_vec(
-    _log_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     info!(

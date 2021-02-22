@@ -132,7 +132,7 @@ impl Parts<'static> {
             // debug!("parts_into_internal_return_values(): found part of kind {:?}", part.kind());
             match part {
                 Part::StatementContext(ref stmt_ctx) => {
-                    (*conn_core).evaluate_statement_context(stmt_ctx)?;
+                    (*conn_core).evaluate_statement_context(stmt_ctx);
                     if let Some(ref mut server_usage) = o_additional_server_usage {
                         server_usage.update(
                             stmt_ctx.server_processing_time(),

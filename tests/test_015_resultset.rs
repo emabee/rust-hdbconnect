@@ -4,7 +4,7 @@ extern crate serde;
 mod test_utils;
 
 use chrono::NaiveDateTime;
-use flexi_logger::ReconfigurationHandle;
+use flexi_logger::LoggerHandle;
 use hdbconnect::{Connection, HdbResult};
 use log::{debug, info};
 use serde::Deserialize;
@@ -22,7 +22,7 @@ pub fn test_015_resultset() -> HdbResult<()> {
 }
 
 fn evaluate_resultset(
-    _log_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     info!("evaluate resultset");
@@ -134,7 +134,7 @@ fn evaluate_resultset(
 }
 
 fn verify_row_ordering(
-    _log_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     _log_handle.parse_and_push_temp_spec("info");

@@ -427,7 +427,7 @@ impl<'a> PreparedStatement {
 
                 Part::StatementContext(ref stmt_ctx) => {
                     let mut guard = am_conn_core.lock()?;
-                    (*guard).evaluate_statement_context(stmt_ctx)?;
+                    (*guard).evaluate_statement_context(stmt_ctx);
                     server_usage.update(
                         stmt_ctx.server_processing_time(),
                         stmt_ctx.server_cpu_time(),

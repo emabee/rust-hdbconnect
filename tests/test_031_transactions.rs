@@ -4,7 +4,7 @@ extern crate serde;
 mod test_utils;
 
 use chrono::NaiveDate;
-use flexi_logger::ReconfigurationHandle;
+use flexi_logger::LoggerHandle;
 use hdbconnect::{Connection, HdbResult};
 
 // From wikipedia:
@@ -55,7 +55,7 @@ pub fn test_031_transactions() -> HdbResult<()> {
 }
 
 fn write1_read2(
-    _log_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut LoggerHandle,
     connection1: &mut Connection,
     isolation: &str,
 ) -> HdbResult<()> {

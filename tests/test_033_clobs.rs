@@ -3,7 +3,7 @@ extern crate serde;
 
 mod test_utils;
 
-use flexi_logger::ReconfigurationHandle;
+use flexi_logger::LoggerHandle;
 use hdbconnect::types::CLob;
 use hdbconnect::{Connection, HdbError, HdbResult, HdbValue};
 use log::{debug, info};
@@ -66,7 +66,7 @@ fn get_blabla() -> (String, Vec<u8>) {
 }
 
 fn test_clobs(
-    _log_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut LoggerHandle,
     connection: &mut Connection,
     fifty_times_smp_blabla: &str,
     fingerprint: &[u8],
@@ -165,7 +165,7 @@ fn test_clobs(
 }
 
 fn test_streaming(
-    _log_handle: &mut flexi_logger::ReconfigurationHandle,
+    _log_handle: &mut flexi_logger::LoggerHandle,
     connection: &mut Connection,
     fifty_times_smp_blabla: String,
     fingerprint: &[u8],
@@ -216,7 +216,7 @@ fn test_streaming(
 }
 
 fn test_zero_length(
-    _log_handle: &mut flexi_logger::ReconfigurationHandle,
+    _log_handle: &mut flexi_logger::LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     info!("write and read empty clob");

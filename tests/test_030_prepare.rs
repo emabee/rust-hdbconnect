@@ -3,7 +3,7 @@ extern crate serde;
 
 mod test_utils;
 
-use flexi_logger::ReconfigurationHandle;
+use flexi_logger::LoggerHandle;
 use hdbconnect::{Connection, HdbError, HdbResult, HdbValue};
 use log::{debug, info};
 use serde::Deserialize;
@@ -29,7 +29,7 @@ pub fn test_030_prepare() -> HdbResult<()> {
 }
 
 fn prepare_insert_statement(
-    _log_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     info!("statement preparation and transactional correctness (auto_commit on/off, rollbacks)");
@@ -109,7 +109,7 @@ fn prepare_insert_statement(
 }
 
 fn prepare_statement_use_parameter_row(
-    _log_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     info!("statement preparation with direct use of a parameter row");
@@ -171,7 +171,7 @@ fn prepare_statement_use_parameter_row(
 }
 
 fn prepare_multiple_errors(
-    _log_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     info!("test multiple errors from failing batches");
@@ -212,7 +212,7 @@ fn prepare_multiple_errors(
 }
 
 fn prepare_select_with_pars(
-    _log_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     info!("prepared select statement with parameters");
@@ -228,7 +228,7 @@ fn prepare_select_with_pars(
 }
 
 fn prepare_select_without_pars(
-    _log_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     info!("prepared select statement without parameters");
@@ -248,7 +248,7 @@ fn prepare_select_without_pars(
 }
 
 fn prepare_and_execute_with_fetch(
-    _log_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     info!("call prepare_and_execute() with implicit fetch");

@@ -3,7 +3,7 @@ extern crate serde;
 
 mod test_utils;
 
-use flexi_logger::ReconfigurationHandle;
+use flexi_logger::LoggerHandle;
 use hdbconnect::{Connection, HdbResult};
 use log::{debug, info};
 
@@ -19,10 +19,7 @@ pub fn test_036_bool() -> HdbResult<()> {
     test_utils::closing_info(connection, start)
 }
 
-fn test_text(
-    _logger_handle: &mut ReconfigurationHandle,
-    connection: &mut Connection,
-) -> HdbResult<()> {
+fn test_text(_logger_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
     info!("create a bool in the database, and read it");
 
     debug!("setup...");

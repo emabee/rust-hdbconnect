@@ -145,28 +145,24 @@ impl<'a> ConnectionCore {
         format!("{}", self.connect_params())
     }
 
-    pub(crate) fn set_application<S: AsRef<str>>(&mut self, application: S) -> HdbResult<()> {
+    pub(crate) fn set_application<S: AsRef<str>>(&mut self, application: S) {
         self.client_info.set_application(application);
         self.client_info_touched = true;
-        Ok(())
     }
 
-    pub(crate) fn set_application_version(&mut self, version: &str) -> HdbResult<()> {
+    pub(crate) fn set_application_version(&mut self, version: &str) {
         self.client_info.set_application_version(version);
         self.client_info_touched = true;
-        Ok(())
     }
 
-    pub(crate) fn set_application_source(&mut self, source: &str) -> HdbResult<()> {
+    pub(crate) fn set_application_source(&mut self, source: &str) {
         self.client_info.set_application_source(source);
         self.client_info_touched = true;
-        Ok(())
     }
 
-    pub(crate) fn set_application_user(&mut self, application_user: &str) -> HdbResult<()> {
+    pub(crate) fn set_application_user(&mut self, application_user: &str) {
         self.client_info.set_application_user(application_user);
         self.client_info_touched = true;
-        Ok(())
     }
 
     pub(crate) fn is_client_info_touched(&self) -> bool {
@@ -178,10 +174,7 @@ impl<'a> ConnectionCore {
         self.client_info.clone()
     }
 
-    pub(crate) fn evaluate_statement_context(
-        &mut self,
-        stmt_ctx: &StatementContext,
-    ) -> HdbResult<()> {
+    pub(crate) fn evaluate_statement_context(&mut self, stmt_ctx: &StatementContext) {
         trace!(
             "Received StatementContext with sequence_info = {:?}",
             stmt_ctx.statement_sequence_info()
@@ -197,8 +190,6 @@ impl<'a> ConnectionCore {
         // StatementContextId::FlagSet => 4,
         // StatementContextId::QueryTimeout => 5,
         // StatementContextId::ClientReconnectionWaitTimeout => 6,
-
-        Ok(())
     }
 
     pub(crate) fn set_auto_commit(&mut self, ac: bool) {
@@ -292,13 +283,13 @@ impl<'a> ConnectionCore {
         }
     }
 
-    pub(crate) fn pop_warnings(&mut self) -> HdbResult<Option<Vec<ServerError>>> {
+    pub(crate) fn pop_warnings(&mut self) -> Option<Vec<ServerError>> {
         if self.warnings.is_empty() {
-            Ok(None)
+            None
         } else {
             let mut v = Vec::<ServerError>::new();
             mem::swap(&mut v, &mut self.warnings);
-            Ok(Some(v))
+            Some(v)
         }
     }
 

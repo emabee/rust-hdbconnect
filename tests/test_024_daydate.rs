@@ -4,7 +4,7 @@ extern crate serde;
 mod test_utils;
 
 use chrono::NaiveDate;
-use flexi_logger::ReconfigurationHandle;
+use flexi_logger::LoggerHandle;
 use hdbconnect::{Connection, HdbResult};
 use log::{debug, info, trace};
 
@@ -24,7 +24,7 @@ pub fn test_024_daydate() -> HdbResult<()> {
 // - during deserialization (result)
 #[allow(clippy::cognitive_complexity)]
 fn test_daydate(
-    _loghandle: &mut ReconfigurationHandle,
+    _loghandle: &mut LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     info!("verify that NaiveDate values match the expected string representation");

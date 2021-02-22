@@ -92,10 +92,7 @@ impl RsState {
 
     // Returns true if the resultset contains more than one row.
     pub(crate) fn has_multiple_rows(&self) -> bool {
-        let is_complete = match self.is_complete() {
-            Ok(b) => b,
-            Err(_) => false,
-        };
+        let is_complete = self.is_complete().unwrap_or(false);
         !is_complete || (self.next_rows.len() + self.row_iter.len() > 1)
     }
 

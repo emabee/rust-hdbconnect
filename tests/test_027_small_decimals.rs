@@ -5,7 +5,7 @@ mod test_utils;
 
 use bigdecimal::BigDecimal;
 #[allow(unused_imports)]
-use flexi_logger::ReconfigurationHandle;
+use flexi_logger::LoggerHandle;
 use hdbconnect::{Connection, HdbResult, HdbValue};
 use log::{debug, info};
 use num::FromPrimitive;
@@ -24,7 +24,7 @@ fn test_027_small_decimals() -> HdbResult<()> {
 }
 
 fn test_small_decimals(
-    _log_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     connection.multiple_statements_ignore_err(vec!["drop table TEST_SMALL_DECIMALS"]);

@@ -3,7 +3,7 @@ extern crate serde;
 
 mod test_utils;
 
-use flexi_logger::ReconfigurationHandle;
+use flexi_logger::LoggerHandle;
 use hdbconnect::{Connection, HdbResult};
 use log::{debug, info};
 
@@ -30,10 +30,7 @@ fn prepare_test(connection: &mut Connection) -> bool {
     connection.multiple_statements(stmts).is_ok() // in HANA Cloud we get sql syntax error: incorrect syntax near "TEXT"
 }
 
-fn test_text(
-    _log_handle: &mut ReconfigurationHandle,
-    connection: &mut Connection,
-) -> HdbResult<()> {
+fn test_text(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
     info!("create a TEXT in the database, and read it");
     debug!("setup...");
     connection.set_lob_read_length(1_000_000)?;

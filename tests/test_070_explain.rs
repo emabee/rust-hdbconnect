@@ -3,7 +3,7 @@ extern crate serde;
 
 mod test_utils;
 
-use flexi_logger::ReconfigurationHandle;
+use flexi_logger::LoggerHandle;
 use hdbconnect::{Connection, HdbResult};
 use log::{debug, info};
 
@@ -18,10 +18,7 @@ pub fn test_070_explain() -> HdbResult<()> {
     test_utils::closing_info(connection, start)
 }
 
-fn test_explain(
-    _log_handle: &mut ReconfigurationHandle,
-    connection: &mut Connection,
-) -> HdbResult<()> {
+fn test_explain(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
     info!("use EXPLAIN and verify it works");
 
     let result =

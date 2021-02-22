@@ -3,7 +3,7 @@ extern crate serde;
 
 mod test_utils;
 
-use flexi_logger::ReconfigurationHandle;
+use flexi_logger::LoggerHandle;
 use hdbconnect::{Connection, HdbResult};
 use log::{debug, info};
 
@@ -31,7 +31,7 @@ pub fn test_042_numeric_conversion() -> HdbResult<()> {
 
 #[allow(clippy::cognitive_complexity)]
 fn test_tiny_int(
-    _log_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     connection.multiple_statements_ignore_err(vec!["drop table TEST_NUMERIC_CONVERSION"]);
@@ -151,7 +151,7 @@ fn test_tiny_int(
 
 #[allow(clippy::cognitive_complexity)]
 fn test_small_int(
-    _log_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     connection.multiple_statements_ignore_err(vec!["drop table TEST_NUMERIC_CONVERSION"]);
@@ -279,7 +279,7 @@ fn test_small_int(
 
 #[allow(clippy::cognitive_complexity)]
 fn test_integer(
-    _log_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     connection.multiple_statements_ignore_err(vec!["drop table TEST_NUMERIC_CONVERSION"]);
@@ -401,7 +401,7 @@ fn test_integer(
 
 #[allow(clippy::cognitive_complexity)]
 fn test_big_int(
-    _log_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     connection.multiple_statements_ignore_err(vec!["drop table TEST_NUMERIC_CONVERSION"]);
@@ -530,7 +530,7 @@ fn test_big_int(
 
 #[allow(clippy::cognitive_complexity)]
 fn test_decimal(
-    _log_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     connection.multiple_statements_ignore_err(vec!["drop table TEST_NUMERIC_CONVERSION"]);
@@ -623,7 +623,7 @@ fn test_decimal(
 }
 
 fn conversion_error(
-    _log_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     connection.multiple_statements_ignore_err(vec!["drop table TEST_NUMERIC_CONVERSION"]);

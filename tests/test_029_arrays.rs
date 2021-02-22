@@ -3,7 +3,7 @@ extern crate serde;
 
 mod test_utils;
 
-use flexi_logger::ReconfigurationHandle;
+use flexi_logger::LoggerHandle;
 use hdbconnect::{Connection, HdbResult, HdbValue};
 
 #[test] // cargo test --test test_029_arrays -- --nocapture
@@ -17,10 +17,7 @@ pub fn test_029_arrays() -> HdbResult<()> {
     test_utils::closing_info(connection, start)
 }
 
-fn test_arrays(
-    log_handle: &mut ReconfigurationHandle,
-    connection: &mut Connection,
-) -> HdbResult<()> {
+fn test_arrays(log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
     log::debug!("prepare the db tables");
     connection.multiple_statements_ignore_err(vec![
         "drop table TEST_INTEGER_ARRAYS",

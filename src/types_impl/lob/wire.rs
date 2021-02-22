@@ -98,9 +98,9 @@ pub(crate) fn parse_nclob(
 fn parse_lob_1(rdr: &mut dyn std::io::Read) -> std::io::Result<(bool, bool, bool)> {
     let _data_type = rdr.read_u8()?; // I1
     let options = rdr.read_u8()?; // I1
-    let is_null = (options & 0b_1_u8) != 0;
+    let is_null = (options & 0b1_u8) != 0;
     let is_data_included = (options & 0b_10_u8) != 0;
-    let is_last_data = (options & 0b_100_u8) != 0;
+    let is_last_data = (options & 0b100_u8) != 0;
     Ok((is_null, is_data_included, is_last_data))
 }
 
@@ -134,7 +134,7 @@ pub(crate) fn emit_lob_header(
     w: &mut dyn std::io::Write,
 ) -> std::io::Result<()> {
     // bit 0: not used; bit 1: data is included; bit 2: no more data remaining
-    w.write_u8(0b_000_u8)?; // I1           Bit set for options
+    w.write_u8(0b000_u8)?; // I1           Bit set for options
     w.write_i32::<LittleEndian>(length as i32)?; // I4           LENGTH OF VALUE
     w.write_i32::<LittleEndian>(*offset as i32)?; // I4           position
     *offset += length as i32;

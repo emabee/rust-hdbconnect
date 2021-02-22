@@ -4,7 +4,7 @@ extern crate serde;
 mod test_utils;
 
 use bigdecimal::BigDecimal;
-use flexi_logger::ReconfigurationHandle;
+use flexi_logger::LoggerHandle;
 use hdbconnect::{Connection, HdbResult, HdbValue};
 use log::{debug, info};
 use serde::Deserialize;
@@ -23,7 +23,7 @@ pub fn test_040_datatypes_a() -> HdbResult<()> {
     test_utils::closing_info(connection, start)
 }
 
-fn prepare(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -> HdbResult<()> {
+fn prepare(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
     info!("prepare the db table");
     connection.multiple_statements_ignore_err(vec!["drop table TEST_TYPES_A"]);
     connection.multiple_statements(vec![
@@ -48,7 +48,7 @@ fn prepare(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection)
     Ok(())
 }
 
-fn write(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -> HdbResult<()> {
+fn write(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
     info!("insert values directly");
     connection.dml(
         "\
@@ -150,7 +150,7 @@ fn write(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -
     Ok(())
 }
 
-fn read(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -> HdbResult<()> {
+fn read(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
     #[derive(Debug, Deserialize)]
     #[allow(non_snake_case)]
     struct Data {

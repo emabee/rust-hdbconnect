@@ -114,7 +114,7 @@ pub(crate) fn split_off_orphaned_surrogates(cesu8: Vec<u8>) -> HdbResult<CharLob
 // find tail
 // determine in-between (can be empty)
 #[allow(clippy::ptr_arg)]
-pub(crate) fn split_off_orphaned_bytes(cesu8: &Vec<u8>) -> HdbResult<CharLobSlice> {
+pub(crate) fn split_off_orphaned_bytes(cesu8: &Vec<u8>) -> CharLobSlice {
     let mut split = 0;
     for start in 0..cesu8.len() {
         split = match cesu8_char_type(cesu8, start, cesu8.len()) {
@@ -143,11 +143,11 @@ pub(crate) fn split_off_orphaned_bytes(cesu8: &Vec<u8>) -> HdbResult<CharLobSlic
     } else {
         Some(postfix)
     };
-    Ok(CharLobSlice {
+    CharLobSlice {
         prefix,
         data,
         postfix,
-    })
+    }
 }
 
 fn cesu8_to_string_and_surrogate(cesu8: Vec<u8>) -> HdbResult<(String, Option<Vec<u8>>)> {

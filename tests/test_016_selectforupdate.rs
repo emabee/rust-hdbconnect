@@ -3,7 +3,7 @@ extern crate serde;
 
 mod test_utils;
 
-use flexi_logger::ReconfigurationHandle;
+use flexi_logger::LoggerHandle;
 use hdbconnect::{Connection, HdbResult};
 use std::thread;
 use std::time::Duration;
@@ -20,7 +20,7 @@ pub fn test_016_selectforupdate() -> HdbResult<()> {
     test_utils::closing_info(connection, start)
 }
 
-fn prepare(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -> HdbResult<()> {
+fn prepare(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
     log::info!("prepare");
     log::debug!("prepare the db table");
     connection.multiple_statements_ignore_err(vec!["drop table TEST_SELFORUPDATE"]);
@@ -47,10 +47,7 @@ fn prepare(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection)
     Ok(())
 }
 
-fn produce_conflicts(
-    _log_handle: &mut ReconfigurationHandle,
-    connection: &mut Connection,
-) -> HdbResult<()> {
+fn produce_conflicts(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
     log::info!("verify that locking with 'select for update' works");
     connection.set_auto_commit(false)?;
 

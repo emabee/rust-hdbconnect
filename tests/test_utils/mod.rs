@@ -1,7 +1,7 @@
 // advisable because not all test modules use all functions of this module:
 #![allow(dead_code)]
 
-use flexi_logger::{opt_format, Logger, ReconfigurationHandle};
+use flexi_logger::{opt_format, Logger, LoggerHandle};
 use hdbconnect::{ConnectParamsBuilder, Connection, HdbError, HdbResult, ServerCerts};
 
 // const DB: &str = "./.private/2_0.db";
@@ -14,7 +14,7 @@ const DB: &str = "./.private/mei.db";
 //
 // For CI/CD, we could change the code here to e.g. react on env settings
 // that allow the CI/CD infrastructure to have the logs written to files in a directory.
-pub fn init_logger() -> ReconfigurationHandle {
+pub fn init_logger() -> LoggerHandle {
     Logger::with_env_or_str("info")
         // .log_to_file()
         // .suppress_timestamp()
@@ -96,7 +96,7 @@ fn cp_builder_from_file(purpose: &str) -> HdbResult<(ConnectParamsBuilder, Conne
             cp_builder.dbuser(&um.name).password(&um.pw);
             redirect_cp_builder.dbuser(&um.name).password(&um.pw);
         }
-        _ => panic!("unknown purpose: {}",),
+        _ => panic!("unknown purpose: {}", purpose),
     }
     if let Ok(ref s) = std::env::var("HDBCONNECT_FORCE_TEST_WITH_TLS") {
         match s.as_ref() {

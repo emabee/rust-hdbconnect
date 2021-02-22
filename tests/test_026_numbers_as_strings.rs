@@ -3,7 +3,7 @@ extern crate serde;
 
 mod test_utils;
 
-use flexi_logger::ReconfigurationHandle;
+use flexi_logger::LoggerHandle;
 use hdbconnect::{Connection, HdbResult};
 use log::{debug, info};
 
@@ -21,7 +21,7 @@ pub fn test_026_numbers_as_strings() -> HdbResult<()> {
     test_utils::closing_info(connection, start)
 }
 
-fn setup(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -> HdbResult<()> {
+fn setup(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
     debug!("prepare the db tables");
     connection.multiple_statements_ignore_err(vec![
         "drop table TEST_INTEGERS",
@@ -43,7 +43,7 @@ fn setup(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -
 }
 
 fn test_table_with_integers(
-    _log_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     info!("Read and write integer table fields as numeric values and as Strings");
@@ -92,7 +92,7 @@ fn test_table_with_integers(
 }
 
 fn test_table_with_floats(
-    _log_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     info!("Read and write float table fields as numeric values and as Strings");
@@ -124,7 +124,7 @@ fn test_table_with_floats(
 }
 
 fn test_table_with_strings(
-    _log_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     info!("Read and write String table fields as numeric values");

@@ -4,7 +4,7 @@ extern crate serde;
 mod test_utils;
 
 use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
-use flexi_logger::ReconfigurationHandle;
+use flexi_logger::LoggerHandle;
 use hdbconnect::{Connection, HdbResult};
 use log::{debug, info, trace};
 
@@ -22,10 +22,7 @@ pub fn test_022_seconddate() -> HdbResult<()> {
 // Test the conversion of timestamps
 // - during serialization (input to prepared_statements)
 // - during deserialization (result)
-fn test_seconddate(
-    _loghandle: &mut ReconfigurationHandle,
-    connection: &mut Connection,
-) -> HdbResult<()> {
+fn test_seconddate(_loghandle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
     info!("test_seconddate: verify that NaiveDateTime values match the expected string representation");
 
     debug!("test_seconddate: prepare the test data");

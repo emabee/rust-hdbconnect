@@ -4,7 +4,7 @@ extern crate serde;
 mod test_utils;
 
 use dist_tx::tm::*;
-use flexi_logger::ReconfigurationHandle;
+use flexi_logger::LoggerHandle;
 use hdbconnect::{Connection, HdbResult};
 use log::{debug, info};
 
@@ -25,7 +25,7 @@ pub fn test_090_xa_transactions() -> HdbResult<()> {
 }
 
 // prepare the db table
-fn prepare(_log_handle: &mut ReconfigurationHandle, conn: &mut Connection) -> HdbResult<()> {
+fn prepare(_log_handle: &mut LoggerHandle, conn: &mut Connection) -> HdbResult<()> {
     info!("Prepare...");
     conn.multiple_statements_ignore_err(vec!["drop table TEST_XA"]);
     conn.multiple_statements(vec![
@@ -37,7 +37,7 @@ fn prepare(_log_handle: &mut ReconfigurationHandle, conn: &mut Connection) -> Hd
     ])
 }
 
-fn successful_xa(_log_handle: &mut ReconfigurationHandle, conn: &mut Connection) -> HdbResult<()> {
+fn successful_xa(_log_handle: &mut LoggerHandle, conn: &mut Connection) -> HdbResult<()> {
     info!("Successful XA");
 
     // open two connections, auto_commit off
@@ -81,7 +81,7 @@ fn insert_stmt(i: u32, s: &'static str) -> String {
     format!("insert into TEST_XA (f1, f2) values({}, '{}')", i, s)
 }
 
-fn xa_rollback(_log_handle: &mut ReconfigurationHandle, conn: &mut Connection) -> HdbResult<()> {
+fn xa_rollback(_log_handle: &mut LoggerHandle, conn: &mut Connection) -> HdbResult<()> {
     info!("xa_rollback");
 
     // open two connections, auto_commit off
@@ -146,7 +146,7 @@ fn xa_rollback(_log_handle: &mut ReconfigurationHandle, conn: &mut Connection) -
     Ok(())
 }
 
-fn xa_repeated(_log_handle: &mut ReconfigurationHandle, conn: &mut Connection) -> HdbResult<()> {
+fn xa_repeated(_log_handle: &mut LoggerHandle, conn: &mut Connection) -> HdbResult<()> {
     info!("xa_repeated");
 
     // open two connections, auto_commit off
@@ -218,7 +218,7 @@ fn xa_repeated(_log_handle: &mut ReconfigurationHandle, conn: &mut Connection) -
     Ok(())
 }
 
-fn xa_conflicts(_log_handle: &mut ReconfigurationHandle, conn: &mut Connection) -> HdbResult<()> {
+fn xa_conflicts(_log_handle: &mut LoggerHandle, conn: &mut Connection) -> HdbResult<()> {
     info!("xa_conflicts");
 
     // open two connections, auto_commit off

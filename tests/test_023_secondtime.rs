@@ -4,7 +4,7 @@ extern crate serde;
 mod test_utils;
 
 use chrono::NaiveTime;
-use flexi_logger::ReconfigurationHandle;
+use flexi_logger::LoggerHandle;
 use hdbconnect::{Connection, HdbResult};
 use log::{debug, info, trace};
 
@@ -23,10 +23,7 @@ pub fn test_023_secondtime() -> HdbResult<()> {
 // - during serialization (input to prepared_statements)
 // - during deserialization (result)
 #[allow(clippy::cognitive_complexity)]
-fn test_secondtime(
-    _loghandle: &mut ReconfigurationHandle,
-    connection: &mut Connection,
-) -> HdbResult<()> {
+fn test_secondtime(_loghandle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
     info!("verify that NaiveTime values match the expected string representation");
 
     debug!("prepare the test data");

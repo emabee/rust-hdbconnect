@@ -3,7 +3,7 @@ extern crate serde;
 
 mod test_utils;
 
-use flexi_logger::ReconfigurationHandle;
+use flexi_logger::LoggerHandle;
 use hdbconnect::HdbResult;
 use log::*;
 use std::time::Instant;
@@ -17,7 +17,7 @@ pub fn test_012_connect_other_user() -> HdbResult<()> {
     Ok(())
 }
 
-fn connect_other_user(_log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
+fn connect_other_user(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
     // _log_handle.parse_and_push_temp_spec("test = debug, info");
 
     let other_user = "THEOTHERONE".to_string();

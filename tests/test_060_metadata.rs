@@ -3,7 +3,7 @@ extern crate serde;
 
 mod test_utils;
 
-use flexi_logger::ReconfigurationHandle;
+use flexi_logger::LoggerHandle;
 use hdbconnect::{Connection, HdbResult, ParameterBinding, ParameterDirection, ResultSet, TypeId};
 use log::{debug, info};
 
@@ -20,7 +20,7 @@ pub fn test_060_metadata() -> HdbResult<()> {
 
 #[allow(clippy::cognitive_complexity)]
 fn test_procedure_metadata(
-    _log_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     info!("procedure(): run a sqlscript procedure with input parameters");

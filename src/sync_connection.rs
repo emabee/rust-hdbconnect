@@ -261,7 +261,7 @@ impl Connection {
     ///
     /// Only `HdbError::Poison` can occur.
     pub fn pop_warnings(&self) -> HdbResult<Option<Vec<ServerError>>> {
-        self.am_conn_core.lock()?.pop_warnings()
+        Ok(self.am_conn_core.lock()?.pop_warnings())
     }
 
     /// Sets the connection's auto-commit behavior for future calls.
@@ -401,7 +401,8 @@ impl Connection {
     ///
     /// Only `HdbError::Poison` can occur.
     pub fn set_application<S: AsRef<str>>(&self, application: S) -> HdbResult<()> {
-        self.am_conn_core.lock()?.set_application(application)
+        self.am_conn_core.lock()?.set_application(application);
+        Ok(())
     }
 
     /// Sets client information into a session variable on the server.
@@ -422,7 +423,8 @@ impl Connection {
     pub fn set_application_user<S: AsRef<str>>(&self, appl_user: S) -> HdbResult<()> {
         self.am_conn_core
             .lock()?
-            .set_application_user(appl_user.as_ref())
+            .set_application_user(appl_user.as_ref());
+        Ok(())
     }
 
     /// Sets client information into a session variable on the server.
@@ -443,7 +445,8 @@ impl Connection {
     pub fn set_application_version<S: AsRef<str>>(&mut self, version: S) -> HdbResult<()> {
         self.am_conn_core
             .lock()?
-            .set_application_version(version.as_ref())
+            .set_application_version(version.as_ref());
+        Ok(())
     }
 
     /// Sets client information into a session variable on the server.
@@ -464,7 +467,8 @@ impl Connection {
     pub fn set_application_source<S: AsRef<str>>(&mut self, source: S) -> HdbResult<()> {
         self.am_conn_core
             .lock()?
-            .set_application_source(source.as_ref())
+            .set_application_source(source.as_ref());
+        Ok(())
     }
 
     /// Returns an implementation of `dist_tx::rm::ResourceManager` that is

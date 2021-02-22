@@ -3,7 +3,7 @@ extern crate serde;
 
 mod test_utils;
 
-use flexi_logger::ReconfigurationHandle;
+use flexi_logger::LoggerHandle;
 use hdbconnect::{Connection, HdbResult, HdbValue};
 use log::{debug, info, trace};
 use serde::Deserialize;
@@ -22,7 +22,7 @@ pub fn test_041_datatypes_b() -> HdbResult<()> {
     test_utils::closing_info(connection, start)
 }
 
-fn prepare(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -> HdbResult<()> {
+fn prepare(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
     // prepare the db table
     // select * from data_types order by type_name
     connection.multiple_statements_ignore_err(vec!["drop table TEST_TYPES_B"]);
@@ -49,7 +49,7 @@ fn prepare(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection)
     Ok(())
 }
 
-fn write(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -> HdbResult<()> {
+fn write(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
     info!("insert values directly");
     connection.dml(
         "\
@@ -183,7 +183,7 @@ struct Data {
     // FIELD_ALPHANUM: Option<String>,
 }
 
-fn read(_log_handle: &mut ReconfigurationHandle, connection: &mut Connection) -> HdbResult<()> {
+fn read(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
     {
         info!("read non-null values and evaluate via serde_db");
         let q = "select * from TEST_TYPES_B where id = 1";

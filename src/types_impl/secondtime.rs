@@ -35,7 +35,7 @@ impl std::cmp::PartialEq<SecondTime> for SecondTime {
 impl SecondTime {
     #[allow(clippy::cast_sign_loss)]
     pub(crate) fn new(raw: i32) -> Self {
-        assert!(raw < NULL_REPRESENTATION && raw >= 0);
+        assert!((0..NULL_REPRESENTATION).contains(&raw));
         Self(raw as u32)
     }
 

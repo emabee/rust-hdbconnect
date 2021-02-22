@@ -109,9 +109,8 @@ impl Reply {
                     if server_errors.is_empty() {
                         // Only warnings, so return Ok(())
                         return Ok(());
-                    } else {
-                        server_errors
                     }
+                    server_errors
                 }
                 Some(_non_error_part) => unreachable!("129837938423"),
             }
@@ -123,7 +122,7 @@ impl Reply {
         while let Some(part) = self.parts.pop() {
             match part {
                 Part::StatementContext(ref stmt_ctx) => {
-                    conn_core.evaluate_statement_context(stmt_ctx)?;
+                    conn_core.evaluate_statement_context(stmt_ctx);
                 }
                 Part::TransactionFlags(ta_flags) => {
                     conn_core.evaluate_ta_flags(ta_flags)?;

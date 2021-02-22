@@ -4,7 +4,7 @@ extern crate serde;
 mod test_utils;
 
 use chrono::Local;
-use flexi_logger::ReconfigurationHandle;
+use flexi_logger::LoggerHandle;
 use hdbconnect::{ConnectParams, Connection, HdbResult, IntoConnectParams};
 use log::*;
 use serde::{Deserialize, Serialize};
@@ -27,13 +27,13 @@ pub fn test_010_connect() -> HdbResult<()> {
     Ok(())
 }
 
-fn connect_successfully(_log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
+fn connect_successfully(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
     info!("test a successful connection");
     test_utils::get_authenticated_connection()?;
     Ok(())
 }
 
-fn reconnect(_log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
+fn reconnect(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
     info!("test reconnect");
     _log_handle.parse_and_push_temp_spec("info, hdbconnect::conn= debug, test=debug");
     let cpb = test_utils::get_std_redirect_cp_builder()?;
@@ -43,7 +43,7 @@ fn reconnect(_log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
     Ok(())
 }
 
-fn connect_options(_log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
+fn connect_options(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
     info!("test connect options");
     _log_handle.parse_and_push_temp_spec("info, test = debug");
     let connection = test_utils::get_authenticated_connection()?;
@@ -57,7 +57,7 @@ fn connect_options(_log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
     Ok(())
 }
 
-fn client_info(_log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
+fn client_info(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
     info!("client info");
     _log_handle.parse_and_push_temp_spec("info, test = debug");
     let mut connection = test_utils::get_authenticated_connection().unwrap();
@@ -126,7 +126,7 @@ fn check_session_context(orig: bool, result: &[SessCtx]) {
     }
 }
 
-fn connect_wrong_credentials(_log_handle: &mut ReconfigurationHandle) {
+fn connect_wrong_credentials(_log_handle: &mut LoggerHandle) {
     info!("test connect failure on wrong credentials");
     let start = Local::now();
     let mut cp_builder = test_utils::get_std_cp_builder().unwrap();
@@ -145,9 +145,7 @@ fn connect_wrong_credentials(_log_handle: &mut ReconfigurationHandle) {
     );
 }
 
-fn connect_and_select_with_explicit_clientlocale(
-    _log_handle: &mut ReconfigurationHandle,
-) -> HdbResult<()> {
+fn connect_and_select_with_explicit_clientlocale(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
     info!("connect and do some simple select with explicit clientlocale");
 
     let mut cp_builder = test_utils::get_std_cp_builder()?;
@@ -160,9 +158,7 @@ fn connect_and_select_with_explicit_clientlocale(
     Ok(())
 }
 
-fn connect_and_select_with_clientlocale_from_env(
-    _log_handle: &mut ReconfigurationHandle,
-) -> HdbResult<()> {
+fn connect_and_select_with_clientlocale_from_env(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
     info!("connect and do some simple select with clientlocale from env");
     if env::var("LANG").is_err() {
         env::set_var("LANG", "en_US.UTF-8");
@@ -211,7 +207,7 @@ impl SessCtx {
     }
 }
 
-fn command_info(_log_handle: &mut ReconfigurationHandle) -> HdbResult<()> {
+fn command_info(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
     info!("command info");
     let mut connection = test_utils::get_authenticated_connection().unwrap();
 

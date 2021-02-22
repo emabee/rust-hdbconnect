@@ -47,7 +47,7 @@ fn get_blabla() -> (String, Vec<u8>) {
 }
 
 fn test_nclobs(
-    _log_handle: &mut flexi_logger::ReconfigurationHandle,
+    _log_handle: &mut flexi_logger::LoggerHandle,
     connection: &mut Connection,
     fifty_times_smp_blabla: &str,
     fingerprint: &[u8],
@@ -128,7 +128,7 @@ fn test_nclobs(
 }
 
 fn test_streaming(
-    _log_handle: &mut flexi_logger::ReconfigurationHandle,
+    _log_handle: &mut flexi_logger::LoggerHandle,
     connection: &mut Connection,
     fifty_times_smp_blabla: String,
     fingerprint: &[u8],
@@ -204,7 +204,7 @@ fn test_streaming(
 }
 
 fn test_bytes_to_nclobs(
-    _log_handle: &mut flexi_logger::ReconfigurationHandle,
+    _log_handle: &mut flexi_logger::LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     info!("create a NCLOB from bytes in the database, and read it back into a String");
@@ -244,7 +244,7 @@ fn test_bytes_to_nclobs(
 }
 
 fn test_loblifecycle(
-    _log_handle: &mut flexi_logger::ReconfigurationHandle,
+    _log_handle: &mut flexi_logger::LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     connection.multiple_statements_ignore_err(vec!["drop table TEST_NCLOBS2"]);
@@ -283,7 +283,7 @@ fn test_loblifecycle(
     Ok(())
 }
 fn test_zero_length(
-    _log_handle: &mut flexi_logger::ReconfigurationHandle,
+    _log_handle: &mut flexi_logger::LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     info!("write and read empty nclob");

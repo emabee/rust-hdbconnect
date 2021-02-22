@@ -3,7 +3,7 @@ extern crate serde;
 
 mod test_utils;
 
-use flexi_logger::ReconfigurationHandle;
+use flexi_logger::LoggerHandle;
 use hdbconnect::{Connection, HdbResult, TypeId};
 use log::{debug, info};
 use serde_bytes::{ByteBuf, Bytes};
@@ -20,10 +20,7 @@ fn test_046_spatial() -> HdbResult<()> {
     test_utils::closing_info(connection, start)
 }
 
-fn test_geometries(
-    _loghandle: &mut ReconfigurationHandle,
-    connection: &mut Connection,
-) -> HdbResult<()> {
+fn test_geometries(_loghandle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
     info!("write and read GEOMETRY data");
 
     // Insert the data such that the conversion "String -> WKB" is done on the
@@ -73,10 +70,7 @@ fn test_geometries(
     Ok(())
 }
 
-fn test_points(
-    _loghandle: &mut ReconfigurationHandle,
-    connection: &mut Connection,
-) -> HdbResult<()> {
+fn test_points(_loghandle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
     info!("write and read POINT data");
 
     connection.multiple_statements_ignore_err(vec!["drop table Points"]);

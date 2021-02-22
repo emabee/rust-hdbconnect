@@ -4,7 +4,7 @@ extern crate serde;
 mod test_utils;
 
 use bigdecimal::BigDecimal;
-use flexi_logger::ReconfigurationHandle;
+use flexi_logger::LoggerHandle;
 use hdbconnect::{Connection, HdbResult, HdbValue};
 use log::{debug, info};
 use num::FromPrimitive;
@@ -44,7 +44,7 @@ enum TS {
 
 fn test_025_decimals_impl(
     ts: TS,
-    _log_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     info!("setup ...");

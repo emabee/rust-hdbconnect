@@ -3,7 +3,7 @@ extern crate serde;
 
 mod test_utils;
 
-use flexi_logger::ReconfigurationHandle;
+use flexi_logger::LoggerHandle;
 use hdbconnect::types::BLob;
 use hdbconnect::{Connection, HdbError, HdbResult, HdbValue};
 use log::{debug, info};
@@ -41,7 +41,7 @@ fn get_random_bytes() -> (Vec<u8>, Vec<u8>) {
 }
 
 fn test_blobs(
-    _loghandle: &mut ReconfigurationHandle,
+    _loghandle: &mut LoggerHandle,
     connection: &mut Connection,
     random_bytes: &[u8],
     fingerprint: &[u8],
@@ -160,7 +160,7 @@ fn test_blobs(
 }
 
 fn test_streaming(
-    _log_handle: &mut flexi_logger::ReconfigurationHandle,
+    _log_handle: &mut flexi_logger::LoggerHandle,
     connection: &mut Connection,
     random_bytes: Vec<u8>,
     fingerprint: &[u8],

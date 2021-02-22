@@ -20,7 +20,7 @@ impl ReadLobReply {
     pub fn parse(rdr: &mut dyn std::io::Read) -> std::io::Result<Self> {
         let locator_id = rdr.read_u64::<LittleEndian>()?; // I8
         let options = rdr.read_u8()?; // I1
-        let is_last_data = (options & 0b_100_u8) != 0;
+        let is_last_data = (options & 0b100_u8) != 0;
         let chunk_length = rdr.read_i32::<LittleEndian>()?; // I4
         util::skip_bytes(3, rdr)?; // B3 (filler)
         #[allow(clippy::cast_sign_loss)]

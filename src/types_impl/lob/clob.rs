@@ -214,7 +214,7 @@ impl CLobHandle {
             &mut self.server_usage,
         )?;
         debug!("read_slice(): got {} bytes", reply_data.len());
-        Ok(util::split_off_orphaned_bytes(&reply_data)?)
+        Ok(util::split_off_orphaned_bytes(&reply_data))
     }
 
     fn total_byte_length(&self) -> u64 {

@@ -3,7 +3,7 @@ extern crate serde;
 
 mod test_utils;
 
-use flexi_logger::ReconfigurationHandle;
+use flexi_logger::LoggerHandle;
 use hdbconnect::{
     Connection, HdbResult, HdbReturnValue, ParameterBinding, ParameterDirection, ResultSet, Row,
     TypeId,
@@ -29,7 +29,7 @@ pub fn test_050_procedures() -> HdbResult<()> {
 }
 
 fn very_simple_procedure(
-    _log_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     info!("very_simple_procedure(): run a simple sqlscript procedure");
@@ -50,7 +50,7 @@ fn very_simple_procedure(
 }
 
 fn procedure_with_out_resultsets(
-    _log_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     info!(
@@ -88,7 +88,7 @@ fn procedure_with_out_resultsets(
 }
 
 fn procedure_with_secret_resultsets(
-    _log_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     info!("procedure_with_secret_resultsets(): run a sqlscript procedure with implicit resultsets");
@@ -139,7 +139,7 @@ fn procedure_with_secret_resultsets(
 }
 
 fn procedure_with_in_parameters(
-    _log_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     info!("procedure_with_in_parameters(): run a sqlscript procedure with input parameters");
@@ -170,7 +170,7 @@ fn procedure_with_in_parameters(
 }
 
 fn procedure_with_in_and_out_parameters(
-    _log_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     info!(
@@ -219,7 +219,7 @@ fn procedure_with_in_and_out_parameters(
 }
 
 fn procedure_with_in_nclob_non_consuming(
-    _log_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     info!("procedure_with_in_nclob_non_consuming(): convert input parameter to nclob");
@@ -250,7 +250,7 @@ fn procedure_with_in_nclob_non_consuming(
 use hdbconnect::{types::NCLob, HdbValue};
 
 fn procedure_with_in_nclob_and_out_nclob(
-    _log_handle: &mut ReconfigurationHandle,
+    _log_handle: &mut LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
     info!("procedure_with_in_nclob_and_out_nclob");

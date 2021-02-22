@@ -43,7 +43,7 @@ impl ConnectOptions {
         connopts
     }
 
-    pub(crate) fn digest_server_connect_options(&mut self, server_co: Self) -> HdbResult<()> {
+    pub(crate) fn digest_server_connect_options(&mut self, server_co: Self) {
         for (k, v) in server_co {
             match k {
                 ConnOptId::ConnectionID
@@ -88,7 +88,6 @@ impl ConnectOptions {
                 }
             };
         }
-        Ok(())
     }
 
     // The connection ID is filled by the server when the connection is established.

@@ -108,7 +108,7 @@ pub(crate) fn second_auth_request(
             Part::TopologyInformation(topology) => conn_core.set_topology(topology),
             Part::ConnectOptions(received_co) => conn_core
                 .connect_options_mut()
-                .digest_server_connect_options(received_co)?,
+                .digest_server_connect_options(received_co),
             Part::Auth(mut af) => match (af.pop(), af.pop(), af.pop()) {
                 (Some(server_proof), Some(method), None) => {
                     chosen_authenticator.evaluate_second_response(&method, &server_proof)?
