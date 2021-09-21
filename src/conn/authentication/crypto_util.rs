@@ -11,7 +11,7 @@ pub fn scram_sha256(
     password: &SecUtf8,
 ) -> (Vec<u8>, Vec<u8>) {
     //
-    let salted_password = hmac(&password.unsecure().as_ref(), salt);
+    let salted_password = hmac(password.unsecure().as_ref(), salt);
 
     let (s, sk, cc) = (salt.len(), server_key.len(), client_challenge.len());
     let mut content: Vec<u8> = std::iter::repeat(0).take(s + sk + cc).collect();
@@ -45,7 +45,7 @@ pub fn scram_pdkdf2_sha256(
     password: &SecUtf8,
     iterations: u32,
 ) -> (Vec<u8>, Vec<u8>) {
-    let salted_password = use_pbkdf2(&password.unsecure().as_ref(), salt, iterations);
+    let salted_password = use_pbkdf2(password.unsecure().as_ref(), salt, iterations);
 
     let server_verifier = hmac(&salted_password, salt);
 
@@ -61,7 +61,7 @@ pub fn scram_pdkdf2_sha256(
     let client_proof = xor(&shared_key, &client_key);
 
     let mut cn_s_sn: Vec<u8> = std::iter::repeat(0).take(cn + s + sn).collect();
-    cn_s_sn[0..cn].copy_from_slice(&client_nonce);
+    cn_s_sn[0..cn].copy_from_slice(client_nonce);
     cn_s_sn[cn..(cn + s)].copy_from_slice(salt);
     cn_s_sn[(cn + s)..].copy_from_slice(server_nonce);
     let server_proof = hmac(&server_verifier, &cn_s_sn);
@@ -78,7 +78,7 @@ pub fn use_pbkdf2(key: &[u8], salt: &[u8], it: u32) -> Vec<u8> {
 
 // TODO get rid of expect (which panics; occurs only if key.len() does not fit)
 fn hmac(key: &[u8], data: &[u8]) -> Vec<u8> {
-    let mut mac = Hmac::<Sha256>::new_varkey(key).expect("Failed to create Hmac from key");
+    let mut mac = Hmac::<Sha256>::new_from_slice(key).expect("Failed to create Hmac from key");
 
     mac.update(data);
     mac.finalize().into_bytes().to_vec()

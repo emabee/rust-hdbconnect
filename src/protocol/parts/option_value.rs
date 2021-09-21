@@ -2,7 +2,7 @@ use crate::protocol::util;
 use crate::{HdbError, HdbResult};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
-#[allow(non_camel_case_types)]
+#[allow(clippy::upper_case_acronyms, non_camel_case_types)]
 #[derive(Clone, Debug, PartialEq)]
 pub enum OptionValue {
     INT(i32),         // INTEGER
@@ -134,7 +134,7 @@ fn parse_length_and_string(rdr: &mut dyn std::io::Read) -> std::io::Result<Strin
     util::string_from_cesu8(parse_length_and_binary(rdr)?).map_err(util::io_error)
 }
 
-#[allow(clippy::clippy::cast_sign_loss)]
+#[allow(clippy::cast_sign_loss)]
 fn parse_length_and_binary(rdr: &mut dyn std::io::Read) -> std::io::Result<Vec<u8>> {
     let len = rdr.read_i16::<LittleEndian>()? as usize; // I2: length of value
     util::parse_bytes(len, rdr) // B (varying)

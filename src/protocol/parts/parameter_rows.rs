@@ -22,8 +22,7 @@ impl<'a> ParameterRows<'a> {
         hdb_parameters: Vec<HdbValue<'a>>,
         descriptors: &ParameterDescriptors,
     ) -> HdbResult<()> {
-        self.0
-            .push(ParameterRow::new(hdb_parameters, &descriptors)?);
+        self.0.push(ParameterRow::new(hdb_parameters, descriptors)?);
         Ok(())
     }
 
@@ -59,7 +58,7 @@ impl ParameterRows<'static> {
     ) -> HdbResult<()> {
         self.0.push(ParameterRow::new(
             to_params(input, &mut descriptors.iter_in())?,
-            &descriptors,
+            descriptors,
         )?);
         Ok(())
     }

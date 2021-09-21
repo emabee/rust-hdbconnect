@@ -72,8 +72,7 @@ where
                     Cesu8CharType::FirstHalfOfSurrogate => Some(6),
                     Cesu8CharType::SecondHalfOfSurrogate
                     | Cesu8CharType::NotAStart
-                    | Cesu8CharType::TooShort
-                    | Cesu8CharType::Empty => None,
+                    | Cesu8CharType::TooShort => None,
                 } {
                     return Ok(match (len - index).cmp(&char_len) {
                         std::cmp::Ordering::Greater => len - index - char_len,
@@ -92,8 +91,7 @@ pub(crate) fn split_off_orphaned_surrogates(cesu8: Vec<u8>) -> HdbResult<CharLob
         Cesu8CharType::One
         | Cesu8CharType::Two
         | Cesu8CharType::Three
-        | Cesu8CharType::FirstHalfOfSurrogate
-        | Cesu8CharType::Empty => (None, cesu8),
+        | Cesu8CharType::FirstHalfOfSurrogate => (None, cesu8),
         Cesu8CharType::SecondHalfOfSurrogate => (
             Some(vec![cesu8[0], cesu8[1], cesu8[2]]),
             cesu8[3..].to_vec(),
@@ -112,7 +110,7 @@ pub(crate) fn split_off_orphaned_surrogates(cesu8: Vec<u8>) -> HdbResult<CharLob
 
 // find first cesu8-start,
 // find tail
-// determine in-between (can be empty)
+// determine in-between
 #[allow(clippy::ptr_arg)]
 pub(crate) fn split_off_orphaned_bytes(cesu8: &Vec<u8>) -> CharLobSlice {
     let mut split = 0;
@@ -122,7 +120,6 @@ pub(crate) fn split_off_orphaned_bytes(cesu8: &Vec<u8>) -> CharLobSlice {
             | Cesu8CharType::Two
             | Cesu8CharType::Three
             | Cesu8CharType::FirstHalfOfSurrogate
-            | Cesu8CharType::Empty
             | Cesu8CharType::TooShort => start,
             Cesu8CharType::SecondHalfOfSurrogate => start + 3,
             Cesu8CharType::NotAStart => {
@@ -210,7 +207,6 @@ where
 
 #[derive(Debug)]
 enum Cesu8CharType {
-    Empty,
     TooShort,
     NotAStart,
     One,   // ...plain ascii
@@ -234,7 +230,7 @@ mod tests {
 			redigeras och köras! 💩T💩e💩n💩t💩o kód můžete upravit a spustit \
             این کد قابلیت ویرایش و اجرا دارد!โค้ดนี้สามารถแก้ไขได้และรัน";
 
-        let v_cesu8 = cesu8::to_cesu8(&s_utf8);
+        let v_cesu8 = cesu8::to_cesu8(s_utf8);
 
         assert_eq!(s_utf8, cesu8::from_cesu8(&v_cesu8).unwrap());
         for i in 0..v_cesu8.len() {

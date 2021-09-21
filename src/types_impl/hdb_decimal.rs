@@ -138,7 +138,10 @@ mod tests {
 
     #[test]
     fn test_all() {
-        flexi_logger::Logger::with_str("info").start().unwrap();
+        flexi_logger::Logger::try_with_str("info")
+            .unwrap()
+            .start()
+            .unwrap();
 
         str_2_big_2_hdb_2_big("1234.56780000");
         str_2_big_2_hdb_2_big("1234.5678");
@@ -193,7 +196,7 @@ mod tests {
     }
 
     fn big_2_hdb_2_big(bigdec: &BigDecimal) {
-        let hdbdec = HdbDecimal::from_bigdecimal(&bigdec).unwrap();
+        let hdbdec = HdbDecimal::from_bigdecimal(bigdec).unwrap();
         let (s, m, e) = hdbdec.clone().into_elements();
         let bigdec2 = hdbdec.clone().into_bigdecimal();
         debug!("bigdec:  {:?}", bigdec);

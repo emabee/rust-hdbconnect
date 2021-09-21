@@ -82,11 +82,11 @@ impl<'a> Parts<'a> {
     }
 
     pub fn reverse(&mut self) {
-        self.0.reverse()
+        self.0.reverse();
     }
 
     pub fn push(&mut self, part: Part<'a>) {
-        self.0.push(part)
+        self.0.push(part);
     }
     pub fn pop(&mut self) -> Option<Part<'a>> {
         self.0.pop()

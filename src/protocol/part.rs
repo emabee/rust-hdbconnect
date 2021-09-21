@@ -132,7 +132,7 @@ impl<'a> Part<'a> {
             Part::Auth(ref af) => size += af.size(),
             Part::ClientContext(ref opts) => size += opts.size(),
             Part::ClientInfo(ref client_info) => size += client_info.size(),
-            Part::Command(ref s) => size += util::cesu8_length(s),
+            Part::Command(s) => size += util::cesu8_length(s),
             Part::CommandInfo(ref opts) => size += opts.size(),
             // Part::CommitOptions(ref opts) => size += opts.size(),
             Part::ConnectOptions(ref conn_opts) => size += conn_opts.size(),
@@ -211,7 +211,7 @@ impl<'a> Part<'a> {
             Part::Auth(ref af) => af.emit(w)?,
             Part::ClientContext(ref opts) => opts.emit(w)?,
             Part::ClientInfo(ref client_info) => client_info.emit(w)?,
-            Part::Command(ref s) => w.write_all(&cesu8::to_cesu8(s))?,
+            Part::Command(s) => w.write_all(&cesu8::to_cesu8(s))?,
             Part::CommandInfo(ref opts) => opts.emit(w)?,
             // Part::CommitOptions(ref opts) => opts.emit(w)?,
             Part::ConnectOptions(ref conn_opts) => conn_opts.emit(w)?,
@@ -291,9 +291,7 @@ impl<'a> Part<'a> {
 
         let padsize = 7 - (arg_size + 7) % 8;
         match (kind, last) {
-            (PartKind::ResultSet, true)
-            | (PartKind::ResultSetId, true)
-            | (PartKind::ReadLobReply, true)
+            (PartKind::ResultSet | PartKind::ResultSetId | PartKind::ReadLobReply, true)
             | (PartKind::Error, _) => {}
             (_, _) => {
                 for _ in 0..padsize {

@@ -171,10 +171,7 @@ impl Connection {
     ///
     /// Several variants of `HdbError` can occur.
     pub fn prepare<S: AsRef<str>>(&self, stmt: S) -> HdbResult<PreparedStatement> {
-        Ok(PreparedStatement::try_new(
-            self.am_conn_core.clone(),
-            stmt.as_ref(),
-        )?)
+        PreparedStatement::try_new(self.am_conn_core.clone(), stmt.as_ref())
     }
 
     /// Prepares a statement and executes it a single time.
@@ -536,7 +533,7 @@ impl Connection {
             ClientContextId::ClientVersion,
             ClientContextId::ClientApplicationProgramm,
         ] {
-            if let Some((k, OptionValue::STRING(s))) = cc.remove_entry(&k) {
+            if let Some((k, OptionValue::STRING(s))) = cc.remove_entry(k) {
                 result.push((k.to_string(), s));
             }
         }

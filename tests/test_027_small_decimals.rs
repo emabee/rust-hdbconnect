@@ -53,7 +53,7 @@ fn test_small_decimals(
         f2_nn: BigDecimal,
         #[serde(rename = "F3_NN")]
         f3_nn: u32,
-    };
+    }
 
     let insert_stmt_str =
         "insert into TEST_SMALL_DECIMALS (F1, F2, F2_NN, F3_NN) values(?, ?, ?, ?)";

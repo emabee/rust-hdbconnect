@@ -11,7 +11,7 @@ impl AuthFields {
         let field_count = rdr.read_u16::<LittleEndian>()? as usize; // I2
         let mut auth_fields: Self = Self(Vec::<AuthField>::with_capacity(field_count));
         for _ in 0..field_count {
-            auth_fields.0.push(AuthField::parse(rdr)?)
+            auth_fields.0.push(AuthField::parse(rdr)?);
         }
         Ok(auth_fields)
     }
@@ -39,10 +39,10 @@ impl AuthFields {
     }
 
     pub fn push(&mut self, vec: Vec<u8>) {
-        self.0.push(AuthField::new(vec))
+        self.0.push(AuthField::new(vec));
     }
     pub fn push_string(&mut self, s: &str) {
-        self.0.push(AuthField::new(s.as_bytes().to_vec()))
+        self.0.push(AuthField::new(s.as_bytes().to_vec()));
     }
 }
 

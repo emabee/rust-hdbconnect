@@ -53,7 +53,7 @@ impl AmConnCore {
         let mut conn_core = self.lock()?;
         conn_core.augment_request(&mut request);
 
-        match conn_core.roundtrip_sync(&request, Some(&self), o_a_rsmd, o_a_descriptors, o_rs) {
+        match conn_core.roundtrip_sync(&request, Some(self), o_a_rsmd, o_a_descriptors, o_rs) {
             Ok(reply) => {
                 trace!(
                     "full_send_sync() took {} ms",
@@ -67,7 +67,7 @@ impl AmConnCore {
                 debug!("full_send_sync(): reconnecting after ConnectionReset error...");
                 conn_core.reconnect()?;
                 debug!("full_send_sync(): repeating request after reconnect...");
-                conn_core.roundtrip_sync(&request, Some(&self), o_a_rsmd, o_a_descriptors, o_rs)
+                conn_core.roundtrip_sync(&request, Some(self), o_a_rsmd, o_a_descriptors, o_rs)
             }
             Err(e) => Err(e),
         }

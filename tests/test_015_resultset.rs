@@ -58,7 +58,7 @@ fn evaluate_resultset(
         f3: i32,
         #[serde(rename = "F4_DT")]
         f4: NaiveDateTime,
-    };
+    }
 
     let query_str = "select * from TEST_RESULTSET";
 
@@ -137,7 +137,7 @@ fn verify_row_ordering(
     _log_handle: &mut LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
-    _log_handle.parse_and_push_temp_spec("info");
+    _log_handle.parse_and_push_temp_spec("info").unwrap();
     // , hdbconnect::protocol::request = trace, hdbconnect::conn::tcp::sync::tls_tcp_client = debug
     info!("verify row ordering with various fetch sizes");
     // prepare the db table

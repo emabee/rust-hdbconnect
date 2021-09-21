@@ -154,7 +154,7 @@ impl<'a> HdbValue<'a> {
                 HdbValue::INT(i) => w.write_i32::<LittleEndian>(i)?,
                 HdbValue::BIGINT(i) => w.write_i64::<LittleEndian>(i)?,
                 HdbValue::DECIMAL(ref bigdec) => {
-                    decimal::emit(bigdec, descriptor.type_id(), descriptor.scale(), w)?
+                    decimal::emit(bigdec, descriptor.type_id(), descriptor.scale(), w)?;
                 }
                 HdbValue::REAL(f) => w.write_f32::<LittleEndian>(f)?,
                 HdbValue::DOUBLE(f) => w.write_f64::<LittleEndian>(f)?,
@@ -168,7 +168,7 @@ impl<'a> HdbValue<'a> {
                 HdbValue::STR(s) => emit_length_and_string(s, w)?,
                 HdbValue::STRING(ref s) => emit_length_and_string(s, w)?,
                 HdbValue::BINARY(ref v) | HdbValue::GEOMETRY(ref v) | HdbValue::POINT(ref v) => {
-                    emit_length_and_bytes(v, w)?
+                    emit_length_and_bytes(v, w)?;
                 }
                 _ => {
                     return Err(util::io_error(format!(
@@ -546,7 +546,10 @@ fn parse_string(
         }
     } else {
         let s =
-            util::string_from_cesu8(parse_length_and_bytes(l8, rdr)?).map_err(util::io_error)?;
+            util::string_from_cesu8(parse_length_and_bytes(l8, rdr)?).map_err(|cesu8_error| {
+                trace!("parse_string: {:?}", cesu8_error);
+                util::io_error(cesu8_error)
+            })?;
         Ok(match type_id {
             TypeId::CHAR
             | TypeId::VARCHAR

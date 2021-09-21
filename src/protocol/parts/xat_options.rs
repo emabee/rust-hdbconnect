@@ -1,8 +1,5 @@
-use crate::HdbResult;
-
 use crate::protocol::parts::option_part::{OptionId, OptionPart};
 use crate::protocol::parts::option_value::OptionValue;
-
 use dist_tx::rm::{Flags, RmRc};
 use dist_tx::tm::XaTransactionId;
 
@@ -10,7 +7,7 @@ use dist_tx::tm::XaTransactionId;
 pub(crate) type XatOptions = OptionPart<XatOptionId>;
 
 impl XatOptions {
-    pub fn set_xatid(&mut self, xat_id: &XaTransactionId) {
+    pub(crate) fn set_xatid(&mut self, xat_id: &XaTransactionId) {
         self.insert(XatOptionId::NumberOfXid, OptionValue::BIGINT(1));
         self.insert(
             XatOptionId::XidList,
@@ -18,7 +15,7 @@ impl XatOptions {
         );
     }
 
-    pub fn set_flags(&mut self, flag: Flags) {
+    pub(crate) fn set_flags(&mut self, flag: Flags) {
         #[allow(clippy::cast_possible_wrap)]
         self.insert(XatOptionId::Flags, OptionValue::INT(flag.bits() as i32));
     }
@@ -31,7 +28,7 @@ impl XatOptions {
     //     self.set_value(XatOptionId::OnePhase, OptionValue::BOOLEAN(one_phase));
     // }
 
-    pub fn get_returncode(&self) -> Option<RmRc> {
+    pub(crate) fn get_returncode(&self) -> Option<RmRc> {
         for (id, value) in self.iter() {
             if let XatOptionId::Returncode = *id {
                 if let OptionValue::INT(ref number) = *value {
@@ -43,7 +40,7 @@ impl XatOptions {
     }
 
     #[allow(clippy::cast_sign_loss)]
-    pub fn get_transactions(&self) -> HdbResult<Vec<XaTransactionId>> {
+    pub(crate) fn get_transactions(&self) -> Vec<XaTransactionId> {
         let mut xid_count = 0;
         for (id, value) in self.iter() {
             if let XatOptionId::NumberOfXid = *id {
@@ -57,13 +54,13 @@ impl XatOptions {
             for (id, value) in self.iter() {
                 if let XatOptionId::XidList = *id {
                     if let OptionValue::BSTRING(ref bytes) = *value {
-                        return Ok(XaTransactionId::parse(bytes, xid_count, true).unwrap(/*TODO*/));
+                        return XaTransactionId::parse(bytes, xid_count, true).unwrap(/*TODO*/);
                     }
                 }
             }
         }
 
-        Ok(Vec::<XaTransactionId>::new())
+        Vec::<XaTransactionId>::new()
     }
 }
 

@@ -27,7 +27,7 @@ impl SessionState {
             #[allow(clippy::cast_possible_truncation)]
             match (id, value) {
                 (TaFlagId::RolledBack, OptionValue::BOOLEAN(true)) => {
-                    self.ta_state = TransactionState::RolledBack
+                    self.ta_state = TransactionState::RolledBack;
                 }
                 (TaFlagId::Committed, OptionValue::BOOLEAN(true)) => {
                     self.ta_state = TransactionState::Committed;

@@ -139,7 +139,7 @@ impl std::io::Read for BLob {
     }
 }
 
-// `BLobHandle` is used for BLobs that we receive from the database.
+// `BLobHandle` is used for blobs that we receive from the database.
 // The data are often not transferred completely, so we carry internally
 // a database connection and the necessary controls to support fetching
 // remaining data on demand.
@@ -167,10 +167,7 @@ impl BLobHandle {
         let data = VecDeque::from(data);
         Self {
             am_conn_core: am_conn_core.clone(),
-            o_am_rscore: match o_am_rscore {
-                Some(ref am_rscore) => Some(am_rscore.clone()),
-                None => None,
-            },
+            o_am_rscore: o_am_rscore.as_ref().cloned(),
             total_byte_length,
             is_data_complete,
             locator_id,
@@ -276,7 +273,7 @@ impl std::io::Read for BLobHandle {
             buf.write_all(&s1[0..count])?;
         } else {
             // write s1 completely, then take the rest from s2
-            buf.write_all(&s1)?;
+            buf.write_all(s1)?;
             buf.write_all(&s2[0..(count - s1.len())])?;
         }
         self.data.drain(0..count);

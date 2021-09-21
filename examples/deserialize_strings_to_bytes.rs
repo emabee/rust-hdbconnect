@@ -18,7 +18,10 @@ fn get_authenticated_connection() -> HdbResult<Connection> {
 }
 
 pub fn main() {
-    Logger::with_env_or_str("info").start().unwrap();
+    Logger::try_with_env_or_str("info")
+        .unwrap()
+        .start()
+        .unwrap();
 
     match run() {
         Err(e) => {

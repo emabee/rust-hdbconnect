@@ -86,7 +86,7 @@ impl CResourceManager for HdbCResourceManager {
             reply.parts.drop_parts_of_kind(PartKind::StatementContext);
             match reply.parts.pop() {
                 Some(Part::XatOptions(xat_options)) => {
-                    return Ok(xat_options.get_transactions()?);
+                    return Ok(xat_options.get_transactions());
                 }
                 Some(part) => warn!("recover: found unexpected part {:?}", part),
                 None => warn!("recover: did not find next part"),
@@ -133,7 +133,7 @@ impl HdbCResourceManager {
         self.xa_send_receive_impl(request_type, id, flag)
             .map(|opt| opt.unwrap_or(RmRc::Ok))
             .map_err(|hdb_error| {
-                if let Some(ref server_error) = hdb_error.server_error() {
+                if let Some(server_error) = hdb_error.server_error() {
                     return RmError::new(
                         error_code_from_hana_code(server_error.code()),
                         server_error.text().to_string(),

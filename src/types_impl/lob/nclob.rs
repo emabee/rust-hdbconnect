@@ -195,10 +195,7 @@ impl NCLobHandle {
 
         let nclob_handle = Self {
             am_conn_core: am_conn_core.clone(),
-            o_am_rscore: match o_am_rscore {
-                Some(ref am_rscore) => Some(am_rscore.clone()),
-                None => None,
-            },
+            o_am_rscore: o_am_rscore.as_ref().cloned(),
             total_char_length,
             total_byte_length,
             is_data_complete,
@@ -233,7 +230,7 @@ impl NCLobHandle {
             &mut self.server_usage,
         )?;
         debug!("read_slice(): got {} bytes", reply_data.len());
-        Ok(util::split_off_orphaned_surrogates(reply_data)?)
+        util::split_off_orphaned_surrogates(reply_data)
     }
 
     fn total_byte_length(&self) -> u64 {

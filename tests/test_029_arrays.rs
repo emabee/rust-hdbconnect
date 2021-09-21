@@ -71,7 +71,9 @@ fn test_arrays(log_handle: &mut LoggerHandle, connection: &mut Connection) -> Hd
         panic!("not an array");
     }
 
-    log_handle.parse_new_spec("info, hdbconnect::protocol::parts::hdb_value = debug");
+    log_handle
+        .parse_new_spec("info, hdbconnect::protocol::parts::hdb_value = debug")
+        .unwrap();
 
     let value = connection
         .query("select val from TEST_INTEGER_ARRAYS where id = 3")?

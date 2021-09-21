@@ -111,7 +111,7 @@ pub(crate) fn second_auth_request(
                 .digest_server_connect_options(received_co),
             Part::Auth(mut af) => match (af.pop(), af.pop(), af.pop()) {
                 (Some(server_proof), Some(method), None) => {
-                    chosen_authenticator.evaluate_second_response(&method, &server_proof)?
+                    chosen_authenticator.evaluate_second_response(&method, &server_proof)?;
                 }
                 (_, _, _) => return Err(HdbError::Impl("Expected 2 authfields")),
             },

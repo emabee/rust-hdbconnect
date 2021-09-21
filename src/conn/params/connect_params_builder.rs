@@ -258,10 +258,10 @@ impl<'de> serde::de::Visitor<'de> for Visitor {
     }
 }
 
-impl Into<String> for ConnectParamsBuilder {
-    fn into(mut self) -> String {
-        self.unset_password();
-        self.to_string()
+impl From<ConnectParamsBuilder> for String {
+    fn from(mut cpb: ConnectParamsBuilder) -> String {
+        cpb.unset_password();
+        cpb.to_string()
     }
 }
 

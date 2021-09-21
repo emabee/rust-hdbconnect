@@ -15,7 +15,8 @@ const DB: &str = "./.private/mei.db";
 // For CI/CD, we could change the code here to e.g. react on env settings
 // that allow the CI/CD infrastructure to have the logs written to files in a directory.
 pub fn init_logger() -> LoggerHandle {
-    Logger::with_env_or_str("info")
+    Logger::try_with_env_or_str("info")
+        .unwrap()
         // .log_to_file()
         // .suppress_timestamp()
         // .directory("test_logs")

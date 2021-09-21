@@ -180,23 +180,19 @@ impl TypeId {
         // From To Conversions
         #[allow(clippy::match_same_arms)]
         match (value_type, self) {
-            (Self::BOOLEAN, Self::TINYINT)
-            | (Self::BOOLEAN, Self::SMALLINT)
-            | (Self::BOOLEAN, Self::INT)
-            | (Self::BOOLEAN, Self::BIGINT) => return Ok(()),
+            (Self::BOOLEAN, Self::TINYINT | Self::SMALLINT | Self::INT | Self::BIGINT) => {
+                return Ok(())
+            }
 
             // no clear strategy for GEO stuff yet, so be restrictive
-            (Self::STRING, Self::GEOMETRY) | (Self::STRING, Self::POINT) => {}
+            (Self::STRING, Self::GEOMETRY | Self::POINT) => {}
             (Self::STRING, _) => return Ok(()), // Allow all other cases
 
-            (Self::BINARY, Self::BLOB)
-            | (Self::BINARY, Self::BLOCATOR)
-            | (Self::BINARY, Self::VARBINARY)
-            | (Self::BINARY, Self::GEOMETRY)
-            | (Self::BINARY, Self::POINT)
-            | (Self::DECIMAL, Self::FIXED8)
-            | (Self::DECIMAL, Self::FIXED12)
-            | (Self::DECIMAL, Self::FIXED16) => return Ok(()),
+            (
+                Self::BINARY,
+                Self::BLOB | Self::BLOCATOR | Self::VARBINARY | Self::GEOMETRY | Self::POINT,
+            )
+            | (Self::DECIMAL, Self::FIXED8 | Self::FIXED12 | Self::FIXED16) => return Ok(()),
 
             _ => {}
         }

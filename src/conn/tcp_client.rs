@@ -55,6 +55,6 @@ impl TcpClient {
 }
 impl Drop for TcpClient {
     fn drop(&mut self) {
-        trace!("Drop of TcpClient")
+        trace!("Drop of TcpClient");
     }
 }

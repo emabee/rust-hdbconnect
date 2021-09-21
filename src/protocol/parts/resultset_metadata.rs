@@ -41,14 +41,14 @@ pub(crate) fn parse_resultset_metadata(
 
         let type_id = TypeId::try_new(type_code)?;
         let fm = InnerFieldMetadata {
+            schemaname_idx,
+            tablename_idx,
+            columnname_idx,
+            displayname_idx,
             column_options,
             type_id,
             scale,
             precision,
-            tablename_idx,
-            schemaname_idx,
-            columnname_idx,
-            displayname_idx,
         };
         inner_fms.push(fm);
     }

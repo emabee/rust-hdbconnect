@@ -203,7 +203,6 @@ impl ConnectParams {
                     }
                 },
                 ServerCerts::Directory(trust_anchor_dir) => {
-                    #[allow(clippy::filter_map)]
                     let trust_anchor_files: Vec<PathBuf> = std::fs::read_dir(trust_anchor_dir)?
                         .filter_map(Result::ok)
                         .filter(|dir_entry| {
@@ -372,7 +371,7 @@ mod tests {
                 ?tls_certificate_dir=TCD\
                 &use_mozillas_root_certificates&client_locale=CL1"
                     .to_owned() // no password
-            )
+            );
         }
         {
             let params = "hdbsqls://meier:schLau@abcd123:2222\
@@ -386,7 +385,7 @@ mod tests {
             assert_eq!(
                 params.to_string(),
                 "hdbsqls://meier@abcd123:2222?insecure_omit_server_certificate_check".to_owned() // no password
-            )
+            );
         }
     }
 

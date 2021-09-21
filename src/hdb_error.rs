@@ -131,7 +131,7 @@ impl HdbError {
         match self {
             Self::DbError {
                 source: server_error,
-            } => Some(&server_error),
+            } => Some(server_error),
             _ => None,
         }
     }

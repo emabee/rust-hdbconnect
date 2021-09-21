@@ -35,7 +35,9 @@ fn connect_successfully(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
 
 fn reconnect(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
     info!("test reconnect");
-    _log_handle.parse_and_push_temp_spec("info, hdbconnect::conn= debug, test=debug");
+    _log_handle
+        .parse_and_push_temp_spec("info, hdbconnect::conn= debug, test=debug")
+        .unwrap();
     let cpb = test_utils::get_std_redirect_cp_builder()?;
     debug!("Attempting connect to {}", cpb.to_url()?);
     let _conn = Connection::new(cpb)?;
@@ -45,7 +47,9 @@ fn reconnect(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
 
 fn connect_options(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
     info!("test connect options");
-    _log_handle.parse_and_push_temp_spec("info, test = debug");
+    _log_handle
+        .parse_and_push_temp_spec("info, test = debug")
+        .unwrap();
     let connection = test_utils::get_authenticated_connection()?;
 
     debug!(
@@ -59,7 +63,9 @@ fn connect_options(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
 
 fn client_info(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
     info!("client info");
-    _log_handle.parse_and_push_temp_spec("info, test = debug");
+    _log_handle
+        .parse_and_push_temp_spec("info, test = debug")
+        .unwrap();
     let mut connection = test_utils::get_authenticated_connection().unwrap();
     let connection_id: i32 = connection.id()?;
 

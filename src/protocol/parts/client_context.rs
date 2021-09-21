@@ -88,6 +88,6 @@ impl std::fmt::Display for ClientContextId {
 mod test {
     #[test]
     fn test_to_string() {
-        println!("{}", super::ClientContext::new())
+        println!("{}", super::ClientContext::new());
     }
 }

@@ -76,10 +76,10 @@ impl ConnectOptions {
                                 "Server changes ConnectionOption {:?} from value {:?} \
                                  to {:?}",
                                 k, old_value, v
-                            )
+                            );
                         }
                     } else {
-                        debug!("Got from server ConnectionOption: {:?} = {:?}", k, v)
+                        debug!("Got from server ConnectionOption: {:?} = {:?}", k, v);
                     }
                     self.insert(k, v);
                 }

@@ -30,10 +30,7 @@ pub fn test_042_numeric_conversion() -> HdbResult<()> {
 }
 
 #[allow(clippy::cognitive_complexity)]
-fn test_tiny_int(
-    _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
-) -> HdbResult<()> {
+fn test_tiny_int(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
     connection.multiple_statements_ignore_err(vec!["drop table TEST_NUMERIC_CONVERSION"]);
     let stmts = vec!["create table TEST_NUMERIC_CONVERSION (TINYINT TINYINT)"];
     connection.multiple_statements(stmts)?;
@@ -150,10 +147,7 @@ fn test_tiny_int(
 }
 
 #[allow(clippy::cognitive_complexity)]
-fn test_small_int(
-    _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
-) -> HdbResult<()> {
+fn test_small_int(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
     connection.multiple_statements_ignore_err(vec!["drop table TEST_NUMERIC_CONVERSION"]);
     let stmts = vec!["create table TEST_NUMERIC_CONVERSION (SMALLINT SMALLINT)"];
     connection.multiple_statements(stmts)?;
@@ -278,10 +272,7 @@ fn test_small_int(
 }
 
 #[allow(clippy::cognitive_complexity)]
-fn test_integer(
-    _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
-) -> HdbResult<()> {
+fn test_integer(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
     connection.multiple_statements_ignore_err(vec!["drop table TEST_NUMERIC_CONVERSION"]);
     let stmts = vec!["create table TEST_NUMERIC_CONVERSION (INTEGER INTEGER)"];
     connection.multiple_statements(stmts)?;
@@ -400,10 +391,7 @@ fn test_integer(
 }
 
 #[allow(clippy::cognitive_complexity)]
-fn test_big_int(
-    _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
-) -> HdbResult<()> {
+fn test_big_int(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
     connection.multiple_statements_ignore_err(vec!["drop table TEST_NUMERIC_CONVERSION"]);
     let stmts = vec!["create table TEST_NUMERIC_CONVERSION (BIGINT BIGINT)"];
     connection.multiple_statements(stmts)?;
@@ -529,10 +517,7 @@ fn test_big_int(
 }
 
 #[allow(clippy::cognitive_complexity)]
-fn test_decimal(
-    _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
-) -> HdbResult<()> {
+fn test_decimal(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
     connection.multiple_statements_ignore_err(vec!["drop table TEST_NUMERIC_CONVERSION"]);
     let stmts = vec!["create table TEST_NUMERIC_CONVERSION (DECIMAL DECIMAL)"];
     connection.multiple_statements(stmts)?;
@@ -622,10 +607,7 @@ fn test_decimal(
     Ok(())
 }
 
-fn conversion_error(
-    _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
-) -> HdbResult<()> {
+fn conversion_error(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
     connection.multiple_statements_ignore_err(vec!["drop table TEST_NUMERIC_CONVERSION"]);
     let stmts = vec!["create table TEST_NUMERIC_CONVERSION (TEXT NVARCHAR(50))"];
     connection.multiple_statements(stmts)?;

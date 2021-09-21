@@ -77,7 +77,7 @@ fn test_025_decimals_impl(
         f1: String,
         #[serde(rename = "F2")]
         f2: BigDecimal,
-    };
+    }
 
     let insert_stmt_str = "insert into TEST_DECIMALS (F1, F2) values(?, ?)";
 

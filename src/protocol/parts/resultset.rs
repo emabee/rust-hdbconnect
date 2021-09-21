@@ -164,7 +164,7 @@ impl RsState {
             let am_conn_core: &AmConnCore = &rscore.am_conn_core;
             let o_am_rscore = Some(am_rscore.clone());
             for i in 0..no_of_rows {
-                let row = Row::parse(Arc::clone(&metadata), &o_am_rscore, am_conn_core, rdr)?;
+                let row = Row::parse(Arc::clone(metadata), &o_am_rscore, am_conn_core, rdr)?;
                 trace!("parse_rows(): Found row #{}: {}", i, row);
                 self.next_rows.push(row);
             }
@@ -483,7 +483,7 @@ impl ResultSet {
                     rscore.attributes = attributes;
                 }
                 let a_rsmd = if let Some(a_rsmd) = o_a_rsmd {
-                    Arc::clone(&a_rsmd)
+                    Arc::clone(a_rsmd)
                 } else {
                     return Err(util::io_error("RsState provided without RsMetadata"));
                 };

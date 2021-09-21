@@ -102,9 +102,9 @@ impl std::io::Write for Stream {
                 self.is_handshaking = false;
 
                 if let Some(protocol) = client_session.get_protocol_version() {
-                    debug!("Protocol {:?} negotiated", protocol)
+                    debug!("Protocol {:?} negotiated", protocol);
                 } else {
-                    debug!("No TLS Protocol negotiated")
+                    debug!("No TLS Protocol negotiated");
                 }
             }
 
@@ -147,6 +147,6 @@ impl std::io::Read for Stream {
             }
         }
 
-        client_session.read(&mut buffer[..])
+        client_session.read(&mut *buffer)
     }
 }

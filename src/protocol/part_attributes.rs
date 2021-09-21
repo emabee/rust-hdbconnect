@@ -86,18 +86,18 @@ mod test {
     #[test]
     fn test_part_attributes() {
         let no = PartAttributes::new(0);
-        assert_eq!(false, no.has_next_packet());
-        assert_eq!(false, no.is_first_packet());
-        assert_eq!(false, no.is_last_packet());
-        assert_eq!(false, no.resultset_is_closed());
-        assert_eq!(false, no.row_not_found());
+        assert!(!no.has_next_packet());
+        assert!(!no.is_first_packet());
+        assert!(!no.is_last_packet());
+        assert!(!no.resultset_is_closed());
+        assert!(!no.row_not_found());
 
         let yes = PartAttributes::new(0b_0001_1111);
-        assert_eq!(true, yes.has_next_packet());
-        assert_eq!(true, yes.is_first_packet());
-        assert_eq!(true, yes.is_last_packet());
-        assert_eq!(true, yes.resultset_is_closed());
-        assert_eq!(true, yes.row_not_found());
+        assert!(yes.has_next_packet());
+        assert!(yes.is_first_packet());
+        assert!(yes.is_last_packet());
+        assert!(yes.resultset_is_closed());
+        assert!(yes.row_not_found());
 
         let s_no = format!("{:?}", no);
         let s_yes = format!("{:?}", yes);
