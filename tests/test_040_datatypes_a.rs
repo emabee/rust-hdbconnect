@@ -151,6 +151,7 @@ fn write(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResu
 }
 
 fn read(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
+    #[allow(dead_code)]
     #[derive(Debug, Deserialize)]
     #[allow(non_snake_case)]
     struct Data {

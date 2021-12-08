@@ -246,7 +246,10 @@ impl CLobHandle {
         self.cesu8.append(&mut VecDeque::from(reply_data));
         self.cesu8_tail_len = util::get_cesu8_tail_len(&self.cesu8, self.cesu8.len())?;
 
-        self.is_data_complete = reply_is_last_data;
+        if reply_is_last_data {
+            self.is_data_complete = true;
+            self.o_am_rscore = None;
+        }
         self.max_buf_len = std::cmp::max(self.cesu8.len(), self.max_buf_len);
 
         assert_eq!(

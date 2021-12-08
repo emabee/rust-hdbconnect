@@ -32,6 +32,7 @@ pub fn deser() -> HdbResult<()> {
     test_utils::closing_info(connection, start)
 }
 
+#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 struct TS<S, I, D> {
     #[serde(rename = "F1_S")]

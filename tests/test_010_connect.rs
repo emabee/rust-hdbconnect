@@ -3,7 +3,6 @@ extern crate serde;
 
 mod test_utils;
 
-use chrono::Local;
 use flexi_logger::LoggerHandle;
 use hdbconnect::{ConnectParams, Connection, HdbResult, IntoConnectParams};
 use log::*;
@@ -134,7 +133,7 @@ fn check_session_context(orig: bool, result: &[SessCtx]) {
 
 fn connect_wrong_credentials(_log_handle: &mut LoggerHandle) {
     info!("test connect failure on wrong credentials");
-    let start = Local::now();
+    let start = Instant::now();
     let mut cp_builder = test_utils::get_std_cp_builder().unwrap();
     cp_builder.dbuser("didi").password("blabla");
     let conn_params: ConnectParams = cp_builder.into_connect_params().unwrap();
@@ -143,10 +142,7 @@ fn connect_wrong_credentials(_log_handle: &mut LoggerHandle) {
     let err = Connection::new(conn_params).err().unwrap();
     info!(
         "connect with wrong credentials failed as expected, after {} µs with {}.",
-        Local::now()
-            .signed_duration_since(start)
-            .num_microseconds()
-            .unwrap(),
+        Instant::now().duration_since(start).as_micros(),
         err
     );
 }

@@ -626,8 +626,8 @@ fn conversion_error(_log_handle: &mut LoggerHandle, connection: &mut Connection)
     assert!(connection.query(QUERY)?.try_into::<Vec<i32>>().is_err());
     assert!(connection.query(QUERY)?.try_into::<Vec<u64>>().is_err());
     assert!(connection.query(QUERY)?.try_into::<Vec<i64>>().is_err());
-    assert!(connection.query(QUERY)?.try_into::<Vec<f32>>().is_err());
-    assert!(connection.query(QUERY)?.try_into::<Vec<f64>>().is_err());
+    assert!(connection.query(QUERY)?.try_into::<Vec<f32>>().is_ok());
+    assert!(connection.query(QUERY)?.try_into::<Vec<f64>>().is_ok());
 
     Ok(())
 }

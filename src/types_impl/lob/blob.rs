@@ -219,7 +219,10 @@ impl BLobHandle {
 
         self.acc_byte_length += reply_data.len();
         self.data.append(&mut VecDeque::from(reply_data));
-        self.is_data_complete = reply_is_last_data;
+        if reply_is_last_data {
+            self.is_data_complete = true;
+            self.o_am_rscore = None;
+        }
         self.max_buf_len = std::cmp::max(self.data.len(), self.max_buf_len);
 
         assert_eq!(

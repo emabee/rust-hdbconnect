@@ -269,7 +269,7 @@ pub enum ServerCerts {
     Environment(String),
     /// The Server Certificate is given directly.
     Direct(String),
-    /// Defines that the server roots from https://mkcert.org/ should be added to the
+    /// Defines that the server roots from <https://mkcert.org/> should be added to the
     /// trust store for TLS.
     RootCertificates,
     /// Defines that the server's identity is not validated. Don't use this

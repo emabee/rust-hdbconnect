@@ -2,10 +2,10 @@ use super::{crypto_util, Authenticator};
 use crate::protocol::parts::AuthFields;
 use crate::{HdbError, HdbResult};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
-use chrono::Local;
 use rand::{thread_rng, RngCore};
 use secstr::SecUtf8;
 use std::io::Write;
+use std::time::Instant;
 
 const CLIENT_PROOF_SIZE: u8 = 32;
 
@@ -41,7 +41,7 @@ impl Authenticator for ScramPbkdf2Sha256 {
         const CONTEXT_CLIENT_PROOF: &str = "ClientProof";
         let (salt, server_nonce, iterations) = parse_first_server_data(server_data)?;
 
-        let start = Local::now();
+        let start = Instant::now();
         let (client_proof, server_proof) = crypto_util::scram_pdkdf2_sha256(
             &salt,
             &server_nonce,
@@ -51,10 +51,7 @@ impl Authenticator for ScramPbkdf2Sha256 {
         );
         debug!(
             "pbkdf2 took {} µs",
-            Local::now()
-                .signed_duration_since(start)
-                .num_microseconds()
-                .unwrap_or(-1)
+            Instant::now().duration_since(start).as_micros(),
         );
 
         self.client_challenge.clear();

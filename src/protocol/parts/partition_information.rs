@@ -2,6 +2,7 @@ use crate::protocol::util;
 use byteorder::{LittleEndian, ReadBytesExt};
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct PartitionInformation {
     partition_method: PartitionMethod,
     parameter_descriptor: Vec<ParameterDescriptor>,
@@ -50,6 +51,7 @@ impl ParameterFunction {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy)]
 pub struct ParameterDescriptor {
     parameter_index: i32,
@@ -57,6 +59,7 @@ pub struct ParameterDescriptor {
     attribute_type: i8,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy)]
 pub struct Partitions {
     val1: i32,

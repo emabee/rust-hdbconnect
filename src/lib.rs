@@ -39,9 +39,6 @@ extern crate log;
 #[macro_use]
 extern crate serde;
 
-pub use r2d2;
-pub use serde_db;
-
 mod conn;
 mod hdb_error;
 mod hdb_response;
@@ -69,9 +66,11 @@ pub use crate::protocol::parts::{
     Severity, TypeId,
 };
 pub use crate::protocol::ServerUsage;
+pub use crate::serde_db_impl::{time, ToHana};
 pub use crate::sync_connection::Connection;
 pub use crate::sync_connection_manager::ConnectionManager;
 pub use crate::sync_prepared_statement::PreparedStatement;
+pub use r2d2;
 
 /// Non-standard types that are used within the
 /// [`HdbValue`](crate::HdbValue)s in a [`ResultSet`](crate::ResultSet).

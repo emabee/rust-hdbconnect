@@ -2,8 +2,8 @@ mod plain_sync_tcp_client;
 mod tls_sync_tcp_client;
 
 use crate::ConnectParams;
-use chrono::Local;
 use plain_sync_tcp_client::PlainSyncTcpClient;
+use std::time::Instant;
 use tls_sync_tcp_client::TlsSyncTcpClient;
 
 // A buffered tcp connection, with or without TLS.
@@ -18,7 +18,7 @@ impl TcpClient {
     // Constructs a buffered tcp connection, with or without TLS,
     // depending on the given connect parameters.
     pub fn try_new(params: ConnectParams) -> std::io::Result<Self> {
-        let start = Local::now();
+        let start = Instant::now();
         trace!("TcpClient: Connecting to {:?})", params.addr());
 
         let tcp_conn = if params.use_tls() {
@@ -30,10 +30,7 @@ impl TcpClient {
         trace!(
             "Connection of type {} is initialized ({} µs)",
             tcp_conn.s_type(),
-            Local::now()
-                .signed_duration_since(start)
-                .num_microseconds()
-                .unwrap_or(-1)
+            Instant::now().duration_since(start).as_micros(),
         );
         Ok(tcp_conn)
     }

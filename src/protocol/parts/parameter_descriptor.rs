@@ -67,6 +67,13 @@ impl ParameterDescriptors {
     }
 }
 
+impl std::ops::Index<usize> for ParameterDescriptors {
+    type Output = ParameterDescriptor;
+    fn index(&self, index: usize) -> &Self::Output {
+        self.0.index(index)
+    }
+}
+
 /// Metadata for a parameter.
 #[derive(Clone, Debug)]
 pub struct ParameterDescriptor {

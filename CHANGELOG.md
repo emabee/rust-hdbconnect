@@ -2,7 +2,12 @@
 
 ## [Unpublished] 2021-01-06
 
-Implement implicit redirect (the server can trigger a redirect in case that e.g. an SMVR failover 
+Add support for time crate (serde)
+
+- switch to serde_db 0.10
+- remove dependency to chrono (chrono support for serde remains)
+
+Implement implicit redirect (the server can trigger a redirect in case that e.g. an SMVR failover
 has taken place). IS NOT YET TESTED!
 
 ## [0.23.0] 2020-12-29

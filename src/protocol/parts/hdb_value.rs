@@ -256,7 +256,7 @@ impl HdbValue<'static> {
     ///
     /// `HdbError::DeserializationError` if the target type does not fit.
     pub fn try_into<'x, T: serde::Deserialize<'x>>(self) -> HdbResult<T> {
-        Ok(serde_db::de::DbValue::into_typed(self)?)
+        Ok(serde_db::de::DbValue::try_into(self)?)
     }
 
     /// Convert into `BLob`.

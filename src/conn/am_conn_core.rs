@@ -2,8 +2,8 @@ use crate::conn::ConnectionCore;
 use crate::protocol::parts::{ResultSetMetadata, RsState};
 use crate::protocol::{Reply, Request};
 use crate::{ConnectParams, HdbError, HdbResult, ParameterDescriptors};
-use chrono::Local;
 use std::sync::{Arc, LockResult, Mutex, MutexGuard};
+use std::time::Instant;
 
 // A thread-safe encapsulation of the ConnectionCore.
 #[derive(Debug)]
@@ -12,16 +12,13 @@ pub(crate) struct AmConnCore(Arc<Mutex<ConnectionCore>>);
 impl AmConnCore {
     pub fn try_new(conn_params: ConnectParams) -> HdbResult<Self> {
         trace!("trying to connect to {}", conn_params);
-        let start = Local::now();
+        let start = Instant::now();
         let conn_core = ConnectionCore::try_new(conn_params)?;
         {
             debug!(
                 "user \"{}\" successfully logged on ({} µs) to {:?} of {:?} (HANA version: {:?})",
                 conn_core.connect_params().dbuser(),
-                Local::now()
-                    .signed_duration_since(start)
-                    .num_microseconds()
-                    .unwrap_or(-1),
+                Instant::now().duration_since(start).as_micros(),
                 conn_core.connect_options().get_database_name(),
                 conn_core.connect_options().get_system_id(),
                 conn_core.connect_options().get_full_version_string()
@@ -49,7 +46,7 @@ impl AmConnCore {
             "AmConnCore::full_send() with requestType = {:?}",
             request.request_type,
         );
-        let start = Local::now();
+        let start = Instant::now();
         let mut conn_core = self.lock()?;
         conn_core.augment_request(&mut request);
 
@@ -57,7 +54,7 @@ impl AmConnCore {
             Ok(reply) => {
                 trace!(
                     "full_send_sync() took {} ms",
-                    (Local::now().signed_duration_since(start)).num_milliseconds()
+                    Instant::now().duration_since(start).as_millis(),
                 );
                 Ok(reply)
             }

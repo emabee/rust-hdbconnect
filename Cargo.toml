@@ -2,7 +2,7 @@
 name = "hdbconnect"
 version = "0.23.1-alpha"
 authors = ["emabee <meinolf.block@sap.com>","Pascal Seitz <pascal.seitz@gmail.com>"]
-edition = "2018"
+edition = "2021"
 license = "MIT/Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/emabee/rust-hdbconnect"
@@ -24,7 +24,6 @@ alpha_routing = []
 bigdecimal = {version = "0.3", features = ["serde"]}
 byteorder = "1.3"
 cesu8 = "1.1"
-chrono = { version = "0.4", features = ["serde"] }
 #dist_tx = {path = "../dist_tx"}
 dist_tx = "0.2"
 hex = "0.4"
@@ -40,10 +39,11 @@ rustls = {version = "0.19", features = ["dangerous_configuration"]}
 secstr = "0.4"
 serde = { version = "1.0", features = ["derive"] }
 #serde_db = { path = "../serde_db" }
-serde_db = "0.9"
+serde_db = "0.10"
 serde_json = "1.0"
 sha2 = "0.9.0"
-thiserror="1.0"
+thiserror = "1.0"
+time = {version = "0.3", features = ["formatting", "macros", "parsing", "serde"]}
 url = "2.1"
 username = "0.2"
 vec_map = "0.8"
@@ -51,9 +51,10 @@ webpki = "0.21"
 webpki-roots = "0.21"
 
 [dev-dependencies]
-serde_bytes = "0.11"
+chrono = { version = "0.4", features = ["serde"]}
 # flexi_logger = {path = "../flexi_logger"}
-flexi_logger = "0.19"
+flexi_logger = "0.20"
+serde_bytes = "0.11"
 version-sync = "0.9"
 # geo = "0.12"
 # geo-types = "0.4.1"

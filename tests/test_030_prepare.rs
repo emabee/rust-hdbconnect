@@ -37,6 +37,7 @@ fn prepare_insert_statement(
     let stmts = vec!["create table TEST_PREPARE (F1_S NVARCHAR(20), F2_I INT)"];
     connection.multiple_statements(stmts)?;
 
+    #[allow(dead_code)]
     #[derive(Deserialize, Debug)]
     struct TestStruct {
         #[serde(rename = "F1_S")]

@@ -1,6 +1,5 @@
 use crate::{HdbError, HdbValue, OutputParameters, ParameterDescriptor, ResultSet, Row};
 use bigdecimal::ToPrimitive;
-use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use serde_db::de::{
     ConversionError, DbValue, DbValueInto, DeserializableResultset, DeserializableRow,
     DeserializationError, DeserializationResult,
@@ -287,31 +286,6 @@ impl DbValueInto<String> for HdbValue<'static> {
                 .into_string()
                 .map_err(|e| ConversionError::Incomplete(e.to_string()))?),
             value => Err(wrong_type(&value, "String")),
-        }
-    }
-}
-
-impl DbValueInto<NaiveDateTime> for HdbValue<'static> {
-    fn try_into(self) -> Result<NaiveDateTime, ConversionError> {
-        trace!("try_into -> NaiveDateTime");
-        match self {
-            HdbValue::LONGDATE(ld) => {
-                let (year, month, day, hour, min, sec, frac) = ld.as_ymd_hms_f();
-                Ok(NaiveDateTime::new(
-                    NaiveDate::from_ymd(year, month, day),
-                    NaiveTime::from_hms_nano(hour, min, sec, frac * 100),
-                ))
-            }
-            HdbValue::SECONDDATE(sd) => {
-                let (year, month, day, hour, min, sec) = sd.as_ymd_hms();
-                Ok(NaiveDateTime::new(
-                    NaiveDate::from_ymd(year, month, day),
-                    NaiveTime::from_hms(hour, min, sec),
-                ))
-            }
-            _ => Err(ConversionError::ValueType(
-                "Not a LongDate or SecondDate value".to_owned(),
-            )),
         }
     }
 }

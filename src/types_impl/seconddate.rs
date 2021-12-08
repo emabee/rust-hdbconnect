@@ -51,7 +51,7 @@ impl SecondDate {
     #[allow(clippy::cast_possible_truncation)]
     #[allow(clippy::cast_precision_loss)]
     #[allow(clippy::cast_sign_loss)]
-    pub(crate) fn as_ymd_hms(&self) -> (i32, u32, u32, u32, u32, u32) {
+    pub(crate) fn as_ymd_hms(&self) -> (i32, u8, u8, u8, u8, u8) {
         let value = match self.0 {
             0 => 0, // maps the special value '' == 0 to '0001-01-01 00:00:00.000000000' = 1
             v => v - 1,
@@ -59,11 +59,11 @@ impl SecondDate {
 
         let datevalue = value / DAY_FACTOR;
         let mut timevalue = value - (datevalue * DAY_FACTOR);
-        let hour: u32 = (timevalue / HOUR_FACTOR) as u32;
+        let hour: u8 = (timevalue / HOUR_FACTOR) as u8;
         timevalue -= HOUR_FACTOR * (i64::from(hour));
-        let minute: u32 = (timevalue / MINUTE_FACTOR) as u32;
+        let minute: u8 = (timevalue / MINUTE_FACTOR) as u8;
         timevalue -= MINUTE_FACTOR * (i64::from(minute));
-        let second: u32 = (timevalue / SECOND_FACTOR) as u32;
+        let second: u8 = (timevalue / SECOND_FACTOR) as u8;
 
         let julian: i64 = datevalue + ZEITENWENDE;
         let ja: i64 = if julian >= JGREG {
@@ -78,8 +78,8 @@ impl SecondDate {
         let jd: i64 = ((365 * jc) as f64 + (0.25_f64 * jc as f64)) as i64;
         let je: i64 = ((jb - jd) as f64 / 30.6001) as i64;
 
-        let day: u32 = (jb - jd - ((30.6001 * je as f64) as i64)) as u32;
-        let mut month: u32 = je as u32 - 1;
+        let day: u8 = (jb - jd - ((30.6001 * je as f64) as i64)) as u8;
+        let mut month: u8 = je as u8 - 1;
         let mut year: i32 = jc as i32 - 4715;
 
         if month > 12 {

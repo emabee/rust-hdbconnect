@@ -29,7 +29,7 @@ impl OutputParameters {
         T: serde::de::Deserialize<'de>,
     {
         trace!("OutputParameters::into_typed()");
-        Ok(DeserializableRow::into_typed(
+        Ok(DeserializableRow::try_into(
             DeserializableOutputParameters::new(self),
         )?)
     }

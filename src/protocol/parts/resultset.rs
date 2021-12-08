@@ -278,7 +278,7 @@ impl ResultSet {
         T: serde::de::Deserialize<'de>,
     {
         trace!("Resultset::try_into()");
-        Ok(DeserializableResultset::into_typed(self)?)
+        Ok(DeserializableResultset::try_into(self)?)
     }
 
     /// Converts the resultset into a single row.

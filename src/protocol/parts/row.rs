@@ -37,7 +37,7 @@ impl Row {
         T: serde::de::Deserialize<'de>,
     {
         trace!("Row::into_typed()");
-        Ok(DeserializableRow::into_typed(self)?)
+        Ok(DeserializableRow::try_into(self)?)
     }
 
     /// Removes and returns the next value.
