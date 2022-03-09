@@ -3,14 +3,14 @@ use std::cell::RefCell;
 use tokio::net::TcpStream;
 
 #[derive(Debug)]
-pub struct AsyncPlainConnection {
+pub struct PlainAsyncTcpClient {
     params: ConnectParams,
     reader: RefCell<tokio::io::BufReader<TcpStream>>,
     writer: RefCell<tokio::io::BufWriter<TcpStream>>,
 }
 
-impl AsyncPlainConnection {
-    /// Returns an initialized plain tcp connection
+impl PlainAsyncTcpClient {
+    // Returns an initialized plain async tcp connection
     pub async fn try_new(params: ConnectParams) -> std::io::Result<Self> {
         let std_tcpstream = std::net::TcpStream::connect(params.addr())?;
 

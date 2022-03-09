@@ -52,11 +52,19 @@ pub(crate) use self::{
     xat_options::XatOptions,
 };
 pub use self::{
-    execution_result::ExecutionResult, hdb_value::HdbValue, output_parameters::OutputParameters,
-    parameter_descriptor::ParameterBinding, parameter_descriptor::ParameterDescriptor,
-    parameter_descriptor::ParameterDescriptors, parameter_descriptor::ParameterDirection,
-    resultset::ResultSet, resultset_metadata::ResultSetMetadata, row::Row,
-    server_error::ServerError, server_error::Severity, type_id::TypeId,
+    execution_result::ExecutionResult,
+    hdb_value::HdbValue,
+    output_parameters::OutputParameters,
+    parameter_descriptor::ParameterBinding,
+    parameter_descriptor::ParameterDescriptor,
+    parameter_descriptor::ParameterDescriptors,
+    parameter_descriptor::ParameterDirection,
+    resultset::{ResultSetAsync, ResultSetSync},
+    resultset_metadata::ResultSetMetadata,
+    row::Row,
+    server_error::ServerError,
+    server_error::Severity,
+    type_id::TypeId,
 };
 
 use super::{Part, PartKind};
@@ -153,7 +161,7 @@ impl Parts<'static> {
                 }
                 Part::ResultSetMetadata(rsmd) => {
                     if let Some(Part::ResultSetId(rs_id)) = parts.next() {
-                        let rs = ResultSet::new(
+                        let rs = ResultSetSync::new(
                             am_conn_core,
                             PartAttributes::new(0b_0000_0100),
                             rs_id,

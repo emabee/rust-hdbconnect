@@ -18,6 +18,7 @@ all-features = false
 [features]
 default = []
 alpha_routing = []
+async = ["tokio"]
 
 [dependencies]
 bigdecimal = {version = "0.1", features = ["serde"]}
@@ -47,6 +48,7 @@ username = "0.2"
 vec_map = "0.8"
 webpki = "0.21"
 webpki-roots = "0.19"
+tokio = {optional = true, version = "*", features = ["dns","io-util","tcp"]}
 
 [dev-dependencies]
 serde_bytes = "0.11"

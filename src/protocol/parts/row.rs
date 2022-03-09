@@ -98,7 +98,7 @@ impl Row {
         self.metadata.number_of_fields()
     }
 
-    pub(crate) fn parse(
+    pub(crate) fn parse_sync(
         md: std::sync::Arc<ResultSetMetadata>,
         o_am_rscore: &Option<AmRsCore>,
         am_conn_core: &AmConnCore,
@@ -110,14 +110,8 @@ impl Row {
             let (type_id, nullable, scale) = md
                 .typeid_nullable_scale(col_idx)
                 .map_err(|e| util::io_error(e.to_string()))?;
-            let value = HdbValue::parse_from_reply(
-                type_id,
-                scale,
-                nullable,
-                am_conn_core,
-                o_am_rscore,
-                rdr,
-            )?;
+            let value =
+                HdbValue::parse_sync(type_id, scale, nullable, am_conn_core, o_am_rscore, rdr)?;
             values.push(value);
         }
         let row = Self::new(md, values);

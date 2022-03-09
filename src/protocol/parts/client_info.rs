@@ -1,4 +1,6 @@
-use crate::protocol::parts::hdb_value::{emit_length_and_string, string_length};
+use crate::protocol::parts::hdb_value::{
+    emit_length_and_string_async, emit_length_and_string_sync, string_length,
+};
 use std::collections::HashMap;
 use std::env;
 use std::path::Path;
@@ -48,8 +50,19 @@ impl ClientInfo {
 
     pub fn emit(&self, w: &mut dyn std::io::Write) -> std::io::Result<()> {
         for (key, value) in &self.0 {
-            emit_length_and_string(key.get_string(), w)?;
-            emit_length_and_string(value, w)?;
+            emit_length_and_string_sync(key, w)?;
+            emit_length_and_string_sync(value, w)?;
+        }
+        Ok(())
+    }
+
+    pub async fn emit_async<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
+        &self,
+        w: &mut W,
+    ) -> std::io::Result<()> {
+        for (key, value) in &self.0 {
+            emit_length_and_string_async(key, w).await?;
+            emit_length_and_string_async(value, w).await?;
         }
         Ok(())
     }
@@ -57,7 +70,7 @@ impl ClientInfo {
     pub fn size(&self) -> usize {
         let mut len = 0;
         for (key, value) in &self.0 {
-            len += string_length(key.get_string()) + string_length(value);
+            len += string_length(key) + string_length(value);
         }
         len
     }
@@ -81,8 +94,8 @@ enum ClientInfoKey {
     DriverInfo,
     DriverVersion,
 }
-impl ClientInfoKey {
-    fn get_string(&self) -> &str {
+impl AsRef<str> for ClientInfoKey {
+    fn as_ref(&self) -> &str {
         match &self {
             Self::Application => "APPLICATION",
             Self::ApplicationVersion => "APPLICATIONVERSION",

@@ -9,7 +9,41 @@ use serde_db::de::DeserializableResultset;
 use std::fmt;
 use std::sync::{Arc, Mutex};
 
-pub(crate) type AmRsCore = Arc<Mutex<ResultSetCore>>;
+/// The result of a database query.
+///
+/// This is essentially a set of `Row`s, and each `Row` is a set of `HdbValue`s.
+///
+/// The method [`try_into`](#method.try_into) converts the data from this generic format
+/// in a singe step into your application specific format.
+///
+/// `ResultSet` implements `std::iter::Iterator`, so you can
+/// directly iterate over the rows of a resultset.
+/// While iterating, the not yet transported rows are fetched "silently" on demand, which can fail.
+/// The Iterator-Item is thus not `Row`, but `HdbResult<Row>`.
+///
+/// ```rust, no_run
+/// # use hdbconnect::{Connection,ConnectParams,HdbResult};
+/// # use serde::Deserialize;
+/// # fn main() -> HdbResult<()> {
+/// # #[derive(Debug, Deserialize)]
+/// # struct Entity();
+/// # let mut connection = Connection::new(ConnectParams::builder().build()?)?;
+/// # let query_string = "";
+/// for row in connection.query(query_string)? {
+///     // handle fetch errors and convert each line individually:
+///     let entity: Entity = row?.try_into()?;
+///     println!("Got entity: {:?}", entity);
+/// }
+/// # Ok(())
+/// # }
+///
+/// ```
+///
+#[derive(Debug)]
+pub struct ResultSetSync {
+    metadata: Arc<ResultSetMetadata>,
+    state: Arc<Mutex<RsState>>,
+}
 
 /// The result of a database query.
 ///
@@ -42,10 +76,12 @@ pub(crate) type AmRsCore = Arc<Mutex<ResultSetCore>>;
 /// ```
 ///
 #[derive(Debug)]
-pub struct ResultSet {
+pub struct ResultSetAsync {
     metadata: Arc<ResultSetMetadata>,
     state: Arc<Mutex<RsState>>,
 }
+
+pub(crate) type AmRsCore = Arc<Mutex<ResultSetCore>>;
 
 // the references to the connection (core) and the prepared statement (core)
 // ensure that they are not dropped before all missing content is fetched
@@ -150,7 +186,7 @@ impl RsState {
         }
     }
 
-    fn parse_rows(
+    fn parse_rows_sync(
         &mut self,
         no_of_rows: usize,
         metadata: &Arc<ResultSetMetadata>,
@@ -167,7 +203,7 @@ impl RsState {
             let am_conn_core: &AmConnCore = &rscore.am_conn_core;
             let o_am_rscore = Some(am_rscore.clone());
             for i in 0..no_of_rows {
-                let row = Row::parse(Arc::clone(&metadata), &o_am_rscore, am_conn_core, rdr)?;
+                let row = Row::parse_sync(Arc::clone(&metadata), &o_am_rscore, am_conn_core, rdr)?;
                 trace!("parse_rows(): Found row #{}: {}", i, row);
                 self.next_rows.push(row);
             }
@@ -218,7 +254,7 @@ impl Drop for ResultSetCore {
     }
 }
 
-impl ResultSet {
+impl ResultSetSync {
     /// Conveniently translates the complete resultset into a rust type that implements
     /// `serde::Deserialize` and has an adequate structure.
     /// The implementation of this method uses
@@ -402,7 +438,7 @@ impl ResultSet {
     // For first resultset packets, we create and return a new ResultSet object.
     // We then expect the previous three parts to be
     // a matching ResultSetMetadata, a ResultSetId, and a StatementContext.
-    pub(crate) fn parse(
+    pub(crate) fn parse_sync(
         no_of_rows: usize,
         attributes: PartAttributes,
         parts: &mut Parts,
@@ -439,7 +475,7 @@ impl ResultSet {
                 };
 
                 let rs = Self::new(am_conn_core, attributes, rs_id, a_rsmd, o_stmt_ctx);
-                rs.parse_rows(no_of_rows, rdr)?;
+                rs.parse_rows_sync(no_of_rows, rdr)?;
                 Ok(Some(rs))
             }
 
@@ -471,7 +507,7 @@ impl ResultSet {
                 } else {
                     return Err(util::io_error("RsState provided without RsMetadata"));
                 };
-                fetching_state.parse_rows(no_of_rows, &a_rsmd, rdr)?;
+                fetching_state.parse_rows_sync(no_of_rows, &a_rsmd, rdr)?;
                 Ok(None)
             }
         }
@@ -486,11 +522,15 @@ impl ResultSet {
             .server_usage
     }
 
-    fn parse_rows(&self, no_of_rows: usize, rdr: &mut dyn std::io::Read) -> std::io::Result<()> {
+    fn parse_rows_sync(
+        &self,
+        no_of_rows: usize,
+        rdr: &mut dyn std::io::Read,
+    ) -> std::io::Result<()> {
         self.state
             .lock()
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?
-            .parse_rows(no_of_rows, &self.metadata, rdr)
+            .parse_rows_sync(no_of_rows, &self.metadata, rdr)
     }
 
     pub(crate) fn inject_statement_id(&mut self, am_ps_core: AmPsCore) -> HdbResult<()> {
@@ -501,7 +541,7 @@ impl ResultSet {
     }
 }
 
-impl fmt::Display for ResultSet {
+impl fmt::Display for ResultSetSync {
     // Writes a header and then the data
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         writeln!(fmt, "{}\n", &self.metadata)?;
@@ -519,7 +559,7 @@ impl fmt::Display for ResultSet {
     }
 }
 
-impl Iterator for ResultSet {
+impl Iterator for ResultSetSync {
     type Item = HdbResult<Row>;
     fn next(&mut self) -> Option<HdbResult<Row>> {
         match self.next_row() {

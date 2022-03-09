@@ -15,12 +15,23 @@ impl ReadLobRequest {
             length,
         }
     }
-    pub fn emit(&self, w: &mut dyn std::io::Write) -> std::io::Result<()> {
+    pub fn emit_sync(&self, w: &mut dyn std::io::Write) -> std::io::Result<()> {
         trace!("read_lob_request::emit() {:?}", self);
         w.write_u64::<LittleEndian>(self.locator_id)?;
         w.write_u64::<LittleEndian>(self.offset)?;
         w.write_u32::<LittleEndian>(self.length)?;
         w.write_u32::<LittleEndian>(0_u32)?; // FILLER
+        Ok(())
+    }
+    pub async fn emit_async<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
+        &self,
+        w: &mut W,
+    ) -> std::io::Result<()> {
+        trace!("read_lob_request::emit() {:?}", self);
+        w.write_all(&self.locator_id.to_le_bytes()).await?;
+        w.write_all(&self.offset.to_le_bytes()).await?;
+        w.write_all(&self.length.to_le_bytes()).await?;
+        w.write_all(&0_u32.to_le_bytes()).await?; // FILLER
         Ok(())
     }
     pub fn size() -> usize {

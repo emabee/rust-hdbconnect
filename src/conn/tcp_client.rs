@@ -1,18 +1,25 @@
+#[cfg(feature = "async")]
+mod plain_async_tcp_client;
 mod plain_sync_tcp_client;
 mod tls_sync_tcp_client;
 
 use crate::ConnectParams;
 use chrono::Local;
+#[cfg(feature = "async")]
+use plain_async_tcp_client::PlainAsyncTcpClient;
 use plain_sync_tcp_client::PlainSyncTcpClient;
 use tls_sync_tcp_client::TlsSyncTcpClient;
 
 // A buffered tcp connection, with or without TLS.
 #[derive(Debug)]
 pub(crate) enum TcpClient {
-    // A buffered tcp connection without TLS.
-    SyncPlain(PlainSyncTcpClient),
+    // A buffered blocking tcp connection without TLS.
+    PlainSync(PlainSyncTcpClient),
     // A buffered blocking tcp connection with TLS.
-    SyncTls(TlsSyncTcpClient),
+    TlsSync(TlsSyncTcpClient),
+    #[cfg(feature = "async")]
+    // An async tcp connection without TLS.
+    PlainAsync(PlainAsyncTcpClient),
 }
 impl TcpClient {
     // Constructs a buffered tcp connection, with or without TLS,
@@ -22,9 +29,9 @@ impl TcpClient {
         trace!("TcpClient: Connecting to {:?})", params.addr());
 
         let tcp_conn = if params.use_tls() {
-            Self::SyncTls(TlsSyncTcpClient::try_new(params)?)
+            Self::TlsSync(TlsSyncTcpClient::try_new(params)?)
         } else {
-            Self::SyncPlain(PlainSyncTcpClient::try_new(params)?)
+            Self::PlainSync(PlainSyncTcpClient::try_new(params)?)
         };
 
         trace!(
@@ -41,15 +48,15 @@ impl TcpClient {
     // Returns a descriptor of the chosen type
     pub fn s_type(&self) -> &'static str {
         match self {
-            Self::SyncPlain(_) => "Plain TCP",
-            Self::SyncTls(_) => "TLS",
+            Self::PlainSync(_) => "Plain TCP",
+            Self::TlsSync(_) => "TLS",
         }
     }
 
     pub fn connect_params(&self) -> &ConnectParams {
         match self {
-            Self::SyncPlain(client) => client.connect_params(),
-            Self::SyncTls(client) => client.connect_params(),
+            Self::PlainSync(client) => client.connect_params(),
+            Self::TlsSync(client) => client.connect_params(),
         }
     }
 }

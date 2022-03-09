@@ -8,6 +8,8 @@ mod request;
 mod request_type;
 mod server_usage;
 pub(crate) mod util;
+pub(crate) mod util_async;
+pub(crate) mod util_sync;
 
 pub(crate) use self::{
     part::Part, part_attributes::PartAttributes, partkind::PartKind, reply::Reply,

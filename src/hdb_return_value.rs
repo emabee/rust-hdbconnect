@@ -1,5 +1,5 @@
-use crate::protocol::parts::{OutputParameters, ResultSet};
-use crate::{HdbError, HdbResult};
+use crate::protocol::parts::OutputParameters;
+use crate::{HdbError, HdbResult, ResultSet};
 use dist_tx::tm::XaTransactionId;
 use std::fmt;
 

@@ -219,7 +219,7 @@ impl<'a> PreparedStatement {
 
             let mut par_rows = ParameterRows::new();
             par_rows.push_hdb_values(hdb_values, &self.a_descriptors)?;
-            request.push(Part::Parameters(par_rows));
+            request.push(Part::ParameterRows(par_rows));
 
             if ps_core_guard
                 .am_conn_core
@@ -364,7 +364,7 @@ impl<'a> PreparedStatement {
         let mut request = Request::new(RequestType::Execute, HOLD_CURSORS_OVER_COMMIT);
         request.push(Part::StatementId(ps_core_guard.statement_id));
         if let Some(rows) = o_rows {
-            request.push(Part::Parameters(rows));
+            request.push(Part::ParameterRows(rows));
         }
 
         let (mut internal_return_values, replytype) = ps_core_guard

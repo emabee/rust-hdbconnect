@@ -13,7 +13,10 @@ pub enum ExecutionResult {
     Failure(Option<ServerError>), // -3
 }
 impl ExecutionResult {
-    pub(crate) fn parse(count: usize, rdr: &mut dyn std::io::Read) -> std::io::Result<Vec<Self>> {
+    pub(crate) fn parse_sync(
+        count: usize,
+        rdr: &mut dyn std::io::Read,
+    ) -> std::io::Result<Vec<Self>> {
         let mut vec = Vec::<Self>::with_capacity(count);
         for _ in 0..count {
             match rdr.read_i32::<LittleEndian>()? {

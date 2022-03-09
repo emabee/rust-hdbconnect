@@ -64,8 +64,8 @@ pub use crate::hdb_response::HdbResponse;
 pub use crate::hdb_return_value::HdbReturnValue;
 pub use crate::protocol::parts::{
     ExecutionResult, HdbValue, OutputParameters, ParameterBinding, ParameterDescriptor,
-    ParameterDescriptors, ParameterDirection, ResultSet, ResultSetMetadata, Row, ServerError,
-    Severity, TypeId,
+    ParameterDescriptors, ParameterDirection, ResultSetMetadata, ResultSetSync as ResultSet, Row,
+    ServerError, Severity, TypeId,
 };
 pub use crate::protocol::ServerUsage;
 pub use crate::sync_connection::Connection;

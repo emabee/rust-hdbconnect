@@ -1,8 +1,8 @@
 use crate::protocol::parts::{
-    ExecutionResult, OutputParameters, ParameterDescriptors, ResultSet, WriteLobReply,
+    ExecutionResult, OutputParameters, ParameterDescriptors, WriteLobReply,
 };
 use crate::protocol::ReplyType;
-use crate::{HdbError, HdbResult, HdbReturnValue};
+use crate::{HdbError, HdbResult, HdbReturnValue, ResultSet};
 use std::sync::Arc;
 
 /// Represents all possible non-error responses to a database command.

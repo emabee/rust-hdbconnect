@@ -27,13 +27,24 @@ impl<'a> ParameterRows<'a> {
         Ok(())
     }
 
-    pub(crate) fn emit(
+    pub(crate) fn emit_sync(
         &self,
         descriptors: &ParameterDescriptors,
         w: &mut dyn std::io::Write,
     ) -> std::io::Result<()> {
         for row in &self.0 {
-            row.emit(descriptors, w)?;
+            row.emit_sync(descriptors, w)?;
+        }
+        Ok(())
+    }
+
+    pub(crate) async fn emit_async<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
+        &self,
+        descriptors: &ParameterDescriptors,
+        w: &mut W,
+    ) -> std::io::Result<()> {
+        for row in &self.0 {
+            row.emit_async(descriptors, w).await?;
         }
         Ok(())
     }
@@ -106,7 +117,7 @@ impl<'a> ParameterRow<'a> {
         Ok(size)
     }
 
-    fn emit(
+    fn emit_sync(
         &self,
         descriptors: &ParameterDescriptors,
         w: &mut dyn std::io::Write,
@@ -116,7 +127,27 @@ impl<'a> ParameterRow<'a> {
         for value in &(self.0) {
             // emit the value
             if let Some(descriptor) = in_descriptors.next() {
-                value.emit(&mut data_pos, descriptor, w)?;
+                value.emit_sync(&mut data_pos, descriptor, w)?;
+            } else {
+                return Err(util::io_error(
+                    "ParameterRow::emit(): Not enough metadata".to_string(),
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    async fn emit_async<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
+        &self,
+        descriptors: &ParameterDescriptors,
+        w: &mut W,
+    ) -> std::io::Result<()> {
+        let mut data_pos = 0_i32;
+        let mut in_descriptors = descriptors.iter_in();
+        for value in &(self.0) {
+            // emit the value
+            if let Some(descriptor) = in_descriptors.next() {
+                value.emit_async(&mut data_pos, descriptor, w).await?;
             } else {
                 return Err(util::io_error(
                     "ParameterRow::emit(): Not enough metadata".to_string(),

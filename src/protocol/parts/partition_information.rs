@@ -1,4 +1,4 @@
-use crate::protocol::util;
+use crate::protocol::{util, util_sync};
 use byteorder::{LittleEndian, ReadBytesExt};
 
 #[derive(Debug)]
@@ -64,9 +64,9 @@ pub struct Partitions {
 }
 
 impl PartitionInformation {
-    pub fn parse(rdr: &mut dyn std::io::Read) -> std::io::Result<Self> {
+    pub fn parse_sync(rdr: &mut dyn std::io::Read) -> std::io::Result<Self> {
         let partition_method = PartitionMethod::from_i8(rdr.read_i8()?)?; // I1
-        util::skip_bytes(7, rdr)?;
+        util_sync::skip_bytes(7, rdr)?;
         let num_parameters = rdr.read_i32::<LittleEndian>()?;
         let num_partitions = rdr.read_i32::<LittleEndian>()?;
         let mut parameter_descriptor = vec![];
@@ -76,7 +76,7 @@ impl PartitionInformation {
                 parameter_function: ParameterFunction::from_i8(rdr.read_i8()?)?,
                 attribute_type: rdr.read_i8()?,
             };
-            util::skip_bytes(2, rdr)?;
+            util_sync::skip_bytes(2, rdr)?;
             parameter_descriptor.push(desc);
         }
 

@@ -5,7 +5,7 @@ use crate::protocol::parts::{
     ClientInfo, ConnectOptions, ParameterDescriptors, ResultSetMetadata, RsState, ServerError,
     StatementContext, Topology, TransactionFlags,
 };
-use crate::protocol::{Part, Reply, Request, RequestType, ServerUsage};
+use crate::protocol::{util, Part, Reply, Request, RequestType, ServerUsage};
 use crate::{HdbError, HdbResult};
 use std::mem;
 use std::sync::Arc;
@@ -74,8 +74,10 @@ impl<'a> ConnectionCore {
 
     pub(crate) fn connect_params(&self) -> &ConnectParams {
         match self.tcp_conn {
-            TcpClient::SyncPlain(ref pc) => pc.connect_params(),
-            TcpClient::SyncTls(ref sc) => sc.connect_params(),
+            TcpClient::PlainSync(ref ps) => ps.connect_params(),
+            TcpClient::TlsSync(ref ts) => ts.connect_params(),
+            #[cfg(feature = "async")]
+            TcpClient::PlainAsync(ref pa) => pa.connect_params(),
         }
     }
 
@@ -271,23 +273,65 @@ impl<'a> ConnectionCore {
         let auto_commit = self.is_auto_commit();
 
         match self.tcp_conn {
-            TcpClient::SyncPlain(ref mut pc) => {
-                request.emit(session_id, nsn, auto_commit, o_a_descriptors, pc.writer())?;
+            TcpClient::PlainSync(ref mut ps) => {
+                request.emit_sync(session_id, nsn, auto_commit, o_a_descriptors, ps.writer())
             }
-            TcpClient::SyncTls(ref mut tc) => {
-                request.emit(session_id, nsn, auto_commit, o_a_descriptors, tc.writer())?;
+            TcpClient::TlsSync(ref mut ts) => {
+                request.emit_sync(session_id, nsn, auto_commit, o_a_descriptors, ts.writer())
             }
-        }
+            #[cfg(feature = "async")]
+            _ => Err(util::io_error("Sync call in async instance")),
+        }?;
 
         let mut reply = match self.tcp_conn {
-            TcpClient::SyncPlain(ref mut pc) => {
-                let reader = pc.reader();
-                Reply::parse(o_a_rsmd, o_a_descriptors, o_rs, o_am_conn_core, reader)
+            TcpClient::PlainSync(ref mut ps) => {
+                let reader = ps.reader();
+                Reply::parse_sync(o_a_rsmd, o_a_descriptors, o_rs, o_am_conn_core, reader)
             }
-            TcpClient::SyncTls(ref mut tc) => {
-                let reader = tc.reader();
-                Reply::parse(o_a_rsmd, o_a_descriptors, o_rs, o_am_conn_core, reader)
+            TcpClient::TlsSync(ref mut ts) => {
+                let reader = ts.reader();
+                Reply::parse_sync(o_a_rsmd, o_a_descriptors, o_rs, o_am_conn_core, reader)
             }
+            #[cfg(feature = "async")]
+            _ => Err(util::io_error("Sync call in async instance")),
+        }?;
+
+        reply.handle_db_error(self)?;
+        Ok(reply)
+    }
+
+    #[cfg(feature = "async")]
+    pub(crate) async fn roundtrip_async(
+        &mut self,
+        request: &'a Request<'a>,
+        o_am_conn_core: Option<&AmConnCore>,
+        o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
+        o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
+        o_rs: &mut Option<&mut RsState>,
+    ) -> HdbResult<Reply> {
+        let (session_id, nsn) = if let RequestType::Authenticate = request.request_type {
+            (0, 1)
+        } else {
+            (self.session_id(), self.next_seq_number())
+        };
+        let auto_commit = self.is_auto_commit();
+
+        match self.tcp_conn {
+            TcpClient::PlainAsync(ref mut pa) => {
+                let writer = &mut *(pa.writer()).borrow_mut();
+                request
+                    .emit_async(session_id, nsn, auto_commit, o_a_descriptors, writer)
+                    .await
+            }
+            _ => Err(util::io_error("Async call in sync instance")),
+        }?;
+
+        let mut reply = match self.tcp_conn {
+            TcpClient::PlainAsync(ref mut pa) => {
+                let reader = &mut *(pa.reader()).borrow_mut();
+                Reply::parse_async(o_a_rsmd, o_a_descriptors, o_rs, o_am_conn_core, reader).await
+            }
+            _ => Err(util::io_error("Async call in sync instance")),
         }?;
 
         reply.handle_db_error(self)?;
@@ -301,11 +345,11 @@ impl<'a> ConnectionCore {
             let session_id = self.session_id();
             let nsn = self.next_seq_number();
             match self.tcp_conn {
-                TcpClient::SyncPlain(ref mut pc) => {
-                    request.emit(session_id, nsn, false, None, pc.writer())?;
+                TcpClient::PlainSync(ref mut pc) => {
+                    request.emit_sync(session_id, nsn, false, None, pc.writer())?;
                 }
-                TcpClient::SyncTls(ref mut tc) => {
-                    request.emit(session_id, nsn, false, None, tc.writer())?;
+                TcpClient::TlsSync(ref mut tc) => {
+                    request.emit_sync(session_id, nsn, false, None, tc.writer())?;
                 }
             }
             trace!("Disconnect: request successfully sent");

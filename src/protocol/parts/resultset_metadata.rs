@@ -1,5 +1,5 @@
 use crate::protocol::parts::type_id::TypeId;
-use crate::protocol::util;
+use crate::protocol::{util, util_sync};
 use crate::{HdbError, HdbResult};
 
 use byteorder::{LittleEndian, ReadBytesExt};
@@ -168,7 +168,7 @@ impl ResultSetMetadata {
         Ok(self.field_metadata(i)?.precision)
     }
 
-    pub(crate) fn parse(count: usize, rdr: &mut dyn std::io::Read) -> std::io::Result<Self> {
+    pub(crate) fn parse_sync(count: usize, rdr: &mut dyn std::io::Read) -> std::io::Result<Self> {
         let mut rsm = Self {
             fields: Vec::<FieldMetadata>::new(),
             names: VecMap::<String>::new(),
@@ -207,7 +207,7 @@ impl ResultSetMetadata {
         let mut offset = 0;
         for _ in 0..rsm.names.len() {
             let nl = rdr.read_u8()?; // UI1
-            let name = util::string_from_cesu8(util::parse_bytes(nl as usize, rdr)?)
+            let name = util::string_from_cesu8(util_sync::parse_bytes(nl as usize, rdr)?)
                 .map_err(util::io_error)?; // variable
             trace!("offset = {}, name = {}", offset, name);
             rsm.names.insert(offset as usize, name.to_string());
