@@ -49,7 +49,7 @@ impl OutputParameters {
         (self.descriptors, self.values)
     }
 
-    pub(crate) fn parse(
+    pub(crate) fn parse_sync(
         o_am_conn_core: Option<&AmConnCore>,
         parameter_descriptors: &ParameterDescriptors,
         rdr: &mut dyn std::io::Read,
@@ -63,7 +63,7 @@ impl OutputParameters {
 
         for descriptor in parameter_descriptors.iter_out() {
             trace!("Parsing value with descriptor {}", descriptor);
-            let value = HdbValue::parse_from_reply(
+            let value = HdbValue::parse_sync(
                 descriptor.type_id(),
                 descriptor.is_array_type(),
                 descriptor.scale(),
@@ -72,6 +72,40 @@ impl OutputParameters {
                 &None,
                 rdr,
             )?;
+            trace!("Found value {:?}", value);
+            descriptors.push(descriptor.clone());
+            values.push(value);
+        }
+        Ok(Self {
+            descriptors,
+            values,
+        })
+    }
+
+    pub(crate) async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
+        o_am_conn_core: Option<&AmConnCore>,
+        parameter_descriptors: &ParameterDescriptors,
+        rdr: &mut R,
+    ) -> std::io::Result<Self> {
+        trace!("OutputParameters::parse()");
+        let am_conn_core = o_am_conn_core
+            .ok_or_else(|| util::io_error("Cannot parse output parameters without am_conn_core"))?;
+
+        let mut descriptors = Vec::<ParameterDescriptor>::new();
+        let mut values = Vec::<HdbValue<'static>>::new();
+
+        for descriptor in parameter_descriptors.iter_out() {
+            trace!("Parsing value with descriptor {}", descriptor);
+            let value = HdbValue::parse_async(
+                descriptor.type_id(),
+                descriptor.is_array_type(),
+                descriptor.scale(),
+                descriptor.is_nullable(),
+                am_conn_core,
+                &None,
+                rdr,
+            )
+            .await?;
             trace!("Found value {:?}", value);
             descriptors.push(descriptor.clone());
             values.push(value);

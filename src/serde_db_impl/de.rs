@@ -1,4 +1,4 @@
-use crate::{HdbError, HdbValue, OutputParameters, ParameterDescriptor, ResultSet, Row};
+use crate::{HdbError, HdbValue, OutputParameters, ParameterDescriptor, ResultSetSync, Row};
 use bigdecimal::ToPrimitive;
 use serde_db::de::{
     ConversionError, DbValue, DbValueInto, DeserializableResultset, DeserializableRow,
@@ -7,7 +7,7 @@ use serde_db::de::{
 use std::num::{ParseFloatError, ParseIntError};
 use std::{fmt, i16, i32, i64, i8, u16, u32, u8};
 
-impl DeserializableResultset for ResultSet {
+impl DeserializableResultset for ResultSetSync {
     type ROW = Row;
     type E = DeserializationError;
 

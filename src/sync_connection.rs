@@ -1,11 +1,11 @@
 use crate::conn::AmConnCore;
 use crate::protocol::parts::{
-    ClientContext, ClientContextId, CommandInfo, ConnOptId, OptionValue, ResultSet, ServerError,
+    ClientContext, ClientContextId, CommandInfo, ConnOptId, OptionValue, ServerError,
 };
 use crate::protocol::{Part, Request, RequestType, ServerUsage, HOLD_CURSORS_OVER_COMMIT};
 use crate::sync_prepared_statement::PreparedStatement;
 use crate::xa_impl::new_resource_manager;
-use crate::{HdbError, HdbResponse, HdbResult, IntoConnectParams};
+use crate::{HdbError, HdbResponse, HdbResult, IntoConnectParams, ResultSetSync};
 use dist_tx::rm::ResourceManager;
 
 // TODO Rename to SyncConnection
@@ -87,7 +87,7 @@ impl Connection {
     /// # Errors
     ///
     /// Several variants of `HdbError` can occur.
-    pub fn query<S: AsRef<str>>(&mut self, stmt: S) -> HdbResult<ResultSet> {
+    pub fn query<S: AsRef<str>>(&mut self, stmt: S) -> HdbResult<ResultSetSync> {
         self.statement(stmt)?.into_resultset()
     }
 

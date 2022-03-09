@@ -17,7 +17,7 @@ impl<'a> WriteLobRequest<'a> {
             last_data,
         }
     }
-    pub fn emit(&self, w: &mut dyn std::io::Write) -> std::io::Result<()> {
+    pub fn emit_sync(&self, w: &mut dyn std::io::Write) -> std::io::Result<()> {
         // 1: NULL (not used here), 2: DATA_INCLUDED, 4: LASTDATA
         let options = if self.last_data { 6 } else { 2 };
         w.write_u64::<LittleEndian>(self.locator_id)?;
@@ -32,5 +32,22 @@ impl<'a> WriteLobRequest<'a> {
     }
     pub fn size(&self) -> usize {
         21 + self.buf.len()
+    }
+
+    pub async fn emit_async<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
+        &self,
+        w: &mut W,
+    ) -> std::io::Result<()> {
+        // 1: NULL (not used here), 2: DATA_INCLUDED, 4: LASTDATA
+        let options = if self.last_data { 6 } else { 2 };
+        w.write_all(&self.locator_id.to_le_bytes()).await?;
+        w.write_u8(options).await?;
+        w.write_all(&self.offset.to_le_bytes()).await?;
+
+        #[allow(clippy::cast_possible_truncation)]
+        w.write_all(&(self.buf.len() as u32).to_le_bytes()).await?;
+        w.write_all(self.buf).await?;
+
+        Ok(())
     }
 }

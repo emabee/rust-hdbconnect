@@ -1,4 +1,4 @@
-use crate::protocol::util;
+use crate::protocol::{util, util_async, util_sync};
 use byteorder::{LittleEndian, ReadBytesExt};
 
 #[derive(Debug)]
@@ -67,9 +67,9 @@ pub struct Partitions {
 }
 
 impl PartitionInformation {
-    pub fn parse(rdr: &mut dyn std::io::Read) -> std::io::Result<Self> {
+    pub fn parse_sync(rdr: &mut dyn std::io::Read) -> std::io::Result<Self> {
         let partition_method = PartitionMethod::from_i8(rdr.read_i8()?)?; // I1
-        util::skip_bytes(7, rdr)?;
+        util_sync::skip_bytes(7, rdr)?;
         let num_parameters = rdr.read_i32::<LittleEndian>()?;
         let num_partitions = rdr.read_i32::<LittleEndian>()?;
         let mut parameter_descriptor = vec![];
@@ -79,7 +79,7 @@ impl PartitionInformation {
                 parameter_function: ParameterFunction::from_i8(rdr.read_i8()?)?,
                 attribute_type: rdr.read_i8()?,
             };
-            util::skip_bytes(2, rdr)?;
+            util_sync::skip_bytes(2, rdr)?;
             parameter_descriptor.push(desc);
         }
 
@@ -92,6 +92,44 @@ impl PartitionInformation {
                 Partitions {
                     val1: rdr.read_i32::<LittleEndian>()?,
                     val2: rdr.read_i32::<LittleEndian>()?,
+                }
+            });
+        }
+
+        Ok(Self {
+            partition_method,
+            parameter_descriptor,
+            partitions,
+        })
+    }
+
+    pub async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
+        rdr: &mut R,
+    ) -> std::io::Result<Self> {
+        let partition_method = PartitionMethod::from_i8(rdr.read_i8().await?)?; // I1
+        util_async::skip_bytes(7, rdr).await?;
+        let num_parameters = rdr.read_i32_le().await?;
+        let num_partitions = rdr.read_i32_le().await?;
+        let mut parameter_descriptor = vec![];
+        for _ in 0..num_parameters {
+            let desc = ParameterDescriptor {
+                parameter_index: rdr.read_i32_le().await?,
+                parameter_function: ParameterFunction::from_i8(rdr.read_i8().await?)?,
+                attribute_type: rdr.read_i8().await?,
+            };
+            util_async::skip_bytes(2, rdr).await?;
+            parameter_descriptor.push(desc);
+        }
+
+        let mut partitions = vec![];
+
+        // Missing in documentation, but it is 8 byte per partition
+        // https://help.sap.com/viewer/7e4aba181371442d9e4395e7ff71b777/2.0.03/en-US/a6b5b33a790245efa06c67a781f80d15.html#loioeed44c1df1fc4f139079f36031b42ef1
+        for _ in 0..num_partitions {
+            partitions.push({
+                Partitions {
+                    val1: rdr.read_i32_le().await?,
+                    val2: rdr.read_i32_le().await?,
                 }
             });
         }

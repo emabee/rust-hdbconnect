@@ -9,7 +9,7 @@ pub struct PlainSyncTcpClient {
 }
 
 impl PlainSyncTcpClient {
-    /// Returns an initialized plain tcp connection
+    // Returns an initialized plain tcp connection
     pub fn try_new(params: ConnectParams) -> std::io::Result<Self> {
         let tcpstream = TcpStream::connect(params.addr())?;
         Ok(Self {

@@ -1,12 +1,12 @@
-use crate::protocol::parts::{OutputParameters, ResultSet};
-use crate::{HdbError, HdbResult};
+use crate::protocol::parts::OutputParameters;
+use crate::{HdbError, HdbResult, ResultSetSync};
 use dist_tx::tm::XaTransactionId;
 
 /// An enum that describes a single database return value.
 #[derive(Debug)]
 pub enum HdbReturnValue {
     /// A resultset of a query.
-    ResultSet(ResultSet),
+    ResultSet(ResultSetSync),
     /// A list of numbers of affected rows.
     AffectedRows(Vec<usize>),
     /// Values of output parameters of a procedure call.
@@ -22,7 +22,7 @@ impl HdbReturnValue {
     /// # Errors
     ///
     /// `HdbError::Evaluation` for other variants than `HdbReturnValue::ResultSet`.
-    pub fn into_resultset(self) -> HdbResult<ResultSet> {
+    pub fn into_resultset(self) -> HdbResult<ResultSetSync> {
         match self {
             Self::ResultSet(rs) => Ok(rs),
             _ => Err(HdbError::Evaluation("Not a HdbReturnValue::ResultSet")),

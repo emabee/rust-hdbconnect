@@ -1,4 +1,4 @@
-use crate::protocol::util;
+use crate::protocol::{util, util_async};
 use crate::HdbValue;
 use byteorder::{LittleEndian, ReadBytesExt};
 
@@ -96,11 +96,28 @@ impl LongDate {
     }
 }
 
-pub(crate) fn parse_longdate(
+pub(crate) fn parse_longdate_sync(
     nullable: bool,
     rdr: &mut dyn std::io::Read,
 ) -> std::io::Result<HdbValue<'static>> {
     let i = rdr.read_i64::<LittleEndian>()?;
+    if i == NULL_REPRESENTATION {
+        if nullable {
+            Ok(HdbValue::NULL)
+        } else {
+            Err(util::io_error(
+                "found NULL value for NOT NULL LONGDATE column",
+            ))
+        }
+    } else {
+        Ok(HdbValue::LONGDATE(LongDate::new(i)))
+    }
+}
+pub(crate) async fn parse_longdate_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
+    nullable: bool,
+    rdr: &mut R,
+) -> std::io::Result<HdbValue<'static>> {
+    let i = util_async::read_i64(rdr).await?;
     if i == NULL_REPRESENTATION {
         if nullable {
             Ok(HdbValue::NULL)

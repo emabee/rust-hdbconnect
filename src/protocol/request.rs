@@ -47,7 +47,7 @@ impl<'a> Request<'a> {
 
     #[allow(clippy::cast_possible_truncation)]
     #[allow(clippy::cast_possible_wrap)]
-    pub fn emit(
+    pub fn emit_sync(
         &self,
         session_id: i64,
         seq_number: i32,
@@ -93,9 +93,67 @@ impl<'a> Request<'a> {
         trace!("Headers are written");
         // PARTS
         for part in self.parts.ref_inner() {
-            remaining_bufsize = part.emit(remaining_bufsize, o_a_descriptors, w)?;
+            remaining_bufsize = part.emit_sync(remaining_bufsize, o_a_descriptors, w)?;
         }
         w.flush()?;
+        trace!("Parts are written");
+        Ok(())
+    }
+
+    #[cfg(feature = "async")]
+    #[allow(clippy::cast_possible_truncation)]
+    #[allow(clippy::cast_possible_wrap)]
+    pub async fn emit_async<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
+        &self,
+        session_id: i64,
+        seq_number: i32,
+        auto_commit: bool,
+        o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
+        w: &mut W,
+    ) -> std::io::Result<()> {
+        let varpart_size = self.varpart_size(o_a_descriptors)?;
+        let total_size = MESSAGE_HEADER_SIZE + varpart_size;
+        trace!("Writing request with total size {}", total_size);
+        let mut remaining_bufsize = total_size - MESSAGE_HEADER_SIZE;
+
+        debug!(
+            "Request::emit() of type {:?} for session_id = {}, seq_number = {}",
+            self.request_type, session_id, seq_number
+        );
+        // MESSAGE HEADER
+        w.write_all(&session_id.to_le_bytes()).await?; // I8 <LittleEndian>
+        w.write_all(&seq_number.to_le_bytes()).await?; // I4
+        w.write_all(&varpart_size.to_le_bytes()).await?; // UI4
+        w.write_all(&remaining_bufsize.to_le_bytes()).await?; // UI4
+        w.write_all(&1_i16.to_le_bytes()).await?; // I2    Number of segments
+        for _ in 0..10_u8 {
+            w.write_u8(0).await?;
+        } // I1+ B[9]  unused
+
+        // SEGMENT HEADER
+        let parts_len = self.parts.len() as i16;
+        let size = self.seg_size(o_a_descriptors)? as i32;
+        w.write_all(&size.to_le_bytes()).await?; // I4  Length including the header
+        w.write_all(&0_i32.to_le_bytes()).await?; // I4 Offset within the message buffer
+        w.write_all(&parts_len.to_le_bytes()).await?; // I2 Number of contained parts
+        w.write_all(&1_i16.to_le_bytes()).await?; // I2 Number of this segment, starting with 1
+        w.write_i8(1).await?; // I1 Segment kind: always 1 = Request
+        w.write_i8(self.request_type as i8).await?; // I1 "Message type"
+        w.write_i8(if auto_commit { 1_i8 } else { 0 }).await?; // I1 auto_commit on/off
+        w.write_u8(self.command_options).await?; // I1 Bit set for options
+        for _ in 0..8_u8 {
+            w.write_u8(0).await?;
+        } // [B;8] Reserved, do not use
+
+        remaining_bufsize -= SEGMENT_HEADER_SIZE as u32;
+        trace!("Headers are written");
+        // PARTS
+        for part in self.parts.ref_inner() {
+            remaining_bufsize = part
+                .emit_async(remaining_bufsize, o_a_descriptors, w)
+                .await?;
+        }
+        w.flush().await?;
         trace!("Parts are written");
         Ok(())
     }

@@ -92,8 +92,12 @@ impl Row {
         &(self.metadata)
     }
 
-    pub(crate) fn parse(
-        md: std::sync::Arc<ResultSetMetadata>,
+    pub(crate) fn number_of_fields(&self) -> usize {
+        (*self.metadata).len()
+    }
+
+    pub(crate) fn parse_sync(
+        md: Arc<ResultSetMetadata>,
         o_am_rscore: &Option<AmRsCore>,
         am_conn_core: &AmConnCore,
         rdr: &mut dyn std::io::Read,
@@ -102,8 +106,9 @@ impl Row {
 
         let md0 = Arc::as_ref(&md);
 
+        // for col_idx in 0..md.len() {
         for col_md in &**md0 {
-            let value = HdbValue::parse_from_reply(
+            let value = HdbValue::parse_sync(
                 col_md.type_id(),
                 col_md.is_array_type(),
                 col_md.scale(),
@@ -112,6 +117,34 @@ impl Row {
                 o_am_rscore,
                 rdr,
             )?;
+            values.push(value);
+        }
+        let row = Self::new(md, values);
+        Ok(row)
+    }
+
+    pub(crate) async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
+        md: Arc<ResultSetMetadata>,
+        o_am_rscore: &Option<AmRsCore>,
+        am_conn_core: &AmConnCore,
+        rdr: &mut R,
+    ) -> std::io::Result<Self> {
+        let mut values = Vec::<HdbValue>::new();
+
+        let md0 = Arc::as_ref(&md);
+
+        // for col_idx in 0..md.len() {
+        for col_md in &**md0 {
+            let value = HdbValue::parse_async(
+                col_md.type_id(),
+                col_md.is_array_type(),
+                col_md.scale(),
+                col_md.is_nullable(),
+                am_conn_core,
+                o_am_rscore,
+                rdr,
+            )
+            .await?;
             values.push(value);
         }
         let row = Self::new(md, values);
@@ -138,7 +171,7 @@ impl Iterator for Row {
 impl std::fmt::Display for Row {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         for v in self.value_iter.as_slice() {
-            write!(fmt, "{}, ", &v)?;
+            write!(fmt, "{v}, ")?;
         }
         Ok(())
     }

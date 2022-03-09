@@ -1,4 +1,4 @@
-use crate::protocol::util;
+use crate::protocol::{util, util_async};
 use crate::HdbValue;
 use byteorder::{LittleEndian, ReadBytesExt};
 
@@ -95,11 +95,29 @@ impl SecondDate {
     }
 }
 
-pub(crate) fn parse_seconddate(
+pub(crate) fn parse_seconddate_sync(
     nullable: bool,
     rdr: &mut dyn std::io::Read,
 ) -> std::io::Result<HdbValue<'static>> {
     let i = rdr.read_i64::<LittleEndian>()?;
+    if i == NULL_REPRESENTATION {
+        if nullable {
+            Ok(HdbValue::NULL)
+        } else {
+            Err(util::io_error(
+                "found NULL value for NOT NULL SECONDDATE column",
+            ))
+        }
+    } else {
+        Ok(HdbValue::SECONDDATE(SecondDate::new(i)))
+    }
+}
+
+pub(crate) async fn parse_seconddate_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
+    nullable: bool,
+    rdr: &mut R,
+) -> std::io::Result<HdbValue<'static>> {
+    let i = util_async::read_i64(rdr).await?;
     if i == NULL_REPRESENTATION {
         if nullable {
             Ok(HdbValue::NULL)

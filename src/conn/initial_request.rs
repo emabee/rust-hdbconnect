@@ -1,27 +1,31 @@
 use super::TcpClient;
-use crate::protocol::util;
+use crate::protocol::{util, util_sync};
 use byteorder::{BigEndian, WriteBytesExt};
 use std::io::Write;
 
 pub(crate) fn send_and_receive(tcp_conn: &mut TcpClient) -> std::io::Result<()> {
     trace!("send_and_receive(): send");
     match tcp_conn {
-        TcpClient::SyncPlain(ref mut pc) => {
+        TcpClient::PlainSync(ref mut pc) => {
             emit_initial_request(pc.writer())?;
         }
-        TcpClient::SyncTls(ref mut tc) => {
+        TcpClient::TlsSync(ref mut tc) => {
             emit_initial_request(tc.writer())?;
         }
+        #[cfg(feature = "async")]
+        TcpClient::PlainAsync(_) => return Err(util::io_error("Sync call in async instance")),
     }
 
     trace!("send_and_receive(): receive");
     match tcp_conn {
-        TcpClient::SyncPlain(ref mut pc) => {
-            util::skip_bytes(8, pc.reader()) // ignore the response content
+        TcpClient::PlainSync(ref mut pc) => {
+            util_sync::skip_bytes(8, pc.reader()) // ignore the response content
         }
-        TcpClient::SyncTls(ref mut tc) => {
-            util::skip_bytes(8, tc.reader()) // ignore the response content
+        TcpClient::TlsSync(ref mut tc) => {
+            util_sync::skip_bytes(8, tc.reader()) // ignore the response content
         }
+        #[cfg(feature = "async")]
+        TcpClient::PlainAsync(_) => return Err(util::io_error("Sync call in async instance")),
     }
     .map_err(|e| {
         trace!("Skipping over empty initial response failed with {:?}", e);

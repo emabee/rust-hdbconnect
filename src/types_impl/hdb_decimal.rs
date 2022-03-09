@@ -25,13 +25,35 @@ impl HdbDecimal {
     pub fn new(raw: [u8; 16]) -> Self {
         Self { raw }
     }
-    pub fn parse_hdb_decimal(
+    pub fn parse_hdb_decimal_sync(
         nullable: bool,
         scale: i16,
         rdr: &mut dyn std::io::Read,
     ) -> std::io::Result<HdbValue<'static>> {
         let mut raw = [0_u8; 16];
         rdr.read_exact(&mut raw[..])?;
+
+        if raw[15] == 112 && raw[0..=14].iter().all(|el| *el == 0) {
+            // it's a NULL!
+            if nullable {
+                Ok(HdbValue::NULL)
+            } else {
+                Err(util::io_error("received null value for not-null column"))
+            }
+        } else {
+            trace!("parse DECIMAL");
+            let bd = Self::new(raw).into_bigdecimal_with_scale(scale);
+            Ok(HdbValue::DECIMAL(bd))
+        }
+    }
+
+    pub async fn parse_hdb_decimal_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
+        nullable: bool,
+        scale: i16,
+        rdr: &mut R,
+    ) -> std::io::Result<HdbValue<'static>> {
+        let mut raw = [0_u8; 16];
+        rdr.read_exact(&mut raw[..]).await?;
 
         if raw[15] == 112 && raw[0..=14].iter().all(|el| *el == 0) {
             // it's a NULL!

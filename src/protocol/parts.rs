@@ -7,6 +7,7 @@ mod connect_options;
 mod db_connect_info;
 mod execution_result;
 mod fetch_options;
+mod field_metadata;
 mod hdb_value;
 mod length_indicator;
 mod lob_flags;
@@ -46,7 +47,6 @@ pub(crate) use self::{
     read_lob_reply::ReadLobReply,
     read_lob_request::ReadLobRequest,
     resultset::{AmRsCore, RsState},
-    resultset_metadata::ResultSetMetadata,
     session_context::SessionContext,
     statement_context::StatementContext,
     topology::Topology,
@@ -56,11 +56,19 @@ pub(crate) use self::{
     xat_options::XatOptions,
 };
 pub use self::{
-    execution_result::ExecutionResult, hdb_value::HdbValue, output_parameters::OutputParameters,
-    parameter_descriptor::ParameterBinding, parameter_descriptor::ParameterDescriptor,
-    parameter_descriptor::ParameterDescriptors, parameter_descriptor::ParameterDirection,
-    resultset::ResultSet, resultset_metadata::FieldMetadata, row::Row, server_error::ServerError,
-    server_error::Severity, type_id::TypeId,
+    execution_result::ExecutionResult,
+    field_metadata::FieldMetadata,
+    hdb_value::HdbValue,
+    output_parameters::OutputParameters,
+    parameter_descriptor::{
+        ParameterBinding, ParameterDescriptor, ParameterDescriptors, ParameterDirection,
+    },
+    resultset::ResultSetSync,
+    resultset_metadata::ResultSetMetadata,
+    row::Row,
+    server_error::ServerError,
+    server_error::Severity,
+    type_id::TypeId,
 };
 
 use super::{Part, PartKind};
@@ -157,7 +165,7 @@ impl Parts<'static> {
                 }
                 Part::ResultSetMetadata(rsmd) => {
                     if let Some(Part::ResultSetId(rs_id)) = parts.next() {
-                        let rs = ResultSet::new(
+                        let rs = ResultSetSync::new(
                             am_conn_core,
                             PartAttributes::new(0b_0000_0100),
                             rs_id,

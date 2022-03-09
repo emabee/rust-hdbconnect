@@ -19,6 +19,7 @@ all-features = false
 [features]
 default = []
 alpha_routing = []
+async = ["tokio"]
 
 [dependencies]
 bigdecimal = {version = "0.3", features = ["serde"]}
@@ -51,6 +52,7 @@ username = "0.2"
 vec_map = "0.8"
 webpki = "0.22"
 webpki-roots = "0.22"
+tokio = {optional = true, version = "*", features = ["dns","io-util","tcp"]}
 
 [dev-dependencies]
 chrono = { version = "0.4", features = ["serde"]}

@@ -56,19 +56,44 @@ impl<T: OptionId<T> + Debug + Eq + PartialEq + Hash> OptionPart<T> {
         self.0.remove_entry(k)
     }
 
-    pub fn emit(&self, w: &mut dyn std::io::Write) -> std::io::Result<()> {
+    pub fn emit_sync(&self, w: &mut dyn std::io::Write) -> std::io::Result<()> {
         for (id, value) in &self.0 {
             w.write_u8(id.to_u8())?;
-            value.emit(w)?;
+            value.emit_sync(w)?;
         }
         Ok(())
     }
 
-    pub fn parse(count: usize, rdr: &mut dyn std::io::Read) -> std::io::Result<Self> {
+    pub async fn emit_async<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
+        &self,
+        w: &mut W,
+    ) -> std::io::Result<()> {
+        for (id, value) in &self.0 {
+            w.write_u8(id.to_u8()).await?;
+            value.emit_async(w).await?;
+        }
+        Ok(())
+    }
+
+    pub fn parse_sync(count: usize, rdr: &mut dyn std::io::Read) -> std::io::Result<Self> {
         let mut result = Self::default();
         for _ in 0..count {
             let id = T::from_u8(rdr.read_u8()?);
-            let value = OptionValue::parse(rdr)?;
+            let value = OptionValue::parse_sync(rdr)?;
+            trace!("Parsed Option id = {:?}, value = {:?}", id.to_u8(), value);
+            result.0.insert(id, value);
+        }
+        Ok(result)
+    }
+
+    pub async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
+        count: usize,
+        rdr: &mut R,
+    ) -> std::io::Result<Self> {
+        let mut result = Self::default();
+        for _ in 0..count {
+            let id = T::from_u8(rdr.read_u8().await?);
+            let value = OptionValue::parse_async(rdr).await?;
             trace!("Parsed Option id = {:?}, value = {:?}", id.to_u8(), value);
             result.0.insert(id, value);
         }
