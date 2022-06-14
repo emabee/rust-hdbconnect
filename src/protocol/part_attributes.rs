@@ -1,5 +1,3 @@
-use std::fmt;
-
 // bit pattern for some attribute parts
 #[derive(Clone)]
 pub(crate) struct PartAttributes(u8);
@@ -34,8 +32,8 @@ impl PartAttributes {
     }
 }
 
-impl fmt::Debug for PartAttributes {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl std::fmt::Debug for PartAttributes {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if self.0 == 0 {
             write!(f, "0")
         } else {
@@ -65,14 +63,14 @@ impl fmt::Debug for PartAttributes {
         }
     }
 }
-impl fmt::Binary for PartAttributes {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl std::fmt::Binary for PartAttributes {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{:b}", self.0)
     }
 }
 
 // write an ampersand (&) if required
-fn w_and(b: bool, f: &mut fmt::Formatter) -> Result<bool, fmt::Error> {
+fn w_and(b: bool, f: &mut std::fmt::Formatter) -> Result<bool, std::fmt::Error> {
     if b {
         write!(f, " & ")?;
     }

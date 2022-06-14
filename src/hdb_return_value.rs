@@ -1,7 +1,6 @@
 use crate::protocol::parts::{OutputParameters, ResultSet};
 use crate::{HdbError, HdbResult};
 use dist_tx::tm::XaTransactionId;
-use std::fmt;
 
 /// An enum that describes a single database return value.
 #[derive(Debug)]
@@ -91,8 +90,8 @@ impl HdbReturnValue {
     }
 }
 
-impl fmt::Display for HdbReturnValue {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+impl std::fmt::Display for HdbReturnValue {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         match *self {
             Self::AffectedRows(ref vec) => writeln!(fmt, "AffectedRows {:?},", vec),
             Self::OutputParameters(ref op) => writeln!(fmt, "OutputParameters [{}],", op),

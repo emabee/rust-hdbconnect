@@ -71,7 +71,7 @@ impl IntoConnectParamsBuilder for Url {
         for (name, value) in self.query_pairs() {
             match UrlOpt::from(name.as_ref()) {
                 Some(UrlOpt::ClientLocale) => {
-                    builder.clientlocale(value.to_string());
+                    builder.clientlocale(&value);
                 }
                 Some(UrlOpt::ClientLocaleFromEnv) => {
                     std::env::var(value.to_string())
@@ -100,10 +100,10 @@ impl IntoConnectParamsBuilder for Url {
                     )));
                 }
                 Some(UrlOpt::Database) => {
-                    builder.dbname(value.to_string());
+                    builder.dbname(&value);
                 }
                 Some(UrlOpt::NetworkGroup) => {
-                    builder.network_group(value.to_string());
+                    builder.network_group(&value);
                 }
                 None => {
                     return Err(HdbError::UsageDetailed(format!(

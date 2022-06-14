@@ -384,7 +384,7 @@ fn emit_bool(b: bool, w: &mut dyn std::io::Write) -> std::io::Result<()> {
     // w.write_u8(b as u8)?;
 
     // as of dataformat_version2 = 8
-    w.write_u8(2 * (b as u8))?;
+    w.write_u8(2 * (u8::from(b)))?;
     Ok(())
 }
 

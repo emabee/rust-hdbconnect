@@ -2,7 +2,6 @@ use crate::conn::AmConnCore;
 use crate::protocol::parts::{AmRsCore, HdbValue, ResultSetMetadata};
 use crate::{HdbError, HdbResult};
 use serde_db::de::DeserializableRow;
-use std::fmt;
 use std::sync::Arc;
 
 /// A single line of a `ResultSet`, consisting of the contained `HdbValue`s and
@@ -131,8 +130,8 @@ impl Iterator for Row {
     }
 }
 
-impl fmt::Display for Row {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+impl std::fmt::Display for Row {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         for v in self.value_iter.as_slice() {
             write!(fmt, "{}, ", &v)?;
         }

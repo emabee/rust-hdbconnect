@@ -1,7 +1,6 @@
 use crate::protocol::util;
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::error::Error;
-use std::fmt;
 
 /// Severity of a server message
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -36,8 +35,8 @@ impl Severity {
         }
     }
 }
-impl fmt::Display for Severity {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl std::fmt::Display for Severity {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match *self {
             Self::Warning => write!(f, "warning")?,
             Self::Error => write!(f, "error")?,
@@ -125,8 +124,8 @@ impl ServerError {
 
 impl Error for ServerError {}
 
-impl fmt::Display for ServerError {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+impl std::fmt::Display for ServerError {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             fmt,
             r#"{} [code: {}, sql state: {}] at position: {}: "{}""#,
@@ -139,8 +138,8 @@ impl fmt::Display for ServerError {
     }
 }
 
-impl fmt::Debug for ServerError {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "{}", self.to_string())
+impl std::fmt::Debug for ServerError {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(fmt, "{}", self)
     }
 }

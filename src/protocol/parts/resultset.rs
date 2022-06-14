@@ -6,7 +6,6 @@ use crate::protocol::{
 use crate::sync_prepared_statement::AmPsCore;
 use crate::{HdbError, HdbResult};
 use serde_db::de::DeserializableResultset;
-use std::fmt;
 use std::sync::{Arc, Mutex};
 
 pub(crate) type AmRsCore = Arc<Mutex<ResultSetCore>>;
@@ -517,9 +516,9 @@ impl ResultSet {
     }
 }
 
-impl fmt::Display for ResultSet {
+impl std::fmt::Display for ResultSet {
     // Writes a header and then the data
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         // writeln!(fmt, "{}\n", &self.metadata)?;
 
         writeln!(fmt)?;

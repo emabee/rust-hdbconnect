@@ -1,4 +1,3 @@
-use std::fmt;
 use std::time::Duration;
 
 /// Describes the server-side resource consumption.
@@ -57,8 +56,8 @@ impl ServerUsage {
         }
     }
 }
-impl fmt::Display for ServerUsage {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+impl std::fmt::Display for ServerUsage {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         write!(
             formatter,
             "\

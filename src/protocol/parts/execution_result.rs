@@ -1,6 +1,5 @@
 use crate::protocol::parts::server_error::ServerError;
 use byteorder::{LittleEndian, ReadBytesExt};
-use std::fmt;
 
 /// Describes the success of a command.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -35,8 +34,8 @@ impl ExecutionResult {
     }
 }
 
-impl fmt::Display for ExecutionResult {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+impl std::fmt::Display for ExecutionResult {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         match *self {
             Self::RowsAffected(count) => writeln!(fmt, "Number of affected rows: {}, ", count)?,
             Self::SuccessNoInfo => writeln!(
