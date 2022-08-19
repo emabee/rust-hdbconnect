@@ -33,7 +33,7 @@ use secstr::SecUtf8;
 ///     .build()
 ///     .unwrap();
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
 #[serde(into = "String")]
 pub struct ConnectParamsBuilder {
     hostname: Option<String>,

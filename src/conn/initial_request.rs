@@ -61,6 +61,6 @@ fn emit_initial_request(w: &mut dyn std::io::Write) -> std::io::Result<()> {
             res
         };
     }
-    w.write_all(&*INITIAL_REQUEST)?;
+    w.write_all(&INITIAL_REQUEST)?;
     w.flush()
 }

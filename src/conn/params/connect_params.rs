@@ -261,7 +261,7 @@ impl std::fmt::Display for ConnectParams {
 }
 
 /// Expresses where Certificates for TLS are read from.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ServerCerts {
     /// Server Certificates are read from files in the specified folder.
     Directory(String),

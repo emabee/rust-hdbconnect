@@ -84,7 +84,7 @@ impl HdbReturnValue {
     pub fn is_success(&self) -> bool {
         match *self {
             Self::Success => true,
-            Self::AffectedRows(ref vec) => vec.len() == 1 && vec.get(0) == Some(&0),
+            Self::AffectedRows(ref vec) => vec.len() == 1 && vec.first() == Some(&0),
             _ => false,
         }
     }

@@ -45,7 +45,7 @@ pub(crate) use self::{
     read_lob_reply::ReadLobReply,
     read_lob_request::ReadLobRequest,
     resultset::{AmRsCore, RsState},
-    resultset_metadata::{parse_resultset_metadata, ResultSetMetadata},
+    resultset_metadata::ResultSetMetadata,
     session_context::SessionContext,
     statement_context::StatementContext,
     topology::Topology,

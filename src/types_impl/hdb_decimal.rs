@@ -74,7 +74,7 @@ impl HdbDecimal {
                 }
             }
 
-            if exponent < -6143 || exponent > 6144 {
+            if !(-6143..=6144).contains(&exponent) {
                 return Err(SerializationError::Serde(format!(
                     "exponent '{}' out of range",
                     exponent
@@ -85,10 +85,7 @@ impl HdbDecimal {
         };
 
         let mut raw = [0_u8; 16];
-        (&mantissa)
-            .iter()
-            .enumerate()
-            .for_each(|(i, b)| raw[i] = *b);
+        mantissa.iter().enumerate().for_each(|(i, b)| raw[i] = *b);
 
         let biased_exponent: u16 = (exponent + 6176) as u16; // bounds are checked above
         LittleEndian::write_u16(&mut raw[14..=15], biased_exponent * 2);

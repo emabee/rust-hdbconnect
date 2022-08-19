@@ -97,7 +97,10 @@ impl Row {
         rdr: &mut dyn std::io::Read,
     ) -> std::io::Result<Self> {
         let mut values = Vec::<HdbValue>::new();
-        for col_md in Arc::as_ref(&md) {
+
+        let md0 = Arc::as_ref(&md);
+
+        for col_md in std::ops::Deref::deref(&*md0) {
             let value = HdbValue::parse_from_reply(
                 col_md.type_id(),
                 col_md.is_array_type(),

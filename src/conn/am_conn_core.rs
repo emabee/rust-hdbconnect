@@ -50,7 +50,8 @@ impl AmConnCore {
         let mut conn_core = self.lock()?;
         conn_core.augment_request(&mut request);
 
-        match conn_core.roundtrip_sync(&request, Some(self), o_a_rsmd, o_a_descriptors, o_rs) {
+        let reply = conn_core.roundtrip_sync(&request, Some(self), o_a_rsmd, o_a_descriptors, o_rs);
+        match reply {
             Ok(reply) => {
                 trace!(
                     "full_send_sync() took {} ms",

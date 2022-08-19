@@ -518,14 +518,9 @@ impl ResultSet {
 
 impl std::fmt::Display for ResultSet {
     // Writes a header and then the data
+    #[allow(clippy::significant_drop_in_scrutinee)]
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-        // writeln!(fmt, "{}\n", &self.metadata)?;
-
-        writeln!(fmt)?;
-        for field_metadata in Arc::as_ref(&self.metadata) {
-            write!(fmt, "{}, ", field_metadata.displayname())?;
-        }
-        writeln!(fmt)?;
+        writeln!(fmt, "{}\n", &self.metadata)?;
 
         let state = self
             .state

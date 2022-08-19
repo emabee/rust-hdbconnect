@@ -234,7 +234,7 @@ impl std::fmt::Display for ParameterDescriptor {
 
 /// Describes whether a parameter is Nullable or not or if it has a default
 /// value.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ParameterBinding {
     /// Parameter is nullable (can be set to NULL).
     Optional,
@@ -245,7 +245,7 @@ pub enum ParameterBinding {
 }
 
 /// Describes whether a parameter is used for input, output, or both.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ParameterDirection {
     /// input parameter
     IN,
