@@ -1,5 +1,8 @@
-use crate::protocol::util;
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use crate::{
+    protocol::util, LENGTH_INDICATOR_2BYTE, LENGTH_INDICATOR_4BYTE, LENGTH_INDICATOR_NULL,
+    MAX_1_BYTE_LENGTH,
+};
+use byteorder::{BigEndian, LittleEndian, ReadBytesExt, WriteBytesExt};
 
 #[derive(Debug, Default)]
 pub(crate) struct AuthFields(Vec<AuthField>);
@@ -60,10 +63,14 @@ impl AuthField {
     #[allow(clippy::cast_possible_truncation)]
     fn emit(&self, w: &mut dyn std::io::Write) -> std::io::Result<()> {
         match self.0.len() {
-            l if l <= 250_usize => w.write_u8(l as u8)?, // B1: length of value
-            l if l <= 65_535_usize => {
-                w.write_u8(255)?; // B1: 247
+            l if l <= MAX_1_BYTE_LENGTH as usize => w.write_u8(l as u8)?, // B1: length of value
+            l if l <= 0xFFFF => {
+                w.write_u8(LENGTH_INDICATOR_2BYTE)?; // B1: 246
                 w.write_u16::<LittleEndian>(l as u16)?; // U2: length of value
+            }
+            l if l <= 0xFFFFFFFF => {
+                w.write_u8(LENGTH_INDICATOR_4BYTE)?; // B1: 247
+                w.write_u32::<LittleEndian>(l as u32)?; // U4: length of value
             }
             l => {
                 return Err(util::io_error(format!(
@@ -81,19 +88,20 @@ impl AuthField {
     }
 
     fn parse(rdr: &mut dyn std::io::Read) -> std::io::Result<Self> {
-        let mut len = rdr.read_u8()? as usize; // B1
-        match len {
-            255 => {
-                len = rdr.read_u16::<LittleEndian>()? as usize; // (B1+)I2
-            }
-            251..=254 => {
-                return Err(util::io_error(format!(
-                    "Unknown length indicator for AuthField: {}",
-                    len
-                )));
-            }
-            _ => {}
-        }
+        let len = Self::parse_length_of_bytes(rdr.read_u8()?, rdr)?;
         Ok(Self(util::parse_bytes(len, rdr)?))
+    }
+
+    fn parse_length_of_bytes(l8: u8, rdr: &mut dyn std::io::Read) -> std::io::Result<usize> {
+        match l8 {
+            0..=MAX_1_BYTE_LENGTH => Ok(l8 as usize),
+            LENGTH_INDICATOR_2BYTE => Ok(rdr.read_u16::<LittleEndian>()? as usize), // U2
+            LENGTH_INDICATOR_4BYTE => Ok(rdr.read_u32::<LittleEndian>()? as usize), // U4
+            LENGTH_INDICATOR_NULL => Ok(rdr.read_u16::<BigEndian>()? as usize),     // U2 BigEndian
+            _ => Err(util::io_error(format!(
+                "Unknown length indicator for AuthField: {}",
+                l8
+            ))),
+        }
     }
 }

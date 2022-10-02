@@ -1,7 +1,7 @@
 use super::{crypto_util, Authenticator};
 use crate::protocol::parts::AuthFields;
 use crate::{HdbError, HdbResult};
-use byteorder::{BigEndian, WriteBytesExt};
+use byteorder::{LittleEndian, WriteBytesExt};
 use rand::{thread_rng, RngCore};
 use secstr::SecUtf8;
 use std::io::Write;
@@ -47,7 +47,7 @@ impl Authenticator for ScramSha256 {
         self.server_proof = Some(server_proof);
 
         let mut buf = Vec::<u8>::with_capacity(3 + CLIENT_PROOF_SIZE as usize);
-        buf.write_u16::<BigEndian>(1_u16)
+        buf.write_u16::<LittleEndian>(1_u16)
             .map_err(|_e| HdbError::Impl(CONTEXT_CLIENT_PROOF))?;
         buf.write_u8(CLIENT_PROOF_SIZE)
             .map_err(|_e| HdbError::Impl(CONTEXT_CLIENT_PROOF))?;

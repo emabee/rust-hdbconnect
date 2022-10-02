@@ -8,16 +8,12 @@ use crate::types_impl::lob::{emit_lob_header, parse_blob, parse_clob, parse_nclo
 use crate::types_impl::longdate::parse_longdate;
 use crate::types_impl::seconddate::parse_seconddate;
 use crate::types_impl::secondtime::parse_secondtime;
-use crate::{HdbError, HdbResult};
+use crate::{
+    HdbError, HdbResult, LENGTH_INDICATOR_2BYTE, LENGTH_INDICATOR_4BYTE, LENGTH_INDICATOR_NULL,
+    MAX_1_BYTE_LENGTH, MAX_2_BYTE_LENGTH,
+};
 use bigdecimal::BigDecimal;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-
-const MAX_1_BYTE_LENGTH: u8 = 245;
-const MAX_2_BYTE_LENGTH: i16 = i16::max_value();
-const LENGTH_INDICATOR_2BYTE: u8 = 246;
-const LENGTH_INDICATOR_4BYTE: u8 = 247;
-// const LENGTH_INDICATOR_DEFAULT: u8 = 254;
-const LENGTH_INDICATOR_NULL: u8 = 255;
 
 const ALPHANUM_PURELY_NUMERIC: u8 = 0b_1000_0000_u8;
 const ALPHANUM_LENGTH_MASK: u8 = 0b_0111_1111_u8;

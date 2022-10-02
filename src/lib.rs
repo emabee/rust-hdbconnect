@@ -108,3 +108,9 @@ pub const DEFAULT_LOB_READ_LENGTH: u32 = 16_000_000;
 /// The value used at runtime can be changed with
 /// [`Connection::set_lob_write_length()`](crate::Connection::set_lob_write_length).
 pub const DEFAULT_LOB_WRITE_LENGTH: usize = 16_000_000;
+
+const MAX_1_BYTE_LENGTH: u8 = 245;
+const MAX_2_BYTE_LENGTH: i16 = i16::max_value();
+const LENGTH_INDICATOR_2BYTE: u8 = 246;
+const LENGTH_INDICATOR_4BYTE: u8 = 247;
+const LENGTH_INDICATOR_NULL: u8 = 255;
