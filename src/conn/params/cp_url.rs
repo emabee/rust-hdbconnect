@@ -84,17 +84,17 @@ pub(crate) fn format_as_url(
     client_locale: &Option<String>,
     f: &mut std::fmt::Formatter,
 ) -> std::fmt::Result {
-    let it = database.iter().map(|db| format!("db={}", db));
+    let it = database.iter().map(|db| format!("db={db}"));
     let it = it.chain(
         network_group
             .iter()
-            .map(|network_group| format!("network_group={}", network_group)),
+            .map(|network_group| format!("network_group={network_group}")),
     );
     let it = it.chain(server_certs.iter().map(format_server_certs));
     let it = it.chain(
         client_locale
             .iter()
-            .map(|cl| format!("{}={}", UrlOpt::ClientLocale.name(), cl)),
+            .map(|cl| format!("{}={cl}", UrlOpt::ClientLocale.name())),
     );
     #[cfg(feature = "alpha_nonblocking")]
     let it = it.chain(
@@ -129,8 +129,8 @@ pub(crate) fn format_as_url(
 
 fn format_server_certs(sc: &ServerCerts) -> String {
     match sc {
-        ServerCerts::Directory(s) => format!("{}={}", UrlOpt::TlsCertificateDir.name(), s),
-        ServerCerts::Environment(s) => format!("{}={}", UrlOpt::TlsCertificateEnv.name(), s),
+        ServerCerts::Directory(s) => format!("{}={s}", UrlOpt::TlsCertificateDir.name()),
+        ServerCerts::Environment(s) => format!("{}={s}", UrlOpt::TlsCertificateEnv.name()),
         ServerCerts::RootCertificates => UrlOpt::TlsCertificateMozilla.name().to_string(),
         ServerCerts::None => UrlOpt::InsecureOmitServerCheck.name().to_string(),
         ServerCerts::Direct(_s) => "NOT SUPPORTED IN URLs".to_string(),

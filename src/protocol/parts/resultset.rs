@@ -292,7 +292,7 @@ impl ResultSet {
         } else {
             Ok(state
                 .next_row(&self.metadata)?
-                .ok_or(HdbError::Usage("Resultset is empty"))?)
+                .ok_or_else(|| HdbError::Usage("Resultset is empty"))?)
         }
     }
 

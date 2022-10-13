@@ -1,17 +1,17 @@
 use crate::protocol::parts::option_part::{OptionId, OptionPart};
 
-/// The part is sent from the server to signal
-///
-/// * changes of the current transaction status
-///   (committed, rolled back, start of a write transaction), and
-/// * changes of the general session state
-/// (transaction isolation level has changed, DDL statements are
-/// automatically committed or not, it has become impossible to continue
-/// processing the session)
+// The part is sent from the server to signal
+//
+// * changes of the current transaction status
+//   (committed, rolled back, start of a write transaction), and
+// * changes of the general session state
+// (transaction isolation level has changed, DDL statements are
+// automatically committed or not, it has become impossible to continue
+// processing the session)
 pub(crate) type TransactionFlags = OptionPart<TaFlagId>;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
-pub enum TaFlagId {
+pub(crate) enum TaFlagId {
     RolledBack,            // 0 // BOOL    // The transaction is rolled back
     Committed,             // 1 // BOOL    // The transaction is committed
     NewIsolationlevel,     // 2 // INT     // The transaction isolation level has changed

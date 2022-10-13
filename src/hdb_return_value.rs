@@ -93,9 +93,9 @@ impl HdbReturnValue {
 impl std::fmt::Display for HdbReturnValue {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         match *self {
-            Self::AffectedRows(ref vec) => writeln!(fmt, "AffectedRows {:?},", vec),
-            Self::OutputParameters(ref op) => writeln!(fmt, "OutputParameters [{}],", op),
-            Self::ResultSet(ref rs) => writeln!(fmt, "ResultSet [{}],", rs),
+            Self::AffectedRows(ref vec) => writeln!(fmt, "AffectedRows {vec:?},"),
+            Self::OutputParameters(ref op) => writeln!(fmt, "OutputParameters [{op}],"),
+            Self::ResultSet(ref rs) => writeln!(fmt, "ResultSet [{rs}],"),
             Self::Success => writeln!(fmt, "Success,"),
             Self::XaTransactionIds(_) => writeln!(fmt, "XaTransactionIds,<"),
         }

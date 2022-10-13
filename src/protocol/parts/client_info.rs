@@ -26,7 +26,7 @@ impl Default for ClientInfo {
 impl std::fmt::Display for ClientInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
         for (k, v) in &self.0 {
-            writeln!(f, "{:?} = {}", k, v)?;
+            writeln!(f, "{k:?} = {v}")?;
         }
         Ok(())
     }

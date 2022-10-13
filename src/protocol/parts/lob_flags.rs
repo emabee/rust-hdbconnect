@@ -7,7 +7,7 @@ use crate::protocol::parts::option_value::OptionValue;
 pub(crate) type LobFlags = OptionPart<LobFlagsId>;
 
 #[derive(Debug, Eq, PartialEq, Hash)]
-pub enum LobFlagsId {
+pub(crate) enum LobFlagsId {
     ImplicitStreaming, // 0 // BOOL // The implicit streaming has been started.
     __Unexpected__(u8),
 }

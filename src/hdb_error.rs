@@ -2,13 +2,17 @@ use crate::protocol::parts::{ExecutionResult, ServerError};
 // use std::backtrace::Backtrace;
 use thiserror::Error;
 
+// FIXME Improve documentation of error variants
+
 /// A list specifying categories of [`HdbError`](crate::HdbError).
 ///
 /// This list may grow over time and it is not recommended to exhaustively
 /// match against it.
 #[derive(Error, Debug)] //Copy, Clone, Eq, PartialEq,
+#[non_exhaustive]
 pub enum HdbError {
-    /// Error occured in deserialization.
+    /// Deserialization of a `ResultSet`, a `Row`, a single `HdbValue`,
+    /// or an `OutputParameter` failed (methods `try_into()`).
     #[error("Error occured in deserialization")]
     Deserialization {
         /// The causing Error.
@@ -17,7 +21,7 @@ pub enum HdbError {
         // backtrace: Backtrace,
     },
 
-    /// Error occured in serialization.
+    /// Serialization of a `ParameterDescriptor` or a `ParameterRow` failed.
     #[error("Error occured in serialization")]
     Serialization {
         /// The causing Error.
@@ -26,7 +30,7 @@ pub enum HdbError {
         // backtrace: Backtrace,
     },
 
-    /// Some error occured while decoding CESU-8.
+    /// Some error occured while decoding CESU-8. This indicates a server issue!
     #[error("Some error occured while decoding CESU-8")]
     Cesu8 {
         /// The causing Error.
@@ -35,7 +39,7 @@ pub enum HdbError {
         // backtrace: Backtrace,
     },
 
-    /// Erroneous Connection Parameters.
+    /// Erroneous Connection Parameters, e.g. from a malformed connection URL.
     #[error("Erroneous Connection Parameters")]
     ConnParams {
         /// The causing Error.
@@ -43,7 +47,8 @@ pub enum HdbError {
         // backtrace: Backtrace,
     },
 
-    /// Database server responded with an error.
+    /// Database server responded with an error;
+    /// the contained `ServerError` describes the conrete reason.
     #[error("Database server responded with an error")]
     DbError {
         /// The causing Error.
@@ -52,7 +57,17 @@ pub enum HdbError {
         // backtrace: Backtrace,
     },
 
-    /// Error occured while evaluating a HdbResponse or an HdbReturnValue.
+    /// TLS set up failed.
+    #[error(
+        "TLS set up failed, after setting up the TCP connection; is the database prepared for TLS?"
+    )]
+    Tls {
+        /// The causing Error.
+        #[from]
+        source: webpki::InvalidDNSNameError,
+    },
+
+    /// Error occured while evaluating an `HdbResponse` or an `HdbReturnValue`.
     #[error("Error occured while evaluating a HdbResponse or an HdbReturnValue")]
     Evaluation(&'static str),
 
@@ -81,8 +96,12 @@ pub enum HdbError {
     SessionClosingTransactionError,
 
     /// Error occured in communication with the database.
-    #[error("Error occured in communication with the database")]
-    Tcp {
+    #[error(
+        "Error occured in communication with the database; \
+             if this happens during setup, then a frequent cause is that TLS \
+             was attempted but is not supported by the database instance"
+    )]
+    Io {
         /// The causing Error.
         #[from]
         source: std::io::Error,

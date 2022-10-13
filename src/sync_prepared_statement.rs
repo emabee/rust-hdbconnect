@@ -438,7 +438,7 @@ impl<'a> PreparedStatement {
             }
         }
 
-        let statement_id = o_stmt_id.ok_or(HdbError::Impl("No StatementId received"))?;
+        let statement_id = o_stmt_id.ok_or_else(|| HdbError::Impl("No StatementId received"))?;
         let am_ps_core = Arc::new(Mutex::new(PreparedStatementCore {
             am_conn_core,
             statement_id,

@@ -19,7 +19,7 @@ impl std::fmt::Display for DayDate {
     // The format chosen supports the conversion to chrono types.
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         let (year, month, day) = self.as_ymd();
-        write!(fmt, "{:04}-{:02}-{:02}", year, month, day)
+        write!(fmt, "{year:04}-{month:02}-{day:02}")
     }
 }
 
@@ -47,7 +47,7 @@ impl DayDate {
             v => v - 1,
         };
 
-        let julian: i32 = datevalue as i32 + ZEITENWENDE;
+        let julian: i32 = datevalue + ZEITENWENDE;
         let ja: i32 = if julian >= JGREG {
             let jalpha: i32 = ((f64::from(julian - 1_867_216) - 0.25_f64) / 36_524.25_f64) as i32;
             julian + 1 + jalpha - ((0.25_f64 * f64::from(jalpha)) as i32)

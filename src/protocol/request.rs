@@ -83,7 +83,7 @@ impl<'a> Request<'a> {
         w.write_i16::<LittleEndian>(1)?; // I2 Number of this segment, starting with 1
         w.write_i8(1)?; // I1 Segment kind: always 1 = Request
         w.write_i8(self.request_type as i8)?; // I1 "Message type"
-        w.write_i8(if auto_commit { 1_i8 } else { 0 })?; // I1 auto_commit on/off
+        w.write_i8(auto_commit.into())?; // I1 auto_commit on/off
         w.write_u8(self.command_options)?; // I1 Bit set for options
         for _ in 0..8 {
             w.write_u8(0)?;

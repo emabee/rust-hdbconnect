@@ -111,8 +111,7 @@ impl<'a> HdbValue<'a> {
                 }
                 _ => {
                     return Err( HdbError::ImplDetailed(format!(
-                        "Can't send {} type for requested {:?} type",
-                        "DECIMAL", requested_type_id
+                        "Can't send DECIMAL for requested type {requested_type_id:?}"
                     )));
                 }
             },
@@ -487,7 +486,7 @@ fn parse_bool(nullable: bool, rdr: &mut dyn std::io::Read) -> std::io::Result<Hd
                 Err(util::io_error("parse_bool: got null value".to_string()))
             }
         }
-        i => Err(util::io_error(format!("parse_bool: got bad value {}", i))),
+        i => Err(util::io_error(format!("parse_bool: got bad value {i}"))),
     }
 }
 
@@ -649,25 +648,25 @@ impl<'a> std::fmt::Display for HdbValue<'a> {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         match *self {
             HdbValue::NULL => write!(fmt, "<NULL>"),
-            HdbValue::TINYINT(value) => write!(fmt, "{}", value),
-            HdbValue::SMALLINT(value) => write!(fmt, "{}", value),
-            HdbValue::INT(value) => write!(fmt, "{}", value),
-            HdbValue::BIGINT(value) => write!(fmt, "{}", value),
+            HdbValue::TINYINT(value) => write!(fmt, "{value}"),
+            HdbValue::SMALLINT(value) => write!(fmt, "{value}"),
+            HdbValue::INT(value) => write!(fmt, "{value}"),
+            HdbValue::BIGINT(value) => write!(fmt, "{value}"),
 
-            HdbValue::DECIMAL(ref value) => write!(fmt, "{}", value),
+            HdbValue::DECIMAL(ref value) => write!(fmt, "{value}"),
 
-            HdbValue::REAL(value) => write!(fmt, "{}", value),
-            HdbValue::DOUBLE(value) => write!(fmt, "{}", value),
+            HdbValue::REAL(value) => write!(fmt, "{value}"),
+            HdbValue::DOUBLE(value) => write!(fmt, "{value}"),
             HdbValue::STR(value) => {
                 if value.len() < 10_000 {
-                    write!(fmt, "{}", value)
+                    write!(fmt, "{value}")
                 } else {
                     write!(fmt, "<STRING length = {}>", value.len())
                 }
             }
             HdbValue::STRING(ref value) => {
                 if value.len() < 10_000 {
-                    write!(fmt, "{}", value)
+                    write!(fmt, "{value}")
                 } else {
                     write!(fmt, "<STRING length = {}>", value.len())
                 }
@@ -678,11 +677,11 @@ impl<'a> std::fmt::Display for HdbValue<'a> {
             HdbValue::NCLOB(_) => write!(fmt, "<NCLOB>"),
             HdbValue::BLOB(ref blob) => write!(fmt, "<BLOB length = {}>", blob.total_byte_length()),
             HdbValue::LOBSTREAM(_) => write!(fmt, "<LOBSTREAM>"),
-            HdbValue::BOOLEAN(value) => write!(fmt, "{}", value),
-            HdbValue::LONGDATE(ref value) => write!(fmt, "{}", value),
-            HdbValue::SECONDDATE(ref value) => write!(fmt, "{}", value),
-            HdbValue::DAYDATE(ref value) => write!(fmt, "{}", value),
-            HdbValue::SECONDTIME(ref value) => write!(fmt, "{}", value),
+            HdbValue::BOOLEAN(value) => write!(fmt, "{value}"),
+            HdbValue::LONGDATE(ref value) => write!(fmt, "{value}"),
+            HdbValue::SECONDDATE(ref value) => write!(fmt, "{value}"),
+            HdbValue::DAYDATE(ref value) => write!(fmt, "{value}"),
+            HdbValue::SECONDTIME(ref value) => write!(fmt, "{value}"),
             HdbValue::GEOMETRY(ref vec) => write!(fmt, "<GEOMETRY length = {}>", vec.len()),
             HdbValue::POINT(ref vec) => write!(fmt, "<POINT length = {}>", vec.len()),
             HdbValue::ARRAY(ref vec) => {

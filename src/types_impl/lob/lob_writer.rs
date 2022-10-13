@@ -117,7 +117,7 @@ impl<'a> LobWriter<'a> {
             }
         }
 
-        result.ok_or(HdbError::Impl("No WriteLobReply part found"))
+        result.ok_or_else(|| HdbError::Impl("No WriteLobReply part found"))
     }
 
     fn evaluate_dbprocedure_call_reply(&mut self, mut reply: Reply) -> HdbResult<Vec<u64>> {

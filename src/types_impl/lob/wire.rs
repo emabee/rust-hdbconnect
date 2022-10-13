@@ -136,7 +136,7 @@ pub(crate) fn emit_lob_header(
     // bit 0: not used; bit 1: data is included; bit 2: no more data remaining
     w.write_u8(0b000_u8)?; // I1           Bit set for options
     w.write_i32::<LittleEndian>(length as i32)?; // I4           LENGTH OF VALUE
-    w.write_i32::<LittleEndian>(*offset as i32)?; // I4           position
+    w.write_i32::<LittleEndian>(*offset)?; // I4           position
     *offset += length as i32;
     Ok(())
 }

@@ -35,11 +35,11 @@ pub(crate) fn fetch_a_lob_chunk(
                 stmt_ctx.server_cpu_time(),
                 stmt_ctx.server_memory_usage(),
             ),
-            _ => warn!("Weweew"),
+            _ => warn!("Unexpected part received - and ignored"),
         }
     }
 
     o_read_lob_reply
         .map(ReadLobReply::into_data_and_last)
-        .ok_or(HdbError::Impl("dsdadasd"))
+        .ok_or_else(|| HdbError::Impl("fetching a lob chunk failed"))
 }

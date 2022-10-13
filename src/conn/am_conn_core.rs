@@ -59,7 +59,7 @@ impl AmConnCore {
                 );
                 Ok(reply)
             }
-            Err(HdbError::Tcp { source })
+            Err(HdbError::Io { source })
                 if std::io::ErrorKind::ConnectionReset == source.kind() =>
             {
                 debug!("full_send_sync(): reconnecting after ConnectionReset error...");

@@ -122,7 +122,7 @@ impl BLob {
 
     /// Current size of the internal buffer, in bytes.
     pub fn cur_buf_len(&self) -> usize {
-        self.0.cur_buf_len() as usize
+        self.0.cur_buf_len()
     }
 
     /// Provides information about the the server-side resource consumption that
@@ -205,7 +205,7 @@ impl BLobHandle {
         }
 
         let read_length = std::cmp::min(
-            self.am_conn_core.lock()?.get_lob_read_length() as u32,
+            self.am_conn_core.lock()?.get_lob_read_length(),
             (self.total_byte_length - self.acc_byte_length as u64) as u32,
         );
 

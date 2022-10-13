@@ -217,7 +217,7 @@ fn evaluate_option(parameter_option: u8) -> (ParameterBinding, bool, bool) {
 impl std::fmt::Display for ParameterDescriptor {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         if let Some(ref s) = self.name {
-            write!(fmt, "{} ", s,)?;
+            write!(fmt, "{s} ")?;
         }
         write!(
             fmt,

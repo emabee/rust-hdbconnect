@@ -33,8 +33,8 @@ pub(crate) struct ConnectionCore {
 
 impl<'a> ConnectionCore {
     pub(crate) fn try_new(params: ConnectParams) -> HdbResult<Self> {
-        let o_dbname = params.dbname();
-        let network_group = params.network_group().unwrap_or_default();
+        let o_dbname = params.dbname().map(ToString::to_string);
+        let network_group = params.network_group().unwrap_or_default().to_string();
         let mut conn_core = ConnectionCore::try_new_initialized(params)?;
         if let Some(dbname) = o_dbname {
             // since a dbname is specified, we ask explicitly for a redirect
@@ -42,7 +42,7 @@ impl<'a> ConnectionCore {
             let mut request = Request::new(RequestType::DbConnectInfo, 0);
             request.push(Part::DbConnectInfo(DbConnectInfo::new(
                 dbname,
-                &network_group,
+                network_group,
             )));
             let reply = conn_core.roundtrip_sync(&request, None, None, None, &mut None)?;
             reply.assert_expected_reply_type(ReplyType::Nil)?;

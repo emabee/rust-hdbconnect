@@ -37,7 +37,7 @@ impl DbvFactory for &ParameterDescriptor {
                 )
             }
             TypeId::VARCHAR | TypeId::NVARCHAR | TypeId::TEXT | TypeId::SHORTTEXT => {
-                HdbValue::STRING(format!("{}", value))
+                HdbValue::STRING(format!("{value}"))
             }
             _ => return Err(type_mismatch(input_type, self.descriptor())),
         })
@@ -61,7 +61,7 @@ impl DbvFactory for &ParameterDescriptor {
                 )
             }
             TypeId::VARCHAR | TypeId::NVARCHAR | TypeId::TEXT | TypeId::SHORTTEXT => {
-                HdbValue::STRING(format!("{}", value))
+                HdbValue::STRING(format!("{value}"))
             }
             _ => return Err(type_mismatch(input_type, self.descriptor())),
         })
@@ -89,7 +89,7 @@ impl DbvFactory for &ParameterDescriptor {
             TypeId::DAYDATE => HdbValue::DAYDATE(DayDate::new(value)),
             TypeId::SECONDTIME => HdbValue::SECONDTIME(SecondTime::new(value)),
             TypeId::VARCHAR | TypeId::NVARCHAR | TypeId::TEXT | TypeId::SHORTTEXT => {
-                HdbValue::STRING(format!("{}", value))
+                HdbValue::STRING(format!("{value}"))
             }
             _ => return Err(type_mismatch(input_type, self.descriptor())),
         })
@@ -121,7 +121,7 @@ impl DbvFactory for &ParameterDescriptor {
                 )
             }
             TypeId::VARCHAR | TypeId::NVARCHAR | TypeId::TEXT | TypeId::SHORTTEXT => {
-                HdbValue::STRING(format!("{}", value))
+                HdbValue::STRING(format!("{value}"))
             }
             _ => return Err(type_mismatch(input_type, self.descriptor())),
         })
@@ -141,7 +141,7 @@ impl DbvFactory for &ParameterDescriptor {
                 )
             }
             TypeId::VARCHAR | TypeId::NVARCHAR | TypeId::TEXT | TypeId::SHORTTEXT => {
-                HdbValue::STRING(format!("{}", value))
+                HdbValue::STRING(format!("{value}"))
             }
             _ => return Err(type_mismatch(input_type, self.descriptor())),
         })
@@ -167,7 +167,7 @@ impl DbvFactory for &ParameterDescriptor {
                 )
             }
             TypeId::VARCHAR | TypeId::NVARCHAR | TypeId::TEXT | TypeId::SHORTTEXT => {
-                HdbValue::STRING(format!("{}", value))
+                HdbValue::STRING(format!("{value}"))
             }
             _ => return Err(type_mismatch(input_type, self.descriptor())),
         })
@@ -197,7 +197,7 @@ impl DbvFactory for &ParameterDescriptor {
                 )
             }
             TypeId::VARCHAR | TypeId::NVARCHAR | TypeId::TEXT | TypeId::SHORTTEXT => {
-                HdbValue::STRING(format!("{}", value))
+                HdbValue::STRING(format!("{value}"))
             }
             _ => return Err(type_mismatch(input_type, self.descriptor())),
         })
@@ -229,7 +229,7 @@ impl DbvFactory for &ParameterDescriptor {
                 )
             }
             TypeId::VARCHAR | TypeId::NVARCHAR | TypeId::TEXT | TypeId::SHORTTEXT => {
-                HdbValue::STRING(format!("{}", value))
+                HdbValue::STRING(format!("{value}"))
             }
             _ => return Err(type_mismatch(input_type, self.descriptor())),
         })
@@ -247,7 +247,7 @@ impl DbvFactory for &ParameterDescriptor {
                 )
             }
             TypeId::VARCHAR | TypeId::NVARCHAR | TypeId::TEXT | TypeId::SHORTTEXT => {
-                HdbValue::STRING(format!("{}", value))
+                HdbValue::STRING(format!("{value}"))
             }
             _ => return Err(type_mismatch("f32", self.descriptor())),
         })
@@ -265,7 +265,7 @@ impl DbvFactory for &ParameterDescriptor {
                 )
             }
             TypeId::VARCHAR | TypeId::NVARCHAR | TypeId::TEXT | TypeId::SHORTTEXT => {
-                HdbValue::STRING(format!("{}", value))
+                HdbValue::STRING(format!("{value}"))
             }
             _ => return Err(type_mismatch("f64", self.descriptor())),
         })

@@ -4,7 +4,7 @@ use crate::protocol::util;
 // prepared or executed. Is documented as Function Code.
 // Irrelevant numbers (ABAP stuff, "reserved") are omitted.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum ReplyType {
+pub(crate) enum ReplyType {
     Nil,                       // Nil
     Ddl,                       // DDL statement
     Insert,                    // INSERT statement

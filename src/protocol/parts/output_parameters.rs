@@ -94,7 +94,7 @@ impl std::fmt::Display for OutputParameters {
 
         // write the data
         for value in &self.values {
-            write!(fmt, "{}, ", value)?;
+            write!(fmt, "{value}, ")?;
         }
         writeln!(fmt)?;
         Ok(())

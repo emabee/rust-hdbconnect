@@ -69,7 +69,7 @@ impl OptionValue {
             Self::INT(i) => w.write_i32::<LittleEndian>(i)?,
             Self::BIGINT(i) => w.write_i64::<LittleEndian>(i)?,
             Self::DOUBLE(f) => w.write_f64::<LittleEndian>(f)?,
-            Self::BOOLEAN(b) => w.write_u8(if b { 1 } else { 0 })?,
+            Self::BOOLEAN(b) => w.write_u8(b.into())?,
             Self::STRING(ref s) => emit_length_and_string(s, w)?,
             Self::BSTRING(ref v) => emit_length_and_bytes(v, w)?,
         }
@@ -143,12 +143,12 @@ fn parse_length_and_binary(rdr: &mut dyn std::io::Read) -> std::io::Result<Vec<u
 impl std::fmt::Display for OptionValue {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
         match self {
-            Self::INT(v) => write!(f, "{}", v),
-            Self::BIGINT(v) => write!(f, "{}", v),
-            Self::DOUBLE(v) => write!(f, "{}", v),
-            Self::BOOLEAN(v) => write!(f, "{}", v),
-            Self::STRING(v) => write!(f, "{}", v),
-            Self::BSTRING(v) => write!(f, "{:?}", v),
+            Self::INT(v) => write!(f, "{v}"),
+            Self::BIGINT(v) => write!(f, "{v}"),
+            Self::DOUBLE(v) => write!(f, "{v}"),
+            Self::BOOLEAN(v) => write!(f, "{v}"),
+            Self::STRING(v) => write!(f, "{v}"),
+            Self::BSTRING(v) => write!(f, "{v:?}"),
         }
     }
 }

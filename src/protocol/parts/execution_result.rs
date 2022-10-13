@@ -37,7 +37,7 @@ impl ExecutionResult {
 impl std::fmt::Display for ExecutionResult {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         match *self {
-            Self::RowsAffected(count) => writeln!(fmt, "Number of affected rows: {}, ", count)?,
+            Self::RowsAffected(count) => writeln!(fmt, "Number of affected rows: {count}, ")?,
             Self::SuccessNoInfo => writeln!(
                 fmt,
                 "Command successfully executed but number of affected rows cannot be determined"

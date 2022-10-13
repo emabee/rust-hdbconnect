@@ -266,19 +266,19 @@ impl DbValueInto<String> for HdbValue<'static> {
     fn try_into(self) -> Result<String, ConversionError> {
         trace!("try_into -> String");
         match self {
-            HdbValue::TINYINT(i) => Ok(format!("{}", i)),
-            HdbValue::SMALLINT(i) => Ok(format!("{}", i)),
-            HdbValue::INT(i) => Ok(format!("{}", i)),
-            HdbValue::BIGINT(i) => Ok(format!("{}", i)),
-            HdbValue::REAL(f) => Ok(format!("{}", f)),
-            HdbValue::DOUBLE(f) => Ok(format!("{}", f)),
+            HdbValue::TINYINT(i) => Ok(format!("{i}")),
+            HdbValue::SMALLINT(i) => Ok(format!("{i}")),
+            HdbValue::INT(i) => Ok(format!("{i}")),
+            HdbValue::BIGINT(i) => Ok(format!("{i}")),
+            HdbValue::REAL(f) => Ok(format!("{f}")),
+            HdbValue::DOUBLE(f) => Ok(format!("{f}")),
             HdbValue::STRING(s) => Ok(s),
 
             HdbValue::LONGDATE(ld) => Ok(str_from(&ld)),
             HdbValue::SECONDDATE(sd) => Ok(str_from(&sd)),
             HdbValue::DAYDATE(date) => Ok(str_from(&date)),
             HdbValue::SECONDTIME(time) => Ok(str_from(&time)),
-            HdbValue::DECIMAL(bigdec) => Ok(format!("{}", bigdec)),
+            HdbValue::DECIMAL(bigdec) => Ok(format!("{bigdec}")),
             HdbValue::CLOB(clob) => Ok(clob
                 .into_string()
                 .map_err(|e| ConversionError::Incomplete(e.to_string()))?),
@@ -337,7 +337,7 @@ fn parse_float_err(e: &ParseFloatError) -> ConversionError {
 
 /// Deserializes a `LongDate` into a String format.
 fn str_from<T: fmt::Display>(t: &T) -> String {
-    format!("{}", t)
+    format!("{t}")
 }
 
 // TODO improve this implementation

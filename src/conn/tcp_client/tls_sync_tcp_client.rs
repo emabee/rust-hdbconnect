@@ -1,5 +1,4 @@
-use crate::protocol::util;
-use crate::ConnectParams;
+use crate::{protocol::util, ConnectParams, HdbError};
 use rustls::{ClientSession, Session};
 use std::sync::{Arc, Mutex};
 use webpki::DNSNameRef;
@@ -50,7 +49,9 @@ impl Stream {
 
         let am_client_session = Arc::new(Mutex::new(ClientSession::new(
             &Arc::new(params.rustls_clientconfig()?),
-            DNSNameRef::try_from_ascii_str(params.host()).map_err(util::io_error)?,
+            DNSNameRef::try_from_ascii_str(params.host())
+                .map_err(|e| HdbError::Tls { source: e })
+                .map_err(util::io_error)?,
         )));
 
         Ok(Self {

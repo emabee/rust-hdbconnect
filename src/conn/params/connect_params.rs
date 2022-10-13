@@ -3,9 +3,11 @@ use super::cp_url::format_as_url;
 use crate::{ConnectParamsBuilder, HdbError, HdbResult, IntoConnectParams};
 use rustls::ClientConfig;
 use secstr::SecUtf8;
-use std::path::Path;
-use std::path::PathBuf;
-use std::sync::Arc;
+use serde::de::Deserialize;
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 /// An immutable struct with all information necessary to open a new connection
 /// to a HANA database.
@@ -46,7 +48,7 @@ use std::sync::Arc;
 /// system database, and the name of the database to which you want to be connected
 /// with url parameter "db" or with [`ConnectParamsBuilder::dbname`].
 ///
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ConnectParams {
     host: String,
     addr: String,
@@ -73,7 +75,7 @@ impl ConnectParams {
         #[cfg(feature = "alpha_nonblocking")] use_nonblocking: bool,
     ) -> Self {
         Self {
-            addr: format!("{}:{}", host, port),
+            addr: format!("{host}:{port}"),
             host,
             dbuser,
             password,
@@ -95,7 +97,7 @@ impl ConnectParams {
         let mut new_params = self.clone();
         new_params.dbname = None;
         new_params.host = host.to_string();
-        new_params.addr = format!("{}:{}", host, port);
+        new_params.addr = format!("{host}:{port}");
         new_params
     }
 
@@ -147,13 +149,13 @@ impl ConnectParams {
     }
 
     /// The name of the (MDC) database.
-    pub fn dbname(&self) -> Option<String> {
-        self.dbname.as_ref().map(ToString::to_string)
+    pub fn dbname(&self) -> Option<&str> {
+        self.dbname.as_deref()
     }
 
     /// The name of a network group.
-    pub fn network_group(&self) -> Option<String> {
-        self.network_group.as_ref().map(ToString::to_string)
+    pub fn network_group(&self) -> Option<&str> {
+        self.network_group.as_deref()
     }
 
     pub(crate) fn rustls_clientconfig(&self) -> std::io::Result<ClientConfig> {
@@ -198,7 +200,7 @@ impl ConnectParams {
                     Err(e) => {
                         return Err(std::io::Error::new(
                             std::io::ErrorKind::InvalidInput,
-                            format!("Environment variable {} not found, reason: {}", env_var, e),
+                            format!("Environment variable {env_var} not found, reason: {e}"),
                         ));
                     }
                 },
@@ -308,6 +310,48 @@ impl rustls::ServerCertVerifier for NoCertificateVerification {
     // }
 }
 
+#[allow(clippy::missing_errors_doc)]
+impl<'de> Deserialize<'de> for ConnectParams {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        struct DeserializationHelper {
+            host: String,
+            port: u16,
+            dbuser: String,
+            dbname: Option<String>,
+            network_group: Option<String>,
+            password: String,
+            clientlocale: Option<String>,
+            server_certs: Vec<ServerCerts>,
+            #[cfg(feature = "alpha_nonblocking")]
+            use_nonblocking: bool,
+        }
+        let helper: DeserializationHelper = DeserializationHelper::deserialize(deserializer)?;
+        Ok(ConnectParams::new(
+            helper.host,
+            helper.port,
+            helper.dbuser,
+            SecUtf8::from(helper.password),
+            helper.dbname,
+            helper.network_group,
+            helper.clientlocale,
+            helper.server_certs,
+        ))
+    }
+
+    fn deserialize_in_place<D>(deserializer: D, place: &mut Self) -> Result<(), D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        // Default implementation just delegates to `deserialize` impl.
+        *place = Deserialize::deserialize(deserializer)?;
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::IntoConnectParams;
@@ -336,7 +380,7 @@ mod tests {
             assert_eq!("abcd123:2222", params.addr());
             assert_eq!(None, params.clientlocale);
             assert!(params.server_certs().is_empty());
-            assert_eq!(Some("JOE".to_string()), params.dbname());
+            assert_eq!(Some("JOE"), params.dbname());
 
             let redirect_params = params.redirect("xyz9999", 11);
             assert_eq!("meier", redirect_params.dbuser());

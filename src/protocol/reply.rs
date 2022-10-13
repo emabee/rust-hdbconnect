@@ -180,7 +180,7 @@ fn parse_message_and_sequence_header(rdr: &mut dyn std::io::Read) -> std::io::Re
     }
 
     if no_of_segs > 1 {
-        return Err(util::io_error(format!("no_of_segs = {} > 1", no_of_segs)));
+        return Err(util::io_error(format!("no_of_segs = {no_of_segs} > 1")));
     }
 
     util::skip_bytes(10, rdr)?; // (I1 + B[9])

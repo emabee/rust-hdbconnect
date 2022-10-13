@@ -3,7 +3,7 @@ use crate::protocol::util;
 // Here we list all those parts that are or should be implemented by this
 // driver. ABAP related stuff and "reserved" numbers is omitted.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub enum PartKind {
+pub(crate) enum PartKind {
     Command = 3,                // SQL Command Data
     ResultSet = 5,              // Tabular resultset data
     Error = 6,                  // Error information
@@ -87,7 +87,7 @@ impl PartKind {
             73 => Ok(Self::SQLReplyOptions),
             74 => Ok(Self::PrintOptions),
 
-            _ => Err(util::io_error(format!("PartKind {} not implemented", val))),
+            _ => Err(util::io_error(format!("PartKind {val} not implemented"))),
         }
     }
 }

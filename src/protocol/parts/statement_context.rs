@@ -49,7 +49,7 @@ impl StatementContext {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
-pub enum StatementContextId {
+pub(crate) enum StatementContextId {
     StatementSequenceInfo,         // 1 // BIGINT?
     ServerProcessingTime,          // 2 // BIGINT
     SchemaName,                    // 3 // STRING

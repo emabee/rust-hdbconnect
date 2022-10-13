@@ -16,18 +16,15 @@ pub enum DbConnectInfoId {
     __Unexpected__(u8),
 }
 impl DbConnectInfo {
-    pub fn new(db_name: String, network_group: &dyn ToString) -> Self {
+    pub fn new(db_name: String, network_group: String) -> Self {
         let mut db_connect_info = Self::default();
         db_connect_info.insert(DbConnectInfoId::DatabaseName, OptionValue::STRING(db_name));
         db_connect_info.insert(
             DbConnectInfoId::NetworkGroup,
-            OptionValue::STRING(network_group.to_string()),
+            OptionValue::STRING(network_group),
         );
         db_connect_info
     }
-    // pub fn database_name(&self) -> HdbResult<&String> {
-    //     self.get(&DbConnectInfoId::DatabaseName)?.get_string()
-    // }
     pub fn host(&self) -> HdbResult<&String> {
         self.get(&DbConnectInfoId::Host)?.get_string()
     }
@@ -45,9 +42,6 @@ impl DbConnectInfo {
     pub fn on_correct_database(&self) -> HdbResult<bool> {
         self.get(&DbConnectInfoId::OnCorrectDatabase)?.get_bool()
     }
-    // pub fn network_group(&self) -> HdbResult<&String> {
-    //     self.get(&DbConnectInfoId::NetworkGroup)?.get_string()
-    // }
 }
 
 impl OptionId<DbConnectInfoId> for DbConnectInfoId {

@@ -110,7 +110,7 @@ impl<'a> Part<'a> {
             Part::TransactionFlags(ref opts) => opts.len(),
             Part::XatOptions(ref xat) => xat.len(),
             ref a => {
-                return Err(util::io_error(format!("count() called on {:?}", a)));
+                return Err(util::io_error(format!("count() called on {a:?}")));
             }
         })
     }
@@ -157,7 +157,7 @@ impl<'a> Part<'a> {
             Part::XatOptions(ref xat) => size += xat.size(),
 
             ref arg => {
-                return Err(util::io_error(format!("size() called on {:?}", arg)));
+                return Err(util::io_error(format!("size() called on {arg:?}")));
             }
         }
         if with_padding {
@@ -242,7 +242,7 @@ impl<'a> Part<'a> {
             Part::WriteLobRequest(ref r) => r.emit(w)?,
             Part::XatOptions(ref xatid) => xatid.emit(w)?,
             ref a => {
-                return Err(util::io_error(format!("emit() called on {:?}", a)));
+                return Err(util::io_error(format!("emit() called on {a:?}")));
             }
         }
 

@@ -1,5 +1,4 @@
 use crate::protocol::util;
-// use serde::Serialize;
 
 /// ID of the value type of a database column or a parameter.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
@@ -164,7 +163,7 @@ impl TypeId {
             81 => Self::FIXED8,
             82 => Self::FIXED12,
             // TypeCode_CIPHERTEXT               = 90,  // TODO
-            tc => return Err(util::io_error(format!("Illegal type code {}", tc))),
+            tc => return Err(util::io_error(format!("Illegal type code {tc}"))),
         })
     }
 

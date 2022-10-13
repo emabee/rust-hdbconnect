@@ -8,6 +8,6 @@ pub(crate) use self::c_resource_manager::new_resource_manager;
 
 impl From<HdbError> for RmError {
     fn from(error: HdbError) -> Self {
-        Self::new(ErrorCode::RmError, format!("{:?}", error))
+        Self::new(ErrorCode::RmError, format!("{error:?}"))
     }
 }

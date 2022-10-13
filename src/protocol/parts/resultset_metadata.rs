@@ -37,7 +37,7 @@ impl ResultSetMetadata {
             if offset != u32::max_value() {
                 let offset = offset as usize;
                 if !names.contains_key(offset) {
-                    names.insert(offset, "".to_string());
+                    names.insert(offset, String::new());
                 };
             }
         }

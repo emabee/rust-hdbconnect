@@ -41,7 +41,7 @@ impl std::fmt::Display for Severity {
             Self::Warning => write!(f, "warning")?,
             Self::Error => write!(f, "error")?,
             Self::Fatal => write!(f, "fatal error")?,
-            Self::__UNKNOWN__(i) => write!(f, "message of unknown severity ({})", i)?,
+            Self::__UNKNOWN__(i) => write!(f, "message of unknown severity ({i})")?,
         }
         Ok(())
     }
@@ -140,6 +140,6 @@ impl std::fmt::Display for ServerError {
 
 impl std::fmt::Debug for ServerError {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(fmt, "{}", self)
+        write!(fmt, "{self}")
     }
 }

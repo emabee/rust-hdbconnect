@@ -291,7 +291,7 @@ impl HdbResponse {
         } else {
             self.return_values
                 .pop()
-                .ok_or(HdbError::Evaluation("No HdbReturnValue"))
+                .ok_or_else(|| HdbError::Evaluation("No HdbReturnValue"))
         }
     }
 
@@ -441,7 +441,7 @@ impl std::fmt::Display for HdbResponse {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(fmt, "HdbResponse [")?;
         for dbretval in &self.return_values {
-            write!(fmt, "{}, ", dbretval)?;
+            write!(fmt, "{dbretval}, ")?;
         }
         write!(fmt, "]")?;
         Ok(())

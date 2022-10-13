@@ -56,7 +56,7 @@ impl Row {
         T: serde::de::Deserialize<'de>,
     {
         self.next_value()
-            .ok_or(HdbError::Usage("no more value"))?
+            .ok_or_else(|| HdbError::Usage("no more value"))?
             .try_into()
     }
 
@@ -80,7 +80,9 @@ impl Row {
         if self.len() > 1 {
             Err(HdbError::Usage("Row has more than one field"))
         } else {
-            Ok(self.next_value().ok_or(HdbError::Usage("Row is empty"))?)
+            Ok(self
+                .next_value()
+                .ok_or_else(|| HdbError::Usage("Row is empty"))?)
         }
     }
 
@@ -100,7 +102,7 @@ impl Row {
 
         let md0 = Arc::as_ref(&md);
 
-        for col_md in std::ops::Deref::deref(&*md0) {
+        for col_md in &**md0 {
             let value = HdbValue::parse_from_reply(
                 col_md.type_id(),
                 col_md.is_array_type(),

@@ -338,7 +338,7 @@ impl ConnectOptions {
 //      IGNOREUNKNOWNPARTS
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
-pub enum ConnOptId {
+pub(crate) enum ConnOptId {
     ConnectionID,                 // 1 //
     CompleteArrayExecution,       // 2 // @deprecated Array execution semantics, always true.
     ClientLocale,                 // 3 // Is used within the calculation engine.

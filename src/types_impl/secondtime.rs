@@ -22,7 +22,7 @@ impl std::fmt::Display for SecondTime {
     // The format chosen supports the conversion to chrono types.
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         let (hour, minute, second) = self.as_hms();
-        write!(fmt, "{:02}:{:02}:{:02}", hour, minute, second)
+        write!(fmt, "{hour:02}:{minute:02}:{second:02}")
     }
 }
 

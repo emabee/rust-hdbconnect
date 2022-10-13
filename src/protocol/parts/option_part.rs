@@ -32,7 +32,7 @@ impl<T: OptionId<T> + Debug + Eq + PartialEq + Hash> OptionPart<T> {
 
     pub fn get(&self, id: &T) -> HdbResult<&OptionValue> {
         self.0.get(id).ok_or_else(|| {
-            HdbError::ImplDetailed(format!("{:?} not provided in {}", id, id.part_type()))
+            HdbError::ImplDetailed(format!("{id:?} not provided in {}", id.part_type()))
         })
     }
 
@@ -94,7 +94,7 @@ where
 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
         for (k, v) in &self.0 {
-            writeln!(f, "{:?} = {}", k, v)?;
+            writeln!(f, "{k:?} = {v}")?;
         }
         Ok(())
     }

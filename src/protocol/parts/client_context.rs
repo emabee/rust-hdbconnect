@@ -35,7 +35,7 @@ impl ClientContext {
 }
 
 #[derive(Debug, Eq, PartialEq, Hash)]
-pub enum ClientContextId {
+pub(crate) enum ClientContextId {
     ClientVersion,             // 1 // STRING //
     ClientType,                // 2 // STRING //
     ClientApplicationProgramm, // 3 // STRING //
