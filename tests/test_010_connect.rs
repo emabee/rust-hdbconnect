@@ -188,7 +188,10 @@ fn select_version_and_user(connection: &mut Connection) -> HdbResult<()> {
     let resultset = connection.query(stmt)?;
     let version_and_user: VersionAndUser = resultset.try_into()?;
     let conn_params: ConnectParams = test_utils::get_std_cp_builder()?.into_connect_params()?;
-    assert_eq!(&version_and_user.current_user, conn_params.dbuser());
+    assert_eq!(
+        version_and_user.current_user,
+        conn_params.dbuser().to_uppercase()
+    );
 
     debug!("VersionAndUser: {:?}", version_and_user);
     Ok(())

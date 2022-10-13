@@ -64,10 +64,15 @@ pub fn get_um_cp_builder() -> HdbResult<ConnectParamsBuilder> {
 }
 
 fn cp_builder_from_file(purpose: &str) -> HdbResult<(ConnectParamsBuilder, ConnectParamsBuilder)> {
-    let content = std::fs::read_to_string(std::path::Path::new(DB.clone())).map_err(|e| {
-        HdbError::ConnParams {
-            source: Box::new(e),
-        }
+    let db_file = std::path::Path::new(DB.clone());
+    if !db_file.exists() {
+        panic!(
+            "config file with the db connection not found: {}",
+            db_file.to_string_lossy()
+        );
+    }
+    let content = std::fs::read_to_string(db_file).map_err(|e| HdbError::ConnParams {
+        source: Box::new(e),
     })?;
 
     #[derive(Deserialize)]
@@ -85,7 +90,14 @@ fn cp_builder_from_file(purpose: &str) -> HdbResult<(ConnectParamsBuilder, Conne
         um: Cred,
     }
 
-    let db: Db = serde_json::from_str(&content).unwrap();
+    let db: Db;
+    match serde_json::from_str(&content) {
+        Ok(v) => db = v,
+        Err(e) => panic!(
+            "Error parsing the config file with the db connection: {}",
+            e
+        ),
+    }
     let (mut cp_builder, mut redirect_cp_builder, std, um) =
         (db.cp_builder, db.redirect_cp_builder, db.std, db.um);
     match purpose {

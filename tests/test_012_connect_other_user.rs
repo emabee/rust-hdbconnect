@@ -23,12 +23,13 @@ fn connect_other_user(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
     let other_user = "THEOTHERONE".to_string();
     let mut sys_conn = test_utils::get_um_connection().unwrap();
 
-    sys_conn.multiple_statements(vec![
-        "ALTER SYSTEM ALTER CONFIGURATION ('indexserver.ini', 'system') \
-         SET ('password policy', 'force_first_password_change') = 'false' WITH RECONFIGURE",
+    sys_conn.multiple_statements_ignore_err(vec![
         &format!("drop user {}", other_user),
-        &format!("create user {} password \"Theother1234\"", other_user),
-    ])?;
+        &format!(
+            "create user {} password \"Theother1234\" NO FORCE_FIRST_PASSWORD_CHANGE",
+            other_user
+        ),
+    ]);
 
     let before: String = sys_conn
         .query("SELECT CURRENT_USER FROM DUMMY")?
