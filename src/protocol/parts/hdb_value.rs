@@ -1,5 +1,5 @@
 use crate::conn::AmConnCore;
-use crate::protocol::parts::{AmRsCore, ParameterDescriptor, TypeId};
+use crate::protocol::parts::{length_indicator, AmRsCore, ParameterDescriptor, TypeId};
 use crate::protocol::util;
 use crate::types::{BLob, CLob, DayDate, LongDate, NCLob, SecondDate, SecondTime};
 use crate::types_impl::daydate::parse_daydate;
@@ -11,13 +11,6 @@ use crate::types_impl::secondtime::parse_secondtime;
 use crate::{HdbError, HdbResult};
 use bigdecimal::BigDecimal;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-
-const MAX_1_BYTE_LENGTH: u8 = 245;
-const MAX_2_BYTE_LENGTH: i16 = i16::max_value();
-const LENGTH_INDICATOR_2BYTE: u8 = 246;
-const LENGTH_INDICATOR_4BYTE: u8 = 247;
-// const LENGTH_INDICATOR_DEFAULT: u8 = 254;
-const LENGTH_INDICATOR_NULL: u8 = 255;
 
 const ALPHANUM_PURELY_NUMERIC: u8 = 0b_1000_0000_u8;
 const ALPHANUM_LENGTH_MASK: u8 = 0b_0111_1111_u8;
@@ -314,7 +307,7 @@ impl HdbValue<'static> {
     ) -> std::io::Result<HdbValue<'static>> {
         if array_type {
             let l8 = rdr.read_u8()?;
-            let _bytelen = parse_length_of_bytes(l8, rdr)?;
+            let _bytelen = length_indicator::parse(l8, rdr)?;
             let mut values = vec![];
             for _i in 0..rdr.read_i32::<LittleEndian>()? {
                 let value = HdbValue::parse_from_reply(
@@ -495,7 +488,7 @@ fn parse_alphanum(
     rdr: &mut dyn std::io::Read,
 ) -> std::io::Result<HdbValue<'static>> {
     let indicator1 = rdr.read_u8()?;
-    if indicator1 == LENGTH_INDICATOR_NULL {
+    if indicator1 == length_indicator::LENGTH_INDICATOR_NULL {
         // value is null
         if nullable {
             Ok(HdbValue::NULL)
@@ -533,7 +526,7 @@ fn parse_string(
     rdr: &mut dyn std::io::Read,
 ) -> std::io::Result<HdbValue<'static>> {
     let l8 = rdr.read_u8()?; // B1
-    let is_null = l8 == LENGTH_INDICATOR_NULL;
+    let is_null = l8 == length_indicator::LENGTH_INDICATOR_NULL;
 
     if is_null {
         if nullable {
@@ -568,7 +561,7 @@ fn parse_binary(
     rdr: &mut dyn std::io::Read,
 ) -> std::io::Result<HdbValue<'static>> {
     let l8 = rdr.read_u8()?; // B1
-    let is_null = l8 == LENGTH_INDICATOR_NULL;
+    let is_null = l8 == length_indicator::LENGTH_INDICATOR_NULL;
 
     if is_null {
         if nullable {
@@ -590,21 +583,8 @@ fn parse_binary(
 }
 
 fn parse_length_and_bytes(l8: u8, rdr: &mut dyn std::io::Read) -> std::io::Result<Vec<u8>> {
-    let len = parse_length_of_bytes(l8, rdr)?;
+    let len = length_indicator::parse(l8, rdr)?;
     util::parse_bytes(len, rdr)
-}
-
-#[allow(clippy::cast_sign_loss)]
-fn parse_length_of_bytes(l8: u8, rdr: &mut dyn std::io::Read) -> std::io::Result<usize> {
-    match l8 {
-        l if l <= MAX_1_BYTE_LENGTH => Ok(l8 as usize),
-        LENGTH_INDICATOR_2BYTE => Ok(rdr.read_i16::<LittleEndian>()? as usize), // I2
-        LENGTH_INDICATOR_4BYTE => Ok(rdr.read_i32::<LittleEndian>()? as usize), // I4
-        l => Err(util::io_error(format!(
-            "Unexpected value in length indicator: {}",
-            l
-        ))),
-    }
 }
 
 pub(crate) fn string_length(s: &str) -> usize {
@@ -613,8 +593,8 @@ pub(crate) fn string_length(s: &str) -> usize {
 
 pub(crate) fn binary_length(l: usize) -> usize {
     match l {
-        l if l <= MAX_1_BYTE_LENGTH as usize => 1 + l,
-        l if l <= MAX_2_BYTE_LENGTH as usize => 3 + l,
+        l if l <= length_indicator::MAX_1_BYTE_LENGTH as usize => 1 + l,
+        l if l <= length_indicator::MAX_2_BYTE_LENGTH as usize => 3 + l,
         l => 5 + l,
     }
 }
@@ -626,19 +606,7 @@ pub(crate) fn emit_length_and_string(s: &str, w: &mut dyn std::io::Write) -> std
 #[allow(clippy::cast_possible_truncation)]
 #[allow(clippy::cast_possible_wrap)]
 fn emit_length_and_bytes(v: &[u8], w: &mut dyn std::io::Write) -> std::io::Result<()> {
-    match v.len() {
-        l if l <= MAX_1_BYTE_LENGTH as usize => {
-            w.write_u8(l as u8)?; // B1           LENGTH OF VALUE
-        }
-        l if l <= MAX_2_BYTE_LENGTH as usize => {
-            w.write_u8(LENGTH_INDICATOR_2BYTE)?; // B1           246
-            w.write_i16::<LittleEndian>(l as i16)?; // I2           LENGTH OF VALUE
-        }
-        l => {
-            w.write_u8(LENGTH_INDICATOR_4BYTE)?; // B1           247
-            w.write_i32::<LittleEndian>(l as i32)?; // I4           LENGTH OF VALUE
-        }
-    }
+    length_indicator::emit(v.len(), w)?;
     w.write_all(v)?; // B variable   VALUE BYTES
     Ok(())
 }

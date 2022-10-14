@@ -1,7 +1,7 @@
 use super::{crypto_util, Authenticator};
 use crate::protocol::parts::AuthFields;
 use crate::{HdbError, HdbResult};
-use byteorder::{BigEndian, WriteBytesExt};
+use byteorder::{LittleEndian, WriteBytesExt};
 use rand::{thread_rng, RngCore};
 use secstr::SecUtf8;
 use std::io::Write;
@@ -47,7 +47,7 @@ impl Authenticator for ScramSha256 {
         self.server_proof = Some(server_proof);
 
         let mut buf = Vec::<u8>::with_capacity(3 + CLIENT_PROOF_SIZE as usize);
-        buf.write_u16::<BigEndian>(1_u16)
+        buf.write_u16::<LittleEndian>(1_u16)
             .map_err(|_e| HdbError::Impl(CONTEXT_CLIENT_PROOF))?;
         buf.write_u8(CLIENT_PROOF_SIZE)
             .map_err(|_e| HdbError::Impl(CONTEXT_CLIENT_PROOF))?;
@@ -107,7 +107,7 @@ mod tests {
             \xe5\xda\xcc\xb5\x0a\xcf\xce\x56"
             .to_vec();
         let password = SecUtf8::from("manager");
-        let correct_client_proof: Vec<u8> = b"\x00\x01\x20\x17\x26\x25\xab\x29\x71\xd8\
+        let correct_client_proof: Vec<u8> = b"\x01\x00\x20\x17\x26\x25\xab\x29\x71\xd8\
             \x58\x74\x32\x5d\x21\xbc\x3d\x68\x37\x71\
             \x80\x5c\x9a\xfe\x38\xd0\x95\x1d\xad\x46\
             \x53\x00\x9c\xc9\x21"

@@ -1,4 +1,3 @@
-#[macro_use]
 extern crate serde;
 
 mod test_utils;
@@ -17,6 +16,13 @@ pub fn test_034_nclobs() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     let start = std::time::Instant::now();
     let mut connection = test_utils::get_authenticated_connection()?;
+
+    debug!("setup...");
+    connection.set_lob_read_length(1_000_000)?;
+
+    connection.multiple_statements_ignore_err(vec!["drop table TEST_NCLOBS"]);
+    let stmts = vec!["create table TEST_NCLOBS (desc NVARCHAR(20) not null, chardata NCLOB)"];
+    connection.multiple_statements(stmts)?;
 
     let (blabla, fingerprint) = get_blabla();
     test_nclobs(&mut log_handle, &mut connection, &blabla, &fingerprint)?;
@@ -53,13 +59,6 @@ fn test_nclobs(
     fingerprint: &[u8],
 ) -> HdbResult<()> {
     info!("create a big NCLOB in the database, and read it in various ways");
-
-    debug!("setup...");
-    connection.set_lob_read_length(1_000_000)?;
-
-    connection.multiple_statements_ignore_err(vec!["drop table TEST_NCLOBS"]);
-    let stmts = vec!["create table TEST_NCLOBS (desc NVARCHAR(20) not null, chardata NCLOB)"];
-    connection.multiple_statements(stmts)?;
 
     #[derive(Serialize, Deserialize, Debug, PartialEq)]
     struct MyData {
@@ -290,9 +289,9 @@ fn test_zero_length(
     let mut stmt = connection.prepare("insert into TEST_NCLOBS values(?, ?)")?;
     stmt.execute(&("empty", ""))?;
     connection.commit()?;
-    let empty: String = connection
-        .query("select chardata from TEST_CLOBS where desc = 'empty'")?
-        .try_into()?;
+    let rs = connection.query("select chardata from TEST_NCLOBS where desc = 'empty'")?;
+    println!("rs = {rs}");
+    let empty: String = rs.try_into()?;
     assert!(empty.is_empty());
     Ok(())
 }

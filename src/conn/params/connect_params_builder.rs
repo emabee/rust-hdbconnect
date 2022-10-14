@@ -227,8 +227,8 @@ impl ConnectParamsBuilder {
         self.clientlocale.as_deref()
     }
 
+    // TODO how is the Vec evaluated, esp. if an entry is ServerCerts::None ?
     /// If no TLS is used, an empty Vec is returned.
-    /// FIXME how is the Vec evaluated, esp. if an entry is ServerCerts::None ?
     pub fn get_server_certs(&self) -> &Vec<ServerCerts> {
         &self.server_certs
     }

@@ -41,5 +41,5 @@ pub(crate) fn fetch_a_lob_chunk(
 
     o_read_lob_reply
         .map(ReadLobReply::into_data_and_last)
-        .ok_or_else(|| HdbError::Impl("fetching a lob chunk failed"))
+        .ok_or(HdbError::Impl("fetching a lob chunk failed"))
 }
