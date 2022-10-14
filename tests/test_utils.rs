@@ -4,12 +4,6 @@
 use flexi_logger::{opt_format, Logger, LoggerHandle};
 use hdbconnect::{ConnectParamsBuilder, Connection, HdbError, HdbResult, ServerCerts};
 
-// const DB: &str = "./.private/2_0.db";
-// const DB: &str = "./.private/2_3.db";
-// const DB: &str = "./.private/C5_02_secure.db";
-// const DB: &str = "./.private/C5_02_insecure.db";
-const DB: &str = "./.private/mei.db";
-
 // Returns a logger that prints out all info, warn and error messages.
 //
 // For CI/CD, we could change the code here to e.g. react on env settings
@@ -64,23 +58,52 @@ pub fn get_um_cp_builder() -> HdbResult<ConnectParamsBuilder> {
 }
 
 fn cp_builder_from_file(purpose: &str) -> HdbResult<(ConnectParamsBuilder, ConnectParamsBuilder)> {
-    let db_file = std::path::Path::new(DB.clone());
-    if !db_file.exists() {
-        panic!(
-            "config file with the db connection not found: {}",
-            db_file.to_string_lossy()
-        );
-    }
-    let content = std::fs::read_to_string(db_file).map_err(|e| HdbError::ConnParams {
+    const ENV_VAR: &str = "HDBCONNECT_TEST_DB";
+    const DEFAULT_FILE: &str = "./.private/test.db";
+
+    let db_s = match std::env::var(ENV_VAR) {
+        Ok(p) => p,
+        Err(_) => DEFAULT_FILE.into(),
+    };
+    let db_path = std::path::Path::new(&db_s);
+
+    assert!(
+        db_path.exists(),
+        r"
+config file with the db connection not found: {db_s}.
+
+Consider creating the file with content like
+{TEMPLATE}
+where
+- the direct URL will be used for most of the tests,
+- the redirect URL can/should point to the same database, but via the redirect-syntax.
+- the std-user will be used for most of the tests, 
+- the um-user for user-management activities.
+
+See https://docs.rs/hdbconnect/latest/hdbconnect/url/index.html for details of the URL format.
+
+You can point to a different file by using the environment variable {ENV_VAR}.
+",
+    );
+    const TEMPLATE: &str = r#"
+{
+    "direct_url":"hdbsql://host_url:34015",
+    "redirect_url":"hdbsql://host_url:34013?db=ABC",
+    "std":{"name":"USER1","pw":"user1_pw"},
+    "um":{"name":"USER2","pw":"user1_pw"}
+}
+"#;
+
+    let content = std::fs::read_to_string(db_path).map_err(|e| HdbError::ConnParams {
         source: Box::new(e),
     })?;
 
-    #[derive(Deserialize)]
+    #[derive(serde::Deserialize)]
     struct Cred {
         name: String,
         pw: String,
     }
-    #[derive(Deserialize)]
+    #[derive(serde::Deserialize)]
     struct Db {
         #[serde(rename = "direct_url")]
         cp_builder: ConnectParamsBuilder,
@@ -90,14 +113,10 @@ fn cp_builder_from_file(purpose: &str) -> HdbResult<(ConnectParamsBuilder, Conne
         um: Cred,
     }
 
-    let db: Db;
-    match serde_json::from_str(&content) {
-        Ok(v) => db = v,
-        Err(e) => panic!(
-            "Error parsing the config file with the db connection: {}",
-            e
-        ),
-    }
+    let db: Db = serde_json::from_str(&content)
+        .map_err(|e| format!("Cannot parse config file {db_path:?}: {e}"))
+        .unwrap();
+
     let (mut cp_builder, mut redirect_cp_builder, std, um) =
         (db.cp_builder, db.redirect_cp_builder, db.std, db.um);
     match purpose {

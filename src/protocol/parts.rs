@@ -8,6 +8,7 @@ mod db_connect_info;
 mod execution_result;
 mod fetch_options;
 mod hdb_value;
+mod length_indicator;
 mod lob_flags;
 mod multiline_option_part;
 mod option_part;

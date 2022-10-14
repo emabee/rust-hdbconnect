@@ -1,4 +1,4 @@
-use crate::protocol::util;
+use crate::protocol::{parts::length_indicator, util};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 #[derive(Debug, Default)]
@@ -59,19 +59,7 @@ impl AuthField {
 
     #[allow(clippy::cast_possible_truncation)]
     fn emit(&self, w: &mut dyn std::io::Write) -> std::io::Result<()> {
-        match self.0.len() {
-            l if l <= 250_usize => w.write_u8(l as u8)?, // B1: length of value
-            l if l <= 65_535_usize => {
-                w.write_u8(255)?; // B1: 247
-                w.write_u16::<LittleEndian>(l as u16)?; // U2: length of value
-            }
-            l => {
-                return Err(util::io_error(format!(
-                    "Value of AuthField is too big: {}",
-                    l
-                )));
-            }
-        }
+        length_indicator::emit(self.0.len(), w)?;
         w.write_all(&self.0)?; // B (varying) value
         Ok(())
     }
@@ -81,19 +69,7 @@ impl AuthField {
     }
 
     fn parse(rdr: &mut dyn std::io::Read) -> std::io::Result<Self> {
-        let mut len = rdr.read_u8()? as usize; // B1
-        match len {
-            255 => {
-                len = rdr.read_u16::<LittleEndian>()? as usize; // (B1+)I2
-            }
-            251..=254 => {
-                return Err(util::io_error(format!(
-                    "Unknown length indicator for AuthField: {}",
-                    len
-                )));
-            }
-            _ => {}
-        }
+        let len = length_indicator::parse(rdr.read_u8()?, rdr)?;
         Ok(Self(util::parse_bytes(len, rdr)?))
     }
 }

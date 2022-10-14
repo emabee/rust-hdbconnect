@@ -56,7 +56,7 @@ impl Row {
         T: serde::de::Deserialize<'de>,
     {
         self.next_value()
-            .ok_or_else(|| HdbError::Usage("no more value"))?
+            .ok_or(HdbError::Usage("no more value"))?
             .try_into()
     }
 
@@ -80,9 +80,7 @@ impl Row {
         if self.len() > 1 {
             Err(HdbError::Usage("Row has more than one field"))
         } else {
-            Ok(self
-                .next_value()
-                .ok_or_else(|| HdbError::Usage("Row is empty"))?)
+            Ok(self.next_value().ok_or(HdbError::Usage("Row is empty"))?)
         }
     }
 
