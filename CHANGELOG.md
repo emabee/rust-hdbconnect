@@ -1,6 +1,10 @@
 # Changelog
 
-## [Unpublished] 2021-01-06
+## [0.23.1] 2021-10-14
+
+Improve test setup.
+
+Fix authentication two byte length encoding.
 
 Add support for time crate (serde)
 
