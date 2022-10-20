@@ -14,9 +14,12 @@ use time::{format_description::FormatItem, macros::format_description, OffsetDat
 ///
 /// # Example for serialization
 /// ```rust, no_run
-/// use hdbconnect::time::ToHana;
+/// # let stmt = "...";
+/// use hdbconnect::ToHana;
+/// use time::{macros::datetime, OffsetDateTime};
+/// # let connection = hdbconnect::Connection::new("...").unwrap();
 /// let ts: OffsetDateTime = datetime!(2012-02-02 02:02:02.200000000 +2);
-/// let response = connection.prepare_and_execute(stmt, &(ts.to_hana()))?;
+/// let response = connection.prepare_and_execute(stmt, &(ts.to_hana())).unwrap();
 /// ```
 ///
 /// # Example for deserialization
@@ -25,8 +28,11 @@ use time::{format_description::FormatItem, macros::format_description, OffsetDat
 /// then use `deref` or `to_inner()` to access the contained `OffsetDateTime`.
 ///
 /// ```rust, no_run
-///  let dates: Vec<HanaOffsetDateTime> = connection.query(the_query)?.try_into()?;
-///  let year = (*dates[0]).year();
+/// use hdbconnect::time::HanaOffsetDateTime;
+/// # let the_query = "...";
+/// # let mut connection = hdbconnect::Connection::new("...").unwrap();
+/// let dates: Vec<HanaOffsetDateTime> = connection.query(the_query).unwrap().try_into().unwrap();
+/// let year = (*dates[0]).year();
 /// ```
 #[derive(Debug)]
 pub struct HanaOffsetDateTime(OffsetDateTime);
@@ -88,10 +94,10 @@ impl<'de> serde::de::Visitor<'de> for HanaOffsetDateTimeVisitor {
 /// Use serde's annotation `serde(deserialize_with = "..")` to refer to this method:
 ///
 /// ```rust
-///     #[derive(Deserialize)]
+///     #[derive(serde::Deserialize)]
 ///     struct WithTs {
 ///         #[serde(deserialize_with = "hdbconnect::time::to_offset_date_time")]
-///         ts_o: OffsetDateTime,
+///         ts_o: time::OffsetDateTime,
 ///     }
 /// ```
 ///

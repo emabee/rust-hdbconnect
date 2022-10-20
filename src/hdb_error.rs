@@ -55,14 +55,22 @@ pub enum HdbError {
         // backtrace: Backtrace,
     },
 
-    /// TLS set up failed.
+    /// TLS set up failed because the server name was not valid.
+    #[error("TLS set up failed, because the server name was not valid")]
+    TlsServerName {
+        /// The causing Error.
+        #[from]
+        source: rustls::client::InvalidDnsNameError,
+    },
+
+    /// TLS protocol error.
     #[error(
         "TLS set up failed, after setting up the TCP connection; is the database prepared for TLS?"
     )]
-    Tls {
+    TlsProtocol {
         /// The causing Error.
         #[from]
-        source: webpki::InvalidDNSNameError,
+        source: rustls::Error,
     },
 
     /// Error occured while evaluating an `HdbResponse` or an `HdbReturnValue`.

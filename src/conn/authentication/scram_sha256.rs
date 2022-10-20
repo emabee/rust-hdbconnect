@@ -41,7 +41,8 @@ impl Authenticator for ScramSha256 {
         let (salt, server_nonce) = parse_first_server_data(server_data)?;
 
         let (client_proof, server_proof) =
-            crypto_util::scram_sha256(&salt, &server_nonce, &self.client_challenge, password);
+            crypto_util::scram_sha256(&salt, &server_nonce, &self.client_challenge, password)
+                .map_err(|_| HdbError::Impl("crypto_common::InvalidLength"))?;
 
         self.client_challenge.clear();
         self.server_proof = Some(server_proof);
@@ -53,7 +54,6 @@ impl Authenticator for ScramSha256 {
             .map_err(|_e| HdbError::Impl(CONTEXT_CLIENT_PROOF))?;
         buf.write_all(&client_proof)
             .map_err(|_e| HdbError::Impl(CONTEXT_CLIENT_PROOF))?;
-
         Ok(buf)
     }
 

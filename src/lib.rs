@@ -55,7 +55,7 @@ pub mod code_examples;
 
 pub use crate::conn::{
     url, ConnectParams, ConnectParamsBuilder, IntoConnectParams, IntoConnectParamsBuilder,
-    ServerCerts,
+    ServerCerts, Tls,
 };
 pub use crate::hdb_error::{HdbError, HdbResult};
 pub use crate::hdb_response::HdbResponse;

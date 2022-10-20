@@ -59,7 +59,7 @@ pub fn test_011_invalid_password() {
 
         debug!("logon as {}", user);
         let mut cp_builder = test_utils::get_std_cp_builder().unwrap();
-        cp_builder.dbuser(&user).password("Doebcd1234");
+        cp_builder.dbuser(user).password("Doebcd1234");
         let conn_params: ConnectParams = cp_builder.into_connect_params().unwrap();
         assert_eq!(conn_params.dbuser(), user);
         assert_eq!(conn_params.password().unsecure(), "Doebcd1234");

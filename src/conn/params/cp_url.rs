@@ -1,4 +1,4 @@
-use crate::ServerCerts;
+use crate::{ServerCerts, Tls};
 
 /// Constants for use in connection URLs.
 ///
@@ -75,66 +75,106 @@ pub mod url {
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn format_as_url(
-    use_tls: bool,
     addr: &str,
     dbuser: &str,
     database: &Option<String>,
     network_group: &Option<String>,
-    server_certs: &[ServerCerts],
+    tls: &Tls,
     client_locale: &Option<String>,
     f: &mut std::fmt::Formatter,
 ) -> std::fmt::Result {
-    let it = database.iter().map(|db| format!("db={db}"));
-    let it = it.chain(
-        network_group
-            .iter()
-            .map(|network_group| format!("network_group={network_group}")),
-    );
-    let it = it.chain(server_certs.iter().map(format_server_certs));
-    let it = it.chain(
-        client_locale
-            .iter()
-            .map(|cl| format!("{}={cl}", UrlOpt::ClientLocale.name())),
-    );
-    #[cfg(feature = "alpha_nonblocking")]
-    let it = it.chain(
-        {
-            if self.use_nonblocking {
-                Some(UrlOpt::NonBlocking.name().to_string())
-            } else {
-                None
-            }
-        }
-        .into_iter(),
-    );
-
-    let mut option_string = String::with_capacity(200);
-    for (i, assignment) in it.enumerate() {
-        if i > 0 {
-            option_string.push('&');
-        }
-        option_string.push_str(&assignment);
-    }
-
     write!(
         f,
-        "hdbsql{}://{}@{}{}{}",
-        if use_tls { "s" } else { "" },
+        "hdbsql{}://{}@{}",
+        match tls {
+            Tls::Off => "",
+            Tls::Insecure | Tls::Secure(_) => "s",
+        },
         dbuser,
         addr,
-        if option_string.is_empty() { "" } else { "?" },
-        option_string
-    )
-}
+    )?;
 
-fn format_server_certs(sc: &ServerCerts) -> String {
-    match sc {
-        ServerCerts::Directory(s) => format!("{}={s}", UrlOpt::TlsCertificateDir.name()),
-        ServerCerts::Environment(s) => format!("{}={s}", UrlOpt::TlsCertificateEnv.name()),
-        ServerCerts::RootCertificates => UrlOpt::TlsCertificateMozilla.name().to_string(),
-        ServerCerts::None => UrlOpt::InsecureOmitServerCheck.name().to_string(),
-        ServerCerts::Direct(_s) => "NOT SUPPORTED IN URLs".to_string(),
+    if database.is_none()
+        && network_group.is_none()
+        && matches!(tls, Tls::Off)
+        && client_locale.is_none()
+    {
+        return Ok(());
     }
+
+    // write URL options
+    let mut sep = std::iter::repeat(())
+        .enumerate()
+        .map(|(i, _)| if i == 0 { "?" } else { "&" });
+
+    if let Some(db) = database {
+        write!(f, "{}db={db}", sep.next().unwrap())?;
+    }
+
+    if let Some(ng) = network_group {
+        write!(f, "{}network_group={ng}", sep.next().unwrap())?;
+    }
+
+    match tls {
+        Tls::Off => {}
+        Tls::Insecure => {
+            write!(
+                f,
+                "{}{}",
+                sep.next().unwrap(),
+                UrlOpt::InsecureOmitServerCheck.name()
+            )?;
+        }
+        Tls::Secure(server_certs) => {
+            for sc in server_certs {
+                match sc {
+                    ServerCerts::Directory(s) => {
+                        write!(
+                            f,
+                            "{}{}={s}",
+                            sep.next().unwrap(),
+                            UrlOpt::TlsCertificateDir.name()
+                        )?;
+                    }
+                    ServerCerts::Environment(s) => {
+                        write!(
+                            f,
+                            "{}{}={s}",
+                            sep.next().unwrap(),
+                            UrlOpt::TlsCertificateEnv.name()
+                        )?;
+                    }
+                    ServerCerts::RootCertificates => {
+                        write!(
+                            f,
+                            "{}{}",
+                            sep.next().unwrap(),
+                            UrlOpt::TlsCertificateMozilla.name()
+                        )?;
+                    }
+                    ServerCerts::Direct(_s) => {
+                        panic!("NOT SUPPORTED IN URLs");
+                    }
+                }
+            }
+        }
+    }
+
+    if let Some(cl) = client_locale {
+        write!(
+            f,
+            "{}{}={cl}",
+            sep.next().unwrap(),
+            UrlOpt::ClientLocale.name()
+        )?;
+    }
+
+    #[cfg(feature = "alpha_nonblocking")]
+    if self.use_nonblocking {
+        write!(f, "{}{}", sep.next().unwrap(), UrlOpt::NonBlocking.name())?;
+    }
+
+    Ok(())
 }
 
 pub(crate) enum UrlOpt {

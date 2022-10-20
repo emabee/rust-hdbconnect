@@ -48,7 +48,7 @@ fn successful_xa(_log_handle: &mut LoggerHandle, conn: &mut Connection) -> HdbRe
 
     // instantiate a SimpleTransactionManager and register Resource Managers for
     // the two connections
-    let mut tm = SimpleTransactionManager::new("test_090_xa_transactions".to_owned());
+    let mut tm = SimpleTransactionManager::new("test_090_xa_transactions");
     tm.register(conn_a.get_resource_manager(), 22, true)
         .unwrap();
     tm.register(conn_b.get_resource_manager(), 44, true)
@@ -103,7 +103,7 @@ fn xa_rollback(_log_handle: &mut LoggerHandle, conn: &mut Connection) -> HdbResu
 
     // instantiate a SimpleTransactionManager and register Resource Managers for
     // the two connections
-    let mut tm = SimpleTransactionManager::new("test_090_xa_transactions".to_owned());
+    let mut tm = SimpleTransactionManager::new("test_090_xa_transactions");
     tm.register(conn_a.get_resource_manager(), 22, true)
         .unwrap();
     tm.register(conn_b.get_resource_manager(), 44, true)
@@ -164,7 +164,7 @@ fn xa_repeated(_log_handle: &mut LoggerHandle, conn: &mut Connection) -> HdbResu
 
     // instantiate a SimpleTransactionManager and register Resource Managers for
     // the two connections
-    let mut tm = SimpleTransactionManager::new("test_090_xa_transactions".to_owned());
+    let mut tm = SimpleTransactionManager::new("test_090_xa_transactions");
     tm.register(conn_a.get_resource_manager(), 22, true)
         .unwrap();
     tm.register(conn_b.get_resource_manager(), 44, true)
@@ -232,7 +232,7 @@ fn xa_conflicts(_log_handle: &mut LoggerHandle, conn: &mut Connection) -> HdbRes
 
     // instantiate a SimpleTransactionManager and register Resource Managers for
     // the two connections
-    let mut tm = SimpleTransactionManager::new("test_090_xa_transactions".to_owned());
+    let mut tm = SimpleTransactionManager::new("test_090_xa_transactions");
     tm.register(conn_a.get_resource_manager(), 22, true)
         .unwrap();
     tm.register(conn_b.get_resource_manager(), 44, true)

@@ -178,7 +178,7 @@ fn test_streaming(
         "mismatch of cesu8 length"
     );
     assert_eq!(
-        cesu8_byte_len as usize - utf8_byte_len,
+        cesu8_byte_len - utf8_byte_len,
         (nclob.total_char_length() as usize - utf8_char_count) * 2,
         "mismatch with surrogate pairs?"
     );
@@ -220,7 +220,7 @@ fn test_bytes_to_nclobs(
     insert_stmt.add_batch(&(test_string_bytes, test_string_bytes))?;
 
     let res = insert_stmt.add_batch(&(Bytes::new(&[255, 255]), Bytes::new(&[255, 255]))); // malformed utf-8
-    assert_eq!(res.is_err(), true);
+    assert!(res.is_err());
     let response = insert_stmt.execute_batch()?;
 
     assert_eq!(response.count(), 1);

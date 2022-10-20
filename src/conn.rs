@@ -13,7 +13,7 @@ use authentication::AuthenticationResult;
 pub(crate) use connection_core::ConnectionCore;
 pub use params::cp_url::url;
 pub use params::{
-    connect_params::{ConnectParams, ServerCerts},
+    connect_params::{ConnectParams, ServerCerts, Tls},
     connect_params_builder::ConnectParamsBuilder,
     into_connect_params::IntoConnectParams,
     into_connect_params_builder::IntoConnectParamsBuilder,

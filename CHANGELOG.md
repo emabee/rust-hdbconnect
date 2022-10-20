@@ -1,6 +1,12 @@
 # Changelog
 
-## [0.23.1] 2021-10-14
+## [0.24.0] 2022-10-14
+
+Revise TLS configuration in `ConnectParams` and `ConnectParamsBuilder` (API change => version bump).
+
+Update all dependencies, fix all new clippies.
+
+## [0.23.1] 2022-10-14
 
 Improve test setup.
 

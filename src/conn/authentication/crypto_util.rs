@@ -2,16 +2,15 @@ use pbkdf2::pbkdf2;
 use secstr::SecUtf8;
 use sha2::{Digest, Sha256};
 
-use hmac::{Hmac, Mac, NewMac};
+use hmac::{Hmac, Mac};
 
 pub fn scram_sha256(
     salt: &[u8],
     server_key: &[u8],
     client_challenge: &[u8],
     password: &SecUtf8,
-) -> (Vec<u8>, Vec<u8>) {
-    //
-    let salted_password = hmac(password.unsecure().as_ref(), salt);
+) -> Result<(Vec<u8>, Vec<u8>), crypto_common::InvalidLength> {
+    let salted_password = hmac(password.unsecure().as_ref(), salt)?;
 
     let (s, sk, cc) = (salt.len(), server_key.len(), client_challenge.len());
     let mut content: Vec<u8> = std::iter::repeat(0).take(s + sk + cc).collect();
@@ -20,7 +19,7 @@ pub fn scram_sha256(
     content[(s + sk)..].copy_from_slice(client_challenge);
 
     let client_key: Vec<u8> = sha256(&salted_password);
-    let sig: Vec<u8> = hmac(&sha256(&client_key), &content);
+    let sig: Vec<u8> = hmac(&sha256(&client_key), &content)?;
 
     let client_proof = xor(&sig, &client_key);
 
@@ -32,10 +31,10 @@ pub fn scram_sha256(
     content2[ck..(ck + s)].copy_from_slice(salt);
     content2[(ck + s)..].copy_from_slice(server_key);
 
-    let server_verifier = hmac(&salted_password, salt);
-    let server_proof = hmac(&server_verifier, &content2);
+    let server_verifier = hmac(&salted_password, salt)?;
+    let server_proof = hmac(&server_verifier, &content2)?;
 
-    (client_proof, server_proof)
+    Ok((client_proof, server_proof))
 }
 
 pub fn scram_pdkdf2_sha256(
@@ -44,10 +43,10 @@ pub fn scram_pdkdf2_sha256(
     client_nonce: &[u8],
     password: &SecUtf8,
     iterations: u32,
-) -> (Vec<u8>, Vec<u8>) {
+) -> Result<(Vec<u8>, Vec<u8>), crypto_common::InvalidLength> {
     let salted_password = use_pbkdf2(password.unsecure().as_ref(), salt, iterations);
 
-    let server_verifier = hmac(&salted_password, salt);
+    let server_verifier = hmac(&salted_password, salt)?;
 
     let client_key = sha256(&salted_password);
     let client_verifier = sha256(&client_key);
@@ -57,16 +56,16 @@ pub fn scram_pdkdf2_sha256(
     s_sn_cn[0..s].copy_from_slice(salt);
     s_sn_cn[s..(s + sn)].copy_from_slice(server_nonce);
     s_sn_cn[(s + sn)..].copy_from_slice(client_nonce);
-    let shared_key: Vec<u8> = hmac(&client_verifier, &s_sn_cn);
+    let shared_key: Vec<u8> = hmac(&client_verifier, &s_sn_cn)?;
     let client_proof = xor(&shared_key, &client_key);
 
     let mut cn_s_sn: Vec<u8> = std::iter::repeat(0).take(cn + s + sn).collect();
     cn_s_sn[0..cn].copy_from_slice(client_nonce);
     cn_s_sn[cn..(cn + s)].copy_from_slice(salt);
     cn_s_sn[(cn + s)..].copy_from_slice(server_nonce);
-    let server_proof = hmac(&server_verifier, &cn_s_sn);
+    let server_proof = hmac(&server_verifier, &cn_s_sn)?;
 
-    (client_proof, server_proof)
+    Ok((client_proof, server_proof))
 }
 
 pub fn use_pbkdf2(key: &[u8], salt: &[u8], it: u32) -> Vec<u8> {
@@ -76,12 +75,10 @@ pub fn use_pbkdf2(key: &[u8], salt: &[u8], it: u32) -> Vec<u8> {
     output.to_vec()
 }
 
-// TODO get rid of expect (which panics; occurs only if key.len() does not fit)
-fn hmac(key: &[u8], data: &[u8]) -> Vec<u8> {
-    let mut mac = Hmac::<Sha256>::new_from_slice(key).expect("Failed to create Hmac from key");
-
+fn hmac(key: &[u8], data: &[u8]) -> Result<Vec<u8>, crypto_common::InvalidLength> {
+    let mut mac = Hmac::<Sha256>::new_from_slice(key)?;
     mac.update(data);
-    mac.finalize().into_bytes().to_vec()
+    Ok(mac.finalize().into_bytes().to_vec())
 }
 
 pub fn sha256(input: &[u8]) -> Vec<u8> {

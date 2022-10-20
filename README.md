@@ -16,7 +16,7 @@ Add hdbconnect to the dependencies section in your project's `Cargo.toml`:
 
 ```toml
 [dependencies]
-hdbconnect = "0.23"
+hdbconnect = "0.24"
 ```
 
 Assume you have a HANA accessible at port `39013` on host `hxehost`,
@@ -29,8 +29,7 @@ use hdbconnect::{Connection, HdbResult};
 
 pub fn main() -> HdbResult<()> {
     // Get a connection
-    let url = "hdbsql://HORST:SeCrEt@hxehost:39013";
-    let mut connection = Connection::new(url)?;
+    let mut connection = Connection::new("hdbsql://HORST:SeCrEt@hxehost:39013")?;
 
     // Cleanup if necessary, and set up a test table
     connection.multiple_statements_ignore_err(vec![

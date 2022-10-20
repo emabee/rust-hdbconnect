@@ -56,6 +56,7 @@ impl IntoConnectParamsBuilder for Url {
         }
         self.password().as_ref().map(|pw| builder.password(pw));
 
+        // authoritative switch between protocols:
         let use_tls = match self.scheme() {
             "hdbsql" => false,
             "hdbsqls" => true,
@@ -66,6 +67,7 @@ impl IntoConnectParamsBuilder for Url {
             }
         };
 
+        let mut insecure_option = false;
         let mut server_certs = Vec::<ServerCerts>::new();
 
         for (name, value) in self.query_pairs() {
@@ -88,7 +90,7 @@ impl IntoConnectParamsBuilder for Url {
                     server_certs.push(ServerCerts::RootCertificates);
                 }
                 Some(UrlOpt::InsecureOmitServerCheck) => {
-                    server_certs.push(ServerCerts::None);
+                    insecure_option = true;
                 }
                 #[cfg(feature = "alpha_nonblocking")]
                 Some(UrlOpt::NonBlocking) => {
@@ -114,15 +116,37 @@ impl IntoConnectParamsBuilder for Url {
             }
         }
 
-        if use_tls && server_certs.is_empty() {
+        if use_tls {
+            if insecure_option {
+                if !server_certs.is_empty() {
+                    return Err(HdbError::Usage(
+                        "Use the url-options 'tls_certificate_dir', 'tls_certificate_env', \
+                        'tls_certificate_direct' and 'use_mozillas_root_certificates' \
+                        to specify the access to the server certificate,\
+                        or use 'insecure_omit_server_certificate_check' to not verify the server's \
+                        identity, which is not recommended in most situations",
+                    ));
+                }
+                builder.tls_without_server_verification();
+            } else {
+                if server_certs.is_empty() {
+                    return Err(HdbError::Usage(
+                        "Using 'hdbsqls' requires at least one of the url-options \
+                        'tls_certificate_dir', 'tls_certificate_env', 'tls_certificate_direct', \
+                        'use_mozillas_root_certificates', or 'insecure_omit_server_certificate_check'",
+                    ));
+                }
+                for cert in server_certs {
+                    builder.tls_with(cert);
+                }
+            }
+        } else if insecure_option || !server_certs.is_empty() {
             return Err(HdbError::Usage(
-                "Using 'hdbsqls' requires one of the url-options 'tls_certificate_dir', \
-                'tls_certificate_env', 'tls_certificate_direct', \
-                'use_mozillas_root_certificates', or 'insecure_omit_server_certificate_check'",
+                "Using 'hdbsql' is not possible with any of the url-options \
+                    'tls_certificate_dir', 'tls_certificate_env', 'tls_certificate_direct', \
+                    'use_mozillas_root_certificates', or 'insecure_omit_server_certificate_check'; \
+                    consider using 'hdbsqls' instead",
             ));
-        }
-        for cert in server_certs {
-            builder.tls_with(cert);
         }
 
         Ok(builder)

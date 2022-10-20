@@ -138,8 +138,8 @@ You can point to a different file by using the environment variable {ENV_VAR}.
                     .tls_with(ServerCerts::Directory(".private/certificates".to_string()));
             }
             "INSECURE" => {
-                cp_builder.tls_with(ServerCerts::None);
-                redirect_cp_builder.tls_with(ServerCerts::None);
+                cp_builder.tls_without_server_verification();
+                redirect_cp_builder.tls_without_server_verification();
             }
             _ => {}
         }

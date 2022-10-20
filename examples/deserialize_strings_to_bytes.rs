@@ -5,11 +5,9 @@ use serde::Deserialize;
 use serde_bytes::ByteBuf;
 
 pub fn connect_string_from_file(s: &'static str) -> HdbResult<String> {
-    Ok(
-        std::fs::read_to_string(s).map_err(|e| HdbError::ConnParams {
-            source: Box::new(e),
-        })?,
-    )
+    std::fs::read_to_string(s).map_err(|e| HdbError::ConnParams {
+        source: Box::new(e),
+    })
 }
 
 fn get_authenticated_connection() -> HdbResult<Connection> {

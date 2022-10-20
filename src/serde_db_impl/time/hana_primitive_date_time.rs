@@ -8,9 +8,12 @@ use time::{format_description::FormatItem, macros::format_description, Primitive
 ///
 /// # Example for serialization
 /// ```rust, no_run
-/// use hdbconnect::time::ToHana;
-/// let ts: PrimitiveDateTime = datetime!(2012-02-02 02:02:02.200000000 +2);
-/// let response = connection.prepare_and_execute(stmt, &(ts.to_hana()))?;
+/// use hdbconnect::{ToHana,time::HanaPrimitiveDateTime};
+/// use time::{macros::datetime,PrimitiveDateTime};
+/// # let stmt = "...";
+/// # let mut connection = hdbconnect::Connection::new("...").unwrap();
+/// let ts: PrimitiveDateTime = datetime!(2012-02-02 02:02:02.200000000);
+/// let response = connection.prepare_and_execute(stmt, &(ts.to_hana())).unwrap();
 /// ```
 ///
 /// # Example for deserialization
@@ -19,8 +22,12 @@ use time::{format_description::FormatItem, macros::format_description, Primitive
 /// then use `deref()` or `to_inner()` to access the contained `PrimitiveDateTime`.
 ///
 /// ```rust, no_run
-///  let dates: Vec<HanaPrimitiveDateTime> = connection.query(the_query)?.try_into()?;
-///  let year = (*dates[0]).year();
+/// use hdbconnect::time::HanaPrimitiveDateTime;
+/// let the_query = "...";
+/// # let mut connection = hdbconnect::Connection::new("...").unwrap();
+/// # let the_query = "...";
+/// let dates: Vec<HanaPrimitiveDateTime> = connection.query(the_query).unwrap().try_into().unwrap();
+/// let year = (*dates[0]).year();
 /// ```
 #[derive(Debug)]
 pub struct HanaPrimitiveDateTime(pub PrimitiveDateTime);
@@ -94,7 +101,8 @@ impl<'de> serde::de::Visitor<'de> for HanaPrimitiveDateTimeVisitor {
 /// Use serde's annotation `serde(deserialize_with = "..")` to refer to this method:
 ///
 /// ```rust
-///     #[derive(Deserialize)]
+///     use time::PrimitiveDateTime;
+///     #[derive(serde::Deserialize)]
 ///     struct WithTs {
 ///         #[serde(deserialize_with = "hdbconnect::time::to_primitive_date_time")]
 ///         ts_o: PrimitiveDateTime,

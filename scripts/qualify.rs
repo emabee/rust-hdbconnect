@@ -52,7 +52,8 @@ fn main() {
     run_command!("cargo", "build", "--release", "--all-features");
 
     // Clippy in important variants
-    run_command!("cargo", "clippy");
+    #[rustfmt::skip]
+    run_command!("cargo", "+nightly", "clippy", "--all-targets", "--all-features", "--", "-D", "warnings");
 
     // doc
     run_command!("cargo", "doc", "--no-deps", "--open");

@@ -64,7 +64,7 @@ fn test_seconddate(_loghandle: &mut LoggerHandle, connection: &mut Connection) -
     ];
     let offset_datetime_values: Vec<OffsetDateTime> = primitive_datetime_values
         .iter()
-        .map(|pdt| OffsetDateTime::now_utc().replace_date_time(pdt.clone()))
+        .map(|pdt| OffsetDateTime::now_utc().replace_date_time(*pdt))
         .collect();
     let string_values = vec![
         "0001-01-01 00:00:00",

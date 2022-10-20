@@ -124,5 +124,5 @@ fn test_timestamp(_log_handle: &mut LoggerHandle, connection: &mut Connection) -
         assert_eq!(date, None);
     }
 
-    Ok(connection.get_call_count()?)
+    connection.get_call_count()
 }

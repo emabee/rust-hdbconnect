@@ -48,8 +48,8 @@ fn test_text(_logger_handle: &mut LoggerHandle, connection: &mut Connection) -> 
     assert_eq!(Some(true), tuple.0);
     assert_eq!(Some(false), tuple.1);
     assert_eq!(None, tuple.2);
-    assert_eq!(true, tuple.3);
-    assert_eq!(false, tuple.4);
+    assert!(tuple.3);
+    assert!(!tuple.4);
 
     Ok(())
 }

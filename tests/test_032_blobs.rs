@@ -31,7 +31,7 @@ fn get_random_bytes() -> (Vec<u8>, Vec<u8>) {
     // create random byte data
     let mut raw_data = vec![0; SIZE];
     raw_data.resize(SIZE, 0_u8);
-    thread_rng().fill_bytes(&mut *raw_data);
+    thread_rng().fill_bytes(&mut raw_data);
     assert_eq!(raw_data.len(), SIZE);
 
     let mut hasher = Sha256::default();
@@ -71,11 +71,7 @@ fn test_blobs(
     // insert it into HANA
     let mut insert_stmt =
         connection.prepare("insert into TEST_BLOBS (desc, bindata, bindata_NN) values (?,?,?)")?;
-    insert_stmt.add_batch(&(
-        "5MB",
-        Bytes::new(&*random_bytes),
-        Bytes::new(&*random_bytes),
-    ))?;
+    insert_stmt.add_batch(&("5MB", Bytes::new(random_bytes), Bytes::new(random_bytes)))?;
     insert_stmt.execute_batch()?;
 
     // and read it back

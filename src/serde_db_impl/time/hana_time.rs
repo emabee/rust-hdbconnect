@@ -7,9 +7,12 @@ use time::{format_description::FormatItem, macros::format_description, Time};
 ///
 /// # Example for serialization
 /// ```rust, no_run
-/// use hdbconnect::time::ToHana;
-/// let ts: Time = datetime!(2012-02-02 02:02:02.200000000 +2);
-/// let response = connection.prepare_and_execute(stmt, &(ts.to_hana()))?;
+/// use hdbconnect::ToHana;
+/// use time::{macros::time,Time};
+/// # let stmt = "...";
+/// # let mut connection = hdbconnect::Connection::new("...").unwrap();
+/// let ts: Time = time!(02:02:02.200000000);
+/// let response = connection.prepare_and_execute(stmt, &(ts.to_hana())).unwrap();
 /// ```
 ///
 /// # Example for deserialization
@@ -18,7 +21,10 @@ use time::{format_description::FormatItem, macros::format_description, Time};
 /// then use `deref()` or `to_inner()` to access the contained `Time`.
 ///
 /// ```rust, no_run
-///  let times: Vec<HanaTime> = connection.query(the_query)?.try_into()?;
+///  use hdbconnect::time::HanaTime;
+/// # let the_query = "...";
+/// # let mut connection = hdbconnect::Connection::new("...").unwrap();
+///  let times: Vec<HanaTime> = connection.query(the_query).unwrap().try_into().unwrap();
 ///  let hour = (*times[0]).hour();
 /// ```
 #[derive(Debug)]
@@ -87,7 +93,8 @@ impl<'de> serde::de::Visitor<'de> for HanaTimeVisitor {
 /// Use serde's annotation `serde(deserialize_with = "..")` to refer to this method:
 ///
 /// ```rust
-///     #[derive(Deserialize)]
+///     use time::Time;
+///     #[derive(serde::Deserialize)]
 ///     struct WithTs {
 ///         #[serde(deserialize_with = "hdbconnect::time::to_time")]
 ///         ts_o: Time,

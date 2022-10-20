@@ -74,10 +74,10 @@ fn test_procedure_metadata(
     let rs_md = rs.metadata();
     assert_eq!(rs_md[0].columnname(), "I");
     assert_eq!(rs_md[0].displayname(), "I");
-    assert_eq!(rs_md[0].has_default(), false);
-    assert_eq!(rs_md[0].is_array_type(), false);
-    assert_eq!(rs_md[0].is_nullable(), true);
-    assert_eq!(rs_md[0].is_read_only(), false);
+    assert!(!rs_md[0].has_default());
+    assert!(!rs_md[0].is_array_type());
+    assert!(rs_md[0].is_nullable());
+    assert!(!rs_md[0].is_read_only());
     assert_eq!(rs_md[0].precision(), 10);
     assert_eq!(rs_md[0].scale(), 0);
     Ok(())

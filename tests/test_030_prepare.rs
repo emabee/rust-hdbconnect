@@ -102,8 +102,8 @@ fn prepare_insert_statement(
     assert_eq!(typed_result.len(), 6);
     for ts in typed_result {
         let s = ts.f1_s.as_ref().unwrap();
-        assert_eq!(false, s.contains("rollback"));
-        assert_eq!(true, s.contains("comm") || s.contains("auto"));
+        assert!(!s.contains("rollback"));
+        assert!(s.contains("comm") || s.contains("auto"));
     }
     Ok(())
 }

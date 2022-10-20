@@ -2,9 +2,12 @@
 ///
 /// # Example for serialization
 /// ```rust, no_run
-/// use hdbconnect::ToHana;
+/// use hdbconnect::{ToHana,time::HanaOffsetDateTime};
+/// use time::{macros::datetime,OffsetDateTime};
+/// # let stmt = "...";
+/// # let mut connection = hdbconnect::Connection::new("...").unwrap();
 /// let ts: OffsetDateTime = datetime!(2012-02-02 02:02:02.200000000 +2);
-/// let response = connection.prepare_and_execute(stmt, &(ts.to_hana()))?;
+/// let response = connection.prepare_and_execute(stmt, &(ts.to_hana())).unwrap();
 /// ```
 pub trait ToHana<T> {
     ///

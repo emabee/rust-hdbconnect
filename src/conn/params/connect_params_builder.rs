@@ -1,5 +1,5 @@
 use super::cp_url::format_as_url;
-use crate::{ConnectParams, HdbError, HdbResult, IntoConnectParamsBuilder, ServerCerts};
+use crate::{ConnectParams, HdbError, HdbResult, IntoConnectParamsBuilder, ServerCerts, Tls};
 use secstr::SecUtf8;
 
 /// A builder for `ConnectParams`.
@@ -44,7 +44,7 @@ pub struct ConnectParamsBuilder {
     dbname: Option<String>,
     network_group: Option<String>,
     clientlocale: Option<String>,
-    server_certs: Vec<ServerCerts>,
+    tls: Tls,
     #[cfg(feature = "alpha_nonblocking")]
     use_nonblocking: bool,
 }
@@ -52,18 +52,7 @@ pub struct ConnectParamsBuilder {
 impl ConnectParamsBuilder {
     /// Creates a new builder.
     pub fn new() -> Self {
-        Self {
-            hostname: None,
-            port: None,
-            dbuser: None,
-            password: None,
-            dbname: None,
-            network_group: None,
-            clientlocale: None,
-            server_certs: Vec::<ServerCerts>::default(),
-            #[cfg(feature = "alpha_nonblocking")]
-            use_nonblocking: false,
-        }
+        Self::default()
     }
 
     /// Sets the hostname.
@@ -94,6 +83,11 @@ impl ConnectParamsBuilder {
     pub fn unset_password(&mut self) -> &mut Self {
         self.password = None;
         self
+    }
+
+    /// Whether TLS or a plain TCP connection is to be used.
+    pub fn is_tls(&self) -> bool {
+        !matches!(self.tls, Tls::Off)
     }
 
     /// Sets the database name.
@@ -152,7 +146,23 @@ impl ConnectParamsBuilder {
     ///    .build();
     /// ```
     pub fn tls_with(&mut self, server_certs: ServerCerts) -> &mut Self {
-        self.server_certs.push(server_certs);
+        match self.tls {
+            Tls::Off | Tls::Insecure => {
+                self.tls = Tls::Secure(vec![]);
+            }
+            Tls::Secure(_) => {}
+        }
+        if let Tls::Secure(ref mut v) = self.tls {
+            v.push(server_certs);
+        }
+        self
+    }
+
+    /// Makes the driver use TLS for the connection to the database, but
+    /// hazardously without verifying the server's certificate.
+    /// Erases all already configured server certs.
+    pub fn tls_without_server_verification(&mut self) -> &mut Self {
+        self.tls = Tls::Insecure;
         self
     }
 
@@ -187,7 +197,7 @@ impl ConnectParamsBuilder {
             self.dbname.clone(),
             self.network_group.clone(),
             self.clientlocale.clone(),
-            self.server_certs.clone(),
+            self.tls.clone(),
             #[cfg(feature = "alpha_nonblocking")]
             self.use_nonblocking,
         ))
@@ -227,10 +237,12 @@ impl ConnectParamsBuilder {
         self.clientlocale.as_deref()
     }
 
-    // TODO how is the Vec evaluated, esp. if an entry is ServerCerts::None ?
-    /// If no TLS is used, an empty Vec is returned.
-    pub fn get_server_certs(&self) -> &Vec<ServerCerts> {
-        &self.server_certs
+    /// Getter
+    pub fn get_server_certs(&self) -> Option<&Vec<ServerCerts>> {
+        match self.tls {
+            Tls::Secure(ref sc) => Some(sc),
+            _ => None,
+        }
     }
 }
 
@@ -269,7 +281,6 @@ impl From<ConnectParamsBuilder> for String {
 impl std::fmt::Display for ConnectParamsBuilder {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         format_as_url(
-            !self.server_certs.is_empty(),
             &format!(
                 "{}:{}",
                 self.hostname.as_deref().unwrap_or(""),
@@ -278,7 +289,7 @@ impl std::fmt::Display for ConnectParamsBuilder {
             self.dbuser.as_deref().unwrap_or(""),
             &self.dbname,
             &self.network_group,
-            &self.server_certs,
+            &self.tls,
             &self.clientlocale,
             f,
         )
@@ -305,7 +316,8 @@ mod test {
             assert_eq!("schLau", params.password().unsecure());
             assert_eq!("abcd123:2222", params.addr());
             assert_eq!(None, params.clientlocale());
-            assert!(params.server_certs().is_empty());
+            assert!(params.server_certs().is_none());
+            assert!(!params.is_tls());
         }
         {
             let mut builder = ConnectParamsBuilder::new();
@@ -324,11 +336,11 @@ mod test {
             assert_eq!(Some("de_DE"), params.clientlocale());
             assert_eq!(
                 ServerCerts::Directory("TCD".to_string()),
-                *params.server_certs().get(0).unwrap()
+                *params.server_certs().unwrap().get(0).unwrap()
             );
             assert_eq!(
                 ServerCerts::RootCertificates,
-                *params.server_certs().get(1).unwrap()
+                *params.server_certs().unwrap().get(1).unwrap()
             );
         }
         {
@@ -340,7 +352,8 @@ mod test {
             assert_eq!("abcd123", builder.get_hostname().unwrap());
             assert_eq!(2222, builder.get_port().unwrap());
             assert_eq!(None, builder.get_clientlocale());
-            assert!(builder.get_server_certs().is_empty());
+            assert!(builder.get_server_certs().is_none());
+            assert!(!builder.is_tls());
         }
     }
 

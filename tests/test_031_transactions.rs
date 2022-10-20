@@ -22,11 +22,10 @@ pub fn test_031_transactions() -> HdbResult<()> {
     let start = std::time::Instant::now();
     let mut connection = test_utils::get_authenticated_connection()?;
     connection.set_auto_commit(false)?;
-    if let Some(ref server_error) =
-        write1_read2(&mut log_handle, &mut connection, "READ UNCOMMITTED")
-            .err()
-            .unwrap()
-            .server_error()
+    if let Some(server_error) = write1_read2(&mut log_handle, &mut connection, "READ UNCOMMITTED")
+        .err()
+        .unwrap()
+        .server_error()
     {
         let error_info: (i32, String, String) = connection
             .query(&format!(

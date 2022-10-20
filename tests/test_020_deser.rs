@@ -236,133 +236,79 @@ fn deser_all_to_string(
     connection: &mut Connection,
 ) -> HdbResult<()> {
     // NULL to not Option
-    assert_eq!(
-        connection
-            .query("SELECT TO_BIGINT(NULL) FROM DUMMY")?
-            .try_into::<String>()
-            .is_err(),
-        true
-    );
-    assert_eq!(
-        connection
-            .query("SELECT TO_BINARY(NULL) FROM DUMMY")?
-            .try_into::<String>()
-            .is_err(),
-        true
-    );
-    assert_eq!(
-        connection
-            .query("SELECT TO_BLOB(NULL) FROM DUMMY")?
-            .try_into::<String>()
-            .is_err(),
-        true
-    );
-    assert_eq!(
-        connection
-            .query("SELECT TO_CLOB(NULL) FROM DUMMY")?
-            .try_into::<String>()
-            .is_err(),
-        true
-    );
-    assert_eq!(
-        connection
-            .query("SELECT TO_DATE(NULL) FROM DUMMY")?
-            .try_into::<String>()
-            .is_err(),
-        true
-    );
+    assert!(connection
+        .query("SELECT TO_BIGINT(NULL) FROM DUMMY")?
+        .try_into::<String>()
+        .is_err());
+    assert!(connection
+        .query("SELECT TO_BINARY(NULL) FROM DUMMY")?
+        .try_into::<String>()
+        .is_err());
+    assert!(connection
+        .query("SELECT TO_BLOB(NULL) FROM DUMMY")?
+        .try_into::<String>()
+        .is_err());
+    assert!(connection
+        .query("SELECT TO_CLOB(NULL) FROM DUMMY")?
+        .try_into::<String>()
+        .is_err());
+    assert!(connection
+        .query("SELECT TO_DATE(NULL) FROM DUMMY")?
+        .try_into::<String>()
+        .is_err());
     // assert_eq!(connection.query("SELECT TO_DATS(NULL) FROM DUMMY")?.try_into::<String>().is_err(), true); // TO_DATS returns 00000
-    assert_eq!(
-        connection
-            .query("SELECT TO_DECIMAL(NULL) FROM DUMMY")?
-            .try_into::<String>()
-            .is_err(),
-        true
-    );
-    assert_eq!(
-        connection
-            .query("SELECT TO_DOUBLE(NULL) FROM DUMMY")?
-            .try_into::<String>()
-            .is_err(),
-        true
-    );
-    assert_eq!(
-        connection
-            .query("SELECT TO_INT(NULL) FROM DUMMY")?
-            .try_into::<String>()
-            .is_err(),
-        true
-    );
-    assert_eq!(
-        connection
-            .query("SELECT TO_INTEGER(NULL) FROM DUMMY")?
-            .try_into::<String>()
-            .is_err(),
-        true
-    );
-    assert_eq!(
-        connection
-            .query("SELECT TO_NCLOB(NULL) FROM DUMMY")?
-            .try_into::<String>()
-            .is_err(),
-        true
-    );
-    assert_eq!(
-        connection
-            .query("SELECT TO_NVARCHAR(NULL) FROM DUMMY")?
-            .try_into::<String>()
-            .is_err(),
-        true
-    );
-    assert_eq!(
-        connection
-            .query("SELECT TO_REAL(NULL) FROM DUMMY")?
-            .try_into::<String>()
-            .is_err(),
-        true
-    );
-    assert_eq!(
-        connection
-            .query("SELECT TO_SECONDDATE(NULL) FROM DUMMY")?
-            .try_into::<String>()
-            .is_err(),
-        true
-    );
-    assert_eq!(
-        connection
-            .query("SELECT TO_SMALLDECIMAL(NULL) FROM DUMMY")?
-            .try_into::<String>()
-            .is_err(),
-        true
-    );
-    assert_eq!(
-        connection
-            .query("SELECT TO_SMALLINT(NULL) FROM DUMMY")?
-            .try_into::<String>()
-            .is_err(),
-        true
-    );
-    assert_eq!(
-        connection
-            .query("SELECT TO_TIME(NULL) FROM DUMMY")?
-            .try_into::<String>()
-            .is_err(),
-        true
-    );
-    assert_eq!(
-        connection
-            .query("SELECT TO_TIMESTAMP(NULL) FROM DUMMY")?
-            .try_into::<String>()
-            .is_err(),
-        true
-    );
-    assert_eq!(
-        connection
-            .query("SELECT TO_TINYINT(NULL) FROM DUMMY")?
-            .try_into::<String>()
-            .is_err(),
-        true
-    );
+    assert!(connection
+        .query("SELECT TO_DECIMAL(NULL) FROM DUMMY")?
+        .try_into::<String>()
+        .is_err());
+    assert!(connection
+        .query("SELECT TO_DOUBLE(NULL) FROM DUMMY")?
+        .try_into::<String>()
+        .is_err());
+    assert!(connection
+        .query("SELECT TO_INT(NULL) FROM DUMMY")?
+        .try_into::<String>()
+        .is_err());
+    assert!(connection
+        .query("SELECT TO_INTEGER(NULL) FROM DUMMY")?
+        .try_into::<String>()
+        .is_err());
+    assert!(connection
+        .query("SELECT TO_NCLOB(NULL) FROM DUMMY")?
+        .try_into::<String>()
+        .is_err());
+    assert!(connection
+        .query("SELECT TO_NVARCHAR(NULL) FROM DUMMY")?
+        .try_into::<String>()
+        .is_err());
+    assert!(connection
+        .query("SELECT TO_REAL(NULL) FROM DUMMY")?
+        .try_into::<String>()
+        .is_err());
+    assert!(connection
+        .query("SELECT TO_SECONDDATE(NULL) FROM DUMMY")?
+        .try_into::<String>()
+        .is_err());
+    assert!(connection
+        .query("SELECT TO_SMALLDECIMAL(NULL) FROM DUMMY")?
+        .try_into::<String>()
+        .is_err());
+    assert!(connection
+        .query("SELECT TO_SMALLINT(NULL) FROM DUMMY")?
+        .try_into::<String>()
+        .is_err());
+    assert!(connection
+        .query("SELECT TO_TIME(NULL) FROM DUMMY")?
+        .try_into::<String>()
+        .is_err());
+    assert!(connection
+        .query("SELECT TO_TIMESTAMP(NULL) FROM DUMMY")?
+        .try_into::<String>()
+        .is_err());
+    assert!(connection
+        .query("SELECT TO_TINYINT(NULL) FROM DUMMY")?
+        .try_into::<String>()
+        .is_err());
 
     // NULL to Option
     connection

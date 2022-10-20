@@ -97,9 +97,9 @@ mod test {
         assert!(yes.resultset_is_closed());
         assert!(yes.row_not_found());
 
-        let s_no = format!("{:?}", no);
-        let s_yes = format!("{:?}", yes);
-        println!("{}", s_no);
-        println!("{}", s_yes);
+        let s_no = format!("{no:?}");
+        let s_yes = format!("{yes:?}");
+        println!("{s_no}");
+        println!("{s_yes}");
     }
 }

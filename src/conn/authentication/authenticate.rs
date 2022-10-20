@@ -37,9 +37,9 @@ pub(crate) fn authenticate(
             let authenticator: Box<dyn Authenticator> = authenticators
                 .into_iter()
                 .find(|authenticator| authenticator.name() == selected)
-                .ok_or(HdbError::Impl(
-                    "None of the available authenticators was accepted",
-                ))?;
+                .ok_or_else(|| {
+                    HdbError::Impl("None of the available authenticators was accepted")
+                })?;
             // ...and use it for the second request
             second_auth_request(conn_core, authenticator, &server_challenge, reconnect)?;
             conn_core.set_authenticated();

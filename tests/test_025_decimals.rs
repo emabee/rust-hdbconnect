@@ -18,27 +18,27 @@ fn test_025_decimals() -> HdbResult<()> {
 
     if connection.data_format_version_2()? > 7 {
         info!("=== run test for FIXED8 ===");
-        test_025_decimals_impl(TS::FIXED8, &mut log_handle, &mut connection)?;
+        test_025_decimals_impl(TS::Fixed8, &mut log_handle, &mut connection)?;
 
         info!("=== run test for FIXED12 ===");
-        test_025_decimals_impl(TS::FIXED12, &mut log_handle, &mut connection)?;
+        test_025_decimals_impl(TS::Fixed12, &mut log_handle, &mut connection)?;
 
         info!("=== run test for FIXED16 ===");
-        test_025_decimals_impl(TS::FIXED16, &mut log_handle, &mut connection)?;
+        test_025_decimals_impl(TS::Fixed16, &mut log_handle, &mut connection)?;
     } else {
         // Old HdbDecimal implementation
         info!("=== run test for HdbDecimal ===");
-        test_025_decimals_impl(TS::DECIMAL, &mut log_handle, &mut connection)?;
+        test_025_decimals_impl(TS::Decimal, &mut log_handle, &mut connection)?;
     }
 
     test_utils::closing_info(connection, start)
 }
 
 enum TS {
-    FIXED8,
-    FIXED12,
-    FIXED16,
-    DECIMAL,
+    Fixed8,
+    Fixed12,
+    Fixed16,
+    Decimal,
 }
 
 fn test_025_decimals_impl(
@@ -50,13 +50,13 @@ fn test_025_decimals_impl(
     connection.multiple_statements_ignore_err(vec!["drop table TEST_DECIMALS"]);
     let stmts = vec![
         match ts {
-            TS::DECIMAL =>
+            TS::Decimal =>
         "create table TEST_DECIMALS (f1 NVARCHAR(100) primary key, f2 DECIMAL(7,5), f3 integer)",
-            TS::FIXED8 =>
+            TS::Fixed8 =>
         "create table TEST_DECIMALS (f1 NVARCHAR(100) primary key, f2 DECIMAL(7,5), f3 integer)",
-            TS::FIXED12 =>
+            TS::Fixed12 =>
         "create table TEST_DECIMALS (f1 NVARCHAR(100) primary key, f2 DECIMAL(28,5), f3 integer)",
-            TS::FIXED16 =>
+            TS::Fixed16 =>
         "create table TEST_DECIMALS (f1 NVARCHAR(100) primary key, f2 DECIMAL(38,5), f3 integer)",
         },
         "insert into TEST_DECIMALS (f1, f2) values('0.00000', 0.000)",

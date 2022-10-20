@@ -21,7 +21,7 @@ impl TcpClient {
         let start = Instant::now();
         trace!("TcpClient: Connecting to {:?})", params.addr());
 
-        let tcp_conn = if params.use_tls() {
+        let tcp_conn = if params.is_tls() {
             Self::SyncTls(TlsSyncTcpClient::try_new(params)?)
         } else {
             Self::SyncPlain(PlainSyncTcpClient::try_new(params)?)

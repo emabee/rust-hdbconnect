@@ -21,7 +21,7 @@ pub(crate) fn emit(l: usize, w: &mut dyn std::io::Write) -> std::io::Result<()> 
             w.write_u32::<LittleEndian>(l as u32)?; // U4: length of value
         }
         l => {
-            return Err(io_error(format!("Value too big: {}", l)));
+            return Err(io_error(format!("Value too big: {l}")));
         }
     }
     Ok(())
