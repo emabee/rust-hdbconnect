@@ -7,6 +7,7 @@ use crate::protocol::parts::{
     WriteLobReply, WriteLobRequest, XatOptions,
 };
 use crate::protocol::{util, PartAttributes, PartKind};
+use crate::ResultSet;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::cmp::max;
 use std::convert::TryFrom;

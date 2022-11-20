@@ -112,6 +112,28 @@ impl AuthField {
         Ok(())
     }
 
+    #[allow(clippy::cast_possible_truncation)]
+    async fn emit_async<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
+        &self,
+        w: &mut W,
+    ) -> std::io::Result<()> {
+        match self.0.len() {
+            l if l <= 250_usize => w.write_u8(l as u8).await?, // B1: length of value
+            l if l <= 65_535_usize => {
+                w.write_u8(255).await?; // B1: 247
+                w.write_all(&(l as u16).to_le_bytes()).await?; // U2: length of value
+            }
+            l => {
+                return Err(util::io_error(format!(
+                    "Value of AuthField is too big: {}",
+                    l
+                )));
+            }
+        }
+        w.write_all(&self.0).await?; // B (varying) value
+        Ok(())
+    }
+
     fn size(&self) -> usize {
         1 + self.0.len()
     }

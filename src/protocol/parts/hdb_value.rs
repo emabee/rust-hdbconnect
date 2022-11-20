@@ -524,6 +524,18 @@ async fn emit_bool_async<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
     Ok(())
 }
 
+async fn emit_bool_async<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
+    b: bool,
+    w: &mut W,
+) -> std::io::Result<()> {
+    // this is the version that works with dataformat_version2 = 4
+    // w.write_u8(b as u8).await?;
+
+    // as of dataformat_version2 = 8
+    w.write_u8(2 * (b as u8)).await?;
+    Ok(())
+}
+
 // Reads the NULL indicator and
 // - returns Ok(true) if the value is NULL
 // - returns Ok(false) if a normal value is to be expected
@@ -1030,6 +1042,29 @@ async fn emit_length_and_bytes_async<W: std::marker::Unpin + tokio::io::AsyncWri
 ) -> std::io::Result<()> {
     length_indicator::emit_async(v.len(), w).await?;
     w.write_all(v).await?;
+    Ok(())
+}
+
+#[allow(clippy::cast_possible_truncation)]
+#[allow(clippy::cast_possible_wrap)]
+async fn emit_length_and_bytes_async<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
+    v: &[u8],
+    w: &mut W,
+) -> std::io::Result<()> {
+    match v.len() {
+        l if l <= MAX_1_BYTE_LENGTH as usize => {
+            w.write_u8(l as u8).await?; // B1           LENGTH OF VALUE
+        }
+        l if l <= MAX_2_BYTE_LENGTH as usize => {
+            w.write_u8(LENGTH_INDICATOR_2BYTE).await?; // B1           246
+            w.write_all(&(l as i16).to_le_bytes()).await?; // I2           LENGTH OF VALUE
+        }
+        l => {
+            w.write_u8(LENGTH_INDICATOR_4BYTE).await?; // B1           247
+            w.write_all(&(l as i32).to_le_bytes()).await?; // I4           LENGTH OF VALUE
+        }
+    }
+    w.write_all(v).await?; // B variable   VALUE BYTES
     Ok(())
 }
 
