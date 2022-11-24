@@ -5,7 +5,7 @@ use crate::protocol::parts::{
 use crate::protocol::{Part, Request, RequestType, ServerUsage, HOLD_CURSORS_OVER_COMMIT};
 use crate::sync_prepared_statement::PreparedStatement;
 use crate::xa_impl::new_resource_manager;
-use crate::{HdbError, HdbResponse, HdbResult, IntoConnectParams, ResultSetSync};
+use crate::{HdbError, HdbResponse, HdbResult, IntoConnectParams, ResultSet};
 use dist_tx::rm::ResourceManager;
 
 // TODO Rename to SyncConnection
@@ -87,7 +87,7 @@ impl Connection {
     /// # Errors
     ///
     /// Several variants of `HdbError` can occur.
-    pub fn query<S: AsRef<str>>(&mut self, stmt: S) -> HdbResult<ResultSetSync> {
+    pub fn query<S: AsRef<str>>(&mut self, stmt: S) -> HdbResult<ResultSet> {
         self.statement(stmt)?.into_resultset()
     }
 

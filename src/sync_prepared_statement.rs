@@ -402,7 +402,8 @@ impl<'a> PreparedStatement {
 
         let mut o_table_location: Option<Vec<i32>> = None;
         let mut o_stmt_id: Option<u64> = None;
-        let mut a_descriptors: Arc<ParameterDescriptors> = Arc::new(ParameterDescriptors::new());
+        let mut a_descriptors: Arc<ParameterDescriptors> =
+            Arc::new(ParameterDescriptors::default());
         let mut o_a_rsmd: Option<Arc<ResultSetMetadata>> = None;
         let mut server_usage = ServerUsage::default();
 

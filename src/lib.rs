@@ -60,11 +60,10 @@ pub use crate::conn::{
 pub use crate::hdb_error::{HdbError, HdbResult};
 pub use crate::hdb_response::HdbResponse;
 pub use crate::hdb_return_value::HdbReturnValue;
-// FIXME Expose ResultSetSync as Resultset (really??)
 pub use crate::protocol::parts::{
     ExecutionResult, FieldMetadata, HdbValue, OutputParameters, ParameterBinding,
-    ParameterDescriptor, ParameterDescriptors, ParameterDirection, ResultSetMetadata,
-    ResultSetSync, Row, ServerError, Severity, TypeId,
+    ParameterDescriptor, ParameterDescriptors, ParameterDirection, ResultSet, ResultSetMetadata,
+    Row, ServerError, Severity, TypeId,
 };
 pub use crate::protocol::ServerUsage;
 pub use crate::serde_db_impl::{time, ToHana};

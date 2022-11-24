@@ -3,9 +3,7 @@ extern crate serde;
 mod test_utils;
 
 use flexi_logger::LoggerHandle;
-use hdbconnect::{
-    Connection, HdbResult, ParameterBinding, ParameterDirection, ResultSetSync, TypeId,
-};
+use hdbconnect::{Connection, HdbResult, ParameterBinding, ParameterDirection, ResultSet, TypeId};
 use log::{debug, info};
 
 #[test]
@@ -68,7 +66,7 @@ fn test_procedure_metadata(
     assert_eq!(pd1.precision(), 40);
     assert_eq!(pd1.direction(), ParameterDirection::OUT);
 
-    let mut rs: ResultSetSync = response.get_resultset()?;
+    let mut rs: ResultSet = response.get_resultset()?;
     let row: hdbconnect::Row = rs.next_row()?.unwrap();
     assert_eq!(row[0], 42_i32);
     assert_eq!(row[1], "is between 41 and 43");

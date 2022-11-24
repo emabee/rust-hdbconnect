@@ -52,7 +52,7 @@ username = "0.2"
 vec_map = "0.8"
 webpki = "0.22"
 webpki-roots = "0.22"
-tokio = {optional = true, version = "*", features = ["dns","io-util","tcp"]}
+tokio = {optional = true, version = "*", features = ["dns","io-util","sync","tcp"]}
 
 [dev-dependencies]
 chrono = { version = "0.4", features = ["serde"]}

@@ -3,7 +3,7 @@ use crate::protocol::parts::type_id::TypeId;
 use crate::protocol::{util, util_async, util_sync};
 
 use byteorder::{LittleEndian, ReadBytesExt};
-use std::{ops::Deref, rc::Rc};
+use std::{ops::Deref, sync::Arc};
 use vec_map::VecMap;
 
 /// List of metadata of the fields of a resultset.
@@ -72,12 +72,12 @@ impl ResultSetMetadata {
             offset += u32::from(nl) + 1;
         }
 
-        let names = Rc::new(names);
+        let names = Arc::new(names);
 
         Ok(ResultSetMetadata(
             inner_fms
                 .into_iter()
-                .map(|inner| FieldMetadata::new(inner, Rc::clone(&names)))
+                .map(|inner| FieldMetadata::new(inner, Arc::clone(&names)))
                 .collect(),
         ))
     }
@@ -128,12 +128,12 @@ impl ResultSetMetadata {
             offset += u32::from(nl) + 1;
         }
 
-        let names = Rc::new(names);
+        let names = Arc::new(names);
 
         Ok(ResultSetMetadata(
             inner_fms
                 .into_iter()
-                .map(|inner| FieldMetadata::new(inner, Rc::clone(&names)))
+                .map(|inner| FieldMetadata::new(inner, Arc::clone(&names)))
                 .collect(),
         ))
     }

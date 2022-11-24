@@ -1,12 +1,16 @@
 use crate::ConnectParams;
-use std::cell::RefCell;
-use tokio::net::TcpStream;
+use std::sync::Arc;
+use tokio::{
+    io::{BufReader, BufWriter},
+    net::TcpStream,
+    sync::Mutex,
+};
 
 #[derive(Debug)]
 pub struct PlainAsyncTcpClient {
     params: ConnectParams,
-    reader: RefCell<tokio::io::BufReader<TcpStream>>,
-    writer: RefCell<tokio::io::BufWriter<TcpStream>>,
+    reader: Arc<Mutex<tokio::io::BufReader<TcpStream>>>,
+    writer: Arc<Mutex<tokio::io::BufWriter<TcpStream>>>,
 }
 
 impl PlainAsyncTcpClient {
@@ -18,8 +22,8 @@ impl PlainAsyncTcpClient {
         let tcpstream_r = TcpStream::from_std(std_tcpstream)?;
         Ok(Self {
             params,
-            writer: RefCell::new(tokio::io::BufWriter::new(tcpstream_w)),
-            reader: RefCell::new(tokio::io::BufReader::new(tcpstream_r)),
+            writer: Arc::new(Mutex::new(BufWriter::new(tcpstream_w))),
+            reader: Arc::new(Mutex::new(BufReader::new(tcpstream_r))),
         })
     }
 
@@ -27,11 +31,11 @@ impl PlainAsyncTcpClient {
         &self.params
     }
 
-    pub fn writer(&self) -> &RefCell<tokio::io::BufWriter<TcpStream>> {
-        &self.writer
+    pub fn writer(&self) -> Arc<Mutex<BufWriter<TcpStream>>> {
+        Arc::clone(&self.writer)
     }
 
-    pub fn reader(&self) -> &RefCell<tokio::io::BufReader<TcpStream>> {
-        &self.reader
+    pub fn reader(&self) -> Arc<Mutex<BufReader<TcpStream>>> {
+        Arc::clone(&self.reader)
     }
 }

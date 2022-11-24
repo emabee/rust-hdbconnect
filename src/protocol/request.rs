@@ -5,6 +5,7 @@ use crate::protocol::parts::{ParameterDescriptors, Parts, StatementContext};
 use crate::protocol::{Part, RequestType};
 use byteorder::{LittleEndian, WriteBytesExt};
 use std::sync::Arc;
+use tokio::{io::AsyncWriteExt, net::TcpStream};
 
 const MESSAGE_HEADER_SIZE: u32 = 32;
 const SEGMENT_HEADER_SIZE: usize = 24; // same for in and out
@@ -103,13 +104,13 @@ impl<'a> Request<'a> {
     #[cfg(feature = "async")]
     #[allow(clippy::cast_possible_truncation)]
     #[allow(clippy::cast_possible_wrap)]
-    pub async fn emit_async<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
+    pub async fn emit_async(
         &self,
         session_id: i64,
         seq_number: i32,
         auto_commit: bool,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
-        w: &mut W,
+        am_w: Arc<tokio::sync::Mutex<tokio::io::BufWriter<TcpStream>>>,
     ) -> std::io::Result<()> {
         let varpart_size = self.varpart_size(o_a_descriptors)?;
         let total_size = MESSAGE_HEADER_SIZE + varpart_size;
@@ -120,6 +121,9 @@ impl<'a> Request<'a> {
             "Request::emit() of type {:?} for session_id = {}, seq_number = {}",
             self.request_type, session_id, seq_number
         );
+
+        let mut m_w = am_w.lock().await;
+        let w = &mut *m_w;
         // MESSAGE HEADER
         w.write_all(&session_id.to_le_bytes()).await?; // I8 <LittleEndian>
         w.write_all(&seq_number.to_le_bytes()).await?; // I4

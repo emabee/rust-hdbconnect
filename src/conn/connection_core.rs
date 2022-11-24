@@ -379,7 +379,8 @@ impl<'a> ConnectionCore {
 
         match self.tcp_conn {
             TcpClient::PlainAsync(ref mut pa) => {
-                let writer = &mut *(pa.writer()).borrow_mut();
+                let writer = pa.writer();
+
                 request
                     .emit_async(session_id, nsn, auto_commit, o_a_descriptors, writer)
                     .await
@@ -389,8 +390,8 @@ impl<'a> ConnectionCore {
 
         let mut reply = match self.tcp_conn {
             TcpClient::PlainAsync(ref mut pa) => {
-                let reader = &mut *(pa.reader()).borrow_mut();
-                Reply::parse_async(o_a_rsmd, o_a_descriptors, o_rs, o_am_conn_core, reader).await
+                Reply::parse_async(o_a_rsmd, o_a_descriptors, o_rs, o_am_conn_core, pa.reader())
+                    .await
             }
             _ => Err(util::io_error("Async call in sync instance")),
         }?;
@@ -415,9 +416,14 @@ impl<'a> ConnectionCore {
                     request.emit_sync(session_id, nsn, false, None, tsc.writer())?;
                 }
                 TcpClient::PlainAsync(ref mut pac) => {
-                    // FIXME Sync call in async??? No, use  tokio::spawn(); see https://www.reddit.com/r/rust/comments/vckd9h/async_drop/
-                    // request.emit_sync(session_id, nsn, false, None, pac.writer())?;
-                    unimplemented!("Async Drop missing");
+                    // see https://www.reddit.com/r/rust/comments/vckd9h/async_drop/
+                    let am_w = pac.writer();
+                    tokio::spawn(async move {
+                        request
+                            .emit_async(session_id, nsn, false, None, am_w)
+                            .await
+                            .ok();
+                    });
                 }
             }
             trace!("Disconnect: request successfully sent");

@@ -1,5 +1,5 @@
 use crate::protocol::parts::type_id::TypeId;
-use std::rc::Rc;
+use std::sync::Arc;
 use vec_map::VecMap;
 
 // The structure is a bit weird; reason is that we want to retain the transfer format
@@ -9,7 +9,7 @@ use vec_map::VecMap;
 #[derive(Clone, Debug)]
 pub struct FieldMetadata {
     inner: InnerFieldMetadata,
-    names: Rc<VecMap<String>>,
+    names: Arc<VecMap<String>>,
 }
 
 /// Describes a single field (column) in a result set.
@@ -60,7 +60,7 @@ impl InnerFieldMetadata {
 }
 
 impl FieldMetadata {
-    pub(crate) fn new(inner: InnerFieldMetadata, names: Rc<VecMap<String>>) -> Self {
+    pub(crate) fn new(inner: InnerFieldMetadata, names: Arc<VecMap<String>>) -> Self {
         Self { inner, names }
     }
 

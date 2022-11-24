@@ -2,12 +2,11 @@ use crate::conn::AmConnCore;
 use crate::protocol::parts::{
     AuthFields, ClientContext, ClientInfo, CommandInfo, ConnectOptions, DbConnectInfo,
     ExecutionResult, LobFlags, OutputParameters, ParameterDescriptors, ParameterRows,
-    PartitionInformation, Parts, ReadLobReply, ReadLobRequest, ResultSetMetadata, ResultSetSync,
+    PartitionInformation, Parts, ReadLobReply, ReadLobRequest, ResultSet, ResultSetMetadata,
     RsState, ServerError, SessionContext, StatementContext, Topology, TransactionFlags,
     WriteLobReply, WriteLobRequest, XatOptions,
 };
 use crate::protocol::{util, PartAttributes, PartKind};
-use crate::ResultSet;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::cmp::max;
 use std::convert::TryFrom;
@@ -37,7 +36,7 @@ pub(crate) enum Part<'a> {
     ReadLobReply(ReadLobReply),
     WriteLobRequest(WriteLobRequest<'a>),
     WriteLobReply(WriteLobReply),
-    ResultSet(Option<ResultSetSync>),
+    ResultSet(Option<ResultSet>),
     ResultSetId(u64),
     ResultSetMetadata(ResultSetMetadata),
     ExecutionResult(Vec<ExecutionResult>),
@@ -466,7 +465,7 @@ impl<'a> Part<'a> {
                 Part::WriteLobReply(WriteLobReply::parse_sync(no_of_args, rdr)?)
             }
             PartKind::ResultSet => {
-                let rs = ResultSetSync::parse_sync(
+                let rs = ResultSet::parse_sync(
                     no_of_args,
                     attributes,
                     parts,
@@ -560,7 +559,7 @@ impl<'a> Part<'a> {
                 Part::WriteLobReply(WriteLobReply::parse_async(no_of_args, rdr).await?)
             }
             PartKind::ResultSet => {
-                let rs = ResultSetSync::parse_async(
+                let rs = ResultSet::parse_async(
                     no_of_args,
                     attributes,
                     parts,

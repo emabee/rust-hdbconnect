@@ -63,7 +63,7 @@ pub use self::{
     parameter_descriptor::{
         ParameterBinding, ParameterDescriptor, ParameterDescriptors, ParameterDirection,
     },
-    resultset::ResultSetSync,
+    resultset::ResultSet,
     resultset_metadata::ResultSetMetadata,
     row::Row,
     server_error::ServerError,
@@ -165,7 +165,7 @@ impl Parts<'static> {
                 }
                 Part::ResultSetMetadata(rsmd) => {
                     if let Some(Part::ResultSetId(rs_id)) = parts.next() {
-                        let rs = ResultSetSync::new(
+                        let rs = ResultSet::new(
                             am_conn_core,
                             PartAttributes::new(0b_0000_0100),
                             rs_id,

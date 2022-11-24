@@ -4,8 +4,8 @@ mod test_utils;
 
 use flexi_logger::LoggerHandle;
 use hdbconnect::{
-    Connection, HdbResult, HdbReturnValue, ParameterBinding, ParameterDirection, ResultSetSync,
-    Row, TypeId,
+    Connection, HdbResult, HdbReturnValue, ParameterBinding, ParameterDirection, ResultSet, Row,
+    TypeId,
 };
 use log::{debug, info};
 
@@ -159,7 +159,7 @@ fn procedure_with_in_parameters(
     prepared_stmt.add_batch(&(42, "is between 41 and 43"))?;
     let mut response = prepared_stmt.execute_batch()?;
     response.get_success()?;
-    let mut rs: ResultSetSync = response.get_resultset()?;
+    let mut rs: ResultSet = response.get_resultset()?;
     let mut row: Row = rs.next_row()?.unwrap();
     let value: i32 = row.next_value().unwrap().try_into()?;
     assert_eq!(value, 42_i32);

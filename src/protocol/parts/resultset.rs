@@ -39,43 +39,7 @@ use std::sync::{Arc, Mutex};
 /// ```
 ///
 #[derive(Debug)]
-pub struct ResultSetSync {
-    metadata: Arc<ResultSetMetadata>,
-    state: Arc<Mutex<RsState>>,
-}
-
-/// The result of a database query.
-///
-/// This is essentially a set of `Row`s, and each `Row` is a set of `HdbValue`s.
-///
-/// The method [`try_into`](#method.try_into) converts the data from this generic format
-/// in a singe step into your application specific format.
-///
-/// `ResultSet` implements `std::iter::Iterator`, so you can
-/// directly iterate over the rows of a resultset.
-/// While iterating, the not yet transported rows are fetched "silently" on demand, which can fail.
-/// The Iterator-Item is thus not `Row`, but `HdbResult<Row>`.
-///
-/// ```rust, no_run
-/// # use hdbconnect::{Connection,ConnectParams,HdbResult};
-/// # use serde::Deserialize;
-/// # fn main() -> HdbResult<()> {
-/// # #[derive(Debug, Deserialize)]
-/// # struct Entity();
-/// # let mut connection = Connection::new(ConnectParams::builder().build()?)?;
-/// # let query_string = "";
-/// for row in connection.query(query_string)? {
-///     // handle fetch errors and convert each line individually:
-///     let entity: Entity = row?.try_into()?;
-///     println!("Got entity: {:?}", entity);
-/// }
-/// # Ok(())
-/// # }
-///
-/// ```
-///
-#[derive(Debug)]
-pub struct ResultSetAsync {
+pub struct ResultSet {
     metadata: Arc<ResultSetMetadata>,
     state: Arc<Mutex<RsState>>,
 }
@@ -276,7 +240,7 @@ impl Drop for ResultSetCore {
     }
 }
 
-impl ResultSetSync {
+impl ResultSet {
     /// Conveniently translates the complete resultset into a rust type that implements
     /// `serde::Deserialize` and has an adequate structure.
     /// The implementation of this method uses
@@ -554,6 +518,7 @@ impl ResultSetSync {
         }
     }
 
+    // FIXME THis does not make sense - async method in sync object
     pub(crate) async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
         no_of_rows: usize,
         attributes: PartAttributes,
@@ -671,7 +636,7 @@ impl ResultSetSync {
     }
 }
 
-impl std::fmt::Display for ResultSetSync {
+impl std::fmt::Display for ResultSet {
     // Writes a header and then the data
     #[allow(clippy::significant_drop_in_scrutinee)]
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -691,7 +656,7 @@ impl std::fmt::Display for ResultSetSync {
     }
 }
 
-impl Iterator for ResultSetSync {
+impl Iterator for ResultSet {
     type Item = HdbResult<Row>;
     fn next(&mut self) -> Option<HdbResult<Row>> {
         match self.next_row() {

@@ -2,7 +2,7 @@ use crate::protocol::parts::{
     ExecutionResult, OutputParameters, ParameterDescriptors, WriteLobReply,
 };
 use crate::protocol::ReplyType;
-use crate::{HdbError, HdbResult, HdbReturnValue, ResultSetSync};
+use crate::{HdbError, HdbResult, HdbReturnValue, ResultSet};
 use std::sync::Arc;
 
 /// Represents all possible non-error responses to a database command.
@@ -247,7 +247,7 @@ impl HdbResponse {
     /// # Errors
     ///
     /// `HdbError::Evaluation` if information would get lost.
-    pub fn into_resultset(self) -> HdbResult<ResultSetSync> {
+    pub fn into_resultset(self) -> HdbResult<ResultSet> {
         self.into_single_retval()?.into_resultset()
     }
 
@@ -321,7 +321,7 @@ impl HdbResponse {
     /// # Errors
     ///
     /// `HdbError` if there is no further `ResultSet`.
-    pub fn get_resultset(&mut self) -> HdbResult<ResultSetSync> {
+    pub fn get_resultset(&mut self) -> HdbResult<ResultSet> {
         if let Some(i) = self.find_resultset() {
             return self.return_values.remove(i).into_resultset();
         }
@@ -450,7 +450,7 @@ impl std::fmt::Display for HdbResponse {
 
 #[derive(Debug)]
 pub(crate) enum InternalReturnValue {
-    ResultSet(ResultSetSync),
+    ResultSet(ResultSet),
     ExecutionResults(Vec<ExecutionResult>),
     OutputParameters(OutputParameters),
     ParameterMetadata(Arc<ParameterDescriptors>),

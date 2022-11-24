@@ -3,12 +3,9 @@ use crate::protocol::{util, util_async, util_sync};
 use crate::{HdbResult, HdbValue};
 use byteorder::{LittleEndian, ReadBytesExt};
 /// Describes a set of IN, INOUT, and OUT parameters. Can be empty.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ParameterDescriptors(Vec<ParameterDescriptor>);
 impl ParameterDescriptors {
-    pub(crate) fn new() -> Self {
-        Self(Vec::new())
-    }
     /// Produces an iterator that returns the IN and INOUT parameters.
     pub fn iter_in(&self) -> impl std::iter::Iterator<Item = &ParameterDescriptor> {
         self.0.iter().filter(|ms| {

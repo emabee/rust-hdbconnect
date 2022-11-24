@@ -6,7 +6,7 @@ use crate::protocol::parts::{
 use crate::protocol::{util, util_async, util_sync, Part, PartKind, ReplyType, ServerUsage};
 use crate::{HdbError, HdbResult};
 use byteorder::{LittleEndian, ReadBytesExt};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 // Since there is obviously no usecase for multiple segments in one request,
 // we model message and segment together.
@@ -68,15 +68,16 @@ impl Reply {
     //    prepared statements
     // * `ResultSet` needs to be injected (and is extended and returned)
     //    in case of fetch requests
-    pub async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
+    pub async fn parse_async(
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
         o_rs: &mut Option<&mut RsState>,
         o_am_conn_core: Option<&AmConnCore>,
-        rdr: &mut R,
+        am_rdr: Arc<tokio::sync::Mutex<tokio::io::BufReader<tokio::net::TcpStream>>>,
     ) -> std::io::Result<Self> {
         trace!("Reply::parse()");
-        let (no_of_parts, mut reply) = parse_msg_and_seq_header_async(rdr).await?;
+        let mut m_rdr = am_rdr.lock().await;
+        let (no_of_parts, mut reply) = parse_msg_and_seq_header_async(&mut *m_rdr).await?;
 
         for i in 0..no_of_parts {
             let part = Part::parse_async(
@@ -86,7 +87,7 @@ impl Reply {
                 o_a_descriptors,
                 o_rs,
                 i == no_of_parts - 1,
-                rdr,
+                &mut *m_rdr,
             )
             .await?;
             reply.push(part);
