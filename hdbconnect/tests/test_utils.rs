@@ -44,6 +44,7 @@ pub fn get_um_connection() -> HdbResult<Connection> {
 
 pub fn get_std_cp_builder() -> HdbResult<ConnectParamsBuilder> {
     let (cp_builder, _) = cp_builder_from_file("std")?;
+    log::info!("cp_builder: {cp_builder:?}");
     Ok(cp_builder)
 }
 

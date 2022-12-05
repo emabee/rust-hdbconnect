@@ -1,5 +1,5 @@
 [package]
-name = "shared"
+name = "hdbconnect_impl"
 version = "0.25.0"
 authors = ["emabee <meinolf.block@sap.com>","Pascal Seitz <pascal.seitz@gmail.com>"]
 edition = "2021"

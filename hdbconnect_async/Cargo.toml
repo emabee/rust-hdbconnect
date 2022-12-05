@@ -1,5 +1,5 @@
 [package]
-name = "hdbconnect"
+name = "hdbconnect_async"
 version = "0.25.0"
 authors = ["emabee <meinolf.block@sap.com>","Pascal Seitz <pascal.seitz@gmail.com>"]
 edition = "2021"
@@ -21,13 +21,13 @@ default = []
 alpha_routing = []
 
 [dependencies]
-shared = { path = "../shared", features = ["sync"] }
+hdbconnect_impl = { path = "../hdbconnect_impl", features = ["async"] }
 # bigdecimal = {version = "0.3", features = ["serde"]}
 # byteorder = "1.3"
 # cesu8 = "1.1"
 # crypto-common = "0.1"
-dist_tx = {path = "../../dist_tx/dist_tx"}
-# dist_tx = {version = "0.2"}
+dist_tx_async = {path = "../../dist_tx/dist_tx_async"}
+async-trait = {version = "0.1"}
 # hex = "0.4"
 # hmac = "0.12"
 # lazy_static = "1.4.0"
@@ -35,7 +35,7 @@ log = "0.4"
 # num = "0.4"
 # num-bigint = "0.4.0"
 # pbkdf2 = {version = "0.11", default-features = false}
-r2d2 = "0.8"
+# r2d2 = "0.8"
 # rand = "0.8"
 # # rustls = {version = "0.20", features = ["dangerous_configuration"]}
 # rustls = {version = "0.20", features = ["dangerous_configuration"]}

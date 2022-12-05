@@ -117,7 +117,7 @@ impl ResultSet {
     ///
     /// `HdbError::Deserialization` if the deserialization into the target type is not possible.
     #[cfg(feature = "sync")]
-    pub fn sync_try_into<'de, T>(self) -> HdbResult<T>
+    pub fn try_into<'de, T>(self) -> HdbResult<T>
     where
         T: serde::de::Deserialize<'de>,
     {
@@ -183,7 +183,7 @@ impl ResultSet {
     ///
     /// `HdbError::Deserialization` if the deserialization into the target type is not possible.
     #[cfg(feature = "async")]
-    pub async fn async_try_into<'de, T>(self) -> HdbResult<T>
+    pub async fn try_into<'de, T>(self) -> HdbResult<T>
     where
         T: serde::de::Deserialize<'de>,
     {

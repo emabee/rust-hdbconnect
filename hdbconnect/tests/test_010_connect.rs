@@ -13,14 +13,14 @@ use std::time::Instant;
 pub fn test_010_connect() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     let start = Instant::now();
-    connect_successfully(&mut log_handle)?;
-    reconnect(&mut log_handle)?;
-    connect_options(&mut log_handle)?;
-    client_info(&mut log_handle)?;
+    connect_successfully(&mut log_handle).unwrap();
+    reconnect(&mut log_handle).unwrap();
+    connect_options(&mut log_handle).unwrap();
+    client_info(&mut log_handle).unwrap();
     connect_wrong_credentials(&mut log_handle);
-    connect_and_select_with_explicit_clientlocale(&mut log_handle)?;
-    connect_and_select_with_clientlocale_from_env(&mut log_handle)?;
-    command_info(&mut log_handle)?;
+    connect_and_select_with_explicit_clientlocale(&mut log_handle).unwrap();
+    connect_and_select_with_clientlocale_from_env(&mut log_handle).unwrap();
+    command_info(&mut log_handle).unwrap();
     info!("Elapsed time: {:?}", Instant::now().duration_since(start));
     Ok(())
 }

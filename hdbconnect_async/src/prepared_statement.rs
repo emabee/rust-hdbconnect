@@ -1,14 +1,14 @@
-use shared::async_prepared_statement_core::AsyncPreparedStatementCore;
-use shared::conn::AsyncAmConnCore;
-use shared::hdb_response::InternalReturnValue;
-use shared::protocol::parts::{
+use hdbconnect_impl::async_prepared_statement_core::AsyncPreparedStatementCore;
+use hdbconnect_impl::conn::AsyncAmConnCore;
+use hdbconnect_impl::hdb_response::InternalReturnValue;
+use hdbconnect_impl::protocol::parts::{
     HdbValue, LobFlags, ParameterDescriptors, ParameterRows, ResultSetMetadata, TypeId,
 };
-use shared::protocol::{
+use hdbconnect_impl::protocol::{
     Part, PartKind, Request, RequestType, ServerUsage, HOLD_CURSORS_OVER_COMMIT,
 };
-use shared::types_impl::lob::LobWriter;
-use shared::{HdbError, HdbResponse, HdbResult};
+use hdbconnect_impl::types_impl::lob::LobWriter;
+use hdbconnect_impl::{HdbError, HdbResponse, HdbResult};
 use std::io::Write;
 use std::sync::{Arc, Mutex};
 

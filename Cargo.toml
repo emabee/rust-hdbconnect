@@ -1,2 +1,2 @@
 [workspace]
-members = ["async", "sync", "shared"]
+members = ["hdbconnect_async", "hdbconnect", "hdbconnect_impl"]

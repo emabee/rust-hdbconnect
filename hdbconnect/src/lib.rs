@@ -1,4 +1,4 @@
-//! Asynchronous native rust database driver for SAP HANA (TM).
+//! Synchronous native rust database driver for SAP HANA (TM).
 //!
 //! `hdbconnect` provides a lean, fast, and easy-to-use rust-API for working with
 //! SAP HANA. The driver is written completely in rust.
@@ -32,29 +32,33 @@
 #[macro_use]
 extern crate log;
 
-// FIXME pub mod code_examples;
+pub mod code_examples;
 mod connection;
-// FIXME we need async pooling, r2d2 is sync pooling //mod connection_manager;
+mod connection_manager;
 mod prepared_statement;
 
-pub use {connection::Connection, prepared_statement::PreparedStatement};
+pub use {
+    connection::Connection, connection_manager::ConnectionManager,
+    prepared_statement::PreparedStatement,
+};
 
-pub use shared::conn::{
+pub use hdbconnect_impl::conn::{
     url, ConnectParams, ConnectParamsBuilder, IntoConnectParams, IntoConnectParamsBuilder,
     ServerCerts, Tls,
 };
-pub use shared::hdb_error::{HdbError, HdbResult};
-pub use shared::hdb_response::HdbResponse;
-pub use shared::hdb_return_value::HdbReturnValue;
-pub use shared::protocol::parts::ResultSet;
-pub use shared::protocol::parts::{
+pub use hdbconnect_impl::hdb_error::{HdbError, HdbResult};
+pub use hdbconnect_impl::hdb_response::HdbResponse;
+pub use hdbconnect_impl::hdb_return_value::HdbReturnValue;
+pub use hdbconnect_impl::protocol::parts::ResultSet;
+pub use hdbconnect_impl::protocol::parts::{
     ExecutionResult, FieldMetadata, HdbValue, OutputParameters, ParameterBinding,
     ParameterDescriptor, ParameterDescriptors, ParameterDirection, ResultSetMetadata, Row,
     ServerError, Severity, TypeId,
 };
 
-pub use shared::protocol::ServerUsage;
-pub use shared::serde_db_impl::{time, ToHana};
+pub use hdbconnect_impl::protocol::ServerUsage;
+pub use hdbconnect_impl::serde_db_impl::{time, ToHana};
+pub use r2d2;
 
 /// Non-standard types that are used within the
 /// [`HdbValue`](crate::HdbValue)s in a [`ResultSet`](crate::ResultSet).
@@ -63,12 +67,12 @@ pub use shared::serde_db_impl::{time, ToHana};
 /// `HdbValue`s. Some of the `HdbValue`s are implemented using `LongDate`,
 /// BLOB, etc.
 pub mod types {
-    pub use shared::types_impl::lob::{BLob, CLob, CharLobSlice, NCLob};
+    pub use hdbconnect_impl::types_impl::lob::{BLob, CLob, CharLobSlice, NCLob};
 
-    pub use shared::types_impl::daydate::DayDate;
-    pub use shared::types_impl::longdate::LongDate;
-    pub use shared::types_impl::seconddate::SecondDate;
-    pub use shared::types_impl::secondtime::SecondTime;
+    pub use hdbconnect_impl::types_impl::daydate::DayDate;
+    pub use hdbconnect_impl::types_impl::longdate::LongDate;
+    pub use hdbconnect_impl::types_impl::seconddate::SecondDate;
+    pub use hdbconnect_impl::types_impl::secondtime::SecondTime;
 }
 
 /// Default value for the number of resultset lines that are fetched

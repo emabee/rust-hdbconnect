@@ -1,12 +1,12 @@
 use crate::prepared_statement::PreparedStatement;
 use dist_tx_async::rm::ResourceManager;
-use shared::conn::AsyncAmConnCore;
-use shared::protocol::parts::{
+use hdbconnect_impl::conn::AsyncAmConnCore;
+use hdbconnect_impl::protocol::parts::{
     ClientContext, ClientContextId, CommandInfo, ConnOptId, OptionValue, ServerError,
 };
-use shared::protocol::{Part, Request, RequestType, ServerUsage, HOLD_CURSORS_OVER_COMMIT};
-use shared::xa_impl::async_new_resource_manager;
-use shared::{HdbError, HdbResponse, HdbResult, IntoConnectParams, ResultSet};
+use hdbconnect_impl::protocol::{Part, Request, RequestType, ServerUsage, HOLD_CURSORS_OVER_COMMIT};
+use hdbconnect_impl::xa_impl::async_new_resource_manager;
+use hdbconnect_impl::{HdbError, HdbResponse, HdbResult, IntoConnectParams, ResultSet};
 
 /// A synchronous connection to the database.
 #[derive(Clone, Debug)]
