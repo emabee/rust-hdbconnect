@@ -44,6 +44,8 @@ pub mod hdb_error;
 pub mod hdb_response;
 pub mod hdb_return_value;
 pub mod protocol;
+pub mod row;
+pub mod rows;
 pub mod serde_db_impl;
 pub mod types_impl;
 pub mod xa_impl;
@@ -64,9 +66,10 @@ pub use crate::hdb_return_value::HdbReturnValue;
 pub use crate::protocol::parts::ResultSet;
 pub use crate::protocol::parts::{
     ExecutionResult, FieldMetadata, HdbValue, OutputParameters, ParameterBinding,
-    ParameterDescriptor, ParameterDescriptors, ParameterDirection, ResultSetMetadata, Row,
-    ServerError, Severity, TypeId,
+    ParameterDescriptor, ParameterDescriptors, ParameterDirection, ResultSetMetadata, ServerError,
+    Severity, TypeId,
 };
+pub use crate::{row::Row, rows::Rows};
 
 pub use crate::protocol::ServerUsage;
 pub use crate::serde_db_impl::{time, ToHana};

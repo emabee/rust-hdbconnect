@@ -49,9 +49,10 @@ pub use hdbconnect_impl::hdb_return_value::HdbReturnValue;
 pub use hdbconnect_impl::protocol::parts::ResultSet;
 pub use hdbconnect_impl::protocol::parts::{
     ExecutionResult, FieldMetadata, HdbValue, OutputParameters, ParameterBinding,
-    ParameterDescriptor, ParameterDescriptors, ParameterDirection, ResultSetMetadata, Row,
-    ServerError, Severity, TypeId,
+    ParameterDescriptor, ParameterDescriptors, ParameterDirection, ResultSetMetadata, ServerError,
+    Severity, TypeId,
 };
+pub use hdbconnect_impl::Row;
 
 pub use hdbconnect_impl::protocol::ServerUsage;
 pub use hdbconnect_impl::serde_db_impl::{time, ToHana};

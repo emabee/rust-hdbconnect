@@ -1,12 +1,14 @@
 use crate::prepared_statement::PreparedStatement;
 use dist_tx_async::rm::ResourceManager;
-use hdbconnect_impl::conn::AsyncAmConnCore;
-use hdbconnect_impl::protocol::parts::{
-    ClientContext, ClientContextId, CommandInfo, ConnOptId, OptionValue, ServerError,
+use hdbconnect_impl::{
+    conn::AsyncAmConnCore,
+    protocol::parts::{
+        ClientContext, ClientContextId, CommandInfo, ConnOptId, OptionValue, ServerError,
+    },
+    protocol::{Part, Request, RequestType, ServerUsage, HOLD_CURSORS_OVER_COMMIT},
+    xa_impl::async_new_resource_manager,
+    {HdbError, HdbResponse, HdbResult, IntoConnectParams, ResultSet},
 };
-use hdbconnect_impl::protocol::{Part, Request, RequestType, ServerUsage, HOLD_CURSORS_OVER_COMMIT};
-use hdbconnect_impl::xa_impl::async_new_resource_manager;
-use hdbconnect_impl::{HdbError, HdbResponse, HdbResult, IntoConnectParams, ResultSet};
 
 /// A synchronous connection to the database.
 #[derive(Clone, Debug)]
@@ -20,8 +22,10 @@ impl Connection {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use hdbconnect::Connection;
-    /// let mut conn = Connection::new("hdbsql://my_user:my_passwd@the_host:2222").unwrap();
+    /// # tokio_test::block_on(async {
+    /// use hdbconnect_async::Connection;
+    /// let mut conn = Connection::new("hdbsql://my_user:my_passwd@the_host:2222").await.unwrap();
+    /// # })
     /// ```
     ///
     /// # Errors
@@ -45,16 +49,15 @@ impl Connection {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use hdbconnect::{Connection, HdbResponse, HdbResult, IntoConnectParams};
-    /// # fn main() -> HdbResult<()> {
+    /// # use hdbconnect_async::{Connection, HdbResponse, HdbResult, IntoConnectParams};
+    /// # tokio_test::block_on(async {
     /// # let params = "hdbsql://my_user:my_passwd@the_host:2222"
     /// #     .into_connect_params()
     /// #     .unwrap();
-    /// # let mut connection = Connection::new(params).unwrap();
+    /// # let mut connection = Connection::new(params).await.unwrap();
     /// # let statement_string = "";
-    /// let mut response = connection.statement(&statement_string)?; // HdbResponse
-    /// # Ok(())
-    /// # }
+    /// let mut response = connection.statement(&statement_string).await.unwrap(); // HdbResponse
+    /// # })
     /// ```
     ///
     /// # Errors
@@ -71,16 +74,15 @@ impl Connection {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, ResultSet};
-    /// # fn main() -> HdbResult<()> {
+    /// # tokio_test::block_on(async {
+    /// # use hdbconnect_async::{Connection, HdbResult, IntoConnectParams, ResultSet};
     /// # let params = "hdbsql://my_user:my_passwd@the_host:2222"
     /// #     .into_connect_params()
     /// #     .unwrap();
-    /// # let mut connection = Connection::new(params).unwrap();
+    /// # let mut connection = Connection::new(params).await.unwrap();
     /// # let statement_string = "";
-    /// let mut rs = connection.query(&statement_string)?; // ResultSet
-    /// # Ok(())
-    /// # }
+    /// let mut rs = connection.query(&statement_string).await.unwrap(); // ResultSet
+    /// # })
     /// ```
     ///
     /// # Errors
@@ -97,16 +99,15 @@ impl Connection {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, ResultSet};
-    /// # fn main() -> HdbResult<()> {
+    /// # use hdbconnect_async::{Connection, HdbResult, IntoConnectParams, ResultSet};
+    /// # tokio_test::block_on(async {
     /// # let params = "hdbsql://my_user:my_passwd@the_host:2222"
     /// #     .into_connect_params()
     /// #     .unwrap();
-    /// # let mut connection = Connection::new(params).unwrap();
+    /// # let mut connection = Connection::new(params).await.unwrap();
     /// # let statement_string = "";
-    /// let count = connection.dml(&statement_string)?; //usize
-    /// # Ok(())
-    /// # }
+    /// let count = connection.dml(&statement_string).await.unwrap(); //usize
+    /// # })
     /// ```
     ///
     /// # Errors
@@ -127,16 +128,15 @@ impl Connection {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, ResultSet};
-    /// # fn main() -> HdbResult<()> {
+    /// # use hdbconnect_async::{Connection, HdbResult, IntoConnectParams, ResultSet};
+    /// # tokio_test::block_on(async {
     /// # let params = "hdbsql://my_user:my_passwd@the_host:2222"
     /// #     .into_connect_params()
     /// #     .unwrap();
-    /// # let mut connection = Connection::new(params).unwrap();
+    /// # let mut connection = Connection::new(params).await.unwrap();
     /// # let statement_string = "";
-    /// connection.exec(&statement_string)?;
-    /// # Ok(())
-    /// # }
+    /// connection.exec(&statement_string).await.unwrap();
+    /// # })
     /// ```
     ///
     /// # Errors
@@ -154,16 +154,15 @@ impl Connection {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
-    /// # fn main() -> HdbResult<()> {
+    /// # use hdbconnect_async::{Connection, HdbResult, IntoConnectParams};
+    /// # tokio_test::block_on(async {
     /// # let params = "hdbsql://my_user:my_passwd@the_host:2222"
     /// #     .into_connect_params()
     /// #     .unwrap();
-    /// # let mut connection = Connection::new(params).unwrap();
+    /// # let mut connection = Connection::new(params).await.unwrap();
     /// let query_string = "select * from phrases where ID = ? and text = ?";
-    /// let mut statement = connection.prepare(query_string)?; //PreparedStatement
-    /// # Ok(())
-    /// # }
+    /// let mut statement = connection.prepare(query_string).await.unwrap(); //PreparedStatement
+    /// # })
     /// ```
     ///
     /// # Errors
@@ -390,11 +389,11 @@ impl Connection {
     /// Example:
     ///
     /// ```rust,no_run
-    /// # use hdbconnect::{Connection,HdbResult};
-    /// # fn foo() -> HdbResult<()> {
-    /// # let mut connection = Connection::new("hdbsql://my_user:my_passwd@the_host:2222")?;
-    /// connection.set_application("MyApp, built in rust")?;
-    /// # Ok(()) }
+    /// # tokio_test::block_on(async {
+    /// # use hdbconnect_async::{Connection,HdbResult};
+    /// # let mut connection = Connection::new("hdbsql://my_user:my_passwd@the_host:2222").await.unwrap();
+    /// connection.set_application("MyApp, built in rust").await.unwrap();
+    /// # })
     /// ```
     ///
     /// # Errors
@@ -410,11 +409,11 @@ impl Connection {
     /// Example:
     ///
     /// ```rust,no_run
-    /// # use hdbconnect::{Connection,HdbResult};
-    /// # fn foo() -> HdbResult<()> {
-    /// # let mut connection = Connection::new("hdbsql://my_user:my_passwd@the_host:2222")?;
-    /// connection.set_application_user("K2209657")?;
-    /// # Ok(()) }
+    /// # tokio_test::block_on(async {
+    /// # use hdbconnect_async::{Connection,HdbResult};
+    /// # let mut connection = Connection::new("hdbsql://my_user:my_passwd@the_host:2222").await.unwrap();
+    /// connection.set_application_user("K2209657").await.unwrap();
+    /// # })
     /// ```
     ///
     /// # Errors
@@ -433,11 +432,11 @@ impl Connection {
     /// Example:
     ///
     /// ```rust,no_run
-    /// # use hdbconnect::{Connection,HdbResult};
-    /// # fn foo() -> HdbResult<()> {
-    /// # let mut connection = Connection::new("hdbsql://my_user:my_passwd@the_host:2222")?;
-    /// connection.set_application_version("5.3.23")?;
-    /// # Ok(()) }
+    /// # tokio_test::block_on(async {
+    /// # use hdbconnect_async::{Connection,HdbResult};
+    /// # let mut connection = Connection::new("hdbsql://my_user:my_passwd@the_host:2222").await.unwrap();
+    /// connection.set_application_version("5.3.23").await.unwrap();
+    /// # })
     /// ```
     ///
     /// # Errors
@@ -456,11 +455,11 @@ impl Connection {
     /// Example:
     ///
     /// ```rust,no_run
-    /// # use hdbconnect::{Connection,HdbResult};
-    /// # fn foo() -> HdbResult<()> {
-    /// # let mut connection = Connection::new("hdbsql://my_user:my_passwd@the_host:2222")?;
-    /// connection.set_application_source("update_customer.rs")?;
-    /// # Ok(()) }
+    /// # tokio_test::block_on(async {
+    /// # use hdbconnect_async::{Connection,HdbResult};
+    /// # let mut connection = Connection::new("hdbsql://my_user:my_passwd@the_host:2222").await.unwrap();
+    /// connection.set_application_source("update_customer.rs").await.unwrap();
+    /// # })
     /// ```
     ///
     /// # Errors

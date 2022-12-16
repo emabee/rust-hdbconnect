@@ -18,10 +18,9 @@ use crate::sync_prepared_statement_core::AmPsCore;
 #[cfg(feature = "sync")]
 use crate::protocol::util;
 
-use crate::serde_db_impl::de::Rows;
 use crate::{
     protocol::{Part, PartAttributes, PartKind, ReplyType, Request, RequestType},
-    HdbError, HdbResult, ResultSetMetadata, Row, ServerUsage,
+    HdbError, HdbResult, ResultSetMetadata, Row, Rows, ServerUsage,
 };
 
 pub type AmRsCore = Arc<Mutex<ResultSetCore>>;

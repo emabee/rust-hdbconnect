@@ -3,8 +3,9 @@ use crate::conn::AsyncAmConnCore;
 #[cfg(feature = "sync")]
 use crate::conn::SyncAmConnCore;
 
-use crate::protocol::parts::{Parts, ResultSetMetadata, Row, StatementContext};
+use crate::protocol::parts::{Parts, ResultSetMetadata, StatementContext};
 use crate::protocol::{util, Part, PartAttributes, PartKind, ServerUsage};
+use crate::Row;
 
 #[cfg(feature = "async")]
 use crate::async_prepared_statement_core::AmPsCore;
@@ -21,7 +22,7 @@ use tokio::sync::Mutex;
 
 use super::rs_state::ResultSetCore;
 use super::RsState;
-use crate::serde_db_impl::de::Rows;
+use crate::Rows;
 
 /// The result of a database query.
 ///
@@ -193,13 +194,18 @@ impl ResultSet {
         T: serde::de::Deserialize<'de>,
     {
         trace!("Resultset::async_try_into()");
-        let rows: Rows = self
+        Ok(DeserializableResultset::try_into(self.into_rows().await?)?)
+    }
+
+    /// FIXME find better name
+    #[cfg(feature = "async")]
+    pub async fn into_rows(self) -> HdbResult<Rows> {
+        Ok(self
             .state
             .lock()
             .await
             .async_deplete(Arc::clone(&self.metadata))
-            .await?;
-        Ok(DeserializableResultset::try_into(rows)?)
+            .await?)
     }
 
     /// Converts the resultset into a single row.

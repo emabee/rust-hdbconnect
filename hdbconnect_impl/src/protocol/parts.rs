@@ -22,8 +22,7 @@ mod read_lob_reply;
 mod read_lob_request;
 mod resultset;
 mod resultset_metadata;
-mod row;
-mod rs_state;
+pub(crate) mod rs_state;
 mod server_error;
 mod session_context;
 mod statement_context;
@@ -67,7 +66,6 @@ pub use self::{
         ParameterBinding, ParameterDescriptor, ParameterDescriptors, ParameterDirection,
     },
     resultset_metadata::ResultSetMetadata,
-    row::Row,
     server_error::ServerError,
     server_error::Severity,
     type_id::TypeId,

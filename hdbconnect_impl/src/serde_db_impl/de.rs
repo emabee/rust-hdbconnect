@@ -1,31 +1,12 @@
-use crate::{HdbError, HdbValue, OutputParameters, ParameterDescriptor, ResultSetMetadata, Row};
+use crate::{HdbError, HdbValue, OutputParameters, ParameterDescriptor, Row, Rows};
 use bigdecimal::ToPrimitive;
 use serde_db::de::{
     ConversionError, DbValue, DbValueInto, DeserializableResultset, DeserializableRow,
     DeserializationError, DeserializationResult,
 };
 use std::num::{ParseFloatError, ParseIntError};
-use std::sync::Arc;
 use std::{fmt, i16, i32, i64, i8, u16, u32, u8};
 
-pub(crate) struct Rows {
-    metadata: Arc<ResultSetMetadata>,
-    number_of_rows: usize,
-    row_iter: <Vec<Row> as IntoIterator>::IntoIter,
-}
-impl Rows {
-    pub(crate) fn new(
-        metadata: Arc<ResultSetMetadata>,
-        number_of_rows: usize,
-        row_iter: <Vec<Row> as IntoIterator>::IntoIter,
-    ) -> Rows {
-        Rows {
-            metadata,
-            number_of_rows,
-            row_iter,
-        }
-    }
-}
 impl DeserializableResultset for Rows {
     type ROW = Row;
     type E = DeserializationError;

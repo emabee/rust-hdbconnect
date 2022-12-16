@@ -89,40 +89,37 @@ impl<'a> PreparedStatement {
     /// `serde::ser::Serialize`.
     ///
     /// ```rust,no_run
-    /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
-    /// # fn main() -> HdbResult<()> {
+    /// # tokio_test::block_on(async {
+    /// # use hdbconnect_async::{Connection, HdbResult, IntoConnectParams};
     /// # let params = "hdbsql://my_user:my_passwd@the_host:2222"
     /// #     .into_connect_params()
     /// #     .unwrap();
-    /// # let mut connection = Connection::new(params).unwrap();
-    /// let mut statement = connection.prepare("select * from phrases where ID = ? and text = ?")?;
-    /// let hdbresponse = statement.execute(&(42, "Foo is bar"))?;
-    /// # Ok(())
-    /// # }
+    /// # let mut connection = Connection::new(params).await.unwrap();
+    /// let mut statement = connection.prepare("select * from phrases where ID = ? and text = ?").await.unwrap();
+    /// let hdbresponse = statement.execute(&(42, "Foo is bar")).await.unwrap();
+    /// # })
     /// ```
     ///
     /// If the statement has no parameter, you can execute it like this
     ///
     /// ```rust, no_run
-    /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, Row};
-    /// # fn foo() -> HdbResult<()> {
-    /// # let mut connection = Connection::new("".into_connect_params()?)?;
-    /// # let mut stmt = connection.prepare("")?;
-    /// let hdbresponse = stmt.execute(&())?;
-    /// # Ok(())
-    /// # }
+    /// # tokio_test::block_on(async {
+    /// # use hdbconnect_async::{Connection, HdbResult, IntoConnectParams, Row};
+    /// # let mut connection = Connection::new("".into_connect_params().unwrap()).await.unwrap();
+    /// # let mut stmt = connection.prepare("").await.unwrap();
+    /// let hdbresponse = stmt.execute(&()).await.unwrap();
+    /// # })
     /// ```
     ///
     /// or like this
     ///
     /// ```rust, no_run
-    /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, Row};
-    /// # fn foo() -> HdbResult<()> {
-    /// # let mut connection = Connection::new("".into_connect_params()?)?;
-    /// # let mut stmt = connection.prepare("")?;
-    /// let hdbresponse = stmt.execute_batch()?;
-    /// # Ok(())
-    /// # }
+    /// # tokio_test::block_on(async {
+    /// # use hdbconnect_async::{Connection, HdbResult, IntoConnectParams, Row};
+    /// # let mut connection = Connection::new("".into_connect_params().unwrap()).await.unwrap();
+    /// # let mut stmt = connection.prepare("").await.unwrap();
+    /// let hdbresponse = stmt.execute_batch().await.unwrap();
+    /// # })
     /// ```
     ///
     /// # Errors
@@ -159,22 +156,22 @@ impl<'a> PreparedStatement {
     /// which is supposed to produce the content you want to store.
     ///
     /// ``` rust, no_run
-    /// # use hdbconnect::{Connection, HdbValue, HdbResult, IntoConnectParams};
+    /// # tokio_test::block_on(async {
+    /// # use hdbconnect_async::{Connection, HdbValue, HdbResult, IntoConnectParams};
     /// use std::io::Cursor;
-    /// use std::sync::{Arc,Mutex};
-    /// # fn main() -> HdbResult<()> {
-    /// # let mut connection = Connection::new("".into_connect_params()?)?;
-    /// # connection.set_auto_commit(false)?;
+    /// use std::sync::{Arc};
+    /// use tokio::sync::{Mutex};
+    /// # let mut connection = Connection::new("".into_connect_params().unwrap()).await.unwrap();
+    /// # connection.set_auto_commit(false).await.unwrap();
     /// # let insert_stmt_string = "insert into TEST_NCLOBS values(?, ?)".to_owned();
-    ///   let mut stmt = connection.prepare(&insert_stmt_string)?;
+    ///   let mut stmt = connection.prepare(&insert_stmt_string).await.unwrap();
     ///
     ///   stmt.execute_row(vec![
     ///       HdbValue::STR("nice descriptive text, could be quite long"),
     ///       HdbValue::LOBSTREAM(Some(Arc::new(Mutex::new(Cursor::new("foo bar"))))),
-    ///   ])?;
-    /// # connection.commit()?;
-    /// # Ok(())
-    /// # }
+    ///   ]).await.unwrap();
+    /// # connection.commit().await.unwrap();
+    /// # })
     /// ```
     ///
     /// `PreparedStatement::execute_row()` first sends the specified statement to the database,

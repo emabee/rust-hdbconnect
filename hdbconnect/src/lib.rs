@@ -42,18 +42,21 @@ pub use {
     prepared_statement::PreparedStatement,
 };
 
-pub use hdbconnect_impl::conn::{
-    url, ConnectParams, ConnectParamsBuilder, IntoConnectParams, IntoConnectParamsBuilder,
-    ServerCerts, Tls,
-};
-pub use hdbconnect_impl::hdb_error::{HdbError, HdbResult};
-pub use hdbconnect_impl::hdb_response::HdbResponse;
-pub use hdbconnect_impl::hdb_return_value::HdbReturnValue;
-pub use hdbconnect_impl::protocol::parts::ResultSet;
-pub use hdbconnect_impl::protocol::parts::{
-    ExecutionResult, FieldMetadata, HdbValue, OutputParameters, ParameterBinding,
-    ParameterDescriptor, ParameterDescriptors, ParameterDirection, ResultSetMetadata, Row,
-    ServerError, Severity, TypeId,
+pub use hdbconnect_impl::{
+    conn::{
+        url, ConnectParams, ConnectParamsBuilder, IntoConnectParams, IntoConnectParamsBuilder,
+        ServerCerts, Tls,
+    },
+    hdb_error::{HdbError, HdbResult},
+    hdb_response::HdbResponse,
+    hdb_return_value::HdbReturnValue,
+    protocol::parts::{
+        ExecutionResult, FieldMetadata, HdbValue, OutputParameters, ParameterBinding,
+        ParameterDescriptor, ParameterDescriptors, ParameterDirection, ResultSet,
+        ResultSetMetadata, ServerError, Severity, TypeId,
+    },
+    row::Row,
+    rows::Rows,
 };
 
 pub use hdbconnect_impl::protocol::ServerUsage;
