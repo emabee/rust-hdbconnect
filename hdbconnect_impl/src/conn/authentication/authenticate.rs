@@ -26,23 +26,17 @@ pub(crate) fn sync_authenticate(
 ) -> HdbResult<AuthenticationResult> {
     trace!("authenticate()");
     // Propose some authenticators...
-    // Propose some authenticators...
-    let authenticators1: Vec<Box<dyn Authenticator + Send>> = vec![
-        // Cookie,  Gss, Saml, SapLogon, Jwt, Ldap,
-        ScramSha256::boxed_authenticator(),
-        ScramPbkdf2Sha256::boxed_authenticator(),
-    ];
-    let authenticators2: Vec<Box<dyn Authenticator + Send>> = vec![
+    let authenticators: [Box<dyn Authenticator + Send + Sync>; 2] = [
         // Cookie,  Gss, Saml, SapLogon, Jwt, Ldap,
         ScramSha256::boxed_authenticator(),
         ScramPbkdf2Sha256::boxed_authenticator(),
     ];
 
     // ...with the first request.
-    match sync_first_auth_request(conn_core, authenticators1)? {
+    match sync_first_auth_request(conn_core, &authenticators)? {
         FirstAuthResponse::AuthenticatorAndChallenge(selected, server_challenge) => {
             // Find the selected authenticator ...
-            let authenticator: Box<dyn Authenticator> = authenticators2
+            let authenticator: Box<dyn Authenticator> = authenticators
                 .into_iter()
                 .find(|authenticator| authenticator.name() == selected)
                 .ok_or_else(|| {
@@ -67,22 +61,17 @@ pub(crate) async fn async_authenticate(
 ) -> HdbResult<AuthenticationResult> {
     trace!("authenticate()");
     // Propose some authenticators...
-    let authenticators1: Vec<Box<dyn Authenticator + Send>> = vec![
-        // Cookie,  Gss, Saml, SapLogon, Jwt, Ldap,
-        ScramSha256::boxed_authenticator(),
-        ScramPbkdf2Sha256::boxed_authenticator(),
-    ];
-    let authenticators2: Vec<Box<dyn Authenticator + Send>> = vec![
+    let authenticators: [Box<dyn Authenticator + Send + Sync>; 2] = [
         // Cookie,  Gss, Saml, SapLogon, Jwt, Ldap,
         ScramSha256::boxed_authenticator(),
         ScramPbkdf2Sha256::boxed_authenticator(),
     ];
 
     // ...with the first request.
-    match async_first_auth_request(conn_core, authenticators1).await? {
+    match async_first_auth_request(conn_core, &authenticators).await? {
         FirstAuthResponse::AuthenticatorAndChallenge(selected, server_challenge) => {
             // Find the selected authenticator ...
-            let authenticator: Box<dyn Authenticator + Send> = authenticators2
+            let authenticator: Box<dyn Authenticator + Send + Sync> = authenticators
                 .into_iter()
                 .find(|authenticator| authenticator.name() == selected)
                 .ok_or_else(|| {

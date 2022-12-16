@@ -77,7 +77,13 @@ pub enum HdbValue<'a> {
 
     /// Used for streaming LOBs to the database (see
     /// [`PreparedStatement::execute_row()`](crate::PreparedStatement::execute_row)).
+    #[cfg(feature = "sync")]
     LOBSTREAM(Option<std::sync::Arc<std::sync::Mutex<dyn std::io::Read + Send>>>),
+
+    /// Used for streaming LOBs to the database (see
+    /// [`PreparedStatement::execute_row()`](crate::PreparedStatement::execute_row)).
+    #[cfg(feature = "async")]
+    LOBSTREAM(Option<std::sync::Arc<tokio::sync::Mutex<dyn tokio::io::AsyncRead + Send + Unpin>>>),
 
     /// BOOLEAN stores boolean values, which are TRUE or FALSE.
     BOOLEAN(bool),
@@ -470,7 +476,39 @@ impl HdbValue<'static> {
     #[cfg(feature = "async")]
     pub(crate) async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
         type_id: TypeId,
-        array_type: bool, // FIXME use it !! as in the sync variant!!
+        array_type: bool,
+        scale: i16,
+        nullable: bool,
+        am_conn_core: &AsyncAmConnCore,
+        o_am_rscore: &Option<AmRsCore>,
+        rdr: &mut R,
+    ) -> std::io::Result<HdbValue<'static>> {
+        let t = type_id;
+        if array_type {
+            let l8 = rdr.read_u8().await?;
+            let _bytelen = length_indicator::parse_async(l8, rdr).await?;
+            let mut values = vec![];
+            for _i in 0..rdr.read_i32_le().await? {
+                let value = HdbValue::parse_value_async(
+                    type_id,
+                    scale,
+                    true, // nullable,
+                    am_conn_core,
+                    o_am_rscore,
+                    rdr,
+                )
+                .await?;
+                values.push(value);
+            }
+            Ok(HdbValue::ARRAY(values))
+        } else {
+            HdbValue::parse_value_async(t, scale, nullable, am_conn_core, o_am_rscore, rdr).await
+        }
+    }
+
+    #[cfg(feature = "async")]
+    async fn parse_value_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
+        type_id: TypeId,
         scale: i16,
         nullable: bool,
         am_conn_core: &AsyncAmConnCore,

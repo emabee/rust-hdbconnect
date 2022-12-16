@@ -300,6 +300,7 @@ impl<'a> Part<'a> {
             Part::CommandInfo(ref opts) => opts.async_emit(w).await?,
             // Part::CommitOptions(ref opts) => opts.async_emit(w).await?,
             Part::ConnectOptions(ref conn_opts) => conn_opts.async_emit(w).await?,
+            Part::DbConnectInfo(ref db_conn_info) => db_conn_info.async_emit(w).await?,
 
             // Part::FetchOptions(ref opts) => opts.async_emit(w).await?,
             Part::FetchSize(fs) => w.write_all(&fs.to_le_bytes()).await?,
@@ -550,6 +551,9 @@ impl<'a> Part<'a> {
             }
             PartKind::ConnectOptions => {
                 Part::ConnectOptions(ConnectOptions::parse_async(no_of_args, rdr).await?)
+            }
+            PartKind::DbConnectInfo => {
+                Part::DbConnectInfo(DbConnectInfo::parse_async(no_of_args, rdr).await?)
             }
             PartKind::Error => Part::Error(ServerError::parse_async(no_of_args, rdr).await?),
             PartKind::OutputParameters => {

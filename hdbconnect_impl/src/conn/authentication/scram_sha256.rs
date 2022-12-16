@@ -13,7 +13,7 @@ pub struct ScramSha256 {
     server_proof: Option<Vec<u8>>,
 }
 impl ScramSha256 {
-    pub fn boxed_authenticator() -> Box<dyn Authenticator + Send> {
+    pub fn boxed_authenticator() -> Box<dyn Authenticator + Send + Sync> {
         let mut client_challenge = [0_u8; 64];
         let mut rng = thread_rng();
         rng.fill_bytes(&mut client_challenge);

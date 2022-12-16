@@ -1,2 +1,14 @@
 [workspace]
-members = ["hdbconnect_async", "hdbconnect", "hdbconnect_impl"]
+members = [
+    # main crates, published on crates.io
+    "hdbconnect",
+    "hdbconnect_async",
+
+    # most of the code is here    
+    "hdbconnect_impl",
+]
+
+default-members = [
+    "hdbconnect",
+    "hdbconnect_async",
+]

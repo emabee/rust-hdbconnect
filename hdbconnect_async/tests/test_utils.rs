@@ -2,7 +2,7 @@
 #![allow(dead_code)]
 
 use flexi_logger::{opt_format, Logger, LoggerHandle};
-use hdbconnect::{ConnectParamsBuilder, Connection, HdbError, HdbResult, ServerCerts};
+use hdbconnect_async::{ConnectParamsBuilder, Connection, HdbError, HdbResult, ServerCerts};
 
 // Returns a logger that prints out all info, warn and error messages.
 //
@@ -20,26 +20,29 @@ pub fn init_logger() -> LoggerHandle {
         .unwrap_or_else(|e| panic!("Logger initialization failed with {}", e))
 }
 
-pub fn closing_info(connection: Connection, start: std::time::Instant) -> HdbResult<()> {
+pub async fn closing_info(connection: Connection, start: std::time::Instant) -> HdbResult<()> {
     log::info!(
         "{} calls to DB were executed; \
          elapsed time: {:?}, \
          accumulated server processing time: {:?}",
-        connection.get_call_count()?,
+        connection.get_call_count().await?,
         std::time::Instant::now().duration_since(start),
-        connection.server_usage()?.accum_proc_time
+        connection.server_usage().await?.accum_proc_time
     );
     Ok(())
 }
 
-pub fn get_authenticated_connection() -> HdbResult<Connection> {
-    let connection = Connection::new(get_std_cp_builder()?)?;
-    log::info!("TESTING WITH {}", connection.connect_string().unwrap());
+pub async fn get_authenticated_connection() -> HdbResult<Connection> {
+    let connection = Connection::new(get_std_cp_builder()?).await?;
+    log::info!(
+        "TESTING WITH {}",
+        connection.connect_string().await.unwrap()
+    );
     Ok(connection)
 }
 
-pub fn get_um_connection() -> HdbResult<Connection> {
-    Connection::new(get_um_cp_builder()?)
+pub async fn get_um_connection() -> HdbResult<Connection> {
+    Connection::new(get_um_cp_builder()?).await
 }
 
 pub fn get_std_cp_builder() -> HdbResult<ConnectParamsBuilder> {

@@ -59,7 +59,7 @@ pub use hdbconnect_impl::serde_db_impl::{time, ToHana};
 /// Non-standard types that are used within the
 /// [`HdbValue`](crate::HdbValue)s in a [`ResultSet`](crate::ResultSet).
 ///
-/// A `ResultSet` contains a sequence of Rows, each row is a sequence of
+/// A `ResultSet` contains a sequence of `Row`s, each row is a sequence of
 /// `HdbValue`s. Some of the `HdbValue`s are implemented using `LongDate`,
 /// BLOB, etc.
 pub mod types {

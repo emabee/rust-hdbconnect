@@ -17,6 +17,8 @@ use crate::sync_prepared_statement_core::AmPsCore;
 
 #[cfg(feature = "sync")]
 use crate::protocol::util;
+
+use crate::serde_db_impl::de::Rows;
 use crate::{
     protocol::{Part, PartAttributes, PartKind, ReplyType, Request, RequestType},
     HdbError, HdbResult, ResultSetMetadata, Row, ServerUsage,
@@ -34,6 +36,28 @@ pub struct RsState {
     pub server_usage: ServerUsage,
 }
 impl RsState {
+    #[cfg(feature = "sync")]
+    pub(crate) fn sync_deplete(&mut self, a_rsmd: Arc<ResultSetMetadata>) -> HdbResult<Rows> {
+        // let rows: Vec<Row> = self.into_iter().collect(); // fetches all rows
+        let mut rows = Vec::<Row>::new();
+        while let Some(row) = self.sync_next_row(&a_rsmd)? {
+            rows.push(row);
+        }
+        Ok(Rows::new(a_rsmd, rows.len(), rows.into_iter()))
+    }
+    #[cfg(feature = "async")]
+    pub(crate) async fn async_deplete(
+        &mut self,
+        a_rsmd: Arc<ResultSetMetadata>,
+    ) -> HdbResult<Rows> {
+        self.async_fetch_all(&a_rsmd).await?;
+        let mut rows = Vec::<Row>::new();
+        while let Some(row) = self.async_next_row(&a_rsmd).await? {
+            rows.push(row);
+        }
+        Ok(Rows::new(a_rsmd, rows.len(), rows.into_iter()))
+    }
+
     #[cfg(feature = "sync")]
     pub fn sync_fetch_all(&mut self, a_rsmd: &Arc<ResultSetMetadata>) -> HdbResult<()> {
         while !self.is_complete()? {
@@ -91,7 +115,17 @@ impl RsState {
     }
 
     pub fn next_row_no_fetch(&mut self) -> Option<Row> {
-        self.row_iter.next()
+        if let Some(r) = self.row_iter.next() {
+            Some(r)
+        } else {
+            if self.next_rows.is_empty() {
+                return None;
+            }
+            let mut tmp_vec = Vec::<Row>::new();
+            std::mem::swap(&mut tmp_vec, &mut self.next_rows);
+            self.row_iter = tmp_vec.into_iter();
+            self.row_iter.next()
+        }
     }
 
     #[cfg(feature = "sync")]
@@ -306,6 +340,19 @@ impl RsState {
             }
         }
         Ok(())
+    }
+}
+
+// This is a poor replacement for an "impl AsyncIterator for ResultSet"
+// see https://rust-lang.github.io/rfcs/2996-async-iterator.html for reasoning
+#[cfg(feature = "async")]
+impl RsState {
+    pub async fn next(&mut self, a_rsmd: &Arc<ResultSetMetadata>) -> Option<HdbResult<Row>> {
+        match self.async_next_row(a_rsmd).await {
+            Ok(Some(row)) => Some(Ok(row)),
+            Ok(None) => None,
+            Err(e) => Some(Err(e)),
+        }
     }
 }
 

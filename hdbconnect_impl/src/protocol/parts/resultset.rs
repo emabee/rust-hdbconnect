@@ -21,6 +21,7 @@ use tokio::sync::Mutex;
 
 use super::rs_state::ResultSetCore;
 use super::RsState;
+use crate::serde_db_impl::de::Rows;
 
 /// The result of a database query.
 ///
@@ -122,7 +123,11 @@ impl ResultSet {
         T: serde::de::Deserialize<'de>,
     {
         trace!("Resultset::try_into()");
-        Ok(DeserializableResultset::try_into(self)?)
+        let rows: Rows = self
+            .state
+            .lock()?
+            .sync_deplete(Arc::clone(&self.metadata))?;
+        Ok(DeserializableResultset::try_into(rows)?)
     }
 
     /// Conveniently translates the complete resultset into a rust type that implements
@@ -188,8 +193,13 @@ impl ResultSet {
         T: serde::de::Deserialize<'de>,
     {
         trace!("Resultset::async_try_into()");
-        self.async_fetch_all().await?;
-        Ok(DeserializableResultset::try_into(self)?)
+        let rows: Rows = self
+            .state
+            .lock()
+            .await
+            .async_deplete(Arc::clone(&self.metadata))
+            .await?;
+        Ok(DeserializableResultset::try_into(rows)?)
     }
 
     /// Converts the resultset into a single row.
@@ -212,11 +222,6 @@ impl ResultSet {
     pub async fn into_single_row(self) -> HdbResult<Row> {
         let mut state = self.state.lock().await;
         state.single_row().await
-    }
-
-    // Fast access to metadata, only for internal purposes.
-    pub(crate) fn metadata_ref(&self) -> &ResultSetMetadata {
-        &self.metadata
     }
 
     /// Access to metadata.
@@ -286,7 +291,7 @@ impl ResultSet {
     ///
     /// Several variants of `HdbError` are possible.
     #[cfg(feature = "sync")]
-    pub fn sync_next_row(&mut self) -> HdbResult<Option<Row>> {
+    pub fn next_row(&mut self) -> HdbResult<Option<Row>> {
         self.state.lock()?.sync_next_row(&self.metadata)
     }
 
@@ -299,7 +304,7 @@ impl ResultSet {
     ///
     /// Several variants of `HdbError` are possible.
     #[cfg(feature = "async")]
-    pub async fn async_next_row(&mut self) -> HdbResult<Option<Row>> {
+    pub async fn next_row(&mut self) -> HdbResult<Option<Row>> {
         self.state.lock().await.async_next_row(&self.metadata).await
     }
 
@@ -315,7 +320,7 @@ impl ResultSet {
     ///
     /// Several variants of `HdbError` are possible.
     #[cfg(feature = "sync")]
-    pub fn sync_fetch_all(&self) -> HdbResult<()> {
+    pub fn fetch_all(&self) -> HdbResult<()> {
         self.state.lock()?.sync_fetch_all(&self.metadata)
     }
 
@@ -331,23 +336,12 @@ impl ResultSet {
     ///
     /// Several variants of `HdbError` are possible.
     #[cfg(feature = "async")]
-    pub async fn async_fetch_all(&self) -> HdbResult<()> {
+    pub async fn fetch_all(&self) -> HdbResult<()> {
         self.state
             .lock()
             .await
             .async_fetch_all(&self.metadata)
             .await
-    }
-
-    pub(crate) fn has_multiple_rows_impl(&self) -> bool {
-        unimplemented!("FIXME")
-        // self.state
-        //     .lock()
-        //     .unwrap_or_else(std::sync::PoisonError::into_inner)
-        //     .has_multiple_rows()
-    }
-    pub(crate) fn next_row_no_fetch(&self) -> HdbResult<Option<Row>> {
-        unimplemented!("FIXME")
     }
 
     pub(crate) fn new(
@@ -638,7 +632,7 @@ impl std::fmt::Display for ResultSet {
 impl Iterator for ResultSet {
     type Item = HdbResult<Row>;
     fn next(&mut self) -> Option<HdbResult<Row>> {
-        match self.sync_next_row() {
+        match self.next_row() {
             Ok(Some(row)) => Some(Ok(row)),
             Ok(None) => None,
             Err(e) => Some(Err(e)),
@@ -650,8 +644,8 @@ impl Iterator for ResultSet {
 // see https://rust-lang.github.io/rfcs/2996-async-iterator.html for reasoning
 #[cfg(feature = "async")]
 impl ResultSet {
-    pub async fn async_next(&mut self) -> Option<HdbResult<Row>> {
-        match self.async_next_row().await {
+    pub async fn next(&mut self) -> Option<HdbResult<Row>> {
+        match self.next_row().await {
             Ok(Some(row)) => Some(Ok(row)),
             Ok(None) => None,
             Err(e) => Some(Err(e)),

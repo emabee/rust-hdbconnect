@@ -11,6 +11,13 @@ use crate::{HdbError, HdbResult, ServerUsage};
 use std::io::Write;
 use std::sync::Arc;
 
+#[cfg(feature = "async")]
+use std::{
+    io::Error,
+    pin::Pin,
+    task::{Context, Poll},
+};
+
 #[derive(Debug)]
 pub struct LobWriter<'a> {
     locator_id: u64,
@@ -309,6 +316,24 @@ impl<'a> Write for LobWriter<'a> {
             .map(|_locator_ids| ())
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
         Ok(())
+    }
+}
+
+#[cfg(feature = "async")]
+#[allow(unused_variables)]
+impl<'a> tokio::io::AsyncWrite for LobWriter<'a> {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<Result<usize, Error>> {
+        unimplemented!("FIXME");
+    }
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Error>> {
+        unimplemented!("FIXME");
+    }
+    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Error>> {
+        unimplemented!("FIXME");
     }
 }
 

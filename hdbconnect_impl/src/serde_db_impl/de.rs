@@ -1,30 +1,49 @@
-use crate::{HdbError, HdbValue, OutputParameters, ParameterDescriptor, ResultSet, Row};
+use crate::{HdbError, HdbValue, OutputParameters, ParameterDescriptor, ResultSetMetadata, Row};
 use bigdecimal::ToPrimitive;
 use serde_db::de::{
     ConversionError, DbValue, DbValueInto, DeserializableResultset, DeserializableRow,
     DeserializationError, DeserializationResult,
 };
 use std::num::{ParseFloatError, ParseIntError};
+use std::sync::Arc;
 use std::{fmt, i16, i32, i64, i8, u16, u32, u8};
 
-impl DeserializableResultset for ResultSet {
+pub(crate) struct Rows {
+    metadata: Arc<ResultSetMetadata>,
+    number_of_rows: usize,
+    row_iter: <Vec<Row> as IntoIterator>::IntoIter,
+}
+impl Rows {
+    pub(crate) fn new(
+        metadata: Arc<ResultSetMetadata>,
+        number_of_rows: usize,
+        row_iter: <Vec<Row> as IntoIterator>::IntoIter,
+    ) -> Rows {
+        Rows {
+            metadata,
+            number_of_rows,
+            row_iter,
+        }
+    }
+}
+impl DeserializableResultset for Rows {
     type ROW = Row;
     type E = DeserializationError;
 
     fn has_multiple_rows(&mut self) -> Result<bool, DeserializationError> {
-        Ok(self.has_multiple_rows_impl())
+        Ok(self.number_of_rows > 1)
     }
 
     fn next(&mut self) -> DeserializationResult<Option<Row>> {
-        Ok(self.next_row_no_fetch()?)
+        Ok(self.row_iter.next())
     }
 
     fn number_of_fields(&self) -> usize {
-        self.metadata_ref().len()
+        self.metadata.len()
     }
 
     fn fieldname(&self, i: usize) -> Option<&str> {
-        Some(self.metadata_ref()[i].displayname())
+        Some(self.metadata[i].displayname())
     }
 }
 

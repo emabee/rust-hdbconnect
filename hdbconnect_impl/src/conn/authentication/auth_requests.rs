@@ -14,7 +14,7 @@ pub(crate) enum FirstAuthResponse {
 
 fn first_request(
     db_user: &str,
-    authenticators: Vec<Box<dyn Authenticator + Send>>,
+    authenticators: &[Box<dyn Authenticator + Send + Sync>],
 ) -> Request<'static> {
     let mut request1 = Request::new(RequestType::Authenticate, 0);
     request1.push(Part::ClientContext(ClientContext::new()));
@@ -75,9 +75,9 @@ fn evaluate_first_response(reply: Reply) -> HdbResult<FirstAuthResponse> {
 #[cfg(feature = "sync")]
 pub(crate) fn sync_first_auth_request(
     conn_core: &mut ConnectionCore,
-    authenticators: Vec<Box<dyn Authenticator + Send>>,
+    authenticators: &[Box<dyn Authenticator + Send + Sync>],
 ) -> HdbResult<FirstAuthResponse> {
-    let request1 = first_request(conn_core.connect_params().dbuser(), authenticators);
+    let request1 = first_request(conn_core.connect_params().dbuser(), &authenticators);
 
     // For RequestType::Authenticate, the default error handling in roundtrip_sync is switched off:
     let reply = conn_core.roundtrip_sync(&request1, None, None, None, &mut None)?;
@@ -87,7 +87,7 @@ pub(crate) fn sync_first_auth_request(
 #[cfg(feature = "async")]
 pub(crate) async fn async_first_auth_request(
     conn_core: &mut ConnectionCore,
-    authenticators: Vec<Box<dyn Authenticator + Send>>,
+    authenticators: &[Box<dyn Authenticator + Send + Sync>],
 ) -> HdbResult<FirstAuthResponse> {
     let request1 = first_request(conn_core.connect_params().dbuser(), authenticators);
 
@@ -178,7 +178,7 @@ pub(crate) fn sync_second_auth_request(
 #[cfg(feature = "async")]
 pub(crate) async fn async_second_auth_request(
     conn_core: &mut ConnectionCore,
-    mut chosen_authenticator: Box<dyn Authenticator + Send>,
+    mut chosen_authenticator: Box<dyn Authenticator + Send + Sync>,
     server_challenge_data: &[u8],
     reconnect: bool,
 ) -> HdbResult<()> {
