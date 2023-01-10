@@ -23,8 +23,7 @@ impl Rows {
                 match row[idx] {
                     HdbValue::BLOB(ref mut blob) => blob.sync_load_complete()?,
                     HdbValue::CLOB(ref mut clob) => clob.sync_load_complete()?,
-                    HdbValue::NCLOB(ref mut nclob) => unimplemented!("FIXME"),
-
+                    HdbValue::NCLOB(ref mut nclob) => nclob.sync_load_complete()?,
                     _ => {}
                 }
             }

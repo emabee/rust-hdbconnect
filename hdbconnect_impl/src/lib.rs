@@ -76,7 +76,6 @@ pub use crate::{row::Row, rows::Rows};
 
 pub use crate::protocol::ServerUsage;
 pub use crate::serde_db_impl::{time, ToHana};
-pub use r2d2;
 
 /// Non-standard types that are used within the
 /// [`HdbValue`](crate::HdbValue)s in a [`ResultSet`](crate::ResultSet).

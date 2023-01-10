@@ -38,7 +38,6 @@ log = "0.4"
 num = "0.4"
 num-bigint = "0.4.0"
 pbkdf2 = {version = "0.11", default-features = false}
-r2d2 = "0.8"
 rand = "0.8"
 # rustls = {version = "0.20", features = ["dangerous_configuration"]}
 rustls = {version = "0.20", features = ["dangerous_configuration"]}

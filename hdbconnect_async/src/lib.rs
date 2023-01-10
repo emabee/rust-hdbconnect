@@ -34,8 +34,12 @@ extern crate log;
 
 // FIXME pub mod code_examples;
 mod connection;
-// FIXME we need async pooling, r2d2 is sync pooling //mod connection_manager;
 mod prepared_statement;
+#[cfg(feature = "rocket_pool")]
+mod rocket_pool;
+
+#[cfg(feature = "rocket_pool")]
+pub use rocket_pool::HanaPoolForRocket;
 
 pub use {connection::Connection, prepared_statement::PreparedStatement};
 
