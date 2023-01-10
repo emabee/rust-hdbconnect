@@ -60,6 +60,9 @@ pub use crate::conn::{
     ServerCerts, Tls,
 };
 
+#[cfg(feature = "async")]
+pub use types_impl::lob::async_lob_writer;
+
 pub use crate::hdb_error::{HdbError, HdbResult};
 pub use crate::hdb_response::HdbResponse;
 pub use crate::hdb_return_value::HdbReturnValue;

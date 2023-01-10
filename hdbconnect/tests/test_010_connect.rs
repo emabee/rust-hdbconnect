@@ -10,7 +10,7 @@ use std::env;
 use std::time::Instant;
 
 #[test]
-pub fn test_010_connect() -> HdbResult<()> {
+fn test_010_connect() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     let start = Instant::now();
     connect_successfully(&mut log_handle).unwrap();

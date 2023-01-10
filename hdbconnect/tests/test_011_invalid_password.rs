@@ -7,7 +7,7 @@ use log::{debug, info};
 
 // cargo test --test test_011_invalid_password -- --nocapture
 #[test]
-pub fn test_011_invalid_password() {
+fn test_011_invalid_password() {
     let mut _log_handle = test_utils::init_logger();
 
     info!("test warnings");

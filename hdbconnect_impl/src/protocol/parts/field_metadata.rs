@@ -97,6 +97,14 @@ impl FieldMetadata {
         self.inner.type_id
     }
 
+    // Returns true for BLOB, CLOB, and NCLOB, and false otherwise.
+    pub(crate) fn is_lob(&self) -> bool {
+        match self.inner.type_id {
+            TypeId::BLOB | TypeId::CLOB | TypeId::NCLOB => true,
+            _ => false,
+        }
+    }
+
     /// True if column can contain NULL values.
     pub fn is_nullable(&self) -> bool {
         (self.inner.column_options & 0b_0000_0010_u8) != 0

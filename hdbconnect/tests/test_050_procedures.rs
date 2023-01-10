@@ -11,7 +11,7 @@ use log::{debug, info};
 
 // Test various procedures, from very simple to pretty complex
 #[test]
-pub fn test_050_procedures() -> HdbResult<()> {
+fn test_050_procedures() -> HdbResult<()> {
     let start = std::time::Instant::now();
     let mut log_handle = test_utils::init_logger();
     let mut connection = test_utils::get_authenticated_connection()?;
@@ -80,8 +80,8 @@ fn procedure_with_out_resultsets(
 
     let mut response = connection.statement("call GET_PROCEDURES(?,?)")?;
     response.get_success()?;
-    let l1 = response.get_resultset()?.sync_total_number_of_rows()?;
-    let l2 = response.get_resultset()?.sync_total_number_of_rows()?;
+    let l1 = response.get_resultset()?.total_number_of_rows()?;
+    let l2 = response.get_resultset()?.total_number_of_rows()?;
     assert_eq!(2 * l1, l2);
     Ok(())
 }
@@ -113,8 +113,8 @@ fn procedure_with_secret_resultsets(
     let mut response = connection.statement("call GET_PROCEDURES_SECRETLY()")?;
 
     response.get_success()?;
-    let l1 = response.get_resultset()?.sync_total_number_of_rows()?;
-    let l2 = response.get_resultset()?.sync_total_number_of_rows()?;
+    let l1 = response.get_resultset()?.total_number_of_rows()?;
+    let l2 = response.get_resultset()?.total_number_of_rows()?;
     assert_eq!(2 * l1, l2);
 
     let mut response: hdbconnect::HdbResponse =
@@ -286,6 +286,9 @@ fn procedure_with_in_nclob_and_out_nclob(
         .unwrap()
         .try_into_nclob()?;
 
-    debug!("{}", response.into_string()?);
+    assert_eq!(
+        response.into_string()?,
+        String::from("Hello World! Can you read that??")
+    );
     Ok(())
 }

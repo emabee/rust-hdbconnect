@@ -8,7 +8,7 @@ use log::{debug, info};
 
 // cargo test test_036_bool -- --nocapture
 #[test]
-pub fn test_036_bool() -> HdbResult<()> {
+fn test_036_bool() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     let start = std::time::Instant::now();
     let mut connection = test_utils::get_authenticated_connection()?;

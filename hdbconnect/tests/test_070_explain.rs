@@ -7,7 +7,7 @@ use hdbconnect::{Connection, HdbResult};
 use log::{debug, info};
 
 #[test]
-pub fn test_070_explain() -> HdbResult<()> {
+fn test_070_explain() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     let start = std::time::Instant::now();
     let mut connection = test_utils::get_authenticated_connection()?;

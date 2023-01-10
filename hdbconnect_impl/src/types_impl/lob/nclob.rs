@@ -12,7 +12,6 @@ use crate::protocol::util;
 use crate::{HdbError, HdbResult, ServerUsage};
 use std::boxed::Box;
 use std::collections::VecDeque;
-#[cfg(feature = "sync")]
 use std::io::Write;
 
 /// LOB implementation for unicode Strings that is used with `HdbValue::NCLOB` instances coming
@@ -116,6 +115,16 @@ impl NCLob {
         unreachable!("exactly one of sync or async must be used")
     }
 
+    #[cfg(feature = "sync")]
+    pub(crate) fn sync_load_complete(&mut self) -> HdbResult<()> {
+        self.0.sync_load_complete()
+    }
+
+    #[cfg(feature = "async")]
+    pub(crate) async fn async_load_complete(&mut self) -> HdbResult<()> {
+        self.0.async_load_complete().await
+    }
+
     /// Converts the `NCLob` into the contained String.
     ///
     /// All outstanding data (data that were not yet fetched from the server) are fetched
@@ -193,8 +202,8 @@ impl NCLob {
     ///
     /// Several variants of `HdbError` can occur.
     #[cfg(feature = "async")]
-    pub async fn async_read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
-        self.0.async_read_slice(offset, length).await
+    pub async fn read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
+        self.0.read_slice(offset, length).await
     }
 
     /// Total length of data, in bytes.
@@ -234,6 +243,28 @@ impl NCLob {
     /// is related to this `NCBLob` object.
     pub fn server_usage(&self) -> ServerUsage {
         self.0.server_usage
+    }
+}
+
+impl NCLob {
+    #[cfg(feature = "async")]
+    // FIXME rename into 'write_into' ?!?!
+    pub async fn copy_into<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
+        mut self,
+        writer: &mut W,
+    ) -> HdbResult<()> {
+        let lob_read_length: usize =
+            self.0.am_conn_core.lock().await.get_lob_read_length() as usize;
+        let mut buf = vec![0_u8; lob_read_length].into_boxed_slice();
+
+        loop {
+            let read = self.0.read(&mut *buf).await?;
+            if read == 0 {
+                break;
+            }
+            writer.write_all(&buf[0..read]).await?;
+        }
+        Ok(())
     }
 }
 
@@ -328,7 +359,7 @@ impl NCLobHandle {
     }
 
     #[cfg(feature = "async")]
-    async fn async_read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
+    async fn read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
         let (reply_data, _reply_is_last_data) = async_fetch_a_lob_chunk(
             &mut self.am_conn_core,
             self.locator_id,
@@ -441,7 +472,7 @@ impl NCLobHandle {
     }
 
     #[cfg(feature = "sync")]
-    fn load_complete(&mut self) -> HdbResult<()> {
+    fn sync_load_complete(&mut self) -> HdbResult<()> {
         trace!("NCLobHandle::load_complete()");
         while !self.is_data_complete {
             self.fetch_next_chunk()?;
@@ -476,7 +507,7 @@ impl NCLobHandle {
     #[cfg(feature = "sync")]
     fn sync_into_string(mut self) -> HdbResult<String> {
         trace!("NCLobHandle::sync_into_string()");
-        self.load_complete()?;
+        self.sync_load_complete()?;
         self.into_string()
     }
 
@@ -490,7 +521,6 @@ impl NCLobHandle {
 }
 
 // Support for NCLOB streaming
-// FIXME Add option for async
 #[cfg(feature = "sync")]
 impl std::io::Read for NCLobHandle {
     fn read(&mut self, mut buf: &mut [u8]) -> std::io::Result<usize> {
@@ -498,6 +528,36 @@ impl std::io::Read for NCLobHandle {
 
         while !self.is_data_complete && (buf.len() > self.cesu8.len() - self.cesu8_tail_len) {
             self.fetch_next_chunk()
+                .map_err(|e| util::io_error(e.to_string()))?;
+        }
+
+        // we want to write only clean UTF-8 into buf, so we cut off at good places only;
+        // utf8 is equally long as cesu8, or shorter (6->4 bytes for BMP1)
+        // so we cut of at the latest char start before buf-len
+        let drain_len = std::cmp::min(buf.len(), self.cesu8.len());
+        let cesu8_buf: Vec<u8> = self.cesu8.drain(0..drain_len).collect();
+        let cut_off_position =
+            cesu8_buf.len() - util::get_cesu8_tail_len(&cesu8_buf, cesu8_buf.len())?;
+
+        // convert the valid part to utf-8 and push the tail back
+        let utf8 = cesu8::from_cesu8(&cesu8_buf[0..cut_off_position]).map_err(util::io_error)?;
+        for i in (cut_off_position..cesu8_buf.len()).rev() {
+            self.cesu8.push_front(cesu8_buf[i]);
+        }
+
+        buf.write_all(utf8.as_bytes())?;
+        Ok(utf8.len())
+    }
+}
+
+#[cfg(feature = "async")]
+impl NCLobHandle {
+    async fn read(&mut self, mut buf: &mut [u8]) -> std::io::Result<usize> {
+        trace!("read() with buf of len {}", buf.len());
+
+        while !self.is_data_complete && (buf.len() > self.cesu8.len() - self.cesu8_tail_len) {
+            self.async_fetch_next_chunk()
+                .await
                 .map_err(|e| util::io_error(e.to_string()))?;
         }
 

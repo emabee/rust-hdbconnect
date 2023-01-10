@@ -1,27 +1,24 @@
-use std::sync::Arc;
-
-#[cfg(feature = "sync")]
-use std::sync::Mutex;
-#[cfg(feature = "async")]
-use tokio::sync::Mutex;
-
-#[cfg(feature = "async")]
-use crate::conn::AsyncAmConnCore;
-#[cfg(feature = "sync")]
-use crate::conn::SyncAmConnCore;
-
-#[cfg(feature = "async")]
-use crate::async_prepared_statement_core::AmPsCore;
-#[cfg(feature = "sync")]
-use crate::sync_prepared_statement_core::AmPsCore;
-
-#[cfg(feature = "sync")]
-use crate::protocol::util;
-
 use crate::{
     protocol::{Part, PartAttributes, PartKind, ReplyType, Request, RequestType},
     HdbError, HdbResult, ResultSetMetadata, Row, Rows, ServerUsage,
 };
+use std::sync::Arc;
+
+#[cfg(feature = "sync")]
+use crate::conn::SyncAmConnCore;
+#[cfg(feature = "sync")]
+use crate::protocol::util;
+#[cfg(feature = "sync")]
+use crate::sync_prepared_statement_core::AmPsCore;
+#[cfg(feature = "sync")]
+use std::sync::Mutex;
+
+#[cfg(feature = "async")]
+use crate::async_prepared_statement_core::AmPsCore;
+#[cfg(feature = "async")]
+use crate::conn::AsyncAmConnCore;
+#[cfg(feature = "async")]
+use tokio::sync::Mutex;
 
 pub type AmRsCore = Arc<Mutex<ResultSetCore>>;
 
@@ -36,25 +33,21 @@ pub struct RsState {
 }
 impl RsState {
     #[cfg(feature = "sync")]
-    pub(crate) fn sync_deplete(&mut self, a_rsmd: Arc<ResultSetMetadata>) -> HdbResult<Rows> {
-        // let rows: Vec<Row> = self.into_iter().collect(); // fetches all rows
+    // FIXME should a_rsmd be a reference?
+    pub(crate) fn into_rows(&mut self, a_rsmd: Arc<ResultSetMetadata>) -> HdbResult<Rows> {
         let mut rows = Vec::<Row>::new();
         while let Some(row) = self.sync_next_row(&a_rsmd)? {
             rows.push(row);
         }
-        Ok(Rows::new(a_rsmd, rows.len(), rows.into_iter()))
+        Ok(Rows::new(a_rsmd, rows)?)
     }
     #[cfg(feature = "async")]
-    pub(crate) async fn async_deplete(
-        &mut self,
-        a_rsmd: Arc<ResultSetMetadata>,
-    ) -> HdbResult<Rows> {
-        self.async_fetch_all(&a_rsmd).await?;
+    pub(crate) async fn into_rows(&mut self, a_rsmd: Arc<ResultSetMetadata>) -> HdbResult<Rows> {
         let mut rows = Vec::<Row>::new();
         while let Some(row) = self.async_next_row(&a_rsmd).await? {
             rows.push(row);
         }
-        Ok(Rows::new(a_rsmd, rows.len(), rows.into_iter()))
+        Ok(Rows::new(a_rsmd, rows).await?)
     }
 
     #[cfg(feature = "sync")]

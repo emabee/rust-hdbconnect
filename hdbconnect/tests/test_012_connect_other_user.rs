@@ -8,7 +8,7 @@ use log::*;
 use std::time::Instant;
 
 #[test]
-pub fn test_012_connect_other_user() -> HdbResult<()> {
+fn test_012_connect_other_user() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     let start = Instant::now();
     connect_other_user(&mut log_handle)?;

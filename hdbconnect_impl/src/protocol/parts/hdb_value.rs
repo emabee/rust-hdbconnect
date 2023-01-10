@@ -1066,7 +1066,6 @@ fn parse_length_and_bytes_sync(l8: u8, rdr: &mut dyn std::io::Read) -> std::io::
 }
 
 #[cfg(feature = "async")]
-// FIXME Adapt
 #[allow(clippy::cast_sign_loss)]
 async fn parse_length_and_bytes_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
     l8: u8,

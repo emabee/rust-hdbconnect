@@ -198,7 +198,7 @@ impl Parts<'static> {
     #[cfg(feature = "async")]
     pub async fn async_into_internal_return_values(
         self,
-        am_conn_core: &mut AsyncAmConnCore,
+        am_conn_core: &AsyncAmConnCore,
         mut o_additional_server_usage: Option<&mut ServerUsage>,
     ) -> HdbResult<Vec<InternalReturnValue>> {
         let mut conn_core = am_conn_core.lock().await;

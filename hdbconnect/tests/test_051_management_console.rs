@@ -8,7 +8,7 @@ use hdbconnect::{HdbResult, HdbReturnValue, HdbValue};
 
 // Test various procedures, from very simple to pretty complex
 #[test]
-pub fn test_051_management_console() -> HdbResult<()> {
+fn test_051_management_console() -> HdbResult<()> {
     let connection = test_utils::get_authenticated_connection()?;
 
     let mut stmt = connection.prepare("CALL MANAGEMENT_CONSOLE_PROC(?, ?, ?)")?;

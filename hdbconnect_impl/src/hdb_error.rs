@@ -4,8 +4,6 @@ use thiserror::Error;
 
 /// A list specifying categories of [`HdbError`](crate::HdbError).
 ///
-/// This list may grow over time and it is not recommended to exhaustively
-/// match against it.
 #[derive(Error, Debug)] //Copy, Clone, Eq, PartialEq,
 #[non_exhaustive]
 pub enum HdbError {
@@ -81,6 +79,7 @@ pub enum HdbError {
     #[error("Database server responded with at least one error")]
     ExecutionResults(Vec<ExecutionResult>),
 
+    // FIXME
     /// Error occured while streaming a LOB.
     #[error("Error occured while streaming a LOB")]
     LobStreaming(std::io::Error),
@@ -102,11 +101,12 @@ pub enum HdbError {
     SessionClosingTransactionError,
 
     /// Error occured in communication with the database.
-    #[error(
-        "Error occured in communication with the database; \
-             if this happens during setup, then a frequent cause is that TLS \
-             was attempted but is not supported by the database instance"
-    )]
+    // #[error(
+    //     "Error occured in communication with the database; \
+    //          if this happens during setup, then a frequent cause is that TLS \
+    //          was attempted but is not supported by the database instance"
+    // )]
+    #[error(transparent)]
     Io {
         /// The causing Error.
         #[from]
@@ -157,6 +157,14 @@ impl HdbError {
             Self::DbError {
                 source: server_error,
             } => Some(server_error),
+            _ => None,
+        }
+    }
+
+    /// FIXME
+    pub fn inner(&self) -> Option<&dyn std::error::Error> {
+        match self {
+            Self::Io { source: e } => Some(e),
             _ => None,
         }
     }

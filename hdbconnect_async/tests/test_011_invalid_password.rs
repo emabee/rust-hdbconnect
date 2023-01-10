@@ -7,7 +7,7 @@ use log::{debug, info};
 
 // cargo test --test test_011_invalid_password -- --nocapture
 #[tokio::test]
-pub async fn test_011_invalid_password() {
+async fn test_011_invalid_password() {
     let mut _log_handle = test_utils::init_logger();
 
     info!("test warnings");

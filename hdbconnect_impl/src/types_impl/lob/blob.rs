@@ -1,16 +1,20 @@
+use crate::{
+    protocol::{parts::AmRsCore, ServerUsage},
+    HdbError, HdbResult,
+};
+use std::{boxed::Box, collections::VecDeque};
+
 #[cfg(feature = "async")]
 use super::fetch::async_fetch_a_lob_chunk;
-#[cfg(feature = "sync")]
-use super::fetch::sync_fetch_a_lob_chunk;
 #[cfg(feature = "async")]
 use crate::conn::AsyncAmConnCore;
+#[cfg(feature = "async")]
+use tokio::io::ReadBuf;
+
+#[cfg(feature = "sync")]
+use super::fetch::sync_fetch_a_lob_chunk;
 #[cfg(feature = "sync")]
 use crate::conn::SyncAmConnCore;
-use crate::protocol::parts::AmRsCore;
-use crate::protocol::ServerUsage;
-use crate::{HdbError, HdbResult};
-use std::boxed::Box;
-use std::collections::VecDeque;
 #[cfg(feature = "sync")]
 use std::io::Write;
 
@@ -149,12 +153,13 @@ impl BLob {
     ///
     /// Several variants of `HdbError` can occur.
     #[cfg(feature = "async")]
-    pub async fn async_into_bytes(mut self) -> HdbResult<Vec<u8>> {
+    pub async fn into_bytes(mut self) -> HdbResult<Vec<u8>> {
         trace!("BLob::async_into_bytes()");
         self.0.async_load_complete().await?;
         self.0.into_bytes_if_complete()
     }
 
+    //FIXME
     pub(crate) fn into_bytes_if_complete(self) -> HdbResult<Vec<u8>> {
         trace!("BLob::into_bytes_if_complete()");
         let result: Vec<u8>;
@@ -168,6 +173,16 @@ impl BLob {
             result = self.0.into_bytes_if_complete()?;
         }
         Ok(result)
+    }
+
+    #[cfg(feature = "sync")]
+    pub(crate) fn sync_load_complete(&mut self) -> HdbResult<()> {
+        self.0.sync_load_complete()
+    }
+
+    #[cfg(feature = "async")]
+    pub(crate) async fn async_load_complete(&mut self) -> HdbResult<()> {
+        self.0.async_load_complete().await
     }
 
     /// Reads from given offset and the given length, in bytes.
@@ -185,6 +200,7 @@ impl BLob {
     /// # Errors
     ///
     /// Several variants of `HdbError` can occur.
+    // FIXME don't use prefix async in public names
     #[cfg(feature = "async")]
     pub async fn async_read_slice(&mut self, offset: u64, length: u32) -> HdbResult<Vec<u8>> {
         self.0.async_read_slice(offset, length).await
@@ -206,6 +222,7 @@ impl BLob {
     /// not supposed to exceed `lob_read_length` (see
     /// [`Connection::set_lob_read_length`](crate::Connection::set_lob_read_length))
     /// plus the buffer size used by the reader.
+    // FIXME get rid of this
     pub fn max_buf_len(&self) -> usize {
         self.0.max_buf_len()
     }
@@ -222,8 +239,30 @@ impl BLob {
     }
 }
 
+impl BLob {
+    #[cfg(feature = "async")]
+    // FIXME rename into 'write_into' ?!?!
+    pub async fn copy_into<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
+        mut self,
+        writer: &mut W,
+    ) -> HdbResult<()> {
+        let lob_read_length: usize =
+            self.0.am_conn_core.lock().await.get_lob_read_length() as usize;
+        let mut buf = vec![0_u8; lob_read_length].into_boxed_slice();
+
+        loop {
+            let read = self.0.read(&mut *buf).await?;
+            if read == 0 {
+                break;
+            }
+            writer.write_all(&buf[0..read]).await?;
+        }
+        Ok(())
+    }
+}
+
 // Support for BLob streaming
-#[cfg(feature = "sync")] // FIXME add sth for async
+#[cfg(feature = "sync")]
 impl std::io::Read for BLob {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         self.0.read(buf)
@@ -390,7 +429,7 @@ impl BLobHandle {
     }
 
     #[cfg(feature = "sync")]
-    fn load_complete(&mut self) -> HdbResult<()> {
+    fn sync_load_complete(&mut self) -> HdbResult<()> {
         trace!("load_complete()");
         while !self.is_data_complete {
             self.fetch_next_chunk()?;
@@ -415,7 +454,7 @@ impl BLobHandle {
     #[cfg(feature = "sync")]
     fn sync_into_bytes(mut self) -> HdbResult<Vec<u8>> {
         trace!("into_bytes()");
-        self.load_complete()?;
+        self.sync_load_complete()?;
         Ok(Vec::from(self.data))
     }
 
@@ -427,14 +466,14 @@ impl BLobHandle {
             Ok(Vec::from(self.data))
         } else {
             Err(HdbError::Usage(
-                "Can't convert CLob that is not not completely loaded",
+                "Can't convert BLob that is not not completely loaded",
             ))
         }
     }
 }
 
 // Support for streaming
-#[cfg(feature = "sync")] // FIXME add sth for async
+#[cfg(feature = "sync")]
 impl std::io::Read for BLobHandle {
     fn read(&mut self, mut buf: &mut [u8]) -> std::io::Result<usize> {
         let buf_len = buf.len();
@@ -457,6 +496,50 @@ impl std::io::Read for BLobHandle {
             buf.write_all(&s2[0..(count - s1.len())])?;
         }
         self.data.drain(0..count);
+        Ok(count)
+    }
+}
+
+// FIXME: error type should be HdbError
+#[cfg(feature = "async")]
+impl<'a> BLobHandle {
+    async fn read(&mut self, buf: &'a mut [u8]) -> std::io::Result<usize> {
+        let mut buf = ReadBuf::new(buf);
+        let buf_len = buf.capacity();
+        debug_assert!(buf.filled().is_empty());
+        trace!("BLobHandle::read() with buf of len {}", buf_len);
+
+        while !self.is_data_complete && (self.data.len() < buf_len) {
+            info!(
+                "FIXME BLobHandle::read(): fetch next chunk ({} < {})",
+                self.data.len(),
+                buf_len
+            );
+            self.async_fetch_next_chunk().await.map_err(|e| {
+                std::io::Error::new(std::io::ErrorKind::UnexpectedEof, e.to_string())
+            })?;
+            info!(
+                "FIXME BLobHandle::read(): self.data.len() = {}",
+                self.data.len(),
+            );
+        }
+
+        let count = std::cmp::min(self.data.len(), buf_len);
+        let (s1, s2) = self.data.as_slices();
+        if count <= s1.len() {
+            // write count bytes from s1
+            buf.put_slice(&s1[0..count]);
+        } else {
+            // write s1 completely, then take the rest from s2
+            buf.put_slice(s1);
+            buf.put_slice(&s2[0..(count - s1.len())]);
+        }
+        self.data.drain(0..count);
+        info!(
+            "FIXME BLobHandle::read(): after drain, self.data.len() = {}",
+            self.data.len(),
+        );
+        info!("FIXME BLobHandle::read(): count = {count}");
         Ok(count)
     }
 }

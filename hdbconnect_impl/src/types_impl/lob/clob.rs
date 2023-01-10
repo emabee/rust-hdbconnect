@@ -1,19 +1,23 @@
 #[cfg(feature = "async")]
 use super::fetch::async_fetch_a_lob_chunk;
-#[cfg(feature = "sync")]
-use super::fetch::sync_fetch_a_lob_chunk;
-use super::CharLobSlice;
 #[cfg(feature = "async")]
 use crate::conn::AsyncAmConnCore;
+#[cfg(feature = "async")]
+use tokio::io::ReadBuf;
+
+#[cfg(feature = "sync")]
+use super::fetch::sync_fetch_a_lob_chunk;
 #[cfg(feature = "sync")]
 use crate::conn::SyncAmConnCore;
-use crate::protocol::parts::AmRsCore;
-use crate::protocol::{util, ServerUsage};
-use crate::{HdbError, HdbResult};
-use std::boxed::Box;
-use std::collections::VecDeque;
 #[cfg(feature = "sync")]
 use std::io::Write;
+
+use super::CharLobSlice;
+use crate::{
+    protocol::{parts::AmRsCore, util, ServerUsage},
+    {HdbError, HdbResult},
+};
+use std::{boxed::Box, collections::VecDeque};
 
 /// LOB implementation for unicode Strings that is used with `HdbValue::CLOB` (which is deprecated).
 ///
@@ -94,11 +98,21 @@ impl CLob {
     /// ```
     ///
     /// # Errors
-    ///
+    /// FIXME it must be completely loaded
     /// Several variants of `HdbError` can occur.
     pub fn into_string(self) -> HdbResult<String> {
         trace!("CLob::into_string()");
         self.0.into_string()
+    }
+
+    #[cfg(feature = "sync")]
+    pub(crate) fn sync_load_complete(&mut self) -> HdbResult<()> {
+        self.0.sync_load_complete()
+    }
+
+    #[cfg(feature = "async")]
+    pub(crate) async fn async_load_complete(&mut self) -> HdbResult<()> {
+        self.0.async_load_complete().await
     }
 
     /// Reads from given offset and the given length, in bytes.
@@ -153,8 +167,29 @@ impl CLob {
     }
 }
 
+impl CLob {
+    #[cfg(feature = "async")]
+    // FIXME rename into 'write_into' ?!?!
+    pub async fn copy_into<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
+        mut self,
+        writer: &mut W,
+    ) -> HdbResult<()> {
+        let lob_read_length: usize =
+            self.0.am_conn_core.lock().await.get_lob_read_length() as usize;
+        let mut buf = vec![0_u8; lob_read_length].into_boxed_slice();
+
+        loop {
+            let read = self.0.read(&mut *buf).await?;
+            if read == 0 {
+                break;
+            }
+            writer.write_all(&buf[0..read]).await?;
+        }
+        Ok(())
+    }
+}
+
 // Support for CLob streaming
-// FIXME add analogon for async
 #[cfg(feature = "sync")]
 impl std::io::Read for CLob {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
@@ -349,6 +384,15 @@ impl CLobHandle {
         Ok(())
     }
 
+    #[cfg(feature = "sync")]
+    pub fn sync_load_complete(&mut self) -> HdbResult<()> {
+        trace!("load_complete()");
+        while !self.is_data_complete {
+            self.sync_fetch_next_chunk()?;
+        }
+        Ok(())
+    }
+
     #[cfg(feature = "async")]
     pub async fn async_load_complete(&mut self) -> HdbResult<()> {
         trace!("load_complete()");
@@ -368,20 +412,13 @@ impl CLobHandle {
         if self.is_data_complete {
             Ok(util::string_from_cesu8(Vec::from(self.cesu8))?)
         } else {
-            Err(HdbError::Usage("FIXME "))
+            Err(HdbError::Usage(
+                "CLob must be loaded completely before 'into_string' can be called",
+            ))
         }
-    }
-
-    // Converts a CLobHandle into a String containing its data.
-    #[cfg(feature = "async")]
-    pub async fn async_into_string(mut self) -> HdbResult<String> {
-        trace!("into_string()");
-        self.async_load_complete().await?;
-        self.into_string()
     }
 }
 
-// FIXME Add option for async
 #[cfg(feature = "sync")]
 // Support for CLOB streaming
 impl std::io::Read for CLobHandle {
@@ -408,6 +445,41 @@ impl std::io::Read for CLobHandle {
         }
 
         buf.write_all(utf8.as_bytes())?;
+        Ok(utf8.len())
+    }
+}
+
+// FIXME: error type should be HdbError
+#[cfg(feature = "async")]
+// Support for CLOB streaming
+impl<'a> CLobHandle {
+    async fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let mut buf = ReadBuf::new(buf);
+        let buf_len = buf.capacity();
+        debug_assert!(buf.filled().is_empty());
+        trace!("CLobHandle::read() with buf of len {}", buf_len);
+
+        while !self.is_data_complete && (buf_len > self.cesu8.len() - self.cesu8_tail_len) {
+            self.async_fetch_next_chunk()
+                .await
+                .map_err(|e| util::io_error(e.to_string()))?;
+        }
+
+        // we want to write only clean UTF-8 into buf, so we cut off at good places only;
+        // utf8 is equally long as cesu8, or shorter (6->4 bytes for BMP1)
+        // so we cut of at the latest char start before buf-len
+        let drain_len = std::cmp::min(buf_len, self.cesu8.len());
+        let cesu8_buf: Vec<u8> = self.cesu8.drain(0..drain_len).collect();
+        let cut_off_position =
+            cesu8_buf.len() - util::get_cesu8_tail_len(&cesu8_buf, cesu8_buf.len())?;
+
+        // convert the valid part to utf-8 and push the tail back
+        let utf8 = cesu8::from_cesu8(&cesu8_buf[0..cut_off_position]).map_err(util::io_error)?;
+        for i in (cut_off_position..cesu8_buf.len()).rev() {
+            self.cesu8.push_front(cesu8_buf[i]);
+        }
+
+        buf.put_slice(utf8.as_bytes());
         Ok(utf8.len())
     }
 }

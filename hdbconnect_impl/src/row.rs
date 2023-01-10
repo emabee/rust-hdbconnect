@@ -163,6 +163,12 @@ impl std::ops::Index<usize> for Row {
     }
 }
 
+impl std::ops::IndexMut<usize> for Row {
+    fn index_mut(&mut self, idx: usize) -> &mut Self::Output {
+        &mut self.value_iter.as_mut_slice()[idx]
+    }
+}
+
 /// Row is an iterator with item `HdbValue`.
 impl Iterator for Row {
     type Item = HdbValue<'static>;

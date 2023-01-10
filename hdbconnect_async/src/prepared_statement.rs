@@ -7,10 +7,9 @@ use hdbconnect_impl::protocol::parts::{
 use hdbconnect_impl::protocol::{
     Part, PartKind, Request, RequestType, ServerUsage, HOLD_CURSORS_OVER_COMMIT,
 };
-use hdbconnect_impl::types_impl::lob::LobWriter;
+use hdbconnect_impl::types_impl::lob::async_lob_writer;
 use hdbconnect_impl::{HdbError, HdbResponse, HdbResult};
 use std::sync::{Arc, Mutex};
-use tokio::io::AsyncWriteExt;
 
 /// Allows injection-safe SQL execution and repeated calls of the same statement
 /// with different parameters with as few roundtrips as possible.
@@ -254,36 +253,27 @@ impl<'a> PreparedStatement {
                 let locator_ids = wlr.into_locator_ids();
                 if locator_ids.len() != readers.len() {
                     return Err(HdbError::UsageDetailed(format!(
-                        "The number of provided readers ({}) does not match \
-                         the number of required readers ({})",
+                        "{} readers are provided, but {} are required",
                         readers.len(),
                         locator_ids.len()
                     )));
                 }
+
                 for (locator_id, (reader, type_id)) in locator_ids.into_iter().zip(readers) {
-                    //FIXME make this work in async form!!
                     debug!("writing content to locator with id {:?}", locator_id);
                     if let HdbValue::LOBSTREAM(Some(reader)) = reader {
-                        let mut reader: tokio::sync::MutexGuard<
-                            dyn tokio::io::AsyncRead + Send + Unpin,
-                        > = reader.lock().await;
-                        let mut writer = LobWriter::new(
-                            locator_id,
-                            type_id,
+                        let mut reader = reader.lock().await;
+
+                        let _amount = async_lob_writer::copy(
+                            &mut *reader,
                             ps_core_guard.am_conn_core.clone(),
+                            locator_id,
+                            &mut internal_return_values,
+                            type_id,
                             self.o_a_rsmd.as_ref(),
                             Some(&self.a_descriptors),
                         )
                         .await?;
-
-                        tokio::io::copy(&mut *reader, &mut writer)
-                            .await
-                            .map_err(HdbError::LobStreaming)?;
-
-                        writer.flush().await?;
-                        if let Some(mut irvs) = writer.into_internal_return_values() {
-                            internal_return_values.append(&mut irvs);
-                        }
                     }
                 }
             }

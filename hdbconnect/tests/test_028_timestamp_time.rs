@@ -12,7 +12,7 @@ use time::{
 };
 
 #[test]
-pub fn test_028_timestamp() -> HdbResult<()> {
+fn test_028_timestamp() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     let start = std::time::Instant::now();
     let mut connection = test_utils::get_authenticated_connection()?;

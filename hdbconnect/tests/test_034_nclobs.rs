@@ -12,7 +12,7 @@ use std::io::Read;
 
 // cargo test test_034_nclobs -- --nocapture
 #[test]
-pub fn test_034_nclobs() -> HdbResult<()> {
+fn test_034_nclobs() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     let start = std::time::Instant::now();
     let mut connection = test_utils::get_authenticated_connection()?;

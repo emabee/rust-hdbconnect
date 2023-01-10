@@ -10,7 +10,7 @@ const QUERY: &str = "select * FROM TEST_NUMERIC_CONVERSION";
 
 // cargo test test_042_numeric_conversion -- --nocapture
 #[test]
-pub fn test_042_numeric_conversion() -> HdbResult<()> {
+fn test_042_numeric_conversion() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     let start = std::time::Instant::now();
     let mut connection = test_utils::get_authenticated_connection()?;

@@ -13,7 +13,7 @@ use sha2::{Digest, Sha256};
 
 // cargo test test_032_blobs -- --nocapture
 #[test]
-pub fn test_032_blobs() -> HdbResult<()> {
+fn test_032_blobs() -> HdbResult<()> {
     let mut loghandle = test_utils::init_logger();
     let start = std::time::Instant::now();
     let mut connection = test_utils::get_authenticated_connection()?;

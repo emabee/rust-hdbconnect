@@ -305,9 +305,8 @@ impl HdbResponse {
     /// `HdbError` if information would get lost.
     pub fn get_success(&mut self) -> HdbResult<()> {
         self.find_success()
-            .map_or(Err(self.get_err("success")), |i| {
-                self.return_values.remove(i).into_success()
-            })
+            .map(|i| self.return_values.remove(i).into_success())
+            .map_or_else(|| Err(self.get_err("success")), |x| x)
     }
     fn find_success(&self) -> Option<usize> {
         for (i, rt) in self.return_values.iter().enumerate().rev() {
@@ -325,9 +324,10 @@ impl HdbResponse {
     /// `HdbError` if there is no further `ResultSet`.
     pub fn get_resultset(&mut self) -> HdbResult<ResultSet> {
         if let Some(i) = self.find_resultset() {
-            return self.return_values.remove(i).into_resultset();
+            self.return_values.remove(i).into_resultset()
+        } else {
+            Err(self.get_err("resultset"))
         }
-        Err(self.get_err("resultset"))
     }
     fn find_resultset(&self) -> Option<usize> {
         for (i, rt) in self.return_values.iter().enumerate().rev() {
@@ -345,9 +345,10 @@ impl HdbResponse {
     /// `HdbError` if there is no further set of affected rows counters.
     pub fn get_affected_rows(&mut self) -> HdbResult<Vec<usize>> {
         if let Some(i) = self.find_affected_rows() {
-            return self.return_values.remove(i).into_affected_rows();
+            self.return_values.remove(i).into_affected_rows()
+        } else {
+            Err(self.get_err("affected_rows"))
         }
-        Err(self.get_err("affected_rows"))
     }
     fn find_affected_rows(&self) -> Option<usize> {
         for (i, rt) in self.return_values.iter().enumerate().rev() {
@@ -365,9 +366,10 @@ impl HdbResponse {
     /// `HdbError` if there is none.
     pub fn get_output_parameters(&mut self) -> HdbResult<OutputParameters> {
         if let Some(i) = self.find_output_parameters() {
-            return self.return_values.remove(i).into_output_parameters();
+            self.return_values.remove(i).into_output_parameters()
+        } else {
+            Err(self.get_err("output_parameters"))
         }
-        Err(self.get_err("output_parameters"))
     }
     fn find_output_parameters(&self) -> Option<usize> {
         for (i, rt) in self.return_values.iter().enumerate().rev() {

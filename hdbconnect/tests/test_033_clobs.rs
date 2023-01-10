@@ -3,8 +3,7 @@ extern crate serde;
 mod test_utils;
 
 use flexi_logger::LoggerHandle;
-use hdbconnect::types::CLob;
-use hdbconnect::{Connection, HdbError, HdbResult, HdbValue};
+use hdbconnect::{types::CLob, Connection, HdbError, HdbResult, HdbValue};
 use log::{debug, info};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -12,7 +11,7 @@ use std::fs::File;
 use std::io::Read;
 
 #[test]
-pub fn test_033_clobs() -> HdbResult<()> {
+fn test_033_clobs() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     let start = std::time::Instant::now();
     let mut connection = test_utils::get_authenticated_connection()?;

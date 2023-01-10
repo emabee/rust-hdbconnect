@@ -1,28 +1,24 @@
-#[cfg(feature = "async")]
-use crate::conn::AsyncAmConnCore;
 #[cfg(feature = "sync")]
 use crate::conn::SyncAmConnCore;
-
-use crate::protocol::parts::{Parts, ResultSetMetadata, StatementContext};
-use crate::protocol::{util, Part, PartAttributes, PartKind, ServerUsage};
-use crate::Row;
+#[cfg(feature = "sync")]
+use crate::sync_prepared_statement_core::AmPsCore;
+#[cfg(feature = "sync")]
+use std::sync::Mutex;
 
 #[cfg(feature = "async")]
 use crate::async_prepared_statement_core::AmPsCore;
-#[cfg(feature = "sync")]
-use crate::sync_prepared_statement_core::AmPsCore;
-
-use crate::HdbResult;
-use serde_db::de::DeserializableResultset;
-use std::sync::Arc;
-#[cfg(feature = "sync")]
-use std::sync::Mutex;
+#[cfg(feature = "async")]
+use crate::conn::AsyncAmConnCore;
 #[cfg(feature = "async")]
 use tokio::sync::Mutex;
 
 use super::rs_state::ResultSetCore;
 use super::RsState;
-use crate::Rows;
+use crate::protocol::parts::{Parts, ResultSetMetadata, StatementContext};
+use crate::protocol::{util, Part, PartAttributes, PartKind, ServerUsage};
+use crate::{HdbResult, Row, Rows};
+use serde_db::de::DeserializableResultset;
+use std::sync::Arc;
 
 /// The result of a database query.
 ///
@@ -124,10 +120,7 @@ impl ResultSet {
         T: serde::de::Deserialize<'de>,
     {
         trace!("Resultset::try_into()");
-        let rows: Rows = self
-            .state
-            .lock()?
-            .sync_deplete(Arc::clone(&self.metadata))?;
+        let rows: Rows = self.state.lock()?.into_rows(Arc::clone(&self.metadata))?;
         Ok(DeserializableResultset::try_into(rows)?)
     }
 
@@ -197,14 +190,14 @@ impl ResultSet {
         Ok(DeserializableResultset::try_into(self.into_rows().await?)?)
     }
 
-    /// FIXME find better name
+    // fetches all rows and all data of contained LOBs
     #[cfg(feature = "async")]
     pub async fn into_rows(self) -> HdbResult<Rows> {
         Ok(self
             .state
             .lock()
             .await
-            .async_deplete(Arc::clone(&self.metadata))
+            .into_rows(Arc::clone(&self.metadata))
             .await?)
     }
 
@@ -265,7 +258,7 @@ impl ResultSet {
     ///
     /// Several variants of `HdbError` are possible.
     #[cfg(feature = "sync")]
-    pub fn sync_total_number_of_rows(&self) -> HdbResult<usize> {
+    pub fn total_number_of_rows(&self) -> HdbResult<usize> {
         self.state.lock()?.sync_total_number_of_rows(&self.metadata)
     }
 
@@ -280,7 +273,7 @@ impl ResultSet {
     ///
     /// Several variants of `HdbError` are possible.
     #[cfg(feature = "async")]
-    pub async fn async_total_number_of_rows(&self) -> HdbResult<usize> {
+    pub async fn total_number_of_rows(&self) -> HdbResult<usize> {
         self.state
             .lock()
             .await
