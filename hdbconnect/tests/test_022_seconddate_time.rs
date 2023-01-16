@@ -94,12 +94,8 @@ fn test_seconddate(_loghandle: &mut LoggerHandle, connection: &mut Connection) -
 
     // Insert the data such that the conversion "String -> SecondDate" is done on the
     // server side (we assume that this conversion is error-free).
-    let insert_stmt = |n, d| {
-        format!(
-            "insert into TEST_SECONDDATE (number,mydate) values({}, '{}')",
-            n, d
-        )
-    };
+    let insert_stmt =
+        |n, d| format!("insert into TEST_SECONDDATE (number,mydate) values({n}, '{d}')",);
     connection.multiple_statements_ignore_err(vec!["drop table TEST_SECONDDATE"]);
     connection.multiple_statements(vec![
         "create table TEST_SECONDDATE (number INT primary key, mydate SECONDDATE)",

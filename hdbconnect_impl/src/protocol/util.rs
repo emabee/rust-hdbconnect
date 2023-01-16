@@ -138,8 +138,7 @@ fn cesu8_to_string_and_surrogate(cesu8: Vec<u8>) -> HdbResult<(String, Option<Ve
             ))
         }
         _ => Err(HdbError::ImplDetailed(format!(
-            "Unexpected buffer_cesu8 = {:?}",
-            buffer_cesu8
+            "Unexpected buffer_cesu8 = {buffer_cesu8:?}",
         ))),
     }
 }

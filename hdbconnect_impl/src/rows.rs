@@ -1,7 +1,10 @@
 use crate::{HdbResult, HdbValue, ResultSetMetadata, Row};
 use std::sync::Arc;
 
-/// FIXME docu
+/// Representation of a `ResultSet` that is fully loaded.
+///
+/// Since serde is completely sync, we cannot use asynchronous fetching during deserialization,
+/// which makes it necessary to fetch all data before we call serde.
 #[derive(Debug)]
 pub struct Rows {
     pub(crate) metadata: Arc<ResultSetMetadata>,

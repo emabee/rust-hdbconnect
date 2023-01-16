@@ -7,7 +7,7 @@ use crate::{
     {HdbError, HdbResult, ServerUsage},
 };
 
-use super::lob_writer_util::{utf8_to_cesu8_and_utf8_tail, LobWriteMode};
+use super::lob_writer_util::LobWriteMode;
 
 use std::sync::Arc;
 use tokio::io::{AsyncRead, AsyncReadExt};
@@ -32,11 +32,8 @@ where
             )))
         }
     }
-
     let lob_write_length = am_conn_core.lock().await.get_lob_write_length();
-
     let mut server_usage = ServerUsage::default();
-
     let mut read_done: bool = false;
     let mut buf = vec![0; lob_write_length].into_boxed_slice();
     let mut len = 0_usize;
@@ -46,7 +43,7 @@ where
     while !read_done {
         // Fill buffer
         {
-            assert_eq!(len, 0);
+            debug_assert_eq!(len, 0);
             // transfer utf_tail to buf
             {
                 for (i, b) in utf8_tail.iter().enumerate() {
@@ -57,20 +54,19 @@ where
             }
 
             assert!(utf8_tail.is_empty());
-            info!("FIXME Reading data");
+            trace!("reading data");
             while len < lob_write_length && !read_done {
                 let read = reader.read(&mut buf[len..]).await?;
-                info!("FIXME Read data: {read}");
+                trace!("Read {read} bytes");
                 len += read;
                 amount += read as u64;
                 read_done = read == 0;
             }
-            info!("FIXME Totally read data: {len}, (lob_write_length: {lob_write_length})");
+            trace!("Totally read data: {len}, (lob_write_length: {lob_write_length})");
         }
 
-        debug!("after reading: {:?}", &buf[0..len]);
         let payload = if let TypeId::CLOB | TypeId::NCLOB = type_id {
-            // transfer utf tail to utf_tail and convert to cesu8
+            // transfer utf tail to utf_tail and convert the rest to cesu8
             let tail_len = get_utf8_tail_len(&buf[0..len])?;
             {
                 for b in buf[len - tail_len..].iter() {
@@ -84,12 +80,10 @@ where
         } else {
             std::borrow::Cow::Borrowed(&buf[0..len])
         };
-        let r_payload = payload.as_ref();
-        debug!("before writing: {:?}", r_payload);
-        // Send lob chunk
+        trace!("before writing: {:?}", payload.as_ref());
         write_a_lob_chunk(
             &am_conn_core,
-            r_payload,
+            payload.as_ref(),
             if read_done {
                 LobWriteMode::Last
             } else {
@@ -104,19 +98,16 @@ where
         .await
         .map(|_locator_ids| ())
         .map_err(|e| crate::protocol::util::io_error(e.to_string()))?;
-        debug!("after writing: {:?}", r_payload);
+        trace!("after writing: {:?}", payload.as_ref());
 
         len = 0;
     }
     Ok(amount)
 }
 
-// pub fn into_internal_return_values(self) -> Option<Vec<InternalReturnValue>> {
-//     self.proc_result
-// }
-
 // Note that requested_length and offset count either bytes (for BLOB, CLOB),
 // or 1-2-3-chars (for NCLOB)
+#[allow(clippy::too_many_arguments)]
 async fn write_a_lob_chunk<'a>(
     am_conn_core: &AsyncAmConnCore,
     buf: &[u8],
@@ -178,7 +169,7 @@ async fn write_a_lob_chunk<'a>(
 fn evaluate_write_lob_reply(reply: Reply, server_usage: &mut ServerUsage) -> HdbResult<Vec<u64>> {
     let mut result = None;
 
-    for part in reply.parts.into_iter() {
+    for part in reply.parts {
         match part {
             Part::StatementContext(stmt_ctx) => {
                 server_usage.update(

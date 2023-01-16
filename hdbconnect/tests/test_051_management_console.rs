@@ -16,17 +16,17 @@ fn test_051_management_console() -> HdbResult<()> {
     for hdb_return_value in hdb_response.into_iter() {
         match hdb_return_value {
             HdbReturnValue::ResultSet(result_set) => {
-                println!("{:?}", result_set);
+                println!("{result_set:?}");
             }
             HdbReturnValue::AffectedRows(vec_usize) => {
                 for val in vec_usize {
-                    println!("Affected rows: {}", val);
+                    println!("Affected rows: {val}",);
                 }
             }
             HdbReturnValue::OutputParameters(output_parameters) => {
                 println!("Output parameters");
                 for op in output_parameters.into_values().into_iter() {
-                    println!("   Output parameter: {:?}", op);
+                    println!("   Output parameter: {op:?}");
                     match op {
                         HdbValue::BLOB(blob) => {
                             println!("Value: {:?}", blob.into_bytes()?);
@@ -38,7 +38,7 @@ fn test_051_management_console() -> HdbResult<()> {
                             println!("Value: {}", nclob.into_string()?);
                         }
                         _ => {
-                            println!("Value: {}", op);
+                            println!("Value: {op}");
                         }
                     }
                 }
@@ -49,7 +49,7 @@ fn test_051_management_console() -> HdbResult<()> {
             HdbReturnValue::XaTransactionIds(vec_ta_ids) => {
                 println!("Transaction-ids");
                 for val in vec_ta_ids {
-                    println!("   transaction-id: {:?}", val);
+                    println!("   transaction-id: {val:?}");
                 }
             }
         }

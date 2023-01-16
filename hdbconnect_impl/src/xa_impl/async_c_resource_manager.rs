@@ -112,10 +112,7 @@ impl CResourceManager for HdbCResourceManager {
 fn usage_error(method: &'static str, flags: Flags) -> RmError {
     RmError::new(
         ErrorCode::ProtocolError,
-        format!(
-            "CResourceManager::{}(): Invalid transaction flags {:?}",
-            method, flags
-        ),
+        format!("CResourceManager::{method}(): Invalid transaction flags {flags:?}",),
     )
 }
 

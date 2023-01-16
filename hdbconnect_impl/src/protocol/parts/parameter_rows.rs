@@ -8,8 +8,10 @@ use serde_db::ser::to_params;
 // Contains rows of input parameters.
 // The argument count of the part defines how many rows of parameters are included.
 #[derive(Debug)]
+#[allow(clippy::new_without_default)]
 pub struct ParameterRows<'a>(Vec<ParameterRow<'a>>);
 impl<'a> ParameterRows<'a> {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> ParameterRows<'a> {
         ParameterRows(Vec::<ParameterRow>::new())
     }

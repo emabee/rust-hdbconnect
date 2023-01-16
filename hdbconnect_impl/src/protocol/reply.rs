@@ -87,8 +87,8 @@ impl Reply {
         am_rdr: Arc<tokio::sync::Mutex<tokio::io::BufReader<tokio::net::TcpStream>>>,
     ) -> std::io::Result<Self> {
         trace!("Reply::parse()");
-        let mut m_rdr = am_rdr.lock().await;
-        let (no_of_parts, mut reply) = parse_msg_and_seq_header_async(&mut *m_rdr).await?;
+        let mut reader = am_rdr.lock().await;
+        let (no_of_parts, mut reply) = parse_msg_and_seq_header_async(&mut *reader).await?;
 
         for i in 0..no_of_parts {
             let part = Part::parse_async(
@@ -98,7 +98,7 @@ impl Reply {
                 o_a_descriptors,
                 o_rs,
                 i == no_of_parts - 1,
-                &mut *m_rdr,
+                &mut *reader,
             )
             .await?;
             reply.push(part);
@@ -292,7 +292,7 @@ async fn parse_msg_and_seq_header_async<R: std::marker::Unpin + tokio::io::Async
     }
 
     if no_of_segs > 1 {
-        return Err(util::io_error(format!("no_of_segs = {} > 1", no_of_segs)));
+        return Err(util::io_error(format!("no_of_segs = {no_of_segs} > 1")));
     }
 
     util_async::skip_bytes(10, rdr).await?; // (I1 + B[9])
@@ -341,10 +341,9 @@ impl Kind {
             1 => Ok(Self::Request),
             2 => Ok(Self::Reply),
             5 => Ok(Self::Error),
-            _ => Err(util::io_error(format!(
-                "reply::Kind {} not implemented",
-                val
-            ))),
+            _ => Err(util::io_error(
+                format!("reply::Kind {val} not implemented",),
+            )),
         }
     }
 }

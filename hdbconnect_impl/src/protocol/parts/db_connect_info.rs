@@ -34,8 +34,7 @@ impl DbConnectInfo {
             .try_into()
             .map_err(|e| {
                 HdbError::ImplDetailed(format!(
-                    "Invalid port number received, can't convert to u16: {}",
-                    e
+                    "Invalid port number received, can't convert to u16: {e}",
                 ))
             })
     }

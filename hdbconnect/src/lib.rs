@@ -78,23 +78,6 @@ pub mod types {
     pub use hdbconnect_impl::types_impl::secondtime::SecondTime;
 }
 
-/// Default value for the number of resultset lines that are fetched
-/// with a single FETCH roundtrip; the constant's value is 100,000.
-///
-/// The value used at runtime can be changed with
-/// [`Connection::set_fetch_size()`](crate::Connection::set_fetch_size).
-pub const DEFAULT_FETCH_SIZE: u32 = 100_000;
-
-/// Number of bytes (for BLOBS and CLOBS) or 1-2-3-byte sequences (for NCLOBS)
-/// that are fetched in a single LOB READ roundtrip; the constant's value is 16,000,000.
-///
-/// The value used at runtime can be changed with
-/// [`Connection::set_lob_read_length()`](crate::Connection::set_lob_read_length).
-pub const DEFAULT_LOB_READ_LENGTH: u32 = 16_000_000;
-
-/// Number of bytes that are written in a single LOB WRITE roundtrip;
-/// the constant's value is 16,000,000.
-///
-/// The value used at runtime can be changed with
-/// [`Connection::set_lob_write_length()`](crate::Connection::set_lob_write_length).
-pub const DEFAULT_LOB_WRITE_LENGTH: usize = 16_000_000;
+pub use hdbconnect_impl::DEFAULT_FETCH_SIZE;
+pub use hdbconnect_impl::DEFAULT_LOB_READ_LENGTH;
+pub use hdbconnect_impl::DEFAULT_LOB_WRITE_LENGTH;

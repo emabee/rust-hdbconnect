@@ -26,7 +26,7 @@ pub(crate) fn sync_fetch_a_lob_chunk(
     reply.assert_expected_reply_type(ReplyType::ReadLob)?;
 
     let mut o_read_lob_reply = None;
-    for part in reply.parts.into_iter() {
+    for part in reply.parts {
         match part {
             Part::ReadLobReply(read_lob_reply) => {
                 if *read_lob_reply.locator_id() != locator_id {
@@ -68,7 +68,7 @@ pub(crate) async fn async_fetch_a_lob_chunk(
     reply.assert_expected_reply_type(ReplyType::ReadLob)?;
 
     let mut o_read_lob_reply = None;
-    for part in reply.parts.into_iter() {
+    for part in reply.parts {
         match part {
             Part::ReadLobReply(read_lob_reply) => {
                 if *read_lob_reply.locator_id() != locator_id {

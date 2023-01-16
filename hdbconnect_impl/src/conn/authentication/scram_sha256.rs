@@ -62,8 +62,7 @@ impl Authenticator for ScramSha256 {
             Ok(())
         } else {
             Err(HdbError::ImplDetailed(format!(
-                "verify_server(): non-empty server_proof: {:?}",
-                server_proof
+                "verify_server(): non-empty server_proof: {server_proof:?}",
             )))
         }
     }

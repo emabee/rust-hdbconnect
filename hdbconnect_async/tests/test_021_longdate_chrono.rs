@@ -53,12 +53,8 @@ async fn test_longdate(
 
     // Insert the data such that the conversion "String -> LongDate" is done on the
     // server side (we assume that this conversion is error-free).
-    let insert_stmt = |n, d| {
-        format!(
-            "insert into TEST_LONGDATE (number,mydate) values({}, '{}')",
-            n, d
-        )
-    };
+    let insert_stmt =
+        |n, d| format!("insert into TEST_LONGDATE (number,mydate) values({n}, '{d}')",);
     connection
         .multiple_statements_ignore_err(vec!["drop table TEST_LONGDATE"])
         .await;

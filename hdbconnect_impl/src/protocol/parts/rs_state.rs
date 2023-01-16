@@ -34,20 +34,22 @@ pub struct RsState {
 impl RsState {
     #[cfg(feature = "sync")]
     // FIXME should a_rsmd be a reference?
+    #[allow(clippy::wrong_self_convention)]
     pub(crate) fn into_rows(&mut self, a_rsmd: Arc<ResultSetMetadata>) -> HdbResult<Rows> {
         let mut rows = Vec::<Row>::new();
         while let Some(row) = self.sync_next_row(&a_rsmd)? {
             rows.push(row);
         }
-        Ok(Rows::new(a_rsmd, rows)?)
+        Rows::new(a_rsmd, rows)
     }
+    #[allow(clippy::wrong_self_convention)]
     #[cfg(feature = "async")]
     pub(crate) async fn into_rows(&mut self, a_rsmd: Arc<ResultSetMetadata>) -> HdbResult<Rows> {
         let mut rows = Vec::<Row>::new();
         while let Some(row) = self.async_next_row(&a_rsmd).await? {
             rows.push(row);
         }
-        Ok(Rows::new(a_rsmd, rows).await?)
+        Rows::new(a_rsmd, rows).await
     }
 
     #[cfg(feature = "sync")]
@@ -66,6 +68,7 @@ impl RsState {
         Ok(())
     }
 
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         self.next_rows.len() + self.row_iter.len()
     }
@@ -301,7 +304,7 @@ impl RsState {
             let am_conn_core: &SyncAmConnCore = &rscore.am_conn_core;
             let o_am_rscore = Some(am_rscore.clone());
             for i in 0..no_of_rows {
-                let row = Row::parse_sync(Arc::clone(&metadata), &o_am_rscore, am_conn_core, rdr)?;
+                let row = Row::parse_sync(Arc::clone(metadata), &o_am_rscore, am_conn_core, rdr)?;
                 trace!("parse_rows(): Found row #{}: {}", i, row);
                 self.next_rows.push(row);
             }
@@ -325,8 +328,8 @@ impl RsState {
             let am_conn_core: &AsyncAmConnCore = &rscore.am_conn_core;
             let o_am_rscore = Some(am_rscore.clone());
             for i in 0..no_of_rows {
-                let row = Row::parse_async(Arc::clone(&metadata), &o_am_rscore, am_conn_core, rdr)
-                    .await?;
+                let row =
+                    Row::parse_async(Arc::clone(metadata), &o_am_rscore, am_conn_core, rdr).await?;
                 trace!("parse_rows(): Found row #{}: {}", i, row);
                 self.next_rows.push(row);
             }

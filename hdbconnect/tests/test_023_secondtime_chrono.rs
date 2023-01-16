@@ -43,12 +43,8 @@ fn test_secondtime(_loghandle: &mut LoggerHandle, connection: &mut Connection) -
 
     // Insert the data such that the conversion "String -> SecondTime" is done on the
     // server side (we assume that this conversion is error-free).
-    let insert_stmt = |n, d| {
-        format!(
-            "insert into TEST_SECONDTIME (number,mytime) values({}, '{}')",
-            n, d
-        )
-    };
+    let insert_stmt =
+        |n, d| format!("insert into TEST_SECONDTIME (number,mytime) values({n}, '{d}')",);
     connection.multiple_statements_ignore_err(vec!["drop table TEST_SECONDTIME"]);
     connection.multiple_statements(vec![
         "create table TEST_SECONDTIME (number INT primary key, mytime SECONDTIME)",

@@ -23,10 +23,9 @@ fn connect_other_user(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
     let mut sys_conn = test_utils::get_um_connection().unwrap();
 
     sys_conn.multiple_statements_ignore_err(vec![
-        &format!("drop user {}", other_user),
+        &format!("drop user {other_user}",),
         &format!(
-            "create user {} password \"Theother1234\" NO FORCE_FIRST_PASSWORD_CHANGE",
-            other_user
+            "create user {other_user} password \"Theother1234\" NO FORCE_FIRST_PASSWORD_CHANGE",
         ),
     ]);
 
@@ -35,8 +34,8 @@ fn connect_other_user(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
         .try_into()?;
     assert_eq!(before, "SYSTEM".to_string());
 
-    let response = sys_conn.statement(format!("CONNECT {} PASSWORD Theother1234", other_user))?;
-    debug!("Response: {:?}", response);
+    let response = sys_conn.statement(format!("CONNECT {other_user} PASSWORD Theother1234",))?;
+    debug!("Response: {response:?}",);
 
     let after: String = sys_conn
         .query("SELECT CURRENT_USER FROM DUMMY")?

@@ -1,6 +1,6 @@
 [package]
 name = "hdbconnect_impl"
-version = "0.25.0"
+version = "0.25.0-alpha-1"
 authors = ["emabee <meinolf.block@sap.com>","Pascal Seitz <pascal.seitz@gmail.com>"]
 edition = "2021"
 license = "MIT/Apache-2.0"
@@ -19,7 +19,7 @@ all-features = false
 [features]
 default = []
 alpha_routing = []
-async = ["tokio","dist_tx_async", "async-trait"]
+async = ["async-trait", "dist_tx_async", "tokio"]
 sync = ["dist_tx"]
 
 [dependencies]
@@ -39,7 +39,6 @@ num = "0.4"
 num-bigint = "0.4.0"
 pbkdf2 = {version = "0.11", default-features = false}
 rand = "0.8"
-# rustls = {version = "0.20", features = ["dangerous_configuration"]}
 rustls = {version = "0.20", features = ["dangerous_configuration"]}
 secstr = "0.5"
 serde = { version = "1.0", features = ["derive"] }

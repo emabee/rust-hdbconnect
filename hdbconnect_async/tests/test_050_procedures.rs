@@ -330,7 +330,7 @@ async fn procedure_with_in_nclob_and_out_nclob(
     // _log_handle.pop_temp_spec();
 
     assert_eq!(
-        nclob.into_string()?,
+        nclob.into_string().await?,
         String::from("Hello World! Can you read that??")
     );
     Ok(())

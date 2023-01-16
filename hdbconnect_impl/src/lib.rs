@@ -24,13 +24,13 @@
 //! See [code examples](crate::code_examples) for an overview.
 //!
 
-#![allow(missing_docs)]
 #![deny(missing_debug_implementations)]
 #![deny(clippy::all)]
 #![deny(clippy::pedantic)]
 #![allow(clippy::module_name_repetitions)]
 #![allow(clippy::non_ascii_literal)]
 #![allow(clippy::must_use_candidate)]
+#![allow(clippy::missing_errors_doc)]
 
 #[macro_use]
 extern crate lazy_static;
@@ -93,22 +93,20 @@ pub mod types {
     };
 }
 
-/// Default value for the number of resultset lines that are fetched
-/// with a single FETCH roundtrip; the constant's value is 100,000.
+/// Default value for the number of resultset lines that are fetched with a single FETCH roundtrip.
 ///
 /// The value used at runtime can be changed with
 /// [`Connection::set_fetch_size()`](crate::Connection::set_fetch_size).
 pub const DEFAULT_FETCH_SIZE: u32 = 100_000;
 
 /// Number of bytes (for BLOBS and CLOBS) or 1-2-3-byte sequences (for NCLOBS)
-/// that are fetched in a single LOB READ roundtrip; the constant's value is 16,000,000.
+/// that are fetched in a single LOB READ roundtrip.
 ///
 /// The value used at runtime can be changed with
 /// [`Connection::set_lob_read_length()`](crate::Connection::set_lob_read_length).
 pub const DEFAULT_LOB_READ_LENGTH: u32 = 16_000_000;
 
-/// Number of bytes that are written in a single LOB WRITE roundtrip;
-/// the constant's value is 16,000,000.
+/// Number of bytes that are written in a single LOB WRITE roundtrip.
 ///
 /// The value used at runtime can be changed with
 /// [`Connection::set_lob_write_length()`](crate::Connection::set_lob_write_length).

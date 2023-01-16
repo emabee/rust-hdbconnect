@@ -17,7 +17,7 @@ impl AuthFields {
         let field_count = rdr.read_u16::<LittleEndian>()? as usize; // I2
         let mut auth_fields: Self = Self(Vec::<AuthField>::with_capacity(field_count));
         for _ in 0..field_count {
-            auth_fields.0.push(AuthField::parse_sync(rdr)?)
+            auth_fields.0.push(AuthField::parse_sync(rdr)?);
         }
         Ok(auth_fields)
     }
@@ -29,7 +29,7 @@ impl AuthFields {
         let field_count = util_async::read_u16(rdr).await? as usize; // I2
         let mut auth_fields: Self = Self(Vec::<AuthField>::with_capacity(field_count));
         for _ in 0..field_count {
-            auth_fields.0.push(AuthField::parse_async(rdr).await?)
+            auth_fields.0.push(AuthField::parse_async(rdr).await?);
         }
         Ok(auth_fields)
     }
@@ -64,8 +64,7 @@ impl AuthFields {
     ) -> std::io::Result<()> {
         #[allow(clippy::cast_possible_truncation)]
         #[allow(clippy::cast_possible_wrap)]
-        w.write_all(&((self.0.len() as i16).to_le_bytes())).await?;
-        // w.write_i16::<LittleEndian>(self.0.len() as i16)?;
+        w.write_i16_le(self.0.len() as i16).await?;
         for field in &self.0 {
             field.async_emit(w).await?;
         }
@@ -110,12 +109,11 @@ impl AuthField {
             l if l <= 250_usize => w.write_u8(l as u8).await?, // B1: length of value
             l if l <= 65_535_usize => {
                 w.write_u8(255).await?; // B1: 247
-                w.write_all(&(l as u16).to_le_bytes()).await?; // U2: length of value
+                w.write_u16(l as u16).await?; // U2: length of value
             }
             l => {
                 return Err(util::io_error(format!(
-                    "Value of AuthField is too big: {}",
-                    l
+                    "Value of AuthField is too big: {l}",
                 )));
             }
         }
@@ -143,8 +141,7 @@ impl AuthField {
             }
             251..=254 => {
                 return Err(util::io_error(format!(
-                    "Unknown length indicator for AuthField: {}",
-                    len
+                    "Unknown length indicator for AuthField: {len}",
                 )));
             }
             _ => {}

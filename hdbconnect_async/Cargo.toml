@@ -1,6 +1,6 @@
 [package]
 name = "hdbconnect_async"
-version = "0.25.0"
+version = "0.25.0-alpha-1"
 authors = ["emabee <meinolf.block@sap.com>","Pascal Seitz <pascal.seitz@gmail.com>"]
 edition = "2021"
 license = "MIT/Apache-2.0"
@@ -8,17 +8,21 @@ readme = "README.md"
 repository = "https://github.com/emabee/rust-hdbconnect"
 documentation = "https://docs.rs/hdbconnect/"
 
-description = "A pure rust driver for SAP HANA(TM)"
+description = "An asynchronous pure rust driver for SAP HANA(TM)"
 keywords = ["relational", "database", "driver", "serde", "HANA"]
 categories = ["database"]
 include = ["src/**/*", "LICENSE-*", "README.md", "CHANGELOG.md"]
 
 [package.metadata.docs.rs]
-all-features = false
+all-features = true
+# To make use of this globally, do: 
+#    export RUSTDOCFLAGS="--cfg docsrs" 
+# before calling 
+#    cargo +nightly doc --package hdbconnect_async --all-features --no-deps
+rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = []
-alpha_routing = []
 rocket_pool = ["rocket_db_pools", "rocket"]
 
 [dependencies]

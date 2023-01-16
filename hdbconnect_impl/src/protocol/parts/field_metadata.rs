@@ -36,6 +36,7 @@ pub(crate) struct InnerFieldMetadata {
     precision: i16,
 }
 impl InnerFieldMetadata {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         schemaname_idx: u32,
         tablename_idx: u32,
@@ -99,10 +100,10 @@ impl FieldMetadata {
 
     // Returns true for BLOB, CLOB, and NCLOB, and false otherwise.
     pub(crate) fn is_lob(&self) -> bool {
-        match self.inner.type_id {
-            TypeId::BLOB | TypeId::CLOB | TypeId::NCLOB => true,
-            _ => false,
-        }
+        matches!(
+            self.inner.type_id,
+            TypeId::BLOB | TypeId::CLOB | TypeId::NCLOB
+        )
     }
 
     /// True if column can contain NULL values.

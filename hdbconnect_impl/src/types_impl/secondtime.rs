@@ -12,7 +12,7 @@ const HOUR_FACTOR: u32 = 3_600;
 
 /// Implementation of HANA's `SecondTime`.
 ///
-/// The type is used internally to implement serialization to the wire.
+/// The type is used internally to implement deserialization from the wire.
 ///
 /// HANA allows input of empty strings, they are mapped to 0, all other legal values are mapped to
 /// Hours * 60*60 + Minutes * 60 + Seconds  + 1 < 86400.

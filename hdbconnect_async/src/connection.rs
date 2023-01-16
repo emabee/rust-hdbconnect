@@ -10,7 +10,7 @@ use hdbconnect_impl::{
     {HdbError, HdbResponse, HdbResult, IntoConnectParams, ResultSet},
 };
 
-/// A synchronous connection to the database.
+/// An asynchronous connection to the database.
 #[derive(Clone, Debug)]
 pub struct Connection {
     am_conn_core: AsyncAmConnCore,
@@ -216,7 +216,7 @@ impl Connection {
         other.set_auto_commit(am_conn_core.is_auto_commit()).await?;
         other.set_fetch_size(am_conn_core.get_fetch_size()).await?;
         other
-            .set_lob_read_length(am_conn_core.get_lob_read_length())
+            .set_lob_read_length(am_conn_core.lob_read_length())
             .await?;
         Ok(other)
     }
@@ -294,8 +294,8 @@ impl Connection {
     /// # Errors
     ///
     /// Only `HdbError::Poison` can occur.
-    pub async fn get_lob_read_length(&self) -> HdbResult<u32> {
-        Ok(self.am_conn_core.lock().await.get_lob_read_length())
+    pub async fn lob_read_length(&self) -> HdbResult<u32> {
+        Ok(self.am_conn_core.lock().await.lob_read_length())
     }
     /// Configures the connection's lob read length for future calls.
     ///

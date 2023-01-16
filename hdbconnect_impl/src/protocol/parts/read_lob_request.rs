@@ -29,10 +29,10 @@ impl ReadLobRequest {
         w: &mut W,
     ) -> std::io::Result<()> {
         trace!("read_lob_request::emit() {:?}", self);
-        w.write_all(&self.locator_id.to_le_bytes()).await?;
-        w.write_all(&self.offset.to_le_bytes()).await?;
-        w.write_all(&self.length.to_le_bytes()).await?;
-        w.write_all(&0_u32.to_le_bytes()).await?; // FILLER
+        w.write_u64_le(self.locator_id).await?;
+        w.write_u64_le(self.offset).await?;
+        w.write_u32_le(self.length).await?;
+        w.write_u32_le(0).await?; // FILLER
         Ok(())
     }
     pub fn size() -> usize {

@@ -38,9 +38,8 @@ fn prepare(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbRe
     log::debug!("insert some mass data");
     for i in 100..200 {
         connection.dml(format!(
-            "insert into TEST_SELFORUPDATE (f1_s, f2_i, f3_i, \
-             f4_dt) values('{}', {}, {},'01.01.1900')",
-            i, i, i
+            "insert into TEST_SELFORUPDATE (f1_s, f2_i, f3_i, f4_dt) \
+             values('{i}', {i}, {i},'01.01.1900')",
         ))?;
     }
     Ok(())

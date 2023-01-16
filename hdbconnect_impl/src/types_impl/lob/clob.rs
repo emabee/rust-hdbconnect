@@ -14,19 +14,21 @@ use std::io::Write;
 
 use super::CharLobSlice;
 use crate::{
-    protocol::{parts::AmRsCore, util, ServerUsage},
-    {HdbError, HdbResult},
+    protocol::{parts::AmRsCore, util},
+    {HdbError, HdbResult, ServerUsage},
 };
 use std::{boxed::Box, collections::VecDeque};
 
-/// LOB implementation for unicode Strings that is used with `HdbValue::CLOB` (which is deprecated).
+/// LOB implementation for unicode Strings (deprecated).
 ///
-/// Note that the CLOB type is not recommended for use.
-/// CLOB fields are supposed to only store ASCII7, but HANA doesn't check this.
+/// `CLob` is used within [`HdbValue::CLOB`](../enum.HdbValue.html#variant.CLOB) (deprecated)
+/// instances received from the database.
+///
+/// Bigger LOBs are not transferred completely in the first roundtrip, instead more data is
+/// fetched in subsequent roundtrips when needed.
 ///
 /// `CLob` respects the Connection's lob read length
-/// (see [`Connection::set_lob_read_length`](crate::Connection::set_lob_read_length)),
-/// by transferring per fetch request `lob_read_length` bytes.
+/// (see [`Connection::set_lob_read_length`](crate::Connection::set_lob_read_length)).
 #[derive(Clone, Debug)]
 pub struct CLob(Box<CLobHandle>);
 
@@ -98,11 +100,86 @@ impl CLob {
     /// ```
     ///
     /// # Errors
-    /// FIXME it must be completely loaded
+    ///
     /// Several variants of `HdbError` can occur.
-    pub fn into_string(self) -> HdbResult<String> {
+    #[cfg(feature = "sync")]
+    pub fn into_string(mut self) -> HdbResult<String> {
         trace!("CLob::into_string()");
-        self.0.into_string()
+        self.sync_load_complete()?;
+        self.0.into_string_if_complete()
+    }
+
+    /// Converts the `CLob` into the contained String.
+    ///
+    /// All outstanding data (data that were not yet fetched from the server) are fetched
+    /// _into_ this `CLob` object, before the complete data,
+    /// as far as they were not yet read _from_ this `CLob` object, are returned.
+    ///
+    /// ## Example
+    ///
+    /// ```rust, no_run
+    /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, Row};
+    /// # fn foo() -> HdbResult<()> {
+    /// # let params = "".into_connect_params()?;
+    /// # let mut connection = Connection::new(params)?;
+    /// # let query = "";
+    ///  let mut resultset = connection.query(query)?;
+    ///  let mut clob = resultset.into_single_row().await?.into_single_value()?.try_into_clob()?;
+    ///  let s = clob.into_string(); // String, can be huge
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Alternative
+    ///
+    /// For larger objects, a streaming approach using [`CLob::write_into`]
+    /// might by more appropriate, to avoid total allocation of the large object.
+    ///
+    /// # Errors
+    ///
+    /// Several variants of `HdbError` can occur.
+    #[cfg(feature = "async")]
+    pub async fn into_string(mut self) -> HdbResult<String> {
+        trace!("CLob::into_string()");
+        self.0.async_load_complete().await?;
+        self.0.into_string_if_complete()
+    }
+
+    /// Writes the content into the given writer.
+    ///
+    /// Reads outstanding data in chunks of size
+    /// [`Connection::lob_read_length`](../struct.Connection.html#method.lob_read_length) from the database
+    /// and writes them immediately into the writer,
+    /// thus avoiding that all data are materialized within this `CLob`.
+    #[cfg(feature = "async")]
+    pub async fn write_into<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
+        mut self,
+        writer: &mut W,
+    ) -> HdbResult<()> {
+        let lob_read_length: usize = self.0.am_conn_core.lock().await.lob_read_length() as usize;
+        let mut buf = vec![0_u8; lob_read_length].into_boxed_slice();
+
+        loop {
+            let read = self.0.read(&mut buf).await?;
+            if read == 0 {
+                break;
+            }
+            writer.write_all(&buf[0..read]).await?;
+        }
+        Ok(())
+    }
+
+    // Converts a CLobHandle into a String containing its data.
+    #[cfg(feature = "sync")]
+    pub(crate) fn into_string_if_complete(mut self) -> HdbResult<String> {
+        {
+            self.0.sync_load_complete()?;
+        }
+        self.0.into_string_if_complete()
+    }
+    #[cfg(feature = "async")]
+    pub(crate) fn into_string_if_complete(self) -> HdbResult<String> {
+        self.0.into_string_if_complete()
     }
 
     #[cfg(feature = "sync")]
@@ -131,8 +208,8 @@ impl CLob {
     ///
     /// Several variants of `HdbError` can occur.
     #[cfg(feature = "async")]
-    pub async fn async_read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
-        self.0.async_read_slice(offset, length).await
+    pub async fn read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
+        self.0.read_slice(offset, length).await
     }
 
     /// Total length of data, in bytes.
@@ -145,16 +222,6 @@ impl CLob {
         self.total_byte_length() == 0
     }
 
-    /// Returns the maximum size of the internal buffer, in bytes.
-    ///
-    /// This method exists mainly for debugging purposes. With streaming, the returned value is
-    /// not supposed to exceed `lob_read_length` (see
-    /// [`Connection::set_lob_read_length`](crate::Connection::set_lob_read_length))
-    /// plus the buffer size used by the reader.
-    pub fn max_buf_len(&self) -> usize {
-        self.0.max_buf_len()
-    }
-
     /// Current size of the internal buffer, in bytes.
     pub fn cur_buf_len(&self) -> usize {
         self.0.cur_buf_len()
@@ -164,28 +231,6 @@ impl CLob {
     /// is related to this `CBLob` object.
     pub fn server_usage(&self) -> ServerUsage {
         self.0.server_usage
-    }
-}
-
-impl CLob {
-    #[cfg(feature = "async")]
-    // FIXME rename into 'write_into' ?!?!
-    pub async fn copy_into<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
-        mut self,
-        writer: &mut W,
-    ) -> HdbResult<()> {
-        let lob_read_length: usize =
-            self.0.am_conn_core.lock().await.get_lob_read_length() as usize;
-        let mut buf = vec![0_u8; lob_read_length].into_boxed_slice();
-
-        loop {
-            let read = self.0.read(&mut *buf).await?;
-            if read == 0 {
-                break;
-            }
-            writer.write_all(&buf[0..read]).await?;
-        }
-        Ok(())
     }
 }
 
@@ -216,7 +261,6 @@ struct CLobHandle {
     locator_id: u64,
     cesu8: VecDeque<u8>,
     cesu8_tail_len: usize,
-    max_buf_len: usize,
     acc_byte_length: usize,
     server_usage: ServerUsage,
 }
@@ -243,7 +287,6 @@ impl CLobHandle {
             total_byte_length,
             is_data_complete,
             locator_id,
-            max_buf_len: cesu8.len(),
             cesu8,
             cesu8_tail_len,
             acc_byte_length,
@@ -276,7 +319,7 @@ impl CLobHandle {
     }
 
     #[cfg(feature = "async")]
-    async fn async_read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
+    async fn read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
         let (reply_data, _reply_is_last_data) = async_fetch_a_lob_chunk(
             &mut self.am_conn_core,
             self.locator_id,
@@ -305,7 +348,7 @@ impl CLobHandle {
         }
 
         let read_length = std::cmp::min(
-            self.am_conn_core.lock()?.get_lob_read_length(),
+            self.am_conn_core.lock()?.lob_read_length(),
             (self.total_byte_length - self.acc_byte_length as u64) as u32,
         );
 
@@ -326,7 +369,6 @@ impl CLobHandle {
             self.is_data_complete = true;
             self.o_am_rscore = None;
         }
-        self.max_buf_len = std::cmp::max(self.cesu8.len(), self.max_buf_len);
 
         assert_eq!(
             self.is_data_complete,
@@ -348,7 +390,7 @@ impl CLobHandle {
         }
 
         let read_length = std::cmp::min(
-            self.am_conn_core.lock().await.get_lob_read_length(),
+            self.am_conn_core.lock().await.lob_read_length(),
             (self.total_byte_length - self.acc_byte_length as u64) as u32,
         );
 
@@ -370,7 +412,6 @@ impl CLobHandle {
             self.is_data_complete = true;
             self.o_am_rscore = None;
         }
-        self.max_buf_len = std::cmp::max(self.cesu8.len(), self.max_buf_len);
 
         assert_eq!(
             self.is_data_complete,
@@ -402,12 +443,8 @@ impl CLobHandle {
         Ok(())
     }
 
-    fn max_buf_len(&self) -> usize {
-        self.max_buf_len
-    }
-
     // Converts a CLobHandle into a String containing its data.
-    fn into_string(self) -> HdbResult<String> {
+    fn into_string_if_complete(self) -> HdbResult<String> {
         trace!("CLobHandle::into_string()");
         if self.is_data_complete {
             Ok(util::string_from_cesu8(Vec::from(self.cesu8))?)
@@ -451,18 +488,15 @@ impl std::io::Read for CLobHandle {
 
 // FIXME: error type should be HdbError
 #[cfg(feature = "async")]
-// Support for CLOB streaming
-impl<'a> CLobHandle {
-    async fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+impl CLobHandle {
+    async fn read(&mut self, buf: &mut [u8]) -> HdbResult<usize> {
         let mut buf = ReadBuf::new(buf);
         let buf_len = buf.capacity();
         debug_assert!(buf.filled().is_empty());
         trace!("CLobHandle::read() with buf of len {}", buf_len);
 
         while !self.is_data_complete && (buf_len > self.cesu8.len() - self.cesu8_tail_len) {
-            self.async_fetch_next_chunk()
-                .await
-                .map_err(|e| util::io_error(e.to_string()))?;
+            self.async_fetch_next_chunk().await?;
         }
 
         // we want to write only clean UTF-8 into buf, so we cut off at good places only;
@@ -474,7 +508,7 @@ impl<'a> CLobHandle {
             cesu8_buf.len() - util::get_cesu8_tail_len(&cesu8_buf, cesu8_buf.len())?;
 
         // convert the valid part to utf-8 and push the tail back
-        let utf8 = cesu8::from_cesu8(&cesu8_buf[0..cut_off_position]).map_err(util::io_error)?;
+        let utf8 = cesu8::from_cesu8(&cesu8_buf[0..cut_off_position])?;
         for i in (cut_off_position..cesu8_buf.len()).rev() {
             self.cesu8.push_front(cesu8_buf[i]);
         }

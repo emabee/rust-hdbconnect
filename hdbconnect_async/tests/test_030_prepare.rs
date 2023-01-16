@@ -268,7 +268,7 @@ async fn prepare_and_execute_with_fetch(
 ) -> HdbResult<()> {
     info!("call prepare_and_execute() with implicit fetch");
 
-    let rs = connection
+    let _rs = connection
         .prepare_and_execute("select * from M_TABLES", &())
         .await?
         .into_resultset()?

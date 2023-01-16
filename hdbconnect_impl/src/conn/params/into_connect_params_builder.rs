@@ -109,8 +109,7 @@ impl IntoConnectParamsBuilder for Url {
                 }
                 None => {
                     return Err(HdbError::UsageDetailed(format!(
-                        "option '{}' not supported",
-                        name
+                        "option '{name}' not supported",
                     )));
                 }
             }

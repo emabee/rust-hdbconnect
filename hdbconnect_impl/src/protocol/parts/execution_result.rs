@@ -67,8 +67,7 @@ impl std::fmt::Display for ExecutionResult {
             )?,
             Self::Failure(Some(ref server_error)) => writeln!(
                 fmt,
-                "Execution of statement or processing of row has failed with {:?}",
-                server_error
+                "Execution of statement or processing of row has failed with {server_error:?}",
             )?,
             Self::Failure(None) => writeln!(
                 fmt,

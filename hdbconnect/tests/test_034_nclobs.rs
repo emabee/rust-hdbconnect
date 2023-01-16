@@ -85,7 +85,7 @@ fn test_nclobs(
     let mydata: MyData = resultset.try_into()?;
     debug!(
         "reading two big NCLOB with lob-read-length {} required {} roundtrips",
-        connection.get_lob_read_length()?,
+        connection.lob_read_length()?,
         connection.get_call_count()? - before
     );
 
@@ -109,7 +109,7 @@ fn test_nclobs(
     let second: MyData = resultset.try_into()?;
     debug!(
         "reading two big NCLOB with lob-read-length {} required {} roundtrips",
-        connection.get_lob_read_length()?,
+        connection.lob_read_length()?,
         connection.get_call_count()? - before
     );
     assert_eq!(mydata, second);
@@ -192,11 +192,6 @@ fn test_streaming(
     hasher.update(&buffer);
     let fingerprint4 = hasher.finalize().to_vec();
     assert_eq!(fingerprint, fingerprint4.as_slice());
-    assert!(
-        nclob.max_buf_len() < 605_000,
-        "nclob.max_buf_len() too big: {}",
-        nclob.max_buf_len()
-    );
 
     connection.set_auto_commit(true)?;
     Ok(())
@@ -206,6 +201,7 @@ fn test_bytes_to_nclobs(
     _log_handle: &mut flexi_logger::LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
+    _log_handle.parse_and_push_temp_spec("info, test=trace");
     info!("create a NCLOB from bytes in the database, and read it back into a String");
 
     connection.multiple_statements_ignore_err(vec!["drop table TEST_NCLOBS_BYTES"]);
@@ -238,7 +234,7 @@ fn test_bytes_to_nclobs(
     // verify we get in both cases the same value back
     assert_eq!(mydata.0, test_string);
     assert_eq!(mydata.1, test_string);
-
+    _log_handle.pop_temp_spec();
     Ok(())
 }
 

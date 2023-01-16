@@ -60,8 +60,7 @@ pub(crate) fn parse_sync(l8: u8, rdr: &mut dyn std::io::Read) -> std::io::Result
         LENGTH_INDICATOR_4BYTE => Ok(rdr.read_u32::<LittleEndian>()? as usize),
         LENGTH_INDICATOR_NULL => Ok(rdr.read_u16::<BigEndian>()? as usize),
         _ => Err(io_error(format!(
-            "Unknown length indicator for AuthField: {}",
-            l8
+            "Unknown length indicator for AuthField: {l8}",
         ))),
     }
 }
@@ -78,8 +77,7 @@ pub(crate) async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>
         LENGTH_INDICATOR_4BYTE => Ok(rdr.read_u32_le().await? as usize),
         LENGTH_INDICATOR_NULL => Ok(rdr.read_u16().await? as usize),
         _ => Err(io_error(format!(
-            "Unknown length indicator for AuthField: {}",
-            l8
+            "Unknown length indicator for AuthField: {l8}",
         ))),
     }
 }

@@ -89,7 +89,7 @@ fn test_small_decimals(
         let row = row?;
         if let HdbValue::DECIMAL(ref bd) = &row[1] {
             debug!("precision = {}, scale = {}", precision, scale);
-            assert_eq!(format!("{}", &row[0]), format!("{0:.1$}", bd, scale));
+            assert_eq!(format!("{}", &row[0]), format!("{bd:.scale$}"));
         } else {
             panic!("Unexpected value type");
         }

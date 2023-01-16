@@ -6,7 +6,7 @@ pub(crate) enum LobWriteMode {
     Last,
 }
 
-// FIXME discard??
+#[cfg(feature = "sync")]
 pub(crate) fn utf8_to_cesu8_and_utf8_tail(
     mut utf8: Vec<u8>,
 ) -> std::io::Result<(Vec<u8>, Vec<u8>)> {

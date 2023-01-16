@@ -174,7 +174,7 @@ impl<'a> HdbValue<'a> {
                 HdbValue::INT(i) => w.write_i32::<LittleEndian>(i)?,
                 HdbValue::BIGINT(i) => w.write_i64::<LittleEndian>(i)?,
                 HdbValue::DECIMAL(ref bigdec) => {
-                    decimal::sync_emit(bigdec, descriptor.type_id(), descriptor.scale(), w)?
+                    decimal::sync_emit(bigdec, descriptor.type_id(), descriptor.scale(), w)?;
                 }
                 HdbValue::REAL(f) => w.write_f32::<LittleEndian>(f)?,
                 HdbValue::DOUBLE(f) => w.write_f64::<LittleEndian>(f)?,
@@ -188,12 +188,11 @@ impl<'a> HdbValue<'a> {
                 HdbValue::STR(s) => emit_length_and_string_sync(s, w)?,
                 HdbValue::STRING(ref s) => emit_length_and_string_sync(s, w)?,
                 HdbValue::BINARY(ref v) | HdbValue::GEOMETRY(ref v) | HdbValue::POINT(ref v) => {
-                    emit_length_and_bytes_sync(v, w)?
+                    emit_length_and_bytes_sync(v, w)?;
                 }
                 _ => {
                     return Err(util::io_error(format!(
-                        "HdbValue::{} cannot be sent to the database",
-                        self
+                        "HdbValue::{self} cannot be sent to the database",
                     )));
                 }
             }
@@ -212,30 +211,30 @@ impl<'a> HdbValue<'a> {
             match *self {
                 HdbValue::NULL => {}
                 HdbValue::TINYINT(u) => w.write_u8(u).await?,
-                HdbValue::SMALLINT(i) => w.write_all(&i.to_le_bytes()).await?,
-                HdbValue::INT(i) => w.write_all(&i.to_le_bytes()).await?,
-                HdbValue::BIGINT(i) => w.write_all(&i.to_le_bytes()).await?,
+                HdbValue::SMALLINT(i) => w.write_i16_le(i).await?,
+                HdbValue::INT(i) => w.write_i32_le(i).await?,
+                HdbValue::BIGINT(i) => w.write_i64_le(i).await?,
                 HdbValue::DECIMAL(ref bigdec) => {
-                    decimal::async_emit(bigdec, descriptor.type_id(), descriptor.scale(), w).await?
+                    decimal::async_emit(bigdec, descriptor.type_id(), descriptor.scale(), w)
+                        .await?;
                 }
-                HdbValue::REAL(f) => w.write_all(&f.to_le_bytes()).await?,
-                HdbValue::DOUBLE(f) => w.write_all(&f.to_le_bytes()).await?,
+                HdbValue::REAL(f) => w.write_f32_le(f).await?,
+                HdbValue::DOUBLE(f) => w.write_f64_le(f).await?,
                 HdbValue::BOOLEAN(b) => emit_bool_async(b, w).await?,
-                HdbValue::LONGDATE(ref ld) => w.write_all(&ld.ref_raw().to_le_bytes()).await?,
-                HdbValue::SECONDDATE(ref sd) => w.write_all(&sd.ref_raw().to_le_bytes()).await?,
-                HdbValue::DAYDATE(ref dd) => w.write_all(&dd.ref_raw().to_le_bytes()).await?,
-                HdbValue::SECONDTIME(ref st) => w.write_all(&st.ref_raw().to_le_bytes()).await?,
+                HdbValue::LONGDATE(ref ld) => w.write_i64_le(*ld.ref_raw()).await?,
+                HdbValue::SECONDDATE(ref sd) => w.write_i64_le(*sd.ref_raw()).await?,
+                HdbValue::DAYDATE(ref dd) => w.write_i32_le(*dd.ref_raw()).await?,
+                HdbValue::SECONDTIME(ref st) => w.write_u32_le(*st.ref_raw()).await?,
 
                 HdbValue::LOBSTREAM(None) => lob::emit_lob_header_async(0, data_pos, w).await?,
                 HdbValue::STR(s) => emit_length_and_string_async(s, w).await?,
                 HdbValue::STRING(ref s) => emit_length_and_string_async(s, w).await?,
                 HdbValue::BINARY(ref v) | HdbValue::GEOMETRY(ref v) | HdbValue::POINT(ref v) => {
-                    emit_length_and_bytes_async(v, w).await?
+                    emit_length_and_bytes_async(v, w).await?;
                 }
                 _ => {
                     return Err(util::io_error(format!(
-                        "HdbValue::{} cannot be sent to the database",
-                        self
+                        "HdbValue::{self} cannot be sent to the database",
                     )));
                 }
             }
@@ -286,8 +285,7 @@ impl<'a> HdbValue<'a> {
                 TypeId::FIXED16 | TypeId::DECIMAL => 16,
                 tid => {
                     return Err(util::io_error(format!(
-                        "invalid TypeId {:?} for DECIMAL",
-                        tid
+                        "invalid TypeId {tid:?} for DECIMAL",
                     )));
                 }
             },
@@ -315,8 +313,7 @@ impl<'a> HdbValue<'a> {
             | HdbValue::BLOB(_)
             | HdbValue::LOBSTREAM(Some(_)) => {
                 return Err(util::io_error(format!(
-                    "size(): can't send {:?} directly to the database",
-                    self
+                    "size(): can't send {self:?} directly to the database",
                 )));
             }
 
@@ -346,8 +343,7 @@ impl HdbValue<'static> {
         match self {
             HdbValue::BLOB(blob) => Ok(blob),
             v => Err(HdbError::UsageDetailed(format!(
-                "The value {:?} cannot be converted into a BLOB",
-                v
+                "The value {v:?} cannot be converted into a BLOB",
             ))),
         }
     }
@@ -361,8 +357,7 @@ impl HdbValue<'static> {
         match self {
             HdbValue::CLOB(clob) => Ok(clob),
             v => Err(HdbError::UsageDetailed(format!(
-                "The value {:?} cannot be converted into a CLOB",
-                v
+                "The value {v:?} cannot be converted into a CLOB",
             ))),
         }
     }
@@ -376,8 +371,7 @@ impl HdbValue<'static> {
         match self {
             HdbValue::NCLOB(nclob) => Ok(nclob),
             v => Err(HdbError::UsageDetailed(format!(
-                "The database value {:?} cannot be converted into a NCLob",
-                v
+                "The database value {v:?} cannot be converted into a NCLob",
             ))),
         }
     }
@@ -587,7 +581,7 @@ async fn emit_bool_async<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
     // w.write_u8(b as u8).await?;
 
     // as of dataformat_version2 = 8
-    w.write_u8(2 * (b as u8)).await?;
+    w.write_u8(2 * u8::from(b)).await?;
     Ok(())
 }
 
@@ -851,8 +845,7 @@ async fn parse_bool_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
             }
         }
         i => Err(util::io_error(format!(
-            "parse_bool_sync: got bad value {}",
-            i
+            "parse_bool_sync: got bad value {i}",
         ))),
     }
 }

@@ -53,8 +53,8 @@ fn test_011_invalid_password() {
         };
 
         sys_conn.multiple_statements_ignore_err(vec![
-            &format!("drop user {}", user),
-            &format!("create user {} password \"Doebcd1234\"", user),
+            format!("drop user {user}",),
+            format!("create user {user} password \"Doebcd1234\"",),
         ]);
 
         debug!("logon as {}", user);
@@ -82,7 +82,7 @@ fn test_011_invalid_password() {
 
         debug!("reset the password");
         doedel_conn
-            .exec(&format!("ALTER USER {} PASSWORD \"DoeDoe5678\"", user))
+            .exec(format!("ALTER USER {user} PASSWORD \"DoeDoe5678\""))
             .unwrap();
 
         debug!("select again -> ensure it's working");

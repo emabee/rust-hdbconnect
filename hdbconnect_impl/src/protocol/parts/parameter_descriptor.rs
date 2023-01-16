@@ -217,8 +217,7 @@ impl ParameterDescriptor {
             2 => Ok(ParameterDirection::INOUT),
             4 => Ok(ParameterDirection::OUT),
             _ => Err(util::io_error(format!(
-                "invalid value for ParameterDirection: {}",
-                v
+                "invalid value for ParameterDirection: {v}"
             ))),
         }
     }

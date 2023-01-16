@@ -18,15 +18,16 @@ use crate::conn::SyncAmConnCore;
 #[cfg(feature = "sync")]
 use std::io::Write;
 
-/// LOB implementation for binary values that is used within `HdbValue::BLOB` instances coming
-/// from the database.
+/// LOB implementation for binary values.
 ///
-/// Bigger LOBs are not transferred completely in the first roundtrip, instead more data are
-/// fetched in subsequent roundtrips when they are needed.
+/// `BLob` is used within [`HdbValue::BLOB`](../enum.HdbValue.html#variant.BLOB)
+/// instances received from the database.
+///
+/// Bigger LOBs are not transferred completely in the first roundtrip, instead more data is
+/// fetched in subsequent roundtrips when needed.
 ///
 /// `BLob` respects the Connection's lob read length
-/// (see [`Connection::set_lob_read_length`](crate::Connection::set_lob_read_length)),
-/// by transferring per fetch request `lob_read_length` bytes.
+/// (see [`Connection::set_lob_read_length`](crate::Connection::set_lob_read_length)).
 #[derive(Clone, Debug)]
 pub struct BLob(Box<BLobHandle>);
 
@@ -79,22 +80,6 @@ impl BLob {
     /// For larger objects, a streaming approach using the `Read` implementation of `BLob`
     /// might by more appropriate, to avoid total allocation of the large object.
     ///
-    /// ## Example
-    ///
-    /// ```rust, no_run
-    /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, Row};
-    /// # fn foo() -> HdbResult<()> {
-    /// # let params = "".into_connect_params()?;
-    /// # let mut connection = Connection::new(params)?;
-    /// # let mut writer = Vec::<u8>::new();
-    /// # let query = "select chardata from TEST_NCLOBS";
-    /// # let mut resultset = connection.query(query)?;
-    /// # let mut blob = resultset.into_single_row()?.into_single_value()?.try_into_blob()?;
-    ///  std::io::copy(&mut blob, &mut writer)?;
-    /// # Ok(())
-    /// # }
-    /// ```
-    ///
     /// # Errors
     ///
     /// Several variants of `HdbError` can occur.
@@ -130,36 +115,43 @@ impl BLob {
     ///
     /// # Alternative
     ///
-    /// For larger objects, a streaming approach using the `Read` implementation of `BLob`
+    /// For larger objects, a streaming approach using [`BLob::write_into`]
     /// might by more appropriate, to avoid total allocation of the large object.
-    ///
-    /// ## Example
-    ///
-    /// ```rust, no_run
-    /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, Row};
-    /// # fn foo() -> HdbResult<()> {
-    /// # let params = "".into_connect_params()?;
-    /// # let mut connection = Connection::new(params)?;
-    /// # let mut writer = Vec::<u8>::new();
-    /// # let query = "select chardata from TEST_NCLOBS";
-    /// # let mut resultset = connection.query(query)?;
-    /// # let mut blob = resultset.into_single_row()?.into_single_value()?.try_into_blob()?;
-    ///  std::io::copy(&mut blob, &mut writer)?;
-    /// # Ok(())
-    /// # }
-    /// ```
     ///
     /// # Errors
     ///
     /// Several variants of `HdbError` can occur.
     #[cfg(feature = "async")]
     pub async fn into_bytes(mut self) -> HdbResult<Vec<u8>> {
-        trace!("BLob::async_into_bytes()");
+        trace!("BLob::into_bytes()");
         self.0.async_load_complete().await?;
         self.0.into_bytes_if_complete()
     }
 
-    //FIXME
+    /// Writes the content into the given writer.
+    ///
+    /// Reads outstanding data in chunks of size
+    /// [`Connection::lob_read_length`](../struct.Connection.html#method.lob_read_length) from the database
+    /// and writes them immediately into the writer,
+    /// thus avoiding that all data are materialized within this `BLob`.
+    #[cfg(feature = "async")]
+    pub async fn write_into<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
+        mut self,
+        writer: &mut W,
+    ) -> HdbResult<()> {
+        let lob_read_length: usize = self.0.am_conn_core.lock().await.lob_read_length() as usize;
+        let mut buf = vec![0_u8; lob_read_length].into_boxed_slice();
+
+        loop {
+            let read = self.0.read(&mut buf).await?;
+            if read == 0 {
+                break;
+            }
+            writer.write_all(&buf[0..read]).await?;
+        }
+        Ok(())
+    }
+
     pub(crate) fn into_bytes_if_complete(self) -> HdbResult<Vec<u8>> {
         trace!("BLob::into_bytes_if_complete()");
         let result: Vec<u8>;
@@ -200,10 +192,9 @@ impl BLob {
     /// # Errors
     ///
     /// Several variants of `HdbError` can occur.
-    // FIXME don't use prefix async in public names
     #[cfg(feature = "async")]
-    pub async fn async_read_slice(&mut self, offset: u64, length: u32) -> HdbResult<Vec<u8>> {
-        self.0.async_read_slice(offset, length).await
+    pub async fn read_slice(&mut self, offset: u64, length: u32) -> HdbResult<Vec<u8>> {
+        self.0.read_slice(offset, length).await
     }
 
     /// Total length of data, in bytes.
@@ -236,28 +227,6 @@ impl BLob {
     /// is related to this `BLob` object.
     pub fn server_usage(&self) -> ServerUsage {
         self.0.server_usage
-    }
-}
-
-impl BLob {
-    #[cfg(feature = "async")]
-    // FIXME rename into 'write_into' ?!?!
-    pub async fn copy_into<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
-        mut self,
-        writer: &mut W,
-    ) -> HdbResult<()> {
-        let lob_read_length: usize =
-            self.0.am_conn_core.lock().await.get_lob_read_length() as usize;
-        let mut buf = vec![0_u8; lob_read_length].into_boxed_slice();
-
-        loop {
-            let read = self.0.read(&mut *buf).await?;
-            if read == 0 {
-                break;
-            }
-            writer.write_all(&buf[0..read]).await?;
-        }
-        Ok(())
     }
 }
 
@@ -326,7 +295,7 @@ impl BLobHandle {
     }
 
     #[cfg(feature = "async")]
-    async fn async_read_slice(&mut self, offset: u64, length: u32) -> HdbResult<Vec<u8>> {
+    async fn read_slice(&mut self, offset: u64, length: u32) -> HdbResult<Vec<u8>> {
         let (reply_data, _reply_is_last_data) = async_fetch_a_lob_chunk(
             &mut self.am_conn_core,
             self.locator_id,
@@ -355,7 +324,7 @@ impl BLobHandle {
         }
 
         let read_length = std::cmp::min(
-            self.am_conn_core.lock()?.get_lob_read_length(),
+            self.am_conn_core.lock()?.lob_read_length(),
             (self.total_byte_length - self.acc_byte_length as u64) as u32,
         );
 
@@ -395,7 +364,7 @@ impl BLobHandle {
         }
 
         let read_length = std::cmp::min(
-            self.am_conn_core.lock().await.get_lob_read_length(),
+            self.am_conn_core.lock().await.lob_read_length(),
             (self.total_byte_length - self.acc_byte_length as u64) as u32,
         );
 
@@ -500,28 +469,16 @@ impl std::io::Read for BLobHandle {
     }
 }
 
-// FIXME: error type should be HdbError
 #[cfg(feature = "async")]
 impl<'a> BLobHandle {
-    async fn read(&mut self, buf: &'a mut [u8]) -> std::io::Result<usize> {
+    async fn read(&mut self, buf: &'a mut [u8]) -> HdbResult<usize> {
         let mut buf = ReadBuf::new(buf);
         let buf_len = buf.capacity();
         debug_assert!(buf.filled().is_empty());
         trace!("BLobHandle::read() with buf of len {}", buf_len);
 
         while !self.is_data_complete && (self.data.len() < buf_len) {
-            info!(
-                "FIXME BLobHandle::read(): fetch next chunk ({} < {})",
-                self.data.len(),
-                buf_len
-            );
-            self.async_fetch_next_chunk().await.map_err(|e| {
-                std::io::Error::new(std::io::ErrorKind::UnexpectedEof, e.to_string())
-            })?;
-            info!(
-                "FIXME BLobHandle::read(): self.data.len() = {}",
-                self.data.len(),
-            );
+            self.async_fetch_next_chunk().await?;
         }
 
         let count = std::cmp::min(self.data.len(), buf_len);
@@ -535,11 +492,6 @@ impl<'a> BLobHandle {
             buf.put_slice(&s2[0..(count - s1.len())]);
         }
         self.data.drain(0..count);
-        info!(
-            "FIXME BLobHandle::read(): after drain, self.data.len() = {}",
-            self.data.len(),
-        );
-        info!("FIXME BLobHandle::read(): count = {count}");
         Ok(count)
     }
 }

@@ -95,8 +95,7 @@ fn parse_first_server_data(server_data: &[u8]) -> HdbResult<(Vec<u8>, Vec<u8>, u
             let iterations = std::io::Cursor::new(it_bytes).read_u32::<BigEndian>()?;
             if iterations < 15_000 {
                 Err(HdbError::ImplDetailed(format!(
-                    "not enough iterations: {}",
-                    iterations
+                    "not enough iterations: {iterations}",
                 )))
             } else if salt.len() < 16 {
                 Err(HdbError::ImplDetailed(format!(

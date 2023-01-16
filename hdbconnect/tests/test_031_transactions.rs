@@ -28,7 +28,7 @@ pub fn test_031_transactions() -> HdbResult<()> {
         .server_error()
     {
         let error_info: (i32, String, String) = connection
-            .query(&format!(
+            .query(format!(
                 "select * from SYS.M_ERROR_CODES where code = {}",
                 server_error.code()
             ))?
@@ -58,7 +58,7 @@ fn write1_read2(
     isolation: &str,
 ) -> HdbResult<()> {
     log::info!("Test isolation level {}", isolation);
-    connection1.exec(&format!("SET TRANSACTION ISOLATION LEVEL {}", isolation))?;
+    connection1.exec(format!("SET TRANSACTION ISOLATION LEVEL {isolation}",))?;
 
     log::info!(
         "verify that we can read uncommitted data in same connection, but not on other connection"

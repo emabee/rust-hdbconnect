@@ -6,7 +6,9 @@ use crate::{
     {HdbError, HdbResult, ServerUsage},
 };
 
-use super::lob_writer_util::{utf8_to_cesu8_and_utf8_tail, LobWriteMode};
+#[cfg(feature = "sync")]
+use super::lob_writer_util::utf8_to_cesu8_and_utf8_tail;
+use super::lob_writer_util::LobWriteMode;
 
 use std::{io::Write, sync::Arc};
 
@@ -60,7 +62,7 @@ impl<'a> LobWriter<'a> {
         &mut self,
         buf: &[u8],
         locator_id: u64,
-        lob_write_mode: LobWriteMode,
+        lob_write_mode: &LobWriteMode,
     ) -> HdbResult<Vec<u64>> {
         let mut request = Request::new(RequestType::WriteLob, 0);
         let write_lob_request = WriteLobRequest::new(
@@ -97,7 +99,7 @@ impl<'a> LobWriter<'a> {
     fn evaluate_write_lob_reply(&mut self, reply: Reply) -> HdbResult<Vec<u64>> {
         let mut result = None;
 
-        for part in reply.parts.into_iter() {
+        for part in reply.parts {
             match part {
                 Part::StatementContext(stmt_ctx) => {
                     self.server_usage.update(
@@ -204,7 +206,7 @@ impl<'a> Write for LobWriter<'a> {
                 payload_raw
             };
 
-            self.sync_write_a_lob_chunk(&payload, self.locator_id, LobWriteMode::Append)
+            self.sync_write_a_lob_chunk(&payload, self.locator_id, &LobWriteMode::Append)
                 .map(|_locator_ids| ())
                 .map_err(|e| util::io_error(e.to_string()))?;
         }
@@ -226,7 +228,7 @@ impl<'a> Write for LobWriter<'a> {
             payload_raw
         };
 
-        self.sync_write_a_lob_chunk(&payload, self.locator_id, LobWriteMode::Last)
+        self.sync_write_a_lob_chunk(&payload, self.locator_id, &LobWriteMode::Last)
             .map(|_locator_ids| ())
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
         Ok(())

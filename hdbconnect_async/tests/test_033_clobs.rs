@@ -3,7 +3,7 @@ extern crate serde;
 mod test_utils;
 
 use flexi_logger::LoggerHandle;
-use hdbconnect_async::{types::CLob, Connection, HdbError, HdbResult, HdbValue};
+use hdbconnect_async::{types::CLob, Connection, HdbResult, HdbValue};
 use log::{debug, info};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -13,7 +13,7 @@ use std::io::Read;
 #[tokio::test]
 async fn test_033_clobs() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
-    log_handle.parse_new_spec("info, test = trace");
+    log_handle.parse_new_spec("info, test = trace").unwrap();
     let start = std::time::Instant::now();
     let mut connection = test_utils::get_authenticated_connection().await?;
 
@@ -114,7 +114,7 @@ async fn test_clobs(
     let mydata: MyData = resultset.try_into().await?;
     debug!(
         "reading two big CLOB with lob-read-length {} required {} roundtrips",
-        connection.get_lob_read_length().await?,
+        connection.lob_read_length().await?,
         connection.get_call_count().await? - before
     );
 
@@ -138,7 +138,7 @@ async fn test_clobs(
     let second: MyData = resultset.try_into().await?;
     debug!(
         "reading two big CLOB with lob-read-length {} required {} roundtrips",
-        connection.get_lob_read_length().await?,
+        connection.lob_read_length().await?,
         connection.get_call_count().await? - before
     );
     assert_eq!(mydata, second);
@@ -154,7 +154,7 @@ async fn test_clobs(
     let clob: CLob = row.next_value().unwrap().try_into_clob()?;
 
     let mut streamed = Vec::<u8>::new();
-    clob.copy_into(&mut streamed).await?;
+    clob.write_into(&mut streamed).await?;
 
     assert_eq!(fifty_times_smp_blabla.len(), streamed.len());
     let mut hasher = Sha256::default();
@@ -175,7 +175,7 @@ async fn test_clobs(
         .into_single_value()?
         .try_into_clob()?;
     for i in 1000..1040 {
-        let _clob_slice = clob.async_read_slice(i, 100).await?;
+        let _clob_slice = clob.read_slice(i, 100).await?;
     }
 
     Ok(())
@@ -220,7 +220,7 @@ async fn test_streaming(
         .into_single_value()?
         .try_into_clob()?;
     let mut buffer = Vec::<u8>::new();
-    clob.copy_into(&mut buffer).await?;
+    clob.write_into(&mut buffer).await?;
 
     assert_eq!(fifty_times_smp_blabla.len(), buffer.len());
     let mut hasher = Sha256::default();

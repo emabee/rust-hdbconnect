@@ -172,22 +172,27 @@ impl ConnectParamsBuilder {
     /// `HdbError::Usage` if the builder was not yet configured to
     /// create a meaningful `ConnectParams`
     pub fn build(&self) -> HdbResult<ConnectParams> {
-        let host = match self.hostname {
-            Some(ref s) => s.clone(),
-            None => return Err(HdbError::Usage("hostname is missing")),
-        };
-        let port = match self.port {
-            Some(p) => p,
-            None => return Err(HdbError::Usage("port is missing")),
-        };
-        let dbuser = match self.dbuser {
-            Some(ref s) => s.clone(),
-            None => return Err(HdbError::Usage("dbuser is missing")),
-        };
-        let password = match self.password {
-            Some(ref secstr) => secstr.clone(),
-            None => return Err(HdbError::Usage("password is missing")),
-        };
+        let host = self
+            .hostname
+            .as_ref()
+            .cloned()
+            .ok_or_else(|| HdbError::Usage("hostname is missing"))?;
+
+        let port = self
+            .port
+            .ok_or_else(|| HdbError::Usage("port is missing"))?;
+
+        let dbuser: String = self
+            .dbuser
+            .as_ref()
+            .cloned()
+            .ok_or_else(|| HdbError::Usage("dbuser is missing"))?;
+
+        let password = self
+            .password
+            .as_ref()
+            .cloned()
+            .ok_or_else(|| HdbError::Usage("password is missing"))?;
 
         Ok(ConnectParams::new(
             host,

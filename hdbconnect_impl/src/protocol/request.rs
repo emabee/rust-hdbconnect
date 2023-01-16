@@ -130,14 +130,14 @@ impl<'a> Request<'a> {
             self.request_type, session_id, seq_number
         );
 
-        let mut m_w = am_w.lock().await;
-        let w = &mut *m_w;
+        let mut writer = am_w.lock().await;
+        let w = &mut *writer;
         // MESSAGE HEADER
-        w.write_all(&session_id.to_le_bytes()).await?; // I8 <LittleEndian>
-        w.write_all(&seq_number.to_le_bytes()).await?; // I4
-        w.write_all(&varpart_size.to_le_bytes()).await?; // UI4
-        w.write_all(&remaining_bufsize.to_le_bytes()).await?; // UI4
-        w.write_all(&1_i16.to_le_bytes()).await?; // I2    Number of segments
+        w.write_i64_le(session_id).await?; // I8 <LittleEndian>
+        w.write_i32_le(seq_number).await?; // I4
+        w.write_u32_le(varpart_size).await?; // UI4
+        w.write_u32_le(remaining_bufsize).await?; // UI4
+        w.write_i16_le(1).await?; // I2    Number of segments
         for _ in 0..10_u8 {
             w.write_u8(0).await?;
         } // I1+ B[9]  unused
@@ -145,13 +145,13 @@ impl<'a> Request<'a> {
         // SEGMENT HEADER
         let parts_len = self.parts.len() as i16;
         let size = self.seg_size(o_a_descriptors)? as i32;
-        w.write_all(&size.to_le_bytes()).await?; // I4  Length including the header
-        w.write_all(&0_i32.to_le_bytes()).await?; // I4 Offset within the message buffer
-        w.write_all(&parts_len.to_le_bytes()).await?; // I2 Number of contained parts
-        w.write_all(&1_i16.to_le_bytes()).await?; // I2 Number of this segment, starting with 1
+        w.write_i32_le(size).await?; // I4  Length including the header
+        w.write_i32_le(0).await?; // I4 Offset within the message buffer
+        w.write_i16_le(parts_len).await?; // I2 Number of contained parts
+        w.write_i16_le(1).await?; // I2 Number of this segment, starting with 1
         w.write_i8(1).await?; // I1 Segment kind: always 1 = Request
         w.write_i8(self.request_type as i8).await?; // I1 "Message type"
-        w.write_i8(if auto_commit { 1_i8 } else { 0 }).await?; // I1 auto_commit on/off
+        w.write_i8(auto_commit.into()).await?; // I1 auto_commit on/off
         w.write_u8(self.command_options).await?; // I1 Bit set for options
         for _ in 0..8_u8 {
             w.write_u8(0).await?;

@@ -81,7 +81,7 @@ fn test_blobs(
     let mydata: MyData = resultset.try_into()?;
     info!(
         "reading 2x5MB BLOB with lob-read-length {} required {} roundtrips",
-        connection.get_lob_read_length()?,
+        connection.lob_read_length()?,
         connection.get_call_count()? - before
     );
 
@@ -107,7 +107,7 @@ fn test_blobs(
     let second: MyData = resultset.try_into()?;
     info!(
         "reading 2x5MB BLOB with lob-read-length {} required {} roundtrips",
-        connection.get_lob_read_length()?,
+        connection.lob_read_length()?,
         connection.get_call_count()? - before
     );
     assert_eq!(mydata, second);

@@ -90,10 +90,10 @@ impl OptionValue {
         w.write_u8(self.type_id()).await?; // I1
         match *self {
             // variable
-            Self::INT(i) => w.write_all(&i.to_le_bytes()).await?,
-            Self::BIGINT(i) => w.write_all(&i.to_le_bytes()).await?,
-            Self::DOUBLE(f) => w.write_all(&f.to_le_bytes()).await?,
-            Self::BOOLEAN(b) => w.write_u8(if b { 1 } else { 0 }).await?,
+            Self::INT(i) => w.write_i32_le(i).await?,
+            Self::BIGINT(i) => w.write_i64_le(i).await?,
+            Self::DOUBLE(f) => w.write_f64_le(f).await?,
+            Self::BOOLEAN(b) => w.write_u8(u8::from(b)).await?,
             Self::STRING(ref s) => async_emit_length_and_string(s, w).await?,
             Self::BSTRING(ref v) => async_emit_length_and_bytes(v, w).await?,
         }
@@ -145,8 +145,7 @@ impl OptionValue {
             29 => Ok(Self::STRING(parse_length_and_string_sync(rdr)?)),
             33 => Ok(Self::BSTRING(parse_length_and_binary_sync(rdr)?)),
             _ => Err(util::io_error(format!(
-                "OptionValue::parse_value() not implemented for type code {}",
-                typecode
+                "OptionValue::parse_value() not implemented for type code {typecode}",
             ))),
         }
     }
@@ -164,8 +163,7 @@ impl OptionValue {
             29 => Ok(Self::STRING(parse_length_and_string_async(rdr).await?)),
             33 => Ok(Self::BSTRING(parse_length_and_binary_async(rdr).await?)),
             _ => Err(util::io_error(format!(
-                "OptionValue::parse_value() not implemented for type code {}",
-                typecode
+                "OptionValue::parse_value() not implemented for type code {typecode}",
             ))),
         }
     }
@@ -200,7 +198,7 @@ async fn async_emit_length_and_bytes<W: std::marker::Unpin + tokio::io::AsyncWri
     v: &[u8],
     w: &mut W,
 ) -> std::io::Result<()> {
-    w.write_all(&(v.len() as i16).to_le_bytes()).await?; // I2: length of value
+    w.write_i16_le(v.len() as i16).await?; // I2: length of value
     w.write_all(v).await?; // B (varying)
     Ok(())
 }
@@ -218,14 +216,14 @@ async fn parse_length_and_string_async<R: std::marker::Unpin + tokio::io::AsyncR
 }
 
 #[cfg(feature = "sync")]
-#[allow(clippy::clippy::cast_sign_loss)]
+#[allow(clippy::cast_sign_loss)]
 fn parse_length_and_binary_sync(rdr: &mut dyn std::io::Read) -> std::io::Result<Vec<u8>> {
     let len = rdr.read_i16::<LittleEndian>()? as usize; // I2: length of value
     util_sync::parse_bytes(len, rdr) // B (varying)
 }
 
 #[cfg(feature = "async")]
-#[allow(clippy::clippy::cast_sign_loss)]
+#[allow(clippy::cast_sign_loss)]
 async fn parse_length_and_binary_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
     rdr: &mut R,
 ) -> std::io::Result<Vec<u8>> {

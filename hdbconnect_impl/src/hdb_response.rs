@@ -124,9 +124,9 @@ impl HdbResponse {
                 ReplyType::XaJoin |
                 ReplyType::XAPrepare => {
                     let s = format!(
-                        "unexpected reply type {:?} in HdbResponse::try_new(), \
-                         with these internal return values: {:?}", 
-                        replytype, int_return_values);
+                        "unexpected reply type {replytype:?} in HdbResponse::try_new(), \
+                         with these internal return values: {int_return_values:?}"
+                        );
                     error!("{}",s);
                     Err( HdbError::ImplDetailed(s))
                 },
@@ -414,8 +414,7 @@ fn single(int_return_values: Vec<InternalReturnValue>) -> HdbResult<InternalRetu
         )),
         1 => Ok(int_return_values.pop().unwrap(/*cannot fail*/)),
         _ => Err(HdbError::ImplDetailed(format!(
-            "resultset(): Too many InternalReturnValue(s) received: {:?}",
-            int_return_values
+            "resultset(): Too many InternalReturnValue(s) received: {int_return_values:?}",
         ))),
     }
 }

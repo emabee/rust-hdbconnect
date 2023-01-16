@@ -218,7 +218,7 @@ impl Connection {
         let mut other = Self::new(am_conn_core.connect_params())?;
         other.set_auto_commit(am_conn_core.is_auto_commit())?;
         other.set_fetch_size(am_conn_core.get_fetch_size())?;
-        other.set_lob_read_length(am_conn_core.get_lob_read_length())?;
+        other.set_lob_read_length(am_conn_core.lob_read_length())?;
         Ok(other)
     }
 
@@ -295,8 +295,8 @@ impl Connection {
     /// # Errors
     ///
     /// Only `HdbError::Poison` can occur.
-    pub fn get_lob_read_length(&self) -> HdbResult<u32> {
-        Ok(self.am_conn_core.lock()?.get_lob_read_length())
+    pub fn lob_read_length(&self) -> HdbResult<u32> {
+        Ok(self.am_conn_core.lock()?.lob_read_length())
     }
     /// Configures the connection's lob read length for future calls.
     ///
@@ -471,6 +471,7 @@ impl Connection {
 
     /// Returns an implementation of `dist_tx::rm::ResourceManager` that is
     /// based on this connection.
+    #[must_use]
     pub fn get_resource_manager(&self) -> Box<dyn ResourceManager> {
         Box::new(sync_new_resource_manager(self.am_conn_core.clone()))
     }

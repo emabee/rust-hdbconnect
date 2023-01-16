@@ -91,12 +91,8 @@ fn test_longdate(_loghandle: &mut LoggerHandle, connection: &mut Connection) -> 
 
     // Insert the data such that the conversion "String -> LongDate" is done on the
     // server side (we assume that this conversion is error-free).
-    let insert_stmt = |n, d| {
-        format!(
-            "insert into TEST_LONGDATE (number,mydate) values({}, '{}')",
-            n, d
-        )
-    };
+    let insert_stmt =
+        |n, d| format!("insert into TEST_LONGDATE (number,mydate) values({n}, '{d}')",);
     connection.multiple_statements_ignore_err(vec!["drop table TEST_LONGDATE"]);
     connection.multiple_statements(vec![
         "create table TEST_LONGDATE (number INT primary key, mydate LONGDATE)",

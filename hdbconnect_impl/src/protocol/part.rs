@@ -273,22 +273,21 @@ impl<'a> Part<'a> {
         w.write_u8(0).await?; // U1 Attributes not used in requests
         match self.count()? {
             i if i < i16::max_value() as usize => {
-                w.write_all(&(i as i16).to_le_bytes()).await?;
-                w.write_all(&0_i32.to_le_bytes()).await?;
+                w.write_i16_le(i as i16).await?;
+                w.write_i32_le(0).await?;
             }
             // i if i <= i32::max_value() as usize => {
             i if i32::try_from(i).is_ok() => {
-                w.write_all(&(-1_i16).to_le_bytes()).await?;
-                w.write_all(&((i as i32).to_le_bytes())).await?;
+                w.write_i16_le(-1).await?;
+                w.write_i32_le(i as i32).await?;
             }
             _ => {
                 return Err(util::io_error("argument count bigger than i32::MAX"));
             }
         }
-        w.write_all(&(self.body_size(false, o_a_descriptors)? as i32).to_le_bytes())
+        w.write_i32_le(self.body_size(false, o_a_descriptors)? as i32)
             .await?;
-        w.write_all(&(remaining_bufsize as i32).to_le_bytes())
-            .await?;
+        w.write_i32_le(remaining_bufsize as i32).await?;
 
         remaining_bufsize -= PART_HEADER_SIZE as u32;
 
@@ -296,14 +295,14 @@ impl<'a> Part<'a> {
             Part::Auth(ref af) => af.async_emit(w).await?,
             Part::ClientContext(ref opts) => opts.async_emit(w).await?,
             Part::ClientInfo(ref client_info) => client_info.async_emit(w).await?,
-            Part::Command(ref s) => w.write_all(&cesu8::to_cesu8(s)).await?,
+            Part::Command(s) => w.write_all(&cesu8::to_cesu8(s)).await?,
             Part::CommandInfo(ref opts) => opts.async_emit(w).await?,
             // Part::CommitOptions(ref opts) => opts.async_emit(w).await?,
             Part::ConnectOptions(ref conn_opts) => conn_opts.async_emit(w).await?,
             Part::DbConnectInfo(ref db_conn_info) => db_conn_info.async_emit(w).await?,
 
             // Part::FetchOptions(ref opts) => opts.async_emit(w).await?,
-            Part::FetchSize(fs) => w.write_all(&fs.to_le_bytes()).await?,
+            Part::FetchSize(fs) => w.write_u32_le(fs).await?,
             Part::LobFlags(ref opts) => opts.async_emit(w).await?,
             Part::ParameterRows(ref parameter_rows) => {
                 if let Some(a_descriptors) = o_a_descriptors {
@@ -316,20 +315,18 @@ impl<'a> Part<'a> {
             }
             Part::ReadLobRequest(ref r) => r.async_emit(w).await?,
             Part::ResultSetId(rs_id) => {
-                w.write_all(&((rs_id as u64).to_le_bytes())).await?;
-                // w.write_u64::<LittleEndian>(rs_id)?;
+                w.write_u64_le(rs_id).await?;
             }
             Part::SessionContext(ref opts) => opts.async_emit(w).await?,
             Part::StatementId(stmt_id) => {
-                w.write_all(&((stmt_id as u64).to_le_bytes())).await?;
-                // w.write_u64::<LittleEndian>(stmt_id)?;
+                w.write_u64_le(stmt_id).await?;
             }
             Part::StatementContext(ref sc) => sc.async_emit(w).await?,
             Part::TransactionFlags(ref taflags) => taflags.async_emit(w).await?,
             Part::WriteLobRequest(ref r) => r.async_emit(w).await?,
             Part::XatOptions(ref xatid) => xatid.async_emit(w).await?,
             ref a => {
-                return Err(util::io_error(format!("emit() called on {:?}", a)));
+                return Err(util::io_error(format!("emit() called on {a:?}")));
             }
         }
 
@@ -422,9 +419,7 @@ impl<'a> Part<'a> {
 
         let padsize = 7 - (arg_size + 7) % 8;
         match (kind, last) {
-            (PartKind::ResultSet, true)
-            | (PartKind::ResultSetId, true)
-            | (PartKind::ReadLobReply, true)
+            (PartKind::ResultSet | PartKind::ResultSetId | PartKind::ReadLobReply, true)
             | (PartKind::Error, _) => {}
             (_, _) => {
                 for _ in 0..padsize {
@@ -520,8 +515,7 @@ impl<'a> Part<'a> {
             PartKind::XatOptions => Part::XatOptions(XatOptions::parse_sync(no_of_args, rdr)?),
             _ => {
                 return Err(util::io_error(format!(
-                    "No handling implemented for received partkind {:?}",
-                    kind
+                    "No handling implemented for received partkind {kind:?}",
                 )));
             }
         };
@@ -621,8 +615,7 @@ impl<'a> Part<'a> {
             }
             _ => {
                 return Err(util::io_error(format!(
-                    "No handling implemented for received partkind {:?}",
-                    kind
+                    "No handling implemented for received partkind {kind:?}",
                 )));
             }
         };

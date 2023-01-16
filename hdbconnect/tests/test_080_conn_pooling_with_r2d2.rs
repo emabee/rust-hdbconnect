@@ -34,7 +34,7 @@ fn test_080_conn_pooling_with_r2d2() -> HdbResult<()> {
     for worker_handle in worker_handles {
         worker_handle
             .join()
-            .unwrap_or_else(|e| panic!("Joining worker thread failed: {:?}", e));
+            .unwrap_or_else(|e| panic!("Joining worker thread failed: {e:?}"));
     }
 
     Ok(())

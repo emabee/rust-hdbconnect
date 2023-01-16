@@ -15,9 +15,13 @@ pub struct PlainAsyncTcpClient {
 
 impl PlainAsyncTcpClient {
     // Returns an initialized plain async tcp connection
+    // FIXME remove async if it is not needed
     pub async fn try_new(params: ConnectParams) -> std::io::Result<Self> {
         let std_tcpstream = std::net::TcpStream::connect(params.addr())?;
 
+        // FIXME Is this doing the right thing????
+        // FIXME Docu says: the conversion assumes nothing about the underlying stream;
+        // FIXME it is left up to the user to set it in non-blocking mode
         let tcpstream_w = TcpStream::from_std(std_tcpstream.try_clone()?)?;
         let tcpstream_r = TcpStream::from_std(std_tcpstream)?;
         Ok(Self {

@@ -17,7 +17,7 @@ pub fn init_logger() -> LoggerHandle {
         // .print_message()
         .format(opt_format)
         .start()
-        .unwrap_or_else(|e| panic!("Logger initialization failed with {}", e))
+        .unwrap_or_else(|e| panic!("Logger initialization failed with {e}"))
 }
 
 pub fn closing_info(connection: Connection, start: std::time::Instant) -> HdbResult<()> {
@@ -128,7 +128,7 @@ You can point to a different file by using the environment variable {ENV_VAR}.
             cp_builder.dbuser(&um.name).password(&um.pw);
             redirect_cp_builder.dbuser(&um.name).password(&um.pw);
         }
-        _ => panic!("unknown purpose: {}", purpose),
+        _ => panic!("unknown purpose: {purpose}"),
     }
     if let Ok(ref s) = std::env::var("HDBCONNECT_FORCE_TEST_WITH_TLS") {
         match s.as_ref() {

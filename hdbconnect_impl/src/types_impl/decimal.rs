@@ -200,11 +200,10 @@ pub(crate) async fn async_emit<W: std::marker::Unpin + tokio::io::AsyncWriteExt>
             trace!("emit FIXED8");
             let bd = bd.with_scale(i64::from(scale));
             let (bigint, _exponent) = bd.as_bigint_and_exponent();
-            w.write_all(
-                &bigint
+            w.write_i64_le(
+                bigint
                     .to_i64()
-                    .ok_or_else(|| util::io_error("conversion to FIXED8 fails"))?
-                    .to_le_bytes(),
+                    .ok_or_else(|| util::io_error("conversion to FIXED8 fails"))?,
             )
             .await?;
         }
@@ -233,11 +232,10 @@ pub(crate) async fn async_emit<W: std::marker::Unpin + tokio::io::AsyncWriteExt>
             trace!("emit FIXED16");
             let bd = bd.with_scale(i64::from(scale));
             let (bigint, _exponent) = bd.as_bigint_and_exponent();
-            w.write_all(
-                &bigint
+            w.write_i128_le(
+                bigint
                     .to_i128()
-                    .ok_or_else(|| util::io_error("conversion to FIXED16 fails"))?
-                    .to_le_bytes(),
+                    .ok_or_else(|| util::io_error("conversion to FIXED16 fails"))?,
             )
             .await?;
         }

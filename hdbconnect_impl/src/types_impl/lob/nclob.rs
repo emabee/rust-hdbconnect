@@ -1,27 +1,34 @@
 #[cfg(feature = "async")]
 use super::fetch::async_fetch_a_lob_chunk;
-#[cfg(feature = "sync")]
-use super::fetch::sync_fetch_a_lob_chunk;
-use super::CharLobSlice;
 #[cfg(feature = "async")]
 use crate::conn::AsyncAmConnCore;
+#[cfg(feature = "async")]
+use tokio::io::ReadBuf;
+
+#[cfg(feature = "sync")]
+use super::fetch::sync_fetch_a_lob_chunk;
 #[cfg(feature = "sync")]
 use crate::conn::SyncAmConnCore;
-use crate::protocol::parts::AmRsCore;
-use crate::protocol::util;
-use crate::{HdbError, HdbResult, ServerUsage};
-use std::boxed::Box;
-use std::collections::VecDeque;
+#[cfg(feature = "sync")]
 use std::io::Write;
 
-/// LOB implementation for unicode Strings that is used with `HdbValue::NCLOB` instances coming
-/// from the database.
+use super::CharLobSlice;
+use crate::{
+    protocol::{parts::AmRsCore, util},
+    {HdbError, HdbResult, ServerUsage},
+};
+use std::{boxed::Box, collections::VecDeque};
+
+/// LOB implementation for unicode Strings.
 ///
-/// Bigger LOBs are not transferred completely in the first roundtrip, instead more data are
-/// fetched in subsequent roundtrips when they are needed.
+/// `NCLob` is used within [`HdbValue::NCLOB`](../enum.HdbValue.html#variant.NCLOB)
+/// instances received from the database.
+///
+/// Bigger LOBs are not transferred completely in the first roundtrip, instead more data is
+/// fetched in subsequent roundtrips when needed.
 ///
 /// `NCLob` respects the Connection's lob read length
-/// (see [`Connection::set_lob_read_length`](crate::Connection::set_lob_read_length)),
+/// (see [`Connection::set_lob_read_length`](crate::Connection::set_lob_read_length))
 /// by transferring per fetch request `lob_read_length` unicode characters (rather than bytes).
 /// Note that due to the way how HANA represents unicode internally,
 /// all BMP-0 characters count as 1, non-BMP-0 characters count as 2.
@@ -100,29 +107,11 @@ impl NCLob {
     /// # Errors
     ///
     /// Several variants of `HdbError` can occur.
-    #[allow(unreachable_code)]
-    pub fn into_string(self) -> HdbResult<String> {
-        #[cfg(all(feature = "sync", not(feature = "async")))]
-        {
-            return self.0.sync_into_string();
-        }
-
-        #[cfg(all(feature = "async", not(feature = "sync")))]
-        {
-            return self.0.into_string();
-        }
-
-        unreachable!("exactly one of sync or async must be used")
-    }
-
     #[cfg(feature = "sync")]
-    pub(crate) fn sync_load_complete(&mut self) -> HdbResult<()> {
-        self.0.sync_load_complete()
-    }
-
-    #[cfg(feature = "async")]
-    pub(crate) async fn async_load_complete(&mut self) -> HdbResult<()> {
-        self.0.async_load_complete().await
+    pub fn into_string(mut self) -> HdbResult<String> {
+        trace!("NCLob::into_string()");
+        self.sync_load_complete()?;
+        self.0.into_string_if_complete()
     }
 
     /// Converts the `NCLob` into the contained String.
@@ -176,8 +165,56 @@ impl NCLob {
     ///
     /// Several variants of `HdbError` can occur.
     #[cfg(feature = "async")]
-    pub async fn async_into_string(self) -> HdbResult<String> {
-        self.0.async_into_string().await
+    pub async fn into_string(mut self) -> HdbResult<String> {
+        trace!("NCLob::into_string()");
+        self.async_load_complete().await?;
+        self.0.into_string_if_complete()
+    }
+
+    /// Writes the content into the given writer.
+    ///
+    /// Reads outstanding data in chunks of size
+    /// [`Connection::lob_read_length`](../struct.Connection.html#method.lob_read_length) from the database
+    /// and writes them immediately into the writer,
+    /// thus avoiding that all data are materialized within this `NCLob`.
+    #[cfg(feature = "async")]
+    pub async fn write_into<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
+        mut self,
+        writer: &mut W,
+    ) -> HdbResult<()> {
+        let lob_read_length: usize = self.0.am_conn_core.lock().await.lob_read_length() as usize;
+        let mut buf = vec![0_u8; lob_read_length].into_boxed_slice();
+
+        loop {
+            let read = self.0.read(&mut buf).await?;
+            if read == 0 {
+                break;
+            }
+            writer.write_all(&buf[0..read]).await?;
+        }
+        Ok(())
+    }
+
+    // Converts a NCLobHandle into a String containing its data.
+    #[cfg(feature = "sync")]
+    pub(crate) fn into_string_if_complete(mut self) -> HdbResult<String> {
+        self.0.sync_load_complete()?;
+        self.0.into_string_if_complete()
+    }
+
+    #[cfg(feature = "async")]
+    pub(crate) fn into_string_if_complete(self) -> HdbResult<String> {
+        self.0.into_string_if_complete()
+    }
+
+    #[cfg(feature = "sync")]
+    pub(crate) fn sync_load_complete(&mut self) -> HdbResult<()> {
+        self.0.sync_load_complete()
+    }
+
+    #[cfg(feature = "async")]
+    pub(crate) async fn async_load_complete(&mut self) -> HdbResult<()> {
+        self.0.async_load_complete().await
     }
 
     /// Reads from given offset and the given length, in number of unicode characters.
@@ -224,16 +261,6 @@ impl NCLob {
         self.total_byte_length() == 0
     }
 
-    /// Returns the maximum size the internal buffers ever had, in bytes.
-    ///
-    /// This method exists mainly for debugging purposes. With streaming, the returned value is
-    /// not supposed to exceed 3 times `lob_read_length` (see
-    /// [`Connection::set_lob_read_length`](crate::Connection::set_lob_read_length))
-    /// plus the buffer size used by the reader.
-    pub fn max_buf_len(&self) -> usize {
-        self.0.max_buf_len()
-    }
-
     /// Current size of the internal buffer, in bytes.
     pub fn cur_buf_len(&self) -> usize {
         self.0.cur_buf_len()
@@ -243,28 +270,6 @@ impl NCLob {
     /// is related to this `NCBLob` object.
     pub fn server_usage(&self) -> ServerUsage {
         self.0.server_usage
-    }
-}
-
-impl NCLob {
-    #[cfg(feature = "async")]
-    // FIXME rename into 'write_into' ?!?!
-    pub async fn copy_into<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
-        mut self,
-        writer: &mut W,
-    ) -> HdbResult<()> {
-        let lob_read_length: usize =
-            self.0.am_conn_core.lock().await.get_lob_read_length() as usize;
-        let mut buf = vec![0_u8; lob_read_length].into_boxed_slice();
-
-        loop {
-            let read = self.0.read(&mut *buf).await?;
-            if read == 0 {
-                break;
-            }
-            writer.write_all(&buf[0..read]).await?;
-        }
-        Ok(())
     }
 }
 
@@ -295,7 +300,6 @@ struct NCLobHandle {
     locator_id: u64,
     cesu8: VecDeque<u8>,
     cesu8_tail_len: usize,
-    max_buf_len: usize,
     acc_byte_length: usize,
     acc_char_length: usize,
     server_usage: ServerUsage,
@@ -324,7 +328,6 @@ impl NCLobHandle {
             total_byte_length,
             is_data_complete,
             locator_id,
-            max_buf_len: cesu8.len(),
             cesu8,
             cesu8_tail_len,
             acc_byte_length,
@@ -392,7 +395,7 @@ impl NCLobHandle {
         }
 
         let read_length = std::cmp::min(
-            self.am_conn_core.lock()?.get_lob_read_length(),
+            self.am_conn_core.lock()?.lob_read_length(),
             (self.total_char_length - self.acc_char_length as u64) as u32,
         );
 
@@ -413,7 +416,6 @@ impl NCLobHandle {
             self.is_data_complete = true;
             self.o_am_rscore = None;
         }
-        self.max_buf_len = std::cmp::max(self.cesu8.len(), self.max_buf_len);
 
         assert_eq!(
             self.is_data_complete,
@@ -435,7 +437,7 @@ impl NCLobHandle {
         }
 
         let read_length = std::cmp::min(
-            self.am_conn_core.lock().await.get_lob_read_length(),
+            self.am_conn_core.lock().await.lob_read_length(),
             (self.total_char_length - self.acc_char_length as u64) as u32,
         );
 
@@ -457,7 +459,6 @@ impl NCLobHandle {
             self.is_data_complete = true;
             self.o_am_rscore = None;
         }
-        self.max_buf_len = std::cmp::max(self.cesu8.len(), self.max_buf_len);
 
         assert_eq!(
             self.is_data_complete,
@@ -489,39 +490,21 @@ impl NCLobHandle {
         Ok(())
     }
 
-    fn max_buf_len(&self) -> usize {
-        self.max_buf_len
-    }
-
     // Converts a NCLobHandle into a String containing its data, if it is fully loaded
-    fn into_string(self) -> HdbResult<String> {
+    fn into_string_if_complete(self) -> HdbResult<String> {
         trace!("NCLobHandle::into_string()");
         if self.is_data_complete {
             Ok(util::string_from_cesu8(Vec::from(self.cesu8))?)
         } else {
-            Err(HdbError::Usage("FIXME "))
+            Err(HdbError::Usage(
+                "NCLob must be loaded completely before 'into_string' can be called",
+            ))
         }
-    }
-
-    // Converts a NCLobHandle into a String containing its data.
-    #[cfg(feature = "sync")]
-    fn sync_into_string(mut self) -> HdbResult<String> {
-        trace!("NCLobHandle::sync_into_string()");
-        self.sync_load_complete()?;
-        self.into_string()
-    }
-
-    // Converts a NCLobHandle into a String containing its data.
-    #[cfg(feature = "async")]
-    async fn async_into_string(mut self) -> HdbResult<String> {
-        trace!("NCLobHandle::async_into_string()");
-        self.async_load_complete().await?;
-        self.into_string()
     }
 }
 
-// Support for NCLOB streaming
 #[cfg(feature = "sync")]
+// Support for NCLOB streaming
 impl std::io::Read for NCLobHandle {
     fn read(&mut self, mut buf: &mut [u8]) -> std::io::Result<usize> {
         trace!("read() with buf of len {}", buf.len());
@@ -550,12 +533,16 @@ impl std::io::Read for NCLobHandle {
     }
 }
 
+// FIXME: error type should be HdbError
 #[cfg(feature = "async")]
 impl NCLobHandle {
-    async fn read(&mut self, mut buf: &mut [u8]) -> std::io::Result<usize> {
-        trace!("read() with buf of len {}", buf.len());
+    async fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let mut buf = ReadBuf::new(buf);
+        let buf_len = buf.capacity();
+        debug_assert!(buf.filled().is_empty());
+        trace!("read() with buf of len {}", buf_len);
 
-        while !self.is_data_complete && (buf.len() > self.cesu8.len() - self.cesu8_tail_len) {
+        while !self.is_data_complete && (buf_len > self.cesu8.len() - self.cesu8_tail_len) {
             self.async_fetch_next_chunk()
                 .await
                 .map_err(|e| util::io_error(e.to_string()))?;
@@ -564,7 +551,7 @@ impl NCLobHandle {
         // we want to write only clean UTF-8 into buf, so we cut off at good places only;
         // utf8 is equally long as cesu8, or shorter (6->4 bytes for BMP1)
         // so we cut of at the latest char start before buf-len
-        let drain_len = std::cmp::min(buf.len(), self.cesu8.len());
+        let drain_len = std::cmp::min(buf_len, self.cesu8.len());
         let cesu8_buf: Vec<u8> = self.cesu8.drain(0..drain_len).collect();
         let cut_off_position =
             cesu8_buf.len() - util::get_cesu8_tail_len(&cesu8_buf, cesu8_buf.len())?;
@@ -575,7 +562,7 @@ impl NCLobHandle {
             self.cesu8.push_front(cesu8_buf[i]);
         }
 
-        buf.write_all(utf8.as_bytes())?;
+        buf.put_slice(utf8.as_bytes());
         Ok(utf8.len())
     }
 }

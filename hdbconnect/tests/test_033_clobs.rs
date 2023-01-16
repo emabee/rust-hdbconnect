@@ -98,7 +98,7 @@ fn test_clobs(
     let mydata: MyData = resultset.try_into()?;
     debug!(
         "reading two big CLOB with lob-read-length {} required {} roundtrips",
-        connection.get_lob_read_length()?,
+        connection.lob_read_length()?,
         connection.get_call_count()? - before
     );
 
@@ -122,7 +122,7 @@ fn test_clobs(
     let second: MyData = resultset.try_into()?;
     debug!(
         "reading two big CLOB with lob-read-length {} required {} roundtrips",
-        connection.get_lob_read_length()?,
+        connection.lob_read_length()?,
         connection.get_call_count()? - before
     );
     assert_eq!(mydata, second);
@@ -144,10 +144,6 @@ fn test_clobs(
     hasher.update(&streamed);
     let fingerprint4 = hasher.finalize().to_vec();
     assert_eq!(fingerprint, fingerprint4.as_slice());
-
-    debug!("clob.max_buf_len(): {}", clob.max_buf_len());
-    // std::io::copy works with 8MB, our buffer remains at about 200_000:
-    assert!(clob.max_buf_len() < 210_000);
 
     info!("read from somewhere within");
     let mut clob: CLob = connection
@@ -203,11 +199,6 @@ fn test_streaming(
     hasher.update(&buffer);
     let fingerprint4 = hasher.finalize().to_vec();
     assert_eq!(fingerprint, fingerprint4.as_slice());
-    assert!(
-        clob.max_buf_len() < 210_000,
-        "clob.max_buf_len() too big: {}",
-        clob.max_buf_len()
-    );
 
     connection.set_auto_commit(true)?;
     Ok(())

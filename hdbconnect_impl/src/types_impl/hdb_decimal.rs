@@ -101,8 +101,7 @@ impl HdbDecimal {
 
             if !(-6143..=6144).contains(&exponent) {
                 return Err(SerializationError::Serde(format!(
-                    "exponent '{}' out of range",
-                    exponent
+                    "exponent '{exponent}' out of range",
                 )));
             }
             let (sign, mantissa) = bigint.to_bytes_le();

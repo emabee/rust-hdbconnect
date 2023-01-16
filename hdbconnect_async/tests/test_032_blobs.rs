@@ -100,7 +100,7 @@ async fn test_blobs(
     let mydata: MyData = resultset.try_into().await?;
     info!(
         "reading 2x5MB BLOB with lob-read-length {} required {} roundtrips",
-        connection.get_lob_read_length().await?,
+        connection.lob_read_length().await?,
         connection.get_call_count().await? - before
     );
 
@@ -126,7 +126,7 @@ async fn test_blobs(
     let second: MyData = resultset.try_into().await?;
     info!(
         "reading 2x5MB BLOB with lob-read-length {} required {} roundtrips",
-        connection.get_lob_read_length().await?,
+        connection.lob_read_length().await?,
         connection.get_call_count().await? - before
     );
     assert_eq!(mydata, second);
@@ -142,13 +142,13 @@ async fn test_blobs(
     let blob2: BLob = row.next_value().unwrap().try_into_blob()?;
 
     let mut streamed = Vec::<u8>::new();
-    blob2.copy_into(&mut streamed).await?;
+    blob2.write_into(&mut streamed).await?;
     assert_eq!(random_bytes.len(), streamed.len());
     let mut hasher = Sha256::default();
     hasher.update(&streamed);
 
     let mut streamed = Vec::<u8>::new();
-    blob.copy_into(&mut streamed).await?;
+    blob.write_into(&mut streamed).await?;
 
     assert_eq!(random_bytes.len(), streamed.len());
     let mut hasher = Sha256::default();
@@ -165,7 +165,7 @@ async fn test_blobs(
         .into_single_value()?
         .try_into_blob()?;
     for i in 1000..1040 {
-        let _blob_slice = blob.async_read_slice(i, 100).await?;
+        let _blob_slice = blob.read_slice(i, 100).await?;
     }
 
     Ok(())
@@ -232,19 +232,13 @@ async fn test_streaming(
         .into_single_value()?
         .try_into_blob()?;
     let mut buffer = Vec::<u8>::new();
-    blob.copy_into(&mut buffer).await?;
+    blob.write_into(&mut buffer).await?;
 
     assert_eq!(random_bytes.len(), buffer.len());
     let mut hasher = Sha256::default();
     hasher.update(&buffer);
     let fingerprint4 = hasher.finalize().to_vec();
     assert_eq!(fingerprint, fingerprint4.as_slice());
-    // FIXME
-    // assert!(
-    //     blob.max_buf_len() < 210_000,
-    //     "blob.max_buf_len() too big: {}",
-    //     blob.max_buf_len()
-    // );
 
     connection.set_auto_commit(true).await?;
     Ok(())

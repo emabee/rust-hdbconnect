@@ -101,7 +101,7 @@ fn test_025_decimals_impl(
     for row in resultset {
         let row = row?;
         if let HdbValue::DECIMAL(ref bd) = &row[1] {
-            assert_eq!(format!("{}", &row[0]), format!("{}", bd));
+            assert_eq!(format!("{}", &row[0]), format!("{bd}"));
         } else {
             panic!("Unexpected value type");
         }

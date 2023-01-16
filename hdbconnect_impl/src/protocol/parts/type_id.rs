@@ -197,8 +197,7 @@ impl TypeId {
         }
 
         Err(util::io_error(format!(
-            "value type id {:?} does not match metadata {:?}",
-            value_type, self
+            "value type id {value_type:?} does not match metadata {self:?}",
         )))
     }
 }

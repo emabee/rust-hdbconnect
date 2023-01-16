@@ -15,6 +15,7 @@ use crate::{HdbError, HdbResult};
 use std::mem;
 use std::sync::Arc;
 
+#[doc(hidden)]
 #[derive(Debug)]
 pub struct ConnectionCore {
     authenticated: bool,
@@ -341,7 +342,7 @@ impl<'a> ConnectionCore {
         self.fetch_size = fetch_size;
     }
 
-    pub fn get_lob_read_length(&self) -> u32 {
+    pub fn lob_read_length(&self) -> u32 {
         self.lob_read_length
     }
 

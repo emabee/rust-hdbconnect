@@ -20,14 +20,14 @@ use std::sync::{Arc, Mutex};
 ///
 /// Type system**s**, really? Yes, there are in fact four type systems involved!
 /// * Your application is written in rust, and uses the _rust type system_.
-/// * `hdbconnect`'s _driver API_ represents values with the `enum` [`HdbValue`](crate::HdbValue);
+/// * `hdbconnect_async`'s _driver API_ represents values with the `enum` [`HdbValue`](crate::HdbValue);
 ///   this type system aims to be as close to the rust type system as possible
 ///   and hides the complexity of the following two internal type systems.
 /// * The _wire_ has its own type system - it's focus is on efficient data transfer.
-///   `hdbconnect` deals with these types internally.
+///   `hdbconnect_async` deals with these types internally.
 /// * The _database type system_ consists of the standard SQL types and proprietary types
 ///   to represent values, like TINYINT, FLOAT, NVARCHAR, and many others.
-///   This type system is NOT directly visible to `hdbconnect`.
+///   This type system is NOT directly visible to `hdbconnect_async`.
 ///
 ///   [`TypeId`](crate::TypeId) enumerates a somewhat reduced superset
 ///   of the server-side and the wire type system.
@@ -60,7 +60,7 @@ use std::sync::{Arc, Mutex};
 ///   [`TypeId::FIXED16`](crate::TypeId::FIXED16))
 ///   that together allow for a wider value range and a lower bandwidth.
 ///
-///  `hdbconnect` cares about these details.
+///  `hdbconnect_async` cares about these details.
 ///
 /// Similarly, an `HdbValue::STRING` is used to transfer values to all string-like wire types.
 ///

@@ -18,7 +18,7 @@ const JGREG: i64 = 2_299_161;
 
 /// Implementation of HANA's `SecondDate`.
 ///
-/// The type is used internally to implement serialization to the wire.
+/// The type is used internally to implement deserialization from the wire.
 /// It is agnostic of timezones.
 #[derive(Clone, Debug, Serialize)]
 pub struct SecondDate(i64);
@@ -29,8 +29,7 @@ impl std::fmt::Display for SecondDate {
         let (year, month, day, hour, minute, second) = self.as_ymd_hms();
         write!(
             fmt,
-            "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}",
-            year, month, day, hour, minute, second
+            "{year:04}-{month:02}-{day:02}T{hour:02}:{minute:02}:{second:02}",
         )
     }
 }

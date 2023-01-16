@@ -28,16 +28,15 @@ async fn test_051_management_console() -> HdbResult<()> {
                 println!("Output parameters");
                 for op in output_parameters.into_values().into_iter() {
                     println!("   Output parameter: {:?}", op);
-                    // FIXME all three methods should be async and functionally complete
                     match op {
                         HdbValue::BLOB(blob) => {
                             println!("Value: {:?}", blob.into_bytes().await?);
                         }
                         HdbValue::CLOB(clob) => {
-                            println!("Value: {}", clob.into_string()?);
+                            println!("Value: {}", clob.into_string().await?);
                         }
                         HdbValue::NCLOB(nclob) => {
-                            println!("Value: {}", nclob.into_string()?);
+                            println!("Value: {}", nclob.into_string().await?);
                         }
                         _ => {
                             println!("Value: {}", op);

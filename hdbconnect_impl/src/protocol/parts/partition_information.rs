@@ -28,8 +28,7 @@ impl PartitionMethod {
             1 => Ok(Self::RoundRobin),
             2 => Ok(Self::Hash),
             _ => Err(util::io_error(format!(
-                "PartitionMethod {} not implemented",
-                val
+                "PartitionMethod {val} not implemented",
             ))),
         }
     }
@@ -49,8 +48,7 @@ impl ParameterFunction {
             1 => Ok(Self::Year),
             2 => Ok(Self::Month),
             _ => Err(util::io_error(format!(
-                "ParameterFunction {} not implemented",
-                val
+                "ParameterFunction {val} not implemented",
             ))),
         }
     }

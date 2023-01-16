@@ -1,15 +1,24 @@
+#![cfg_attr(docsrs, feature(doc_cfg))]
+#![deny(missing_docs)]
+#![deny(missing_debug_implementations)]
+#![deny(clippy::all)]
+#![deny(clippy::pedantic)]
+
 //! Asynchronous native rust database driver for SAP HANA (TM).
 //!
-//! `hdbconnect` provides a lean, fast, and easy-to-use rust-API for working with
-//! SAP HANA. The driver is written completely in rust.
+//! The synchronous sibling of this driver is available as
+//! [`hdbconnect`](https://crates.io/crates/hdbconnect).
+//!
+//! `hdbconnect_async` provides a lean, fast, and easy-to-use asynchronous rust-API for
+//! working with SAP HANA. The driver is written completely in rust.
 //!
 //! It interoperates elegantly with all data types that implement the standard
 //! `serde::Serialize` and/or `serde::Deserialize` traits, for input and output respectively.
 //! So, instead of iterating over a resultset by rows and columns, you can
-//! assign the complete resultset directly to any rust structure that fits the data
+//! assign the complete resultset directly to a rust structure that fits the data
 //! semantics.
 //!
-//! `hdbconnect` implements this with the help of [`serde_db`](https://docs.rs/serde_db),
+//! `hdbconnect_async` implements this with the help of [`serde_db`](https://docs.rs/serde_db),
 //! a reusable library for simplifying the data exchange between application code
 //! and database drivers, both for input parameters (e.g. to prepared statements)
 //! and for results that are returned from the database.
@@ -24,15 +33,10 @@
 //! See [code examples](crate::code_examples) for an overview.
 //!
 
-#![deny(missing_docs)]
-#![deny(missing_debug_implementations)]
-#![deny(clippy::all)]
-#![deny(clippy::pedantic)]
-
 #[macro_use]
 extern crate log;
 
-// FIXME pub mod code_examples;
+pub mod code_examples;
 mod connection;
 mod prepared_statement;
 #[cfg(feature = "rocket_pool")]
@@ -76,23 +80,6 @@ pub mod types {
     pub use hdbconnect_impl::types_impl::secondtime::SecondTime;
 }
 
-/// Default value for the number of resultset lines that are fetched
-/// with a single FETCH roundtrip; the constant's value is 100,000.
-///
-/// The value used at runtime can be changed with
-/// [`Connection::set_fetch_size()`](crate::Connection::set_fetch_size).
-pub const DEFAULT_FETCH_SIZE: u32 = 100_000;
-
-/// Number of bytes (for BLOBS and CLOBS) or 1-2-3-byte sequences (for NCLOBS)
-/// that are fetched in a single LOB READ roundtrip; the constant's value is 16,000,000.
-///
-/// The value used at runtime can be changed with
-/// [`Connection::set_lob_read_length()`](crate::Connection::set_lob_read_length).
-pub const DEFAULT_LOB_READ_LENGTH: u32 = 16_000_000;
-
-/// Number of bytes that are written in a single LOB WRITE roundtrip;
-/// the constant's value is 16,000,000.
-///
-/// The value used at runtime can be changed with
-/// [`Connection::set_lob_write_length()`](crate::Connection::set_lob_write_length).
-pub const DEFAULT_LOB_WRITE_LENGTH: usize = 16_000_000;
+pub use hdbconnect_impl::DEFAULT_FETCH_SIZE;
+pub use hdbconnect_impl::DEFAULT_LOB_READ_LENGTH;
+pub use hdbconnect_impl::DEFAULT_LOB_WRITE_LENGTH;

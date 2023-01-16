@@ -33,8 +33,6 @@ mod write_lob_reply;
 mod write_lob_request;
 mod xat_options;
 
-pub use self::resultset::ResultSet;
-
 pub use self::{
     authfields::AuthFields,
     client_context::{ClientContext, ClientContextId},
@@ -42,44 +40,44 @@ pub use self::{
     command_info::CommandInfo,
     connect_options::{ConnOptId, ConnectOptions},
     db_connect_info::DbConnectInfo,
-    lob_flags::LobFlags,
-    option_value::OptionValue,
-    parameter_rows::ParameterRows,
-    partition_information::PartitionInformation,
-    read_lob_reply::ReadLobReply,
-    read_lob_request::ReadLobRequest,
-    rs_state::{AmRsCore, RsState},
-    session_context::SessionContext,
-    statement_context::StatementContext,
-    topology::Topology,
-    transactionflags::{TaFlagId, TransactionFlags},
-    write_lob_reply::WriteLobReply,
-    write_lob_request::WriteLobRequest,
-    xat_options::XatOptions,
-};
-pub use self::{
     execution_result::ExecutionResult,
     field_metadata::FieldMetadata,
     hdb_value::HdbValue,
+    lob_flags::LobFlags,
+    option_value::OptionValue,
     output_parameters::OutputParameters,
     parameter_descriptor::{
         ParameterBinding, ParameterDescriptor, ParameterDescriptors, ParameterDirection,
     },
+    parameter_rows::ParameterRows,
+    partition_information::PartitionInformation,
+    read_lob_reply::ReadLobReply,
+    read_lob_request::ReadLobRequest,
+    resultset::ResultSet,
     resultset_metadata::ResultSetMetadata,
-    server_error::ServerError,
-    server_error::Severity,
+    rs_state::{AmRsCore, RsState},
+    server_error::{ServerError, Severity},
+    session_context::SessionContext,
+    statement_context::StatementContext,
+    topology::Topology,
+    transactionflags::{TaFlagId, TransactionFlags},
     type_id::TypeId,
+    write_lob_reply::WriteLobReply,
+    write_lob_request::WriteLobRequest,
+    xat_options::XatOptions,
 };
 
-use super::{Part, PartKind};
 #[cfg(feature = "async")]
 use crate::conn::AsyncAmConnCore;
 #[cfg(feature = "sync")]
 use crate::conn::SyncAmConnCore;
-use crate::hdb_response::InternalReturnValue;
-use crate::protocol::{PartAttributes, ServerUsage};
-use crate::{HdbError, HdbResult};
-use std::sync::Arc;
+
+use crate::{
+    hdb_response::InternalReturnValue,
+    protocol::{Part, PartAttributes, PartKind, ServerUsage},
+    HdbError, HdbResult,
+};
+use std::{iter::IntoIterator, sync::Arc};
 
 #[derive(Debug, Default)]
 pub struct Parts<'a>(Vec<Part<'a>>);
@@ -126,11 +124,15 @@ impl<'a> Parts<'a> {
     }
 }
 
-impl Parts<'static> {
-    pub fn into_iter(self) -> std::vec::IntoIter<Part<'static>> {
+impl IntoIterator for Parts<'static> {
+    type Item = Part<'static>;
+    type IntoIter = std::vec::IntoIter<Part<'static>>;
+    fn into_iter(self) -> std::vec::IntoIter<Part<'static>> {
         self.0.into_iter()
     }
+}
 
+impl Parts<'static> {
     // digest parts, collect InternalReturnValues
     #[cfg(feature = "sync")]
     pub fn sync_into_internal_return_values(

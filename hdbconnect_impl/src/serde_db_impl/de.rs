@@ -280,10 +280,10 @@ impl DbValueInto<String> for HdbValue<'static> {
             HdbValue::SECONDTIME(time) => Ok(str_from(&time)),
             HdbValue::DECIMAL(bigdec) => Ok(format!("{bigdec}")),
             HdbValue::CLOB(clob) => Ok(clob
-                .into_string()
+                .into_string_if_complete()
                 .map_err(|e| ConversionError::Incomplete(e.to_string()))?),
             HdbValue::NCLOB(nclob) => Ok(nclob
-                .into_string()
+                .into_string_if_complete()
                 .map_err(|e| ConversionError::Incomplete(e.to_string()))?),
             value => Err(wrong_type(&value, "String")),
         }
@@ -309,22 +309,19 @@ impl DbValueInto<Vec<u8>> for HdbValue<'static> {
 
 fn wrong_type(tv: &HdbValue, ovt: &str) -> ConversionError {
     ConversionError::ValueType(format!(
-        "The value {:?} cannot be converted into type {}",
-        tv, ovt
+        "The value {tv:?} cannot be converted into type {ovt}",
     ))
 }
 
 fn number_range(value: i64, ovt: &str) -> ConversionError {
     ConversionError::NumberRange(format!(
-        "The value {:?} exceeds the number range of type {}",
-        value, ovt
+        "The value {value:?} exceeds the number range of type {ovt}",
     ))
 }
 
 fn decimal_range(ovt: &str) -> ConversionError {
     ConversionError::NumberRange(format!(
-        "The given decimal value cannot be converted into a number of type {}",
-        ovt
+        "The given decimal value cannot be converted into a number of type {ovt}",
     ))
 }
 

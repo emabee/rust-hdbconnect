@@ -88,7 +88,7 @@ async fn test_nclobs(
     let mydata: MyData = resultset.try_into().await?;
     debug!(
         "reading two big NCLOB with lob-read-length {} required {} roundtrips",
-        connection.get_lob_read_length().await?,
+        connection.lob_read_length().await?,
         connection.get_call_count().await? - before
     );
 
@@ -112,7 +112,7 @@ async fn test_nclobs(
     let second: MyData = resultset.try_into().await?;
     debug!(
         "reading two big NCLOB with lob-read-length {} required {} roundtrips",
-        connection.get_lob_read_length().await?,
+        connection.lob_read_length().await?,
         connection.get_call_count().await? - before
     );
     assert_eq!(mydata, second);
@@ -196,7 +196,7 @@ async fn test_streaming(
     );
 
     let mut buffer = Vec::<u8>::new();
-    nclob.copy_into(&mut buffer).await?;
+    nclob.write_into(&mut buffer).await?;
 
     assert_eq!(fifty_times_smp_blabla.len(), buffer.len());
     assert_eq!(fifty_times_smp_blabla.as_bytes(), buffer.as_slice());

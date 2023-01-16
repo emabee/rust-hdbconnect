@@ -2,7 +2,11 @@ use crate::{ConnectParams, Connection, HdbError, HdbResult};
 use hdbconnect_impl::IntoConnectParams;
 use rocket_db_pools::{figment::Figment, Pool};
 
-/// FIXME
+// FIXME add code example
+/// An implementation of rocket's
+/// [`Pool`](https://docs.rs/rocket_db_pools/0.1.0-rc.2/rocket_db_pools/trait.Pool.html) trait.
+///
+#[cfg_attr(docsrs, doc(cfg(feature = "rocket_pool")))]
 #[derive(Debug, Clone)]
 pub struct HanaPoolForRocket {
     connect_params: ConnectParams,

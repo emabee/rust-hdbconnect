@@ -36,14 +36,14 @@ pub(crate) fn sync_authenticate(
     match sync_first_auth_request(conn_core, &authenticators)? {
         FirstAuthResponse::AuthenticatorAndChallenge(selected, server_challenge) => {
             // Find the selected authenticator ...
-            let authenticator: Box<dyn Authenticator> = authenticators
+            let mut authenticator: Box<dyn Authenticator + Send + Sync> = authenticators
                 .into_iter()
                 .find(|authenticator| authenticator.name() == selected)
                 .ok_or_else(|| {
                     HdbError::Impl("None of the available authenticators was accepted")
                 })?;
             // ...and use it for the second request
-            sync_second_auth_request(conn_core, authenticator, &server_challenge, reconnect)?;
+            sync_second_auth_request(conn_core, &mut *authenticator, &server_challenge, reconnect)?;
             conn_core.set_authenticated();
             trace!("session_id: {}", conn_core.session_id());
             Ok(AuthenticationResult::Ok)
@@ -71,14 +71,14 @@ pub(crate) async fn async_authenticate(
     match async_first_auth_request(conn_core, &authenticators).await? {
         FirstAuthResponse::AuthenticatorAndChallenge(selected, server_challenge) => {
             // Find the selected authenticator ...
-            let authenticator: Box<dyn Authenticator + Send + Sync> = authenticators
+            let mut authenticator: Box<dyn Authenticator + Send + Sync> = authenticators
                 .into_iter()
                 .find(|authenticator| authenticator.name() == selected)
                 .ok_or_else(|| {
                     HdbError::Impl("None of the available authenticators was accepted")
                 })?;
             // ...and use it for the second request
-            async_second_auth_request(conn_core, authenticator, &server_challenge, reconnect)
+            async_second_auth_request(conn_core, &mut *authenticator, &server_challenge, reconnect)
                 .await?;
             conn_core.set_authenticated();
             trace!("session_id: {}", conn_core.session_id());

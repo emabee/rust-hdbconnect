@@ -193,12 +193,11 @@ impl ResultSet {
     // fetches all rows and all data of contained LOBs
     #[cfg(feature = "async")]
     pub async fn into_rows(self) -> HdbResult<Rows> {
-        Ok(self
-            .state
+        self.state
             .lock()
             .await
             .into_rows(Arc::clone(&self.metadata))
-            .await?)
+            .await
     }
 
     /// Converts the resultset into a single row.
@@ -407,9 +406,8 @@ impl ResultSet {
                     Some(_) => return Err(util::io_error("Inconsistent StatementContext")),
                 };
 
-                let rs_id = match parts.pop() {
-                    Some(Part::ResultSetId(rs_id)) => rs_id,
-                    _ => return Err(util::io_error("ResultSetId missing")),
+                let Some(Part::ResultSetId(rs_id)) = parts.pop() else {
+                    return Err(util::io_error("ResultSetId missing"));
                 };
 
                 let a_rsmd = match parts.pop_if_kind(PartKind::ResultSetMetadata) {
@@ -483,9 +481,8 @@ impl ResultSet {
                     Some(_) => return Err(util::io_error("Inconsistent StatementContext")),
                 };
 
-                let rs_id = match parts.pop() {
-                    Some(Part::ResultSetId(rs_id)) => rs_id,
-                    _ => return Err(util::io_error("ResultSetId missing")),
+                let Some(Part::ResultSetId(rs_id)) = parts.pop() else {
+                    return Err(util::io_error("ResultSetId missing"));
                 };
 
                 let a_rsmd = match parts.pop_if_kind(PartKind::ResultSetMetadata) {

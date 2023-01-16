@@ -18,7 +18,7 @@ const JGREG: i64 = 2_299_161;
 
 /// Implementation of HANA's `LongDate`.
 ///
-/// The type is used internally to implement serialization to the wire.
+/// The type is used internally to implement deserialization from the wire.
 /// It is agnostic of timezones.
 #[derive(Clone, Debug, Serialize)]
 pub struct LongDate(i64);
@@ -29,8 +29,7 @@ impl std::fmt::Display for LongDate {
         let (year, month, day, hour, minute, second, fraction) = self.as_ymd_hms_f();
         write!(
             fmt,
-            "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:07}",
-            year, month, day, hour, minute, second, fraction
+            "{year:04}-{month:02}-{day:02}T{hour:02}:{minute:02}:{second:02}.{fraction:07}",
         )
     }
 }

@@ -60,9 +60,9 @@ pub(crate) async fn async_send_and_receive(
     match async_tcp_client {
         AsyncTcpClient::Plain(tc) => {
             let am_rdr = tc.reader();
-            let mut m_rdr = am_rdr.lock().await;
+            let mut reader = am_rdr.lock().await;
 
-            util_async::skip_bytes(8, &mut *m_rdr).await? // ignore the response content
+            util_async::skip_bytes(8, &mut *reader).await?; // ignore the response content
         }
     }
     debug!("Successfully initialized");
@@ -79,8 +79,8 @@ fn sync_emit_initial_request(w: &mut dyn std::io::Write) -> std::io::Result<()> 
 async fn async_emit_initial_request(
     am_w: Arc<tokio::sync::Mutex<BufWriter<TcpStream>>>,
 ) -> std::io::Result<()> {
-    let mut m_w = am_w.lock().await;
-    let w = &mut *m_w;
+    let mut writer = am_w.lock().await;
+    let w = &mut *writer;
     w.write_all(initial_request()).await?;
     w.flush().await?;
     Ok(())
@@ -115,5 +115,5 @@ fn initial_request() -> &'static [u8] {
             res
         };
     }
-    &*INITIAL_REQUEST
+    &INITIAL_REQUEST
 }

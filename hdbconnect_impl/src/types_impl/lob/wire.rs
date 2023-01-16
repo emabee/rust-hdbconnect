@@ -217,9 +217,9 @@ async fn parse_lob_1_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
 ) -> std::io::Result<(bool, bool, bool)> {
     let _data_type = rdr.read_u8().await?; // I1
     let options = rdr.read_u8().await?; // I1
-    let is_null = (options & 0b_1_u8) != 0;
-    let is_data_included = (options & 0b_10_u8) != 0;
-    let is_last_data = (options & 0b_100_u8) != 0;
+    let is_null = (options & 0b1_u8) != 0;
+    let is_data_included = (options & 0b10_u8) != 0;
+    let is_last_data = (options & 0b100_u8) != 0;
     Ok((is_null, is_data_included, is_last_data))
 }
 
@@ -294,9 +294,9 @@ pub(crate) async fn emit_lob_header_async<W: std::marker::Unpin + tokio::io::Asy
     w: &mut W,
 ) -> std::io::Result<()> {
     // bit 0: not used; bit 1: data is included; bit 2: no more data remaining
-    w.write_u8(0b_000_u8).await?; // I1           Bit set for options
-    w.write_all(&(length as i32).to_le_bytes()).await?; // I4           LENGTH OF VALUE
-    w.write_all(&(*offset as i32).to_le_bytes()).await?; // I4           position
+    w.write_u8(0b000_u8).await?; // I1           Bit set for options
+    w.write_i32_le(length as i32).await?; // I4           LENGTH OF VALUE
+    w.write_i32_le(*offset).await?; // I4           position
     *offset += length as i32;
     Ok(())
 }

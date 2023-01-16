@@ -57,8 +57,7 @@ fn evaluate_first_response(reply: Reply) -> HdbResult<FirstAuthResponse> {
             Err(HdbError::from(server_errors.remove(0)))
         }
         (p1, p2) => Err(HdbError::ImplDetailed(format!(
-            "Unexpected db response with parts: {:?}, {:?}",
-            p1, p2
+            "Unexpected db response with parts: {p1:?}, {p2:?}",
         ))),
     };
 
@@ -77,7 +76,7 @@ pub(crate) fn sync_first_auth_request(
     conn_core: &mut ConnectionCore,
     authenticators: &[Box<dyn Authenticator + Send + Sync>],
 ) -> HdbResult<FirstAuthResponse> {
-    let request1 = first_request(conn_core.connect_params().dbuser(), &authenticators);
+    let request1 = first_request(conn_core.connect_params().dbuser(), authenticators);
 
     // For RequestType::Authenticate, the default error handling in roundtrip_sync is switched off:
     let reply = conn_core.roundtrip_sync(&request1, None, None, None, &mut None)?;
@@ -130,14 +129,14 @@ fn second_request(
 
 fn evaluate_second_response(
     reply: Reply,
-    chosen_authenticator: Box<dyn Authenticator>,
+    chosen_authenticator: &(dyn Authenticator + Send + Sync),
     conn_core: &mut ConnectionCore,
 ) -> HdbResult<()> {
     reply.assert_expected_reply_type(ReplyType::Nil)?;
 
     conn_core.set_session_id(reply.session_id());
 
-    for part in reply.parts.into_iter() {
+    for part in reply.parts {
         match part {
             Part::TopologyInformation(topology) => conn_core.set_topology(topology),
             Part::ConnectOptions(received_co) => conn_core
@@ -158,7 +157,7 @@ fn evaluate_second_response(
 #[cfg(feature = "sync")]
 pub(crate) fn sync_second_auth_request(
     conn_core: &mut ConnectionCore,
-    mut chosen_authenticator: Box<dyn Authenticator>,
+    chosen_authenticator: &mut (dyn Authenticator + Send + Sync),
     server_challenge_data: &[u8],
     reconnect: bool,
 ) -> HdbResult<()> {
@@ -178,7 +177,7 @@ pub(crate) fn sync_second_auth_request(
 #[cfg(feature = "async")]
 pub(crate) async fn async_second_auth_request(
     conn_core: &mut ConnectionCore,
-    mut chosen_authenticator: Box<dyn Authenticator + Send + Sync>,
+    chosen_authenticator: &mut (dyn Authenticator + Send + Sync),
     server_challenge_data: &[u8],
     reconnect: bool,
 ) -> HdbResult<()> {

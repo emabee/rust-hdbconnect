@@ -58,8 +58,8 @@ fn successful_xa(_log_handle: &mut LoggerHandle, conn: &mut Connection) -> HdbRe
     tm.start_transaction().unwrap();
 
     debug!("do some inserts");
-    conn_a.dml(&insert_stmt(1, "a"))?;
-    conn_b.dml(&insert_stmt(2, "b"))?;
+    conn_a.dml(insert_stmt(1, "a"))?;
+    conn_b.dml(insert_stmt(2, "b"))?;
 
     debug!("verify with neutral conn that nothing is visible (count)");
     let count_query = "select count(*) from TEST_XA where f1 > 0 and f1 < 9";
@@ -77,7 +77,7 @@ fn successful_xa(_log_handle: &mut LoggerHandle, conn: &mut Connection) -> HdbRe
 }
 
 fn insert_stmt(i: u32, s: &'static str) -> String {
-    format!("insert into TEST_XA (f1, f2) values({}, '{}')", i, s)
+    format!("insert into TEST_XA (f1, f2) values({i}, '{s}')")
 }
 
 fn xa_rollback(_log_handle: &mut LoggerHandle, conn: &mut Connection) -> HdbResult<()> {
@@ -113,11 +113,11 @@ fn xa_rollback(_log_handle: &mut LoggerHandle, conn: &mut Connection) -> HdbResu
     tm.start_transaction().unwrap();
 
     debug!("conn_a inserts");
-    conn_a.dml(&insert_stmt(10, "a"))?;
-    conn_a.dml(&insert_stmt(11, "a"))?;
+    conn_a.dml(insert_stmt(10, "a"))?;
+    conn_a.dml(insert_stmt(11, "a"))?;
     debug!("conn_b inserts");
-    conn_b.dml(&insert_stmt(12, "b"))?;
-    conn_b.dml(&insert_stmt(13, "b"))?;
+    conn_b.dml(insert_stmt(12, "b"))?;
+    conn_b.dml(insert_stmt(13, "b"))?;
 
     // verify with neutral conn that nothing is visible (count)
     let count_query = "select count(*) from TEST_XA where f1 > 9 and f1 < 99";
@@ -132,10 +132,10 @@ fn xa_rollback(_log_handle: &mut LoggerHandle, conn: &mut Connection) -> HdbResu
     assert_eq!(0, count);
 
     debug!("conn_c inserts");
-    conn_c.dml(&insert_stmt(10, "c"))?;
-    conn_c.dml(&insert_stmt(11, "c"))?;
-    conn_c.dml(&insert_stmt(12, "c"))?;
-    conn_c.dml(&insert_stmt(13, "c"))?;
+    conn_c.dml(insert_stmt(10, "c"))?;
+    conn_c.dml(insert_stmt(11, "c"))?;
+    conn_c.dml(insert_stmt(12, "c"))?;
+    conn_c.dml(insert_stmt(13, "c"))?;
     conn_c.commit().unwrap();
 
     // verify that now the insertions were successful

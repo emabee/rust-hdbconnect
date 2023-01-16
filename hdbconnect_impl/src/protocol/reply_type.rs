@@ -58,8 +58,7 @@ impl ReplyType {
             26 => Ok(Self::XAPrepare),
             27 => Ok(Self::XARecover),
             _ => Err(util::io_error(format!(
-                "found unexpected value {} for ReplyType",
-                val
+                "found unexpected value {val} for ReplyType",
             ))),
         }
     }
