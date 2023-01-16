@@ -104,19 +104,7 @@ impl AuthField {
         &self,
         w: &mut W,
     ) -> std::io::Result<()> {
-        // FIXME Adapt to sync method
-        match self.0.len() {
-            l if l <= 250_usize => w.write_u8(l as u8).await?, // B1: length of value
-            l if l <= 65_535_usize => {
-                w.write_u8(255).await?; // B1: 247
-                w.write_u16(l as u16).await?; // U2: length of value
-            }
-            l => {
-                return Err(util::io_error(format!(
-                    "Value of AuthField is too big: {l}",
-                )));
-            }
-        }
+        length_indicator::async_emit(self.0.len(), w).await?;
         w.write_all(&self.0).await?; // B (varying) value
         Ok(())
     }

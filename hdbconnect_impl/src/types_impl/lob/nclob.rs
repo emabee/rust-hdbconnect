@@ -533,19 +533,16 @@ impl std::io::Read for NCLobHandle {
     }
 }
 
-// FIXME: error type should be HdbError
 #[cfg(feature = "async")]
 impl NCLobHandle {
-    async fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+    async fn read(&mut self, buf: &mut [u8]) -> HdbResult<usize> {
         let mut buf = ReadBuf::new(buf);
         let buf_len = buf.capacity();
         debug_assert!(buf.filled().is_empty());
         trace!("read() with buf of len {}", buf_len);
 
         while !self.is_data_complete && (buf_len > self.cesu8.len() - self.cesu8_tail_len) {
-            self.async_fetch_next_chunk()
-                .await
-                .map_err(|e| util::io_error(e.to_string()))?;
+            self.async_fetch_next_chunk().await?;
         }
 
         // we want to write only clean UTF-8 into buf, so we cut off at good places only;
@@ -557,7 +554,7 @@ impl NCLobHandle {
             cesu8_buf.len() - util::get_cesu8_tail_len(&cesu8_buf, cesu8_buf.len())?;
 
         // convert the valid part to utf-8 and push the tail back
-        let utf8 = cesu8::from_cesu8(&cesu8_buf[0..cut_off_position]).map_err(util::io_error)?;
+        let utf8 = cesu8::from_cesu8(&cesu8_buf[0..cut_off_position])?;
         for i in (cut_off_position..cesu8_buf.len()).rev() {
             self.cesu8.push_front(cesu8_buf[i]);
         }

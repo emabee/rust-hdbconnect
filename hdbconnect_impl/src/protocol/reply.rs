@@ -17,6 +17,9 @@ use crate::{HdbError, HdbResult};
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::sync::Arc;
 
+#[cfg(feature = "async")]
+use tokio::net::tcp::OwnedReadHalf;
+
 // Since there is obviously no usecase for multiple segments in one request,
 // we model message and segment together.
 // But we differentiate explicitly between request messages and reply messages.
@@ -84,7 +87,7 @@ impl Reply {
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
         o_rs: &mut Option<&mut RsState>,
         o_am_conn_core: Option<&AsyncAmConnCore>,
-        am_rdr: Arc<tokio::sync::Mutex<tokio::io::BufReader<tokio::net::TcpStream>>>,
+        am_rdr: Arc<tokio::sync::Mutex<tokio::io::BufReader<OwnedReadHalf>>>,
     ) -> std::io::Result<Self> {
         trace!("Reply::parse()");
         let mut reader = am_rdr.lock().await;

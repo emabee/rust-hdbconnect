@@ -394,14 +394,19 @@ impl Drop for ResultSetCore {
         if !self.attributes.resultset_is_closed() {
             let mut request = Request::new(RequestType::CloseResultSet, 0);
             request.push(Part::ResultSetId(rs_id));
+
             #[cfg(feature = "sync")]
             if let Ok(mut reply) = self.am_conn_core.send(request) {
                 reply.parts.pop_if_kind(PartKind::StatementContext);
             }
-            // #[cfg(feature = "async")] FIXME
-            // if let Ok(mut reply) = self.am_conn_core.send_sync(request) {
-            //     reply.parts.pop_if_kind(PartKind::StatementContext);
-            // }
+
+            #[cfg(feature = "async")]
+            let mut am_conn_core = self.am_conn_core.clone();
+            tokio::task::spawn(async move {
+                if let Ok(mut reply) = am_conn_core.send(request).await {
+                    reply.parts.pop_if_kind(PartKind::StatementContext);
+                }
+            });
         }
     }
 }

@@ -10,7 +10,7 @@ use std::sync::Arc;
 #[cfg(feature = "async")]
 use tokio::{
     io::{AsyncWriteExt, BufWriter},
-    net::TcpStream,
+    net::tcp::OwnedWriteHalf,
     sync::Mutex,
 };
 
@@ -118,7 +118,7 @@ impl<'a> Request<'a> {
         seq_number: i32,
         auto_commit: bool,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
-        am_w: Arc<Mutex<BufWriter<TcpStream>>>,
+        am_w: Arc<Mutex<BufWriter<OwnedWriteHalf>>>,
     ) -> std::io::Result<()> {
         let varpart_size = self.varpart_size(o_a_descriptors)?;
         let total_size = MESSAGE_HEADER_SIZE + varpart_size;

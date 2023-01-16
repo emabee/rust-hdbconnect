@@ -162,10 +162,6 @@ async fn test_clobs(
     let fingerprint4 = hasher.finalize().to_vec();
     assert_eq!(fingerprint, fingerprint4.as_slice());
 
-    // debug!("clob.max_buf_len(): {}", clob.max_buf_len());
-    // // std::io::copy works with 8MB, our buffer remains at about 200_000:
-    // assert!(clob.max_buf_len() < 210_000);
-
     info!("read from somewhere within");
     let mut clob: CLob = connection
         .query("select chardata from TEST_CLOBS")
@@ -227,12 +223,6 @@ async fn test_streaming(
     hasher.update(&buffer);
     let fingerprint4 = hasher.finalize().to_vec();
     assert_eq!(fingerprint, fingerprint4.as_slice());
-    // FIXME
-    // assert!(
-    //     clob.max_buf_len() < 210_000,
-    //     "clob.max_buf_len() too big: {}",
-    //     clob.max_buf_len()
-    // );
 
     connection.set_auto_commit(true).await?;
     Ok(())

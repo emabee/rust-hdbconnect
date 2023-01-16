@@ -294,7 +294,6 @@ impl DbValueInto<Vec<u8>> for HdbValue<'static> {
     fn try_into(self) -> Result<Vec<u8>, ConversionError> {
         match self {
             HdbValue::BLOB(blob) => Ok(blob
-                // FIXME use async trait to always produce a valid result!!!
                 .into_bytes_if_complete()
                 .map_err(|e| ConversionError::Incomplete(e.to_string()))?),
 

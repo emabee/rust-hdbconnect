@@ -164,7 +164,6 @@ fn test_streaming(
 
     debug!("read big nclob in streaming fashion");
     // Note: Connection.set_lob_read_length() affects NCLobs in chars (1, 2, or 3 bytes),
-    //       while NCLob::max_buf_len() (see below) is in bytes
     connection.set_lob_read_length(200_000)?;
 
     let mut nclob = connection
@@ -201,7 +200,9 @@ fn test_bytes_to_nclobs(
     _log_handle: &mut flexi_logger::LoggerHandle,
     connection: &mut Connection,
 ) -> HdbResult<()> {
-    _log_handle.parse_and_push_temp_spec("info, test=trace");
+    _log_handle
+        .parse_and_push_temp_spec("info, test=trace")
+        .unwrap();
     info!("create a NCLOB from bytes in the database, and read it back into a String");
 
     connection.multiple_statements_ignore_err(vec!["drop table TEST_NCLOBS_BYTES"]);

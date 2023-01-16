@@ -207,17 +207,6 @@ impl BLob {
         self.total_byte_length() == 0
     }
 
-    /// Returns the maximum size the internal buffers ever had, in bytes.
-    ///
-    /// This method exists mainly for debugging purposes. With streaming, the returned value is
-    /// not supposed to exceed `lob_read_length` (see
-    /// [`Connection::set_lob_read_length`](crate::Connection::set_lob_read_length))
-    /// plus the buffer size used by the reader.
-    // FIXME get rid of this
-    pub fn max_buf_len(&self) -> usize {
-        self.0.max_buf_len()
-    }
-
     /// Current size of the internal buffer, in bytes.
     pub fn cur_buf_len(&self) -> usize {
         self.0.cur_buf_len()
@@ -253,7 +242,6 @@ struct BLobHandle {
     total_byte_length: u64,
     locator_id: u64,
     data: VecDeque<u8>,
-    max_buf_len: usize,
     acc_byte_length: usize,
     server_usage: ServerUsage,
 }
@@ -274,7 +262,6 @@ impl BLobHandle {
             total_byte_length,
             is_data_complete,
             locator_id,
-            max_buf_len: data.len(),
             acc_byte_length: data.len(),
             data,
             server_usage: ServerUsage::default(),
@@ -342,8 +329,6 @@ impl BLobHandle {
             self.is_data_complete = true;
             self.o_am_rscore = None;
         }
-        self.max_buf_len = std::cmp::max(self.data.len(), self.max_buf_len);
-
         assert_eq!(
             self.is_data_complete,
             self.total_byte_length == self.acc_byte_length as u64
@@ -383,7 +368,6 @@ impl BLobHandle {
             self.is_data_complete = true;
             self.o_am_rscore = None;
         }
-        self.max_buf_len = std::cmp::max(self.data.len(), self.max_buf_len);
 
         assert_eq!(
             self.is_data_complete,
@@ -413,10 +397,6 @@ impl BLobHandle {
             self.async_fetch_next_chunk().await?;
         }
         Ok(())
-    }
-
-    fn max_buf_len(&self) -> usize {
-        self.max_buf_len
     }
 
     // Converts a BLobHandle into a Vec<u8> containing its data.

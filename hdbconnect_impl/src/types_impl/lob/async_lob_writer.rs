@@ -53,7 +53,7 @@ where
                 utf8_tail.clear();
             }
 
-            assert!(utf8_tail.is_empty());
+            debug_assert!(utf8_tail.is_empty());
             trace!("reading data");
             while len < lob_write_length && !read_done {
                 let read = reader.read(&mut buf[len..]).await?;

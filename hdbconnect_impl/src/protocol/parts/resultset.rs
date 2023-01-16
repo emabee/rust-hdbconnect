@@ -597,7 +597,6 @@ impl ResultSet {
 
 impl std::fmt::Display for ResultSet {
     // Writes a header and then the data
-    // FIXME #[allow(clippy::significant_drop_in_scrutinee)]
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         writeln!(fmt, "{}\n", &self.metadata)?;
 

@@ -174,7 +174,6 @@ async fn test_streaming(
 
     debug!("read big nclob in streaming fashion");
     // Note: Connection.set_lob_read_length() affects NCLobs in chars (1, 2, or 3 bytes),
-    //       while NCLob::max_buf_len() (see below) is in bytes
     connection.set_lob_read_length(200_000).await?;
 
     let nclob = connection
@@ -204,11 +203,6 @@ async fn test_streaming(
     hasher.update(&buffer);
     let fingerprint4 = hasher.finalize().to_vec();
     assert_eq!(fingerprint, fingerprint4.as_slice());
-    // assert!(
-    //     nclob.max_buf_len() < 605_000,
-    //     "nclob.max_buf_len() too big: {}",
-    //     nclob.max_buf_len()
-    // );
 
     connection.set_auto_commit(true).await?;
     Ok(())

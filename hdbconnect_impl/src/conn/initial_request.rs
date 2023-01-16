@@ -4,7 +4,7 @@ use {
     std::sync::Arc,
     tokio::{
         io::{AsyncWriteExt, BufWriter},
-        net::TcpStream,
+        net::tcp::OwnedWriteHalf,
     },
 };
 
@@ -77,7 +77,7 @@ fn sync_emit_initial_request(w: &mut dyn std::io::Write) -> std::io::Result<()> 
 
 #[cfg(feature = "async")]
 async fn async_emit_initial_request(
-    am_w: Arc<tokio::sync::Mutex<BufWriter<TcpStream>>>,
+    am_w: Arc<tokio::sync::Mutex<BufWriter<OwnedWriteHalf>>>,
 ) -> std::io::Result<()> {
     let mut writer = am_w.lock().await;
     let w = &mut *writer;

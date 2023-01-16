@@ -57,7 +57,6 @@ impl Rows {
                     HdbValue::BLOB(ref mut blob) => blob.async_load_complete().await?,
                     HdbValue::CLOB(ref mut clob) => clob.async_load_complete().await?,
                     HdbValue::NCLOB(ref mut nclob) => nclob.async_load_complete().await?,
-
                     _ => {}
                 }
             }

@@ -137,10 +137,6 @@ fn test_blobs(
     let fingerprint4 = hasher.finalize().to_vec();
     assert_eq!(fingerprint, fingerprint4.as_slice());
 
-    debug!("blob.max_buf_len(): {}", blob.max_buf_len());
-    // std::io::copy works with 8MB, our buffer remains at about 200_000:
-    assert!(blob.max_buf_len() < 510_000);
-
     info!("read from somewhere within");
     let mut blob: BLob = connection
         .query("select bindata from TEST_BLOBS")?
@@ -206,11 +202,6 @@ fn test_streaming(
     hasher.update(&buffer);
     let fingerprint4 = hasher.finalize().to_vec();
     assert_eq!(fingerprint, fingerprint4.as_slice());
-    assert!(
-        blob.max_buf_len() < 210_000,
-        "blob.max_buf_len() too big: {}",
-        blob.max_buf_len()
-    );
 
     connection.set_auto_commit(true)?;
     Ok(())

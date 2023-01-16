@@ -22,7 +22,6 @@ impl Deref for ResultSetMetadata {
 }
 impl std::fmt::Display for ResultSetMetadata {
     // Writes a header and then the data
-    #[allow(clippy::significant_drop_in_scrutinee)]
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         writeln!(fmt)?;
         for field_metadata in &self.0 {

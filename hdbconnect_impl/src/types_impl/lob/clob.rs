@@ -486,7 +486,6 @@ impl std::io::Read for CLobHandle {
     }
 }
 
-// FIXME: error type should be HdbError
 #[cfg(feature = "async")]
 impl CLobHandle {
     async fn read(&mut self, buf: &mut [u8]) -> HdbResult<usize> {
