@@ -2,17 +2,17 @@ use crate::{protocol::util, ConnectParams, HdbError};
 use rustls::{ClientConnection, ServerName};
 use std::sync::{Arc, Mutex};
 
-pub(crate) struct TlsSyncTcpClient {
+pub(crate) struct SyncTlsTcpClient {
     params: ConnectParams,
     reader: Stream,
     writer: std::io::BufWriter<Stream>,
 }
-impl std::fmt::Debug for TlsSyncTcpClient {
+impl std::fmt::Debug for SyncTlsTcpClient {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
         write!(f, "TlsTcpClient {{params: {:?}, ... }}", &self.params)
     }
 }
-impl TlsSyncTcpClient {
+impl SyncTlsTcpClient {
     pub fn try_new(params: ConnectParams) -> std::io::Result<Self> {
         let stream = Stream::try_new(&params)?;
         Ok(Self {

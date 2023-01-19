@@ -475,7 +475,8 @@ impl Connection {
 
     /// Returns an implementation of `dist_tx_async::rm::ResourceManager` that is
     /// based on this connection.
-    pub async fn get_resource_manager(&self) -> Box<dyn ResourceManager> {
+    #[must_use]
+    pub fn get_resource_manager(&self) -> Box<dyn ResourceManager> {
         Box::new(async_new_resource_manager(self.am_conn_core.clone()))
     }
 

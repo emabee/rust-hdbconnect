@@ -1,18 +1,14 @@
 //! Since there is obviously no usecase for multiple segments in one request,
 //! we model message and segment together.
 //! But we differentiate explicitly between request messages and reply messages.
-use crate::protocol::parts::{ParameterDescriptors, Parts, StatementContext};
-use crate::protocol::{Part, RequestType};
 #[cfg(feature = "sync")]
 use byteorder::{LittleEndian, WriteBytesExt};
-use std::sync::Arc;
 
-#[cfg(feature = "async")]
-use tokio::{
-    io::{AsyncWriteExt, BufWriter},
-    net::tcp::OwnedWriteHalf,
-    sync::Mutex,
+use crate::protocol::{
+    parts::{ParameterDescriptors, Parts, StatementContext},
+    Part, RequestType,
 };
+use std::sync::Arc;
 
 const MESSAGE_HEADER_SIZE: u32 = 32;
 const SEGMENT_HEADER_SIZE: usize = 24; // same for in and out
@@ -112,13 +108,13 @@ impl<'a> Request<'a> {
     #[cfg(feature = "async")]
     #[allow(clippy::cast_possible_truncation)]
     #[allow(clippy::cast_possible_wrap)]
-    pub async fn async_emit(
+    pub async fn async_emit<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
         &self,
         session_id: i64,
         seq_number: i32,
         auto_commit: bool,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
-        am_w: Arc<Mutex<BufWriter<OwnedWriteHalf>>>,
+        w: &mut W,
     ) -> std::io::Result<()> {
         let varpart_size = self.varpart_size(o_a_descriptors)?;
         let total_size = MESSAGE_HEADER_SIZE + varpart_size;
@@ -130,8 +126,6 @@ impl<'a> Request<'a> {
             self.request_type, session_id, seq_number
         );
 
-        let mut writer = am_w.lock().await;
-        let w = &mut *writer;
         // MESSAGE HEADER
         w.write_i64_le(session_id).await?; // I8 <LittleEndian>
         w.write_i32_le(seq_number).await?; // I4

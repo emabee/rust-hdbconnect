@@ -49,6 +49,7 @@ sha2 = "0.10.0"
 thiserror = "1.0"
 time = {version = "0.3", features = ["formatting", "macros", "parsing", "serde"]}
 tokio = {optional = true, version = "1.23", features = ["io-util", "net", "rt", "sync"]}
+tokio-rustls = "0.23"
 url = "2.1"
 username = "0.2"
 vec_map = "0.8"

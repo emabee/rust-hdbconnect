@@ -1,24 +1,22 @@
 #[cfg(feature = "async")]
-use crate::conn::AsyncAmConnCore;
-use crate::conn::ConnectionCore;
+use crate::{conn::AsyncAmConnCore, protocol::util_async};
+
 #[cfg(feature = "sync")]
-use crate::conn::SyncAmConnCore;
-use crate::hdb_response::InternalReturnValue;
-use crate::protocol::parts::{
-    ExecutionResult, ParameterDescriptors, Parts, ResultSetMetadata, RsState, ServerError, Severity,
-};
-#[cfg(feature = "async")]
-use crate::protocol::util_async;
-#[cfg(feature = "sync")]
-use crate::protocol::util_sync;
-use crate::protocol::{util, Part, PartKind, ReplyType, ServerUsage};
-use crate::{HdbError, HdbResult};
+use crate::{conn::SyncAmConnCore, protocol::util_sync};
 #[cfg(feature = "sync")]
 use byteorder::{LittleEndian, ReadBytesExt};
-use std::sync::Arc;
 
-#[cfg(feature = "async")]
-use tokio::net::tcp::OwnedReadHalf;
+use crate::{
+    conn::ConnectionCore,
+    hdb_response::InternalReturnValue,
+    protocol::parts::{
+        ExecutionResult, ParameterDescriptors, Parts, ResultSetMetadata, RsState, ServerError,
+        Severity,
+    },
+    protocol::{util, Part, PartKind, ReplyType, ServerUsage},
+    HdbError, HdbResult,
+};
+use std::sync::Arc;
 
 // Since there is obviously no usecase for multiple segments in one request,
 // we model message and segment together.
@@ -82,16 +80,15 @@ impl Reply {
     //    prepared statements
     // * `ResultSet` needs to be injected (and is extended and returned)
     //    in case of fetch requests
-    pub async fn parse_async(
+    pub async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
         o_rs: &mut Option<&mut RsState>,
         o_am_conn_core: Option<&AsyncAmConnCore>,
-        am_rdr: Arc<tokio::sync::Mutex<tokio::io::BufReader<OwnedReadHalf>>>,
+        rdr: &mut R,
     ) -> std::io::Result<Self> {
         trace!("Reply::parse()");
-        let mut reader = am_rdr.lock().await;
-        let (no_of_parts, mut reply) = parse_msg_and_seq_header_async(&mut *reader).await?;
+        let (no_of_parts, mut reply) = parse_msg_and_seq_header_async(rdr).await?;
 
         for i in 0..no_of_parts {
             let part = Part::parse_async(
@@ -101,7 +98,7 @@ impl Reply {
                 o_a_descriptors,
                 o_rs,
                 i == no_of_parts - 1,
-                &mut *reader,
+                rdr,
             )
             .await?;
             reply.push(part);

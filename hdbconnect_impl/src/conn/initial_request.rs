@@ -1,12 +1,5 @@
 #[cfg(feature = "async")]
-use {
-    crate::{conn::AsyncTcpClient, protocol::util_async},
-    std::sync::Arc,
-    tokio::{
-        io::{AsyncWriteExt, BufWriter},
-        net::tcp::OwnedWriteHalf,
-    },
-};
+use crate::{conn::AsyncTcpClient, protocol::util_async};
 
 #[cfg(feature = "sync")]
 use crate::{conn::SyncTcpClient, protocol::util_sync};
@@ -20,20 +13,20 @@ pub(crate) fn sync_send_and_receive(
 ) -> std::io::Result<()> {
     trace!("send_and_receive(): send");
     match sync_tcp_connection {
-        SyncTcpClient::PlainSync(ref mut pc) => {
+        SyncTcpClient::Plain(ref mut pc) => {
             sync_emit_initial_request(pc.writer())?;
         }
-        SyncTcpClient::TlsSync(ref mut tc) => {
+        SyncTcpClient::Tls(ref mut tc) => {
             sync_emit_initial_request(tc.writer())?;
         }
     }
 
     trace!("send_and_receive(): receive");
     match sync_tcp_connection {
-        SyncTcpClient::PlainSync(ref mut pc) => {
+        SyncTcpClient::Plain(ref mut pc) => {
             util_sync::skip_bytes(8, pc.reader()) // ignore the response content
         }
-        SyncTcpClient::TlsSync(ref mut tc) => {
+        SyncTcpClient::Tls(ref mut tc) => {
             util_sync::skip_bytes(8, tc.reader()) // ignore the response content
         }
     }
@@ -51,20 +44,19 @@ pub(crate) async fn async_send_and_receive(
 ) -> std::io::Result<()> {
     trace!("send_and_receive(): send");
     match async_tcp_client {
-        AsyncTcpClient::Plain(pc) => {
-            async_emit_initial_request(pc.writer()).await?;
-        }
-    }
+        AsyncTcpClient::Plain(ref mut pa) => async_emit_initial_request(pa.writer()).await,
+        AsyncTcpClient::Tls(ref mut ta) => async_emit_initial_request(ta.writer()).await,
+        AsyncTcpClient::Dead => unreachable!(),
+    }?;
 
     trace!("send_and_receive(): receive");
+    // ignore the response content
     match async_tcp_client {
-        AsyncTcpClient::Plain(tc) => {
-            let am_rdr = tc.reader();
-            let mut reader = am_rdr.lock().await;
+        AsyncTcpClient::Plain(tc) => util_async::skip_bytes(8, tc.reader()).await,
+        AsyncTcpClient::Tls(ta) => util_async::skip_bytes(8, ta.reader()).await,
+        AsyncTcpClient::Dead => unreachable!(),
+    }?;
 
-            util_async::skip_bytes(8, &mut *reader).await?; // ignore the response content
-        }
-    }
     debug!("Successfully initialized");
     Ok(())
 }
@@ -76,14 +68,11 @@ fn sync_emit_initial_request(w: &mut dyn std::io::Write) -> std::io::Result<()> 
 }
 
 #[cfg(feature = "async")]
-async fn async_emit_initial_request(
-    am_w: Arc<tokio::sync::Mutex<BufWriter<OwnedWriteHalf>>>,
+async fn async_emit_initial_request<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
+    w: &mut W,
 ) -> std::io::Result<()> {
-    let mut writer = am_w.lock().await;
-    let w = &mut *writer;
     w.write_all(initial_request()).await?;
-    w.flush().await?;
-    Ok(())
+    w.flush().await
 }
 
 fn initial_request() -> &'static [u8] {

@@ -2,13 +2,13 @@ use crate::ConnectParams;
 use std::net::TcpStream;
 
 #[derive(Debug)]
-pub struct PlainSyncTcpClient {
+pub struct SyncPlainTcpClient {
     params: ConnectParams,
     reader: std::io::BufReader<TcpStream>,
     writer: std::io::BufWriter<TcpStream>,
 }
 
-impl PlainSyncTcpClient {
+impl SyncPlainTcpClient {
     // Returns an initialized plain tcp connection
     pub fn try_new(params: ConnectParams) -> std::io::Result<Self> {
         let tcpstream = TcpStream::connect(params.addr())?;

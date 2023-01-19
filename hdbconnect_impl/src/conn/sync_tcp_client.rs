@@ -3,16 +3,16 @@ mod sync_tls_tcp_client;
 
 use crate::ConnectParams;
 use std::time::Instant;
-use sync_plain_tcp_client::PlainSyncTcpClient;
-use sync_tls_tcp_client::TlsSyncTcpClient;
+use sync_plain_tcp_client::SyncPlainTcpClient;
+use sync_tls_tcp_client::SyncTlsTcpClient;
 
 // A buffered tcp connection, with or without TLS.
 #[derive(Debug)]
 pub(crate) enum SyncTcpClient {
     // A buffered blocking tcp connection without TLS.
-    PlainSync(PlainSyncTcpClient),
+    Plain(SyncPlainTcpClient),
     // A buffered blocking tcp connection with TLS.
-    TlsSync(TlsSyncTcpClient),
+    Tls(SyncTlsTcpClient),
 }
 impl SyncTcpClient {
     // Constructs a buffered tcp connection, with or without TLS,
@@ -22,9 +22,9 @@ impl SyncTcpClient {
         trace!("TcpClient: Connecting to {:?})", params.addr());
 
         let tcp_conn = if params.is_tls() {
-            Self::TlsSync(TlsSyncTcpClient::try_new(params)?)
+            Self::Tls(SyncTlsTcpClient::try_new(params)?)
         } else {
-            Self::PlainSync(PlainSyncTcpClient::try_new(params)?)
+            Self::Plain(SyncPlainTcpClient::try_new(params)?)
         };
 
         trace!(
@@ -38,15 +38,15 @@ impl SyncTcpClient {
     // Returns a descriptor of the chosen type
     pub fn s_type(&self) -> &'static str {
         match self {
-            Self::PlainSync(_) => "Plain Sync TCP",
-            Self::TlsSync(_) => "TLS Sync TCP",
+            Self::Plain(_) => "Plain Sync TCP",
+            Self::Tls(_) => "TLS Sync TCP",
         }
     }
 
     pub fn connect_params(&self) -> &ConnectParams {
         match self {
-            Self::PlainSync(client) => client.connect_params(),
-            Self::TlsSync(client) => client.connect_params(),
+            Self::Plain(client) => client.connect_params(),
+            Self::Tls(client) => client.connect_params(),
         }
     }
 }

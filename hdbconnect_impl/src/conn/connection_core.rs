@@ -258,14 +258,16 @@ impl<'a> ConnectionCore {
         #[cfg(feature = "sync")]
         {
             result = match self.sync_tcp_conn {
-                SyncTcpClient::PlainSync(ref ps) => ps.connect_params(),
-                SyncTcpClient::TlsSync(ref ts) => ts.connect_params(),
+                SyncTcpClient::Plain(ref cl) => cl.connect_params(),
+                SyncTcpClient::Tls(ref cl) => cl.connect_params(),
             };
         }
         #[cfg(feature = "async")]
         {
             result = match self.async_tcp_conn {
-                AsyncTcpClient::Plain(ref pa) => pa.connect_params(),
+                AsyncTcpClient::Plain(ref cl) => cl.connect_params(),
+                AsyncTcpClient::Tls(ref cl) => cl.connect_params(),
+                AsyncTcpClient::Dead => unreachable!(),
             };
         }
         result
@@ -459,25 +461,17 @@ impl<'a> ConnectionCore {
             };
         let auto_commit = self.is_auto_commit();
 
-        match self.sync_tcp_conn {
-            SyncTcpClient::PlainSync(ref mut ps) => {
-                request.sync_emit(session_id, nsn, auto_commit, o_a_descriptors, ps.writer())
-            }
-            SyncTcpClient::TlsSync(ref mut ts) => {
-                request.sync_emit(session_id, nsn, auto_commit, o_a_descriptors, ts.writer())
-            }
-        }?;
+        let w: &mut dyn std::io::Write = match self.sync_tcp_conn {
+            SyncTcpClient::Plain(ref mut cl) => cl.writer(),
+            SyncTcpClient::Tls(ref mut cl) => cl.writer(),
+        };
+        request.sync_emit(session_id, nsn, auto_commit, o_a_descriptors, w)?;
 
-        let mut reply = match self.sync_tcp_conn {
-            SyncTcpClient::PlainSync(ref mut ps) => {
-                let reader = ps.reader();
-                Reply::parse_sync(o_a_rsmd, o_a_descriptors, o_rs, o_am_conn_core, reader)
-            }
-            SyncTcpClient::TlsSync(ref mut ts) => {
-                let reader = ts.reader();
-                Reply::parse_sync(o_a_rsmd, o_a_descriptors, o_rs, o_am_conn_core, reader)
-            }
-        }?;
+        let rdr: &mut dyn std::io::Read = match self.sync_tcp_conn {
+            SyncTcpClient::Plain(ref mut cl) => cl.reader(),
+            SyncTcpClient::Tls(ref mut cl) => cl.reader(),
+        };
+        let mut reply = Reply::parse_sync(o_a_rsmd, o_a_descriptors, o_rs, o_am_conn_core, rdr)?;
 
         if default_error_handling {
             reply.handle_db_error(self)?;
@@ -503,20 +497,29 @@ impl<'a> ConnectionCore {
         let auto_commit = self.is_auto_commit();
 
         match self.async_tcp_conn {
-            AsyncTcpClient::Plain(ref mut pa) => {
-                let writer = pa.writer();
-
+            AsyncTcpClient::Plain(ref mut cl) => {
                 request
-                    .async_emit(session_id, nsn, auto_commit, o_a_descriptors, writer)
+                    .async_emit(session_id, nsn, auto_commit, o_a_descriptors, cl.writer())
                     .await
             }
+            AsyncTcpClient::Tls(ref mut cl) => {
+                request
+                    .async_emit(session_id, nsn, auto_commit, o_a_descriptors, cl.writer())
+                    .await
+            }
+            AsyncTcpClient::Dead => unreachable!(),
         }?;
 
         let mut reply = match self.async_tcp_conn {
-            AsyncTcpClient::Plain(ref mut pa) => {
-                Reply::parse_async(o_a_rsmd, o_a_descriptors, o_rs, o_am_conn_core, pa.reader())
+            AsyncTcpClient::Plain(ref mut cl) => {
+                Reply::parse_async(o_a_rsmd, o_a_descriptors, o_rs, o_am_conn_core, cl.reader())
                     .await
             }
+            AsyncTcpClient::Tls(ref mut cl) => {
+                Reply::parse_async(o_a_rsmd, o_a_descriptors, o_rs, o_am_conn_core, cl.reader())
+                    .await
+            }
+            AsyncTcpClient::Dead => unreachable!(),
         }?;
 
         if default_error_handling {
@@ -524,46 +527,55 @@ impl<'a> ConnectionCore {
         }
         Ok(reply)
     }
+}
 
-    fn drop_impl(&mut self) -> std::io::Result<()> {
+impl Drop for ConnectionCore {
+    // try to send a disconnect to the database, ignore all errors
+    fn drop(&mut self) {
         debug!("Drop of ConnectionCore, session_id = {}", self.session_id);
         if self.authenticated {
             let request = Request::new_for_disconnect();
             let session_id = self.session_id();
             let nsn = self.next_seq_number();
             #[cfg(feature = "sync")]
-            match self.sync_tcp_conn {
-                SyncTcpClient::PlainSync(ref mut psc) => {
-                    request.sync_emit(session_id, nsn, false, None, psc.writer())?;
-                }
-                SyncTcpClient::TlsSync(ref mut tsc) => {
-                    request.sync_emit(session_id, nsn, false, None, tsc.writer())?;
-                }
+            {
+                let w: &mut dyn std::io::Write = match self.sync_tcp_conn {
+                    SyncTcpClient::Plain(ref mut cl) => cl.writer() as &mut dyn std::io::Write,
+                    SyncTcpClient::Tls(ref mut cl) => cl.writer() as &mut dyn std::io::Write,
+                };
+                request
+                    .sync_emit(session_id, nsn, false, None, w)
+                    .map_err(|e| {
+                        warn!("Disconnect request failed with {:?}", e);
+                        e
+                    })
+                    .ok();
             }
             #[cfg(feature = "async")]
-            match self.async_tcp_conn {
-                AsyncTcpClient::Plain(ref mut pac) => {
-                    // see https://www.reddit.com/r/rust/comments/vckd9h/async_drop/
-                    let am_w = pac.writer();
-                    tokio::spawn(async move {
-                        request
-                            .async_emit(session_id, nsn, false, None, am_w)
-                            .await
-                            .ok();
-                    });
-                }
-            }
-            trace!("Disconnect: request successfully sent");
-        }
-        Ok(())
-    }
-}
+            {
+                let mut async_tcp_conn = AsyncTcpClient::Dead;
+                std::mem::swap(&mut async_tcp_conn, &mut self.async_tcp_conn);
 
-impl Drop for ConnectionCore {
-    // try to send a disconnect to the database, ignore all errors
-    fn drop(&mut self) {
-        if let Err(e) = self.drop_impl() {
-            warn!("Disconnect request failed with {:?}", e);
+                // see https://www.reddit.com/r/rust/comments/vckd9h/async_drop/
+                tokio::spawn(async move {
+                    match async_tcp_conn {
+                        AsyncTcpClient::Plain(ref mut cl) => {
+                            request
+                                .async_emit(session_id, nsn, false, None, cl.writer())
+                                .await
+                                .ok();
+                        }
+                        AsyncTcpClient::Tls(ref mut cl) => {
+                            request
+                                .async_emit(session_id, nsn, false, None, cl.writer())
+                                .await
+                                .ok();
+                        }
+                        AsyncTcpClient::Dead => unreachable!(),
+                    }
+                    trace!("Disconnect: request successfully sent");
+                });
+            }
         }
     }
 }

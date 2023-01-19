@@ -9,7 +9,8 @@ use hdbconnect_impl::protocol::{
 };
 use hdbconnect_impl::types_impl::lob::async_lob_writer;
 use hdbconnect_impl::{HdbError, HdbResponse, HdbResult};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 /// Allows injection-safe SQL execution and repeated calls of the same statement
 /// with different parameters with as few roundtrips as possible.
@@ -187,7 +188,7 @@ impl<'a> PreparedStatement {
         hdb_values: Vec<HdbValue<'a>>,
     ) -> HdbResult<HdbResponse> {
         if self.a_descriptors.has_in() {
-            let mut ps_core_guard = self.am_ps_core.lock()?;
+            let mut ps_core_guard = self.am_ps_core.lock().await;
 
             let mut request = Request::new(RequestType::Execute, HOLD_CURSORS_OVER_COMMIT);
 
@@ -244,7 +245,7 @@ impl<'a> PreparedStatement {
             let (mut internal_return_values, replytype) = (
                 main_reply
                     .parts
-                    .async_into_internal_return_values(&mut ps_core_guard.am_conn_core, None)
+                    .async_into_internal_return_values(&ps_core_guard.am_conn_core, None)
                     .await?,
                 main_reply.replytype,
             );
@@ -348,6 +349,7 @@ impl<'a> PreparedStatement {
     }
 
     /// Descriptors of all parameters of the prepared statement (in, out, inout).
+    #[must_use]
     pub fn parameter_descriptors(&self) -> Arc<ParameterDescriptors> {
         Arc::clone(&self.a_descriptors)
     }
@@ -358,7 +360,7 @@ impl<'a> PreparedStatement {
     ) -> HdbResult<HdbResponse> {
         trace!("PreparedStatement::execute_parameter_rows()");
 
-        let mut ps_core_guard = self.am_ps_core.lock()?;
+        let mut ps_core_guard = self.am_ps_core.lock().await;
         let mut request = Request::new(RequestType::Execute, HOLD_CURSORS_OVER_COMMIT);
         request.push(Part::StatementId(ps_core_guard.statement_id));
         if let Some(rows) = o_rows {
@@ -389,6 +391,7 @@ impl<'a> PreparedStatement {
 
     /// Provides information about the the server-side resource consumption that
     /// is related to this `PreparedStatement` object.
+    #[must_use]
     pub fn server_usage(&self) -> ServerUsage {
         self.server_usage
     }
@@ -407,7 +410,7 @@ impl<'a> PreparedStatement {
         let mut o_a_rsmd: Option<Arc<ResultSetMetadata>> = None;
         let mut server_usage = ServerUsage::default();
 
-        for part in reply.parts.into_iter() {
+        for part in reply.parts {
             match part {
                 Part::ParameterMetadata(descriptors) => {
                     a_descriptors = Arc::new(descriptors);
