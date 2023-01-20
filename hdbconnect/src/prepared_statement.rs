@@ -266,8 +266,12 @@ impl<'a> PreparedStatement {
                             self.o_a_rsmd.as_ref(),
                             Some(&self.a_descriptors),
                         )?;
-                        std::io::copy(&mut *reader, &mut writer).map_err(HdbError::LobStreaming)?;
-                        writer.flush().map_err(HdbError::LobStreaming)?;
+                        std::io::copy(&mut *reader, &mut writer).map_err(|e| {
+                            std::io::Error::new(std::io::ErrorKind::Other, e.to_string())
+                        })?;
+                        writer.flush().map_err(|e| {
+                            std::io::Error::new(std::io::ErrorKind::Other, e.to_string())
+                        })?;
                         if let Some(mut irvs) = writer.into_internal_return_values() {
                             internal_return_values.append(&mut irvs);
                         }

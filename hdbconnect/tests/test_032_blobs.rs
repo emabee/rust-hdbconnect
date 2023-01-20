@@ -3,8 +3,7 @@ extern crate serde;
 mod test_utils;
 
 use flexi_logger::LoggerHandle;
-use hdbconnect::types::BLob;
-use hdbconnect::{Connection, HdbError, HdbResult, HdbValue};
+use hdbconnect::{types::BLob, Connection, HdbResult, HdbValue};
 use log::{debug, info};
 use rand::{thread_rng, RngCore};
 use serde::{Deserialize, Serialize};
@@ -120,16 +119,16 @@ fn test_blobs(
     let query = "select bindata as BL1, bindata as BL2, bindata_NN as BL3 from TEST_BLOBS";
     let mut row = connection.query(query)?.into_single_row()?;
     let mut blob: BLob = row.next_value().unwrap().try_into_blob()?;
-    let mut blob2: BLob = row.next_value().unwrap().try_into_blob()?;
+    let blob2: BLob = row.next_value().unwrap().try_into_blob()?;
 
     let mut streamed = Vec::<u8>::new();
-    std::io::copy(&mut blob2, &mut streamed).map_err(HdbError::LobStreaming)?;
+    blob2.write_into(&mut streamed).unwrap();
     assert_eq!(random_bytes.len(), streamed.len());
     let mut hasher = Sha256::default();
     hasher.update(&streamed);
 
     let mut streamed = Vec::<u8>::new();
-    std::io::copy(&mut blob, &mut streamed).map_err(HdbError::LobStreaming)?;
+    std::io::copy(&mut blob, &mut streamed).unwrap();
 
     assert_eq!(random_bytes.len(), streamed.len());
     let mut hasher = Sha256::default();
@@ -189,13 +188,13 @@ fn test_streaming(
     debug!("read big blob in streaming fashion");
     connection.set_lob_read_length(200_000)?;
 
-    let mut blob = connection
+    let blob = connection
         .query("select bindata_NN from TEST_BLOBS where desc = 'streaming2'")?
         .into_single_row()?
         .into_single_value()?
         .try_into_blob()?;
     let mut buffer = Vec::<u8>::new();
-    std::io::copy(&mut blob, &mut buffer).map_err(HdbError::LobStreaming)?;
+    blob.write_into(&mut buffer).unwrap();
 
     assert_eq!(random_bytes.len(), buffer.len());
     let mut hasher = Sha256::default();

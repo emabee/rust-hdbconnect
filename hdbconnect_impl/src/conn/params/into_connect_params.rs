@@ -1,4 +1,4 @@
-use crate::{ConnectParams, ConnectParamsBuilder, HdbError, HdbResult};
+use crate::{ConnectParams, ConnectParamsBuilder, HdbError, HdbResult, IntoConnectParamsBuilder};
 use url::Url;
 
 /// A trait implemented by types that can be converted into a `ConnectParams`.
@@ -51,7 +51,7 @@ impl IntoConnectParams for String {
 
 impl IntoConnectParams for Url {
     fn into_connect_params(self) -> HdbResult<ConnectParams> {
-        let builder = crate::IntoConnectParamsBuilder::into_connect_params_builder(self)?;
+        let builder = IntoConnectParamsBuilder::into_connect_params_builder(self)?;
         builder.build()
     }
 }

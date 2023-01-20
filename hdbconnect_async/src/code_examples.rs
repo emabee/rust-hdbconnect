@@ -2,19 +2,21 @@
 //!
 //! # 1. Database connections
 //!
-//! Establish an authenticated connection to the database server
-//! (see also [`ConnectParams`]):
+//! Establish authenticated connections to the database server.
+//! See [`ConnectParams`], [`ConnectParamsBuilder`](crate::ConnectParamsBuilder),
+//! and [`url`](crate::url) for a full description of the possibilities.
 //!
-//! FIXME Use https
 //! ```rust,no_run
 //! use hdbconnect_async::{Connection, IntoConnectParams};
 //! # use hdbconnect_async::HdbResult;
 //! # async fn foo() -> HdbResult<()> {
-//! // connect directly to a database:
+//! // connect without TLS to a database:
 //! let mut connection1 = Connection::new("hdbsql://my_user:my_passwd@the_host:30815").await?;
 //!
-//! // connect to the port of the system db and let the db redirect to the correct host and port:
-//! let mut connection2 = Connection::new("hdbsql://my_user:my_passwd@the_host:30813?db=MEI").await?;
+//! // connect with TLS to the port of the system db and get redirected to the specified database:
+//! let mut connection2 = Connection::new(
+//!     "hdbsqls://my_user:my_passwd@the_host:30813?db=MEI&insecure_omit_server_certificate_check"
+//! ).await?;
 //! # Ok(())
 //! # }
 //! ```
@@ -90,7 +92,6 @@
 //! and the serialized field structure must be convertible into the expected parameter value types.
 //!
 //! Using a prepared statement could look like this:
-//! FIXME remove "extern crate"
 //! ```rust,no_run
 //! # #[macro_use] extern crate serde;
 //! # use serde::Serialize;
@@ -105,7 +106,9 @@
 //! let v1 = Values{s: "foo", i:45};
 //! let v2 = Values{s: "bar", i:46};
 //!
-//! let mut stmt = connection.prepare("insert into COUNTERS (S_KEY, I_VALUE) values(?, ?)").await?;
+//! let mut stmt = connection
+//!     .prepare("insert into COUNTERS (S_KEY, I_VALUE) values(?, ?)")
+//!     .await?;
 //! stmt.add_batch(&v1)?;
 //! stmt.add_batch(&v2)?;
 //! stmt.execute_batch().await?;
@@ -119,7 +122,9 @@
 //! # use hdbconnect_async::{Connection, HdbResult, ResultSet, IntoConnectParams};
 //! # async fn foo() -> HdbResult<()> {
 //! # let mut connection = Connection::new("...").await?;
-//! let mut stmt = connection.prepare("select NAME, CITY from PEOPLE where iq > ? and age > ?").await?;
+//! let mut stmt = connection
+//!     .prepare("select NAME, CITY from PEOPLE where iq > ? and age > ?")
+//!     .await?;
 //! stmt.add_batch(&(100_u8, 45_i32))?;
 //! let resultset: ResultSet = stmt.execute_batch().await?.into_resultset()?;
 //! # Ok(())
@@ -135,9 +140,7 @@
 //!
 //! # 3.1 Iterating over rows
 //!
-//! Evaluating a result set by iterating over the rows explicitly is possible, of course.
-//! Note that the row iterator returns `HdbResult<Row>`, not `Row`,
-//! because the result set might need to fetch more rows lazily from the database, which can fail.
+//! Evaluate a result set by iterating over the rows explicitly.
 //!
 //! ```rust,no_run
 //! # use hdbconnect_async::{Connection, HdbResult, IntoConnectParams};
@@ -145,7 +148,7 @@
 //! # let mut connection = Connection::new("...").await?;
 //! # let qry = "";
 //! # let resultset = connection.query(qry).await?;
-//! for row in resultset.into_rows().await? {
+//! while let Some(row) = resultset.next_row().await? {
 //!     println!("First field: {:?}", row[0]);
 //! }
 //! # Ok(())
@@ -153,13 +156,6 @@
 //! ```
 //!
 //! Such a streaming-like behavior is especially appropriate for large result sets.
-//! Iterating over the rows, while they are fetched on-demand from the server in smaller portions,
-//! makes it easy to write complex evaluations in an efficient and scalable manner.
-//!
-//! FIXME
-//! ```ignore
-//! let key_figure = resultset.map(|r|{r.unwrap()}).map(...).fold(...).collect(...);
-//! ```
 //!
 //! # 3.2 Explicitly evaluating a single row
 //!

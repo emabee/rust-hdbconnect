@@ -79,11 +79,6 @@ pub enum HdbError {
     #[error("Database server responded with at least one error")]
     ExecutionResults(Vec<ExecutionResult>),
 
-    // FIXME
-    /// Error occured while streaming a LOB.
-    #[error("Error occured while streaming a LOB")]
-    LobStreaming(std::io::Error),
-
     /// Implementation error.
     #[error("Implementation error: {}", _0)]
     Impl(&'static str),
@@ -161,9 +156,16 @@ impl HdbError {
         }
     }
 
-    /// FIXME
+    /// Reveal the inner error
     pub fn inner(&self) -> Option<&dyn std::error::Error> {
         match self {
+            Self::Deserialization { source: e } => Some(e),
+            Self::Serialization { source: e } => Some(e),
+            Self::Cesu8 { source: e } => Some(e),
+            Self::ConnParams { source: e } => Some(&**e),
+            Self::DbError { source: e } => Some(e),
+            Self::TlsServerName { source: e } => Some(e),
+            Self::TlsProtocol { source: e } => Some(e),
             Self::Io { source: e } => Some(e),
             _ => None,
         }

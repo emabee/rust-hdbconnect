@@ -44,7 +44,7 @@ pub use {
 
 pub use hdbconnect_impl::{
     conn::{
-        url, ConnectParams, ConnectParamsBuilder, IntoConnectParams, IntoConnectParamsBuilder,
+        ConnectParams, ConnectParamsBuilder, IntoConnectParams, IntoConnectParamsBuilder,
         ServerCerts, Tls,
     },
     hdb_error::{HdbError, HdbResult},
@@ -57,6 +57,7 @@ pub use hdbconnect_impl::{
     },
     row::Row,
     rows::Rows,
+    url,
 };
 
 pub use hdbconnect_impl::protocol::ServerUsage;

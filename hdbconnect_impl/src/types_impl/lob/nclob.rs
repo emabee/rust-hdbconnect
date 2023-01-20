@@ -10,7 +10,7 @@ use super::fetch::sync_fetch_a_lob_chunk;
 #[cfg(feature = "sync")]
 use crate::conn::SyncAmConnCore;
 #[cfg(feature = "sync")]
-use std::io::Write;
+use std::io::{Read, Write};
 
 use super::CharLobSlice;
 use crate::{
@@ -177,6 +177,28 @@ impl NCLob {
     /// [`Connection::lob_read_length`](../struct.Connection.html#method.lob_read_length) from the database
     /// and writes them immediately into the writer,
     /// thus avoiding that all data are materialized within this `NCLob`.
+    #[cfg(feature = "sync")]
+    pub fn write_into(mut self, writer: &mut dyn std::io::Write) -> HdbResult<()> {
+        let lob_read_length: usize = self.0.am_conn_core.lock()?.lob_read_length() as usize;
+        let mut buf = vec![0_u8; lob_read_length].into_boxed_slice();
+
+        loop {
+            let read = self.0.read(&mut buf)?;
+            if read == 0 {
+                break;
+            }
+            writer.write_all(&buf[0..read])?;
+        }
+        writer.flush()?;
+        Ok(())
+    }
+
+    /// Writes the content into the given writer.
+    ///
+    /// Reads outstanding data in chunks of size
+    /// [`Connection::lob_read_length`](../struct.Connection.html#method.lob_read_length) from the database
+    /// and writes them immediately into the writer,
+    /// thus avoiding that all data are materialized within this `NCLob`.
     #[cfg(feature = "async")]
     pub async fn write_into<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
         mut self,
@@ -192,6 +214,7 @@ impl NCLob {
             }
             writer.write_all(&buf[0..read]).await?;
         }
+        writer.flush().await?;
         Ok(())
     }
 

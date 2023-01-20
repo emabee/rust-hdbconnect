@@ -22,7 +22,6 @@ mod sync_tcp_client;
 
 use authentication::AuthenticationResult;
 pub use connection_core::ConnectionCore;
-pub use params::cp_url::url;
 pub use params::{
     connect_params::{ConnectParams, ServerCerts, Tls},
     connect_params_builder::ConnectParamsBuilder,
@@ -30,6 +29,7 @@ pub use params::{
     into_connect_params_builder::IntoConnectParamsBuilder,
 };
 use session_state::SessionState;
+pub use url;
 
 #[cfg(feature = "async")]
 use async_tcp_client::AsyncTcpClient;

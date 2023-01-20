@@ -3,12 +3,11 @@ extern crate serde;
 mod test_utils;
 
 use flexi_logger::LoggerHandle;
-use hdbconnect::{types::CLob, Connection, HdbError, HdbResult, HdbValue};
+use hdbconnect::{types::CLob, Connection, HdbResult, HdbValue};
 use log::{debug, info};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::fs::File;
-use std::io::Read;
+use std::{fs::File, io::Read};
 
 #[test]
 fn test_033_clobs() -> HdbResult<()> {
@@ -137,7 +136,7 @@ fn test_clobs(
     row.next_value().unwrap();
     let mut clob: CLob = row.next_value().unwrap().try_into_clob()?;
     let mut streamed = Vec::<u8>::new();
-    std::io::copy(&mut clob, &mut streamed).map_err(HdbError::LobStreaming)?;
+    std::io::copy(&mut clob, &mut streamed).unwrap();
 
     assert_eq!(fifty_times_smp_blabla.len(), streamed.len());
     let mut hasher = Sha256::default();
@@ -192,7 +191,7 @@ fn test_streaming(
         .into_single_value()?
         .try_into_clob()?;
     let mut buffer = Vec::<u8>::new();
-    std::io::copy(&mut clob, &mut buffer).map_err(HdbError::LobStreaming)?;
+    std::io::copy(&mut clob, &mut buffer).unwrap();
 
     assert_eq!(fifty_times_smp_blabla.len(), buffer.len());
     let mut hasher = Sha256::default();

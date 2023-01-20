@@ -48,6 +48,7 @@ pub mod row;
 pub mod rows;
 pub mod serde_db_impl;
 pub mod types_impl;
+pub mod url;
 pub mod xa_impl;
 
 #[cfg(feature = "async")]
@@ -56,8 +57,8 @@ pub mod async_prepared_statement_core;
 pub mod sync_prepared_statement_core;
 
 pub use crate::conn::{
-    url, ConnectParams, ConnectParamsBuilder, IntoConnectParams, IntoConnectParamsBuilder,
-    ServerCerts, Tls,
+    ConnectParams, ConnectParamsBuilder, IntoConnectParams, IntoConnectParamsBuilder, ServerCerts,
+    Tls,
 };
 
 #[cfg(feature = "async")]

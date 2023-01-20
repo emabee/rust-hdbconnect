@@ -5,18 +5,12 @@ use crate::{
 use std::sync::Arc;
 
 #[cfg(feature = "sync")]
-use crate::conn::SyncAmConnCore;
-#[cfg(feature = "sync")]
-use crate::protocol::util;
-#[cfg(feature = "sync")]
-use crate::sync_prepared_statement_core::AmPsCore;
+use crate::{conn::SyncAmConnCore, protocol::util, sync_prepared_statement_core::AmPsCore};
 #[cfg(feature = "sync")]
 use std::sync::Mutex;
 
 #[cfg(feature = "async")]
-use crate::async_prepared_statement_core::AmPsCore;
-#[cfg(feature = "async")]
-use crate::conn::AsyncAmConnCore;
+use crate::{async_prepared_statement_core::AmPsCore, conn::AsyncAmConnCore};
 #[cfg(feature = "async")]
 use tokio::sync::Mutex;
 
@@ -33,7 +27,6 @@ pub struct RsState {
 }
 impl RsState {
     #[cfg(feature = "sync")]
-    // FIXME should a_rsmd be a reference?
     #[allow(clippy::wrong_self_convention)]
     pub(crate) fn into_rows(&mut self, a_rsmd: Arc<ResultSetMetadata>) -> HdbResult<Rows> {
         let mut rows = Vec::<Row>::new();

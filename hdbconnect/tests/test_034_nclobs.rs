@@ -2,13 +2,12 @@ extern crate serde;
 
 mod test_utils;
 
-use hdbconnect::{types::NCLob, Connection, HdbError, HdbResult, HdbValue};
+use hdbconnect::{types::NCLob, Connection, HdbResult, HdbValue};
 use log::{debug, info, trace};
 use serde::{Deserialize, Serialize};
 use serde_bytes::Bytes;
 use sha2::{Digest, Sha256};
-use std::fs::File;
-use std::io::Read;
+use std::{fs::File, io::Read};
 
 // cargo test test_034_nclobs -- --nocapture
 #[test]
@@ -166,7 +165,7 @@ fn test_streaming(
     // Note: Connection.set_lob_read_length() affects NCLobs in chars (1, 2, or 3 bytes),
     connection.set_lob_read_length(200_000)?;
 
-    let mut nclob = connection
+    let nclob = connection
         .query("select chardata from TEST_NCLOBS")?
         .into_single_row()?
         .into_single_value()?
@@ -183,7 +182,7 @@ fn test_streaming(
     );
 
     let mut buffer = Vec::<u8>::new();
-    std::io::copy(&mut nclob, &mut buffer).map_err(HdbError::LobStreaming)?;
+    nclob.write_into(&mut buffer).unwrap();
 
     assert_eq!(fifty_times_smp_blabla.len(), buffer.len());
     assert_eq!(fifty_times_smp_blabla.as_bytes(), buffer.as_slice());

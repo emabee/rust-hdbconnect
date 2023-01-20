@@ -48,8 +48,8 @@ pub use rocket_pool::HanaPoolForRocket;
 pub use {connection::Connection, prepared_statement::PreparedStatement};
 
 pub use hdbconnect_impl::conn::{
-    url, ConnectParams, ConnectParamsBuilder, IntoConnectParams, IntoConnectParamsBuilder,
-    ServerCerts, Tls,
+    ConnectParams, ConnectParamsBuilder, IntoConnectParams, IntoConnectParamsBuilder, ServerCerts,
+    Tls,
 };
 pub use hdbconnect_impl::hdb_error::{HdbError, HdbResult};
 pub use hdbconnect_impl::hdb_response::HdbResponse;
@@ -60,6 +60,7 @@ pub use hdbconnect_impl::protocol::parts::{
     ParameterDescriptor, ParameterDescriptors, ParameterDirection, ResultSetMetadata, ServerError,
     Severity, TypeId,
 };
+pub use hdbconnect_impl::url;
 pub use hdbconnect_impl::Row;
 
 pub use hdbconnect_impl::protocol::ServerUsage;

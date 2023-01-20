@@ -2,18 +2,21 @@
 //!
 //! # 1. Database connections
 //!
-//! Establish an authenticated connection to the database server
-//! (see also [`ConnectParams`]):
+//! Establish authenticated connections to the database server.
+//! See [`ConnectParams`], [`ConnectParamsBuilder`](crate::ConnectParamsBuilder),
+//! and [`url`](crate::url) for a full description of the possibilities.
 //!
 //! ```rust,no_run
 //! use hdbconnect::{Connection, IntoConnectParams};
 //! # use hdbconnect::HdbResult;
 //! # fn foo() -> HdbResult<()> {
-//! // connect directly to a database:
+//! // connect without TLS to a database:
 //! let mut connection1 = Connection::new("hdbsql://my_user:my_passwd@the_host:30815")?;
 //!
-//! // connect to the port of the system db and let the db redirect to the correct host and port:
-//! let mut connection2 = Connection::new("hdbsql://my_user:my_passwd@the_host:30813?db=MEI")?;
+//! // connect with TLS to the port of the system db and get redirected to the specified database:
+//! let mut connection2 = Connection::new(
+//!     "hdbsqls://my_user:my_passwd@the_host:30813?db=MEI&insecure_omit_server_certificate_check"
+//! )?;
 //! # Ok(())
 //! # }
 //! ```

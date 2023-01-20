@@ -51,10 +51,10 @@ async fn successful_xa(_log_handle: &mut LoggerHandle, conn: &mut Connection) ->
     // instantiate a SimpleTransactionManager and register Resource Managers for
     // the two connections
     let mut tm = SimpleTransactionManager::new("test_090_xa_transactions");
-    tm.register(conn_a.get_resource_manager().await, 22, true)
+    tm.register(conn_a.get_resource_manager(), 22, true)
         .await
         .unwrap();
-    tm.register(conn_b.get_resource_manager().await, 44, true)
+    tm.register(conn_b.get_resource_manager(), 44, true)
         .await
         .unwrap();
 
@@ -111,10 +111,10 @@ async fn xa_rollback(_log_handle: &mut LoggerHandle, conn: &mut Connection) -> H
     // instantiate a SimpleTransactionManager and register Resource Managers for
     // the two connections
     let mut tm = SimpleTransactionManager::new("test_090_xa_transactions");
-    tm.register(conn_a.get_resource_manager().await, 22, true)
+    tm.register(conn_a.get_resource_manager(), 22, true)
         .await
         .unwrap();
-    tm.register(conn_b.get_resource_manager().await, 44, true)
+    tm.register(conn_b.get_resource_manager(), 44, true)
         .await
         .unwrap();
 
@@ -176,10 +176,10 @@ async fn xa_repeated(_log_handle: &mut LoggerHandle, conn: &mut Connection) -> H
     // instantiate a SimpleTransactionManager and register Resource Managers for
     // the two connections
     let mut tm = SimpleTransactionManager::new("test_090_xa_transactions");
-    tm.register(conn_a.get_resource_manager().await, 22, true)
+    tm.register(conn_a.get_resource_manager(), 22, true)
         .await
         .unwrap();
-    tm.register(conn_b.get_resource_manager().await, 44, true)
+    tm.register(conn_b.get_resource_manager(), 44, true)
         .await
         .unwrap();
 
@@ -250,10 +250,10 @@ async fn xa_conflicts(_log_handle: &mut LoggerHandle, conn: &mut Connection) -> 
     // instantiate a SimpleTransactionManager and register Resource Managers for
     // the two connections
     let mut tm = SimpleTransactionManager::new("test_090_xa_transactions");
-    tm.register(conn_a.get_resource_manager().await, 22, true)
+    tm.register(conn_a.get_resource_manager(), 22, true)
         .await
         .unwrap();
-    tm.register(conn_b.get_resource_manager().await, 44, true)
+    tm.register(conn_b.get_resource_manager(), 44, true)
         .await
         .unwrap();
 
