@@ -21,7 +21,7 @@ default = []
 
 [dependencies]
 hdbconnect_impl = { path = "../hdbconnect_impl", features = ["sync"] }
-dist_tx = {path = "../../dist_tx/dist_tx"}
+dist_tx = {path = "../../dist_tx"}
 log = "0.4"
 r2d2 = "0.8"
 serde = { version = "1.0", features = ["derive"] }

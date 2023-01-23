@@ -3,8 +3,8 @@ use crate::protocol::parts::XatOptions;
 use crate::protocol::{Part, PartKind, Reply, Request, RequestType};
 use crate::{HdbError, HdbResult};
 use async_trait::async_trait;
-use dist_tx_async::{
-    rm::{CResourceManager, CRmWrapper},
+use dist_tx::{
+    a_sync::rm::{CResourceManager, CRmWrapper},
     ErrorCode, Flags, ReturnCode, RmError, XaTransactionId,
 };
 

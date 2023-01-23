@@ -1,5 +1,5 @@
 use crate::prepared_statement::PreparedStatement;
-use dist_tx_async::rm::ResourceManager;
+use dist_tx::a_sync::rm::ResourceManager;
 use hdbconnect_impl::{
     conn::AsyncAmConnCore,
     protocol::parts::{

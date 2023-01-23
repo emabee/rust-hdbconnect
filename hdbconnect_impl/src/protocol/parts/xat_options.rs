@@ -1,9 +1,6 @@
 use crate::protocol::parts::option_part::{OptionId, OptionPart};
 use crate::protocol::parts::option_value::OptionValue;
-#[cfg(feature = "sync")]
 use dist_tx::{Flags, ReturnCode, XaTransactionId};
-#[cfg(feature = "async")]
-use dist_tx_async::{Flags, ReturnCode, XaTransactionId};
 
 // An Options part that is used in XA related requests and responses.
 pub type XatOptions = OptionPart<XatOptionId>;

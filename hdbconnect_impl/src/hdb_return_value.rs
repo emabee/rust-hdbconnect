@@ -1,10 +1,7 @@
 use crate::protocol::parts::OutputParameters;
 use crate::{HdbError, HdbResult, ResultSet};
 
-#[cfg(feature = "sync")]
 use dist_tx::XaTransactionId;
-#[cfg(feature = "async")]
-use dist_tx_async::XaTransactionId;
 
 /// An enum that describes a single database return value.
 #[derive(Debug)]

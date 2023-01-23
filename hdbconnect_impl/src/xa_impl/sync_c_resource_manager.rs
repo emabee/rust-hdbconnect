@@ -3,7 +3,7 @@ use crate::protocol::parts::XatOptions;
 use crate::protocol::{Part, PartKind, Reply, Request, RequestType};
 use crate::{HdbError, HdbResult};
 use dist_tx::{
-    rm::{CResourceManager, CRmWrapper},
+    sync::rm::{CResourceManager, CRmWrapper},
     ErrorCode, Flags, ReturnCode, RmError, XaTransactionId,
 };
 

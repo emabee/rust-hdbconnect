@@ -27,8 +27,7 @@ rocket_pool = ["rocket_db_pools", "rocket"]
 
 [dependencies]
 hdbconnect_impl = { path = "../hdbconnect_impl", features = ["async"] }
-dist_tx_async = {path = "../../dist_tx/dist_tx_async"}
-# dist_tx_async = "*"
+dist_tx = {path = "../../dist_tx", features = ["async"]}
 async-trait = {version = "0.1"}
 log = "0.4"
 rocket_db_pools = {version = "0.1.0-rc.2", optional = true}

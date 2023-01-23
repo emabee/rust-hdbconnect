@@ -1,5 +1,5 @@
 use crate::prepared_statement::PreparedStatement;
-use dist_tx::rm::ResourceManager;
+use dist_tx::sync::rm::ResourceManager;
 use hdbconnect_impl::conn::SyncAmConnCore;
 use hdbconnect_impl::protocol::parts::{
     ClientContext, ClientContextId, CommandInfo, ConnOptId, OptionValue, ServerError,
