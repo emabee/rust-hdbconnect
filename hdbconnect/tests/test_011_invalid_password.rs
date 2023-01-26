@@ -24,7 +24,7 @@ fn test_011_invalid_password() {
     let minimal_password_length: String = sys_conn
         .query("select value from M_PASSWORD_POLICY where property = 'minimal_password_length'")
         .unwrap()
-        .sync_try_into()
+        .try_into()
         .unwrap();
     assert_eq!(minimal_password_length, "8");
 
@@ -32,7 +32,7 @@ fn test_011_invalid_password() {
     let force_first_password_change: String = sys_conn
         .query("select value from M_PASSWORD_POLICY where property = 'force_first_password_change'")
         .unwrap()
-        .sync_try_into()
+        .try_into()
         .unwrap();
     assert_eq!(force_first_password_change, "true");
 

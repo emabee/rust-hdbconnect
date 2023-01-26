@@ -41,12 +41,6 @@ pub mod a_sync;
 #[cfg(feature = "sync")]
 pub mod sync;
 
-#[cfg(feature = "async")]
-pub use crate::protocol::parts::AsyncResultSet;
-
-#[cfg(feature = "sync")]
-pub use crate::protocol::parts::SyncResultSet;
-
 pub(crate) use internal_returnvalue::InternalReturnValue;
 
 pub use crate::{

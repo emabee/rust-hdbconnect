@@ -65,10 +65,7 @@ fn test_secondtime(_loghandle: &mut LoggerHandle, connection: &mut Connection) -
         trace!("calling add_batch()");
         prep_stmt.add_batch(&(naive_time_values[2], naive_time_values[3]))?;
         trace!("calling execute_batch()");
-        let typed_result: i32 = prep_stmt
-            .execute_batch()?
-            .into_resultset()?
-            .sync_try_into()?;
+        let typed_result: i32 = prep_stmt.execute_batch()?.into_resultset()?.try_into()?;
         assert_eq!(typed_result, 31);
     }
 
@@ -77,7 +74,7 @@ fn test_secondtime(_loghandle: &mut LoggerHandle, connection: &mut Connection) -
         let s = "select mytime from TEST_SECONDTIME order by number asc";
         let rs = connection.query(s)?;
         trace!("rs = {:?}", rs);
-        let times: Vec<NaiveTime> = rs.sync_try_into()?;
+        let times: Vec<NaiveTime> = rs.try_into()?;
         trace!("times = {:?}", times);
         for (time, ntv) in times.iter().zip(naive_time_values.iter()) {
             debug!("{}, {}", time, ntv);
@@ -96,7 +93,7 @@ fn test_secondtime(_loghandle: &mut LoggerHandle, connection: &mut Connection) -
 
         let dates: Vec<NaiveTime> = connection
             .query("select mytime from TEST_SECONDTIME where number = 77 or number = 13")?
-            .sync_try_into()?;
+            .try_into()?;
         trace!("query sent");
         assert_eq!(dates.len(), 2);
         for date in dates {
@@ -114,7 +111,7 @@ fn test_secondtime(_loghandle: &mut LoggerHandle, connection: &mut Connection) -
 
         let date: Option<NaiveTime> = connection
             .query("select mytime from TEST_SECONDTIME where number = 2350")?
-            .sync_try_into()?;
+            .try_into()?;
         trace!("query sent");
         assert_eq!(date, None);
     }

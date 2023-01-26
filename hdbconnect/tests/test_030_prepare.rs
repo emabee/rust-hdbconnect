@@ -97,9 +97,8 @@ fn prepare_insert_statement(
     insert_stmt3.execute_batch()?;
     connection3.rollback()?;
 
-    let typed_result: Vec<TestStruct> = connection
-        .query("select * from TEST_PREPARE")?
-        .sync_try_into()?;
+    let typed_result: Vec<TestStruct> =
+        connection.query("select * from TEST_PREPARE")?.try_into()?;
     assert_eq!(typed_result.len(), 6);
     for ts in typed_result {
         let s = ts.f1_s.as_ref().unwrap();
@@ -133,7 +132,7 @@ fn prepare_statement_use_parameter_row(
 
     let typed_result: i32 = connection
         .query("select sum(F2_I) from TEST_PREPARE")?
-        .sync_try_into()?;
+        .try_into()?;
     assert_eq!(typed_result, 91);
 
     debug!("prepare & execute with HdbValues");
@@ -166,7 +165,7 @@ fn prepare_statement_use_parameter_row(
     debug!("checking...");
     let typed_result: i32 = connection
         .query("select sum(F2_I) from TEST_PREPARE")?
-        .sync_try_into()?;
+        .try_into()?;
     assert_eq!(typed_result, 3216);
     Ok(())
 }
@@ -223,7 +222,7 @@ fn prepare_select_with_pars(
             &(45_i32),
         )?
         .into_resultset()?
-        .sync_try_into()?;
+        .try_into()?;
     assert_eq!(sum_of_big_values, 286_i64);
     Ok(())
 }
@@ -238,11 +237,11 @@ fn prepare_select_without_pars(
 
     // two ways to do the same
     let resultset = stmt.execute(&())?.into_resultset()?;
-    let sum_of_big_values: i64 = resultset.sync_try_into()?;
+    let sum_of_big_values: i64 = resultset.try_into()?;
     assert_eq!(sum_of_big_values, 501_i64);
 
     let resultset = stmt.execute_batch()?.into_resultset()?;
-    let sum_of_big_values: i64 = resultset.sync_try_into()?;
+    let sum_of_big_values: i64 = resultset.try_into()?;
     assert_eq!(sum_of_big_values, 501_i64);
 
     Ok(())

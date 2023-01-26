@@ -21,16 +21,6 @@ mod partition_information;
 mod read_lob_reply;
 mod read_lob_request;
 
-#[cfg(feature = "async")]
-mod async_resultset;
-
-#[cfg(feature = "async")]
-pub(crate) mod async_rs_state;
-#[cfg(feature = "sync")]
-mod sync_resultset;
-#[cfg(feature = "sync")]
-pub(crate) mod sync_rs_state;
-
 pub(crate) mod am_rs_core;
 mod resultset_metadata;
 mod server_error;
@@ -42,16 +32,6 @@ mod type_id;
 mod write_lob_reply;
 mod write_lob_request;
 mod xat_options;
-
-#[cfg(feature = "async")]
-pub use self::async_resultset::AsyncResultSet;
-
-#[cfg(feature = "async")]
-pub(crate) use self::async_rs_state::{AsyncResultSetCore, AsyncRsState};
-#[cfg(feature = "sync")]
-pub use self::sync_resultset::SyncResultSet;
-#[cfg(feature = "sync")]
-pub(crate) use self::sync_rs_state::SyncRsState;
 
 pub(crate) use self::{
     am_rs_core::{AmRsCore, MRsCore},
@@ -188,7 +168,7 @@ impl Parts<'static> {
                 }
                 Part::ResultSetMetadata(rsmd) => {
                     if let Some(Part::ResultSetId(rs_id)) = parts.next() {
-                        let rs = SyncResultSet::sync_new(
+                        let rs = crate::sync::ResultSet::new(
                             am_conn_core,
                             PartAttributes::new(0b_0000_0100),
                             rs_id,
@@ -256,7 +236,7 @@ impl Parts<'static> {
                 }
                 Part::ResultSetMetadata(rsmd) => {
                     if let Some(Part::ResultSetId(rs_id)) = parts.next() {
-                        let rs = AsyncResultSet::new(
+                        let rs = crate::a_sync::ResultSet::new(
                             am_conn_core,
                             PartAttributes::new(0b_0000_0100),
                             rs_id,

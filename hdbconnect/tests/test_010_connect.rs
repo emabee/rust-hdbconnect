@@ -77,7 +77,7 @@ fn client_info(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
     let result: Vec<SessCtx> = prep_stmt
         .execute(&connection_id)?
         .into_resultset()?
-        .sync_try_into()?;
+        .try_into()?;
     check_session_context(true, &result);
 
     debug!("overwrite the client info, check that it appears in session context");
@@ -89,23 +89,23 @@ fn client_info(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
     let result: Vec<SessCtx> = prep_stmt
         .execute(&connection_id)?
         .into_resultset()?
-        .sync_try_into()?;
+        .try_into()?;
     check_session_context(false, &result);
 
     debug!("verify that the updated client info remains set");
     let _result: Vec<SessCtx> = prep_stmt
         .execute(&connection_id)?
         .into_resultset()?
-        .sync_try_into()?;
+        .try_into()?;
 
     let _result: Vec<SessCtx> = prep_stmt
         .execute(&connection_id)?
         .into_resultset()?
-        .sync_try_into()?;
+        .try_into()?;
     let result: Vec<SessCtx> = prep_stmt
         .execute(&connection_id)?
         .into_resultset()?
-        .sync_try_into()?;
+        .try_into()?;
     check_session_context(false, &result);
     _log_handle.pop_temp_spec();
     Ok(())
@@ -179,7 +179,7 @@ fn select_version_and_user(connection: &mut Connection) -> HdbResult<()> {
     let stmt = r#"SELECT VERSION as "version", CURRENT_USER as "current_user" FROM SYS.M_DATABASE"#;
     debug!("calling connection.query(SELECT VERSION as ...)");
     let resultset = connection.query(stmt)?;
-    let version_and_user: VersionAndUser = resultset.sync_try_into()?;
+    let version_and_user: VersionAndUser = resultset.try_into()?;
     let conn_params: ConnectParams = test_utils::get_std_cp_builder()?.into_connect_params()?;
     assert_eq!(
         version_and_user.current_user,
@@ -214,7 +214,7 @@ fn command_info(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
     let _result: Vec<SessCtx> = connection
         .execute_with_debuginfo(stmt, "BLABLA", 4711)?
         .into_resultset()?
-        .sync_try_into()?;
+        .try_into()?;
 
     let stmt = r#"SELECT KEY, NONSENSE FROM M_SESSION_CONTEXT ORDER BY KEY"#;
 

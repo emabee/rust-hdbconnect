@@ -1,9 +1,9 @@
-use crate::SyncResultSet;
 use crate::{
     protocol::{
         parts::{ExecutionResult, OutputParameters},
         ReplyType,
     },
+    sync::ResultSet,
     HdbError, HdbResult, HdbReturnValue, InternalReturnValue,
 };
 
@@ -249,7 +249,7 @@ impl HdbResponse {
     /// # Errors
     ///
     /// `HdbError::Evaluation` if information would get lost.
-    pub fn into_resultset(self) -> HdbResult<SyncResultSet> {
+    pub fn into_resultset(self) -> HdbResult<ResultSet> {
         self.into_single_retval()?.sync_into_resultset()
     }
 
@@ -322,7 +322,7 @@ impl HdbResponse {
     /// # Errors
     ///
     /// `HdbError` if there is no further `ResultSet`.
-    pub fn get_resultset(&mut self) -> HdbResult<SyncResultSet> {
+    pub fn get_resultset(&mut self) -> HdbResult<ResultSet> {
         if let Some(i) = self.find_sync_resultset() {
             self.return_values.remove(i).sync_into_resultset()
         } else {

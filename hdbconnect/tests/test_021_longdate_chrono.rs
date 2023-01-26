@@ -95,7 +95,7 @@ fn test_longdate(_loghandle: &mut LoggerHandle, connection: &mut Connection) -> 
         // debug!("2nd Parameter Descriptor: {:?}", pds[1]);
         // assert_eq!(pds.len(), 2);
 
-        let typed_result: i32 = response.into_resultset()?.sync_try_into()?;
+        let typed_result: i32 = response.into_resultset()?.try_into()?;
         assert_eq!(typed_result, 31);
 
         info!("test the conversion DateTime<Utc> -> LongDate -> wire -> DB");
@@ -106,7 +106,7 @@ fn test_longdate(_loghandle: &mut LoggerHandle, connection: &mut Connection) -> 
         let typed_result: i32 = prep_stmt
             .execute(&(utc2, utc3))?
             .into_resultset()?
-            .sync_try_into()?;
+            .try_into()?;
         assert_eq!(typed_result, 31_i32);
     }
 
@@ -114,7 +114,7 @@ fn test_longdate(_loghandle: &mut LoggerHandle, connection: &mut Connection) -> 
         info!("test the conversion DB -> wire -> LongDate -> NaiveDateTime");
         let s = "select mydate from TEST_LONGDATE order by number asc";
         let rs = connection.query(s)?;
-        let dates: Vec<NaiveDateTime> = rs.sync_try_into()?;
+        let dates: Vec<NaiveDateTime> = rs.try_into()?;
         for (date, tvd) in dates.iter().zip(naive_datetime_values.iter()) {
             assert_eq!(date, tvd);
         }
@@ -126,7 +126,7 @@ fn test_longdate(_loghandle: &mut LoggerHandle, connection: &mut Connection) -> 
         assert_eq!(rows_affected, 1);
         let dates: Vec<NaiveDateTime> = connection
             .query("select mydate from TEST_LONGDATE where number = 77 or number = 13")?
-            .sync_try_into()?;
+            .try_into()?;
         assert_eq!(dates.len(), 2);
         for date in dates {
             assert_eq!(date, naive_datetime_values[0]);
@@ -143,7 +143,7 @@ fn test_longdate(_loghandle: &mut LoggerHandle, connection: &mut Connection) -> 
 
         let date: Option<NaiveDateTime> = connection
             .query("select mydate from TEST_LONGDATE where number = 2350")?
-            .sync_try_into()?;
+            .try_into()?;
         trace!("query sent");
         assert_eq!(date, None);
     }

@@ -1,15 +1,16 @@
 use crate::{
     conn::AmConnCore,
     protocol::{
-        parts::{
-            sync_rs_state::{SyncResultSetCore, SyncRsState},
-            MRsCore, Parts, ResultSetMetadata, StatementContext,
-        },
+        parts::{MRsCore, Parts, ResultSetMetadata, StatementContext},
         util, Part, PartAttributes, PartKind, ServerUsage,
     },
-    sync::prepared_statement_core::SyncAmPsCore,
+    sync::{
+        prepared_statement_core::SyncAmPsCore,
+        rs_state::{SyncResultSetCore, SyncRsState},
+    },
     HdbResult, Row, Rows,
 };
+
 use serde_db::de::DeserializableResultset;
 use std::sync::Arc;
 
@@ -44,12 +45,12 @@ use std::sync::Arc;
 /// ```
 ///
 #[derive(Debug)]
-pub struct SyncResultSet {
+pub struct ResultSet {
     metadata: Arc<ResultSetMetadata>,
     state: Arc<std::sync::Mutex<SyncRsState>>,
 }
 
-impl SyncResultSet {
+impl ResultSet {
     /// Conveniently translates the complete resultset into a rust type that implements
     /// `serde::Deserialize` and has an adequate structure.
     /// The implementation of this method uses
@@ -107,7 +108,7 @@ impl SyncResultSet {
     /// # Errors
     ///
     /// `HdbError::Deserialization` if the deserialization into the target type is not possible.
-    pub fn sync_try_into<'de, T>(self) -> HdbResult<T>
+    pub fn try_into<'de, T>(self) -> HdbResult<T>
     where
         T: serde::de::Deserialize<'de>,
     {
@@ -121,7 +122,7 @@ impl SyncResultSet {
     /// # Errors
     ///
     /// `HdbError::Usage` if the resultset contains more than a single row, or is empty.
-    pub fn sync_into_single_row(self) -> HdbResult<Row> {
+    pub fn into_single_row(self) -> HdbResult<Row> {
         let mut state = self.state.lock()?;
         state.single_row()
     }
@@ -160,7 +161,7 @@ impl SyncResultSet {
     /// # Errors
     ///
     /// Several variants of `HdbError` are possible.
-    pub fn sync_total_number_of_rows(&self) -> HdbResult<usize> {
+    pub fn total_number_of_rows(&self) -> HdbResult<usize> {
         self.state.lock()?.total_number_of_rows(&self.metadata)
     }
 
@@ -172,7 +173,7 @@ impl SyncResultSet {
     /// # Errors
     ///
     /// Several variants of `HdbError` are possible.
-    pub fn sync_next_row(&mut self) -> HdbResult<Option<Row>> {
+    pub fn next_row(&mut self) -> HdbResult<Option<Row>> {
         self.state.lock()?.next_row(&self.metadata)
     }
 
@@ -187,11 +188,11 @@ impl SyncResultSet {
     /// # Errors
     ///
     /// Several variants of `HdbError` are possible.
-    pub fn sync_fetch_all(&self) -> HdbResult<()> {
+    pub fn fetch_all(&self) -> HdbResult<()> {
         self.state.lock()?.fetch_all(&self.metadata)
     }
 
-    pub(crate) fn sync_new(
+    pub(crate) fn new(
         am_conn_core: &AmConnCore,
         attrs: PartAttributes,
         rs_id: u64,
@@ -272,8 +273,8 @@ impl SyncResultSet {
                     }
                 };
 
-                let rs = Self::sync_new(am_conn_core, attributes, rs_id, a_rsmd, o_stmt_ctx);
-                rs.sync_parse_rows(no_of_rows, rdr)?;
+                let rs = Self::new(am_conn_core, attributes, rs_id, a_rsmd, o_stmt_ctx);
+                rs.parse_rows(no_of_rows, rdr)?;
                 Ok(Some(rs))
             }
 
@@ -313,25 +314,21 @@ impl SyncResultSet {
 
     /// Provides information about the the server-side resource consumption that
     /// is related to this `ResultSet` object.
-    pub fn sync_server_usage(&self) -> ServerUsage {
+    pub fn server_usage(&self) -> ServerUsage {
         self.state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .server_usage
     }
-    // FIXME rename these methods
-    fn sync_parse_rows(
-        &self,
-        no_of_rows: usize,
-        rdr: &mut dyn std::io::Read,
-    ) -> std::io::Result<()> {
+
+    fn parse_rows(&self, no_of_rows: usize, rdr: &mut dyn std::io::Read) -> std::io::Result<()> {
         self.state
             .lock()
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?
             .parse_rows(no_of_rows, &self.metadata, rdr)
     }
 
-    pub(crate) fn sync_inject_statement_id(&mut self, am_ps_core: SyncAmPsCore) -> HdbResult<()> {
+    pub(crate) fn inject_statement_id(&mut self, am_ps_core: SyncAmPsCore) -> HdbResult<()> {
         if let Some(rs_core) = &(self.state.lock()?).o_am_rscore {
             rs_core.sync_lock()?.inject_statement_id(am_ps_core);
         }
@@ -339,7 +336,7 @@ impl SyncResultSet {
     }
 }
 
-impl std::fmt::Display for SyncResultSet {
+impl std::fmt::Display for ResultSet {
     // Writes a header and then the data
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         writeln!(fmt, "{}\n", &self.metadata)?;
@@ -358,10 +355,10 @@ impl std::fmt::Display for SyncResultSet {
     }
 }
 
-impl Iterator for SyncResultSet {
+impl Iterator for ResultSet {
     type Item = HdbResult<Row>;
     fn next(&mut self) -> Option<HdbResult<Row>> {
-        match self.sync_next_row() {
+        match self.next_row() {
             Ok(Some(row)) => Some(Ok(row)),
             Ok(None) => None,
             Err(e) => Some(Err(e)),

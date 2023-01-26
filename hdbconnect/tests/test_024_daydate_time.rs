@@ -71,7 +71,7 @@ fn test_daydate(_loghandle: &mut LoggerHandle, connection: &mut Connection) -> H
         trace!("calling execute_batch()");
         let response = prep_stmt.execute_batch()?;
 
-        let typed_result: i32 = response.into_resultset()?.sync_try_into()?;
+        let typed_result: i32 = response.into_resultset()?.try_into()?;
         assert_eq!(typed_result, 31);
     }
 
@@ -80,7 +80,7 @@ fn test_daydate(_loghandle: &mut LoggerHandle, connection: &mut Connection) -> H
         let s = "select mydate from TEST_DAYDATE order by number asc";
         let rs = connection.query(s)?;
         trace!("rs = {:?}", rs);
-        let times: Vec<HanaDate> = rs.sync_try_into()?;
+        let times: Vec<HanaDate> = rs.try_into()?;
         trace!("times = {:?}", times);
         for (time, ntv) in times.iter().zip(date_values.iter()) {
             debug!("{}, {}", **time, ntv);
@@ -96,7 +96,7 @@ fn test_daydate(_loghandle: &mut LoggerHandle, connection: &mut Connection) -> H
 
         let dates: Vec<HanaDate> = connection
             .query("select mydate from TEST_DAYDATE where number = 77 or number = 13")?
-            .sync_try_into()?;
+            .try_into()?;
         trace!("query sent");
         assert_eq!(dates.len(), 2);
         for date in dates {
@@ -114,7 +114,7 @@ fn test_daydate(_loghandle: &mut LoggerHandle, connection: &mut Connection) -> H
 
         let date: Option<Date> = connection
             .query("select mydate from TEST_DAYDATE where number = 2350")?
-            .sync_try_into()?;
+            .try_into()?;
         trace!("query sent");
         assert_eq!(date, None);
     }

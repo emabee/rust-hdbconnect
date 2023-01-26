@@ -80,8 +80,8 @@ fn procedure_with_out_resultsets(
 
     let mut response = connection.statement("call GET_PROCEDURES(?,?)")?;
     response.get_success()?;
-    let l1 = response.get_resultset()?.sync_total_number_of_rows()?;
-    let l2 = response.get_resultset()?.sync_total_number_of_rows()?;
+    let l1 = response.get_resultset()?.total_number_of_rows()?;
+    let l2 = response.get_resultset()?.total_number_of_rows()?;
     assert_eq!(2 * l1, l2);
     Ok(())
 }
@@ -113,8 +113,8 @@ fn procedure_with_secret_resultsets(
     let mut response = connection.statement("call GET_PROCEDURES_SECRETLY()")?;
 
     response.get_success()?;
-    let l1 = response.get_resultset()?.sync_total_number_of_rows()?;
-    let l2 = response.get_resultset()?.sync_total_number_of_rows()?;
+    let l1 = response.get_resultset()?.total_number_of_rows()?;
+    let l2 = response.get_resultset()?.total_number_of_rows()?;
     assert_eq!(2 * l1, l2);
 
     let mut response: hdbconnect::HdbResponse =
@@ -130,11 +130,7 @@ fn procedure_with_secret_resultsets(
             HdbReturnValue::OutputParameters(output_parameters) => {
                 debug!("Got output_parameters: {:?}", output_parameters)
             }
-            HdbReturnValue::XaTransactionIds(_) => debug!("cannot happen"),
-            #[cfg(feature = "async")]
-            _ => {
-                unreachable!()
-            }
+            _ => debug!("cannot happen"),
         }
     }
 
@@ -164,7 +160,7 @@ fn procedure_with_in_parameters(
     let mut response = prepared_stmt.execute_batch()?;
     response.get_success()?;
     let mut rs: ResultSet = response.get_resultset()?;
-    let mut row: Row = rs.sync_next_row()?.unwrap();
+    let mut row: Row = rs.next_row()?.unwrap();
     let value: i32 = row.next_value().unwrap().try_into()?;
     assert_eq!(value, 42_i32);
     let value: String = row.next_value().unwrap().try_into()?;
@@ -215,12 +211,7 @@ fn procedure_with_in_and_out_parameters(
     assert_eq!(out_s, "some output string");
 
     let mut rs = response.get_resultset()?;
-    let value: i32 = rs
-        .sync_next_row()?
-        .unwrap()
-        .next_value()
-        .unwrap()
-        .try_into()?;
+    let value: i32 = rs.next_row()?.unwrap().next_value().unwrap().try_into()?;
     assert_eq!(value, 42);
 
     Ok(())
@@ -248,7 +239,7 @@ fn procedure_with_in_nclob_non_consuming(
     let mut response = prepared_stmt.execute_batch()?;
     response.get_success()?;
     let mut rs = response.get_resultset()?;
-    let mut row = rs.sync_next_row()?.unwrap();
+    let mut row = rs.next_row()?.unwrap();
     let value: String = row.next_value().unwrap().try_into()?;
     assert_eq!(value, "nclob string");
 

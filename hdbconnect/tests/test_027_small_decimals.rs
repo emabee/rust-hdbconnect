@@ -99,7 +99,7 @@ fn test_small_decimals(
     let resultset =
         connection.query("select f1, f2, f3_NN, f2_NN from TEST_SMALL_DECIMALS order by f2")?;
     let scale = 5; //resultset.metadata().scale(1)? as usize;
-    let result: Vec<TestData> = resultset.sync_try_into()?;
+    let result: Vec<TestData> = resultset.try_into()?;
     for td in result {
         debug!("{:?}, {:?}", td.f1, td.f2);
         assert_eq!(td.f1, format!("{0:.1$}", td.f2, scale));
@@ -109,46 +109,46 @@ fn test_small_decimals(
 
     info!("Read and verify small decimal to single value");
     let resultset = connection.query("select AVG(F3) from TEST_SMALL_DECIMALS")?;
-    let mydata: Option<BigDecimal> = resultset.sync_try_into()?;
+    let mydata: Option<BigDecimal> = resultset.try_into()?;
     assert_eq!(mydata, None);
 
     // info!("Read and verify small decimal to single value");
     let resultset = connection.query("select AVG(F3_NN) from TEST_SMALL_DECIMALS")?;
-    let mydata: BigDecimal = resultset.sync_try_into()?;
+    let mydata: BigDecimal = resultset.try_into()?;
     assert_eq!(mydata, BigDecimal::from_f32(10.0).unwrap());
 
     let mydata: Option<i64> = connection
         .query("select AVG(F2) from TEST_SMALL_DECIMALS where f2 = '65.53500'")?
-        .sync_try_into()?;
+        .try_into()?;
     assert_eq!(mydata, Some(65));
 
     let mydata: i64 = connection
         .query("select AVG(F2_NN) from TEST_SMALL_DECIMALS where f2_NN = '65.53500'")?
-        .sync_try_into()?;
+        .try_into()?;
     assert_eq!(mydata, 65);
 
     // test failing conversion
     let mydata: HdbResult<i8> = connection
         .query("select SUM(ABS(F2)) from TEST_SMALL_DECIMALS")?
-        .sync_try_into();
+        .try_into();
     assert!(mydata.is_err());
 
     // test failing conversion
     let mydata: HdbResult<i8> = connection
         .query("select SUM(ABS(F2_NN)) from TEST_SMALL_DECIMALS")?
-        .sync_try_into();
+        .try_into();
     assert!(mydata.is_err());
 
     // test working conversion
     let mydata: i64 = connection
         .query("select SUM(ABS(F2)) from TEST_SMALL_DECIMALS")?
-        .sync_try_into()?;
+        .try_into()?;
     assert_eq!(mydata, 481);
 
     // test working conversion
     let mydata: i64 = connection
         .query("select SUM(ABS(F2_NN)) from TEST_SMALL_DECIMALS")?
-        .sync_try_into()?;
+        .try_into()?;
     assert_eq!(mydata, 481);
 
     Ok(())

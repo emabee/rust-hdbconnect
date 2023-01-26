@@ -58,10 +58,7 @@ fn test_secondtime(_loghandle: &mut LoggerHandle, connection: &mut Connection) -
         let mut prep_stmt = connection
             .prepare("select sum(number) from TEST_SECONDTIME where mytime = ? or mytime = ?")?;
         prep_stmt.add_batch(&(time_values[2].to_hana(), time_values[3].to_hana()))?;
-        let typed_result: i32 = prep_stmt
-            .execute_batch()?
-            .into_resultset()?
-            .sync_try_into()?;
+        let typed_result: i32 = prep_stmt.execute_batch()?.into_resultset()?.try_into()?;
         assert_eq!(typed_result, 31);
     }
 
@@ -69,7 +66,7 @@ fn test_secondtime(_loghandle: &mut LoggerHandle, connection: &mut Connection) -
         info!("test the conversion DB -> Time");
         let s = "select mytime from TEST_SECONDTIME order by number asc";
         let rs = connection.query(s)?;
-        let times: Vec<HanaTime> = rs.sync_try_into()?;
+        let times: Vec<HanaTime> = rs.try_into()?;
         for (time, ntv) in times.iter().zip(time_values.iter()) {
             assert_eq!(**time, *ntv);
         }
@@ -82,7 +79,7 @@ fn test_secondtime(_loghandle: &mut LoggerHandle, connection: &mut Connection) -
 
         let times: Vec<HanaTime> = connection
             .query("select mytime from TEST_SECONDTIME where number = 77 or number = 13")?
-            .sync_try_into()?;
+            .try_into()?;
         assert_eq!(times.len(), 2);
         for time in times {
             assert_eq!(*time, time_values[0]);
@@ -98,7 +95,7 @@ fn test_secondtime(_loghandle: &mut LoggerHandle, connection: &mut Connection) -
 
         let date: Option<Time> = connection
             .query("select mytime from TEST_SECONDTIME where number = 2350")?
-            .sync_try_into()?;
+            .try_into()?;
         assert_eq!(date, None);
     }
 

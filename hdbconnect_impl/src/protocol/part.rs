@@ -13,9 +13,10 @@ use crate::{
 };
 
 #[cfg(feature = "async")]
-use crate::protocol::parts::{async_rs_state::AsyncRsState, AsyncResultSet};
+use crate::a_sync::AsyncRsState;
 #[cfg(feature = "sync")]
-use crate::protocol::parts::{sync_rs_state::SyncRsState, SyncResultSet};
+use crate::sync::rs_state::SyncRsState;
+
 #[cfg(feature = "sync")]
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::{cmp::max, convert::TryFrom, i16, i32, sync::Arc};
@@ -44,9 +45,9 @@ pub enum Part<'a> {
     WriteLobRequest(WriteLobRequest<'a>),
     WriteLobReply(WriteLobReply),
     #[cfg(feature = "sync")]
-    ResultSet(Option<SyncResultSet>),
+    ResultSet(Option<crate::sync::ResultSet>),
     #[cfg(feature = "async")]
-    AResultSet(Option<AsyncResultSet>),
+    AResultSet(Option<crate::a_sync::ResultSet>),
     ResultSetId(u64),
     ResultSetMetadata(ResultSetMetadata),
     ExecutionResult(Vec<ExecutionResult>),
@@ -479,7 +480,7 @@ impl<'a> Part<'a> {
                 Part::WriteLobReply(WriteLobReply::parse_sync(no_of_args, rdr)?)
             }
             PartKind::ResultSet => {
-                let rs = SyncResultSet::parse_sync(
+                let rs = crate::sync::ResultSet::parse_sync(
                     no_of_args,
                     attributes,
                     parts,
@@ -576,7 +577,7 @@ impl<'a> Part<'a> {
                 Part::WriteLobReply(WriteLobReply::parse_async(no_of_args, rdr).await?)
             }
             PartKind::ResultSet => {
-                let rs = AsyncResultSet::parse(
+                let rs = crate::a_sync::ResultSet::parse(
                     no_of_args,
                     attributes,
                     parts,

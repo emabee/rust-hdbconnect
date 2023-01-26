@@ -1,11 +1,11 @@
-use super::{HdbResponse, PreparedStatement};
+use super::{HdbResponse, PreparedStatement, ResultSet};
 use crate::conn::AmConnCore;
 use crate::protocol::parts::{
     ClientContext, ClientContextId, CommandInfo, ConnOptId, OptionValue, ServerError,
 };
 use crate::protocol::{Part, Request, RequestType, ServerUsage, HOLD_CURSORS_OVER_COMMIT};
 use crate::xa_impl::sync_new_resource_manager;
-use crate::{HdbError, HdbResult, IntoConnectParams, SyncResultSet};
+use crate::{HdbError, HdbResult, IntoConnectParams};
 use dist_tx::sync::rm::ResourceManager;
 
 /// A synchronous connection to the database.
@@ -86,7 +86,7 @@ impl Connection {
     /// # Errors
     ///
     /// Several variants of `HdbError` can occur.
-    pub fn query<S: AsRef<str>>(&mut self, stmt: S) -> HdbResult<SyncResultSet> {
+    pub fn query<S: AsRef<str>>(&mut self, stmt: S) -> HdbResult<ResultSet> {
         self.statement(stmt)?.into_resultset()
     }
 

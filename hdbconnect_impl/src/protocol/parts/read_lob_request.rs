@@ -1,3 +1,4 @@
+#[cfg(feature = "sync")]
 use byteorder::{LittleEndian, WriteBytesExt};
 
 #[derive(Debug)]
@@ -15,6 +16,7 @@ impl ReadLobRequest {
             length,
         }
     }
+    #[cfg(feature = "sync")]
     pub fn sync_emit(&self, w: &mut dyn std::io::Write) -> std::io::Result<()> {
         trace!("read_lob_request::emit() {:?}", self);
         w.write_u64::<LittleEndian>(self.locator_id)?;

@@ -81,7 +81,7 @@ fn test_nclobs(
     let resultset = connection.query(query)?;
     debug!("and convert it into a rust struct");
 
-    let mydata: MyData = resultset.sync_try_into()?;
+    let mydata: MyData = resultset.try_into()?;
     debug!(
         "reading two big NCLOB with lob-read-length {} required {} roundtrips",
         connection.lob_read_length()?,
@@ -105,7 +105,7 @@ fn test_nclobs(
     connection.set_lob_read_length(5_000)?;
     let before = connection.get_call_count()?;
     let resultset = connection.query(query)?;
-    let second: MyData = resultset.sync_try_into()?;
+    let second: MyData = resultset.try_into()?;
     debug!(
         "reading two big NCLOB with lob-read-length {} required {} roundtrips",
         connection.lob_read_length()?,
@@ -116,7 +116,7 @@ fn test_nclobs(
     info!("read from somewhere within");
     let mut nclob: NCLob = connection
         .query("select chardata from TEST_NCLOBS")?
-        .sync_into_single_row()?
+        .into_single_row()?
         .into_single_value()?
         .try_into_nclob()?;
     for i in 1030..1040 {
@@ -158,7 +158,7 @@ fn test_streaming(
 
     let count: u8 = connection
         .query("select count(*) from TEST_NCLOBS where desc = 'lsadksaldk'")?
-        .sync_try_into()?;
+        .try_into()?;
     assert_eq!(count, 1_u8, "HdbValue::CHAR did not work");
 
     debug!("read big nclob in streaming fashion");
@@ -167,7 +167,7 @@ fn test_streaming(
 
     let nclob = connection
         .query("select chardata from TEST_NCLOBS")?
-        .sync_into_single_row()?
+        .into_single_row()?
         .into_single_value()?
         .try_into_nclob()?;
     assert_eq!(
@@ -229,7 +229,7 @@ fn test_bytes_to_nclobs(
     let resultset = connection.query(query)?;
     debug!("and convert it into a rust string");
 
-    let mydata: (String, String) = resultset.sync_try_into()?;
+    let mydata: (String, String) = resultset.try_into()?;
 
     // verify we get in both cases the same value back
     assert_eq!(mydata.0, test_string);
@@ -287,7 +287,7 @@ fn test_zero_length(
     connection.commit()?;
     let rs = connection.query("select chardata from TEST_NCLOBS where desc = 'empty'")?;
     println!("rs = {rs}");
-    let empty: String = rs.sync_try_into()?;
+    let empty: String = rs.try_into()?;
     assert!(empty.is_empty());
     Ok(())
 }

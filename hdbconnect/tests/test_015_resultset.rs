@@ -106,7 +106,7 @@ fn evaluate_resultset(
 
     info!("Iterate over rows, filter_map, collect");
     let resultset = connection.query(query_str)?;
-    resultset.sync_fetch_all()?; // ensures that all rows are Ok
+    resultset.fetch_all()?; // ensures that all rows are Ok
     assert_eq!(
         resultset
             .map(|res_row| res_row.unwrap(/*now save*/))
@@ -123,7 +123,7 @@ fn evaluate_resultset(
     );
 
     info!("Convert a whole resultset into a Vec of structs");
-    let vtd: Vec<TestData> = connection.query(query_str)?.sync_try_into()?;
+    let vtd: Vec<TestData> = connection.query(query_str)?.try_into()?;
     for td in vtd {
         debug!("Got {}, {:?}, {}, {}", td.f1, td.f2, td.f3, td.f4);
     }
@@ -179,7 +179,7 @@ fn verify_row_ordering(
         }
 
         debug!("pass 3: query, and convert the whole resultset");
-        let result: Vec<(usize, usize)> = connection.query(query_str)?.sync_try_into()?;
+        let result: Vec<(usize, usize)> = connection.query(query_str)?.try_into()?;
         for (index, (f1, f2)) in result.into_iter().enumerate() {
             if index % 100 == 0 {
                 debug!("pass 3: loop over the resultset, {}", index);

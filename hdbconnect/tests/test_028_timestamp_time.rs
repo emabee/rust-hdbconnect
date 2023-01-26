@@ -98,7 +98,7 @@ fn test_timestamp(_log_handle: &mut LoggerHandle, connection: &mut Connection) -
             primitive_datetime_values[3].to_hana(),
         ))?;
         let response = prep_stmt.execute_batch()?;
-        let typed_result: i32 = response.into_resultset()?.sync_try_into()?;
+        let typed_result: i32 = response.into_resultset()?.try_into()?;
         assert_eq!(typed_result, 31);
     }
 
@@ -106,7 +106,7 @@ fn test_timestamp(_log_handle: &mut LoggerHandle, connection: &mut Connection) -
         info!("test the conversion DB -> PrimitiveDateTime");
         let s = "select mydate from TEST_TIMESTAMP order by number asc";
         let rs = connection.query(s)?;
-        let dates: Vec<HanaPrimitiveDateTime> = rs.sync_try_into()?;
+        let dates: Vec<HanaPrimitiveDateTime> = rs.try_into()?;
         for (date, tvd) in dates.iter().zip(primitive_datetime_values.iter()) {
             assert_eq!(**date, *tvd);
         }
@@ -118,7 +118,7 @@ fn test_timestamp(_log_handle: &mut LoggerHandle, connection: &mut Connection) -
         assert_eq!(rows_affected, 1);
         let dates: Vec<HanaPrimitiveDateTime> = connection
             .query("select mydate from TEST_TIMESTAMP where number = 77 or number = 13")?
-            .sync_try_into()?;
+            .try_into()?;
         assert_eq!(dates.len(), 2);
         for date in dates {
             assert_eq!(*date, primitive_datetime_values[0]);
@@ -135,7 +135,7 @@ fn test_timestamp(_log_handle: &mut LoggerHandle, connection: &mut Connection) -
 
         let date: Option<PrimitiveDateTime> = connection
             .query("select mydate from TEST_TIMESTAMP where number = 2350")?
-            .sync_try_into()?;
+            .try_into()?;
         trace!("query sent");
         assert_eq!(date, None);
     }

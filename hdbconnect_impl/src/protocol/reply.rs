@@ -1,8 +1,13 @@
 #[cfg(feature = "async")]
-use crate::protocol::{parts::AsyncRsState, util_async};
+use crate::a_sync::AsyncRsState;
+#[cfg(feature = "sync")]
+use crate::sync::rs_state::SyncRsState;
+
+#[cfg(feature = "async")]
+use crate::protocol::util_async;
 
 #[cfg(feature = "sync")]
-use crate::protocol::{parts::SyncRsState, util_sync};
+use crate::protocol::util_sync;
 
 #[cfg(feature = "sync")]
 use byteorder::{LittleEndian, ReadBytesExt};

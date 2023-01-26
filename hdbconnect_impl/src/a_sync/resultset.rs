@@ -1,14 +1,14 @@
+use super::{rs_state::AsyncResultSetCore, AsyncRsState};
 use crate::{
     a_sync::prepared_statement_core::AsyncAmPsCore,
     conn::AmConnCore,
     protocol::{
-        parts::{
-            AsyncResultSetCore, AsyncRsState, MRsCore, Parts, ResultSetMetadata, StatementContext,
-        },
+        parts::{MRsCore, Parts, ResultSetMetadata, StatementContext},
         util, Part, PartAttributes, PartKind, ServerUsage,
     },
     HdbResult, Row, Rows,
 };
+
 use serde_db::de::DeserializableResultset;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -44,12 +44,12 @@ use tokio::sync::Mutex;
 /// ```
 ///
 #[derive(Debug)]
-pub struct AsyncResultSet {
+pub struct ResultSet {
     metadata: Arc<ResultSetMetadata>,
     state: Arc<Mutex<AsyncRsState>>,
 }
 
-impl AsyncResultSet {
+impl ResultSet {
     /// Conveniently translates the complete resultset into a rust type that implements
     /// `serde::Deserialize` and has an adequate structure.
     /// The implementation of this method uses
@@ -332,7 +332,7 @@ impl AsyncResultSet {
     }
 }
 
-impl std::fmt::Display for AsyncResultSet {
+impl std::fmt::Display for ResultSet {
     // Writes a header and then the data
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         writeln!(fmt, "{}\n", &self.metadata)?;
@@ -345,7 +345,7 @@ impl std::fmt::Display for AsyncResultSet {
 
 // This is a poor replacement for an "impl AsyncIterator for ResultSet"
 // see https://rust-lang.github.io/rfcs/2996-async-iterator.html for reasoning
-impl AsyncResultSet {
+impl ResultSet {
     pub async fn next(&mut self) -> Option<HdbResult<Row>> {
         match self.next_row().await {
             Ok(Some(row)) => Some(Ok(row)),

@@ -5,7 +5,7 @@ mod test_utils;
 #[cfg(feature = "r2d2_pool")]
 mod a {
 
-    use hdbconnect::{sync::ConnectionManager, HdbResult};
+    use hdbconnect::{ConnectionManager, HdbResult};
     use log::trace;
     use std::thread::{self, JoinHandle};
 

@@ -53,7 +53,7 @@ fn test_geometries(_loghandle: &mut LoggerHandle, connection: &mut Connection) -
     let resultset = connection.query("select shape from SpatialShapes")?;
     assert_eq!(resultset.metadata()[0].type_id(), TypeId::GEOMETRY);
     debug!("Resultset = {}", resultset);
-    let shapes: Vec<ByteBuf> = resultset.sync_try_into()?;
+    let shapes: Vec<ByteBuf> = resultset.try_into()?;
 
     debug!("insert via parameters (use serde)");
     let mut stmt = connection.prepare("insert into SpatialShapes VALUES(?,?)")?;
@@ -64,7 +64,7 @@ fn test_geometries(_loghandle: &mut LoggerHandle, connection: &mut Connection) -
 
     let count: u16 = connection
         .query("select count(*) from SpatialShapes")?
-        .sync_try_into()?;
+        .try_into()?;
     assert_eq!(count, 34);
     Ok(())
 }
@@ -95,7 +95,7 @@ fn test_points(_loghandle: &mut LoggerHandle, connection: &mut Connection) -> Hd
     debug!("select and deserialize (use serde)");
     let resultset = connection.query("select shape1 from Points")?;
     assert_eq!(resultset.metadata()[0].type_id(), TypeId::POINT);
-    let shapes: Vec<ByteBuf> = resultset.sync_try_into()?;
+    let shapes: Vec<ByteBuf> = resultset.try_into()?;
 
     debug!("insert via parameters (use serde)");
     let mut stmt = connection.prepare("insert into Points VALUES(?,?)")?;
@@ -106,7 +106,7 @@ fn test_points(_loghandle: &mut LoggerHandle, connection: &mut Connection) -> Hd
 
     let count: u16 = connection
         .query("select count(*) from Points")?
-        .sync_try_into()?;
+        .try_into()?;
     assert_eq!(count, 2);
 
     // btw: here we get parameter type id 31 = BLOCATOR:

@@ -15,11 +15,8 @@ async fn test_051_management_console() -> HdbResult<()> {
         .await?;
     let hdb_response = stmt.execute(&("encryption status", "ld3670:30807")).await?;
     for hdb_return_value in hdb_response.into_iter() {
+        #[allow(unreachable_patterns)] // needed to avoid wrong error message in VS Code
         match hdb_return_value {
-            #[cfg(feature = "sync")]
-            HdbReturnValue::ResultSet(result_set) => {
-                println!("{result_set:?}");
-            }
             HdbReturnValue::AResultSet(result_set) => {
                 println!("{:?}", result_set);
             }
@@ -57,6 +54,7 @@ async fn test_051_management_console() -> HdbResult<()> {
                     println!("   transaction-id: {:?}", val);
                 }
             }
+            _ => {}
         }
     }
     Ok(())

@@ -110,7 +110,7 @@ fn test_025_decimals_impl(
     info!("Read and verify decimals to struct");
     let resultset = connection.query("select f1, f2 from TEST_DECIMALS order by f2")?;
     let scale = resultset.metadata()[1].scale() as usize;
-    let result: Vec<TestData> = resultset.sync_try_into()?;
+    let result: Vec<TestData> = resultset.try_into()?;
     for td in result {
         debug!("{:?}, {:?}", td.f1, td.f2);
         assert_eq!(td.f1, format!("{0:.1$}", td.f2, scale));
@@ -119,7 +119,7 @@ fn test_025_decimals_impl(
     info!("Read and verify decimals to tuple");
     let result: Vec<(String, String)> = connection
         .query("select * from TEST_DECIMALS")?
-        .sync_try_into()?;
+        .try_into()?;
     for row in result {
         debug!("{}, {}", row.0, row.1);
         assert_eq!(row.0, row.1);
@@ -127,24 +127,24 @@ fn test_025_decimals_impl(
 
     info!("Read and verify decimal to single value");
     let resultset = connection.query("select AVG(F3) from TEST_DECIMALS")?;
-    let mydata: Option<BigDecimal> = resultset.sync_try_into()?;
+    let mydata: Option<BigDecimal> = resultset.try_into()?;
     assert_eq!(mydata, None);
 
     let mydata: Option<i64> = connection
         .query("select AVG(F2) from TEST_DECIMALS where f2 = '65.53500'")?
-        .sync_try_into()?;
+        .try_into()?;
     assert_eq!(mydata, Some(65));
 
     info!("test failing conversion");
     let mydata: HdbResult<i8> = connection
         .query("select SUM(ABS(F2)) from TEST_DECIMALS")?
-        .sync_try_into();
+        .try_into();
     assert!(mydata.is_err());
 
     info!("test working conversion");
     let mydata: i64 = connection
         .query("select SUM(ABS(F2)) from TEST_DECIMALS")?
-        .sync_try_into()?;
+        .try_into()?;
     assert_eq!(mydata, 481);
 
     Ok(())

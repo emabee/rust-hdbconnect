@@ -84,7 +84,7 @@ fn test_timestamp(_log_handle: &mut LoggerHandle, connection: &mut Connection) -
         // Enforce that NaiveDateTime values are converted in the client (with serde) to the DB type:
         prep_stmt.add_batch(&(naive_datetime_values[2], naive_datetime_values[3]))?;
         let response = prep_stmt.execute_batch()?;
-        let typed_result: i32 = response.into_resultset()?.sync_try_into()?;
+        let typed_result: i32 = response.into_resultset()?.try_into()?;
         assert_eq!(typed_result, 31);
 
         info!("test the conversion DateTime<Utc> -> DB");
@@ -93,10 +93,7 @@ fn test_timestamp(_log_handle: &mut LoggerHandle, connection: &mut Connection) -
 
         // Enforce that UTC timestamps values are converted here in the client to the DB type:
         prep_stmt.add_batch(&(utc2, utc3))?;
-        let typed_result: i32 = prep_stmt
-            .execute_batch()?
-            .into_resultset()?
-            .sync_try_into()?;
+        let typed_result: i32 = prep_stmt.execute_batch()?.into_resultset()?.try_into()?;
         assert_eq!(typed_result, 31_i32);
     }
 
@@ -104,7 +101,7 @@ fn test_timestamp(_log_handle: &mut LoggerHandle, connection: &mut Connection) -
         info!("test the conversion DB -> NaiveDateTime");
         let s = "select mydate from TEST_TIMESTAMP order by number asc";
         let rs = connection.query(s)?;
-        let dates: Vec<NaiveDateTime> = rs.sync_try_into()?;
+        let dates: Vec<NaiveDateTime> = rs.try_into()?;
         for (date, tvd) in dates.iter().zip(naive_datetime_values.iter()) {
             assert_eq!(date, tvd);
         }
@@ -116,7 +113,7 @@ fn test_timestamp(_log_handle: &mut LoggerHandle, connection: &mut Connection) -
         assert_eq!(rows_affected, 1);
         let dates: Vec<NaiveDateTime> = connection
             .query("select mydate from TEST_TIMESTAMP where number = 77 or number = 13")?
-            .sync_try_into()?;
+            .try_into()?;
         assert_eq!(dates.len(), 2);
         for date in dates {
             assert_eq!(date, naive_datetime_values[0]);
@@ -133,7 +130,7 @@ fn test_timestamp(_log_handle: &mut LoggerHandle, connection: &mut Connection) -
 
         let date: Option<NaiveDateTime> = connection
             .query("select mydate from TEST_TIMESTAMP where number = 2350")?
-            .sync_try_into()?;
+            .try_into()?;
         trace!("query sent");
         assert_eq!(date, None);
     }

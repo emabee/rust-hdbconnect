@@ -32,7 +32,7 @@ pub fn test_031_transactions() -> HdbResult<()> {
                 "select * from SYS.M_ERROR_CODES where code = {}",
                 server_error.code()
             ))?
-            .sync_try_into()?;
+            .try_into()?;
         assert_eq!(error_info.0, 7);
         assert_eq!(error_info.1, "ERR_FEATURE_NOT_SUPPORTED");
         log::info!("error_info: {:?}", error_info);
@@ -78,7 +78,7 @@ fn write1_read2(
         let resultset = conn
             .query("select sum(nmbr) from TEST_TRANSACTIONS")
             .unwrap();
-        let checksum: usize = resultset.sync_try_into().unwrap();
+        let checksum: usize = resultset.try_into().unwrap();
         checksum
     };
 

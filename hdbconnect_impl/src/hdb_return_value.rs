@@ -1,8 +1,4 @@
 use crate::protocol::parts::OutputParameters;
-#[cfg(feature = "async")]
-use crate::AsyncResultSet;
-#[cfg(feature = "sync")]
-use crate::SyncResultSet;
 use crate::{HdbError, HdbResult};
 
 use dist_tx::XaTransactionId;
@@ -12,10 +8,10 @@ use dist_tx::XaTransactionId;
 pub enum HdbReturnValue {
     /// A resultset of a query.
     #[cfg(feature = "sync")]
-    ResultSet(SyncResultSet),
+    ResultSet(crate::sync::ResultSet),
     /// A resultset of a query.
     #[cfg(feature = "async")]
-    AResultSet(AsyncResultSet),
+    AResultSet(crate::a_sync::ResultSet),
     /// A list of numbers of affected rows.
     AffectedRows(Vec<usize>),
     /// Values of output parameters of a procedure call.
@@ -32,7 +28,7 @@ impl HdbReturnValue {
     ///
     /// `HdbError::Evaluation` for other variants than `HdbReturnValue::ResultSet`.
     #[cfg(feature = "sync")]
-    pub fn sync_into_resultset(self) -> HdbResult<SyncResultSet> {
+    pub fn sync_into_resultset(self) -> HdbResult<crate::sync::ResultSet> {
         match self {
             Self::ResultSet(rs) => Ok(rs),
             _ => Err(HdbError::Evaluation("Not a HdbReturnValue::ResultSet")),
@@ -45,7 +41,7 @@ impl HdbReturnValue {
     ///
     /// `HdbError::Evaluation` for other variants than `HdbReturnValue::ResultSet`.
     #[cfg(feature = "async")]
-    pub fn async_into_resultset(self) -> HdbResult<AsyncResultSet> {
+    pub fn async_into_resultset(self) -> HdbResult<crate::a_sync::ResultSet> {
         match self {
             Self::AResultSet(rs) => Ok(rs),
             _ => Err(HdbError::Evaluation("Not a HdbReturnValue::ResultSet")),

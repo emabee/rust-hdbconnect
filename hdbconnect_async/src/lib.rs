@@ -24,7 +24,6 @@
 //! See [code examples](crate::code_examples) for an overview.
 //!
 
-// FIXME rocket_pool is missing
 pub use hdbconnect_impl::{
     time, types, url, ConnectParams, ConnectParamsBuilder, ExecutionResult, FieldMetadata,
     HdbError, HdbResult, HdbReturnValue, HdbValue, IntoConnectParams, IntoConnectParamsBuilder,
@@ -33,6 +32,9 @@ pub use hdbconnect_impl::{
     DEFAULT_FETCH_SIZE, DEFAULT_LOB_READ_LENGTH, DEFAULT_LOB_WRITE_LENGTH,
 };
 
-pub use hdbconnect_impl::a_sync::{Connection, HdbResponse, PreparedStatement};
-pub use hdbconnect_impl::AsyncResultSet as ResultSet;
+pub use hdbconnect_impl::a_sync::{Connection, HdbResponse, PreparedStatement, ResultSet};
+
+#[cfg(feature = "rocket_pool")]
+pub use hdbconnect_impl::a_sync::HanaPoolForRocket;
+
 pub mod code_examples;

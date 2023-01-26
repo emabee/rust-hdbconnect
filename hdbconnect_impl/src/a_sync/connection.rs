@@ -1,4 +1,4 @@
-use super::{prepared_statement::PreparedStatement, HdbResponse};
+use super::{prepared_statement::PreparedStatement, resultset::ResultSet, HdbResponse};
 use crate::{
     conn::AmConnCore,
     protocol::parts::{
@@ -6,7 +6,7 @@ use crate::{
     },
     protocol::{Part, Request, RequestType, ServerUsage, HOLD_CURSORS_OVER_COMMIT},
     xa_impl::async_new_resource_manager,
-    {AsyncResultSet, HdbError, HdbResult, IntoConnectParams},
+    {HdbError, HdbResult, IntoConnectParams},
 };
 use dist_tx::a_sync::rm::ResourceManager;
 
@@ -88,7 +88,7 @@ impl Connection {
     /// # Errors
     ///
     /// Several variants of `HdbError` can occur.
-    pub async fn query<S: AsRef<str>>(&mut self, stmt: S) -> HdbResult<AsyncResultSet> {
+    pub async fn query<S: AsRef<str>>(&mut self, stmt: S) -> HdbResult<ResultSet> {
         self.statement(stmt).await?.into_aresultset()
     }
 

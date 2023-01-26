@@ -77,7 +77,7 @@ fn test_blobs(
     let before = connection.get_call_count()?;
     let query = "select desc, bindata as BL1, bindata as BL2 , bindata_NN as BL3 from TEST_BLOBS";
     let resultset = connection.query(query)?;
-    let mydata: MyData = resultset.sync_try_into()?;
+    let mydata: MyData = resultset.try_into()?;
     info!(
         "reading 2x5MB BLOB with lob-read-length {} required {} roundtrips",
         connection.lob_read_length()?,
@@ -103,7 +103,7 @@ fn test_blobs(
     connection.set_lob_read_length(10_000)?;
     let before = connection.get_call_count()?;
     let resultset = connection.query(query)?;
-    let second: MyData = resultset.sync_try_into()?;
+    let second: MyData = resultset.try_into()?;
     info!(
         "reading 2x5MB BLOB with lob-read-length {} required {} roundtrips",
         connection.lob_read_length()?,
@@ -117,7 +117,7 @@ fn test_blobs(
     connection.set_lob_read_length(500_000)?;
 
     let query = "select bindata as BL1, bindata as BL2, bindata_NN as BL3 from TEST_BLOBS";
-    let mut row = connection.query(query)?.sync_into_single_row()?;
+    let mut row = connection.query(query)?.into_single_row()?;
     let mut blob: BLob = row.next_value().unwrap().try_into_blob()?;
     let blob2: BLob = row.next_value().unwrap().try_into_blob()?;
 
@@ -139,7 +139,7 @@ fn test_blobs(
     info!("read from somewhere within");
     let mut blob: BLob = connection
         .query("select bindata from TEST_BLOBS")?
-        .sync_into_single_row()?
+        .into_single_row()?
         .into_single_value()?
         .try_into_blob()?;
     for i in 1000..1040 {
@@ -190,7 +190,7 @@ fn test_streaming(
 
     let blob = connection
         .query("select bindata_NN from TEST_BLOBS where desc = 'streaming2'")?
-        .sync_into_single_row()?
+        .into_single_row()?
         .into_single_value()?
         .try_into_blob()?;
     let mut buffer = Vec::<u8>::new();

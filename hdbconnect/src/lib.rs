@@ -31,6 +31,9 @@ pub use hdbconnect_impl::{
     DEFAULT_FETCH_SIZE, DEFAULT_LOB_READ_LENGTH, DEFAULT_LOB_WRITE_LENGTH,
 };
 
-pub use hdbconnect_impl::sync::{Connection, HdbResponse, PreparedStatement};
-pub use hdbconnect_impl::SyncResultSet as ResultSet;
+pub use hdbconnect_impl::sync::{Connection, HdbResponse, PreparedStatement, ResultSet};
+
+#[cfg(feature = "r2d2_pool")]
+pub use hdbconnect_impl::sync::ConnectionManager;
+
 pub mod code_examples;

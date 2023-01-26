@@ -187,6 +187,7 @@ impl BLob {
         unreachable!()
     }
 
+    // fixme rename methods
     #[cfg(feature = "sync")]
     pub(crate) fn sync_load_complete(&mut self) -> HdbResult<()> {
         self.0.sync_load_complete()

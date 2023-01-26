@@ -14,12 +14,9 @@ fn test_051_management_console() -> HdbResult<()> {
     let mut stmt = connection.prepare("CALL MANAGEMENT_CONSOLE_PROC(?, ?, ?)")?;
     let hdb_response = stmt.execute(&("encryption status", "ld3670:30807"))?;
     for hdb_return_value in hdb_response.into_iter() {
+        #[allow(unreachable_patterns)] // needed to avoid wrong error message in VS Code
         match hdb_return_value {
             HdbReturnValue::ResultSet(result_set) => {
-                println!("{result_set:?}");
-            }
-            #[cfg(feature = "async")]
-            HdbReturnValue::AResultSet(result_set) => {
                 println!("{result_set:?}");
             }
             HdbReturnValue::AffectedRows(vec_usize) => {
@@ -56,6 +53,7 @@ fn test_051_management_console() -> HdbResult<()> {
                     println!("   transaction-id: {val:?}");
                 }
             }
+            _ => {}
         }
     }
     Ok(())

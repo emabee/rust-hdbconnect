@@ -1,7 +1,7 @@
 #[cfg(feature = "async")]
-use crate::protocol::parts::async_rs_state::AsyncRsState;
+use crate::a_sync::AsyncRsState;
 #[cfg(feature = "sync")]
-use crate::protocol::parts::sync_rs_state::SyncRsState;
+use crate::sync::rs_state::SyncRsState;
 
 use crate::{
     conn::ConnectionCore,

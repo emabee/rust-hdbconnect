@@ -140,7 +140,7 @@ fn test_seconddate(_loghandle: &mut LoggerHandle, connection: &mut Connection) -
             primitive_datetime_values[2].to_hana(),
             offset_datetime_values[3].to_hana(),
         ))?;
-        assert_eq!(response.into_resultset()?.sync_try_into::<i32>()?, 31);
+        assert_eq!(response.into_resultset()?.try_into::<i32>()?, 31);
     }
 
     {
@@ -148,7 +148,7 @@ fn test_seconddate(_loghandle: &mut LoggerHandle, connection: &mut Connection) -
         debug!("Struct with field of type {{Offset|Primitive}}DateTime");
         let dates: Vec<WithTs> = connection.query(
             "select mydate as \"ts_p\", mydate as \"ts_o\" from TEST_SECONDDATE order by number asc"
-        )?.sync_try_into()?;
+        )?.try_into()?;
         for (date, tvd) in dates.iter().zip(primitive_datetime_values.iter()) {
             assert_eq!(date.ts_p, *tvd);
         }
@@ -159,13 +159,13 @@ fn test_seconddate(_loghandle: &mut LoggerHandle, connection: &mut Connection) -
         debug!("Vec<Hana{{Offset|Primitive}}DateTime>");
         let dates: Vec<HanaOffsetDateTime> = connection
             .query("select mydate from TEST_SECONDDATE order by number asc")?
-            .sync_try_into()?;
+            .try_into()?;
         for (date, tvd) in dates.iter().zip(offset_datetime_values.iter()) {
             assert_eq!(**date, *tvd);
         }
         let dates: Vec<HanaPrimitiveDateTime> = connection
             .query("select mydate from TEST_SECONDDATE order by number asc")?
-            .sync_try_into()?;
+            .try_into()?;
         for (date, tvd) in dates.iter().zip(primitive_datetime_values.iter()) {
             assert_eq!(**date, *tvd);
         }
@@ -173,17 +173,17 @@ fn test_seconddate(_loghandle: &mut LoggerHandle, connection: &mut Connection) -
         debug!("Hana{{Offset|Primitive}}DateTime as single field");
         let date: HanaOffsetDateTime = connection
             .query("select mydate from TEST_SECONDDATE where number = 15")?
-            .sync_try_into()?;
+            .try_into()?;
         assert_eq!(*date, offset_datetime_values[2]);
         let date: HanaPrimitiveDateTime = connection
             .query("select mydate from TEST_SECONDDATE where number = 15")?
-            .sync_try_into()?;
+            .try_into()?;
         assert_eq!(*date, primitive_datetime_values[2]);
 
         debug!("Tuple with fields of type Hana{{Offset|Primitive}}DateTime");
         let dates: Vec<(HanaPrimitiveDateTime, HanaOffsetDateTime)> = connection.query(
             "select mydate as \"ts_p\", mydate as \"ts_o\" from TEST_SECONDDATE order by number asc"
-        )?.sync_try_into()?;
+        )?.try_into()?;
         for (date, tvd) in dates.iter().zip(primitive_datetime_values.iter()) {
             assert_eq!(*date.0, *tvd);
         }
@@ -198,7 +198,7 @@ fn test_seconddate(_loghandle: &mut LoggerHandle, connection: &mut Connection) -
         assert_eq!(rows_affected, 1);
         let dates: Vec<HanaPrimitiveDateTime> = connection
             .query("select mydate from TEST_SECONDDATE where number = 77 or number = 13")?
-            .sync_try_into()?;
+            .try_into()?;
         assert_eq!(dates.len(), 2);
         for date in dates {
             assert_eq!(*date, primitive_datetime_values[0]);
@@ -206,7 +206,7 @@ fn test_seconddate(_loghandle: &mut LoggerHandle, connection: &mut Connection) -
 
         let dates: Vec<HanaOffsetDateTime> = connection
             .query("select mydate from TEST_SECONDDATE where number = 77 or number = 13")?
-            .sync_try_into()?;
+            .try_into()?;
         assert_eq!(dates.len(), 2);
         for date in dates {
             assert_eq!(*date, offset_datetime_values[0]);
@@ -222,12 +222,12 @@ fn test_seconddate(_loghandle: &mut LoggerHandle, connection: &mut Connection) -
 
         let date: Option<PrimitiveDateTime> = connection
             .query("select mydate from TEST_SECONDDATE where number = 2350")?
-            .sync_try_into()?;
+            .try_into()?;
         assert_eq!(date, None);
 
         let date: Option<OffsetDateTime> = connection
             .query("select mydate from TEST_SECONDDATE where number = 2350")?
-            .sync_try_into()?;
+            .try_into()?;
         assert_eq!(date, None);
     }
 

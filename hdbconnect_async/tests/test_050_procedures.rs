@@ -132,8 +132,6 @@ async fn procedure_with_secret_resultsets(
     response.reverse();
     for ret_val in response {
         match ret_val {
-            #[cfg(feature = "sync")]
-            HdbReturnValue::ResultSet(rs) => debug!("Got a resultset: {:?}", rs),
             HdbReturnValue::AResultSet(rs) => debug!("Got a resultset: {:?}", rs),
             HdbReturnValue::AffectedRows(affected_rows) => {
                 debug!("Got affected_rows: {:?}", affected_rows)
@@ -142,7 +140,7 @@ async fn procedure_with_secret_resultsets(
             HdbReturnValue::OutputParameters(output_parameters) => {
                 debug!("Got output_parameters: {:?}", output_parameters)
             }
-            HdbReturnValue::XaTransactionIds(_) => debug!("cannot happen"),
+            _ => debug!("cannot happen"),
         }
     }
 

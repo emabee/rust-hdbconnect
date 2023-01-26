@@ -61,7 +61,7 @@ fn test_table_with_integers(
     #[allow(clippy::type_complexity)]
     let _result: Vec<(String, i8, i16, i32, i64, i8, i16, i32, i64)> = connection
         .query("select * from TEST_INTEGERS")?
-        .sync_try_into()?;
+        .try_into()?;
 
     #[allow(clippy::type_complexity)]
     let result: Vec<(
@@ -76,7 +76,7 @@ fn test_table_with_integers(
         String,
     )> = connection
         .query("select * from TEST_INTEGERS")?
-        .sync_try_into()?;
+        .try_into()?;
     for row in result {
         assert_eq!(row.0, row.1);
         assert_eq!(row.0, row.2);
@@ -107,13 +107,11 @@ fn test_table_with_floats(
     insert_stmt.add_batch(&("456.123", "456.123", "456.123", "456.123", "456.123"))?;
     insert_stmt.execute_batch()?;
 
-    let _result: Vec<(String, f32, f64, f32, f64)> = connection
-        .query("select * from TEST_FLOATS")?
-        .sync_try_into()?;
+    let _result: Vec<(String, f32, f64, f32, f64)> =
+        connection.query("select * from TEST_FLOATS")?.try_into()?;
 
-    let result: Vec<(String, String, String, String, String)> = connection
-        .query("select * from TEST_FLOATS")?
-        .sync_try_into()?;
+    let result: Vec<(String, String, String, String, String)> =
+        connection.query("select * from TEST_FLOATS")?.try_into()?;
     for row in result {
         assert_eq!(row.0, row.1);
         assert_eq!(row.0, row.2);
@@ -139,19 +137,19 @@ fn test_table_with_strings(
 
     let _result: (String, f32, f32) = connection
         .query("select * from TEST_STRINGS where f1 = 'f32'")?
-        .sync_try_into()?;
+        .try_into()?;
 
     let _result: (String, f64, f64) = connection
         .query("select * from TEST_STRINGS where f1 = 'f64'")?
-        .sync_try_into()?;
+        .try_into()?;
 
     let _result: (String, u8, u8) = connection
         .query("select * from TEST_STRINGS where f1 = 'u8'")?
-        .sync_try_into()?;
+        .try_into()?;
 
     let _result: (String, i64, i64) = connection
         .query("select * from TEST_STRINGS where f1 = 'i64'")?
-        .sync_try_into()?;
+        .try_into()?;
 
     Ok(())
 }
