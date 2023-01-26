@@ -5,7 +5,7 @@ mod test_utils;
 use bigdecimal::BigDecimal;
 #[allow(unused_imports)]
 use flexi_logger::LoggerHandle;
-use hdbconnect::{sync::Connection, HdbResult, HdbValue};
+use hdbconnect::{Connection, HdbResult, HdbValue};
 use log::{debug, info};
 use num::FromPrimitive;
 use serde::Deserialize;

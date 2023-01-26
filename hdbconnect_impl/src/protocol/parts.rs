@@ -90,7 +90,7 @@ pub use self::{
 
 use crate::{
     conn::AmConnCore,
-    hdb_response::InternalReturnValue,
+    internal_returnvalue::InternalReturnValue,
     protocol::{Part, PartAttributes, PartKind, ServerUsage},
     HdbError, HdbResult,
 };

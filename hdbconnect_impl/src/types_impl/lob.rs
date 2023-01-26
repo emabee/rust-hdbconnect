@@ -6,7 +6,7 @@ mod lob_writer_util;
 mod nclob;
 
 #[cfg(feature = "async")]
-pub mod async_lob_writer;
+pub(crate) mod async_lob_writer;
 #[cfg(feature = "sync")]
 mod sync_lob_writer;
 

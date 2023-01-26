@@ -4,7 +4,7 @@ mod test_utils;
 
 use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
 use flexi_logger::LoggerHandle;
-use hdbconnect::{sync::Connection, HdbResult};
+use hdbconnect::{Connection, HdbResult};
 use log::{debug, info, trace};
 
 #[test] // cargo test --test test_021_longdate

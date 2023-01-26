@@ -2,7 +2,7 @@
 #![allow(dead_code)]
 
 use flexi_logger::{opt_format, Logger, LoggerHandle};
-use hdbconnect::{ConnectParamsBuilder, sync::Connection, HdbError, HdbResult, ServerCerts};
+use hdbconnect::{ConnectParamsBuilder, Connection, HdbError, HdbResult, ServerCerts};
 
 // Returns a logger that prints out all info, warn and error messages.
 //

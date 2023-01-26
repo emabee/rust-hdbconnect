@@ -4,9 +4,8 @@ mod test_utils;
 
 use flexi_logger::LoggerHandle;
 use hdbconnect::{
-    sync::Connection,
     time::{HanaOffsetDateTime, HanaPrimitiveDateTime},
-    HdbResult, ToHana, TypeId,
+    Connection, HdbResult, ToHana, TypeId,
 };
 use log::{debug, info};
 use serde::Deserialize;

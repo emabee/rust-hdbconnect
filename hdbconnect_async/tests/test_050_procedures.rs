@@ -303,11 +303,6 @@ async fn procedure_with_in_nclob_and_out_nclob(
         "Can you read that??".to_string(),
     )));
 
-    // _log_handle.push_temp_spec(
-    //     "info, test = trace, hdbconnect_impl::types_impl::lob::async_lob_writer = trace"
-    //         .try_into()
-    //         .unwrap(),
-    // );
     let result = stmt
         .execute_row(vec![
             HdbValue::ASYNCLOBSTREAM(Some(reader1)),
@@ -328,8 +323,6 @@ async fn procedure_with_in_nclob_and_out_nclob(
         .next()
         .unwrap()
         .try_into_nclob()?;
-
-    // _log_handle.pop_temp_spec();
 
     assert_eq!(
         nclob.async_into_string().await?,

@@ -26,8 +26,8 @@ extern crate serde;
 
 mod conn;
 mod hdb_error;
-mod hdb_response;
 mod hdb_return_value;
+mod internal_returnvalue;
 mod protocol;
 mod row;
 mod rows;
@@ -41,33 +41,31 @@ pub mod a_sync;
 #[cfg(feature = "sync")]
 pub mod sync;
 
-pub use crate::conn::{
-    ConnectParams, ConnectParamsBuilder, IntoConnectParams, IntoConnectParamsBuilder, ServerCerts,
-    Tls,
-};
-
-#[cfg(feature = "async")]
-pub use types_impl::lob::async_lob_writer;
-
-pub use crate::hdb_error::{HdbError, HdbResult};
-pub use crate::hdb_response::HdbResponse;
-pub use crate::hdb_return_value::HdbReturnValue;
-
 #[cfg(feature = "async")]
 pub use crate::protocol::parts::AsyncResultSet;
 
 #[cfg(feature = "sync")]
 pub use crate::protocol::parts::SyncResultSet;
 
-pub use crate::protocol::parts::{
-    ExecutionResult, FieldMetadata, HdbValue, OutputParameters, ParameterBinding,
-    ParameterDescriptor, ParameterDescriptors, ParameterDirection, ResultSetMetadata, ServerError,
-    Severity, TypeId,
-};
-pub use crate::{row::Row, rows::Rows};
+pub(crate) use internal_returnvalue::InternalReturnValue;
 
-pub use crate::protocol::ServerUsage;
-pub use crate::serde_db_impl::{time, ToHana};
+pub use crate::{
+    conn::{
+        ConnectParams, ConnectParamsBuilder, IntoConnectParams, IntoConnectParamsBuilder,
+        ServerCerts, Tls,
+    },
+    hdb_error::{HdbError, HdbResult},
+    hdb_return_value::HdbReturnValue,
+    protocol::parts::{
+        ExecutionResult, FieldMetadata, HdbValue, OutputParameters, ParameterBinding,
+        ParameterDescriptor, ParameterDescriptors, ParameterDirection, ResultSetMetadata,
+        ServerError, Severity, TypeId,
+    },
+    protocol::ServerUsage,
+    row::Row,
+    rows::Rows,
+    serde_db_impl::{time, ToHana},
+};
 
 /// Non-standard types that are used within the
 /// [`HdbValue`](crate::HdbValue)s in a [`ResultSet`](crate::ResultSet).

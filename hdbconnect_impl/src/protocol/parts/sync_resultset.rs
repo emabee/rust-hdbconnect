@@ -319,7 +319,7 @@ impl SyncResultSet {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .server_usage
     }
-
+    // FIXME rename these methods
     fn sync_parse_rows(
         &self,
         no_of_rows: usize,
@@ -331,7 +331,7 @@ impl SyncResultSet {
             .parse_rows(no_of_rows, &self.metadata, rdr)
     }
 
-    pub fn sync_inject_statement_id(&mut self, am_ps_core: SyncAmPsCore) -> HdbResult<()> {
+    pub(crate) fn sync_inject_statement_id(&mut self, am_ps_core: SyncAmPsCore) -> HdbResult<()> {
         if let Some(rs_core) = &(self.state.lock()?).o_am_rscore {
             rs_core.sync_lock()?.inject_statement_id(am_ps_core);
         }

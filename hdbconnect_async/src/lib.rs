@@ -27,12 +27,12 @@
 // FIXME rocket_pool is missing
 pub use hdbconnect_impl::{
     time, types, url, ConnectParams, ConnectParamsBuilder, ExecutionResult, FieldMetadata,
-    HdbError, HdbResponse, HdbResult, HdbReturnValue, HdbValue, IntoConnectParams,
-    IntoConnectParamsBuilder, OutputParameters, ParameterBinding, ParameterDescriptor,
-    ParameterDescriptors, ParameterDirection, Row, ServerCerts, ServerError, ServerUsage, Severity,
-    Tls, ToHana, TypeId, DEFAULT_FETCH_SIZE, DEFAULT_LOB_READ_LENGTH, DEFAULT_LOB_WRITE_LENGTH,
+    HdbError, HdbResult, HdbReturnValue, HdbValue, IntoConnectParams, IntoConnectParamsBuilder,
+    OutputParameters, ParameterBinding, ParameterDescriptor, ParameterDescriptors,
+    ParameterDirection, Row, ServerCerts, ServerError, ServerUsage, Severity, Tls, ToHana, TypeId,
+    DEFAULT_FETCH_SIZE, DEFAULT_LOB_READ_LENGTH, DEFAULT_LOB_WRITE_LENGTH,
 };
 
-pub use hdbconnect_impl::a_sync::{Connection, PreparedStatement};
+pub use hdbconnect_impl::a_sync::{Connection, HdbResponse, PreparedStatement};
 pub use hdbconnect_impl::AsyncResultSet as ResultSet;
 pub mod code_examples;

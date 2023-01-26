@@ -1,6 +1,6 @@
-use super::PreparedStatementCore;
+use super::{HdbResponse, PreparedStatementCore};
 use crate::conn::AmConnCore;
-use crate::hdb_response::InternalReturnValue;
+use crate::internal_returnvalue::InternalReturnValue;
 use crate::protocol::parts::{
     HdbValue, LobFlags, ParameterDescriptors, ParameterRows, ResultSetMetadata, TypeId,
 };
@@ -8,7 +8,7 @@ use crate::protocol::{
     Part, PartKind, Request, RequestType, ServerUsage, HOLD_CURSORS_OVER_COMMIT,
 };
 use crate::types_impl::lob::LobWriter;
-use crate::{HdbError, HdbResponse, HdbResult};
+use crate::{HdbError, HdbResult};
 use std::io::Write;
 use std::sync::{Arc, Mutex};
 

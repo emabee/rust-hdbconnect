@@ -1,11 +1,11 @@
-use super::PreparedStatement;
+use super::{HdbResponse, PreparedStatement};
 use crate::conn::AmConnCore;
 use crate::protocol::parts::{
     ClientContext, ClientContextId, CommandInfo, ConnOptId, OptionValue, ServerError,
 };
 use crate::protocol::{Part, Request, RequestType, ServerUsage, HOLD_CURSORS_OVER_COMMIT};
 use crate::xa_impl::sync_new_resource_manager;
-use crate::{HdbError, HdbResponse, HdbResult, IntoConnectParams, SyncResultSet};
+use crate::{HdbError, HdbResult, IntoConnectParams, SyncResultSet};
 use dist_tx::sync::rm::ResourceManager;
 
 /// A synchronous connection to the database.

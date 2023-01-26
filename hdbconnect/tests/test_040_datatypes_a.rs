@@ -4,7 +4,7 @@ mod test_utils;
 
 use bigdecimal::BigDecimal;
 use flexi_logger::LoggerHandle;
-use hdbconnect::{sync::Connection, HdbResult, HdbValue};
+use hdbconnect::{Connection, HdbResult, HdbValue};
 use log::{debug, info};
 use serde::Deserialize;
 use serde_bytes::{ByteBuf, Bytes};

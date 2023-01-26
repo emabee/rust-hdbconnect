@@ -3,7 +3,7 @@ extern crate serde;
 mod test_utils;
 
 use flexi_logger::LoggerHandle;
-use hdbconnect::{sync::Connection, HdbResult, HdbValue};
+use hdbconnect::{Connection, HdbResult, HdbValue};
 
 #[test] // cargo test --test test_029_arrays -- --nocapture
 pub fn test_029_arrays() -> HdbResult<()> {

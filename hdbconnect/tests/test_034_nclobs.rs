@@ -2,7 +2,7 @@ extern crate serde;
 
 mod test_utils;
 
-use hdbconnect::{sync::Connection, types::NCLob, HdbResult, HdbValue};
+use hdbconnect::{types::NCLob, Connection, HdbResult, HdbValue};
 use log::{debug, info, trace};
 use serde::{Deserialize, Serialize};
 use serde_bytes::Bytes;

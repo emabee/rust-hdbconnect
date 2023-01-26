@@ -324,7 +324,7 @@ impl AsyncResultSet {
             .await
     }
 
-    pub async fn inject_statement_id(&mut self, am_ps_core: AsyncAmPsCore) -> HdbResult<()> {
+    pub(crate) async fn inject_statement_id(&mut self, am_ps_core: AsyncAmPsCore) -> HdbResult<()> {
         if let Some(rs_core) = &(self.state.lock().await).o_am_rscore {
             rs_core.async_lock().await.inject_statement_id(am_ps_core);
         }

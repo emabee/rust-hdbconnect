@@ -4,7 +4,7 @@ mod test_utils;
 
 use chrono::NaiveDate;
 use flexi_logger::LoggerHandle;
-use hdbconnect::{sync::Connection, HdbResult};
+use hdbconnect::{Connection, HdbResult};
 
 // From wikipedia:
 //

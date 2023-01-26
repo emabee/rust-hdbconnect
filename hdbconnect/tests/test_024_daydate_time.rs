@@ -3,7 +3,7 @@ extern crate serde;
 mod test_utils;
 
 use flexi_logger::LoggerHandle;
-use hdbconnect::{sync::Connection, time::HanaDate, HdbResult, ToHana};
+use hdbconnect::{time::HanaDate, Connection, HdbResult, ToHana};
 use log::{debug, info, trace};
 use time::{format_description::FormatItem, macros::format_description, Date, Month};
 

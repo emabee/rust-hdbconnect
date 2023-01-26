@@ -4,7 +4,7 @@ mod test_utils;
 
 use dist_tx::sync::tm::*;
 use flexi_logger::LoggerHandle;
-use hdbconnect::{sync::Connection, HdbResult};
+use hdbconnect::{Connection, HdbResult};
 use log::{debug, info};
 
 #[test] // cargo test --test test_090_xa_transactions -- --nocapture

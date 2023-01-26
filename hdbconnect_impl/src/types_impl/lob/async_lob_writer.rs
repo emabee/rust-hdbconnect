@@ -1,14 +1,11 @@
 use crate::{
     conn::AmConnCore,
-    hdb_response::InternalReturnValue,
+    internal_returnvalue::InternalReturnValue,
     protocol::parts::{ParameterDescriptors, ResultSetMetadata, TypeId, WriteLobRequest},
     protocol::{Part, PartKind, Reply, ReplyType, Request, RequestType},
-    types_impl::lob::lob_writer_util::get_utf8_tail_len,
+    types_impl::lob::lob_writer_util::{get_utf8_tail_len, LobWriteMode},
     {HdbError, HdbResult, ServerUsage},
 };
-
-use super::lob_writer_util::LobWriteMode;
-
 use std::sync::Arc;
 use tokio::io::{AsyncRead, AsyncReadExt};
 

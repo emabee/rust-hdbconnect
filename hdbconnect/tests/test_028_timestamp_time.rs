@@ -4,7 +4,7 @@ mod test_utils;
 
 // use chrono::{DateTime, NaiveDate, PrimitiveDateTime, Utc};
 use flexi_logger::LoggerHandle;
-use hdbconnect::{sync::Connection, time::HanaPrimitiveDateTime, HdbResult, ToHana, TypeId};
+use hdbconnect::{time::HanaPrimitiveDateTime, Connection, HdbResult, ToHana, TypeId};
 use log::{debug, info, trace};
 use time::{
     format_description::FormatItem, macros::format_description, Date, Month, PrimitiveDateTime,

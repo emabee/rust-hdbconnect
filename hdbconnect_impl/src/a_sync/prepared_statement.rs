@@ -1,13 +1,13 @@
-use super::PreparedStatementCore;
+use super::{HdbResponse, PreparedStatementCore};
 use crate::{
     conn::AmConnCore,
-    hdb_response::InternalReturnValue,
+    internal_returnvalue::InternalReturnValue,
     protocol::parts::{
         HdbValue, LobFlags, ParameterDescriptors, ParameterRows, ResultSetMetadata, TypeId,
     },
     protocol::{Part, PartKind, Request, RequestType, ServerUsage, HOLD_CURSORS_OVER_COMMIT},
     types_impl::lob::async_lob_writer,
-    HdbError, HdbResponse, HdbResult,
+    HdbError, HdbResult,
 };
 use std::sync::Arc;
 use tokio::sync::Mutex;

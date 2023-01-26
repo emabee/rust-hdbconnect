@@ -1,4 +1,4 @@
-//! Native rust database driver for SAP HANA (TM).
+//! Synchronous native rust database driver for SAP HANA (TM).
 //!
 //! `hdbconnect` provides a lean, fast, and easy-to-use rust-API for working with
 //! SAP HANA. The driver is written completely in rust.
@@ -23,8 +23,14 @@
 //!
 //! See [code examples](crate::code_examples) for an overview.
 //!
-pub use hdbconnect_impl::*;
+pub use hdbconnect_impl::{
+    time, types, url, ConnectParams, ConnectParamsBuilder, ExecutionResult, FieldMetadata,
+    HdbError, HdbResult, HdbReturnValue, HdbValue, IntoConnectParams, IntoConnectParamsBuilder,
+    OutputParameters, ParameterBinding, ParameterDescriptor, ParameterDescriptors,
+    ParameterDirection, Row, ServerCerts, ServerError, ServerUsage, Severity, Tls, ToHana, TypeId,
+    DEFAULT_FETCH_SIZE, DEFAULT_LOB_READ_LENGTH, DEFAULT_LOB_WRITE_LENGTH,
+};
 
-pub use hdbconnect_impl::sync::Connection;
-
+pub use hdbconnect_impl::sync::{Connection, HdbResponse, PreparedStatement};
+pub use hdbconnect_impl::SyncResultSet as ResultSet;
 pub mod code_examples;

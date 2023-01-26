@@ -9,7 +9,7 @@ use byteorder::{LittleEndian, ReadBytesExt};
 
 use crate::{
     conn::{AmConnCore, ConnectionCore},
-    hdb_response::InternalReturnValue,
+    internal_returnvalue::InternalReturnValue,
     protocol::parts::{
         ExecutionResult, ParameterDescriptors, Parts, ResultSetMetadata, ServerError, Severity,
     },

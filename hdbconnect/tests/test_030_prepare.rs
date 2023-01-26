@@ -3,7 +3,7 @@ extern crate serde;
 mod test_utils;
 
 use flexi_logger::LoggerHandle;
-use hdbconnect::{sync::Connection, HdbError, HdbResult, HdbValue};
+use hdbconnect::{Connection, HdbError, HdbResult, HdbValue};
 use log::{debug, info};
 use serde::Deserialize;
 

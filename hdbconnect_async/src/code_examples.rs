@@ -147,7 +147,7 @@
 //! # async fn foo() -> HdbResult<()> {
 //! # let mut connection = Connection::new("...").await?;
 //! # let qry = "";
-//! # let resultset = connection.query(qry).await?;
+//! # let mut resultset = connection.query(qry).await?;
 //! while let Some(row) = resultset.next_row().await? {
 //!     println!("First field: {:?}", row[0]);
 //! }

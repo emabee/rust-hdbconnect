@@ -1,4 +1,4 @@
-use super::prepared_statement::PreparedStatement;
+use super::{prepared_statement::PreparedStatement, HdbResponse};
 use crate::{
     conn::AmConnCore,
     protocol::parts::{
@@ -6,7 +6,7 @@ use crate::{
     },
     protocol::{Part, Request, RequestType, ServerUsage, HOLD_CURSORS_OVER_COMMIT},
     xa_impl::async_new_resource_manager,
-    {AsyncResultSet, HdbError, HdbResponse, HdbResult, IntoConnectParams},
+    {AsyncResultSet, HdbError, HdbResult, IntoConnectParams},
 };
 use dist_tx::a_sync::rm::ResourceManager;
 

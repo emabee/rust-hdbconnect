@@ -1,6 +1,6 @@
 use crate::{
     conn::AmConnCore,
-    hdb_response::InternalReturnValue,
+    internal_returnvalue::InternalReturnValue,
     protocol::parts::{ParameterDescriptors, ResultSetMetadata, TypeId, WriteLobRequest},
     protocol::{util, Part, PartKind, Reply, ReplyType, Request, RequestType},
     {HdbError, HdbResult, ServerUsage},
