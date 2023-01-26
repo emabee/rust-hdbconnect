@@ -31,6 +31,8 @@
 #![allow(clippy::non_ascii_literal)]
 #![allow(clippy::must_use_candidate)]
 #![allow(clippy::missing_errors_doc)]
+#![cfg_attr(not(any(feature = "sync", feature = "async")), allow(unused_imports))]
+#![cfg_attr(not(any(feature = "sync", feature = "async")), allow(dead_code))]
 
 #[macro_use]
 extern crate lazy_static;
@@ -52,9 +54,9 @@ pub mod url;
 pub mod xa_impl;
 
 #[cfg(feature = "async")]
-pub mod async_prepared_statement_core;
+pub mod a_sync;
 #[cfg(feature = "sync")]
-pub mod sync_prepared_statement_core;
+pub mod sync;
 
 pub use crate::conn::{
     ConnectParams, ConnectParamsBuilder, IntoConnectParams, IntoConnectParamsBuilder, ServerCerts,
@@ -67,7 +69,13 @@ pub use types_impl::lob::async_lob_writer;
 pub use crate::hdb_error::{HdbError, HdbResult};
 pub use crate::hdb_response::HdbResponse;
 pub use crate::hdb_return_value::HdbReturnValue;
-pub use crate::protocol::parts::ResultSet;
+
+#[cfg(feature = "async")]
+pub use crate::protocol::parts::AsyncResultSet;
+
+#[cfg(feature = "sync")]
+pub use crate::protocol::parts::SyncResultSet;
+
 pub use crate::protocol::parts::{
     ExecutionResult, FieldMetadata, HdbValue, OutputParameters, ParameterBinding,
     ParameterDescriptor, ParameterDescriptors, ParameterDirection, ResultSetMetadata, ServerError,

@@ -88,7 +88,7 @@ async fn test_blobs(
         connection
             .query("select length(BINDATA),length(BINDATA_NN) from TEST_BLOBS")
             .await?
-            .try_into::<(usize, usize)>()
+            .async_try_into::<(usize, usize)>()
             .await?,
         "data length in database is not as expected"
     );
@@ -97,7 +97,7 @@ async fn test_blobs(
     let before = connection.get_call_count().await?;
     let query = "select desc, bindata as BL1, bindata as BL2 , bindata_NN as BL3 from TEST_BLOBS";
     let resultset = connection.query(query).await?;
-    let mydata: MyData = resultset.try_into().await?;
+    let mydata: MyData = resultset.async_try_into().await?;
     info!(
         "reading 2x5MB BLOB with lob-read-length {} required {} roundtrips",
         connection.lob_read_length().await?,
@@ -123,7 +123,7 @@ async fn test_blobs(
     connection.set_lob_read_length(10_000).await?;
     let before = connection.get_call_count().await?;
     let resultset = connection.query(query).await?;
-    let second: MyData = resultset.try_into().await?;
+    let second: MyData = resultset.async_try_into().await?;
     info!(
         "reading 2x5MB BLOB with lob-read-length {} required {} roundtrips",
         connection.lob_read_length().await?,
@@ -137,18 +137,22 @@ async fn test_blobs(
     connection.set_lob_read_length(500_000).await?;
 
     let query = "select bindata as BL1, bindata as BL2, bindata_NN as BL3 from TEST_BLOBS";
-    let mut row = connection.query(query).await?.into_single_row().await?;
+    let mut row = connection
+        .query(query)
+        .await?
+        .async_into_single_row()
+        .await?;
     let blob: BLob = row.next_value().unwrap().try_into_blob()?;
     let blob2: BLob = row.next_value().unwrap().try_into_blob()?;
 
     let mut streamed = Vec::<u8>::new();
-    blob2.write_into(&mut streamed).await?;
+    blob2.async_write_into(&mut streamed).await?;
     assert_eq!(random_bytes.len(), streamed.len());
     let mut hasher = Sha256::default();
     hasher.update(&streamed);
 
     let mut streamed = Vec::<u8>::new();
-    blob.write_into(&mut streamed).await?;
+    blob.async_write_into(&mut streamed).await?;
 
     assert_eq!(random_bytes.len(), streamed.len());
     let mut hasher = Sha256::default();
@@ -160,12 +164,12 @@ async fn test_blobs(
     let mut blob: BLob = connection
         .query("select bindata from TEST_BLOBS")
         .await?
-        .into_single_row()
+        .async_into_single_row()
         .await?
         .into_single_value()?
         .try_into_blob()?;
     for i in 1000..1040 {
-        let _blob_slice = blob.read_slice(i, 100).await?;
+        let _blob_slice = blob.async_read_slice(i, 100).await?;
     }
 
     Ok(())
@@ -195,7 +199,7 @@ async fn test_streaming(
     )));
     stmt.execute_row(vec![
         HdbValue::STRING("streaming1".to_string()),
-        HdbValue::LOBSTREAM(Some(reader)),
+        HdbValue::ASYNCLOBSTREAM(Some(reader)),
     ])
     .await?;
     connection.commit().await?;
@@ -205,7 +209,7 @@ async fn test_streaming(
         connection
             .query("select length(BINDATA_NN) from TEST_BLOBS")
             .await?
-            .try_into::<usize>()
+            .async_try_into::<usize>()
             .await?,
         "data length in database is not as expected"
     );
@@ -217,7 +221,7 @@ async fn test_streaming(
     )));
     stmt.execute_row(vec![
         HdbValue::STRING("streaming2".to_string()),
-        HdbValue::LOBSTREAM(Some(reader)),
+        HdbValue::ASYNCLOBSTREAM(Some(reader)),
     ])
     .await?;
 
@@ -227,12 +231,12 @@ async fn test_streaming(
     let blob = connection
         .query("select bindata_NN from TEST_BLOBS where desc = 'streaming2'")
         .await?
-        .into_single_row()
+        .async_into_single_row()
         .await?
         .into_single_value()?
         .try_into_blob()?;
     let mut buffer = Vec::<u8>::new();
-    blob.write_into(&mut buffer).await?;
+    blob.async_write_into(&mut buffer).await?;
 
     assert_eq!(random_bytes.len(), buffer.len());
     let mut hasher = Sha256::default();

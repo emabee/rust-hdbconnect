@@ -6,15 +6,12 @@ use std::{boxed::Box, collections::VecDeque};
 
 #[cfg(feature = "async")]
 use super::fetch::async_fetch_a_lob_chunk;
-#[cfg(feature = "async")]
-use crate::conn::AsyncAmConnCore;
+use crate::conn::AmConnCore;
 #[cfg(feature = "async")]
 use tokio::io::ReadBuf;
 
 #[cfg(feature = "sync")]
 use super::fetch::sync_fetch_a_lob_chunk;
-#[cfg(feature = "sync")]
-use crate::conn::SyncAmConnCore;
 #[cfg(feature = "sync")]
 use std::io::{Read, Write};
 
@@ -33,8 +30,7 @@ pub struct BLob(Box<BLobHandle>);
 
 impl BLob {
     pub(crate) fn new(
-        #[cfg(feature = "sync")] am_conn_core: &SyncAmConnCore,
-        #[cfg(feature = "async")] am_conn_core: &AsyncAmConnCore,
+        am_conn_core: &AmConnCore,
         o_am_rscore: &Option<AmRsCore>,
         is_data_complete: bool,
         total_byte_length: u64,
@@ -84,7 +80,7 @@ impl BLob {
     ///
     /// Several variants of `HdbError` can occur.
     #[cfg(feature = "sync")]
-    pub fn into_bytes(self) -> HdbResult<Vec<u8>> {
+    pub fn sync_into_bytes(self) -> HdbResult<Vec<u8>> {
         trace!("BLob::into_bytes()");
         self.0.sync_into_bytes()
     }
@@ -122,7 +118,7 @@ impl BLob {
     ///
     /// Several variants of `HdbError` can occur.
     #[cfg(feature = "async")]
-    pub async fn into_bytes(mut self) -> HdbResult<Vec<u8>> {
+    pub async fn async_into_bytes(mut self) -> HdbResult<Vec<u8>> {
         trace!("BLob::into_bytes()");
         self.0.async_load_complete().await?;
         self.0.into_bytes_if_complete()
@@ -135,8 +131,8 @@ impl BLob {
     /// and writes them immediately into the writer,
     /// thus avoiding that all data are materialized within this `NCLob`.
     #[cfg(feature = "sync")]
-    pub fn write_into(mut self, writer: &mut dyn std::io::Write) -> HdbResult<()> {
-        let lob_read_length: usize = self.0.am_conn_core.lock()?.lob_read_length() as usize;
+    pub fn sync_write_into(mut self, writer: &mut dyn std::io::Write) -> HdbResult<()> {
+        let lob_read_length: usize = self.0.am_conn_core.sync_lock()?.lob_read_length() as usize;
         let mut buf = vec![0_u8; lob_read_length].into_boxed_slice();
 
         loop {
@@ -157,15 +153,16 @@ impl BLob {
     /// and writes them immediately into the writer,
     /// thus avoiding that all data are materialized within this `BLob`.
     #[cfg(feature = "async")]
-    pub async fn write_into<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
+    pub async fn async_write_into<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
         mut self,
         writer: &mut W,
     ) -> HdbResult<()> {
-        let lob_read_length: usize = self.0.am_conn_core.lock().await.lob_read_length() as usize;
+        let lob_read_length: usize =
+            self.0.am_conn_core.async_lock().await.lob_read_length() as usize;
         let mut buf = vec![0_u8; lob_read_length].into_boxed_slice();
 
         loop {
-            let read = self.0.read(&mut buf).await?;
+            let read = self.0.async_read(&mut buf).await?;
             if read == 0 {
                 break;
             }
@@ -175,19 +172,19 @@ impl BLob {
         Ok(())
     }
 
+    // FIXME
+    #[allow(clippy::needless_return, unreachable_code)]
     pub(crate) fn into_bytes_if_complete(self) -> HdbResult<Vec<u8>> {
         trace!("BLob::into_bytes_if_complete()");
-        let result: Vec<u8>;
-
         #[cfg(feature = "sync")]
         {
-            result = self.0.sync_into_bytes()?;
+            return Ok(self.0.sync_into_bytes()?);
         }
         #[cfg(feature = "async")]
         {
-            result = self.0.into_bytes_if_complete()?;
+            return self.0.into_bytes_if_complete();
         }
-        Ok(result)
+        unreachable!()
     }
 
     #[cfg(feature = "sync")]
@@ -206,7 +203,7 @@ impl BLob {
     ///
     /// Several variants of `HdbError` can occur.
     #[cfg(feature = "sync")]
-    pub fn read_slice(&mut self, offset: u64, length: u32) -> HdbResult<Vec<u8>> {
+    pub fn sync_read_slice(&mut self, offset: u64, length: u32) -> HdbResult<Vec<u8>> {
         self.0.sync_read_slice(offset, length)
     }
 
@@ -216,7 +213,7 @@ impl BLob {
     ///
     /// Several variants of `HdbError` can occur.
     #[cfg(feature = "async")]
-    pub async fn read_slice(&mut self, offset: u64, length: u32) -> HdbResult<Vec<u8>> {
+    pub async fn async_read_slice(&mut self, offset: u64, length: u32) -> HdbResult<Vec<u8>> {
         self.0.read_slice(offset, length).await
     }
 
@@ -256,10 +253,7 @@ impl std::io::Read for BLob {
 // remaining data on demand.
 #[derive(Clone, Debug)]
 struct BLobHandle {
-    #[cfg(feature = "sync")]
-    am_conn_core: SyncAmConnCore,
-    #[cfg(feature = "async")]
-    am_conn_core: AsyncAmConnCore,
+    am_conn_core: AmConnCore,
     o_am_rscore: Option<AmRsCore>,
     is_data_complete: bool,
     total_byte_length: u64,
@@ -270,8 +264,7 @@ struct BLobHandle {
 }
 impl BLobHandle {
     fn new(
-        #[cfg(feature = "sync")] am_conn_core: &SyncAmConnCore,
-        #[cfg(feature = "async")] am_conn_core: &AsyncAmConnCore,
+        am_conn_core: &AmConnCore,
         o_am_rscore: &Option<AmRsCore>,
         is_data_complete: bool,
         total_byte_length: u64,
@@ -334,7 +327,7 @@ impl BLobHandle {
         }
 
         let read_length = std::cmp::min(
-            self.am_conn_core.lock()?.lob_read_length(),
+            self.am_conn_core.sync_lock()?.lob_read_length(),
             (self.total_byte_length - self.acc_byte_length as u64) as u32,
         );
 
@@ -372,7 +365,7 @@ impl BLobHandle {
         }
 
         let read_length = std::cmp::min(
-            self.am_conn_core.lock().await.lob_read_length(),
+            self.am_conn_core.async_lock().await.lob_read_length(),
             (self.total_byte_length - self.acc_byte_length as u64) as u32,
         );
 
@@ -474,7 +467,7 @@ impl std::io::Read for BLobHandle {
 
 #[cfg(feature = "async")]
 impl<'a> BLobHandle {
-    async fn read(&mut self, buf: &'a mut [u8]) -> HdbResult<usize> {
+    async fn async_read(&mut self, buf: &'a mut [u8]) -> HdbResult<usize> {
         let mut buf = ReadBuf::new(buf);
         let buf_len = buf.capacity();
         debug_assert!(buf.filled().is_empty());

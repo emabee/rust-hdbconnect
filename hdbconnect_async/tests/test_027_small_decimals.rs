@@ -102,7 +102,7 @@ async fn test_small_decimals(
         .query("select f1, f2, f3_NN, f2_NN from TEST_SMALL_DECIMALS order by f2")
         .await?;
     let scale = 5; //resultset.metadata().scale(1)? as usize;
-    let result: Vec<TestData> = resultset.try_into().await?;
+    let result: Vec<TestData> = resultset.async_try_into().await?;
     for td in result {
         debug!("{:?}, {:?}", td.f1, td.f2);
         assert_eq!(td.f1, format!("{0:.1$}", td.f2, scale));
@@ -114,27 +114,27 @@ async fn test_small_decimals(
     let resultset = connection
         .query("select AVG(F3) from TEST_SMALL_DECIMALS")
         .await?;
-    let mydata: Option<BigDecimal> = resultset.try_into().await?;
+    let mydata: Option<BigDecimal> = resultset.async_try_into().await?;
     assert_eq!(mydata, None);
 
     // info!("Read and verify small decimal to single value");
     let resultset = connection
         .query("select AVG(F3_NN) from TEST_SMALL_DECIMALS")
         .await?;
-    let mydata: BigDecimal = resultset.try_into().await?;
+    let mydata: BigDecimal = resultset.async_try_into().await?;
     assert_eq!(mydata, BigDecimal::from_f32(10.0).unwrap());
 
     let mydata: Option<i64> = connection
         .query("select AVG(F2) from TEST_SMALL_DECIMALS where f2 = '65.53500'")
         .await?
-        .try_into()
+        .async_try_into()
         .await?;
     assert_eq!(mydata, Some(65));
 
     let mydata: i64 = connection
         .query("select AVG(F2_NN) from TEST_SMALL_DECIMALS where f2_NN = '65.53500'")
         .await?
-        .try_into()
+        .async_try_into()
         .await?;
     assert_eq!(mydata, 65);
 
@@ -142,7 +142,7 @@ async fn test_small_decimals(
     let mydata: HdbResult<i8> = connection
         .query("select SUM(ABS(F2)) from TEST_SMALL_DECIMALS")
         .await?
-        .try_into()
+        .async_try_into()
         .await;
     assert!(mydata.is_err());
 
@@ -150,7 +150,7 @@ async fn test_small_decimals(
     let mydata: HdbResult<i8> = connection
         .query("select SUM(ABS(F2_NN)) from TEST_SMALL_DECIMALS")
         .await?
-        .try_into()
+        .async_try_into()
         .await;
     assert!(mydata.is_err());
 
@@ -158,7 +158,7 @@ async fn test_small_decimals(
     let mydata: i64 = connection
         .query("select SUM(ABS(F2)) from TEST_SMALL_DECIMALS")
         .await?
-        .try_into()
+        .async_try_into()
         .await?;
     assert_eq!(mydata, 481);
 
@@ -166,7 +166,7 @@ async fn test_small_decimals(
     let mydata: i64 = connection
         .query("select SUM(ABS(F2_NN)) from TEST_SMALL_DECIMALS")
         .await?
-        .try_into()
+        .async_try_into()
         .await?;
     assert_eq!(mydata, 481);
 

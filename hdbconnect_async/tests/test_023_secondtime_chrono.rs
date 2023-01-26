@@ -30,11 +30,11 @@ async fn test_secondtime(
 
     debug!("prepare the test data");
     let naive_time_values: Vec<NaiveTime> = vec![
-        NaiveTime::from_hms(0, 0, 0),
-        NaiveTime::from_hms(1, 1, 1),
-        NaiveTime::from_hms(2, 2, 2),
-        NaiveTime::from_hms(3, 3, 3),
-        NaiveTime::from_hms(23, 59, 59),
+        NaiveTime::from_hms_opt(0, 0, 0).unwrap(),
+        NaiveTime::from_hms_opt(1, 1, 1).unwrap(),
+        NaiveTime::from_hms_opt(2, 2, 2).unwrap(),
+        NaiveTime::from_hms_opt(3, 3, 3).unwrap(),
+        NaiveTime::from_hms_opt(23, 59, 59).unwrap(),
     ];
     let string_values = vec!["00:00:00", "01:01:01", "02:02:02", "03:03:03", "23:59:59"];
     for i in 0..5 {
@@ -80,8 +80,8 @@ async fn test_secondtime(
         let typed_result: i32 = prep_stmt
             .execute_batch()
             .await?
-            .into_resultset()?
-            .try_into()
+            .into_aresultset()?
+            .async_try_into()
             .await?;
         assert_eq!(typed_result, 31);
     }
@@ -91,7 +91,7 @@ async fn test_secondtime(
         let s = "select mytime from TEST_SECONDTIME order by number asc";
         let rs = connection.query(s).await?;
         trace!("rs = {:?}", rs);
-        let times: Vec<NaiveTime> = rs.try_into().await?;
+        let times: Vec<NaiveTime> = rs.async_try_into().await?;
         trace!("times = {:?}", times);
         for (time, ntv) in times.iter().zip(naive_time_values.iter()) {
             debug!("{}, {}", time, ntv);
@@ -111,7 +111,7 @@ async fn test_secondtime(
         let dates: Vec<NaiveTime> = connection
             .query("select mytime from TEST_SECONDTIME where number = 77 or number = 13")
             .await?
-            .try_into()
+            .async_try_into()
             .await?;
         trace!("query sent");
         assert_eq!(dates.len(), 2);
@@ -131,7 +131,7 @@ async fn test_secondtime(
         let date: Option<NaiveTime> = connection
             .query("select mytime from TEST_SECONDTIME where number = 2350")
             .await?
-            .try_into()
+            .async_try_into()
             .await?;
         trace!("query sent");
         assert_eq!(date, None);

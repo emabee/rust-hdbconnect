@@ -1,13 +1,14 @@
 #[cfg(feature = "async")]
-use crate::{conn::AsyncAmConnCore, protocol::util_async};
+use crate::protocol::util_async;
 
 #[cfg(feature = "sync")]
-use crate::{conn::SyncAmConnCore, protocol::util_sync};
+use crate::protocol::util_sync;
+
 #[cfg(feature = "sync")]
 use byteorder::{LittleEndian, ReadBytesExt};
 
 use crate::{
-    conn::ConnectionCore,
+    conn::{AmConnCore, ConnectionCore},
     hdb_response::InternalReturnValue,
     protocol::parts::{
         ExecutionResult, ParameterDescriptors, Parts, ResultSetMetadata, RsState, ServerError,
@@ -47,11 +48,11 @@ impl Reply {
     // * `ResultSet` needs to be injected (and is extended and returned)
     //    in case of fetch requests
     #[cfg(feature = "sync")]
-    pub fn parse_sync(
+    pub(crate) fn parse_sync(
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
         o_rs: &mut Option<&mut RsState>,
-        o_am_conn_core: Option<&SyncAmConnCore>,
+        o_am_conn_core: Option<&AmConnCore>,
         rdr: &mut dyn std::io::Read,
     ) -> std::io::Result<Self> {
         trace!("Reply::parse()");
@@ -80,11 +81,11 @@ impl Reply {
     //    prepared statements
     // * `ResultSet` needs to be injected (and is extended and returned)
     //    in case of fetch requests
-    pub async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
+    pub(crate) async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
         o_rs: &mut Option<&mut RsState>,
-        o_am_conn_core: Option<&AsyncAmConnCore>,
+        o_am_conn_core: Option<&AmConnCore>,
         rdr: &mut R,
     ) -> std::io::Result<Self> {
         trace!("Reply::parse()");
@@ -126,7 +127,7 @@ impl Reply {
     #[cfg(feature = "sync")]
     pub fn sync_into_internal_return_values(
         self,
-        am_conn_core: &mut SyncAmConnCore,
+        am_conn_core: &mut AmConnCore,
         o_additional_server_usage: Option<&mut ServerUsage>,
     ) -> HdbResult<(Vec<InternalReturnValue>, ReplyType)> {
         Ok((
@@ -139,7 +140,7 @@ impl Reply {
     #[cfg(feature = "async")]
     pub async fn async_into_internal_return_values(
         self,
-        am_conn_core: &mut AsyncAmConnCore,
+        am_conn_core: &mut AmConnCore,
         o_additional_server_usage: Option<&mut ServerUsage>,
     ) -> HdbResult<(Vec<InternalReturnValue>, ReplyType)> {
         Ok((

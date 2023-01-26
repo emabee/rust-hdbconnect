@@ -1,4 +1,4 @@
-use crate::conn::AsyncAmConnCore;
+use crate::conn::AmConnCore;
 use crate::protocol::parts::XatOptions;
 use crate::protocol::{Part, PartKind, Reply, Request, RequestType};
 use crate::{HdbError, HdbResult};
@@ -16,12 +16,10 @@ use dist_tx::{
 ///
 #[derive(Debug)]
 pub struct HdbCResourceManager {
-    am_conn_core: AsyncAmConnCore,
+    am_conn_core: AmConnCore,
 }
 
-pub fn async_new_resource_manager(
-    am_conn_core: AsyncAmConnCore,
-) -> CRmWrapper<HdbCResourceManager> {
+pub fn async_new_resource_manager(am_conn_core: AmConnCore) -> CRmWrapper<HdbCResourceManager> {
     CRmWrapper(HdbCResourceManager { am_conn_core })
 }
 
@@ -90,7 +88,7 @@ impl CResourceManager for HdbCResourceManager {
         xat_options.set_flags(flags);
         request.push(Part::XatOptions(xat_options));
 
-        let mut reply: Reply = self.am_conn_core.send(request).await?;
+        let mut reply: Reply = self.am_conn_core.async_send(request).await?;
         while !reply.parts.is_empty() {
             reply.parts.drop_parts_of_kind(PartKind::StatementContext);
             match reply.parts.pop() {
@@ -161,7 +159,7 @@ impl HdbCResourceManager {
         id: XaTransactionId,
         flags: Flags,
     ) -> HdbResult<Option<ReturnCode>> {
-        if self.am_conn_core.lock().await.is_auto_commit() {
+        if self.am_conn_core.async_lock().await.is_auto_commit() {
             return Err(HdbError::Usage(
                 "xa_*() not possible, connection is set to auto_commit",
             ));
@@ -176,7 +174,7 @@ impl HdbCResourceManager {
         let mut request = Request::new(request_type, 0);
         request.push(Part::XatOptions(xat_options));
 
-        let mut reply = self.am_conn_core.send(request).await?;
+        let mut reply = self.am_conn_core.async_send(request).await?;
 
         reply.parts.drop_parts_of_kind(PartKind::StatementContext);
         if let Some(Part::XatOptions(xat_options)) = reply.parts.pop_if_kind(PartKind::XatOptions) {

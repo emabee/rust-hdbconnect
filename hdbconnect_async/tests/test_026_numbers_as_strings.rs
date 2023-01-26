@@ -66,7 +66,7 @@ async fn test_table_with_integers(
     let _result: Vec<(String, i8, i16, i32, i64, i8, i16, i32, i64)> = connection
         .query("select * from TEST_INTEGERS")
         .await?
-        .try_into()
+        .async_try_into()
         .await?;
 
     #[allow(clippy::type_complexity)]
@@ -83,7 +83,7 @@ async fn test_table_with_integers(
     )> = connection
         .query("select * from TEST_INTEGERS")
         .await?
-        .try_into()
+        .async_try_into()
         .await?;
     for row in result {
         assert_eq!(row.0, row.1);
@@ -119,13 +119,13 @@ async fn test_table_with_floats(
     let _result: Vec<(String, f32, f64, f32, f64)> = connection
         .query("select * from TEST_FLOATS")
         .await?
-        .try_into()
+        .async_try_into()
         .await?;
 
     let result: Vec<(String, String, String, String, String)> = connection
         .query("select * from TEST_FLOATS")
         .await?
-        .try_into()
+        .async_try_into()
         .await?;
     for row in result {
         assert_eq!(row.0, row.1);
@@ -154,25 +154,25 @@ async fn test_table_with_strings(
     let _result: (String, f32, f32) = connection
         .query("select * from TEST_STRINGS where f1 = 'f32'")
         .await?
-        .try_into()
+        .async_try_into()
         .await?;
 
     let _result: (String, f64, f64) = connection
         .query("select * from TEST_STRINGS where f1 = 'f64'")
         .await?
-        .try_into()
+        .async_try_into()
         .await?;
 
     let _result: (String, u8, u8) = connection
         .query("select * from TEST_STRINGS where f1 = 'u8'")
         .await?
-        .try_into()
+        .async_try_into()
         .await?;
 
     let _result: (String, i64, i64) = connection
         .query("select * from TEST_STRINGS where f1 = 'i64'")
         .await?
-        .try_into()
+        .async_try_into()
         .await?;
 
     Ok(())

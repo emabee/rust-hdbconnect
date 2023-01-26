@@ -1,14 +1,16 @@
-#[cfg(feature = "async")]
-use crate::conn::AsyncAmConnCore;
-#[cfg(feature = "sync")]
-use crate::conn::SyncAmConnCore;
+use crate::conn::AmConnCore;
 use crate::protocol::parts::{
     AuthFields, ClientContext, ClientInfo, CommandInfo, ConnectOptions, DbConnectInfo,
     ExecutionResult, LobFlags, OutputParameters, ParameterDescriptors, ParameterRows,
-    PartitionInformation, Parts, ReadLobReply, ReadLobRequest, ResultSet, ResultSetMetadata,
-    RsState, ServerError, SessionContext, StatementContext, Topology, TransactionFlags,
-    WriteLobReply, WriteLobRequest, XatOptions,
+    PartitionInformation, Parts, ReadLobReply, ReadLobRequest, ResultSetMetadata, RsState,
+    ServerError, SessionContext, StatementContext, Topology, TransactionFlags, WriteLobReply,
+    WriteLobRequest, XatOptions,
 };
+
+#[cfg(feature = "async")]
+use crate::protocol::parts::AsyncResultSet;
+#[cfg(feature = "sync")]
+use crate::protocol::parts::SyncResultSet;
 use crate::protocol::{util, PartAttributes, PartKind};
 #[cfg(feature = "sync")]
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -40,7 +42,10 @@ pub enum Part<'a> {
     ReadLobReply(ReadLobReply),
     WriteLobRequest(WriteLobRequest<'a>),
     WriteLobReply(WriteLobReply),
-    ResultSet(Option<ResultSet>),
+    #[cfg(feature = "sync")]
+    ResultSet(Option<SyncResultSet>),
+    #[cfg(feature = "async")]
+    AResultSet(Option<AsyncResultSet>),
     ResultSetId(u64),
     ResultSetMetadata(ResultSetMetadata),
     ExecutionResult(Vec<ExecutionResult>),
@@ -74,7 +79,10 @@ impl<'a> Part<'a> {
             Self::ReadLobReply(_) => PartKind::ReadLobReply,
             Self::WriteLobRequest(_) => PartKind::WriteLobRequest,
             Self::WriteLobReply(_) => PartKind::WriteLobReply,
+            #[cfg(feature = "sync")]
             Self::ResultSet(_) => PartKind::ResultSet,
+            #[cfg(feature = "async")]
+            Self::AResultSet(_) => PartKind::ResultSet,
             Self::ResultSetId(_) => PartKind::ResultSetId,
             Self::ResultSetMetadata(_) => PartKind::ResultSetMetadata,
             Self::ExecutionResult(_) => PartKind::ExecutionResult,
@@ -347,9 +355,9 @@ impl<'a> Part<'a> {
     }
 
     #[cfg(feature = "sync")]
-    pub fn parse_sync(
+    pub(crate) fn parse_sync(
         already_received_parts: &mut Parts,
-        o_am_conn_core: Option<&SyncAmConnCore>,
+        o_am_conn_core: Option<&AmConnCore>,
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
         o_rs: &mut Option<&mut RsState>,
@@ -389,9 +397,9 @@ impl<'a> Part<'a> {
     }
 
     #[cfg(feature = "async")]
-    pub async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
+    pub(crate) async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
         already_received_parts: &mut Parts<'static>,
-        o_am_conn_core: Option<&AsyncAmConnCore>,
+        o_am_conn_core: Option<&AmConnCore>,
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
         o_rs: &mut Option<&mut RsState>,
@@ -438,7 +446,7 @@ impl<'a> Part<'a> {
         attributes: PartAttributes,
         no_of_args: usize,
         parts: &mut Parts,
-        o_am_conn_core: Option<&SyncAmConnCore>,
+        o_am_conn_core: Option<&AmConnCore>,
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
         o_rs: &mut Option<&mut RsState>,
@@ -470,7 +478,7 @@ impl<'a> Part<'a> {
                 Part::WriteLobReply(WriteLobReply::parse_sync(no_of_args, rdr)?)
             }
             PartKind::ResultSet => {
-                let rs = ResultSet::parse_sync(
+                let rs = SyncResultSet::parse_sync(
                     no_of_args,
                     attributes,
                     parts,
@@ -530,7 +538,7 @@ impl<'a> Part<'a> {
         attributes: PartAttributes,
         no_of_args: usize,
         parts: &mut Parts<'static>,
-        o_am_conn_core: Option<&AsyncAmConnCore>,
+        o_am_conn_core: Option<&AmConnCore>,
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
         o_rs: &mut Option<&mut RsState>,
@@ -567,7 +575,7 @@ impl<'a> Part<'a> {
                 Part::WriteLobReply(WriteLobReply::parse_async(no_of_args, rdr).await?)
             }
             PartKind::ResultSet => {
-                let rs = ResultSet::parse_async(
+                let rs = AsyncResultSet::parse_async(
                     no_of_args,
                     attributes,
                     parts,
@@ -578,7 +586,7 @@ impl<'a> Part<'a> {
                     rdr,
                 )
                 .await?;
-                Part::ResultSet(rs)
+                Part::AResultSet(rs)
             }
             PartKind::ResultSetId => Part::ResultSetId(rdr.read_u64_le().await?),
             PartKind::ResultSetMetadata => {

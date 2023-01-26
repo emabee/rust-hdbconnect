@@ -16,7 +16,11 @@ async fn test_051_management_console() -> HdbResult<()> {
     let hdb_response = stmt.execute(&("encryption status", "ld3670:30807")).await?;
     for hdb_return_value in hdb_response.into_iter() {
         match hdb_return_value {
+            #[cfg(feature = "sync")]
             HdbReturnValue::ResultSet(result_set) => {
+                println!("{result_set:?}");
+            }
+            HdbReturnValue::AResultSet(result_set) => {
                 println!("{:?}", result_set);
             }
             HdbReturnValue::AffectedRows(vec_usize) => {
@@ -30,13 +34,13 @@ async fn test_051_management_console() -> HdbResult<()> {
                     println!("   Output parameter: {:?}", op);
                     match op {
                         HdbValue::BLOB(blob) => {
-                            println!("Value: {:?}", blob.into_bytes().await?);
+                            println!("Value: {:?}", blob.async_into_bytes().await?);
                         }
                         HdbValue::CLOB(clob) => {
-                            println!("Value: {}", clob.into_string().await?);
+                            println!("Value: {}", clob.async_into_string().await?);
                         }
                         HdbValue::NCLOB(nclob) => {
-                            println!("Value: {}", nclob.into_string().await?);
+                            println!("Value: {}", nclob.async_into_string().await?);
                         }
                         _ => {
                             println!("Value: {}", op);

@@ -1,34 +1,37 @@
 #[cfg(feature = "async")]
-use crate::{conn::AsyncTcpClient, protocol::util_async};
+use crate::protocol::util_async;
 
 #[cfg(feature = "sync")]
-use crate::{conn::SyncTcpClient, protocol::util_sync};
+use crate::protocol::util_sync;
 
+use crate::conn::TcpClient;
 use byteorder::{BigEndian, WriteBytesExt};
 use std::io::Write;
 
 #[cfg(feature = "sync")]
-pub(crate) fn sync_send_and_receive(
-    sync_tcp_connection: &mut SyncTcpClient,
-) -> std::io::Result<()> {
+pub(crate) fn sync_send_and_receive(sync_tcp_connection: &mut TcpClient) -> std::io::Result<()> {
     trace!("send_and_receive(): send");
     match sync_tcp_connection {
-        SyncTcpClient::Plain(ref mut pc) => {
+        TcpClient::SyncPlain(ref mut pc) => {
             sync_emit_initial_request(pc.writer())?;
         }
-        SyncTcpClient::Tls(ref mut tc) => {
+        TcpClient::SyncTls(ref mut tc) => {
             sync_emit_initial_request(tc.writer())?;
         }
+        #[cfg(feature = "async")]
+        _ => unreachable!("Async connections not supported here"),
     }
 
     trace!("send_and_receive(): receive");
     match sync_tcp_connection {
-        SyncTcpClient::Plain(ref mut pc) => {
+        TcpClient::SyncPlain(ref mut pc) => {
             util_sync::skip_bytes(8, pc.reader()) // ignore the response content
         }
-        SyncTcpClient::Tls(ref mut tc) => {
+        TcpClient::SyncTls(ref mut tc) => {
             util_sync::skip_bytes(8, tc.reader()) // ignore the response content
         }
+        #[cfg(feature = "async")]
+        _ => unreachable!("Async connections not supported here"),
     }
     .map_err(|e| {
         trace!("Skipping over empty initial response failed with {:?}", e);
@@ -39,22 +42,24 @@ pub(crate) fn sync_send_and_receive(
 }
 
 #[cfg(feature = "async")]
-pub(crate) async fn async_send_and_receive(
-    async_tcp_client: &mut AsyncTcpClient,
-) -> std::io::Result<()> {
+pub(crate) async fn async_send_and_receive(tcp_client: &mut TcpClient) -> std::io::Result<()> {
     trace!("send_and_receive(): send");
-    match async_tcp_client {
-        AsyncTcpClient::Plain(ref mut pa) => async_emit_initial_request(pa.writer()).await,
-        AsyncTcpClient::Tls(ref mut ta) => async_emit_initial_request(ta.writer()).await,
-        AsyncTcpClient::Dead => unreachable!(),
+    match tcp_client {
+        TcpClient::AsyncPlain(ref mut pa) => async_emit_initial_request(pa.writer()).await,
+        TcpClient::AsyncTls(ref mut ta) => async_emit_initial_request(ta.writer()).await,
+        TcpClient::Dead => unreachable!(),
+        #[cfg(feature = "sync")]
+        _ => unreachable!("Sync connections not supported here"),
     }?;
 
     trace!("send_and_receive(): receive");
     // ignore the response content
-    match async_tcp_client {
-        AsyncTcpClient::Plain(tc) => util_async::skip_bytes(8, tc.reader()).await,
-        AsyncTcpClient::Tls(ta) => util_async::skip_bytes(8, ta.reader()).await,
-        AsyncTcpClient::Dead => unreachable!(),
+    match tcp_client {
+        TcpClient::AsyncPlain(tc) => util_async::skip_bytes(8, tc.reader()).await,
+        TcpClient::AsyncTls(ta) => util_async::skip_bytes(8, ta.reader()).await,
+        TcpClient::Dead => unreachable!(),
+        #[cfg(feature = "sync")]
+        _ => unreachable!("Sync connections not supported here"),
     }?;
 
     debug!("Successfully initialized");

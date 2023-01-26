@@ -1,7 +1,4 @@
-#[cfg(feature = "async")]
-use crate::conn::AsyncAmConnCore;
-#[cfg(feature = "sync")]
-use crate::conn::SyncAmConnCore;
+use crate::conn::AmConnCore;
 use crate::protocol::parts::{AmRsCore, TypeId};
 use crate::protocol::util;
 #[cfg(feature = "async")]
@@ -15,7 +12,7 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 #[cfg(feature = "sync")]
 pub(crate) fn parse_blob_sync(
-    am_conn_core: &SyncAmConnCore,
+    am_conn_core: &AmConnCore,
     o_am_rscore: &Option<AmRsCore>,
     nullable: bool,
     rdr: &mut dyn std::io::Read,
@@ -42,7 +39,7 @@ pub(crate) fn parse_blob_sync(
 
 #[cfg(feature = "async")]
 pub(crate) async fn parse_blob_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
-    am_conn_core: &AsyncAmConnCore,
+    am_conn_core: &AmConnCore,
     o_am_rscore: &Option<AmRsCore>,
     nullable: bool,
     rdr: &mut R,
@@ -69,7 +66,7 @@ pub(crate) async fn parse_blob_async<R: std::marker::Unpin + tokio::io::AsyncRea
 
 #[cfg(feature = "sync")]
 pub(crate) fn parse_clob_sync(
-    am_conn_core: &SyncAmConnCore,
+    am_conn_core: &AmConnCore,
     o_am_rscore: &Option<AmRsCore>,
     nullable: bool,
     rdr: &mut dyn std::io::Read,
@@ -100,7 +97,7 @@ pub(crate) fn parse_clob_sync(
 
 #[cfg(feature = "async")]
 pub(crate) async fn parse_clob_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
-    am_conn_core: &AsyncAmConnCore,
+    am_conn_core: &AmConnCore,
     o_am_rscore: &Option<AmRsCore>,
     nullable: bool,
     rdr: &mut R,
@@ -132,7 +129,7 @@ pub(crate) async fn parse_clob_async<R: std::marker::Unpin + tokio::io::AsyncRea
 
 #[cfg(feature = "sync")]
 pub(crate) fn parse_nclob_sync(
-    am_conn_core: &SyncAmConnCore,
+    am_conn_core: &AmConnCore,
     o_am_rscore: &Option<AmRsCore>,
     nullable: bool,
     type_id: TypeId,
@@ -167,7 +164,7 @@ pub(crate) fn parse_nclob_sync(
 
 #[cfg(feature = "async")]
 pub(crate) async fn parse_nclob_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
-    am_conn_core: &AsyncAmConnCore,
+    am_conn_core: &AmConnCore,
     o_am_rscore: &Option<AmRsCore>,
     nullable: bool,
     type_id: TypeId,

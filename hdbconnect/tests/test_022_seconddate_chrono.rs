@@ -4,7 +4,7 @@ mod test_utils;
 
 use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
 use flexi_logger::LoggerHandle;
-use hdbconnect::{Connection, HdbResult};
+use hdbconnect::{sync::Connection, HdbResult};
 use log::{debug, info, trace};
 
 #[test] // cargo test --test test_022_seconddate
@@ -26,11 +26,26 @@ fn test_seconddate(_loghandle: &mut LoggerHandle, connection: &mut Connection) -
 
     debug!("test_seconddate: prepare the test data");
     let naive_datetime_values: Vec<NaiveDateTime> = vec![
-        NaiveDate::from_ymd(1, 1, 1).and_hms(0, 0, 0),
-        NaiveDate::from_ymd(1, 1, 1).and_hms(0, 0, 0),
-        NaiveDate::from_ymd(2012, 2, 2).and_hms(2, 2, 2),
-        NaiveDate::from_ymd(2013, 3, 3).and_hms(3, 3, 3),
-        NaiveDate::from_ymd(2014, 4, 4).and_hms(4, 4, 4),
+        NaiveDate::from_ymd_opt(1, 1, 1)
+            .unwrap()
+            .and_hms_opt(0, 0, 0)
+            .unwrap(),
+        NaiveDate::from_ymd_opt(1, 1, 1)
+            .unwrap()
+            .and_hms_opt(0, 0, 0)
+            .unwrap(),
+        NaiveDate::from_ymd_opt(2012, 2, 2)
+            .unwrap()
+            .and_hms_opt(2, 2, 2)
+            .unwrap(),
+        NaiveDate::from_ymd_opt(2013, 3, 3)
+            .unwrap()
+            .and_hms_opt(3, 3, 3)
+            .unwrap(),
+        NaiveDate::from_ymd_opt(2014, 4, 4)
+            .unwrap()
+            .and_hms_opt(4, 4, 4)
+            .unwrap(),
     ];
     let string_values = vec![
         "0001-01-01 00:00:00",
@@ -72,7 +87,10 @@ fn test_seconddate(_loghandle: &mut LoggerHandle, connection: &mut Connection) -
         trace!("test_seconddate: calling add_batch()");
         prep_stmt.add_batch(&(naive_datetime_values[2], naive_datetime_values[3]))?;
         trace!("test_seconddate: calling execute_batch()");
-        let typed_result: i32 = prep_stmt.execute_batch()?.into_resultset()?.try_into()?;
+        let typed_result: i32 = prep_stmt
+            .execute_batch()?
+            .into_resultset()?
+            .sync_try_into()?;
         assert_eq!(typed_result, 31);
 
         info!("test_seconddate: test the conversion DateTime<Utc> -> DB");
@@ -80,7 +98,10 @@ fn test_seconddate(_loghandle: &mut LoggerHandle, connection: &mut Connection) -
         let utc3: DateTime<Utc> = DateTime::from_utc(naive_datetime_values[3], Utc);
         // Enforce that UTC timestamps values are converted here in the client to the DB type:
         prep_stmt.add_batch(&(utc2, utc3))?;
-        let typed_result: i32 = prep_stmt.execute_batch()?.into_resultset()?.try_into()?;
+        let typed_result: i32 = prep_stmt
+            .execute_batch()?
+            .into_resultset()?
+            .sync_try_into()?;
         assert_eq!(typed_result, 31_i32);
     }
 
@@ -88,7 +109,7 @@ fn test_seconddate(_loghandle: &mut LoggerHandle, connection: &mut Connection) -
         info!("test_seconddate: test the conversion DB -> NaiveDateTime");
         let s = "select mydate from TEST_SECONDDATE order by number asc";
         let rs = connection.query(s)?;
-        let dates: Vec<NaiveDateTime> = rs.try_into()?;
+        let dates: Vec<NaiveDateTime> = rs.sync_try_into()?;
         for (date, tvd) in dates.iter().zip(naive_datetime_values.iter()) {
             assert_eq!(date, tvd);
         }
@@ -100,7 +121,7 @@ fn test_seconddate(_loghandle: &mut LoggerHandle, connection: &mut Connection) -
         assert_eq!(rows_affected, 1);
         let dates: Vec<NaiveDateTime> = connection
             .query("select mydate from TEST_SECONDDATE where number = 77 or number = 13")?
-            .try_into()?;
+            .sync_try_into()?;
         assert_eq!(dates.len(), 2);
         for date in dates {
             assert_eq!(date, naive_datetime_values[0]);

@@ -126,7 +126,7 @@ async fn evaluate_resultset(
     );
 
     info!("Convert a whole resultset into a Vec of structs");
-    let vtd: Vec<TestData> = connection.query(query_str).await?.try_into().await?;
+    let vtd: Vec<TestData> = connection.query(query_str).await?.async_try_into().await?;
     for td in vtd {
         debug!("Got {}, {:?}, {}, {}", td.f1, td.f2, td.f3, td.f4);
     }
@@ -199,7 +199,8 @@ async fn verify_row_ordering(
         }
 
         debug!("pass 3: query, and convert the whole resultset");
-        let result: Vec<(usize, usize)> = connection.query(query_str).await?.try_into().await?;
+        let result: Vec<(usize, usize)> =
+            connection.query(query_str).await?.async_try_into().await?;
         for (index, (f1, f2)) in result.into_iter().enumerate() {
             if index % 100 == 0 {
                 debug!("pass 3: loop over the resultset, {}", index);

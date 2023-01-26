@@ -1,7 +1,4 @@
-#[cfg(feature = "async")]
-use crate::conn::AsyncAmConnCore;
-#[cfg(feature = "sync")]
-use crate::conn::SyncAmConnCore;
+use crate::conn::AmConnCore;
 
 use crate::protocol::parts::rs_state::AmRsCore;
 use crate::protocol::parts::{HdbValue, ResultSetMetadata};
@@ -101,7 +98,7 @@ impl Row {
     pub(crate) fn parse_sync(
         md: Arc<ResultSetMetadata>,
         o_am_rscore: &Option<AmRsCore>,
-        am_conn_core: &SyncAmConnCore,
+        am_conn_core: &AmConnCore,
         rdr: &mut dyn std::io::Read,
     ) -> std::io::Result<Self> {
         let mut values = Vec::<HdbValue>::new();
@@ -129,7 +126,7 @@ impl Row {
     pub(crate) async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
         md: Arc<ResultSetMetadata>,
         o_am_rscore: &Option<AmRsCore>,
-        am_conn_core: &AsyncAmConnCore,
+        am_conn_core: &AmConnCore,
         rdr: &mut R,
     ) -> std::io::Result<Self> {
         let mut values = Vec::<HdbValue>::new();

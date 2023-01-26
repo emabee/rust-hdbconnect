@@ -1,19 +1,16 @@
 #[cfg(feature = "async")]
 use super::fetch::async_fetch_a_lob_chunk;
 #[cfg(feature = "async")]
-use crate::conn::AsyncAmConnCore;
-#[cfg(feature = "async")]
 use tokio::io::ReadBuf;
 
 #[cfg(feature = "sync")]
 use super::fetch::sync_fetch_a_lob_chunk;
 #[cfg(feature = "sync")]
-use crate::conn::SyncAmConnCore;
-#[cfg(feature = "sync")]
 use std::io::{Read, Write};
 
 use super::CharLobSlice;
 use crate::{
+    conn::AmConnCore,
     protocol::{parts::AmRsCore, util},
     {HdbError, HdbResult, ServerUsage},
 };
@@ -37,8 +34,7 @@ pub struct NCLob(Box<NCLobHandle>);
 
 impl NCLob {
     pub(crate) fn new(
-        #[cfg(feature = "sync")] am_conn_core: &SyncAmConnCore,
-        #[cfg(feature = "async")] am_conn_core: &AsyncAmConnCore,
+        am_conn_core: &AmConnCore,
         o_am_rscore: &Option<AmRsCore>,
         is_data_complete: bool,
         total_char_length: u64,
@@ -108,7 +104,7 @@ impl NCLob {
     ///
     /// Several variants of `HdbError` can occur.
     #[cfg(feature = "sync")]
-    pub fn into_string(mut self) -> HdbResult<String> {
+    pub fn sync_into_string(mut self) -> HdbResult<String> {
         trace!("NCLob::into_string()");
         self.sync_load_complete()?;
         self.0.into_string_if_complete()
@@ -165,7 +161,7 @@ impl NCLob {
     ///
     /// Several variants of `HdbError` can occur.
     #[cfg(feature = "async")]
-    pub async fn into_string(mut self) -> HdbResult<String> {
+    pub async fn async_into_string(mut self) -> HdbResult<String> {
         trace!("NCLob::into_string()");
         self.async_load_complete().await?;
         self.0.into_string_if_complete()
@@ -178,8 +174,8 @@ impl NCLob {
     /// and writes them immediately into the writer,
     /// thus avoiding that all data are materialized within this `NCLob`.
     #[cfg(feature = "sync")]
-    pub fn write_into(mut self, writer: &mut dyn std::io::Write) -> HdbResult<()> {
-        let lob_read_length: usize = self.0.am_conn_core.lock()?.lob_read_length() as usize;
+    pub fn sync_write_into(mut self, writer: &mut dyn std::io::Write) -> HdbResult<()> {
+        let lob_read_length: usize = self.0.am_conn_core.sync_lock()?.lob_read_length() as usize;
         let mut buf = vec![0_u8; lob_read_length].into_boxed_slice();
 
         loop {
@@ -200,15 +196,16 @@ impl NCLob {
     /// and writes them immediately into the writer,
     /// thus avoiding that all data are materialized within this `NCLob`.
     #[cfg(feature = "async")]
-    pub async fn write_into<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
+    pub async fn async_write_into<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
         mut self,
         writer: &mut W,
     ) -> HdbResult<()> {
-        let lob_read_length: usize = self.0.am_conn_core.lock().await.lob_read_length() as usize;
+        let lob_read_length: usize =
+            self.0.am_conn_core.async_lock().await.lob_read_length() as usize;
         let mut buf = vec![0_u8; lob_read_length].into_boxed_slice();
 
         loop {
-            let read = self.0.read(&mut buf).await?;
+            let read = self.0.async_read(&mut buf).await?;
             if read == 0 {
                 break;
             }
@@ -219,14 +216,12 @@ impl NCLob {
     }
 
     // Converts a NCLobHandle into a String containing its data.
-    #[cfg(feature = "sync")]
+    #[allow(unused_mut)]
     pub(crate) fn into_string_if_complete(mut self) -> HdbResult<String> {
-        self.0.sync_load_complete()?;
-        self.0.into_string_if_complete()
-    }
-
-    #[cfg(feature = "async")]
-    pub(crate) fn into_string_if_complete(self) -> HdbResult<String> {
+        #[cfg(feature = "sync")]
+        {
+            self.0.sync_load_complete()?;
+        }
         self.0.into_string_if_complete()
     }
 
@@ -249,8 +244,8 @@ impl NCLob {
     ///
     /// Several variants of `HdbError` can occur.
     #[cfg(feature = "sync")]
-    pub fn read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
-        self.0.read_slice(offset, length)
+    pub fn sync_read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
+        self.0.sync_read_slice(offset, length)
     }
 
     /// Reads from given offset and the given length, in number of unicode characters.
@@ -262,8 +257,8 @@ impl NCLob {
     ///
     /// Several variants of `HdbError` can occur.
     #[cfg(feature = "async")]
-    pub async fn read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
-        self.0.read_slice(offset, length).await
+    pub async fn async_read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
+        self.0.async_read_slice(offset, length).await
     }
 
     /// Total length of data, in bytes.
@@ -312,10 +307,7 @@ impl std::io::Read for NCLob {
 // an orphaned surrogate between two fetches.
 #[derive(Clone, Debug)]
 struct NCLobHandle {
-    #[cfg(feature = "sync")]
-    am_conn_core: SyncAmConnCore,
-    #[cfg(feature = "async")]
-    am_conn_core: AsyncAmConnCore,
+    am_conn_core: AmConnCore,
     o_am_rscore: Option<AmRsCore>,
     is_data_complete: bool,
     total_char_length: u64,
@@ -329,8 +321,7 @@ struct NCLobHandle {
 }
 impl NCLobHandle {
     fn new(
-        #[cfg(feature = "sync")] am_conn_core: &SyncAmConnCore,
-        #[cfg(feature = "async")] am_conn_core: &AsyncAmConnCore,
+        am_conn_core: &AmConnCore,
         o_am_rscore: &Option<AmRsCore>,
         is_data_complete: bool,
         total_char_length: u64,
@@ -372,7 +363,7 @@ impl NCLobHandle {
     }
 
     #[cfg(feature = "sync")]
-    fn read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
+    fn sync_read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
         let (reply_data, _reply_is_last_data) = sync_fetch_a_lob_chunk(
             &mut self.am_conn_core,
             self.locator_id,
@@ -385,7 +376,7 @@ impl NCLobHandle {
     }
 
     #[cfg(feature = "async")]
-    async fn read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
+    async fn async_read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
         let (reply_data, _reply_is_last_data) = async_fetch_a_lob_chunk(
             &mut self.am_conn_core,
             self.locator_id,
@@ -418,7 +409,7 @@ impl NCLobHandle {
         }
 
         let read_length = std::cmp::min(
-            self.am_conn_core.lock()?.lob_read_length(),
+            self.am_conn_core.sync_lock()?.lob_read_length(),
             (self.total_char_length - self.acc_char_length as u64) as u32,
         );
 
@@ -460,7 +451,7 @@ impl NCLobHandle {
         }
 
         let read_length = std::cmp::min(
-            self.am_conn_core.lock().await.lob_read_length(),
+            self.am_conn_core.async_lock().await.lob_read_length(),
             (self.total_char_length - self.acc_char_length as u64) as u32,
         );
 
@@ -558,7 +549,7 @@ impl std::io::Read for NCLobHandle {
 
 #[cfg(feature = "async")]
 impl NCLobHandle {
-    async fn read(&mut self, buf: &mut [u8]) -> HdbResult<usize> {
+    async fn async_read(&mut self, buf: &mut [u8]) -> HdbResult<usize> {
         let mut buf = ReadBuf::new(buf);
         let buf_len = buf.capacity();
         debug_assert!(buf.filled().is_empty());

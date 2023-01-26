@@ -20,7 +20,13 @@ mod parameter_rows;
 mod partition_information;
 mod read_lob_reply;
 mod read_lob_request;
-mod resultset;
+
+#[cfg(feature = "async")]
+mod async_resultset;
+
+#[cfg(feature = "sync")]
+mod sync_resultset;
+
 mod resultset_metadata;
 pub(crate) mod rs_state;
 mod server_error;
@@ -32,6 +38,13 @@ mod type_id;
 mod write_lob_reply;
 mod write_lob_request;
 mod xat_options;
+
+// FIXME reduce this list in favor of the next
+#[cfg(feature = "async")]
+pub use self::async_resultset::AsyncResultSet;
+
+#[cfg(feature = "sync")]
+pub use self::sync_resultset::SyncResultSet;
 
 pub use self::{
     authfields::AuthFields,
@@ -53,26 +66,23 @@ pub use self::{
     partition_information::PartitionInformation,
     read_lob_reply::ReadLobReply,
     read_lob_request::ReadLobRequest,
-    resultset::ResultSet,
     resultset_metadata::ResultSetMetadata,
-    rs_state::{AmRsCore, RsState},
     server_error::{ServerError, Severity},
+    type_id::TypeId,
+};
+pub(crate) use self::{
+    rs_state::{AmRsCore, RsState},
     session_context::SessionContext,
     statement_context::StatementContext,
     topology::Topology,
     transactionflags::{TaFlagId, TransactionFlags},
-    type_id::TypeId,
     write_lob_reply::WriteLobReply,
     write_lob_request::WriteLobRequest,
     xat_options::XatOptions,
 };
 
-#[cfg(feature = "async")]
-use crate::conn::AsyncAmConnCore;
-#[cfg(feature = "sync")]
-use crate::conn::SyncAmConnCore;
-
 use crate::{
+    conn::AmConnCore,
     hdb_response::InternalReturnValue,
     protocol::{Part, PartAttributes, PartKind, ServerUsage},
     HdbError, HdbResult,
@@ -137,10 +147,10 @@ impl Parts<'static> {
     #[cfg(feature = "sync")]
     pub fn sync_into_internal_return_values(
         self,
-        am_conn_core: &mut SyncAmConnCore,
+        am_conn_core: &mut AmConnCore,
         mut o_additional_server_usage: Option<&mut ServerUsage>,
     ) -> HdbResult<Vec<InternalReturnValue>> {
-        let mut conn_core = am_conn_core.lock()?;
+        let mut conn_core = am_conn_core.sync_lock()?;
         let mut int_return_values = Vec::<InternalReturnValue>::new();
         let mut parts = self.into_iter();
         while let Some(part) = parts.next() {
@@ -171,7 +181,7 @@ impl Parts<'static> {
                 }
                 Part::ResultSetMetadata(rsmd) => {
                     if let Some(Part::ResultSetId(rs_id)) = parts.next() {
-                        let rs = ResultSet::new(
+                        let rs = SyncResultSet::sync_new(
                             am_conn_core,
                             PartAttributes::new(0b_0000_0100),
                             rs_id,
@@ -200,10 +210,10 @@ impl Parts<'static> {
     #[cfg(feature = "async")]
     pub async fn async_into_internal_return_values(
         self,
-        am_conn_core: &AsyncAmConnCore,
+        am_conn_core: &AmConnCore,
         mut o_additional_server_usage: Option<&mut ServerUsage>,
     ) -> HdbResult<Vec<InternalReturnValue>> {
-        let mut conn_core = am_conn_core.lock().await;
+        let mut conn_core = am_conn_core.async_lock().await;
         let mut int_return_values = Vec::<InternalReturnValue>::new();
         let mut parts = self.into_iter();
         while let Some(part) = parts.next() {
@@ -229,19 +239,24 @@ impl Parts<'static> {
                 Part::ParameterMetadata(pm) => {
                     int_return_values.push(InternalReturnValue::ParameterMetadata(Arc::new(pm)));
                 }
+                #[cfg(feature = "sync")]
                 Part::ResultSet(Some(rs)) => {
                     int_return_values.push(InternalReturnValue::ResultSet(rs));
                 }
+                #[cfg(feature = "async")]
+                Part::AResultSet(Some(rs)) => {
+                    int_return_values.push(InternalReturnValue::AResultSet(rs));
+                }
                 Part::ResultSetMetadata(rsmd) => {
                     if let Some(Part::ResultSetId(rs_id)) = parts.next() {
-                        let rs = ResultSet::new(
+                        let rs = AsyncResultSet::async_new(
                             am_conn_core,
                             PartAttributes::new(0b_0000_0100),
                             rs_id,
                             Arc::new(rsmd),
                             None,
                         );
-                        int_return_values.push(InternalReturnValue::ResultSet(rs));
+                        int_return_values.push(InternalReturnValue::AResultSet(rs));
                     } else {
                         return Err(HdbError::Impl("Missing required part ResultSetID"));
                     }

@@ -4,7 +4,7 @@ mod test_utils;
 
 use chrono::NaiveDate;
 use flexi_logger::LoggerHandle;
-use hdbconnect::{Connection, HdbResult};
+use hdbconnect::{sync::Connection, HdbResult};
 
 // From wikipedia:
 //
@@ -32,7 +32,7 @@ pub fn test_031_transactions() -> HdbResult<()> {
                 "select * from SYS.M_ERROR_CODES where code = {}",
                 server_error.code()
             ))?
-            .try_into()?;
+            .sync_try_into()?;
         assert_eq!(error_info.0, 7);
         assert_eq!(error_info.1, "ERR_FEATURE_NOT_SUPPORTED");
         log::info!("error_info: {:?}", error_info);
@@ -78,7 +78,7 @@ fn write1_read2(
         let resultset = conn
             .query("select sum(nmbr) from TEST_TRANSACTIONS")
             .unwrap();
-        let checksum: usize = resultset.try_into().unwrap();
+        let checksum: usize = resultset.sync_try_into().unwrap();
         checksum
     };
 
@@ -92,9 +92,17 @@ fn write1_read2(
 
     let mut prepared_statement1 =
         connection1.prepare("insert into TEST_TRANSACTIONS (strng,nmbr,dt) values(?,?,?)")?;
-    prepared_statement1.add_batch(&("who", 4000, NaiveDate::from_ymd(1903, 1, 1)))?;
-    prepared_statement1.add_batch(&("added", 50_000, NaiveDate::from_ymd(1903, 1, 1)))?;
-    prepared_statement1.add_batch(&("this?", 600_000, NaiveDate::from_ymd(1903, 1, 1)))?;
+    prepared_statement1.add_batch(&("who", 4000, NaiveDate::from_ymd_opt(1903, 1, 1).unwrap()))?;
+    prepared_statement1.add_batch(&(
+        "added",
+        50_000,
+        NaiveDate::from_ymd_opt(1903, 1, 1).unwrap(),
+    ))?;
+    prepared_statement1.add_batch(&(
+        "this?",
+        600_000,
+        NaiveDate::from_ymd_opt(1903, 1, 1).unwrap(),
+    ))?;
     prepared_statement1.execute_batch()?;
 
     // read the new lines from connection1
@@ -108,9 +116,17 @@ fn write1_read2(
     assert_eq!(get_checksum(connection1), 321);
 
     // add and read the new lines from connection1
-    prepared_statement1.add_batch(&("who", 4000, NaiveDate::from_ymd(1903, 1, 1)))?;
-    prepared_statement1.add_batch(&("added", 50_000, NaiveDate::from_ymd(1903, 1, 1)))?;
-    prepared_statement1.add_batch(&("this?", 600_000, NaiveDate::from_ymd(1903, 1, 1)))?;
+    prepared_statement1.add_batch(&("who", 4000, NaiveDate::from_ymd_opt(1903, 1, 1).unwrap()))?;
+    prepared_statement1.add_batch(&(
+        "added",
+        50_000,
+        NaiveDate::from_ymd_opt(1903, 1, 1).unwrap(),
+    ))?;
+    prepared_statement1.add_batch(&(
+        "this?",
+        600_000,
+        NaiveDate::from_ymd_opt(1903, 1, 1).unwrap(),
+    ))?;
     prepared_statement1.execute_batch()?;
     assert_eq!(get_checksum(connection1), 654_321);
 

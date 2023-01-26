@@ -1,19 +1,16 @@
 #[cfg(feature = "async")]
 use super::fetch::async_fetch_a_lob_chunk;
 #[cfg(feature = "async")]
-use crate::conn::AsyncAmConnCore;
-#[cfg(feature = "async")]
 use tokio::io::ReadBuf;
 
 #[cfg(feature = "sync")]
 use super::fetch::sync_fetch_a_lob_chunk;
 #[cfg(feature = "sync")]
-use crate::conn::SyncAmConnCore;
-#[cfg(feature = "sync")]
 use std::io::{Read, Write};
 
 use super::CharLobSlice;
 use crate::{
+    conn::AmConnCore,
     protocol::{parts::AmRsCore, util},
     {HdbError, HdbResult, ServerUsage},
 };
@@ -34,8 +31,7 @@ pub struct CLob(Box<CLobHandle>);
 
 impl CLob {
     pub(crate) fn new(
-        #[cfg(feature = "sync")] am_conn_core: &SyncAmConnCore,
-        #[cfg(feature = "async")] am_conn_core: &AsyncAmConnCore,
+        am_conn_core: &AmConnCore,
         o_am_rscore: &Option<AmRsCore>,
         is_data_complete: bool,
         total_char_length: u64,
@@ -103,7 +99,7 @@ impl CLob {
     ///
     /// Several variants of `HdbError` can occur.
     #[cfg(feature = "sync")]
-    pub fn into_string(mut self) -> HdbResult<String> {
+    pub fn sync_into_string(mut self) -> HdbResult<String> {
         trace!("CLob::into_string()");
         self.sync_load_complete()?;
         self.0.into_string_if_complete()
@@ -139,7 +135,7 @@ impl CLob {
     ///
     /// Several variants of `HdbError` can occur.
     #[cfg(feature = "async")]
-    pub async fn into_string(mut self) -> HdbResult<String> {
+    pub async fn async_into_string(mut self) -> HdbResult<String> {
         trace!("CLob::into_string()");
         self.0.async_load_complete().await?;
         self.0.into_string_if_complete()
@@ -152,8 +148,8 @@ impl CLob {
     /// and writes them immediately into the writer,
     /// thus avoiding that all data are materialized within this `NCLob`.
     #[cfg(feature = "sync")]
-    pub fn write_into(mut self, writer: &mut dyn std::io::Write) -> HdbResult<()> {
-        let lob_read_length: usize = self.0.am_conn_core.lock()?.lob_read_length() as usize;
+    pub fn sync_write_into(mut self, writer: &mut dyn std::io::Write) -> HdbResult<()> {
+        let lob_read_length: usize = self.0.am_conn_core.sync_lock()?.lob_read_length() as usize;
         let mut buf = vec![0_u8; lob_read_length].into_boxed_slice();
 
         loop {
@@ -174,15 +170,16 @@ impl CLob {
     /// and writes them immediately into the writer,
     /// thus avoiding that all data are materialized within this `CLob`.
     #[cfg(feature = "async")]
-    pub async fn write_into<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
+    pub async fn async_write_into<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
         mut self,
         writer: &mut W,
     ) -> HdbResult<()> {
-        let lob_read_length: usize = self.0.am_conn_core.lock().await.lob_read_length() as usize;
+        let lob_read_length: usize =
+            self.0.am_conn_core.async_lock().await.lob_read_length() as usize;
         let mut buf = vec![0_u8; lob_read_length].into_boxed_slice();
 
         loop {
-            let read = self.0.read(&mut buf).await?;
+            let read = self.0.async_read(&mut buf).await?;
             if read == 0 {
                 break;
             }
@@ -192,16 +189,12 @@ impl CLob {
         Ok(())
     }
 
-    // Converts a CLobHandle into a String containing its data.
-    #[cfg(feature = "sync")]
+    #[allow(unused_mut)]
     pub(crate) fn into_string_if_complete(mut self) -> HdbResult<String> {
+        #[cfg(feature = "sync")]
         {
             self.0.sync_load_complete()?;
         }
-        self.0.into_string_if_complete()
-    }
-    #[cfg(feature = "async")]
-    pub(crate) fn into_string_if_complete(self) -> HdbResult<String> {
         self.0.into_string_if_complete()
     }
 
@@ -221,7 +214,7 @@ impl CLob {
     ///
     /// Several variants of `HdbError` can occur.
     #[cfg(feature = "sync")]
-    pub fn read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
+    pub fn sync_read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
         self.0.sync_read_slice(offset, length)
     }
 
@@ -231,7 +224,7 @@ impl CLob {
     ///
     /// Several variants of `HdbError` can occur.
     #[cfg(feature = "async")]
-    pub async fn read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
+    pub async fn async_read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
         self.0.read_slice(offset, length).await
     }
 
@@ -273,10 +266,7 @@ impl std::io::Read for CLob {
 // we may need to buffer an orphaned part of a multi-byte sequence between two fetches.
 #[derive(Clone, Debug)]
 struct CLobHandle {
-    #[cfg(feature = "sync")]
-    am_conn_core: SyncAmConnCore,
-    #[cfg(feature = "async")]
-    am_conn_core: AsyncAmConnCore,
+    am_conn_core: AmConnCore,
     o_am_rscore: Option<AmRsCore>,
     is_data_complete: bool,
     total_char_length: u64,
@@ -289,8 +279,7 @@ struct CLobHandle {
 }
 impl CLobHandle {
     fn new(
-        #[cfg(feature = "sync")] am_conn_core: &SyncAmConnCore,
-        #[cfg(feature = "async")] am_conn_core: &AsyncAmConnCore,
+        am_conn_core: &AmConnCore,
         o_am_rscore: &Option<AmRsCore>,
         is_data_complete: bool,
         total_char_length: u64,
@@ -371,7 +360,7 @@ impl CLobHandle {
         }
 
         let read_length = std::cmp::min(
-            self.am_conn_core.lock()?.lob_read_length(),
+            self.am_conn_core.sync_lock()?.lob_read_length(),
             (self.total_byte_length - self.acc_byte_length as u64) as u32,
         );
 
@@ -413,7 +402,7 @@ impl CLobHandle {
         }
 
         let read_length = std::cmp::min(
-            self.am_conn_core.lock().await.lob_read_length(),
+            self.am_conn_core.async_lock().await.lob_read_length(),
             (self.total_byte_length - self.acc_byte_length as u64) as u32,
         );
 
@@ -511,7 +500,7 @@ impl std::io::Read for CLobHandle {
 
 #[cfg(feature = "async")]
 impl CLobHandle {
-    async fn read(&mut self, buf: &mut [u8]) -> HdbResult<usize> {
+    async fn async_read(&mut self, buf: &mut [u8]) -> HdbResult<usize> {
         let mut buf = ReadBuf::new(buf);
         let buf_len = buf.capacity();
         debug_assert!(buf.filled().is_empty());

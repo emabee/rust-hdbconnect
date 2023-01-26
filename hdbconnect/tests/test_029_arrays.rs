@@ -3,7 +3,7 @@ extern crate serde;
 mod test_utils;
 
 use flexi_logger::LoggerHandle;
-use hdbconnect::{Connection, HdbResult, HdbValue};
+use hdbconnect::{sync::Connection, HdbResult, HdbValue};
 
 #[test] // cargo test --test test_029_arrays -- --nocapture
 pub fn test_029_arrays() -> HdbResult<()> {
@@ -56,12 +56,12 @@ fn test_arrays(log_handle: &mut LoggerHandle, connection: &mut Connection) -> Hd
 
     let cards: Vec<u32> = connection
         .query(r#"SELECT CARDINALITY(VAL) "cardinality" FROM TEST_INTEGER_ARRAYS"#)?
-        .try_into()?;
+        .sync_try_into()?;
     assert_eq!(cards, vec![3, 4, 10_004]);
 
     let value = connection
         .query("select val from TEST_INTEGER_ARRAYS where id = 2")?
-        .into_single_row()?
+        .sync_into_single_row()?
         .into_single_value()?;
 
     if let HdbValue::ARRAY(vec) = value {
@@ -76,7 +76,7 @@ fn test_arrays(log_handle: &mut LoggerHandle, connection: &mut Connection) -> Hd
 
     let value = connection
         .query("select val from TEST_INTEGER_ARRAYS where id = 3")?
-        .into_single_row()?
+        .sync_into_single_row()?
         .into_single_value()?;
 
     if let HdbValue::ARRAY(vec) = value {
@@ -87,7 +87,7 @@ fn test_arrays(log_handle: &mut LoggerHandle, connection: &mut Connection) -> Hd
 
     let value = connection
         .query("select val from TEST_STRING_ARRAYS where id = 2")?
-        .into_single_row()?
+        .sync_into_single_row()?
         .into_single_value()?;
 
     if let HdbValue::ARRAY(vec) = value {

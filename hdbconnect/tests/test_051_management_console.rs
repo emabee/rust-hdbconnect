@@ -18,6 +18,10 @@ fn test_051_management_console() -> HdbResult<()> {
             HdbReturnValue::ResultSet(result_set) => {
                 println!("{result_set:?}");
             }
+            #[cfg(feature = "async")]
+            HdbReturnValue::AResultSet(result_set) => {
+                println!("{result_set:?}");
+            }
             HdbReturnValue::AffectedRows(vec_usize) => {
                 for val in vec_usize {
                     println!("Affected rows: {val}",);
@@ -29,13 +33,13 @@ fn test_051_management_console() -> HdbResult<()> {
                     println!("   Output parameter: {op:?}");
                     match op {
                         HdbValue::BLOB(blob) => {
-                            println!("Value: {:?}", blob.into_bytes()?);
+                            println!("Value: {:?}", blob.sync_into_bytes()?);
                         }
                         HdbValue::CLOB(clob) => {
-                            println!("Value: {}", clob.into_string()?);
+                            println!("Value: {}", clob.sync_into_string()?);
                         }
                         HdbValue::NCLOB(nclob) => {
-                            println!("Value: {}", nclob.into_string()?);
+                            println!("Value: {}", nclob.sync_into_string()?);
                         }
                         _ => {
                             println!("Value: {op}");

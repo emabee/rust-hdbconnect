@@ -29,11 +29,26 @@ async fn test_timestamp(
 
     debug!("prepare the test data");
     let naive_datetime_values: Vec<NaiveDateTime> = vec![
-        NaiveDate::from_ymd(1, 1, 1).and_hms_nano(0, 0, 0, 0),
-        NaiveDate::from_ymd(1, 1, 1).and_hms_nano(0, 0, 0, 100),
-        NaiveDate::from_ymd(2012, 2, 2).and_hms_nano(2, 2, 2, 200_000_000),
-        NaiveDate::from_ymd(2013, 3, 3).and_hms_nano(3, 3, 3, 300_000_000),
-        NaiveDate::from_ymd(2014, 4, 4).and_hms_nano(4, 4, 4, 400_000_000),
+        NaiveDate::from_ymd_opt(1, 1, 1)
+            .unwrap()
+            .and_hms_nano_opt(0, 0, 0, 0)
+            .unwrap(),
+        NaiveDate::from_ymd_opt(1, 1, 1)
+            .unwrap()
+            .and_hms_nano_opt(0, 0, 0, 100)
+            .unwrap(),
+        NaiveDate::from_ymd_opt(2012, 2, 2)
+            .unwrap()
+            .and_hms_nano_opt(2, 2, 2, 200_000_000)
+            .unwrap(),
+        NaiveDate::from_ymd_opt(2013, 3, 3)
+            .unwrap()
+            .and_hms_nano_opt(3, 3, 3, 300_000_000)
+            .unwrap(),
+        NaiveDate::from_ymd_opt(2014, 4, 4)
+            .unwrap()
+            .and_hms_nano_opt(4, 4, 4, 400_000_000)
+            .unwrap(),
     ];
     let string_values = vec![
         "0001-01-01 00:00:00.000000000",
@@ -81,7 +96,7 @@ async fn test_timestamp(
         // Enforce that NaiveDateTime values are converted in the client (with serde) to the DB type:
         prep_stmt.add_batch(&(naive_datetime_values[2], naive_datetime_values[3]))?;
         let response = prep_stmt.execute_batch().await?;
-        let typed_result: i32 = response.into_resultset()?.try_into().await?;
+        let typed_result: i32 = response.into_aresultset()?.async_try_into().await?;
         assert_eq!(typed_result, 31);
 
         info!("test the conversion DateTime<Utc> -> DB");
@@ -93,8 +108,8 @@ async fn test_timestamp(
         let typed_result: i32 = prep_stmt
             .execute_batch()
             .await?
-            .into_resultset()?
-            .try_into()
+            .into_aresultset()?
+            .async_try_into()
             .await?;
         assert_eq!(typed_result, 31_i32);
     }
@@ -103,7 +118,7 @@ async fn test_timestamp(
         info!("test the conversion DB -> NaiveDateTime");
         let s = "select mydate from TEST_TIMESTAMP order by number asc";
         let rs = connection.query(s).await?;
-        let dates: Vec<NaiveDateTime> = rs.try_into().await?;
+        let dates: Vec<NaiveDateTime> = rs.async_try_into().await?;
         for (date, tvd) in dates.iter().zip(naive_datetime_values.iter()) {
             assert_eq!(date, tvd);
         }
@@ -116,7 +131,7 @@ async fn test_timestamp(
         let dates: Vec<NaiveDateTime> = connection
             .query("select mydate from TEST_TIMESTAMP where number = 77 or number = 13")
             .await?
-            .try_into()
+            .async_try_into()
             .await?;
         assert_eq!(dates.len(), 2);
         for date in dates {
@@ -135,7 +150,7 @@ async fn test_timestamp(
         let date: Option<NaiveDateTime> = connection
             .query("select mydate from TEST_TIMESTAMP where number = 2350")
             .await?
-            .try_into()
+            .async_try_into()
             .await?;
         trace!("query sent");
         assert_eq!(date, None);

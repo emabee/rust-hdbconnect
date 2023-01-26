@@ -73,7 +73,7 @@ fn produce_conflicts(_log_handle: &mut LoggerHandle, connection: &mut Connection
 
     let i: i32 = connection
         .query("select F2_I from TEST_SELFORUPDATE where F1_S = 'Hello'")?
-        .try_into()?;
+        .sync_try_into()?;
     assert_eq!(i, 1);
 
     log::debug!("commit the change of the first connection");
@@ -89,7 +89,7 @@ fn produce_conflicts(_log_handle: &mut LoggerHandle, connection: &mut Connection
         thread::sleep(Duration::from_millis(i * 200));
         val = connection3
             .query("select F2_I from TEST_SELFORUPDATE where F1_S = 'Hello'")?
-            .try_into()?;
+            .sync_try_into()?;
         if val == 2 {
             break;
         }

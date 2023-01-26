@@ -1,7 +1,4 @@
-#[cfg(feature = "async")]
-use crate::conn::AsyncAmConnCore;
-#[cfg(feature = "sync")]
-use crate::conn::SyncAmConnCore;
+use crate::conn::AmConnCore;
 
 use crate::protocol::parts::{ReadLobReply, ReadLobRequest};
 use crate::protocol::{Part, ReplyType, Request, RequestType, ServerUsage};
@@ -10,7 +7,7 @@ use crate::{HdbError, HdbResult};
 // Note that requested_length and offset count either bytes (BLOB, CLOB), or 1-2-3-chars (NCLOB)
 #[cfg(feature = "sync")]
 pub(crate) fn sync_fetch_a_lob_chunk(
-    am_conn_core: &mut SyncAmConnCore,
+    am_conn_core: &mut AmConnCore,
     locator_id: u64,
     offset: u64,
     length: u32,
@@ -22,7 +19,7 @@ pub(crate) fn sync_fetch_a_lob_chunk(
         locator_id, offset, length,
     )));
 
-    let reply = am_conn_core.send(request)?;
+    let reply = am_conn_core.sync_send(request)?;
     reply.assert_expected_reply_type(ReplyType::ReadLob)?;
 
     let mut o_read_lob_reply = None;
@@ -52,7 +49,7 @@ pub(crate) fn sync_fetch_a_lob_chunk(
 // Note that requested_length and offset count either bytes (BLOB, CLOB), or 1-2-3-chars (NCLOB)
 #[cfg(feature = "async")]
 pub(crate) async fn async_fetch_a_lob_chunk(
-    am_conn_core: &mut AsyncAmConnCore,
+    am_conn_core: &mut AmConnCore,
     locator_id: u64,
     offset: u64,
     length: u32,
@@ -64,7 +61,7 @@ pub(crate) async fn async_fetch_a_lob_chunk(
         locator_id, offset, length,
     )));
 
-    let reply = am_conn_core.send(request).await?;
+    let reply = am_conn_core.async_send(request).await?;
     reply.assert_expected_reply_type(ReplyType::ReadLob)?;
 
     let mut o_read_lob_reply = None;

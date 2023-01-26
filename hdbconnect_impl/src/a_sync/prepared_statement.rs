@@ -1,14 +1,14 @@
-use hdbconnect_impl::async_prepared_statement_core::AsyncPreparedStatementCore;
-use hdbconnect_impl::conn::AsyncAmConnCore;
-use hdbconnect_impl::hdb_response::InternalReturnValue;
-use hdbconnect_impl::protocol::parts::{
+use super::PreparedStatementCore;
+use crate::conn::AmConnCore;
+use crate::hdb_response::InternalReturnValue;
+use crate::protocol::parts::{
     HdbValue, LobFlags, ParameterDescriptors, ParameterRows, ResultSetMetadata, TypeId,
 };
-use hdbconnect_impl::protocol::{
+use crate::protocol::{
     Part, PartKind, Request, RequestType, ServerUsage, HOLD_CURSORS_OVER_COMMIT,
 };
-use hdbconnect_impl::types_impl::lob::async_lob_writer;
-use hdbconnect_impl::{HdbError, HdbResponse, HdbResult};
+use crate::types_impl::lob::async_lob_writer;
+use crate::{HdbError, HdbResponse, HdbResult};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -72,7 +72,7 @@ use tokio::sync::Mutex;
 /// `HdbValue::INT(1088)`.
 #[derive(Debug)]
 pub struct PreparedStatement {
-    am_ps_core: Arc<Mutex<AsyncPreparedStatementCore>>,
+    am_ps_core: Arc<Mutex<PreparedStatementCore>>,
     server_usage: ServerUsage,
     a_descriptors: Arc<ParameterDescriptors>,
     o_a_rsmd: Option<Arc<ResultSetMetadata>>,
@@ -200,9 +200,9 @@ impl<'a> PreparedStatement {
                 .into_iter()
                 .zip(self.a_descriptors.iter_in())
                 .map(|(v, d)| {
-                    if let HdbValue::LOBSTREAM(Some(_)) = v {
+                    if let HdbValue::ASYNCLOBSTREAM(Some(_)) = v {
                         readers.push((v, d.type_id()));
-                        HdbValue::LOBSTREAM(None)
+                        HdbValue::ASYNCLOBSTREAM(None)
                     } else {
                         v
                     }
@@ -215,7 +215,7 @@ impl<'a> PreparedStatement {
 
             if ps_core_guard
                 .am_conn_core
-                .lock()
+                .async_lock()
                 .await
                 .connect_options()
                 .get_implicit_lob_streaming()
@@ -226,7 +226,7 @@ impl<'a> PreparedStatement {
 
             let mut main_reply = ps_core_guard
                 .am_conn_core
-                .full_send(
+                .async_full_send(
                     request,
                     self.o_a_rsmd.as_ref(),
                     Some(&self.a_descriptors),
@@ -262,7 +262,7 @@ impl<'a> PreparedStatement {
 
                 for (locator_id, (reader, type_id)) in locator_ids.into_iter().zip(readers) {
                     debug!("writing content to locator with id {:?}", locator_id);
-                    if let HdbValue::LOBSTREAM(Some(reader)) = reader {
+                    if let HdbValue::ASYNCLOBSTREAM(Some(reader)) = reader {
                         let mut reader = reader.lock().await;
 
                         let _amount = async_lob_writer::copy(
@@ -281,8 +281,9 @@ impl<'a> PreparedStatement {
 
             // inject statement id
             for rv in &mut internal_return_values {
-                if let InternalReturnValue::ResultSet(rs) = rv {
-                    rs.inject_statement_id(Arc::clone(&self.am_ps_core)).await?;
+                if let InternalReturnValue::AResultSet(rs) = rv {
+                    rs.async_inject_statement_id(Arc::clone(&self.am_ps_core))
+                        .await?;
                 }
             }
             HdbResponse::try_new(internal_return_values, replytype)
@@ -369,7 +370,7 @@ impl<'a> PreparedStatement {
 
         let (mut internal_return_values, replytype) = ps_core_guard
             .am_conn_core
-            .full_send(
+            .async_full_send(
                 request,
                 self.o_a_rsmd.as_ref(),
                 Some(&self.a_descriptors),
@@ -381,8 +382,9 @@ impl<'a> PreparedStatement {
 
         // inject statement id
         for rv in &mut internal_return_values {
-            if let InternalReturnValue::ResultSet(rs) = rv {
-                rs.inject_statement_id(Arc::clone(&self.am_ps_core)).await?;
+            if let InternalReturnValue::AResultSet(rs) = rv {
+                rs.async_inject_statement_id(Arc::clone(&self.am_ps_core))
+                    .await?;
             }
         }
 
@@ -397,11 +399,11 @@ impl<'a> PreparedStatement {
     }
 
     // Prepare a statement.
-    pub(crate) async fn try_new(mut am_conn_core: AsyncAmConnCore, stmt: &str) -> HdbResult<Self> {
+    pub(crate) async fn try_new(mut am_conn_core: AmConnCore, stmt: &str) -> HdbResult<Self> {
         let mut request = Request::new(RequestType::Prepare, HOLD_CURSORS_OVER_COMMIT);
         request.push(Part::Command(stmt));
 
-        let reply = am_conn_core.send(request).await?;
+        let reply = am_conn_core.async_send(request).await?;
 
         let mut o_table_location: Option<Vec<i32>> = None;
         let mut o_stmt_id: Option<u64> = None;
@@ -419,7 +421,7 @@ impl<'a> PreparedStatement {
                     o_stmt_id = Some(id);
                 }
                 Part::TransactionFlags(ta_flags) => {
-                    let mut guard = am_conn_core.lock().await;
+                    let mut guard = am_conn_core.async_lock().await;
                     (*guard).evaluate_ta_flags(ta_flags)?;
                 }
                 Part::TableLocation(vec_i) => {
@@ -430,7 +432,7 @@ impl<'a> PreparedStatement {
                 }
 
                 Part::StatementContext(ref stmt_ctx) => {
-                    let mut guard = am_conn_core.lock().await;
+                    let mut guard = am_conn_core.async_lock().await;
                     (*guard).evaluate_statement_context(stmt_ctx);
                     server_usage.update(
                         stmt_ctx.server_processing_time(),
@@ -443,7 +445,7 @@ impl<'a> PreparedStatement {
         }
 
         let statement_id = o_stmt_id.ok_or_else(|| HdbError::Impl("No StatementId received"))?;
-        let am_ps_core = Arc::new(Mutex::new(AsyncPreparedStatementCore {
+        let am_ps_core = Arc::new(Mutex::new(PreparedStatementCore {
             am_conn_core,
             statement_id,
         }));

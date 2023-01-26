@@ -110,7 +110,7 @@ async fn test_timestamp(
             primitive_datetime_values[3].to_hana(),
         ))?;
         let response = prep_stmt.execute_batch().await?;
-        let typed_result: i32 = response.into_resultset()?.try_into().await?;
+        let typed_result: i32 = response.into_aresultset()?.async_try_into().await?;
         assert_eq!(typed_result, 31);
     }
 
@@ -118,7 +118,7 @@ async fn test_timestamp(
         info!("test the conversion DB -> PrimitiveDateTime");
         let s = "select mydate from TEST_TIMESTAMP order by number asc";
         let rs = connection.query(s).await?;
-        let dates: Vec<HanaPrimitiveDateTime> = rs.try_into().await?;
+        let dates: Vec<HanaPrimitiveDateTime> = rs.async_try_into().await?;
         for (date, tvd) in dates.iter().zip(primitive_datetime_values.iter()) {
             assert_eq!(**date, *tvd);
         }
@@ -131,7 +131,7 @@ async fn test_timestamp(
         let dates: Vec<HanaPrimitiveDateTime> = connection
             .query("select mydate from TEST_TIMESTAMP where number = 77 or number = 13")
             .await?
-            .try_into()
+            .async_try_into()
             .await?;
         assert_eq!(dates.len(), 2);
         for date in dates {
@@ -150,7 +150,7 @@ async fn test_timestamp(
         let date: Option<PrimitiveDateTime> = connection
             .query("select mydate from TEST_TIMESTAMP where number = 2350")
             .await?
-            .try_into()
+            .async_try_into()
             .await?;
         trace!("query sent");
         assert_eq!(date, None);

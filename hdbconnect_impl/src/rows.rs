@@ -13,7 +13,10 @@ pub struct Rows {
 }
 impl Rows {
     #[cfg(feature = "sync")]
-    pub(crate) fn new(metadata: Arc<ResultSetMetadata>, mut rows: Vec<Row>) -> HdbResult<Rows> {
+    pub(crate) fn sync_new(
+        metadata: Arc<ResultSetMetadata>,
+        mut rows: Vec<Row>,
+    ) -> HdbResult<Rows> {
         let number_of_rows = rows.len();
 
         let lob_field_indices: Vec<usize> = metadata
@@ -41,7 +44,7 @@ impl Rows {
     }
 
     #[cfg(feature = "async")]
-    pub(crate) async fn new(
+    pub(crate) async fn async_new(
         metadata: Arc<ResultSetMetadata>,
         mut rows: Vec<Row>,
     ) -> HdbResult<Rows> {

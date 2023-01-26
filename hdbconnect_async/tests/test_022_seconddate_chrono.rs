@@ -29,11 +29,26 @@ async fn test_seconddate(
 
     debug!("test_seconddate: prepare the test data");
     let naive_datetime_values: Vec<NaiveDateTime> = vec![
-        NaiveDate::from_ymd(1, 1, 1).and_hms(0, 0, 0),
-        NaiveDate::from_ymd(1, 1, 1).and_hms(0, 0, 0),
-        NaiveDate::from_ymd(2012, 2, 2).and_hms(2, 2, 2),
-        NaiveDate::from_ymd(2013, 3, 3).and_hms(3, 3, 3),
-        NaiveDate::from_ymd(2014, 4, 4).and_hms(4, 4, 4),
+        NaiveDate::from_ymd_opt(1, 1, 1)
+            .unwrap()
+            .and_hms_opt(0, 0, 0)
+            .unwrap(),
+        NaiveDate::from_ymd_opt(1, 1, 1)
+            .unwrap()
+            .and_hms_opt(0, 0, 0)
+            .unwrap(),
+        NaiveDate::from_ymd_opt(2012, 2, 2)
+            .unwrap()
+            .and_hms_opt(2, 2, 2)
+            .unwrap(),
+        NaiveDate::from_ymd_opt(2013, 3, 3)
+            .unwrap()
+            .and_hms_opt(3, 3, 3)
+            .unwrap(),
+        NaiveDate::from_ymd_opt(2014, 4, 4)
+            .unwrap()
+            .and_hms_opt(4, 4, 4)
+            .unwrap(),
     ];
     let string_values = vec![
         "0001-01-01 00:00:00",
@@ -87,8 +102,8 @@ async fn test_seconddate(
         let typed_result: i32 = prep_stmt
             .execute_batch()
             .await?
-            .into_resultset()?
-            .try_into()
+            .into_aresultset()?
+            .async_try_into()
             .await?;
         assert_eq!(typed_result, 31);
 
@@ -100,8 +115,8 @@ async fn test_seconddate(
         let typed_result: i32 = prep_stmt
             .execute_batch()
             .await?
-            .into_resultset()?
-            .try_into()
+            .into_aresultset()?
+            .async_try_into()
             .await?;
         assert_eq!(typed_result, 31_i32);
     }
@@ -110,7 +125,7 @@ async fn test_seconddate(
         info!("test_seconddate: test the conversion DB -> NaiveDateTime");
         let s = "select mydate from TEST_SECONDDATE order by number asc";
         let rs = connection.query(s).await?;
-        let dates: Vec<NaiveDateTime> = rs.try_into().await?;
+        let dates: Vec<NaiveDateTime> = rs.async_try_into().await?;
         for (date, tvd) in dates.iter().zip(naive_datetime_values.iter()) {
             assert_eq!(date, tvd);
         }
@@ -123,7 +138,7 @@ async fn test_seconddate(
         let dates: Vec<NaiveDateTime> = connection
             .query("select mydate from TEST_SECONDDATE where number = 77 or number = 13")
             .await?
-            .try_into()
+            .async_try_into()
             .await?;
         assert_eq!(dates.len(), 2);
         for date in dates {

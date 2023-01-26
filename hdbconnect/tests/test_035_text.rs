@@ -3,7 +3,7 @@ extern crate serde;
 mod test_utils;
 
 use flexi_logger::LoggerHandle;
-use hdbconnect::{Connection, HdbResult};
+use hdbconnect::{sync::Connection, HdbResult};
 use log::{debug, info};
 
 // cargo test test_035_text -- --nocapture
@@ -45,7 +45,7 @@ fn test_text(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> Hdb
     debug!("query...");
     let resultset = connection.query("select chardata, chardata_nn FROM TEST_TEXT")?;
     debug!("deserialize...");
-    let ret_text: (Option<String>, String) = resultset.try_into()?;
+    let ret_text: (Option<String>, String) = resultset.sync_try_into()?;
     assert_eq!(test_text, ret_text.0.expect("expected string but got None"));
     assert_eq!(test_text, ret_text.1);
 
@@ -55,7 +55,7 @@ fn test_text(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> Hdb
     insert_stmt.execute_batch()?;
     let ret_text: (Option<String>, String) = connection
         .query("select chardata, chardata_nn FROM TEST_TEXT WHERE chardata IS NULL")?
-        .try_into()?;
+        .sync_try_into()?;
     assert_eq!(None, ret_text.0);
     assert_eq!(test_text, ret_text.1);
 

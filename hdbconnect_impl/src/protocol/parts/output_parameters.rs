@@ -1,7 +1,4 @@
-#[cfg(feature = "async")]
-use crate::conn::AsyncAmConnCore;
-#[cfg(feature = "sync")]
-use crate::conn::SyncAmConnCore;
+use crate::conn::AmConnCore;
 use crate::protocol::parts::hdb_value::HdbValue;
 use crate::protocol::parts::parameter_descriptor::ParameterDescriptor;
 use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
@@ -54,7 +51,7 @@ impl OutputParameters {
 
     #[cfg(feature = "sync")]
     pub(crate) fn parse_sync(
-        o_am_conn_core: Option<&SyncAmConnCore>,
+        o_am_conn_core: Option<&AmConnCore>,
         parameter_descriptors: &ParameterDescriptors,
         rdr: &mut dyn std::io::Read,
     ) -> std::io::Result<Self> {
@@ -88,7 +85,7 @@ impl OutputParameters {
 
     #[cfg(feature = "async")]
     pub(crate) async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
-        o_am_conn_core: Option<&AsyncAmConnCore>,
+        o_am_conn_core: Option<&AmConnCore>,
         parameter_descriptors: &ParameterDescriptors,
         rdr: &mut R,
     ) -> std::io::Result<Self> {

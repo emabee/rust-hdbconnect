@@ -31,7 +31,7 @@ fn connect_other_user(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
 
     let before: String = sys_conn
         .query("SELECT CURRENT_USER FROM DUMMY")?
-        .try_into()?;
+        .sync_try_into()?;
     assert_eq!(before, "SYSTEM".to_string());
 
     let response = sys_conn.statement(format!("CONNECT {other_user} PASSWORD Theother1234",))?;
@@ -39,7 +39,7 @@ fn connect_other_user(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
 
     let after: String = sys_conn
         .query("SELECT CURRENT_USER FROM DUMMY")?
-        .try_into()?;
+        .sync_try_into()?;
     assert_eq!(after, "THEOTHERONE".to_string());
 
     // _log_handle.pop_temp_spec();

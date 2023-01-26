@@ -34,7 +34,7 @@ pub async fn test_031_transactions() -> HdbResult<()> {
                 server_error.code()
             ))
             .await?
-            .try_into()
+            .async_try_into()
             .await?;
         assert_eq!(error_info.0, 7);
         assert_eq!(error_info.1, "ERR_FEATURE_NOT_SUPPORTED");
@@ -92,9 +92,17 @@ async fn write1_read2(
     let mut prepared_statement1 = connection1
         .prepare("insert into TEST_TRANSACTIONS (strng,nmbr,dt) values(?,?,?)")
         .await?;
-    prepared_statement1.add_batch(&("who", 4000, NaiveDate::from_ymd(1903, 1, 1)))?;
-    prepared_statement1.add_batch(&("added", 50_000, NaiveDate::from_ymd(1903, 1, 1)))?;
-    prepared_statement1.add_batch(&("this?", 600_000, NaiveDate::from_ymd(1903, 1, 1)))?;
+    prepared_statement1.add_batch(&("who", 4000, NaiveDate::from_ymd_opt(1903, 1, 1).unwrap()))?;
+    prepared_statement1.add_batch(&(
+        "added",
+        50_000,
+        NaiveDate::from_ymd_opt(1903, 1, 1).unwrap(),
+    ))?;
+    prepared_statement1.add_batch(&(
+        "this?",
+        600_000,
+        NaiveDate::from_ymd_opt(1903, 1, 1).unwrap(),
+    ))?;
     prepared_statement1.execute_batch().await?;
 
     // read the new lines from connection1
@@ -108,9 +116,17 @@ async fn write1_read2(
     assert_eq!(get_checksum(connection1).await, 321);
 
     // add and read the new lines from connection1
-    prepared_statement1.add_batch(&("who", 4000, NaiveDate::from_ymd(1903, 1, 1)))?;
-    prepared_statement1.add_batch(&("added", 50_000, NaiveDate::from_ymd(1903, 1, 1)))?;
-    prepared_statement1.add_batch(&("this?", 600_000, NaiveDate::from_ymd(1903, 1, 1)))?;
+    prepared_statement1.add_batch(&("who", 4000, NaiveDate::from_ymd_opt(1903, 1, 1).unwrap()))?;
+    prepared_statement1.add_batch(&(
+        "added",
+        50_000,
+        NaiveDate::from_ymd_opt(1903, 1, 1).unwrap(),
+    ))?;
+    prepared_statement1.add_batch(&(
+        "this?",
+        600_000,
+        NaiveDate::from_ymd_opt(1903, 1, 1).unwrap(),
+    ))?;
     prepared_statement1.execute_batch().await?;
     assert_eq!(get_checksum(connection1).await, 654_321);
 
@@ -129,6 +145,6 @@ async fn get_checksum(conn: &mut Connection) -> usize {
         .query("select sum(nmbr) from TEST_TRANSACTIONS")
         .await
         .unwrap();
-    let checksum: usize = resultset.try_into().await.unwrap();
+    let checksum: usize = resultset.async_try_into().await.unwrap();
     checksum
 }

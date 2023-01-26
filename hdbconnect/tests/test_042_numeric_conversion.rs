@@ -3,7 +3,7 @@ extern crate serde;
 mod test_utils;
 
 use flexi_logger::LoggerHandle;
-use hdbconnect::{Connection, HdbResult};
+use hdbconnect::{sync::Connection, HdbResult};
 use log::{debug, info};
 
 const QUERY: &str = "select * FROM TEST_NUMERIC_CONVERSION";
@@ -49,39 +49,39 @@ fn test_tiny_int(_log_handle: &mut LoggerHandle, connection: &mut Connection) ->
     debug!("query...");
     let resultset = connection.query(QUERY)?;
     debug!("deserialize...");
-    let rows: Vec<usize> = resultset.try_into()?;
+    let rows: Vec<usize> = resultset.sync_try_into()?;
     assert_eq!(rows, vec![1, 1, 1, 1, 1, 1, 1, 1]);
 
     assert_eq!(
-        connection.query(QUERY)?.try_into::<Vec<u8>>()?,
+        connection.query(QUERY)?.sync_try_into::<Vec<u8>>()?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
     assert_eq!(
-        connection.query(QUERY)?.try_into::<Vec<u16>>()?,
+        connection.query(QUERY)?.sync_try_into::<Vec<u16>>()?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
     assert_eq!(
-        connection.query(QUERY)?.try_into::<Vec<u32>>()?,
+        connection.query(QUERY)?.sync_try_into::<Vec<u32>>()?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
     assert_eq!(
-        connection.query(QUERY)?.try_into::<Vec<u64>>()?,
+        connection.query(QUERY)?.sync_try_into::<Vec<u64>>()?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
     assert_eq!(
-        connection.query(QUERY)?.try_into::<Vec<i8>>()?,
+        connection.query(QUERY)?.sync_try_into::<Vec<i8>>()?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
     assert_eq!(
-        connection.query(QUERY)?.try_into::<Vec<i16>>()?,
+        connection.query(QUERY)?.sync_try_into::<Vec<i16>>()?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
     assert_eq!(
-        connection.query(QUERY)?.try_into::<Vec<i32>>()?,
+        connection.query(QUERY)?.sync_try_into::<Vec<i32>>()?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
     assert_eq!(
-        connection.query(QUERY)?.try_into::<Vec<i64>>()?,
+        connection.query(QUERY)?.sync_try_into::<Vec<i64>>()?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
 
@@ -90,24 +90,48 @@ fn test_tiny_int(_log_handle: &mut LoggerHandle, connection: &mut Connection) ->
     insert_stmt.execute(&(true))?;
     insert_stmt.execute(&(false))?;
 
-    let rows: Vec<bool> = connection.query(QUERY)?.try_into()?;
+    let rows: Vec<bool> = connection.query(QUERY)?.sync_try_into()?;
     assert_eq!(rows, vec![true, false]);
 
-    assert_eq!(connection.query(QUERY)?.try_into::<Vec<u8>>()?, vec![1, 0]);
-    assert_eq!(connection.query(QUERY)?.try_into::<Vec<u16>>()?, vec![1, 0]);
-    assert_eq!(connection.query(QUERY)?.try_into::<Vec<u32>>()?, vec![1, 0]);
-    assert_eq!(connection.query(QUERY)?.try_into::<Vec<u64>>()?, vec![1, 0]);
-    assert_eq!(connection.query(QUERY)?.try_into::<Vec<i8>>()?, vec![1, 0]);
-    assert_eq!(connection.query(QUERY)?.try_into::<Vec<i16>>()?, vec![1, 0]);
-    assert_eq!(connection.query(QUERY)?.try_into::<Vec<i32>>()?, vec![1, 0]);
-    assert_eq!(connection.query(QUERY)?.try_into::<Vec<i64>>()?, vec![1, 0]);
+    assert_eq!(
+        connection.query(QUERY)?.sync_try_into::<Vec<u8>>()?,
+        vec![1, 0]
+    );
+    assert_eq!(
+        connection.query(QUERY)?.sync_try_into::<Vec<u16>>()?,
+        vec![1, 0]
+    );
+    assert_eq!(
+        connection.query(QUERY)?.sync_try_into::<Vec<u32>>()?,
+        vec![1, 0]
+    );
+    assert_eq!(
+        connection.query(QUERY)?.sync_try_into::<Vec<u64>>()?,
+        vec![1, 0]
+    );
+    assert_eq!(
+        connection.query(QUERY)?.sync_try_into::<Vec<i8>>()?,
+        vec![1, 0]
+    );
+    assert_eq!(
+        connection.query(QUERY)?.sync_try_into::<Vec<i16>>()?,
+        vec![1, 0]
+    );
+    assert_eq!(
+        connection.query(QUERY)?.sync_try_into::<Vec<i32>>()?,
+        vec![1, 0]
+    );
+    assert_eq!(
+        connection.query(QUERY)?.sync_try_into::<Vec<i64>>()?,
+        vec![1, 0]
+    );
 
     connection.multiple_statements(vec!["TRUNCATE TABLE TEST_NUMERIC_CONVERSION"])?;
     let mut insert_stmt = connection.prepare("insert into TEST_NUMERIC_CONVERSION values (?)")?;
     insert_stmt.execute(&(true))?;
     insert_stmt.execute(&(false))?;
 
-    let num_rows: Vec<bool> = connection.query(QUERY)?.try_into()?;
+    let num_rows: Vec<bool> = connection.query(QUERY)?.sync_try_into()?;
     assert_eq!(num_rows, vec![true, false]);
 
     //negative values not allowed
@@ -133,15 +157,15 @@ fn test_tiny_int(_log_handle: &mut LoggerHandle, connection: &mut Connection) ->
     assert!(insert_stmt.execute(&(256i64)).is_err());
 
     let query = QUERY;
-    assert!(connection.query(query)?.try_into::<Vec<u8>>().is_ok());
-    assert!(connection.query(query)?.try_into::<Vec<u16>>().is_ok());
-    assert!(connection.query(query)?.try_into::<Vec<u32>>().is_ok());
-    assert!(connection.query(query)?.try_into::<Vec<u64>>().is_ok());
-    assert!(connection.query(query)?.try_into::<Vec<i16>>().is_ok());
-    assert!(connection.query(query)?.try_into::<Vec<i32>>().is_ok());
-    assert!(connection.query(query)?.try_into::<Vec<i64>>().is_ok());
+    assert!(connection.query(query)?.sync_try_into::<Vec<u8>>().is_ok());
+    assert!(connection.query(query)?.sync_try_into::<Vec<u16>>().is_ok());
+    assert!(connection.query(query)?.sync_try_into::<Vec<u32>>().is_ok());
+    assert!(connection.query(query)?.sync_try_into::<Vec<u64>>().is_ok());
+    assert!(connection.query(query)?.sync_try_into::<Vec<i16>>().is_ok());
+    assert!(connection.query(query)?.sync_try_into::<Vec<i32>>().is_ok());
+    assert!(connection.query(query)?.sync_try_into::<Vec<i64>>().is_ok());
 
-    assert!(connection.query(query)?.try_into::<Vec<i8>>().is_err());
+    assert!(connection.query(query)?.sync_try_into::<Vec<i8>>().is_err());
     Ok(())
 }
 
@@ -167,39 +191,39 @@ fn test_small_int(_log_handle: &mut LoggerHandle, connection: &mut Connection) -
     let query = QUERY;
     let resultset = connection.query(query)?;
     debug!("deserialize...");
-    let rows: Vec<usize> = resultset.try_into()?;
+    let rows: Vec<usize> = resultset.sync_try_into()?;
     assert_eq!(rows, vec![1, 1, 1, 1, 1, 1, 1, 1]);
 
     assert_eq!(
-        connection.query(query)?.try_into::<Vec<u8>>()?,
+        connection.query(query)?.sync_try_into::<Vec<u8>>()?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
     assert_eq!(
-        connection.query(query)?.try_into::<Vec<u16>>()?,
+        connection.query(query)?.sync_try_into::<Vec<u16>>()?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
     assert_eq!(
-        connection.query(query)?.try_into::<Vec<u32>>()?,
+        connection.query(query)?.sync_try_into::<Vec<u32>>()?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
     assert_eq!(
-        connection.query(query)?.try_into::<Vec<u64>>()?,
+        connection.query(query)?.sync_try_into::<Vec<u64>>()?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
     assert_eq!(
-        connection.query(query)?.try_into::<Vec<i8>>()?,
+        connection.query(query)?.sync_try_into::<Vec<i8>>()?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
     assert_eq!(
-        connection.query(query)?.try_into::<Vec<i16>>()?,
+        connection.query(query)?.sync_try_into::<Vec<i16>>()?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
     assert_eq!(
-        connection.query(query)?.try_into::<Vec<i32>>()?,
+        connection.query(query)?.sync_try_into::<Vec<i32>>()?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
     assert_eq!(
-        connection.query(query)?.try_into::<Vec<i64>>()?,
+        connection.query(query)?.sync_try_into::<Vec<i64>>()?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
 
@@ -208,24 +232,48 @@ fn test_small_int(_log_handle: &mut LoggerHandle, connection: &mut Connection) -
     insert_stmt.execute(&(true))?;
     insert_stmt.execute(&(false))?;
 
-    let rows: Vec<bool> = connection.query(query)?.try_into()?;
+    let rows: Vec<bool> = connection.query(query)?.sync_try_into()?;
     assert_eq!(rows, vec![true, false]);
 
-    assert_eq!(connection.query(query)?.try_into::<Vec<u8>>()?, vec![1, 0]);
-    assert_eq!(connection.query(query)?.try_into::<Vec<u16>>()?, vec![1, 0]);
-    assert_eq!(connection.query(query)?.try_into::<Vec<u32>>()?, vec![1, 0]);
-    assert_eq!(connection.query(query)?.try_into::<Vec<u64>>()?, vec![1, 0]);
-    assert_eq!(connection.query(query)?.try_into::<Vec<i8>>()?, vec![1, 0]);
-    assert_eq!(connection.query(query)?.try_into::<Vec<i16>>()?, vec![1, 0]);
-    assert_eq!(connection.query(query)?.try_into::<Vec<i32>>()?, vec![1, 0]);
-    assert_eq!(connection.query(query)?.try_into::<Vec<i64>>()?, vec![1, 0]);
+    assert_eq!(
+        connection.query(query)?.sync_try_into::<Vec<u8>>()?,
+        vec![1, 0]
+    );
+    assert_eq!(
+        connection.query(query)?.sync_try_into::<Vec<u16>>()?,
+        vec![1, 0]
+    );
+    assert_eq!(
+        connection.query(query)?.sync_try_into::<Vec<u32>>()?,
+        vec![1, 0]
+    );
+    assert_eq!(
+        connection.query(query)?.sync_try_into::<Vec<u64>>()?,
+        vec![1, 0]
+    );
+    assert_eq!(
+        connection.query(query)?.sync_try_into::<Vec<i8>>()?,
+        vec![1, 0]
+    );
+    assert_eq!(
+        connection.query(query)?.sync_try_into::<Vec<i16>>()?,
+        vec![1, 0]
+    );
+    assert_eq!(
+        connection.query(query)?.sync_try_into::<Vec<i32>>()?,
+        vec![1, 0]
+    );
+    assert_eq!(
+        connection.query(query)?.sync_try_into::<Vec<i64>>()?,
+        vec![1, 0]
+    );
 
     connection.multiple_statements(vec!["TRUNCATE TABLE TEST_NUMERIC_CONVERSION"])?;
     let mut insert_stmt = connection.prepare("insert into TEST_NUMERIC_CONVERSION values (?)")?;
     insert_stmt.execute(&(true))?;
     insert_stmt.execute(&(false))?;
 
-    let num_rows: Vec<bool> = connection.query(query)?.try_into()?;
+    let num_rows: Vec<bool> = connection.query(query)?.sync_try_into()?;
     assert_eq!(num_rows, vec![true, false]);
 
     insert_stmt.execute(&(-1i8))?;
@@ -257,15 +305,24 @@ fn test_small_int(_log_handle: &mut LoggerHandle, connection: &mut Connection) -
     assert!(insert_stmt.execute(&(-32769i32)).is_err());
     assert!(insert_stmt.execute(&(-32769i64)).is_err());
 
-    assert!(connection.query(query)?.try_into::<Vec<u8>>().is_err());
-    assert!(connection.query(query)?.try_into::<Vec<u16>>().is_err());
-    assert!(connection.query(query)?.try_into::<Vec<u32>>().is_err());
-    assert!(connection.query(query)?.try_into::<Vec<i8>>().is_err());
-    assert!(connection.query(query)?.try_into::<Vec<u64>>().is_err());
+    assert!(connection.query(query)?.sync_try_into::<Vec<u8>>().is_err());
+    assert!(connection
+        .query(query)?
+        .sync_try_into::<Vec<u16>>()
+        .is_err());
+    assert!(connection
+        .query(query)?
+        .sync_try_into::<Vec<u32>>()
+        .is_err());
+    assert!(connection.query(query)?.sync_try_into::<Vec<i8>>().is_err());
+    assert!(connection
+        .query(query)?
+        .sync_try_into::<Vec<u64>>()
+        .is_err());
 
-    assert!(connection.query(query)?.try_into::<Vec<i16>>().is_ok());
-    assert!(connection.query(query)?.try_into::<Vec<i32>>().is_ok());
-    assert!(connection.query(query)?.try_into::<Vec<i64>>().is_ok());
+    assert!(connection.query(query)?.sync_try_into::<Vec<i16>>().is_ok());
+    assert!(connection.query(query)?.sync_try_into::<Vec<i32>>().is_ok());
+    assert!(connection.query(query)?.sync_try_into::<Vec<i64>>().is_ok());
 
     Ok(())
 }
@@ -293,39 +350,39 @@ fn test_integer(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> 
     let query = QUERY;
     let resultset = connection.query(query)?;
     debug!("deserialize...");
-    let rows: Vec<usize> = resultset.try_into()?;
+    let rows: Vec<usize> = resultset.sync_try_into()?;
     assert_eq!(rows, vec![1, 1, 1, 1, 1, 1, 1, 1]);
 
     assert_eq!(
-        connection.query(query)?.try_into::<Vec<u8>>()?,
+        connection.query(query)?.sync_try_into::<Vec<u8>>()?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
     assert_eq!(
-        connection.query(query)?.try_into::<Vec<u16>>()?,
+        connection.query(query)?.sync_try_into::<Vec<u16>>()?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
     assert_eq!(
-        connection.query(query)?.try_into::<Vec<u32>>()?,
+        connection.query(query)?.sync_try_into::<Vec<u32>>()?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
     assert_eq!(
-        connection.query(query)?.try_into::<Vec<u64>>()?,
+        connection.query(query)?.sync_try_into::<Vec<u64>>()?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
     assert_eq!(
-        connection.query(query)?.try_into::<Vec<i8>>()?,
+        connection.query(query)?.sync_try_into::<Vec<i8>>()?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
     assert_eq!(
-        connection.query(query)?.try_into::<Vec<i16>>()?,
+        connection.query(query)?.sync_try_into::<Vec<i16>>()?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
     assert_eq!(
-        connection.query(query)?.try_into::<Vec<i32>>()?,
+        connection.query(query)?.sync_try_into::<Vec<i32>>()?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
     assert_eq!(
-        connection.query(query)?.try_into::<Vec<i64>>()?,
+        connection.query(query)?.sync_try_into::<Vec<i64>>()?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
 
@@ -334,24 +391,48 @@ fn test_integer(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> 
     insert_stmt.execute(&(true))?;
     insert_stmt.execute(&(false))?;
 
-    let rows: Vec<bool> = connection.query(query)?.try_into()?;
+    let rows: Vec<bool> = connection.query(query)?.sync_try_into()?;
     assert_eq!(rows, vec![true, false]);
 
-    assert_eq!(connection.query(query)?.try_into::<Vec<u8>>()?, vec![1, 0]);
-    assert_eq!(connection.query(query)?.try_into::<Vec<u16>>()?, vec![1, 0]);
-    assert_eq!(connection.query(query)?.try_into::<Vec<u32>>()?, vec![1, 0]);
-    assert_eq!(connection.query(query)?.try_into::<Vec<u64>>()?, vec![1, 0]);
-    assert_eq!(connection.query(query)?.try_into::<Vec<i8>>()?, vec![1, 0]);
-    assert_eq!(connection.query(query)?.try_into::<Vec<i16>>()?, vec![1, 0]);
-    assert_eq!(connection.query(query)?.try_into::<Vec<i32>>()?, vec![1, 0]);
-    assert_eq!(connection.query(query)?.try_into::<Vec<i64>>()?, vec![1, 0]);
+    assert_eq!(
+        connection.query(query)?.sync_try_into::<Vec<u8>>()?,
+        vec![1, 0]
+    );
+    assert_eq!(
+        connection.query(query)?.sync_try_into::<Vec<u16>>()?,
+        vec![1, 0]
+    );
+    assert_eq!(
+        connection.query(query)?.sync_try_into::<Vec<u32>>()?,
+        vec![1, 0]
+    );
+    assert_eq!(
+        connection.query(query)?.sync_try_into::<Vec<u64>>()?,
+        vec![1, 0]
+    );
+    assert_eq!(
+        connection.query(query)?.sync_try_into::<Vec<i8>>()?,
+        vec![1, 0]
+    );
+    assert_eq!(
+        connection.query(query)?.sync_try_into::<Vec<i16>>()?,
+        vec![1, 0]
+    );
+    assert_eq!(
+        connection.query(query)?.sync_try_into::<Vec<i32>>()?,
+        vec![1, 0]
+    );
+    assert_eq!(
+        connection.query(query)?.sync_try_into::<Vec<i64>>()?,
+        vec![1, 0]
+    );
 
     connection.multiple_statements(vec!["TRUNCATE TABLE TEST_NUMERIC_CONVERSION"])?;
     let mut insert_stmt = connection.prepare("insert into TEST_NUMERIC_CONVERSION values (?)")?;
     insert_stmt.execute(&(true))?;
     insert_stmt.execute(&(false))?;
 
-    let num_rows: Vec<bool> = connection.query(query)?.try_into()?;
+    let num_rows: Vec<bool> = connection.query(query)?.sync_try_into()?;
     assert_eq!(num_rows, vec![true, false]);
 
     insert_stmt.execute(&(-1i8))?;
@@ -376,15 +457,27 @@ fn test_integer(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> 
     //out of range
     assert!(insert_stmt.execute(&(-2_147_483_649i64)).is_err());
 
-    assert!(connection.query(query)?.try_into::<Vec<u8>>().is_err());
-    assert!(connection.query(query)?.try_into::<Vec<u16>>().is_err());
-    assert!(connection.query(query)?.try_into::<Vec<u32>>().is_err());
-    assert!(connection.query(query)?.try_into::<Vec<i8>>().is_err());
-    assert!(connection.query(query)?.try_into::<Vec<i16>>().is_err());
-    assert!(connection.query(query)?.try_into::<Vec<u64>>().is_err());
+    assert!(connection.query(query)?.sync_try_into::<Vec<u8>>().is_err());
+    assert!(connection
+        .query(query)?
+        .sync_try_into::<Vec<u16>>()
+        .is_err());
+    assert!(connection
+        .query(query)?
+        .sync_try_into::<Vec<u32>>()
+        .is_err());
+    assert!(connection.query(query)?.sync_try_into::<Vec<i8>>().is_err());
+    assert!(connection
+        .query(query)?
+        .sync_try_into::<Vec<i16>>()
+        .is_err());
+    assert!(connection
+        .query(query)?
+        .sync_try_into::<Vec<u64>>()
+        .is_err());
 
-    assert!(connection.query(query)?.try_into::<Vec<i32>>().is_ok());
-    assert!(connection.query(query)?.try_into::<Vec<i64>>().is_ok());
+    assert!(connection.query(query)?.sync_try_into::<Vec<i32>>().is_ok());
+    assert!(connection.query(query)?.sync_try_into::<Vec<i64>>().is_ok());
 
     Ok(())
 }
@@ -412,39 +505,39 @@ fn test_big_int(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> 
     let query = QUERY;
     let resultset = connection.query(query)?;
     debug!("deserialize...");
-    let rows: Vec<usize> = resultset.try_into()?;
+    let rows: Vec<usize> = resultset.sync_try_into()?;
     assert_eq!(rows, vec![1, 1, 1, 1, 1, 1, 1, 1]);
 
     assert_eq!(
-        connection.query(query)?.try_into::<Vec<u8>>()?,
+        connection.query(query)?.sync_try_into::<Vec<u8>>()?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
     assert_eq!(
-        connection.query(query)?.try_into::<Vec<u16>>()?,
+        connection.query(query)?.sync_try_into::<Vec<u16>>()?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
     assert_eq!(
-        connection.query(query)?.try_into::<Vec<u32>>()?,
+        connection.query(query)?.sync_try_into::<Vec<u32>>()?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
     assert_eq!(
-        connection.query(query)?.try_into::<Vec<u64>>()?,
+        connection.query(query)?.sync_try_into::<Vec<u64>>()?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
     assert_eq!(
-        connection.query(query)?.try_into::<Vec<i8>>()?,
+        connection.query(query)?.sync_try_into::<Vec<i8>>()?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
     assert_eq!(
-        connection.query(query)?.try_into::<Vec<i16>>()?,
+        connection.query(query)?.sync_try_into::<Vec<i16>>()?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
     assert_eq!(
-        connection.query(query)?.try_into::<Vec<i32>>()?,
+        connection.query(query)?.sync_try_into::<Vec<i32>>()?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
     assert_eq!(
-        connection.query(query)?.try_into::<Vec<i64>>()?,
+        connection.query(query)?.sync_try_into::<Vec<i64>>()?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
 
@@ -453,24 +546,48 @@ fn test_big_int(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> 
     insert_stmt.execute(&(true))?;
     insert_stmt.execute(&(false))?;
 
-    let rows: Vec<bool> = connection.query(query)?.try_into()?;
+    let rows: Vec<bool> = connection.query(query)?.sync_try_into()?;
     assert_eq!(rows, vec![true, false]);
 
-    assert_eq!(connection.query(query)?.try_into::<Vec<u8>>()?, vec![1, 0]);
-    assert_eq!(connection.query(query)?.try_into::<Vec<u16>>()?, vec![1, 0]);
-    assert_eq!(connection.query(query)?.try_into::<Vec<u32>>()?, vec![1, 0]);
-    assert_eq!(connection.query(query)?.try_into::<Vec<u64>>()?, vec![1, 0]);
-    assert_eq!(connection.query(query)?.try_into::<Vec<i8>>()?, vec![1, 0]);
-    assert_eq!(connection.query(query)?.try_into::<Vec<i16>>()?, vec![1, 0]);
-    assert_eq!(connection.query(query)?.try_into::<Vec<i32>>()?, vec![1, 0]);
-    assert_eq!(connection.query(query)?.try_into::<Vec<i64>>()?, vec![1, 0]);
+    assert_eq!(
+        connection.query(query)?.sync_try_into::<Vec<u8>>()?,
+        vec![1, 0]
+    );
+    assert_eq!(
+        connection.query(query)?.sync_try_into::<Vec<u16>>()?,
+        vec![1, 0]
+    );
+    assert_eq!(
+        connection.query(query)?.sync_try_into::<Vec<u32>>()?,
+        vec![1, 0]
+    );
+    assert_eq!(
+        connection.query(query)?.sync_try_into::<Vec<u64>>()?,
+        vec![1, 0]
+    );
+    assert_eq!(
+        connection.query(query)?.sync_try_into::<Vec<i8>>()?,
+        vec![1, 0]
+    );
+    assert_eq!(
+        connection.query(query)?.sync_try_into::<Vec<i16>>()?,
+        vec![1, 0]
+    );
+    assert_eq!(
+        connection.query(query)?.sync_try_into::<Vec<i32>>()?,
+        vec![1, 0]
+    );
+    assert_eq!(
+        connection.query(query)?.sync_try_into::<Vec<i64>>()?,
+        vec![1, 0]
+    );
 
     connection.multiple_statements(vec!["TRUNCATE TABLE TEST_NUMERIC_CONVERSION"])?;
     let mut insert_stmt = connection.prepare("insert into TEST_NUMERIC_CONVERSION values (?)")?;
     insert_stmt.execute(&(true))?;
     insert_stmt.execute(&(false))?;
 
-    let num_rows: Vec<bool> = connection.query(query)?.try_into()?;
+    let num_rows: Vec<bool> = connection.query(query)?.sync_try_into()?;
     assert_eq!(num_rows, vec![true, false]);
 
     insert_stmt.execute(&(-1i8))?;
@@ -492,25 +609,55 @@ fn test_big_int(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> 
         .execute(&(-9_223_372_036_854_775_808i64))
         .is_ok());
 
-    assert!(connection.query(query)?.try_into::<Vec<u8>>().is_err());
-    assert!(connection.query(query)?.try_into::<Vec<u16>>().is_err());
-    assert!(connection.query(query)?.try_into::<Vec<u32>>().is_err());
-    assert!(connection.query(query)?.try_into::<Vec<i8>>().is_err());
-    assert!(connection.query(query)?.try_into::<Vec<i16>>().is_err());
-    assert!(connection.query(query)?.try_into::<Vec<i32>>().is_err());
-    assert!(connection.query(query)?.try_into::<Vec<u64>>().is_err());
+    assert!(connection.query(query)?.sync_try_into::<Vec<u8>>().is_err());
+    assert!(connection
+        .query(query)?
+        .sync_try_into::<Vec<u16>>()
+        .is_err());
+    assert!(connection
+        .query(query)?
+        .sync_try_into::<Vec<u32>>()
+        .is_err());
+    assert!(connection.query(query)?.sync_try_into::<Vec<i8>>().is_err());
+    assert!(connection
+        .query(query)?
+        .sync_try_into::<Vec<i16>>()
+        .is_err());
+    assert!(connection
+        .query(query)?
+        .sync_try_into::<Vec<i32>>()
+        .is_err());
+    assert!(connection
+        .query(query)?
+        .sync_try_into::<Vec<u64>>()
+        .is_err());
 
-    assert!(connection.query(query)?.try_into::<Vec<i64>>().is_ok());
+    assert!(connection.query(query)?.sync_try_into::<Vec<i64>>().is_ok());
 
-    assert!(connection.query(query)?.try_into::<Vec<u8>>().is_err());
-    assert!(connection.query(query)?.try_into::<Vec<u16>>().is_err());
-    assert!(connection.query(query)?.try_into::<Vec<u32>>().is_err());
-    assert!(connection.query(query)?.try_into::<Vec<i8>>().is_err());
-    assert!(connection.query(query)?.try_into::<Vec<i16>>().is_err());
-    assert!(connection.query(query)?.try_into::<Vec<i32>>().is_err());
-    assert!(connection.query(query)?.try_into::<Vec<u64>>().is_err());
+    assert!(connection.query(query)?.sync_try_into::<Vec<u8>>().is_err());
+    assert!(connection
+        .query(query)?
+        .sync_try_into::<Vec<u16>>()
+        .is_err());
+    assert!(connection
+        .query(query)?
+        .sync_try_into::<Vec<u32>>()
+        .is_err());
+    assert!(connection.query(query)?.sync_try_into::<Vec<i8>>().is_err());
+    assert!(connection
+        .query(query)?
+        .sync_try_into::<Vec<i16>>()
+        .is_err());
+    assert!(connection
+        .query(query)?
+        .sync_try_into::<Vec<i32>>()
+        .is_err());
+    assert!(connection
+        .query(query)?
+        .sync_try_into::<Vec<u64>>()
+        .is_err());
 
-    assert!(connection.query(query)?.try_into::<Vec<i64>>().is_ok());
+    assert!(connection.query(query)?.sync_try_into::<Vec<i64>>().is_ok());
 
     Ok(())
 }
@@ -537,43 +684,43 @@ fn test_decimal(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> 
     debug!("query...");
     let resultset = connection.query(QUERY)?;
     debug!("deserialize...");
-    let rows: Vec<usize> = resultset.try_into()?;
+    let rows: Vec<usize> = resultset.sync_try_into()?;
     assert_eq!(rows, vec![1, 1, 1, 1, 1, 1, 1, 1]);
 
     assert_eq!(
-        connection.query(QUERY)?.try_into::<Vec<u8>>()?,
+        connection.query(QUERY)?.sync_try_into::<Vec<u8>>()?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
     assert_eq!(
-        connection.query(QUERY)?.try_into::<Vec<u16>>()?,
+        connection.query(QUERY)?.sync_try_into::<Vec<u16>>()?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
     assert_eq!(
-        connection.query(QUERY)?.try_into::<Vec<u32>>()?,
+        connection.query(QUERY)?.sync_try_into::<Vec<u32>>()?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
     assert_eq!(
-        connection.query(QUERY)?.try_into::<Vec<u64>>()?,
+        connection.query(QUERY)?.sync_try_into::<Vec<u64>>()?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
     assert_eq!(
-        connection.query(QUERY)?.try_into::<Vec<i8>>()?,
+        connection.query(QUERY)?.sync_try_into::<Vec<i8>>()?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
     assert_eq!(
-        connection.query(QUERY)?.try_into::<Vec<i16>>()?,
+        connection.query(QUERY)?.sync_try_into::<Vec<i16>>()?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
     assert_eq!(
-        connection.query(QUERY)?.try_into::<Vec<i32>>()?,
+        connection.query(QUERY)?.sync_try_into::<Vec<i32>>()?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
     assert_eq!(
-        connection.query(QUERY)?.try_into::<Vec<i64>>()?,
+        connection.query(QUERY)?.sync_try_into::<Vec<i64>>()?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
 
-    let rows: Result<Vec<bool>, _> = connection.query(QUERY)?.try_into();
+    let rows: Result<Vec<bool>, _> = connection.query(QUERY)?.sync_try_into();
     assert!(rows.is_err());
 
     connection.multiple_statements(vec!["TRUNCATE TABLE TEST_NUMERIC_CONVERSION"])?;
@@ -594,14 +741,29 @@ fn test_decimal(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> 
         .execute(&(-9_223_372_036_854_775_808i64))
         .is_ok());
 
-    assert!(connection.query(QUERY)?.try_into::<Vec<u8>>().is_err());
-    assert!(connection.query(QUERY)?.try_into::<Vec<u16>>().is_err());
-    assert!(connection.query(QUERY)?.try_into::<Vec<u32>>().is_err());
-    assert!(connection.query(QUERY)?.try_into::<Vec<i8>>().is_err());
-    assert!(connection.query(QUERY)?.try_into::<Vec<i16>>().is_err());
-    assert!(connection.query(QUERY)?.try_into::<Vec<i32>>().is_err());
-    assert!(connection.query(QUERY)?.try_into::<Vec<u64>>().is_err());
-    assert!(connection.query(QUERY)?.try_into::<Vec<i64>>().is_ok());
+    assert!(connection.query(QUERY)?.sync_try_into::<Vec<u8>>().is_err());
+    assert!(connection
+        .query(QUERY)?
+        .sync_try_into::<Vec<u16>>()
+        .is_err());
+    assert!(connection
+        .query(QUERY)?
+        .sync_try_into::<Vec<u32>>()
+        .is_err());
+    assert!(connection.query(QUERY)?.sync_try_into::<Vec<i8>>().is_err());
+    assert!(connection
+        .query(QUERY)?
+        .sync_try_into::<Vec<i16>>()
+        .is_err());
+    assert!(connection
+        .query(QUERY)?
+        .sync_try_into::<Vec<i32>>()
+        .is_err());
+    assert!(connection
+        .query(QUERY)?
+        .sync_try_into::<Vec<u64>>()
+        .is_err());
+    assert!(connection.query(QUERY)?.sync_try_into::<Vec<i64>>().is_ok());
 
     Ok(())
 }
@@ -617,16 +779,34 @@ fn conversion_error(_log_handle: &mut LoggerHandle, connection: &mut Connection)
 
     insert_stmt.execute(&("nan"))?;
 
-    assert!(connection.query(QUERY)?.try_into::<Vec<u8>>().is_err());
-    assert!(connection.query(QUERY)?.try_into::<Vec<u16>>().is_err());
-    assert!(connection.query(QUERY)?.try_into::<Vec<u32>>().is_err());
-    assert!(connection.query(QUERY)?.try_into::<Vec<i8>>().is_err());
-    assert!(connection.query(QUERY)?.try_into::<Vec<i16>>().is_err());
-    assert!(connection.query(QUERY)?.try_into::<Vec<i32>>().is_err());
-    assert!(connection.query(QUERY)?.try_into::<Vec<u64>>().is_err());
-    assert!(connection.query(QUERY)?.try_into::<Vec<i64>>().is_err());
-    assert!(connection.query(QUERY)?.try_into::<Vec<f32>>().is_ok());
-    assert!(connection.query(QUERY)?.try_into::<Vec<f64>>().is_ok());
+    assert!(connection.query(QUERY)?.sync_try_into::<Vec<u8>>().is_err());
+    assert!(connection
+        .query(QUERY)?
+        .sync_try_into::<Vec<u16>>()
+        .is_err());
+    assert!(connection
+        .query(QUERY)?
+        .sync_try_into::<Vec<u32>>()
+        .is_err());
+    assert!(connection.query(QUERY)?.sync_try_into::<Vec<i8>>().is_err());
+    assert!(connection
+        .query(QUERY)?
+        .sync_try_into::<Vec<i16>>()
+        .is_err());
+    assert!(connection
+        .query(QUERY)?
+        .sync_try_into::<Vec<i32>>()
+        .is_err());
+    assert!(connection
+        .query(QUERY)?
+        .sync_try_into::<Vec<u64>>()
+        .is_err());
+    assert!(connection
+        .query(QUERY)?
+        .sync_try_into::<Vec<i64>>()
+        .is_err());
+    assert!(connection.query(QUERY)?.sync_try_into::<Vec<f32>>().is_ok());
+    assert!(connection.query(QUERY)?.sync_try_into::<Vec<f64>>().is_ok());
 
     Ok(())
 }

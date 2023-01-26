@@ -56,18 +56,14 @@ async fn test_tiny_int(
     debug!("query...");
     let resultset = connection.query(QUERY).await?;
     debug!("deserialize...");
-    let rows: Vec<usize> = resultset.try_into().await?;
+    let rows: Vec<usize> = resultset.async_try_into().await?;
     assert_eq!(rows, vec![1, 1, 1, 1, 1, 1, 1, 1]);
 
     assert_eq!(
-        connection.query(QUERY).await?.try_into::<Vec<u8>>().await?,
-        vec![1, 1, 1, 1, 1, 1, 1, 1]
-    );
-    assert_eq!(
         connection
             .query(QUERY)
             .await?
-            .try_into::<Vec<u16>>()
+            .async_try_into::<Vec<u8>>()
             .await?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
@@ -75,7 +71,7 @@ async fn test_tiny_int(
         connection
             .query(QUERY)
             .await?
-            .try_into::<Vec<u32>>()
+            .async_try_into::<Vec<u16>>()
             .await?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
@@ -83,19 +79,7 @@ async fn test_tiny_int(
         connection
             .query(QUERY)
             .await?
-            .try_into::<Vec<u64>>()
-            .await?,
-        vec![1, 1, 1, 1, 1, 1, 1, 1]
-    );
-    assert_eq!(
-        connection.query(QUERY).await?.try_into::<Vec<i8>>().await?,
-        vec![1, 1, 1, 1, 1, 1, 1, 1]
-    );
-    assert_eq!(
-        connection
-            .query(QUERY)
-            .await?
-            .try_into::<Vec<i16>>()
+            .async_try_into::<Vec<u32>>()
             .await?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
@@ -103,7 +87,7 @@ async fn test_tiny_int(
         connection
             .query(QUERY)
             .await?
-            .try_into::<Vec<i32>>()
+            .async_try_into::<Vec<u64>>()
             .await?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
@@ -111,7 +95,31 @@ async fn test_tiny_int(
         connection
             .query(QUERY)
             .await?
-            .try_into::<Vec<i64>>()
+            .async_try_into::<Vec<i8>>()
+            .await?,
+        vec![1, 1, 1, 1, 1, 1, 1, 1]
+    );
+    assert_eq!(
+        connection
+            .query(QUERY)
+            .await?
+            .async_try_into::<Vec<i16>>()
+            .await?,
+        vec![1, 1, 1, 1, 1, 1, 1, 1]
+    );
+    assert_eq!(
+        connection
+            .query(QUERY)
+            .await?
+            .async_try_into::<Vec<i32>>()
+            .await?,
+        vec![1, 1, 1, 1, 1, 1, 1, 1]
+    );
+    assert_eq!(
+        connection
+            .query(QUERY)
+            .await?
+            .async_try_into::<Vec<i64>>()
             .await?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
@@ -125,18 +133,14 @@ async fn test_tiny_int(
     insert_stmt.execute(&(true)).await?;
     insert_stmt.execute(&(false)).await?;
 
-    let rows: Vec<bool> = connection.query(QUERY).await?.try_into().await?;
+    let rows: Vec<bool> = connection.query(QUERY).await?.async_try_into().await?;
     assert_eq!(rows, vec![true, false]);
 
     assert_eq!(
-        connection.query(QUERY).await?.try_into::<Vec<u8>>().await?,
-        vec![1, 0]
-    );
-    assert_eq!(
         connection
             .query(QUERY)
             .await?
-            .try_into::<Vec<u16>>()
+            .async_try_into::<Vec<u8>>()
             .await?,
         vec![1, 0]
     );
@@ -144,7 +148,7 @@ async fn test_tiny_int(
         connection
             .query(QUERY)
             .await?
-            .try_into::<Vec<u32>>()
+            .async_try_into::<Vec<u16>>()
             .await?,
         vec![1, 0]
     );
@@ -152,19 +156,7 @@ async fn test_tiny_int(
         connection
             .query(QUERY)
             .await?
-            .try_into::<Vec<u64>>()
-            .await?,
-        vec![1, 0]
-    );
-    assert_eq!(
-        connection.query(QUERY).await?.try_into::<Vec<i8>>().await?,
-        vec![1, 0]
-    );
-    assert_eq!(
-        connection
-            .query(QUERY)
-            .await?
-            .try_into::<Vec<i16>>()
+            .async_try_into::<Vec<u32>>()
             .await?,
         vec![1, 0]
     );
@@ -172,7 +164,7 @@ async fn test_tiny_int(
         connection
             .query(QUERY)
             .await?
-            .try_into::<Vec<i32>>()
+            .async_try_into::<Vec<u64>>()
             .await?,
         vec![1, 0]
     );
@@ -180,7 +172,31 @@ async fn test_tiny_int(
         connection
             .query(QUERY)
             .await?
-            .try_into::<Vec<i64>>()
+            .async_try_into::<Vec<i8>>()
+            .await?,
+        vec![1, 0]
+    );
+    assert_eq!(
+        connection
+            .query(QUERY)
+            .await?
+            .async_try_into::<Vec<i16>>()
+            .await?,
+        vec![1, 0]
+    );
+    assert_eq!(
+        connection
+            .query(QUERY)
+            .await?
+            .async_try_into::<Vec<i32>>()
+            .await?,
+        vec![1, 0]
+    );
+    assert_eq!(
+        connection
+            .query(QUERY)
+            .await?
+            .async_try_into::<Vec<i64>>()
             .await?,
         vec![1, 0]
     );
@@ -194,7 +210,7 @@ async fn test_tiny_int(
     insert_stmt.execute(&(true)).await?;
     insert_stmt.execute(&(false)).await?;
 
-    let num_rows: Vec<bool> = connection.query(QUERY).await?.try_into().await?;
+    let num_rows: Vec<bool> = connection.query(QUERY).await?.async_try_into().await?;
     assert_eq!(num_rows, vec![true, false]);
 
     //negative values not allowed
@@ -223,50 +239,50 @@ async fn test_tiny_int(
     assert!(connection
         .query(query)
         .await?
-        .try_into::<Vec<u8>>()
+        .async_try_into::<Vec<u8>>()
         .await
         .is_ok());
     assert!(connection
         .query(query)
         .await?
-        .try_into::<Vec<u16>>()
+        .async_try_into::<Vec<u16>>()
         .await
         .is_ok());
     assert!(connection
         .query(query)
         .await?
-        .try_into::<Vec<u32>>()
+        .async_try_into::<Vec<u32>>()
         .await
         .is_ok());
     assert!(connection
         .query(query)
         .await?
-        .try_into::<Vec<u64>>()
+        .async_try_into::<Vec<u64>>()
         .await
         .is_ok());
     assert!(connection
         .query(query)
         .await?
-        .try_into::<Vec<i16>>()
+        .async_try_into::<Vec<i16>>()
         .await
         .is_ok());
     assert!(connection
         .query(query)
         .await?
-        .try_into::<Vec<i32>>()
+        .async_try_into::<Vec<i32>>()
         .await
         .is_ok());
     assert!(connection
         .query(query)
         .await?
-        .try_into::<Vec<i64>>()
+        .async_try_into::<Vec<i64>>()
         .await
         .is_ok());
 
     assert!(connection
         .query(query)
         .await?
-        .try_into::<Vec<i8>>()
+        .async_try_into::<Vec<i8>>()
         .await
         .is_err());
     Ok(())
@@ -301,18 +317,14 @@ async fn test_small_int(
     let query = QUERY;
     let resultset = connection.query(query).await?;
     debug!("deserialize...");
-    let rows: Vec<usize> = resultset.try_into().await?;
+    let rows: Vec<usize> = resultset.async_try_into().await?;
     assert_eq!(rows, vec![1, 1, 1, 1, 1, 1, 1, 1]);
 
     assert_eq!(
-        connection.query(query).await?.try_into::<Vec<u8>>().await?,
-        vec![1, 1, 1, 1, 1, 1, 1, 1]
-    );
-    assert_eq!(
         connection
             .query(query)
             .await?
-            .try_into::<Vec<u16>>()
+            .async_try_into::<Vec<u8>>()
             .await?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
@@ -320,7 +332,7 @@ async fn test_small_int(
         connection
             .query(query)
             .await?
-            .try_into::<Vec<u32>>()
+            .async_try_into::<Vec<u16>>()
             .await?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
@@ -328,19 +340,7 @@ async fn test_small_int(
         connection
             .query(query)
             .await?
-            .try_into::<Vec<u64>>()
-            .await?,
-        vec![1, 1, 1, 1, 1, 1, 1, 1]
-    );
-    assert_eq!(
-        connection.query(query).await?.try_into::<Vec<i8>>().await?,
-        vec![1, 1, 1, 1, 1, 1, 1, 1]
-    );
-    assert_eq!(
-        connection
-            .query(query)
-            .await?
-            .try_into::<Vec<i16>>()
+            .async_try_into::<Vec<u32>>()
             .await?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
@@ -348,7 +348,7 @@ async fn test_small_int(
         connection
             .query(query)
             .await?
-            .try_into::<Vec<i32>>()
+            .async_try_into::<Vec<u64>>()
             .await?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
@@ -356,7 +356,31 @@ async fn test_small_int(
         connection
             .query(query)
             .await?
-            .try_into::<Vec<i64>>()
+            .async_try_into::<Vec<i8>>()
+            .await?,
+        vec![1, 1, 1, 1, 1, 1, 1, 1]
+    );
+    assert_eq!(
+        connection
+            .query(query)
+            .await?
+            .async_try_into::<Vec<i16>>()
+            .await?,
+        vec![1, 1, 1, 1, 1, 1, 1, 1]
+    );
+    assert_eq!(
+        connection
+            .query(query)
+            .await?
+            .async_try_into::<Vec<i32>>()
+            .await?,
+        vec![1, 1, 1, 1, 1, 1, 1, 1]
+    );
+    assert_eq!(
+        connection
+            .query(query)
+            .await?
+            .async_try_into::<Vec<i64>>()
             .await?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
@@ -370,18 +394,14 @@ async fn test_small_int(
     insert_stmt.execute(&(true)).await?;
     insert_stmt.execute(&(false)).await?;
 
-    let rows: Vec<bool> = connection.query(query).await?.try_into().await?;
+    let rows: Vec<bool> = connection.query(query).await?.async_try_into().await?;
     assert_eq!(rows, vec![true, false]);
 
     assert_eq!(
-        connection.query(query).await?.try_into::<Vec<u8>>().await?,
-        vec![1, 0]
-    );
-    assert_eq!(
         connection
             .query(query)
             .await?
-            .try_into::<Vec<u16>>()
+            .async_try_into::<Vec<u8>>()
             .await?,
         vec![1, 0]
     );
@@ -389,7 +409,7 @@ async fn test_small_int(
         connection
             .query(query)
             .await?
-            .try_into::<Vec<u32>>()
+            .async_try_into::<Vec<u16>>()
             .await?,
         vec![1, 0]
     );
@@ -397,19 +417,7 @@ async fn test_small_int(
         connection
             .query(query)
             .await?
-            .try_into::<Vec<u64>>()
-            .await?,
-        vec![1, 0]
-    );
-    assert_eq!(
-        connection.query(query).await?.try_into::<Vec<i8>>().await?,
-        vec![1, 0]
-    );
-    assert_eq!(
-        connection
-            .query(query)
-            .await?
-            .try_into::<Vec<i16>>()
+            .async_try_into::<Vec<u32>>()
             .await?,
         vec![1, 0]
     );
@@ -417,7 +425,7 @@ async fn test_small_int(
         connection
             .query(query)
             .await?
-            .try_into::<Vec<i32>>()
+            .async_try_into::<Vec<u64>>()
             .await?,
         vec![1, 0]
     );
@@ -425,7 +433,31 @@ async fn test_small_int(
         connection
             .query(query)
             .await?
-            .try_into::<Vec<i64>>()
+            .async_try_into::<Vec<i8>>()
+            .await?,
+        vec![1, 0]
+    );
+    assert_eq!(
+        connection
+            .query(query)
+            .await?
+            .async_try_into::<Vec<i16>>()
+            .await?,
+        vec![1, 0]
+    );
+    assert_eq!(
+        connection
+            .query(query)
+            .await?
+            .async_try_into::<Vec<i32>>()
+            .await?,
+        vec![1, 0]
+    );
+    assert_eq!(
+        connection
+            .query(query)
+            .await?
+            .async_try_into::<Vec<i64>>()
             .await?,
         vec![1, 0]
     );
@@ -439,7 +471,7 @@ async fn test_small_int(
     insert_stmt.execute(&(true)).await?;
     insert_stmt.execute(&(false)).await?;
 
-    let num_rows: Vec<bool> = connection.query(query).await?.try_into().await?;
+    let num_rows: Vec<bool> = connection.query(query).await?.async_try_into().await?;
     assert_eq!(num_rows, vec![true, false]);
 
     insert_stmt.execute(&(-1i8)).await?;
@@ -474,50 +506,50 @@ async fn test_small_int(
     assert!(connection
         .query(query)
         .await?
-        .try_into::<Vec<u8>>()
+        .async_try_into::<Vec<u8>>()
         .await
         .is_err());
     assert!(connection
         .query(query)
         .await?
-        .try_into::<Vec<u16>>()
+        .async_try_into::<Vec<u16>>()
         .await
         .is_err());
     assert!(connection
         .query(query)
         .await?
-        .try_into::<Vec<u32>>()
+        .async_try_into::<Vec<u32>>()
         .await
         .is_err());
     assert!(connection
         .query(query)
         .await?
-        .try_into::<Vec<i8>>()
+        .async_try_into::<Vec<i8>>()
         .await
         .is_err());
     assert!(connection
         .query(query)
         .await?
-        .try_into::<Vec<u64>>()
+        .async_try_into::<Vec<u64>>()
         .await
         .is_err());
 
     assert!(connection
         .query(query)
         .await?
-        .try_into::<Vec<i16>>()
+        .async_try_into::<Vec<i16>>()
         .await
         .is_ok());
     assert!(connection
         .query(query)
         .await?
-        .try_into::<Vec<i32>>()
+        .async_try_into::<Vec<i32>>()
         .await
         .is_ok());
     assert!(connection
         .query(query)
         .await?
-        .try_into::<Vec<i64>>()
+        .async_try_into::<Vec<i64>>()
         .await
         .is_ok());
 
@@ -554,18 +586,14 @@ async fn test_integer(
     let query = QUERY;
     let resultset = connection.query(query).await?;
     debug!("deserialize...");
-    let rows: Vec<usize> = resultset.try_into().await?;
+    let rows: Vec<usize> = resultset.async_try_into().await?;
     assert_eq!(rows, vec![1, 1, 1, 1, 1, 1, 1, 1]);
 
     assert_eq!(
-        connection.query(query).await?.try_into::<Vec<u8>>().await?,
-        vec![1, 1, 1, 1, 1, 1, 1, 1]
-    );
-    assert_eq!(
         connection
             .query(query)
             .await?
-            .try_into::<Vec<u16>>()
+            .async_try_into::<Vec<u8>>()
             .await?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
@@ -573,7 +601,7 @@ async fn test_integer(
         connection
             .query(query)
             .await?
-            .try_into::<Vec<u32>>()
+            .async_try_into::<Vec<u16>>()
             .await?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
@@ -581,19 +609,7 @@ async fn test_integer(
         connection
             .query(query)
             .await?
-            .try_into::<Vec<u64>>()
-            .await?,
-        vec![1, 1, 1, 1, 1, 1, 1, 1]
-    );
-    assert_eq!(
-        connection.query(query).await?.try_into::<Vec<i8>>().await?,
-        vec![1, 1, 1, 1, 1, 1, 1, 1]
-    );
-    assert_eq!(
-        connection
-            .query(query)
-            .await?
-            .try_into::<Vec<i16>>()
+            .async_try_into::<Vec<u32>>()
             .await?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
@@ -601,7 +617,7 @@ async fn test_integer(
         connection
             .query(query)
             .await?
-            .try_into::<Vec<i32>>()
+            .async_try_into::<Vec<u64>>()
             .await?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
@@ -609,7 +625,31 @@ async fn test_integer(
         connection
             .query(query)
             .await?
-            .try_into::<Vec<i64>>()
+            .async_try_into::<Vec<i8>>()
+            .await?,
+        vec![1, 1, 1, 1, 1, 1, 1, 1]
+    );
+    assert_eq!(
+        connection
+            .query(query)
+            .await?
+            .async_try_into::<Vec<i16>>()
+            .await?,
+        vec![1, 1, 1, 1, 1, 1, 1, 1]
+    );
+    assert_eq!(
+        connection
+            .query(query)
+            .await?
+            .async_try_into::<Vec<i32>>()
+            .await?,
+        vec![1, 1, 1, 1, 1, 1, 1, 1]
+    );
+    assert_eq!(
+        connection
+            .query(query)
+            .await?
+            .async_try_into::<Vec<i64>>()
             .await?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
@@ -623,18 +663,14 @@ async fn test_integer(
     insert_stmt.execute(&(true)).await?;
     insert_stmt.execute(&(false)).await?;
 
-    let rows: Vec<bool> = connection.query(query).await?.try_into().await?;
+    let rows: Vec<bool> = connection.query(query).await?.async_try_into().await?;
     assert_eq!(rows, vec![true, false]);
 
     assert_eq!(
-        connection.query(query).await?.try_into::<Vec<u8>>().await?,
-        vec![1, 0]
-    );
-    assert_eq!(
         connection
             .query(query)
             .await?
-            .try_into::<Vec<u16>>()
+            .async_try_into::<Vec<u8>>()
             .await?,
         vec![1, 0]
     );
@@ -642,7 +678,7 @@ async fn test_integer(
         connection
             .query(query)
             .await?
-            .try_into::<Vec<u32>>()
+            .async_try_into::<Vec<u16>>()
             .await?,
         vec![1, 0]
     );
@@ -650,19 +686,7 @@ async fn test_integer(
         connection
             .query(query)
             .await?
-            .try_into::<Vec<u64>>()
-            .await?,
-        vec![1, 0]
-    );
-    assert_eq!(
-        connection.query(query).await?.try_into::<Vec<i8>>().await?,
-        vec![1, 0]
-    );
-    assert_eq!(
-        connection
-            .query(query)
-            .await?
-            .try_into::<Vec<i16>>()
+            .async_try_into::<Vec<u32>>()
             .await?,
         vec![1, 0]
     );
@@ -670,7 +694,7 @@ async fn test_integer(
         connection
             .query(query)
             .await?
-            .try_into::<Vec<i32>>()
+            .async_try_into::<Vec<u64>>()
             .await?,
         vec![1, 0]
     );
@@ -678,7 +702,31 @@ async fn test_integer(
         connection
             .query(query)
             .await?
-            .try_into::<Vec<i64>>()
+            .async_try_into::<Vec<i8>>()
+            .await?,
+        vec![1, 0]
+    );
+    assert_eq!(
+        connection
+            .query(query)
+            .await?
+            .async_try_into::<Vec<i16>>()
+            .await?,
+        vec![1, 0]
+    );
+    assert_eq!(
+        connection
+            .query(query)
+            .await?
+            .async_try_into::<Vec<i32>>()
+            .await?,
+        vec![1, 0]
+    );
+    assert_eq!(
+        connection
+            .query(query)
+            .await?
+            .async_try_into::<Vec<i64>>()
             .await?,
         vec![1, 0]
     );
@@ -692,7 +740,7 @@ async fn test_integer(
     insert_stmt.execute(&(true)).await?;
     insert_stmt.execute(&(false)).await?;
 
-    let num_rows: Vec<bool> = connection.query(query).await?.try_into().await?;
+    let num_rows: Vec<bool> = connection.query(query).await?.async_try_into().await?;
     assert_eq!(num_rows, vec![true, false]);
 
     insert_stmt.execute(&(-1i8)).await?;
@@ -720,50 +768,50 @@ async fn test_integer(
     assert!(connection
         .query(query)
         .await?
-        .try_into::<Vec<u8>>()
+        .async_try_into::<Vec<u8>>()
         .await
         .is_err());
     assert!(connection
         .query(query)
         .await?
-        .try_into::<Vec<u16>>()
+        .async_try_into::<Vec<u16>>()
         .await
         .is_err());
     assert!(connection
         .query(query)
         .await?
-        .try_into::<Vec<u32>>()
+        .async_try_into::<Vec<u32>>()
         .await
         .is_err());
     assert!(connection
         .query(query)
         .await?
-        .try_into::<Vec<i8>>()
+        .async_try_into::<Vec<i8>>()
         .await
         .is_err());
     assert!(connection
         .query(query)
         .await?
-        .try_into::<Vec<i16>>()
+        .async_try_into::<Vec<i16>>()
         .await
         .is_err());
     assert!(connection
         .query(query)
         .await?
-        .try_into::<Vec<u64>>()
+        .async_try_into::<Vec<u64>>()
         .await
         .is_err());
 
     assert!(connection
         .query(query)
         .await?
-        .try_into::<Vec<i32>>()
+        .async_try_into::<Vec<i32>>()
         .await
         .is_ok());
     assert!(connection
         .query(query)
         .await?
-        .try_into::<Vec<i64>>()
+        .async_try_into::<Vec<i64>>()
         .await
         .is_ok());
 
@@ -800,18 +848,14 @@ async fn test_big_int(
     let query = QUERY;
     let resultset = connection.query(query).await?;
     debug!("deserialize...");
-    let rows: Vec<usize> = resultset.try_into().await?;
+    let rows: Vec<usize> = resultset.async_try_into().await?;
     assert_eq!(rows, vec![1, 1, 1, 1, 1, 1, 1, 1]);
 
     assert_eq!(
-        connection.query(query).await?.try_into::<Vec<u8>>().await?,
-        vec![1, 1, 1, 1, 1, 1, 1, 1]
-    );
-    assert_eq!(
         connection
             .query(query)
             .await?
-            .try_into::<Vec<u16>>()
+            .async_try_into::<Vec<u8>>()
             .await?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
@@ -819,7 +863,7 @@ async fn test_big_int(
         connection
             .query(query)
             .await?
-            .try_into::<Vec<u32>>()
+            .async_try_into::<Vec<u16>>()
             .await?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
@@ -827,19 +871,7 @@ async fn test_big_int(
         connection
             .query(query)
             .await?
-            .try_into::<Vec<u64>>()
-            .await?,
-        vec![1, 1, 1, 1, 1, 1, 1, 1]
-    );
-    assert_eq!(
-        connection.query(query).await?.try_into::<Vec<i8>>().await?,
-        vec![1, 1, 1, 1, 1, 1, 1, 1]
-    );
-    assert_eq!(
-        connection
-            .query(query)
-            .await?
-            .try_into::<Vec<i16>>()
+            .async_try_into::<Vec<u32>>()
             .await?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
@@ -847,7 +879,7 @@ async fn test_big_int(
         connection
             .query(query)
             .await?
-            .try_into::<Vec<i32>>()
+            .async_try_into::<Vec<u64>>()
             .await?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
@@ -855,7 +887,31 @@ async fn test_big_int(
         connection
             .query(query)
             .await?
-            .try_into::<Vec<i64>>()
+            .async_try_into::<Vec<i8>>()
+            .await?,
+        vec![1, 1, 1, 1, 1, 1, 1, 1]
+    );
+    assert_eq!(
+        connection
+            .query(query)
+            .await?
+            .async_try_into::<Vec<i16>>()
+            .await?,
+        vec![1, 1, 1, 1, 1, 1, 1, 1]
+    );
+    assert_eq!(
+        connection
+            .query(query)
+            .await?
+            .async_try_into::<Vec<i32>>()
+            .await?,
+        vec![1, 1, 1, 1, 1, 1, 1, 1]
+    );
+    assert_eq!(
+        connection
+            .query(query)
+            .await?
+            .async_try_into::<Vec<i64>>()
             .await?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
@@ -869,18 +925,14 @@ async fn test_big_int(
     insert_stmt.execute(&(true)).await?;
     insert_stmt.execute(&(false)).await?;
 
-    let rows: Vec<bool> = connection.query(query).await?.try_into().await?;
+    let rows: Vec<bool> = connection.query(query).await?.async_try_into().await?;
     assert_eq!(rows, vec![true, false]);
 
     assert_eq!(
-        connection.query(query).await?.try_into::<Vec<u8>>().await?,
-        vec![1, 0]
-    );
-    assert_eq!(
         connection
             .query(query)
             .await?
-            .try_into::<Vec<u16>>()
+            .async_try_into::<Vec<u8>>()
             .await?,
         vec![1, 0]
     );
@@ -888,7 +940,7 @@ async fn test_big_int(
         connection
             .query(query)
             .await?
-            .try_into::<Vec<u32>>()
+            .async_try_into::<Vec<u16>>()
             .await?,
         vec![1, 0]
     );
@@ -896,19 +948,7 @@ async fn test_big_int(
         connection
             .query(query)
             .await?
-            .try_into::<Vec<u64>>()
-            .await?,
-        vec![1, 0]
-    );
-    assert_eq!(
-        connection.query(query).await?.try_into::<Vec<i8>>().await?,
-        vec![1, 0]
-    );
-    assert_eq!(
-        connection
-            .query(query)
-            .await?
-            .try_into::<Vec<i16>>()
+            .async_try_into::<Vec<u32>>()
             .await?,
         vec![1, 0]
     );
@@ -916,7 +956,7 @@ async fn test_big_int(
         connection
             .query(query)
             .await?
-            .try_into::<Vec<i32>>()
+            .async_try_into::<Vec<u64>>()
             .await?,
         vec![1, 0]
     );
@@ -924,7 +964,31 @@ async fn test_big_int(
         connection
             .query(query)
             .await?
-            .try_into::<Vec<i64>>()
+            .async_try_into::<Vec<i8>>()
+            .await?,
+        vec![1, 0]
+    );
+    assert_eq!(
+        connection
+            .query(query)
+            .await?
+            .async_try_into::<Vec<i16>>()
+            .await?,
+        vec![1, 0]
+    );
+    assert_eq!(
+        connection
+            .query(query)
+            .await?
+            .async_try_into::<Vec<i32>>()
+            .await?,
+        vec![1, 0]
+    );
+    assert_eq!(
+        connection
+            .query(query)
+            .await?
+            .async_try_into::<Vec<i64>>()
             .await?,
         vec![1, 0]
     );
@@ -938,7 +1002,7 @@ async fn test_big_int(
     insert_stmt.execute(&(true)).await?;
     insert_stmt.execute(&(false)).await?;
 
-    let num_rows: Vec<bool> = connection.query(query).await?.try_into().await?;
+    let num_rows: Vec<bool> = connection.query(query).await?.async_try_into().await?;
     assert_eq!(num_rows, vec![true, false]);
 
     insert_stmt.execute(&(-1i8)).await?;
@@ -971,100 +1035,100 @@ async fn test_big_int(
     assert!(connection
         .query(query)
         .await?
-        .try_into::<Vec<u8>>()
+        .async_try_into::<Vec<u8>>()
         .await
         .is_err());
     assert!(connection
         .query(query)
         .await?
-        .try_into::<Vec<u16>>()
+        .async_try_into::<Vec<u16>>()
         .await
         .is_err());
     assert!(connection
         .query(query)
         .await?
-        .try_into::<Vec<u32>>()
+        .async_try_into::<Vec<u32>>()
         .await
         .is_err());
     assert!(connection
         .query(query)
         .await?
-        .try_into::<Vec<i8>>()
+        .async_try_into::<Vec<i8>>()
         .await
         .is_err());
     assert!(connection
         .query(query)
         .await?
-        .try_into::<Vec<i16>>()
+        .async_try_into::<Vec<i16>>()
         .await
         .is_err());
     assert!(connection
         .query(query)
         .await?
-        .try_into::<Vec<i32>>()
+        .async_try_into::<Vec<i32>>()
         .await
         .is_err());
     assert!(connection
         .query(query)
         .await?
-        .try_into::<Vec<u64>>()
+        .async_try_into::<Vec<u64>>()
         .await
         .is_err());
 
     assert!(connection
         .query(query)
         .await?
-        .try_into::<Vec<i64>>()
+        .async_try_into::<Vec<i64>>()
         .await
         .is_ok());
 
     assert!(connection
         .query(query)
         .await?
-        .try_into::<Vec<u8>>()
+        .async_try_into::<Vec<u8>>()
         .await
         .is_err());
     assert!(connection
         .query(query)
         .await?
-        .try_into::<Vec<u16>>()
+        .async_try_into::<Vec<u16>>()
         .await
         .is_err());
     assert!(connection
         .query(query)
         .await?
-        .try_into::<Vec<u32>>()
+        .async_try_into::<Vec<u32>>()
         .await
         .is_err());
     assert!(connection
         .query(query)
         .await?
-        .try_into::<Vec<i8>>()
+        .async_try_into::<Vec<i8>>()
         .await
         .is_err());
     assert!(connection
         .query(query)
         .await?
-        .try_into::<Vec<i16>>()
+        .async_try_into::<Vec<i16>>()
         .await
         .is_err());
     assert!(connection
         .query(query)
         .await?
-        .try_into::<Vec<i32>>()
+        .async_try_into::<Vec<i32>>()
         .await
         .is_err());
     assert!(connection
         .query(query)
         .await?
-        .try_into::<Vec<u64>>()
+        .async_try_into::<Vec<u64>>()
         .await
         .is_err());
 
     assert!(connection
         .query(query)
         .await?
-        .try_into::<Vec<i64>>()
+        .async_try_into::<Vec<i64>>()
         .await
         .is_ok());
 
@@ -1100,18 +1164,14 @@ async fn test_decimal(
     debug!("query...");
     let resultset = connection.query(QUERY).await?;
     debug!("deserialize...");
-    let rows: Vec<usize> = resultset.try_into().await?;
+    let rows: Vec<usize> = resultset.async_try_into().await?;
     assert_eq!(rows, vec![1, 1, 1, 1, 1, 1, 1, 1]);
 
     assert_eq!(
-        connection.query(QUERY).await?.try_into::<Vec<u8>>().await?,
-        vec![1, 1, 1, 1, 1, 1, 1, 1]
-    );
-    assert_eq!(
         connection
             .query(QUERY)
             .await?
-            .try_into::<Vec<u16>>()
+            .async_try_into::<Vec<u8>>()
             .await?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
@@ -1119,7 +1179,7 @@ async fn test_decimal(
         connection
             .query(QUERY)
             .await?
-            .try_into::<Vec<u32>>()
+            .async_try_into::<Vec<u16>>()
             .await?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
@@ -1127,19 +1187,7 @@ async fn test_decimal(
         connection
             .query(QUERY)
             .await?
-            .try_into::<Vec<u64>>()
-            .await?,
-        vec![1, 1, 1, 1, 1, 1, 1, 1]
-    );
-    assert_eq!(
-        connection.query(QUERY).await?.try_into::<Vec<i8>>().await?,
-        vec![1, 1, 1, 1, 1, 1, 1, 1]
-    );
-    assert_eq!(
-        connection
-            .query(QUERY)
-            .await?
-            .try_into::<Vec<i16>>()
+            .async_try_into::<Vec<u32>>()
             .await?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
@@ -1147,7 +1195,7 @@ async fn test_decimal(
         connection
             .query(QUERY)
             .await?
-            .try_into::<Vec<i32>>()
+            .async_try_into::<Vec<u64>>()
             .await?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
@@ -1155,12 +1203,36 @@ async fn test_decimal(
         connection
             .query(QUERY)
             .await?
-            .try_into::<Vec<i64>>()
+            .async_try_into::<Vec<i8>>()
+            .await?,
+        vec![1, 1, 1, 1, 1, 1, 1, 1]
+    );
+    assert_eq!(
+        connection
+            .query(QUERY)
+            .await?
+            .async_try_into::<Vec<i16>>()
+            .await?,
+        vec![1, 1, 1, 1, 1, 1, 1, 1]
+    );
+    assert_eq!(
+        connection
+            .query(QUERY)
+            .await?
+            .async_try_into::<Vec<i32>>()
+            .await?,
+        vec![1, 1, 1, 1, 1, 1, 1, 1]
+    );
+    assert_eq!(
+        connection
+            .query(QUERY)
+            .await?
+            .async_try_into::<Vec<i64>>()
             .await?,
         vec![1, 1, 1, 1, 1, 1, 1, 1]
     );
 
-    let rows: Result<Vec<bool>, _> = connection.query(QUERY).await?.try_into().await;
+    let rows: Result<Vec<bool>, _> = connection.query(QUERY).await?.async_try_into().await;
     assert!(rows.is_err());
 
     connection
@@ -1195,49 +1267,49 @@ async fn test_decimal(
     assert!(connection
         .query(QUERY)
         .await?
-        .try_into::<Vec<u8>>()
+        .async_try_into::<Vec<u8>>()
         .await
         .is_err());
     assert!(connection
         .query(QUERY)
         .await?
-        .try_into::<Vec<u16>>()
+        .async_try_into::<Vec<u16>>()
         .await
         .is_err());
     assert!(connection
         .query(QUERY)
         .await?
-        .try_into::<Vec<u32>>()
+        .async_try_into::<Vec<u32>>()
         .await
         .is_err());
     assert!(connection
         .query(QUERY)
         .await?
-        .try_into::<Vec<i8>>()
+        .async_try_into::<Vec<i8>>()
         .await
         .is_err());
     assert!(connection
         .query(QUERY)
         .await?
-        .try_into::<Vec<i16>>()
+        .async_try_into::<Vec<i16>>()
         .await
         .is_err());
     assert!(connection
         .query(QUERY)
         .await?
-        .try_into::<Vec<i32>>()
+        .async_try_into::<Vec<i32>>()
         .await
         .is_err());
     assert!(connection
         .query(QUERY)
         .await?
-        .try_into::<Vec<u64>>()
+        .async_try_into::<Vec<u64>>()
         .await
         .is_err());
     assert!(connection
         .query(QUERY)
         .await?
-        .try_into::<Vec<i64>>()
+        .async_try_into::<Vec<i64>>()
         .await
         .is_ok());
 
@@ -1265,61 +1337,61 @@ async fn conversion_error(
     assert!(connection
         .query(QUERY)
         .await?
-        .try_into::<Vec<u8>>()
+        .async_try_into::<Vec<u8>>()
         .await
         .is_err());
     assert!(connection
         .query(QUERY)
         .await?
-        .try_into::<Vec<u16>>()
+        .async_try_into::<Vec<u16>>()
         .await
         .is_err());
     assert!(connection
         .query(QUERY)
         .await?
-        .try_into::<Vec<u32>>()
+        .async_try_into::<Vec<u32>>()
         .await
         .is_err());
     assert!(connection
         .query(QUERY)
         .await?
-        .try_into::<Vec<i8>>()
+        .async_try_into::<Vec<i8>>()
         .await
         .is_err());
     assert!(connection
         .query(QUERY)
         .await?
-        .try_into::<Vec<i16>>()
+        .async_try_into::<Vec<i16>>()
         .await
         .is_err());
     assert!(connection
         .query(QUERY)
         .await?
-        .try_into::<Vec<i32>>()
+        .async_try_into::<Vec<i32>>()
         .await
         .is_err());
     assert!(connection
         .query(QUERY)
         .await?
-        .try_into::<Vec<u64>>()
+        .async_try_into::<Vec<u64>>()
         .await
         .is_err());
     assert!(connection
         .query(QUERY)
         .await?
-        .try_into::<Vec<i64>>()
+        .async_try_into::<Vec<i64>>()
         .await
         .is_err());
     assert!(connection
         .query(QUERY)
         .await?
-        .try_into::<Vec<f32>>()
+        .async_try_into::<Vec<f32>>()
         .await
         .is_ok());
     assert!(connection
         .query(QUERY)
         .await?
-        .try_into::<Vec<f64>>()
+        .async_try_into::<Vec<f64>>()
         .await
         .is_ok());
 

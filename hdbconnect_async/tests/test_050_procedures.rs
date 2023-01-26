@@ -4,8 +4,8 @@ mod test_utils;
 
 use flexi_logger::LoggerHandle;
 use hdbconnect_async::{
-    types::NCLob, Connection, HdbResponse, HdbResult, HdbReturnValue, HdbValue, ParameterBinding,
-    ParameterDirection, ResultSet, Row, TypeId,
+    types::NCLob, AsyncResultSet, Connection, HdbResponse, HdbResult, HdbReturnValue, HdbValue,
+    ParameterBinding, ParameterDirection, Row, TypeId,
 };
 
 use log::{debug, info};
@@ -47,7 +47,7 @@ async fn very_simple_procedure(
 
     let mut response = connection.statement("call TEST_PROCEDURE").await?;
     response.get_success()?;
-    let _resultset = response.get_resultset()?;
+    let _resultset = response.get_aresultset()?;
     Ok(())
 }
 
@@ -85,8 +85,14 @@ async fn procedure_with_out_resultsets(
 
     let mut response = connection.statement("call GET_PROCEDURES(?,?)").await?;
     response.get_success()?;
-    let l1 = response.get_resultset()?.total_number_of_rows().await?;
-    let l2 = response.get_resultset()?.total_number_of_rows().await?;
+    let l1 = response
+        .get_aresultset()?
+        .async_total_number_of_rows()
+        .await?;
+    let l2 = response
+        .get_aresultset()?
+        .async_total_number_of_rows()
+        .await?;
     assert_eq!(2 * l1, l2);
     Ok(())
 }
@@ -122,8 +128,14 @@ async fn procedure_with_secret_resultsets(
         .await?;
 
     response.get_success()?;
-    let l1 = response.get_resultset()?.total_number_of_rows().await?;
-    let l2 = response.get_resultset()?.total_number_of_rows().await?;
+    let l1 = response
+        .get_aresultset()?
+        .async_total_number_of_rows()
+        .await?;
+    let l2 = response
+        .get_aresultset()?
+        .async_total_number_of_rows()
+        .await?;
     assert_eq!(2 * l1, l2);
 
     let mut response: HdbResponse = connection
@@ -132,7 +144,9 @@ async fn procedure_with_secret_resultsets(
     response.reverse();
     for ret_val in response {
         match ret_val {
+            #[cfg(feature = "sync")]
             HdbReturnValue::ResultSet(rs) => debug!("Got a resultset: {:?}", rs),
+            HdbReturnValue::AResultSet(rs) => debug!("Got a resultset: {:?}", rs),
             HdbReturnValue::AffectedRows(affected_rows) => {
                 debug!("Got affected_rows: {:?}", affected_rows)
             }
@@ -171,8 +185,8 @@ async fn procedure_with_in_parameters(
     prepared_stmt.add_batch(&(42, "is between 41 and 43"))?;
     let mut response = prepared_stmt.execute_batch().await?;
     response.get_success()?;
-    let mut rs: ResultSet = response.get_resultset()?;
-    let mut row: Row = rs.next_row().await?.unwrap();
+    let mut rs: AsyncResultSet = response.get_aresultset()?;
+    let mut row: Row = rs.async_next_row().await?.unwrap();
     let value: i32 = row.next_value().unwrap().try_into()?;
     assert_eq!(value, 42_i32);
     let value: String = row.next_value().unwrap().try_into()?;
@@ -226,9 +240,9 @@ async fn procedure_with_in_and_out_parameters(
     let (_inout_ts, out_s): (String, String) = output_parameters.try_into()?;
     assert_eq!(out_s, "some output string");
 
-    let mut rs = response.get_resultset()?;
+    let mut rs = response.get_aresultset()?;
     let value: i32 = rs
-        .next_row()
+        .async_next_row()
         .await?
         .unwrap()
         .next_value()
@@ -262,8 +276,8 @@ async fn procedure_with_in_nclob_non_consuming(
     debug!("Still owned {:?}", &my_parameter);
     let mut response = prepared_stmt.execute_batch().await?;
     response.get_success()?;
-    let mut rs = response.get_resultset()?;
-    let mut row = rs.next_row().await?.unwrap();
+    let mut rs = response.get_aresultset()?;
+    let mut row = rs.async_next_row().await?.unwrap();
     let value: String = row.next_value().unwrap().try_into()?;
     assert_eq!(value, "nclob string");
 
@@ -308,8 +322,8 @@ async fn procedure_with_in_nclob_and_out_nclob(
     // );
     let result = stmt
         .execute_row(vec![
-            HdbValue::LOBSTREAM(Some(reader1)),
-            HdbValue::LOBSTREAM(Some(reader2)),
+            HdbValue::ASYNCLOBSTREAM(Some(reader1)),
+            HdbValue::ASYNCLOBSTREAM(Some(reader2)),
         ])
         .await;
     if let Err(ref e) = result {
@@ -330,7 +344,7 @@ async fn procedure_with_in_nclob_and_out_nclob(
     // _log_handle.pop_temp_spec();
 
     assert_eq!(
-        nclob.into_string().await?,
+        nclob.async_into_string().await?,
         String::from("Hello World! Can you read that??")
     );
     Ok(())

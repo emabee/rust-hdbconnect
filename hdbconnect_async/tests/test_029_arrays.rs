@@ -60,14 +60,14 @@ async fn test_arrays(log_handle: &mut LoggerHandle, connection: &mut Connection)
     let cards: Vec<u32> = connection
         .query(r#"SELECT CARDINALITY(VAL) "cardinality" FROM TEST_INTEGER_ARRAYS"#)
         .await?
-        .try_into()
+        .async_try_into()
         .await?;
     assert_eq!(cards, vec![3, 4, 10_004]);
 
     let value = connection
         .query("select val from TEST_INTEGER_ARRAYS where id = 2")
         .await?
-        .into_single_row()
+        .async_into_single_row()
         .await?
         .into_single_value()?;
 
@@ -84,7 +84,7 @@ async fn test_arrays(log_handle: &mut LoggerHandle, connection: &mut Connection)
     let value = connection
         .query("select val from TEST_INTEGER_ARRAYS where id = 3")
         .await?
-        .into_single_row()
+        .async_into_single_row()
         .await?
         .into_single_value()?;
 
@@ -97,7 +97,7 @@ async fn test_arrays(log_handle: &mut LoggerHandle, connection: &mut Connection)
     let value = connection
         .query("select val from TEST_STRING_ARRAYS where id = 2")
         .await?
-        .into_single_row()
+        .async_into_single_row()
         .await?
         .into_single_value()?;
 

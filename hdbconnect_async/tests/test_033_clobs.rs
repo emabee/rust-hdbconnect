@@ -45,7 +45,7 @@ async fn prepare_test(connection: &mut Connection) -> HdbResult<bool> {
             where table_name = 'TEST_CLOBS' and COLUMN_NAME = 'CHARDATA'",
         )
         .await?
-        .try_into()
+        .async_try_into()
         .await?;
     Ok(coltype == "CLOB")
 }
@@ -100,7 +100,7 @@ async fn test_clobs(
         connection
             .query("select length(CHARDATA) from TEST_CLOBS where desc = '3x blabla'")
             .await?
-            .try_into::<usize>()
+            .async_try_into::<usize>()
             .await?,
         "data length in database is not as expected"
     );
@@ -111,7 +111,7 @@ async fn test_clobs(
     let resultset = connection.query(query).await?;
     debug!("and convert it into a rust struct");
 
-    let mydata: MyData = resultset.try_into().await?;
+    let mydata: MyData = resultset.async_try_into().await?;
     debug!(
         "reading two big CLOB with lob-read-length {} required {} roundtrips",
         connection.lob_read_length().await?,
@@ -135,7 +135,7 @@ async fn test_clobs(
     connection.set_lob_read_length(10_000).await?;
     let before = connection.get_call_count().await?;
     let resultset = connection.query(query).await?;
-    let second: MyData = resultset.try_into().await?;
+    let second: MyData = resultset.async_try_into().await?;
     debug!(
         "reading two big CLOB with lob-read-length {} required {} roundtrips",
         connection.lob_read_length().await?,
@@ -149,12 +149,16 @@ async fn test_clobs(
     connection.set_lob_read_length(200_000).await?;
 
     let query = "select desc, chardata as CL1, chardata as CL2 from TEST_CLOBS";
-    let mut row = connection.query(query).await?.into_single_row().await?;
+    let mut row = connection
+        .query(query)
+        .await?
+        .async_into_single_row()
+        .await?;
     row.next_value().unwrap();
     let clob: CLob = row.next_value().unwrap().try_into_clob()?;
 
     let mut streamed = Vec::<u8>::new();
-    clob.write_into(&mut streamed).await?;
+    clob.async_write_into(&mut streamed).await?;
 
     assert_eq!(fifty_times_smp_blabla.len(), streamed.len());
     let mut hasher = Sha256::default();
@@ -166,12 +170,12 @@ async fn test_clobs(
     let mut clob: CLob = connection
         .query("select chardata from TEST_CLOBS")
         .await?
-        .into_single_row()
+        .async_into_single_row()
         .await?
         .into_single_value()?
         .try_into_clob()?;
     for i in 1000..1040 {
-        let _clob_slice = clob.read_slice(i, 100).await?;
+        let _clob_slice = clob.async_read_slice(i, 100).await?;
     }
 
     Ok(())
@@ -200,7 +204,7 @@ async fn test_streaming(
 
     stmt.execute_row(vec![
         HdbValue::STRING("lsadksaldk".to_string()),
-        HdbValue::LOBSTREAM(Some(reader)),
+        HdbValue::ASYNCLOBSTREAM(Some(reader)),
     ])
     .await?;
     connection.commit().await?;
@@ -211,12 +215,12 @@ async fn test_streaming(
     let clob = connection
         .query("select chardata from TEST_CLOBS")
         .await?
-        .into_single_row()
+        .async_into_single_row()
         .await?
         .into_single_value()?
         .try_into_clob()?;
     let mut buffer = Vec::<u8>::new();
-    clob.write_into(&mut buffer).await?;
+    clob.async_write_into(&mut buffer).await?;
 
     assert_eq!(fifty_times_smp_blabla.len(), buffer.len());
     let mut hasher = Sha256::default();
@@ -241,7 +245,7 @@ async fn test_zero_length(
     let empty: String = connection
         .query("select chardata from TEST_CLOBS where desc = 'empty'")
         .await?
-        .try_into()
+        .async_try_into()
         .await?;
     assert!(empty.is_empty());
     Ok(())

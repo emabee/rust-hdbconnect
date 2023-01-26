@@ -1,19 +1,20 @@
-use crate::conn::{
-    authentication, initial_request, AuthenticationResult, ConnectParams, SessionState,
-};
-#[cfg(feature = "async")]
-use crate::conn::{AsyncAmConnCore, AsyncTcpClient};
-#[cfg(feature = "sync")]
-use crate::conn::{SyncAmConnCore, SyncTcpClient};
+use crate::conn::AmConnCore;
 
-use crate::protocol::parts::{
-    ClientInfo, ConnectOptions, DbConnectInfo, ParameterDescriptors, ResultSetMetadata, RsState,
-    ServerError, StatementContext, Topology, TransactionFlags,
+use crate::{
+    conn::{
+        authentication, initial_request, AuthenticationResult, ConnectParams, SessionState,
+        TcpClient,
+    },
+    protocol::{
+        parts::{
+            ClientInfo, ConnectOptions, DbConnectInfo, ParameterDescriptors, ResultSetMetadata,
+            RsState, ServerError, StatementContext, Topology, TransactionFlags,
+        },
+        Part, Reply, ReplyType, Request, RequestType, ServerUsage,
+    },
+    HdbError, HdbResult,
 };
-use crate::protocol::{Part, Reply, ReplyType, Request, RequestType, ServerUsage};
-use crate::{HdbError, HdbResult};
-use std::mem;
-use std::sync::Arc;
+use std::{mem, sync::Arc};
 
 #[doc(hidden)]
 #[derive(Debug)]
@@ -33,10 +34,7 @@ pub struct ConnectionCore {
     connect_options: ConnectOptions,
     topology: Option<Topology>,
     pub warnings: Vec<ServerError>,
-    #[cfg(feature = "sync")]
-    sync_tcp_conn: SyncTcpClient,
-    #[cfg(feature = "async")]
-    async_tcp_conn: AsyncTcpClient,
+    tcp_client: TcpClient,
 }
 
 impl<'a> ConnectionCore {
@@ -148,8 +146,8 @@ impl<'a> ConnectionCore {
     #[cfg(feature = "sync")]
     fn try_new_initialized_sync(params: ConnectParams) -> HdbResult<Self> {
         let connect_options = ConnectOptions::for_server(params.clientlocale(), get_os_user());
-        let mut tcp_conn = SyncTcpClient::try_new(params)?;
-        initial_request::sync_send_and_receive(&mut tcp_conn)?;
+        let mut tcp_client = TcpClient::try_new_sync(params)?;
+        initial_request::sync_send_and_receive(&mut tcp_client)?;
         Ok(Self {
             authenticated: false,
             session_id: 0,
@@ -166,15 +164,15 @@ impl<'a> ConnectionCore {
             connect_options,
             topology: None,
             warnings: Vec::<ServerError>::new(),
-            sync_tcp_conn: tcp_conn,
+            tcp_client,
         })
     }
 
     #[cfg(feature = "async")]
     async fn try_new_initialized_async(params: ConnectParams) -> HdbResult<Self> {
         let connect_options = ConnectOptions::for_server(params.clientlocale(), get_os_user());
-        let mut async_tcp_connection = AsyncTcpClient::try_new(params).await?;
-        initial_request::async_send_and_receive(&mut async_tcp_connection).await?;
+        let mut tcp_client = TcpClient::try_new_async(params).await?;
+        initial_request::async_send_and_receive(&mut tcp_client).await?;
         Ok(Self {
             authenticated: false,
             session_id: 0,
@@ -191,18 +189,18 @@ impl<'a> ConnectionCore {
             connect_options,
             topology: None,
             warnings: Vec::<ServerError>::new(),
-            async_tcp_conn: async_tcp_connection,
+            tcp_client,
         })
     }
 
     #[cfg(feature = "sync")]
-    pub fn reconnect(&mut self) -> HdbResult<()> {
+    pub fn sync_reconnect(&mut self) -> HdbResult<()> {
         debug!("Trying to reconnect");
-        let mut conn_params = self.sync_tcp_conn.connect_params().clone();
+        let mut conn_params = self.tcp_client.connect_params().clone();
         loop {
-            let mut tcp_conn = SyncTcpClient::try_new(conn_params.clone())?;
+            let mut tcp_conn = TcpClient::try_new_sync(conn_params.clone())?;
             initial_request::sync_send_and_receive(&mut tcp_conn)?;
-            self.sync_tcp_conn = tcp_conn;
+            self.tcp_client = tcp_conn;
             self.authenticated = false;
             self.session_id = 0;
             // fetch_size, lob_read_length, lob_write_length are considered automatically
@@ -216,7 +214,7 @@ impl<'a> ConnectionCore {
                 AuthenticationResult::Redirect(db_connect_info) => {
                     debug!("Redirected");
                     conn_params = self
-                        .sync_tcp_conn
+                        .tcp_client
                         .connect_params()
                         .redirect(db_connect_info.host()?, db_connect_info.port()?);
                 }
@@ -225,13 +223,13 @@ impl<'a> ConnectionCore {
     }
 
     #[cfg(feature = "async")]
-    pub async fn reconnect(&mut self) -> HdbResult<()> {
+    pub async fn async_reconnect(&mut self) -> HdbResult<()> {
         debug!("Trying to reconnect");
-        let mut conn_params = self.async_tcp_conn.connect_params().clone();
+        let mut conn_params = self.tcp_client.connect_params().clone();
         loop {
-            let mut tcp_conn = AsyncTcpClient::try_new(conn_params.clone()).await?;
-            initial_request::async_send_and_receive(&mut tcp_conn).await?;
-            self.async_tcp_conn = tcp_conn;
+            let mut tcp_client = TcpClient::try_new_async(conn_params.clone()).await?;
+            initial_request::async_send_and_receive(&mut tcp_client).await?;
+            self.tcp_client = tcp_client;
             self.authenticated = false;
             self.session_id = 0;
             // fetch_size, lob_read_length, lob_write_length are considered automatically
@@ -245,7 +243,7 @@ impl<'a> ConnectionCore {
                 AuthenticationResult::Redirect(db_connect_info) => {
                     debug!("Redirected");
                     conn_params = self
-                        .async_tcp_conn
+                        .tcp_client
                         .connect_params()
                         .redirect(db_connect_info.host()?, db_connect_info.port()?);
                 }
@@ -254,23 +252,18 @@ impl<'a> ConnectionCore {
     }
 
     pub fn connect_params(&self) -> &ConnectParams {
-        let result: &ConnectParams;
-        #[cfg(feature = "sync")]
-        {
-            result = match self.sync_tcp_conn {
-                SyncTcpClient::Plain(ref cl) => cl.connect_params(),
-                SyncTcpClient::Tls(ref cl) => cl.connect_params(),
-            };
+        match self.tcp_client {
+            #[cfg(feature = "sync")]
+            TcpClient::SyncPlain(ref cl) => cl.connect_params(),
+            #[cfg(feature = "sync")]
+            TcpClient::SyncTls(ref cl) => cl.connect_params(),
+            #[cfg(feature = "async")]
+            TcpClient::AsyncPlain(ref cl) => cl.connect_params(),
+            #[cfg(feature = "async")]
+            TcpClient::AsyncTls(ref cl) => cl.connect_params(),
+            #[cfg(feature = "async")]
+            TcpClient::Dead => unreachable!(),
         }
-        #[cfg(feature = "async")]
-        {
-            result = match self.async_tcp_conn {
-                AsyncTcpClient::Plain(ref cl) => cl.connect_params(),
-                AsyncTcpClient::Tls(ref cl) => cl.connect_params(),
-                AsyncTcpClient::Dead => unreachable!(),
-            };
-        }
-        result
     }
 
     pub fn connect_string(&self) -> String {
@@ -445,10 +438,10 @@ impl<'a> ConnectionCore {
     }
 
     #[cfg(feature = "sync")]
-    pub fn roundtrip_sync(
+    pub(crate) fn roundtrip_sync(
         &mut self,
         request: &'a Request<'a>,
-        o_am_conn_core: Option<&SyncAmConnCore>,
+        o_am_conn_core: Option<&AmConnCore>,
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
         o_rs: &mut Option<&mut RsState>,
@@ -461,15 +454,19 @@ impl<'a> ConnectionCore {
             };
         let auto_commit = self.is_auto_commit();
 
-        let w: &mut dyn std::io::Write = match self.sync_tcp_conn {
-            SyncTcpClient::Plain(ref mut cl) => cl.writer(),
-            SyncTcpClient::Tls(ref mut cl) => cl.writer(),
+        let w: &mut dyn std::io::Write = match self.tcp_client {
+            TcpClient::SyncPlain(ref mut cl) => cl.writer(),
+            TcpClient::SyncTls(ref mut cl) => cl.writer(),
+            #[cfg(feature = "async")]
+            _ => unreachable!("Async connections not supported here"),
         };
         request.sync_emit(session_id, nsn, auto_commit, o_a_descriptors, w)?;
 
-        let rdr: &mut dyn std::io::Read = match self.sync_tcp_conn {
-            SyncTcpClient::Plain(ref mut cl) => cl.reader(),
-            SyncTcpClient::Tls(ref mut cl) => cl.reader(),
+        let rdr: &mut dyn std::io::Read = match self.tcp_client {
+            TcpClient::SyncPlain(ref mut cl) => cl.reader(),
+            TcpClient::SyncTls(ref mut cl) => cl.reader(),
+            #[cfg(feature = "async")]
+            _ => unreachable!("Async connections not supported here"),
         };
         let mut reply = Reply::parse_sync(o_a_rsmd, o_a_descriptors, o_rs, o_am_conn_core, rdr)?;
 
@@ -480,10 +477,10 @@ impl<'a> ConnectionCore {
     }
 
     #[cfg(feature = "async")]
-    pub async fn roundtrip_async(
+    pub(crate) async fn roundtrip_async(
         &mut self,
         request: &'a Request<'a>,
-        o_am_conn_core: Option<&AsyncAmConnCore>,
+        o_am_conn_core: Option<&AmConnCore>,
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
         o_rs: &mut Option<&mut RsState>,
@@ -496,30 +493,34 @@ impl<'a> ConnectionCore {
             };
         let auto_commit = self.is_auto_commit();
 
-        match self.async_tcp_conn {
-            AsyncTcpClient::Plain(ref mut cl) => {
+        match self.tcp_client {
+            TcpClient::AsyncPlain(ref mut cl) => {
                 request
                     .async_emit(session_id, nsn, auto_commit, o_a_descriptors, cl.writer())
                     .await
             }
-            AsyncTcpClient::Tls(ref mut cl) => {
+            TcpClient::AsyncTls(ref mut cl) => {
                 request
                     .async_emit(session_id, nsn, auto_commit, o_a_descriptors, cl.writer())
                     .await
             }
-            AsyncTcpClient::Dead => unreachable!(),
+            #[cfg(feature = "sync")]
+            TcpClient::Dead => unreachable!("Dead connection not supported here"),
+            _ => unreachable!("Sync connections not supported here"),
         }?;
 
-        let mut reply = match self.async_tcp_conn {
-            AsyncTcpClient::Plain(ref mut cl) => {
+        let mut reply = match self.tcp_client {
+            TcpClient::AsyncPlain(ref mut cl) => {
                 Reply::parse_async(o_a_rsmd, o_a_descriptors, o_rs, o_am_conn_core, cl.reader())
                     .await
             }
-            AsyncTcpClient::Tls(ref mut cl) => {
+            TcpClient::AsyncTls(ref mut cl) => {
                 Reply::parse_async(o_a_rsmd, o_a_descriptors, o_rs, o_am_conn_core, cl.reader())
                     .await
             }
-            AsyncTcpClient::Dead => unreachable!(),
+            #[cfg(feature = "sync")]
+            TcpClient::Dead => unreachable!("Dead connection not supported here"),
+            _ => unreachable!("Sync connections not supported here"),
         }?;
 
         if default_error_handling {
@@ -529,6 +530,7 @@ impl<'a> ConnectionCore {
     }
 }
 
+#[cfg(any(feature = "sync", feature = "async"))]
 impl Drop for ConnectionCore {
     // try to send a disconnect to the database, ignore all errors
     fn drop(&mut self) {
@@ -539,9 +541,11 @@ impl Drop for ConnectionCore {
             let nsn = self.next_seq_number();
             #[cfg(feature = "sync")]
             {
-                let w: &mut dyn std::io::Write = match self.sync_tcp_conn {
-                    SyncTcpClient::Plain(ref mut cl) => cl.writer() as &mut dyn std::io::Write,
-                    SyncTcpClient::Tls(ref mut cl) => cl.writer() as &mut dyn std::io::Write,
+                let w: &mut dyn std::io::Write = match self.tcp_client {
+                    TcpClient::SyncPlain(ref mut cl) => cl.writer() as &mut dyn std::io::Write,
+                    TcpClient::SyncTls(ref mut cl) => cl.writer() as &mut dyn std::io::Write,
+                    #[cfg(feature = "async")]
+                    _ => unreachable!("Async connections not supported here"),
                 };
                 request
                     .sync_emit(session_id, nsn, false, None, w)
@@ -553,25 +557,27 @@ impl Drop for ConnectionCore {
             }
             #[cfg(feature = "async")]
             {
-                let mut async_tcp_conn = AsyncTcpClient::Dead;
-                std::mem::swap(&mut async_tcp_conn, &mut self.async_tcp_conn);
+                let mut tcp_client = TcpClient::Dead;
+                std::mem::swap(&mut tcp_client, &mut self.tcp_client);
 
                 // see https://www.reddit.com/r/rust/comments/vckd9h/async_drop/
                 tokio::spawn(async move {
-                    match async_tcp_conn {
-                        AsyncTcpClient::Plain(ref mut cl) => {
+                    match tcp_client {
+                        TcpClient::AsyncPlain(ref mut cl) => {
                             request
                                 .async_emit(session_id, nsn, false, None, cl.writer())
                                 .await
                                 .ok();
                         }
-                        AsyncTcpClient::Tls(ref mut cl) => {
+                        TcpClient::AsyncTls(ref mut cl) => {
                             request
                                 .async_emit(session_id, nsn, false, None, cl.writer())
                                 .await
                                 .ok();
                         }
-                        AsyncTcpClient::Dead => unreachable!(),
+                        TcpClient::Dead => unreachable!("Dead connection not supported here"),
+                        #[cfg(feature = "sync")]
+                        _ => unreachable!("Sync connections not supported here"),
                     }
                     trace!("Disconnect: request successfully sent");
                 });

@@ -1,14 +1,14 @@
 [workspace]
 members = [
-    # main crates, published on crates.io
+    # projection crates, should be used
     "hdbconnect",
     "hdbconnect_async",
 
-    # most of the code is here
+    # the code is here, should not be used
     "hdbconnect_impl",
 ]
 
-default-members = [
-    "hdbconnect",
-    "hdbconnect_async",
-]
+# default-members = [
+#     "hdbconnect",
+#     "hdbconnect_async",
+# ]

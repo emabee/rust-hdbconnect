@@ -1,19 +1,17 @@
-use crate::prepared_statement::PreparedStatement;
-use dist_tx::a_sync::rm::ResourceManager;
-use hdbconnect_impl::{
-    conn::AsyncAmConnCore,
-    protocol::parts::{
-        ClientContext, ClientContextId, CommandInfo, ConnOptId, OptionValue, ServerError,
-    },
-    protocol::{Part, Request, RequestType, ServerUsage, HOLD_CURSORS_OVER_COMMIT},
-    xa_impl::async_new_resource_manager,
-    {HdbError, HdbResponse, HdbResult, IntoConnectParams, ResultSet},
+use super::PreparedStatement;
+use crate::conn::AmConnCore;
+use crate::protocol::parts::{
+    ClientContext, ClientContextId, CommandInfo, ConnOptId, OptionValue, ServerError,
 };
+use crate::protocol::{Part, Request, RequestType, ServerUsage, HOLD_CURSORS_OVER_COMMIT};
+use crate::xa_impl::sync_new_resource_manager;
+use crate::{HdbError, HdbResponse, HdbResult, IntoConnectParams, SyncResultSet};
+use dist_tx::sync::rm::ResourceManager;
 
-/// An asynchronous connection to the database.
+/// A synchronous connection to the database.
 #[derive(Clone, Debug)]
 pub struct Connection {
-    am_conn_core: AsyncAmConnCore,
+    am_conn_core: AmConnCore,
 }
 
 impl Connection {
@@ -22,18 +20,16 @@ impl Connection {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # tokio_test::block_on(async {
-    /// use hdbconnect_async::Connection;
-    /// let mut conn = Connection::new("hdbsql://my_user:my_passwd@the_host:2222").await.unwrap();
-    /// # })
+    /// use hdbconnect::Connection;
+    /// let mut conn = Connection::new("hdbsql://my_user:my_passwd@the_host:2222").unwrap();
     /// ```
     ///
     /// # Errors
     ///
     /// Several variants of `HdbError` can occur.
-    pub async fn new<P: IntoConnectParams>(p: P) -> HdbResult<Self> {
+    pub fn new<P: IntoConnectParams>(p: P) -> HdbResult<Self> {
         Ok(Self {
-            am_conn_core: AsyncAmConnCore::try_new(p.into_connect_params()?).await?,
+            am_conn_core: AmConnCore::try_new_sync(p.into_connect_params()?)?,
         })
     }
 
@@ -49,22 +45,23 @@ impl Connection {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use hdbconnect_async::{Connection, HdbResponse, HdbResult, IntoConnectParams};
-    /// # tokio_test::block_on(async {
+    /// # use hdbconnect::{Connection, HdbResponse, HdbResult, IntoConnectParams};
+    /// # fn main() -> HdbResult<()> {
     /// # let params = "hdbsql://my_user:my_passwd@the_host:2222"
     /// #     .into_connect_params()
     /// #     .unwrap();
-    /// # let mut connection = Connection::new(params).await.unwrap();
+    /// # let mut connection = Connection::new(params).unwrap();
     /// # let statement_string = "";
-    /// let mut response = connection.statement(&statement_string).await.unwrap(); // HdbResponse
-    /// # })
+    /// let mut response = connection.statement(&statement_string)?; // HdbResponse
+    /// # Ok(())
+    /// # }
     /// ```
     ///
     /// # Errors
     ///
     /// Several variants of `HdbError` can occur.
-    pub async fn statement<S: AsRef<str>>(&mut self, stmt: S) -> HdbResult<HdbResponse> {
-        self.execute(stmt.as_ref(), None).await
+    pub fn statement<S: AsRef<str>>(&mut self, stmt: S) -> HdbResult<HdbResponse> {
+        self.execute(stmt.as_ref(), None)
     }
 
     /// Executes a statement and expects a single `ResultSet`.
@@ -74,22 +71,23 @@ impl Connection {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # tokio_test::block_on(async {
-    /// # use hdbconnect_async::{Connection, HdbResult, IntoConnectParams, ResultSet};
+    /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, ResultSet};
+    /// # fn main() -> HdbResult<()> {
     /// # let params = "hdbsql://my_user:my_passwd@the_host:2222"
     /// #     .into_connect_params()
     /// #     .unwrap();
-    /// # let mut connection = Connection::new(params).await.unwrap();
+    /// # let mut connection = Connection::new(params).unwrap();
     /// # let statement_string = "";
-    /// let mut rs = connection.query(&statement_string).await.unwrap(); // ResultSet
-    /// # })
+    /// let mut rs = connection.query(&statement_string)?; // ResultSet
+    /// # Ok(())
+    /// # }
     /// ```
     ///
     /// # Errors
     ///
     /// Several variants of `HdbError` can occur.
-    pub async fn query<S: AsRef<str>>(&mut self, stmt: S) -> HdbResult<ResultSet> {
-        self.statement(stmt).await?.into_resultset()
+    pub fn query<S: AsRef<str>>(&mut self, stmt: S) -> HdbResult<SyncResultSet> {
+        self.statement(stmt)?.into_resultset()
     }
 
     /// Executes a statement and expects a single number of affected rows.
@@ -99,22 +97,23 @@ impl Connection {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use hdbconnect_async::{Connection, HdbResult, IntoConnectParams, ResultSet};
-    /// # tokio_test::block_on(async {
+    /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, ResultSet};
+    /// # fn main() -> HdbResult<()> {
     /// # let params = "hdbsql://my_user:my_passwd@the_host:2222"
     /// #     .into_connect_params()
     /// #     .unwrap();
-    /// # let mut connection = Connection::new(params).await.unwrap();
+    /// # let mut connection = Connection::new(params).unwrap();
     /// # let statement_string = "";
-    /// let count = connection.dml(&statement_string).await.unwrap(); //usize
-    /// # })
+    /// let count = connection.dml(&statement_string)?; //usize
+    /// # Ok(())
+    /// # }
     /// ```
     ///
     /// # Errors
     ///
     /// Several variants of `HdbError` can occur.
-    pub async fn dml<S: AsRef<str>>(&mut self, stmt: S) -> HdbResult<usize> {
-        let vec = &(self.statement(stmt).await?.into_affected_rows()?);
+    pub fn dml<S: AsRef<str>>(&mut self, stmt: S) -> HdbResult<usize> {
+        let vec = &(self.statement(stmt)?.into_affected_rows()?);
         match vec.len() {
             1 => Ok(vec[0]),
             _ => Err(HdbError::Usage("number of affected-rows-counts <> 1")),
@@ -128,22 +127,23 @@ impl Connection {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use hdbconnect_async::{Connection, HdbResult, IntoConnectParams, ResultSet};
-    /// # tokio_test::block_on(async {
+    /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, ResultSet};
+    /// # fn main() -> HdbResult<()> {
     /// # let params = "hdbsql://my_user:my_passwd@the_host:2222"
     /// #     .into_connect_params()
     /// #     .unwrap();
-    /// # let mut connection = Connection::new(params).await.unwrap();
+    /// # let mut connection = Connection::new(params).unwrap();
     /// # let statement_string = "";
-    /// connection.exec(&statement_string).await.unwrap();
-    /// # })
+    /// connection.exec(&statement_string)?;
+    /// # Ok(())
+    /// # }
     /// ```
     ///
     /// # Errors
     ///
     /// Several variants of `HdbError` can occur.
-    pub async fn exec<S: AsRef<str>>(&mut self, stmt: S) -> HdbResult<()> {
-        self.statement(stmt).await?.into_success()
+    pub fn exec<S: AsRef<str>>(&mut self, stmt: S) -> HdbResult<()> {
+        self.statement(stmt)?.into_success()
     }
 
     /// Prepares a statement and returns a handle (a `PreparedStatement`) to it.
@@ -154,22 +154,23 @@ impl Connection {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use hdbconnect_async::{Connection, HdbResult, IntoConnectParams};
-    /// # tokio_test::block_on(async {
+    /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
+    /// # fn main() -> HdbResult<()> {
     /// # let params = "hdbsql://my_user:my_passwd@the_host:2222"
     /// #     .into_connect_params()
     /// #     .unwrap();
-    /// # let mut connection = Connection::new(params).await.unwrap();
+    /// # let mut connection = Connection::new(params).unwrap();
     /// let query_string = "select * from phrases where ID = ? and text = ?";
-    /// let mut statement = connection.prepare(query_string).await.unwrap(); //PreparedStatement
-    /// # })
+    /// let mut statement = connection.prepare(query_string)?; //PreparedStatement
+    /// # Ok(())
+    /// # }
     /// ```
     ///
     /// # Errors
     ///
     /// Several variants of `HdbError` can occur.
-    pub async fn prepare<S: AsRef<str>>(&self, stmt: S) -> HdbResult<PreparedStatement> {
-        PreparedStatement::try_new(self.am_conn_core.clone(), stmt.as_ref()).await
+    pub fn prepare<S: AsRef<str>>(&self, stmt: S) -> HdbResult<PreparedStatement> {
+        PreparedStatement::try_new(self.am_conn_core.clone(), stmt.as_ref())
     }
 
     /// Prepares a statement and executes it a single time.
@@ -177,13 +178,13 @@ impl Connection {
     /// # Errors
     ///
     /// Several variants of `HdbError` can occur.
-    pub async fn prepare_and_execute<S, T>(&self, stmt: S, input: &T) -> HdbResult<HdbResponse>
+    pub fn prepare_and_execute<S, T>(&self, stmt: S, input: &T) -> HdbResult<HdbResponse>
     where
         S: AsRef<str>,
         T: serde::ser::Serialize,
     {
-        let mut stmt = PreparedStatement::try_new(self.am_conn_core.clone(), stmt.as_ref()).await?;
-        stmt.execute(input).await
+        let mut stmt = PreparedStatement::try_new(self.am_conn_core.clone(), stmt.as_ref())?;
+        stmt.execute(input)
     }
 
     /// Commits the current transaction.
@@ -191,8 +192,8 @@ impl Connection {
     /// # Errors
     ///
     /// Several variants of `HdbError` can occur.
-    pub async fn commit(&mut self) -> HdbResult<()> {
-        self.statement("commit").await?.into_success()
+    pub fn commit(&mut self) -> HdbResult<()> {
+        self.statement("commit")?.into_success()
     }
 
     /// Rolls back the current transaction.
@@ -200,8 +201,8 @@ impl Connection {
     /// # Errors
     ///
     /// Several variants of `HdbError` can occur.
-    pub async fn rollback(&mut self) -> HdbResult<()> {
-        self.statement("rollback").await?.into_success()
+    pub fn rollback(&mut self) -> HdbResult<()> {
+        self.statement("rollback")?.into_success()
     }
 
     /// Creates a new connection object with the same settings and
@@ -210,14 +211,12 @@ impl Connection {
     /// # Errors
     ///
     /// Several variants of `HdbError` can occur.
-    pub async fn spawn(&self) -> HdbResult<Self> {
-        let am_conn_core = self.am_conn_core.lock().await;
-        let mut other = Self::new(am_conn_core.connect_params()).await?;
-        other.set_auto_commit(am_conn_core.is_auto_commit()).await?;
-        other.set_fetch_size(am_conn_core.get_fetch_size()).await?;
-        other
-            .set_lob_read_length(am_conn_core.lob_read_length())
-            .await?;
+    pub fn spawn(&self) -> HdbResult<Self> {
+        let am_conn_core = self.am_conn_core.sync_lock()?;
+        let mut other = Self::new(am_conn_core.connect_params())?;
+        other.set_auto_commit(am_conn_core.is_auto_commit())?;
+        other.set_fetch_size(am_conn_core.get_fetch_size())?;
+        other.set_lob_read_length(am_conn_core.lob_read_length())?;
         Ok(other)
     }
 
@@ -227,10 +226,10 @@ impl Connection {
     /// # Errors
     ///
     /// Several variants of `HdbError` can occur.
-    pub async fn multiple_statements_ignore_err<S: AsRef<str>>(&mut self, stmts: Vec<S>) {
+    pub fn multiple_statements_ignore_err<S: AsRef<str>>(&mut self, stmts: Vec<S>) {
         for s in stmts {
             trace!("multiple_statements_ignore_err: firing \"{}\"", s.as_ref());
-            let result = self.statement(s).await;
+            let result = self.statement(s);
             match result {
                 Ok(_) => {}
                 Err(e) => debug!("Error intentionally ignored: {:?}", e),
@@ -244,9 +243,9 @@ impl Connection {
     /// # Errors
     ///
     /// Several variants of `HdbError` can occur.
-    pub async fn multiple_statements<S: AsRef<str>>(&mut self, stmts: Vec<S>) -> HdbResult<()> {
+    pub fn multiple_statements<S: AsRef<str>>(&mut self, stmts: Vec<S>) -> HdbResult<()> {
         for s in stmts {
-            self.statement(s).await?;
+            self.statement(s)?;
         }
         Ok(())
     }
@@ -257,8 +256,8 @@ impl Connection {
     /// # Errors
     ///
     /// Only `HdbError::Poison` can occur.
-    pub async fn pop_warnings(&self) -> HdbResult<Option<Vec<ServerError>>> {
-        Ok(self.am_conn_core.lock().await.pop_warnings())
+    pub fn pop_warnings(&self) -> HdbResult<Option<Vec<ServerError>>> {
+        Ok(self.am_conn_core.sync_lock()?.pop_warnings())
     }
 
     /// Sets the connection's auto-commit behavior for future calls.
@@ -266,8 +265,8 @@ impl Connection {
     /// # Errors
     ///
     /// Only `HdbError::Poison` can occur.
-    pub async fn set_auto_commit(&mut self, ac: bool) -> HdbResult<()> {
-        self.am_conn_core.lock().await.set_auto_commit(ac);
+    pub fn set_auto_commit(&mut self, ac: bool) -> HdbResult<()> {
+        self.am_conn_core.sync_lock()?.set_auto_commit(ac);
         Ok(())
     }
 
@@ -276,8 +275,8 @@ impl Connection {
     /// # Errors
     ///
     /// Only `HdbError::POóison` can occur.
-    pub async fn is_auto_commit(&self) -> HdbResult<bool> {
-        Ok(self.am_conn_core.lock().await.is_auto_commit())
+    pub fn is_auto_commit(&self) -> HdbResult<bool> {
+        Ok(self.am_conn_core.sync_lock()?.is_auto_commit())
     }
 
     /// Configures the connection's fetch size for future calls.
@@ -285,8 +284,8 @@ impl Connection {
     /// # Errors
     ///
     /// Only `HdbError::Poison` can occur.
-    pub async fn set_fetch_size(&mut self, fetch_size: u32) -> HdbResult<()> {
-        self.am_conn_core.lock().await.set_fetch_size(fetch_size);
+    pub fn set_fetch_size(&mut self, fetch_size: u32) -> HdbResult<()> {
+        self.am_conn_core.sync_lock()?.set_fetch_size(fetch_size);
         Ok(())
     }
     /// Returns the connection's lob read length.
@@ -294,16 +293,16 @@ impl Connection {
     /// # Errors
     ///
     /// Only `HdbError::Poison` can occur.
-    pub async fn lob_read_length(&self) -> HdbResult<u32> {
-        Ok(self.am_conn_core.lock().await.lob_read_length())
+    pub fn lob_read_length(&self) -> HdbResult<u32> {
+        Ok(self.am_conn_core.sync_lock()?.lob_read_length())
     }
     /// Configures the connection's lob read length for future calls.
     ///
     /// # Errors
     ///
     /// Only `HdbError::Poison` can occur.
-    pub async fn set_lob_read_length(&mut self, l: u32) -> HdbResult<()> {
-        self.am_conn_core.lock().await.set_lob_read_length(l);
+    pub fn set_lob_read_length(&mut self, l: u32) -> HdbResult<()> {
+        self.am_conn_core.sync_lock()?.set_lob_read_length(l);
         Ok(())
     }
 
@@ -318,16 +317,16 @@ impl Connection {
     /// # Errors
     ///
     /// Only `HdbError::Poison` can occur.
-    pub async fn get_lob_write_length(&self) -> HdbResult<usize> {
-        Ok(self.am_conn_core.lock().await.get_lob_write_length())
+    pub fn get_lob_write_length(&self) -> HdbResult<usize> {
+        Ok(self.am_conn_core.sync_lock()?.get_lob_write_length())
     }
     /// Configures the connection's lob write length for future calls.
     ///
     /// # Errors
     ///
     /// Only `HdbError::Poison` can occur.
-    pub async fn set_lob_write_length(&mut self, l: usize) -> HdbResult<()> {
-        self.am_conn_core.lock().await.set_lob_write_length(l);
+    pub fn set_lob_write_length(&mut self, l: usize) -> HdbResult<()> {
+        self.am_conn_core.sync_lock()?.set_lob_write_length(l);
         Ok(())
     }
 
@@ -338,10 +337,9 @@ impl Connection {
     /// # Errors
     ///
     /// Only `HdbError::Poison` can occur.
-    pub async fn id(&self) -> HdbResult<i32> {
+    pub fn id(&self) -> HdbResult<i32> {
         self.am_conn_core
-            .lock()
-            .await
+            .sync_lock()?
             .connect_options()
             .get_connection_id()
     }
@@ -352,26 +350,25 @@ impl Connection {
     /// # Errors
     ///
     /// Only `HdbError::Poison` can occur.
-    pub async fn server_usage(&self) -> HdbResult<ServerUsage> {
-        Ok(self.am_conn_core.lock().await.server_usage())
+    pub fn server_usage(&self) -> HdbResult<ServerUsage> {
+        Ok(self.am_conn_core.sync_lock()?.server_usage())
     }
 
     #[doc(hidden)]
-    pub async fn data_format_version_2(&self) -> HdbResult<i32> {
+    pub fn data_format_version_2(&self) -> HdbResult<i32> {
         self.am_conn_core
-            .lock()
-            .await
+            .sync_lock()?
             .connect_options()
             .get_dataformat_version2()
     }
 
     #[doc(hidden)]
-    pub async fn dump_connect_options(&self) -> HdbResult<String> {
-        Ok(self.am_conn_core.lock().await.dump_connect_options())
+    pub fn dump_connect_options(&self) -> HdbResult<String> {
+        Ok(self.am_conn_core.sync_lock()?.dump_connect_options())
     }
     #[doc(hidden)]
-    pub async fn dump_client_info(&self) -> HdbResult<String> {
-        Ok(self.am_conn_core.lock().await.dump_client_info())
+    pub fn dump_client_info(&self) -> HdbResult<String> {
+        Ok(self.am_conn_core.sync_lock()?.dump_client_info())
     }
 
     /// Returns the number of roundtrips to the database that
@@ -380,8 +377,8 @@ impl Connection {
     /// # Errors
     ///
     /// Only `HdbError::Poison` can occur.
-    pub async fn get_call_count(&self) -> HdbResult<i32> {
-        Ok(self.am_conn_core.lock().await.last_seq_number())
+    pub fn get_call_count(&self) -> HdbResult<i32> {
+        Ok(self.am_conn_core.sync_lock()?.last_seq_number())
     }
 
     /// Sets client information into a session variable on the server.
@@ -389,18 +386,18 @@ impl Connection {
     /// Example:
     ///
     /// ```rust,no_run
-    /// # tokio_test::block_on(async {
-    /// # use hdbconnect_async::{Connection,HdbResult};
-    /// # let mut connection = Connection::new("hdbsql://my_user:my_passwd@the_host:2222").await.unwrap();
-    /// connection.set_application("MyApp, built in rust").await.unwrap();
-    /// # })
+    /// # use hdbconnect::{Connection,HdbResult};
+    /// # fn foo() -> HdbResult<()> {
+    /// # let mut connection = Connection::new("hdbsql://my_user:my_passwd@the_host:2222")?;
+    /// connection.set_application("MyApp, built in rust")?;
+    /// # Ok(()) }
     /// ```
     ///
     /// # Errors
     ///
     /// Only `HdbError::Poison` can occur.
-    pub async fn set_application<S: AsRef<str>>(&self, application: S) -> HdbResult<()> {
-        self.am_conn_core.lock().await.set_application(application);
+    pub fn set_application<S: AsRef<str>>(&self, application: S) -> HdbResult<()> {
+        self.am_conn_core.sync_lock()?.set_application(application);
         Ok(())
     }
 
@@ -409,20 +406,19 @@ impl Connection {
     /// Example:
     ///
     /// ```rust,no_run
-    /// # tokio_test::block_on(async {
-    /// # use hdbconnect_async::{Connection,HdbResult};
-    /// # let mut connection = Connection::new("hdbsql://my_user:my_passwd@the_host:2222").await.unwrap();
-    /// connection.set_application_user("K2209657").await.unwrap();
-    /// # })
+    /// # use hdbconnect::{Connection,HdbResult};
+    /// # fn foo() -> HdbResult<()> {
+    /// # let mut connection = Connection::new("hdbsql://my_user:my_passwd@the_host:2222")?;
+    /// connection.set_application_user("K2209657")?;
+    /// # Ok(()) }
     /// ```
     ///
     /// # Errors
     ///
     /// Only `HdbError::Poison` can occur.
-    pub async fn set_application_user<S: AsRef<str>>(&self, appl_user: S) -> HdbResult<()> {
+    pub fn set_application_user<S: AsRef<str>>(&self, appl_user: S) -> HdbResult<()> {
         self.am_conn_core
-            .lock()
-            .await
+            .sync_lock()?
             .set_application_user(appl_user.as_ref());
         Ok(())
     }
@@ -432,20 +428,19 @@ impl Connection {
     /// Example:
     ///
     /// ```rust,no_run
-    /// # tokio_test::block_on(async {
-    /// # use hdbconnect_async::{Connection,HdbResult};
-    /// # let mut connection = Connection::new("hdbsql://my_user:my_passwd@the_host:2222").await.unwrap();
-    /// connection.set_application_version("5.3.23").await.unwrap();
-    /// # })
+    /// # use hdbconnect::{Connection,HdbResult};
+    /// # fn foo() -> HdbResult<()> {
+    /// # let mut connection = Connection::new("hdbsql://my_user:my_passwd@the_host:2222")?;
+    /// connection.set_application_version("5.3.23")?;
+    /// # Ok(()) }
     /// ```
     ///
     /// # Errors
     ///
     /// Only `HdbError::Poison` can occur.
-    pub async fn set_application_version<S: AsRef<str>>(&mut self, version: S) -> HdbResult<()> {
+    pub fn set_application_version<S: AsRef<str>>(&mut self, version: S) -> HdbResult<()> {
         self.am_conn_core
-            .lock()
-            .await
+            .sync_lock()?
             .set_application_version(version.as_ref());
         Ok(())
     }
@@ -455,29 +450,28 @@ impl Connection {
     /// Example:
     ///
     /// ```rust,no_run
-    /// # tokio_test::block_on(async {
-    /// # use hdbconnect_async::{Connection,HdbResult};
-    /// # let mut connection = Connection::new("hdbsql://my_user:my_passwd@the_host:2222").await.unwrap();
-    /// connection.set_application_source("update_customer.rs").await.unwrap();
-    /// # })
+    /// # use hdbconnect::{Connection,HdbResult};
+    /// # fn foo() -> HdbResult<()> {
+    /// # let mut connection = Connection::new("hdbsql://my_user:my_passwd@the_host:2222")?;
+    /// connection.set_application_source("update_customer.rs")?;
+    /// # Ok(()) }
     /// ```
     ///
     /// # Errors
     ///
     /// Only `HdbError::Poison` can occur.
-    pub async fn set_application_source<S: AsRef<str>>(&mut self, source: S) -> HdbResult<()> {
+    pub fn set_application_source<S: AsRef<str>>(&mut self, source: S) -> HdbResult<()> {
         self.am_conn_core
-            .lock()
-            .await
+            .sync_lock()?
             .set_application_source(source.as_ref());
         Ok(())
     }
 
-    /// Returns an implementation of `dist_tx_async::rm::ResourceManager` that is
+    /// Returns an implementation of `dist_tx::rm::ResourceManager` that is
     /// based on this connection.
     #[must_use]
     pub fn get_resource_manager(&self) -> Box<dyn ResourceManager> {
-        Box::new(async_new_resource_manager(self.am_conn_core.clone()))
+        Box::new(sync_new_resource_manager(self.am_conn_core.clone()))
     }
 
     /// Tools like debuggers can provide additional information while stepping through a source.
@@ -485,14 +479,13 @@ impl Connection {
     /// # Errors
     ///
     /// Several variants of `HdbError` can occur.
-    pub async fn execute_with_debuginfo<S: AsRef<str>>(
+    pub fn execute_with_debuginfo<S: AsRef<str>>(
         &mut self,
         stmt: S,
         module: S,
         line: i32,
     ) -> HdbResult<HdbResponse> {
         self.execute(stmt, Some(CommandInfo::new(line, module.as_ref())))
-            .await
     }
 
     /// (MDC) Database name.
@@ -503,10 +496,9 @@ impl Connection {
     ///
     /// - `HdbError::ImplDetailed` if the database name was not provided by the database server.
     /// - `HdbError::Poison` if the shared mutex of the inner connection object is poisened.
-    pub async fn get_database_name(&self) -> HdbResult<String> {
+    pub fn get_database_name(&self) -> HdbResult<String> {
         self.am_conn_core
-            .lock()
-            .await
+            .sync_lock()?
             .connect_options()
             .get_database_name()
             .map(ToOwned::to_owned)
@@ -521,10 +513,9 @@ impl Connection {
     ///
     /// - `HdbError::ImplDetailed` if the system id was not provided by the database server.
     /// - `HdbError::Poison` if the shared mutex of the inner connection object is poisened.
-    pub async fn get_system_id(&self) -> HdbResult<String> {
+    pub fn get_system_id(&self) -> HdbResult<String> {
         self.am_conn_core
-            .lock()
-            .await
+            .sync_lock()?
             .connect_options()
             .get_system_id()
             .map(ToOwned::to_owned)
@@ -534,7 +525,7 @@ impl Connection {
     /// # Errors
     ///
     /// Only `HdbError::Poison` can occur.
-    pub async fn client_info(&self) -> HdbResult<Vec<(String, String)>> {
+    pub fn client_info(&self) -> HdbResult<Vec<(String, String)>> {
         let mut result = Vec::<(String, String)>::with_capacity(7);
         let mut cc = ClientContext::new();
         for k in &[
@@ -547,7 +538,7 @@ impl Connection {
             }
         }
 
-        let conn_core = self.am_conn_core.lock().await;
+        let conn_core = self.am_conn_core.sync_lock()?;
         let conn_opts = conn_core.connect_options();
         if let Ok(OptionValue::STRING(s)) = conn_opts.get(&ConnOptId::OSUser) {
             result.push((format!("{:?}", ConnOptId::OSUser), s.clone()));
@@ -564,8 +555,8 @@ impl Connection {
     /// # Errors
     ///
     /// Only `HdbError::Poison` can occur.
-    pub async fn connect_string(&self) -> HdbResult<String> {
-        Ok(self.am_conn_core.lock().await.connect_string())
+    pub fn connect_string(&self) -> HdbResult<String> {
+        Ok(self.am_conn_core.sync_lock()?.connect_string())
     }
 
     /// HANA Full version string.
@@ -576,34 +567,28 @@ impl Connection {
     ///
     /// - `HdbError::ImplDetailed` if the version string was not provided by the database server.
     /// - `HdbError::Poison` if the shared mutex of the inner connection object is poisened.
-    pub async fn get_full_version_string(&self) -> HdbResult<String> {
+    pub fn get_full_version_string(&self) -> HdbResult<String> {
         self.am_conn_core
-            .lock()
-            .await
+            .sync_lock()?
             .connect_options()
             .get_full_version_string()
             .map(ToOwned::to_owned)
     }
 
-    async fn execute<S>(
-        &mut self,
-        stmt: S,
-        o_command_info: Option<CommandInfo>,
-    ) -> HdbResult<HdbResponse>
+    fn execute<S>(&mut self, stmt: S, o_command_info: Option<CommandInfo>) -> HdbResult<HdbResponse>
     where
         S: AsRef<str>,
     {
         debug!(
             "connection[{:?}]::execute()",
             self.am_conn_core
-                .lock()
-                .await
+                .sync_lock()?
                 .connect_options()
                 .get_connection_id()
         );
         let mut request = Request::new(RequestType::ExecuteDirect, HOLD_CURSORS_OVER_COMMIT);
         {
-            let conn_core = self.am_conn_core.lock().await;
+            let conn_core = self.am_conn_core.sync_lock()?;
             let fetch_size = conn_core.get_fetch_size();
             request.push(Part::FetchSize(fetch_size));
             if let Some(command_info) = o_command_info {
@@ -613,10 +598,8 @@ impl Connection {
         }
         let (internal_return_values, replytype) = self
             .am_conn_core
-            .send(request)
-            .await?
-            .async_into_internal_return_values(&mut self.am_conn_core, None)
-            .await?;
+            .sync_send(request)?
+            .sync_into_internal_return_values(&mut self.am_conn_core, None)?;
         HdbResponse::try_new(internal_return_values, replytype)
     }
 }

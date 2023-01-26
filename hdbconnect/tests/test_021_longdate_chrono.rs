@@ -4,7 +4,7 @@ mod test_utils;
 
 use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
 use flexi_logger::LoggerHandle;
-use hdbconnect::{Connection, HdbResult};
+use hdbconnect::{sync::Connection, HdbResult};
 use log::{debug, info, trace};
 
 #[test] // cargo test --test test_021_longdate
@@ -26,11 +26,26 @@ fn test_longdate(_loghandle: &mut LoggerHandle, connection: &mut Connection) -> 
 
     debug!("prepare the test data");
     let naive_datetime_values: Vec<NaiveDateTime> = vec![
-        NaiveDate::from_ymd(1, 1, 1).and_hms_nano(0, 0, 0, 0),
-        NaiveDate::from_ymd(1, 1, 1).and_hms_nano(0, 0, 0, 100),
-        NaiveDate::from_ymd(2012, 2, 2).and_hms_nano(2, 2, 2, 200_000_000),
-        NaiveDate::from_ymd(2013, 3, 3).and_hms_nano(3, 3, 3, 300_000_000),
-        NaiveDate::from_ymd(2014, 4, 4).and_hms_nano(4, 4, 4, 400_000_000),
+        NaiveDate::from_ymd_opt(1, 1, 1)
+            .unwrap()
+            .and_hms_nano_opt(0, 0, 0, 0)
+            .unwrap(),
+        NaiveDate::from_ymd_opt(1, 1, 1)
+            .unwrap()
+            .and_hms_nano_opt(0, 0, 0, 100)
+            .unwrap(),
+        NaiveDate::from_ymd_opt(2012, 2, 2)
+            .unwrap()
+            .and_hms_nano_opt(2, 2, 2, 200_000_000)
+            .unwrap(),
+        NaiveDate::from_ymd_opt(2013, 3, 3)
+            .unwrap()
+            .and_hms_nano_opt(3, 3, 3, 300_000_000)
+            .unwrap(),
+        NaiveDate::from_ymd_opt(2014, 4, 4)
+            .unwrap()
+            .and_hms_nano_opt(4, 4, 4, 400_000_000)
+            .unwrap(),
     ];
     let string_values = vec![
         "0001-01-01 00:00:00.000000000",
@@ -80,7 +95,7 @@ fn test_longdate(_loghandle: &mut LoggerHandle, connection: &mut Connection) -> 
         // debug!("2nd Parameter Descriptor: {:?}", pds[1]);
         // assert_eq!(pds.len(), 2);
 
-        let typed_result: i32 = response.into_resultset()?.try_into()?;
+        let typed_result: i32 = response.into_resultset()?.sync_try_into()?;
         assert_eq!(typed_result, 31);
 
         info!("test the conversion DateTime<Utc> -> LongDate -> wire -> DB");
@@ -91,7 +106,7 @@ fn test_longdate(_loghandle: &mut LoggerHandle, connection: &mut Connection) -> 
         let typed_result: i32 = prep_stmt
             .execute(&(utc2, utc3))?
             .into_resultset()?
-            .try_into()?;
+            .sync_try_into()?;
         assert_eq!(typed_result, 31_i32);
     }
 
@@ -99,7 +114,7 @@ fn test_longdate(_loghandle: &mut LoggerHandle, connection: &mut Connection) -> 
         info!("test the conversion DB -> wire -> LongDate -> NaiveDateTime");
         let s = "select mydate from TEST_LONGDATE order by number asc";
         let rs = connection.query(s)?;
-        let dates: Vec<NaiveDateTime> = rs.try_into()?;
+        let dates: Vec<NaiveDateTime> = rs.sync_try_into()?;
         for (date, tvd) in dates.iter().zip(naive_datetime_values.iter()) {
             assert_eq!(date, tvd);
         }
@@ -111,7 +126,7 @@ fn test_longdate(_loghandle: &mut LoggerHandle, connection: &mut Connection) -> 
         assert_eq!(rows_affected, 1);
         let dates: Vec<NaiveDateTime> = connection
             .query("select mydate from TEST_LONGDATE where number = 77 or number = 13")?
-            .try_into()?;
+            .sync_try_into()?;
         assert_eq!(dates.len(), 2);
         for date in dates {
             assert_eq!(date, naive_datetime_values[0]);
@@ -128,7 +143,7 @@ fn test_longdate(_loghandle: &mut LoggerHandle, connection: &mut Connection) -> 
 
         let date: Option<NaiveDateTime> = connection
             .query("select mydate from TEST_LONGDATE where number = 2350")?
-            .try_into()?;
+            .sync_try_into()?;
         trace!("query sent");
         assert_eq!(date, None);
     }

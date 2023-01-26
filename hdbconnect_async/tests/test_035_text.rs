@@ -50,7 +50,7 @@ async fn test_text(_log_handle: &mut LoggerHandle, connection: &mut Connection) 
         .query("select chardata, chardata_nn FROM TEST_TEXT")
         .await?;
     debug!("deserialize...");
-    let ret_text: (Option<String>, String) = resultset.try_into().await?;
+    let ret_text: (Option<String>, String) = resultset.async_try_into().await?;
     assert_eq!(test_text, ret_text.0.expect("expected string but got None"));
     assert_eq!(test_text, ret_text.1);
 
@@ -61,7 +61,7 @@ async fn test_text(_log_handle: &mut LoggerHandle, connection: &mut Connection) 
     let ret_text: (Option<String>, String) = connection
         .query("select chardata, chardata_nn FROM TEST_TEXT WHERE chardata IS NULL")
         .await?
-        .try_into()
+        .async_try_into()
         .await?;
     assert_eq!(None, ret_text.0);
     assert_eq!(test_text, ret_text.1);

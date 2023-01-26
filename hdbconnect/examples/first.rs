@@ -27,7 +27,7 @@ pub fn main() -> HdbResult<()> {
     // Read the table data directly into a rust data structure
     let stmt = "select * from FOO_SQUARE order by f1 asc";
     let n_square: Vec<(i32, u64)> =
-        connection.query(stmt)?.try_into()?;
+        connection.query(stmt)?.sync_try_into()?;
 
     // Verify ...
     for (idx, (n, square)) in n_square.into_iter().enumerate() {

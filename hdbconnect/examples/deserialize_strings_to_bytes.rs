@@ -47,16 +47,16 @@ fn deserialize_strings_to_bytes(connection: &mut Connection) -> HdbResult<()> {
 
     let query = "select f1 || f2 || f3 from TEST_STRINGS";
 
-    let result: String = connection.query(query)?.try_into()?;
+    let result: String = connection.query(query)?.sync_try_into()?;
     info!("String: {:?}", result);
 
-    let result: ByteBuf = connection.query(query)?.try_into()?;
+    let result: ByteBuf = connection.query(query)?.sync_try_into()?;
     info!("ByteBuf: {:?}", result);
 
     // wahrscheinlich das gleiche, nur handgemacht:
     #[derive(Debug, Deserialize)]
     struct VData(#[serde(with = "serde_bytes")] Vec<u8>);
-    let result: VData = connection.query(query)?.try_into()?;
+    let result: VData = connection.query(query)?.sync_try_into()?;
     info!("{:?}", result);
 
     Ok(())

@@ -3,7 +3,7 @@ extern crate serde;
 mod test_utils;
 
 use flexi_logger::LoggerHandle;
-use hdbconnect::{types::CLob, Connection, HdbResult, HdbValue};
+use hdbconnect::{sync::Connection, types::CLob, HdbResult, HdbValue};
 use log::{debug, info};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -40,7 +40,7 @@ fn prepare_test(connection: &mut Connection) -> HdbResult<bool> {
             from table_columns \
             where table_name = 'TEST_CLOBS' and COLUMN_NAME = 'CHARDATA'",
         )?
-        .try_into()?;
+        .sync_try_into()?;
     Ok(coltype == "CLOB")
 }
 
@@ -94,7 +94,7 @@ fn test_clobs(
     let resultset = connection.query(query)?;
     debug!("and convert it into a rust struct");
 
-    let mydata: MyData = resultset.try_into()?;
+    let mydata: MyData = resultset.sync_try_into()?;
     debug!(
         "reading two big CLOB with lob-read-length {} required {} roundtrips",
         connection.lob_read_length()?,
@@ -118,7 +118,7 @@ fn test_clobs(
     connection.set_lob_read_length(200_000)?;
     let before = connection.get_call_count()?;
     let resultset = connection.query(query)?;
-    let second: MyData = resultset.try_into()?;
+    let second: MyData = resultset.sync_try_into()?;
     debug!(
         "reading two big CLOB with lob-read-length {} required {} roundtrips",
         connection.lob_read_length()?,
@@ -132,7 +132,7 @@ fn test_clobs(
     connection.set_lob_read_length(200_000)?;
 
     let query = "select desc, chardata as CL1, chardata as CL2 from TEST_CLOBS";
-    let mut row = connection.query(query)?.into_single_row()?;
+    let mut row = connection.query(query)?.sync_into_single_row()?;
     row.next_value().unwrap();
     let mut clob: CLob = row.next_value().unwrap().try_into_clob()?;
     let mut streamed = Vec::<u8>::new();
@@ -147,11 +147,11 @@ fn test_clobs(
     info!("read from somewhere within");
     let mut clob: CLob = connection
         .query("select chardata from TEST_CLOBS")?
-        .into_single_row()?
+        .sync_into_single_row()?
         .into_single_value()?
         .try_into_clob()?;
     for i in 1000..1040 {
-        let _clob_slice = clob.read_slice(i, 100)?;
+        let _clob_slice = clob.sync_read_slice(i, 100)?;
     }
 
     Ok(())
@@ -178,7 +178,7 @@ fn test_streaming(
 
     stmt.execute_row(vec![
         HdbValue::STRING("lsadksaldk".to_string()),
-        HdbValue::LOBSTREAM(Some(reader)),
+        HdbValue::SYNCLOBSTREAM(Some(reader)),
     ])?;
     connection.commit()?;
 
@@ -187,7 +187,7 @@ fn test_streaming(
 
     let mut clob = connection
         .query("select chardata from TEST_CLOBS")?
-        .into_single_row()?
+        .sync_into_single_row()?
         .into_single_value()?
         .try_into_clob()?;
     let mut buffer = Vec::<u8>::new();
@@ -213,7 +213,7 @@ fn test_zero_length(
     connection.commit()?;
     let empty: String = connection
         .query("select chardata from TEST_CLOBS where desc = 'empty'")?
-        .try_into()?;
+        .sync_try_into()?;
     assert!(empty.is_empty());
     Ok(())
 }

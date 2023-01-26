@@ -27,7 +27,7 @@ async fn test_011_invalid_password() {
         .query("select value from M_PASSWORD_POLICY where property = 'minimal_password_length'")
         .await
         .unwrap()
-        .try_into()
+        .async_try_into()
         .await
         .unwrap();
     assert_eq!(minimal_password_length, "8");
@@ -37,7 +37,7 @@ async fn test_011_invalid_password() {
         .query("select value from M_PASSWORD_POLICY where property = 'force_first_password_change'")
         .await
         .unwrap()
-        .try_into()
+        .async_try_into()
         .await
         .unwrap();
     assert_eq!(force_first_password_change, "true");

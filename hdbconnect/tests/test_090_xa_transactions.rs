@@ -2,9 +2,9 @@ extern crate serde;
 
 mod test_utils;
 
-use dist_tx::tm::*;
+use dist_tx::sync::tm::*;
 use flexi_logger::LoggerHandle;
-use hdbconnect::{Connection, HdbResult};
+use hdbconnect::{sync::Connection, HdbResult};
 use log::{debug, info};
 
 #[test] // cargo test --test test_090_xa_transactions -- --nocapture
@@ -63,14 +63,14 @@ fn successful_xa(_log_handle: &mut LoggerHandle, conn: &mut Connection) -> HdbRe
 
     debug!("verify with neutral conn that nothing is visible (count)");
     let count_query = "select count(*) from TEST_XA where f1 > 0 and f1 < 9";
-    let count: u32 = conn.query(count_query)?.try_into()?;
+    let count: u32 = conn.query(count_query)?.sync_try_into()?;
     assert_eq!(0, count);
 
     debug!("commit ta");
     tm.commit_transaction().unwrap();
 
     debug!("verify that stuff is now visible");
-    let count: u32 = conn.query(count_query)?.try_into()?;
+    let count: u32 = conn.query(count_query)?.sync_try_into()?;
     assert_eq!(2, count);
 
     Ok(())
@@ -121,14 +121,14 @@ fn xa_rollback(_log_handle: &mut LoggerHandle, conn: &mut Connection) -> HdbResu
 
     // verify with neutral conn that nothing is visible (count)
     let count_query = "select count(*) from TEST_XA where f1 > 9 and f1 < 99";
-    let count: u32 = conn.query(count_query)?.try_into()?;
+    let count: u32 = conn.query(count_query)?.sync_try_into()?;
     assert_eq!(0, count);
 
     debug!("rollback xa");
     tm.rollback_transaction().unwrap();
 
     // verify that nothing additional was inserted
-    let count: u32 = conn.query(count_query)?.try_into()?;
+    let count: u32 = conn.query(count_query)?.sync_try_into()?;
     assert_eq!(0, count);
 
     debug!("conn_c inserts");
@@ -139,7 +139,7 @@ fn xa_rollback(_log_handle: &mut LoggerHandle, conn: &mut Connection) -> HdbResu
     conn_c.commit().unwrap();
 
     // verify that now the insertions were successful
-    let count: u32 = conn.query(count_query)?.try_into()?;
+    let count: u32 = conn.query(count_query)?.sync_try_into()?;
     assert_eq!(4, count);
 
     Ok(())
@@ -188,7 +188,7 @@ fn xa_repeated(_log_handle: &mut LoggerHandle, conn: &mut Connection) -> HdbResu
         conn_b.dml(&insert_stmt(j + 4, "b"))?;
 
         // verify with neutral conn that nothing is visible (count)
-        let count: u32 = conn.query(&count_query)?.try_into()?;
+        let count: u32 = conn.query(&count_query)?.sync_try_into()?;
         assert_eq!(0, count);
 
         debug!("rollback xa");
@@ -203,14 +203,14 @@ fn xa_repeated(_log_handle: &mut LoggerHandle, conn: &mut Connection) -> HdbResu
         conn_b.dml(&insert_stmt(j + 4, "b"))?;
 
         // verify with neutral conn that nothing is visible (count)
-        let count: u32 = conn.query(&count_query)?.try_into()?;
+        let count: u32 = conn.query(&count_query)?.sync_try_into()?;
         assert_eq!(0, count);
 
         debug!("commit xa");
         tm.commit_transaction().unwrap();
 
         // verify that now the insertions were successful
-        let count: u32 = conn.query(&count_query)?.try_into()?;
+        let count: u32 = conn.query(&count_query)?.sync_try_into()?;
         assert_eq!(4, count);
     }
 

@@ -3,7 +3,7 @@ extern crate serde;
 mod test_utils;
 
 use flexi_logger::LoggerHandle;
-use hdbconnect::{Connection, HdbResult};
+use hdbconnect::{sync::Connection, HdbResult};
 use log::{debug, info};
 
 #[test]
@@ -26,7 +26,7 @@ fn test_explain(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> 
 
     let count: usize = connection
         .query("select count(*) from EXPLAIN_PLAN_TABLE")?
-        .try_into()?;
+        .sync_try_into()?;
     assert_eq!(count, 0);
 
     debug!("create the plan");
@@ -35,7 +35,7 @@ fn test_explain(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> 
 
     let count: u32 = connection
         .query("select count(*) from EXPLAIN_PLAN_TABLE")?
-        .try_into()?;
+        .sync_try_into()?;
     debug!("read the plan size (no of lines = {})", count);
     assert!(count > 0);
 
@@ -45,7 +45,7 @@ fn test_explain(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> 
              FROM explain_plan_table \
              WHERE statement_name = 'test_explain';",
         )?
-        .try_into()?;
+        .sync_try_into()?;
     debug!("obtain the plan: {:?}", result);
 
     Ok(())

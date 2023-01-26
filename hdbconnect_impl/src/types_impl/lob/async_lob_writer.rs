@@ -1,5 +1,5 @@
 use crate::{
-    conn::AsyncAmConnCore,
+    conn::AmConnCore,
     hdb_response::InternalReturnValue,
     protocol::parts::{ParameterDescriptors, ResultSetMetadata, TypeId, WriteLobRequest},
     protocol::{Part, PartKind, Reply, ReplyType, Request, RequestType},
@@ -14,7 +14,7 @@ use tokio::io::{AsyncRead, AsyncReadExt};
 
 pub async fn copy<'a, R>(
     reader: &'a mut R,
-    am_conn_core: AsyncAmConnCore,
+    am_conn_core: AmConnCore,
     locator_id: u64,
     internal_return_values: &mut Vec<InternalReturnValue>,
     type_id: TypeId,
@@ -32,7 +32,7 @@ where
             )))
         }
     }
-    let lob_write_length = am_conn_core.lock().await.get_lob_write_length();
+    let lob_write_length = am_conn_core.async_lock().await.get_lob_write_length();
     let mut server_usage = ServerUsage::default();
     let mut read_done: bool = false;
     let mut buf = vec![0; lob_write_length].into_boxed_slice();
@@ -109,7 +109,7 @@ where
 // or 1-2-3-chars (for NCLOB)
 #[allow(clippy::too_many_arguments)]
 async fn write_a_lob_chunk<'a>(
-    am_conn_core: &AsyncAmConnCore,
+    am_conn_core: &AmConnCore,
     buf: &[u8],
     lob_write_mode: LobWriteMode,
     locator_id: u64,
@@ -133,7 +133,7 @@ async fn write_a_lob_chunk<'a>(
     request.push(Part::WriteLobRequest(write_lob_request));
 
     let reply = am_conn_core
-        .lock()
+        .async_lock()
         .await
         .roundtrip_async(
             &request,
@@ -203,7 +203,7 @@ fn evaluate_write_lob_reply(reply: Reply, server_usage: &mut ServerUsage) -> Hdb
 }
 
 async fn async_evaluate_dbprocedure_call_reply(
-    am_conn_core: &AsyncAmConnCore,
+    am_conn_core: &AmConnCore,
     mut reply: Reply,
     server_usage: &mut ServerUsage,
     internal_return_values: &mut Vec<InternalReturnValue>,

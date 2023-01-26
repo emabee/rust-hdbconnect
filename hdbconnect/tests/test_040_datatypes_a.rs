@@ -4,7 +4,7 @@ mod test_utils;
 
 use bigdecimal::BigDecimal;
 use flexi_logger::LoggerHandle;
-use hdbconnect::{Connection, HdbResult, HdbValue};
+use hdbconnect::{sync::Connection, HdbResult, HdbValue};
 use log::{debug, info};
 use serde::Deserialize;
 use serde_bytes::{ByteBuf, Bytes};
@@ -174,13 +174,13 @@ fn read(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResul
     {
         info!("read non-null values and evaluate via serde_db");
         let q = "select * from TEST_TYPES_A where id = 1";
-        let data: Data = connection.query(q)?.try_into()?;
+        let data: Data = connection.query(q)?.sync_try_into()?;
         debug!("data: {:?}", data);
     }
     {
         info!("read null values and evaluate via serde_db");
         let q = "select * from TEST_TYPES_A where id = 3";
-        let data: Data = connection.query(q)?.try_into()?;
+        let data: Data = connection.query(q)?.sync_try_into()?;
         debug!("data: {:?}", data);
     }
     {
@@ -188,7 +188,7 @@ fn read(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResul
         let q = "select * from TEST_TYPES_A where id = 1";
         let mut resultset = connection.query(q)?;
         debug!("resultset: {:?}", resultset);
-        let row = resultset.next_row()?.unwrap();
+        let row = resultset.sync_next_row()?.unwrap();
         for value in row {
             assert!(!value.is_null());
         }
@@ -196,7 +196,7 @@ fn read(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResul
     {
         info!("read null values and evaluate directly");
         let q = "select * from TEST_TYPES_A where id = 4";
-        let row = connection.query(q)?.into_single_row()?;
+        let row = connection.query(q)?.sync_into_single_row()?;
         assert!(!row[0].is_null());
         for value in row.skip(1) {
             assert!(value.is_null());

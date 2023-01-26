@@ -1,5 +1,5 @@
 use crate::{
-    conn::SyncAmConnCore,
+    conn::AmConnCore,
     hdb_response::InternalReturnValue,
     protocol::parts::{ParameterDescriptors, ResultSetMetadata, TypeId, WriteLobRequest},
     protocol::{util, Part, PartKind, Reply, ReplyType, Request, RequestType},
@@ -16,7 +16,7 @@ use std::{io::Write, sync::Arc};
 pub struct LobWriter<'a> {
     locator_id: u64,
     type_id: TypeId,
-    am_conn_core: SyncAmConnCore,
+    am_conn_core: AmConnCore,
     o_a_rsmd: Option<&'a Arc<ResultSetMetadata>>,
     o_a_descriptors: Option<&'a Arc<ParameterDescriptors>>,
     server_usage: ServerUsage,
@@ -28,12 +28,12 @@ impl<'a> LobWriter<'a> {
     pub fn new(
         locator_id: u64,
         type_id: TypeId,
-        am_conn_core: SyncAmConnCore,
+        am_conn_core: AmConnCore,
         o_a_rsmd: Option<&'a Arc<ResultSetMetadata>>,
         o_a_descriptors: Option<&'a Arc<ParameterDescriptors>>,
     ) -> HdbResult<LobWriter<'a>> {
         if let TypeId::BLOB | TypeId::CLOB | TypeId::NCLOB = type_id {
-            let lob_write_length = am_conn_core.lock()?.get_lob_write_length();
+            let lob_write_length = am_conn_core.sync_lock()?.get_lob_write_length();
             Ok(LobWriter {
                 locator_id,
                 type_id,
@@ -78,9 +78,12 @@ impl<'a> LobWriter<'a> {
         //     WriteLobRequest::new(locator_id, offset /* or offset + 1? */, buf, true),
         request.push(Part::WriteLobRequest(write_lob_request));
 
-        let reply =
-            self.am_conn_core
-                .full_send(request, self.o_a_rsmd, self.o_a_descriptors, &mut None)?;
+        let reply = self.am_conn_core.sync_full_send(
+            request,
+            self.o_a_rsmd,
+            self.o_a_descriptors,
+            &mut None,
+        )?;
 
         match reply.replytype {
             // regular response

@@ -1,5 +1,9 @@
 use crate::protocol::parts::OutputParameters;
-use crate::{HdbError, HdbResult, ResultSet};
+#[cfg(feature = "async")]
+use crate::AsyncResultSet;
+#[cfg(feature = "sync")]
+use crate::SyncResultSet;
+use crate::{HdbError, HdbResult};
 
 use dist_tx::XaTransactionId;
 
@@ -7,7 +11,11 @@ use dist_tx::XaTransactionId;
 #[derive(Debug)]
 pub enum HdbReturnValue {
     /// A resultset of a query.
-    ResultSet(ResultSet),
+    #[cfg(feature = "sync")]
+    ResultSet(SyncResultSet),
+    /// A resultset of a query.
+    #[cfg(feature = "async")]
+    AResultSet(AsyncResultSet),
     /// A list of numbers of affected rows.
     AffectedRows(Vec<usize>),
     /// Values of output parameters of a procedure call.
@@ -23,9 +31,23 @@ impl HdbReturnValue {
     /// # Errors
     ///
     /// `HdbError::Evaluation` for other variants than `HdbReturnValue::ResultSet`.
-    pub fn into_resultset(self) -> HdbResult<ResultSet> {
+    #[cfg(feature = "sync")]
+    pub fn sync_into_resultset(self) -> HdbResult<SyncResultSet> {
         match self {
             Self::ResultSet(rs) => Ok(rs),
+            _ => Err(HdbError::Evaluation("Not a HdbReturnValue::ResultSet")),
+        }
+    }
+
+    /// Turns itself into a single resultset.
+    ///
+    /// # Errors
+    ///
+    /// `HdbError::Evaluation` for other variants than `HdbReturnValue::ResultSet`.
+    #[cfg(feature = "async")]
+    pub fn async_into_resultset(self) -> HdbResult<AsyncResultSet> {
+        match self {
+            Self::AResultSet(rs) => Ok(rs),
             _ => Err(HdbError::Evaluation("Not a HdbReturnValue::ResultSet")),
         }
     }
@@ -75,9 +97,9 @@ impl HdbReturnValue {
                     ))
                 }
             }
-            Self::OutputParameters(_) | Self::ResultSet(_) | Self::XaTransactionIds(_) => Err(
-                HdbError::Evaluation("Not a HdbReturnValue::AffectedRows or ::Success"),
-            ),
+            _ => Err(HdbError::Evaluation(
+                "Not a HdbReturnValue::AffectedRows or ::Success",
+            )),
         }
     }
 
@@ -96,7 +118,10 @@ impl std::fmt::Display for HdbReturnValue {
         match *self {
             Self::AffectedRows(ref vec) => writeln!(fmt, "AffectedRows {vec:?},"),
             Self::OutputParameters(ref op) => writeln!(fmt, "OutputParameters [{op}],"),
+            #[cfg(feature = "sync")]
             Self::ResultSet(ref rs) => writeln!(fmt, "ResultSet [{rs}],"),
+            #[cfg(feature = "async")]
+            Self::AResultSet(ref rs) => writeln!(fmt, "ResultSet [{rs}],"),
             Self::Success => writeln!(fmt, "Success,"),
             Self::XaTransactionIds(_) => writeln!(fmt, "XaTransactionIds,<"),
         }

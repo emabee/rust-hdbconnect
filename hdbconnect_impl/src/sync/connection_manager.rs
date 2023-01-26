@@ -1,7 +1,7 @@
 //! Connection Pooling with r2d2.
 
-use crate::Connection;
-use hdbconnect_impl::{ConnectParams, HdbError, HdbResult, IntoConnectParams};
+use crate::sync::Connection;
+use crate::{ConnectParams, HdbError, HdbResult, IntoConnectParams};
 
 /// Implementation of r2d2's
 /// [`ManageConnection`](https://docs.rs/r2d2/*/r2d2/trait.ManageConnection.html)

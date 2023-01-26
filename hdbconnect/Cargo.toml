@@ -18,24 +18,25 @@ all-features = false
 
 [features]
 default = []
+r2d2_pool = ["hdbconnect_impl/r2d2_pool"]
 
 [dependencies]
 hdbconnect_impl = { path = "../hdbconnect_impl", features = ["sync"] }
-dist_tx = {path = "../../dist_tx"}
-log = "0.4"
-r2d2 = "0.8"
-serde = { version = "1.0", features = ["derive"] }
+# r2d2 = "0.8"
 # serde_db = { path = "../serde_db" }
-serde_db = "0.11"
+# serde_db = "0.11"
 
 [dev-dependencies]
 bigdecimal = {version = "0.3", features = ["serde"]}
 cesu8 = "1.1"
 chrono = { version = "0.4", features = ["serde"]}
+dist_tx = {path = "../../dist_tx"}
 flexi_logger = "0.24"
+log = "0.4"
 num = "0.4"
 num-bigint = "0.4.0"
 rand = "0.8"
+serde = { version = "1.0", features = ["derive"] }
 serde_bytes = "0.11"
 serde_json = "1.0"
 sha2 = "0.10.0"

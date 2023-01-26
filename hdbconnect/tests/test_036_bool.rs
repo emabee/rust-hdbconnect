@@ -3,7 +3,7 @@ extern crate serde;
 mod test_utils;
 
 use flexi_logger::LoggerHandle;
-use hdbconnect::{Connection, HdbResult};
+use hdbconnect::{sync::Connection, HdbResult};
 use log::{debug, info};
 
 // cargo test test_036_bool -- --nocapture
@@ -44,7 +44,8 @@ fn test_text(_logger_handle: &mut LoggerHandle, connection: &mut Connection) -> 
     debug!("trying query");
     let resultset = connection.query("select * FROM TEST_BOOL")?;
     debug!("trying deserialize result set: {:?}", resultset);
-    let tuple: (Option<bool>, Option<bool>, Option<bool>, bool, bool) = resultset.try_into()?;
+    let tuple: (Option<bool>, Option<bool>, Option<bool>, bool, bool) =
+        resultset.sync_try_into()?;
     assert_eq!(Some(true), tuple.0);
     assert_eq!(Some(false), tuple.1);
     assert_eq!(None, tuple.2);

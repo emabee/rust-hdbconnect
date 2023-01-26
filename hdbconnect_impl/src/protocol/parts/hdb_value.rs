@@ -1,7 +1,4 @@
-#[cfg(feature = "async")]
-use crate::conn::AsyncAmConnCore;
-#[cfg(feature = "sync")]
-use crate::conn::SyncAmConnCore;
+use crate::conn::AmConnCore;
 use crate::protocol::parts::{length_indicator, AmRsCore, ParameterDescriptor, TypeId};
 use crate::protocol::util;
 #[cfg(feature = "async")]
@@ -78,12 +75,14 @@ pub enum HdbValue<'a> {
     /// Used for streaming LOBs to the database (see
     /// [`PreparedStatement::execute_row()`](crate::PreparedStatement::execute_row)).
     #[cfg(feature = "sync")]
-    LOBSTREAM(Option<std::sync::Arc<std::sync::Mutex<dyn std::io::Read + Send>>>),
+    SYNCLOBSTREAM(Option<std::sync::Arc<std::sync::Mutex<dyn std::io::Read + Send>>>),
 
     /// Used for streaming LOBs to the database (see
     /// [`PreparedStatement::execute_row()`](crate::PreparedStatement::execute_row)).
     #[cfg(feature = "async")]
-    LOBSTREAM(Option<std::sync::Arc<tokio::sync::Mutex<dyn tokio::io::AsyncRead + Send + Unpin>>>),
+    ASYNCLOBSTREAM(
+        Option<std::sync::Arc<tokio::sync::Mutex<dyn tokio::io::AsyncRead + Send + Unpin>>>,
+    ),
 
     /// BOOLEAN stores boolean values, which are TRUE or FALSE.
     BOOLEAN(bool),
@@ -138,8 +137,13 @@ impl<'a> HdbValue<'a> {
             HdbValue::REAL(_) => TypeId::REAL,
             HdbValue::DOUBLE(_) => TypeId::DOUBLE,
 
-            HdbValue::CLOB(_) | HdbValue::NCLOB(_) | HdbValue::BLOB(_) | HdbValue::LOBSTREAM(_) =>
-                requested_type_id,
+            HdbValue::CLOB(_) | HdbValue::NCLOB(_) | HdbValue::BLOB(_) => requested_type_id,
+
+            #[cfg(feature = "sync")]
+            HdbValue::SYNCLOBSTREAM(_) => requested_type_id,
+
+            #[cfg(feature = "async")]
+            HdbValue::ASYNCLOBSTREAM(_) => requested_type_id,
 
             HdbValue::BOOLEAN(_) => TypeId::BOOLEAN,
             HdbValue::STR(_) | HdbValue::STRING(_) => TypeId::STRING,
@@ -184,7 +188,7 @@ impl<'a> HdbValue<'a> {
                 HdbValue::DAYDATE(ref dd) => w.write_i32::<LittleEndian>(*dd.ref_raw())?,
                 HdbValue::SECONDTIME(ref st) => w.write_u32::<LittleEndian>(*st.ref_raw())?,
 
-                HdbValue::LOBSTREAM(None) => lob::emit_lob_header_sync(0, data_pos, w)?,
+                HdbValue::SYNCLOBSTREAM(None) => lob::emit_lob_header_sync(0, data_pos, w)?,
                 HdbValue::STR(s) => emit_length_and_string_sync(s, w)?,
                 HdbValue::STRING(ref s) => emit_length_and_string_sync(s, w)?,
                 HdbValue::BINARY(ref v) | HdbValue::GEOMETRY(ref v) | HdbValue::POINT(ref v) => {
@@ -226,7 +230,9 @@ impl<'a> HdbValue<'a> {
                 HdbValue::DAYDATE(ref dd) => w.write_i32_le(*dd.ref_raw()).await?,
                 HdbValue::SECONDTIME(ref st) => w.write_u32_le(*st.ref_raw()).await?,
 
-                HdbValue::LOBSTREAM(None) => lob::emit_lob_header_async(0, data_pos, w).await?,
+                HdbValue::ASYNCLOBSTREAM(None) => {
+                    lob::emit_lob_header_async(0, data_pos, w).await?;
+                }
                 HdbValue::STR(s) => emit_length_and_string_async(s, w).await?,
                 HdbValue::STRING(ref s) => emit_length_and_string_async(s, w).await?,
                 HdbValue::BINARY(ref v) | HdbValue::GEOMETRY(ref v) | HdbValue::POINT(ref v) => {
@@ -300,7 +306,11 @@ impl<'a> HdbValue<'a> {
             | HdbValue::LONGDATE(_)
             | HdbValue::SECONDDATE(_) => 8,
 
-            HdbValue::LOBSTREAM(None) => 9,
+            #[cfg(feature = "sync")]
+            HdbValue::SYNCLOBSTREAM(None) => 9,
+            #[cfg(feature = "async")]
+            HdbValue::ASYNCLOBSTREAM(None) => 9,
+
             HdbValue::STR(s) => binary_length(util::cesu8_length(s)),
             HdbValue::STRING(ref s) => binary_length(util::cesu8_length(s)),
 
@@ -308,10 +318,19 @@ impl<'a> HdbValue<'a> {
                 binary_length(v.len())
             }
 
-            HdbValue::CLOB(_)
-            | HdbValue::NCLOB(_)
-            | HdbValue::BLOB(_)
-            | HdbValue::LOBSTREAM(Some(_)) => {
+            HdbValue::CLOB(_) | HdbValue::NCLOB(_) | HdbValue::BLOB(_) => {
+                return Err(util::io_error(format!(
+                    "size(): can't send {self:?} directly to the database",
+                )));
+            }
+            #[cfg(feature = "sync")]
+            HdbValue::SYNCLOBSTREAM(Some(_)) => {
+                return Err(util::io_error(format!(
+                    "size(): can't send {self:?} directly to the database",
+                )));
+            }
+            #[cfg(feature = "async")]
+            HdbValue::ASYNCLOBSTREAM(Some(_)) => {
                 return Err(util::io_error(format!(
                     "size(): can't send {self:?} directly to the database",
                 )));
@@ -382,7 +401,7 @@ impl HdbValue<'static> {
         array_type: bool,
         scale: i16,
         nullable: bool,
-        am_conn_core: &SyncAmConnCore,
+        am_conn_core: &AmConnCore,
         o_am_rscore: &Option<AmRsCore>,
         rdr: &mut dyn std::io::Read,
     ) -> std::io::Result<HdbValue<'static>> {
@@ -473,7 +492,7 @@ impl HdbValue<'static> {
         array_type: bool,
         scale: i16,
         nullable: bool,
-        am_conn_core: &AsyncAmConnCore,
+        am_conn_core: &AmConnCore,
         o_am_rscore: &Option<AmRsCore>,
         rdr: &mut R,
     ) -> std::io::Result<HdbValue<'static>> {
@@ -505,7 +524,7 @@ impl HdbValue<'static> {
         type_id: TypeId,
         scale: i16,
         nullable: bool,
-        am_conn_core: &AsyncAmConnCore,
+        am_conn_core: &AmConnCore,
         o_am_rscore: &Option<AmRsCore>,
         rdr: &mut R,
     ) -> std::io::Result<HdbValue<'static>> {
@@ -1153,7 +1172,10 @@ impl<'a> std::fmt::Display for HdbValue<'a> {
             HdbValue::CLOB(_) => write!(fmt, "<CLOB>"),
             HdbValue::NCLOB(_) => write!(fmt, "<NCLOB>"),
             HdbValue::BLOB(ref blob) => write!(fmt, "<BLOB length = {}>", blob.total_byte_length()),
-            HdbValue::LOBSTREAM(_) => write!(fmt, "<LOBSTREAM>"),
+            #[cfg(feature = "sync")]
+            HdbValue::SYNCLOBSTREAM(_) => write!(fmt, "<LOBSTREAM>"),
+            #[cfg(feature = "async")]
+            HdbValue::ASYNCLOBSTREAM(_) => write!(fmt, "<LOBSTREAM>"),
             HdbValue::BOOLEAN(value) => write!(fmt, "{value}"),
             HdbValue::LONGDATE(ref value) => write!(fmt, "{value}"),
             HdbValue::SECONDDATE(ref value) => write!(fmt, "{value}"),

@@ -4,7 +4,7 @@ mod test_utils;
 
 use flexi_logger::LoggerHandle;
 use hdbconnect_async::{
-    Connection, HdbResult, ParameterBinding, ParameterDirection, ResultSet, Row, TypeId,
+    AsyncResultSet, Connection, HdbResult, ParameterBinding, ParameterDirection, Row, TypeId,
 };
 use log::{debug, info};
 
@@ -72,8 +72,8 @@ async fn test_procedure_metadata(
     assert_eq!(pd1.precision(), 40);
     assert_eq!(pd1.direction(), ParameterDirection::OUT);
 
-    let mut rs: ResultSet = response.get_resultset()?;
-    let row: Row = rs.next_row().await?.unwrap();
+    let mut rs: AsyncResultSet = response.get_aresultset()?;
+    let row: Row = rs.async_next_row().await?.unwrap();
     assert_eq!(row[0], 42_i32);
     assert_eq!(row[1], "is between 41 and 43");
 

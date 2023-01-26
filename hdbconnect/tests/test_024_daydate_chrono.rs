@@ -4,7 +4,7 @@ mod test_utils;
 
 use chrono::NaiveDate;
 use flexi_logger::LoggerHandle;
-use hdbconnect::{Connection, HdbResult};
+use hdbconnect::{sync::Connection, HdbResult};
 use log::{debug, info, trace};
 
 #[test] // cargo test --test test_024_daydate
@@ -27,11 +27,11 @@ fn test_daydate(_loghandle: &mut LoggerHandle, connection: &mut Connection) -> H
 
     debug!("prepare the test data");
     let naive_time_values: Vec<NaiveDate> = vec![
-        NaiveDate::from_ymd(1, 1, 1),
-        NaiveDate::from_ymd(1, 1, 2),
-        NaiveDate::from_ymd(2012, 2, 2),
-        NaiveDate::from_ymd(2013, 3, 3),
-        NaiveDate::from_ymd(2014, 4, 4),
+        NaiveDate::from_ymd_opt(1, 1, 1).unwrap(),
+        NaiveDate::from_ymd_opt(1, 1, 2).unwrap(),
+        NaiveDate::from_ymd_opt(2012, 2, 2).unwrap(),
+        NaiveDate::from_ymd_opt(2013, 3, 3).unwrap(),
+        NaiveDate::from_ymd_opt(2014, 4, 4).unwrap(),
     ];
     let string_values = vec![
         "0001-01-01",
@@ -73,7 +73,7 @@ fn test_daydate(_loghandle: &mut LoggerHandle, connection: &mut Connection) -> H
         trace!("calling execute_batch()");
         let response = prep_stmt.execute_batch()?;
 
-        let typed_result: i32 = response.into_resultset()?.try_into()?;
+        let typed_result: i32 = response.into_resultset()?.sync_try_into()?;
         assert_eq!(typed_result, 31);
     }
 
@@ -82,7 +82,7 @@ fn test_daydate(_loghandle: &mut LoggerHandle, connection: &mut Connection) -> H
         let s = "select mydate from TEST_DAYDATE order by number asc";
         let rs = connection.query(s)?;
         trace!("rs = {:?}", rs);
-        let times: Vec<NaiveDate> = rs.try_into()?;
+        let times: Vec<NaiveDate> = rs.sync_try_into()?;
         trace!("times = {:?}", times);
         for (time, ntv) in times.iter().zip(naive_time_values.iter()) {
             debug!("{}, {}", time, ntv);
@@ -98,7 +98,7 @@ fn test_daydate(_loghandle: &mut LoggerHandle, connection: &mut Connection) -> H
 
         let dates: Vec<NaiveDate> = connection
             .query("select mydate from TEST_DAYDATE where number = 77 or number = 13")?
-            .try_into()?;
+            .sync_try_into()?;
         trace!("query sent");
         assert_eq!(dates.len(), 2);
         for date in dates {
@@ -116,7 +116,7 @@ fn test_daydate(_loghandle: &mut LoggerHandle, connection: &mut Connection) -> H
 
         let date: Option<NaiveDate> = connection
             .query("select mydate from TEST_DAYDATE where number = 2350")?
-            .try_into()?;
+            .sync_try_into()?;
         trace!("query sent");
         assert_eq!(date, None);
     }
