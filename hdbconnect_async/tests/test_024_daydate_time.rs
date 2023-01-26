@@ -80,7 +80,7 @@ async fn test_daydate(_loghandle: &mut LoggerHandle, connection: &mut Connection
         trace!("calling execute_batch()");
         let response = prep_stmt.execute_batch().await?;
 
-        let typed_result: i32 = response.into_aresultset()?.async_try_into().await?;
+        let typed_result: i32 = response.into_aresultset()?.try_into().await?;
         assert_eq!(typed_result, 31);
     }
 
@@ -89,7 +89,7 @@ async fn test_daydate(_loghandle: &mut LoggerHandle, connection: &mut Connection
         let s = "select mydate from TEST_DAYDATE order by number asc";
         let rs = connection.query(s).await?;
         trace!("rs = {:?}", rs);
-        let times: Vec<HanaDate> = rs.async_try_into().await?;
+        let times: Vec<HanaDate> = rs.try_into().await?;
         trace!("times = {:?}", times);
         for (time, ntv) in times.iter().zip(date_values.iter()) {
             debug!("{}, {}", **time, ntv);
@@ -106,7 +106,7 @@ async fn test_daydate(_loghandle: &mut LoggerHandle, connection: &mut Connection
         let dates: Vec<HanaDate> = connection
             .query("select mydate from TEST_DAYDATE where number = 77 or number = 13")
             .await?
-            .async_try_into()
+            .try_into()
             .await?;
         trace!("query sent");
         assert_eq!(dates.len(), 2);
@@ -126,7 +126,7 @@ async fn test_daydate(_loghandle: &mut LoggerHandle, connection: &mut Connection
         let date: Option<Date> = connection
             .query("select mydate from TEST_DAYDATE where number = 2350")
             .await?
-            .async_try_into()
+            .try_into()
             .await?;
         trace!("query sent");
         assert_eq!(date, None);

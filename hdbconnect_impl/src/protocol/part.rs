@@ -1,23 +1,24 @@
-use crate::conn::AmConnCore;
-use crate::protocol::parts::{
-    AuthFields, ClientContext, ClientInfo, CommandInfo, ConnectOptions, DbConnectInfo,
-    ExecutionResult, LobFlags, OutputParameters, ParameterDescriptors, ParameterRows,
-    PartitionInformation, Parts, ReadLobReply, ReadLobRequest, ResultSetMetadata, RsState,
-    ServerError, SessionContext, StatementContext, Topology, TransactionFlags, WriteLobReply,
-    WriteLobRequest, XatOptions,
+use crate::{
+    conn::AmConnCore,
+    protocol::{
+        parts::{
+            AuthFields, ClientContext, ClientInfo, CommandInfo, ConnectOptions, DbConnectInfo,
+            ExecutionResult, LobFlags, OutputParameters, ParameterDescriptors, ParameterRows,
+            PartitionInformation, Parts, ReadLobReply, ReadLobRequest, ResultSetMetadata,
+            ServerError, SessionContext, StatementContext, Topology, TransactionFlags,
+            WriteLobReply, WriteLobRequest, XatOptions,
+        },
+        util, PartAttributes, PartKind,
+    },
 };
 
 #[cfg(feature = "async")]
-use crate::protocol::parts::AsyncResultSet;
+use crate::protocol::parts::{async_rs_state::AsyncRsState, AsyncResultSet};
 #[cfg(feature = "sync")]
-use crate::protocol::parts::SyncResultSet;
-use crate::protocol::{util, PartAttributes, PartKind};
+use crate::protocol::parts::{sync_rs_state::SyncRsState, SyncResultSet};
 #[cfg(feature = "sync")]
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use std::cmp::max;
-use std::convert::TryFrom;
-use std::sync::Arc;
-use std::{i16, i32};
+use std::{cmp::max, convert::TryFrom, i16, i32, sync::Arc};
 
 const PART_HEADER_SIZE: usize = 16;
 
@@ -360,7 +361,7 @@ impl<'a> Part<'a> {
         o_am_conn_core: Option<&AmConnCore>,
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
-        o_rs: &mut Option<&mut RsState>,
+        o_rs: &mut Option<&mut SyncRsState>,
         last: bool,
         rdr: &mut dyn std::io::Read,
     ) -> std::io::Result<Part<'static>> {
@@ -402,7 +403,7 @@ impl<'a> Part<'a> {
         o_am_conn_core: Option<&AmConnCore>,
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
-        o_rs: &mut Option<&mut RsState>,
+        o_rs: &mut Option<&mut AsyncRsState>,
         last: bool,
         rdr: &mut R,
     ) -> std::io::Result<Part<'static>> {
@@ -449,7 +450,7 @@ impl<'a> Part<'a> {
         o_am_conn_core: Option<&AmConnCore>,
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
-        o_rs: &mut Option<&mut RsState>,
+        o_rs: &mut Option<&mut SyncRsState>,
         rdr: &mut dyn std::io::Read,
     ) -> std::io::Result<Part<'a>> {
         trace!("parse(no_of_args={}, kind={:?})", no_of_args, kind);
@@ -541,7 +542,7 @@ impl<'a> Part<'a> {
         o_am_conn_core: Option<&AmConnCore>,
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
-        o_rs: &mut Option<&mut RsState>,
+        o_rs: &mut Option<&mut AsyncRsState>,
         rdr: &mut R,
     ) -> std::io::Result<Part<'a>> {
         trace!("parse(no_of_args={}, kind={:?})", no_of_args, kind);
@@ -575,7 +576,7 @@ impl<'a> Part<'a> {
                 Part::WriteLobReply(WriteLobReply::parse_async(no_of_args, rdr).await?)
             }
             PartKind::ResultSet => {
-                let rs = AsyncResultSet::parse_async(
+                let rs = AsyncResultSet::parse(
                     no_of_args,
                     attributes,
                     parts,

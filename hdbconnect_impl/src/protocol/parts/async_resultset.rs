@@ -1,16 +1,17 @@
-use super::rs_state::AsyncResultSetCore;
-use super::RsState;
 use crate::{
     a_sync::prepared_statement_core::AsyncAmPsCore,
     conn::AmConnCore,
     protocol::{
-        parts::{Parts, ResultSetMetadata, StatementContext},
+        parts::{
+            AsyncResultSetCore, AsyncRsState, MRsCore, Parts, ResultSetMetadata, StatementContext,
+        },
         util, Part, PartAttributes, PartKind, ServerUsage,
     },
     HdbResult, Row, Rows,
 };
 use serde_db::de::DeserializableResultset;
 use std::sync::Arc;
+use tokio::sync::Mutex;
 
 /// The result of a database query.
 ///
@@ -45,7 +46,7 @@ use std::sync::Arc;
 #[derive(Debug)]
 pub struct AsyncResultSet {
     metadata: Arc<ResultSetMetadata>,
-    state: Arc<tokio::sync::Mutex<RsState>>,
+    state: Arc<Mutex<AsyncRsState>>,
 }
 
 impl AsyncResultSet {
@@ -106,11 +107,11 @@ impl AsyncResultSet {
     /// # Errors
     ///
     /// `HdbError::Deserialization` if the deserialization into the target type is not possible.
-    pub async fn async_try_into<'de, T>(self) -> HdbResult<T>
+    pub async fn try_into<'de, T>(self) -> HdbResult<T>
     where
         T: serde::de::Deserialize<'de>,
     {
-        trace!("Resultset::async_try_into()");
+        trace!("Resultset::try_into()");
         Ok(DeserializableResultset::try_into(self.into_rows().await?)?)
     }
 
@@ -119,7 +120,7 @@ impl AsyncResultSet {
         self.state
             .lock()
             .await
-            .async_into_rows(Arc::clone(&self.metadata))
+            .into_rows(Arc::clone(&self.metadata))
             .await
     }
 
@@ -128,9 +129,9 @@ impl AsyncResultSet {
     /// # Errors
     ///
     /// `HdbError::Usage` if the resultset contains more than a single row, or is empty.
-    pub async fn async_into_single_row(self) -> HdbResult<Row> {
+    pub async fn into_single_row(self) -> HdbResult<Row> {
         let mut state = self.state.lock().await;
-        state.async_single_row().await
+        state.single_row().await
     }
 
     /// Access to metadata.
@@ -167,11 +168,11 @@ impl AsyncResultSet {
     /// # Errors
     ///
     /// Several variants of `HdbError` are possible.
-    pub async fn async_total_number_of_rows(&self) -> HdbResult<usize> {
+    pub async fn total_number_of_rows(&self) -> HdbResult<usize> {
         self.state
             .lock()
             .await
-            .async_total_number_of_rows(&self.metadata)
+            .total_number_of_rows(&self.metadata)
             .await
     }
 
@@ -183,8 +184,8 @@ impl AsyncResultSet {
     /// # Errors
     ///
     /// Several variants of `HdbError` are possible.
-    pub async fn async_next_row(&mut self) -> HdbResult<Option<Row>> {
-        self.state.lock().await.async_next_row(&self.metadata).await
+    pub async fn next_row(&mut self) -> HdbResult<Option<Row>> {
+        self.state.lock().await.next_row(&self.metadata).await
     }
 
     /// Fetches all not yet transported result lines from the server.
@@ -198,15 +199,11 @@ impl AsyncResultSet {
     /// # Errors
     ///
     /// Several variants of `HdbError` are possible.
-    pub async fn async_fetch_all(&self) -> HdbResult<()> {
-        self.state
-            .lock()
-            .await
-            .async_fetch_all(&self.metadata)
-            .await
+    pub async fn fetch_all(&self) -> HdbResult<()> {
+        self.state.lock().await.fetch_all(&self.metadata).await
     }
 
-    pub(crate) fn async_new(
+    pub(crate) fn new(
         am_conn_core: &AmConnCore,
         attrs: PartAttributes,
         rs_id: u64,
@@ -225,10 +222,10 @@ impl AsyncResultSet {
 
         Self {
             metadata: a_rsmd,
-            state: Arc::new(tokio::sync::Mutex::new(RsState {
-                o_am_rscore: Some(Arc::new(super::rs_state::MRsCore::Async(
-                    tokio::sync::Mutex::new(AsyncResultSetCore::new(am_conn_core, attrs, rs_id)),
-                ))),
+            state: Arc::new(Mutex::new(AsyncRsState {
+                o_am_rscore: Some(Arc::new(MRsCore::Async(Mutex::new(
+                    AsyncResultSetCore::new(am_conn_core, attrs, rs_id),
+                )))),
 
                 next_rows: Vec::<Row>::new(),
                 row_iter: Vec::<Row>::new().into_iter(),
@@ -237,13 +234,13 @@ impl AsyncResultSet {
         }
     }
 
-    pub(crate) async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
+    pub(crate) async fn parse<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
         no_of_rows: usize,
         attributes: PartAttributes,
         parts: &mut Parts<'static>,
         am_conn_core: &AmConnCore,
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
-        o_rs: &mut Option<&mut RsState>,
+        o_rs: &mut Option<&mut AsyncRsState>,
         rdr: &mut R,
     ) -> std::io::Result<Option<Self>> {
         match *o_rs {
@@ -272,8 +269,8 @@ impl AsyncResultSet {
                     }
                 };
 
-                let rs = Self::async_new(am_conn_core, attributes, rs_id, a_rsmd, o_stmt_ctx);
-                rs.async_parse_rows(no_of_rows, rdr).await?;
+                let rs = Self::new(am_conn_core, attributes, rs_id, a_rsmd, o_stmt_ctx);
+                rs.parse_rows(no_of_rows, rdr).await?;
                 Ok(Some(rs))
             }
 
@@ -303,9 +300,7 @@ impl AsyncResultSet {
                 } else {
                     return Err(util::io_error("RsState provided without RsMetadata"));
                 };
-                fetching_state
-                    .parse_rows_async(no_of_rows, &a_rsmd, rdr)
-                    .await?;
+                fetching_state.parse_rows(no_of_rows, &a_rsmd, rdr).await?;
                 Ok(None)
             }
         }
@@ -313,11 +308,11 @@ impl AsyncResultSet {
 
     /// Provides information about the the server-side resource consumption that
     /// is related to this `ResultSet` object.
-    pub async fn async_server_usage(&self) -> ServerUsage {
+    pub async fn server_usage(&self) -> ServerUsage {
         self.state.lock().await.server_usage
     }
 
-    async fn async_parse_rows<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
+    async fn parse_rows<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
         &self,
         no_of_rows: usize,
         rdr: &mut R,
@@ -325,11 +320,11 @@ impl AsyncResultSet {
         self.state
             .lock()
             .await
-            .parse_rows_async(no_of_rows, &self.metadata, rdr)
+            .parse_rows(no_of_rows, &self.metadata, rdr)
             .await
     }
 
-    pub async fn async_inject_statement_id(&mut self, am_ps_core: AsyncAmPsCore) -> HdbResult<()> {
+    pub async fn inject_statement_id(&mut self, am_ps_core: AsyncAmPsCore) -> HdbResult<()> {
         if let Some(rs_core) = &(self.state.lock().await).o_am_rscore {
             rs_core.async_lock().await.inject_statement_id(am_ps_core);
         }
@@ -342,24 +337,7 @@ impl std::fmt::Display for AsyncResultSet {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         writeln!(fmt, "{}\n", &self.metadata)?;
 
-        // #[cfg(feature = "sync")]
-        // {
-        //     let state = self
-        //         .state
-        //         .lock()
-        //         .unwrap_or_else(std::sync::PoisonError::into_inner);
-        //     for row in state.row_iter.as_slice() {
-        //         writeln!(fmt, "{}\n", &row)?;
-        //     }
-        //     for row in &state.next_rows {
-        //         writeln!(fmt, "{}\n", &row)?;
-        //     }
-        // }
-
-        #[cfg(feature = "async")]
-        {
-            writeln!(fmt, "FIXME: Display not implemented for async\n")?;
-        }
+        writeln!(fmt, "FIXME: Display not implemented for async\n")?;
 
         Ok(())
     }
@@ -369,7 +347,7 @@ impl std::fmt::Display for AsyncResultSet {
 // see https://rust-lang.github.io/rfcs/2996-async-iterator.html for reasoning
 impl AsyncResultSet {
     pub async fn next(&mut self) -> Option<HdbResult<Row>> {
-        match self.async_next_row().await {
+        match self.next_row().await {
             Ok(Some(row)) => Some(Ok(row)),
             Ok(None) => None,
             Err(e) => Some(Err(e)),

@@ -1,8 +1,8 @@
 #[cfg(feature = "async")]
-use crate::protocol::util_async;
+use crate::protocol::{parts::AsyncRsState, util_async};
 
 #[cfg(feature = "sync")]
-use crate::protocol::util_sync;
+use crate::protocol::{parts::SyncRsState, util_sync};
 
 #[cfg(feature = "sync")]
 use byteorder::{LittleEndian, ReadBytesExt};
@@ -11,8 +11,7 @@ use crate::{
     conn::{AmConnCore, ConnectionCore},
     hdb_response::InternalReturnValue,
     protocol::parts::{
-        ExecutionResult, ParameterDescriptors, Parts, ResultSetMetadata, RsState, ServerError,
-        Severity,
+        ExecutionResult, ParameterDescriptors, Parts, ResultSetMetadata, ServerError, Severity,
     },
     protocol::{util, Part, PartKind, ReplyType, ServerUsage},
     HdbError, HdbResult,
@@ -51,7 +50,7 @@ impl Reply {
     pub(crate) fn parse_sync(
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
-        o_rs: &mut Option<&mut RsState>,
+        o_rs: &mut Option<&mut SyncRsState>,
         o_am_conn_core: Option<&AmConnCore>,
         rdr: &mut dyn std::io::Read,
     ) -> std::io::Result<Self> {
@@ -84,7 +83,7 @@ impl Reply {
     pub(crate) async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
-        o_rs: &mut Option<&mut RsState>,
+        o_rs: &mut Option<&mut AsyncRsState>,
         o_am_conn_core: Option<&AmConnCore>,
         rdr: &mut R,
     ) -> std::io::Result<Self> {

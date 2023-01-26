@@ -1,14 +1,17 @@
-use crate::conn::AmConnCore;
+#[cfg(feature = "async")]
+use crate::protocol::parts::async_rs_state::AsyncRsState;
+#[cfg(feature = "sync")]
+use crate::protocol::parts::sync_rs_state::SyncRsState;
 
 use crate::{
     conn::{
-        authentication, initial_request, AuthenticationResult, ConnectParams, SessionState,
-        TcpClient,
+        authentication, initial_request, AmConnCore, AuthenticationResult, ConnectParams,
+        SessionState, TcpClient,
     },
     protocol::{
         parts::{
             ClientInfo, ConnectOptions, DbConnectInfo, ParameterDescriptors, ResultSetMetadata,
-            RsState, ServerError, StatementContext, Topology, TransactionFlags,
+            ServerError, StatementContext, Topology, TransactionFlags,
         },
         Part, Reply, ReplyType, Request, RequestType, ServerUsage,
     },
@@ -444,7 +447,7 @@ impl<'a> ConnectionCore {
         o_am_conn_core: Option<&AmConnCore>,
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
-        o_rs: &mut Option<&mut RsState>,
+        o_rs: &mut Option<&mut SyncRsState>,
     ) -> HdbResult<Reply> {
         let (session_id, nsn, default_error_handling) =
             if let RequestType::Authenticate = request.request_type {
@@ -483,7 +486,7 @@ impl<'a> ConnectionCore {
         o_am_conn_core: Option<&AmConnCore>,
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
-        o_rs: &mut Option<&mut RsState>,
+        o_rs: &mut Option<&mut AsyncRsState>,
     ) -> HdbResult<Reply> {
         let (session_id, nsn, default_error_handling) =
             if let RequestType::Authenticate = request.request_type {

@@ -202,13 +202,13 @@ async fn read(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> Hd
         let q = "select * from TEST_TYPES_B where id = 1";
         let resultset = connection.query(q).await?;
         debug!("resultset: {}", resultset);
-        let data: Data = resultset.async_try_into().await?;
+        let data: Data = resultset.try_into().await?;
         trace!("data: {:?}", data);
     }
     {
         info!("read null values and evaluate via serde_db");
         let q = "select * from TEST_TYPES_B where id = 4";
-        let data: Data = connection.query(q).await?.async_try_into().await?;
+        let data: Data = connection.query(q).await?.try_into().await?;
         debug!("data: {:?}", data);
     }
     {
@@ -216,7 +216,7 @@ async fn read(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> Hd
         let q = "select * from TEST_TYPES_B where id = 1";
         let mut resultset = connection.query(q).await?;
         debug!("resultset: {}", resultset);
-        let row = resultset.async_next_row().await?.unwrap();
+        let row = resultset.next_row().await?.unwrap();
         for value in row {
             assert!(!value.is_null());
         }
@@ -224,7 +224,7 @@ async fn read(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> Hd
     {
         info!("read null values and evaluate directly");
         let q = "select * from TEST_TYPES_B where id = 4";
-        let row = connection.query(q).await?.async_into_single_row().await?;
+        let row = connection.query(q).await?.into_single_row().await?;
         assert!(!row[0].is_null());
         for value in row.skip(1) {
             assert!(value.is_null());

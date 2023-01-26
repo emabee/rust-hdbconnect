@@ -1,4 +1,3 @@
-pub mod code_examples;
 pub mod connection;
 pub mod prepared_statement;
 pub mod prepared_statement_core;
@@ -8,4 +7,6 @@ pub mod prepared_statement_core;
 pub mod rocket_pool;
 
 pub use connection::Connection;
+pub use prepared_statement::PreparedStatement;
+pub(crate) use prepared_statement_core::AsyncAmPsCore;
 use prepared_statement_core::PreparedStatementCore;

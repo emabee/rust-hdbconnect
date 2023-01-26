@@ -31,7 +31,7 @@ async fn test_explain(
     let count: usize = connection
         .query("select count(*) from EXPLAIN_PLAN_TABLE")
         .await?
-        .async_try_into()
+        .try_into()
         .await?;
     assert_eq!(count, 0);
 
@@ -43,7 +43,7 @@ async fn test_explain(
     let count: u32 = connection
         .query("select count(*) from EXPLAIN_PLAN_TABLE")
         .await?
-        .async_try_into()
+        .try_into()
         .await?;
     debug!("read the plan size (no of lines = {})", count);
     assert!(count > 0);
@@ -55,7 +55,7 @@ async fn test_explain(
              WHERE statement_name = 'test_explain';",
         )
         .await?
-        .async_try_into()
+        .try_into()
         .await?;
     debug!("obtain the plan: {:?}", result);
 

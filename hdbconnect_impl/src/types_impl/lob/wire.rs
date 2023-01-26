@@ -1,12 +1,17 @@
-use crate::conn::AmConnCore;
-use crate::protocol::parts::{AmRsCore, TypeId};
-use crate::protocol::util;
+use crate::{
+    conn::AmConnCore,
+    protocol::{
+        parts::{am_rs_core::AmRsCore, TypeId},
+        util,
+    },
+    types::{BLob, CLob, NCLob},
+    HdbValue,
+};
+
 #[cfg(feature = "async")]
 use crate::protocol::util_async;
 #[cfg(feature = "sync")]
 use crate::protocol::util_sync;
-use crate::types::{BLob, CLob, NCLob};
-use crate::HdbValue;
 #[cfg(feature = "sync")]
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 

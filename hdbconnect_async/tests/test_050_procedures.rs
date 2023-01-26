@@ -4,8 +4,8 @@ mod test_utils;
 
 use flexi_logger::LoggerHandle;
 use hdbconnect_async::{
-    types::NCLob, AsyncResultSet, Connection, HdbResponse, HdbResult, HdbReturnValue, HdbValue,
-    ParameterBinding, ParameterDirection, Row, TypeId,
+    types::NCLob, Connection, HdbResponse, HdbResult, HdbReturnValue, HdbValue, ParameterBinding,
+    ParameterDirection, ResultSet, Row, TypeId,
 };
 
 use log::{debug, info};
@@ -85,14 +85,8 @@ async fn procedure_with_out_resultsets(
 
     let mut response = connection.statement("call GET_PROCEDURES(?,?)").await?;
     response.get_success()?;
-    let l1 = response
-        .get_aresultset()?
-        .async_total_number_of_rows()
-        .await?;
-    let l2 = response
-        .get_aresultset()?
-        .async_total_number_of_rows()
-        .await?;
+    let l1 = response.get_aresultset()?.total_number_of_rows().await?;
+    let l2 = response.get_aresultset()?.total_number_of_rows().await?;
     assert_eq!(2 * l1, l2);
     Ok(())
 }
@@ -128,14 +122,8 @@ async fn procedure_with_secret_resultsets(
         .await?;
 
     response.get_success()?;
-    let l1 = response
-        .get_aresultset()?
-        .async_total_number_of_rows()
-        .await?;
-    let l2 = response
-        .get_aresultset()?
-        .async_total_number_of_rows()
-        .await?;
+    let l1 = response.get_aresultset()?.total_number_of_rows().await?;
+    let l2 = response.get_aresultset()?.total_number_of_rows().await?;
     assert_eq!(2 * l1, l2);
 
     let mut response: HdbResponse = connection
@@ -185,8 +173,8 @@ async fn procedure_with_in_parameters(
     prepared_stmt.add_batch(&(42, "is between 41 and 43"))?;
     let mut response = prepared_stmt.execute_batch().await?;
     response.get_success()?;
-    let mut rs: AsyncResultSet = response.get_aresultset()?;
-    let mut row: Row = rs.async_next_row().await?.unwrap();
+    let mut rs: ResultSet = response.get_aresultset()?;
+    let mut row: Row = rs.next_row().await?.unwrap();
     let value: i32 = row.next_value().unwrap().try_into()?;
     assert_eq!(value, 42_i32);
     let value: String = row.next_value().unwrap().try_into()?;
@@ -242,7 +230,7 @@ async fn procedure_with_in_and_out_parameters(
 
     let mut rs = response.get_aresultset()?;
     let value: i32 = rs
-        .async_next_row()
+        .next_row()
         .await?
         .unwrap()
         .next_value()
@@ -277,7 +265,7 @@ async fn procedure_with_in_nclob_non_consuming(
     let mut response = prepared_stmt.execute_batch().await?;
     response.get_success()?;
     let mut rs = response.get_aresultset()?;
-    let mut row = rs.async_next_row().await?.unwrap();
+    let mut row = rs.next_row().await?.unwrap();
     let value: String = row.next_value().unwrap().try_into()?;
     assert_eq!(value, "nclob string");
 

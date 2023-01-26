@@ -35,7 +35,7 @@ async fn connect_other_user(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
     let before: String = sys_conn
         .query("SELECT CURRENT_USER FROM DUMMY")
         .await?
-        .async_try_into()
+        .try_into()
         .await?;
     assert_eq!(before, "SYSTEM".to_string());
 
@@ -47,7 +47,7 @@ async fn connect_other_user(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
     let after: String = sys_conn
         .query("SELECT CURRENT_USER FROM DUMMY")
         .await?
-        .async_try_into()
+        .try_into()
         .await?;
     assert_eq!(after, "THEOTHERONE".to_string());
 

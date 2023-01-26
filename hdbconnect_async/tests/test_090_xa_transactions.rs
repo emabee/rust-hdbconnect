@@ -67,14 +67,14 @@ async fn successful_xa(_log_handle: &mut LoggerHandle, conn: &mut Connection) ->
 
     debug!("verify with neutral conn that nothing is visible (count)");
     let count_query = "select count(*) from TEST_XA where f1 > 0 and f1 < 9";
-    let count: u32 = conn.query(count_query).await?.async_try_into().await?;
+    let count: u32 = conn.query(count_query).await?.try_into().await?;
     assert_eq!(0, count);
 
     debug!("commit ta");
     tm.commit_transaction().await.unwrap();
 
     debug!("verify that stuff is now visible");
-    let count: u32 = conn.query(count_query).await?.async_try_into().await?;
+    let count: u32 = conn.query(count_query).await?.try_into().await?;
     assert_eq!(2, count);
 
     Ok(())
@@ -130,14 +130,14 @@ async fn xa_rollback(_log_handle: &mut LoggerHandle, conn: &mut Connection) -> H
 
     // verify with neutral conn that nothing is visible (count)
     let count_query = "select count(*) from TEST_XA where f1 > 9 and f1 < 99";
-    let count: u32 = conn.query(count_query).await?.async_try_into().await?;
+    let count: u32 = conn.query(count_query).await?.try_into().await?;
     assert_eq!(0, count);
 
     debug!("rollback xa");
     tm.rollback_transaction().await.unwrap();
 
     // verify that nothing additional was inserted
-    let count: u32 = conn.query(count_query).await?.async_try_into().await?;
+    let count: u32 = conn.query(count_query).await?.try_into().await?;
     assert_eq!(0, count);
 
     debug!("conn_c inserts");
@@ -148,7 +148,7 @@ async fn xa_rollback(_log_handle: &mut LoggerHandle, conn: &mut Connection) -> H
     conn_c.commit().await.unwrap();
 
     // verify that now the insertions were successful
-    let count: u32 = conn.query(count_query).await?.async_try_into().await?;
+    let count: u32 = conn.query(count_query).await?.try_into().await?;
     assert_eq!(4, count);
 
     Ok(())
@@ -201,7 +201,7 @@ async fn xa_repeated(_log_handle: &mut LoggerHandle, conn: &mut Connection) -> H
         conn_b.dml(&insert_stmt(j + 4, "b")).await?;
 
         // verify with neutral conn that nothing is visible (count)
-        let count: u32 = conn.query(&count_query).await?.async_try_into().await?;
+        let count: u32 = conn.query(&count_query).await?.try_into().await?;
         assert_eq!(0, count);
 
         debug!("rollback xa");
@@ -216,14 +216,14 @@ async fn xa_repeated(_log_handle: &mut LoggerHandle, conn: &mut Connection) -> H
         conn_b.dml(&insert_stmt(j + 4, "b")).await?;
 
         // verify with neutral conn that nothing is visible (count)
-        let count: u32 = conn.query(&count_query).await?.async_try_into().await?;
+        let count: u32 = conn.query(&count_query).await?.try_into().await?;
         assert_eq!(0, count);
 
         debug!("commit xa");
         tm.commit_transaction().await.unwrap();
 
         // verify that now the insertions were successful
-        let count: u32 = conn.query(&count_query).await?.async_try_into().await?;
+        let count: u32 = conn.query(&count_query).await?.try_into().await?;
         assert_eq!(4, count);
     }
 

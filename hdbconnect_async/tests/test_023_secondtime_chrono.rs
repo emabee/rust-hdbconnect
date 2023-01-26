@@ -81,7 +81,7 @@ async fn test_secondtime(
             .execute_batch()
             .await?
             .into_aresultset()?
-            .async_try_into()
+            .try_into()
             .await?;
         assert_eq!(typed_result, 31);
     }
@@ -91,7 +91,7 @@ async fn test_secondtime(
         let s = "select mytime from TEST_SECONDTIME order by number asc";
         let rs = connection.query(s).await?;
         trace!("rs = {:?}", rs);
-        let times: Vec<NaiveTime> = rs.async_try_into().await?;
+        let times: Vec<NaiveTime> = rs.try_into().await?;
         trace!("times = {:?}", times);
         for (time, ntv) in times.iter().zip(naive_time_values.iter()) {
             debug!("{}, {}", time, ntv);
@@ -111,7 +111,7 @@ async fn test_secondtime(
         let dates: Vec<NaiveTime> = connection
             .query("select mytime from TEST_SECONDTIME where number = 77 or number = 13")
             .await?
-            .async_try_into()
+            .try_into()
             .await?;
         trace!("query sent");
         assert_eq!(dates.len(), 2);
@@ -131,7 +131,7 @@ async fn test_secondtime(
         let date: Option<NaiveTime> = connection
             .query("select mytime from TEST_SECONDTIME where number = 2350")
             .await?
-            .async_try_into()
+            .try_into()
             .await?;
         trace!("query sent");
         assert_eq!(date, None);

@@ -115,7 +115,7 @@ async fn test_025_decimals_impl(
         .query("select f1, f2 from TEST_DECIMALS order by f2")
         .await?;
     let scale = resultset.metadata()[1].scale() as usize;
-    let result: Vec<TestData> = resultset.async_try_into().await?;
+    let result: Vec<TestData> = resultset.try_into().await?;
     for td in result {
         debug!("{:?}, {:?}", td.f1, td.f2);
         assert_eq!(td.f1, format!("{0:.1$}", td.f2, scale));
@@ -125,7 +125,7 @@ async fn test_025_decimals_impl(
     let result: Vec<(String, String)> = connection
         .query("select * from TEST_DECIMALS")
         .await?
-        .async_try_into()
+        .try_into()
         .await?;
     for row in result {
         debug!("{}, {}", row.0, row.1);
@@ -136,13 +136,13 @@ async fn test_025_decimals_impl(
     let resultset = connection
         .query("select AVG(F3) from TEST_DECIMALS")
         .await?;
-    let mydata: Option<BigDecimal> = resultset.async_try_into().await?;
+    let mydata: Option<BigDecimal> = resultset.try_into().await?;
     assert_eq!(mydata, None);
 
     let mydata: Option<i64> = connection
         .query("select AVG(F2) from TEST_DECIMALS where f2 = '65.53500'")
         .await?
-        .async_try_into()
+        .try_into()
         .await?;
     assert_eq!(mydata, Some(65));
 
@@ -150,7 +150,7 @@ async fn test_025_decimals_impl(
     let mydata: HdbResult<i8> = connection
         .query("select SUM(ABS(F2)) from TEST_DECIMALS")
         .await?
-        .async_try_into()
+        .try_into()
         .await;
     assert!(mydata.is_err());
 
@@ -158,7 +158,7 @@ async fn test_025_decimals_impl(
     let mydata: i64 = connection
         .query("select SUM(ABS(F2)) from TEST_DECIMALS")
         .await?
-        .async_try_into()
+        .try_into()
         .await?;
     assert_eq!(mydata, 481);
 

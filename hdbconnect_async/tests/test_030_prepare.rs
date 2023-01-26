@@ -102,7 +102,7 @@ async fn prepare_insert_statement(
     let typed_result: Vec<TestStruct> = connection
         .query("select * from TEST_PREPARE")
         .await?
-        .async_try_into()
+        .try_into()
         .await?;
     assert_eq!(typed_result.len(), 6);
     for ts in typed_result {
@@ -140,7 +140,7 @@ async fn prepare_statement_use_parameter_row(
     let typed_result: i32 = connection
         .query("select sum(F2_I) from TEST_PREPARE")
         .await?
-        .async_try_into()
+        .try_into()
         .await?;
     assert_eq!(typed_result, 91);
 
@@ -175,7 +175,7 @@ async fn prepare_statement_use_parameter_row(
     let typed_result: i32 = connection
         .query("select sum(F2_I) from TEST_PREPARE")
         .await?
-        .async_try_into()
+        .try_into()
         .await?;
     assert_eq!(typed_result, 3216);
     Ok(())
@@ -236,7 +236,7 @@ async fn prepare_select_with_pars(
         )
         .await?
         .into_aresultset()?
-        .async_try_into()
+        .try_into()
         .await?;
     assert_eq!(sum_of_big_values, 286_i64);
     Ok(())
@@ -252,11 +252,11 @@ async fn prepare_select_without_pars(
 
     // two ways to do the same
     let resultset = stmt.execute(&()).await?.into_aresultset()?;
-    let sum_of_big_values: i64 = resultset.async_try_into().await?;
+    let sum_of_big_values: i64 = resultset.try_into().await?;
     assert_eq!(sum_of_big_values, 501_i64);
 
     let resultset = stmt.execute_batch().await?.into_aresultset()?;
-    let sum_of_big_values: i64 = resultset.async_try_into().await?;
+    let sum_of_big_values: i64 = resultset.try_into().await?;
     assert_eq!(sum_of_big_values, 501_i64);
 
     Ok(())

@@ -85,7 +85,7 @@ async fn test_nclobs(
     let resultset = connection.query(query).await?;
     debug!("and convert it into a rust struct");
 
-    let mydata: MyData = resultset.async_try_into().await?;
+    let mydata: MyData = resultset.try_into().await?;
     debug!(
         "reading two big NCLOB with lob-read-length {} required {} roundtrips",
         connection.lob_read_length().await?,
@@ -109,7 +109,7 @@ async fn test_nclobs(
     connection.set_lob_read_length(5_000).await?;
     let before = connection.get_call_count().await?;
     let resultset = connection.query(query).await?;
-    let second: MyData = resultset.async_try_into().await?;
+    let second: MyData = resultset.try_into().await?;
     debug!(
         "reading two big NCLOB with lob-read-length {} required {} roundtrips",
         connection.lob_read_length().await?,
@@ -121,7 +121,7 @@ async fn test_nclobs(
     let mut nclob: NCLob = connection
         .query("select chardata from TEST_NCLOBS")
         .await?
-        .async_into_single_row()
+        .into_single_row()
         .await?
         .into_single_value()?
         .try_into_nclob()?;
@@ -168,7 +168,7 @@ async fn test_streaming(
     let count: u8 = connection
         .query("select count(*) from TEST_NCLOBS where desc = 'lsadksaldk'")
         .await?
-        .async_try_into()
+        .try_into()
         .await?;
     assert_eq!(count, 1_u8, "HdbValue::CHAR did not work");
 
@@ -179,7 +179,7 @@ async fn test_streaming(
     let nclob = connection
         .query("select chardata from TEST_NCLOBS")
         .await?
-        .async_into_single_row()
+        .into_single_row()
         .await?
         .into_single_value()?
         .try_into_nclob()?;
@@ -242,7 +242,7 @@ async fn test_bytes_to_nclobs(
     let resultset = connection.query(query).await?;
     debug!("and convert it into a rust string");
 
-    let mydata: (String, String) = resultset.async_try_into().await?;
+    let mydata: (String, String) = resultset.try_into().await?;
 
     // verify we get in both cases the same value back
     assert_eq!(mydata.0, test_string);
@@ -312,7 +312,7 @@ async fn test_zero_length(
         .query("select chardata from TEST_NCLOBS where desc = 'empty'")
         .await?;
     println!("rs = {rs}");
-    let empty: String = rs.async_try_into().await?;
+    let empty: String = rs.try_into().await?;
     assert!(empty.is_empty());
     Ok(())
 }

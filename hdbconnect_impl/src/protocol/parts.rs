@@ -24,11 +24,15 @@ mod read_lob_request;
 #[cfg(feature = "async")]
 mod async_resultset;
 
+#[cfg(feature = "async")]
+pub(crate) mod async_rs_state;
 #[cfg(feature = "sync")]
 mod sync_resultset;
+#[cfg(feature = "sync")]
+pub(crate) mod sync_rs_state;
 
+pub(crate) mod am_rs_core;
 mod resultset_metadata;
-pub(crate) mod rs_state;
 mod server_error;
 mod session_context;
 mod statement_context;
@@ -39,39 +43,29 @@ mod write_lob_reply;
 mod write_lob_request;
 mod xat_options;
 
-// FIXME reduce this list in favor of the next
 #[cfg(feature = "async")]
 pub use self::async_resultset::AsyncResultSet;
 
+#[cfg(feature = "async")]
+pub(crate) use self::async_rs_state::{AsyncResultSetCore, AsyncRsState};
 #[cfg(feature = "sync")]
 pub use self::sync_resultset::SyncResultSet;
+#[cfg(feature = "sync")]
+pub(crate) use self::sync_rs_state::SyncRsState;
 
-pub use self::{
+pub(crate) use self::{
+    am_rs_core::{AmRsCore, MRsCore},
     authfields::AuthFields,
     client_context::{ClientContext, ClientContextId},
     client_info::ClientInfo,
     command_info::CommandInfo,
     connect_options::{ConnOptId, ConnectOptions},
     db_connect_info::DbConnectInfo,
-    execution_result::ExecutionResult,
-    field_metadata::FieldMetadata,
-    hdb_value::HdbValue,
     lob_flags::LobFlags,
     option_value::OptionValue,
-    output_parameters::OutputParameters,
-    parameter_descriptor::{
-        ParameterBinding, ParameterDescriptor, ParameterDescriptors, ParameterDirection,
-    },
     parameter_rows::ParameterRows,
-    partition_information::PartitionInformation,
     read_lob_reply::ReadLobReply,
     read_lob_request::ReadLobRequest,
-    resultset_metadata::ResultSetMetadata,
-    server_error::{ServerError, Severity},
-    type_id::TypeId,
-};
-pub(crate) use self::{
-    rs_state::{AmRsCore, RsState},
     session_context::SessionContext,
     statement_context::StatementContext,
     topology::Topology,
@@ -79,6 +73,19 @@ pub(crate) use self::{
     write_lob_reply::WriteLobReply,
     write_lob_request::WriteLobRequest,
     xat_options::XatOptions,
+};
+pub use self::{
+    execution_result::ExecutionResult,
+    field_metadata::FieldMetadata,
+    hdb_value::HdbValue,
+    output_parameters::OutputParameters,
+    parameter_descriptor::{
+        ParameterBinding, ParameterDescriptor, ParameterDescriptors, ParameterDirection,
+    },
+    partition_information::PartitionInformation,
+    resultset_metadata::ResultSetMetadata,
+    server_error::{ServerError, Severity},
+    type_id::TypeId,
 };
 
 use crate::{
@@ -249,7 +256,7 @@ impl Parts<'static> {
                 }
                 Part::ResultSetMetadata(rsmd) => {
                     if let Some(Part::ResultSetId(rs_id)) = parts.next() {
-                        let rs = AsyncResultSet::async_new(
+                        let rs = AsyncResultSet::new(
                             am_conn_core,
                             PartAttributes::new(0b_0000_0100),
                             rs_id,

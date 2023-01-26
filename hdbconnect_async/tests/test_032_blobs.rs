@@ -88,7 +88,7 @@ async fn test_blobs(
         connection
             .query("select length(BINDATA),length(BINDATA_NN) from TEST_BLOBS")
             .await?
-            .async_try_into::<(usize, usize)>()
+            .try_into::<(usize, usize)>()
             .await?,
         "data length in database is not as expected"
     );
@@ -97,7 +97,7 @@ async fn test_blobs(
     let before = connection.get_call_count().await?;
     let query = "select desc, bindata as BL1, bindata as BL2 , bindata_NN as BL3 from TEST_BLOBS";
     let resultset = connection.query(query).await?;
-    let mydata: MyData = resultset.async_try_into().await?;
+    let mydata: MyData = resultset.try_into().await?;
     info!(
         "reading 2x5MB BLOB with lob-read-length {} required {} roundtrips",
         connection.lob_read_length().await?,
@@ -123,7 +123,7 @@ async fn test_blobs(
     connection.set_lob_read_length(10_000).await?;
     let before = connection.get_call_count().await?;
     let resultset = connection.query(query).await?;
-    let second: MyData = resultset.async_try_into().await?;
+    let second: MyData = resultset.try_into().await?;
     info!(
         "reading 2x5MB BLOB with lob-read-length {} required {} roundtrips",
         connection.lob_read_length().await?,
@@ -137,11 +137,7 @@ async fn test_blobs(
     connection.set_lob_read_length(500_000).await?;
 
     let query = "select bindata as BL1, bindata as BL2, bindata_NN as BL3 from TEST_BLOBS";
-    let mut row = connection
-        .query(query)
-        .await?
-        .async_into_single_row()
-        .await?;
+    let mut row = connection.query(query).await?.into_single_row().await?;
     let blob: BLob = row.next_value().unwrap().try_into_blob()?;
     let blob2: BLob = row.next_value().unwrap().try_into_blob()?;
 
@@ -164,7 +160,7 @@ async fn test_blobs(
     let mut blob: BLob = connection
         .query("select bindata from TEST_BLOBS")
         .await?
-        .async_into_single_row()
+        .into_single_row()
         .await?
         .into_single_value()?
         .try_into_blob()?;
@@ -209,7 +205,7 @@ async fn test_streaming(
         connection
             .query("select length(BINDATA_NN) from TEST_BLOBS")
             .await?
-            .async_try_into::<usize>()
+            .try_into::<usize>()
             .await?,
         "data length in database is not as expected"
     );
@@ -231,7 +227,7 @@ async fn test_streaming(
     let blob = connection
         .query("select bindata_NN from TEST_BLOBS where desc = 'streaming2'")
         .await?
-        .async_into_single_row()
+        .into_single_row()
         .await?
         .into_single_value()?
         .try_into_blob()?;

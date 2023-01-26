@@ -61,7 +61,7 @@ async fn deser_option_into_option(
     type TestStruct = TS<Option<String>, Option<i32>, Option<NaiveDateTime>>;
 
     let resultset = connection.query("select * from TEST_DESER_OPT_OPT").await?;
-    let typed_result: Vec<TestStruct> = resultset.async_try_into().await?;
+    let typed_result: Vec<TestStruct> = resultset.try_into().await?;
 
     assert_eq!(typed_result.len(), 3);
     Ok(())
@@ -89,7 +89,7 @@ async fn deser_plain_into_plain(
     let resultset = connection
         .query("select * from TEST_DESER_PLAIN_PLAIN")
         .await?;
-    let typed_result: Vec<TestStruct> = resultset.async_try_into().await?;
+    let typed_result: Vec<TestStruct> = resultset.try_into().await?;
 
     assert_eq!(typed_result.len(), 3);
     Ok(())
@@ -117,7 +117,7 @@ async fn deser_plain_into_option(
     let resultset = connection
         .query("select * from TEST_DESER_PLAIN_OPT")
         .await?;
-    let typed_result: Vec<TestStruct> = resultset.async_try_into().await?;
+    let typed_result: Vec<TestStruct> = resultset.try_into().await?;
 
     assert_eq!(typed_result.len(), 3);
     Ok(())
@@ -153,7 +153,7 @@ async fn deser_option_into_plain(
     let resultset = connection
         .query("select * from TEST_DESER_OPT_PLAIN")
         .await?;
-    let typed_result: Vec<TestStruct> = resultset.async_try_into().await?;
+    let typed_result: Vec<TestStruct> = resultset.try_into().await?;
     assert_eq!(typed_result.len(), 3);
 
     // second part: with null values, deserialization must fail
@@ -163,7 +163,7 @@ async fn deser_option_into_plain(
     let resultset = connection
         .query("select * from TEST_DESER_OPT_PLAIN")
         .await?;
-    let typed_result: HdbResult<Vec<TestStruct>> = resultset.async_try_into().await;
+    let typed_result: HdbResult<Vec<TestStruct>> = resultset.try_into().await;
     if typed_result.is_ok() {
         panic!("deserialization of null values to plain data fields did not fail")
     }
@@ -196,14 +196,14 @@ async fn deser_singleline_into_struct(
     let resultset = connection
         .query("select * from TEST_DESER_SINGLE_LINE where F2_I = 17")
         .await?;
-    let typed_result: TestStruct = resultset.async_try_into().await?;
+    let typed_result: TestStruct = resultset.try_into().await?;
     assert_eq!(typed_result.f2_i, Some(17));
 
     // multi-line fails
     let resultset = connection
         .query("select * from TEST_DESER_SINGLE_LINE")
         .await?;
-    let typed_result: HdbResult<TestStruct> = resultset.async_try_into().await;
+    let typed_result: HdbResult<TestStruct> = resultset.try_into().await;
     if typed_result.is_ok() {
         panic!("deserialization of a multiline resultset to a plain struct did not fail")
     }
@@ -235,13 +235,13 @@ async fn deser_singlevalue_into_plain(
     let resultset = connection
         .query("select F2_I from TEST_DESER_SINGLE_VALUE where F2_I = 17")
         .await?;
-    let _typed_result: i64 = resultset.async_try_into().await?;
+    let _typed_result: i64 = resultset.try_into().await?;
 
     // multi-col fails
     let resultset = connection
         .query("select F2_I, F2_I from TEST_DESER_SINGLE_VALUE where F2_I = 17")
         .await?;
-    let typed_result: HdbResult<i64> = resultset.async_try_into().await;
+    let typed_result: HdbResult<i64> = resultset.try_into().await;
     if typed_result.is_ok() {
         panic!("deserialization of a multi-column resultset into a plain field did not fail")
     }
@@ -250,7 +250,7 @@ async fn deser_singlevalue_into_plain(
     let resultset = connection
         .query("select F2_I from TEST_DESER_SINGLE_VALUE")
         .await?;
-    let typed_result: HdbResult<i64> = resultset.async_try_into().await;
+    let typed_result: HdbResult<i64> = resultset.try_into().await;
     if typed_result.is_ok() {
         panic!("deserialization of a multi-row resultset into a plain field did not fail")
     }
@@ -267,110 +267,110 @@ async fn deser_all_to_string(
     assert!(connection
         .query("SELECT TO_BIGINT(NULL) FROM DUMMY")
         .await?
-        .async_try_into::<String>()
+        .try_into::<String>()
         .await
         .is_err());
     assert!(connection
         .query("SELECT TO_BINARY(NULL) FROM DUMMY")
         .await?
-        .async_try_into::<String>()
+        .try_into::<String>()
         .await
         .is_err());
     assert!(connection
         .query("SELECT TO_BLOB(NULL) FROM DUMMY")
         .await?
-        .async_try_into::<String>()
+        .try_into::<String>()
         .await
         .is_err());
     assert!(connection
         .query("SELECT TO_CLOB(NULL) FROM DUMMY")
         .await?
-        .async_try_into::<String>()
+        .try_into::<String>()
         .await
         .is_err());
     assert!(connection
         .query("SELECT TO_DATE(NULL) FROM DUMMY")
         .await?
-        .async_try_into::<String>()
+        .try_into::<String>()
         .await
         .is_err());
     // assert_eq!(connection.query("SELECT TO_DATS(NULL) FROM DUMMY")?.try_into::<String>().is_err(), true); // TO_DATS returns 00000
     assert!(connection
         .query("SELECT TO_DECIMAL(NULL) FROM DUMMY")
         .await?
-        .async_try_into::<String>()
+        .try_into::<String>()
         .await
         .is_err());
     assert!(connection
         .query("SELECT TO_DOUBLE(NULL) FROM DUMMY")
         .await?
-        .async_try_into::<String>()
+        .try_into::<String>()
         .await
         .is_err());
     assert!(connection
         .query("SELECT TO_INT(NULL) FROM DUMMY")
         .await?
-        .async_try_into::<String>()
+        .try_into::<String>()
         .await
         .is_err());
     assert!(connection
         .query("SELECT TO_INTEGER(NULL) FROM DUMMY")
         .await?
-        .async_try_into::<String>()
+        .try_into::<String>()
         .await
         .is_err());
     assert!(connection
         .query("SELECT TO_NCLOB(NULL) FROM DUMMY")
         .await?
-        .async_try_into::<String>()
+        .try_into::<String>()
         .await
         .is_err());
     assert!(connection
         .query("SELECT TO_NVARCHAR(NULL) FROM DUMMY")
         .await?
-        .async_try_into::<String>()
+        .try_into::<String>()
         .await
         .is_err());
     assert!(connection
         .query("SELECT TO_REAL(NULL) FROM DUMMY")
         .await?
-        .async_try_into::<String>()
+        .try_into::<String>()
         .await
         .is_err());
     assert!(connection
         .query("SELECT TO_SECONDDATE(NULL) FROM DUMMY")
         .await?
-        .async_try_into::<String>()
+        .try_into::<String>()
         .await
         .is_err());
     assert!(connection
         .query("SELECT TO_SMALLDECIMAL(NULL) FROM DUMMY")
         .await?
-        .async_try_into::<String>()
+        .try_into::<String>()
         .await
         .is_err());
     assert!(connection
         .query("SELECT TO_SMALLINT(NULL) FROM DUMMY")
         .await?
-        .async_try_into::<String>()
+        .try_into::<String>()
         .await
         .is_err());
     assert!(connection
         .query("SELECT TO_TIME(NULL) FROM DUMMY")
         .await?
-        .async_try_into::<String>()
+        .try_into::<String>()
         .await
         .is_err());
     assert!(connection
         .query("SELECT TO_TIMESTAMP(NULL) FROM DUMMY")
         .await?
-        .async_try_into::<String>()
+        .try_into::<String>()
         .await
         .is_err());
     assert!(connection
         .query("SELECT TO_TINYINT(NULL) FROM DUMMY")
         .await?
-        .async_try_into::<String>()
+        .try_into::<String>()
         .await
         .is_err());
 
@@ -378,97 +378,97 @@ async fn deser_all_to_string(
     connection
         .query("SELECT TO_BIGINT(NULL) FROM DUMMY")
         .await?
-        .async_try_into::<Option<String>>()
+        .try_into::<Option<String>>()
         .await?;
     connection
         .query("SELECT TO_BINARY(NULL) FROM DUMMY")
         .await?
-        .async_try_into::<Option<String>>()
+        .try_into::<Option<String>>()
         .await?;
     connection
         .query("SELECT TO_BLOB(NULL) FROM DUMMY")
         .await?
-        .async_try_into::<Option<String>>()
+        .try_into::<Option<String>>()
         .await?;
     connection
         .query("SELECT TO_CLOB(NULL) FROM DUMMY")
         .await?
-        .async_try_into::<Option<String>>()
+        .try_into::<Option<String>>()
         .await?;
     connection
         .query("SELECT TO_DATE(NULL) FROM DUMMY")
         .await?
-        .async_try_into::<Option<String>>()
+        .try_into::<Option<String>>()
         .await?;
     connection
         .query("SELECT TO_DATS(NULL) FROM DUMMY")
         .await?
-        .async_try_into::<Option<String>>()
+        .try_into::<Option<String>>()
         .await?;
     connection
         .query("SELECT TO_DECIMAL(NULL) FROM DUMMY")
         .await?
-        .async_try_into::<Option<String>>()
+        .try_into::<Option<String>>()
         .await?;
     connection
         .query("SELECT TO_DOUBLE(NULL) FROM DUMMY")
         .await?
-        .async_try_into::<Option<String>>()
+        .try_into::<Option<String>>()
         .await?;
     connection
         .query("SELECT TO_INT(NULL) FROM DUMMY")
         .await?
-        .async_try_into::<Option<String>>()
+        .try_into::<Option<String>>()
         .await?;
     connection
         .query("SELECT TO_INTEGER(NULL) FROM DUMMY")
         .await?
-        .async_try_into::<Option<String>>()
+        .try_into::<Option<String>>()
         .await?;
     connection
         .query("SELECT TO_NCLOB(NULL) FROM DUMMY")
         .await?
-        .async_try_into::<Option<String>>()
+        .try_into::<Option<String>>()
         .await?;
     connection
         .query("SELECT TO_NVARCHAR(NULL) FROM DUMMY")
         .await?
-        .async_try_into::<Option<String>>()
+        .try_into::<Option<String>>()
         .await?;
     connection
         .query("SELECT TO_REAL(NULL) FROM DUMMY")
         .await?
-        .async_try_into::<Option<String>>()
+        .try_into::<Option<String>>()
         .await?;
     connection
         .query("SELECT TO_SECONDDATE(NULL) FROM DUMMY")
         .await?
-        .async_try_into::<Option<String>>()
+        .try_into::<Option<String>>()
         .await?;
     connection
         .query("SELECT TO_SMALLDECIMAL(NULL) FROM DUMMY")
         .await?
-        .async_try_into::<Option<String>>()
+        .try_into::<Option<String>>()
         .await?;
     connection
         .query("SELECT TO_SMALLINT(NULL) FROM DUMMY")
         .await?
-        .async_try_into::<Option<String>>()
+        .try_into::<Option<String>>()
         .await?;
     connection
         .query("SELECT TO_TIME(NULL) FROM DUMMY")
         .await?
-        .async_try_into::<Option<String>>()
+        .try_into::<Option<String>>()
         .await?;
     connection
         .query("SELECT TO_TIMESTAMP(NULL) FROM DUMMY")
         .await?
-        .async_try_into::<Option<String>>()
+        .try_into::<Option<String>>()
         .await?;
     connection
         .query("SELECT TO_TINYINT(NULL) FROM DUMMY")
         .await?
-        .async_try_into::<Option<String>>()
+        .try_into::<Option<String>>()
         .await?;
 
     // Value to Option
@@ -476,7 +476,7 @@ async fn deser_all_to_string(
         connection
             .query("SELECT TO_BIGINT('10') FROM DUMMY")
             .await?
-            .async_try_into::<Option<String>>()
+            .try_into::<Option<String>>()
             .await?,
         Some("10".to_string())
     );
@@ -486,7 +486,7 @@ async fn deser_all_to_string(
         connection
             .query("SELECT TO_CLOB('10') FROM DUMMY")
             .await?
-            .async_try_into::<Option<String>>()
+            .try_into::<Option<String>>()
             .await?,
         Some("10".to_string())
     );
@@ -494,7 +494,7 @@ async fn deser_all_to_string(
         connection
             .query("SELECT TO_DATE('10') FROM DUMMY")
             .await?
-            .async_try_into::<Option<String>>()
+            .try_into::<Option<String>>()
             .await?,
         Some("0010-01-01".to_string())
     );
@@ -502,7 +502,7 @@ async fn deser_all_to_string(
         connection
             .query("SELECT TO_DATS('10') FROM DUMMY")
             .await?
-            .async_try_into::<Option<String>>()
+            .try_into::<Option<String>>()
             .await?,
         Some("00100101".to_string())
     );
@@ -510,7 +510,7 @@ async fn deser_all_to_string(
         connection
             .query("SELECT TO_DECIMAL('10') FROM DUMMY")
             .await?
-            .async_try_into::<Option<String>>()
+            .try_into::<Option<String>>()
             .await?,
         Some("10".to_string())
     );
@@ -518,7 +518,7 @@ async fn deser_all_to_string(
         connection
             .query("SELECT TO_DOUBLE('10') FROM DUMMY")
             .await?
-            .async_try_into::<Option<String>>()
+            .try_into::<Option<String>>()
             .await?,
         Some("10".to_string())
     );
@@ -526,7 +526,7 @@ async fn deser_all_to_string(
         connection
             .query("SELECT TO_INT('10') FROM DUMMY")
             .await?
-            .async_try_into::<Option<String>>()
+            .try_into::<Option<String>>()
             .await?,
         Some("10".to_string())
     );
@@ -534,7 +534,7 @@ async fn deser_all_to_string(
         connection
             .query("SELECT TO_INTEGER('10') FROM DUMMY")
             .await?
-            .async_try_into::<Option<String>>()
+            .try_into::<Option<String>>()
             .await?,
         Some("10".to_string())
     );
@@ -542,7 +542,7 @@ async fn deser_all_to_string(
         connection
             .query("SELECT TO_NCLOB('10') FROM DUMMY")
             .await?
-            .async_try_into::<Option<String>>()
+            .try_into::<Option<String>>()
             .await?,
         Some("10".to_string())
     );
@@ -550,7 +550,7 @@ async fn deser_all_to_string(
         connection
             .query("SELECT TO_NVARCHAR('10') FROM DUMMY")
             .await?
-            .async_try_into::<Option<String>>()
+            .try_into::<Option<String>>()
             .await?,
         Some("10".to_string())
     );
@@ -558,7 +558,7 @@ async fn deser_all_to_string(
         connection
             .query("SELECT TO_REAL('10') FROM DUMMY")
             .await?
-            .async_try_into::<Option<String>>()
+            .try_into::<Option<String>>()
             .await?,
         Some("10".to_string())
     );
@@ -566,7 +566,7 @@ async fn deser_all_to_string(
         connection
             .query("SELECT TO_SECONDDATE('10') FROM DUMMY")
             .await?
-            .async_try_into::<Option<String>>()
+            .try_into::<Option<String>>()
             .await?,
         Some("0010-01-01T00:00:00".to_string())
     );
@@ -574,7 +574,7 @@ async fn deser_all_to_string(
         connection
             .query("SELECT TO_SMALLDECIMAL('10') FROM DUMMY")
             .await?
-            .async_try_into::<Option<String>>()
+            .try_into::<Option<String>>()
             .await?,
         Some("10".to_string())
     );
@@ -582,7 +582,7 @@ async fn deser_all_to_string(
         connection
             .query("SELECT TO_SMALLINT('10') FROM DUMMY")
             .await?
-            .async_try_into::<Option<String>>()
+            .try_into::<Option<String>>()
             .await?,
         Some("10".to_string())
     );
@@ -590,7 +590,7 @@ async fn deser_all_to_string(
         connection
             .query("SELECT TO_TIME('10') FROM DUMMY")
             .await?
-            .async_try_into::<Option<String>>()
+            .try_into::<Option<String>>()
             .await?,
         Some("10:00:00".to_string())
     );
@@ -598,7 +598,7 @@ async fn deser_all_to_string(
         connection
             .query("SELECT TO_TIMESTAMP('10') FROM DUMMY")
             .await?
-            .async_try_into::<Option<String>>()
+            .try_into::<Option<String>>()
             .await?,
         Some("0010-01-01T00:00:00.0000000".to_string())
     );
@@ -606,7 +606,7 @@ async fn deser_all_to_string(
         connection
             .query("SELECT TO_TINYINT('10') FROM DUMMY")
             .await?
-            .async_try_into::<Option<String>>()
+            .try_into::<Option<String>>()
             .await?,
         Some("10".to_string())
     );
@@ -616,7 +616,7 @@ async fn deser_all_to_string(
         connection
             .query("SELECT TO_BIGINT('10') FROM DUMMY")
             .await?
-            .async_try_into::<String>()
+            .try_into::<String>()
             .await?,
         "10".to_string()
     );
@@ -626,7 +626,7 @@ async fn deser_all_to_string(
         connection
             .query("SELECT TO_CLOB('10') FROM DUMMY")
             .await?
-            .async_try_into::<String>()
+            .try_into::<String>()
             .await?,
         "10".to_string()
     );
@@ -634,7 +634,7 @@ async fn deser_all_to_string(
         connection
             .query("SELECT TO_DATE('10') FROM DUMMY")
             .await?
-            .async_try_into::<String>()
+            .try_into::<String>()
             .await?,
         "0010-01-01".to_string()
     );
@@ -642,7 +642,7 @@ async fn deser_all_to_string(
         connection
             .query("SELECT TO_DATS('10') FROM DUMMY")
             .await?
-            .async_try_into::<String>()
+            .try_into::<String>()
             .await?,
         "00100101".to_string()
     );
@@ -650,7 +650,7 @@ async fn deser_all_to_string(
         connection
             .query("SELECT TO_DECIMAL('10') FROM DUMMY")
             .await?
-            .async_try_into::<String>()
+            .try_into::<String>()
             .await?,
         "10".to_string()
     );
@@ -658,7 +658,7 @@ async fn deser_all_to_string(
         connection
             .query("SELECT TO_DOUBLE('10') FROM DUMMY")
             .await?
-            .async_try_into::<String>()
+            .try_into::<String>()
             .await?,
         "10".to_string()
     );
@@ -666,7 +666,7 @@ async fn deser_all_to_string(
         connection
             .query("SELECT TO_INT('10') FROM DUMMY")
             .await?
-            .async_try_into::<String>()
+            .try_into::<String>()
             .await?,
         "10".to_string()
     );
@@ -674,7 +674,7 @@ async fn deser_all_to_string(
         connection
             .query("SELECT TO_INTEGER('10') FROM DUMMY")
             .await?
-            .async_try_into::<String>()
+            .try_into::<String>()
             .await?,
         "10".to_string()
     );
@@ -682,7 +682,7 @@ async fn deser_all_to_string(
         connection
             .query("SELECT TO_NCLOB('10') FROM DUMMY")
             .await?
-            .async_try_into::<String>()
+            .try_into::<String>()
             .await?,
         "10".to_string()
     );
@@ -690,7 +690,7 @@ async fn deser_all_to_string(
         connection
             .query("SELECT TO_NVARCHAR('10') FROM DUMMY")
             .await?
-            .async_try_into::<String>()
+            .try_into::<String>()
             .await?,
         "10".to_string()
     );
@@ -698,7 +698,7 @@ async fn deser_all_to_string(
         connection
             .query("SELECT TO_REAL('10') FROM DUMMY")
             .await?
-            .async_try_into::<String>()
+            .try_into::<String>()
             .await?,
         "10".to_string()
     );
@@ -706,7 +706,7 @@ async fn deser_all_to_string(
         connection
             .query("SELECT TO_SECONDDATE('10') FROM DUMMY")
             .await?
-            .async_try_into::<String>()
+            .try_into::<String>()
             .await?,
         "0010-01-01T00:00:00".to_string()
     );
@@ -714,7 +714,7 @@ async fn deser_all_to_string(
         connection
             .query("SELECT TO_SMALLDECIMAL('10') FROM DUMMY")
             .await?
-            .async_try_into::<String>()
+            .try_into::<String>()
             .await?,
         "10".to_string()
     );
@@ -722,7 +722,7 @@ async fn deser_all_to_string(
         connection
             .query("SELECT TO_SMALLINT('10') FROM DUMMY")
             .await?
-            .async_try_into::<String>()
+            .try_into::<String>()
             .await?,
         "10".to_string()
     );
@@ -730,7 +730,7 @@ async fn deser_all_to_string(
         connection
             .query("SELECT TO_TIME('10') FROM DUMMY")
             .await?
-            .async_try_into::<String>()
+            .try_into::<String>()
             .await?,
         "10:00:00".to_string()
     );
@@ -738,7 +738,7 @@ async fn deser_all_to_string(
         connection
             .query("SELECT TO_TIMESTAMP('10') FROM DUMMY")
             .await?
-            .async_try_into::<String>()
+            .try_into::<String>()
             .await?,
         "0010-01-01T00:00:00.0000000".to_string()
     );
@@ -746,7 +746,7 @@ async fn deser_all_to_string(
         connection
             .query("SELECT TO_TINYINT('10') FROM DUMMY")
             .await?
-            .async_try_into::<String>()
+            .try_into::<String>()
             .await?,
         "10".to_string()
     );
@@ -780,14 +780,14 @@ async fn deser_singlecolumn_into_vec(
     let resultset = connection
         .query("select F1_S from TEST_DESER_SINGLE_COL order by F2_I asc")
         .await?;
-    let typed_result: Vec<String> = resultset.async_try_into().await?;
+    let typed_result: Vec<String> = resultset.try_into().await?;
     assert_eq!(typed_result.len(), 5);
 
     // multi-column fails
     let resultset = connection
         .query("select F1_S, F1_S from TEST_DESER_SINGLE_COL order by F2_I asc")
         .await?;
-    let typed_result: HdbResult<Vec<String>> = resultset.async_try_into().await;
+    let typed_result: HdbResult<Vec<String>> = resultset.try_into().await;
     if typed_result.is_ok() {
         panic!("deserialization of a multi-column resultset into a Vec<plain field> did not fail");
     }

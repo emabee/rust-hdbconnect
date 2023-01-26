@@ -1,27 +1,10 @@
-//! Native rust database driver for SAP HANA (TM).
+//! Do not use this crate directly.
 //!
-//! `hdbconnect` provides a lean, fast, and easy-to-use rust-API for working with
-//! SAP HANA. The driver is written completely in rust.
-
-//! It interoperates elegantly with all data types that implement the standard
-//! `serde::Serialize` and/or `serde::Deserialize` traits, for input and output respectively.
-//! So, instead of iterating over a resultset by rows and columns, you can
-//! assign the complete resultset directly to any rust structure that fits the data
-//! semantics.
+//! This is the immplementation crate for `hdbconnect` and `hdbconnect_async`.
 //!
-//! `hdbconnect` implements this with the help of [`serde_db`](https://docs.rs/serde_db),
-//! a reusable library for simplifying the data exchange between application code
-//! and database drivers, both for input parameters (e.g. to prepared statements)
-//! and for results that are returned from the database.
+//! If you need a synchronous driver, use `hdbconnect`.
 //!
-//! In contrast to typical ORM mapping variants, this approach allows
-//! using the full flexibility of SQL (projection lists, all kinds of joins,
-//! unions, nested queries, etc). Whatever query you need, you just use it, without further ado
-//! for defining object models etc., and whatever result structure you want to read,
-//! you just use a corresponding rust structure into
-//! which you deserialize the data. It's hard to use less code!
-//!
-//! See [code examples](crate::code_examples) for an overview.
+//! If you need an asynchronous driver, use `hdbconnect_async`.
 //!
 
 #![deny(missing_debug_implementations)]
@@ -41,17 +24,17 @@ extern crate log;
 #[macro_use]
 extern crate serde;
 
-pub mod conn;
-pub mod hdb_error;
-pub mod hdb_response;
-pub mod hdb_return_value;
-pub mod protocol;
-pub mod row;
-pub mod rows;
-pub mod serde_db_impl;
-pub mod types_impl;
+mod conn;
+mod hdb_error;
+mod hdb_response;
+mod hdb_return_value;
+mod protocol;
+mod row;
+mod rows;
+mod serde_db_impl;
+mod types_impl;
 pub mod url;
-pub mod xa_impl;
+mod xa_impl;
 
 #[cfg(feature = "async")]
 pub mod a_sync;

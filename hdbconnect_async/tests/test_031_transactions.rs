@@ -34,7 +34,7 @@ pub async fn test_031_transactions() -> HdbResult<()> {
                 server_error.code()
             ))
             .await?
-            .async_try_into()
+            .try_into()
             .await?;
         assert_eq!(error_info.0, 7);
         assert_eq!(error_info.1, "ERR_FEATURE_NOT_SUPPORTED");
@@ -145,6 +145,6 @@ async fn get_checksum(conn: &mut Connection) -> usize {
         .query("select sum(nmbr) from TEST_TRANSACTIONS")
         .await
         .unwrap();
-    let checksum: usize = resultset.async_try_into().await.unwrap();
+    let checksum: usize = resultset.try_into().await.unwrap();
     checksum
 }

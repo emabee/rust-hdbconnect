@@ -152,10 +152,7 @@ async fn test_longdate(
                 offset_datetime_values[3].to_hana(),
             ))
             .await?;
-        assert_eq!(
-            response.into_aresultset()?.async_try_into::<i32>().await?,
-            31
-        );
+        assert_eq!(response.into_aresultset()?.try_into::<i32>().await?, 31);
     }
 
     {
@@ -163,7 +160,7 @@ async fn test_longdate(
         debug!("Struct with field of type {{Offset|Primitive}}DateTime");
         let dates: Vec<WithTs> = connection.query(
             "select mydate as \"ts_p\", mydate as \"ts_o\" from TEST_LONGDATE order by number asc"
-        ).await?.async_try_into().await?;
+        ).await?.try_into().await?;
         for (date, tvd) in dates.iter().zip(primitive_datetime_values.iter()) {
             assert_eq!(date.ts_p, *tvd);
         }
@@ -175,7 +172,7 @@ async fn test_longdate(
         let dates: Vec<HanaOffsetDateTime> = connection
             .query("select mydate from TEST_LONGDATE order by number asc")
             .await?
-            .async_try_into()
+            .try_into()
             .await?;
         for (date, tvd) in dates.iter().zip(offset_datetime_values.iter()) {
             assert_eq!(**date, *tvd);
@@ -183,7 +180,7 @@ async fn test_longdate(
         let dates: Vec<HanaPrimitiveDateTime> = connection
             .query("select mydate from TEST_LONGDATE order by number asc")
             .await?
-            .async_try_into()
+            .try_into()
             .await?;
         for (date, tvd) in dates.iter().zip(primitive_datetime_values.iter()) {
             assert_eq!(**date, *tvd);
@@ -193,20 +190,20 @@ async fn test_longdate(
         let date: HanaOffsetDateTime = connection
             .query("select mydate from TEST_LONGDATE where number = 15")
             .await?
-            .async_try_into()
+            .try_into()
             .await?;
         assert_eq!(*date, offset_datetime_values[2]);
         let date: HanaPrimitiveDateTime = connection
             .query("select mydate from TEST_LONGDATE where number = 15")
             .await?
-            .async_try_into()
+            .try_into()
             .await?;
         assert_eq!(*date, primitive_datetime_values[2]);
 
         debug!("Tuple with fields of type Hana{{Offset|Primitive}}DateTime");
         let dates: Vec<(HanaPrimitiveDateTime, HanaOffsetDateTime)> = connection.query(
             "select mydate as \"ts_p\", mydate as \"ts_o\" from TEST_LONGDATE order by number asc"
-        ).await?.async_try_into().await?;
+        ).await?.try_into().await?;
         for (date, tvd) in dates.iter().zip(primitive_datetime_values.iter()) {
             assert_eq!(*date.0, *tvd);
         }
@@ -222,7 +219,7 @@ async fn test_longdate(
         let dates: Vec<HanaPrimitiveDateTime> = connection
             .query("select mydate from TEST_LONGDATE where number = 77 or number = 13")
             .await?
-            .async_try_into()
+            .try_into()
             .await?;
         assert_eq!(dates.len(), 2);
         for date in dates {
@@ -232,7 +229,7 @@ async fn test_longdate(
         let dates: Vec<HanaOffsetDateTime> = connection
             .query("select mydate from TEST_LONGDATE where number = 77 or number = 13")
             .await?
-            .async_try_into()
+            .try_into()
             .await?;
         assert_eq!(dates.len(), 2);
         for date in dates {
@@ -250,14 +247,14 @@ async fn test_longdate(
         let date: Option<PrimitiveDateTime> = connection
             .query("select mydate from TEST_LONGDATE where number = 2350")
             .await?
-            .async_try_into()
+            .try_into()
             .await?;
         assert_eq!(date, None);
 
         let date: Option<OffsetDateTime> = connection
             .query("select mydate from TEST_LONGDATE where number = 2350")
             .await?
-            .async_try_into()
+            .try_into()
             .await?;
         assert_eq!(date, None);
     }

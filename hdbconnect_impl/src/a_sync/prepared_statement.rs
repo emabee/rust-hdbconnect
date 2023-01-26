@@ -1,14 +1,14 @@
 use super::PreparedStatementCore;
-use crate::conn::AmConnCore;
-use crate::hdb_response::InternalReturnValue;
-use crate::protocol::parts::{
-    HdbValue, LobFlags, ParameterDescriptors, ParameterRows, ResultSetMetadata, TypeId,
+use crate::{
+    conn::AmConnCore,
+    hdb_response::InternalReturnValue,
+    protocol::parts::{
+        HdbValue, LobFlags, ParameterDescriptors, ParameterRows, ResultSetMetadata, TypeId,
+    },
+    protocol::{Part, PartKind, Request, RequestType, ServerUsage, HOLD_CURSORS_OVER_COMMIT},
+    types_impl::lob::async_lob_writer,
+    HdbError, HdbResponse, HdbResult,
 };
-use crate::protocol::{
-    Part, PartKind, Request, RequestType, ServerUsage, HOLD_CURSORS_OVER_COMMIT,
-};
-use crate::types_impl::lob::async_lob_writer;
-use crate::{HdbError, HdbResponse, HdbResult};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -282,8 +282,7 @@ impl<'a> PreparedStatement {
             // inject statement id
             for rv in &mut internal_return_values {
                 if let InternalReturnValue::AResultSet(rs) = rv {
-                    rs.async_inject_statement_id(Arc::clone(&self.am_ps_core))
-                        .await?;
+                    rs.inject_statement_id(Arc::clone(&self.am_ps_core)).await?;
                 }
             }
             HdbResponse::try_new(internal_return_values, replytype)
@@ -383,8 +382,7 @@ impl<'a> PreparedStatement {
         // inject statement id
         for rv in &mut internal_return_values {
             if let InternalReturnValue::AResultSet(rs) = rv {
-                rs.async_inject_statement_id(Arc::clone(&self.am_ps_core))
-                    .await?;
+                rs.inject_statement_id(Arc::clone(&self.am_ps_core)).await?;
             }
         }
 

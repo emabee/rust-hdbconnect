@@ -1,11 +1,10 @@
-use super::{
-    rs_state::{MRsCore, SyncResultSetCore},
-    RsState,
-};
 use crate::{
     conn::AmConnCore,
     protocol::{
-        parts::{Parts, ResultSetMetadata, StatementContext},
+        parts::{
+            sync_rs_state::{SyncResultSetCore, SyncRsState},
+            MRsCore, Parts, ResultSetMetadata, StatementContext,
+        },
         util, Part, PartAttributes, PartKind, ServerUsage,
     },
     sync::prepared_statement_core::SyncAmPsCore,
@@ -47,7 +46,7 @@ use std::sync::Arc;
 #[derive(Debug)]
 pub struct SyncResultSet {
     metadata: Arc<ResultSetMetadata>,
-    state: Arc<std::sync::Mutex<RsState>>,
+    state: Arc<std::sync::Mutex<SyncRsState>>,
 }
 
 impl SyncResultSet {
@@ -113,10 +112,7 @@ impl SyncResultSet {
         T: serde::de::Deserialize<'de>,
     {
         trace!("Resultset::try_into()");
-        let rows: Rows = self
-            .state
-            .lock()?
-            .sync_into_rows(Arc::clone(&self.metadata))?;
+        let rows: Rows = self.state.lock()?.into_rows(Arc::clone(&self.metadata))?;
         Ok(DeserializableResultset::try_into(rows)?)
     }
 
@@ -127,7 +123,7 @@ impl SyncResultSet {
     /// `HdbError::Usage` if the resultset contains more than a single row, or is empty.
     pub fn sync_into_single_row(self) -> HdbResult<Row> {
         let mut state = self.state.lock()?;
-        state.sync_single_row()
+        state.single_row()
     }
 
     /// Access to metadata.
@@ -165,7 +161,7 @@ impl SyncResultSet {
     ///
     /// Several variants of `HdbError` are possible.
     pub fn sync_total_number_of_rows(&self) -> HdbResult<usize> {
-        self.state.lock()?.sync_total_number_of_rows(&self.metadata)
+        self.state.lock()?.total_number_of_rows(&self.metadata)
     }
 
     /// Removes the next row and returns it, or None if the `ResultSet` is empty.
@@ -177,7 +173,7 @@ impl SyncResultSet {
     ///
     /// Several variants of `HdbError` are possible.
     pub fn sync_next_row(&mut self) -> HdbResult<Option<Row>> {
-        self.state.lock()?.sync_next_row(&self.metadata)
+        self.state.lock()?.next_row(&self.metadata)
     }
 
     /// Fetches all not yet transported result lines from the server.
@@ -192,7 +188,7 @@ impl SyncResultSet {
     ///
     /// Several variants of `HdbError` are possible.
     pub fn sync_fetch_all(&self) -> HdbResult<()> {
-        self.state.lock()?.sync_fetch_all(&self.metadata)
+        self.state.lock()?.fetch_all(&self.metadata)
     }
 
     pub(crate) fn sync_new(
@@ -214,7 +210,7 @@ impl SyncResultSet {
 
         Self {
             metadata: a_rsmd,
-            state: Arc::new(std::sync::Mutex::new(RsState {
+            state: Arc::new(std::sync::Mutex::new(SyncRsState {
                 o_am_rscore: Some(Arc::new(MRsCore::Sync(std::sync::Mutex::new(
                     SyncResultSetCore::new(am_conn_core, attrs, rs_id),
                 )))),
@@ -247,7 +243,7 @@ impl SyncResultSet {
         parts: &mut Parts,
         am_conn_core: &AmConnCore,
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
-        o_rs: &mut Option<&mut RsState>,
+        o_rs: &mut Option<&mut SyncRsState>,
         rdr: &mut dyn std::io::Read,
     ) -> std::io::Result<Option<Self>> {
         match *o_rs {
@@ -309,7 +305,7 @@ impl SyncResultSet {
                 } else {
                     return Err(util::io_error("RsState provided without RsMetadata"));
                 };
-                fetching_state.parse_rows_sync(no_of_rows, &a_rsmd, rdr)?;
+                fetching_state.parse_rows(no_of_rows, &a_rsmd, rdr)?;
                 Ok(None)
             }
         }
@@ -332,7 +328,7 @@ impl SyncResultSet {
         self.state
             .lock()
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?
-            .parse_rows_sync(no_of_rows, &self.metadata, rdr)
+            .parse_rows(no_of_rows, &self.metadata, rdr)
     }
 
     pub fn sync_inject_statement_id(&mut self, am_ps_core: SyncAmPsCore) -> HdbResult<()> {

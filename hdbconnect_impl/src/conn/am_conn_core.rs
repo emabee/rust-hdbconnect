@@ -1,16 +1,17 @@
-#[cfg(any(feature = "async", feature = "sync"))]
+#[cfg(feature = "async")]
+use crate::protocol::parts::async_rs_state::AsyncRsState;
+#[cfg(feature = "sync")]
+use crate::protocol::parts::sync_rs_state::SyncRsState;
+
 use crate::{
     conn::ConnectionCore,
     protocol::{
-        parts::{ResultSetMetadata, RsState},
+        parts::ResultSetMetadata,
         {Reply, Request},
     },
     ConnectParams, HdbError, HdbResult, ParameterDescriptors,
 };
-#[cfg(any(feature = "async", feature = "sync"))]
-use std::time::Instant;
-
-use std::sync::Arc;
+use std::{sync::Arc, time::Instant};
 
 #[derive(Clone, Debug)]
 pub struct AmConnCore(Arc<MConnCore>);
@@ -102,7 +103,7 @@ impl AmConnCore {
         mut request: Request,
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
-        o_rs: &mut Option<&mut RsState>,
+        o_rs: &mut Option<&mut SyncRsState>,
     ) -> HdbResult<Reply> {
         trace!(
             "AmConnCore::full_send() with requestType = {:?}",
@@ -139,7 +140,7 @@ impl AmConnCore {
         mut request: Request<'_>,
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
-        o_rs: &mut Option<&mut RsState>,
+        o_rs: &mut Option<&mut AsyncRsState>,
     ) -> HdbResult<Reply> {
         trace!(
             "AmConnCore::full_send() with requestType = {:?}",

@@ -51,7 +51,7 @@ async fn test_text(
     let resultset = connection.query("select * FROM TEST_BOOL").await?;
     debug!("trying deserialize result set: {:?}", resultset);
     let tuple: (Option<bool>, Option<bool>, Option<bool>, bool, bool) =
-        resultset.async_try_into().await?;
+        resultset.try_into().await?;
     assert_eq!(Some(true), tuple.0);
     assert_eq!(Some(false), tuple.1);
     assert_eq!(None, tuple.2);

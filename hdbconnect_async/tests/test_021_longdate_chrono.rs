@@ -107,7 +107,7 @@ async fn test_longdate(
         // debug!("2nd Parameter Descriptor: {:?}", pds[1]);
         // assert_eq!(pds.len(), 2);
 
-        let typed_result: i32 = response.into_aresultset()?.async_try_into().await?;
+        let typed_result: i32 = response.into_aresultset()?.try_into().await?;
         assert_eq!(typed_result, 31);
 
         info!("test the conversion DateTime<Utc> -> LongDate -> wire -> DB");
@@ -119,7 +119,7 @@ async fn test_longdate(
             .execute(&(utc2, utc3))
             .await?
             .into_aresultset()?
-            .async_try_into()
+            .try_into()
             .await?;
         assert_eq!(typed_result, 31_i32);
     }
@@ -128,7 +128,7 @@ async fn test_longdate(
         info!("test the conversion DB -> wire -> LongDate -> NaiveDateTime");
         let s = "select mydate from TEST_LONGDATE order by number asc";
         let rs = connection.query(s).await?;
-        let dates: Vec<NaiveDateTime> = rs.async_try_into().await?;
+        let dates: Vec<NaiveDateTime> = rs.try_into().await?;
         for (date, tvd) in dates.iter().zip(naive_datetime_values.iter()) {
             assert_eq!(date, tvd);
         }
@@ -141,7 +141,7 @@ async fn test_longdate(
         let dates: Vec<NaiveDateTime> = connection
             .query("select mydate from TEST_LONGDATE where number = 77 or number = 13")
             .await?
-            .async_try_into()
+            .try_into()
             .await?;
         assert_eq!(dates.len(), 2);
         for date in dates {
@@ -160,7 +160,7 @@ async fn test_longdate(
         let date: Option<NaiveDateTime> = connection
             .query("select mydate from TEST_LONGDATE where number = 2350")
             .await?
-            .async_try_into()
+            .try_into()
             .await?;
         trace!("query sent");
         assert_eq!(date, None);

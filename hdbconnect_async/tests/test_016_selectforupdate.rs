@@ -90,7 +90,7 @@ async fn produce_conflicts(
     let i: i32 = connection
         .query("select F2_I from TEST_SELFORUPDATE where F1_S = 'Hello'")
         .await?
-        .async_try_into()
+        .try_into()
         .await?;
     assert_eq!(i, 1);
 
@@ -108,7 +108,7 @@ async fn produce_conflicts(
         val = connection3
             .query("select F2_I from TEST_SELFORUPDATE where F1_S = 'Hello'")
             .await?
-            .async_try_into()
+            .try_into()
             .await?;
         if val == 2 {
             break;

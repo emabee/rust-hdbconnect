@@ -1,30 +1,32 @@
-use crate::conn::AmConnCore;
-use crate::protocol::parts::{length_indicator, AmRsCore, ParameterDescriptor, TypeId};
-use crate::protocol::util;
+use crate::{
+    conn::AmConnCore,
+    protocol::{
+        parts::{length_indicator, AmRsCore, ParameterDescriptor, TypeId},
+        util,
+    },
+    types::{BLob, CLob, DayDate, LongDate, NCLob, SecondDate, SecondTime},
+    types_impl::{decimal, lob},
+    HdbError, HdbResult,
+};
+
 #[cfg(feature = "async")]
-use crate::protocol::util_async;
+use crate::{
+    protocol::util_async,
+    types_impl::{
+        daydate::parse_daydate_async, longdate::parse_longdate_async,
+        seconddate::parse_seconddate_async, secondtime::parse_secondtime_async,
+    },
+};
+
 #[cfg(feature = "sync")]
-use crate::protocol::util_sync;
-use crate::types::{BLob, CLob, DayDate, LongDate, NCLob, SecondDate, SecondTime};
-#[cfg(feature = "async")]
-use crate::types_impl::daydate::parse_daydate_async;
-#[cfg(feature = "sync")]
-use crate::types_impl::daydate::parse_daydate_sync;
-use crate::types_impl::decimal;
-use crate::types_impl::lob;
-#[cfg(feature = "async")]
-use crate::types_impl::longdate::parse_longdate_async;
-#[cfg(feature = "sync")]
-use crate::types_impl::longdate::parse_longdate_sync;
-#[cfg(feature = "async")]
-use crate::types_impl::seconddate::parse_seconddate_async;
-#[cfg(feature = "sync")]
-use crate::types_impl::seconddate::parse_seconddate_sync;
-#[cfg(feature = "async")]
-use crate::types_impl::secondtime::parse_secondtime_async;
-#[cfg(feature = "sync")]
-use crate::types_impl::secondtime::parse_secondtime_sync;
-use crate::{HdbError, HdbResult};
+use crate::{
+    protocol::util_sync,
+    types_impl::{
+        daydate::parse_daydate_sync, longdate::parse_longdate_sync,
+        seconddate::parse_seconddate_sync, secondtime::parse_secondtime_sync,
+    },
+};
+
 use bigdecimal::BigDecimal;
 #[cfg(feature = "sync")]
 use byteorder::WriteBytesExt;

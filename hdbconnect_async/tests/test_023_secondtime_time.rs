@@ -74,7 +74,7 @@ async fn test_secondtime(
             .execute_batch()
             .await?
             .into_aresultset()?
-            .async_try_into()
+            .try_into()
             .await?;
         assert_eq!(typed_result, 31);
     }
@@ -83,7 +83,7 @@ async fn test_secondtime(
         info!("test the conversion DB -> Time");
         let s = "select mytime from TEST_SECONDTIME order by number asc";
         let rs = connection.query(s).await?;
-        let times: Vec<HanaTime> = rs.async_try_into().await?;
+        let times: Vec<HanaTime> = rs.try_into().await?;
         for (time, ntv) in times.iter().zip(time_values.iter()) {
             assert_eq!(**time, *ntv);
         }
@@ -97,7 +97,7 @@ async fn test_secondtime(
         let times: Vec<HanaTime> = connection
             .query("select mytime from TEST_SECONDTIME where number = 77 or number = 13")
             .await?
-            .async_try_into()
+            .try_into()
             .await?;
         assert_eq!(times.len(), 2);
         for time in times {
@@ -115,7 +115,7 @@ async fn test_secondtime(
         let date: Option<Time> = connection
             .query("select mytime from TEST_SECONDTIME where number = 2350")
             .await?
-            .async_try_into()
+            .try_into()
             .await?;
         assert_eq!(date, None);
     }

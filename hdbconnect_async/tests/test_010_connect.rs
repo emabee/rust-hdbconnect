@@ -85,7 +85,7 @@ async fn client_info(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
         .execute(&connection_id)
         .await?
         .into_aresultset()?
-        .async_try_into()
+        .try_into()
         .await?;
     check_session_context(true, &result);
 
@@ -99,7 +99,7 @@ async fn client_info(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
         .execute(&connection_id)
         .await?
         .into_aresultset()?
-        .async_try_into()
+        .try_into()
         .await?;
     check_session_context(false, &result);
 
@@ -108,20 +108,20 @@ async fn client_info(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
         .execute(&connection_id)
         .await?
         .into_aresultset()?
-        .async_try_into()
+        .try_into()
         .await?;
 
     let _result: Vec<SessCtx> = prep_stmt
         .execute(&connection_id)
         .await?
         .into_aresultset()?
-        .async_try_into()
+        .try_into()
         .await?;
     let result: Vec<SessCtx> = prep_stmt
         .execute(&connection_id)
         .await?
         .into_aresultset()?
-        .async_try_into()
+        .try_into()
         .await?;
     check_session_context(false, &result);
     _log_handle.pop_temp_spec();
@@ -200,7 +200,7 @@ async fn select_version_and_user(connection: &mut Connection) -> HdbResult<()> {
     let stmt = r#"SELECT VERSION as "version", CURRENT_USER as "current_user" FROM SYS.M_DATABASE"#;
     debug!("calling connection.query(SELECT VERSION as ...)");
     let resultset = connection.query(stmt).await?;
-    let version_and_user: VersionAndUser = resultset.async_try_into().await?;
+    let version_and_user: VersionAndUser = resultset.try_into().await?;
     let conn_params: ConnectParams = test_utils::get_std_cp_builder()?.into_connect_params()?;
     assert_eq!(
         version_and_user.current_user,
@@ -236,7 +236,7 @@ async fn command_info(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
         .execute_with_debuginfo(stmt, "BLABLA", 4711)
         .await?
         .into_aresultset()?
-        .async_try_into()
+        .try_into()
         .await?;
 
     let stmt = r#"SELECT KEY, NONSENSE FROM M_SESSION_CONTEXT ORDER BY KEY"#;
