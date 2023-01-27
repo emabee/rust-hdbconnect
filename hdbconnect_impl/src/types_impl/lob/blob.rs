@@ -178,7 +178,7 @@ impl BLob {
         trace!("BLob::into_bytes_if_complete()");
         #[cfg(feature = "sync")]
         {
-            return Ok(self.0.sync_into_bytes()?);
+            return self.0.sync_into_bytes();
         }
         #[cfg(feature = "async")]
         {

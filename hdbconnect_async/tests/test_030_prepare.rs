@@ -235,7 +235,7 @@ async fn prepare_select_with_pars(
             &(45_i32),
         )
         .await?
-        .into_aresultset()?
+        .into_resultset()?
         .try_into()
         .await?;
     assert_eq!(sum_of_big_values, 286_i64);
@@ -251,11 +251,11 @@ async fn prepare_select_without_pars(
     let mut stmt = connection.prepare(stmt_str).await?;
 
     // two ways to do the same
-    let resultset = stmt.execute(&()).await?.into_aresultset()?;
+    let resultset = stmt.execute(&()).await?.into_resultset()?;
     let sum_of_big_values: i64 = resultset.try_into().await?;
     assert_eq!(sum_of_big_values, 501_i64);
 
-    let resultset = stmt.execute_batch().await?.into_aresultset()?;
+    let resultset = stmt.execute_batch().await?.into_resultset()?;
     let sum_of_big_values: i64 = resultset.try_into().await?;
     assert_eq!(sum_of_big_values, 501_i64);
 
@@ -271,7 +271,7 @@ async fn prepare_and_execute_with_fetch(
     let _rs = connection
         .prepare_and_execute("select * from M_TABLES", &())
         .await?
-        .into_aresultset()?
+        .into_resultset()?
         .into_rows()
         .await?;
     Ok(())

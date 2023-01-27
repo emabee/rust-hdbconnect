@@ -1,12 +1,11 @@
 use crate::{
+    a_sync::ResultSet,
     protocol::{
         parts::{ExecutionResult, OutputParameters},
         ReplyType,
     },
     HdbError, HdbResult, HdbReturnValue, InternalReturnValue,
 };
-
-use super::resultset::ResultSet;
 
 /// Represents all possible non-error responses to a database command.
 ///
@@ -256,8 +255,7 @@ impl HdbResponse {
     /// # Errors
     ///
     /// `HdbError::Evaluation` if information would get lost.
-    // FIXME rename
-    pub fn into_aresultset(self) -> HdbResult<ResultSet> {
+    pub fn into_resultset(self) -> HdbResult<ResultSet> {
         self.into_single_retval()?.async_into_resultset()
     }
 
@@ -330,15 +328,15 @@ impl HdbResponse {
     /// # Errors
     ///
     /// `HdbError` if there is no further `ResultSet`.
-    pub fn get_aresultset(&mut self) -> HdbResult<ResultSet> {
-        if let Some(i) = self.find_async_resultset() {
+    pub fn get_resultset(&mut self) -> HdbResult<ResultSet> {
+        if let Some(i) = self.find_resultset() {
             self.return_values.remove(i).async_into_resultset()
         } else {
             Err(self.get_err("resultset"))
         }
     }
 
-    fn find_async_resultset(&self) -> Option<usize> {
+    fn find_resultset(&self) -> Option<usize> {
         for (i, rt) in self.return_values.iter().enumerate().rev() {
             if let HdbReturnValue::AResultSet(_) = *rt {
                 return Some(i);

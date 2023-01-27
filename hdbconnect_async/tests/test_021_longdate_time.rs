@@ -152,7 +152,7 @@ async fn test_longdate(
                 offset_datetime_values[3].to_hana(),
             ))
             .await?;
-        assert_eq!(response.into_aresultset()?.try_into::<i32>().await?, 31);
+        assert_eq!(response.into_resultset()?.try_into::<i32>().await?, 31);
     }
 
     {

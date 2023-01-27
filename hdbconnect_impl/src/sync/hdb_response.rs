@@ -323,14 +323,14 @@ impl HdbResponse {
     ///
     /// `HdbError` if there is no further `ResultSet`.
     pub fn get_resultset(&mut self) -> HdbResult<ResultSet> {
-        if let Some(i) = self.find_sync_resultset() {
+        if let Some(i) = self.find_resultset() {
             self.return_values.remove(i).sync_into_resultset()
         } else {
             Err(self.get_err("resultset"))
         }
     }
 
-    fn find_sync_resultset(&self) -> Option<usize> {
+    fn find_resultset(&self) -> Option<usize> {
         for (i, rt) in self.return_values.iter().enumerate().rev() {
             if let HdbReturnValue::ResultSet(_) = *rt {
                 return Some(i);
@@ -388,7 +388,6 @@ impl HdbResponse {
         errmsg.push_str(" found in this HdbResponse [");
         for rt in &self.return_values {
             errmsg.push_str(match *rt {
-                #[cfg(feature = "sync")]
                 HdbReturnValue::ResultSet(_) => "ResultSet, ",
                 #[cfg(feature = "async")]
                 HdbReturnValue::AResultSet(_) => "ResultSet, ",

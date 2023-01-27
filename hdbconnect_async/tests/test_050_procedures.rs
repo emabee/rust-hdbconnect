@@ -47,7 +47,7 @@ async fn very_simple_procedure(
 
     let mut response = connection.statement("call TEST_PROCEDURE").await?;
     response.get_success()?;
-    let _resultset = response.get_aresultset()?;
+    let _resultset = response.get_resultset()?;
     Ok(())
 }
 
@@ -85,8 +85,8 @@ async fn procedure_with_out_resultsets(
 
     let mut response = connection.statement("call GET_PROCEDURES(?,?)").await?;
     response.get_success()?;
-    let l1 = response.get_aresultset()?.total_number_of_rows().await?;
-    let l2 = response.get_aresultset()?.total_number_of_rows().await?;
+    let l1 = response.get_resultset()?.total_number_of_rows().await?;
+    let l2 = response.get_resultset()?.total_number_of_rows().await?;
     assert_eq!(2 * l1, l2);
     Ok(())
 }
@@ -122,8 +122,8 @@ async fn procedure_with_secret_resultsets(
         .await?;
 
     response.get_success()?;
-    let l1 = response.get_aresultset()?.total_number_of_rows().await?;
-    let l2 = response.get_aresultset()?.total_number_of_rows().await?;
+    let l1 = response.get_resultset()?.total_number_of_rows().await?;
+    let l2 = response.get_resultset()?.total_number_of_rows().await?;
     assert_eq!(2 * l1, l2);
 
     let mut response: HdbResponse = connection
@@ -171,7 +171,7 @@ async fn procedure_with_in_parameters(
     prepared_stmt.add_batch(&(42, "is between 41 and 43"))?;
     let mut response = prepared_stmt.execute_batch().await?;
     response.get_success()?;
-    let mut rs: ResultSet = response.get_aresultset()?;
+    let mut rs: ResultSet = response.get_resultset()?;
     let mut row: Row = rs.next_row().await?.unwrap();
     let value: i32 = row.next_value().unwrap().try_into()?;
     assert_eq!(value, 42_i32);
@@ -226,7 +226,7 @@ async fn procedure_with_in_and_out_parameters(
     let (_inout_ts, out_s): (String, String) = output_parameters.try_into()?;
     assert_eq!(out_s, "some output string");
 
-    let mut rs = response.get_aresultset()?;
+    let mut rs = response.get_resultset()?;
     let value: i32 = rs
         .next_row()
         .await?
@@ -262,7 +262,7 @@ async fn procedure_with_in_nclob_non_consuming(
     debug!("Still owned {:?}", &my_parameter);
     let mut response = prepared_stmt.execute_batch().await?;
     response.get_success()?;
-    let mut rs = response.get_aresultset()?;
+    let mut rs = response.get_resultset()?;
     let mut row = rs.next_row().await?.unwrap();
     let value: String = row.next_value().unwrap().try_into()?;
     assert_eq!(value, "nclob string");

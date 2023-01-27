@@ -84,7 +84,7 @@ async fn client_info(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
     let result: Vec<SessCtx> = prep_stmt
         .execute(&connection_id)
         .await?
-        .into_aresultset()?
+        .into_resultset()?
         .try_into()
         .await?;
     check_session_context(true, &result);
@@ -98,7 +98,7 @@ async fn client_info(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
     let result: Vec<SessCtx> = prep_stmt
         .execute(&connection_id)
         .await?
-        .into_aresultset()?
+        .into_resultset()?
         .try_into()
         .await?;
     check_session_context(false, &result);
@@ -107,20 +107,20 @@ async fn client_info(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
     let _result: Vec<SessCtx> = prep_stmt
         .execute(&connection_id)
         .await?
-        .into_aresultset()?
+        .into_resultset()?
         .try_into()
         .await?;
 
     let _result: Vec<SessCtx> = prep_stmt
         .execute(&connection_id)
         .await?
-        .into_aresultset()?
+        .into_resultset()?
         .try_into()
         .await?;
     let result: Vec<SessCtx> = prep_stmt
         .execute(&connection_id)
         .await?
-        .into_aresultset()?
+        .into_resultset()?
         .try_into()
         .await?;
     check_session_context(false, &result);
@@ -235,7 +235,7 @@ async fn command_info(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
     let _result: Vec<SessCtx> = connection
         .execute_with_debuginfo(stmt, "BLABLA", 4711)
         .await?
-        .into_aresultset()?
+        .into_resultset()?
         .try_into()
         .await?;
 

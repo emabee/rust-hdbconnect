@@ -282,7 +282,7 @@ async fn test_loblifecycle(
         let mut read_stmt = connection
             .prepare("select chardata from TEST_NCLOBS2 where desc like ?")
             .await?;
-        let rs = read_stmt.execute(&"blabla %").await?.into_aresultset()?;
+        let rs = read_stmt.execute(&"blabla %").await?.into_resultset()?;
         rs.into_rows()
             .await?
             .map(|mut r| r.next_value().unwrap())

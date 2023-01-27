@@ -89,7 +89,7 @@ impl Connection {
     ///
     /// Several variants of `HdbError` can occur.
     pub async fn query<S: AsRef<str>>(&mut self, stmt: S) -> HdbResult<ResultSet> {
-        self.statement(stmt).await?.into_aresultset()
+        self.statement(stmt).await?.into_resultset()
     }
 
     /// Executes a statement and expects a single number of affected rows.

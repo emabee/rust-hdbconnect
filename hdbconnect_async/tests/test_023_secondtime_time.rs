@@ -73,7 +73,7 @@ async fn test_secondtime(
         let typed_result: i32 = prep_stmt
             .execute_batch()
             .await?
-            .into_aresultset()?
+            .into_resultset()?
             .try_into()
             .await?;
         assert_eq!(typed_result, 31);

@@ -110,7 +110,7 @@ async fn test_timestamp(
             primitive_datetime_values[3].to_hana(),
         ))?;
         let response = prep_stmt.execute_batch().await?;
-        let typed_result: i32 = response.into_aresultset()?.try_into().await?;
+        let typed_result: i32 = response.into_resultset()?.try_into().await?;
         assert_eq!(typed_result, 31);
     }
 

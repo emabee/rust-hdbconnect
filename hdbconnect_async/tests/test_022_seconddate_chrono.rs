@@ -102,7 +102,7 @@ async fn test_seconddate(
         let typed_result: i32 = prep_stmt
             .execute_batch()
             .await?
-            .into_aresultset()?
+            .into_resultset()?
             .try_into()
             .await?;
         assert_eq!(typed_result, 31);
@@ -115,7 +115,7 @@ async fn test_seconddate(
         let typed_result: i32 = prep_stmt
             .execute_batch()
             .await?
-            .into_aresultset()?
+            .into_resultset()?
             .try_into()
             .await?;
         assert_eq!(typed_result, 31_i32);
