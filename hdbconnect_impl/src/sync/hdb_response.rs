@@ -250,7 +250,7 @@ impl HdbResponse {
     ///
     /// `HdbError::Evaluation` if information would get lost.
     pub fn into_resultset(self) -> HdbResult<ResultSet> {
-        self.into_single_retval()?.sync_into_resultset()
+        self.into_single_retval()?.into_resultset()
     }
 
     /// Turns itself into a Vector of numbers (each number representing a
@@ -324,7 +324,7 @@ impl HdbResponse {
     /// `HdbError` if there is no further `ResultSet`.
     pub fn get_resultset(&mut self) -> HdbResult<ResultSet> {
         if let Some(i) = self.find_resultset() {
-            self.return_values.remove(i).sync_into_resultset()
+            self.return_values.remove(i).into_resultset()
         } else {
             Err(self.get_err("resultset"))
         }
@@ -390,7 +390,7 @@ impl HdbResponse {
             errmsg.push_str(match *rt {
                 HdbReturnValue::ResultSet(_) => "ResultSet, ",
                 #[cfg(feature = "async")]
-                HdbReturnValue::AResultSet(_) => "ResultSet, ",
+                HdbReturnValue::AsyncResultSet(_) => "ResultSet, ",
                 HdbReturnValue::AffectedRows(_) => "AffectedRows, ",
                 HdbReturnValue::OutputParameters(_) => "OutputParameters, ",
                 HdbReturnValue::Success => "Success, ",

@@ -6,7 +6,7 @@ use tokio::io::ReadBuf;
 #[cfg(feature = "sync")]
 use super::fetch::sync_fetch_a_lob_chunk;
 #[cfg(feature = "sync")]
-use std::io::{Read, Write};
+use std::io::Write;
 
 use super::CharLobSlice;
 use crate::{
@@ -14,249 +14,7 @@ use crate::{
     protocol::{parts::AmRsCore, util},
     {HdbError, HdbResult, ServerUsage},
 };
-use std::{boxed::Box, collections::VecDeque};
-
-/// LOB implementation for unicode Strings (deprecated).
-///
-/// `CLob` is used within [`HdbValue::CLOB`](../enum.HdbValue.html#variant.CLOB) (deprecated)
-/// instances received from the database.
-///
-/// Bigger LOBs are not transferred completely in the first roundtrip, instead more data is
-/// fetched in subsequent roundtrips when needed.
-///
-/// `CLob` respects the Connection's lob read length
-/// (see [`Connection::set_lob_read_length`](crate::Connection::set_lob_read_length)).
-#[derive(Clone, Debug)]
-pub struct CLob(Box<CLobHandle>);
-
-impl CLob {
-    pub(crate) fn new(
-        am_conn_core: &AmConnCore,
-        o_am_rscore: &Option<AmRsCore>,
-        is_data_complete: bool,
-        total_char_length: u64,
-        total_byte_length: u64,
-        locator_id: u64,
-        data: Vec<u8>,
-    ) -> HdbResult<Self> {
-        Ok(Self(Box::new(CLobHandle::new(
-            am_conn_core,
-            o_am_rscore,
-            is_data_complete,
-            total_char_length,
-            total_byte_length,
-            locator_id,
-            data,
-        )?)))
-    }
-
-    /// Converts the `CLob` into the contained String.
-    ///
-    /// All outstanding data (data that were not yet fetched from the server) are fetched
-    /// _into_ this `CLob` object, before the complete data,
-    /// as far as they were not yet read _from_ this `CLob` object, are returned.
-    ///
-    /// ## Example
-    ///
-    /// ```rust, no_run
-    /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, Row};
-    /// # fn foo() -> HdbResult<()> {
-    /// # let params = "".into_connect_params()?;
-    /// # let mut connection = Connection::new(params)?;
-    /// # let query = "";
-    ///  let mut resultset = connection.query(query)?;
-    ///  let mut clob = resultset.into_single_row()?.into_single_value()?.try_into_clob()?;
-    ///  let s = clob.into_string(); // String, can be huge
-    /// # Ok(())
-    /// # }
-    /// ```
-    ///
-    /// # Alternative
-    ///
-    /// For larger objects, a streaming approach using the `Read` implementation of `CLob`
-    /// might by more appropriate, to avoid total allocation of the large object.
-    ///
-    /// ## Example
-    ///
-    /// ```rust, no_run
-    /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, Row};
-    /// # fn foo() -> HdbResult<()> {
-    /// # let params = "".into_connect_params()?;
-    /// # let mut connection = Connection::new(params)?;
-    ///  let mut writer;
-    ///  // ... writer gets instantiated, is an implementation of std::io::Write;
-    ///  # writer = Vec::<u8>::new();
-    ///
-    ///  # let query = "";
-    ///  # let mut resultset = connection.query(query)?;
-    ///  # let mut clob = resultset.into_single_row()?.into_single_value()?.try_into_clob()?;
-    ///  std::io::copy(&mut clob, &mut writer)?;
-    /// # Ok(())
-    /// # }
-    /// ```
-    ///
-    /// # Errors
-    ///
-    /// Several variants of `HdbError` can occur.
-    #[cfg(feature = "sync")]
-    pub fn sync_into_string(mut self) -> HdbResult<String> {
-        trace!("CLob::into_string()");
-        self.sync_load_complete()?;
-        self.0.into_string_if_complete()
-    }
-
-    /// Converts the `CLob` into the contained String.
-    ///
-    /// All outstanding data (data that were not yet fetched from the server) are fetched
-    /// _into_ this `CLob` object, before the complete data,
-    /// as far as they were not yet read _from_ this `CLob` object, are returned.
-    ///
-    /// ## Example
-    ///
-    /// ```rust, no_run
-    /// # use hdbconnect::{Connection, HdbResult, IntoConnectParams, Row};
-    /// # fn foo() -> HdbResult<()> {
-    /// # let params = "".into_connect_params()?;
-    /// # let mut connection = Connection::new(params)?;
-    /// # let query = "";
-    ///  let mut resultset = connection.query(query)?;
-    ///  let mut clob = resultset.into_single_row().await?.into_single_value()?.try_into_clob()?;
-    ///  let s = clob.into_string(); // String, can be huge
-    /// # Ok(())
-    /// # }
-    /// ```
-    ///
-    /// # Alternative
-    ///
-    /// For larger objects, a streaming approach using [`CLob::write_into`]
-    /// might by more appropriate, to avoid total allocation of the large object.
-    ///
-    /// # Errors
-    ///
-    /// Several variants of `HdbError` can occur.
-    #[cfg(feature = "async")]
-    pub async fn async_into_string(mut self) -> HdbResult<String> {
-        trace!("CLob::into_string()");
-        self.0.async_load_complete().await?;
-        self.0.into_string_if_complete()
-    }
-
-    /// Writes the content into the given writer.
-    ///
-    /// Reads outstanding data in chunks of size
-    /// [`Connection::lob_read_length`](../struct.Connection.html#method.lob_read_length) from the database
-    /// and writes them immediately into the writer,
-    /// thus avoiding that all data are materialized within this `NCLob`.
-    #[cfg(feature = "sync")]
-    pub fn sync_write_into(mut self, writer: &mut dyn std::io::Write) -> HdbResult<()> {
-        let lob_read_length: usize = self.0.am_conn_core.sync_lock()?.lob_read_length() as usize;
-        let mut buf = vec![0_u8; lob_read_length].into_boxed_slice();
-
-        loop {
-            let read = self.0.read(&mut buf)?;
-            if read == 0 {
-                break;
-            }
-            writer.write_all(&buf[0..read])?;
-        }
-        writer.flush()?;
-        Ok(())
-    }
-
-    /// Writes the content into the given writer.
-    ///
-    /// Reads outstanding data in chunks of size
-    /// [`Connection::lob_read_length`](../struct.Connection.html#method.lob_read_length) from the database
-    /// and writes them immediately into the writer,
-    /// thus avoiding that all data are materialized within this `CLob`.
-    #[cfg(feature = "async")]
-    pub async fn async_write_into<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
-        mut self,
-        writer: &mut W,
-    ) -> HdbResult<()> {
-        let lob_read_length: usize =
-            self.0.am_conn_core.async_lock().await.lob_read_length() as usize;
-        let mut buf = vec![0_u8; lob_read_length].into_boxed_slice();
-
-        loop {
-            let read = self.0.async_read(&mut buf).await?;
-            if read == 0 {
-                break;
-            }
-            writer.write_all(&buf[0..read]).await?;
-        }
-        writer.flush().await?;
-        Ok(())
-    }
-
-    #[allow(unused_mut)]
-    pub(crate) fn into_string_if_complete(mut self) -> HdbResult<String> {
-        #[cfg(feature = "sync")]
-        {
-            self.0.sync_load_complete()?;
-        }
-        self.0.into_string_if_complete()
-    }
-
-    #[cfg(feature = "sync")]
-    pub(crate) fn sync_load_complete(&mut self) -> HdbResult<()> {
-        self.0.sync_load_complete()
-    }
-
-    #[cfg(feature = "async")]
-    pub(crate) async fn async_load_complete(&mut self) -> HdbResult<()> {
-        self.0.async_load_complete().await
-    }
-
-    /// Reads from given offset and the given length, in bytes.
-    ///
-    /// # Errors
-    ///
-    /// Several variants of `HdbError` can occur.
-    #[cfg(feature = "sync")]
-    pub fn sync_read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
-        self.0.sync_read_slice(offset, length)
-    }
-
-    /// Reads from given offset and the given length, in bytes.
-    ///
-    /// # Errors
-    ///
-    /// Several variants of `HdbError` can occur.
-    #[cfg(feature = "async")]
-    pub async fn async_read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
-        self.0.read_slice(offset, length).await
-    }
-
-    /// Total length of data, in bytes.
-    pub fn total_byte_length(&self) -> u64 {
-        self.0.total_byte_length()
-    }
-
-    /// Returns true if the `CLob` does not contain data.
-    pub fn is_empty(&self) -> bool {
-        self.total_byte_length() == 0
-    }
-
-    /// Current size of the internal buffer, in bytes.
-    pub fn cur_buf_len(&self) -> usize {
-        self.0.cur_buf_len()
-    }
-
-    /// Provides information about the the server-side resource consumption that
-    /// is related to this `CBLob` object.
-    pub fn server_usage(&self) -> ServerUsage {
-        self.0.server_usage
-    }
-}
-
-// Support for CLob streaming
-#[cfg(feature = "sync")]
-impl std::io::Read for CLob {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        self.0.read(buf)
-    }
-}
+use std::collections::VecDeque;
 
 // `CLobHandle` is used for CLOBs that we receive from the database.
 // The data are often not transferred completely, so we carry internally
@@ -265,8 +23,8 @@ impl std::io::Read for CLob {
 // Since the data stream can be cut into chunks anywhere in the byte stream,
 // we may need to buffer an orphaned part of a multi-byte sequence between two fetches.
 #[derive(Clone, Debug)]
-struct CLobHandle {
-    am_conn_core: AmConnCore,
+pub(crate) struct CLobHandle {
+    pub(crate) am_conn_core: AmConnCore,
     o_am_rscore: Option<AmRsCore>,
     is_data_complete: bool,
     total_char_length: u64,
@@ -275,10 +33,10 @@ struct CLobHandle {
     cesu8: VecDeque<u8>,
     cesu8_tail_len: usize,
     acc_byte_length: usize,
-    server_usage: ServerUsage,
+    pub(crate) server_usage: ServerUsage,
 }
 impl CLobHandle {
-    fn new(
+    pub(crate) fn new(
         am_conn_core: &AmConnCore,
         o_am_rscore: &Option<AmRsCore>,
         is_data_complete: bool,
@@ -318,7 +76,7 @@ impl CLobHandle {
     }
 
     #[cfg(feature = "sync")]
-    fn sync_read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
+    pub(crate) fn sync_read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
         let (reply_data, _reply_is_last_data) = sync_fetch_a_lob_chunk(
             &mut self.am_conn_core,
             self.locator_id,
@@ -331,7 +89,7 @@ impl CLobHandle {
     }
 
     #[cfg(feature = "async")]
-    async fn read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
+    pub(crate) async fn read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
         let (reply_data, _reply_is_last_data) = async_fetch_a_lob_chunk(
             &mut self.am_conn_core,
             self.locator_id,
@@ -344,11 +102,11 @@ impl CLobHandle {
         Ok(util::split_off_orphaned_bytes(&reply_data))
     }
 
-    fn total_byte_length(&self) -> u64 {
+    pub(crate) fn total_byte_length(&self) -> u64 {
         self.total_byte_length
     }
 
-    fn cur_buf_len(&self) -> usize {
+    pub(crate) fn cur_buf_len(&self) -> usize {
         self.cesu8.len()
     }
 
@@ -456,7 +214,7 @@ impl CLobHandle {
     }
 
     // Converts a CLobHandle into a String containing its data.
-    fn into_string_if_complete(self) -> HdbResult<String> {
+    pub(crate) fn into_string_if_complete(self) -> HdbResult<String> {
         trace!("CLobHandle::into_string()");
         if self.is_data_complete {
             Ok(util::string_from_cesu8(Vec::from(self.cesu8))?)
@@ -500,7 +258,7 @@ impl std::io::Read for CLobHandle {
 
 #[cfg(feature = "async")]
 impl CLobHandle {
-    async fn async_read(&mut self, buf: &mut [u8]) -> HdbResult<usize> {
+    pub(crate) async fn async_read(&mut self, buf: &mut [u8]) -> HdbResult<usize> {
         let mut buf = ReadBuf::new(buf);
         let buf_len = buf.capacity();
         debug_assert!(buf.filled().is_empty());

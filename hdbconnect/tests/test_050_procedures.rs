@@ -274,8 +274,8 @@ fn procedure_with_in_nclob_and_out_nclob(
     )));
 
     let mut result = stmt.execute_row(vec![
-        HdbValue::SYNCLOBSTREAM(Some(reader1)),
-        HdbValue::SYNCLOBSTREAM(Some(reader2)),
+        HdbValue::SYNC_LOBSTREAM(Some(reader1)),
+        HdbValue::SYNC_LOBSTREAM(Some(reader2)),
     ])?;
 
     let response: NCLob = result
@@ -287,7 +287,7 @@ fn procedure_with_in_nclob_and_out_nclob(
         .try_into_nclob()?;
 
     assert_eq!(
-        response.sync_into_string()?,
+        response.into_string()?,
         String::from("Hello World! Can you read that??")
     );
     Ok(())

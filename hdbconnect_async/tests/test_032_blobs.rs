@@ -138,17 +138,17 @@ async fn test_blobs(
 
     let query = "select bindata as BL1, bindata as BL2, bindata_NN as BL3 from TEST_BLOBS";
     let mut row = connection.query(query).await?.into_single_row().await?;
-    let blob: BLob = row.next_value().unwrap().try_into_blob()?;
-    let blob2: BLob = row.next_value().unwrap().try_into_blob()?;
+    let blob: BLob = row.next_value().unwrap().try_into_async_blob()?;
+    let blob2: BLob = row.next_value().unwrap().try_into_async_blob()?;
 
     let mut streamed = Vec::<u8>::new();
-    blob2.async_write_into(&mut streamed).await?;
+    blob2.write_into(&mut streamed).await?;
     assert_eq!(random_bytes.len(), streamed.len());
     let mut hasher = Sha256::default();
     hasher.update(&streamed);
 
     let mut streamed = Vec::<u8>::new();
-    blob.async_write_into(&mut streamed).await?;
+    blob.write_into(&mut streamed).await?;
 
     assert_eq!(random_bytes.len(), streamed.len());
     let mut hasher = Sha256::default();
@@ -163,9 +163,9 @@ async fn test_blobs(
         .into_single_row()
         .await?
         .into_single_value()?
-        .try_into_blob()?;
+        .try_into_async_blob()?;
     for i in 1000..1040 {
-        let _blob_slice = blob.async_read_slice(i, 100).await?;
+        let _blob_slice = blob.read_slice(i, 100).await?;
     }
 
     Ok(())
@@ -195,7 +195,7 @@ async fn test_streaming(
     )));
     stmt.execute_row(vec![
         HdbValue::STRING("streaming1".to_string()),
-        HdbValue::ASYNCLOBSTREAM(Some(reader)),
+        HdbValue::ASYNC_LOBSTREAM(Some(reader)),
     ])
     .await?;
     connection.commit().await?;
@@ -217,7 +217,7 @@ async fn test_streaming(
     )));
     stmt.execute_row(vec![
         HdbValue::STRING("streaming2".to_string()),
-        HdbValue::ASYNCLOBSTREAM(Some(reader)),
+        HdbValue::ASYNC_LOBSTREAM(Some(reader)),
     ])
     .await?;
 
@@ -230,9 +230,9 @@ async fn test_streaming(
         .into_single_row()
         .await?
         .into_single_value()?
-        .try_into_blob()?;
+        .try_into_async_blob()?;
     let mut buffer = Vec::<u8>::new();
-    blob.async_write_into(&mut buffer).await?;
+    blob.write_into(&mut buffer).await?;
 
     assert_eq!(random_bytes.len(), buffer.len());
     let mut hasher = Sha256::default();

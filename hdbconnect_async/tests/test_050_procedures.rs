@@ -4,7 +4,7 @@ mod test_utils;
 
 use flexi_logger::LoggerHandle;
 use hdbconnect_async::{
-    types::NCLob, Connection, HdbResponse, HdbResult, HdbReturnValue, HdbValue, ParameterBinding,
+    Connection, HdbResponse, HdbResult, HdbReturnValue, HdbValue, ParameterBinding,
     ParameterDirection, ResultSet, Row, TypeId,
 };
 
@@ -132,7 +132,7 @@ async fn procedure_with_secret_resultsets(
     response.reverse();
     for ret_val in response {
         match ret_val {
-            HdbReturnValue::AResultSet(rs) => debug!("Got a resultset: {:?}", rs),
+            HdbReturnValue::AsyncResultSet(rs) => debug!("Got a resultset: {:?}", rs),
             HdbReturnValue::AffectedRows(affected_rows) => {
                 debug!("Got affected_rows: {:?}", affected_rows)
             }
@@ -303,8 +303,8 @@ async fn procedure_with_in_nclob_and_out_nclob(
 
     let result = stmt
         .execute_row(vec![
-            HdbValue::ASYNCLOBSTREAM(Some(reader1)),
-            HdbValue::ASYNCLOBSTREAM(Some(reader2)),
+            HdbValue::ASYNC_LOBSTREAM(Some(reader1)),
+            HdbValue::ASYNC_LOBSTREAM(Some(reader2)),
         ])
         .await;
     if let Err(ref e) = result {
@@ -314,16 +314,16 @@ async fn procedure_with_in_nclob_and_out_nclob(
     let mut response = result.unwrap();
     debug!("Execute_row yielded: {response:?}");
 
-    let nclob: NCLob = response
+    let nclob: hdbconnect_async::types::NCLob = response
         .get_output_parameters()?
         .into_values()
         .into_iter()
         .next()
         .unwrap()
-        .try_into_nclob()?;
+        .try_into_async_nclob()?;
 
     assert_eq!(
-        nclob.async_into_string().await?,
+        nclob.into_string().await?,
         String::from("Hello World! Can you read that??")
     );
     Ok(())

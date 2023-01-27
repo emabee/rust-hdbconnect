@@ -4,7 +4,6 @@ use crate::{
         parts::{am_rs_core::AmRsCore, TypeId},
         util,
     },
-    types::{BLob, CLob, NCLob},
     HdbValue,
 };
 
@@ -31,7 +30,7 @@ pub(crate) fn parse_blob_sync(
         }
     } else {
         let (_, length, locator_id, data) = parse_lob_2_sync(rdr, is_data_included)?;
-        Ok(HdbValue::BLOB(BLob::new(
+        Ok(HdbValue::SYNC_BLOB(crate::sync::BLob::new(
             am_conn_core,
             o_am_rscore,
             is_last_data,
@@ -58,7 +57,7 @@ pub(crate) async fn parse_blob_async<R: std::marker::Unpin + tokio::io::AsyncRea
         }
     } else {
         let (_, length, locator_id, data) = parse_lob_2_async(rdr, is_data_included).await?;
-        Ok(HdbValue::BLOB(BLob::new(
+        Ok(HdbValue::ASYNC_BLOB(crate::a_sync::BLob::new(
             am_conn_core,
             o_am_rscore,
             is_last_data,
@@ -85,8 +84,8 @@ pub(crate) fn parse_clob_sync(
         }
     } else {
         let (char_length, byte_length, locator_id, data) = parse_lob_2_sync(rdr, is_data_included)?;
-        Ok(HdbValue::CLOB(
-            CLob::new(
+        Ok(HdbValue::SYNC_CLOB(
+            crate::sync::CLob::new(
                 am_conn_core,
                 o_am_rscore,
                 is_last_data,
@@ -117,8 +116,8 @@ pub(crate) async fn parse_clob_async<R: std::marker::Unpin + tokio::io::AsyncRea
     } else {
         let (char_length, byte_length, locator_id, data) =
             parse_lob_2_async(rdr, is_data_included).await?;
-        Ok(HdbValue::CLOB(
-            CLob::new(
+        Ok(HdbValue::ASYNC_CLOB(
+            crate::a_sync::CLob::new(
                 am_conn_core,
                 o_am_rscore,
                 is_last_data,
@@ -150,8 +149,8 @@ pub(crate) fn parse_nclob_sync(
     } else {
         let (char_length, byte_length, locator_id, data) = parse_lob_2_sync(rdr, is_data_included)?;
         Ok(match type_id {
-            TypeId::TEXT | TypeId::NCLOB => HdbValue::NCLOB(
-                NCLob::new(
+            TypeId::TEXT | TypeId::NCLOB => HdbValue::SYNC_NCLOB(
+                crate::sync::NCLob::new(
                     am_conn_core,
                     o_am_rscore,
                     is_last_data,
@@ -186,8 +185,8 @@ pub(crate) async fn parse_nclob_async<R: std::marker::Unpin + tokio::io::AsyncRe
         let (char_length, byte_length, locator_id, data) =
             parse_lob_2_async(rdr, is_data_included).await?;
         Ok(match type_id {
-            TypeId::TEXT | TypeId::NCLOB => HdbValue::NCLOB(
-                NCLob::new(
+            TypeId::TEXT | TypeId::NCLOB => HdbValue::ASYNC_NCLOB(
+                crate::a_sync::NCLob::new(
                     am_conn_core,
                     o_am_rscore,
                     is_last_data,

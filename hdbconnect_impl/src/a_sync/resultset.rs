@@ -1,6 +1,5 @@
-use super::{rs_state::AsyncResultSetCore, AsyncRsState};
 use crate::{
-    a_sync::prepared_statement_core::AsyncAmPsCore,
+    a_sync::{prepared_statement_core::AsyncAmPsCore, rs_state::AsyncResultSetCore, AsyncRsState},
     conn::AmConnCore,
     protocol::{
         parts::{MRsCore, Parts, ResultSetMetadata, StatementContext},
@@ -336,8 +335,8 @@ impl std::fmt::Display for ResultSet {
     // Writes a header and then the data
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         writeln!(fmt, "{}\n", &self.metadata)?;
-
-        writeln!(fmt, "FIXME: Display not implemented for async\n")?;
+        // hard to do, because of the async lock we'd need to acquire
+        writeln!(fmt, "Display not implemented for async resultset\n")?;
 
         Ok(())
     }

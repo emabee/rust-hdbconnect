@@ -29,14 +29,14 @@ fn test_051_management_console() -> HdbResult<()> {
                 for op in output_parameters.into_values().into_iter() {
                     println!("   Output parameter: {op:?}");
                     match op {
-                        HdbValue::BLOB(blob) => {
-                            println!("Value: {:?}", blob.sync_into_bytes()?);
+                        HdbValue::SYNC_BLOB(blob) => {
+                            println!("Value: {:?}", blob.into_bytes()?);
                         }
-                        HdbValue::CLOB(clob) => {
-                            println!("Value: {}", clob.sync_into_string()?);
+                        HdbValue::SYNC_CLOB(clob) => {
+                            println!("Value: {}", clob.into_string()?);
                         }
-                        HdbValue::NCLOB(nclob) => {
-                            println!("Value: {}", nclob.sync_into_string()?);
+                        HdbValue::SYNC_NCLOB(nclob) => {
+                            println!("Value: {}", nclob.into_string()?);
                         }
                         _ => {
                             println!("Value: {op}");

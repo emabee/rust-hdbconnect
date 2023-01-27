@@ -279,12 +279,25 @@ impl DbValueInto<String> for HdbValue<'static> {
             HdbValue::DAYDATE(date) => Ok(str_from(&date)),
             HdbValue::SECONDTIME(time) => Ok(str_from(&time)),
             HdbValue::DECIMAL(bigdec) => Ok(format!("{bigdec}")),
-            HdbValue::CLOB(clob) => Ok(clob
+
+            #[cfg(feature = "sync")]
+            HdbValue::SYNC_CLOB(clob) => Ok(clob
                 .into_string_if_complete()
                 .map_err(|e| ConversionError::Incomplete(e.to_string()))?),
-            HdbValue::NCLOB(nclob) => Ok(nclob
+            #[cfg(feature = "async")]
+            HdbValue::ASYNC_CLOB(clob) => Ok(clob
                 .into_string_if_complete()
                 .map_err(|e| ConversionError::Incomplete(e.to_string()))?),
+
+            #[cfg(feature = "sync")]
+            HdbValue::SYNC_NCLOB(nclob) => Ok(nclob
+                .into_string_if_complete()
+                .map_err(|e| ConversionError::Incomplete(e.to_string()))?),
+            #[cfg(feature = "async")]
+            HdbValue::ASYNC_NCLOB(nclob) => Ok(nclob
+                .into_string_if_complete()
+                .map_err(|e| ConversionError::Incomplete(e.to_string()))?),
+
             value => Err(wrong_type(&value, "String")),
         }
     }
@@ -293,7 +306,13 @@ impl DbValueInto<String> for HdbValue<'static> {
 impl DbValueInto<Vec<u8>> for HdbValue<'static> {
     fn try_into(self) -> Result<Vec<u8>, ConversionError> {
         match self {
-            HdbValue::BLOB(blob) => Ok(blob
+            #[cfg(feature = "sync")]
+            HdbValue::SYNC_BLOB(blob) => Ok(blob
+                .into_bytes_if_complete()
+                .map_err(|e| ConversionError::Incomplete(e.to_string()))?),
+
+            #[cfg(feature = "async")]
+            HdbValue::ASYNC_BLOB(blob) => Ok(blob
                 .into_bytes_if_complete()
                 .map_err(|e| ConversionError::Incomplete(e.to_string()))?),
 

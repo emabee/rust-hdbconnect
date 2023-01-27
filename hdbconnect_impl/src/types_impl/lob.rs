@@ -1,9 +1,9 @@
-mod blob;
+mod blob_handle;
 mod char_lob_slice;
-mod clob;
+mod clob_handle;
 mod fetch;
 mod lob_writer_util;
-mod nclob;
+mod nclob_handle;
 
 #[cfg(feature = "async")]
 pub(crate) mod async_lob_writer;
@@ -12,10 +12,10 @@ mod sync_lob_writer;
 
 mod wire;
 
-pub use self::blob::BLob;
+pub(crate) use self::blob_handle::BLobHandle;
 pub use self::char_lob_slice::CharLobSlice;
-pub use self::clob::CLob;
-pub use self::nclob::NCLob;
+pub(crate) use self::clob_handle::CLobHandle;
+pub(crate) use self::nclob_handle::NCLobHandle;
 
 #[cfg(feature = "sync")]
 pub use self::sync_lob_writer::LobWriter;

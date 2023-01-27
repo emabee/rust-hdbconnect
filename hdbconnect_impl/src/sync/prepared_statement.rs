@@ -200,9 +200,9 @@ impl<'a> PreparedStatement {
                 .into_iter()
                 .zip(self.a_descriptors.iter_in())
                 .map(|(v, d)| {
-                    if let HdbValue::SYNCLOBSTREAM(Some(_)) = v {
+                    if let HdbValue::SYNC_LOBSTREAM(Some(_)) = v {
                         readers.push((v, d.type_id()));
-                        HdbValue::SYNCLOBSTREAM(None)
+                        HdbValue::SYNC_LOBSTREAM(None)
                     } else {
                         v
                     }
@@ -257,7 +257,7 @@ impl<'a> PreparedStatement {
                 }
                 for (locator_id, (reader, type_id)) in locator_ids.into_iter().zip(readers) {
                     debug!("writing content to locator with id {:?}", locator_id);
-                    if let HdbValue::SYNCLOBSTREAM(Some(reader)) = reader {
+                    if let HdbValue::SYNC_LOBSTREAM(Some(reader)) = reader {
                         let mut reader = reader.lock()?;
                         let mut writer = LobWriter::new(
                             locator_id,

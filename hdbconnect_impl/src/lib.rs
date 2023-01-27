@@ -69,10 +69,7 @@ pub use crate::{
 /// BLOB, etc.
 pub mod types {
     pub use crate::types_impl::{
-        daydate::DayDate,
-        lob::{BLob, CLob, CharLobSlice, NCLob},
-        longdate::LongDate,
-        seconddate::SecondDate,
+        daydate::DayDate, lob::CharLobSlice, longdate::LongDate, seconddate::SecondDate,
         secondtime::SecondTime,
     };
 }

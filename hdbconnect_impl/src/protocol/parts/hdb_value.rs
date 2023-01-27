@@ -4,7 +4,7 @@ use crate::{
         parts::{length_indicator, AmRsCore, ParameterDescriptor, TypeId},
         util,
     },
-    types::{BLob, CLob, DayDate, LongDate, NCLob, SecondDate, SecondTime},
+    types::{DayDate, LongDate, SecondDate, SecondTime},
     types_impl::{decimal, lob},
     HdbError, HdbResult,
 };
@@ -67,22 +67,37 @@ pub enum HdbValue<'a> {
     DOUBLE(f64),
     /// Stores binary data.
     BINARY(Vec<u8>),
+
     /// Stores a large ASCII character string.
-    CLOB(CLob),
+    #[cfg(feature = "sync")]
+    SYNC_CLOB(crate::sync::CLob),
+    /// Stores a large ASCII character string.
+    #[cfg(feature = "async")]
+    ASYNC_CLOB(crate::a_sync::CLob),
+
     /// Stores a large Unicode string.
-    NCLOB(NCLob),
+    #[cfg(feature = "sync")]
+    SYNC_NCLOB(crate::sync::NCLob),
+    /// Stores a large Unicode string.
+    #[cfg(feature = "async")]
+    ASYNC_NCLOB(crate::a_sync::NCLob),
+
     /// Stores a large binary string.
-    BLOB(BLob),
+    #[cfg(feature = "sync")]
+    SYNC_BLOB(crate::sync::BLob),
+    /// Stores a large binary string.
+    #[cfg(feature = "async")]
+    ASYNC_BLOB(crate::a_sync::BLob),
 
     /// Used for streaming LOBs to the database (see
     /// [`PreparedStatement::execute_row()`](crate::PreparedStatement::execute_row)).
     #[cfg(feature = "sync")]
-    SYNCLOBSTREAM(Option<std::sync::Arc<std::sync::Mutex<dyn std::io::Read + Send>>>),
+    SYNC_LOBSTREAM(Option<std::sync::Arc<std::sync::Mutex<dyn std::io::Read + Send>>>),
 
     /// Used for streaming LOBs to the database (see
     /// [`PreparedStatement::execute_row()`](crate::PreparedStatement::execute_row)).
     #[cfg(feature = "async")]
-    ASYNCLOBSTREAM(
+    ASYNC_LOBSTREAM(
         Option<std::sync::Arc<tokio::sync::Mutex<dyn tokio::io::AsyncRead + Send + Unpin>>>,
     ),
 
@@ -139,13 +154,10 @@ impl<'a> HdbValue<'a> {
             HdbValue::REAL(_) => TypeId::REAL,
             HdbValue::DOUBLE(_) => TypeId::DOUBLE,
 
-            HdbValue::CLOB(_) | HdbValue::NCLOB(_) | HdbValue::BLOB(_) => requested_type_id,
-
             #[cfg(feature = "sync")]
-            HdbValue::SYNCLOBSTREAM(_) => requested_type_id,
-
+            HdbValue::SYNC_BLOB(_) | HdbValue::SYNC_CLOB(_)| HdbValue::SYNC_NCLOB(_) | HdbValue::SYNC_LOBSTREAM(_)=> requested_type_id,
             #[cfg(feature = "async")]
-            HdbValue::ASYNCLOBSTREAM(_) => requested_type_id,
+            HdbValue::ASYNC_BLOB(_) |HdbValue::ASYNC_CLOB(_) |HdbValue::ASYNC_NCLOB(_) | HdbValue::ASYNC_LOBSTREAM(_) => requested_type_id,
 
             HdbValue::BOOLEAN(_) => TypeId::BOOLEAN,
             HdbValue::STR(_) | HdbValue::STRING(_) => TypeId::STRING,
@@ -190,7 +202,7 @@ impl<'a> HdbValue<'a> {
                 HdbValue::DAYDATE(ref dd) => w.write_i32::<LittleEndian>(*dd.ref_raw())?,
                 HdbValue::SECONDTIME(ref st) => w.write_u32::<LittleEndian>(*st.ref_raw())?,
 
-                HdbValue::SYNCLOBSTREAM(None) => lob::emit_lob_header_sync(0, data_pos, w)?,
+                HdbValue::SYNC_LOBSTREAM(None) => lob::emit_lob_header_sync(0, data_pos, w)?,
                 HdbValue::STR(s) => emit_length_and_string_sync(s, w)?,
                 HdbValue::STRING(ref s) => emit_length_and_string_sync(s, w)?,
                 HdbValue::BINARY(ref v) | HdbValue::GEOMETRY(ref v) | HdbValue::POINT(ref v) => {
@@ -232,7 +244,7 @@ impl<'a> HdbValue<'a> {
                 HdbValue::DAYDATE(ref dd) => w.write_i32_le(*dd.ref_raw()).await?,
                 HdbValue::SECONDTIME(ref st) => w.write_u32_le(*st.ref_raw()).await?,
 
-                HdbValue::ASYNCLOBSTREAM(None) => {
+                HdbValue::ASYNC_LOBSTREAM(None) => {
                     lob::emit_lob_header_async(0, data_pos, w).await?;
                 }
                 HdbValue::STR(s) => emit_length_and_string_async(s, w).await?,
@@ -309,9 +321,9 @@ impl<'a> HdbValue<'a> {
             | HdbValue::SECONDDATE(_) => 8,
 
             #[cfg(feature = "sync")]
-            HdbValue::SYNCLOBSTREAM(None) => 9,
+            HdbValue::SYNC_LOBSTREAM(None) => 9,
             #[cfg(feature = "async")]
-            HdbValue::ASYNCLOBSTREAM(None) => 9,
+            HdbValue::ASYNC_LOBSTREAM(None) => 9,
 
             HdbValue::STR(s) => binary_length(util::cesu8_length(s)),
             HdbValue::STRING(ref s) => binary_length(util::cesu8_length(s)),
@@ -320,19 +332,20 @@ impl<'a> HdbValue<'a> {
                 binary_length(v.len())
             }
 
-            HdbValue::CLOB(_) | HdbValue::NCLOB(_) | HdbValue::BLOB(_) => {
-                return Err(util::io_error(format!(
-                    "size(): can't send {self:?} directly to the database",
-                )));
-            }
             #[cfg(feature = "sync")]
-            HdbValue::SYNCLOBSTREAM(Some(_)) => {
+            HdbValue::SYNC_BLOB(_)
+            | HdbValue::SYNC_CLOB(_)
+            | HdbValue::SYNC_NCLOB(_)
+            | HdbValue::SYNC_LOBSTREAM(Some(_)) => {
                 return Err(util::io_error(format!(
                     "size(): can't send {self:?} directly to the database",
                 )));
             }
             #[cfg(feature = "async")]
-            HdbValue::ASYNCLOBSTREAM(Some(_)) => {
+            HdbValue::ASYNC_BLOB(_)
+            | HdbValue::ASYNC_CLOB(_)
+            | HdbValue::ASYNC_NCLOB(_)
+            | HdbValue::ASYNC_LOBSTREAM(Some(_)) => {
                 return Err(util::io_error(format!(
                     "size(): can't send {self:?} directly to the database",
                 )));
@@ -360,9 +373,25 @@ impl HdbValue<'static> {
     /// # Errors
     ///
     /// `HdbError::UsageDetailed` if this is not a `HdbValue::BLOB`.
-    pub fn try_into_blob(self) -> HdbResult<BLob> {
+    #[cfg(feature = "sync")]
+    pub fn try_into_blob(self) -> HdbResult<crate::sync::BLob> {
         match self {
-            HdbValue::BLOB(blob) => Ok(blob),
+            HdbValue::SYNC_BLOB(blob) => Ok(blob),
+            v => Err(HdbError::UsageDetailed(format!(
+                "The value {v:?} cannot be converted into a BLOB",
+            ))),
+        }
+    }
+
+    /// Convert into `BLob`.
+    ///
+    /// # Errors
+    ///
+    /// `HdbError::UsageDetailed` if this is not a `HdbValue::BLOB`.
+    #[cfg(feature = "async")]
+    pub fn try_into_async_blob(self) -> HdbResult<crate::a_sync::BLob> {
+        match self {
+            HdbValue::ASYNC_BLOB(blob) => Ok(blob),
             v => Err(HdbError::UsageDetailed(format!(
                 "The value {v:?} cannot be converted into a BLOB",
             ))),
@@ -374,9 +403,25 @@ impl HdbValue<'static> {
     /// # Errors
     ///
     /// `HdbError::UsageDetailed` if this is not a `HdbValue::CLOB`.
-    pub fn try_into_clob(self) -> HdbResult<CLob> {
+    #[cfg(feature = "sync")]
+    pub fn try_into_clob(self) -> HdbResult<crate::sync::CLob> {
         match self {
-            HdbValue::CLOB(clob) => Ok(clob),
+            HdbValue::SYNC_CLOB(clob) => Ok(clob),
+            v => Err(HdbError::UsageDetailed(format!(
+                "The value {v:?} cannot be converted into a CLOB",
+            ))),
+        }
+    }
+
+    /// Convert into `CLob`.
+    ///
+    /// # Errors
+    ///
+    /// `HdbError::UsageDetailed` if this is not a `HdbValue::CLOB`.
+    #[cfg(feature = "async")]
+    pub fn try_into_async_clob(self) -> HdbResult<crate::a_sync::CLob> {
+        match self {
+            HdbValue::ASYNC_CLOB(clob) => Ok(clob),
             v => Err(HdbError::UsageDetailed(format!(
                 "The value {v:?} cannot be converted into a CLOB",
             ))),
@@ -388,9 +433,25 @@ impl HdbValue<'static> {
     /// # Errors
     ///
     /// `HdbError::UsageDetailed` if this is not a `HdbValue::NCLOB`.
-    pub fn try_into_nclob(self) -> HdbResult<NCLob> {
+    #[cfg(feature = "sync")]
+    pub fn try_into_nclob(self) -> HdbResult<crate::sync::NCLob> {
         match self {
-            HdbValue::NCLOB(nclob) => Ok(nclob),
+            HdbValue::SYNC_NCLOB(nclob) => Ok(nclob),
+            v => Err(HdbError::UsageDetailed(format!(
+                "The database value {v:?} cannot be converted into a NCLob",
+            ))),
+        }
+    }
+
+    /// Convert into `NCLob`.
+    ///
+    /// # Errors
+    ///
+    /// `HdbError::UsageDetailed` if this is not a `HdbValue::NCLOB`.
+    #[cfg(feature = "async")]
+    pub fn try_into_async_nclob(self) -> HdbResult<crate::a_sync::NCLob> {
+        match self {
+            HdbValue::ASYNC_NCLOB(nclob) => Ok(nclob),
             v => Err(HdbError::UsageDetailed(format!(
                 "The database value {v:?} cannot be converted into a NCLob",
             ))),
@@ -1171,13 +1232,36 @@ impl<'a> std::fmt::Display for HdbValue<'a> {
             }
             HdbValue::BINARY(ref vec) => write!(fmt, "<BINARY length = {}>", vec.len()),
 
-            HdbValue::CLOB(_) => write!(fmt, "<CLOB>"),
-            HdbValue::NCLOB(_) => write!(fmt, "<NCLOB>"),
-            HdbValue::BLOB(ref blob) => write!(fmt, "<BLOB length = {}>", blob.total_byte_length()),
             #[cfg(feature = "sync")]
-            HdbValue::SYNCLOBSTREAM(_) => write!(fmt, "<LOBSTREAM>"),
+            HdbValue::SYNC_CLOB(ref clob) => {
+                write!(fmt, "<CLOB length = {}>", clob.total_byte_length())
+            }
             #[cfg(feature = "async")]
-            HdbValue::ASYNCLOBSTREAM(_) => write!(fmt, "<LOBSTREAM>"),
+            HdbValue::ASYNC_CLOB(ref clob) => {
+                write!(fmt, "<CLOB length = {}>", clob.total_byte_length())
+            }
+
+            #[cfg(feature = "sync")]
+            HdbValue::SYNC_NCLOB(ref nclob) => {
+                write!(fmt, "<NCLOB length = {}>", nclob.total_byte_length())
+            }
+            #[cfg(feature = "async")]
+            HdbValue::ASYNC_NCLOB(ref nclob) => {
+                write!(fmt, "<NCLOB length = {}>", nclob.total_byte_length())
+            }
+
+            #[cfg(feature = "sync")]
+            HdbValue::SYNC_BLOB(ref blob) => {
+                write!(fmt, "<BLOB length = {}>", blob.total_byte_length())
+            }
+            #[cfg(feature = "async")]
+            HdbValue::ASYNC_BLOB(ref blob) => {
+                write!(fmt, "<BLOB length = {}>", blob.total_byte_length())
+            }
+            #[cfg(feature = "sync")]
+            HdbValue::SYNC_LOBSTREAM(_) => write!(fmt, "<LOBSTREAM>"),
+            #[cfg(feature = "async")]
+            HdbValue::ASYNC_LOBSTREAM(_) => write!(fmt, "<LOBSTREAM>"),
             HdbValue::BOOLEAN(value) => write!(fmt, "{value}"),
             HdbValue::LONGDATE(ref value) => write!(fmt, "{value}"),
             HdbValue::SECONDDATE(ref value) => write!(fmt, "{value}"),

@@ -122,7 +122,7 @@ fn test_blobs(
     let blob2: BLob = row.next_value().unwrap().try_into_blob()?;
 
     let mut streamed = Vec::<u8>::new();
-    blob2.sync_write_into(&mut streamed).unwrap();
+    blob2.write_into(&mut streamed).unwrap();
     assert_eq!(random_bytes.len(), streamed.len());
     let mut hasher = Sha256::default();
     hasher.update(&streamed);
@@ -143,7 +143,7 @@ fn test_blobs(
         .into_single_value()?
         .try_into_blob()?;
     for i in 1000..1040 {
-        let _blob_slice = blob.sync_read_slice(i, 100)?;
+        let _blob_slice = blob.read_slice(i, 100)?;
     }
 
     Ok(())
@@ -171,7 +171,7 @@ fn test_streaming(
     )));
     stmt.execute_row(vec![
         HdbValue::STRING("streaming1".to_string()),
-        HdbValue::SYNCLOBSTREAM(Some(reader)),
+        HdbValue::SYNC_LOBSTREAM(Some(reader)),
     ])?;
     connection.commit()?;
 
@@ -182,7 +182,7 @@ fn test_streaming(
     )));
     stmt.execute_row(vec![
         HdbValue::STRING("streaming2".to_string()),
-        HdbValue::SYNCLOBSTREAM(Some(reader)),
+        HdbValue::SYNC_LOBSTREAM(Some(reader)),
     ])?;
 
     debug!("read big blob in streaming fashion");
@@ -194,7 +194,7 @@ fn test_streaming(
         .into_single_value()?
         .try_into_blob()?;
     let mut buffer = Vec::<u8>::new();
-    blob.sync_write_into(&mut buffer).unwrap();
+    blob.write_into(&mut buffer).unwrap();
 
     assert_eq!(random_bytes.len(), buffer.len());
     let mut hasher = Sha256::default();

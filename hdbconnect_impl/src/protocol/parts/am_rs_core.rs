@@ -1,7 +1,7 @@
 #[cfg(feature = "async")]
-use crate::a_sync::rs_state::AsyncResultSetCore;
+use crate::a_sync::AsyncResultSetCore;
 #[cfg(feature = "sync")]
-use crate::{sync::rs_state::SyncResultSetCore, HdbResult};
+use crate::{sync::SyncResultSetCore, HdbResult};
 use std::sync::Arc;
 
 pub(crate) type AmRsCore = Arc<MRsCore>;

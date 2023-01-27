@@ -25,14 +25,19 @@
 //!
 
 pub use hdbconnect_impl::{
-    time, types, url, ConnectParams, ConnectParamsBuilder, ExecutionResult, FieldMetadata,
-    HdbError, HdbResult, HdbReturnValue, HdbValue, IntoConnectParams, IntoConnectParamsBuilder,
+    time, url, ConnectParams, ConnectParamsBuilder, ExecutionResult, FieldMetadata, HdbError,
+    HdbResult, HdbReturnValue, HdbValue, IntoConnectParams, IntoConnectParamsBuilder,
     OutputParameters, ParameterBinding, ParameterDescriptor, ParameterDescriptors,
     ParameterDirection, Row, ServerCerts, ServerError, ServerUsage, Severity, Tls, ToHana, TypeId,
     DEFAULT_FETCH_SIZE, DEFAULT_LOB_READ_LENGTH, DEFAULT_LOB_WRITE_LENGTH,
 };
 
 pub use hdbconnect_impl::a_sync::{Connection, HdbResponse, PreparedStatement, ResultSet};
+
+pub mod types {
+    pub use hdbconnect_impl::a_sync::{BLob, CLob, NCLob};
+    pub use hdbconnect_impl::types::*;
+}
 
 #[cfg(feature = "rocket_pool")]
 pub use hdbconnect_impl::a_sync::HanaPoolForRocket;

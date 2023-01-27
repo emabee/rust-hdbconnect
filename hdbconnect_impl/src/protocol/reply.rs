@@ -1,7 +1,7 @@
 #[cfg(feature = "async")]
 use crate::a_sync::AsyncRsState;
 #[cfg(feature = "sync")]
-use crate::sync::rs_state::SyncRsState;
+use crate::sync::SyncRsState;
 
 #[cfg(feature = "async")]
 use crate::protocol::util_async;

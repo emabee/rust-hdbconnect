@@ -136,7 +136,7 @@ impl HdbResponse {
     fn resultset(int_return_values: Vec<InternalReturnValue>) -> HdbResult<Self> {
         match single(int_return_values)? {
             InternalReturnValue::AResultSet(rs) => Ok(Self {
-                return_values: vec![HdbReturnValue::AResultSet(rs)],
+                return_values: vec![HdbReturnValue::AsyncResultSet(rs)],
             }),
             _ => Err(HdbError::Impl(
                 "Wrong InternalReturnValue, a single ResultSet was expected",
@@ -233,7 +233,7 @@ impl HdbResponse {
                     ));
                 }
                 InternalReturnValue::AResultSet(rs) => {
-                    return_values.push(HdbReturnValue::AResultSet(rs));
+                    return_values.push(HdbReturnValue::AsyncResultSet(rs));
                 }
                 InternalReturnValue::WriteLobReply(_) => {
                     return Err(HdbError::Impl(
@@ -256,7 +256,7 @@ impl HdbResponse {
     ///
     /// `HdbError::Evaluation` if information would get lost.
     pub fn into_resultset(self) -> HdbResult<ResultSet> {
-        self.into_single_retval()?.async_into_resultset()
+        self.into_single_retval()?.into_async_resultset()
     }
 
     /// Turns itself into a Vector of numbers (each number representing a
@@ -330,7 +330,7 @@ impl HdbResponse {
     /// `HdbError` if there is no further `ResultSet`.
     pub fn get_resultset(&mut self) -> HdbResult<ResultSet> {
         if let Some(i) = self.find_resultset() {
-            self.return_values.remove(i).async_into_resultset()
+            self.return_values.remove(i).into_async_resultset()
         } else {
             Err(self.get_err("resultset"))
         }
@@ -338,7 +338,7 @@ impl HdbResponse {
 
     fn find_resultset(&self) -> Option<usize> {
         for (i, rt) in self.return_values.iter().enumerate().rev() {
-            if let HdbReturnValue::AResultSet(_) = *rt {
+            if let HdbReturnValue::AsyncResultSet(_) = *rt {
                 return Some(i);
             }
         }
@@ -396,7 +396,7 @@ impl HdbResponse {
             errmsg.push_str(match *rt {
                 #[cfg(feature = "sync")]
                 HdbReturnValue::ResultSet(_) => "ResultSet, ",
-                HdbReturnValue::AResultSet(_) => "ResultSet, ",
+                HdbReturnValue::AsyncResultSet(_) => "ResultSet, ",
                 HdbReturnValue::AffectedRows(_) => "AffectedRows, ",
                 HdbReturnValue::OutputParameters(_) => "OutputParameters, ",
                 HdbReturnValue::Success => "Success, ",

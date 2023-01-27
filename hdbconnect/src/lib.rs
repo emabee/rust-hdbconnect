@@ -24,8 +24,8 @@
 //! See [code examples](crate::code_examples) for an overview.
 //!
 pub use hdbconnect_impl::{
-    time, types, url, ConnectParams, ConnectParamsBuilder, ExecutionResult, FieldMetadata,
-    HdbError, HdbResult, HdbReturnValue, HdbValue, IntoConnectParams, IntoConnectParamsBuilder,
+    time, url, ConnectParams, ConnectParamsBuilder, ExecutionResult, FieldMetadata, HdbError,
+    HdbResult, HdbReturnValue, HdbValue, IntoConnectParams, IntoConnectParamsBuilder,
     OutputParameters, ParameterBinding, ParameterDescriptor, ParameterDescriptors,
     ParameterDirection, Row, ServerCerts, ServerError, ServerUsage, Severity, Tls, ToHana, TypeId,
     DEFAULT_FETCH_SIZE, DEFAULT_LOB_READ_LENGTH, DEFAULT_LOB_WRITE_LENGTH,
@@ -37,3 +37,8 @@ pub use hdbconnect_impl::sync::{Connection, HdbResponse, PreparedStatement, Resu
 pub use hdbconnect_impl::sync::ConnectionManager;
 
 pub mod code_examples;
+
+pub mod types {
+    pub use hdbconnect_impl::sync::{BLob, CLob, NCLob};
+    pub use hdbconnect_impl::types::*;
+}

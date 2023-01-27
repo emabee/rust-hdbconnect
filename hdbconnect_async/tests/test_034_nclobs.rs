@@ -2,7 +2,7 @@ extern crate serde;
 
 mod test_utils;
 
-use hdbconnect_async::{types::NCLob, Connection, HdbResult, HdbValue};
+use hdbconnect_async::{Connection, HdbResult, HdbValue};
 use log::{debug, info, trace};
 use serde::{Deserialize, Serialize};
 use serde_bytes::Bytes;
@@ -118,15 +118,15 @@ async fn test_nclobs(
     assert_eq!(mydata, second);
 
     info!("read from somewhere within");
-    let mut nclob: NCLob = connection
+    let mut nclob: hdbconnect_async::types::NCLob = connection
         .query("select chardata from TEST_NCLOBS")
         .await?
         .into_single_row()
         .await?
         .into_single_value()?
-        .try_into_nclob()?;
+        .try_into_async_nclob()?;
     for i in 1030..1040 {
-        let _nclob_slice = nclob.async_read_slice(i, 100).await?;
+        let _nclob_slice = nclob.read_slice(i, 100).await?;
     }
     Ok(())
 }
@@ -160,7 +160,7 @@ async fn test_streaming(
     )));
     stmt.execute_row(vec![
         HdbValue::STR("lsadksaldk"),
-        HdbValue::ASYNCLOBSTREAM(Some(reader)),
+        HdbValue::ASYNC_LOBSTREAM(Some(reader)),
     ])
     .await?;
     connection.commit().await?;
@@ -182,7 +182,7 @@ async fn test_streaming(
         .into_single_row()
         .await?
         .into_single_value()?
-        .try_into_nclob()?;
+        .try_into_async_nclob()?;
     assert_eq!(
         nclob.total_byte_length() as usize,
         cesu8_byte_len,
@@ -195,7 +195,7 @@ async fn test_streaming(
     );
 
     let mut buffer = Vec::<u8>::new();
-    nclob.async_write_into(&mut buffer).await?;
+    nclob.write_into(&mut buffer).await?;
 
     assert_eq!(fifty_times_smp_blabla.len(), buffer.len());
     assert_eq!(fifty_times_smp_blabla.as_bytes(), buffer.as_slice());

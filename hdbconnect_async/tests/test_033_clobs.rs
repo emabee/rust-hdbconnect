@@ -151,10 +151,10 @@ async fn test_clobs(
     let query = "select desc, chardata as CL1, chardata as CL2 from TEST_CLOBS";
     let mut row = connection.query(query).await?.into_single_row().await?;
     row.next_value().unwrap();
-    let clob: CLob = row.next_value().unwrap().try_into_clob()?;
+    let clob: CLob = row.next_value().unwrap().try_into_async_clob()?;
 
     let mut streamed = Vec::<u8>::new();
-    clob.async_write_into(&mut streamed).await?;
+    clob.write_into(&mut streamed).await?;
 
     assert_eq!(fifty_times_smp_blabla.len(), streamed.len());
     let mut hasher = Sha256::default();
@@ -169,9 +169,9 @@ async fn test_clobs(
         .into_single_row()
         .await?
         .into_single_value()?
-        .try_into_clob()?;
+        .try_into_async_clob()?;
     for i in 1000..1040 {
-        let _clob_slice = clob.async_read_slice(i, 100).await?;
+        let _clob_slice = clob.read_slice(i, 100).await?;
     }
 
     Ok(())
@@ -200,7 +200,7 @@ async fn test_streaming(
 
     stmt.execute_row(vec![
         HdbValue::STRING("lsadksaldk".to_string()),
-        HdbValue::ASYNCLOBSTREAM(Some(reader)),
+        HdbValue::ASYNC_LOBSTREAM(Some(reader)),
     ])
     .await?;
     connection.commit().await?;
@@ -214,9 +214,9 @@ async fn test_streaming(
         .into_single_row()
         .await?
         .into_single_value()?
-        .try_into_clob()?;
+        .try_into_async_clob()?;
     let mut buffer = Vec::<u8>::new();
-    clob.async_write_into(&mut buffer).await?;
+    clob.write_into(&mut buffer).await?;
 
     assert_eq!(fifty_times_smp_blabla.len(), buffer.len());
     let mut hasher = Sha256::default();

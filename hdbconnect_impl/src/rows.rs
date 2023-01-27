@@ -27,9 +27,9 @@ impl Rows {
         for idx in lob_field_indices {
             for row in &mut rows {
                 match row[idx] {
-                    HdbValue::BLOB(ref mut blob) => blob.sync_load_complete()?,
-                    HdbValue::CLOB(ref mut clob) => clob.sync_load_complete()?,
-                    HdbValue::NCLOB(ref mut nclob) => nclob.sync_load_complete()?,
+                    HdbValue::SYNC_BLOB(ref mut blob) => blob.load_complete()?,
+                    HdbValue::SYNC_CLOB(ref mut clob) => clob.load_complete()?,
+                    HdbValue::SYNC_NCLOB(ref mut nclob) => nclob.load_complete()?,
                     _ => {}
                 }
             }
@@ -57,9 +57,9 @@ impl Rows {
         for idx in lob_field_indices {
             for row in &mut rows {
                 match row[idx] {
-                    HdbValue::BLOB(ref mut blob) => blob.async_load_complete().await?,
-                    HdbValue::CLOB(ref mut clob) => clob.async_load_complete().await?,
-                    HdbValue::NCLOB(ref mut nclob) => nclob.async_load_complete().await?,
+                    HdbValue::ASYNC_BLOB(ref mut blob) => blob.load_complete().await?,
+                    HdbValue::ASYNC_CLOB(ref mut clob) => clob.load_complete().await?,
+                    HdbValue::ASYNC_NCLOB(ref mut nclob) => nclob.load_complete().await?,
                     _ => {}
                 }
             }

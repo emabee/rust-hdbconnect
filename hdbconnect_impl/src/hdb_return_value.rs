@@ -11,7 +11,7 @@ pub enum HdbReturnValue {
     ResultSet(crate::sync::ResultSet),
     /// A resultset of a query.
     #[cfg(feature = "async")]
-    AResultSet(crate::a_sync::ResultSet),
+    AsyncResultSet(crate::a_sync::ResultSet),
     /// A list of numbers of affected rows.
     AffectedRows(Vec<usize>),
     /// Values of output parameters of a procedure call.
@@ -28,7 +28,7 @@ impl HdbReturnValue {
     ///
     /// `HdbError::Evaluation` for other variants than `HdbReturnValue::ResultSet`.
     #[cfg(feature = "sync")]
-    pub fn sync_into_resultset(self) -> HdbResult<crate::sync::ResultSet> {
+    pub fn into_resultset(self) -> HdbResult<crate::sync::ResultSet> {
         match self {
             Self::ResultSet(rs) => Ok(rs),
             _ => Err(HdbError::Evaluation("Not a HdbReturnValue::ResultSet")),
@@ -41,9 +41,9 @@ impl HdbReturnValue {
     ///
     /// `HdbError::Evaluation` for other variants than `HdbReturnValue::ResultSet`.
     #[cfg(feature = "async")]
-    pub fn async_into_resultset(self) -> HdbResult<crate::a_sync::ResultSet> {
+    pub fn into_async_resultset(self) -> HdbResult<crate::a_sync::ResultSet> {
         match self {
-            Self::AResultSet(rs) => Ok(rs),
+            Self::AsyncResultSet(rs) => Ok(rs),
             _ => Err(HdbError::Evaluation("Not a HdbReturnValue::ResultSet")),
         }
     }
@@ -117,7 +117,7 @@ impl std::fmt::Display for HdbReturnValue {
             #[cfg(feature = "sync")]
             Self::ResultSet(ref rs) => writeln!(fmt, "ResultSet [{rs}],"),
             #[cfg(feature = "async")]
-            Self::AResultSet(ref rs) => writeln!(fmt, "ResultSet [{rs}],"),
+            Self::AsyncResultSet(ref rs) => writeln!(fmt, "ResultSet [{rs}],"),
             Self::Success => writeln!(fmt, "Success,"),
             Self::XaTransactionIds(_) => writeln!(fmt, "XaTransactionIds,<"),
         }

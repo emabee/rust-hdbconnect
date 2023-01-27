@@ -151,7 +151,7 @@ fn test_clobs(
         .into_single_value()?
         .try_into_clob()?;
     for i in 1000..1040 {
-        let _clob_slice = clob.sync_read_slice(i, 100)?;
+        let _clob_slice = clob.read_slice(i, 100)?;
     }
 
     Ok(())
@@ -178,7 +178,7 @@ fn test_streaming(
 
     stmt.execute_row(vec![
         HdbValue::STRING("lsadksaldk".to_string()),
-        HdbValue::SYNCLOBSTREAM(Some(reader)),
+        HdbValue::SYNC_LOBSTREAM(Some(reader)),
     ])?;
     connection.commit()?;
 

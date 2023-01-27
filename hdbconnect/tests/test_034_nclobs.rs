@@ -2,7 +2,7 @@ extern crate serde;
 
 mod test_utils;
 
-use hdbconnect::{types::NCLob, Connection, HdbResult, HdbValue};
+use hdbconnect::{Connection, HdbResult, HdbValue};
 use log::{debug, info, trace};
 use serde::{Deserialize, Serialize};
 use serde_bytes::Bytes;
@@ -114,13 +114,13 @@ fn test_nclobs(
     assert_eq!(mydata, second);
 
     info!("read from somewhere within");
-    let mut nclob: NCLob = connection
+    let mut nclob: hdbconnect::types::NCLob = connection
         .query("select chardata from TEST_NCLOBS")?
         .into_single_row()?
         .into_single_value()?
         .try_into_nclob()?;
     for i in 1030..1040 {
-        let _nclob_slice = nclob.sync_read_slice(i, 100)?;
+        let _nclob_slice = nclob.read_slice(i, 100)?;
     }
     Ok(())
 }
@@ -152,7 +152,7 @@ fn test_streaming(
     )));
     stmt.execute_row(vec![
         HdbValue::STR("lsadksaldk"),
-        HdbValue::SYNCLOBSTREAM(Some(reader)),
+        HdbValue::SYNC_LOBSTREAM(Some(reader)),
     ])?;
     connection.commit()?;
 
@@ -182,7 +182,7 @@ fn test_streaming(
     );
 
     let mut buffer = Vec::<u8>::new();
-    nclob.sync_write_into(&mut buffer).unwrap();
+    nclob.write_into(&mut buffer).unwrap();
 
     assert_eq!(fifty_times_smp_blabla.len(), buffer.len());
     assert_eq!(fifty_times_smp_blabla.as_bytes(), buffer.as_slice());

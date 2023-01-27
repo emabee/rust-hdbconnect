@@ -17,7 +17,7 @@ async fn test_051_management_console() -> HdbResult<()> {
     for hdb_return_value in hdb_response.into_iter() {
         #[allow(unreachable_patterns)] // needed to avoid wrong error message in VS Code
         match hdb_return_value {
-            HdbReturnValue::AResultSet(result_set) => {
+            HdbReturnValue::AsyncResultSet(result_set) => {
                 println!("{:?}", result_set);
             }
             HdbReturnValue::AffectedRows(vec_usize) => {
@@ -30,14 +30,14 @@ async fn test_051_management_console() -> HdbResult<()> {
                 for op in output_parameters.into_values().into_iter() {
                     println!("   Output parameter: {:?}", op);
                     match op {
-                        HdbValue::BLOB(blob) => {
-                            println!("Value: {:?}", blob.async_into_bytes().await?);
+                        HdbValue::ASYNC_BLOB(blob) => {
+                            println!("Value: {:?}", blob.into_bytes().await?);
                         }
-                        HdbValue::CLOB(clob) => {
-                            println!("Value: {}", clob.async_into_string().await?);
+                        HdbValue::ASYNC_CLOB(clob) => {
+                            println!("Value: {}", clob.into_string().await?);
                         }
-                        HdbValue::NCLOB(nclob) => {
-                            println!("Value: {}", nclob.async_into_string().await?);
+                        HdbValue::ASYNC_NCLOB(nclob) => {
+                            println!("Value: {}", nclob.into_string().await?);
                         }
                         _ => {
                             println!("Value: {}", op);
