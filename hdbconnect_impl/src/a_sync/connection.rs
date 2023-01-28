@@ -19,6 +19,10 @@ pub struct Connection {
 impl Connection {
     /// Factory method for authenticated connections.
     ///
+    /// See [`ConnectParams`](struct.ConnectParams.html),
+    /// [`ConnectParamsBuilder`](struct.ConnectParamsBuilder.html), and [`IntoConnectParams`]
+    /// for the available options of providing the input to this function.
+    ///
     /// # Example
     ///
     /// ```rust,no_run

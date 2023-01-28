@@ -17,7 +17,7 @@ async fn test_051_management_console() -> HdbResult<()> {
     for hdb_return_value in hdb_response.into_iter() {
         #[allow(unreachable_patterns)] // needed to avoid wrong error message in VS Code
         match hdb_return_value {
-            HdbReturnValue::AsyncResultSet(result_set) => {
+            HdbReturnValue::ResultSet(result_set) => {
                 println!("{:?}", result_set);
             }
             HdbReturnValue::AffectedRows(vec_usize) => {

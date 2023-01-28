@@ -1,10 +1,10 @@
 use crate::{
-    a_sync::ResultSet,
+    a_sync::{HdbReturnValue, ResultSet},
     protocol::{
         parts::{ExecutionResult, OutputParameters},
         ReplyType,
     },
-    HdbError, HdbResult, HdbReturnValue, InternalReturnValue,
+    HdbError, HdbResult, InternalReturnValue,
 };
 
 /// Represents all possible non-error responses to a database command.
@@ -25,12 +25,12 @@ use crate::{
 /// the nature of the database call.
 ///
 ///   ```rust, no_run
-/// # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
-/// # fn foo() -> HdbResult<()> {
+/// use hdbconnect_async::{Connection, HdbResult, IntoConnectParams};
+/// # async fn foo() -> HdbResult<()> {
 /// # let params = "".into_connect_params()?;
-/// # let mut connection = Connection::new(params)?;
+/// # let mut connection = Connection::new(params).await?;
 /// # let query_string = "";
-///   let response = connection.statement(query_string)?;  // HdbResponse
+///   let response: HdbResponse = connection.statement(query_string).await?;
 ///
 ///   // We know that our simple query can only return a single resultset
 ///   let rs = response.into_resultset()?;  // ResultSet
@@ -78,7 +78,7 @@ pub struct HdbResponse {
 
 impl HdbResponse {
     // Build HdbResponse from InternalReturnValues
-    pub fn try_new(
+    pub(crate) fn try_new(
         int_return_values: Vec<InternalReturnValue>,
         replytype: ReplyType,
     ) -> HdbResult<Self> {
@@ -136,7 +136,7 @@ impl HdbResponse {
     fn resultset(int_return_values: Vec<InternalReturnValue>) -> HdbResult<Self> {
         match single(int_return_values)? {
             InternalReturnValue::AResultSet(rs) => Ok(Self {
-                return_values: vec![HdbReturnValue::AsyncResultSet(rs)],
+                return_values: vec![HdbReturnValue::ResultSet(rs)],
             }),
             _ => Err(HdbError::Impl(
                 "Wrong InternalReturnValue, a single ResultSet was expected",
@@ -233,7 +233,7 @@ impl HdbResponse {
                     ));
                 }
                 InternalReturnValue::AResultSet(rs) => {
-                    return_values.push(HdbReturnValue::AsyncResultSet(rs));
+                    return_values.push(HdbReturnValue::ResultSet(rs));
                 }
                 InternalReturnValue::WriteLobReply(_) => {
                     return Err(HdbError::Impl(
@@ -256,7 +256,7 @@ impl HdbResponse {
     ///
     /// `HdbError::Evaluation` if information would get lost.
     pub fn into_resultset(self) -> HdbResult<ResultSet> {
-        self.into_single_retval()?.into_async_resultset()
+        self.into_single_retval()?.into_resultset()
     }
 
     /// Turns itself into a Vector of numbers (each number representing a
@@ -330,7 +330,7 @@ impl HdbResponse {
     /// `HdbError` if there is no further `ResultSet`.
     pub fn get_resultset(&mut self) -> HdbResult<ResultSet> {
         if let Some(i) = self.find_resultset() {
-            self.return_values.remove(i).into_async_resultset()
+            self.return_values.remove(i).into_resultset()
         } else {
             Err(self.get_err("resultset"))
         }
@@ -338,7 +338,7 @@ impl HdbResponse {
 
     fn find_resultset(&self) -> Option<usize> {
         for (i, rt) in self.return_values.iter().enumerate().rev() {
-            if let HdbReturnValue::AsyncResultSet(_) = *rt {
+            if let HdbReturnValue::ResultSet(_) = *rt {
                 return Some(i);
             }
         }
@@ -394,9 +394,7 @@ impl HdbResponse {
         errmsg.push_str(" found in this HdbResponse [");
         for rt in &self.return_values {
             errmsg.push_str(match *rt {
-                #[cfg(feature = "sync")]
                 HdbReturnValue::ResultSet(_) => "ResultSet, ",
-                HdbReturnValue::AsyncResultSet(_) => "ResultSet, ",
                 HdbReturnValue::AffectedRows(_) => "AffectedRows, ",
                 HdbReturnValue::OutputParameters(_) => "OutputParameters, ",
                 HdbReturnValue::Success => "Success, ",

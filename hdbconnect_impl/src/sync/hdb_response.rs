@@ -3,8 +3,8 @@ use crate::{
         parts::{ExecutionResult, OutputParameters},
         ReplyType,
     },
-    sync::ResultSet,
-    HdbError, HdbResult, HdbReturnValue, InternalReturnValue,
+    sync::{HdbReturnValue, ResultSet},
+    HdbError, HdbResult, InternalReturnValue,
 };
 
 /// Represents all possible non-error responses to a database command.
@@ -78,7 +78,7 @@ pub struct HdbResponse {
 
 impl HdbResponse {
     // Build HdbResponse from InternalReturnValues
-    pub fn try_new(
+    pub(crate) fn try_new(
         int_return_values: Vec<InternalReturnValue>,
         replytype: ReplyType,
     ) -> HdbResult<Self> {
@@ -389,8 +389,6 @@ impl HdbResponse {
         for rt in &self.return_values {
             errmsg.push_str(match *rt {
                 HdbReturnValue::ResultSet(_) => "ResultSet, ",
-                #[cfg(feature = "async")]
-                HdbReturnValue::AsyncResultSet(_) => "ResultSet, ",
                 HdbReturnValue::AffectedRows(_) => "AffectedRows, ",
                 HdbReturnValue::OutputParameters(_) => "OutputParameters, ",
                 HdbReturnValue::Success => "Success, ",

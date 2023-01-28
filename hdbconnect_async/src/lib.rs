@@ -1,9 +1,15 @@
-//! Asynchronous native rust database driver for SAP HANA (TM).
+//! Asynchronous database driver for SAP HANA (TM).
 //!
-//! `hdbconnect_async` provides a lean, fast, and easy-to-use rust-API for working with
-//! SAP HANA. The driver is written completely in rust.
-
-//! It interoperates elegantly with all data types that implement the standard
+//! `hdbconnect_async` is written completely in rust, its asynchronous model is based on
+//! [`tokio`](https://crates.io/crates/tokio).
+//! It provides a lean, fast, and easy-to-use API for working with SAP HANA.
+//!
+//! For usecases where you don't need an asynchronous driver,
+//! you might want to use `hdbconnect_async`'s synchronous sibling,
+//! [`hdbconnect`](https://docs.rs/hdbconnect).
+//! The two drivers have a very similar API and share most of their implementation.
+//!
+//! `hdbconnect_async` interoperates elegantly with all data types that implement the standard
 //! `serde::Serialize` and/or `serde::Deserialize` traits, for input and output respectively.
 //! So, instead of iterating over a resultset by rows and columns, you can
 //! assign the complete resultset directly to any rust structure that fits the data
@@ -24,21 +30,38 @@
 //! See [code examples](crate::code_examples) for an overview.
 //!
 
+#![cfg_attr(docsrs, feature(doc_cfg))]
+#![deny(missing_debug_implementations)]
+#![deny(clippy::all)]
+#![deny(clippy::pedantic)]
+// #![allow(clippy::module_name_repetitions)]
+// #![allow(clippy::non_ascii_literal)]
+// #![allow(clippy::must_use_candidate)]
+// #![allow(clippy::missing_errors_doc)]
+
 pub use hdbconnect_impl::{
     time, url, ConnectParams, ConnectParamsBuilder, ExecutionResult, FieldMetadata, HdbError,
-    HdbResult, HdbReturnValue, HdbValue, IntoConnectParams, IntoConnectParamsBuilder,
-    OutputParameters, ParameterBinding, ParameterDescriptor, ParameterDescriptors,
-    ParameterDirection, Row, ServerCerts, ServerError, ServerUsage, Severity, Tls, ToHana, TypeId,
-    DEFAULT_FETCH_SIZE, DEFAULT_LOB_READ_LENGTH, DEFAULT_LOB_WRITE_LENGTH,
+    HdbResult, HdbValue, IntoConnectParams, IntoConnectParamsBuilder, OutputParameters,
+    ParameterBinding, ParameterDescriptor, ParameterDescriptors, ParameterDirection, Row,
+    ServerCerts, ServerError, ServerUsage, Severity, Tls, ToHana, TypeId, DEFAULT_FETCH_SIZE,
+    DEFAULT_LOB_READ_LENGTH, DEFAULT_LOB_WRITE_LENGTH,
 };
 
-pub use hdbconnect_impl::a_sync::{Connection, HdbResponse, PreparedStatement, ResultSet};
+pub use hdbconnect_impl::a_sync::{
+    Connection, HdbResponse, HdbReturnValue, PreparedStatement, ResultSet,
+};
 
+/// Non-standard types that are used to represent database values.
+///
+/// A `ResultSet` contains a sequence of `Row`s, each row is a sequence of `HdbValue`s.
+/// Some  variants of `HdbValue` are implemented using plain rust types,
+/// others are based on the types in this module.
 pub mod types {
     pub use hdbconnect_impl::a_sync::{BLob, CLob, NCLob};
     pub use hdbconnect_impl::types::*;
 }
 
+#[cfg_attr(docsrs, doc(cfg(feature = "rocket_pool")))]
 #[cfg(feature = "rocket_pool")]
 pub use hdbconnect_impl::a_sync::HanaPoolForRocket;
 

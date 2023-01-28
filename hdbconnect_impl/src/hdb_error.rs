@@ -88,6 +88,7 @@ pub enum HdbError {
     ImplDetailed(String),
 
     /// Error occured in thread synchronization.
+    #[cfg(feature = "sync")]
     #[error("Error occured in thread synchronization")]
     Poison,
 
@@ -176,6 +177,7 @@ impl HdbError {
     }
 }
 
+#[cfg(feature = "sync")]
 impl<G> From<std::sync::PoisonError<G>> for HdbError {
     fn from(_error: std::sync::PoisonError<G>) -> Self {
         Self::Poison

@@ -26,7 +26,6 @@ extern crate serde;
 
 mod conn;
 mod hdb_error;
-mod hdb_return_value;
 mod internal_returnvalue;
 mod protocol;
 mod row;
@@ -49,7 +48,6 @@ pub use crate::{
         ServerCerts, Tls,
     },
     hdb_error::{HdbError, HdbResult},
-    hdb_return_value::HdbReturnValue,
     protocol::parts::{
         ExecutionResult, FieldMetadata, HdbValue, OutputParameters, ParameterBinding,
         ParameterDescriptor, ParameterDescriptors, ParameterDirection, ResultSetMetadata,
@@ -61,12 +59,11 @@ pub use crate::{
     serde_db_impl::{time, ToHana},
 };
 
-/// Non-standard types that are used within the
-/// [`HdbValue`](crate::HdbValue)s in a [`ResultSet`](crate::ResultSet).
+/// Non-standard types that are used to represent database values.
 ///
-/// A `ResultSet` contains a sequence of `Row`s, each row is a sequence of
-/// `HdbValue`s. Some of the `HdbValue`s are implemented using `LongDate`,
-/// BLOB, etc.
+/// A `ResultSet` contains a sequence of `Row`s, each row is a sequence of `HdbValue`s.
+/// Some  variants of `HdbValue` are implemented using plain rust types,
+/// others are based on the types in this module.
 pub mod types {
     pub use crate::types_impl::{
         daydate::DayDate, lob::CharLobSlice, longdate::LongDate, seconddate::SecondDate,

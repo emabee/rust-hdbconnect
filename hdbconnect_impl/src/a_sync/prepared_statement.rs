@@ -142,7 +142,7 @@ impl<'a> PreparedStatement {
     /// will be more convenient. Streaming LOBs to the database however is an important exception -
     /// it only works with this method!
     ///
-    /// Note that with older versions of HANA streaming LOBs to the database only works
+    /// Note that with older versions of HANA, streaming LOBs to the database only works
     /// if auto-commit is switched off. Consequently, you need to commit the update then explicitly.
     ///
     /// ## Example for streaming LOBs to the database
@@ -151,16 +151,16 @@ impl<'a> PreparedStatement {
     /// We're using a `HdbValue::STR` here which allows passing the String as reference
     /// (compared to `HdbValue::STRING`, which needs to own the String).
     ///
-    /// The second parameter of type [`HdbValue::LOBSTREAM`](crate::HdbValue::LOBSTREAM)
+    /// The second parameter of type [`HdbValue::ASYNC_LOBSTREAM`](crate::HdbValue::ASYNC_LOBSTREAM)
     /// wraps a shared mutable reference to a reader object
     /// which is supposed to produce the content you want to store.
     ///
     /// ``` rust, no_run
     /// # tokio_test::block_on(async {
-    /// # use hdbconnect_async::{Connection, HdbValue, HdbResult, IntoConnectParams};
+    /// use hdbconnect_async::{Connection, HdbValue, HdbResult, IntoConnectParams};
     /// use std::io::Cursor;
-    /// use std::sync::{Arc};
-    /// use tokio::sync::{Mutex};
+    /// use std::sync::Arc;
+    /// use tokio::sync::Mutex;
     /// # let mut connection = Connection::new("".into_connect_params().unwrap()).await.unwrap();
     /// # connection.set_auto_commit(false).await.unwrap();
     /// # let insert_stmt_string = "insert into TEST_NCLOBS values(?, ?)".to_owned();
@@ -168,14 +168,14 @@ impl<'a> PreparedStatement {
     ///
     ///   stmt.execute_row(vec![
     ///       HdbValue::STR("nice descriptive text, could be quite long"),
-    ///       HdbValue::LOBSTREAM(Some(Arc::new(Mutex::new(Cursor::new("foo bar"))))),
+    ///       HdbValue::ASYNC_LOBSTREAM(Some(Arc::new(Mutex::new(Cursor::new("foo bar"))))),
     ///   ]).await.unwrap();
     /// # connection.commit().await.unwrap();
     /// # })
     /// ```
     ///
     /// `PreparedStatement::execute_row()` first sends the specified statement to the database,
-    /// with the given parameter values, where LOBSTREAM instances are replaced with placeholders.
+    /// with the given parameter values, where `ASYNC_LOBSTREAM` instances are replaced with placeholders.
     /// Subsequently the data from the readers are transferred to the database in additional
     /// roundtrips. Upon completion of the last LOB chunk transfer, the database really executes
     /// the procedure and returns its results.

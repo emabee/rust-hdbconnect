@@ -19,17 +19,17 @@
 //! > `<port>` = the port at which HANA can be found on `<host>`  
 //! > `<options>` = `?<key>[=<value>][{&<key>[=<value>]}]`  
 //!
-//! Supported options are:
+//! __Supported options are:__
 //! - `db=<databasename>` specifies the (MDC) database to which you want to connect  
 //! - `client_locale=<value>` is used in language-dependent handling within the
 //!   SAP HANA database calculation engine
 //! - `client_locale_from_env` (no value) lets the driver read the client's locale from the
 //!   environment variabe LANG
 //! - `<networkgroup>` = a network group
-//! - the TLS options
+//! - the [TLS](https://en.wikipedia.org/wiki/Transport_Layer_Security) options
 //!
 //!
-//! The TLS options are:
+//! __The [TLS](https://en.wikipedia.org/wiki/Transport_Layer_Security) options are:__
 //! - `tls_certificate_dir=<value>`: points to a folder with pem files that contain
 //!   certificates; all pem files in that folder are evaluated  
 //! - `tls_certificate_env=<value>`: denotes an environment variable that contains
@@ -39,9 +39,9 @@
 //! - `insecure_omit_server_certificate_check` (no value): lets the driver omit the validation of
 //!   the server's identity. Don't use this option in productive setups!  
 //!
-//! To configure TLS, use the scheme `hdbsqls` and at least one of the TLS options.
+//! __To configure TLS__, use the scheme `hdbsqls` and at least one of the TLS options.
 //!
-//! For a plain connection without TLS, use the scheme `hdbsql` and none of the TLS options.
+//! __For a plain connection without TLS__, use the scheme `hdbsql` and none of the TLS options.
 //!
 //! ### Examples
 //!

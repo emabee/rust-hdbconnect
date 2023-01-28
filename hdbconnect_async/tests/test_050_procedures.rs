@@ -132,7 +132,7 @@ async fn procedure_with_secret_resultsets(
     response.reverse();
     for ret_val in response {
         match ret_val {
-            HdbReturnValue::AsyncResultSet(rs) => debug!("Got a resultset: {:?}", rs),
+            HdbReturnValue::ResultSet(rs) => debug!("Got a resultset: {:?}", rs),
             HdbReturnValue::AffectedRows(affected_rows) => {
                 debug!("Got affected_rows: {:?}", affected_rows)
             }

@@ -14,34 +14,22 @@ use tokio::sync::Mutex;
 
 /// The result of a database query.
 ///
-/// This is essentially a set of `Row`s, and each `Row` is a set of `HdbValue`s.
+/// This behaves essentially like a set of `Row`s, and each `Row` is a set of `HdbValue`s.
+///
+/// In fact, resultsets with a larger number of rows are not returned from the database
+/// in a single roundtrip. `ResultSet` automatically fetches outstanding data
+/// as soon as they are required.
 ///
 /// The method [`try_into`](#method.try_into) converts the data from this generic format
 /// in a singe step into your application specific format.
 ///
-/// `ResultSet` implements `std::iter::Iterator`, so you can
-/// directly iterate over the rows of a resultset.
-/// While iterating, the not yet transported rows are fetched "silently" on demand, which can fail.
-/// The Iterator-Item is thus not `Row`, but `HdbResult<Row>`.
-///
-/// ```rust, no_run
-/// # use hdbconnect::{Connection,ConnectParams,HdbResult};
-/// # use serde::Deserialize;
-/// # fn main() -> HdbResult<()> {
-/// # #[derive(Debug, Deserialize)]
-/// # struct Entity();
-/// # let mut connection = Connection::new(ConnectParams::builder().build()?)?;
-/// # let query_string = "";
-/// for row in connection.query(query_string)? {
-///     // handle fetch errors and convert each line individually:
-///     let entity: Entity = row?.try_into()?;
-///     println!("Got entity: {:?}", entity);
-/// }
-/// # Ok(())
-/// # }
+/// Due to the chunk-wise data transfer, which has to happen asynchronously,
+/// `ResultSet` cannot implement the synchronous trait `std::iter::Iterator`.
+/// Use method [`next_row()`](#method.next_row) as a replacement.
 ///
 /// ```
 ///
+// (see also <https://rust-lang.github.io/rfcs/2996-async-iterator.html>)
 #[derive(Debug)]
 pub struct ResultSet {
     metadata: Arc<ResultSetMetadata>,
@@ -175,10 +163,27 @@ impl ResultSet {
             .await
     }
 
-    /// Removes the next row and returns it, or None if the `ResultSet` is empty.
+    /// Removes the next row and returns it, or `Ok(None)` if the `ResultSet` is empty.
     ///
     /// Consequently, the `ResultSet` has one row less after the call.
     /// May need to fetch further rows from the database, which can fail.
+    ///
+    /// ```rust, no_run
+    /// # use hdbconnect::{Connection,ConnectParams,HdbResult};
+    /// # use serde::Deserialize;
+    /// # fn main() -> HdbResult<()> {
+    /// # #[derive(Debug, Deserialize)]
+    /// # struct Entity();
+    /// # let mut connection = Connection::new(ConnectParams::builder().build()?)?;
+    /// # let query_str = "";
+    /// let mut rs = connection.query(query_str).await?;
+    /// while let Some(row) = rs.next_row().await? {
+    ///     let entity: Entity = row.try_into()?;
+    ///     println!("Got entity: {:?}", entity);
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// # Errors
     ///
@@ -339,17 +344,5 @@ impl std::fmt::Display for ResultSet {
         writeln!(fmt, "Display not implemented for async resultset\n")?;
 
         Ok(())
-    }
-}
-
-// This is a poor replacement for an "impl AsyncIterator for ResultSet"
-// see https://rust-lang.github.io/rfcs/2996-async-iterator.html for reasoning
-impl ResultSet {
-    pub async fn next(&mut self) -> Option<HdbResult<Row>> {
-        match self.next_row().await {
-            Ok(Some(row)) => Some(Ok(row)),
-            Ok(None) => None,
-            Err(e) => Some(Err(e)),
-        }
     }
 }

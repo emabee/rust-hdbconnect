@@ -145,7 +145,7 @@ impl<'a> PreparedStatement {
     /// will be more convenient. Streaming LOBs to the database however is an important exception -
     /// it only works with this method!
     ///
-    /// Note that with older versions of HANA streaming LOBs to the database only works
+    /// Note that with older versions of HANA, streaming LOBs to the database only works
     /// if auto-commit is switched off. Consequently, you need to commit the update then explicitly.
     ///
     /// ## Example for streaming LOBs to the database

@@ -83,8 +83,18 @@ async fn evaluate_resultset(
         debug!("From {tablename}, got line {f1}, {f2:?}, {f3}, {f4}");
     }
 
-    info!("Loop over rows (streaming support), convert row into struct");
+    info!("Loop over rows (stupid way), convert row into struct");
     for row in connection.query(query_str).await?.into_rows().await? {
+        let td: TestData = row.try_into()?;
+        debug!(
+            "Got struct with {}, {:?}, {}, {}",
+            td.f1, td.f2, td.f3, td.f4
+        );
+    }
+
+    info!("Loop over rows (streaming support), convert row into struct");
+    let mut rs = connection.query(query_str).await?;
+    while let Some(row) = rs.next_row().await? {
         let td: TestData = row.try_into()?;
         debug!(
             "Got struct with {}, {:?}, {}, {}",

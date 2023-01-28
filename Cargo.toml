@@ -1,14 +1,9 @@
 [workspace]
 members = [
-    # projection crates, should be used
+    # projection crates, should be used for consumption
     "hdbconnect",
     "hdbconnect_async",
 
-    # the code is here, should not be used
+    # the code is here, should not be consumed directly
     "hdbconnect_impl",
 ]
-
-# default-members = [
-#     "hdbconnect",
-#     "hdbconnect_async",
-# ]

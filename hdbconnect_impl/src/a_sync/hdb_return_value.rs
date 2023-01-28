@@ -7,11 +7,7 @@ use dist_tx::XaTransactionId;
 #[derive(Debug)]
 pub enum HdbReturnValue {
     /// A resultset of a query.
-    #[cfg(feature = "sync")]
-    ResultSet(crate::sync::ResultSet),
-    /// A resultset of a query.
-    #[cfg(feature = "async")]
-    AsyncResultSet(crate::a_sync::ResultSet),
+    ResultSet(crate::a_sync::ResultSet),
     /// A list of numbers of affected rows.
     AffectedRows(Vec<usize>),
     /// Values of output parameters of a procedure call.
@@ -27,23 +23,9 @@ impl HdbReturnValue {
     /// # Errors
     ///
     /// `HdbError::Evaluation` for other variants than `HdbReturnValue::ResultSet`.
-    #[cfg(feature = "sync")]
-    pub fn into_resultset(self) -> HdbResult<crate::sync::ResultSet> {
+    pub fn into_resultset(self) -> HdbResult<crate::a_sync::ResultSet> {
         match self {
             Self::ResultSet(rs) => Ok(rs),
-            _ => Err(HdbError::Evaluation("Not a HdbReturnValue::ResultSet")),
-        }
-    }
-
-    /// Turns itself into a single resultset.
-    ///
-    /// # Errors
-    ///
-    /// `HdbError::Evaluation` for other variants than `HdbReturnValue::ResultSet`.
-    #[cfg(feature = "async")]
-    pub fn into_async_resultset(self) -> HdbResult<crate::a_sync::ResultSet> {
-        match self {
-            Self::AsyncResultSet(rs) => Ok(rs),
             _ => Err(HdbError::Evaluation("Not a HdbReturnValue::ResultSet")),
         }
     }
@@ -114,10 +96,7 @@ impl std::fmt::Display for HdbReturnValue {
         match *self {
             Self::AffectedRows(ref vec) => writeln!(fmt, "AffectedRows {vec:?},"),
             Self::OutputParameters(ref op) => writeln!(fmt, "OutputParameters [{op}],"),
-            #[cfg(feature = "sync")]
             Self::ResultSet(ref rs) => writeln!(fmt, "ResultSet [{rs}],"),
-            #[cfg(feature = "async")]
-            Self::AsyncResultSet(ref rs) => writeln!(fmt, "ResultSet [{rs}],"),
             Self::Success => writeln!(fmt, "Success,"),
             Self::XaTransactionIds(_) => writeln!(fmt, "XaTransactionIds,<"),
         }
