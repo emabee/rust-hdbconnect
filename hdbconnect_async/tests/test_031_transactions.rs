@@ -62,7 +62,7 @@ async fn write1_read2(
 ) -> HdbResult<()> {
     log::info!("Test isolation level {}", isolation);
     connection1
-        .exec(&format!("SET TRANSACTION ISOLATION LEVEL {}", isolation))
+        .exec(&format!("SET TRANSACTION ISOLATION LEVEL {isolation}"))
         .await?;
 
     log::info!(

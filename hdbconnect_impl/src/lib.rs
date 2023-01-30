@@ -33,6 +33,7 @@ mod rows;
 mod serde_db_impl;
 mod types_impl;
 pub mod url;
+#[cfg(feature = "dist_tx")]
 mod xa_impl;
 
 #[cfg(feature = "async")]

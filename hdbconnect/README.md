@@ -1,11 +1,7 @@
 # hdbconnect
 
-[![crates.io](https://meritbadge.herokuapp.com/hdbconnect)](
-    https://crates.io/crates/hdbconnect)
-[![docs](https://docs.rs/hdbconnect/badge.svg)](
-    https://docs.rs/hdbconnect)
-[![coverage](https://coveralls.io/repos/github/PSeitz/rust-hdbconnect/badge.svg?branch=master)](
-    https://coveralls.io/github/PSeitz/rust-hdbconnect)
+[![crates.io](https://meritbadge.herokuapp.com/hdbconnect)](https://crates.io/crates/hdbconnect)
+[![docs](https://docs.rs/hdbconnect/badge.svg)](https://docs.rs/hdbconnect)
 ![License](https://img.shields.io/crates/l/hdbconnect.svg)
 
 A pure rust SQL driver for SAP HANA(TM).
@@ -28,7 +24,6 @@ Then a first simple test might look like this:
 use hdbconnect::{Connection, HdbResult};
 
 pub fn main() -> HdbResult<()> {
-    // Get a connection
     let mut connection = Connection::new("hdbsql://HORST:SeCrEt@hxehost:39013")?;
 
     // Cleanup if necessary, and set up a test table
@@ -71,8 +66,8 @@ There you also find more code examples, e.g. in the description of module `code_
 
 ## TLS
 
-See [HANA in SCP](HANA_in_SCP.md) for instructions how to obtain the necessary server
-certificate from a HANA in SAP Cloud Platform.
+See [HANA in SCP](https://github.com/emabee/rust-hdbconnect/blob/master/HANA_in_SCP.md)
+for instructions how to obtain the necessary server certificate from a HANA in SAP Cloud Platform.
 
 ## Versions
 

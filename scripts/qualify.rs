@@ -48,9 +48,11 @@ fn main() {
 
     // Build in important variants
     run_command!("cargo", "build", "--package", "hdbconnect");
+    run_command!("cargo", "build", "--package", "hdbconnect", "--all-features");
     run_command!("cargo", "build", "--package", "hdbconnect_async");
     run_command!("cargo", "build", "--package", "hdbconnect_async", "--all-features");
-    run_command!("cargo", "build", "--package", "hdbconnect", "--release");
+
+    run_command!("cargo", "build", "--package", "hdbconnect", "--all-features", "--release");
     run_command!("cargo", "build", "--package", "hdbconnect_async", "--all-features", "--release");
 
     // Clippy in important variants
@@ -58,23 +60,25 @@ fn main() {
     run_command!("cargo", "+nightly", "clippy", "--all-targets", "--package", "hdbconnect_async", "--all-features", "--", "-D", "warnings");
 
     // doc
-    // set environment!!
-    // cargo +nightly doc --package hdbconnect_async --all-features --no-deps
-    // run_command!("cargo", "doc", "--no-deps", "--open");
+    // run_command!("export", "RUSTDOCFLAGS=\"--cfg docsrs\"");
+    run_command!("cargo", "+nightly", "doc", "--package", "hdbconnect", "--all-features", "--no-deps", "--open");
+    run_command!("cargo", "+nightly", "doc", "--package", "hdbconnect_async", "--all-features", "--no-deps", "--open");
 
-    // // Run tests in important variants
-    // run_command!("cargo", "test", "--release");
-    // run_command!("cargo", "test");
+    // Run tests in important variants
+    run_command!("cargo", "test", "--package", "hdbconnect", "--release", "--all-features");
+    run_command!("cargo", "test", "--package", "hdbconnect_async", "--release", "--all-features");
+    run_command!("cargo", "test", "--package", "hdbconnect");
+    run_command!("cargo", "test", "--package", "hdbconnect_async");
 
-    // // check git status
-    // let mut cmd = command!("git", "status", "-s");
-    // let child = cmd.stdout(std::process::Stdio::piped()).spawn().unwrap();
-    // let output = child.wait_with_output().unwrap();
-    // if output.stdout.len() > 0 {
-    //     print!("> {}", yansi::Paint::red("there are unsubmitted files"));
-    //     std::process::exit(-1);
-    // }
+    // check git status
+    let mut cmd = command!("git", "status", "-s");
+    let child = cmd.stdout(std::process::Stdio::piped()).spawn().unwrap();
+    let output = child.wait_with_output().unwrap();
+    if output.stdout.len() > 0 {
+        print!("> {}", yansi::Paint::red("there are unsubmitted files"));
+        std::process::exit(-1);
+    }
 
-    // // say goodbye
-    // println!("\n> all done :-)  Looks like you're ready to \"cargo publish\"?");
+    // say goodbye
+    println!("\n> all done :-)  Looks like you're ready to \"cargo publish\"?");
 }

@@ -7,9 +7,9 @@ use crate::{
 #[derive(Debug)]
 pub enum InternalReturnValue {
     #[cfg(feature = "sync")]
-    ResultSet(crate::sync::ResultSet),
+    SyncResultSet(crate::sync::ResultSet),
     #[cfg(feature = "async")]
-    AResultSet(crate::a_sync::ResultSet),
+    AsyncResultSet(crate::a_sync::ResultSet),
     ExecutionResults(Vec<ExecutionResult>),
     OutputParameters(OutputParameters),
     ParameterMetadata(Arc<ParameterDescriptors>),

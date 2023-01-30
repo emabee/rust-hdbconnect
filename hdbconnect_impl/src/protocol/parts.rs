@@ -31,8 +31,11 @@ mod transactionflags;
 mod type_id;
 mod write_lob_reply;
 mod write_lob_request;
+#[cfg(feature = "dist_tx")]
 mod xat_options;
 
+#[cfg(feature = "dist_tx")]
+pub(crate) use self::xat_options::XatOptions;
 pub(crate) use self::{
     am_rs_core::{AmRsCore, MRsCore},
     authfields::AuthFields,
@@ -52,8 +55,8 @@ pub(crate) use self::{
     transactionflags::{TaFlagId, TransactionFlags},
     write_lob_reply::WriteLobReply,
     write_lob_request::WriteLobRequest,
-    xat_options::XatOptions,
 };
+
 pub use self::{
     execution_result::ExecutionResult,
     field_metadata::FieldMetadata,
@@ -80,6 +83,7 @@ use std::{iter::IntoIterator, sync::Arc};
 pub struct Parts<'a>(Vec<Part<'a>>);
 
 impl<'a> Parts<'a> {
+    #[cfg(feature = "dist_tx")]
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
@@ -112,6 +116,7 @@ impl<'a> Parts<'a> {
             .map(|i| self.0.remove(i))
     }
 
+    #[cfg(feature = "dist_tx")]
     pub fn drop_parts_of_kind(&mut self, kind: PartKind) {
         self.0.retain(|part| (part.kind() as i8) != (kind as i8));
     }
@@ -164,7 +169,7 @@ impl Parts<'static> {
                     int_return_values.push(InternalReturnValue::ParameterMetadata(Arc::new(pm)));
                 }
                 Part::ResultSet(Some(rs)) => {
-                    int_return_values.push(InternalReturnValue::ResultSet(rs));
+                    int_return_values.push(InternalReturnValue::SyncResultSet(rs));
                 }
                 Part::ResultSetMetadata(rsmd) => {
                     if let Some(Part::ResultSetId(rs_id)) = parts.next() {
@@ -175,7 +180,7 @@ impl Parts<'static> {
                             Arc::new(rsmd),
                             None,
                         );
-                        int_return_values.push(InternalReturnValue::ResultSet(rs));
+                        int_return_values.push(InternalReturnValue::SyncResultSet(rs));
                     } else {
                         return Err(HdbError::Impl("Missing required part ResultSetID"));
                     }
@@ -228,11 +233,11 @@ impl Parts<'static> {
                 }
                 #[cfg(feature = "sync")]
                 Part::ResultSet(Some(rs)) => {
-                    int_return_values.push(InternalReturnValue::ResultSet(rs));
+                    int_return_values.push(InternalReturnValue::SyncResultSet(rs));
                 }
                 #[cfg(feature = "async")]
                 Part::AResultSet(Some(rs)) => {
-                    int_return_values.push(InternalReturnValue::AResultSet(rs));
+                    int_return_values.push(InternalReturnValue::AsyncResultSet(rs));
                 }
                 Part::ResultSetMetadata(rsmd) => {
                     if let Some(Part::ResultSetId(rs_id)) = parts.next() {
@@ -243,7 +248,7 @@ impl Parts<'static> {
                             Arc::new(rsmd),
                             None,
                         );
-                        int_return_values.push(InternalReturnValue::AResultSet(rs));
+                        int_return_values.push(InternalReturnValue::AsyncResultSet(rs));
                     } else {
                         return Err(HdbError::Impl("Missing required part ResultSetID"));
                     }

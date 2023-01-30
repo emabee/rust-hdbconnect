@@ -344,8 +344,8 @@
 //! # let mut connection = Connection::new("...").await?;
 //! # let mut resultset: ResultSet = connection.query(query).await?;
 //! # let mut writer: Vec<u8> = vec![];
-//! let mut nclob: NCLob = resultset.into_single_row().await?.into_single_value()?.try_into_nclob()?;
-//! nclob.copy_into(&mut writer).await?;
+//! let mut nclob: NCLob = resultset.into_single_row().await?.into_single_value()?.try_into_async_nclob()?;
+//! nclob.write_into(&mut writer).await?;
 //! # Ok(())
 //! # }
 //! ```

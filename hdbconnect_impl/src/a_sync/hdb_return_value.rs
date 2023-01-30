@@ -1,6 +1,7 @@
 use crate::protocol::parts::OutputParameters;
 use crate::{HdbError, HdbResult};
 
+#[cfg(feature = "dist_tx")]
 use dist_tx::XaTransactionId;
 
 /// An enum that describes a single database return value.
@@ -14,6 +15,7 @@ pub enum HdbReturnValue {
     OutputParameters(OutputParameters),
     /// Indication that a db call was successful.
     Success,
+    #[cfg(feature = "dist_tx")]
     /// A list of `XaTransactionId`s.
     XaTransactionIds(Vec<XaTransactionId>),
 }
@@ -98,6 +100,7 @@ impl std::fmt::Display for HdbReturnValue {
             Self::OutputParameters(ref op) => writeln!(fmt, "OutputParameters [{op}],"),
             Self::ResultSet(ref rs) => writeln!(fmt, "ResultSet [{rs}],"),
             Self::Success => writeln!(fmt, "Success,"),
+            #[cfg(feature = "dist_tx")]
             Self::XaTransactionIds(_) => writeln!(fmt, "XaTransactionIds,<"),
         }
     }

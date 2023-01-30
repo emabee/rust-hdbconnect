@@ -4,8 +4,10 @@ use crate::protocol::parts::{
     ClientContext, ClientContextId, CommandInfo, ConnOptId, OptionValue, ServerError,
 };
 use crate::protocol::{Part, Request, RequestType, ServerUsage, HOLD_CURSORS_OVER_COMMIT};
+#[cfg(feature = "dist_tx")]
 use crate::xa_impl::sync_new_resource_manager;
 use crate::{HdbError, HdbResult, IntoConnectParams};
+#[cfg(feature = "dist_tx")]
 use dist_tx::sync::rm::ResourceManager;
 
 /// A synchronous connection to the database.
@@ -469,6 +471,7 @@ impl Connection {
 
     /// Returns an implementation of `dist_tx::rm::ResourceManager` that is
     /// based on this connection.
+    #[cfg(feature = "dist_tx")]
     #[must_use]
     pub fn get_resource_manager(&self) -> Box<dyn ResourceManager> {
         Box::new(sync_new_resource_manager(self.am_conn_core.clone()))

@@ -1,16 +1,15 @@
 [package]
 name = "hdbconnect"
-version = "0.25.0"
-authors = ["emabee <meinolf.block@sap.com>","Pascal Seitz <pascal.seitz@gmail.com>"]
+authors.workspace = true
+version.workspace = true
 edition = "2021"
-license = "MIT/Apache-2.0"
+license.workspace = true
+repository.workspace = true
 readme = "README.md"
-repository = "https://github.com/emabee/rust-hdbconnect"
+description = "A synchronous pure rust database driver for SAP HANA(TM)"
 documentation = "https://docs.rs/hdbconnect/"
-
-description = "A pure rust driver for SAP HANA(TM)"
-keywords = ["relational", "database", "driver", "serde", "HANA"]
-categories = ["database"]
+keywords.workspace = true
+categories.workspace = true
 include = ["src/**/*", "LICENSE-*", "README.md", "CHANGELOG.md"]
 
 [package.metadata.docs.rs]
@@ -24,6 +23,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 [features]
 default = []
 r2d2_pool = ["hdbconnect_impl/r2d2_pool"]
+dist_tx = ["hdbconnect_impl/dist_tx_sync"]
 
 [dependencies]
 hdbconnect_impl = { path = "../hdbconnect_impl", features = ["sync"] }

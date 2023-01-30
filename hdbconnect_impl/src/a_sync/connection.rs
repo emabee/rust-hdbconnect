@@ -1,13 +1,15 @@
 use super::{prepared_statement::PreparedStatement, resultset::ResultSet, HdbResponse};
+#[cfg(feature = "dist_tx")]
+use crate::xa_impl::async_new_resource_manager;
 use crate::{
     conn::AmConnCore,
     protocol::parts::{
         ClientContext, ClientContextId, CommandInfo, ConnOptId, OptionValue, ServerError,
     },
     protocol::{Part, Request, RequestType, ServerUsage, HOLD_CURSORS_OVER_COMMIT},
-    xa_impl::async_new_resource_manager,
     {HdbError, HdbResult, IntoConnectParams},
 };
+#[cfg(feature = "dist_tx")]
 use dist_tx::a_sync::rm::ResourceManager;
 
 /// An asynchronous connection to the database.
@@ -486,6 +488,7 @@ impl Connection {
     /// Returns an implementation of `dist_tx_async::rm::ResourceManager` that is
     /// based on this connection.
     #[must_use]
+    #[cfg(feature = "dist_tx")]
     pub fn get_resource_manager(&self) -> Box<dyn ResourceManager> {
         Box::new(async_new_resource_manager(self.am_conn_core.clone()))
     }

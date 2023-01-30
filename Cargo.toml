@@ -7,3 +7,14 @@ members = [
     # the code is here, should not be consumed directly
     "hdbconnect_impl",
 ]
+
+[workspace.package]
+version = "0.25.0"
+authors = ["emabee <meinolf.block@sap.com>","Pascal Seitz <pascal.seitz@gmail.com>"]
+edition = "2021"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/emabee/rust-hdbconnect"
+keywords = ["relational", "database", "driver", "serde", "HANA"]
+categories = ["database"]
+include = ["LICENSE-*", "README.md", "CHANGELOG.md"]

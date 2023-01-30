@@ -42,8 +42,7 @@ async fn prepare(_log_handle: &mut LoggerHandle, connection: &mut Connection) ->
         connection
             .dml(format!(
                 "insert into TEST_SELFORUPDATE (f1_s, f2_i, f3_i, \
-             f4_dt) values('{}', {}, {},'01.01.1900')",
-                i, i, i
+             f4_dt) values('{i}', {i}, {i},'01.01.1900')",
             ))
             .await?;
     }

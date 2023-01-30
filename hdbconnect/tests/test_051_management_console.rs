@@ -47,6 +47,7 @@ fn test_051_management_console() -> HdbResult<()> {
             HdbReturnValue::Success => {
                 println!("Success");
             }
+            #[cfg(feature = "dist_tx")]
             HdbReturnValue::XaTransactionIds(vec_ta_ids) => {
                 println!("Transaction-ids");
                 for val in vec_ta_ids {

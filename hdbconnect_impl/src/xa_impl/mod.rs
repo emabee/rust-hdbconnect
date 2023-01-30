@@ -5,6 +5,7 @@ mod async_c_resource_manager;
 mod sync_c_resource_manager;
 
 use crate::HdbError;
+#[cfg(feature = "dist_tx")]
 use dist_tx::{ErrorCode, RmError};
 
 #[cfg(feature = "async")]

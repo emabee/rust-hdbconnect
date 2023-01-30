@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.25.0] Unpublished
+
+Reorganize the project using three workspaces.
+
+Add a sibling crate `hdbconnect_async`!!
+
+Make `dist_tx` optional.
+
+Make `r2d2_pool` an optional feature of the `sync` version.
+
+Add an optional feature `rocket_pool` to the `async` version.
+
+Minor, but some breaking API changes.
+
 ## [0.24.0] 2022-10-14
 
 Revise TLS configuration in `ConnectParams` and `ConnectParamsBuilder` (API change => version bump).

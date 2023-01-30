@@ -24,14 +24,9 @@
 //! See [code examples](crate::code_examples) for an overview.
 //!
 
-#![cfg_attr(docsrs, feature(doc_cfg))]
 #![deny(missing_debug_implementations)]
 #![deny(clippy::all)]
 #![deny(clippy::pedantic)]
-// #![allow(clippy::module_name_repetitions)]
-// #![allow(clippy::non_ascii_literal)]
-// #![allow(clippy::must_use_candidate)]
-// #![allow(clippy::missing_errors_doc)]
 
 pub use hdbconnect_impl::{
     time, url, ConnectParams, ConnectParamsBuilder, ExecutionResult, FieldMetadata, HdbError,

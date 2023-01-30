@@ -1,3 +1,5 @@
+#[cfg(feature = "dist_tx")]
+use crate::protocol::parts::XatOptions;
 use crate::{
     conn::AmConnCore,
     protocol::{
@@ -6,7 +8,7 @@ use crate::{
             ExecutionResult, LobFlags, OutputParameters, ParameterDescriptors, ParameterRows,
             PartitionInformation, Parts, ReadLobReply, ReadLobRequest, ResultSetMetadata,
             ServerError, SessionContext, StatementContext, Topology, TransactionFlags,
-            WriteLobReply, WriteLobRequest, XatOptions,
+            WriteLobReply, WriteLobRequest,
         },
         util, PartAttributes, PartKind,
     },
@@ -58,6 +60,7 @@ pub enum Part<'a> {
     TableLocation(Vec<i32>),
     TopologyInformation(Topology),
     TransactionFlags(TransactionFlags),
+    #[cfg(feature = "dist_tx")]
     XatOptions(XatOptions),
 }
 
@@ -95,6 +98,7 @@ impl<'a> Part<'a> {
             Self::TableLocation(_) => PartKind::TableLocation,
             Self::TopologyInformation(_) => PartKind::TopologyInformation,
             Self::TransactionFlags(_) => PartKind::TransactionFlags,
+            #[cfg(feature = "dist_tx")]
             Self::XatOptions(_) => PartKind::XatOptions,
         }
     }
@@ -122,6 +126,7 @@ impl<'a> Part<'a> {
             Part::SessionContext(ref opts) => opts.len(),
             Part::StatementContext(ref sc) => sc.len(),
             Part::TransactionFlags(ref opts) => opts.len(),
+            #[cfg(feature = "dist_tx")]
             Part::XatOptions(ref xat) => xat.len(),
             ref a => {
                 return Err(util::io_error(format!("count() called on {a:?}")));
@@ -168,6 +173,7 @@ impl<'a> Part<'a> {
             Part::StatementContext(ref sc) => size += sc.size(),
             // Part::TopologyInformation(ref topology) => size += topology.size(),
             Part::TransactionFlags(ref taflags) => size += taflags.size(),
+            #[cfg(feature = "dist_tx")]
             Part::XatOptions(ref xat) => size += xat.size(),
 
             ref arg => {
@@ -246,6 +252,7 @@ impl<'a> Part<'a> {
             Part::StatementContext(ref sc) => sc.sync_emit(w)?,
             Part::TransactionFlags(ref taflags) => taflags.sync_emit(w)?,
             Part::WriteLobRequest(ref r) => r.sync_emit(w)?,
+            #[cfg(feature = "dist_tx")]
             Part::XatOptions(ref xatid) => xatid.sync_emit(w)?,
             ref a => {
                 return Err(util::io_error(format!("emit() called on {a:?}")));
@@ -334,6 +341,7 @@ impl<'a> Part<'a> {
             Part::StatementContext(ref sc) => sc.async_emit(w).await?,
             Part::TransactionFlags(ref taflags) => taflags.async_emit(w).await?,
             Part::WriteLobRequest(ref r) => r.async_emit(w).await?,
+            #[cfg(feature = "dist_tx")]
             Part::XatOptions(ref xatid) => xatid.async_emit(w).await?,
             ref a => {
                 return Err(util::io_error(format!("emit() called on {a:?}")));
@@ -522,6 +530,7 @@ impl<'a> Part<'a> {
             PartKind::TransactionFlags => {
                 Part::TransactionFlags(TransactionFlags::parse_sync(no_of_args, rdr)?)
             }
+            #[cfg(feature = "dist_tx")]
             PartKind::XatOptions => Part::XatOptions(XatOptions::parse_sync(no_of_args, rdr)?),
             _ => {
                 return Err(util::io_error(format!(
@@ -620,6 +629,7 @@ impl<'a> Part<'a> {
             PartKind::TransactionFlags => {
                 Part::TransactionFlags(TransactionFlags::parse_async(no_of_args, rdr).await?)
             }
+            #[cfg(feature = "dist_tx")]
             PartKind::XatOptions => {
                 Part::XatOptions(XatOptions::parse_async(no_of_args, rdr).await?)
             }

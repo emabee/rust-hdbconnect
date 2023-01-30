@@ -281,7 +281,7 @@ impl<'a> PreparedStatement {
 
             // inject statement id
             for rv in &mut internal_return_values {
-                if let InternalReturnValue::ResultSet(rs) = rv {
+                if let InternalReturnValue::SyncResultSet(rs) = rv {
                     rs.inject_statement_id(Arc::clone(&self.am_ps_core))?;
                 }
             }
@@ -376,7 +376,7 @@ impl<'a> PreparedStatement {
 
         // inject statement id
         for rv in &mut internal_return_values {
-            if let InternalReturnValue::ResultSet(rs) = rv {
+            if let InternalReturnValue::SyncResultSet(rs) = rv {
                 rs.inject_statement_id(Arc::clone(&self.am_ps_core))?;
             }
         }

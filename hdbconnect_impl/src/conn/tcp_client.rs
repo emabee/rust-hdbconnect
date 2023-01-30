@@ -87,7 +87,6 @@ impl TcpClient {
     }
 
     // Returns a descriptor of the chosen type
-    #[cfg(any(feature = "sync", feature = "async"))]
     pub fn s_type(&self) -> &'static str {
         match self {
             #[cfg(feature = "sync")]
@@ -103,7 +102,6 @@ impl TcpClient {
         }
     }
 
-    #[cfg(any(feature = "sync", feature = "async"))]
     pub fn connect_params(&self) -> &ConnectParams {
         match self {
             #[cfg(feature = "sync")]

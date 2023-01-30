@@ -1,16 +1,14 @@
 [package]
 name = "hdbconnect_impl"
-version = "0.25.0-alpha-2"
-authors = ["emabee <meinolf.block@sap.com>","Pascal Seitz <pascal.seitz@gmail.com>"]
+authors.workspace = true
+version.workspace = true
 edition = "2021"
-license = "MIT/Apache-2.0"
+license.workspace = true
+repository.workspace = true
 readme = "README.md"
-repository = "https://github.com/emabee/rust-hdbconnect"
-documentation = "https://docs.rs/hdbconnect/"
-
-description = "A pure rust driver for SAP HANA(TM)"
-keywords = ["relational", "database", "driver", "serde", "HANA"]
-categories = ["database"]
+description = "Common implementation of hdbconnect and hdbconect_async; not for direct use"
+keywords.workspace = true
+categories.workspace = true
 include = ["src/**/*", "LICENSE-*", "README.md", "CHANGELOG.md"]
 
 [package.metadata.docs.rs]
@@ -18,8 +16,10 @@ all-features = false
 
 [features]
 default = []
-async = ["dist_tx/async", "async-trait", "tokio"]
-sync = ["dist_tx/sync"]
+async = ["async-trait", "tokio"]
+sync = []
+dist_tx_async = ["dist_tx/async"]
+dist_tx_sync = ["dist_tx/sync"]
 r2d2_pool = ["sync", "r2d2"]
 rocket_pool = ["async", "rocket_db_pools", "rocket"]
 alpha_routing = []
@@ -30,7 +30,7 @@ byteorder = "1.3"
 cesu8 = "1.1"
 crypto-common = "0.1"
 async-trait = {version = "0.1", optional= true}
-dist_tx = {version = "0.3"}
+dist_tx = {version = "0.3", optional= true}
 hex = "0.4"
 hmac = "0.12"
 lazy_static = "1.4.0"

@@ -40,7 +40,7 @@ fn get_blabla() -> (String, Vec<u8>) {
     debug!("create big random String data");
     let mut fifty_times_smp_blabla = String::new();
     {
-        let mut f = File::open("tests/smp-blabla.txt").expect("file not found");
+        let mut f = File::open("./../test_content/smp-blabla.txt").expect("file not found");
         let mut blabla = String::new();
         f.read_to_string(&mut blabla)
             .expect("something went wrong reading the file");
@@ -261,7 +261,7 @@ async fn test_loblifecycle(
     let stmts = vec!["create table TEST_NCLOBS2 (desc NVARCHAR(20) not null, chardata NCLOB)"];
     connection.multiple_statements(stmts).await?;
 
-    let mut f = File::open("tests/smp-blabla.txt").expect("file not found");
+    let mut f = File::open("./../test_content/smp-blabla.txt").expect("file not found");
     let mut blabla = String::new();
     f.read_to_string(&mut blabla).unwrap();
 

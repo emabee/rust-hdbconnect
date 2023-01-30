@@ -1,6 +1,7 @@
 use crate::protocol::parts::option_value::OptionValue;
 use crate::{HdbError, HdbResult};
 use std::collections::hash_map::IntoIter;
+#[cfg(feature = "dist_tx")]
 use std::collections::hash_map::Iter;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -47,6 +48,7 @@ impl<T: OptionId<T> + Debug + Eq + PartialEq + Hash> OptionPart<T> {
         res
     }
 
+    #[cfg(feature = "dist_tx")]
     pub fn iter(&self) -> Iter<T, OptionValue> {
         self.0.iter()
     }

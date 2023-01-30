@@ -533,7 +533,6 @@ impl<'a> ConnectionCore {
     }
 }
 
-#[cfg(any(feature = "sync", feature = "async"))]
 impl Drop for ConnectionCore {
     // try to send a disconnect to the database, ignore all errors
     fn drop(&mut self) {

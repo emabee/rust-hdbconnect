@@ -47,12 +47,8 @@ async fn test_daydate(_loghandle: &mut LoggerHandle, connection: &mut Connection
 
     // Insert the data such that the conversion "String -> SecondTime" is done on the
     // server side (we assume that this conversion is error-free).
-    let insert_stmt = |n, d| {
-        format!(
-            "insert into TEST_DAYDATE (number,mydate) values({}, '{}')",
-            n, d
-        )
-    };
+    let insert_stmt =
+        |n, d| format!("insert into TEST_DAYDATE (number,mydate) values({n}, '{d}')",);
     connection
         .multiple_statements_ignore_err(vec!["drop table TEST_DAYDATE"])
         .await;

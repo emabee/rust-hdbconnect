@@ -1,16 +1,15 @@
 [package]
 name = "hdbconnect_async"
-version = "0.25.0-alpha-2"
-authors = ["emabee <meinolf.block@sap.com>"]
+authors.workspace = true
+version.workspace = true
 edition = "2021"
-license = "MIT/Apache-2.0"
+license.workspace = true
+repository.workspace = true
 readme = "README.md"
-repository = "https://github.com/emabee/rust-hdbconnect"
-documentation = "https://docs.rs/hdbconnect/"
-
-description = "An asynchronous pure rust driver for SAP HANA(TM)"
-keywords = ["relational", "database", "driver", "serde", "HANA"]
-categories = ["database"]
+description = "An asynchronous pure rust database driver for SAP HANA(TM)"
+documentation = "https://docs.rs/hdbconnect_async/"
+keywords.workspace = true
+categories.workspace = true
 include = ["src/**/*", "LICENSE-*", "README.md", "CHANGELOG.md"]
 
 [package.metadata.docs.rs]
@@ -24,6 +23,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 [features]
 default = []
 rocket_pool = ["hdbconnect_impl/rocket_pool"]
+dist_tx = ["hdbconnect_impl/dist_tx_async"]
 
 [dependencies]
 hdbconnect_impl = { path = "../hdbconnect_impl", features = ["async"] }

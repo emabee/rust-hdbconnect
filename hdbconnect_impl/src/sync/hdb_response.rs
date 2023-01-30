@@ -135,7 +135,7 @@ impl HdbResponse {
 
     fn resultset(int_return_values: Vec<InternalReturnValue>) -> HdbResult<Self> {
         match single(int_return_values)? {
-            InternalReturnValue::ResultSet(rs) => Ok(Self {
+            InternalReturnValue::SyncResultSet(rs) => Ok(Self {
                 return_values: vec![HdbReturnValue::ResultSet(rs)],
             }),
             _ => Err(HdbError::Impl(
@@ -226,13 +226,17 @@ impl HdbResponse {
                     return_values.push(HdbReturnValue::OutputParameters(op));
                 }
                 InternalReturnValue::ParameterMetadata(_pm) => {}
-                InternalReturnValue::ResultSet(rs) => {
+                InternalReturnValue::SyncResultSet(rs) => {
                     return_values.push(HdbReturnValue::ResultSet(rs));
                 }
-                other => {
-                    return Err(HdbError::ImplDetailed(format!(
-                        "found in int_return_values: {other:?}"
-                    )));
+                InternalReturnValue::WriteLobReply(_) => {
+                    return Err(HdbError::Impl(
+                        "found WriteLobReply in multiple_return_values()",
+                    ));
+                }
+                #[cfg(feature = "async")]
+                InternalReturnValue::AsyncResultSet(_) => {
+                    debug!("AsyncResultSet cannot happen")
                 }
             }
         }
@@ -392,6 +396,7 @@ impl HdbResponse {
                 HdbReturnValue::AffectedRows(_) => "AffectedRows, ",
                 HdbReturnValue::OutputParameters(_) => "OutputParameters, ",
                 HdbReturnValue::Success => "Success, ",
+                #[cfg(feature = "dist_tx")]
                 HdbReturnValue::XaTransactionIds(_) => "XaTransactionIds, ",
             });
         }
