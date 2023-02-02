@@ -18,7 +18,8 @@ hdbconnect = "0.25"
 Assume you have a HANA accessible at port `39013` on host `hxehost`,
 and you can log on to it as user `HORST` with password `SeCrEt`.
 
-Then a first simple test might look like this:
+Then a first simple test which sets up some table, inserts data and reads them back
+might look like this:
 
 ```rust
 use hdbconnect::{Connection, HdbResult};
@@ -31,7 +32,7 @@ pub fn main() -> HdbResult<()> {
         "drop table FOO_SQUARE"
     ]);
     connection.multiple_statements(vec![
-        "create table FOO_SQUARE ( f1 INT primary key, f2 INT)",
+        "create table FOO_SQUARE ( f1 INT primary key, f2 BIGINT)",
     ])?;
 
     // Insert some test data
@@ -60,14 +61,23 @@ pub fn main() -> HdbResult<()> {
 
 ## Documentation
 
-See <https://docs.rs/hdbconnect/> for the full functionality of hdbconnect.
-
-There you also find more code examples, e.g. in the description of module `code_examples`.
+The [docs](https://docs.rs/hdbconnect/) contain more code examples,
+especially in the description of module `code_examples`.
 
 ## TLS
 
 See [HANA in SCP](https://github.com/emabee/rust-hdbconnect/blob/master/HANA_in_SCP.md)
 for instructions how to obtain the necessary server certificate from a HANA in SAP Cloud Platform.
+
+## Features
+
+### `r2d2_pool`
+
+Adds an implementation of a [`r2d2`](https://crates.io/crates/r2d2) database pool.
+
+### `dist_tx`
+
+Adds support for distributed transactions, based on [`dist_tx`](https://crates.io/crates/dist_tx).
 
 ## Versions
 

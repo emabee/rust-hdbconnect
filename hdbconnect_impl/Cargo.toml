@@ -1,8 +1,8 @@
 [package]
 name = "hdbconnect_impl"
+edition = "2021"
 authors.workspace = true
 version.workspace = true
-edition = "2021"
 license.workspace = true
 repository.workspace = true
 readme = "README.md"
@@ -10,6 +10,9 @@ description = "Common implementation of hdbconnect and hdbconect_async; not for 
 keywords.workspace = true
 categories.workspace = true
 include = ["src/**/*", "LICENSE-*", "README.md", "CHANGELOG.md"]
+
+[lib]
+doctest = false
 
 [package.metadata.docs.rs]
 all-features = false

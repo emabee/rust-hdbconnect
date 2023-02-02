@@ -12,15 +12,14 @@ Add hdbconnect to the dependencies section in your project's `Cargo.toml`:
 
 ```toml
 [dependencies]
-hdbconnect = "0.25"
+hdbconnect_async = "0.25"
 ```
 
 Assume you have a HANA accessible at port `39013` on host `hxehost`,
 and you can log on to it as user `HORST` with password `SeCrEt`.
 
-Then a first simple test might look like this:
-
-//FIXME test this
+Then a first simple test which sets up some table, inserts data and reads them back
+might look like this:
 
 ```rust
 use hdbconnect_async::{Connection, HdbResult};
@@ -34,7 +33,7 @@ pub async fn main() -> HdbResult<()> {
         "drop table FOO_SQUARE"
     ]).await;
     connection.multiple_statements(vec![
-        "create table FOO_SQUARE ( f1 INT primary key, f2 INT)",
+        "create table FOO_SQUARE ( f1 INT primary key, f2 BIGINT)",
     ]).await?;
 
     // Insert some test data
@@ -63,12 +62,25 @@ pub async fn main() -> HdbResult<()> {
 
 ## Documentation
 
-FIXME
-See <https://docs.rs/hdbconnect/> for the full functionality of hdbconnect.
+See <https://docs.rs/hdbconnect_async/> for the full functionality of hdbconnect.
 
-There you also find more code examples, e.g. in the description of module `code_examples`.
+There you find also more code examples, especially in the description of module `code_examples`.
 
 ## TLS
 
-See [HANA in SCP](HANA_in_SCP.md) for instructions how to obtain the necessary server
-certificate from a HANA in SAP Cloud Platform.
+See [HANA in SCP](https://github.com/emabee/rust-hdbconnect/blob/master/HANA_in_SCP.md)
+for instructions how to obtain the necessary server certificate from a HANA in SAP Cloud Platform.
+
+## Features
+
+### `rocket_pool`
+
+Adds an implementation of a [`rocket_db_pools`](https://crates.io/crates/rocket_db_pools) database pool.
+
+### `dist_tx`
+
+Adds support for distributed transactions, based on [`dist_tx`](https://crates.io/crates/dist_tx).
+
+## Versions
+
+See the [change log](https://github.com/emabee/rust-hdbconnect/blob/master/CHANGELOG.md).

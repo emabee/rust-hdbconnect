@@ -60,9 +60,11 @@ fn main() {
     run_command!("cargo", "+nightly", "clippy", "--all-targets", "--package", "hdbconnect_async", "--all-features", "--", "-D", "warnings");
 
     // doc
-    // run_command!("export", "RUSTDOCFLAGS=\"--cfg docsrs\"");
     run_command!("cargo", "+nightly", "doc", "--package", "hdbconnect", "--all-features", "--no-deps", "--open");
     run_command!("cargo", "+nightly", "doc", "--package", "hdbconnect_async", "--all-features", "--no-deps", "--open");
+    // doc-tests
+    run_command!("cargo", "+nightly", "test", "--doc", "--all-features", "--package", "hdbconnect");
+    run_command!("cargo", "+nightly", "test", "--doc", "--all-features", "--package", "hdbconnect_async");
 
     // Run tests in important variants
     run_command!("cargo", "test", "--package", "hdbconnect", "--release", "--all-features");
