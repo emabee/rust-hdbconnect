@@ -29,7 +29,12 @@ r2d2_pool = ["hdbconnect_impl/r2d2_pool"]
 dist_tx = ["hdbconnect_impl/dist_tx_sync"]
 
 [dependencies]
-hdbconnect_impl = { path = "../hdbconnect_impl", features = ["sync"] }
+
+[dependencies.hdbconnect_impl]
+version = "0.25"
+path = "../hdbconnect_impl"
+default-features = false
+features = ["sync"]
 
 [dev-dependencies]
 bigdecimal = {version = "0.3", features = ["serde"]}

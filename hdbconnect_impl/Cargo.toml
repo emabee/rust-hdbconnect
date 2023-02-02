@@ -18,7 +18,7 @@ doctest = false
 all-features = false
 
 [features]
-default = []
+default = ["sync","async"]
 async = ["async-trait", "tokio"]
 sync = []
 dist_tx_async = ["dist_tx/async"]
