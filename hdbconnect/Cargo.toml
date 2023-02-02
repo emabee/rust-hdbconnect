@@ -17,7 +17,7 @@ all-features = true
 # To make use of this globally, do: 
 #    export RUSTDOCFLAGS="--cfg docsrs" 
 # before calling 
-#    cargo +nightly doc --package hdbconnect_async --all-features --no-deps
+#    cargo +nightly doc --package hdbconnect --all-features --no-deps
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
