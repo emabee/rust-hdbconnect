@@ -1,24 +1,26 @@
-# hdbconnect
+# hdbconnect_async
 
-[![crates.io](https://meritbadge.herokuapp.com/hdbconnect)](https://crates.io/crates/hdbconnect)
-[![docs](https://docs.rs/hdbconnect/badge.svg)](https://docs.rs/hdbconnect)
-![License](https://img.shields.io/crates/l/hdbconnect.svg)
+[![Latest version](https://img.shields.io/crates/v/hdbconnect_async.svg)](https://crates.io/crates/hdbconnect_async)
+[![Documentation](https://docs.rs/hdbconnect_async/badge.svg)](https://docs.rs/hdbconnect_async)
+[![License](https://img.shields.io/crates/l/hdbconnect_async.svg)](https://github.com/emabee/hdbconnect_async)
 
-A synchronous pure rust SQL driver for SAP HANA(TM).
+An asynchronous pure rust SQL driver for SAP HANA(TM).
 
 ## Usage
 
-Add hdbconnect to the dependencies section in your project's `Cargo.toml`:
+Add `hdbconnect_async` to the dependencies section in your project's `Cargo.toml`:
 
 ```toml
 [dependencies]
 hdbconnect_async = "0.25"
 ```
 
-Assume you have a HANA accessible at port `39013` on host `hxehost`,
-and you can log on to it as user `HORST` with password `SeCrEt`.
+Assuming you have
 
-Then a first simple test which sets up some table, inserts data and reads them back
+- a HANA accessible at port `39013` on host `hxehost`,
+- and you can log on to it as user `HORST` with password `SeCrEt`,
+
+then a first simple test which sets up some table, inserts data and reads them back
 might look like this:
 
 ```rust
@@ -62,7 +64,7 @@ pub async fn main() -> HdbResult<()> {
 
 ## Documentation
 
-See <https://docs.rs/hdbconnect_async/> for the full functionality of hdbconnect.
+See <https://docs.rs/hdbconnect_async/> for the full functionality of hdbconnect_async.
 
 There you find also more code examples, especially in the description of module `code_examples`.
 

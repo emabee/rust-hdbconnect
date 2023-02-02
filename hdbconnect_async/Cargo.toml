@@ -30,7 +30,7 @@ dist_tx = ["hdbconnect_impl/dist_tx_async"]
 
 [dependencies.hdbconnect_impl]
 path = "../hdbconnect_impl"
-version = "0.25"
+version = "0.25.1"
 default-features = false
 features = ["async"]
 

@@ -1,6 +1,10 @@
 # Changelog
 
-## [0.25.0] Unpublished
+## [0.25.1] 2023-02-02
+
+Fix READMEs.
+
+## [0.25.0] 2023-02-02
 
 Reorganize the project using three workspaces.
 

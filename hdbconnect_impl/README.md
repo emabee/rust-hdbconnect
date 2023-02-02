@@ -1,8 +1,8 @@
 # hdbconnect_impl
 
-[![crates.io](https://meritbadge.herokuapp.com/hdbconnect_impl)](https://crates.io/crates/hdbconnect_impl)
-[![docs](https://docs.rs/hdbconnect_impl/badge.svg)](https://docs.rs/hdbconnect_impl)
-![License](https://img.shields.io/crates/l/hdbconnect_impl.svg)
+[![Latest version](https://img.shields.io/crates/v/hdbconnect_impl.svg)](https://crates.io/crates/hdbconnect_impl)
+[![Documentation](https://docs.rs/hdbconnect_impl/badge.svg)](https://docs.rs/hdbconnect_impl)
+[![License](https://img.shields.io/crates/l/hdbconnect_impl.svg)](https://github.com/emabee/hdbconnect_impl)
 
 Implementation of both `hdbconnect` and `hdbconnect_async`.
 
