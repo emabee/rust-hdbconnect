@@ -2,7 +2,7 @@ use hdbconnect_async::{Connection, HdbResult};
 
 #[tokio::main]
 pub async fn main() -> HdbResult<()> {
-    let mut connection = Connection::new("hdbsql://HORST:SeCrEt@hxehost:39013").await?;
+    let connection = Connection::new("hdbsql://HORST:SeCrEt@hxehost:39013").await?;
     // Cleanup if necessary, and set up a test table
     connection
         .multiple_statements_ignore_err(vec!["drop table FOO_SQUARE"])

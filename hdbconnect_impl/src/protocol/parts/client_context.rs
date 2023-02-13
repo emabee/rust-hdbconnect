@@ -15,13 +15,18 @@ impl ClientContext {
             ClientContextId::ClientVersion,
             OptionValue::STRING(VERSION.to_string()),
         );
+
+        let client_type = if cfg!(feature = "async") {
+            "hdbconnect_async (rust native HANA driver, https://crates.io/crates/hdbconnect_async)"
+        } else {
+            "hdbconnect (rust native HANA driver, https://crates.io/crates/hdbconnect)"
+        }
+        .to_string();
         cc.insert(
             ClientContextId::ClientType,
-            OptionValue::STRING(
-                "hdbconnect (rust native HANA driver, https://crates.io/crates/hdbconnect)"
-                    .to_string(),
-            ),
+            OptionValue::STRING(client_type),
         );
+
         cc.insert(
             ClientContextId::ClientApplicationProgramm,
             OptionValue::STRING(

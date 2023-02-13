@@ -25,7 +25,7 @@ mod a {
                 thread::Builder::new()
                     .name(thread_number.to_string())
                     .spawn(move || {
-                        let mut conn = pool.get().unwrap();
+                        let conn = pool.get().unwrap();
                         trace!("connection[{}]: Firing query", conn.id().unwrap());
                         conn.query("select 1 from dummy").unwrap();
                         0_u8

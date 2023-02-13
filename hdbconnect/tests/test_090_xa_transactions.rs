@@ -42,9 +42,9 @@ mod a {
         info!("Successful XA");
 
         // open two connections, auto_commit off
-        let mut conn_a = conn.spawn()?;
+        let conn_a = conn.spawn()?;
         conn_a.set_auto_commit(false)?;
-        let mut conn_b = conn_a.spawn()?;
+        let conn_b = conn_a.spawn()?;
         assert!(!conn_a.is_auto_commit()?);
         assert!(!conn_b.is_auto_commit()?);
 
@@ -86,12 +86,12 @@ mod a {
         info!("xa_rollback");
 
         // open two connections, auto_commit off
-        let mut conn_a = conn.spawn()?;
+        let conn_a = conn.spawn()?;
         conn_a.set_auto_commit(false)?;
-        let mut conn_b = conn_a.spawn()?;
+        let conn_b = conn_a.spawn()?;
         assert!(!conn_a.is_auto_commit()?);
         assert!(!conn_b.is_auto_commit()?);
-        let mut conn_c = conn.spawn()?;
+        let conn_c = conn.spawn()?;
 
         conn_a
             .exec("SET TRANSACTION LOCK WAIT TIMEOUT 3000")
@@ -151,9 +151,9 @@ mod a {
         info!("xa_repeated");
 
         // open two connections, auto_commit off
-        let mut conn_a = conn.spawn()?;
+        let conn_a = conn.spawn()?;
         conn_a.set_auto_commit(false)?;
-        let mut conn_b = conn_a.spawn()?;
+        let conn_b = conn_a.spawn()?;
         assert!(!conn_a.is_auto_commit()?);
         assert!(!conn_b.is_auto_commit()?);
 
@@ -223,9 +223,9 @@ mod a {
         info!("xa_conflicts");
 
         // open two connections, auto_commit off
-        let mut conn_a = conn.spawn()?;
+        let conn_a = conn.spawn()?;
         conn_a.set_auto_commit(false)?;
-        let mut conn_b = conn_a.spawn()?;
+        let conn_b = conn_a.spawn()?;
         assert!(!conn_a.is_auto_commit()?);
         assert!(!conn_b.is_auto_commit()?);
 

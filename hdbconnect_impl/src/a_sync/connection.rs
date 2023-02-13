@@ -69,7 +69,7 @@ impl Connection {
     /// # Errors
     ///
     /// Several variants of `HdbError` can occur.
-    pub async fn statement<S: AsRef<str>>(&mut self, stmt: S) -> HdbResult<HdbResponse> {
+    pub async fn statement<S: AsRef<str>>(&self, stmt: S) -> HdbResult<HdbResponse> {
         self.execute(stmt.as_ref(), None).await
     }
 
@@ -94,7 +94,7 @@ impl Connection {
     /// # Errors
     ///
     /// Several variants of `HdbError` can occur.
-    pub async fn query<S: AsRef<str>>(&mut self, stmt: S) -> HdbResult<ResultSet> {
+    pub async fn query<S: AsRef<str>>(&self, stmt: S) -> HdbResult<ResultSet> {
         self.statement(stmt).await?.into_resultset()
     }
 
@@ -119,7 +119,7 @@ impl Connection {
     /// # Errors
     ///
     /// Several variants of `HdbError` can occur.
-    pub async fn dml<S: AsRef<str>>(&mut self, stmt: S) -> HdbResult<usize> {
+    pub async fn dml<S: AsRef<str>>(&self, stmt: S) -> HdbResult<usize> {
         let vec = &(self.statement(stmt).await?.into_affected_rows()?);
         match vec.len() {
             1 => Ok(vec[0]),
@@ -148,7 +148,7 @@ impl Connection {
     /// # Errors
     ///
     /// Several variants of `HdbError` can occur.
-    pub async fn exec<S: AsRef<str>>(&mut self, stmt: S) -> HdbResult<()> {
+    pub async fn exec<S: AsRef<str>>(&self, stmt: S) -> HdbResult<()> {
         self.statement(stmt).await?.into_success()
     }
 
@@ -197,7 +197,7 @@ impl Connection {
     /// # Errors
     ///
     /// Several variants of `HdbError` can occur.
-    pub async fn commit(&mut self) -> HdbResult<()> {
+    pub async fn commit(&self) -> HdbResult<()> {
         self.statement("commit").await?.into_success()
     }
 
@@ -206,7 +206,7 @@ impl Connection {
     /// # Errors
     ///
     /// Several variants of `HdbError` can occur.
-    pub async fn rollback(&mut self) -> HdbResult<()> {
+    pub async fn rollback(&self) -> HdbResult<()> {
         self.statement("rollback").await?.into_success()
     }
 
@@ -218,7 +218,7 @@ impl Connection {
     /// Several variants of `HdbError` can occur.
     pub async fn spawn(&self) -> HdbResult<Self> {
         let am_conn_core = self.am_conn_core.async_lock().await;
-        let mut other = Self::new(am_conn_core.connect_params()).await?;
+        let other = Self::new(am_conn_core.connect_params()).await?;
         other.set_auto_commit(am_conn_core.is_auto_commit()).await?;
         other.set_fetch_size(am_conn_core.get_fetch_size()).await?;
         other
@@ -233,7 +233,7 @@ impl Connection {
     /// # Errors
     ///
     /// Several variants of `HdbError` can occur.
-    pub async fn multiple_statements_ignore_err<S: AsRef<str>>(&mut self, stmts: Vec<S>) {
+    pub async fn multiple_statements_ignore_err<S: AsRef<str>>(&self, stmts: Vec<S>) {
         for s in stmts {
             trace!("multiple_statements_ignore_err: firing \"{}\"", s.as_ref());
             let result = self.statement(s).await;
@@ -250,7 +250,7 @@ impl Connection {
     /// # Errors
     ///
     /// Several variants of `HdbError` can occur.
-    pub async fn multiple_statements<S: AsRef<str>>(&mut self, stmts: Vec<S>) -> HdbResult<()> {
+    pub async fn multiple_statements<S: AsRef<str>>(&self, stmts: Vec<S>) -> HdbResult<()> {
         for s in stmts {
             self.statement(s).await?;
         }
@@ -272,7 +272,7 @@ impl Connection {
     /// # Errors
     ///
     /// Only `HdbError::Poison` can occur.
-    pub async fn set_auto_commit(&mut self, ac: bool) -> HdbResult<()> {
+    pub async fn set_auto_commit(&self, ac: bool) -> HdbResult<()> {
         self.am_conn_core.async_lock().await.set_auto_commit(ac);
         Ok(())
     }
@@ -291,7 +291,7 @@ impl Connection {
     /// # Errors
     ///
     /// Only `HdbError::Poison` can occur.
-    pub async fn set_fetch_size(&mut self, fetch_size: u32) -> HdbResult<()> {
+    pub async fn set_fetch_size(&self, fetch_size: u32) -> HdbResult<()> {
         self.am_conn_core
             .async_lock()
             .await
@@ -311,7 +311,7 @@ impl Connection {
     /// # Errors
     ///
     /// Only `HdbError::Poison` can occur.
-    pub async fn set_lob_read_length(&mut self, l: u32) -> HdbResult<()> {
+    pub async fn set_lob_read_length(&self, l: u32) -> HdbResult<()> {
         self.am_conn_core.async_lock().await.set_lob_read_length(l);
         Ok(())
     }
@@ -335,7 +335,7 @@ impl Connection {
     /// # Errors
     ///
     /// Only `HdbError::Poison` can occur.
-    pub async fn set_lob_write_length(&mut self, l: usize) -> HdbResult<()> {
+    pub async fn set_lob_write_length(&self, l: usize) -> HdbResult<()> {
         self.am_conn_core.async_lock().await.set_lob_write_length(l);
         Ok(())
     }
@@ -454,7 +454,7 @@ impl Connection {
     /// # Errors
     ///
     /// Only `HdbError::Poison` can occur.
-    pub async fn set_application_version<S: AsRef<str>>(&mut self, version: S) -> HdbResult<()> {
+    pub async fn set_application_version<S: AsRef<str>>(&self, version: S) -> HdbResult<()> {
         self.am_conn_core
             .async_lock()
             .await
@@ -477,7 +477,7 @@ impl Connection {
     /// # Errors
     ///
     /// Only `HdbError::Poison` can occur.
-    pub async fn set_application_source<S: AsRef<str>>(&mut self, source: S) -> HdbResult<()> {
+    pub async fn set_application_source<S: AsRef<str>>(&self, source: S) -> HdbResult<()> {
         self.am_conn_core
             .async_lock()
             .await
@@ -599,7 +599,7 @@ impl Connection {
     }
 
     async fn execute<S>(
-        &mut self,
+        &self,
         stmt: S,
         o_command_info: Option<CommandInfo>,
     ) -> HdbResult<HdbResponse>
@@ -628,7 +628,7 @@ impl Connection {
             .am_conn_core
             .async_send(request)
             .await?
-            .async_into_internal_return_values(&mut self.am_conn_core, None)
+            .async_into_internal_return_values(&self.am_conn_core, None)
             .await?;
         HdbResponse::try_new(internal_return_values, replytype)
     }

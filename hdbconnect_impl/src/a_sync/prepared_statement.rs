@@ -188,7 +188,7 @@ impl<'a> PreparedStatement {
         hdb_values: Vec<HdbValue<'a>>,
     ) -> HdbResult<HdbResponse> {
         if self.a_descriptors.has_in() {
-            let mut ps_core_guard = self.am_ps_core.lock().await;
+            let ps_core_guard = self.am_ps_core.lock().await;
 
             let mut request = Request::new(RequestType::Execute, HOLD_CURSORS_OVER_COMMIT);
 
@@ -397,7 +397,7 @@ impl<'a> PreparedStatement {
     }
 
     // Prepare a statement.
-    pub(crate) async fn try_new(mut am_conn_core: AmConnCore, stmt: &str) -> HdbResult<Self> {
+    pub(crate) async fn try_new(am_conn_core: AmConnCore, stmt: &str) -> HdbResult<Self> {
         let mut request = Request::new(RequestType::Prepare, HOLD_CURSORS_OVER_COMMIT);
         request.push(Part::Command(stmt));
 

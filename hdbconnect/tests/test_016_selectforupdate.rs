@@ -50,8 +50,8 @@ fn produce_conflicts(_log_handle: &mut LoggerHandle, connection: &mut Connection
     connection.set_auto_commit(false)?;
 
     log::debug!("get two more connections");
-    let mut connection2 = connection.spawn()?;
-    let mut connection3 = connection.spawn()?;
+    let connection2 = connection.spawn()?;
+    let connection3 = connection.spawn()?;
 
     log::debug!("conn1: select * for update");
     connection.query("select * from TEST_SELFORUPDATE where F1_S = 'Hello' for update")?;

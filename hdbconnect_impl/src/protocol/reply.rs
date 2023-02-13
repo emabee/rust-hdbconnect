@@ -131,7 +131,7 @@ impl Reply {
     #[cfg(feature = "sync")]
     pub fn sync_into_internal_return_values(
         self,
-        am_conn_core: &mut AmConnCore,
+        am_conn_core: &AmConnCore,
         o_additional_server_usage: Option<&mut ServerUsage>,
     ) -> HdbResult<(Vec<InternalReturnValue>, ReplyType)> {
         Ok((
@@ -144,7 +144,7 @@ impl Reply {
     #[cfg(feature = "async")]
     pub async fn async_into_internal_return_values(
         self,
-        am_conn_core: &mut AmConnCore,
+        am_conn_core: &AmConnCore,
         o_additional_server_usage: Option<&mut ServerUsage>,
     ) -> HdbResult<(Vec<InternalReturnValue>, ReplyType)> {
         Ok((

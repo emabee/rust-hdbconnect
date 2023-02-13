@@ -94,7 +94,7 @@ impl SyncRsState {
 
     pub fn fetch_next(&mut self, a_rsmd: &Arc<ResultSetMetadata>) -> HdbResult<()> {
         trace!("ResultSet::fetch_next()");
-        let (mut conn_core, resultset_id, fetch_size) = {
+        let (conn_core, resultset_id, fetch_size) = {
             // scope the borrow
             if let Some(ref am_rscore) = self.o_am_rscore {
                 let rs_core = (**am_rscore).sync_lock()?;

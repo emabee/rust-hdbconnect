@@ -11,7 +11,7 @@ fn test_011_invalid_password() {
     let mut _log_handle = test_utils::init_logger();
 
     info!("test warnings");
-    let mut sys_conn = test_utils::get_um_connection().unwrap();
+    let sys_conn = test_utils::get_um_connection().unwrap();
 
     debug!("drop user DOEDEL, and recreate it with need to set password");
     sys_conn.multiple_statements_ignore_err(vec![
@@ -64,7 +64,7 @@ fn test_011_invalid_password() {
         assert_eq!(conn_params.dbuser(), user);
         assert_eq!(conn_params.password().unsecure(), "Doebcd1234");
 
-        let mut doedel_conn = Connection::new(conn_params).unwrap();
+        let doedel_conn = Connection::new(conn_params).unwrap();
         debug!("{} is connected", user);
 
         debug!("select from dummy -> ensure getting the right error");

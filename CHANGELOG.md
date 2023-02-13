@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.26.0-unpublished] 2023-??-??
+
+API changes: Most Connection methods don't require mutability
+
 ## [0.25.1] 2023-02-02
 
 Fix READMEs.

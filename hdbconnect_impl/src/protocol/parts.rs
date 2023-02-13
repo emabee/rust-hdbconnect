@@ -139,7 +139,7 @@ impl Parts<'static> {
     #[cfg(feature = "sync")]
     pub fn sync_into_internal_return_values(
         self,
-        am_conn_core: &mut AmConnCore,
+        am_conn_core: &AmConnCore,
         mut o_additional_server_usage: Option<&mut ServerUsage>,
     ) -> HdbResult<Vec<InternalReturnValue>> {
         let mut conn_core = am_conn_core.sync_lock()?;

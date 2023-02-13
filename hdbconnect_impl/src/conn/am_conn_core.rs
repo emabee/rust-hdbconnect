@@ -88,18 +88,18 @@ impl AmConnCore {
     }
 
     #[cfg(feature = "sync")]
-    pub fn sync_send(&mut self, request: Request) -> HdbResult<Reply> {
+    pub fn sync_send(&self, request: Request) -> HdbResult<Reply> {
         self.sync_full_send(request, None, None, &mut None)
     }
 
     #[cfg(feature = "async")]
-    pub async fn async_send(&mut self, request: Request<'_>) -> HdbResult<Reply> {
+    pub async fn async_send(&self, request: Request<'_>) -> HdbResult<Reply> {
         self.async_full_send(request, None, None, &mut None).await
     }
 
     #[cfg(feature = "sync")]
     pub(crate) fn sync_full_send(
-        &mut self,
+        &self,
         mut request: Request,
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
@@ -136,7 +136,7 @@ impl AmConnCore {
 
     #[cfg(feature = "async")]
     pub(crate) async fn async_full_send(
-        &mut self,
+        &self,
         mut request: Request<'_>,
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,

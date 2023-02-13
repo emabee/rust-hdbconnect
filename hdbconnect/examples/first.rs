@@ -4,7 +4,7 @@ use hdbconnect::{Connection, HdbResult};
 pub fn main() -> HdbResult<()> {
     // Get a connection
     let url = "hdbsql://HORST:SECRET@hxehost:39013";
-    let mut connection = Connection::new(url)?;
+    let connection = Connection::new(url)?;
 
     // Cleanup if necessary, and set up a test table
     connection.multiple_statements_ignore_err(vec![

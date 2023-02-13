@@ -23,7 +23,7 @@ impl Connection {
     ///
     /// ```rust,no_run
     /// use hdbconnect::Connection;
-    /// let mut conn = Connection::new("hdbsql://my_user:my_passwd@the_host:2222").unwrap();
+    /// let conn = Connection::new("hdbsql://my_user:my_passwd@the_host:2222").unwrap();
     /// ```
     ///
     /// # Errors
@@ -52,7 +52,7 @@ impl Connection {
     /// # let params = "hdbsql://my_user:my_passwd@the_host:2222"
     /// #     .into_connect_params()
     /// #     .unwrap();
-    /// # let mut connection = Connection::new(params).unwrap();
+    /// # let connection = Connection::new(params).unwrap();
     /// # let statement_string = "";
     /// let mut response = connection.statement(&statement_string)?; // HdbResponse
     /// # Ok(())
@@ -62,7 +62,7 @@ impl Connection {
     /// # Errors
     ///
     /// Several variants of `HdbError` can occur.
-    pub fn statement<S: AsRef<str>>(&mut self, stmt: S) -> HdbResult<HdbResponse> {
+    pub fn statement<S: AsRef<str>>(&self, stmt: S) -> HdbResult<HdbResponse> {
         self.execute(stmt.as_ref(), None)
     }
 
@@ -78,7 +78,7 @@ impl Connection {
     /// # let params = "hdbsql://my_user:my_passwd@the_host:2222"
     /// #     .into_connect_params()
     /// #     .unwrap();
-    /// # let mut connection = Connection::new(params).unwrap();
+    /// # let connection = Connection::new(params).unwrap();
     /// # let statement_string = "";
     /// let mut rs = connection.query(&statement_string)?; // ResultSet
     /// # Ok(())
@@ -88,7 +88,7 @@ impl Connection {
     /// # Errors
     ///
     /// Several variants of `HdbError` can occur.
-    pub fn query<S: AsRef<str>>(&mut self, stmt: S) -> HdbResult<ResultSet> {
+    pub fn query<S: AsRef<str>>(&self, stmt: S) -> HdbResult<ResultSet> {
         self.statement(stmt)?.into_resultset()
     }
 
@@ -104,7 +104,7 @@ impl Connection {
     /// # let params = "hdbsql://my_user:my_passwd@the_host:2222"
     /// #     .into_connect_params()
     /// #     .unwrap();
-    /// # let mut connection = Connection::new(params).unwrap();
+    /// # let connection = Connection::new(params).unwrap();
     /// # let statement_string = "";
     /// let count = connection.dml(&statement_string)?; //usize
     /// # Ok(())
@@ -114,7 +114,7 @@ impl Connection {
     /// # Errors
     ///
     /// Several variants of `HdbError` can occur.
-    pub fn dml<S: AsRef<str>>(&mut self, stmt: S) -> HdbResult<usize> {
+    pub fn dml<S: AsRef<str>>(&self, stmt: S) -> HdbResult<usize> {
         let vec = &(self.statement(stmt)?.into_affected_rows()?);
         match vec.len() {
             1 => Ok(vec[0]),
@@ -134,7 +134,7 @@ impl Connection {
     /// # let params = "hdbsql://my_user:my_passwd@the_host:2222"
     /// #     .into_connect_params()
     /// #     .unwrap();
-    /// # let mut connection = Connection::new(params).unwrap();
+    /// # let connection = Connection::new(params).unwrap();
     /// # let statement_string = "";
     /// connection.exec(&statement_string)?;
     /// # Ok(())
@@ -144,7 +144,7 @@ impl Connection {
     /// # Errors
     ///
     /// Several variants of `HdbError` can occur.
-    pub fn exec<S: AsRef<str>>(&mut self, stmt: S) -> HdbResult<()> {
+    pub fn exec<S: AsRef<str>>(&self, stmt: S) -> HdbResult<()> {
         self.statement(stmt)?.into_success()
     }
 
@@ -161,9 +161,9 @@ impl Connection {
     /// # let params = "hdbsql://my_user:my_passwd@the_host:2222"
     /// #     .into_connect_params()
     /// #     .unwrap();
-    /// # let mut connection = Connection::new(params).unwrap();
+    /// # let connection = Connection::new(params).unwrap();
     /// let query_string = "select * from phrases where ID = ? and text = ?";
-    /// let mut statement = connection.prepare(query_string)?; //PreparedStatement
+    /// let statement = connection.prepare(query_string)?; //PreparedStatement
     /// # Ok(())
     /// # }
     /// ```
@@ -194,7 +194,7 @@ impl Connection {
     /// # Errors
     ///
     /// Several variants of `HdbError` can occur.
-    pub fn commit(&mut self) -> HdbResult<()> {
+    pub fn commit(&self) -> HdbResult<()> {
         self.statement("commit")?.into_success()
     }
 
@@ -203,7 +203,7 @@ impl Connection {
     /// # Errors
     ///
     /// Several variants of `HdbError` can occur.
-    pub fn rollback(&mut self) -> HdbResult<()> {
+    pub fn rollback(&self) -> HdbResult<()> {
         self.statement("rollback")?.into_success()
     }
 
@@ -215,7 +215,7 @@ impl Connection {
     /// Several variants of `HdbError` can occur.
     pub fn spawn(&self) -> HdbResult<Self> {
         let am_conn_core = self.am_conn_core.sync_lock()?;
-        let mut other = Self::new(am_conn_core.connect_params())?;
+        let other = Self::new(am_conn_core.connect_params())?;
         other.set_auto_commit(am_conn_core.is_auto_commit())?;
         other.set_fetch_size(am_conn_core.get_fetch_size())?;
         other.set_lob_read_length(am_conn_core.lob_read_length())?;
@@ -228,7 +228,7 @@ impl Connection {
     /// # Errors
     ///
     /// Several variants of `HdbError` can occur.
-    pub fn multiple_statements_ignore_err<S: AsRef<str>>(&mut self, stmts: Vec<S>) {
+    pub fn multiple_statements_ignore_err<S: AsRef<str>>(&self, stmts: Vec<S>) {
         for s in stmts {
             trace!("multiple_statements_ignore_err: firing \"{}\"", s.as_ref());
             let result = self.statement(s);
@@ -245,7 +245,7 @@ impl Connection {
     /// # Errors
     ///
     /// Several variants of `HdbError` can occur.
-    pub fn multiple_statements<S: AsRef<str>>(&mut self, stmts: Vec<S>) -> HdbResult<()> {
+    pub fn multiple_statements<S: AsRef<str>>(&self, stmts: Vec<S>) -> HdbResult<()> {
         for s in stmts {
             self.statement(s)?;
         }
@@ -267,7 +267,7 @@ impl Connection {
     /// # Errors
     ///
     /// Only `HdbError::Poison` can occur.
-    pub fn set_auto_commit(&mut self, ac: bool) -> HdbResult<()> {
+    pub fn set_auto_commit(&self, ac: bool) -> HdbResult<()> {
         self.am_conn_core.sync_lock()?.set_auto_commit(ac);
         Ok(())
     }
@@ -286,7 +286,7 @@ impl Connection {
     /// # Errors
     ///
     /// Only `HdbError::Poison` can occur.
-    pub fn set_fetch_size(&mut self, fetch_size: u32) -> HdbResult<()> {
+    pub fn set_fetch_size(&self, fetch_size: u32) -> HdbResult<()> {
         self.am_conn_core.sync_lock()?.set_fetch_size(fetch_size);
         Ok(())
     }
@@ -303,7 +303,7 @@ impl Connection {
     /// # Errors
     ///
     /// Only `HdbError::Poison` can occur.
-    pub fn set_lob_read_length(&mut self, l: u32) -> HdbResult<()> {
+    pub fn set_lob_read_length(&self, l: u32) -> HdbResult<()> {
         self.am_conn_core.sync_lock()?.set_lob_read_length(l);
         Ok(())
     }
@@ -327,7 +327,7 @@ impl Connection {
     /// # Errors
     ///
     /// Only `HdbError::Poison` can occur.
-    pub fn set_lob_write_length(&mut self, l: usize) -> HdbResult<()> {
+    pub fn set_lob_write_length(&self, l: usize) -> HdbResult<()> {
         self.am_conn_core.sync_lock()?.set_lob_write_length(l);
         Ok(())
     }
@@ -390,7 +390,7 @@ impl Connection {
     /// ```rust,no_run
     /// # use hdbconnect::{Connection,HdbResult};
     /// # fn foo() -> HdbResult<()> {
-    /// # let mut connection = Connection::new("hdbsql://my_user:my_passwd@the_host:2222")?;
+    /// # let connection = Connection::new("hdbsql://my_user:my_passwd@the_host:2222")?;
     /// connection.set_application("MyApp, built in rust")?;
     /// # Ok(()) }
     /// ```
@@ -410,7 +410,7 @@ impl Connection {
     /// ```rust,no_run
     /// # use hdbconnect::{Connection,HdbResult};
     /// # fn foo() -> HdbResult<()> {
-    /// # let mut connection = Connection::new("hdbsql://my_user:my_passwd@the_host:2222")?;
+    /// # let connection = Connection::new("hdbsql://my_user:my_passwd@the_host:2222")?;
     /// connection.set_application_user("K2209657")?;
     /// # Ok(()) }
     /// ```
@@ -432,7 +432,7 @@ impl Connection {
     /// ```rust,no_run
     /// # use hdbconnect::{Connection,HdbResult};
     /// # fn foo() -> HdbResult<()> {
-    /// # let mut connection = Connection::new("hdbsql://my_user:my_passwd@the_host:2222")?;
+    /// # let  connection = Connection::new("hdbsql://my_user:my_passwd@the_host:2222")?;
     /// connection.set_application_version("5.3.23")?;
     /// # Ok(()) }
     /// ```
@@ -440,7 +440,7 @@ impl Connection {
     /// # Errors
     ///
     /// Only `HdbError::Poison` can occur.
-    pub fn set_application_version<S: AsRef<str>>(&mut self, version: S) -> HdbResult<()> {
+    pub fn set_application_version<S: AsRef<str>>(&self, version: S) -> HdbResult<()> {
         self.am_conn_core
             .sync_lock()?
             .set_application_version(version.as_ref());
@@ -454,7 +454,7 @@ impl Connection {
     /// ```rust,no_run
     /// # use hdbconnect::{Connection,HdbResult};
     /// # fn foo() -> HdbResult<()> {
-    /// # let mut connection = Connection::new("hdbsql://my_user:my_passwd@the_host:2222")?;
+    /// # let connection = Connection::new("hdbsql://my_user:my_passwd@the_host:2222")?;
     /// connection.set_application_source("update_customer.rs")?;
     /// # Ok(()) }
     /// ```
@@ -462,7 +462,7 @@ impl Connection {
     /// # Errors
     ///
     /// Only `HdbError::Poison` can occur.
-    pub fn set_application_source<S: AsRef<str>>(&mut self, source: S) -> HdbResult<()> {
+    pub fn set_application_source<S: AsRef<str>>(&self, source: S) -> HdbResult<()> {
         self.am_conn_core
             .sync_lock()?
             .set_application_source(source.as_ref());
@@ -483,7 +483,7 @@ impl Connection {
     ///
     /// Several variants of `HdbError` can occur.
     pub fn execute_with_debuginfo<S: AsRef<str>>(
-        &mut self,
+        &self,
         stmt: S,
         module: S,
         line: i32,
@@ -578,7 +578,7 @@ impl Connection {
             .map(ToOwned::to_owned)
     }
 
-    fn execute<S>(&mut self, stmt: S, o_command_info: Option<CommandInfo>) -> HdbResult<HdbResponse>
+    fn execute<S>(&self, stmt: S, o_command_info: Option<CommandInfo>) -> HdbResult<HdbResponse>
     where
         S: AsRef<str>,
     {
@@ -602,7 +602,7 @@ impl Connection {
         let (internal_return_values, replytype) = self
             .am_conn_core
             .sync_send(request)?
-            .sync_into_internal_return_values(&mut self.am_conn_core, None)?;
+            .sync_into_internal_return_values(&self.am_conn_core, None)?;
         HdbResponse::try_new(internal_return_values, replytype)
     }
 }

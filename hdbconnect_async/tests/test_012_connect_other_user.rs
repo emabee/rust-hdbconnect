@@ -20,7 +20,7 @@ async fn connect_other_user(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
     // _log_handle.parse_and_push_temp_spec("test = debug, info");
 
     let other_user = "THEOTHERONE".to_string();
-    let mut sys_conn = test_utils::get_um_connection().await.unwrap();
+    let sys_conn = test_utils::get_um_connection().await.unwrap();
 
     sys_conn
         .multiple_statements_ignore_err(vec![

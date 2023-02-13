@@ -95,7 +95,7 @@ impl AsyncRsState {
 
     pub async fn fetch_next(&mut self, a_rsmd: &Arc<ResultSetMetadata>) -> HdbResult<()> {
         trace!("ResultSet::fetch_next()");
-        let (mut conn_core, resultset_id, fetch_size) = {
+        let (conn_core, resultset_id, fetch_size) = {
             // scope the borrow
             if let Some(ref am_rscore) = self.o_am_rscore {
                 let rs_core = am_rscore.async_lock().await;
@@ -205,7 +205,7 @@ impl Drop for AsyncResultSetCore {
             let mut request = Request::new(RequestType::CloseResultSet, 0);
             request.push(Part::ResultSetId(rs_id));
 
-            let mut am_conn_core = self.am_conn_core.clone();
+            let am_conn_core = self.am_conn_core.clone();
             tokio::task::spawn(async move {
                 if let Ok(mut reply) = am_conn_core.async_send(request).await {
                     reply.parts.pop_if_kind(PartKind::StatementContext);

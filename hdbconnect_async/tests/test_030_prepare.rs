@@ -91,7 +91,7 @@ async fn prepare_insert_statement(
     connection.commit().await?;
 
     // prepare, execute batch, rollback in new spawn
-    let mut connection3 = connection.spawn().await?;
+    let connection3 = connection.spawn().await?;
     let mut insert_stmt3 = connection3.prepare(insert_stmt_str).await?;
     insert_stmt3.add_batch(&("conn3-auto1", 45_i32))?;
     insert_stmt3.add_batch(&("conn3-auto2", 46_i32))?;

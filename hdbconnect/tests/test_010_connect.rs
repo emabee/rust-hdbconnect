@@ -58,7 +58,7 @@ fn client_info(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
     _log_handle
         .parse_and_push_temp_spec("info, test = debug")
         .unwrap();
-    let mut connection = test_utils::get_authenticated_connection().unwrap();
+    let connection = test_utils::get_authenticated_connection().unwrap();
     let connection_id: i32 = connection.id()?;
 
     debug!("verify original client info appears in session context");
@@ -207,7 +207,7 @@ impl SessCtx {
 
 fn command_info(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
     info!("command info");
-    let mut connection = test_utils::get_authenticated_connection().unwrap();
+    let connection = test_utils::get_authenticated_connection().unwrap();
 
     let stmt = r#"SELECT KEY, VALUE FROM M_SESSION_CONTEXT ORDER BY KEY"#;
 

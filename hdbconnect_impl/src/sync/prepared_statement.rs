@@ -392,7 +392,7 @@ impl<'a> PreparedStatement {
     }
 
     // Prepare a statement.
-    pub(crate) fn try_new(mut am_conn_core: AmConnCore, stmt: &str) -> HdbResult<Self> {
+    pub(crate) fn try_new(am_conn_core: AmConnCore, stmt: &str) -> HdbResult<Self> {
         let mut request = Request::new(RequestType::Prepare, HOLD_CURSORS_OVER_COMMIT);
         request.push(Part::Command(stmt));
 

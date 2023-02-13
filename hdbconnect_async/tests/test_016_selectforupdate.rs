@@ -57,8 +57,8 @@ async fn produce_conflicts(
     connection.set_auto_commit(false).await?;
 
     log::debug!("get two more connections");
-    let mut connection2 = connection.spawn().await?;
-    let mut connection3 = connection.spawn().await?;
+    let connection2 = connection.spawn().await?;
+    let connection3 = connection.spawn().await?;
 
     log::debug!("conn1: select * for update");
     connection
