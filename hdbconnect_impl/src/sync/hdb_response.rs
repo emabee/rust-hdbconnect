@@ -236,7 +236,7 @@ impl HdbResponse {
                 }
                 #[cfg(feature = "async")]
                 InternalReturnValue::AsyncResultSet(_) => {
-                    debug!("AsyncResultSet cannot happen")
+                    debug!("AsyncResultSet cannot happen");
                 }
             }
         }

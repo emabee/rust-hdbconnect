@@ -236,7 +236,7 @@ impl HdbResponse {
                 }
                 #[cfg(feature = "sync")]
                 InternalReturnValue::SyncResultSet(_) => {
-                    debug!("SyncResultSet cannot happen")
+                    debug!("SyncResultSet cannot happen");
                 }
             }
         }
