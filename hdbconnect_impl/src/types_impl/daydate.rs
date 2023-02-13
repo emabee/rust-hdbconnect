@@ -1,7 +1,4 @@
-use crate::protocol::util;
-#[cfg(feature = "async")]
-use crate::protocol::util_async;
-use crate::HdbValue;
+use crate::{HdbError, HdbResult, HdbValue};
 #[cfg(feature = "sync")]
 use byteorder::{LittleEndian, ReadBytesExt};
 
@@ -84,13 +81,13 @@ impl DayDate {
 pub(crate) fn parse_daydate_sync(
     nullable: bool,
     rdr: &mut dyn std::io::Read,
-) -> std::io::Result<HdbValue<'static>> {
+) -> HdbResult<HdbValue<'static>> {
     let i = rdr.read_i32::<LittleEndian>()?;
     if i == NULL_REPRESENTATION {
         if nullable {
             Ok(HdbValue::NULL)
         } else {
-            Err(util::io_error(
+            Err(HdbError::Impl(
                 "found NULL value for NOT NULL DAYDATE column",
             ))
         }
@@ -103,13 +100,13 @@ pub(crate) fn parse_daydate_sync(
 pub(crate) async fn parse_daydate_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
     nullable: bool,
     rdr: &mut R,
-) -> std::io::Result<HdbValue<'static>> {
-    let i = util_async::read_i32(rdr).await?;
+) -> HdbResult<HdbValue<'static>> {
+    let i = rdr.read_i32_le().await?;
     if i == NULL_REPRESENTATION {
         if nullable {
             Ok(HdbValue::NULL)
         } else {
-            Err(util::io_error(
+            Err(HdbError::Impl(
                 "found NULL value for NOT NULL DAYDATE column",
             ))
         }

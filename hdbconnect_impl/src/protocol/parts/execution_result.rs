@@ -1,4 +1,4 @@
-use crate::protocol::parts::server_error::ServerError;
+use crate::{HdbResult, ServerError};
 #[cfg(feature = "sync")]
 use byteorder::{LittleEndian, ReadBytesExt};
 
@@ -14,10 +14,7 @@ pub enum ExecutionResult {
 }
 impl ExecutionResult {
     #[cfg(feature = "sync")]
-    pub(crate) fn parse_sync(
-        count: usize,
-        rdr: &mut dyn std::io::Read,
-    ) -> std::io::Result<Vec<Self>> {
+    pub(crate) fn parse_sync(count: usize, rdr: &mut dyn std::io::Read) -> HdbResult<Vec<Self>> {
         let mut vec = Vec::<Self>::with_capacity(count);
         for _ in 0..count {
             match rdr.read_i32::<LittleEndian>()? {
@@ -34,7 +31,7 @@ impl ExecutionResult {
     pub(crate) async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
         count: usize,
         rdr: &mut R,
-    ) -> std::io::Result<Vec<Self>> {
+    ) -> HdbResult<Vec<Self>> {
         let mut vec = Vec::<Self>::with_capacity(count);
         for _ in 0..count {
             match rdr.read_i32_le().await? {

@@ -18,7 +18,7 @@ use crate::{
     protocol::parts::{
         ExecutionResult, ParameterDescriptors, Parts, ResultSetMetadata, ServerError, Severity,
     },
-    protocol::{util, Part, PartKind, ReplyType, ServerUsage},
+    protocol::{Part, PartKind, ReplyType, ServerUsage},
     HdbError, HdbResult,
 };
 use std::sync::Arc;
@@ -58,7 +58,7 @@ impl Reply {
         o_rs: &mut Option<&mut SyncRsState>,
         o_am_conn_core: Option<&AmConnCore>,
         rdr: &mut dyn std::io::Read,
-    ) -> std::io::Result<Self> {
+    ) -> HdbResult<Self> {
         trace!("Reply::parse()");
         let (no_of_parts, mut reply) = parse_msg_and_seq_header_sync(rdr)?;
 
@@ -91,7 +91,7 @@ impl Reply {
         o_rs: &mut Option<&mut AsyncRsState>,
         o_am_conn_core: Option<&AmConnCore>,
         rdr: &mut R,
-    ) -> std::io::Result<Self> {
+    ) -> HdbResult<Self> {
         trace!("Reply::parse()");
         let (no_of_parts, mut reply) = parse_msg_and_seq_header_async(rdr).await?;
 
@@ -234,7 +234,7 @@ impl Reply {
 }
 
 #[cfg(feature = "sync")]
-fn parse_msg_and_seq_header_sync(rdr: &mut dyn std::io::Read) -> std::io::Result<(i16, Reply)> {
+fn parse_msg_and_seq_header_sync(rdr: &mut dyn std::io::Read) -> HdbResult<(i16, Reply)> {
     // MESSAGE HEADER: 32 bytes
     let session_id: i64 = rdr.read_i64::<LittleEndian>()?; // I8
     let packet_seq_number: i32 = rdr.read_i32::<LittleEndian>()?; // I4
@@ -242,11 +242,13 @@ fn parse_msg_and_seq_header_sync(rdr: &mut dyn std::io::Read) -> std::io::Result
     let remaining_bufsize: u32 = rdr.read_u32::<LittleEndian>()?; // UI4  not needed?
     let no_of_segs = rdr.read_i16::<LittleEndian>()?; // I2
     if no_of_segs == 0 {
-        return Err(util::io_error("empty response (is ok for drop connection)"));
+        return Err(HdbError::Impl("empty response (is ok for drop connection)"));
     }
 
     if no_of_segs > 1 {
-        return Err(util::io_error(format!("no_of_segs = {no_of_segs} > 1")));
+        return Err(HdbError::ImplDetailed(format!(
+            "no_of_segs = {no_of_segs} > 1"
+        )));
     }
 
     util_sync::skip_bytes(10, rdr)?; // (I1 + B[9])
@@ -268,7 +270,7 @@ fn parse_msg_and_seq_header_sync(rdr: &mut dyn std::io::Read) -> std::io::Result
     );
 
     match seg_kind {
-        Kind::Request => Err(util::io_error("Cannot _parse_ a request".to_string())),
+        Kind::Request => Err(HdbError::Impl("Cannot _parse_ a request")),
         Kind::Reply | Kind::Error => {
             util_sync::skip_bytes(1, rdr)?; // I1 reserved2
             let reply_type = ReplyType::from_i16(rdr.read_i16::<LittleEndian>()?)?; // I2
@@ -285,28 +287,30 @@ fn parse_msg_and_seq_header_sync(rdr: &mut dyn std::io::Read) -> std::io::Result
 #[cfg(feature = "async")]
 async fn parse_msg_and_seq_header_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
     rdr: &mut R,
-) -> std::io::Result<(i16, Reply)> {
+) -> HdbResult<(i16, Reply)> {
     // MESSAGE HEADER: 32 bytes
-    let session_id: i64 = util_async::read_i64(rdr).await?; // I8
-    let packet_seq_number: i32 = util_async::read_i32(rdr).await?; // I4
-    let varpart_size: u32 = util_async::read_u32(rdr).await?; // UI4  not needed?
-    let remaining_bufsize: u32 = util_async::read_u32(rdr).await?; // UI4  not needed?
-    let no_of_segs = util_async::read_i16(rdr).await?; // I2
+    let session_id: i64 = rdr.read_i64_le().await?; // I8
+    let packet_seq_number: i32 = rdr.read_i32_le().await?; // I4
+    let varpart_size: u32 = rdr.read_u32_le().await?; // UI4  not needed?
+    let remaining_bufsize: u32 = rdr.read_u32_le().await?; // UI4  not needed?
+    let no_of_segs = rdr.read_i16_le().await?; // I2
     if no_of_segs == 0 {
-        return Err(util::io_error("empty response (is ok for drop connection)"));
+        return Err(HdbError::Impl("empty response (is ok for drop connection)"));
     }
 
     if no_of_segs > 1 {
-        return Err(util::io_error(format!("no_of_segs = {no_of_segs} > 1")));
+        return Err(HdbError::ImplDetailed(format!(
+            "no_of_segs = {no_of_segs} > 1"
+        )));
     }
 
     util_async::skip_bytes(10, rdr).await?; // (I1 + B[9])
 
     // SEGMENT HEADER: 24 bytes
-    util_async::read_i32(rdr).await?; // I4 seg_size
-    util_async::read_i32(rdr).await?; // I4 seg_offset
-    let no_of_parts: i16 = util_async::read_i16(rdr).await?; // I2
-    util_async::read_i16(rdr).await?; // I2 seg_number
+    rdr.read_i32_le().await?; // I4 seg_size
+    rdr.read_i32_le().await?; // I4 seg_offset
+    let no_of_parts: i16 = rdr.read_i16_le().await?; // I2
+    rdr.read_i16_le().await?; // I2 seg_number
     let seg_kind = Kind::from_i8(rdr.read_i8().await?)?; // I1
 
     trace!(
@@ -319,10 +323,10 @@ async fn parse_msg_and_seq_header_async<R: std::marker::Unpin + tokio::io::Async
     );
 
     match seg_kind {
-        Kind::Request => Err(util::io_error("Cannot _parse_ a request".to_string())),
+        Kind::Request => Err(HdbError::Impl("Cannot _parse_ a request")),
         Kind::Reply | Kind::Error => {
             util_async::skip_bytes(1, rdr).await?; // I1 reserved2
-            let reply_type = ReplyType::from_i16(util_async::read_i16(rdr).await?)?; // I2
+            let reply_type = ReplyType::from_i16(rdr.read_i16_le().await?)?; // I2
             util_async::skip_bytes(8, rdr).await?; // B[8] reserved3
             debug!(
                 "Reply::parse(): got reply of type {:?} and seg_kind {:?} for session_id {}",
@@ -341,14 +345,14 @@ enum Kind {
     Error,
 }
 impl Kind {
-    fn from_i8(val: i8) -> std::io::Result<Self> {
+    fn from_i8(val: i8) -> HdbResult<Self> {
         match val {
             1 => Ok(Self::Request),
             2 => Ok(Self::Reply),
             5 => Ok(Self::Error),
-            _ => Err(util::io_error(
-                format!("reply::Kind {val} not implemented",),
-            )),
+            _ => Err(HdbError::ImplDetailed(format!(
+                "reply::Kind {val} not implemented",
+            ))),
         }
     }
 }

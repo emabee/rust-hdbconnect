@@ -1,10 +1,11 @@
-use crate::protocol::util;
 #[cfg(feature = "async")]
 use crate::protocol::util_async;
 #[cfg(feature = "sync")]
 use crate::protocol::util_sync;
 #[cfg(feature = "sync")]
 use byteorder::{LittleEndian, ReadBytesExt};
+
+use crate::{HdbError, HdbResult};
 
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -22,12 +23,12 @@ enum PartitionMethod {
 }
 
 impl PartitionMethod {
-    pub fn from_i8(val: i8) -> std::io::Result<Self> {
+    pub fn from_i8(val: i8) -> HdbResult<Self> {
         match val {
             0 => Ok(Self::Invalid),
             1 => Ok(Self::RoundRobin),
             2 => Ok(Self::Hash),
-            _ => Err(util::io_error(format!(
+            _ => Err(HdbError::ImplDetailed(format!(
                 "PartitionMethod {val} not implemented",
             ))),
         }
@@ -42,12 +43,12 @@ enum ParameterFunction {
 }
 
 impl ParameterFunction {
-    pub fn from_i8(val: i8) -> std::io::Result<Self> {
+    pub fn from_i8(val: i8) -> HdbResult<Self> {
         match val {
             0 => Ok(Self::Invalid),
             1 => Ok(Self::Year),
             2 => Ok(Self::Month),
-            _ => Err(util::io_error(format!(
+            _ => Err(HdbError::ImplDetailed(format!(
                 "ParameterFunction {val} not implemented",
             ))),
         }
@@ -71,7 +72,7 @@ pub struct Partitions {
 
 impl PartitionInformation {
     #[cfg(feature = "sync")]
-    pub fn parse_sync(rdr: &mut dyn std::io::Read) -> std::io::Result<Self> {
+    pub fn parse_sync(rdr: &mut dyn std::io::Read) -> HdbResult<Self> {
         let partition_method = PartitionMethod::from_i8(rdr.read_i8()?)?; // I1
         util_sync::skip_bytes(7, rdr)?;
         let num_parameters = rdr.read_i32::<LittleEndian>()?;
@@ -110,7 +111,7 @@ impl PartitionInformation {
     #[cfg(feature = "async")]
     pub async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
         rdr: &mut R,
-    ) -> std::io::Result<Self> {
+    ) -> HdbResult<Self> {
         let partition_method = PartitionMethod::from_i8(rdr.read_i8().await?)?; // I1
         util_async::skip_bytes(7, rdr).await?;
         let num_parameters = rdr.read_i32_le().await?;

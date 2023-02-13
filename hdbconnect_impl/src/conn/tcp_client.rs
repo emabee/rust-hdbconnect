@@ -12,6 +12,7 @@ use sync_tls_tcp_client::SyncTlsTcpClient;
 mod async_plain_tcp_client;
 #[cfg(feature = "async")]
 mod async_tls_tcp_client;
+
 #[cfg(feature = "async")]
 use async_plain_tcp_client::AsyncPlainTcpClient;
 #[cfg(feature = "async")]

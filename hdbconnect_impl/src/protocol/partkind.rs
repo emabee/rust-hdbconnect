@@ -1,4 +1,4 @@
-use crate::protocol::util;
+use crate::{HdbError, HdbResult};
 
 // Here we list all those parts that are or should be implemented by this
 // driver. ABAP related stuff and "reserved" numbers is omitted.
@@ -45,7 +45,7 @@ pub enum PartKind {
     PrintOptions = 74,          // undocumented
 }
 impl PartKind {
-    pub fn from_i8(val: i8) -> std::io::Result<Self> {
+    pub fn from_i8(val: i8) -> HdbResult<Self> {
         match val {
             3 => Ok(Self::Command),
             5 => Ok(Self::ResultSet),
@@ -87,7 +87,9 @@ impl PartKind {
             73 => Ok(Self::SQLReplyOptions),
             74 => Ok(Self::PrintOptions),
 
-            _ => Err(util::io_error(format!("PartKind {val} not implemented"))),
+            _ => Err(HdbError::ImplDetailed(format!(
+                "PartKind {val} not implemented"
+            ))),
         }
     }
 }

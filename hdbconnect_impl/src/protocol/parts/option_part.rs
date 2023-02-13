@@ -58,7 +58,7 @@ impl<T: OptionId<T> + Debug + Eq + PartialEq + Hash> OptionPart<T> {
     }
 
     #[cfg(feature = "sync")]
-    pub fn sync_emit(&self, w: &mut dyn std::io::Write) -> std::io::Result<()> {
+    pub fn sync_emit(&self, w: &mut dyn std::io::Write) -> HdbResult<()> {
         for (id, value) in &self.0 {
             w.write_u8(id.to_u8())?;
             value.sync_emit(w)?;
@@ -70,7 +70,7 @@ impl<T: OptionId<T> + Debug + Eq + PartialEq + Hash> OptionPart<T> {
     pub async fn async_emit<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
         &self,
         w: &mut W,
-    ) -> std::io::Result<()> {
+    ) -> HdbResult<()> {
         for (id, value) in &self.0 {
             w.write_u8(id.to_u8()).await?;
             value.async_emit(w).await?;
@@ -79,7 +79,7 @@ impl<T: OptionId<T> + Debug + Eq + PartialEq + Hash> OptionPart<T> {
     }
 
     #[cfg(feature = "sync")]
-    pub fn parse_sync(count: usize, rdr: &mut dyn std::io::Read) -> std::io::Result<Self> {
+    pub fn parse_sync(count: usize, rdr: &mut dyn std::io::Read) -> HdbResult<Self> {
         let mut result = Self::default();
         for _ in 0..count {
             let id = T::from_u8(rdr.read_u8()?);
@@ -94,7 +94,7 @@ impl<T: OptionId<T> + Debug + Eq + PartialEq + Hash> OptionPart<T> {
     pub async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
         count: usize,
         rdr: &mut R,
-    ) -> std::io::Result<Self> {
+    ) -> HdbResult<Self> {
         let mut result = Self::default();
         for _ in 0..count {
             let id = T::from_u8(rdr.read_u8().await?);

@@ -1,10 +1,11 @@
-use crate::protocol::util;
 #[cfg(feature = "async")]
 use crate::protocol::util_async;
 #[cfg(feature = "sync")]
 use crate::protocol::util_sync;
 #[cfg(feature = "sync")]
 use byteorder::{LittleEndian, ReadBytesExt};
+
+use crate::{protocol::util, HdbResult};
 use std::error::Error;
 
 /// Severity of a server message
@@ -106,7 +107,7 @@ impl ServerError {
     pub(crate) fn parse_sync(
         no_of_args: usize,
         rdr: &mut dyn std::io::Read,
-    ) -> std::io::Result<Vec<Self>> {
+    ) -> HdbResult<Vec<Self>> {
         let mut server_errors = Vec::<Self>::new();
         for _i in 0..no_of_args {
             let code = rdr.read_i32::<LittleEndian>()?; // I4
@@ -132,12 +133,12 @@ impl ServerError {
     pub(crate) async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
         no_of_args: usize,
         rdr: &mut R,
-    ) -> std::io::Result<Vec<Self>> {
+    ) -> HdbResult<Vec<Self>> {
         let mut server_errors = Vec::<Self>::new();
         for _i in 0..no_of_args {
-            let code = util_async::read_i32(rdr).await?; // I4
-            let position = util_async::read_i32(rdr).await?; // I4
-            let text_length = util_async::read_i32(rdr).await?; // I4
+            let code = rdr.read_i32_le().await?; // I4
+            let position = rdr.read_i32_le().await?; // I4
+            let text_length = rdr.read_i32_le().await?; // I4
             let severity = Severity::from_i8(rdr.read_i8().await?); // I1
             let sqlstate = util_async::parse_bytes(5_usize, rdr).await?; // B5
             let bytes = util_async::parse_bytes(text_length as usize, rdr).await?; // B[text_length]

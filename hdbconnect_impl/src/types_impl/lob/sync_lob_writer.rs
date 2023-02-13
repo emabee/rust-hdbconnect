@@ -1,3 +1,4 @@
+use super::lob_writer_util::{get_utf8_tail_len, LobWriteMode};
 use crate::{
     conn::AmConnCore,
     internal_returnvalue::InternalReturnValue,
@@ -5,11 +6,6 @@ use crate::{
     protocol::{util, Part, PartKind, Reply, ReplyType, Request, RequestType},
     {HdbError, HdbResult, ServerUsage},
 };
-
-#[cfg(feature = "sync")]
-use super::lob_writer_util::utf8_to_cesu8_and_utf8_tail;
-use super::lob_writer_util::LobWriteMode;
-
 use std::{io::Write, sync::Arc};
 
 #[derive(Debug)]
@@ -236,4 +232,13 @@ impl<'a> Write for LobWriter<'a> {
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
         Ok(())
     }
+}
+
+fn utf8_to_cesu8_and_utf8_tail(mut utf8: Vec<u8>) -> std::io::Result<(Vec<u8>, Vec<u8>)> {
+    let tail_len = get_utf8_tail_len(&utf8).map_err(util::io_error)?;
+    let tail = utf8.split_off(utf8.len() - tail_len);
+    Ok((
+        cesu8::to_cesu8(&String::from_utf8(utf8).map_err(util::io_error)?).to_vec(),
+        tail,
+    ))
 }

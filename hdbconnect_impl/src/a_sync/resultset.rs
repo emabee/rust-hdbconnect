@@ -3,9 +3,9 @@ use crate::{
     conn::AmConnCore,
     protocol::{
         parts::{MRsCore, Parts, ResultSetMetadata, StatementContext},
-        util, Part, PartAttributes, PartKind, ServerUsage,
+        Part, PartAttributes, PartKind, ServerUsage,
     },
-    HdbResult, Row, Rows,
+    HdbError, HdbResult, Row, Rows,
 };
 
 use serde_db::de::DeserializableResultset;
@@ -246,28 +246,28 @@ impl ResultSet {
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
         o_rs: &mut Option<&mut AsyncRsState>,
         rdr: &mut R,
-    ) -> std::io::Result<Option<Self>> {
+    ) -> HdbResult<Option<Self>> {
         match *o_rs {
             None => {
                 // case a) or b)
                 let o_stmt_ctx = match parts.pop_if_kind(PartKind::StatementContext) {
                     Some(Part::StatementContext(stmt_ctx)) => Some(stmt_ctx),
                     None => None,
-                    Some(_) => return Err(util::io_error("Inconsistent StatementContext")),
+                    Some(_) => return Err(HdbError::Impl("Inconsistent StatementContext")),
                 };
 
                 let Some(Part::ResultSetId(rs_id)) = parts.pop() else {
-                    return Err(util::io_error("ResultSetId missing"));
+                    return Err(HdbError::Impl("ResultSetId missing"));
                 };
 
                 let a_rsmd = match parts.pop_if_kind(PartKind::ResultSetMetadata) {
                     Some(Part::ResultSetMetadata(rsmd)) => Arc::new(rsmd),
                     None => match o_a_rsmd {
                         Some(a_rsmd) => Arc::clone(a_rsmd),
-                        None => return Err(util::io_error("No metadata provided for ResultSet")),
+                        None => return Err(HdbError::Impl("No metadata provided for ResultSet")),
                     },
                     Some(_) => {
-                        return Err(util::io_error(
+                        return Err(HdbError::Impl(
                             "Inconsistent metadata part found for ResultSet",
                         ));
                     }
@@ -289,7 +289,7 @@ impl ResultSet {
                     }
                     None => {}
                     Some(_) => {
-                        return Err(util::io_error(
+                        return Err(HdbError::Impl(
                             "Inconsistent StatementContext part found for ResultSet",
                         ));
                     }
@@ -302,7 +302,7 @@ impl ResultSet {
                 let a_rsmd = if let Some(a_rsmd) = o_a_rsmd {
                     Arc::clone(a_rsmd)
                 } else {
-                    return Err(util::io_error("RsState provided without RsMetadata"));
+                    return Err(HdbError::Impl("RsState provided without RsMetadata"));
                 };
                 fetching_state.parse_rows(no_of_rows, &a_rsmd, rdr).await?;
                 Ok(None)
@@ -320,7 +320,7 @@ impl ResultSet {
         &self,
         no_of_rows: usize,
         rdr: &mut R,
-    ) -> std::io::Result<()> {
+    ) -> HdbResult<()> {
         self.state
             .lock()
             .await

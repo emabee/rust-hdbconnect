@@ -1,6 +1,4 @@
-use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
-use crate::protocol::util;
-use crate::{HdbError, HdbResult, HdbValue};
+use crate::{protocol::parts::ParameterDescriptors, HdbError, HdbResult, HdbValue};
 use serde_db::ser::to_params;
 
 // Implementation of the PARAMETERS part.
@@ -33,7 +31,7 @@ impl<'a> ParameterRows<'a> {
         &self,
         descriptors: &ParameterDescriptors,
         w: &mut dyn std::io::Write,
-    ) -> std::io::Result<()> {
+    ) -> HdbResult<()> {
         for row in &self.0 {
             row.sync_emit(descriptors, w)?;
         }
@@ -45,7 +43,7 @@ impl<'a> ParameterRows<'a> {
         &self,
         descriptors: &ParameterDescriptors,
         w: &mut W,
-    ) -> std::io::Result<()> {
+    ) -> HdbResult<()> {
         for row in &self.0 {
             row.async_emit(descriptors, w).await?;
         }
@@ -56,7 +54,7 @@ impl<'a> ParameterRows<'a> {
         self.0.len()
     }
 
-    pub(crate) fn size(&self, descriptors: &ParameterDescriptors) -> std::io::Result<usize> {
+    pub(crate) fn size(&self, descriptors: &ParameterDescriptors) -> HdbResult<usize> {
         let mut size = 0;
         for row in &self.0 {
             size += row.size(descriptors)?;
@@ -104,16 +102,14 @@ impl<'a> ParameterRow<'a> {
         Ok(ParameterRow(hdb_parameters))
     }
 
-    fn size(&self, descriptors: &ParameterDescriptors) -> std::io::Result<usize> {
+    fn size(&self, descriptors: &ParameterDescriptors) -> HdbResult<usize> {
         let mut size = 0;
         let mut in_descriptors = descriptors.iter_in();
         for value in &(self.0) {
             if let Some(descriptor) = in_descriptors.next() {
                 size += value.size(descriptor.type_id())?;
             } else {
-                return Err(util::io_error(
-                    "ParameterRow::size(): Not enough metadata".to_string(),
-                ));
+                return Err(HdbError::Impl("ParameterRow::size(): Not enough metadata"));
             }
         }
 
@@ -125,7 +121,7 @@ impl<'a> ParameterRow<'a> {
         &self,
         descriptors: &ParameterDescriptors,
         w: &mut dyn std::io::Write,
-    ) -> std::io::Result<()> {
+    ) -> HdbResult<()> {
         let mut data_pos = 0_i32;
         let mut in_descriptors = descriptors.iter_in();
         for value in &(self.0) {
@@ -133,9 +129,7 @@ impl<'a> ParameterRow<'a> {
             if let Some(descriptor) = in_descriptors.next() {
                 value.sync_emit(&mut data_pos, descriptor, w)?;
             } else {
-                return Err(util::io_error(
-                    "ParameterRow::emit(): Not enough metadata".to_string(),
-                ));
+                return Err(HdbError::Impl("ParameterRow::emit(): Not enough metadata"));
             }
         }
         Ok(())
@@ -146,7 +140,7 @@ impl<'a> ParameterRow<'a> {
         &self,
         descriptors: &ParameterDescriptors,
         w: &mut W,
-    ) -> std::io::Result<()> {
+    ) -> HdbResult<()> {
         let mut data_pos = 0_i32;
         let mut in_descriptors = descriptors.iter_in();
         for value in &(self.0) {
@@ -154,9 +148,7 @@ impl<'a> ParameterRow<'a> {
             if let Some(descriptor) = in_descriptors.next() {
                 value.async_emit(&mut data_pos, descriptor, w).await?;
             } else {
-                return Err(util::io_error(
-                    "ParameterRow::emit(): Not enough metadata".to_string(),
-                ));
+                return Err(HdbError::Impl("ParameterRow::emit(): Not enough metadata"));
             }
         }
         Ok(())

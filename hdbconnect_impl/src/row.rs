@@ -100,7 +100,7 @@ impl Row {
         o_am_rscore: &Option<AmRsCore>,
         am_conn_core: &AmConnCore,
         rdr: &mut dyn std::io::Read,
-    ) -> std::io::Result<Self> {
+    ) -> HdbResult<Self> {
         let mut values = Vec::<HdbValue>::new();
 
         let md0 = Arc::as_ref(&md);
@@ -128,7 +128,7 @@ impl Row {
         o_am_rscore: &Option<AmRsCore>,
         am_conn_core: &AmConnCore,
         rdr: &mut R,
-    ) -> std::io::Result<Self> {
+    ) -> HdbResult<Self> {
         let mut values = Vec::<HdbValue>::new();
 
         let md0 = Arc::as_ref(&md);

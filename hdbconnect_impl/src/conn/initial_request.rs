@@ -4,12 +4,12 @@ use crate::protocol::util_async;
 #[cfg(feature = "sync")]
 use crate::protocol::util_sync;
 
-use crate::conn::TcpClient;
+use crate::{conn::TcpClient, HdbResult};
 use byteorder::{BigEndian, WriteBytesExt};
 use std::io::Write;
 
 #[cfg(feature = "sync")]
-pub(crate) fn sync_send_and_receive(sync_tcp_connection: &mut TcpClient) -> std::io::Result<()> {
+pub(crate) fn sync_send_and_receive(sync_tcp_connection: &mut TcpClient) -> HdbResult<()> {
     trace!("send_and_receive(): send");
     match sync_tcp_connection {
         TcpClient::SyncPlain(ref mut pc) => {
@@ -42,7 +42,7 @@ pub(crate) fn sync_send_and_receive(sync_tcp_connection: &mut TcpClient) -> std:
 }
 
 #[cfg(feature = "async")]
-pub(crate) async fn async_send_and_receive(tcp_client: &mut TcpClient) -> std::io::Result<()> {
+pub(crate) async fn async_send_and_receive(tcp_client: &mut TcpClient) -> HdbResult<()> {
     trace!("send_and_receive(): send");
     match tcp_client {
         TcpClient::AsyncPlain(ref mut pa) => async_emit_initial_request(pa.writer()).await,
@@ -67,17 +67,17 @@ pub(crate) async fn async_send_and_receive(tcp_client: &mut TcpClient) -> std::i
 }
 
 #[cfg(feature = "sync")]
-fn sync_emit_initial_request(w: &mut dyn std::io::Write) -> std::io::Result<()> {
+fn sync_emit_initial_request(w: &mut dyn std::io::Write) -> HdbResult<()> {
     w.write_all(initial_request())?;
-    w.flush()
+    Ok(w.flush()?)
 }
 
 #[cfg(feature = "async")]
 async fn async_emit_initial_request<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
     w: &mut W,
-) -> std::io::Result<()> {
+) -> HdbResult<()> {
     w.write_all(initial_request()).await?;
-    w.flush().await
+    Ok(w.flush().await?)
 }
 
 fn initial_request() -> &'static [u8] {

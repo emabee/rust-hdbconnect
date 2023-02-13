@@ -2,13 +2,10 @@ use crate::{
     conn::AmConnCore,
     protocol::{
         parts::{MRsCore, Parts, ResultSetMetadata, StatementContext},
-        util, Part, PartAttributes, PartKind, ServerUsage,
+        Part, PartAttributes, PartKind, ServerUsage,
     },
-    sync::{
-        prepared_statement_core::SyncAmPsCore,
-        rs_state::{SyncResultSetCore, SyncRsState},
-    },
-    HdbResult, Row, Rows,
+    sync::{prepared_statement_core::SyncAmPsCore, rs_state::SyncResultSetCore, SyncRsState},
+    HdbError, HdbResult, Row, Rows,
 };
 
 use serde_db::de::DeserializableResultset;
@@ -238,7 +235,7 @@ impl ResultSet {
     // For first resultset packets, we create and return a new ResultSet object.
     // We then expect the previous three parts to be
     // a matching ResultSetMetadata, a ResultSetId, and a StatementContext.
-    pub(crate) fn parse_sync(
+    pub(crate) fn parse(
         no_of_rows: usize,
         attributes: PartAttributes,
         parts: &mut Parts,
@@ -246,28 +243,28 @@ impl ResultSet {
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
         o_rs: &mut Option<&mut SyncRsState>,
         rdr: &mut dyn std::io::Read,
-    ) -> std::io::Result<Option<Self>> {
+    ) -> HdbResult<Option<Self>> {
         match *o_rs {
             None => {
                 // case a) or b)
                 let o_stmt_ctx = match parts.pop_if_kind(PartKind::StatementContext) {
                     Some(Part::StatementContext(stmt_ctx)) => Some(stmt_ctx),
                     None => None,
-                    Some(_) => return Err(util::io_error("Inconsistent StatementContext")),
+                    Some(_) => return Err(HdbError::Impl("Inconsistent StatementContext")),
                 };
 
                 let Some(Part::ResultSetId(rs_id)) = parts.pop() else {
-                    return Err(util::io_error("ResultSetId missing"));
+                    return Err(HdbError::Impl("ResultSetId missing"));
                 };
 
                 let a_rsmd = match parts.pop_if_kind(PartKind::ResultSetMetadata) {
                     Some(Part::ResultSetMetadata(rsmd)) => Arc::new(rsmd),
                     None => match o_a_rsmd {
                         Some(a_rsmd) => Arc::clone(a_rsmd),
-                        None => return Err(util::io_error("No metadata provided for ResultSet")),
+                        None => return Err(HdbError::Impl("No metadata provided for ResultSet")),
                     },
                     Some(_) => {
-                        return Err(util::io_error(
+                        return Err(HdbError::Impl(
                             "Inconsistent metadata part found for ResultSet",
                         ));
                     }
@@ -289,7 +286,7 @@ impl ResultSet {
                     }
                     None => {}
                     Some(_) => {
-                        return Err(util::io_error(
+                        return Err(HdbError::Impl(
                             "Inconsistent StatementContext part found for ResultSet",
                         ));
                     }
@@ -298,13 +295,13 @@ impl ResultSet {
                 if let Some(ref mut am_rscore) = fetching_state.o_am_rscore {
                     let mut rscore = am_rscore
                         .sync_lock()
-                        .map_err(|e| util::io_error(e.to_string()))?;
+                        .map_err(|e| HdbError::ImplDetailed(e.to_string()))?;
                     rscore.attributes = attributes;
                 }
                 let a_rsmd = if let Some(a_rsmd) = o_a_rsmd {
                     Arc::clone(a_rsmd)
                 } else {
-                    return Err(util::io_error("RsState provided without RsMetadata"));
+                    return Err(HdbError::Impl("RsState provided without RsMetadata"));
                 };
                 fetching_state.parse_rows(no_of_rows, &a_rsmd, rdr)?;
                 Ok(None)
@@ -321,7 +318,7 @@ impl ResultSet {
             .server_usage
     }
 
-    fn parse_rows(&self, no_of_rows: usize, rdr: &mut dyn std::io::Read) -> std::io::Result<()> {
+    fn parse_rows(&self, no_of_rows: usize, rdr: &mut dyn std::io::Read) -> HdbResult<()> {
         self.state
             .lock()
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?

@@ -2,7 +2,7 @@ use crate::{
     conn::AmConnCore,
     internal_returnvalue::InternalReturnValue,
     protocol::parts::{ParameterDescriptors, ResultSetMetadata, TypeId, WriteLobRequest},
-    protocol::{Part, PartKind, Reply, ReplyType, Request, RequestType},
+    protocol::{util, Part, PartKind, Reply, ReplyType, Request, RequestType},
     types_impl::lob::lob_writer_util::{get_utf8_tail_len, LobWriteMode},
     {HdbError, HdbResult, ServerUsage},
 };
@@ -71,9 +71,7 @@ where
                 }
                 len -= tail_len;
             }
-            cesu8::to_cesu8(
-                std::str::from_utf8(&buf[0..len]).map_err(crate::protocol::util::io_error)?,
-            )
+            cesu8::to_cesu8(std::str::from_utf8(&buf[0..len]).map_err(util::io_error)?)
         } else {
             std::borrow::Cow::Borrowed(&buf[0..len])
         };
@@ -93,8 +91,7 @@ where
             internal_return_values,
         )
         .await
-        .map(|_locator_ids| ())
-        .map_err(|e| crate::protocol::util::io_error(e.to_string()))?;
+        .map(|_locator_ids| ())?;
         trace!("after writing: {:?}", payload.as_ref());
 
         len = 0;

@@ -151,7 +151,7 @@ impl AsyncRsState {
         no_of_rows: usize,
         metadata: &Arc<ResultSetMetadata>,
         rdr: &mut R,
-    ) -> std::io::Result<()> {
+    ) -> HdbResult<()> {
         self.next_rows.reserve(no_of_rows);
         let no_of_cols = metadata.len();
         debug!("parse_rows(): {} lines, {} columns", no_of_rows, no_of_cols);

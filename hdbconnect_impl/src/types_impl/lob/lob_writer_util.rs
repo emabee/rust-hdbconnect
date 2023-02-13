@@ -1,24 +1,11 @@
-use crate::protocol::util;
-
+use crate::{HdbError, HdbResult};
 pub(crate) enum LobWriteMode {
     //Offset(i64),
     Append,
     Last,
 }
 
-#[cfg(feature = "sync")]
-pub(crate) fn utf8_to_cesu8_and_utf8_tail(
-    mut utf8: Vec<u8>,
-) -> std::io::Result<(Vec<u8>, Vec<u8>)> {
-    let tail_len = get_utf8_tail_len(&utf8)?;
-    let tail = utf8.split_off(utf8.len() - tail_len);
-    Ok((
-        cesu8::to_cesu8(&String::from_utf8(utf8).map_err(util::io_error)?).to_vec(),
-        tail,
-    ))
-}
-
-pub(crate) fn get_utf8_tail_len(bytes: &[u8]) -> std::io::Result<usize> {
+pub(crate) fn get_utf8_tail_len(bytes: &[u8]) -> HdbResult<usize> {
     match bytes.last() {
         None | Some(0..=127) => Ok(0),
         Some(0xC0..=0xDF) => Ok(1),
@@ -41,7 +28,7 @@ pub(crate) fn get_utf8_tail_len(bytes: &[u8]) -> std::io::Result<usize> {
                     });
                 }
             }
-            Err(util::io_error("no valid utf8 cutoff point found!"))
+            Err(HdbError::Impl("no valid utf8 cutoff point found!"))
         }
     }
 }

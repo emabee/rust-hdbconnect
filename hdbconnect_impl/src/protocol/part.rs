@@ -12,6 +12,7 @@ use crate::{
         },
         util, PartAttributes, PartKind,
     },
+    HdbError, HdbResult,
 };
 
 #[cfg(feature = "async")]
@@ -104,7 +105,7 @@ impl<'a> Part<'a> {
     }
 
     // only called on output (emit)
-    fn count(&self) -> std::io::Result<usize> {
+    fn count(&self) -> HdbResult<usize> {
         // | Part::TopologyInformation(_)
         Ok(match *self {
             Part::Auth(_)
@@ -129,7 +130,7 @@ impl<'a> Part<'a> {
             #[cfg(feature = "dist_tx")]
             Part::XatOptions(ref xat) => xat.len(),
             ref a => {
-                return Err(util::io_error(format!("count() called on {a:?}")));
+                return Err(HdbError::ImplDetailed(format!("count() called on {a:?}")));
             }
         })
     }
@@ -138,14 +139,14 @@ impl<'a> Part<'a> {
         &self,
         with_padding: bool,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
-    ) -> std::io::Result<usize> {
+    ) -> HdbResult<usize> {
         Ok(PART_HEADER_SIZE + self.body_size(with_padding, o_a_descriptors)?)
     }
     fn body_size(
         &self,
         with_padding: bool,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
-    ) -> std::io::Result<usize> {
+    ) -> HdbResult<usize> {
         let mut size = 0_usize;
         match *self {
             Part::Auth(ref af) => size += af.size(),
@@ -161,9 +162,7 @@ impl<'a> Part<'a> {
             Part::LobFlags(ref opts) => size += opts.size(),
             Part::ParameterRows(ref par_rows) => {
                 size += o_a_descriptors
-                    .ok_or_else(|| {
-                        util::io_error("Part::body_size(): No parameter descriptors".to_string())
-                    })
+                    .ok_or_else(|| HdbError::Impl("Part::body_size(): No parameter descriptors"))
                     .and_then(|descriptors| par_rows.size(descriptors))?;
             }
             Part::ReadLobRequest(_) => size += ReadLobRequest::size(),
@@ -177,7 +176,7 @@ impl<'a> Part<'a> {
             Part::XatOptions(ref xat) => size += xat.size(),
 
             ref arg => {
-                return Err(util::io_error(format!("size() called on {arg:?}")));
+                return Err(HdbError::ImplDetailed(format!("size() called on {arg:?}")));
             }
         }
         if with_padding {
@@ -195,7 +194,7 @@ impl<'a> Part<'a> {
         mut remaining_bufsize: u32,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
         w: &mut dyn std::io::Write,
-    ) -> std::io::Result<u32> {
+    ) -> HdbResult<u32> {
         debug!("Serializing part of kind {:?}", self.kind());
         // PART HEADER 16 bytes
         w.write_i8(self.kind() as i8)?;
@@ -211,7 +210,7 @@ impl<'a> Part<'a> {
                 w.write_i32::<LittleEndian>(i as i32)?;
             }
             _ => {
-                return Err(util::io_error("part count bigger than i32::MAX"));
+                return Err(HdbError::Impl("part count bigger than i32::MAX"));
             }
         }
         w.write_i32::<LittleEndian>(self.body_size(false, o_a_descriptors)? as i32)?;
@@ -236,9 +235,7 @@ impl<'a> Part<'a> {
             Part::LobFlags(ref opts) => opts.sync_emit(w)?,
             Part::ParameterRows(ref parameters) => {
                 o_a_descriptors
-                    .ok_or_else(|| {
-                        util::io_error("Part::Parameters::emit(): No metadata".to_string())
-                    })
+                    .ok_or_else(|| HdbError::Impl("Part::Parameters::emit(): No metadata"))
                     .and_then(|descriptors| parameters.sync_emit(descriptors, w))?;
             }
             Part::ReadLobRequest(ref r) => r.sync_emit(w)?,
@@ -255,7 +252,7 @@ impl<'a> Part<'a> {
             #[cfg(feature = "dist_tx")]
             Part::XatOptions(ref xatid) => xatid.sync_emit(w)?,
             ref a => {
-                return Err(util::io_error(format!("emit() called on {a:?}")));
+                return Err(HdbError::ImplDetailed(format!("emit() called on {a:?}")));
             }
         }
 
@@ -283,7 +280,7 @@ impl<'a> Part<'a> {
         mut remaining_bufsize: u32,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
         w: &mut W,
-    ) -> std::io::Result<u32> {
+    ) -> HdbResult<u32> {
         debug!("Serializing part of kind {:?}", self.kind());
         // PART HEADER 16 bytes
         w.write_i8(self.kind() as i8).await?;
@@ -299,7 +296,7 @@ impl<'a> Part<'a> {
                 w.write_i32_le(i as i32).await?;
             }
             _ => {
-                return Err(util::io_error("argument count bigger than i32::MAX"));
+                return Err(HdbError::Impl("argument count bigger than i32::MAX"));
             }
         }
         w.write_i32_le(self.body_size(false, o_a_descriptors)? as i32)
@@ -325,8 +322,8 @@ impl<'a> Part<'a> {
                 if let Some(a_descriptors) = o_a_descriptors {
                     parameter_rows.async_emit(a_descriptors, w).await?;
                 } else {
-                    return Err(util::io_error(
-                        "Part::ParameterRows::async_emit(): No metadata".to_string(),
+                    return Err(HdbError::Impl(
+                        "Part::ParameterRows::async_emit(): No metadata",
                     ));
                 }
             }
@@ -344,7 +341,7 @@ impl<'a> Part<'a> {
             #[cfg(feature = "dist_tx")]
             Part::XatOptions(ref xatid) => xatid.async_emit(w).await?,
             ref a => {
-                return Err(util::io_error(format!("emit() called on {a:?}")));
+                return Err(HdbError::ImplDetailed(format!("emit() called on {a:?}")));
             }
         }
 
@@ -373,7 +370,7 @@ impl<'a> Part<'a> {
         o_rs: &mut Option<&mut SyncRsState>,
         last: bool,
         rdr: &mut dyn std::io::Read,
-    ) -> std::io::Result<Part<'static>> {
+    ) -> HdbResult<Part<'static>> {
         trace!("parse()");
         let (kind, attributes, arg_size, no_of_args) = parse_header_sync(rdr)?;
         debug!(
@@ -415,7 +412,7 @@ impl<'a> Part<'a> {
         o_rs: &mut Option<&mut AsyncRsState>,
         last: bool,
         rdr: &mut R,
-    ) -> std::io::Result<Part<'static>> {
+    ) -> HdbResult<Part<'static>> {
         trace!("parse()");
         let (kind, attributes, arg_size, no_of_args) = parse_header_async(rdr).await?;
         debug!(
@@ -461,7 +458,7 @@ impl<'a> Part<'a> {
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
         o_rs: &mut Option<&mut SyncRsState>,
         rdr: &mut dyn std::io::Read,
-    ) -> std::io::Result<Part<'a>> {
+    ) -> HdbResult<Part<'a>> {
         trace!("parse(no_of_args={}, kind={:?})", no_of_args, kind);
 
         let arg = match kind {
@@ -475,7 +472,7 @@ impl<'a> Part<'a> {
             }
             PartKind::Error => Part::Error(ServerError::parse_sync(no_of_args, rdr)?),
             PartKind::OutputParameters => o_a_descriptors
-                .ok_or_else(|| util::io_error("Parsing output parameters needs metadata"))
+                .ok_or_else(|| HdbError::Impl("Parsing output parameters needs metadata"))
                 .and_then(|descriptors| {
                     OutputParameters::parse_sync(o_am_conn_core, descriptors, rdr)
                 })
@@ -488,12 +485,12 @@ impl<'a> Part<'a> {
                 Part::WriteLobReply(WriteLobReply::parse_sync(no_of_args, rdr)?)
             }
             PartKind::ResultSet => {
-                let rs = crate::sync::ResultSet::parse_sync(
+                let rs = crate::sync::ResultSet::parse(
                     no_of_args,
                     attributes,
                     parts,
                     o_am_conn_core
-                        .ok_or_else(|| util::io_error("ResultSet parsing requires a conn_core"))?,
+                        .ok_or_else(|| HdbError::Impl("ResultSet parsing requires a conn_core"))?,
                     o_a_rsmd,
                     o_rs,
                     rdr,
@@ -533,7 +530,7 @@ impl<'a> Part<'a> {
             #[cfg(feature = "dist_tx")]
             PartKind::XatOptions => Part::XatOptions(XatOptions::parse_sync(no_of_args, rdr)?),
             _ => {
-                return Err(util::io_error(format!(
+                return Err(HdbError::ImplDetailed(format!(
                     "No handling implemented for received partkind {kind:?}",
                 )));
             }
@@ -554,7 +551,7 @@ impl<'a> Part<'a> {
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
         o_rs: &mut Option<&mut AsyncRsState>,
         rdr: &mut R,
-    ) -> std::io::Result<Part<'a>> {
+    ) -> HdbResult<Part<'a>> {
         trace!("parse(no_of_args={}, kind={:?})", no_of_args, kind);
 
         let arg = match kind {
@@ -575,7 +572,7 @@ impl<'a> Part<'a> {
                         OutputParameters::parse_async(o_am_conn_core, a_descriptors, rdr).await?,
                     )
                 } else {
-                    return Err(util::io_error("Parsing output parameters needs metadata"));
+                    return Err(HdbError::Impl("Parsing output parameters needs metadata"));
                 }
             }
             PartKind::ParameterMetadata => {
@@ -591,7 +588,7 @@ impl<'a> Part<'a> {
                     attributes,
                     parts,
                     o_am_conn_core
-                        .ok_or_else(|| util::io_error("ResultSet parsing requires a conn_core"))?,
+                        .ok_or_else(|| HdbError::Impl("ResultSet parsing requires a conn_core"))?,
                     o_a_rsmd,
                     o_rs,
                     rdr,
@@ -634,7 +631,7 @@ impl<'a> Part<'a> {
                 Part::XatOptions(XatOptions::parse_async(no_of_args, rdr).await?)
             }
             _ => {
-                return Err(util::io_error(format!(
+                return Err(HdbError::ImplDetailed(format!(
                     "No handling implemented for received partkind {kind:?}",
                 )));
             }
@@ -648,7 +645,7 @@ impl<'a> Part<'a> {
 #[allow(clippy::cast_sign_loss)]
 fn parse_header_sync(
     rdr: &mut dyn std::io::Read,
-) -> std::io::Result<(PartKind, PartAttributes, usize, usize)> {
+) -> HdbResult<(PartKind, PartAttributes, usize, usize)> {
     // PART HEADER: 16 bytes
     let kind = PartKind::from_i8(rdr.read_i8()?)?; // I1
     let attributes = PartAttributes::new(rdr.read_u8()?); // U1 (documented as I1)
@@ -665,7 +662,7 @@ fn parse_header_sync(
 #[allow(clippy::cast_sign_loss)]
 async fn parse_header_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
     rdr: &mut R,
-) -> std::io::Result<(PartKind, PartAttributes, usize, usize)> {
+) -> HdbResult<(PartKind, PartAttributes, usize, usize)> {
     // PART HEADER: 16 bytes
     let kind = PartKind::from_i8(rdr.read_i8().await?)?; // I1
     let attributes = PartAttributes::new(rdr.read_u8().await?); // U1 (documented as I1)

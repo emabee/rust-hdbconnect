@@ -1,11 +1,10 @@
-use crate::protocol::util;
 #[cfg(feature = "async")]
 use crate::protocol::util_async;
-use crate::types_impl::hdb_decimal::HdbDecimal;
-use crate::{HdbValue, TypeId};
-use bigdecimal::BigDecimal;
 #[cfg(feature = "sync")]
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+
+use crate::{types_impl::hdb_decimal::HdbDecimal, HdbError, HdbResult, HdbValue, TypeId};
+use bigdecimal::BigDecimal;
 use num::{FromPrimitive, ToPrimitive};
 use num_bigint::BigInt;
 
@@ -15,7 +14,7 @@ pub fn parse_sync(
     type_id: TypeId,
     scale: i16,
     rdr: &mut dyn std::io::Read,
-) -> std::io::Result<HdbValue<'static>> {
+) -> HdbResult<HdbValue<'static>> {
     match type_id {
         TypeId::DECIMAL => HdbDecimal::parse_hdb_decimal_sync(nullable, scale, rdr),
 
@@ -25,7 +24,7 @@ pub fn parse_sync(
             trace!("parse FIXED8");
             let i = rdr.read_i64::<LittleEndian>()?;
             let bigint = BigInt::from_i64(i)
-                .ok_or_else(|| util::io_error("invalid value of type FIXED8"))?;
+                .ok_or_else(|| HdbError::Impl("invalid value of type FIXED8"))?;
             let bd = BigDecimal::new(bigint, i64::from(scale));
             HdbValue::DECIMAL(bd)
         }),
@@ -46,11 +45,11 @@ pub fn parse_sync(
             trace!("parse FIXED16");
             let i = rdr.read_i128::<LittleEndian>()?;
             let bi = BigInt::from_i128(i)
-                .ok_or_else(|| util::io_error("invalid value of type FIXED16"))?;
+                .ok_or_else(|| HdbError::Impl("invalid value of type FIXED16"))?;
             let bd = BigDecimal::new(bi, i64::from(scale));
             HdbValue::DECIMAL(bd)
         }),
-        _ => Err(util::io_error("unexpected type id for decimal")),
+        _ => Err(HdbError::Impl("unexpected type id for decimal")),
     }
 }
 
@@ -60,7 +59,7 @@ pub async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
     type_id: TypeId,
     scale: i16,
     rdr: &mut R,
-) -> std::io::Result<HdbValue<'static>> {
+) -> HdbResult<HdbValue<'static>> {
     match type_id {
         TypeId::DECIMAL => HdbDecimal::parse_hdb_decimal_async(nullable, scale, rdr).await,
 
@@ -68,9 +67,9 @@ pub async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
             HdbValue::NULL
         } else {
             trace!("parse FIXED8");
-            let i = util_async::read_i64(rdr).await?;
+            let i = rdr.read_i64_le().await?;
             let bigint = BigInt::from_i64(i)
-                .ok_or_else(|| util::io_error("invalid value of type FIXED8"))?;
+                .ok_or_else(|| HdbError::Impl("invalid value of type FIXED8"))?;
             let bd = BigDecimal::new(bigint, i64::from(scale));
             HdbValue::DECIMAL(bd)
         }),
@@ -89,21 +88,21 @@ pub async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
             HdbValue::NULL
         } else {
             trace!("parse FIXED16");
-            let i = util_async::read_i128(rdr).await?;
+            let i = rdr.read_i128_le().await?;
             let bi = BigInt::from_i128(i)
-                .ok_or_else(|| util::io_error("invalid value of type FIXED16"))?;
+                .ok_or_else(|| HdbError::Impl("invalid value of type FIXED16"))?;
             let bd = BigDecimal::new(bi, i64::from(scale));
             HdbValue::DECIMAL(bd)
         }),
-        _ => Err(util::io_error("unexpected type id for decimal")),
+        _ => Err(HdbError::Impl("unexpected type id for decimal")),
     }
 }
 
 #[cfg(feature = "sync")]
-fn parse_null_sync(nullable: bool, rdr: &mut dyn std::io::Read) -> std::io::Result<bool> {
+fn parse_null_sync(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<bool> {
     let is_null = rdr.read_u8()? == 0;
     if is_null && !nullable {
-        Err(util::io_error("found null value for not-null column"))
+        Err(HdbError::Impl("found null value for not-null column"))
     } else {
         Ok(is_null)
     }
@@ -113,10 +112,10 @@ fn parse_null_sync(nullable: bool, rdr: &mut dyn std::io::Read) -> std::io::Resu
 async fn parse_null_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
     nullable: bool,
     rdr: &mut R,
-) -> std::io::Result<bool> {
+) -> HdbResult<bool> {
     let is_null = rdr.read_u8().await? == 0;
     if is_null && !nullable {
-        Err(util::io_error("found null value for not-null column"))
+        Err(HdbError::Impl("found null value for not-null column"))
     } else {
         Ok(is_null)
     }
@@ -128,12 +127,12 @@ pub(crate) fn sync_emit(
     type_id: TypeId,
     scale: i16,
     w: &mut dyn std::io::Write,
-) -> std::io::Result<()> {
+) -> HdbResult<()> {
     match type_id {
         TypeId::DECIMAL => {
             trace!("emit DECIMAL");
-            let hdb_decimal =
-                HdbDecimal::from_bigdecimal(bd).map_err(|e| util::io_error(e.to_string()))?;
+            let hdb_decimal = HdbDecimal::from_bigdecimal(bd)
+                .map_err(|e| HdbError::ImplDetailed(e.to_string()))?;
             w.write_all(&hdb_decimal.into_raw())?;
         }
         TypeId::FIXED8 => {
@@ -143,7 +142,7 @@ pub(crate) fn sync_emit(
             w.write_i64::<LittleEndian>(
                 bigint
                     .to_i64()
-                    .ok_or_else(|| util::io_error("conversion to FIXED8 fails"))?,
+                    .ok_or_else(|| HdbError::Impl("conversion to FIXED8 fails"))?,
             )?;
         }
         TypeId::FIXED12 => {
@@ -174,10 +173,10 @@ pub(crate) fn sync_emit(
             w.write_i128::<LittleEndian>(
                 bigint
                     .to_i128()
-                    .ok_or_else(|| util::io_error("conversion to FIXED16 fails"))?,
+                    .ok_or_else(|| HdbError::Impl("conversion to FIXED16 fails"))?,
             )?;
         }
-        _ => return Err(util::io_error("unexpected type id for decimal")),
+        _ => return Err(HdbError::Impl("unexpected type id for decimal")),
     }
     Ok(())
 }
@@ -188,12 +187,12 @@ pub(crate) async fn async_emit<W: std::marker::Unpin + tokio::io::AsyncWriteExt>
     type_id: TypeId,
     scale: i16,
     w: &mut W,
-) -> std::io::Result<()> {
+) -> HdbResult<()> {
     match type_id {
         TypeId::DECIMAL => {
             trace!("emit DECIMAL");
-            let hdb_decimal =
-                HdbDecimal::from_bigdecimal(bd).map_err(|e| util::io_error(e.to_string()))?;
+            let hdb_decimal = HdbDecimal::from_bigdecimal(bd)
+                .map_err(|e| HdbError::ImplDetailed(e.to_string()))?;
             w.write_all(&hdb_decimal.into_raw()).await?;
         }
         TypeId::FIXED8 => {
@@ -203,7 +202,7 @@ pub(crate) async fn async_emit<W: std::marker::Unpin + tokio::io::AsyncWriteExt>
             w.write_i64_le(
                 bigint
                     .to_i64()
-                    .ok_or_else(|| util::io_error("conversion to FIXED8 fails"))?,
+                    .ok_or_else(|| HdbError::Impl("conversion to FIXED8 fails"))?,
             )
             .await?;
         }
@@ -235,11 +234,11 @@ pub(crate) async fn async_emit<W: std::marker::Unpin + tokio::io::AsyncWriteExt>
             w.write_i128_le(
                 bigint
                     .to_i128()
-                    .ok_or_else(|| util::io_error("conversion to FIXED16 fails"))?,
+                    .ok_or_else(|| HdbError::Impl("conversion to FIXED16 fails"))?,
             )
             .await?;
         }
-        _ => return Err(util::io_error("unexpected type id for decimal")),
+        _ => return Err(HdbError::Impl("unexpected type id for decimal")),
     }
     Ok(())
 }

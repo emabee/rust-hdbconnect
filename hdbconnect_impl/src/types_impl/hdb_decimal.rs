@@ -1,5 +1,4 @@
-use crate::protocol::util;
-use crate::HdbValue;
+use crate::{HdbError, HdbResult, HdbValue};
 use bigdecimal::{BigDecimal, Zero};
 use byteorder::{ByteOrder, LittleEndian};
 use num_bigint::{BigInt, Sign};
@@ -31,7 +30,7 @@ impl HdbDecimal {
         nullable: bool,
         scale: i16,
         rdr: &mut dyn std::io::Read,
-    ) -> std::io::Result<HdbValue<'static>> {
+    ) -> HdbResult<HdbValue<'static>> {
         let mut raw = [0_u8; 16];
         rdr.read_exact(&mut raw[..])?;
 
@@ -40,7 +39,7 @@ impl HdbDecimal {
             if nullable {
                 Ok(HdbValue::NULL)
             } else {
-                Err(util::io_error("received null value for not-null column"))
+                Err(HdbError::Impl("received null value for not-null column"))
             }
         } else {
             trace!("parse DECIMAL");
@@ -54,7 +53,7 @@ impl HdbDecimal {
         nullable: bool,
         scale: i16,
         rdr: &mut R,
-    ) -> std::io::Result<HdbValue<'static>> {
+    ) -> HdbResult<HdbValue<'static>> {
         let mut raw = [0_u8; 16];
         rdr.read_exact(&mut raw[..]).await?;
 
@@ -63,7 +62,7 @@ impl HdbDecimal {
             if nullable {
                 Ok(HdbValue::NULL)
             } else {
-                Err(util::io_error("received null value for not-null column"))
+                Err(HdbError::Impl("received null value for not-null column"))
             }
         } else {
             trace!("parse DECIMAL");

@@ -183,7 +183,7 @@ impl<'a> HdbValue<'a> {
         data_pos: &mut i32,
         descriptor: &ParameterDescriptor,
         w: &mut dyn std::io::Write,
-    ) -> std::io::Result<()> {
+    ) -> HdbResult<()> {
         if !self.emit_type_id_sync(descriptor.type_id(), w)? {
             match *self {
                 HdbValue::NULL => {}
@@ -209,7 +209,7 @@ impl<'a> HdbValue<'a> {
                     emit_length_and_bytes_sync(v, w)?;
                 }
                 _ => {
-                    return Err(util::io_error(format!(
+                    return Err(HdbError::ImplDetailed(format!(
                         "HdbValue::{self} cannot be sent to the database",
                     )));
                 }
@@ -224,7 +224,7 @@ impl<'a> HdbValue<'a> {
         data_pos: &mut i32,
         descriptor: &ParameterDescriptor,
         w: &mut W,
-    ) -> std::io::Result<()> {
+    ) -> HdbResult<()> {
         if !self.emit_type_id_async(descriptor.type_id(), w).await? {
             match *self {
                 HdbValue::NULL => {}
@@ -253,7 +253,7 @@ impl<'a> HdbValue<'a> {
                     emit_length_and_bytes_async(v, w).await?;
                 }
                 _ => {
-                    return Err(util::io_error(format!(
+                    return Err(HdbError::ImplDetailed(format!(
                         "HdbValue::{self} cannot be sent to the database",
                     )));
                 }
@@ -268,11 +268,11 @@ impl<'a> HdbValue<'a> {
         &self,
         requested_type_id: TypeId,
         w: &mut dyn std::io::Write,
-    ) -> std::io::Result<bool> {
+    ) -> HdbResult<bool> {
         let is_null = self.is_null();
         let type_code = self
             .type_id_for_emit(requested_type_id)
-            .map_err(|e| util::io_error(e.to_string()))?
+            .map_err(|e| HdbError::ImplDetailed(e.to_string()))?
             .type_code(is_null);
         w.write_u8(type_code)?;
         Ok(is_null)
@@ -283,18 +283,18 @@ impl<'a> HdbValue<'a> {
         &self,
         requested_type_id: TypeId,
         w: &mut W,
-    ) -> std::io::Result<bool> {
+    ) -> HdbResult<bool> {
         let is_null = self.is_null();
         let type_code = self
             .type_id_for_emit(requested_type_id)
-            .map_err(|e| util::io_error(e.to_string()))?
+            .map_err(|e| HdbError::ImplDetailed(e.to_string()))?
             .type_code(is_null);
         w.write_u8(type_code).await?;
         Ok(is_null)
     }
 
     // is used to calculate the part size (in sync_emit)
-    pub(crate) fn size(&self, type_id: TypeId) -> std::io::Result<usize> {
+    pub(crate) fn size(&self, type_id: TypeId) -> HdbResult<usize> {
         Ok(1 + match self {
             HdbValue::NULL => 0,
             HdbValue::BOOLEAN(_) | HdbValue::TINYINT(_) => 1,
@@ -304,7 +304,7 @@ impl<'a> HdbValue<'a> {
                 TypeId::FIXED12 => 12,
                 TypeId::FIXED16 | TypeId::DECIMAL => 16,
                 tid => {
-                    return Err(util::io_error(format!(
+                    return Err(HdbError::ImplDetailed(format!(
                         "invalid TypeId {tid:?} for DECIMAL",
                     )));
                 }
@@ -337,7 +337,7 @@ impl<'a> HdbValue<'a> {
             | HdbValue::SYNC_CLOB(_)
             | HdbValue::SYNC_NCLOB(_)
             | HdbValue::SYNC_LOBSTREAM(Some(_)) => {
-                return Err(util::io_error(format!(
+                return Err(HdbError::ImplDetailed(format!(
                     "size(): can't send {self:?} directly to the database",
                 )));
             }
@@ -346,7 +346,7 @@ impl<'a> HdbValue<'a> {
             | HdbValue::ASYNC_CLOB(_)
             | HdbValue::ASYNC_NCLOB(_)
             | HdbValue::ASYNC_LOBSTREAM(Some(_)) => {
-                return Err(util::io_error(format!(
+                return Err(HdbError::ImplDetailed(format!(
                     "size(): can't send {self:?} directly to the database",
                 )));
             }
@@ -467,7 +467,7 @@ impl HdbValue<'static> {
         am_conn_core: &AmConnCore,
         o_am_rscore: &Option<AmRsCore>,
         rdr: &mut dyn std::io::Read,
-    ) -> std::io::Result<HdbValue<'static>> {
+    ) -> HdbResult<HdbValue<'static>> {
         let t = type_id;
         if array_type {
             let l8 = rdr.read_u8()?;
@@ -520,7 +520,7 @@ impl HdbValue<'static> {
                 | TypeId::GEOMETRY
                 | TypeId::POINT => Ok(parse_binary_sync(nullable, t, rdr)?),
 
-                TypeId::BLOCATOR => Err(util::io_error("parsing BLOCATOR not implemented")),
+                TypeId::BLOCATOR => Err(HdbError::Impl("parsing BLOCATOR not implemented")),
                 TypeId::BLOB | TypeId::BINTEXT => Ok(lob::parse_blob_sync(
                     am_conn_core,
                     o_am_rscore,
@@ -558,7 +558,7 @@ impl HdbValue<'static> {
         am_conn_core: &AmConnCore,
         o_am_rscore: &Option<AmRsCore>,
         rdr: &mut R,
-    ) -> std::io::Result<HdbValue<'static>> {
+    ) -> HdbResult<HdbValue<'static>> {
         let t = type_id;
         if array_type {
             let l8 = rdr.read_u8().await?;
@@ -590,7 +590,7 @@ impl HdbValue<'static> {
         am_conn_core: &AmConnCore,
         o_am_rscore: &Option<AmRsCore>,
         rdr: &mut R,
-    ) -> std::io::Result<HdbValue<'static>> {
+    ) -> HdbResult<HdbValue<'static>> {
         let t = type_id;
         match t {
             TypeId::TINYINT => Ok(parse_tinyint_async(nullable, rdr).await?),
@@ -625,7 +625,7 @@ impl HdbValue<'static> {
             | TypeId::GEOMETRY
             | TypeId::POINT => Ok(parse_binary_async(nullable, t, rdr).await?),
 
-            TypeId::BLOCATOR => Err(util::io_error("parsing BLOCATOR not implemented")),
+            TypeId::BLOCATOR => Err(HdbError::Impl("parsing BLOCATOR not implemented")),
             TypeId::BLOB | TypeId::BINTEXT => {
                 Ok(lob::parse_blob_async(am_conn_core, o_am_rscore, nullable, rdr).await?)
             }
@@ -645,7 +645,7 @@ impl HdbValue<'static> {
 }
 
 #[cfg(feature = "sync")]
-fn emit_bool_sync(b: bool, w: &mut dyn std::io::Write) -> std::io::Result<()> {
+fn emit_bool_sync(b: bool, w: &mut dyn std::io::Write) -> HdbResult<()> {
     // this is the version that works with dataformat_version2 = 4
     // w.write_u8(b as u8)?;
 
@@ -658,7 +658,7 @@ fn emit_bool_sync(b: bool, w: &mut dyn std::io::Write) -> std::io::Result<()> {
 async fn emit_bool_async<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
     b: bool,
     w: &mut W,
-) -> std::io::Result<()> {
+) -> HdbResult<()> {
     // this is the version that works with dataformat_version2 = 4
     // w.write_u8(b as u8).await?;
 
@@ -672,10 +672,10 @@ async fn emit_bool_async<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
 // - returns Ok(true) if the value is NULL
 // - returns Ok(false) if a normal value is to be expected
 // - throws an error if NULL is found but nullable is false
-fn parse_null_sync(nullable: bool, rdr: &mut dyn std::io::Read) -> std::io::Result<bool> {
+fn parse_null_sync(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<bool> {
     let is_null = rdr.read_u8()? == 0;
     if is_null && !nullable {
-        Err(util::io_error("found null value for not-null column"))
+        Err(HdbError::Impl("found null value for not-null column"))
     } else {
         Ok(is_null)
     }
@@ -689,20 +689,17 @@ fn parse_null_sync(nullable: bool, rdr: &mut dyn std::io::Read) -> std::io::Resu
 async fn parse_null_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
     nullable: bool,
     rdr: &mut R,
-) -> std::io::Result<bool> {
+) -> HdbResult<bool> {
     let is_null = rdr.read_u8().await? == 0;
     if is_null && !nullable {
-        Err(util::io_error("found null value for not-null column"))
+        Err(HdbError::Impl("found null value for not-null column"))
     } else {
         Ok(is_null)
     }
 }
 
 #[cfg(feature = "sync")]
-fn parse_tinyint_sync(
-    nullable: bool,
-    rdr: &mut dyn std::io::Read,
-) -> std::io::Result<HdbValue<'static>> {
+fn parse_tinyint_sync(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<HdbValue<'static>> {
     Ok(if parse_null_sync(nullable, rdr)? {
         HdbValue::NULL
     } else {
@@ -714,7 +711,7 @@ fn parse_tinyint_sync(
 async fn parse_tinyint_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
     nullable: bool,
     rdr: &mut R,
-) -> std::io::Result<HdbValue<'static>> {
+) -> HdbResult<HdbValue<'static>> {
     Ok(if parse_null_async(nullable, rdr).await? {
         HdbValue::NULL
     } else {
@@ -726,7 +723,7 @@ async fn parse_tinyint_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
 fn parse_smallint_sync(
     nullable: bool,
     rdr: &mut dyn std::io::Read,
-) -> std::io::Result<HdbValue<'static>> {
+) -> HdbResult<HdbValue<'static>> {
     Ok(if parse_null_sync(nullable, rdr)? {
         HdbValue::NULL
     } else {
@@ -738,19 +735,16 @@ fn parse_smallint_sync(
 async fn parse_smallint_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
     nullable: bool,
     rdr: &mut R,
-) -> std::io::Result<HdbValue<'static>> {
+) -> HdbResult<HdbValue<'static>> {
     Ok(if parse_null_async(nullable, rdr).await? {
         HdbValue::NULL
     } else {
-        HdbValue::SMALLINT(util_async::read_i16(rdr).await?)
+        HdbValue::SMALLINT(rdr.read_i16_le().await?)
     })
 }
 
 #[cfg(feature = "sync")]
-fn parse_int_sync(
-    nullable: bool,
-    rdr: &mut dyn std::io::Read,
-) -> std::io::Result<HdbValue<'static>> {
+fn parse_int_sync(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<HdbValue<'static>> {
     Ok(if parse_null_sync(nullable, rdr)? {
         HdbValue::NULL
     } else {
@@ -762,19 +756,16 @@ fn parse_int_sync(
 async fn parse_int_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
     nullable: bool,
     rdr: &mut R,
-) -> std::io::Result<HdbValue<'static>> {
+) -> HdbResult<HdbValue<'static>> {
     Ok(if parse_null_async(nullable, rdr).await? {
         HdbValue::NULL
     } else {
-        HdbValue::INT(util_async::read_i32(rdr).await?)
+        HdbValue::INT(rdr.read_i32_le().await?)
     })
 }
 
 #[cfg(feature = "sync")]
-fn parse_bigint_sync(
-    nullable: bool,
-    rdr: &mut dyn std::io::Read,
-) -> std::io::Result<HdbValue<'static>> {
+fn parse_bigint_sync(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<HdbValue<'static>> {
     Ok(if parse_null_sync(nullable, rdr)? {
         HdbValue::NULL
     } else {
@@ -786,19 +777,16 @@ fn parse_bigint_sync(
 async fn parse_bigint_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
     nullable: bool,
     rdr: &mut R,
-) -> std::io::Result<HdbValue<'static>> {
+) -> HdbResult<HdbValue<'static>> {
     Ok(if parse_null_async(nullable, rdr).await? {
         HdbValue::NULL
     } else {
-        HdbValue::BIGINT(util_async::read_i64(rdr).await?)
+        HdbValue::BIGINT(rdr.read_i64_le().await?)
     })
 }
 
 #[cfg(feature = "sync")]
-fn parse_real_sync(
-    nullable: bool,
-    rdr: &mut dyn std::io::Read,
-) -> std::io::Result<HdbValue<'static>> {
+fn parse_real_sync(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<HdbValue<'static>> {
     let mut vec: Vec<u8> = std::iter::repeat(0_u8).take(4).collect();
     rdr.read_exact(&mut vec[..])?;
     let mut cursor = std::io::Cursor::new(&vec);
@@ -809,7 +797,7 @@ fn parse_real_sync(
         if nullable {
             Ok(HdbValue::NULL)
         } else {
-            Err(util::io_error("found NULL value for NOT NULL column"))
+            Err(HdbError::Impl("found NULL value for NOT NULL column"))
         }
     } else {
         cursor.set_position(0);
@@ -821,7 +809,7 @@ fn parse_real_sync(
 async fn parse_real_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
     nullable: bool,
     rdr: &mut R,
-) -> std::io::Result<HdbValue<'static>> {
+) -> HdbResult<HdbValue<'static>> {
     let mut vec: Vec<u8> = std::iter::repeat(0_u8).take(4).collect();
     rdr.read_exact(&mut vec[..]).await?;
     let mut cursor = std::io::Cursor::new(&vec);
@@ -832,7 +820,7 @@ async fn parse_real_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
         if nullable {
             Ok(HdbValue::NULL)
         } else {
-            Err(util::io_error("found NULL value for NOT NULL column"))
+            Err(HdbError::Impl("found NULL value for NOT NULL column"))
         }
     } else {
         cursor.set_position(0);
@@ -841,10 +829,7 @@ async fn parse_real_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
 }
 
 #[cfg(feature = "sync")]
-fn parse_double_sync(
-    nullable: bool,
-    rdr: &mut dyn std::io::Read,
-) -> std::io::Result<HdbValue<'static>> {
+fn parse_double_sync(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<HdbValue<'static>> {
     let mut vec: Vec<u8> = std::iter::repeat(0_u8).take(8).collect();
     rdr.read_exact(&mut vec[..])?;
     let mut cursor = std::io::Cursor::new(&vec);
@@ -855,7 +840,7 @@ fn parse_double_sync(
         if nullable {
             Ok(HdbValue::NULL)
         } else {
-            Err(util::io_error("found NULL value for NOT NULL column"))
+            Err(HdbError::Impl("found NULL value for NOT NULL column"))
         }
     } else {
         cursor.set_position(0);
@@ -867,7 +852,7 @@ fn parse_double_sync(
 async fn parse_double_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
     nullable: bool,
     rdr: &mut R,
-) -> std::io::Result<HdbValue<'static>> {
+) -> HdbResult<HdbValue<'static>> {
     let mut vec: Vec<u8> = std::iter::repeat(0_u8).take(8).collect();
     rdr.read_exact(&mut vec[..]).await?;
     let mut cursor = std::io::Cursor::new(&vec);
@@ -878,7 +863,7 @@ async fn parse_double_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
         if nullable {
             Ok(HdbValue::NULL)
         } else {
-            Err(util::io_error("found NULL value for NOT NULL column"))
+            Err(HdbError::Impl("found NULL value for NOT NULL column"))
         }
     } else {
         cursor.set_position(0);
@@ -887,10 +872,7 @@ async fn parse_double_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
 }
 
 #[cfg(feature = "sync")]
-fn parse_bool_sync(
-    nullable: bool,
-    rdr: &mut dyn std::io::Read,
-) -> std::io::Result<HdbValue<'static>> {
+fn parse_bool_sync(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<HdbValue<'static>> {
     //(0x00 = FALSE, 0x01 = NULL, 0x02 = TRUE)
     match rdr.read_u8()? {
         0 => Ok(HdbValue::BOOLEAN(false)),
@@ -899,12 +881,12 @@ fn parse_bool_sync(
             if nullable {
                 Ok(HdbValue::NULL)
             } else {
-                Err(util::io_error(
-                    "parse_bool_sync: got null value".to_string(),
-                ))
+                Err(HdbError::Impl("parse_bool_sync: got null value"))
             }
         }
-        i => Err(util::io_error(format!("parse_bool: got bad value {i}"))),
+        i => Err(HdbError::ImplDetailed(format!(
+            "parse_bool: got bad value {i}"
+        ))),
     }
 }
 
@@ -912,7 +894,7 @@ fn parse_bool_sync(
 async fn parse_bool_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
     nullable: bool,
     rdr: &mut R,
-) -> std::io::Result<HdbValue<'static>> {
+) -> HdbResult<HdbValue<'static>> {
     //(0x00 = FALSE, 0x01 = NULL, 0x02 = TRUE)
     match rdr.read_u8().await? {
         0 => Ok(HdbValue::BOOLEAN(false)),
@@ -921,12 +903,10 @@ async fn parse_bool_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
             if nullable {
                 Ok(HdbValue::NULL)
             } else {
-                Err(util::io_error(
-                    "parse_bool_sync: got null value".to_string(),
-                ))
+                Err(HdbError::Impl("parse_bool_sync: got null value"))
             }
         }
-        i => Err(util::io_error(format!(
+        i => Err(HdbError::ImplDetailed(format!(
             "parse_bool_sync: got bad value {i}",
         ))),
     }
@@ -936,14 +916,14 @@ async fn parse_bool_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
 fn parse_alphanum_sync(
     nullable: bool,
     rdr: &mut dyn std::io::Read,
-) -> std::io::Result<HdbValue<'static>> {
+) -> HdbResult<HdbValue<'static>> {
     let indicator1 = rdr.read_u8()?;
     if indicator1 == length_indicator::LENGTH_INDICATOR_NULL {
         // value is null
         if nullable {
             Ok(HdbValue::NULL)
         } else {
-            Err(util::io_error(
+            Err(HdbError::Impl(
                 "found NULL value for NOT NULL ALPHANUM column",
             ))
         }
@@ -964,8 +944,7 @@ fn parse_alphanum_sync(
                 .collect();
             prefix.append(&mut value);
             prefix
-        })
-        .map_err(util::io_error)?;
+        })?;
         Ok(HdbValue::STRING(s))
     }
 }
@@ -974,14 +953,14 @@ fn parse_alphanum_sync(
 async fn parse_alphanum_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
     nullable: bool,
     rdr: &mut R,
-) -> std::io::Result<HdbValue<'static>> {
+) -> HdbResult<HdbValue<'static>> {
     let indicator1 = rdr.read_u8().await?;
     if indicator1 == length_indicator::LENGTH_INDICATOR_NULL {
         // value is null
         if nullable {
             Ok(HdbValue::NULL)
         } else {
-            Err(util::io_error(
+            Err(HdbError::Impl(
                 "found NULL value for NOT NULL ALPHANUM column",
             ))
         }
@@ -1002,8 +981,7 @@ async fn parse_alphanum_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
                 .collect();
             prefix.append(&mut value);
             prefix
-        })
-        .map_err(util::io_error)?;
+        })?;
         Ok(HdbValue::STRING(s))
     }
 }
@@ -1013,7 +991,7 @@ fn parse_string_sync(
     nullable: bool,
     type_id: TypeId,
     rdr: &mut dyn std::io::Read,
-) -> std::io::Result<HdbValue<'static>> {
+) -> HdbResult<HdbValue<'static>> {
     let l8 = rdr.read_u8()?; // B1
     let is_null = l8 == length_indicator::LENGTH_INDICATOR_NULL;
 
@@ -1021,17 +999,12 @@ fn parse_string_sync(
         if nullable {
             Ok(HdbValue::NULL)
         } else {
-            Err(util::io_error(
+            Err(HdbError::Impl(
                 "found NULL value for NOT NULL string column",
             ))
         }
     } else {
-        let s = util::string_from_cesu8(parse_length_and_bytes_sync(l8, rdr)?).map_err(
-            |cesu8_error| {
-                trace!("parse_string: {:?}", cesu8_error);
-                util::io_error(cesu8_error)
-            },
-        )?;
+        let s = util::string_from_cesu8(parse_length_and_bytes_sync(l8, rdr)?)?;
         Ok(match type_id {
             TypeId::CHAR
             | TypeId::VARCHAR
@@ -1040,7 +1013,7 @@ fn parse_string_sync(
             | TypeId::NSTRING
             | TypeId::SHORTTEXT
             | TypeId::STRING => HdbValue::STRING(s),
-            _ => return Err(util::io_error("unexpected type id for string")),
+            _ => return Err(HdbError::Impl("unexpected type id for string")),
         })
     }
 }
@@ -1050,7 +1023,7 @@ async fn parse_string_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
     nullable: bool,
     type_id: TypeId,
     rdr: &mut R,
-) -> std::io::Result<HdbValue<'static>> {
+) -> HdbResult<HdbValue<'static>> {
     let l8 = rdr.read_u8().await?; // B1
     let is_null = l8 == length_indicator::LENGTH_INDICATOR_NULL;
 
@@ -1058,13 +1031,12 @@ async fn parse_string_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
         if nullable {
             Ok(HdbValue::NULL)
         } else {
-            Err(util::io_error(
+            Err(HdbError::Impl(
                 "found NULL value for NOT NULL string column",
             ))
         }
     } else {
-        let s = util::string_from_cesu8(parse_length_and_bytes_async(l8, rdr).await?)
-            .map_err(util::io_error)?;
+        let s = util::string_from_cesu8(parse_length_and_bytes_async(l8, rdr).await?)?;
         Ok(match type_id {
             TypeId::CHAR
             | TypeId::VARCHAR
@@ -1073,7 +1045,7 @@ async fn parse_string_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
             | TypeId::NSTRING
             | TypeId::SHORTTEXT
             | TypeId::STRING => HdbValue::STRING(s),
-            _ => return Err(util::io_error("unexpected type id for string")),
+            _ => return Err(HdbError::Impl("unexpected type id for string")),
         })
     }
 }
@@ -1083,7 +1055,7 @@ fn parse_binary_sync(
     nullable: bool,
     type_id: TypeId,
     rdr: &mut dyn std::io::Read,
-) -> std::io::Result<HdbValue<'static>> {
+) -> HdbResult<HdbValue<'static>> {
     let l8 = rdr.read_u8()?; // B1
     let is_null = l8 == length_indicator::LENGTH_INDICATOR_NULL;
 
@@ -1091,7 +1063,7 @@ fn parse_binary_sync(
         if nullable {
             Ok(HdbValue::NULL)
         } else {
-            Err(util::io_error(
+            Err(HdbError::Impl(
                 "found NULL value for NOT NULL binary column",
             ))
         }
@@ -1101,7 +1073,7 @@ fn parse_binary_sync(
             TypeId::BSTRING | TypeId::VARBINARY | TypeId::BINARY => HdbValue::BINARY(bytes),
             TypeId::GEOMETRY => HdbValue::GEOMETRY(bytes),
             TypeId::POINT => HdbValue::POINT(bytes),
-            _ => return Err(util::io_error("unexpected type id for binary")),
+            _ => return Err(HdbError::Impl("unexpected type id for binary")),
         })
     }
 }
@@ -1111,7 +1083,7 @@ async fn parse_binary_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
     nullable: bool,
     type_id: TypeId,
     rdr: &mut R,
-) -> std::io::Result<HdbValue<'static>> {
+) -> HdbResult<HdbValue<'static>> {
     let l8 = rdr.read_u8().await?; // B1
     let is_null = l8 == length_indicator::LENGTH_INDICATOR_NULL;
 
@@ -1119,7 +1091,7 @@ async fn parse_binary_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
         if nullable {
             Ok(HdbValue::NULL)
         } else {
-            Err(util::io_error(
+            Err(HdbError::Impl(
                 "found NULL value for NOT NULL binary column",
             ))
         }
@@ -1129,13 +1101,13 @@ async fn parse_binary_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
             TypeId::BSTRING | TypeId::VARBINARY | TypeId::BINARY => HdbValue::BINARY(bytes),
             TypeId::GEOMETRY => HdbValue::GEOMETRY(bytes),
             TypeId::POINT => HdbValue::POINT(bytes),
-            _ => return Err(util::io_error("unexpected type id for binary")),
+            _ => return Err(HdbError::Impl("unexpected type id for binary")),
         })
     }
 }
 
 #[cfg(feature = "sync")]
-fn parse_length_and_bytes_sync(l8: u8, rdr: &mut dyn std::io::Read) -> std::io::Result<Vec<u8>> {
+fn parse_length_and_bytes_sync(l8: u8, rdr: &mut dyn std::io::Read) -> HdbResult<Vec<u8>> {
     let len = length_indicator::parse_sync(l8, rdr)?;
     util_sync::parse_bytes(len, rdr)
 }
@@ -1145,7 +1117,7 @@ fn parse_length_and_bytes_sync(l8: u8, rdr: &mut dyn std::io::Read) -> std::io::
 async fn parse_length_and_bytes_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
     l8: u8,
     rdr: &mut R,
-) -> std::io::Result<Vec<u8>> {
+) -> HdbResult<Vec<u8>> {
     let len = length_indicator::parse_async(l8, rdr).await?;
     util_async::parse_bytes(len, rdr).await
 }
@@ -1166,7 +1138,7 @@ pub(crate) fn binary_length(l: usize) -> usize {
 pub(crate) fn emit_length_and_string_sync<S: AsRef<str>>(
     s: S,
     w: &mut dyn std::io::Write,
-) -> std::io::Result<()> {
+) -> HdbResult<()> {
     emit_length_and_bytes_sync(&cesu8::to_cesu8(s.as_ref()), w)
 }
 
@@ -1177,14 +1149,14 @@ pub(crate) async fn emit_length_and_string_async<
 >(
     s: S,
     w: &mut W,
-) -> std::io::Result<()> {
+) -> HdbResult<()> {
     emit_length_and_bytes_async(&cesu8::to_cesu8(s.as_ref()), w).await
 }
 
 #[allow(clippy::cast_possible_truncation)]
 #[allow(clippy::cast_possible_wrap)]
 #[cfg(feature = "sync")]
-fn emit_length_and_bytes_sync(v: &[u8], w: &mut dyn std::io::Write) -> std::io::Result<()> {
+fn emit_length_and_bytes_sync(v: &[u8], w: &mut dyn std::io::Write) -> HdbResult<()> {
     length_indicator::sync_emit(v.len(), w)?;
     w.write_all(v)?;
     Ok(())
@@ -1196,7 +1168,7 @@ fn emit_length_and_bytes_sync(v: &[u8], w: &mut dyn std::io::Write) -> std::io::
 async fn emit_length_and_bytes_async<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
     v: &[u8],
     w: &mut W,
-) -> std::io::Result<()> {
+) -> HdbResult<()> {
     length_indicator::async_emit(v.len(), w).await?;
     w.write_all(v).await?;
     Ok(())

@@ -1,4 +1,4 @@
-use crate::protocol::util;
+use crate::{HdbError, HdbResult};
 
 /// ID of the value type of a database column or a parameter.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
@@ -107,7 +107,7 @@ pub enum TypeId {
 }
 
 impl TypeId {
-    pub(crate) fn try_new(id: u8) -> std::io::Result<Self> {
+    pub(crate) fn try_new(id: u8) -> HdbResult<Self> {
         Ok(match id {
             1 => Self::TINYINT,
             2 => Self::SMALLINT,
@@ -163,7 +163,7 @@ impl TypeId {
             81 => Self::FIXED8,
             82 => Self::FIXED12,
             // TypeCode_CIPHERTEXT               = 90,  // TODO
-            tc => return Err(util::io_error(format!("Illegal type code {tc}"))),
+            tc => return Err(HdbError::ImplDetailed(format!("Illegal type code {tc}"))),
         })
     }
 
@@ -172,7 +172,7 @@ impl TypeId {
         (if nullable { 128 } else { 0 }) + self as u8
     }
 
-    pub(crate) fn matches_value_type(self, value_type: Self) -> std::io::Result<()> {
+    pub(crate) fn matches_value_type(self, value_type: Self) -> HdbResult<()> {
         if value_type == self {
             return Ok(());
         }
@@ -196,7 +196,7 @@ impl TypeId {
             _ => {}
         }
 
-        Err(util::io_error(format!(
+        Err(HdbError::ImplDetailed(format!(
             "value type id {value_type:?} does not match metadata {self:?}",
         )))
     }

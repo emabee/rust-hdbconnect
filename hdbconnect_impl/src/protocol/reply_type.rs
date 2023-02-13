@@ -1,4 +1,4 @@
-use crate::protocol::util;
+use crate::{HdbError, HdbResult};
 
 // Identifies the nature of the statement or functionality that has been
 // prepared or executed. Is documented as Function Code.
@@ -31,7 +31,7 @@ pub enum ReplyType {
     XARecover,                 // undocumented
 }
 impl ReplyType {
-    pub fn from_i16(val: i16) -> std::io::Result<Self> {
+    pub fn from_i16(val: i16) -> HdbResult<Self> {
         match val {
             0 => Ok(Self::Nil),
             1 => Ok(Self::Ddl),
@@ -57,7 +57,7 @@ impl ReplyType {
             25 => Ok(Self::XAControl),
             26 => Ok(Self::XAPrepare),
             27 => Ok(Self::XARecover),
-            _ => Err(util::io_error(format!(
+            _ => Err(HdbError::ImplDetailed(format!(
                 "found unexpected value {val} for ReplyType",
             ))),
         }

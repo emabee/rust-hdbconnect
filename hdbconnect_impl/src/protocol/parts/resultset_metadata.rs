@@ -1,13 +1,14 @@
-use crate::protocol::parts::field_metadata::{FieldMetadata, InnerFieldMetadata};
-use crate::protocol::parts::type_id::TypeId;
-use crate::protocol::util;
 #[cfg(feature = "async")]
 use crate::protocol::util_async;
 #[cfg(feature = "sync")]
 use crate::protocol::util_sync;
-
 #[cfg(feature = "sync")]
 use byteorder::{LittleEndian, ReadBytesExt};
+
+use crate::{
+    protocol::{parts::field_metadata::InnerFieldMetadata, util},
+    FieldMetadata, HdbResult, TypeId,
+};
 use std::{ops::Deref, sync::Arc};
 use vec_map::VecMap;
 
@@ -34,7 +35,7 @@ impl std::fmt::Display for ResultSetMetadata {
 
 impl ResultSetMetadata {
     #[cfg(feature = "sync")]
-    pub(crate) fn parse_sync(count: usize, rdr: &mut dyn std::io::Read) -> std::io::Result<Self> {
+    pub(crate) fn parse_sync(count: usize, rdr: &mut dyn std::io::Read) -> HdbResult<Self> {
         let mut inner_fms = Vec::<InnerFieldMetadata>::new();
         let mut names = VecMap::<String>::new();
 
@@ -91,7 +92,7 @@ impl ResultSetMetadata {
     pub(crate) async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
         count: usize,
         rdr: &mut R,
-    ) -> std::io::Result<Self> {
+    ) -> HdbResult<Self> {
         let mut inner_fms = Vec::<InnerFieldMetadata>::new();
         let mut names = VecMap::<String>::new();
 

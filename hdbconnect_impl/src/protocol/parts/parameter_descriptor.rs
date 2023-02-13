@@ -1,10 +1,10 @@
-use crate::protocol::parts::type_id::TypeId;
-use crate::protocol::util;
 #[cfg(feature = "async")]
 use crate::protocol::util_async;
 #[cfg(feature = "sync")]
 use crate::protocol::util_sync;
-use crate::{HdbResult, HdbValue};
+
+use crate::{protocol::util, HdbError, HdbResult, HdbValue, TypeId};
+
 #[cfg(feature = "sync")]
 use byteorder::{LittleEndian, ReadBytesExt};
 /// Describes a set of IN, INOUT, and OUT parameters. Can be empty.
@@ -40,7 +40,7 @@ impl ParameterDescriptors {
     }
 
     #[cfg(feature = "sync")]
-    pub(crate) fn parse_sync(count: usize, rdr: &mut dyn std::io::Read) -> std::io::Result<Self> {
+    pub(crate) fn parse_sync(count: usize, rdr: &mut dyn std::io::Read) -> HdbResult<Self> {
         let mut vec_pd = Vec::<ParameterDescriptor>::new();
         let mut name_offsets = Vec::<u32>::new();
         for _ in 0..count {
@@ -61,8 +61,7 @@ impl ParameterDescriptors {
         for (descriptor, name_offset) in vec_pd.iter_mut().zip(name_offsets.iter()) {
             if name_offset != &u32::max_value() {
                 let length = rdr.read_u8()?;
-                let name = util::string_from_cesu8(util_sync::parse_bytes(length as usize, rdr)?)
-                    .map_err(util::io_error)?;
+                let name = util::string_from_cesu8(util_sync::parse_bytes(length as usize, rdr)?)?;
                 descriptor.set_name(name);
             }
         }
@@ -73,7 +72,7 @@ impl ParameterDescriptors {
     pub(crate) async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
         count: usize,
         rdr: &mut R,
-    ) -> std::io::Result<Self> {
+    ) -> HdbResult<Self> {
         let mut vec_pd = Vec::<ParameterDescriptor>::new();
         let mut name_offsets = Vec::<u32>::new();
         for _ in 0..count {
@@ -82,10 +81,10 @@ impl ParameterDescriptors {
             let value_type = rdr.read_u8().await?;
             let mode = ParameterDescriptor::direction_from_u8(rdr.read_u8().await?)?;
             rdr.read_u8().await?;
-            name_offsets.push(util_async::read_u32(rdr).await?);
-            let length = util_async::read_i16(rdr).await?;
-            let fraction = util_async::read_i16(rdr).await?;
-            util_async::read_u32(rdr).await?;
+            name_offsets.push(rdr.read_u32_le().await?);
+            let length = rdr.read_i16_le().await?;
+            let fraction = rdr.read_i16_le().await?;
+            rdr.read_u32_le().await?;
             vec_pd.push(ParameterDescriptor::try_new(
                 option, value_type, mode, length, fraction,
             )?);
@@ -130,7 +129,7 @@ impl ParameterDescriptor {
         direction: ParameterDirection,
         precision: i16,
         scale: i16,
-    ) -> std::io::Result<Self> {
+    ) -> HdbResult<Self> {
         let type_id = TypeId::try_new(type_code)?;
         let (binding, auto_incremented, array_type) = evaluate_option(parameter_option);
         Ok(Self {
@@ -208,7 +207,7 @@ impl ParameterDescriptor {
         self.name = Some(name);
     }
 
-    fn direction_from_u8(v: u8) -> std::io::Result<ParameterDirection> {
+    fn direction_from_u8(v: u8) -> HdbResult<ParameterDirection> {
         // it's done with three bits where always exactly one is 1 and the others are 0;
         // the other bits are not used,
         // so we can avoid bit handling and do it the simple way
@@ -216,7 +215,7 @@ impl ParameterDescriptor {
             1 => Ok(ParameterDirection::IN),
             2 => Ok(ParameterDirection::INOUT),
             4 => Ok(ParameterDirection::OUT),
-            _ => Err(util::io_error(format!(
+            _ => Err(HdbError::ImplDetailed(format!(
                 "invalid value for ParameterDirection: {v}"
             ))),
         }

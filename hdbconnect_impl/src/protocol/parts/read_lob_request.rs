@@ -1,3 +1,4 @@
+use crate::HdbResult;
 #[cfg(feature = "sync")]
 use byteorder::{LittleEndian, WriteBytesExt};
 
@@ -17,7 +18,7 @@ impl ReadLobRequest {
         }
     }
     #[cfg(feature = "sync")]
-    pub fn sync_emit(&self, w: &mut dyn std::io::Write) -> std::io::Result<()> {
+    pub fn sync_emit(&self, w: &mut dyn std::io::Write) -> HdbResult<()> {
         trace!("read_lob_request::emit() {:?}", self);
         w.write_u64::<LittleEndian>(self.locator_id)?;
         w.write_u64::<LittleEndian>(self.offset)?;
@@ -29,7 +30,7 @@ impl ReadLobRequest {
     pub async fn async_emit<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
         &self,
         w: &mut W,
-    ) -> std::io::Result<()> {
+    ) -> HdbResult<()> {
         trace!("read_lob_request::emit() {:?}", self);
         w.write_u64_le(self.locator_id).await?;
         w.write_u64_le(self.offset).await?;

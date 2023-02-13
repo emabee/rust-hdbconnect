@@ -4,9 +4,12 @@
 #[cfg(feature = "sync")]
 use byteorder::{LittleEndian, WriteBytesExt};
 
-use crate::protocol::{
-    parts::{ParameterDescriptors, Parts, StatementContext},
-    Part, RequestType,
+use crate::{
+    protocol::{
+        parts::{ParameterDescriptors, Parts, StatementContext},
+        Part, RequestType,
+    },
+    HdbResult,
 };
 use std::sync::Arc;
 
@@ -59,7 +62,7 @@ impl<'a> Request<'a> {
         auto_commit: bool,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
         w: &mut dyn std::io::Write,
-    ) -> std::io::Result<()> {
+    ) -> HdbResult<()> {
         let varpart_size = self.varpart_size(o_a_descriptors)?;
         let total_size = MESSAGE_HEADER_SIZE + varpart_size;
         trace!("Writing request with total size {}", total_size);
@@ -115,7 +118,7 @@ impl<'a> Request<'a> {
         auto_commit: bool,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
         w: &mut W,
-    ) -> std::io::Result<()> {
+    ) -> HdbResult<()> {
         let varpart_size = self.varpart_size(o_a_descriptors)?;
         let total_size = MESSAGE_HEADER_SIZE + varpart_size;
         trace!("Writing request with total size {}", total_size);
@@ -167,20 +170,14 @@ impl<'a> Request<'a> {
     // Length in bytes of the variable part of the message, i.e. total message
     // without the header
     #[allow(clippy::cast_possible_truncation)]
-    fn varpart_size(
-        &self,
-        o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
-    ) -> std::io::Result<u32> {
+    fn varpart_size(&self, o_a_descriptors: Option<&Arc<ParameterDescriptors>>) -> HdbResult<u32> {
         let mut len = 0_u32;
         len += self.seg_size(o_a_descriptors)? as u32;
         trace!("varpart_size = {}", len);
         Ok(len)
     }
 
-    fn seg_size(
-        &self,
-        o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
-    ) -> std::io::Result<usize> {
+    fn seg_size(&self, o_a_descriptors: Option<&Arc<ParameterDescriptors>>) -> HdbResult<usize> {
         let mut len = SEGMENT_HEADER_SIZE;
         for part in self.parts.ref_inner() {
             len += part.size(true, o_a_descriptors)?;

@@ -54,7 +54,7 @@ impl OutputParameters {
         o_am_conn_core: Option<&AmConnCore>,
         parameter_descriptors: &ParameterDescriptors,
         rdr: &mut dyn std::io::Read,
-    ) -> std::io::Result<Self> {
+    ) -> HdbResult<Self> {
         trace!("OutputParameters::parse()");
         let am_conn_core = o_am_conn_core
             .ok_or_else(|| util::io_error("Cannot parse output parameters without am_conn_core"))?;
@@ -88,7 +88,7 @@ impl OutputParameters {
         o_am_conn_core: Option<&AmConnCore>,
         parameter_descriptors: &ParameterDescriptors,
         rdr: &mut R,
-    ) -> std::io::Result<Self> {
+    ) -> HdbResult<Self> {
         trace!("OutputParameters::parse()");
         let am_conn_core = o_am_conn_core
             .ok_or_else(|| util::io_error("Cannot parse output parameters without am_conn_core"))?;

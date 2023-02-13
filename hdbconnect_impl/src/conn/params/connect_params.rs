@@ -1,6 +1,6 @@
 //! Connection parameters
 use super::cp_url::format_as_url;
-use crate::{ConnectParamsBuilder, HdbError, HdbResult, IntoConnectParams};
+use crate::{protocol::util, ConnectParamsBuilder, HdbError, HdbResult, IntoConnectParams};
 use rustls::{
     client::{ServerCertVerified, ServerCertVerifier, ServerName},
     Certificate, ClientConfig, OwnedTrustAnchor, RootCertStore,
@@ -181,7 +181,7 @@ impl ConnectParams {
     #[allow(clippy::too_many_lines)]
     pub(crate) fn rustls_clientconfig(&self) -> std::io::Result<ClientConfig> {
         match self.tls {
-            Tls::Off => Err(crate::protocol::util::io_error(
+            Tls::Off => Err(util::io_error(
                 "rustls_clientconfig called with Tls::Off - \
                     this should have been prevented earlier",
             )),
