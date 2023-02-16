@@ -37,11 +37,11 @@
 #![deny(clippy::pedantic)]
 
 pub use hdbconnect_impl::{
-    time, url, ConnectParams, ConnectParamsBuilder, ExecutionResult, FieldMetadata, HdbError,
-    HdbResult, HdbValue, IntoConnectParams, IntoConnectParamsBuilder, OutputParameters,
-    ParameterBinding, ParameterDescriptor, ParameterDescriptors, ParameterDirection, Row,
-    ServerCerts, ServerError, ServerUsage, Severity, Tls, ToHana, TypeId, DEFAULT_FETCH_SIZE,
-    DEFAULT_LOB_READ_LENGTH, DEFAULT_LOB_WRITE_LENGTH,
+    time, url, ConnectParams, ConnectParamsBuilder, DeserializationError, ExecutionResult,
+    FieldMetadata, HdbError, HdbResult, HdbValue, IntoConnectParams, IntoConnectParamsBuilder,
+    OutputParameters, ParameterBinding, ParameterDescriptor, ParameterDescriptors,
+    ParameterDirection, Row, SerializationError, ServerCerts, ServerError, ServerUsage, Severity,
+    Tls, ToHana, TypeId, DEFAULT_FETCH_SIZE, DEFAULT_LOB_READ_LENGTH, DEFAULT_LOB_WRITE_LENGTH,
 };
 
 pub use hdbconnect_impl::a_sync::{

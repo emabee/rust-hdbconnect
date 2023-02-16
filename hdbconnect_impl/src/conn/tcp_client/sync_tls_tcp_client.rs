@@ -48,7 +48,7 @@ impl Stream {
 
         let a_client_config = Arc::new(params.rustls_clientconfig()?);
         let server_name = ServerName::try_from(params.host())
-            .map_err(|e| HdbError::TlsServerName { source: e })
+            .map_err(|_| HdbError::TlsServerName)
             .map_err(util::io_error)?;
         let am_client_session = Arc::new(Mutex::new(
             ClientConnection::new(a_client_config, server_name)

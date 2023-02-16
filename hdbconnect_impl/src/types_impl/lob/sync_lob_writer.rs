@@ -133,10 +133,9 @@ impl<'a> LobWriter<'a> {
 
     fn sync_evaluate_dbprocedure_call_reply(&mut self, mut reply: Reply) -> HdbResult<Vec<u64>> {
         let locator_ids = self.evaluate_dbprocedure_call_reply1(&mut reply)?;
-        let internal_return_values = reply.parts.sync_into_internal_return_values(
-            &mut self.am_conn_core,
-            Some(&mut self.server_usage),
-        )?;
+        let internal_return_values = reply
+            .parts
+            .sync_into_internal_return_values(&self.am_conn_core, Some(&mut self.server_usage))?;
 
         self.proc_result = Some(internal_return_values);
         Ok(locator_ids)

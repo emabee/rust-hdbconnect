@@ -273,7 +273,11 @@ impl DbValueInto<String> for HdbValue<'static> {
             HdbValue::REAL(f) => Ok(format!("{f}")),
             HdbValue::DOUBLE(f) => Ok(format!("{f}")),
             HdbValue::STRING(s) => Ok(s),
-
+            HdbValue::DBSTRING(bytes) => {
+                Err(ConversionError::Other(Box::new(HdbError::Cesu8AsBytes {
+                    bytes,
+                })))
+            }
             HdbValue::LONGDATE(ld) => Ok(str_from(&ld)),
             HdbValue::SECONDDATE(sd) => Ok(str_from(&sd)),
             HdbValue::DAYDATE(date) => Ok(str_from(&date)),
@@ -319,6 +323,7 @@ impl DbValueInto<Vec<u8>> for HdbValue<'static> {
             HdbValue::BINARY(v) | HdbValue::GEOMETRY(v) | HdbValue::POINT(v) => Ok(v),
 
             HdbValue::STRING(s) => Ok(s.into_bytes()),
+            HdbValue::DBSTRING(v) => Ok(v),
 
             value => Err(wrong_type(&value, "Vec<u8>")),
         }

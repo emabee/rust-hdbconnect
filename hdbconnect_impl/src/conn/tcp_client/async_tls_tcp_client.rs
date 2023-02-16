@@ -16,7 +16,7 @@ impl AsyncTlsTcpClient {
     pub async fn try_new(params: ConnectParams) -> std::io::Result<Self> {
         let a_client_config = Arc::new(params.rustls_clientconfig()?);
         let server_name = ServerName::try_from(params.host())
-            .map_err(|e| HdbError::TlsServerName { source: e })
+            .map_err(|_| HdbError::TlsServerName)
             .map_err(util::io_error)?;
 
         let config = TlsConnector::from(a_client_config);

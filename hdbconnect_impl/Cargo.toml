@@ -18,7 +18,7 @@ doctest = false
 all-features = false
 
 [features]
-default = ["sync","async"]
+default = ["sync", "async"]
 async = ["async-trait", "tokio"]
 sync = []
 dist_tx_async = ["dist_tx/async"]
@@ -28,33 +28,43 @@ rocket_pool = ["async", "rocket_db_pools", "rocket"]
 alpha_routing = []
 
 [dependencies]
-bigdecimal = {version = "0.3", features = ["serde"]}
+bigdecimal = { version = "0.3", features = ["serde"] }
 byteorder = "1.3"
 cesu8 = "1.1"
 crypto-common = "0.1"
-async-trait = {version = "0.1", optional= true}
-dist_tx = {version = "0.3", optional= true}
+async-trait = { version = "0.1", optional = true }
+dist_tx = { version = "0.3", optional = true }
 hex = "0.4"
 hmac = "0.12"
 lazy_static = "1.4.0"
 log = "0.4"
 num = "0.4"
 num-bigint = "0.4.0"
-pbkdf2 = {version = "0.11", default-features = false}
-r2d2  = {version = "0.8", optional= true}
+pbkdf2 = { version = "0.11", default-features = false }
+r2d2 = { version = "0.8", optional = true }
 rand = "0.8"
-rocket_db_pools = {version = "0.1.0-rc.2", optional = true}
-rocket = {version = "0.5.0-rc.2", optional = true}
-rustls = {version = "0.20", features = ["dangerous_configuration"]}
+rocket_db_pools = { version = "0.1.0-rc.2", optional = true }
+rocket = { version = "0.5.0-rc.2", optional = true }
+rustls = { version = "0.20", features = ["dangerous_configuration"] }
 secstr = "0.5"
 serde = { version = "1.0", features = ["derive"] }
-# serde_db = { path = "../serde_db" }
+# serde_db = { path = "../../serde_db" }
 serde_db = "0.11"
 serde_json = "1.0"
 sha2 = "0.10.0"
 thiserror = "1.0"
-time = {version = "0.3", features = ["formatting", "macros", "parsing", "serde"]}
-tokio = {optional = true, version = "1.23", features = ["io-util", "net", "rt", "sync"]}
+time = { version = "0.3", features = [
+    "formatting",
+    "macros",
+    "parsing",
+    "serde",
+] }
+tokio = { optional = true, version = "1.23", features = [
+    "io-util",
+    "net",
+    "rt",
+    "sync",
+] }
 tokio-rustls = "0.23"
 url = "2.1"
 username = "0.2"
@@ -63,8 +73,8 @@ webpki = "0.22"
 webpki-roots = "0.22"
 
 [dev-dependencies]
-chrono = { version = "0.4", features = ["serde"]}
-flexi_logger = "0.24"
+chrono = { version = "0.4", features = ["serde"] }
+flexi_logger = "0.25"
 serde_bytes = "0.11"
 version-sync = "0.9"
 # geo = "0.12"

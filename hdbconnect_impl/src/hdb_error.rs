@@ -28,10 +28,12 @@ pub enum HdbError {
 
     /// Some error occured while decoding CESU-8. This indicates a server issue!
     #[error("Some error occured while decoding CESU-8")]
-    Cesu8 {
-        /// The causing Error.
-        #[from]
-        source: cesu8::Cesu8DecodingError,
+    Cesu8,
+
+    /// Decoding CESU-8 failed, original bytes are available.
+    #[error("Some error occured while decoding CESU-8")]
+    Cesu8AsBytes {
+        bytes: Vec<u8>,
         // backtrace: Backtrace,
     },
 
@@ -54,12 +56,8 @@ pub enum HdbError {
     },
 
     /// TLS set up failed because the server name was not valid.
-    #[error("TLS set up failed, because the server name was not valid")]
-    TlsServerName {
-        /// The causing Error.
-        #[from]
-        source: rustls::client::InvalidDnsNameError,
-    },
+    #[error("TLS setup failed because the server name was not valid")]
+    TlsServerName,
 
     /// TLS protocol error.
     #[error(
@@ -160,14 +158,19 @@ impl HdbError {
     /// Reveal the inner error
     pub fn inner(&self) -> Option<&dyn std::error::Error> {
         match self {
-            Self::Deserialization { source: e } => Some(e),
-            Self::Serialization { source: e } => Some(e),
-            Self::Cesu8 { source: e } => Some(e),
-            Self::ConnParams { source: e } => Some(&**e),
-            Self::DbError { source: e } => Some(e),
-            Self::TlsServerName { source: e } => Some(e),
-            Self::TlsProtocol { source: e } => Some(e),
-            Self::Io { source: e } => Some(e),
+            Self::Deserialization { source } => Some(source),
+            Self::Serialization { source } => Some(source),
+            Self::ConnParams { source } => Some(&**source),
+            Self::DbError { source } => Some(source),
+            Self::TlsProtocol { source } => Some(source),
+            Self::Io { source } => Some(source),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn conversion_error_into_bytes(&self) -> Option<&[u8]> {
+        match self {
+            Self::Cesu8AsBytes { bytes } => Some(bytes),
             _ => None,
         }
     }

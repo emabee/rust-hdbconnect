@@ -72,6 +72,10 @@ fn main() {
     run_command!("cargo", "test", "--package", "hdbconnect");
     run_command!("cargo", "test", "--package", "hdbconnect_async");
 
+    // check version consistency
+    run_command!("cargo", "run", "--package", "hdbconnect", "--example", "version_numbers");
+    run_command!("cargo", "run", "--package", "hdbconnect_async", "--example", "version_numbers");
+
     // check git status
     let mut cmd = command!("git", "status", "-s");
     let child = cmd.stdout(std::process::Stdio::piped()).spawn().unwrap();

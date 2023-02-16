@@ -11,8 +11,21 @@ where
 // --- CESU8 Stuff --- //
 
 // Consumes the cesu8 bytes, returns a String with minimal allocation
-pub(crate) fn string_from_cesu8(bytes: Vec<u8>) -> Result<String, cesu8::Cesu8DecodingError> {
-    String::from_utf8(bytes).or_else(|e| Ok(cesu8::from_cesu8(e.as_bytes())?.to_string()))
+pub(crate) fn string_from_cesu8(bytes: Vec<u8>) -> HdbResult<String> {
+    String::from_utf8(bytes).or_else(|e| {
+        Ok(cesu8::from_cesu8(e.as_bytes())
+            .map_err(|_| HdbError::Cesu8)?
+            .to_string())
+    })
+}
+
+// Consumes the cesu8 bytes, returns a String with minimal allocation, or the orginal bytes
+pub(crate) fn try_string_from_cesu8(bytes: Vec<u8>) -> Result<String, Vec<u8>> {
+    String::from_utf8(bytes).or_else(|e| {
+        Ok(cesu8::from_cesu8(e.as_bytes())
+            .map_err(|_| e.as_bytes())?
+            .to_string())
+    })
 }
 
 // cesu-8 is identical to utf-8, except for high code points

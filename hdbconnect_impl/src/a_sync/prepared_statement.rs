@@ -360,7 +360,7 @@ impl<'a> PreparedStatement {
     ) -> HdbResult<HdbResponse> {
         trace!("PreparedStatement::execute_parameter_rows()");
 
-        let mut ps_core_guard = self.am_ps_core.lock().await;
+        let ps_core_guard = self.am_ps_core.lock().await;
         let mut request = Request::new(RequestType::Execute, HOLD_CURSORS_OVER_COMMIT);
         request.push(Part::StatementId(ps_core_guard.statement_id));
         if let Some(rows) = o_rows {
@@ -376,7 +376,7 @@ impl<'a> PreparedStatement {
                 &mut None,
             )
             .await?
-            .async_into_internal_return_values(&mut ps_core_guard.am_conn_core, None)
+            .async_into_internal_return_values(&ps_core_guard.am_conn_core, None)
             .await?;
 
         // inject statement id

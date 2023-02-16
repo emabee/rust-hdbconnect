@@ -188,7 +188,7 @@ impl<'a> PreparedStatement {
     /// Several variants of `HdbError` can occur.
     pub fn execute_row(&'a mut self, hdb_values: Vec<HdbValue<'a>>) -> HdbResult<HdbResponse> {
         if self.a_descriptors.has_in() {
-            let mut ps_core_guard = self.am_ps_core.lock()?;
+            let ps_core_guard = self.am_ps_core.lock()?;
 
             let mut request = Request::new(RequestType::Execute, HOLD_CURSORS_OVER_COMMIT);
 
@@ -241,7 +241,7 @@ impl<'a> PreparedStatement {
             let (mut internal_return_values, replytype) = (
                 main_reply
                     .parts
-                    .sync_into_internal_return_values(&mut ps_core_guard.am_conn_core, None)?,
+                    .sync_into_internal_return_values(&ps_core_guard.am_conn_core, None)?,
                 main_reply.replytype,
             );
 
@@ -357,7 +357,7 @@ impl<'a> PreparedStatement {
     fn execute_parameter_rows(&mut self, o_rows: Option<ParameterRows>) -> HdbResult<HdbResponse> {
         trace!("PreparedStatement::execute_parameter_rows()");
 
-        let mut ps_core_guard = self.am_ps_core.lock()?;
+        let ps_core_guard = self.am_ps_core.lock()?;
         let mut request = Request::new(RequestType::Execute, HOLD_CURSORS_OVER_COMMIT);
         request.push(Part::StatementId(ps_core_guard.statement_id));
         if let Some(rows) = o_rows {
@@ -372,7 +372,7 @@ impl<'a> PreparedStatement {
                 Some(&self.a_descriptors),
                 &mut None,
             )?
-            .sync_into_internal_return_values(&mut ps_core_guard.am_conn_core, None)?;
+            .sync_into_internal_return_values(&ps_core_guard.am_conn_core, None)?;
 
         // inject statement id
         for rv in &mut internal_return_values {

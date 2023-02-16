@@ -30,16 +30,16 @@ dist_tx = ["hdbconnect_impl/dist_tx_async"]
 
 [dependencies.hdbconnect_impl]
 path = "../hdbconnect_impl"
-version = "0.25.1"
+version = "0.26.0"
 default-features = false
 features = ["async"]
 
 [dev-dependencies]
-bigdecimal = {version = "0.3", features = ["serde"]}
+bigdecimal = { version = "0.3", features = ["serde"] }
 cesu8 = "1.1"
-chrono = { version = "0.4", features = ["serde"]}
-dist_tx = {version = "0.3"}
-flexi_logger = "0.24"
+chrono = { version = "0.4", features = ["serde"] }
+dist_tx = { version = "0.3" }
+flexi_logger = "0.25"
 log = "0.4"
 num = "0.4"
 num-bigint = "0.4.0"
@@ -50,7 +50,12 @@ serde = { version = "1.0", features = ["derive"] }
 serde_bytes = "0.11"
 serde_json = "1.0"
 sha2 = "0.10.0"
-time = {version = "0.3", features = ["formatting", "macros", "parsing", "serde"]}
-tokio = {version = "1.23", features = ["io-util","sync","rt","macros"]}
+time = { version = "0.3", features = [
+    "formatting",
+    "macros",
+    "parsing",
+    "serde",
+] }
+tokio = { version = "1.23", features = ["io-util", "sync", "rt", "macros"] }
 tokio-test = "0.4"
 version-sync = "0.9"

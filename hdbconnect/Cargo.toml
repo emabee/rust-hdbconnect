@@ -31,17 +31,17 @@ dist_tx = ["hdbconnect_impl/dist_tx_sync"]
 [dependencies]
 
 [dependencies.hdbconnect_impl]
-version = "0.25.1"
+version = "0.26.0"
 path = "../hdbconnect_impl"
 default-features = false
 features = ["sync"]
 
 [dev-dependencies]
-bigdecimal = {version = "0.3", features = ["serde"]}
+bigdecimal = { version = "0.3", features = ["serde"] }
 cesu8 = "1.1"
-chrono = { version = "0.4", features = ["serde"]}
-dist_tx = {version = "0.3"}
-flexi_logger = "0.24"
+chrono = { version = "0.4", features = ["serde"] }
+dist_tx = { version = "0.3" }
+flexi_logger = "0.25"
 log = "0.4"
 num = "0.4"
 num-bigint = "0.4.0"
@@ -51,5 +51,10 @@ serde = { version = "1.0", features = ["derive"] }
 serde_bytes = "0.11"
 serde_json = "1.0"
 sha2 = "0.10.0"
-time = {version = "0.3", features = ["formatting", "macros", "parsing", "serde"]}
+time = { version = "0.3", features = [
+    "formatting",
+    "macros",
+    "parsing",
+    "serde",
+] }
 version-sync = "0.9"

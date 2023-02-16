@@ -31,6 +31,7 @@ use bigdecimal::BigDecimal;
 #[cfg(feature = "sync")]
 use byteorder::WriteBytesExt;
 use byteorder::{LittleEndian, ReadBytesExt};
+use serde_db::de::DeserializationError;
 
 const ALPHANUM_PURELY_NUMERIC: u8 = 0b_1000_0000_u8;
 const ALPHANUM_LENGTH_MASK: u8 = 0b_0111_1111_u8;
@@ -103,8 +104,12 @@ pub enum HdbValue<'a> {
 
     /// BOOLEAN stores boolean values, which are TRUE or FALSE.
     BOOLEAN(bool),
-    /// The DB returns all Strings as type STRING, independent of the concrete column type.
+
+    /// The DB returns all valid Strings as type STRING, independent of the concrete column type.
     STRING(String),
+
+    /// In rare cases, when the database sends invalid CESU-8, we fall back to this type.
+    DBSTRING(Vec<u8>),
 
     /// Can be used for avoiding cloning when sending large Strings to the database  (see
     /// [`PreparedStatement::execute_row()`](crate::PreparedStatement::execute_row)).
@@ -168,6 +173,7 @@ impl<'a> HdbValue<'a> {
             HdbValue::GEOMETRY(_) | // TypeId::GEOMETRY,
             HdbValue::POINT(_) |    // TypeId::POINT,
             HdbValue::BINARY(_) => TypeId::BINARY,
+            HdbValue::DBSTRING(_) => unimplemented!("Can't send DBSTRINGs to the database"),
             HdbValue::ARRAY(_) => unimplemented!("Can't send array type to DB; not yet supported"),
         })
     }
@@ -351,8 +357,8 @@ impl<'a> HdbValue<'a> {
                 )));
             }
 
-            HdbValue::ARRAY(_) => {
-                unimplemented!(" size(): can't handle ARRAY; not yet implemented")
+            HdbValue::DBSTRING(_) | HdbValue::ARRAY(_) => {
+                unimplemented!(" size(): can't handle ARRAY or DBSTRING")
             }
         })
     }
@@ -364,8 +370,23 @@ impl HdbValue<'static> {
     /// # Errors
     ///
     /// `HdbError::DeserializationError` if the target type does not fit.
+    #[allow(clippy::missing_panics_doc)]
     pub fn try_into<'x, T: serde::Deserialize<'x>>(self) -> HdbResult<T> {
-        Ok(serde_db::de::DbValue::try_into(self)?)
+        serde_db::de::DbValue::try_into(self).map_err(|e| {
+            if let DeserializationError::ConversionError(serde_db::de::ConversionError::Other(
+                ref inner_e,
+            )) = e
+            {
+                match inner_e.downcast_ref::<HdbError>() {
+                    Some(hdberror) => HdbError::Cesu8AsBytes {
+                        bytes: hdberror.conversion_error_into_bytes().unwrap().to_vec(),
+                    },
+                    None => HdbError::Deserialization { source: e },
+                }
+            } else {
+                HdbError::Deserialization { source: e }
+            }
+        })
     }
 
     /// Convert into `BLob`.
@@ -1004,7 +1025,6 @@ fn parse_string_sync(
             ))
         }
     } else {
-        let s = util::string_from_cesu8(parse_length_and_bytes_sync(l8, rdr)?)?;
         Ok(match type_id {
             TypeId::CHAR
             | TypeId::VARCHAR
@@ -1012,7 +1032,19 @@ fn parse_string_sync(
             | TypeId::NVARCHAR
             | TypeId::NSTRING
             | TypeId::SHORTTEXT
-            | TypeId::STRING => HdbValue::STRING(s),
+            | TypeId::STRING => {
+                // In very most cases, we get correct cesu-8
+                // In few cases, like e.g. in M_TRACEFILES, this is not guaranteed;
+                // thus, if cesu8-decoding fails, we try utf8-"decoding", and if that fails too,
+                // make the original bytes acessible
+                match util::try_string_from_cesu8(parse_length_and_bytes_sync(l8, rdr)?) {
+                    Ok(s) => HdbValue::STRING(s),
+                    Err(v) => match String::from_utf8(v) {
+                        Ok(s) => HdbValue::STRING(s),
+                        Err(e) => HdbValue::DBSTRING(e.into_bytes()),
+                    },
+                }
+            }
             _ => return Err(HdbError::Impl("unexpected type id for string")),
         })
     }
@@ -1036,7 +1068,6 @@ async fn parse_string_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
             ))
         }
     } else {
-        let s = util::string_from_cesu8(parse_length_and_bytes_async(l8, rdr).await?)?;
         Ok(match type_id {
             TypeId::CHAR
             | TypeId::VARCHAR
@@ -1044,7 +1075,16 @@ async fn parse_string_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
             | TypeId::NVARCHAR
             | TypeId::NSTRING
             | TypeId::SHORTTEXT
-            | TypeId::STRING => HdbValue::STRING(s),
+            | TypeId::STRING => {
+                let v = parse_length_and_bytes_async(l8, rdr).await?;
+                match util::try_string_from_cesu8(v) {
+                    Ok(s) => HdbValue::STRING(s),
+                    Err(v) => match String::from_utf8(v) {
+                        Ok(s) => HdbValue::STRING(s),
+                        Err(e) => HdbValue::DBSTRING(e.into_bytes()),
+                    },
+                }
+            }
             _ => return Err(HdbError::Impl("unexpected type id for string")),
         })
     }
@@ -1193,6 +1233,13 @@ impl<'a> std::fmt::Display for HdbValue<'a> {
                     write!(fmt, "{value}")
                 } else {
                     write!(fmt, "<STRING length = {}>", value.len())
+                }
+            }
+            HdbValue::DBSTRING(ref bytes) => {
+                if bytes.len() < 5_000 {
+                    write!(fmt, "{bytes:?}")
+                } else {
+                    write!(fmt, "<STRING length = {}>", bytes.len())
                 }
             }
             HdbValue::STRING(ref value) => {

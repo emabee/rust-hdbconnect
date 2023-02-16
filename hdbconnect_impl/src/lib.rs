@@ -62,6 +62,8 @@ pub use crate::{
     serde_db_impl::{time, ToHana},
 };
 
+pub use serde_db::{de::DeserializationError, ser::SerializationError};
+
 /// Non-standard types that are used to represent database values.
 ///
 /// A `ResultSet` contains a sequence of `Row`s, each row is a sequence of `HdbValue`s.

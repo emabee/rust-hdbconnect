@@ -205,16 +205,14 @@ async fn async_emit_length_and_bytes<W: std::marker::Unpin + tokio::io::AsyncWri
 
 #[cfg(feature = "sync")]
 fn parse_length_and_string_sync(rdr: &mut dyn std::io::Read) -> HdbResult<String> {
-    Ok(util::string_from_cesu8(parse_length_and_binary_sync(rdr)?)?)
+    util::string_from_cesu8(parse_length_and_binary_sync(rdr)?)
 }
 
 #[cfg(feature = "async")]
 async fn parse_length_and_string_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
     rdr: &mut R,
 ) -> HdbResult<String> {
-    Ok(util::string_from_cesu8(
-        parse_length_and_binary_async(rdr).await?,
-    )?)
+    util::string_from_cesu8(parse_length_and_binary_async(rdr).await?)
 }
 
 #[cfg(feature = "sync")]

@@ -1,8 +1,16 @@
 # Changelog
 
-## [0.26.0-unpublished] 2023-??-??
+## [0.26.0] 2023-02-16
 
-API changes: Most Connection methods don't require mutability
+### API changes
+
+Most Connection methods don't require mutability.
+
+Introduce variants `HdbValue::DBSTRING` and `HdbError::Cesu8AsBytes`
+for late handling of cesu8 errors. Late handling is important to ensure that reply-parsing
+is always completed so that no data remain on the wire.
+
+Re-export `serde_db`'s (de)serialization errors.
 
 ## [0.25.1] 2023-02-02
 

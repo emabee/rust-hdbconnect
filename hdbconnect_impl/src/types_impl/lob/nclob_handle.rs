@@ -289,7 +289,8 @@ impl NCLobHandle {
             cesu8_buf.len() - util::get_cesu8_tail_len(&cesu8_buf, cesu8_buf.len())?;
 
         // convert the valid part to utf-8 and push the tail back
-        let utf8 = cesu8::from_cesu8(&cesu8_buf[0..cut_off_position])?;
+        let utf8 =
+            cesu8::from_cesu8(&cesu8_buf[0..cut_off_position]).map_err(|_| HdbError::Cesu8)?;
         for i in (cut_off_position..cesu8_buf.len()).rev() {
             self.cesu8.push_front(cesu8_buf[i]);
         }
