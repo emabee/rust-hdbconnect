@@ -1,6 +1,6 @@
 use crate::{protocol::util, ConnectParams, HdbError};
-use rustls::{ClientConnection, ServerName};
 use std::sync::{Arc, Mutex};
+use tokio_rustls::rustls::{ClientConnection, ServerName};
 
 pub(crate) struct SyncTlsTcpClient {
     params: ConnectParams,

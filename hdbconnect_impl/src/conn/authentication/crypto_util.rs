@@ -71,7 +71,8 @@ pub fn scram_pdkdf2_sha256(
 pub fn use_pbkdf2(key: &[u8], salt: &[u8], it: u32) -> Vec<u8> {
     let mut output = [0_u8; 32];
 
-    pbkdf2::<Hmac<Sha256>>(key, salt, it, &mut output);
+    pbkdf2::<Hmac<Sha256>>(key, salt, it, &mut output)
+    .unwrap(/* OK - invalid length should not be possible */);
     output.to_vec()
 }
 

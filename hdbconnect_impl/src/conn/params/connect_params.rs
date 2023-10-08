@@ -3,7 +3,7 @@ use super::cp_url::format_as_url;
 use crate::{protocol::util, ConnectParamsBuilder, HdbError, HdbResult, IntoConnectParams};
 use rustls::{
     client::{ServerCertVerified, ServerCertVerifier, ServerName},
-    Certificate, ClientConfig, OwnedTrustAnchor, RootCertStore,
+    Certificate,
 };
 use secstr::SecUtf8;
 use serde::de::Deserialize;
@@ -12,6 +12,7 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
+use tokio_rustls::rustls::{ClientConfig, OwnedTrustAnchor, RootCertStore};
 
 /// An immutable struct with all information necessary to open a new connection
 /// to a HANA database.
@@ -276,7 +277,7 @@ impl ConnectParams {
                 Ok(config)
             }
             Tls::Insecure => {
-                let config = ClientConfig::builder()
+                let config = rustls::client::ClientConfig::builder()
                     .with_safe_defaults()
                     .with_custom_certificate_verifier(Arc::new(NoCertificateVerification {}))
                     .with_no_client_auth();

@@ -13,6 +13,24 @@ use std::{ops::Deref, sync::Arc};
 use vec_map::VecMap;
 
 /// List of metadata of the fields of a resultset.
+///
+/// Provides index access to the `FieldMetadata` of the individual fields.
+///
+/// ## Example
+///
+/// ```rust
+/// use hdbconnect::ResultSet;
+/// let resultset: ResultSet;
+/// let metadata = resultset.metadata();  // ResultSetMetadata
+///
+/// // direct access to field properties
+/// let scale_0 = metadata[0].scale();
+/// let type_id_0 = metadata[0].type_id();
+///
+/// // all metadata of a single fields
+/// let field_1 = metadata[1]; // FieldMetadata
+/// let precision_1 = metadata[1].precision();
+/// ```
 #[derive(Debug)]
 pub struct ResultSetMetadata(Vec<FieldMetadata>);
 impl Deref for ResultSetMetadata {

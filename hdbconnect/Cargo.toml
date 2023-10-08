@@ -37,7 +37,7 @@ default-features = false
 features = ["sync"]
 
 [dev-dependencies]
-bigdecimal = { version = "0.3", features = ["serde"] }
+bigdecimal = { version = "0.4", features = ["serde"] }
 cesu8 = "1.1"
 chrono = { version = "0.4", features = ["serde"] }
 dist_tx = { version = "0.3" }

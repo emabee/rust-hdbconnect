@@ -42,4 +42,6 @@ impl Pool for HanaPoolForRocket {
     async fn get(&self) -> Result<Connection, HdbError> {
         Connection::new(&self.connect_params).await
     }
+
+    async fn close(&self) {}
 }

@@ -7,7 +7,7 @@ use crate::{HdbError, HdbResult};
 // Note that requested_length and offset count either bytes (BLOB, CLOB), or 1-2-3-chars (NCLOB)
 #[cfg(feature = "sync")]
 pub(crate) fn sync_fetch_a_lob_chunk(
-    am_conn_core: &mut AmConnCore,
+    am_conn_core: &AmConnCore,
     locator_id: u64,
     offset: u64,
     length: u32,

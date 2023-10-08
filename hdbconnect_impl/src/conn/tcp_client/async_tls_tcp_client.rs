@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use rustls::ServerName;
 use tokio::net::TcpStream;
+use tokio_rustls::rustls::ServerName;
 use tokio_rustls::{client::TlsStream, TlsConnector};
 
 use crate::{protocol::util, ConnectParams, HdbError};

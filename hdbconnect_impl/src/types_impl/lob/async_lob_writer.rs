@@ -66,7 +66,7 @@ where
             // transfer utf tail to utf_tail and convert the rest to cesu8
             let tail_len = get_utf8_tail_len(&buf[0..len])?;
             {
-                for b in buf[len - tail_len..].iter() {
+                for b in &buf[len - tail_len..] {
                     utf8_tail.push(*b);
                 }
                 len -= tail_len;

@@ -7,6 +7,7 @@ members = [
     # the code is here, should not be consumed directly
     "hdbconnect_impl",
 ]
+resolver = "2"
 
 [workspace.package]
 version = "0.26.0"

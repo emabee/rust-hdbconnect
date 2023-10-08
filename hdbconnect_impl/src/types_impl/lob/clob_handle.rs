@@ -78,7 +78,7 @@ impl CLobHandle {
     #[cfg(feature = "sync")]
     pub(crate) fn sync_read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
         let (reply_data, _reply_is_last_data) = sync_fetch_a_lob_chunk(
-            &mut self.am_conn_core,
+            &self.am_conn_core,
             self.locator_id,
             offset,
             length,
@@ -123,7 +123,7 @@ impl CLobHandle {
         );
 
         let (reply_data, reply_is_last_data) = sync_fetch_a_lob_chunk(
-            &mut self.am_conn_core,
+            &self.am_conn_core,
             self.locator_id,
             self.acc_byte_length as u64,
             read_length,

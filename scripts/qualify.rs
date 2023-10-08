@@ -1,3 +1,4 @@
+#!/usr/bin/env rust-script
 //! ```cargo
 //! [dependencies]
 //! yansi = "0.5"
@@ -31,13 +32,6 @@ macro_rules! command {
         }
     )
 }
-
-// fn run_script(s: &str) {
-//     let mut path = std::path::PathBuf::from(std::env::var("CARGO_SCRIPT_BASE_PATH").unwrap());
-//     path.push(s);
-//     let script = path.to_string_lossy().to_owned().to_string();
-//     run_command!("cargo", "script", script);
-// }
 
 #[rustfmt::skip]
 fn main() {
