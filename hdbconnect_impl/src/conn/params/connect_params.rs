@@ -63,8 +63,6 @@ pub struct ConnectParams {
     password: SecUtf8,
     clientlocale: Option<String>,
     tls: Tls,
-    #[cfg(feature = "alpha_nonblocking")]
-    use_nonblocking: bool,
 }
 
 /// Describes whether and how TLS is to be used.
@@ -90,7 +88,6 @@ impl ConnectParams {
         network_group: Option<String>,
         clientlocale: Option<String>,
         tls: Tls,
-        #[cfg(feature = "alpha_nonblocking")] use_nonblocking: bool,
     ) -> Self {
         Self {
             addr: format!("{host}:{port}"),
@@ -101,8 +98,6 @@ impl ConnectParams {
             tls,
             dbname,
             network_group,
-            #[cfg(feature = "alpha_nonblocking")]
-            use_nonblocking,
         }
     }
 
@@ -346,8 +341,6 @@ impl<'de> Deserialize<'de> for ConnectParams {
             password: String,
             clientlocale: Option<String>,
             tls: Tls,
-            #[cfg(feature = "alpha_nonblocking")]
-            use_nonblocking: bool,
         }
         let helper: DeserializationHelper = DeserializationHelper::deserialize(deserializer)?;
         Ok(ConnectParams::new(

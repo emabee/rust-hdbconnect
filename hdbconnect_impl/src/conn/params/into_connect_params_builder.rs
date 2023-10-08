@@ -92,15 +92,6 @@ impl IntoConnectParamsBuilder for Url {
                 Some(UrlOpt::InsecureOmitServerCheck) => {
                     insecure_option = true;
                 }
-                #[cfg(feature = "alpha_nonblocking")]
-                Some(UrlOpt::NonBlocking) => {
-                    builder.use_nonblocking();
-
-                    return Err(HdbError::UsageDetailed(format!(
-                        "url option {} requires feature alpha_nonblocking",
-                        UrlOpt::NonBlocking.name()
-                    )));
-                }
                 Some(UrlOpt::Database) => {
                     builder.dbname(&value);
                 }

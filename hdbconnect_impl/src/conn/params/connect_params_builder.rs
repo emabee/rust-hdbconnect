@@ -45,8 +45,6 @@ pub struct ConnectParamsBuilder {
     network_group: Option<String>,
     clientlocale: Option<String>,
     tls: Tls,
-    #[cfg(feature = "alpha_nonblocking")]
-    use_nonblocking: bool,
 }
 
 impl ConnectParamsBuilder {
@@ -118,13 +116,6 @@ impl ConnectParamsBuilder {
             Err(_) => None,
         };
 
-        self
-    }
-
-    /// Sets the client locale.
-    #[cfg(feature = "alpha_nonblocking")]
-    pub fn use_nonblocking(&mut self) -> &mut Self {
-        self.use_nonblocking = true;
         self
     }
 
@@ -203,8 +194,6 @@ impl ConnectParamsBuilder {
             self.network_group.clone(),
             self.clientlocale.clone(),
             self.tls.clone(),
-            #[cfg(feature = "alpha_nonblocking")]
-            self.use_nonblocking,
         ))
     }
 

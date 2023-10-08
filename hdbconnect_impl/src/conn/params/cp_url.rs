@@ -96,11 +96,6 @@ pub(crate) fn format_as_url(
         )?;
     }
 
-    #[cfg(feature = "alpha_nonblocking")]
-    if self.use_nonblocking {
-        write!(f, "{}{}", sep.next().unwrap(), UrlOpt::NonBlocking.name())?;
-    }
-
     Ok(())
 }
 
@@ -112,8 +107,6 @@ pub(crate) enum UrlOpt {
     InsecureOmitServerCheck,
     ClientLocale,
     ClientLocaleFromEnv,
-    #[cfg(feature = "alpha_nonblocking")]
-    NonBlocking,
     Database,
     NetworkGroup,
 }
@@ -128,8 +121,6 @@ impl UrlOpt {
             url::CLIENT_LOCALE_FROM_ENV => Some(UrlOpt::ClientLocaleFromEnv),
             url::DATABASE => Some(UrlOpt::Database),
             url::NETWORK_GROUP => Some(UrlOpt::NetworkGroup),
-            #[cfg(feature = "alpha_nonblocking")]
-            url::NONBLOCKING => Some(UrlOpt::NonBlocking),
             _ => None,
         }
     }
@@ -143,8 +134,6 @@ impl UrlOpt {
             UrlOpt::ClientLocaleFromEnv => url::CLIENT_LOCALE_FROM_ENV,
             UrlOpt::Database => url::DATABASE,
             UrlOpt::NetworkGroup => url::NETWORK_GROUP,
-            #[cfg(feature = "alpha_nonblocking")]
-            UrlOpt::NonBlocking => url::NONBLOCKING,
         }
     }
 }

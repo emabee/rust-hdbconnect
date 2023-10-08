@@ -93,7 +93,3 @@ pub const DATABASE: &str = "db";
 
 /// Option-key for denoting a network group.
 pub const NETWORK_GROUP: &str = "network_group";
-
-/// Use nonblocking.
-#[cfg(feature = "alpha_nonblocking")]
-pub const NONBLOCKING: &str = "nonblocking";
