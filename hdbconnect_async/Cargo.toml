@@ -39,7 +39,7 @@ bigdecimal = { version = "0.4", features = ["serde"] }
 cesu8 = "1.1"
 chrono = { version = "0.4", features = ["serde"] }
 dist_tx = { version = "0.3" }
-flexi_logger = "0.25"
+flexi_logger = "0.27"
 log = "0.4"
 num = "0.4"
 num-bigint = "0.4.0"

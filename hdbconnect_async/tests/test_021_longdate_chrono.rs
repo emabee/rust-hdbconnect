@@ -2,7 +2,7 @@ extern crate serde;
 
 mod test_utils;
 
-use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
+use chrono::{DateTime, NaiveDate, NaiveDateTime, TimeZone, Utc};
 use flexi_logger::LoggerHandle;
 use hdbconnect_async::{Connection, HdbResult};
 use log::{debug, info, trace};
@@ -111,8 +111,8 @@ async fn test_longdate(
         assert_eq!(typed_result, 31);
 
         info!("test the conversion DateTime<Utc> -> LongDate -> wire -> DB");
-        let utc2: DateTime<Utc> = DateTime::from_utc(naive_datetime_values[2], Utc);
-        let utc3: DateTime<Utc> = DateTime::from_utc(naive_datetime_values[3], Utc);
+        let utc2: DateTime<Utc> = Utc.from_utc_datetime(&naive_datetime_values[2]);
+        let utc3: DateTime<Utc> = Utc.from_utc_datetime(&naive_datetime_values[3]);
 
         // Enforce that UTC timestamps values are converted here in the client to the DB type:
         let typed_result: i32 = prep_stmt
