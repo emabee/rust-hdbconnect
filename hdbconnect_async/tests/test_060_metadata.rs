@@ -12,9 +12,9 @@ use log::{debug, info};
 async fn test_060_metadata() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     let start = std::time::Instant::now();
-    let mut connection = test_utils::get_authenticated_connection().await?;
+    let connection = test_utils::get_authenticated_connection().await?;
 
-    test_procedure_metadata(&mut log_handle, &mut connection).await?;
+    test_procedure_metadata(&mut log_handle, &connection).await?;
 
     test_utils::closing_info(connection, start).await
 }
@@ -22,7 +22,7 @@ async fn test_060_metadata() -> HdbResult<()> {
 #[allow(clippy::cognitive_complexity)]
 async fn test_procedure_metadata(
     _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     info!("procedure(): run a sqlscript procedure with input parameters");
 

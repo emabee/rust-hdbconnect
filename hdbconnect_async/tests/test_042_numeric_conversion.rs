@@ -13,26 +13,23 @@ const QUERY: &str = "select * FROM TEST_NUMERIC_CONVERSION";
 async fn test_042_numeric_conversion() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     let start = std::time::Instant::now();
-    let mut connection = test_utils::get_authenticated_connection().await?;
+    let connection = test_utils::get_authenticated_connection().await?;
 
     info!("create numeric fields and try different number conversions");
     debug!("setup...");
 
-    test_tiny_int(&mut log_handle, &mut connection).await?;
-    test_small_int(&mut log_handle, &mut connection).await?;
-    test_integer(&mut log_handle, &mut connection).await?;
-    test_big_int(&mut log_handle, &mut connection).await?;
-    test_decimal(&mut log_handle, &mut connection).await?;
-    conversion_error(&mut log_handle, &mut connection).await?;
+    test_tiny_int(&mut log_handle, &connection).await?;
+    test_small_int(&mut log_handle, &connection).await?;
+    test_integer(&mut log_handle, &connection).await?;
+    test_big_int(&mut log_handle, &connection).await?;
+    test_decimal(&mut log_handle, &connection).await?;
+    conversion_error(&mut log_handle, &connection).await?;
 
     test_utils::closing_info(connection, start).await
 }
 
 #[allow(clippy::cognitive_complexity)]
-async fn test_tiny_int(
-    _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
-) -> HdbResult<()> {
+async fn test_tiny_int(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
     connection
         .multiple_statements_ignore_err(vec!["drop table TEST_NUMERIC_CONVERSION"])
         .await;
@@ -273,10 +270,7 @@ async fn test_tiny_int(
 }
 
 #[allow(clippy::cognitive_complexity)]
-async fn test_small_int(
-    _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
-) -> HdbResult<()> {
+async fn test_small_int(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
     connection
         .multiple_statements_ignore_err(vec!["drop table TEST_NUMERIC_CONVERSION"])
         .await;
@@ -525,10 +519,7 @@ async fn test_small_int(
 }
 
 #[allow(clippy::cognitive_complexity)]
-async fn test_integer(
-    _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
-) -> HdbResult<()> {
+async fn test_integer(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
     connection
         .multiple_statements_ignore_err(vec!["drop table TEST_NUMERIC_CONVERSION"])
         .await;
@@ -771,10 +762,7 @@ async fn test_integer(
 }
 
 #[allow(clippy::cognitive_complexity)]
-async fn test_big_int(
-    _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
-) -> HdbResult<()> {
+async fn test_big_int(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
     connection
         .multiple_statements_ignore_err(vec!["drop table TEST_NUMERIC_CONVERSION"])
         .await;
@@ -1072,10 +1060,7 @@ async fn test_big_int(
 }
 
 #[allow(clippy::cognitive_complexity)]
-async fn test_decimal(
-    _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
-) -> HdbResult<()> {
+async fn test_decimal(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
     connection
         .multiple_statements_ignore_err(vec!["drop table TEST_NUMERIC_CONVERSION"])
         .await;
@@ -1246,7 +1231,7 @@ async fn test_decimal(
 
 async fn conversion_error(
     _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     connection
         .multiple_statements_ignore_err(vec!["drop table TEST_NUMERIC_CONVERSION"])

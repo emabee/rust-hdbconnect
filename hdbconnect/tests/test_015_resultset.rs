@@ -12,18 +12,15 @@ use serde::Deserialize;
 pub fn test_015_resultset() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     let start = std::time::Instant::now();
-    let mut connection = test_utils::get_authenticated_connection()?;
+    let connection = test_utils::get_authenticated_connection()?;
 
-    evaluate_resultset(&mut log_handle, &mut connection)?;
-    verify_row_ordering(&mut log_handle, &mut connection)?;
+    evaluate_resultset(&mut log_handle, &connection)?;
+    verify_row_ordering(&mut log_handle, &connection)?;
 
     test_utils::closing_info(connection, start)
 }
 
-fn evaluate_resultset(
-    _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
-) -> HdbResult<()> {
+fn evaluate_resultset(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
     info!("evaluate resultset");
     // prepare the db table
     connection.multiple_statements_ignore_err(vec!["drop table TEST_RESULTSET"]);
@@ -131,10 +128,7 @@ fn evaluate_resultset(
     Ok(())
 }
 
-fn verify_row_ordering(
-    _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
-) -> HdbResult<()> {
+fn verify_row_ordering(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
     _log_handle.parse_and_push_temp_spec("info").unwrap();
     // , hdbconnect::protocol::request = trace, hdbconnect::conn::tcp::sync::tls_tcp_client = debug
     info!("verify row ordering with various fetch sizes");

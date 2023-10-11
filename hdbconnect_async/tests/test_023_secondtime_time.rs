@@ -11,9 +11,9 @@ use time::{format_description::FormatItem, macros::format_description, Time};
 pub async fn test_023_secondtime() -> HdbResult<()> {
     let mut loghandle = test_utils::init_logger();
     let start = std::time::Instant::now();
-    let mut connection = test_utils::get_authenticated_connection().await?;
+    let connection = test_utils::get_authenticated_connection().await?;
 
-    test_secondtime(&mut loghandle, &mut connection).await?;
+    test_secondtime(&mut loghandle, &connection).await?;
 
     test_utils::closing_info(connection, start).await
 }
@@ -22,10 +22,7 @@ pub async fn test_023_secondtime() -> HdbResult<()> {
 // - during serialization (input to prepared_statements)
 // - during deserialization (result)
 #[allow(clippy::cognitive_complexity)]
-async fn test_secondtime(
-    _loghandle: &mut LoggerHandle,
-    connection: &mut Connection,
-) -> HdbResult<()> {
+async fn test_secondtime(_loghandle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
     info!("verify that Time values match the expected string representation");
 
     debug!("prepare the test data");
@@ -36,7 +33,7 @@ async fn test_secondtime(
         Time::from_hms(3, 3, 3).unwrap(),
         Time::from_hms(23, 59, 59).unwrap(),
     ];
-    let string_values = vec!["00:00:00", "01:01:01", "02:02:02", "03:03:03", "23:59:59"];
+    let string_values = ["00:00:00", "01:01:01", "02:02:02", "03:03:03", "23:59:59"];
     const FMT: &[FormatItem] = format_description!("[hour]:[minute]:[second]");
     for i in 0..5 {
         assert_eq!(time_values[i].format(FMT).unwrap(), string_values[i]);

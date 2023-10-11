@@ -16,17 +16,17 @@ use sha2::{Digest, Sha256};
 async fn test_032_blobs() -> HdbResult<()> {
     let mut loghandle = test_utils::init_logger();
     let start = std::time::Instant::now();
-    let mut connection = test_utils::get_authenticated_connection().await?;
+    let connection = test_utils::get_authenticated_connection().await?;
 
     let (random_bytes, fingerprint) = get_random_bytes();
     test_blobs(
         &mut loghandle,
-        &mut connection,
+        &connection,
         random_bytes.clone(),
         &fingerprint,
     )
     .await?;
-    test_streaming(&mut loghandle, &mut connection, random_bytes, &fingerprint).await?;
+    test_streaming(&mut loghandle, &connection, random_bytes, &fingerprint).await?;
 
     test_utils::closing_info(connection, start).await
 }
@@ -47,7 +47,7 @@ fn get_random_bytes() -> (Vec<u8>, Vec<u8>) {
 
 async fn test_blobs(
     _loghandle: &mut LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
     random_bytes: Vec<u8>,
     fingerprint: &[u8],
 ) -> HdbResult<()> {
@@ -173,7 +173,7 @@ async fn test_blobs(
 
 async fn test_streaming(
     _log_handle: &mut flexi_logger::LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
     random_bytes: Vec<u8>,
     fingerprint: &[u8],
 ) -> HdbResult<()> {

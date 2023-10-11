@@ -13,20 +13,20 @@ mod a {
     pub fn test_090_xa_transactions() -> HdbResult<()> {
         let mut log_handle = super::test_utils::init_logger();
         let start = std::time::Instant::now();
-        let mut connection = super::test_utils::get_authenticated_connection()?;
+        let connection = super::test_utils::get_authenticated_connection()?;
 
-        prepare(&mut log_handle, &mut connection)?;
+        prepare(&mut log_handle, &connection)?;
 
-        successful_xa(&mut log_handle, &mut connection)?;
-        xa_rollback(&mut log_handle, &mut connection)?;
-        xa_repeated(&mut log_handle, &mut connection)?;
-        xa_conflicts(&mut log_handle, &mut connection)?;
+        successful_xa(&mut log_handle, &connection)?;
+        xa_rollback(&mut log_handle, &connection)?;
+        xa_repeated(&mut log_handle, &connection)?;
+        xa_conflicts(&mut log_handle, &connection)?;
 
         super::test_utils::closing_info(connection, start)
     }
 
     // prepare the db table
-    fn prepare(_log_handle: &mut LoggerHandle, conn: &mut Connection) -> HdbResult<()> {
+    fn prepare(_log_handle: &mut LoggerHandle, conn: &Connection) -> HdbResult<()> {
         info!("Prepare...");
         conn.multiple_statements_ignore_err(vec!["drop table TEST_XA"]);
         conn.multiple_statements(vec![
@@ -38,7 +38,7 @@ mod a {
         ])
     }
 
-    fn successful_xa(_log_handle: &mut LoggerHandle, conn: &mut Connection) -> HdbResult<()> {
+    fn successful_xa(_log_handle: &mut LoggerHandle, conn: &Connection) -> HdbResult<()> {
         info!("Successful XA");
 
         // open two connections, auto_commit off
@@ -82,7 +82,7 @@ mod a {
         format!("insert into TEST_XA (f1, f2) values({i}, '{s}')")
     }
 
-    fn xa_rollback(_log_handle: &mut LoggerHandle, conn: &mut Connection) -> HdbResult<()> {
+    fn xa_rollback(_log_handle: &mut LoggerHandle, conn: &Connection) -> HdbResult<()> {
         info!("xa_rollback");
 
         // open two connections, auto_commit off
@@ -147,7 +147,7 @@ mod a {
         Ok(())
     }
 
-    fn xa_repeated(_log_handle: &mut LoggerHandle, conn: &mut Connection) -> HdbResult<()> {
+    fn xa_repeated(_log_handle: &mut LoggerHandle, conn: &Connection) -> HdbResult<()> {
         info!("xa_repeated");
 
         // open two connections, auto_commit off
@@ -219,7 +219,7 @@ mod a {
         Ok(())
     }
 
-    fn xa_conflicts(_log_handle: &mut LoggerHandle, conn: &mut Connection) -> HdbResult<()> {
+    fn xa_conflicts(_log_handle: &mut LoggerHandle, conn: &Connection) -> HdbResult<()> {
         info!("xa_conflicts");
 
         // open two connections, auto_commit off

@@ -15,7 +15,7 @@ use std::io::Read;
 async fn test_034_nclobs() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     let start = std::time::Instant::now();
-    let mut connection = test_utils::get_authenticated_connection().await?;
+    let connection = test_utils::get_authenticated_connection().await?;
 
     debug!("setup...");
     connection.set_lob_read_length(1_000_000).await?;
@@ -27,11 +27,11 @@ async fn test_034_nclobs() -> HdbResult<()> {
     connection.multiple_statements(stmts).await?;
 
     let (blabla, fingerprint) = get_blabla();
-    test_nclobs(&mut log_handle, &mut connection, &blabla, &fingerprint).await?;
-    test_streaming(&mut log_handle, &mut connection, blabla, &fingerprint).await?;
-    test_bytes_to_nclobs(&mut log_handle, &mut connection).await?;
-    test_loblifecycle(&mut log_handle, &mut connection).await?;
-    test_zero_length(&mut log_handle, &mut connection).await?;
+    test_nclobs(&mut log_handle, &connection, &blabla, &fingerprint).await?;
+    test_streaming(&mut log_handle, &connection, blabla, &fingerprint).await?;
+    test_bytes_to_nclobs(&mut log_handle, &connection).await?;
+    test_loblifecycle(&mut log_handle, &connection).await?;
+    test_zero_length(&mut log_handle, &connection).await?;
 
     test_utils::closing_info(connection, start).await
 }
@@ -56,7 +56,7 @@ fn get_blabla() -> (String, Vec<u8>) {
 
 async fn test_nclobs(
     _log_handle: &mut flexi_logger::LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
     fifty_times_smp_blabla: &str,
     fingerprint: &[u8],
 ) -> HdbResult<()> {
@@ -133,7 +133,7 @@ async fn test_nclobs(
 
 async fn test_streaming(
     _log_handle: &mut flexi_logger::LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
     fifty_times_smp_blabla: String,
     fingerprint: &[u8],
 ) -> HdbResult<()> {
@@ -210,7 +210,7 @@ async fn test_streaming(
 
 async fn test_bytes_to_nclobs(
     _log_handle: &mut flexi_logger::LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     info!("create a NCLOB from bytes in the database, and read it back into a String");
 
@@ -253,7 +253,7 @@ async fn test_bytes_to_nclobs(
 
 async fn test_loblifecycle(
     _log_handle: &mut flexi_logger::LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     connection
         .multiple_statements_ignore_err(vec!["drop table TEST_NCLOBS2"])
@@ -300,7 +300,7 @@ async fn test_loblifecycle(
 
 async fn test_zero_length(
     _log_handle: &mut flexi_logger::LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     info!("write and read empty nclob");
     let mut stmt = connection

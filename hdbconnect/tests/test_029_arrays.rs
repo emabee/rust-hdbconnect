@@ -7,16 +7,16 @@ use hdbconnect::{Connection, HdbResult, HdbValue};
 
 #[test] // cargo test --test test_029_arrays -- --nocapture
 pub fn test_029_arrays() -> HdbResult<()> {
-    let mut log_handle = test_utils::init_logger();
+    let log_handle = test_utils::init_logger();
     let start = std::time::Instant::now();
-    let mut connection = test_utils::get_authenticated_connection()?;
+    let connection = test_utils::get_authenticated_connection()?;
 
-    test_arrays(&mut log_handle, &mut connection)?;
+    test_arrays(&log_handle, &connection)?;
 
     test_utils::closing_info(connection, start)
 }
 
-fn test_arrays(log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
+fn test_arrays(log_handle: &LoggerHandle, connection: &Connection) -> HdbResult<()> {
     log::debug!("prepare the db tables");
     connection.multiple_statements_ignore_err(vec![
         "drop table TEST_INTEGER_ARRAYS",

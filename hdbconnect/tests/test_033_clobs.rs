@@ -13,22 +13,22 @@ use std::{fs::File, io::Read};
 fn test_033_clobs() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     let start = std::time::Instant::now();
-    let mut connection = test_utils::get_authenticated_connection()?;
+    let connection = test_utils::get_authenticated_connection()?;
 
-    if !prepare_test(&mut connection)? {
+    if !prepare_test(&connection)? {
         info!("TEST ABANDONED since database does not support CLOB columns");
         return Ok(());
     }
 
     let (blabla, fingerprint) = get_blabla();
-    test_clobs(&mut log_handle, &mut connection, &blabla, &fingerprint)?;
-    test_streaming(&mut log_handle, &mut connection, blabla, &fingerprint)?;
-    test_zero_length(&mut log_handle, &mut connection)?;
+    test_clobs(&mut log_handle, &connection, &blabla, &fingerprint)?;
+    test_streaming(&mut log_handle, &connection, blabla, &fingerprint)?;
+    test_zero_length(&mut log_handle, &connection)?;
 
     test_utils::closing_info(connection, start)
 }
 
-fn prepare_test(connection: &mut Connection) -> HdbResult<bool> {
+fn prepare_test(connection: &Connection) -> HdbResult<bool> {
     connection.multiple_statements_ignore_err(vec!["drop table TEST_CLOBS"]);
     let stmts = vec!["create table TEST_CLOBS (desc NVARCHAR(10) not null, chardata CLOB)"];
     connection.multiple_statements(stmts)?;
@@ -64,7 +64,7 @@ fn get_blabla() -> (String, Vec<u8>) {
 
 fn test_clobs(
     _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
     fifty_times_smp_blabla: &str,
     fingerprint: &[u8],
 ) -> HdbResult<()> {
@@ -159,7 +159,7 @@ fn test_clobs(
 
 fn test_streaming(
     _log_handle: &mut flexi_logger::LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
     fifty_times_smp_blabla: String,
     fingerprint: &[u8],
 ) -> HdbResult<()> {
@@ -205,7 +205,7 @@ fn test_streaming(
 
 fn test_zero_length(
     _log_handle: &mut flexi_logger::LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     info!("write and read empty clob");
     let mut stmt = connection.prepare("insert into TEST_CLOBS values(?, ?)")?;

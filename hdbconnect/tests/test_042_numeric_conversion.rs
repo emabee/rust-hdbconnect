@@ -13,23 +13,23 @@ const QUERY: &str = "select * FROM TEST_NUMERIC_CONVERSION";
 fn test_042_numeric_conversion() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     let start = std::time::Instant::now();
-    let mut connection = test_utils::get_authenticated_connection()?;
+    let connection = test_utils::get_authenticated_connection()?;
 
     info!("create numeric fields and try different number conversions");
     debug!("setup...");
 
-    test_tiny_int(&mut log_handle, &mut connection)?;
-    test_small_int(&mut log_handle, &mut connection)?;
-    test_integer(&mut log_handle, &mut connection)?;
-    test_big_int(&mut log_handle, &mut connection)?;
-    test_decimal(&mut log_handle, &mut connection)?;
-    conversion_error(&mut log_handle, &mut connection)?;
+    test_tiny_int(&mut log_handle, &connection)?;
+    test_small_int(&mut log_handle, &connection)?;
+    test_integer(&mut log_handle, &connection)?;
+    test_big_int(&mut log_handle, &connection)?;
+    test_decimal(&mut log_handle, &connection)?;
+    conversion_error(&mut log_handle, &connection)?;
 
     test_utils::closing_info(connection, start)
 }
 
 #[allow(clippy::cognitive_complexity)]
-fn test_tiny_int(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
+fn test_tiny_int(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
     connection.multiple_statements_ignore_err(vec!["drop table TEST_NUMERIC_CONVERSION"]);
     let stmts = vec!["create table TEST_NUMERIC_CONVERSION (TINYINT TINYINT)"];
     connection.multiple_statements(stmts)?;
@@ -146,7 +146,7 @@ fn test_tiny_int(_log_handle: &mut LoggerHandle, connection: &mut Connection) ->
 }
 
 #[allow(clippy::cognitive_complexity)]
-fn test_small_int(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
+fn test_small_int(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
     connection.multiple_statements_ignore_err(vec!["drop table TEST_NUMERIC_CONVERSION"]);
     let stmts = vec!["create table TEST_NUMERIC_CONVERSION (SMALLINT SMALLINT)"];
     connection.multiple_statements(stmts)?;
@@ -271,7 +271,7 @@ fn test_small_int(_log_handle: &mut LoggerHandle, connection: &mut Connection) -
 }
 
 #[allow(clippy::cognitive_complexity)]
-fn test_integer(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
+fn test_integer(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
     connection.multiple_statements_ignore_err(vec!["drop table TEST_NUMERIC_CONVERSION"]);
     let stmts = vec!["create table TEST_NUMERIC_CONVERSION (INTEGER INTEGER)"];
     connection.multiple_statements(stmts)?;
@@ -390,7 +390,7 @@ fn test_integer(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> 
 }
 
 #[allow(clippy::cognitive_complexity)]
-fn test_big_int(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
+fn test_big_int(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
     connection.multiple_statements_ignore_err(vec!["drop table TEST_NUMERIC_CONVERSION"]);
     let stmts = vec!["create table TEST_NUMERIC_CONVERSION (BIGINT BIGINT)"];
     connection.multiple_statements(stmts)?;
@@ -516,7 +516,7 @@ fn test_big_int(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> 
 }
 
 #[allow(clippy::cognitive_complexity)]
-fn test_decimal(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
+fn test_decimal(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
     connection.multiple_statements_ignore_err(vec!["drop table TEST_NUMERIC_CONVERSION"]);
     let stmts = vec!["create table TEST_NUMERIC_CONVERSION (DECIMAL DECIMAL)"];
     connection.multiple_statements(stmts)?;
@@ -606,7 +606,7 @@ fn test_decimal(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> 
     Ok(())
 }
 
-fn conversion_error(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
+fn conversion_error(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
     connection.multiple_statements_ignore_err(vec!["drop table TEST_NUMERIC_CONVERSION"]);
     let stmts = vec!["create table TEST_NUMERIC_CONVERSION (TEXT NVARCHAR(50))"];
     connection.multiple_statements(stmts)?;

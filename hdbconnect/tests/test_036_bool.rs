@@ -11,14 +11,14 @@ use log::{debug, info};
 fn test_036_bool() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     let start = std::time::Instant::now();
-    let mut connection = test_utils::get_authenticated_connection()?;
+    let connection = test_utils::get_authenticated_connection()?;
 
-    test_text(&mut log_handle, &mut connection)?;
+    test_text(&mut log_handle, &connection)?;
 
     test_utils::closing_info(connection, start)
 }
 
-fn test_text(_logger_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
+fn test_text(_logger_handle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
     info!("create a bool in the database, and read it");
 
     debug!("setup...");

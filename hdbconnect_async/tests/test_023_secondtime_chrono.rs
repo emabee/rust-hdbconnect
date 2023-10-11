@@ -11,9 +11,9 @@ use log::{debug, info, trace};
 pub async fn test_023_secondtime() -> HdbResult<()> {
     let mut loghandle = test_utils::init_logger();
     let start = std::time::Instant::now();
-    let mut connection = test_utils::get_authenticated_connection().await?;
+    let connection = test_utils::get_authenticated_connection().await?;
 
-    test_secondtime(&mut loghandle, &mut connection).await?;
+    test_secondtime(&mut loghandle, &connection).await?;
 
     test_utils::closing_info(connection, start).await
 }
@@ -22,10 +22,7 @@ pub async fn test_023_secondtime() -> HdbResult<()> {
 // - during serialization (input to prepared_statements)
 // - during deserialization (result)
 #[allow(clippy::cognitive_complexity)]
-async fn test_secondtime(
-    _loghandle: &mut LoggerHandle,
-    connection: &mut Connection,
-) -> HdbResult<()> {
+async fn test_secondtime(_loghandle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
     info!("verify that NaiveTime values match the expected string representation");
 
     debug!("prepare the test data");
@@ -36,7 +33,7 @@ async fn test_secondtime(
         NaiveTime::from_hms_opt(3, 3, 3).unwrap(),
         NaiveTime::from_hms_opt(23, 59, 59).unwrap(),
     ];
-    let string_values = vec!["00:00:00", "01:01:01", "02:02:02", "03:03:03", "23:59:59"];
+    let string_values = ["00:00:00", "01:01:01", "02:02:02", "03:03:03", "23:59:59"];
     for i in 0..5 {
         assert_eq!(
             naive_time_values[i].format("%H:%M:%S").to_string(),

@@ -11,18 +11,15 @@ use serde_bytes::{ByteBuf, Bytes};
 async fn test_046_spatial() -> HdbResult<()> {
     let mut loghandle = test_utils::init_logger();
     let start = std::time::Instant::now();
-    let mut connection = test_utils::get_authenticated_connection().await?;
+    let connection = test_utils::get_authenticated_connection().await?;
 
-    test_geometries(&mut loghandle, &mut connection).await?;
-    test_points(&mut loghandle, &mut connection).await?;
+    test_geometries(&mut loghandle, &connection).await?;
+    test_points(&mut loghandle, &connection).await?;
 
     test_utils::closing_info(connection, start).await
 }
 
-async fn test_geometries(
-    _loghandle: &mut LoggerHandle,
-    connection: &mut Connection,
-) -> HdbResult<()> {
+async fn test_geometries(_loghandle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
     info!("write and read GEOMETRY data");
 
     // Insert the data such that the conversion "String -> WKB" is done on the
@@ -78,7 +75,7 @@ async fn test_geometries(
     Ok(())
 }
 
-async fn test_points(_loghandle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
+async fn test_points(_loghandle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
     info!("write and read POINT data");
 
     connection

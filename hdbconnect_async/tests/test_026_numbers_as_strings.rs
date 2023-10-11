@@ -10,17 +10,17 @@ use log::{debug, info};
 pub async fn test_026_numbers_as_strings() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     let start = std::time::Instant::now();
-    let mut connection = test_utils::get_authenticated_connection().await?;
+    let connection = test_utils::get_authenticated_connection().await?;
 
-    setup(&mut log_handle, &mut connection).await?;
-    test_table_with_integers(&mut log_handle, &mut connection).await?;
-    test_table_with_floats(&mut log_handle, &mut connection).await?;
-    test_table_with_strings(&mut log_handle, &mut connection).await?;
+    setup(&mut log_handle, &connection).await?;
+    test_table_with_integers(&mut log_handle, &connection).await?;
+    test_table_with_floats(&mut log_handle, &connection).await?;
+    test_table_with_strings(&mut log_handle, &connection).await?;
 
     test_utils::closing_info(connection, start).await
 }
 
-async fn setup(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
+async fn setup(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
     debug!("prepare the db tables");
     connection
         .multiple_statements_ignore_err(vec![
@@ -45,7 +45,7 @@ async fn setup(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> H
 
 async fn test_table_with_integers(
     _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     info!("Read and write integer table fields as numeric values and as Strings");
 
@@ -100,7 +100,7 @@ async fn test_table_with_integers(
 
 async fn test_table_with_floats(
     _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     info!("Read and write float table fields as numeric values and as Strings");
     let mut insert_stmt = connection
@@ -139,7 +139,7 @@ async fn test_table_with_floats(
 
 async fn test_table_with_strings(
     _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     info!("Read and write String table fields as numeric values");
     let mut insert_stmt = connection

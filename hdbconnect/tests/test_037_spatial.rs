@@ -11,15 +11,15 @@ use serde_bytes::{ByteBuf, Bytes};
 fn test_046_spatial() -> HdbResult<()> {
     let mut loghandle = test_utils::init_logger();
     let start = std::time::Instant::now();
-    let mut connection = test_utils::get_authenticated_connection()?;
+    let connection = test_utils::get_authenticated_connection()?;
 
-    test_geometries(&mut loghandle, &mut connection)?;
-    test_points(&mut loghandle, &mut connection)?;
+    test_geometries(&mut loghandle, &connection)?;
+    test_points(&mut loghandle, &connection)?;
 
     test_utils::closing_info(connection, start)
 }
 
-fn test_geometries(_loghandle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
+fn test_geometries(_loghandle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
     info!("write and read GEOMETRY data");
 
     // Insert the data such that the conversion "String -> WKB" is done on the
@@ -69,7 +69,7 @@ fn test_geometries(_loghandle: &mut LoggerHandle, connection: &mut Connection) -
     Ok(())
 }
 
-fn test_points(_loghandle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
+fn test_points(_loghandle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
     info!("write and read POINT data");
 
     connection.multiple_statements_ignore_err(vec!["drop table Points"]);

@@ -32,7 +32,7 @@ pub(crate) fn format_as_url(
     // write URL options
     let mut sep = std::iter::repeat(())
         .enumerate()
-        .map(|(i, _)| if i == 0 { "?" } else { "&" });
+        .map(|(i, ())| if i == 0 { "?" } else { "&" });
 
     if let Some(db) = database {
         write!(f, "{}db={db}", sep.next().unwrap())?;

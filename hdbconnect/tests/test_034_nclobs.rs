@@ -14,7 +14,7 @@ use std::{fs::File, io::Read};
 fn test_034_nclobs() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     let start = std::time::Instant::now();
-    let mut connection = test_utils::get_authenticated_connection()?;
+    let connection = test_utils::get_authenticated_connection()?;
 
     debug!("setup...");
     connection.set_lob_read_length(1_000_000)?;
@@ -24,11 +24,11 @@ fn test_034_nclobs() -> HdbResult<()> {
     connection.multiple_statements(stmts)?;
 
     let (blabla, fingerprint) = get_blabla();
-    test_nclobs(&mut log_handle, &mut connection, &blabla, &fingerprint)?;
-    test_streaming(&mut log_handle, &mut connection, blabla, &fingerprint)?;
-    test_bytes_to_nclobs(&mut log_handle, &mut connection)?;
-    test_loblifecycle(&mut log_handle, &mut connection)?;
-    test_zero_length(&mut log_handle, &mut connection)?;
+    test_nclobs(&mut log_handle, &connection, &blabla, &fingerprint)?;
+    test_streaming(&mut log_handle, &connection, blabla, &fingerprint)?;
+    test_bytes_to_nclobs(&mut log_handle, &connection)?;
+    test_loblifecycle(&mut log_handle, &connection)?;
+    test_zero_length(&mut log_handle, &connection)?;
 
     test_utils::closing_info(connection, start)
 }
@@ -53,7 +53,7 @@ fn get_blabla() -> (String, Vec<u8>) {
 
 fn test_nclobs(
     _log_handle: &mut flexi_logger::LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
     fifty_times_smp_blabla: &str,
     fingerprint: &[u8],
 ) -> HdbResult<()> {
@@ -127,7 +127,7 @@ fn test_nclobs(
 
 fn test_streaming(
     _log_handle: &mut flexi_logger::LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
     fifty_times_smp_blabla: String,
     fingerprint: &[u8],
 ) -> HdbResult<()> {
@@ -197,7 +197,7 @@ fn test_streaming(
 
 fn test_bytes_to_nclobs(
     _log_handle: &mut flexi_logger::LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     _log_handle
         .parse_and_push_temp_spec("info, test=trace")
@@ -240,7 +240,7 @@ fn test_bytes_to_nclobs(
 
 fn test_loblifecycle(
     _log_handle: &mut flexi_logger::LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     connection.multiple_statements_ignore_err(vec!["drop table TEST_NCLOBS2"]);
     let stmts = vec!["create table TEST_NCLOBS2 (desc NVARCHAR(20) not null, chardata NCLOB)"];
@@ -279,7 +279,7 @@ fn test_loblifecycle(
 }
 fn test_zero_length(
     _log_handle: &mut flexi_logger::LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     info!("write and read empty nclob");
     let mut stmt = connection.prepare("insert into TEST_NCLOBS values(?, ?)")?;

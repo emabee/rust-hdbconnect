@@ -10,14 +10,14 @@ use log::{debug, info};
 fn test_070_explain() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     let start = std::time::Instant::now();
-    let mut connection = test_utils::get_authenticated_connection()?;
+    let connection = test_utils::get_authenticated_connection()?;
 
-    test_explain(&mut log_handle, &mut connection)?;
+    test_explain(&mut log_handle, &connection)?;
 
     test_utils::closing_info(connection, start)
 }
 
-fn test_explain(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
+fn test_explain(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
     info!("use EXPLAIN and verify it works");
 
     let result =

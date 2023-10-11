@@ -11,9 +11,9 @@ use log::{debug, info, trace};
 pub fn test_022_seconddate() -> HdbResult<()> {
     let mut loghandle = test_utils::init_logger();
     let start = std::time::Instant::now();
-    let mut connection = test_utils::get_authenticated_connection()?;
+    let connection = test_utils::get_authenticated_connection()?;
 
-    test_seconddate(&mut loghandle, &mut connection)?;
+    test_seconddate(&mut loghandle, &connection)?;
 
     test_utils::closing_info(connection, start)
 }
@@ -21,7 +21,7 @@ pub fn test_022_seconddate() -> HdbResult<()> {
 // Test the conversion of timestamps
 // - during serialization (input to prepared_statements)
 // - during deserialization (result)
-fn test_seconddate(_loghandle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
+fn test_seconddate(_loghandle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
     info!("test_seconddate: verify that NaiveDateTime values match the expected string representation");
 
     debug!("test_seconddate: prepare the test data");
@@ -47,7 +47,7 @@ fn test_seconddate(_loghandle: &mut LoggerHandle, connection: &mut Connection) -
             .and_hms_opt(4, 4, 4)
             .unwrap(),
     ];
-    let string_values = vec![
+    let string_values = [
         "0001-01-01 00:00:00",
         "0001-01-01 00:00:00",
         "2012-02-02 02:02:02",
@@ -111,7 +111,7 @@ fn test_seconddate(_loghandle: &mut LoggerHandle, connection: &mut Connection) -
 
     {
         info!("test_seconddate: prove that '' is the same as '0001-01-01 00:00:00'");
-        let rows_affected = connection.dml(&insert_stmt(77, ""))?;
+        let rows_affected = connection.dml(insert_stmt(77, ""))?;
         assert_eq!(rows_affected, 1);
         let dates: Vec<NaiveDateTime> = connection
             .query("select mydate from TEST_SECONDDATE where number = 77 or number = 13")?

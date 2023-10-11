@@ -11,15 +11,15 @@ use std::time::Duration;
 pub async fn test_016_selectforupdate() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     let start = std::time::Instant::now();
-    let mut connection = test_utils::get_authenticated_connection().await?;
+    let connection = test_utils::get_authenticated_connection().await?;
 
-    prepare(&mut log_handle, &mut connection).await?;
-    produce_conflicts(&mut log_handle, &mut connection).await?;
+    prepare(&mut log_handle, &connection).await?;
+    produce_conflicts(&mut log_handle, &connection).await?;
 
     test_utils::closing_info(connection, start).await
 }
 
-async fn prepare(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
+async fn prepare(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
     log::info!("prepare");
     log::debug!("prepare the db table");
     connection
@@ -51,7 +51,7 @@ async fn prepare(_log_handle: &mut LoggerHandle, connection: &mut Connection) ->
 
 async fn produce_conflicts(
     _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     log::info!("verify that locking with 'select for update' works");
     connection.set_auto_commit(false).await?;

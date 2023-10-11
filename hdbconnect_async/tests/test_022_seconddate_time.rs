@@ -15,9 +15,9 @@ use time::{macros::format_description, Date, Month, OffsetDateTime, PrimitiveDat
 pub async fn test_022_seconddate() -> HdbResult<()> {
     let mut loghandle = test_utils::init_logger();
     let start = std::time::Instant::now();
-    let mut connection = test_utils::get_authenticated_connection().await?;
+    let connection = test_utils::get_authenticated_connection().await?;
 
-    test_seconddate(&mut loghandle, &mut connection).await?;
+    test_seconddate(&mut loghandle, &connection).await?;
 
     test_utils::closing_info(connection, start).await
 }
@@ -25,10 +25,7 @@ pub async fn test_022_seconddate() -> HdbResult<()> {
 // Test the conversion of timestamps
 // - during serialization (input to prepared_statements)
 // - during deserialization (result)
-async fn test_seconddate(
-    _loghandle: &mut LoggerHandle,
-    connection: &mut Connection,
-) -> HdbResult<()> {
+async fn test_seconddate(_loghandle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
     info!(
         "verify that {{Primitive|Offset}}DateTime values match the expected string representation"
     );
@@ -69,7 +66,7 @@ async fn test_seconddate(
         .iter()
         .map(|pdt| OffsetDateTime::now_utc().replace_date_time(*pdt))
         .collect();
-    let string_values = vec![
+    let string_values = [
         "0001-01-01 00:00:00",
         "0001-01-01 00:00:00",
         "2012-02-02 02:02:02",

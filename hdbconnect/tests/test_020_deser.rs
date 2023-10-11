@@ -16,17 +16,17 @@ pub fn deser() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     // log_handle.parse_new_spec("trace");
     let start = std::time::Instant::now();
-    let mut connection = test_utils::get_authenticated_connection()?;
+    let connection = test_utils::get_authenticated_connection()?;
 
-    deser_option_into_option(&mut log_handle, &mut connection)?;
-    deser_plain_into_plain(&mut log_handle, &mut connection)?;
-    deser_plain_into_option(&mut log_handle, &mut connection)?;
-    deser_option_into_plain(&mut log_handle, &mut connection)?;
+    deser_option_into_option(&mut log_handle, &connection)?;
+    deser_plain_into_plain(&mut log_handle, &connection)?;
+    deser_plain_into_option(&mut log_handle, &connection)?;
+    deser_option_into_plain(&mut log_handle, &connection)?;
 
-    deser_singleline_into_struct(&mut log_handle, &mut connection)?;
-    deser_singlecolumn_into_vec(&mut log_handle, &mut connection)?;
-    deser_singlevalue_into_plain(&mut log_handle, &mut connection)?;
-    deser_all_to_string(&mut log_handle, &mut connection)?;
+    deser_singleline_into_struct(&mut log_handle, &connection)?;
+    deser_singlecolumn_into_vec(&mut log_handle, &connection)?;
+    deser_singlevalue_into_plain(&mut log_handle, &connection)?;
+    deser_all_to_string(&mut log_handle, &connection)?;
 
     test_utils::closing_info(connection, start)
 }
@@ -44,7 +44,7 @@ struct TS<S, I, D> {
 
 fn deser_option_into_option(
     _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     info!("deserialize Option values into Option values, test null and not-null values");
     connection.multiple_statements_ignore_err(vec!["drop table TEST_DESER_OPT_OPT"]);
@@ -67,7 +67,7 @@ fn deser_option_into_option(
 
 fn deser_plain_into_plain(
     _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     info!("deserialize plain values into plain values");
     connection.multiple_statements_ignore_err(vec!["drop table TEST_DESER_PLAIN_PLAIN"]);
@@ -91,7 +91,7 @@ fn deser_plain_into_plain(
 
 fn deser_plain_into_option(
     _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     info!("deserialize plain values into Option values");
     connection.multiple_statements_ignore_err(vec!["drop table TEST_DESER_PLAIN_OPT"]);
@@ -115,7 +115,7 @@ fn deser_plain_into_option(
 
 fn deser_option_into_plain(
     _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     info!(
         "deserialize Option values into plain values, test not-null values; test that null values \
@@ -157,7 +157,7 @@ fn deser_option_into_plain(
 
 fn deser_singleline_into_struct(
     _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     info!(
         "deserialize a single-line resultset into a struct; test that this is not possible with \
@@ -192,7 +192,7 @@ fn deser_singleline_into_struct(
 
 fn deser_singlevalue_into_plain(
     _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     info!(
         "deserialize a single-value resultset into a plain field; test that this is not possible \
@@ -231,10 +231,7 @@ fn deser_singlevalue_into_plain(
 }
 
 #[allow(clippy::cognitive_complexity)]
-fn deser_all_to_string(
-    _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
-) -> HdbResult<()> {
+fn deser_all_to_string(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
     // NULL to not Option
     assert!(connection
         .query("SELECT TO_BIGINT(NULL) FROM DUMMY")?
@@ -586,7 +583,7 @@ fn deser_all_to_string(
 
 fn deser_singlecolumn_into_vec(
     _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     info!(
         "deserialize a single-column resultset into a Vec of plain fields; test that multi-column \

@@ -15,21 +15,21 @@ pub async fn test_030_prepare() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     // log_handle.parse_new_spec("info, test=debug");
     let start = std::time::Instant::now();
-    let mut connection = test_utils::get_authenticated_connection().await?;
+    let connection = test_utils::get_authenticated_connection().await?;
 
-    prepare_insert_statement(&mut log_handle, &mut connection).await?;
-    prepare_statement_use_parameter_row(&mut log_handle, &mut connection).await?;
-    prepare_multiple_errors(&mut log_handle, &mut connection).await?;
-    prepare_select_with_pars(&mut log_handle, &mut connection).await?;
-    prepare_select_without_pars(&mut log_handle, &mut connection).await?;
-    prepare_and_execute_with_fetch(&mut log_handle, &mut connection).await?;
+    prepare_insert_statement(&mut log_handle, &connection).await?;
+    prepare_statement_use_parameter_row(&mut log_handle, &connection).await?;
+    prepare_multiple_errors(&mut log_handle, &connection).await?;
+    prepare_select_with_pars(&mut log_handle, &connection).await?;
+    prepare_select_without_pars(&mut log_handle, &connection).await?;
+    prepare_and_execute_with_fetch(&mut log_handle, &connection).await?;
 
     test_utils::closing_info(connection, start).await
 }
 
 async fn prepare_insert_statement(
     _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     info!("statement preparation and transactional correctness (auto_commit on/off, rollbacks)");
     connection
@@ -115,7 +115,7 @@ async fn prepare_insert_statement(
 
 async fn prepare_statement_use_parameter_row(
     _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     info!("statement preparation with direct use of a parameter row");
     connection
@@ -183,7 +183,7 @@ async fn prepare_statement_use_parameter_row(
 
 async fn prepare_multiple_errors(
     _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     info!("test multiple errors from failing batches");
     connection
@@ -226,7 +226,7 @@ async fn prepare_multiple_errors(
 
 async fn prepare_select_with_pars(
     _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     info!("prepared select statement with parameters");
     let sum_of_big_values: i64 = connection
@@ -244,7 +244,7 @@ async fn prepare_select_with_pars(
 
 async fn prepare_select_without_pars(
     _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     info!("prepared select statement without parameters");
     let stmt_str = "select sum(F2_I) from TEST_PREPARE";
@@ -264,7 +264,7 @@ async fn prepare_select_without_pars(
 
 async fn prepare_and_execute_with_fetch(
     _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     info!("call prepare_and_execute() with implicit fetch");
 

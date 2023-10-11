@@ -7,16 +7,16 @@ use hdbconnect_async::{Connection, HdbResult, HdbValue};
 
 #[tokio::test] // cargo test --test test_029_arrays -- --nocapture
 pub async fn test_029_arrays() -> HdbResult<()> {
-    let mut log_handle = test_utils::init_logger();
+    let log_handle = test_utils::init_logger();
     let start = std::time::Instant::now();
-    let mut connection = test_utils::get_authenticated_connection().await?;
+    let connection = test_utils::get_authenticated_connection().await?;
 
-    test_arrays(&mut log_handle, &mut connection).await?;
+    test_arrays(&log_handle, &connection).await?;
 
     test_utils::closing_info(connection, start).await
 }
 
-async fn test_arrays(log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
+async fn test_arrays(log_handle: &LoggerHandle, connection: &Connection) -> HdbResult<()> {
     log::debug!("prepare the db tables");
     connection
         .multiple_statements_ignore_err(vec![

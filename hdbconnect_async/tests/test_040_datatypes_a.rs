@@ -13,16 +13,16 @@ use serde_bytes::{ByteBuf, Bytes};
 async fn test_040_datatypes_a() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     let start = std::time::Instant::now();
-    let mut connection = test_utils::get_authenticated_connection().await?;
+    let connection = test_utils::get_authenticated_connection().await?;
 
-    prepare(&mut log_handle, &mut connection).await?;
-    write(&mut log_handle, &mut connection).await?;
-    read(&mut log_handle, &mut connection).await?;
+    prepare(&mut log_handle, &connection).await?;
+    write(&mut log_handle, &connection).await?;
+    read(&mut log_handle, &connection).await?;
 
     test_utils::closing_info(connection, start).await
 }
 
-async fn prepare(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
+async fn prepare(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
     info!("prepare the db table");
     connection
         .multiple_statements_ignore_err(vec!["drop table TEST_TYPES_A"])
@@ -51,7 +51,7 @@ async fn prepare(_log_handle: &mut LoggerHandle, connection: &mut Connection) ->
     Ok(())
 }
 
-async fn write(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
+async fn write(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
     info!("insert values directly");
     connection
         .dml(
@@ -163,7 +163,7 @@ async fn write(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> H
     Ok(())
 }
 
-async fn read(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
+async fn read(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
     #[allow(dead_code)]
     #[derive(Debug, Deserialize)]
     #[allow(non_snake_case)]

@@ -11,9 +11,9 @@ use log::{debug, info, trace};
 pub async fn test_022_seconddate() -> HdbResult<()> {
     let mut loghandle = test_utils::init_logger();
     let start = std::time::Instant::now();
-    let mut connection = test_utils::get_authenticated_connection().await?;
+    let connection = test_utils::get_authenticated_connection().await?;
 
-    test_seconddate(&mut loghandle, &mut connection).await?;
+    test_seconddate(&mut loghandle, &connection).await?;
 
     test_utils::closing_info(connection, start).await
 }
@@ -21,10 +21,7 @@ pub async fn test_022_seconddate() -> HdbResult<()> {
 // Test the conversion of timestamps
 // - during serialization (input to prepared_statements)
 // - during deserialization (result)
-async fn test_seconddate(
-    _loghandle: &mut LoggerHandle,
-    connection: &mut Connection,
-) -> HdbResult<()> {
+async fn test_seconddate(_loghandle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
     info!("test_seconddate: verify that NaiveDateTime values match the expected string representation");
 
     debug!("test_seconddate: prepare the test data");
@@ -50,7 +47,7 @@ async fn test_seconddate(
             .and_hms_opt(4, 4, 4)
             .unwrap(),
     ];
-    let string_values = vec![
+    let string_values = [
         "0001-01-01 00:00:00",
         "0001-01-01 00:00:00",
         "2012-02-02 02:02:02",

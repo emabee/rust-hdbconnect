@@ -167,8 +167,8 @@ async fn connect_and_select_with_explicit_clientlocale(
     let conn_params: ConnectParams = cp_builder.build()?;
     assert_eq!(conn_params.clientlocale().unwrap(), "en_US");
 
-    let mut connection = Connection::new(conn_params).await?;
-    select_version_and_user(&mut connection).await?;
+    let connection = Connection::new(conn_params).await?;
+    select_version_and_user(&connection).await?;
     Ok(())
 }
 
@@ -185,12 +185,12 @@ async fn connect_and_select_with_clientlocale_from_env(
     let conn_params: ConnectParams = cp_builder.build()?;
     assert!(conn_params.clientlocale().is_some());
 
-    let mut connection = Connection::new(conn_params).await?;
-    select_version_and_user(&mut connection).await?;
+    let connection = Connection::new(conn_params).await?;
+    select_version_and_user(&connection).await?;
     Ok(())
 }
 
-async fn select_version_and_user(connection: &mut Connection) -> HdbResult<()> {
+async fn select_version_and_user(connection: &Connection) -> HdbResult<()> {
     #[derive(Serialize, Deserialize, Debug)]
     struct VersionAndUser {
         version: Option<String>,

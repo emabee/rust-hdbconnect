@@ -12,18 +12,18 @@ use serde::Deserialize;
 pub async fn test_015_resultset() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     let start = std::time::Instant::now();
-    let mut connection = test_utils::get_authenticated_connection().await?;
+    let connection = test_utils::get_authenticated_connection().await?;
 
-    evaluate_resultset(&mut log_handle, &mut connection).await?;
+    evaluate_resultset(&mut log_handle, &connection).await?;
     log_handle.parse_new_spec("debug").unwrap();
-    verify_row_ordering(&mut log_handle, &mut connection).await?;
+    verify_row_ordering(&mut log_handle, &connection).await?;
 
     test_utils::closing_info(connection, start).await
 }
 
 async fn evaluate_resultset(
     _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     info!("evaluate resultset");
     // prepare the db table
@@ -145,7 +145,7 @@ async fn evaluate_resultset(
 
 async fn verify_row_ordering(
     _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     _log_handle.parse_and_push_temp_spec("info").unwrap();
     // , hdbconnect::protocol::request = trace, hdbconnect::conn::tcp::sync::tls_tcp_client = debug

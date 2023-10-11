@@ -14,23 +14,20 @@ use log::{debug, info};
 fn test_050_procedures() -> HdbResult<()> {
     let start = std::time::Instant::now();
     let mut log_handle = test_utils::init_logger();
-    let mut connection = test_utils::get_authenticated_connection()?;
+    let connection = test_utils::get_authenticated_connection()?;
 
-    very_simple_procedure(&mut log_handle, &mut connection)?;
-    procedure_with_out_resultsets(&mut log_handle, &mut connection)?;
-    procedure_with_secret_resultsets(&mut log_handle, &mut connection)?;
-    procedure_with_in_parameters(&mut log_handle, &mut connection)?;
-    procedure_with_in_and_out_parameters(&mut log_handle, &mut connection)?;
-    procedure_with_in_nclob_non_consuming(&mut log_handle, &mut connection)?;
-    procedure_with_in_nclob_and_out_nclob(&mut log_handle, &mut connection)?;
+    very_simple_procedure(&mut log_handle, &connection)?;
+    procedure_with_out_resultsets(&mut log_handle, &connection)?;
+    procedure_with_secret_resultsets(&mut log_handle, &connection)?;
+    procedure_with_in_parameters(&mut log_handle, &connection)?;
+    procedure_with_in_and_out_parameters(&mut log_handle, &connection)?;
+    procedure_with_in_nclob_non_consuming(&mut log_handle, &connection)?;
+    procedure_with_in_nclob_and_out_nclob(&mut log_handle, &connection)?;
 
     test_utils::closing_info(connection, start)
 }
 
-fn very_simple_procedure(
-    _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
-) -> HdbResult<()> {
+fn very_simple_procedure(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
     info!("very_simple_procedure(): run a simple sqlscript procedure");
 
     connection.multiple_statements(vec![
@@ -50,7 +47,7 @@ fn very_simple_procedure(
 
 fn procedure_with_out_resultsets(
     _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     info!(
         "procedure_with_out_resultsets(): run a sqlscript procedure with resultsets as OUT \
@@ -88,7 +85,7 @@ fn procedure_with_out_resultsets(
 
 fn procedure_with_secret_resultsets(
     _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     info!("procedure_with_secret_resultsets(): run a sqlscript procedure with implicit resultsets");
 
@@ -142,7 +139,7 @@ fn procedure_with_secret_resultsets(
 
 fn procedure_with_in_parameters(
     _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     info!("procedure_with_in_parameters(): run a sqlscript procedure with input parameters");
 
@@ -173,7 +170,7 @@ fn procedure_with_in_parameters(
 
 fn procedure_with_in_and_out_parameters(
     _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     info!(
         "procedure_with_in_and_out_parameters(): verify that we can run a sqlscript procedure \
@@ -222,7 +219,7 @@ fn procedure_with_in_and_out_parameters(
 
 fn procedure_with_in_nclob_non_consuming(
     _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     info!("procedure_with_in_nclob_non_consuming(): convert input parameter to nclob");
 
@@ -253,7 +250,7 @@ use hdbconnect::{types::NCLob, HdbValue};
 
 fn procedure_with_in_nclob_and_out_nclob(
     _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     info!("procedure_with_in_nclob_and_out_nclob");
 

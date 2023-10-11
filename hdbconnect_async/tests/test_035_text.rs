@@ -11,19 +11,19 @@ use log::{debug, info};
 async fn test_035_text() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     let start = std::time::Instant::now();
-    let mut connection = test_utils::get_authenticated_connection().await?;
+    let connection = test_utils::get_authenticated_connection().await?;
 
-    if !prepare_test(&mut connection).await {
+    if !prepare_test(&connection).await {
         info!("TEST ABANDONED since database does not support TEXT columns");
         return Ok(());
     }
 
-    test_text(&mut log_handle, &mut connection).await?;
+    test_text(&mut log_handle, &connection).await?;
 
     test_utils::closing_info(connection, start).await
 }
 
-async fn prepare_test(connection: &mut Connection) -> bool {
+async fn prepare_test(connection: &Connection) -> bool {
     connection
         .multiple_statements_ignore_err(vec!["drop table TEST_TEXT"])
         .await;
@@ -31,7 +31,7 @@ async fn prepare_test(connection: &mut Connection) -> bool {
     connection.multiple_statements(stmts).await.is_ok() // in HANA Cloud we get sql syntax error: incorrect syntax near "TEXT"
 }
 
-async fn test_text(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
+async fn test_text(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
     info!("create a TEXT in the database, and read it");
     debug!("setup...");
     connection.set_lob_read_length(1_000_000).await?;

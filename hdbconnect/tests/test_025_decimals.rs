@@ -14,21 +14,21 @@ use serde::Deserialize;
 fn test_025_decimals() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     let start = std::time::Instant::now();
-    let mut connection = test_utils::get_authenticated_connection()?;
+    let connection = test_utils::get_authenticated_connection()?;
 
     if connection.data_format_version_2()? > 7 {
         info!("=== run test for FIXED8 ===");
-        test_025_decimals_impl(TS::Fixed8, &mut log_handle, &mut connection)?;
+        test_025_decimals_impl(TS::Fixed8, &mut log_handle, &connection)?;
 
         info!("=== run test for FIXED12 ===");
-        test_025_decimals_impl(TS::Fixed12, &mut log_handle, &mut connection)?;
+        test_025_decimals_impl(TS::Fixed12, &mut log_handle, &connection)?;
 
         info!("=== run test for FIXED16 ===");
-        test_025_decimals_impl(TS::Fixed16, &mut log_handle, &mut connection)?;
+        test_025_decimals_impl(TS::Fixed16, &mut log_handle, &connection)?;
     } else {
         // Old HdbDecimal implementation
         info!("=== run test for HdbDecimal ===");
-        test_025_decimals_impl(TS::Decimal, &mut log_handle, &mut connection)?;
+        test_025_decimals_impl(TS::Decimal, &mut log_handle, &connection)?;
     }
 
     test_utils::closing_info(connection, start)
@@ -44,7 +44,7 @@ enum TS {
 fn test_025_decimals_impl(
     ts: TS,
     _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     info!("setup ...");
     connection.multiple_statements_ignore_err(vec!["drop table TEST_DECIMALS"]);

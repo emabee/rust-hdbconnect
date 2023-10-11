@@ -10,17 +10,17 @@ use log::{debug, info};
 pub fn test_026_numbers_as_strings() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     let start = std::time::Instant::now();
-    let mut connection = test_utils::get_authenticated_connection()?;
+    let connection = test_utils::get_authenticated_connection()?;
 
-    setup(&mut log_handle, &mut connection)?;
-    test_table_with_integers(&mut log_handle, &mut connection)?;
-    test_table_with_floats(&mut log_handle, &mut connection)?;
-    test_table_with_strings(&mut log_handle, &mut connection)?;
+    setup(&mut log_handle, &connection)?;
+    test_table_with_integers(&mut log_handle, &connection)?;
+    test_table_with_floats(&mut log_handle, &connection)?;
+    test_table_with_strings(&mut log_handle, &connection)?;
 
     test_utils::closing_info(connection, start)
 }
 
-fn setup(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
+fn setup(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
     debug!("prepare the db tables");
     connection.multiple_statements_ignore_err(vec![
         "drop table TEST_INTEGERS",
@@ -43,7 +43,7 @@ fn setup(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResu
 
 fn test_table_with_integers(
     _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     info!("Read and write integer table fields as numeric values and as Strings");
 
@@ -92,7 +92,7 @@ fn test_table_with_integers(
 
 fn test_table_with_floats(
     _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     info!("Read and write float table fields as numeric values and as Strings");
     let mut insert_stmt = connection
@@ -124,7 +124,7 @@ fn test_table_with_floats(
 
 fn test_table_with_strings(
     _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     info!("Read and write String table fields as numeric values");
     let mut insert_stmt =

@@ -20,9 +20,10 @@ use hdbconnect_async::{Connection, HdbResult};
 pub async fn test_031_transactions() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     let start = std::time::Instant::now();
-    let mut connection = test_utils::get_authenticated_connection().await?;
+
+    let connection = test_utils::get_authenticated_connection().await?;
     connection.set_auto_commit(false).await?;
-    if let Some(server_error) = write1_read2(&mut log_handle, &mut connection, "READ UNCOMMITTED")
+    if let Some(server_error) = write1_read2(&mut log_handle, &connection, "READ UNCOMMITTED")
         .await
         .err()
         .unwrap()
@@ -43,9 +44,9 @@ pub async fn test_031_transactions() -> HdbResult<()> {
         panic!("did not receive ServerError");
     }
 
-    write1_read2(&mut log_handle, &mut connection, "READ COMMITTED").await?;
-    write1_read2(&mut log_handle, &mut connection, "REPEATABLE READ").await?;
-    write1_read2(&mut log_handle, &mut connection, "SERIALIZABLE").await?;
+    write1_read2(&mut log_handle, &connection, "READ COMMITTED").await?;
+    write1_read2(&mut log_handle, &connection, "REPEATABLE READ").await?;
+    write1_read2(&mut log_handle, &connection, "SERIALIZABLE").await?;
 
     // SET TRANSACTION { READ ONLY | READ WRITE }
 
@@ -57,7 +58,7 @@ pub async fn test_031_transactions() -> HdbResult<()> {
 
 async fn write1_read2(
     _log_handle: &mut LoggerHandle,
-    connection1: &mut Connection,
+    connection1: &Connection,
     isolation: &str,
 ) -> HdbResult<()> {
     log::info!("Test isolation level {}", isolation);
@@ -84,10 +85,10 @@ async fn write1_read2(
     // read above three lines
     assert_eq!(get_checksum(connection1).await, 321);
 
-    let mut connection2 = connection1.spawn().await?;
+    let connection2 = connection1.spawn().await?;
 
     // read them also from a new connection
-    assert_eq!(get_checksum(&mut connection2).await, 321);
+    assert_eq!(get_checksum(&connection2).await, 321);
 
     let mut prepared_statement1 = connection1
         .prepare("insert into TEST_TRANSACTIONS (strng,nmbr,dt) values(?,?,?)")
@@ -109,7 +110,7 @@ async fn write1_read2(
     assert_eq!(get_checksum(connection1).await, 654_321);
 
     // fail to read the new lines from connection2
-    assert_eq!(get_checksum(&mut connection2).await, 321);
+    assert_eq!(get_checksum(&connection2).await, 321);
 
     // fail to read the new lines from connection1 after rollback
     connection1.rollback().await?;
@@ -131,16 +132,16 @@ async fn write1_read2(
     assert_eq!(get_checksum(connection1).await, 654_321);
 
     // fail to read the new lines from connection2
-    assert_eq!(get_checksum(&mut connection2).await, 321);
+    assert_eq!(get_checksum(&connection2).await, 321);
 
     // after commit, read the new lines also from connection2
     connection1.commit().await?;
-    assert_eq!(get_checksum(&mut connection2).await, 654_321);
+    assert_eq!(get_checksum(&connection2).await, 654_321);
 
     Ok(())
 }
 
-async fn get_checksum(conn: &mut Connection) -> usize {
+async fn get_checksum(conn: &Connection) -> usize {
     let resultset = conn
         .query("select sum(nmbr) from TEST_TRANSACTIONS")
         .await

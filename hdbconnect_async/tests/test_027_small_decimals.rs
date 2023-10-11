@@ -15,16 +15,16 @@ use serde::Deserialize;
 async fn test_027_small_decimals() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     let start = std::time::Instant::now();
-    let mut connection = test_utils::get_authenticated_connection().await?;
+    let connection = test_utils::get_authenticated_connection().await?;
 
-    test_small_decimals(&mut log_handle, &mut connection).await?;
+    test_small_decimals(&mut log_handle, &connection).await?;
 
     test_utils::closing_info(connection, start).await
 }
 
 async fn test_small_decimals(
     _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     connection
         .multiple_statements_ignore_err(vec!["drop table TEST_SMALL_DECIMALS"])

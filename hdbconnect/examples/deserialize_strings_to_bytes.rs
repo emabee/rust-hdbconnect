@@ -31,13 +31,13 @@ pub fn main() {
 }
 
 fn run() -> HdbResult<()> {
-    let mut connection = get_authenticated_connection()?;
-    deserialize_strings_to_bytes(&mut connection)?;
+    let connection = get_authenticated_connection()?;
+    deserialize_strings_to_bytes(&connection)?;
     info!("{} calls to DB were executed", connection.get_call_count()?);
     Ok(())
 }
 
-fn deserialize_strings_to_bytes(connection: &mut Connection) -> HdbResult<()> {
+fn deserialize_strings_to_bytes(connection: &Connection) -> HdbResult<()> {
     // prepare the db table
     connection.multiple_statements_ignore_err(vec!["drop table TEST_STRINGS"]);
     connection.multiple_statements(vec![

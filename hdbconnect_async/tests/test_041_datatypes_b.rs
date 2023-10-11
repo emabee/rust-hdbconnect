@@ -12,16 +12,16 @@ use serde_bytes::{ByteBuf, Bytes};
 async fn test_041_datatypes_b() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     let start = std::time::Instant::now();
-    let mut connection = test_utils::get_authenticated_connection().await?;
+    let connection = test_utils::get_authenticated_connection().await?;
 
-    prepare(&mut log_handle, &mut connection).await?;
-    write(&mut log_handle, &mut connection).await?;
-    read(&mut log_handle, &mut connection).await?;
+    prepare(&mut log_handle, &connection).await?;
+    write(&mut log_handle, &connection).await?;
+    read(&mut log_handle, &connection).await?;
 
     test_utils::closing_info(connection, start).await
 }
 
-async fn prepare(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
+async fn prepare(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
     // prepare the db table
     // select * from data_types order by type_name
     connection
@@ -52,7 +52,7 @@ async fn prepare(_log_handle: &mut LoggerHandle, connection: &mut Connection) ->
     Ok(())
 }
 
-async fn write(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
+async fn write(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
     info!("insert values directly");
     connection
         .dml(
@@ -196,7 +196,7 @@ struct Data {
     // FIELD_ALPHANUM: Option<String>,
 }
 
-async fn read(_log_handle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
+async fn read(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
     {
         info!("read non-null values and evaluate via serde_db");
         let q = "select * from TEST_TYPES_B where id = 1";

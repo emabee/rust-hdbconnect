@@ -11,9 +11,9 @@ use log::{debug, info, trace};
 async fn test_028_timestamp() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     let start = std::time::Instant::now();
-    let mut connection = test_utils::get_authenticated_connection().await?;
+    let connection = test_utils::get_authenticated_connection().await?;
 
-    test_timestamp(&mut log_handle, &mut connection).await?;
+    test_timestamp(&mut log_handle, &connection).await?;
 
     test_utils::closing_info(connection, start).await
 }
@@ -21,10 +21,7 @@ async fn test_028_timestamp() -> HdbResult<()> {
 // Test the conversion of timestamps
 // - during serialization (input to prepared_statements)
 // - during deserialization (result)
-async fn test_timestamp(
-    _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
-) -> HdbResult<i32> {
+async fn test_timestamp(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbResult<i32> {
     info!("verify that NaiveDateTime values match the expected string representation");
 
     debug!("prepare the test data");
@@ -50,7 +47,7 @@ async fn test_timestamp(
             .and_hms_nano_opt(4, 4, 4, 400_000_000)
             .unwrap(),
     ];
-    let string_values = vec![
+    let string_values = [
         "0001-01-01 00:00:00.000000000",
         "0001-01-01 00:00:00.000000100",
         "2012-02-02 02:02:02.200000000",

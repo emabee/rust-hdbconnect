@@ -15,22 +15,22 @@ async fn test_033_clobs() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     log_handle.parse_new_spec("info, test = trace").unwrap();
     let start = std::time::Instant::now();
-    let mut connection = test_utils::get_authenticated_connection().await?;
+    let connection = test_utils::get_authenticated_connection().await?;
 
-    if !prepare_test(&mut connection).await? {
+    if !prepare_test(&connection).await? {
         info!("TEST ABANDONED since database does not support CLOB columns");
         return Ok(());
     }
 
     let (blabla, fingerprint) = get_blabla();
-    test_clobs(&mut log_handle, &mut connection, &blabla, &fingerprint).await?;
-    test_streaming(&mut log_handle, &mut connection, blabla, &fingerprint).await?;
-    test_zero_length(&mut log_handle, &mut connection).await?;
+    test_clobs(&mut log_handle, &connection, &blabla, &fingerprint).await?;
+    test_streaming(&mut log_handle, &connection, blabla, &fingerprint).await?;
+    test_zero_length(&mut log_handle, &connection).await?;
 
     test_utils::closing_info(connection, start).await
 }
 
-async fn prepare_test(connection: &mut Connection) -> HdbResult<bool> {
+async fn prepare_test(connection: &Connection) -> HdbResult<bool> {
     connection
         .multiple_statements_ignore_err(vec!["drop table TEST_CLOBS"])
         .await;
@@ -70,7 +70,7 @@ fn get_blabla() -> (String, Vec<u8>) {
 
 async fn test_clobs(
     _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
     fifty_times_smp_blabla: &str,
     fingerprint: &[u8],
 ) -> HdbResult<()> {
@@ -179,7 +179,7 @@ async fn test_clobs(
 
 async fn test_streaming(
     _log_handle: &mut flexi_logger::LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
     fifty_times_smp_blabla: String,
     fingerprint: &[u8],
 ) -> HdbResult<()> {
@@ -230,7 +230,7 @@ async fn test_streaming(
 
 async fn test_zero_length(
     _log_handle: &mut flexi_logger::LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     info!("write and read empty clob");
     let mut stmt = connection

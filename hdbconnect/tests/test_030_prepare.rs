@@ -15,21 +15,21 @@ pub fn test_030_prepare() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     // log_handle.parse_new_spec("info, test=debug");
     let start = std::time::Instant::now();
-    let mut connection = test_utils::get_authenticated_connection()?;
+    let connection = test_utils::get_authenticated_connection()?;
 
-    prepare_insert_statement(&mut log_handle, &mut connection)?;
-    prepare_statement_use_parameter_row(&mut log_handle, &mut connection)?;
-    prepare_multiple_errors(&mut log_handle, &mut connection)?;
-    prepare_select_with_pars(&mut log_handle, &mut connection)?;
-    prepare_select_without_pars(&mut log_handle, &mut connection)?;
-    prepare_and_execute_with_fetch(&mut log_handle, &mut connection)?;
+    prepare_insert_statement(&mut log_handle, &connection)?;
+    prepare_statement_use_parameter_row(&mut log_handle, &connection)?;
+    prepare_multiple_errors(&mut log_handle, &connection)?;
+    prepare_select_with_pars(&mut log_handle, &connection)?;
+    prepare_select_without_pars(&mut log_handle, &connection)?;
+    prepare_and_execute_with_fetch(&mut log_handle, &connection)?;
 
     test_utils::closing_info(connection, start)
 }
 
 fn prepare_insert_statement(
     _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     info!("statement preparation and transactional correctness (auto_commit on/off, rollbacks)");
     connection.multiple_statements_ignore_err(vec!["drop table TEST_PREPARE"]);
@@ -110,7 +110,7 @@ fn prepare_insert_statement(
 
 fn prepare_statement_use_parameter_row(
     _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     info!("statement preparation with direct use of a parameter row");
     connection.multiple_statements_ignore_err(vec!["drop table TEST_PREPARE"]);
@@ -172,7 +172,7 @@ fn prepare_statement_use_parameter_row(
 
 fn prepare_multiple_errors(
     _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     info!("test multiple errors from failing batches");
     connection.multiple_statements_ignore_err(vec!["drop table TEST_PREPARE"]);
@@ -213,7 +213,7 @@ fn prepare_multiple_errors(
 
 fn prepare_select_with_pars(
     _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     info!("prepared select statement with parameters");
     let sum_of_big_values: i64 = connection
@@ -229,7 +229,7 @@ fn prepare_select_with_pars(
 
 fn prepare_select_without_pars(
     _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     info!("prepared select statement without parameters");
     let stmt_str = "select sum(F2_I) from TEST_PREPARE";
@@ -249,7 +249,7 @@ fn prepare_select_without_pars(
 
 fn prepare_and_execute_with_fetch(
     _log_handle: &mut LoggerHandle,
-    connection: &mut Connection,
+    connection: &Connection,
 ) -> HdbResult<()> {
     info!("call prepare_and_execute() with implicit fetch");
 

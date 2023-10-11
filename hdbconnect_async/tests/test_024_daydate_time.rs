@@ -11,9 +11,9 @@ use time::{format_description::FormatItem, macros::format_description, Date, Mon
 pub async fn test_024_daydate() -> HdbResult<()> {
     let mut loghandle = test_utils::init_logger();
     let start = std::time::Instant::now();
-    let mut connection = test_utils::get_authenticated_connection().await?;
+    let connection = test_utils::get_authenticated_connection().await?;
 
-    test_daydate(&mut loghandle, &mut connection).await?;
+    test_daydate(&mut loghandle, &connection).await?;
 
     test_utils::closing_info(connection, start).await
 }
@@ -22,7 +22,7 @@ pub async fn test_024_daydate() -> HdbResult<()> {
 // - during serialization (input to prepared_statements)
 // - during deserialization (result)
 #[allow(clippy::cognitive_complexity)]
-async fn test_daydate(_loghandle: &mut LoggerHandle, connection: &mut Connection) -> HdbResult<()> {
+async fn test_daydate(_loghandle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
     info!("verify that Date values match the expected string representation");
 
     debug!("prepare the test data");
@@ -33,7 +33,7 @@ async fn test_daydate(_loghandle: &mut LoggerHandle, connection: &mut Connection
         Date::from_calendar_date(2013, Month::March, 3).unwrap(),
         Date::from_calendar_date(2014, Month::April, 4).unwrap(),
     ];
-    let string_values = vec![
+    let string_values = [
         "0001-01-01",
         "0001-01-02",
         "2012-02-02",
