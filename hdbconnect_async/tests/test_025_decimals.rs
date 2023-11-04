@@ -26,8 +26,7 @@ async fn test_025_decimals() -> HdbResult<()> {
         info!("=== run test for FIXED16 ===");
         test_025_decimals_impl(TS::Fixed16, &mut log_handle, &connection).await?;
     } else {
-        // Old HdbDecimal implementation
-        info!("=== run test for HdbDecimal ===");
+        info!("=== run test for old wire DECIMAL ===");
         test_025_decimals_impl(TS::Decimal, &mut log_handle, &connection).await?;
     }
 
@@ -53,54 +52,66 @@ async fn test_025_decimals_impl(
     let stmts = vec![
         match ts {
             TS::Decimal =>
-        "create table TEST_DECIMALS (f1 NVARCHAR(100) primary key, f2 DECIMAL(7,5), f3 integer)",
+        "create table TEST_DECIMALS (s NVARCHAR(100) primary key, d1 DECIMAL(7,5), d2 DECIMAL(7,5), dummy integer)",
             TS::Fixed8 =>
-        "create table TEST_DECIMALS (f1 NVARCHAR(100) primary key, f2 DECIMAL(7,5), f3 integer)",
+        "create table TEST_DECIMALS (s NVARCHAR(100) primary key, d1 DECIMAL(7,5), d2 DECIMAL(7,5), dummy integer)",
             TS::Fixed12 =>
-        "create table TEST_DECIMALS (f1 NVARCHAR(100) primary key, f2 DECIMAL(28,5), f3 integer)",
+        "create table TEST_DECIMALS (s NVARCHAR(100) primary key, d1 DECIMAL(28,5), d2 DECIMAL(28,5), dummy integer)",
             TS::Fixed16 =>
-        "create table TEST_DECIMALS (f1 NVARCHAR(100) primary key, f2 DECIMAL(38,5), f3 integer)",
+        "create table TEST_DECIMALS (s NVARCHAR(100) primary key, d1 DECIMAL(38,5), d2 DECIMAL(38,5), dummy integer)",
         },
-        "insert into TEST_DECIMALS (f1, f2) values('0.00000', 0.000)",
-        "insert into TEST_DECIMALS (f1, f2) values('0.00100', 0.001)",
-        "insert into TEST_DECIMALS (f1, f2) values('-0.00100', -0.001)",
-        "insert into TEST_DECIMALS (f1, f2) values('0.00300', 0.003)",
-        "insert into TEST_DECIMALS (f1, f2) values('0.00700', 0.007)",
-        "insert into TEST_DECIMALS (f1, f2) values('0.25500', 0.255)",
-        "insert into TEST_DECIMALS (f1, f2) values('65.53500', 65.535)",
-        "insert into TEST_DECIMALS (f1, f2) values('-65.53500', -65.535)",
+        "insert into TEST_DECIMALS (s, d1, d2) values('0.00000', '0.00000', 0.000)",
+        "insert into TEST_DECIMALS (s, d1, d2) values('0.00100', '0.00100', 0.001)",
+        "insert into TEST_DECIMALS (s, d1, d2) values('-0.00100', '-0.00100', -0.001)",
+        "insert into TEST_DECIMALS (s, d1, d2) values('0.00300', '0.00300', 0.003)",
+        "insert into TEST_DECIMALS (s, d1, d2) values('0.00700', '0.00700', 0.007)",
+        "insert into TEST_DECIMALS (s, d1, d2) values('0.25500', '0.25500', 0.255)",
+        "insert into TEST_DECIMALS (s, d1, d2) values('65.53500', '65.53500', 65.535)",
+        "insert into TEST_DECIMALS (s, d1, d2) values('-65.53500', '-65.53500', -65.535)",
     ];
     connection.multiple_statements(stmts).await?;
 
     #[derive(Deserialize)]
     struct TestData {
-        #[serde(rename = "F1")]
-        f1: String,
-        #[serde(rename = "F2")]
-        f2: BigDecimal,
+        #[serde(rename = "S")]
+        s: String,
+        #[serde(rename = "D1")]
+        d1: BigDecimal,
+        #[serde(rename = "D2")]
+        d2: BigDecimal,
     }
 
-    let insert_stmt_str = "insert into TEST_DECIMALS (F1, F2) values(?, ?)";
+    let insert_stmt_str = "insert into TEST_DECIMALS (s, d1, d2) values(?, ?, ?)";
 
     info!("prepare & execute");
     let mut insert_stmt = connection.prepare(insert_stmt_str).await?;
-    insert_stmt.add_batch(&("75.53500", BigDecimal::from_f32(75.535).unwrap()))?;
-    insert_stmt.add_batch(&("87.65432", 87.654_32_f32))?;
-    insert_stmt.add_batch(&("0.00500", 0.005_f32))?;
-    insert_stmt.add_batch(&("-0.00600", -0.006_00_f64))?;
-    insert_stmt.add_batch(&("-7.65432", -7.654_32_f64))?;
-    insert_stmt.add_batch(&("99.00000", 99))?;
-    insert_stmt.add_batch(&("-50.00000", -50_i16))?;
-    insert_stmt.add_batch(&("22.00000", 22_i64))?;
+    insert_stmt.add_batch(&(
+        "75.53500",
+        "75.53500",
+        BigDecimal::from_f32(75.535).unwrap(),
+    ))?;
+
+    // had to change the next two lines when moving from bigdecimal 0.3 to 0.4
+    // insert_stmt.add_batch(&("87.65432", "87.65432", 87.654_32_f32))?;
+    // insert_stmt.add_batch(&("0.00500", "0.00500", 0.005_f32))?;
+    #[allow(clippy::excessive_precision)]
+    insert_stmt.add_batch(&("87.65432", "87.65432", 87.654_325_f32))?;
+    insert_stmt.add_batch(&("0.00500", "0.00500", 0.005001_f32))?;
+
+    insert_stmt.add_batch(&("-0.00600", "-0.00600", -0.006_00_f64))?;
+    insert_stmt.add_batch(&("-7.65432", "-7.65432", -7.654_32_f64))?;
+    insert_stmt.add_batch(&("99.00000", "99.00000", 99))?;
+    insert_stmt.add_batch(&("-50.00000", "-50.00000", -50_i16))?;
+    insert_stmt.add_batch(&("22.00000", "22.00000", 22_i64))?;
     insert_stmt.execute_batch().await?;
 
-    insert_stmt.add_batch(&("-0.05600", "-0.05600"))?;
-    insert_stmt.add_batch(&("-8.65432", "-8.65432"))?;
+    insert_stmt.add_batch(&("-0.05600", "-0.05600", "-0.05600"))?;
+    insert_stmt.add_batch(&("-8.65432", "-8.65432", "-8.65432"))?;
     insert_stmt.execute_batch().await?;
 
     info!("Read and verify decimals");
     let resultset = connection
-        .query("select f1, f2 from TEST_DECIMALS order by f2")
+        .query("select s, d1, d2 from TEST_DECIMALS order by d1")
         .await?;
     for row in resultset.into_rows().await? {
         if let HdbValue::DECIMAL(ref bd) = &row[1] {
@@ -112,35 +123,37 @@ async fn test_025_decimals_impl(
 
     info!("Read and verify decimals to struct");
     let resultset = connection
-        .query("select f1, f2 from TEST_DECIMALS order by f2")
+        .query("select s, d1, d2 from TEST_DECIMALS order by d1")
         .await?;
     let scale = resultset.metadata()[1].scale() as usize;
     let result: Vec<TestData> = resultset.try_into().await?;
     for td in result {
-        debug!("{:?}, {:?}", td.f1, td.f2);
-        assert_eq!(td.f1, format!("{0:.1$}", td.f2, scale));
+        debug!("{:?}, {:?}, {:?}", td.s, td.d1, td.d2);
+        assert_eq!(td.s, format!("{0:.1$}", td.d1, scale));
+        assert_eq!(td.s, format!("{0:.1$}", td.d2, scale));
     }
 
     info!("Read and verify decimals to tuple");
-    let result: Vec<(String, String)> = connection
+    let result: Vec<(String, String, String)> = connection
         .query("select * from TEST_DECIMALS")
         .await?
         .try_into()
         .await?;
     for row in result {
-        debug!("{}, {}", row.0, row.1);
+        debug!("{}, {}, {}", row.0, row.1, row.2);
         assert_eq!(row.0, row.1);
+        assert_eq!(row.0, row.2);
     }
 
     info!("Read and verify decimal to single value");
     let resultset = connection
-        .query("select AVG(F3) from TEST_DECIMALS")
+        .query("select AVG(dummy) from TEST_DECIMALS")
         .await?;
     let mydata: Option<BigDecimal> = resultset.try_into().await?;
     assert_eq!(mydata, None);
 
     let mydata: Option<i64> = connection
-        .query("select AVG(F2) from TEST_DECIMALS where f2 = '65.53500'")
+        .query("select AVG(D2) from TEST_DECIMALS where d1 = '65.53500'")
         .await?
         .try_into()
         .await?;
@@ -148,7 +161,7 @@ async fn test_025_decimals_impl(
 
     info!("test failing conversion");
     let mydata: HdbResult<i8> = connection
-        .query("select SUM(ABS(F2)) from TEST_DECIMALS")
+        .query("select SUM(ABS(D2)) from TEST_DECIMALS")
         .await?
         .try_into()
         .await;
@@ -156,7 +169,7 @@ async fn test_025_decimals_impl(
 
     info!("test working conversion");
     let mydata: i64 = connection
-        .query("select SUM(ABS(F2)) from TEST_DECIMALS")
+        .query("select SUM(ABS(D2)) from TEST_DECIMALS")
         .await?
         .try_into()
         .await?;

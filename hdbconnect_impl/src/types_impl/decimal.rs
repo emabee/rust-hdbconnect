@@ -3,7 +3,10 @@ use crate::protocol::util_async;
 #[cfg(feature = "sync")]
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
-use crate::{types_impl::hdb_decimal::HdbDecimal, HdbError, HdbResult, HdbValue, TypeId};
+use crate::{
+    types_impl::wire_decimal::{big_decimal_to_wire_decimal, wire_decimal_to_hdbvalue},
+    HdbError, HdbResult, HdbValue, TypeId,
+};
 use bigdecimal::BigDecimal;
 use num::{FromPrimitive, ToPrimitive};
 use num_bigint::BigInt;
@@ -16,38 +19,49 @@ pub fn parse_sync(
     rdr: &mut dyn std::io::Read,
 ) -> HdbResult<HdbValue<'static>> {
     match type_id {
-        TypeId::DECIMAL => HdbDecimal::parse_hdb_decimal_sync(nullable, scale, rdr),
+        TypeId::DECIMAL => {
+            trace!("parse DECIMAL");
+            let mut raw = [0_u8; 16];
+            rdr.read_exact(&mut raw[..])?;
+            wire_decimal_to_hdbvalue(raw, nullable, scale)
+        }
 
-        TypeId::FIXED8 => Ok(if parse_null_sync(nullable, rdr)? {
-            HdbValue::NULL
-        } else {
+        TypeId::FIXED8 => Ok({
             trace!("parse FIXED8");
-            let i = rdr.read_i64::<LittleEndian>()?;
-            let bigint = BigInt::from_i64(i)
-                .ok_or_else(|| HdbError::Impl("invalid value of type FIXED8"))?;
-            let bd = BigDecimal::new(bigint, i64::from(scale));
-            HdbValue::DECIMAL(bd)
+            if parse_null_sync(nullable, rdr)? {
+                HdbValue::NULL
+            } else {
+                let i = rdr.read_i64::<LittleEndian>()?;
+                let bigint = BigInt::from_i64(i)
+                    .ok_or_else(|| HdbError::Impl("invalid value of type FIXED8"))?;
+                let bd = BigDecimal::new(bigint, i64::from(scale));
+                HdbValue::DECIMAL(bd)
+            }
         }),
 
-        TypeId::FIXED12 => Ok(if parse_null_sync(nullable, rdr)? {
-            HdbValue::NULL
-        } else {
+        TypeId::FIXED12 => Ok({
             trace!("parse FIXED12");
-            let bytes = crate::protocol::util_sync::parse_bytes(12, rdr)?;
-            let bigint = BigInt::from_signed_bytes_le(&bytes);
-            let bd = BigDecimal::new(bigint, i64::from(scale));
-            HdbValue::DECIMAL(bd)
+            if parse_null_sync(nullable, rdr)? {
+                HdbValue::NULL
+            } else {
+                let bytes = crate::protocol::util_sync::parse_bytes(12, rdr)?;
+                let bigint = BigInt::from_signed_bytes_le(&bytes);
+                let bd = BigDecimal::new(bigint, i64::from(scale));
+                HdbValue::DECIMAL(bd)
+            }
         }),
 
-        TypeId::FIXED16 => Ok(if parse_null_sync(nullable, rdr)? {
-            HdbValue::NULL
-        } else {
+        TypeId::FIXED16 => Ok({
             trace!("parse FIXED16");
-            let i = rdr.read_i128::<LittleEndian>()?;
-            let bi = BigInt::from_i128(i)
-                .ok_or_else(|| HdbError::Impl("invalid value of type FIXED16"))?;
-            let bd = BigDecimal::new(bi, i64::from(scale));
-            HdbValue::DECIMAL(bd)
+            if parse_null_sync(nullable, rdr)? {
+                HdbValue::NULL
+            } else {
+                let i = rdr.read_i128::<LittleEndian>()?;
+                let bi = BigInt::from_i128(i)
+                    .ok_or_else(|| HdbError::Impl("invalid value of type FIXED16"))?;
+                let bd = BigDecimal::new(bi, i64::from(scale));
+                HdbValue::DECIMAL(bd)
+            }
         }),
         _ => Err(HdbError::Impl("unexpected type id for decimal")),
     }
@@ -61,38 +75,49 @@ pub async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
     rdr: &mut R,
 ) -> HdbResult<HdbValue<'static>> {
     match type_id {
-        TypeId::DECIMAL => HdbDecimal::parse_hdb_decimal_async(nullable, scale, rdr).await,
+        TypeId::DECIMAL => {
+            trace!("parse DECIMAL");
+            let mut raw = [0_u8; 16];
+            rdr.read_exact(&mut raw[..]).await?;
+            wire_decimal_to_hdbvalue(raw, nullable, scale)
+        }
 
-        TypeId::FIXED8 => Ok(if parse_null_async(nullable, rdr).await? {
-            HdbValue::NULL
-        } else {
+        TypeId::FIXED8 => Ok({
             trace!("parse FIXED8");
-            let i = rdr.read_i64_le().await?;
-            let bigint = BigInt::from_i64(i)
-                .ok_or_else(|| HdbError::Impl("invalid value of type FIXED8"))?;
-            let bd = BigDecimal::new(bigint, i64::from(scale));
-            HdbValue::DECIMAL(bd)
+            if parse_null_async(nullable, rdr).await? {
+                HdbValue::NULL
+            } else {
+                let i = rdr.read_i64_le().await?;
+                let bigint = BigInt::from_i64(i)
+                    .ok_or_else(|| HdbError::Impl("invalid value of type FIXED8"))?;
+                let bd = BigDecimal::new(bigint, i64::from(scale));
+                HdbValue::DECIMAL(bd)
+            }
         }),
 
-        TypeId::FIXED12 => Ok(if parse_null_async(nullable, rdr).await? {
-            HdbValue::NULL
-        } else {
+        TypeId::FIXED12 => Ok({
             trace!("parse FIXED12");
-            let bytes = util_async::parse_bytes(12, rdr).await?;
-            let bigint = BigInt::from_signed_bytes_le(&bytes);
-            let bd = BigDecimal::new(bigint, i64::from(scale));
-            HdbValue::DECIMAL(bd)
+            if parse_null_async(nullable, rdr).await? {
+                HdbValue::NULL
+            } else {
+                let bytes = util_async::parse_bytes(12, rdr).await?;
+                let bigint = BigInt::from_signed_bytes_le(&bytes);
+                let bd = BigDecimal::new(bigint, i64::from(scale));
+                HdbValue::DECIMAL(bd)
+            }
         }),
 
-        TypeId::FIXED16 => Ok(if parse_null_async(nullable, rdr).await? {
-            HdbValue::NULL
-        } else {
+        TypeId::FIXED16 => Ok({
             trace!("parse FIXED16");
-            let i = rdr.read_i128_le().await?;
-            let bi = BigInt::from_i128(i)
-                .ok_or_else(|| HdbError::Impl("invalid value of type FIXED16"))?;
-            let bd = BigDecimal::new(bi, i64::from(scale));
-            HdbValue::DECIMAL(bd)
+            if parse_null_async(nullable, rdr).await? {
+                HdbValue::NULL
+            } else {
+                let i = rdr.read_i128_le().await?;
+                let bi = BigInt::from_i128(i)
+                    .ok_or_else(|| HdbError::Impl("invalid value of type FIXED16"))?;
+                let bd = BigDecimal::new(bi, i64::from(scale));
+                HdbValue::DECIMAL(bd)
+            }
         }),
         _ => Err(HdbError::Impl("unexpected type id for decimal")),
     }
@@ -123,7 +148,7 @@ async fn parse_null_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
 
 #[cfg(feature = "sync")]
 pub(crate) fn sync_emit(
-    bd: &BigDecimal,
+    big_decimal: &BigDecimal,
     type_id: TypeId,
     scale: i16,
     w: &mut dyn std::io::Write,
@@ -131,13 +156,13 @@ pub(crate) fn sync_emit(
     match type_id {
         TypeId::DECIMAL => {
             trace!("emit DECIMAL");
-            let hdb_decimal = HdbDecimal::from_bigdecimal(bd)
+            let buffer = big_decimal_to_wire_decimal(big_decimal)
                 .map_err(|e| HdbError::ImplDetailed(e.to_string()))?;
-            w.write_all(&hdb_decimal.into_raw())?;
+            w.write_all(&buffer)?;
         }
         TypeId::FIXED8 => {
             trace!("emit FIXED8");
-            let bd = bd.with_scale(i64::from(scale));
+            let bd = big_decimal.with_scale(i64::from(scale));
             let (bigint, _exponent) = bd.as_bigint_and_exponent();
             w.write_i64::<LittleEndian>(
                 bigint
@@ -149,7 +174,7 @@ pub(crate) fn sync_emit(
             trace!("emit FIXED12");
             // if we get less than 12 bytes, we need to append bytes with either value
             // 0_u8 or 255_u8, depending on the value of the highest bit of the last byte.
-            let bd = bd.with_scale(i64::from(scale));
+            let bd = big_decimal.with_scale(i64::from(scale));
             let (bigint, _exponent) = bd.as_bigint_and_exponent();
             let mut bytes = bigint.to_signed_bytes_le();
             let l = bytes.len();
@@ -168,7 +193,7 @@ pub(crate) fn sync_emit(
         }
         TypeId::FIXED16 => {
             trace!("emit FIXED16");
-            let bd = bd.with_scale(i64::from(scale));
+            let bd = big_decimal.with_scale(i64::from(scale));
             let (bigint, _exponent) = bd.as_bigint_and_exponent();
             w.write_i128::<LittleEndian>(
                 bigint
@@ -183,7 +208,7 @@ pub(crate) fn sync_emit(
 
 #[cfg(feature = "async")]
 pub(crate) async fn async_emit<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
-    bd: &BigDecimal,
+    big_decimal: &BigDecimal,
     type_id: TypeId,
     scale: i16,
     w: &mut W,
@@ -191,13 +216,13 @@ pub(crate) async fn async_emit<W: std::marker::Unpin + tokio::io::AsyncWriteExt>
     match type_id {
         TypeId::DECIMAL => {
             trace!("emit DECIMAL");
-            let hdb_decimal = HdbDecimal::from_bigdecimal(bd)
+            let raw = big_decimal_to_wire_decimal(big_decimal)
                 .map_err(|e| HdbError::ImplDetailed(e.to_string()))?;
-            w.write_all(&hdb_decimal.into_raw()).await?;
+            w.write_all(&raw).await?;
         }
         TypeId::FIXED8 => {
             trace!("emit FIXED8");
-            let bd = bd.with_scale(i64::from(scale));
+            let bd = big_decimal.with_scale(i64::from(scale));
             let (bigint, _exponent) = bd.as_bigint_and_exponent();
             w.write_i64_le(
                 bigint
@@ -210,7 +235,7 @@ pub(crate) async fn async_emit<W: std::marker::Unpin + tokio::io::AsyncWriteExt>
             trace!("emit FIXED12");
             // if we get less than 12 bytes, we need to append bytes with either value
             // 0_u8 or 255_u8, depending on the value of the highest bit of the last byte.
-            let bd = bd.with_scale(i64::from(scale));
+            let bd = big_decimal.with_scale(i64::from(scale));
             let (bigint, _exponent) = bd.as_bigint_and_exponent();
             let mut bytes = bigint.to_signed_bytes_le();
             let l = bytes.len();
@@ -229,7 +254,7 @@ pub(crate) async fn async_emit<W: std::marker::Unpin + tokio::io::AsyncWriteExt>
         }
         TypeId::FIXED16 => {
             trace!("emit FIXED16");
-            let bd = bd.with_scale(i64::from(scale));
+            let bd = big_decimal.with_scale(i64::from(scale));
             let (bigint, _exponent) = bd.as_bigint_and_exponent();
             w.write_i128_le(
                 bigint

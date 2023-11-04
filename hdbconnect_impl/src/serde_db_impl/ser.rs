@@ -243,7 +243,9 @@ impl DbvFactory for &ParameterDescriptor {
 
             TypeId::DECIMAL | TypeId::FIXED8 | TypeId::FIXED12 | TypeId::FIXED16 => {
                 HdbValue::DECIMAL(
-                    BigDecimal::from_f32(value).ok_or_else(|| decimal_range(input_type))?,
+                    BigDecimal::from_f32(value)
+                        .ok_or_else(|| decimal_range(input_type))?
+                        .with_scale(i64::from(std::f32::DIGITS)),
                 )
             }
             TypeId::VARCHAR | TypeId::NVARCHAR | TypeId::TEXT | TypeId::SHORTTEXT => {
@@ -261,7 +263,9 @@ impl DbvFactory for &ParameterDescriptor {
 
             TypeId::DECIMAL | TypeId::FIXED8 | TypeId::FIXED12 | TypeId::FIXED16 => {
                 HdbValue::DECIMAL(
-                    BigDecimal::from_f64(value).ok_or_else(|| decimal_range(input_type))?,
+                    BigDecimal::from_f64(value)
+                        .ok_or_else(|| decimal_range(input_type))?
+                        .with_scale(i64::from(std::f64::DIGITS)),
                 )
             }
             TypeId::VARCHAR | TypeId::NVARCHAR | TypeId::TEXT | TypeId::SHORTTEXT => {

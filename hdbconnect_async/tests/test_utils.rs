@@ -61,19 +61,32 @@ pub fn get_um_cp_builder() -> HdbResult<ConnectParamsBuilder> {
 }
 
 fn cp_builder_from_file(purpose: &str) -> HdbResult<(ConnectParamsBuilder, ConnectParamsBuilder)> {
-    const ENV_VAR: &str = "HDBCONNECT_TEST_DB";
-    const DEFAULT_FILE: &str = "./.private/test.db";
+    const TEMPLATE: &str = r#"
+{
+    "direct_url":"hdbsql://host_url:34015",
+    "redirect_url":"hdbsql://host_url:34013?db=ABC",
+    "std":{"name":"USER1","pw":"user1_pw"},
+    "um":{"name":"USER2","pw":"user1_pw"}
+}
+"#;
 
-    let db_s = match std::env::var(ENV_VAR) {
-        Ok(p) => p,
-        Err(_) => DEFAULT_FILE.into(),
-    };
-    let db_path = std::path::Path::new(&db_s);
+    const ENV_VAR: &str = "HDBCONNECT_TEST_DB";
+    const FOLDERS: [&str; 2] = ["./../.private/", "./.private/"];
+    use std::str::FromStr;
+    let discr = std::env::var(ENV_VAR).unwrap_or("".to_string());
+    let filename = format!("test_{}.db", discr);
+
+    let mut db_path = std::path::PathBuf::from_str(FOLDERS[0]).unwrap();
+    db_path.push(filename.clone());
+    if !db_path.exists() {
+        db_path = std::path::PathBuf::from_str(FOLDERS[1]).unwrap();
+        db_path.push(filename.clone());
+    }
 
     assert!(
         db_path.exists(),
         r"
-config file with the db connection not found: {db_s}.
+config file with the db connection not found: {filename}.
 
 Consider creating the file with content like
 {TEMPLATE}
@@ -85,19 +98,11 @@ where
 
 See https://docs.rs/hdbconnect/latest/hdbconnect/url/index.html for details of the URL format.
 
-You can point to a different file by using the environment variable {ENV_VAR}.
+You can point to a different file by using e.g. 'export {ENV_VAR}='['cloud'|'onprem']'.
 ",
     );
-    const TEMPLATE: &str = r#"
-{
-    "direct_url":"hdbsql://host_url:34015",
-    "redirect_url":"hdbsql://host_url:34013?db=ABC",
-    "std":{"name":"USER1","pw":"user1_pw"},
-    "um":{"name":"USER2","pw":"user1_pw"}
-}
-"#;
 
-    let content = std::fs::read_to_string(db_path).map_err(|e| HdbError::ConnParams {
+    let content = std::fs::read_to_string(db_path.clone()).map_err(|e| HdbError::ConnParams {
         source: Box::new(e),
     })?;
 

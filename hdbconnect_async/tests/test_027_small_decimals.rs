@@ -5,7 +5,7 @@ mod test_utils;
 use bigdecimal::BigDecimal;
 #[allow(unused_imports)]
 use flexi_logger::LoggerHandle;
-use hdbconnect_async::{Connection, HdbResult, HdbValue};
+use hdbconnect_async::{Connection, HdbResult};
 use log::{debug, info};
 use num::FromPrimitive;
 use serde::Deserialize;
@@ -68,8 +68,8 @@ async fn test_small_decimals(
         BigDecimal::from_f32(75.535).unwrap(),
         10,
     ))?;
-    insert_stmt.add_batch(&("87.65432", 87.654_32_f32, 87.654_32_f32, 10))?;
-    insert_stmt.add_batch(&("0.00500", 0.005_f32, 0.005_f32, 10))?;
+    insert_stmt.add_batch(&("87.65434", 87.654_34_f32, 87.654_34_f32, 10))?;
+    insert_stmt.add_batch(&("0.00500", 0.005001_f32, 0.005001_f32, 10))?;
     insert_stmt.add_batch(&("-0.00600", -0.006_00_f64, -0.006_00_f64, 10))?;
     insert_stmt.add_batch(&("-7.65432", -7.654_32_f64, -7.654_32_f64, 10))?;
     insert_stmt.add_batch(&("99.00000", 99, 99, 10))?;
@@ -82,19 +82,20 @@ async fn test_small_decimals(
     insert_stmt.execute_batch().await?;
 
     info!("Read and verify decimals");
-    let resultset = connection
+    let mut resultset = connection
         .query("select f1, f2, f3_NN, f2_NN from TEST_SMALL_DECIMALS order by f2")
         .await?;
     let precision = resultset.metadata()[1].precision();
     debug!("metadata: {:?}", resultset.metadata());
     let scale = 5; //resultset.metadata().scale(1)? as usize;
-    for row in resultset.into_rows().await? {
-        if let HdbValue::DECIMAL(ref bd) = &row[1] {
-            debug!("precision = {}, scale = {}", precision, scale);
-            assert_eq!(format!("{}", &row[0]), format!("{bd:.scale$}"));
-        } else {
-            panic!("Unexpected value type");
-        }
+    while let Some(mut row) = resultset.next_row().await? {
+        let s: String = row.next_try_into()?;
+        let bd1: BigDecimal = row.next_try_into()?;
+        row.next_value();
+        let bd2: BigDecimal = row.next_try_into()?;
+        debug!("precision = {}, scale = {}", precision, scale);
+        assert_eq!(format!("{}", s), format!("{bd1:.scale$}"));
+        assert_eq!(format!("{}", s), format!("{bd2:.scale$}"));
     }
 
     info!("Read and verify decimals to struct");
