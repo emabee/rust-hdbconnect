@@ -6,7 +6,7 @@ use crate::protocol::util_sync;
 
 use crate::{conn::TcpClient, HdbResult};
 use byteorder::{BigEndian, WriteBytesExt};
-use std::io::Write;
+use std::{io::Write, sync::OnceLock};
 
 #[cfg(feature = "sync")]
 pub(crate) fn sync_send_and_receive(sync_tcp_connection: &mut TcpClient) -> HdbResult<()> {
@@ -81,33 +81,32 @@ async fn async_emit_initial_request<W: std::marker::Unpin + tokio::io::AsyncWrit
 }
 
 fn initial_request() -> &'static [u8] {
-    lazy_static! {
-        pub(crate) static ref INITIAL_REQUEST: Box<[u8]> = {
-            const FILLER: i32 = -1;
-            const MAJOR_PRODUCT_VERSION: i8 = 4;
-            const MINOR_PRODUCT_VERSION: i16 = 20;
-            const MAJOR_PROTOCOL_VERSION: i8 = 4;
-            const MINOR_PROTOCOL_VERSION: i16 = 1;
-            const RESERVED: i8 = 0;
-            const NUMBER_OF_OPTIONS: i8 = 1;
-            const OPTION_ID_SWAPKIND: i8 = 1;
-            const LITTLE_ENDIAN: i8 = 1;
+    static INITIAL_REQUEST: OnceLock<Box<[u8]>> = OnceLock::new();
+    let result = INITIAL_REQUEST.get_or_init(|| {
+        const FILLER: i32 = -1;
+        const MAJOR_PRODUCT_VERSION: i8 = 4;
+        const MINOR_PRODUCT_VERSION: i16 = 20;
+        const MAJOR_PROTOCOL_VERSION: i8 = 4;
+        const MINOR_PROTOCOL_VERSION: i16 = 1;
+        const RESERVED: i8 = 0;
+        const NUMBER_OF_OPTIONS: i8 = 1;
+        const OPTION_ID_SWAPKIND: i8 = 1;
+        const LITTLE_ENDIAN: i8 = 1;
 
-            let mut c = std::io::Cursor::new(vec![0_u8; 14]);
-            Write::write_all(&mut c, &FILLER.to_be_bytes()).unwrap();
-            WriteBytesExt::write_i8(&mut c, MAJOR_PRODUCT_VERSION).unwrap();
-            WriteBytesExt::write_i16::<BigEndian>(&mut c, MINOR_PRODUCT_VERSION).unwrap();
-            WriteBytesExt::write_i8(&mut c, MAJOR_PROTOCOL_VERSION).unwrap();
-            WriteBytesExt::write_i16::<BigEndian>(&mut c, MINOR_PROTOCOL_VERSION).unwrap();
-            WriteBytesExt::write_i8(&mut c, RESERVED).unwrap();
-            WriteBytesExt::write_i8(&mut c, NUMBER_OF_OPTIONS).unwrap();
-            WriteBytesExt::write_i8(&mut c, OPTION_ID_SWAPKIND).unwrap();
-            WriteBytesExt::write_i8(&mut c, LITTLE_ENDIAN).unwrap();
-            Write::flush(&mut c).unwrap();
-            let res = c.into_inner().into_boxed_slice();
-            assert_eq!(res.len(), 14);
-            res
-        };
-    }
-    &INITIAL_REQUEST
+        let mut w = std::io::Cursor::new(vec![0_u8; 14]);
+        Write::write_all(&mut w, &FILLER.to_be_bytes()).unwrap();
+        WriteBytesExt::write_i8(&mut w, MAJOR_PRODUCT_VERSION).unwrap();
+        WriteBytesExt::write_i16::<BigEndian>(&mut w, MINOR_PRODUCT_VERSION).unwrap();
+        WriteBytesExt::write_i8(&mut w, MAJOR_PROTOCOL_VERSION).unwrap();
+        WriteBytesExt::write_i16::<BigEndian>(&mut w, MINOR_PROTOCOL_VERSION).unwrap();
+        WriteBytesExt::write_i8(&mut w, RESERVED).unwrap();
+        WriteBytesExt::write_i8(&mut w, NUMBER_OF_OPTIONS).unwrap();
+        WriteBytesExt::write_i8(&mut w, OPTION_ID_SWAPKIND).unwrap();
+        WriteBytesExt::write_i8(&mut w, LITTLE_ENDIAN).unwrap();
+        Write::flush(&mut w).unwrap();
+        let res = w.into_inner().into_boxed_slice();
+        assert_eq!(res.len(), 14);
+        res
+    });
+    result
 }
