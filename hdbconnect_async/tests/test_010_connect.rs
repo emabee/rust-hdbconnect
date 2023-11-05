@@ -64,7 +64,7 @@ async fn client_info(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
         .parse_and_push_temp_spec("info, test = debug")
         .unwrap();
     let connection = test_utils::get_authenticated_connection().await.unwrap();
-    let connection_id: i32 = connection.id().await?;
+    let connection_id: u32 = connection.id().await;
 
     debug!("verify original client info appears in session context");
     let mut prep_stmt = connection

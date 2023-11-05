@@ -1,7 +1,7 @@
 use super::Authenticator;
 use crate::conn::ConnectionCore;
 use crate::protocol::parts::{
-    AuthFields, ClientContext, ConnOptId, ConnectOptions, DbConnectInfo, OptionValue,
+    AuthFields, ClientContext, ConnOptId, ConnectOptionsPart, DbConnectInfo,
 };
 use crate::protocol::{Part, Reply, ReplyType, Request, RequestType};
 use crate::{HdbError, HdbResult};
@@ -100,7 +100,7 @@ pub(crate) async fn async_first_auth_request(
 fn second_request(
     db_user: &str,
     db_password: &SecUtf8,
-    mut connect_options: ConnectOptions,
+    mut connect_options: ConnectOptionsPart,
     chosen_authenticator: &mut dyn Authenticator,
     server_challenge_data: &[u8],
     reconnect: bool,
@@ -120,7 +120,10 @@ fn second_request(
     if reconnect {
         connect_options.insert(
             ConnOptId::OriginalAnchorConnectionID,
-            OptionValue::INT(connect_options.get_connection_id()?),
+            connect_options
+                .get(&ConnOptId::ConnectionID)
+                .unwrap()
+                .clone(),
         );
     }
     request2.push(Part::ConnectOptions(connect_options));
@@ -139,9 +142,11 @@ fn evaluate_second_response(
     for part in reply.parts {
         match part {
             Part::TopologyInformation(topology) => conn_core.set_topology(topology),
-            Part::ConnectOptions(received_co) => conn_core
-                .connect_options_mut()
-                .digest_server_connect_options(received_co),
+            Part::ConnectOptions(received_co) => {
+                conn_core
+                    .connect_options_mut()
+                    .digest_server_connect_options(received_co)?;
+            }
             Part::Auth(mut af) => match (af.pop(), af.pop(), af.pop()) {
                 (Some(server_proof), Some(method), None) => {
                     chosen_authenticator.evaluate_second_response(&method, &server_proof)?;
@@ -164,7 +169,7 @@ pub(crate) fn sync_second_auth_request(
     let second_request = second_request(
         conn_core.connect_params().dbuser(),
         conn_core.connect_params().password(),
-        conn_core.connect_options().clone(),
+        conn_core.connect_options().for_server(),
         &mut *chosen_authenticator,
         server_challenge_data,
         reconnect,
@@ -184,7 +189,7 @@ pub(crate) async fn async_second_auth_request(
     let second_request = second_request(
         conn_core.connect_params().dbuser(),
         conn_core.connect_params().password(),
-        conn_core.connect_options().clone(),
+        conn_core.connect_options().for_server(),
         &mut *chosen_authenticator,
         server_challenge_data,
         reconnect,

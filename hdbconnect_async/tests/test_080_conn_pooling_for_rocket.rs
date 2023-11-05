@@ -35,7 +35,7 @@ mod inner {
             let pool_clone = pool.clone();
             worker_handles.push(tokio::spawn(async move {
                 let conn = pool_clone.get().await.unwrap();
-                trace!("connection[{}]: Firing query", conn.id().await.unwrap());
+                trace!("connection[{}]: Firing query", conn.id().await);
                 conn.query("select 1 from dummy").await.unwrap();
                 0_u8
             }));

@@ -59,6 +59,14 @@ impl OptionValue {
         }
     }
 
+    pub fn into_string(self) -> HdbResult<String> {
+        if let Self::STRING(s) = self {
+            Ok(s)
+        } else {
+            Err(HdbError::Impl("Not a STRING-typed OptionValue"))
+        }
+    }
+
     // pub fn get_bstring(&self) -> HdbResult<&Vec<u8>> {
     //     if let Self::BSTRING(ref s) = self {
     //         Ok(s)

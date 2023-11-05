@@ -16,7 +16,7 @@ async fn test_025_decimals() -> HdbResult<()> {
     let start = std::time::Instant::now();
     let connection = test_utils::get_authenticated_connection().await?;
 
-    if connection.data_format_version_2().await? > 7 {
+    if connection.data_format_version_2().await > 7 {
         info!("=== run test for FIXED8 ===");
         test_025_decimals_impl(TS::Fixed8, &mut log_handle, &connection).await?;
 

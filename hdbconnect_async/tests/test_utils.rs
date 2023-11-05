@@ -34,10 +34,7 @@ pub async fn closing_info(connection: Connection, start: std::time::Instant) -> 
 
 pub async fn get_authenticated_connection() -> HdbResult<Connection> {
     let connection = Connection::new(get_std_cp_builder()?).await?;
-    log::info!(
-        "TESTING WITH {}",
-        connection.connect_string().await.unwrap()
-    );
+    log::info!("TESTING WITH {}", connection.connect_string().await);
     Ok(connection)
 }
 

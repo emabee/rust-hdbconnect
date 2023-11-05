@@ -343,11 +343,7 @@ impl Connection {
     /// Returns the ID of the connection.
     ///
     /// The ID is set by the server. Can be handy for logging.
-    ///
-    /// # Errors
-    ///
-    /// Only `HdbError::Poison` can occur.
-    pub async fn id(&self) -> HdbResult<i32> {
+    pub async fn id(&self) -> u32 {
         self.am_conn_core
             .async_lock()
             .await
@@ -366,7 +362,7 @@ impl Connection {
     }
 
     #[doc(hidden)]
-    pub async fn data_format_version_2(&self) -> HdbResult<i32> {
+    pub async fn data_format_version_2(&self) -> u8 {
         self.am_conn_core
             .async_lock()
             .await
@@ -509,45 +505,26 @@ impl Connection {
     }
 
     /// (MDC) Database name.
-    ///
-    /// # Errors
-    ///
-    /// Errors are unlikely to occur.
-    ///
-    /// - `HdbError::ImplDetailed` if the database name was not provided by the database server.
-    /// - `HdbError::Poison` if the shared mutex of the inner connection object is poisened.
-    pub async fn get_database_name(&self) -> HdbResult<String> {
+    pub async fn get_database_name(&self) -> String {
         self.am_conn_core
             .async_lock()
             .await
             .connect_options()
             .get_database_name()
-            .map(ToOwned::to_owned)
     }
 
     /// The system id is set by the server with the SAPSYSTEMNAME of the
     /// connected instance (for tracing and supportability purposes).
-    ///
-    /// # Errors
-    ///
-    /// Errors are unlikely to occur.
-    ///
-    /// - `HdbError::ImplDetailed` if the system id was not provided by the database server.
-    /// - `HdbError::Poison` if the shared mutex of the inner connection object is poisened.
-    pub async fn get_system_id(&self) -> HdbResult<String> {
+    pub async fn get_system_id(&self) -> String {
         self.am_conn_core
             .async_lock()
             .await
             .connect_options()
             .get_system_id()
-            .map(ToOwned::to_owned)
     }
 
     /// Returns the information that is given to the server as client context.
-    /// # Errors
-    ///
-    /// Only `HdbError::Poison` can occur.
-    pub async fn client_info(&self) -> HdbResult<Vec<(String, String)>> {
+    pub async fn client_info(&self) -> Vec<(String, String)> {
         let mut result = Vec::<(String, String)>::with_capacity(7);
         let mut cc = ClientContext::new();
         for k in &[
@@ -562,23 +539,18 @@ impl Connection {
 
         let conn_core = self.am_conn_core.async_lock().await;
         let conn_opts = conn_core.connect_options();
-        if let Ok(OptionValue::STRING(s)) = conn_opts.get(&ConnOptId::OSUser) {
-            result.push((format!("{:?}", ConnOptId::OSUser), s.clone()));
-        }
-        if let Ok(OptionValue::INT(i)) = conn_opts.get(&ConnOptId::ConnectionID) {
-            result.push((format!("{:?}", ConnOptId::ConnectionID), i.to_string()));
-        }
-        Ok(result)
+        result.push((format!("{:?}", ConnOptId::OSUser), conn_opts.get_os_user()));
+        result.push((
+            format!("{:?}", ConnOptId::ConnectionID),
+            conn_opts.get_connection_id().to_string(),
+        ));
+        result
     }
 
     /// Returns a connect url (excluding the password) that reflects the options that were
     /// used to establish this connection.
-    ///
-    /// # Errors
-    ///
-    /// Only `HdbError::Poison` can occur.
-    pub async fn connect_string(&self) -> HdbResult<String> {
-        Ok(self.am_conn_core.async_lock().await.connect_string())
+    pub async fn connect_string(&self) -> String {
+        self.am_conn_core.async_lock().await.connect_string()
     }
 
     /// HANA Full version string.
@@ -589,13 +561,12 @@ impl Connection {
     ///
     /// - `HdbError::ImplDetailed` if the version string was not provided by the database server.
     /// - `HdbError::Poison` if the shared mutex of the inner connection object is poisened.
-    pub async fn get_full_version_string(&self) -> HdbResult<String> {
+    pub async fn get_full_version_string(&self) -> String {
         self.am_conn_core
             .async_lock()
             .await
             .connect_options()
             .get_full_version_string()
-            .map(ToOwned::to_owned)
     }
 
     async fn execute<S>(

@@ -219,7 +219,6 @@ impl<'a> PreparedStatement {
                 .await
                 .connect_options()
                 .get_implicit_lob_streaming()
-                .unwrap_or(false)
             {
                 request.push(Part::LobFlags(LobFlags::for_implicit_streaming()));
             }

@@ -148,7 +148,7 @@ impl<'a> ConnectionCore {
 
     #[cfg(feature = "sync")]
     fn try_new_initialized_sync(params: ConnectParams) -> HdbResult<Self> {
-        let connect_options = ConnectOptions::for_server(params.clientlocale(), get_os_user());
+        let connect_options = ConnectOptions::new(params.clientlocale(), &get_os_user());
         let mut tcp_client = TcpClient::try_new_sync(params)?;
         initial_request::sync_send_and_receive(&mut tcp_client)?;
         Ok(Self {
@@ -173,7 +173,7 @@ impl<'a> ConnectionCore {
 
     #[cfg(feature = "async")]
     async fn try_new_initialized_async(params: ConnectParams) -> HdbResult<Self> {
-        let connect_options = ConnectOptions::for_server(params.clientlocale(), get_os_user());
+        let connect_options = ConnectOptions::new(params.clientlocale(), &get_os_user());
         let mut tcp_client = TcpClient::try_new_async(params).await?;
         initial_request::async_send_and_receive(&mut tcp_client).await?;
         Ok(Self {
@@ -375,7 +375,7 @@ impl<'a> ConnectionCore {
     }
 
     pub fn dump_connect_options(&self) -> String {
-        self.connect_options.to_string()
+        format!("{:?}", self.connect_options)
     }
 
     pub fn set_authenticated(&mut self) {
@@ -421,11 +421,11 @@ impl<'a> ConnectionCore {
         }
     }
 
-    pub fn connect_options(&self) -> &ConnectOptions {
+    pub(crate) fn connect_options(&self) -> &ConnectOptions {
         &self.connect_options
     }
 
-    pub fn connect_options_mut(&mut self) -> &mut ConnectOptions {
+    pub(crate) fn connect_options_mut(&mut self) -> &mut ConnectOptions {
         &mut self.connect_options
     }
 

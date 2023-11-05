@@ -4,7 +4,7 @@ use crate::{
     conn::AmConnCore,
     protocol::{
         parts::{
-            AuthFields, ClientContext, ClientInfo, CommandInfo, ConnectOptions, DbConnectInfo,
+            AuthFields, ClientContext, ClientInfo, CommandInfo, ConnectOptionsPart, DbConnectInfo,
             ExecutionResult, LobFlags, OutputParameters, ParameterDescriptors, ParameterRows,
             PartitionInformation, Parts, ReadLobReply, ReadLobRequest, ResultSetMetadata,
             ServerError, SessionContext, StatementContext, Topology, TransactionFlags,
@@ -34,7 +34,7 @@ pub enum Part<'a> {
     Command(&'a str),
     CommandInfo(CommandInfo),
     // CommitOptions(super::parts::commit_options::CommitOptions), // not used by any client
-    ConnectOptions(ConnectOptions),
+    ConnectOptions(ConnectOptionsPart),
     DbConnectInfo(DbConnectInfo),
     Error(Vec<ServerError>),
     // FetchOptions(super::parts::fetch_options::FetchOptions),    // not used by any client
@@ -465,7 +465,7 @@ impl<'a> Part<'a> {
             PartKind::Authentication => Part::Auth(AuthFields::parse_sync(rdr)?),
             PartKind::CommandInfo => Part::CommandInfo(CommandInfo::parse_sync(no_of_args, rdr)?),
             PartKind::ConnectOptions => {
-                Part::ConnectOptions(ConnectOptions::parse_sync(no_of_args, rdr)?)
+                Part::ConnectOptions(ConnectOptionsPart::parse_sync(no_of_args, rdr)?)
             }
             PartKind::DbConnectInfo => {
                 Part::DbConnectInfo(DbConnectInfo::parse_sync(no_of_args, rdr)?)
@@ -560,7 +560,7 @@ impl<'a> Part<'a> {
                 Part::CommandInfo(CommandInfo::parse_async(no_of_args, rdr).await?)
             }
             PartKind::ConnectOptions => {
-                Part::ConnectOptions(ConnectOptions::parse_async(no_of_args, rdr).await?)
+                Part::ConnectOptions(ConnectOptionsPart::parse_async(no_of_args, rdr).await?)
             }
             PartKind::DbConnectInfo => {
                 Part::DbConnectInfo(DbConnectInfo::parse_async(no_of_args, rdr).await?)
