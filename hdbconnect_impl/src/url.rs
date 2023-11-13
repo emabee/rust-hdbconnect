@@ -67,6 +67,12 @@
 //! let conn_params = copabu.build().unwrap(); // ConnectParams
 //! ```
 
+/// Protocol without TLS
+pub const HDBSQL: &str = "hdbsql";
+
+/// Protocol with TLS
+pub const HDBSQLS: &str = "hdbsqls";
+
 /// Option-key for denoting a folder in which server certificates can be found.
 pub const TLS_CERTIFICATE_DIR: &str = "tls_certificate_dir";
 
@@ -93,3 +99,6 @@ pub const DATABASE: &str = "db";
 
 /// Option-key for denoting a network group.
 pub const NETWORK_GROUP: &str = "network_group";
+
+/// Option-key for controlling compression
+pub const NO_COMPRESSION: &str = "no_compression";

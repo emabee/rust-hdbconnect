@@ -1,4 +1,8 @@
-use crate::{url, ServerCerts, Tls};
+use crate::{
+    protocol::parts::Compression,
+    url::{self, HDBSQL, HDBSQLS},
+    ServerCerts, Tls,
+};
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn format_as_url(
@@ -7,15 +11,16 @@ pub(crate) fn format_as_url(
     database: &Option<String>,
     network_group: &Option<String>,
     tls: &Tls,
-    client_locale: &Option<String>,
+    clientlocale: &Option<String>,
+    compression: Compression,
     f: &mut std::fmt::Formatter,
 ) -> std::fmt::Result {
     write!(
         f,
-        "hdbsql{}://{}@{}",
+        "{}://{}@{}",
         match tls {
-            Tls::Off => "",
-            Tls::Insecure | Tls::Secure(_) => "s",
+            Tls::Off => HDBSQL,
+            Tls::Insecure | Tls::Secure(_) => HDBSQLS,
         },
         dbuser,
         addr,
@@ -24,7 +29,7 @@ pub(crate) fn format_as_url(
     if database.is_none()
         && network_group.is_none()
         && matches!(tls, Tls::Off)
-        && client_locale.is_none()
+        && clientlocale.is_none()
     {
         return Ok(());
     }
@@ -49,7 +54,7 @@ pub(crate) fn format_as_url(
                 f,
                 "{}{}",
                 sep.next().unwrap(),
-                UrlOpt::InsecureOmitServerCheck.name()
+                UrlOpt::InsecureOmitServerCheck
             )?;
         }
         Tls::Secure(server_certs) => {
@@ -60,7 +65,7 @@ pub(crate) fn format_as_url(
                             f,
                             "{}{}={s}",
                             sep.next().unwrap(),
-                            UrlOpt::TlsCertificateDir.name()
+                            UrlOpt::TlsCertificateDir
                         )?;
                     }
                     ServerCerts::Environment(s) => {
@@ -68,7 +73,7 @@ pub(crate) fn format_as_url(
                             f,
                             "{}{}={s}",
                             sep.next().unwrap(),
-                            UrlOpt::TlsCertificateEnv.name()
+                            UrlOpt::TlsCertificateEnv
                         )?;
                     }
                     ServerCerts::RootCertificates => {
@@ -76,7 +81,7 @@ pub(crate) fn format_as_url(
                             f,
                             "{}{}",
                             sep.next().unwrap(),
-                            UrlOpt::TlsCertificateMozilla.name()
+                            UrlOpt::TlsCertificateMozilla
                         )?;
                     }
                     ServerCerts::Direct(_s) => {
@@ -87,13 +92,16 @@ pub(crate) fn format_as_url(
         }
     }
 
-    if let Some(cl) = client_locale {
-        write!(
-            f,
-            "{}{}={cl}",
-            sep.next().unwrap(),
-            UrlOpt::ClientLocale.name()
-        )?;
+    if let Some(cl) = clientlocale {
+        write!(f, "{}{}={cl}", sep.next().unwrap(), UrlOpt::ClientLocale)?;
+    }
+
+    match compression {
+        Compression::Always => {}
+        // Compression::Remote => {}
+        Compression::Off => {
+            write!(f, "{}{}", sep.next().unwrap(), UrlOpt::NoCompression)?;
+        }
     }
 
     Ok(())
@@ -109,6 +117,7 @@ pub(crate) enum UrlOpt {
     ClientLocaleFromEnv,
     Database,
     NetworkGroup,
+    NoCompression,
 }
 impl UrlOpt {
     pub fn from(s: &str) -> Option<Self> {
@@ -121,19 +130,27 @@ impl UrlOpt {
             url::CLIENT_LOCALE_FROM_ENV => Some(UrlOpt::ClientLocaleFromEnv),
             url::DATABASE => Some(UrlOpt::Database),
             url::NETWORK_GROUP => Some(UrlOpt::NetworkGroup),
+            url::NO_COMPRESSION => Some(UrlOpt::NoCompression),
             _ => None,
         }
     }
-    pub fn name(&self) -> &'static str {
-        match self {
-            UrlOpt::TlsCertificateDir => url::TLS_CERTIFICATE_DIR,
-            UrlOpt::TlsCertificateEnv => url::TLS_CERTIFICATE_ENV,
-            UrlOpt::TlsCertificateMozilla => url::USE_MOZILLAS_ROOT_CERTIFICATES,
-            UrlOpt::InsecureOmitServerCheck => url::INSECURE_OMIT_SERVER_CERTIFICATE_CHECK,
-            UrlOpt::ClientLocale => url::CLIENT_LOCALE,
-            UrlOpt::ClientLocaleFromEnv => url::CLIENT_LOCALE_FROM_ENV,
-            UrlOpt::Database => url::DATABASE,
-            UrlOpt::NetworkGroup => url::NETWORK_GROUP,
-        }
+}
+impl std::fmt::Display for UrlOpt {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                UrlOpt::TlsCertificateDir => url::TLS_CERTIFICATE_DIR,
+                UrlOpt::TlsCertificateEnv => url::TLS_CERTIFICATE_ENV,
+                UrlOpt::TlsCertificateMozilla => url::USE_MOZILLAS_ROOT_CERTIFICATES,
+                UrlOpt::InsecureOmitServerCheck => url::INSECURE_OMIT_SERVER_CERTIFICATE_CHECK,
+                UrlOpt::ClientLocale => url::CLIENT_LOCALE,
+                UrlOpt::ClientLocaleFromEnv => url::CLIENT_LOCALE_FROM_ENV,
+                UrlOpt::Database => url::DATABASE,
+                UrlOpt::NetworkGroup => url::NETWORK_GROUP,
+                UrlOpt::NoCompression => url::NO_COMPRESSION,
+            }
+        )
     }
 }

@@ -60,6 +60,7 @@ impl<'a> Request<'a> {
         session_id: i64,
         seq_number: i32,
         auto_commit: bool,
+        compress: bool,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
         w: &mut dyn std::io::Write,
     ) -> HdbResult<()> {
@@ -72,15 +73,47 @@ impl<'a> Request<'a> {
             "Request::emit() of type {:?} for session_id = {}, seq_number = {}",
             self.request_type, session_id, seq_number
         );
+
+        // C++:
+        // struct PacketHeader
+        // {
+        // 	   SessionIDType          m_SessionID;          //= session_id
+        // 	   PacketCountType        m_PacketCount;        //= seq_number?
+        // 	   PacketLengthType       m_VarpartLength;      //= ???
+        //     PacketLengthType       m_VarpartSize;        //=varpart_size
+        //     NumberOfSegmentsType   m_NumberOfSegments;   //= hardcoded to 1
+        //     PacketOptions          m_PacketOptions;      //= 1 byte, nur zweites bit genutzt: PacketOption_isCompressed
+        //     unsigned char          m_filler1;
+        //     PacketLengthType       m_CompressionVarpartLength; // see comment above
+        //     unsigned char          m_filler2[4];
+        // };
+
         // MESSAGE HEADER
         w.write_i64::<LittleEndian>(session_id)?; // I8
         w.write_i32::<LittleEndian>(seq_number)?; // I4
-        w.write_u32::<LittleEndian>(varpart_size)?; // UI4
-        w.write_u32::<LittleEndian>(remaining_bufsize)?; // UI4
-        w.write_i16::<LittleEndian>(1)?; // I2    Number of segments
-        for _ in 0..10 {
-            w.write_u8(0)?;
-        } // I1+ B[9]  unused
+
+        if compress {
+            unimplemented!("DSLKJAÖROEQIFRJDS:F");
+            // // with compression: The m_VarpartSize is the compressed size
+            // // (not including the header - the actual amount of data sent)
+            // // this means: we need to materialize the compressed request here, cannot write incrementally
+            // // this means: we need more memory, and we can/have to remove a lot of duplicate sync/async code
+            // w.write_u32::<LittleEndian>(compressed_size)?; // UI4
+            // w.write_u32::<LittleEndian>(remaining_bufsize)?; // UI4
+            // w.write_i16::<LittleEndian>(1)?; // I2    Number of segments
+
+            // w.write_u8(if compress { 2 } else { 0 })?; //m_PacketOptions
+            // w.write_u8(0); // filler1byte
+            // w.write_u32::<LittleEndian>(uncompressed_size)?; // UI4  m_CompressionVarpartLength: the UNcompressed size (not including the header)
+            // w.write_u32::<LittleEndian>(0)?; //write m_filler4byte
+        } else {
+            w.write_u32::<LittleEndian>(varpart_size)?; // UI4
+            w.write_u32::<LittleEndian>(remaining_bufsize)?; // UI4
+            w.write_i16::<LittleEndian>(1)?; // I2    Number of segments
+            for _ in 0..10 {
+                w.write_u8(0)?;
+            } // I1+ B[9]  unused
+        }
 
         // SEGMENT HEADER
         let parts_len = self.parts.len() as i16;
@@ -116,6 +149,7 @@ impl<'a> Request<'a> {
         session_id: i64,
         seq_number: i32,
         auto_commit: bool,
+        _compress: bool,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
         w: &mut W,
     ) -> HdbResult<()> {
@@ -128,6 +162,8 @@ impl<'a> Request<'a> {
             "Request::emit() of type {:?} for session_id = {}, seq_number = {}",
             self.request_type, session_id, seq_number
         );
+
+        // FIXME make use of compress!!!
 
         // MESSAGE HEADER
         w.write_i64_le(session_id).await?; // I8 <LittleEndian>

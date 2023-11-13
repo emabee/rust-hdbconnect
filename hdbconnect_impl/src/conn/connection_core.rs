@@ -148,7 +148,8 @@ impl<'a> ConnectionCore {
 
     #[cfg(feature = "sync")]
     fn try_new_initialized_sync(params: ConnectParams) -> HdbResult<Self> {
-        let connect_options = ConnectOptions::new(params.clientlocale(), &get_os_user());
+        let connect_options =
+            ConnectOptions::new(params.clientlocale(), &get_os_user(), params.compression());
         let mut tcp_client = TcpClient::try_new_sync(params)?;
         initial_request::sync_send_and_receive(&mut tcp_client)?;
         Ok(Self {
@@ -173,7 +174,8 @@ impl<'a> ConnectionCore {
 
     #[cfg(feature = "async")]
     async fn try_new_initialized_async(params: ConnectParams) -> HdbResult<Self> {
-        let connect_options = ConnectOptions::new(params.clientlocale(), &get_os_user());
+        let connect_options =
+            ConnectOptions::new(params.clientlocale(), &get_os_user(), params.compression());
         let mut tcp_client = TcpClient::try_new_async(params).await?;
         initial_request::async_send_and_receive(&mut tcp_client).await?;
         Ok(Self {
@@ -457,13 +459,15 @@ impl<'a> ConnectionCore {
             };
         let auto_commit = self.is_auto_commit();
 
+        let compress = self.connect_options().use_compression();
+
         let w: &mut dyn std::io::Write = match self.tcp_client {
             TcpClient::SyncPlain(ref mut cl) => cl.writer(),
             TcpClient::SyncTls(ref mut cl) => cl.writer(),
             #[cfg(feature = "async")]
             _ => unreachable!("Async connections not supported here"),
         };
-        request.sync_emit(session_id, nsn, auto_commit, o_a_descriptors, w)?;
+        request.sync_emit(session_id, nsn, auto_commit, compress, o_a_descriptors, w)?;
 
         let rdr: &mut dyn std::io::Read = match self.tcp_client {
             TcpClient::SyncPlain(ref mut cl) => cl.reader(),
@@ -495,16 +499,31 @@ impl<'a> ConnectionCore {
                 (self.session_id(), self.next_seq_number(), true)
             };
         let auto_commit = self.is_auto_commit();
+        let compress = self.connect_options().use_compression();
 
         match self.tcp_client {
             TcpClient::AsyncPlain(ref mut cl) => {
                 request
-                    .async_emit(session_id, nsn, auto_commit, o_a_descriptors, cl.writer())
+                    .async_emit(
+                        session_id,
+                        nsn,
+                        auto_commit,
+                        compress,
+                        o_a_descriptors,
+                        cl.writer(),
+                    )
                     .await
             }
             TcpClient::AsyncTls(ref mut cl) => {
                 request
-                    .async_emit(session_id, nsn, auto_commit, o_a_descriptors, cl.writer())
+                    .async_emit(
+                        session_id,
+                        nsn,
+                        auto_commit,
+                        compress,
+                        o_a_descriptors,
+                        cl.writer(),
+                    )
                     .await
             }
             #[cfg(feature = "sync")]
@@ -550,7 +569,7 @@ impl Drop for ConnectionCore {
                     _ => unreachable!("Async connections not supported here"),
                 };
                 request
-                    .sync_emit(session_id, nsn, false, None, w)
+                    .sync_emit(session_id, nsn, false, false, None, w)
                     .map_err(|e| {
                         warn!("Disconnect request failed with {:?}", e);
                         e
@@ -567,13 +586,13 @@ impl Drop for ConnectionCore {
                     match tcp_client {
                         TcpClient::AsyncPlain(ref mut cl) => {
                             request
-                                .async_emit(session_id, nsn, false, None, cl.writer())
+                                .async_emit(session_id, nsn, false, false, None, cl.writer())
                                 .await
                                 .ok();
                         }
                         TcpClient::AsyncTls(ref mut cl) => {
                             request
-                                .async_emit(session_id, nsn, false, None, cl.writer())
+                                .async_emit(session_id, nsn, false, false, None, cl.writer())
                                 .await
                                 .ok();
                         }

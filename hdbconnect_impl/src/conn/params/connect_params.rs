@@ -1,6 +1,9 @@
 //! Connection parameters
 use super::cp_url::format_as_url;
-use crate::{protocol::util, ConnectParamsBuilder, HdbError, HdbResult, IntoConnectParams};
+use crate::{
+    protocol::{parts::Compression, util},
+    ConnectParamsBuilder, HdbError, HdbResult, IntoConnectParams,
+};
 use rustls::{
     client::{ServerCertVerified, ServerCertVerifier, ServerName},
     Certificate,
@@ -63,6 +66,7 @@ pub struct ConnectParams {
     password: SecUtf8,
     clientlocale: Option<String>,
     tls: Tls,
+    compression: Compression,
 }
 
 /// Describes whether and how TLS is to be used.
@@ -87,6 +91,7 @@ impl ConnectParams {
         dbname: Option<String>,
         network_group: Option<String>,
         clientlocale: Option<String>,
+        compression: Compression,
         tls: Tls,
     ) -> Self {
         Self {
@@ -98,6 +103,7 @@ impl ConnectParams {
             tls,
             dbname,
             network_group,
+            compression,
         }
     }
 
@@ -162,6 +168,10 @@ impl ConnectParams {
     /// The client locale.
     pub fn clientlocale(&self) -> Option<&str> {
         self.clientlocale.as_deref()
+    }
+
+    pub(crate) fn compression(&self) -> Compression {
+        self.compression
     }
 
     /// The name of the (MDC) database.
@@ -291,6 +301,7 @@ impl std::fmt::Display for ConnectParams {
             &self.network_group,
             &self.tls,
             &self.clientlocale,
+            self.compression,
             f,
         )
     }
@@ -340,6 +351,7 @@ impl<'de> Deserialize<'de> for ConnectParams {
             network_group: Option<String>,
             password: String,
             clientlocale: Option<String>,
+            compression: Compression,
             tls: Tls,
         }
         let helper: DeserializationHelper = DeserializationHelper::deserialize(deserializer)?;
@@ -351,6 +363,7 @@ impl<'de> Deserialize<'de> for ConnectParams {
             helper.dbname,
             helper.network_group,
             helper.clientlocale,
+            helper.compression,
             helper.tls,
         ))
     }

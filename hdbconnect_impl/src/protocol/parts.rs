@@ -42,7 +42,7 @@ pub(crate) use self::{
     client_context::{ClientContext, ClientContextId},
     client_info::ClientInfo,
     command_info::CommandInfo,
-    connect_options::{ConnOptId, ConnectOptions, ConnectOptionsPart},
+    connect_options::{Compression, ConnOptId, ConnectOptions, ConnectOptionsPart},
     db_connect_info::DbConnectInfo,
     lob_flags::LobFlags,
     option_value::OptionValue,

@@ -8,18 +8,20 @@ use crate::protocol::parts::option_value::OptionValue;
 // (`ConnectOptionsEnum::digest_server_connect_options`,
 // which switches to variant `ConnectOptionsEnum::Final`).
 //
-// TODO: The handshake is not very well documented and thus likely imperfectly implemented,
-// especially when dealing with very old HANA versions.
+// TODO: The handshake between client and server is not very well documented
+// and thus likely imperfectly implemented, especially when dealing with very old HANA versions.
 #[derive(Clone, Debug)]
 #[allow(dead_code)]
 pub(crate) enum ConnectOptions {
     Initial {
         os_user: String,
         o_client_locale: Option<String>,
+        compression: Compression,
     },
     Final {
         os_user: String,
         o_client_locale: Option<String>,
+        compression: Compression,
 
         client_reconnect_wait_timeout: std::time::Duration,
         dataformat_version2: u8,
@@ -49,20 +51,26 @@ impl ConnectOptions {
     // set_opt(ConnOptId::SelectForUpdateOK, OptionValue::BOOLEAN(true));
     // how about e.g. TABLEOUTPUTPARAMETER and DESCRIBETABLEOUTPUTPARAMETER?
 
-    pub(crate) fn new(o_client_locale: Option<&str>, os_user: &str) -> Self {
+    pub(crate) fn new(
+        o_client_locale: Option<&str>,
+        os_user: &str,
+        compression: Compression,
+    ) -> Self {
         ConnectOptions::Initial {
             o_client_locale: o_client_locale.map(ToString::to_string),
             os_user: os_user.to_string(),
+            compression,
         }
     }
 
     pub(crate) fn for_server(&self) -> ConnectOptionsPart {
         // read user input from initial state
-        let (o_client_locale, os_user) = match self {
+        let (o_client_locale, os_user, compression) = match self {
             ConnectOptions::Initial {
                 ref o_client_locale,
                 ref os_user,
-            } => (o_client_locale, os_user),
+                ref compression,
+            } => (o_client_locale, os_user, compression),
             ConnectOptions::Final { .. } => panic!("Wrong state: Final"),
         };
 
@@ -95,6 +103,22 @@ impl ConnectOptions {
             );
         }
 
+        match compression {
+            Compression::Always => {
+                set_opt(
+                    ConnOptId::CompressionLevelAndFlags,
+                    OptionValue::INT(0x0000_0700_i32),
+                ); // supported (100), desired (200), also local (400)
+            }
+            // Compression::Remote => {
+            //     set_opt(
+            //         ConnOptId::CompressionLevelAndFlags,
+            //         OptionValue::INT(0x0000_0300_i32),
+            //     );
+            // }
+            Compression::Off => {}
+        }
+
         if cfg!(feature = "alpha_routing") {
             warn!("Feature alpha_routing is active!");
             set_opt(ConnOptId::DistributionEnabled, OptionValue::BOOLEAN(true));
@@ -115,6 +139,7 @@ impl ConnectOptions {
             ConnectOptions::Initial {
                 ref o_client_locale,
                 ref os_user,
+                ref mut compression,
             } => {
                 let mut client_reconnect_wait_timeout = std::time::Duration::from_secs(
                     Self::CLIENT_RECONNECT_WAIT_TIMEOUT_IN_SECONDS as u64,
@@ -158,6 +183,17 @@ impl ConnectOptions {
                         ConnOptId::ImplicitLobStreaming => {
                             implicit_lob_streaming = v.get_bool()?;
                         }
+                        ConnOptId::CompressionLevelAndFlags => {
+                            *compression = {
+                                let tmp = v.get_int()?;
+                                // is this good enough?
+                                if (tmp & 0x0000_0700) == 0 {
+                                    Compression::Off
+                                } else {
+                                    Compression::Always
+                                }
+                            };
+                        }
 
                         ConnOptId::BuildPlatform
                         | ConnOptId::Endianness
@@ -187,6 +223,7 @@ impl ConnectOptions {
                 *self = ConnectOptions::Final {
                     os_user: os_user.clone(),
                     o_client_locale: o_client_locale.clone(),
+                    compression: *compression,
                     client_reconnect_wait_timeout,
                     dataformat_version2,
                     enable_array_type,
@@ -282,6 +319,26 @@ impl ConnectOptions {
             } => *implicit_lob_streaming,
         }
     }
+
+    // Compression
+    pub(crate) fn use_compression(&self) -> bool {
+        matches!(
+            match &self {
+                ConnectOptions::Initial { .. } => Compression::Off,
+                ConnectOptions::Final { compression, .. } => *compression,
+            },
+            Compression::Always,
+        )
+    }
+}
+
+// FIXME move to parameters
+#[derive(Debug, Clone, Default, Copy, Eq, PartialEq, Deserialize)]
+pub enum Compression {
+    Off,
+    // Remote,
+    #[default]
+    Always,
 }
 
 // An Options part that is used for describing the connection's capabilities on the wire.

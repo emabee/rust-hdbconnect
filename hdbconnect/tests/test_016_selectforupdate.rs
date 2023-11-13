@@ -81,7 +81,7 @@ fn produce_conflicts(_log_handle: &mut LoggerHandle, connection: &Connection) ->
 
     log::debug!(
         "verify the change of the second connection is visible (because the other thread \
-            had to wait with its update until the first was committed"
+            had to wait with its update until the first was committed)"
     );
 
     let mut val: i32 = 0;

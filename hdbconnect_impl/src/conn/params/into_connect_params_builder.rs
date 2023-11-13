@@ -1,7 +1,10 @@
 use super::connect_params::ServerCerts;
 use super::connect_params_builder::ConnectParamsBuilder;
 use super::cp_url::UrlOpt;
-use crate::{HdbError, HdbResult};
+use crate::{
+    url::{HDBSQL, HDBSQLS},
+    HdbError, HdbResult,
+};
 use url::Url;
 
 /// A trait implemented by types that can be converted into a `ConnectParamsBuilder`.
@@ -58,8 +61,8 @@ impl IntoConnectParamsBuilder for Url {
 
         // authoritative switch between protocols:
         let use_tls = match self.scheme() {
-            "hdbsql" => false,
-            "hdbsqls" => true,
+            HDBSQL => false,
+            HDBSQLS => true,
             _ => {
                 return Err(HdbError::Usage(
                     "Unknown protocol, only 'hdbsql' and 'hdbsqls' are supported",
@@ -97,6 +100,9 @@ impl IntoConnectParamsBuilder for Url {
                 }
                 Some(UrlOpt::NetworkGroup) => {
                     builder.network_group(&value);
+                }
+                Some(UrlOpt::NoCompression) => {
+                    builder.compression(false);
                 }
                 None => {
                     return Err(HdbError::UsageDetailed(format!(

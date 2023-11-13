@@ -1,5 +1,8 @@
 use super::cp_url::format_as_url;
-use crate::{ConnectParams, HdbError, HdbResult, IntoConnectParamsBuilder, ServerCerts, Tls};
+use crate::{
+    protocol::parts::Compression, ConnectParams, HdbError, HdbResult, IntoConnectParamsBuilder,
+    ServerCerts, Tls,
+};
 use secstr::SecUtf8;
 
 /// A builder for `ConnectParams`.
@@ -44,6 +47,7 @@ pub struct ConnectParamsBuilder {
     dbname: Option<String>,
     network_group: Option<String>,
     clientlocale: Option<String>,
+    compression: Compression,
     tls: Tls,
 }
 
@@ -115,7 +119,16 @@ impl ConnectParamsBuilder {
             Ok(l) => Some(l),
             Err(_) => None,
         };
+        self
+    }
 
+    // FIXME is this the right API?
+    pub fn compression(&mut self, compress: bool) -> &mut Self {
+        self.compression = if compress {
+            Compression::Always
+        } else {
+            Compression::Off
+        };
         self
     }
 
@@ -193,6 +206,7 @@ impl ConnectParamsBuilder {
             self.dbname.clone(),
             self.network_group.clone(),
             self.clientlocale.clone(),
+            Compression::Off, // FIXME self.compression,
             self.tls.clone(),
         ))
     }
@@ -285,6 +299,7 @@ impl std::fmt::Display for ConnectParamsBuilder {
             &self.network_group,
             &self.tls,
             &self.clientlocale,
+            self.compression,
             f,
         )
     }
