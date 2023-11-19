@@ -7,7 +7,7 @@ use byteorder::{LittleEndian, WriteBytesExt};
 use crate::{
     protocol::{
         parts::{ParameterDescriptors, Parts, StatementContext},
-        Part, RequestType,
+        MessageType, Part,
     },
     HdbResult,
 };
@@ -20,24 +20,26 @@ pub const HOLD_CURSORS_OVER_COMMIT: u8 = 8;
 // Packets having the same sequence number belong to one request/response pair.
 #[derive(Debug)]
 pub struct Request<'a> {
-    pub request_type: RequestType,
+    message_type: MessageType,
     command_options: u8,
     parts: Parts<'a>,
 }
 // Methods for defining a request
 impl<'a> Request<'a> {
-    pub fn new(request_type: RequestType, command_options: u8) -> Request<'a> {
+    pub fn new(request_type: MessageType, command_options: u8) -> Request<'a> {
         Request {
-            request_type,
+            message_type: request_type,
             command_options,
             parts: Parts::default(),
         }
     }
 
     pub fn new_for_disconnect() -> Request<'a> {
-        Request::new(RequestType::Disconnect, 0)
+        Request::new(MessageType::Disconnect, 0)
     }
-
+    pub fn message_type(&self) -> MessageType {
+        self.message_type
+    }
     pub fn push(&mut self, part: Part<'a>) {
         self.parts.push(part);
     }
@@ -71,7 +73,7 @@ impl<'a> Request<'a> {
 
         debug!(
             "Request::emit() of type {:?} for session_id = {}, seq_number = {}",
-            self.request_type, session_id, seq_number
+            self.message_type, session_id, seq_number
         );
 
         // C++:
@@ -123,7 +125,7 @@ impl<'a> Request<'a> {
         w.write_i16::<LittleEndian>(parts_len)?; // I2 Number of contained parts
         w.write_i16::<LittleEndian>(1)?; // I2 Number of this segment, starting with 1
         w.write_i8(1)?; // I1 Segment kind: always 1 = Request
-        w.write_i8(self.request_type as i8)?; // I1 "Message type"
+        w.write_i8(self.message_type as i8)?; // I1 "Message type"
         w.write_i8(auto_commit.into())?; // I1 auto_commit on/off
         w.write_u8(self.command_options)?; // I1 Bit set for options
         for _ in 0..8 {
@@ -160,7 +162,7 @@ impl<'a> Request<'a> {
 
         debug!(
             "Request::emit() of type {:?} for session_id = {}, seq_number = {}",
-            self.request_type, session_id, seq_number
+            self.message_type, session_id, seq_number
         );
 
         // FIXME make use of compress!!!
@@ -183,7 +185,7 @@ impl<'a> Request<'a> {
         w.write_i16_le(parts_len).await?; // I2 Number of contained parts
         w.write_i16_le(1).await?; // I2 Number of this segment, starting with 1
         w.write_i8(1).await?; // I1 Segment kind: always 1 = Request
-        w.write_i8(self.request_type as i8).await?; // I1 "Message type"
+        w.write_i8(self.message_type as i8).await?; // I1 "Message type"
         w.write_i8(auto_commit.into()).await?; // I1 auto_commit on/off
         w.write_u8(self.command_options).await?; // I1 Bit set for options
         for _ in 0..8_u8 {

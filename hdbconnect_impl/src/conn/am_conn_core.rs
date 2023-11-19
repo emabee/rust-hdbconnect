@@ -107,7 +107,7 @@ impl AmConnCore {
     ) -> HdbResult<Reply> {
         trace!(
             "AmConnCore::full_send() with requestType = {:?}",
-            request.request_type,
+            request.message_type(),
         );
         let start = Instant::now();
         let mut conn_core = self.sync_lock()?;
@@ -144,7 +144,7 @@ impl AmConnCore {
     ) -> HdbResult<Reply> {
         trace!(
             "AmConnCore::full_send() with requestType = {:?}",
-            request.request_type,
+            request.message_type(),
         );
         let start = Instant::now();
         let mut conn_core = self.async_lock().await;

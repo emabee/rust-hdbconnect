@@ -3,7 +3,7 @@ use tokio::sync::Mutex;
 
 use crate::{
     conn::AmConnCore,
-    protocol::{Part, PartKind, Request, RequestType},
+    protocol::{MessageType, Part, PartKind, Request},
 };
 
 pub type AsyncAmPsCore = Arc<Mutex<PreparedStatementCore>>;
@@ -18,7 +18,7 @@ pub struct PreparedStatementCore {
 impl Drop for PreparedStatementCore {
     /// Frees all server-side resources that belong to this prepared statement.
     fn drop(&mut self) {
-        let mut request = Request::new(RequestType::DropStatementId, 0);
+        let mut request = Request::new(MessageType::DropStatementId, 0);
         request.push(Part::StatementId(self.statement_id));
 
         let am_conn_core = self.am_conn_core.clone();

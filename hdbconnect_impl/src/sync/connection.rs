@@ -3,7 +3,7 @@ use crate::conn::AmConnCore;
 use crate::protocol::parts::{
     ClientContext, ClientContextId, CommandInfo, ConnOptId, OptionValue, ServerError,
 };
-use crate::protocol::{Part, Request, RequestType, ServerUsage, HOLD_CURSORS_OVER_COMMIT};
+use crate::protocol::{MessageType, Part, Request, ServerUsage, HOLD_CURSORS_OVER_COMMIT};
 #[cfg(feature = "dist_tx")]
 use crate::xa_impl::sync_new_resource_manager;
 use crate::{HdbError, HdbResult, IntoConnectParams};
@@ -590,7 +590,7 @@ impl Connection {
                 .connect_options()
                 .get_connection_id()
         );
-        let mut request = Request::new(RequestType::ExecuteDirect, HOLD_CURSORS_OVER_COMMIT);
+        let mut request = Request::new(MessageType::ExecuteDirect, HOLD_CURSORS_OVER_COMMIT);
         {
             let conn_core = self.am_conn_core.sync_lock()?;
             let fetch_size = conn_core.get_fetch_size();

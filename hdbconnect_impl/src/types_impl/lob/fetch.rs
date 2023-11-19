@@ -1,7 +1,7 @@
 use crate::conn::AmConnCore;
 
 use crate::protocol::parts::{ReadLobReply, ReadLobRequest};
-use crate::protocol::{Part, ReplyType, Request, RequestType, ServerUsage};
+use crate::protocol::{MessageType, Part, ReplyType, Request, ServerUsage};
 use crate::{HdbError, HdbResult};
 
 // Note that requested_length and offset count either bytes (BLOB, CLOB), or 1-2-3-chars (NCLOB)
@@ -13,7 +13,7 @@ pub(crate) fn sync_fetch_a_lob_chunk(
     length: u32,
     server_usage: &mut ServerUsage,
 ) -> HdbResult<(Vec<u8>, bool)> {
-    let mut request = Request::new(RequestType::ReadLob, 0);
+    let mut request = Request::new(MessageType::ReadLob, 0);
     let offset = offset + 1;
     request.push(Part::ReadLobRequest(ReadLobRequest::new(
         locator_id, offset, length,
@@ -55,7 +55,7 @@ pub(crate) async fn async_fetch_a_lob_chunk(
     length: u32,
     server_usage: &mut ServerUsage,
 ) -> HdbResult<(Vec<u8>, bool)> {
-    let mut request = Request::new(RequestType::ReadLob, 0);
+    let mut request = Request::new(MessageType::ReadLob, 0);
     let offset = offset + 1;
     request.push(Part::ReadLobRequest(ReadLobRequest::new(
         locator_id, offset, length,

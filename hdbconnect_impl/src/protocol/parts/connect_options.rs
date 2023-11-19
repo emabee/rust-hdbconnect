@@ -92,7 +92,7 @@ impl ConnectOptions {
         );
         set_opt(
             ConnOptId::DataFormatVersion2,
-            OptionValue::INT(i32::try_from(Self::DATAFORMAT_VERSION2).unwrap()),
+            OptionValue::INT(From::from(Self::DATAFORMAT_VERSION2)),
         );
         set_opt(ConnOptId::OSUser, OptionValue::STRING(os_user.clone()));
 

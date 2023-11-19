@@ -1,6 +1,6 @@
 use crate::conn::AmConnCore;
 use crate::protocol::parts::XatOptions;
-use crate::protocol::{Part, PartKind, Reply, Request, RequestType};
+use crate::protocol::{MessageType, Part, PartKind, Reply, Request};
 use crate::{HdbError, HdbResult};
 use async_trait::async_trait;
 #[cfg(feature = "dist_tx")]
@@ -39,7 +39,7 @@ impl CResourceManager for HdbCResourceManager {
         // TODO: xa seems only to work on primary!!
         // ClientConnectionID ccid = getPrimaryConnection();
 
-        self.xa_send_receive(RequestType::XAStart, id, flags).await
+        self.xa_send_receive(MessageType::XAStart, id, flags).await
     }
 
     async fn end(&mut self, id: XaTransactionId, flags: Flags) -> Result<ReturnCode, RmError> {
@@ -48,12 +48,12 @@ impl CResourceManager for HdbCResourceManager {
             return Err(usage_error("end", flags));
         }
 
-        self.xa_send_receive(RequestType::XAEnd, id, flags).await
+        self.xa_send_receive(MessageType::XAEnd, id, flags).await
     }
 
     async fn prepare(&mut self, id: XaTransactionId) -> Result<ReturnCode, RmError> {
         debug!("CResourceManager::prepare()");
-        self.xa_send_receive(RequestType::XAPrepare, id, Flags::empty())
+        self.xa_send_receive(MessageType::XAPrepare, id, Flags::empty())
             .await
     }
 
@@ -62,18 +62,18 @@ impl CResourceManager for HdbCResourceManager {
         if !flags.contains_only(Flags::ONE_PHASE) {
             return Err(usage_error("commit", flags));
         }
-        self.xa_send_receive(RequestType::XACommit, id, flags).await
+        self.xa_send_receive(MessageType::XACommit, id, flags).await
     }
 
     async fn rollback(&mut self, id: XaTransactionId) -> Result<ReturnCode, RmError> {
         debug!("CResourceManager::rollback()");
-        self.xa_send_receive(RequestType::XARollback, id, Flags::empty())
+        self.xa_send_receive(MessageType::XARollback, id, Flags::empty())
             .await
     }
 
     async fn forget(&mut self, id: XaTransactionId) -> Result<ReturnCode, RmError> {
         debug!("CResourceManager::forget()");
-        self.xa_send_receive(RequestType::XAForget, id, Flags::empty())
+        self.xa_send_receive(MessageType::XAForget, id, Flags::empty())
             .await
     }
 
@@ -83,7 +83,7 @@ impl CResourceManager for HdbCResourceManager {
             return Err(usage_error("recover", flags));
         }
 
-        let mut request = Request::new(RequestType::XARecover, 0);
+        let mut request = Request::new(MessageType::XARecover, 0);
 
         let mut xat_options = XatOptions::default();
         xat_options.set_flags(flags);
@@ -131,7 +131,7 @@ fn error_code_from_hana_code(code: i32) -> ErrorCode {
 impl HdbCResourceManager {
     async fn xa_send_receive(
         &mut self,
-        request_type: RequestType,
+        request_type: MessageType,
         id: XaTransactionId,
         flag: Flags,
     ) -> Result<ReturnCode, RmError> {
@@ -156,7 +156,7 @@ impl HdbCResourceManager {
 
     async fn xa_send_receive_impl(
         &mut self,
-        request_type: RequestType,
+        request_type: MessageType,
         id: XaTransactionId,
         flags: Flags,
     ) -> HdbResult<Option<ReturnCode>> {

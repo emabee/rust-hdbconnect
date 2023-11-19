@@ -6,7 +6,7 @@ use crate::{
     protocol::parts::{
         ClientContext, ClientContextId, CommandInfo, ConnOptId, OptionValue, ServerError,
     },
-    protocol::{Part, Request, RequestType, ServerUsage, HOLD_CURSORS_OVER_COMMIT},
+    protocol::{MessageType, Part, Request, ServerUsage, HOLD_CURSORS_OVER_COMMIT},
     {HdbError, HdbResult, IntoConnectParams},
 };
 #[cfg(feature = "dist_tx")]
@@ -585,7 +585,7 @@ impl Connection {
                 .connect_options()
                 .get_connection_id()
         );
-        let mut request = Request::new(RequestType::ExecuteDirect, HOLD_CURSORS_OVER_COMMIT);
+        let mut request = Request::new(MessageType::ExecuteDirect, HOLD_CURSORS_OVER_COMMIT);
         {
             let conn_core = self.am_conn_core.async_lock().await;
             let fetch_size = conn_core.get_fetch_size();

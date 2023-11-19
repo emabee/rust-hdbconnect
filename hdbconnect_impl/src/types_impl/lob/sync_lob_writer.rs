@@ -3,7 +3,7 @@ use crate::{
     conn::AmConnCore,
     internal_returnvalue::InternalReturnValue,
     protocol::parts::{ParameterDescriptors, ResultSetMetadata, TypeId, WriteLobRequest},
-    protocol::{util, Part, PartKind, Reply, ReplyType, Request, RequestType},
+    protocol::{util, MessageType, Part, PartKind, Reply, ReplyType, Request},
     {HdbError, HdbResult, ServerUsage},
 };
 use std::{io::Write, sync::Arc};
@@ -60,7 +60,7 @@ impl<'a> LobWriter<'a> {
         locator_id: u64,
         lob_write_mode: &LobWriteMode,
     ) -> HdbResult<Vec<u64>> {
-        let mut request = Request::new(RequestType::WriteLob, 0);
+        let mut request = Request::new(MessageType::WriteLob, 0);
         let write_lob_request = WriteLobRequest::new(
             locator_id,
             -1_i64,
