@@ -1,7 +1,7 @@
 use crate::{
     a_sync::AsyncAmPsCore,
     conn::AmConnCore,
-    protocol::{parts::AmRsCore, Part, PartAttributes, PartKind, ReplyType, Request, RequestType},
+    protocol::{parts::AmRsCore, MessageType, Part, PartAttributes, PartKind, ReplyType, Request},
     HdbError, HdbResult, ResultSetMetadata, Row, Rows, ServerUsage,
 };
 
@@ -109,7 +109,7 @@ impl AsyncRsState {
 
         // build the request, provide resultset-id and fetch-size
         debug!("ResultSet::fetch_next() with fetch_size = {}", fetch_size);
-        let mut request = Request::new(RequestType::FetchNext, 0);
+        let mut request = Request::new(MessageType::FetchNext, 0);
         request.push(Part::ResultSetId(resultset_id));
         request.push(Part::FetchSize(fetch_size));
 
@@ -202,7 +202,7 @@ impl Drop for AsyncResultSetCore {
         let rs_id = self.resultset_id;
         trace!("ResultSetCore::drop(), resultset_id {}", rs_id);
         if !self.attributes.resultset_is_closed() {
-            let mut request = Request::new(RequestType::CloseResultSet, 0);
+            let mut request = Request::new(MessageType::CloseResultSet, 0);
             request.push(Part::ResultSetId(rs_id));
 
             let am_conn_core = self.am_conn_core.clone();

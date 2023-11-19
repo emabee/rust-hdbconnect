@@ -13,7 +13,7 @@ use crate::{
             ClientInfo, ConnectOptions, DbConnectInfo, ParameterDescriptors, ResultSetMetadata,
             ServerError, StatementContext, Topology, TransactionFlags,
         },
-        Part, Reply, ReplyType, Request, RequestType, ServerUsage,
+        MessageType, Part, Reply, ReplyType, Request, ServerUsage,
     },
     HdbError, HdbResult,
 };
@@ -49,7 +49,7 @@ impl<'a> ConnectionCore {
         if let Some(dbname) = o_dbname {
             // since a dbname is specified, we ask explicitly for a redirect
             trace!("Redirect to {dbname} initiated by client");
-            let mut request = Request::new(RequestType::DbConnectInfo, 0);
+            let mut request = Request::new(MessageType::DbConnectInfo, 0);
             request.push(Part::DbConnectInfo(DbConnectInfo::new(
                 dbname,
                 network_group,
@@ -100,7 +100,7 @@ impl<'a> ConnectionCore {
         if let Some(dbname) = o_dbname {
             // since a dbname is specified, we ask explicitly for a redirect
             trace!("Redirect to {dbname} initiated by client");
-            let mut request = Request::new(RequestType::DbConnectInfo, 0);
+            let mut request = Request::new(MessageType::DbConnectInfo, 0);
             request.push(Part::DbConnectInfo(DbConnectInfo::new(
                 dbname,
                 network_group,
@@ -450,7 +450,7 @@ impl<'a> ConnectionCore {
         o_rs: &mut Option<&mut SyncRsState>,
     ) -> HdbResult<Reply> {
         let (session_id, nsn, default_error_handling) =
-            if let RequestType::Authenticate = request.request_type {
+            if let MessageType::Authenticate = request.message_type() {
                 (0, 1, false)
             } else {
                 (self.session_id(), self.next_seq_number(), true)
@@ -489,7 +489,7 @@ impl<'a> ConnectionCore {
         o_rs: &mut Option<&mut AsyncRsState>,
     ) -> HdbResult<Reply> {
         let (session_id, nsn, default_error_handling) =
-            if let RequestType::Authenticate = request.request_type {
+            if let MessageType::Authenticate = request.message_type() {
                 (0, 1, false)
             } else {
                 (self.session_id(), self.next_seq_number(), true)

@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::{
     conn::AmConnCore,
-    protocol::{Part, PartKind, Request, RequestType},
+    protocol::{MessageType, Part, PartKind, Request},
 };
 
 pub type SyncAmPsCore = Arc<Mutex<PreparedStatementCore>>;
@@ -19,7 +19,7 @@ impl Drop for PreparedStatementCore {
     fn drop(&mut self) {
         #[cfg(feature = "sync")]
         {
-            let mut request = Request::new(RequestType::DropStatementId, 0);
+            let mut request = Request::new(MessageType::DropStatementId, 0);
             request.push(Part::StatementId(self.statement_id));
             if let Ok(mut reply) = self.am_conn_core.sync_send(request) {
                 reply.parts.pop_if_kind(PartKind::StatementContext);
@@ -28,7 +28,7 @@ impl Drop for PreparedStatementCore {
 
         #[cfg(feature = "async")]
         {
-            let mut request = Request::new(RequestType::DropStatementId, 0);
+            let mut request = Request::new(MessageType::DropStatementId, 0);
             request.push(Part::StatementId(self.statement_id));
             let am_conn_core = self.am_conn_core.clone();
             tokio::task::spawn(async move {

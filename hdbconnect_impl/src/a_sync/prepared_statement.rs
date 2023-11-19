@@ -5,7 +5,7 @@ use crate::{
     protocol::parts::{
         HdbValue, LobFlags, ParameterDescriptors, ParameterRows, ResultSetMetadata, TypeId,
     },
-    protocol::{Part, PartKind, Request, RequestType, ServerUsage, HOLD_CURSORS_OVER_COMMIT},
+    protocol::{MessageType, Part, PartKind, Request, ServerUsage, HOLD_CURSORS_OVER_COMMIT},
     types_impl::lob::async_lob_writer,
     HdbError, HdbResult,
 };
@@ -190,7 +190,7 @@ impl<'a> PreparedStatement {
         if self.a_descriptors.has_in() {
             let ps_core_guard = self.am_ps_core.lock().await;
 
-            let mut request = Request::new(RequestType::Execute, HOLD_CURSORS_OVER_COMMIT);
+            let mut request = Request::new(MessageType::Execute, HOLD_CURSORS_OVER_COMMIT);
 
             request.push(Part::StatementId(ps_core_guard.statement_id));
 
@@ -360,7 +360,7 @@ impl<'a> PreparedStatement {
         trace!("PreparedStatement::execute_parameter_rows()");
 
         let ps_core_guard = self.am_ps_core.lock().await;
-        let mut request = Request::new(RequestType::Execute, HOLD_CURSORS_OVER_COMMIT);
+        let mut request = Request::new(MessageType::Execute, HOLD_CURSORS_OVER_COMMIT);
         request.push(Part::StatementId(ps_core_guard.statement_id));
         if let Some(rows) = o_rows {
             request.push(Part::ParameterRows(rows));
@@ -397,7 +397,7 @@ impl<'a> PreparedStatement {
 
     // Prepare a statement.
     pub(crate) async fn try_new(am_conn_core: AmConnCore, stmt: &str) -> HdbResult<Self> {
-        let mut request = Request::new(RequestType::Prepare, HOLD_CURSORS_OVER_COMMIT);
+        let mut request = Request::new(MessageType::Prepare, HOLD_CURSORS_OVER_COMMIT);
         request.push(Part::Command(stmt));
 
         let reply = am_conn_core.async_send(request).await?;

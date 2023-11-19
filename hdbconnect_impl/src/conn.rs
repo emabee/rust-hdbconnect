@@ -19,6 +19,5 @@ pub use params::{
     into_connect_params_builder::IntoConnectParamsBuilder,
 };
 use session_state::SessionState;
-pub use url;
 
 use tcp_client::TcpClient;
