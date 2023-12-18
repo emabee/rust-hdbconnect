@@ -1,8 +1,7 @@
 .private
 .vscode
-examples/_*.rs
+hdbconnect_impl/examples/_*.rs
 test_logs*/*
 target
 Z_TMP
 Cargo.lock
-

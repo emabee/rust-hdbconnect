@@ -1,7 +1,7 @@
 use super::cp_url::format_as_url;
 use crate::{
-    protocol::parts::Compression, ConnectParams, HdbError, HdbResult, IntoConnectParamsBuilder,
-    ServerCerts, Tls,
+    conn::Compression, ConnectParams, HdbError, HdbResult, IntoConnectParamsBuilder, ServerCerts,
+    Tls,
 };
 use secstr::SecUtf8;
 
@@ -122,12 +122,14 @@ impl ConnectParamsBuilder {
         self
     }
 
-    // FIXME is this the right API?
-    pub fn compression(&mut self, compress: bool) -> &mut Self {
-        self.compression = if compress {
-            Compression::Always
-        } else {
+    /// Switch off compression (for debugging purposes?)
+    ///
+    /// By default, compression is supported, like with `always_uncompressed(false)`
+    pub fn always_uncompressed(&mut self, uncompressed: bool) -> &mut Self {
+        self.compression = if uncompressed {
             Compression::Off
+        } else {
+            Compression::Always
         };
         self
     }
@@ -206,7 +208,7 @@ impl ConnectParamsBuilder {
             self.dbname.clone(),
             self.network_group.clone(),
             self.clientlocale.clone(),
-            Compression::Off, // FIXME self.compression,
+            self.compression,
             self.tls.clone(),
         ))
     }
@@ -220,33 +222,33 @@ impl ConnectParamsBuilder {
         Ok(self.to_string())
     }
 
-    /// Getter
-    pub fn get_hostname(&self) -> Option<&str> {
+    #[cfg(test)]
+    pub(crate) fn get_hostname(&self) -> Option<&str> {
         self.hostname.as_deref()
     }
 
-    /// Getter
-    pub fn get_dbuser(&self) -> Option<&str> {
+    #[cfg(test)]
+    pub(crate) fn get_dbuser(&self) -> Option<&str> {
         self.dbuser.as_deref()
     }
 
-    /// Getter
-    pub fn get_password(&self) -> Option<&SecUtf8> {
+    #[cfg(test)]
+    pub(crate) fn get_password(&self) -> Option<&SecUtf8> {
         self.password.as_ref()
     }
 
-    /// Getter
-    pub fn get_port(&self) -> Option<u16> {
+    #[cfg(test)]
+    pub(crate) fn get_port(&self) -> Option<u16> {
         self.port
     }
 
-    /// Getter
-    pub fn get_clientlocale(&self) -> Option<&str> {
+    #[cfg(test)]
+    pub(crate) fn get_clientlocale(&self) -> Option<&str> {
         self.clientlocale.as_deref()
     }
 
-    /// Getter
-    pub fn get_server_certs(&self) -> Option<&Vec<ServerCerts>> {
+    #[cfg(test)]
+    pub(crate) fn get_server_certs(&self) -> Option<&Vec<ServerCerts>> {
         match self.tls {
             Tls::Secure(ref sc) => Some(sc),
             _ => None,

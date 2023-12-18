@@ -1,5 +1,5 @@
+use super::Compression;
 use crate::{
-    protocol::parts::Compression,
     url::{self, HDBSQL, HDBSQLS},
     ServerCerts, Tls,
 };

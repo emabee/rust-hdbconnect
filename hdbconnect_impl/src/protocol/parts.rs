@@ -42,7 +42,7 @@ pub(crate) use self::{
     client_context::{ClientContext, ClientContextId},
     client_info::ClientInfo,
     command_info::CommandInfo,
-    connect_options::{Compression, ConnOptId, ConnectOptions, ConnectOptionsPart},
+    connect_options::{ConnOptId, ConnectOptions, ConnectOptionsPart},
     db_connect_info::DbConnectInfo,
     lob_flags::LobFlags,
     option_value::OptionValue,
@@ -90,6 +90,16 @@ impl<'a> Parts<'a> {
 
     pub fn len(&self) -> usize {
         self.0.len()
+    }
+
+    pub fn size(
+        &self,
+        with_padding: bool,
+        o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
+    ) -> usize {
+        self.0.iter().fold(0, |size, p| {
+            size + p.size(with_padding, o_a_descriptors).unwrap()
+        })
     }
 
     pub fn reverse(&mut self) {

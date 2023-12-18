@@ -4,6 +4,9 @@
 #[cfg(feature = "sync")]
 use byteorder::{LittleEndian, WriteBytesExt};
 
+use std::{io::Cursor, sync::Arc};
+
+use super::SEGMENT_HEADER_SIZE;
 use crate::{
     protocol::{
         parts::{ParameterDescriptors, Parts, StatementContext},
@@ -11,10 +14,20 @@ use crate::{
     },
     HdbResult,
 };
-use std::sync::Arc;
 
-const MESSAGE_HEADER_SIZE: u32 = 32;
-const SEGMENT_HEADER_SIZE: usize = 24; // same for in and out
+const MIN_COMPRESSION_SIZE: u32 = 10 * 1024;
+const ONE_AS_NUMBER_OF_SEGMENTS: i16 = 1;
+const ONE_AS_ORDINAL_OF_THIS_SEGMENT: i16 = 1;
+const ZERO_AS_OFFSET: i32 = 0;
+const SEGMENT_KIND_REQUEST: i8 = 1;
+
+const PACKET_OPTION_COMPRESS: u8 = 2;
+
+const FILLER_1: u8 = 0;
+const FILLER_4: u32 = 0;
+const FILLER_8: u64 = 0;
+const FILLER_10: [u8; 10] = [0; 10];
+
 pub const HOLD_CURSORS_OVER_COMMIT: u8 = 8;
 
 // Packets having the same sequence number belong to one request/response pair.
@@ -57,96 +70,146 @@ impl<'a> Request<'a> {
     #[cfg(feature = "sync")]
     #[allow(clippy::cast_possible_truncation)]
     #[allow(clippy::cast_possible_wrap)]
-    pub fn sync_emit(
+    pub fn emit_sync(
         &self,
         session_id: i64,
-        seq_number: i32,
+        packet_seq_number: i32,
         auto_commit: bool,
         compress: bool,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
         w: &mut dyn std::io::Write,
     ) -> HdbResult<()> {
-        let varpart_size = self.varpart_size(o_a_descriptors)?;
-        let total_size = MESSAGE_HEADER_SIZE + varpart_size;
-        trace!("Writing request with total size {}", total_size);
-        let mut remaining_bufsize = total_size - MESSAGE_HEADER_SIZE;
+        let no_of_parts = self.parts.len() as i16;
+        let uncompressed_parts_size = self.parts.size(true, o_a_descriptors) as u32;
 
         debug!(
-            "Request::emit() of type {:?} for session_id = {}, seq_number = {}",
-            self.message_type, session_id, seq_number
+            "Request::sync_emit() of type {:?} for session_id = {session_id}, \
+             packet_seq_number = {packet_seq_number}, parts_size = {uncompressed_parts_size}",
+            self.message_type,
         );
 
-        // C++:
-        // struct PacketHeader
-        // {
-        // 	   SessionIDType          m_SessionID;          //= session_id
-        // 	   PacketCountType        m_PacketCount;        //= seq_number?
-        // 	   PacketLengthType       m_VarpartLength;      //= ???
-        //     PacketLengthType       m_VarpartSize;        //=varpart_size
-        //     NumberOfSegmentsType   m_NumberOfSegments;   //= hardcoded to 1
-        //     PacketOptions          m_PacketOptions;      //= 1 byte, nur zweites bit genutzt: PacketOption_isCompressed
-        //     unsigned char          m_filler1;
-        //     PacketLengthType       m_CompressionVarpartLength; // see comment above
-        //     unsigned char          m_filler2[4];
-        // };
-
-        // MESSAGE HEADER
-        w.write_i64::<LittleEndian>(session_id)?; // I8
-        w.write_i32::<LittleEndian>(seq_number)?; // I4
-
-        if compress {
-            unimplemented!("DSLKJAÖROEQIFRJDS:F");
-            // // with compression: The m_VarpartSize is the compressed size
-            // // (not including the header - the actual amount of data sent)
-            // // this means: we need to materialize the compressed request here, cannot write incrementally
-            // // this means: we need more memory, and we can/have to remove a lot of duplicate sync/async code
-            // w.write_u32::<LittleEndian>(compressed_size)?; // UI4
-            // w.write_u32::<LittleEndian>(remaining_bufsize)?; // UI4
-            // w.write_i16::<LittleEndian>(1)?; // I2    Number of segments
-
-            // w.write_u8(if compress { 2 } else { 0 })?; //m_PacketOptions
-            // w.write_u8(0); // filler1byte
-            // w.write_u32::<LittleEndian>(uncompressed_size)?; // UI4  m_CompressionVarpartLength: the UNcompressed size (not including the header)
-            // w.write_u32::<LittleEndian>(0)?; //write m_filler4byte
-        } else {
-            w.write_u32::<LittleEndian>(varpart_size)?; // UI4
-            w.write_u32::<LittleEndian>(remaining_bufsize)?; // UI4
-            w.write_i16::<LittleEndian>(1)?; // I2    Number of segments
-            for _ in 0..10 {
-                w.write_u8(0)?;
-            } // I1+ B[9]  unused
-        }
-
-        // SEGMENT HEADER
-        let parts_len = self.parts.len() as i16;
-        let size = self.seg_size(o_a_descriptors)? as i32;
-        w.write_i32::<LittleEndian>(size)?; // I4  Length including the header
-        w.write_i32::<LittleEndian>(0)?; // I4 Offset within the message buffer
-        w.write_i16::<LittleEndian>(parts_len)?; // I2 Number of contained parts
-        w.write_i16::<LittleEndian>(1)?; // I2 Number of this segment, starting with 1
-        w.write_i8(1)?; // I1 Segment kind: always 1 = Request
-        w.write_i8(self.message_type as i8)?; // I1 "Message type"
-        w.write_i8(auto_commit.into())?; // I1 auto_commit on/off
-        w.write_u8(self.command_options)?; // I1 Bit set for options
-        for _ in 0..8 {
-            w.write_u8(0)?;
-        } // [B;8] Reserved, do not use
-
-        remaining_bufsize -= SEGMENT_HEADER_SIZE as u32;
-        trace!("Headers are written");
-        // PARTS
+        // FIXME Avoid use of buffer for small requests
+        // serialize parts into buffer  // TODO use pool of buffers
+        let mut remaining_bufsize = uncompressed_parts_size;
+        let mut cursor = Cursor::new(Vec::<u8>::with_capacity(remaining_bufsize as usize));
         for part in self.parts.ref_inner() {
-            remaining_bufsize = part.sync_emit(remaining_bufsize, o_a_descriptors, w)?;
+            remaining_bufsize = part.sync_emit(remaining_bufsize, o_a_descriptors, &mut cursor)?;
+        }
+        let uncompressed_parts = cursor.into_inner();
+
+        // decide if parts should be sent in compressed form
+        let o_compressed_parts = if compress && uncompressed_parts_size > MIN_COMPRESSION_SIZE {
+            let compressed_parts = lz4_flex::block::compress(&uncompressed_parts);
+            if shrunk_by_at_least_five_percent(&compressed_parts, &uncompressed_parts) {
+                Some(compressed_parts)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        // send the header and the parts
+        if let Some(compressed_parts) = o_compressed_parts {
+            trace!("using compression");
+            self.emit_packet_header_sync(
+                session_id,
+                packet_seq_number,
+                auto_commit,
+                no_of_parts,
+                PartsSizes::Compressed {
+                    uncompressed: uncompressed_parts_size,
+                    compressed: compressed_parts.len().try_into().unwrap(/*OK*/),
+                },
+                w,
+            )?;
+
+            w.write_all(&*compressed_parts)?;
+        } else {
+            self.emit_packet_header_sync(
+                session_id,
+                packet_seq_number,
+                auto_commit,
+                no_of_parts,
+                PartsSizes::Uncompressed {
+                    uncompressed: uncompressed_parts_size,
+                },
+                w,
+            )?;
+            w.write_all(&*uncompressed_parts)?;
         }
         w.flush()?;
         trace!("Parts are written");
+
+        Ok(())
+    }
+
+    fn emit_packet_header_sync(
+        &self,
+        session_id: i64,
+        packet_seq_number: i32,
+        auto_commit: bool,
+        no_of_parts: i16,
+        parts_sizes: PartsSizes,
+        w: &mut dyn std::io::Write,
+    ) -> HdbResult<()> {
+        let (compress, uncompressed, compressed) = match parts_sizes {
+            PartsSizes::Compressed {
+                uncompressed,
+                compressed,
+            } => (true, uncompressed, compressed),
+            PartsSizes::Uncompressed { uncompressed } => (false, uncompressed, 0),
+        };
+
+        // MESSAGE HEADER
+        w.write_i64::<LittleEndian>(session_id)?; // I8
+        w.write_i32::<LittleEndian>(packet_seq_number)?; // I4
+
+        w.write_u32::<LittleEndian>(
+            if compress { compressed } else { uncompressed } + SEGMENT_HEADER_SIZE,
+        )?; // UI4
+
+        w.write_u32::<LittleEndian>(uncompressed + SEGMENT_HEADER_SIZE)?; // UI4
+        w.write_i16::<LittleEndian>(ONE_AS_NUMBER_OF_SEGMENTS)?; // I2
+
+        if compress {
+            w.write_u8(PACKET_OPTION_COMPRESS)?; // I1
+            w.write_u8(FILLER_1)?; // I1
+            w.write_u32::<LittleEndian>(uncompressed + SEGMENT_HEADER_SIZE)?; // UI4
+            w.write_u32::<LittleEndian>(FILLER_4)?; // UI4
+        } else {
+            w.write_all(&FILLER_10)?;
+        }
+
+        // SEGMENT HEADER
+        w.write_u32::<LittleEndian>(uncompressed + SEGMENT_HEADER_SIZE)?; // I4
+        w.write_i32::<LittleEndian>(ZERO_AS_OFFSET)?; // I4 Offset within the message buffer
+        w.write_i16::<LittleEndian>(no_of_parts)?; // I2 Number of contained parts
+        w.write_i16::<LittleEndian>(ONE_AS_ORDINAL_OF_THIS_SEGMENT)?; // I2
+        w.write_i8(SEGMENT_KIND_REQUEST)?; // I1
+        w.write_i8(self.message_type as i8)?; // I1
+        w.write_i8(auto_commit.into())?; // I1
+        w.write_u8(self.command_options)?; // I1
+        w.write_u64::<LittleEndian>(FILLER_8)?; // [B;8]
+
+        trace!(
+            "REQUEST, message and segment header: {{\
+                \n  session_id = {session_id}, \
+                \n  packet_seq_number = {packet_seq_number}, \
+                \n  compressed = {compressed}, \
+                \n  uncompressed = {uncompressed}, \
+                \n  no_of_parts = {no_of_parts}, \
+            }}"
+        );
+
+        trace!("Headers are written");
         Ok(())
     }
 
     #[cfg(feature = "async")]
     #[allow(clippy::cast_possible_truncation)]
     #[allow(clippy::cast_possible_wrap)]
-    pub async fn async_emit<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
+    pub async fn emit_async<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
         &self,
         session_id: i64,
         seq_number: i32,
@@ -155,14 +218,13 @@ impl<'a> Request<'a> {
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
         w: &mut W,
     ) -> HdbResult<()> {
-        let varpart_size = self.varpart_size(o_a_descriptors)?;
-        let total_size = MESSAGE_HEADER_SIZE + varpart_size;
-        trace!("Writing request with total size {}", total_size);
-        let mut remaining_bufsize = total_size - MESSAGE_HEADER_SIZE;
+        let number_of_parts = self.parts.len() as i16;
+        let parts_size = self.parts.size(true, o_a_descriptors) as u32;
 
         debug!(
-            "Request::emit() of type {:?} for session_id = {}, seq_number = {}",
-            self.message_type, session_id, seq_number
+            "Request::sync_emit() of type {:?} for session_id = {session_id}, \
+             seq_number = {seq_number}, parts_size = {parts_size}",
+            self.message_type,
         );
 
         // FIXME make use of compress!!!
@@ -170,19 +232,17 @@ impl<'a> Request<'a> {
         // MESSAGE HEADER
         w.write_i64_le(session_id).await?; // I8 <LittleEndian>
         w.write_i32_le(seq_number).await?; // I4
-        w.write_u32_le(varpart_size).await?; // UI4
-        w.write_u32_le(remaining_bufsize).await?; // UI4
+        w.write_u32_le(parts_size + SEGMENT_HEADER_SIZE).await?; // UI4
+        w.write_u32_le(parts_size + SEGMENT_HEADER_SIZE).await?; // UI4
         w.write_i16_le(1).await?; // I2    Number of segments
         for _ in 0..10_u8 {
             w.write_u8(0).await?;
         } // I1+ B[9]  unused
 
         // SEGMENT HEADER
-        let parts_len = self.parts.len() as i16;
-        let size = self.seg_size(o_a_descriptors)? as i32;
-        w.write_i32_le(size).await?; // I4  Length including the header
+        w.write_u32_le(parts_size + SEGMENT_HEADER_SIZE).await?; // I4  Length including the header
         w.write_i32_le(0).await?; // I4 Offset within the message buffer
-        w.write_i16_le(parts_len).await?; // I2 Number of contained parts
+        w.write_i16_le(number_of_parts).await?; // I2 Number of contained parts
         w.write_i16_le(1).await?; // I2 Number of this segment, starting with 1
         w.write_i8(1).await?; // I1 Segment kind: always 1 = Request
         w.write_i8(self.message_type as i8).await?; // I1 "Message type"
@@ -192,9 +252,10 @@ impl<'a> Request<'a> {
             w.write_u8(0).await?;
         } // [B;8] Reserved, do not use
 
-        remaining_bufsize -= SEGMENT_HEADER_SIZE as u32;
         trace!("Headers are written");
+
         // PARTS
+        let mut remaining_bufsize = parts_size;
         for part in self.parts.ref_inner() {
             remaining_bufsize = part
                 .async_emit(remaining_bufsize, o_a_descriptors, w)
@@ -204,22 +265,14 @@ impl<'a> Request<'a> {
         trace!("Parts are written");
         Ok(())
     }
+}
 
-    // Length in bytes of the variable part of the message, i.e. total message
-    // without the header
-    #[allow(clippy::cast_possible_truncation)]
-    fn varpart_size(&self, o_a_descriptors: Option<&Arc<ParameterDescriptors>>) -> HdbResult<u32> {
-        let mut len = 0_u32;
-        len += self.seg_size(o_a_descriptors)? as u32;
-        trace!("varpart_size = {}", len);
-        Ok(len)
-    }
-
-    fn seg_size(&self, o_a_descriptors: Option<&Arc<ParameterDescriptors>>) -> HdbResult<usize> {
-        let mut len = SEGMENT_HEADER_SIZE;
-        for part in self.parts.ref_inner() {
-            len += part.size(true, o_a_descriptors)?;
-        }
-        Ok(len)
-    }
+enum PartsSizes {
+    Compressed { uncompressed: u32, compressed: u32 },
+    Uncompressed { uncompressed: u32 },
+}
+fn shrunk_by_at_least_five_percent(compressed: &[u8], uncompressed: &[u8]) -> bool {
+    let c = compressed.len();
+    let u = uncompressed.len();
+    c < u && u - c > u / 20
 }

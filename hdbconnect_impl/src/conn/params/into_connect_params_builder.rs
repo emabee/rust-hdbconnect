@@ -102,7 +102,7 @@ impl IntoConnectParamsBuilder for Url {
                     builder.network_group(&value);
                 }
                 Some(UrlOpt::NoCompression) => {
-                    builder.compression(false);
+                    builder.always_uncompressed(true);
                 }
                 None => {
                     return Err(HdbError::UsageDetailed(format!(

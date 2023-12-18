@@ -394,6 +394,8 @@ impl<'a> Part<'a> {
             (PartKind::ResultSet | PartKind::ResultSetId | PartKind::ReadLobReply, true)
             | (PartKind::Error, _) => {}
             (_, _) => {
+                debug!("parse() skipped over {padsize} padding bytes");
+                // FIXME use util_sync ...
                 for _ in 0..padsize {
                     rdr.read_u8()?;
                 }

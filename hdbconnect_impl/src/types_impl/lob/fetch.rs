@@ -37,7 +37,10 @@ pub(crate) fn sync_fetch_a_lob_chunk(
                 stmt_ctx.server_cpu_time(),
                 stmt_ctx.server_memory_usage(),
             ),
-            _ => warn!("Unexpected part received - and ignored"),
+            x => warn!(
+                "Unexpected part of kind {:?} received and ignored",
+                x.kind()
+            ),
         }
     }
 
@@ -79,7 +82,10 @@ pub(crate) async fn async_fetch_a_lob_chunk(
                 stmt_ctx.server_cpu_time(),
                 stmt_ctx.server_memory_usage(),
             ),
-            _ => warn!("Unexpected part received - and ignored"),
+            x => warn!(
+                "Unexpected part of kind {:?} received and ignored",
+                x.kind()
+            ),
         }
     }
 

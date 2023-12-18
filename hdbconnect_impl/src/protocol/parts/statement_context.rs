@@ -86,7 +86,7 @@ impl OptionId<StatementContextId> for StatementContextId {
             7 => Self::ServerCPUTime,
             8 => Self::ServerMemoryUsage,
             val => {
-                warn!("Unknown value for StatementContextId received: {}", val);
+                warn!("Unsupported value for StatementContextId received: {}", val);
                 Self::__Unexpected__(val)
             }
         }

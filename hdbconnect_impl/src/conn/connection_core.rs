@@ -200,7 +200,7 @@ impl<'a> ConnectionCore {
 
     #[cfg(feature = "sync")]
     pub fn sync_reconnect(&mut self) -> HdbResult<()> {
-        debug!("Trying to reconnect");
+        warn!("Trying to reconnect");
         let mut conn_params = self.tcp_client.connect_params().clone();
         loop {
             let mut tcp_conn = TcpClient::try_new_sync(conn_params.clone())?;
@@ -467,7 +467,8 @@ impl<'a> ConnectionCore {
             #[cfg(feature = "async")]
             _ => unreachable!("Async connections not supported here"),
         };
-        request.sync_emit(session_id, nsn, auto_commit, compress, o_a_descriptors, w)?;
+
+        request.emit_sync(session_id, nsn, auto_commit, compress, o_a_descriptors, w)?;
 
         let rdr: &mut dyn std::io::Read = match self.tcp_client {
             TcpClient::SyncPlain(ref mut cl) => cl.reader(),
@@ -504,7 +505,7 @@ impl<'a> ConnectionCore {
         match self.tcp_client {
             TcpClient::AsyncPlain(ref mut cl) => {
                 request
-                    .async_emit(
+                    .emit_async(
                         session_id,
                         nsn,
                         auto_commit,
@@ -516,7 +517,7 @@ impl<'a> ConnectionCore {
             }
             TcpClient::AsyncTls(ref mut cl) => {
                 request
-                    .async_emit(
+                    .emit_async(
                         session_id,
                         nsn,
                         auto_commit,
@@ -569,7 +570,7 @@ impl Drop for ConnectionCore {
                     _ => unreachable!("Async connections not supported here"),
                 };
                 request
-                    .sync_emit(session_id, nsn, false, false, None, w)
+                    .emit_sync(session_id, nsn, false, false, None, w)
                     .map_err(|e| {
                         warn!("Disconnect request failed with {:?}", e);
                         e
@@ -586,13 +587,13 @@ impl Drop for ConnectionCore {
                     match tcp_client {
                         TcpClient::AsyncPlain(ref mut cl) => {
                             request
-                                .async_emit(session_id, nsn, false, false, None, cl.writer())
+                                .emit_async(session_id, nsn, false, false, None, cl.writer())
                                 .await
                                 .ok();
                         }
                         TcpClient::AsyncTls(ref mut cl) => {
                             request
-                                .async_emit(session_id, nsn, false, false, None, cl.writer())
+                                .emit_async(session_id, nsn, false, false, None, cl.writer())
                                 .await
                                 .ok();
                         }

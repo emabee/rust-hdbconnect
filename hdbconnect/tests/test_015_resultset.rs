@@ -129,8 +129,6 @@ fn evaluate_resultset(_log_handle: &mut LoggerHandle, connection: &Connection) -
 }
 
 fn verify_row_ordering(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
-    _log_handle.parse_and_push_temp_spec("info").unwrap();
-    // , hdbconnect::protocol::request = trace, hdbconnect::conn::tcp::sync::tls_tcp_client = debug
     info!("verify row ordering with various fetch sizes");
     // prepare the db table
     connection.multiple_statements_ignore_err(vec!["drop table TEST_ROW_ORDERING"]);
@@ -182,7 +180,5 @@ fn verify_row_ordering(_log_handle: &mut LoggerHandle, connection: &Connection) 
             assert_eq!(index, f2);
         }
     }
-    // _log_handle.pop_temp_spec();
-
     Ok(())
 }

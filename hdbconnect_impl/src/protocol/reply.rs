@@ -21,7 +21,9 @@ use crate::{
     protocol::{Part, PartKind, ReplyType, ServerUsage},
     HdbError, HdbResult,
 };
-use std::sync::Arc;
+use std::{io::Cursor, sync::Arc};
+
+use super::SEGMENT_HEADER_SIZE;
 
 // Since there is obviously no usecase for multiple segments in one request,
 // we model message and segment together.
@@ -60,21 +62,34 @@ impl Reply {
         rdr: &mut dyn std::io::Read,
     ) -> HdbResult<Self> {
         trace!("Reply::parse()");
-        let (no_of_parts, mut reply) = parse_msg_and_seq_header_sync(rdr)?;
+        // FIXME currently we're reading with buffered readers
+        //       revise this, since we're buffering here again
+        let parsed_header = parse_packet_header_sync(rdr)?;
+        let mut reply = Reply::new(parsed_header.session_id, parsed_header.reply_type);
 
-        for i in 0..no_of_parts {
+        let mut cursor = if let Some(uncompressed_size) = parsed_header.o_uncompressed_size {
+            trace!("received compressed reply");
+            let buf = util_sync::parse_bytes(parsed_header.part_buffer_size, rdr)?;
+            Cursor::new(lz4_flex::block::decompress(
+                &*buf,
+                uncompressed_size as usize,
+            )?)
+        } else {
+            Cursor::new(util_sync::parse_bytes(parsed_header.part_buffer_size, rdr)?)
+        };
+
+        for i in 0..parsed_header.no_of_parts {
             let part = Part::parse_sync(
                 &mut (reply.parts),
                 o_am_conn_core,
                 o_a_rsmd,
                 o_a_descriptors,
                 o_rs,
-                i == no_of_parts - 1,
-                rdr,
+                i == parsed_header.no_of_parts - 1,
+                &mut cursor,
             )?;
             reply.push(part);
         }
-
         Ok(reply)
     }
 
@@ -93,7 +108,7 @@ impl Reply {
         rdr: &mut R,
     ) -> HdbResult<Self> {
         trace!("Reply::parse()");
-        let (no_of_parts, mut reply) = parse_msg_and_seq_header_async(rdr).await?;
+        let (no_of_parts, mut reply) = parse_packet_header_async(rdr).await?;
 
         for i in 0..no_of_parts {
             let part = Part::parse_async(
@@ -234,58 +249,92 @@ impl Reply {
 }
 
 #[cfg(feature = "sync")]
-fn parse_msg_and_seq_header_sync(rdr: &mut dyn std::io::Read) -> HdbResult<(i16, Reply)> {
+fn parse_packet_header_sync(rdr: &mut dyn std::io::Read) -> HdbResult<ReplyPacketHeader> {
+    // TODO validate session_id against ConnectionCore::session_id
+    // TODO session_id and packet_count must be 0 for exactly the first roundtrip
+    // TODO validate assumptions about seg_size, seg_offset, seg_number being always = (varpart_size, 0, 1)
+
     // MESSAGE HEADER: 32 bytes
     let session_id: i64 = rdr.read_i64::<LittleEndian>()?; // I8
     let packet_seq_number: i32 = rdr.read_i32::<LittleEndian>()?; // I4
-    let varpart_size: u32 = rdr.read_u32::<LittleEndian>()?; // UI4  not needed?
-    let remaining_bufsize: u32 = rdr.read_u32::<LittleEndian>()?; // UI4  not needed?
+    let parts_and_segment_header_size: u32 = rdr.read_u32::<LittleEndian>()?; // UI4
+    let remaining_bufsize: u32 = rdr.read_u32::<LittleEndian>()?; // UI4
     let no_of_segs = rdr.read_i16::<LittleEndian>()?; // I2
-    if no_of_segs == 0 {
-        return Err(HdbError::Impl("empty response (is ok for drop connection)"));
+    match no_of_segs {
+        1 => {}
+        0 => return Err(HdbError::Impl("empty response (is ok for drop connection)")),
+        _ => {
+            return Err(HdbError::ImplDetailed(format!(
+                "hdbconnect is not prepared for no_of_segs = {no_of_segs} > 1"
+            )))
+        }
     }
 
-    if no_of_segs > 1 {
-        return Err(HdbError::ImplDetailed(format!(
-            "no_of_segs = {no_of_segs} > 1"
-        )));
-    }
-
-    util_sync::skip_bytes(10, rdr)?; // (I1 + B[9])
+    let compressed = match rdr.read_u8()? {
+        0 => false,
+        2 => true,
+        v => {
+            return Err(HdbError::ImplDetailed(format!(
+                "unexpected value for compression control: {v}"
+            )));
+        }
+    };
+    util_sync::skip_bytes(1, rdr)?; // filler1byte
+    let uncompressed_size = rdr.read_u32::<LittleEndian>()?;
+    util_sync::skip_bytes(4, rdr)?; // m_filler4byte
 
     // SEGMENT HEADER: 24 bytes
-    rdr.read_i32::<LittleEndian>()?; // I4 seg_size
-    rdr.read_i32::<LittleEndian>()?; // I4 seg_offset
+    let seg_size = rdr.read_i32::<LittleEndian>()?; // I4 seg_size
+    let seg_offset = rdr.read_i32::<LittleEndian>()?; // I4 seg_offset
     let no_of_parts: i16 = rdr.read_i16::<LittleEndian>()?; // I2
-    rdr.read_i16::<LittleEndian>()?; // I2 seg_number
+    let seg_number = rdr.read_i16::<LittleEndian>()?; // I2 seg_number
     let seg_kind = Kind::from_i8(rdr.read_i8()?)?; // I1
 
     trace!(
-        "message and segment header: {{ packet_seq_number = {}, varpart_size = {}, \
-         remaining_bufsize = {}, no_of_parts = {} }}",
-        packet_seq_number,
-        varpart_size,
-        remaining_bufsize,
-        no_of_parts
+        "REPLY, message and segment header: {{\
+            \n  session_id = {session_id}, \
+            \n  packet_seq_number = {packet_seq_number}, \
+            \n  parts_and_segment_header_size = {parts_and_segment_header_size}, \
+            \n  remaining_bufsize = {remaining_bufsize}, \
+            \n  no_of_segs = {no_of_segs}, \
+            \n  compressed = {compressed}, \
+            \n  uncompressed_size = {uncompressed_size}, \
+            \n\n  seg_size = {seg_size}, \
+            \n  seg_offset = {seg_offset}, \
+            \n  no_of_parts = {no_of_parts}, \
+            \n  seg_number = {seg_number}, \
+            \n  seg_kind = {seg_kind:?} \
+        }}"
     );
 
     match seg_kind {
         Kind::Request => Err(HdbError::Impl("Cannot _parse_ a request")),
         Kind::Reply | Kind::Error => {
-            util_sync::skip_bytes(1, rdr)?; // I1 reserved2
+            util_sync::skip_bytes(1, rdr)?; // I1
             let reply_type = ReplyType::from_i16(rdr.read_i16::<LittleEndian>()?)?; // I2
-            util_sync::skip_bytes(8, rdr)?; // B[8] reserved3
+            util_sync::skip_bytes(8, rdr)?; // B[8]
+
             debug!(
                 "Reply::parse(): got reply of type {:?} and seg_kind {:?} for session_id {}",
                 reply_type, seg_kind, session_id
             );
-            Ok((no_of_parts, Reply::new(session_id, reply_type)))
+            Ok(ReplyPacketHeader {
+                no_of_parts,
+                o_uncompressed_size: if compressed {
+                    Some(uncompressed_size)
+                } else {
+                    None
+                },
+                session_id,
+                part_buffer_size: (parts_and_segment_header_size - SEGMENT_HEADER_SIZE) as usize,
+                reply_type,
+            })
         }
     }
 }
 
 #[cfg(feature = "async")]
-async fn parse_msg_and_seq_header_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
+async fn parse_packet_header_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
     rdr: &mut R,
 ) -> HdbResult<(i16, Reply)> {
     // MESSAGE HEADER: 32 bytes
@@ -355,4 +404,12 @@ impl Kind {
             ))),
         }
     }
+}
+
+struct ReplyPacketHeader {
+    reply_type: ReplyType,
+    session_id: i64,
+    o_uncompressed_size: Option<u32>,
+    part_buffer_size: usize,
+    no_of_parts: i16,
 }

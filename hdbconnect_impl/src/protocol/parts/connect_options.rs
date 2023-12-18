@@ -1,6 +1,14 @@
-use crate::hdb_error::HdbResult;
-use crate::protocol::parts::option_part::{OptionId, OptionPart};
-use crate::protocol::parts::option_value::OptionValue;
+use crate::{
+    conn::Compression,
+    hdb_error::HdbResult,
+    protocol::parts::{
+        option_part::{OptionId, OptionPart},
+        option_value::OptionValue,
+    },
+};
+
+//const USE_COMPRESSION_REMOTE: i32 = 0x0000_0300; // LZ4Supported (100) & LZ4Enabled (200)
+const USE_COMPRESSION_ALWAYS: i32 = 0x0000_0700; // LZ4Supported (100) & LZ4Enabled (200) & ForceLocal (400)
 
 // ConnectOptions are influenced by the application (`ConnectOptionsEnum::Initial`),
 // augmented by the implementation and sent to the server (`ConnectOptionsEnum::for_server()`),
@@ -65,13 +73,19 @@ impl ConnectOptions {
 
     pub(crate) fn for_server(&self) -> ConnectOptionsPart {
         // read user input from initial state
-        let (o_client_locale, os_user, compression) = match self {
+        let (o_client_locale, os_user, compression, o_connection_id) = match self {
             ConnectOptions::Initial {
                 ref o_client_locale,
                 ref os_user,
                 ref compression,
-            } => (o_client_locale, os_user, compression),
-            ConnectOptions::Final { .. } => panic!("Wrong state: Final"),
+            } => (o_client_locale, os_user, compression, None),
+            ConnectOptions::Final {
+                ref o_client_locale,
+                ref os_user,
+                ref compression,
+                ref connection_id,
+                ..
+            } => (o_client_locale, os_user, compression, Some(connection_id)),
         };
 
         let mut connopts_part = ConnectOptionsPart::default();
@@ -80,6 +94,13 @@ impl ConnectOptions {
             debug!("Sending ConnectionOption to server: {:?} = {:?}", id, value);
             connopts_part.insert(id, value);
         };
+
+        if let Some(connection_id) = o_connection_id {
+            set_opt(
+                ConnOptId::ConnectionID,
+                OptionValue::INT(*connection_id as i32),
+            );
+        }
 
         set_opt(
             ConnOptId::ClientReconnectWaitTimeout,
@@ -107,13 +128,13 @@ impl ConnectOptions {
             Compression::Always => {
                 set_opt(
                     ConnOptId::CompressionLevelAndFlags,
-                    OptionValue::INT(0x0000_0700_i32),
-                ); // supported (100), desired (200), also local (400)
+                    OptionValue::INT(USE_COMPRESSION_ALWAYS),
+                );
             }
             // Compression::Remote => {
             //     set_opt(
             //         ConnOptId::CompressionLevelAndFlags,
-            //         OptionValue::INT(0x0000_0300_i32),
+            //         OptionValue::INT(USE_COMPRESSION_REMOTE),
             //     );
             // }
             Compression::Off => {}
@@ -135,110 +156,112 @@ impl ConnectOptions {
         &mut self,
         incoming: ConnectOptionsPart,
     ) -> HdbResult<()> {
-        match self {
+        let (o_client_locale, os_user, compression) = match *self {
+            ConnectOptions::Final {
+                ref o_client_locale,
+                ref os_user,
+                ref mut compression,
+                ..
+            } => (o_client_locale, os_user, compression),
             ConnectOptions::Initial {
                 ref o_client_locale,
                 ref os_user,
                 ref mut compression,
-            } => {
-                let mut client_reconnect_wait_timeout = std::time::Duration::from_secs(
-                    Self::CLIENT_RECONNECT_WAIT_TIMEOUT_IN_SECONDS as u64,
-                );
-                let mut dataformat_version2 = Self::DATAFORMAT_VERSION2;
-                let enable_array_type = true;
-                #[cfg(feature = "alpha_routing")]
-                let alpha_routing = false;
+            } => (o_client_locale, os_user, compression),
+        };
+        let mut client_reconnect_wait_timeout =
+            std::time::Duration::from_secs(Self::CLIENT_RECONNECT_WAIT_TIMEOUT_IN_SECONDS as u64);
+        let mut dataformat_version2 = Self::DATAFORMAT_VERSION2;
+        let enable_array_type = true;
+        #[cfg(feature = "alpha_routing")]
+        let alpha_routing = false;
 
-                // stupid defaults for these:
-                let mut connection_id = 0;
-                let mut system_id = String::default();
-                let mut database_name = String::default();
-                let mut full_version = String::default();
-                let mut implicit_lob_streaming = false;
+        // stupid defaults for these:
+        let mut connection_id = 0;
+        let mut system_id = String::default();
+        let mut database_name = String::default();
+        let mut full_version = String::default();
+        let mut implicit_lob_streaming = false;
 
-                for (k, v) in incoming {
-                    match k {
-                        ConnOptId::ClientReconnectWaitTimeout => {
-                            client_reconnect_wait_timeout = std::time::Duration::from_secs(
-                                u64::try_from(v.get_int()?).unwrap(/* cannot fail */),
-                            );
-                        }
-                        ConnOptId::DataFormatVersion2 => {
-                            dataformat_version2 =
-                                u8::try_from(v.get_int()?).unwrap(/* cannot fail */);
-                        }
+        for (k, v) in incoming {
+            match k {
+                ConnOptId::ClientReconnectWaitTimeout => {
+                    client_reconnect_wait_timeout = std::time::Duration::from_secs(
+                        u64::try_from(v.get_int()?).unwrap(/* cannot fail */),
+                    );
+                }
+                ConnOptId::DataFormatVersion2 => {
+                    dataformat_version2 = u8::try_from(v.get_int()?).unwrap(/* cannot fail */);
+                }
 
-                        ConnOptId::ConnectionID => {
-                            connection_id = u32::try_from(v.get_int()?).unwrap(/* cannot fail */);
-                        }
-                        ConnOptId::SystemID => {
-                            system_id = v.into_string()?;
-                        }
-                        ConnOptId::DatabaseName => {
-                            database_name = v.into_string()?;
-                        }
-                        ConnOptId::FullVersionString => {
-                            full_version = v.into_string()?;
-                        }
-                        ConnOptId::ImplicitLobStreaming => {
-                            implicit_lob_streaming = v.get_bool()?;
-                        }
-                        ConnOptId::CompressionLevelAndFlags => {
-                            *compression = {
-                                let tmp = v.get_int()?;
-                                // is this good enough?
-                                if (tmp & 0x0000_0700) == 0 {
-                                    Compression::Off
-                                } else {
-                                    Compression::Always
-                                }
-                            };
-                        }
-
-                        ConnOptId::BuildPlatform
-                        | ConnOptId::Endianness
-                        | ConnOptId::EngineDataFormatVersion
-                        | ConnOptId::DataFormatVersion
-                        | ConnOptId::NonTransactionalPrepare
-                        | ConnOptId::SupportsLargeBulkOperations
-                        | ConnOptId::ActiveActiveProtocolVersion
-                        | ConnOptId::CompleteArrayExecution
-                        | ConnOptId::QueryTimeoutOK
-                        | ConnOptId::UseTransactionFlagsOnly
-                        | ConnOptId::IgnoreUnknownParts
-                        | ConnOptId::SplitBatchCommands
-                        | ConnOptId::FdaEnabled
-                        | ConnOptId::ItabParameter
-                        | ConnOptId::ClientDistributionMode
-                        | ConnOptId::ClientInfoNullValueOK
-                        | ConnOptId::FlagSet1 => {
-                            debug!("Got from server ConnectionOption: {:?} = {:?}", k, v);
-                        }
-                        k => {
-                            warn!("Unexpected ConnectOption coming from server ({:?})", k);
+                ConnOptId::ConnectionID => {
+                    connection_id = u32::try_from(v.get_int()?).unwrap(/* cannot fail */);
+                }
+                ConnOptId::SystemID => {
+                    system_id = v.into_string()?;
+                }
+                ConnOptId::DatabaseName => {
+                    database_name = v.into_string()?;
+                }
+                ConnOptId::FullVersionString => {
+                    full_version = v.into_string()?;
+                }
+                ConnOptId::ImplicitLobStreaming => {
+                    implicit_lob_streaming = v.get_bool()?;
+                }
+                ConnOptId::CompressionLevelAndFlags => {
+                    *compression = {
+                        let tmp = v.get_int()?;
+                        // FIXME is this good enough?
+                        if (tmp & USE_COMPRESSION_ALWAYS) == 0 {
+                            Compression::Off
+                        } else {
+                            Compression::Always
                         }
                     };
                 }
 
-                *self = ConnectOptions::Final {
-                    os_user: os_user.clone(),
-                    o_client_locale: o_client_locale.clone(),
-                    compression: *compression,
-                    client_reconnect_wait_timeout,
-                    dataformat_version2,
-                    enable_array_type,
-                    #[cfg(feature = "alpha_routing")]
-                    alpha_routing,
-                    connection_id,
-                    system_id,
-                    database_name,
-                    full_version,
-                    implicit_lob_streaming,
-                };
-                Ok(())
-            }
-            ConnectOptions::Final { .. } => panic!("Wrong state: Final"),
+                ConnOptId::BuildPlatform
+                | ConnOptId::Endianness
+                | ConnOptId::EngineDataFormatVersion
+                | ConnOptId::DataFormatVersion
+                | ConnOptId::NonTransactionalPrepare
+                | ConnOptId::SupportsLargeBulkOperations
+                | ConnOptId::ActiveActiveProtocolVersion
+                | ConnOptId::CompleteArrayExecution
+                | ConnOptId::QueryTimeoutOK
+                | ConnOptId::UseTransactionFlagsOnly
+                | ConnOptId::IgnoreUnknownParts
+                | ConnOptId::SplitBatchCommands
+                | ConnOptId::FdaEnabled
+                | ConnOptId::ItabParameter
+                | ConnOptId::ClientDistributionMode
+                | ConnOptId::ClientInfoNullValueOK
+                | ConnOptId::FlagSet1 => {
+                    debug!("Got from server ConnectionOption: {:?} = {:?}", k, v);
+                }
+                k => {
+                    warn!("Unexpected ConnectOption coming from server ({:?})", k);
+                }
+            };
         }
+
+        *self = ConnectOptions::Final {
+            os_user: os_user.clone(),
+            o_client_locale: o_client_locale.clone(),
+            compression: *compression,
+            client_reconnect_wait_timeout,
+            dataformat_version2,
+            enable_array_type,
+            #[cfg(feature = "alpha_routing")]
+            alpha_routing,
+            connection_id,
+            system_id,
+            database_name,
+            full_version,
+            implicit_lob_streaming,
+        };
+        Ok(())
     }
 
     // The connection ID is filled by the server when the connection is established.
@@ -246,14 +269,14 @@ impl ConnectOptions {
     // cancellation.
     pub(crate) fn get_connection_id(&self) -> u32 {
         match &self {
-            ConnectOptions::Initial { .. } => panic!("Wrong state: Initial"),
+            ConnectOptions::Initial { .. } => panic_not_final(),
             ConnectOptions::Final { connection_id, .. } => *connection_id,
         }
     }
 
     pub(crate) fn get_os_user(&self) -> String {
         match &self {
-            ConnectOptions::Initial { .. } => panic!("Wrong state: Initial"),
+            ConnectOptions::Initial { .. } => panic_not_final(),
             ConnectOptions::Final { os_user, .. } => os_user.clone(),
         }
     }
@@ -262,7 +285,7 @@ impl ConnectOptions {
     // connected instance (for tracing and supportability purposes).
     pub(crate) fn get_system_id(&self) -> String {
         match &self {
-            ConnectOptions::Initial { .. } => panic!("Wrong state: Initial"),
+            ConnectOptions::Initial { .. } => panic_not_final(),
             ConnectOptions::Final { system_id, .. } => system_id.clone(),
         }
     }
@@ -270,7 +293,7 @@ impl ConnectOptions {
     // (MDC) Database name.
     pub(crate) fn get_database_name(&self) -> String {
         match &self {
-            ConnectOptions::Initial { .. } => panic!("Wrong state: Initial"),
+            ConnectOptions::Initial { .. } => panic_not_final(),
             ConnectOptions::Final { database_name, .. } => database_name.clone(),
         }
     }
@@ -278,7 +301,7 @@ impl ConnectOptions {
     // Full version string.
     pub(crate) fn get_full_version_string(&self) -> String {
         match &self {
-            ConnectOptions::Initial { .. } => panic!("Wrong state: Initial"),
+            ConnectOptions::Initial { .. } => panic_not_final(),
             ConnectOptions::Final { full_version, .. } => full_version.clone(),
         }
     }
@@ -300,7 +323,7 @@ impl ConnectOptions {
     //
     pub(crate) fn get_dataformat_version2(&self) -> u8 {
         match &self {
-            ConnectOptions::Initial { .. } => panic!("Wrong state: Initial"),
+            ConnectOptions::Initial { .. } => panic_not_final(),
             ConnectOptions::Final {
                 dataformat_version2,
                 ..
@@ -312,7 +335,7 @@ impl ConnectOptions {
     // even though auto-commit is on instead of raising an error.
     pub(crate) fn get_implicit_lob_streaming(&self) -> bool {
         match &self {
-            ConnectOptions::Initial { .. } => panic!("Wrong state: Initial"),
+            ConnectOptions::Initial { .. } => panic_not_final(),
             ConnectOptions::Final {
                 implicit_lob_streaming,
                 ..
@@ -332,13 +355,8 @@ impl ConnectOptions {
     }
 }
 
-// FIXME move to parameters
-#[derive(Debug, Clone, Default, Copy, Eq, PartialEq, Deserialize)]
-pub enum Compression {
-    Off,
-    // Remote,
-    #[default]
-    Always,
+fn panic_not_final() -> ! {
+    panic!("Wrong state: Initial")
 }
 
 // An Options part that is used for describing the connection's capabilities on the wire.

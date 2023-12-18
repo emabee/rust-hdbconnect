@@ -55,6 +55,15 @@ pub enum HdbError {
         // backtrace: Backtrace,
     },
 
+    /// Decompression
+    #[error("Decompression failed")]
+    Decompression {
+        /// The causing Error.
+        #[from]
+        source: lz4_flex::block::DecompressError,
+        // backtrace: Backtrace,
+    },
+
     /// TLS set up failed because the server name was not valid.
     #[error("TLS setup failed because the server name was not valid")]
     TlsServerName,

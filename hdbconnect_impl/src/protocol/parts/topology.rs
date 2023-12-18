@@ -51,7 +51,7 @@ impl OptionId<TopologyAttrId> for TopologyAttrId {
             10 => Self::IsStandby,
             13 => Self::SiteType,
             val => {
-                warn!("Invalid value for TopologyAttrId received: {}", val);
+                warn!("Unsupported value for TopologyAttrId received: {}", val);
                 Self::__Unexpected__(val)
             }
         }

@@ -48,7 +48,7 @@ impl OptionId<TaFlagId> for TaFlagId {
             6 => Self::SessionclosingTaError,
             7 => Self::ReadOnlyMode,
             val => {
-                warn!("Invalid value for TaFlagId received: {}", val);
+                warn!("Unsupported value for TaFlagId received: {}", val);
                 Self::__Unexpected__(val)
             }
         }

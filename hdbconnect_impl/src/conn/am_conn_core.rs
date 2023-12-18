@@ -125,9 +125,9 @@ impl AmConnCore {
             Err(HdbError::Io { source })
                 if std::io::ErrorKind::ConnectionReset == source.kind() =>
             {
-                debug!("full_send_sync(): reconnecting after ConnectionReset error...");
+                warn!("full_send_sync(): reconnecting after error of kind ConnectionReset ...");
                 conn_core.sync_reconnect()?;
-                debug!("full_send_sync(): repeating request after reconnect...");
+                warn!("full_send_sync(): repeating request after reconnect...");
                 conn_core.roundtrip_sync(&request, Some(self), o_a_rsmd, o_a_descriptors, o_rs)
             }
             Err(e) => Err(e),

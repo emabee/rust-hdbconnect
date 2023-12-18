@@ -37,6 +37,7 @@ dist_tx = { version = "0.3", optional = true }
 hex = "0.4"
 hmac = "0.12"
 log = "0.4"
+lz4_flex = "0.11"
 num = "0.4"
 num-bigint = "0.4.0"
 pbkdf2 = { version = "0.12", default-features = false }

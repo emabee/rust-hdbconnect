@@ -1,9 +1,6 @@
 //! Connection parameters
-use super::cp_url::format_as_url;
-use crate::{
-    protocol::{parts::Compression, util},
-    ConnectParamsBuilder, HdbError, HdbResult, IntoConnectParams,
-};
+use super::{cp_url::format_as_url, Compression};
+use crate::{protocol::util, ConnectParamsBuilder, HdbError, HdbResult, IntoConnectParams};
 use rustls::{
     client::{ServerCertVerified, ServerCertVerifier, ServerName},
     Certificate,
