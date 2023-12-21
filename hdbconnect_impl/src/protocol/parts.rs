@@ -92,14 +92,10 @@ impl<'a> Parts<'a> {
         self.0.len()
     }
 
-    pub fn size(
-        &self,
-        with_padding: bool,
-        o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
-    ) -> usize {
-        self.0.iter().fold(0, |size, p| {
-            size + p.size(with_padding, o_a_descriptors).unwrap()
-        })
+    pub fn size(&self, o_a_descriptors: Option<&Arc<ParameterDescriptors>>) -> usize {
+        self.0
+            .iter()
+            .fold(0, |size, p| size + p.size(true, o_a_descriptors).unwrap())
     }
 
     pub fn reverse(&mut self) {

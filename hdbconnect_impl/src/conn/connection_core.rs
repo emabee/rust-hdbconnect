@@ -17,7 +17,7 @@ use crate::{
     },
     HdbError, HdbResult,
 };
-use std::{mem, sync::Arc};
+use std::{io::Cursor, mem, sync::Arc};
 
 #[doc(hidden)]
 #[derive(Debug)]
@@ -38,6 +38,7 @@ pub struct ConnectionCore {
     topology: Option<Topology>,
     pub warnings: Vec<ServerError>,
     tcp_client: TcpClient,
+    io_buffer: Cursor<Vec<u8>>,
 }
 
 impl<'a> ConnectionCore {
@@ -169,6 +170,7 @@ impl<'a> ConnectionCore {
             topology: None,
             warnings: Vec::<ServerError>::new(),
             tcp_client,
+            io_buffer: Cursor::default(),
         })
     }
 
@@ -195,6 +197,7 @@ impl<'a> ConnectionCore {
             topology: None,
             warnings: Vec::<ServerError>::new(),
             tcp_client,
+            io_buffer: Default::default(),
         })
     }
 
@@ -468,7 +471,15 @@ impl<'a> ConnectionCore {
             _ => unreachable!("Async connections not supported here"),
         };
 
-        request.emit_sync(session_id, nsn, auto_commit, compress, o_a_descriptors, w)?;
+        request.emit_sync(
+            session_id,
+            nsn,
+            auto_commit,
+            compress,
+            o_a_descriptors,
+            &mut self.io_buffer,
+            w,
+        )?;
 
         let rdr: &mut dyn std::io::Read = match self.tcp_client {
             TcpClient::SyncPlain(ref mut cl) => cl.reader(),
@@ -476,7 +487,14 @@ impl<'a> ConnectionCore {
             #[cfg(feature = "async")]
             _ => unreachable!("Async connections not supported here"),
         };
-        let mut reply = Reply::parse_sync(o_a_rsmd, o_a_descriptors, o_rs, o_am_conn_core, rdr)?;
+        let mut reply = Reply::parse_sync(
+            o_a_rsmd,
+            o_a_descriptors,
+            o_rs,
+            o_am_conn_core,
+            &mut self.io_buffer,
+            rdr,
+        )?;
 
         if default_error_handling {
             reply.handle_db_error(self)?;
@@ -570,7 +588,7 @@ impl Drop for ConnectionCore {
                     _ => unreachable!("Async connections not supported here"),
                 };
                 request
-                    .emit_sync(session_id, nsn, false, false, None, w)
+                    .emit_sync(session_id, nsn, false, false, None, &mut self.io_buffer, w)
                     .map_err(|e| {
                         warn!("Disconnect request failed with {:?}", e);
                         e

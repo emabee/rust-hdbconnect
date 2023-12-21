@@ -1,7 +1,10 @@
-use crate::protocol::parts::option_part::{OptionId, OptionPart};
-use crate::protocol::parts::option_value::OptionValue;
-use crate::{HdbError, HdbResult};
-use std::convert::TryInto;
+use crate::{
+    protocol::parts::{
+        option_part::{OptionId, OptionPart},
+        option_value::OptionValue,
+    },
+    {HdbError, HdbResult},
+};
 
 // Part of redirect response to authentiation request
 pub type DbConnectInfo = OptionPart<DbConnectInfoId>;
@@ -29,14 +32,11 @@ impl DbConnectInfo {
         self.get(&DbConnectInfoId::Host)?.get_string()
     }
     pub fn port(&self) -> HdbResult<u16> {
-        self.get(&DbConnectInfoId::Port)?
-            .get_int()?
-            .try_into()
-            .map_err(|e| {
-                HdbError::ImplDetailed(format!(
-                    "Invalid port number received, can't convert to u16: {e}",
-                ))
-            })
+        u16::try_from(self.get(&DbConnectInfoId::Port)?.get_int_as_u32()?).map_err(|e| {
+            HdbError::ImplDetailed(format!(
+                "Invalid port number received, can't convert to u16: {e}",
+            ))
+        })
     }
     pub fn on_correct_database(&self) -> HdbResult<bool> {
         self.get(&DbConnectInfoId::OnCorrectDatabase)?.get_bool()

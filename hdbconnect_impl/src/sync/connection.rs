@@ -488,7 +488,7 @@ impl Connection {
         &self,
         stmt: S,
         module: S,
-        line: i32,
+        line: u32,
     ) -> HdbResult<HdbResponse> {
         self.execute(stmt, Some(CommandInfo::new(line, module.as_ref())))
     }

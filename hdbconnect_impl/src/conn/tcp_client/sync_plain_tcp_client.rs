@@ -4,8 +4,8 @@ use std::net::TcpStream;
 #[derive(Debug)]
 pub struct SyncPlainTcpClient {
     params: ConnectParams,
-    reader: std::io::BufReader<TcpStream>,
-    writer: std::io::BufWriter<TcpStream>,
+    reader: TcpStream,
+    writer: TcpStream,
 }
 
 impl SyncPlainTcpClient {
@@ -14,8 +14,8 @@ impl SyncPlainTcpClient {
         let tcpstream = TcpStream::connect(params.addr())?;
         Ok(Self {
             params,
-            writer: std::io::BufWriter::new(tcpstream.try_clone()?),
-            reader: std::io::BufReader::new(tcpstream),
+            writer: tcpstream.try_clone()?,
+            reader: tcpstream,
         })
     }
 
@@ -23,11 +23,11 @@ impl SyncPlainTcpClient {
         &self.params
     }
 
-    pub fn writer(&mut self) -> &mut std::io::BufWriter<TcpStream> {
+    pub fn writer(&mut self) -> &mut TcpStream {
         &mut self.writer
     }
 
-    pub fn reader(&mut self) -> &mut std::io::BufReader<TcpStream> {
+    pub fn reader(&mut self) -> &mut TcpStream {
         &mut self.reader
     }
 }

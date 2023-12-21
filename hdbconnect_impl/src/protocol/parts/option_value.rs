@@ -19,9 +19,16 @@ pub enum OptionValue {
 }
 
 impl OptionValue {
-    pub fn get_int(&self) -> HdbResult<i32> {
+    pub fn get_int_as_i32(&self) -> HdbResult<i32> {
         if let Self::INT(i) = self {
             Ok(*i)
+        } else {
+            Err(HdbError::Impl("Not a INT-typed OptionValue"))
+        }
+    }
+    pub fn get_int_as_u32(&self) -> HdbResult<u32> {
+        if let Self::INT(i) = self {
+            Ok(u32::try_from(*i).unwrap(/*OK*/))
         } else {
             Err(HdbError::Impl("Not a INT-typed OptionValue"))
         }

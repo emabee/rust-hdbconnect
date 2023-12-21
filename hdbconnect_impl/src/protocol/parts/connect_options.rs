@@ -7,8 +7,8 @@ use crate::{
     },
 };
 
-//const USE_COMPRESSION_REMOTE: i32 = 0x0000_0300; // LZ4Supported (100) & LZ4Enabled (200)
-const USE_COMPRESSION_ALWAYS: i32 = 0x0000_0700; // LZ4Supported (100) & LZ4Enabled (200) & ForceLocal (400)
+//const USE_COMPRESSION_REMOTE: u32 = 0x0000_0300; // LZ4Supported (100) & LZ4Enabled (200)
+const USE_COMPRESSION_ALWAYS: u32 = 0x0000_0700; // LZ4Supported (100) & LZ4Enabled (200) & ForceLocal (400)
 
 // ConnectOptions are influenced by the application (`ConnectOptionsEnum::Initial`),
 // augmented by the implementation and sent to the server (`ConnectOptionsEnum::for_server()`),
@@ -47,7 +47,7 @@ pub(crate) enum ConnectOptions {
 }
 impl ConnectOptions {
     // Hard-coded defaults
-    const CLIENT_RECONNECT_WAIT_TIMEOUT_IN_SECONDS: i32 = 600; // server does not allow more
+    const CLIENT_RECONNECT_WAIT_TIMEOUT_IN_SECONDS: u32 = 600; // server does not allow more
     const DATAFORMAT_VERSION2: u8 = 8;
     const ENABLE_ARRAY_TYPE: bool = true;
     #[cfg(feature = "alpha_routing")]
@@ -98,13 +98,15 @@ impl ConnectOptions {
         if let Some(connection_id) = o_connection_id {
             set_opt(
                 ConnOptId::ConnectionID,
-                OptionValue::INT(*connection_id as i32),
+                OptionValue::INT(i32::try_from(*connection_id).unwrap(/*OK*/)),
             );
         }
 
         set_opt(
             ConnOptId::ClientReconnectWaitTimeout,
-            OptionValue::INT(Self::CLIENT_RECONNECT_WAIT_TIMEOUT_IN_SECONDS),
+            OptionValue::INT(
+                i32::try_from(Self::CLIENT_RECONNECT_WAIT_TIMEOUT_IN_SECONDS).unwrap(/*OK*/),
+            ),
         );
 
         set_opt(
@@ -128,7 +130,7 @@ impl ConnectOptions {
             Compression::Always => {
                 set_opt(
                     ConnOptId::CompressionLevelAndFlags,
-                    OptionValue::INT(USE_COMPRESSION_ALWAYS),
+                    OptionValue::INT(i32::try_from(USE_COMPRESSION_ALWAYS).unwrap(/*OK*/)),
                 );
             }
             // Compression::Remote => {
@@ -157,20 +159,22 @@ impl ConnectOptions {
         incoming: ConnectOptionsPart,
     ) -> HdbResult<()> {
         let (o_client_locale, os_user, compression) = match *self {
-            ConnectOptions::Final {
+            ConnectOptions::Initial {
+                ref o_client_locale,
+                ref os_user,
+                ref mut compression,
+            }
+            | ConnectOptions::Final {
+                // necessary for reconnects
                 ref o_client_locale,
                 ref os_user,
                 ref mut compression,
                 ..
             } => (o_client_locale, os_user, compression),
-            ConnectOptions::Initial {
-                ref o_client_locale,
-                ref os_user,
-                ref mut compression,
-            } => (o_client_locale, os_user, compression),
         };
-        let mut client_reconnect_wait_timeout =
-            std::time::Duration::from_secs(Self::CLIENT_RECONNECT_WAIT_TIMEOUT_IN_SECONDS as u64);
+        let mut client_reconnect_wait_timeout = std::time::Duration::from_secs(u64::from(
+            Self::CLIENT_RECONNECT_WAIT_TIMEOUT_IN_SECONDS,
+        ));
         let mut dataformat_version2 = Self::DATAFORMAT_VERSION2;
         let enable_array_type = true;
         #[cfg(feature = "alpha_routing")]
@@ -187,15 +191,15 @@ impl ConnectOptions {
             match k {
                 ConnOptId::ClientReconnectWaitTimeout => {
                     client_reconnect_wait_timeout = std::time::Duration::from_secs(
-                        u64::try_from(v.get_int()?).unwrap(/* cannot fail */),
+                        u64::try_from(v.get_int_as_i32()?).unwrap(/*OK*/),
                     );
                 }
                 ConnOptId::DataFormatVersion2 => {
-                    dataformat_version2 = u8::try_from(v.get_int()?).unwrap(/* cannot fail */);
+                    dataformat_version2 = u8::try_from(v.get_int_as_i32()?).unwrap(/*OK*/);
                 }
 
                 ConnOptId::ConnectionID => {
-                    connection_id = u32::try_from(v.get_int()?).unwrap(/* cannot fail */);
+                    connection_id = v.get_int_as_u32()?;
                 }
                 ConnOptId::SystemID => {
                     system_id = v.into_string()?;
@@ -211,9 +215,7 @@ impl ConnectOptions {
                 }
                 ConnOptId::CompressionLevelAndFlags => {
                     *compression = {
-                        let tmp = v.get_int()?;
-                        // FIXME is this good enough?
-                        if (tmp & USE_COMPRESSION_ALWAYS) == 0 {
+                        if (v.get_int_as_u32()? & USE_COMPRESSION_ALWAYS) == 0 {
                             Compression::Off
                         } else {
                             Compression::Always

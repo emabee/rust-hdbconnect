@@ -38,7 +38,7 @@ features = ["async"]
 bigdecimal = { version = "0.4", features = ["serde"] }
 cesu8 = "1.1"
 chrono = { version = "0.4", features = ["serde"] }
-dist_tx = { version = "0.3" }
+dist_tx = { version = "0.4", features = ["async"], path = "../../dist_tx" }
 flexi_logger = "0.27"
 log = "0.4"
 num = "0.4"

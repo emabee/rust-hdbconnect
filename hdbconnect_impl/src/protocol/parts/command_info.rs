@@ -6,9 +6,12 @@ use crate::protocol::parts::option_value::OptionValue;
 pub type CommandInfo = OptionPart<CommandInfoId>;
 
 impl CommandInfo {
-    pub fn new(linenumber: i32, module: &str) -> Self {
+    pub fn new(linenumber: u32, module: &str) -> Self {
         let mut ci = Self::default();
-        ci.insert(CommandInfoId::LineNumber, OptionValue::INT(linenumber));
+        ci.insert(
+            CommandInfoId::LineNumber,
+            OptionValue::INT(i32::try_from(linenumber).unwrap(/*OK*/)),
+        );
         ci.insert(
             CommandInfoId::SourceModule,
             OptionValue::STRING(module.to_string()),

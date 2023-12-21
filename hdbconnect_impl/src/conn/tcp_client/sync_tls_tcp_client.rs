@@ -5,7 +5,7 @@ use tokio_rustls::rustls::{ClientConnection, ServerName};
 pub(crate) struct SyncTlsTcpClient {
     params: ConnectParams,
     reader: Stream,
-    writer: std::io::BufWriter<Stream>,
+    writer: Stream,
 }
 impl std::fmt::Debug for SyncTlsTcpClient {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
@@ -18,7 +18,7 @@ impl SyncTlsTcpClient {
         Ok(Self {
             params,
             reader: stream.try_clone()?,
-            writer: std::io::BufWriter::new(stream),
+            writer: stream,
         })
     }
 

@@ -16,7 +16,10 @@ impl XatOptions {
 
     pub(crate) fn set_flags(&mut self, flag: Flags) {
         #[allow(clippy::cast_possible_wrap)]
-        self.insert(XatOptionId::Flags, OptionValue::INT(flag.bits() as i32));
+        self.insert(
+            XatOptionId::Flags,
+            OptionValue::INT(i32::try_from(flag.bits()).unwrap(/*OK*/)),
+        );
     }
 
     // pub fn set_count(&mut self, count: i64) {
