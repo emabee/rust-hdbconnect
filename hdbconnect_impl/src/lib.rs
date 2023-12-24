@@ -24,6 +24,7 @@ extern crate log;
 #[macro_use]
 extern crate serde;
 
+mod base;
 mod conn;
 mod hdb_error;
 mod internal_returnvalue;
