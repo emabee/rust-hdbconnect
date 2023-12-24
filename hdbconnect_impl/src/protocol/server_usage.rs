@@ -35,7 +35,7 @@ pub struct ServerUsage {
     pub server_memory_usage: u64,
 }
 impl ServerUsage {
-    pub fn update(
+    pub(crate) fn update(
         &mut self,
         o_server_proc_time: Option<Duration>,
         o_server_cpu_time: Option<Duration>,
@@ -55,7 +55,23 @@ impl ServerUsage {
             self.server_memory_usage = 0;
         }
     }
+
+    /// FIXME
+    pub fn proc_time(&self) -> &Duration {
+        &self.proc_time
+    }
+
+    /// FIXME
+    pub fn accum_proc_time(&self) -> &Duration {
+        &self.accum_proc_time
+    }
+
+    /// FIXME
+    pub fn server_memory_usage(&self) -> &u64 {
+        &self.server_memory_usage
+    }
 }
+
 impl std::fmt::Display for ServerUsage {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         write!(

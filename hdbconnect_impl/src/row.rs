@@ -1,6 +1,7 @@
 use crate::{
+    base::{RsCore, OAM},
     conn::AmConnCore,
-    protocol::parts::{AmRsCore, HdbValue, ResultSetMetadata},
+    protocol::parts::{HdbValue, ResultSetMetadata},
     HdbError, HdbResult,
 };
 use serde_db::de::DeserializableRow;
@@ -97,9 +98,9 @@ impl Row {
     #[cfg(feature = "sync")]
     pub(crate) fn parse_sync(
         md: Arc<ResultSetMetadata>,
-        o_am_rscore: &Option<AmRsCore>,
+        o_am_rscore: &OAM<RsCore>,
         am_conn_core: &AmConnCore,
-        rdr: &mut dyn std::io::Read,
+        rdr: &mut std::io::Cursor<Vec<u8>>,
     ) -> HdbResult<Self> {
         let mut values = Vec::<HdbValue>::new();
 
@@ -123,11 +124,11 @@ impl Row {
     }
 
     #[cfg(feature = "async")]
-    pub(crate) async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
+    pub(crate) async fn parse_async(
         md: Arc<ResultSetMetadata>,
-        o_am_rscore: &Option<AmRsCore>,
+        o_am_rscore: &OAM<RsCore>,
         am_conn_core: &AmConnCore,
-        rdr: &mut R,
+        rdr: &mut std::io::Cursor<Vec<u8>>,
     ) -> HdbResult<Self> {
         let mut values = Vec::<HdbValue>::new();
 
@@ -150,6 +151,35 @@ impl Row {
         let row = Self::new(md, values);
         Ok(row)
     }
+
+    // #[cfg(feature = "async")]
+    // pub(crate) async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
+    //     md: Arc<ResultSetMetadata>,
+    //     o_am_rscore: &OAM<RsCore>,
+    //     am_conn_core: &AmConnCore,
+    //     rdr: &mut R,
+    // ) -> HdbResult<Self> {
+    //     let mut values = Vec::<HdbValue>::new();
+
+    //     let md0 = Arc::as_ref(&md);
+
+    //     // for col_idx in 0..md.len() {
+    //     for col_md in &**md0 {
+    //         let value = HdbValue::parse_async(
+    //             col_md.type_id(),
+    //             col_md.is_array_type(),
+    //             col_md.scale(),
+    //             col_md.is_nullable(),
+    //             am_conn_core,
+    //             o_am_rscore,
+    //             rdr,
+    //         )
+    //         .await?;
+    //         values.push(value);
+    //     }
+    //     let row = Self::new(md, values);
+    //     Ok(row)
+    // }
 }
 
 /// Support indexing.

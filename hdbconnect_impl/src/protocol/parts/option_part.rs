@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::hash::Hash;
 
-#[cfg(feature = "sync")]
+// #[cfg(feature = "sync")]
 use byteorder::{ReadBytesExt, WriteBytesExt};
 
 pub trait OptionId<T: OptionId<T>> {
@@ -57,7 +57,7 @@ impl<T: OptionId<T> + Debug + Eq + PartialEq + Hash> OptionPart<T> {
         self.0.remove_entry(k)
     }
 
-    #[cfg(feature = "sync")]
+    // #[cfg(feature = "sync")]
     pub fn sync_emit(&self, w: &mut dyn std::io::Write) -> HdbResult<()> {
         for (id, value) in &self.0 {
             w.write_u8(id.to_u8())?;
@@ -66,19 +66,19 @@ impl<T: OptionId<T> + Debug + Eq + PartialEq + Hash> OptionPart<T> {
         Ok(())
     }
 
-    #[cfg(feature = "async")]
-    pub async fn async_emit<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
-        &self,
-        w: &mut W,
-    ) -> HdbResult<()> {
-        for (id, value) in &self.0 {
-            w.write_u8(id.to_u8()).await?;
-            value.async_emit(w).await?;
-        }
-        Ok(())
-    }
+    // #[cfg(feature = "async")]
+    // pub async fn async_emit<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
+    //     &self,
+    //     w: &mut W,
+    // ) -> HdbResult<()> {
+    //     for (id, value) in &self.0 {
+    //         w.write_u8(id.to_u8()).await?;
+    //         value.async_emit(w).await?;
+    //     }
+    //     Ok(())
+    // }
 
-    #[cfg(feature = "sync")]
+    // #[cfg(feature = "sync")]
     pub fn parse_sync(count: usize, rdr: &mut dyn std::io::Read) -> HdbResult<Self> {
         let mut result = Self::default();
         for _ in 0..count {
@@ -90,20 +90,20 @@ impl<T: OptionId<T> + Debug + Eq + PartialEq + Hash> OptionPart<T> {
         Ok(result)
     }
 
-    #[cfg(feature = "async")]
-    pub async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
-        count: usize,
-        rdr: &mut R,
-    ) -> HdbResult<Self> {
-        let mut result = Self::default();
-        for _ in 0..count {
-            let id = T::from_u8(rdr.read_u8().await?);
-            let value = OptionValue::parse_async(rdr).await?;
-            trace!("Parsed Option id = {:?}, value = {:?}", id.to_u8(), value);
-            result.0.insert(id, value);
-        }
-        Ok(result)
-    }
+    // #[cfg(feature = "async")]
+    // pub async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
+    //     count: usize,
+    //     rdr: &mut R,
+    // ) -> HdbResult<Self> {
+    //     let mut result = Self::default();
+    //     for _ in 0..count {
+    //         let id = T::from_u8(rdr.read_u8().await?);
+    //         let value = OptionValue::parse_async(rdr).await?;
+    //         trace!("Parsed Option id = {:?}, value = {:?}", id.to_u8(), value);
+    //         result.0.insert(id, value);
+    //     }
+    //     Ok(result)
+    // }
 }
 
 impl<T> IntoIterator for OptionPart<T>

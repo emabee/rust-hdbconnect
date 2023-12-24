@@ -1,6 +1,7 @@
 #[cfg(feature = "dist_tx")]
 use crate::protocol::parts::XatOptions;
 use crate::{
+    base::RsState,
     conn::AmConnCore,
     protocol::{
         parts::{
@@ -15,14 +16,9 @@ use crate::{
     HdbError, HdbResult,
 };
 
-#[cfg(feature = "async")]
-use crate::a_sync::AsyncRsState;
-#[cfg(feature = "sync")]
-use crate::sync::SyncRsState;
-
-#[cfg(feature = "sync")]
+// #[cfg(feature = "sync")]
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use std::{cmp::max, convert::TryFrom, i16, i32, sync::Arc};
+use std::{cmp::max, convert::TryFrom, i16, i32, io::Write, sync::Arc};
 
 const PART_HEADER_SIZE: usize = 16;
 
@@ -47,10 +43,7 @@ pub enum Part<'a> {
     ReadLobReply(ReadLobReply),
     WriteLobRequest(WriteLobRequest<'a>),
     WriteLobReply(WriteLobReply),
-    #[cfg(feature = "sync")]
-    ResultSet(Option<crate::sync::ResultSet>),
-    #[cfg(feature = "async")]
-    AResultSet(Option<crate::a_sync::ResultSet>),
+    RsState(Option<(RsState, Arc<ResultSetMetadata>)>),
     ResultSetId(u64),
     ResultSetMetadata(ResultSetMetadata),
     ExecutionResult(Vec<ExecutionResult>),
@@ -85,10 +78,7 @@ impl<'a> Part<'a> {
             Self::ReadLobReply(_) => PartKind::ReadLobReply,
             Self::WriteLobRequest(_) => PartKind::WriteLobRequest,
             Self::WriteLobReply(_) => PartKind::WriteLobReply,
-            #[cfg(feature = "sync")]
-            Self::ResultSet(_) => PartKind::ResultSet,
-            #[cfg(feature = "async")]
-            Self::AResultSet(_) => PartKind::ResultSet,
+            Self::RsState(_) => PartKind::ResultSet,
             Self::ResultSetId(_) => PartKind::ResultSetId,
             Self::ResultSetMetadata(_) => PartKind::ResultSetMetadata,
             Self::ExecutionResult(_) => PartKind::ExecutionResult,
@@ -186,14 +176,14 @@ impl<'a> Part<'a> {
         Ok(size)
     }
 
-    #[cfg(feature = "sync")]
+    // #[cfg(feature = "sync")]
     #[allow(clippy::cast_possible_truncation)]
     #[allow(clippy::cast_possible_wrap)]
     pub fn sync_emit(
         &self,
         mut remaining_bufsize: u32,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
-        w: &mut dyn std::io::Write,
+        w: &mut std::io::Cursor<Vec<u8>>,
     ) -> HdbResult<u32> {
         debug!("Serializing part of kind {:?}", self.kind());
         // PART HEADER 16 bytes
@@ -272,94 +262,94 @@ impl<'a> Part<'a> {
         Ok(remaining_bufsize - size as u32 - padsize as u32)
     }
 
-    #[cfg(feature = "async")]
-    #[allow(clippy::cast_possible_truncation)]
-    #[allow(clippy::cast_possible_wrap)]
-    pub async fn async_emit<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
-        &self,
-        mut remaining_bufsize: u32,
-        o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
-        w: &mut W,
-    ) -> HdbResult<u32> {
-        debug!("Serializing part of kind {:?}", self.kind());
-        // PART HEADER 16 bytes
-        w.write_i8(self.kind() as i8).await?;
-        w.write_u8(0).await?; // U1 Attributes not used in requests
-        match self.count()? {
-            i if i < i16::max_value() as usize => {
-                w.write_i16_le(i as i16).await?;
-                w.write_i32_le(0).await?;
-            }
-            // i if i <= i32::max_value() as usize => {
-            i if i32::try_from(i).is_ok() => {
-                w.write_i16_le(-1).await?;
-                w.write_i32_le(i as i32).await?;
-            }
-            _ => {
-                return Err(HdbError::Impl("argument count bigger than i32::MAX"));
-            }
-        }
-        w.write_i32_le(self.body_size(false, o_a_descriptors)? as i32)
-            .await?;
-        w.write_i32_le(remaining_bufsize as i32).await?;
+    // #[cfg(feature = "async")]
+    // #[allow(clippy::cast_possible_truncation)]
+    // #[allow(clippy::cast_possible_wrap)]
+    // pub async fn async_emit<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
+    //     &self,
+    //     mut remaining_bufsize: u32,
+    //     o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
+    //     w: &mut W,
+    // ) -> HdbResult<u32> {
+    //     debug!("Serializing part of kind {:?}", self.kind());
+    //     // PART HEADER 16 bytes
+    //     w.write_i8(self.kind() as i8).await?;
+    //     w.write_u8(0).await?; // U1 Attributes not used in requests
+    //     match self.count()? {
+    //         i if i < i16::max_value() as usize => {
+    //             w.write_i16_le(i as i16).await?;
+    //             w.write_i32_le(0).await?;
+    //         }
+    //         // i if i <= i32::max_value() as usize => {
+    //         i if i32::try_from(i).is_ok() => {
+    //             w.write_i16_le(-1).await?;
+    //             w.write_i32_le(i as i32).await?;
+    //         }
+    //         _ => {
+    //             return Err(HdbError::Impl("argument count bigger than i32::MAX"));
+    //         }
+    //     }
+    //     w.write_i32_le(self.body_size(false, o_a_descriptors)? as i32)
+    //         .await?;
+    //     w.write_i32_le(remaining_bufsize as i32).await?;
 
-        remaining_bufsize -= PART_HEADER_SIZE as u32;
+    //     remaining_bufsize -= PART_HEADER_SIZE as u32;
 
-        match *self {
-            Part::Auth(ref af) => af.async_emit(w).await?,
-            Part::ClientContext(ref opts) => opts.async_emit(w).await?,
-            Part::ClientInfo(ref client_info) => client_info.async_emit(w).await?,
-            Part::Command(s) => w.write_all(&cesu8::to_cesu8(s)).await?,
-            Part::CommandInfo(ref opts) => opts.async_emit(w).await?,
-            // Part::CommitOptions(ref opts) => opts.async_emit(w).await?,
-            Part::ConnectOptions(ref conn_opts) => conn_opts.async_emit(w).await?,
-            Part::DbConnectInfo(ref db_conn_info) => db_conn_info.async_emit(w).await?,
+    //     match *self {
+    //         Part::Auth(ref af) => af.async_emit(w).await?,
+    //         Part::ClientContext(ref opts) => opts.async_emit(w).await?,
+    //         Part::ClientInfo(ref client_info) => client_info.async_emit(w).await?,
+    //         Part::Command(s) => w.write_all(&cesu8::to_cesu8(s)).await?,
+    //         Part::CommandInfo(ref opts) => opts.async_emit(w).await?,
+    //         // Part::CommitOptions(ref opts) => opts.async_emit(w).await?,
+    //         Part::ConnectOptions(ref conn_opts) => conn_opts.async_emit(w).await?,
+    //         Part::DbConnectInfo(ref db_conn_info) => db_conn_info.async_emit(w).await?,
 
-            // Part::FetchOptions(ref opts) => opts.async_emit(w).await?,
-            Part::FetchSize(fs) => w.write_u32_le(fs).await?,
-            Part::LobFlags(ref opts) => opts.async_emit(w).await?,
-            Part::ParameterRows(ref parameter_rows) => {
-                if let Some(a_descriptors) = o_a_descriptors {
-                    parameter_rows.async_emit(a_descriptors, w).await?;
-                } else {
-                    return Err(HdbError::Impl(
-                        "Part::ParameterRows::async_emit(): No metadata",
-                    ));
-                }
-            }
-            Part::ReadLobRequest(ref r) => r.async_emit(w).await?,
-            Part::ResultSetId(rs_id) => {
-                w.write_u64_le(rs_id).await?;
-            }
-            Part::SessionContext(ref opts) => opts.async_emit(w).await?,
-            Part::StatementId(stmt_id) => {
-                w.write_u64_le(stmt_id).await?;
-            }
-            Part::StatementContext(ref sc) => sc.async_emit(w).await?,
-            Part::TransactionFlags(ref taflags) => taflags.async_emit(w).await?,
-            Part::WriteLobRequest(ref r) => r.async_emit(w).await?,
-            #[cfg(feature = "dist_tx")]
-            Part::XatOptions(ref xatid) => xatid.async_emit(w).await?,
-            ref a => {
-                return Err(HdbError::ImplDetailed(format!("emit() called on {a:?}")));
-            }
-        }
+    //         // Part::FetchOptions(ref opts) => opts.async_emit(w).await?,
+    //         Part::FetchSize(fs) => w.write_u32_le(fs).await?,
+    //         Part::LobFlags(ref opts) => opts.async_emit(w).await?,
+    //         Part::ParameterRows(ref parameter_rows) => {
+    //             if let Some(a_descriptors) = o_a_descriptors {
+    //                 parameter_rows.async_emit(a_descriptors, w).await?;
+    //             } else {
+    //                 return Err(HdbError::Impl(
+    //                     "Part::ParameterRows::async_emit(): No metadata",
+    //                 ));
+    //             }
+    //         }
+    //         Part::ReadLobRequest(ref r) => r.async_emit(w).await?,
+    //         Part::ResultSetId(rs_id) => {
+    //             w.write_u64_le(rs_id).await?;
+    //         }
+    //         Part::SessionContext(ref opts) => opts.async_emit(w).await?,
+    //         Part::StatementId(stmt_id) => {
+    //             w.write_u64_le(stmt_id).await?;
+    //         }
+    //         Part::StatementContext(ref sc) => sc.async_emit(w).await?,
+    //         Part::TransactionFlags(ref taflags) => taflags.async_emit(w).await?,
+    //         Part::WriteLobRequest(ref r) => r.async_emit(w).await?,
+    //         #[cfg(feature = "dist_tx")]
+    //         Part::XatOptions(ref xatid) => xatid.async_emit(w).await?,
+    //         ref a => {
+    //             return Err(HdbError::ImplDetailed(format!("emit() called on {a:?}")));
+    //         }
+    //     }
 
-        let size = self.body_size(false, o_a_descriptors)?;
-        let padsize = padsize(size);
-        for _ in 0..padsize {
-            w.write_u8(0).await?;
-        }
+    //     let size = self.body_size(false, o_a_descriptors)?;
+    //     let padsize = padsize(size);
+    //     for _ in 0..padsize {
+    //         w.write_u8(0).await?;
+    //     }
 
-        trace!(
-            "remaining_bufsize: {}, size: {}, padsize: {}",
-            remaining_bufsize,
-            size,
-            padsize
-        );
-        #[allow(clippy::cast_possible_truncation)]
-        Ok(remaining_bufsize - size as u32 - padsize as u32)
-    }
+    //     trace!(
+    //         "remaining_bufsize: {}, size: {}, padsize: {}",
+    //         remaining_bufsize,
+    //         size,
+    //         padsize
+    //     );
+    //     #[allow(clippy::cast_possible_truncation)]
+    //     Ok(remaining_bufsize - size as u32 - padsize as u32)
+    // }
 
     #[cfg(feature = "sync")]
     pub(crate) fn parse_sync(
@@ -367,9 +357,9 @@ impl<'a> Part<'a> {
         o_am_conn_core: Option<&AmConnCore>,
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
-        o_rs: &mut Option<&mut SyncRsState>,
+        o_rs: &mut Option<&mut RsState>,
         last: bool,
-        rdr: &mut dyn std::io::Read,
+        rdr: &mut std::io::Cursor<Vec<u8>>,
     ) -> HdbResult<Part<'static>> {
         trace!("parse()");
         let (kind, attributes, arg_size, no_of_args) = parse_header_sync(rdr)?;
@@ -403,17 +393,17 @@ impl<'a> Part<'a> {
     }
 
     #[cfg(feature = "async")]
-    pub(crate) async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
-        already_received_parts: &mut Parts<'static>,
+    pub(crate) async fn parse_async(
+        already_received_parts: &mut Parts<'_>,
         o_am_conn_core: Option<&AmConnCore>,
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
-        o_rs: &mut Option<&mut AsyncRsState>,
+        o_rs: &mut Option<&mut RsState>,
         last: bool,
-        rdr: &mut R,
+        rdr: &mut std::io::Cursor<Vec<u8>>,
     ) -> HdbResult<Part<'static>> {
         trace!("parse()");
-        let (kind, attributes, arg_size, no_of_args) = parse_header_async(rdr).await?;
+        let (kind, attributes, arg_size, no_of_args) = parse_header_sync(rdr)?;
         debug!(
             "parse() found part of kind {:?} with attributes {:?}, arg_size {} and no_of_args {}",
             kind, attributes, arg_size, no_of_args
@@ -436,9 +426,8 @@ impl<'a> Part<'a> {
             (PartKind::ResultSet | PartKind::ResultSetId | PartKind::ReadLobReply, true)
             | (PartKind::Error, _) => {}
             (_, _) => {
-                for _ in 0..padsize {
-                    rdr.read_u8().await?;
-                }
+                debug!("parse() skips over {padsize} padding bytes");
+                util_sync::skip_bytes(padsize, rdr)?;
             }
         }
 
@@ -455,8 +444,8 @@ impl<'a> Part<'a> {
         o_am_conn_core: Option<&AmConnCore>,
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
-        o_rs: &mut Option<&mut SyncRsState>,
-        rdr: &mut dyn std::io::Read,
+        o_rs: &mut Option<&mut RsState>,
+        rdr: &mut std::io::Cursor<Vec<u8>>,
     ) -> HdbResult<Part<'a>> {
         trace!("parse(no_of_args={}, kind={:?})", no_of_args, kind);
 
@@ -484,7 +473,7 @@ impl<'a> Part<'a> {
                 Part::WriteLobReply(WriteLobReply::parse_sync(no_of_args, rdr)?)
             }
             PartKind::ResultSet => {
-                let rs = crate::sync::ResultSet::parse(
+                let rs_state_and_a_rsmd = RsState::parse_sync(
                     no_of_args,
                     attributes,
                     parts,
@@ -494,7 +483,7 @@ impl<'a> Part<'a> {
                     o_rs,
                     rdr,
                 )?;
-                Part::ResultSet(rs)
+                Part::RsState(rs_state_and_a_rsmd)
             }
             PartKind::ResultSetId => Part::ResultSetId(rdr.read_u64::<LittleEndian>()?),
             PartKind::ResultSetMetadata => {
@@ -540,31 +529,29 @@ impl<'a> Part<'a> {
 
     #[cfg(feature = "async")]
     #[allow(clippy::too_many_arguments)]
-    async fn parse_body_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
+    async fn parse_body_async(
         kind: PartKind,
         attributes: PartAttributes,
         no_of_args: usize,
-        parts: &mut Parts<'static>,
+        parts: &mut Parts<'_>,
         o_am_conn_core: Option<&AmConnCore>,
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
-        o_rs: &mut Option<&mut AsyncRsState>,
-        rdr: &mut R,
+        o_rs: &mut Option<&mut RsState>,
+        rdr: &mut std::io::Cursor<Vec<u8>>,
     ) -> HdbResult<Part<'a>> {
         trace!("parse(no_of_args={}, kind={:?})", no_of_args, kind);
 
         let arg = match kind {
-            PartKind::Authentication => Part::Auth(AuthFields::parse_async(rdr).await?),
-            PartKind::CommandInfo => {
-                Part::CommandInfo(CommandInfo::parse_async(no_of_args, rdr).await?)
-            }
+            PartKind::Authentication => Part::Auth(AuthFields::parse_sync(rdr)?),
+            PartKind::CommandInfo => Part::CommandInfo(CommandInfo::parse_sync(no_of_args, rdr)?),
             PartKind::ConnectOptions => {
-                Part::ConnectOptions(ConnectOptionsPart::parse_async(no_of_args, rdr).await?)
+                Part::ConnectOptions(ConnectOptionsPart::parse_sync(no_of_args, rdr)?)
             }
             PartKind::DbConnectInfo => {
-                Part::DbConnectInfo(DbConnectInfo::parse_async(no_of_args, rdr).await?)
+                Part::DbConnectInfo(DbConnectInfo::parse_sync(no_of_args, rdr)?)
             }
-            PartKind::Error => Part::Error(ServerError::parse_async(no_of_args, rdr).await?),
+            PartKind::Error => Part::Error(ServerError::parse_sync(no_of_args, rdr)?),
             PartKind::OutputParameters => {
                 if let Some(a_descriptors) = o_a_descriptors {
                     Part::OutputParameters(
@@ -575,14 +562,14 @@ impl<'a> Part<'a> {
                 }
             }
             PartKind::ParameterMetadata => {
-                Part::ParameterMetadata(ParameterDescriptors::parse_async(no_of_args, rdr).await?)
+                Part::ParameterMetadata(ParameterDescriptors::parse_sync(no_of_args, rdr)?)
             }
-            PartKind::ReadLobReply => Part::ReadLobReply(ReadLobReply::parse_async(rdr).await?),
+            PartKind::ReadLobReply => Part::ReadLobReply(ReadLobReply::parse_sync(rdr)?),
             PartKind::WriteLobReply => {
-                Part::WriteLobReply(WriteLobReply::parse_async(no_of_args, rdr).await?)
+                Part::WriteLobReply(WriteLobReply::parse_sync(no_of_args, rdr)?)
             }
             PartKind::ResultSet => {
-                let rs = crate::a_sync::ResultSet::parse(
+                let rs_state_and_a_rsmd = RsState::parse_async(
                     no_of_args,
                     attributes,
                     parts,
@@ -593,42 +580,40 @@ impl<'a> Part<'a> {
                     rdr,
                 )
                 .await?;
-                Part::AResultSet(rs)
+                Part::RsState(rs_state_and_a_rsmd)
             }
-            PartKind::ResultSetId => Part::ResultSetId(rdr.read_u64_le().await?),
+            PartKind::ResultSetId => Part::ResultSetId(rdr.read_u64::<LittleEndian>()?),
             PartKind::ResultSetMetadata => {
-                Part::ResultSetMetadata(ResultSetMetadata::parse_async(no_of_args, rdr).await?)
+                Part::ResultSetMetadata(ResultSetMetadata::parse_sync(no_of_args, rdr)?)
             }
             PartKind::ExecutionResult => {
-                Part::ExecutionResult(ExecutionResult::parse_async(no_of_args, rdr).await?)
+                Part::ExecutionResult(ExecutionResult::parse_sync(no_of_args, rdr)?)
             }
             PartKind::StatementContext => {
-                Part::StatementContext(StatementContext::parse_async(no_of_args, rdr).await?)
+                Part::StatementContext(StatementContext::parse_sync(no_of_args, rdr)?)
             }
-            PartKind::StatementId => Part::StatementId(rdr.read_u64_le().await?),
+            PartKind::StatementId => Part::StatementId(rdr.read_u64::<LittleEndian>()?),
             PartKind::SessionContext => {
-                Part::SessionContext(SessionContext::parse_async(no_of_args, rdr).await?)
+                Part::SessionContext(SessionContext::parse_sync(no_of_args, rdr)?)
             }
             PartKind::TableLocation => {
                 let mut vec = Vec::<i32>::new();
                 for _ in 0..no_of_args {
-                    vec.push(rdr.read_i32_le().await?);
+                    vec.push(rdr.read_i32::<LittleEndian>()?);
                 }
                 Part::TableLocation(vec)
             }
             PartKind::TopologyInformation => {
-                Part::TopologyInformation(Topology::parse_async(no_of_args, rdr).await?)
+                Part::TopologyInformation(Topology::parse_sync(no_of_args, rdr)?)
             }
             PartKind::PartitionInformation => {
-                Part::PartitionInformation(PartitionInformation::parse_async(rdr).await?)
+                Part::PartitionInformation(PartitionInformation::parse_sync(rdr)?)
             }
             PartKind::TransactionFlags => {
-                Part::TransactionFlags(TransactionFlags::parse_async(no_of_args, rdr).await?)
+                Part::TransactionFlags(TransactionFlags::parse_sync(no_of_args, rdr)?)
             }
             #[cfg(feature = "dist_tx")]
-            PartKind::XatOptions => {
-                Part::XatOptions(XatOptions::parse_async(no_of_args, rdr).await?)
-            }
+            PartKind::XatOptions => Part::XatOptions(XatOptions::parse_sync(no_of_args, rdr)?),
             _ => {
                 return Err(HdbError::ImplDetailed(format!(
                     "No handling implemented for received partkind {kind:?}",
@@ -640,7 +625,7 @@ impl<'a> Part<'a> {
     }
 }
 
-#[cfg(feature = "sync")]
+// #[cfg(feature = "sync")]
 #[allow(clippy::cast_sign_loss)]
 fn parse_header_sync(
     rdr: &mut dyn std::io::Read,
@@ -657,22 +642,22 @@ fn parse_header_sync(
     Ok((kind, attributes, arg_size as usize, no_of_args as usize))
 }
 
-#[cfg(feature = "async")]
-#[allow(clippy::cast_sign_loss)]
-async fn parse_header_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
-    rdr: &mut R,
-) -> HdbResult<(PartKind, PartAttributes, usize, usize)> {
-    // PART HEADER: 16 bytes
-    let kind = PartKind::from_i8(rdr.read_i8().await?)?; // I1
-    let attributes = PartAttributes::new(rdr.read_u8().await?); // U1 (documented as I1)
-    let no_of_argsi16 = rdr.read_i16_le().await?; // I2
-    let no_of_argsi32 = rdr.read_i32_le().await?; // I4
-    let arg_size = rdr.read_i32_le().await?; // I4
-    rdr.read_i32_le().await?; // I4 remaining_packet_size
+// #[cfg(feature = "async")]
+// #[allow(clippy::cast_sign_loss)]
+// async fn parse_header_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
+//     rdr: &mut R,
+// ) -> HdbResult<(PartKind, PartAttributes, usize, usize)> {
+//     // PART HEADER: 16 bytes
+//     let kind = PartKind::from_i8(rdr.read_i8().await?)?; // I1
+//     let attributes = PartAttributes::new(rdr.read_u8().await?); // U1 (documented as I1)
+//     let no_of_argsi16 = rdr.read_i16_le().await?; // I2
+//     let no_of_argsi32 = rdr.read_i32_le().await?; // I4
+//     let arg_size = rdr.read_i32_le().await?; // I4
+//     rdr.read_i32_le().await?; // I4 remaining_packet_size
 
-    let no_of_args = max(i32::from(no_of_argsi16), no_of_argsi32);
-    Ok((kind, attributes, arg_size as usize, no_of_args as usize))
-}
+//     let no_of_args = max(i32::from(no_of_argsi16), no_of_argsi32);
+//     Ok((kind, attributes, arg_size as usize, no_of_args as usize))
+// }
 
 fn padsize(size: usize) -> usize {
     match size {

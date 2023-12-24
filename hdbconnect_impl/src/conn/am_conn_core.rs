@@ -1,7 +1,4 @@
-#[cfg(feature = "async")]
-use crate::a_sync::AsyncRsState;
-#[cfg(feature = "sync")]
-use crate::sync::SyncRsState;
+use crate::base::RsState;
 
 use crate::{
     conn::ConnectionCore,
@@ -16,6 +13,7 @@ use std::{sync::Arc, time::Instant};
 #[derive(Clone, Debug)]
 pub struct AmConnCore(Arc<MConnCore>);
 
+// FIXME use XMutexed
 #[derive(Debug)]
 pub enum MConnCore {
     #[cfg(feature = "sync")]
@@ -103,7 +101,7 @@ impl AmConnCore {
         mut request: Request,
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
-        o_rs: &mut Option<&mut SyncRsState>,
+        o_rs: &mut Option<&mut RsState>,
     ) -> HdbResult<Reply> {
         trace!(
             "AmConnCore::full_send() with requestType = {:?}",
@@ -140,7 +138,7 @@ impl AmConnCore {
         mut request: Request<'_>,
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
-        o_rs: &mut Option<&mut AsyncRsState>,
+        o_rs: &mut Option<&mut RsState>,
     ) -> HdbResult<Reply> {
         trace!(
             "AmConnCore::full_send() with requestType = {:?}",

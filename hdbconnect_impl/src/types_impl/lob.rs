@@ -20,11 +20,8 @@ pub(crate) use self::nclob_handle::NCLobHandle;
 #[cfg(feature = "sync")]
 pub use self::sync_lob_writer::LobWriter;
 
+pub(crate) use self::wire::emit_lob_header;
 #[cfg(feature = "async")]
-pub(crate) use self::wire::{
-    emit_lob_header_async, parse_blob_async, parse_clob_async, parse_nclob_async,
-};
+pub(crate) use self::wire::{parse_blob_async, parse_clob_async, parse_nclob_async};
 #[cfg(feature = "sync")]
-pub(crate) use self::wire::{
-    emit_lob_header_sync, parse_blob_sync, parse_clob_sync, parse_nclob_sync,
-};
+pub(crate) use self::wire::{parse_blob_sync, parse_clob_sync, parse_nclob_sync};

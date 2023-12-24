@@ -1,11 +1,7 @@
 use crate::{
-    conn::AmConnCore,
-    protocol::{
-        parts::{MRsCore, Parts, ResultSetMetadata, StatementContext},
-        Part, PartAttributes, PartKind, ServerUsage,
-    },
-    sync::{prepared_statement_core::SyncAmPsCore, rs_state::SyncResultSetCore, SyncRsState},
-    HdbError, HdbResult, Row, Rows,
+    base::{RsState, XMutexed},
+    protocol::{parts::ResultSetMetadata, ServerUsage},
+    HdbResult, Row, Rows,
 };
 
 use serde_db::de::DeserializableResultset;
@@ -44,10 +40,31 @@ use std::sync::Arc;
 #[derive(Debug)]
 pub struct ResultSet {
     metadata: Arc<ResultSetMetadata>,
-    state: Arc<std::sync::Mutex<SyncRsState>>,
+    state: Arc<XMutexed<RsState>>,
 }
 
 impl ResultSet {
+    // pub(crate) fn new(
+    //     am_conn_core: &AmConnCore,
+    //     attrs: PartAttributes,
+    //     rs_id: u64,
+    //     a_rsmd: Arc<ResultSetMetadata>,
+    //     o_stmt_ctx: Option<StatementContext>,
+    // ) -> Self {
+    //     Self::new_1(
+    //         a_rsmd,
+    //         RsState::new_sync(o_stmt_ctx, am_conn_core, attrs, rs_id),
+    //     )
+    // }
+
+    // FIXME rename
+    pub(crate) fn new_1(a_rsmd: Arc<ResultSetMetadata>, rs_state: RsState) -> Self {
+        Self {
+            metadata: a_rsmd,
+            state: Arc::new(XMutexed::new_sync(rs_state)),
+        }
+    }
+
     /// Conveniently translates the complete resultset into a rust type that implements
     /// `serde::Deserialize` and has an adequate structure.
     /// The implementation of this method uses
@@ -110,7 +127,10 @@ impl ResultSet {
         T: serde::de::Deserialize<'de>,
     {
         trace!("Resultset::try_into()");
-        let rows: Rows = self.state.lock()?.into_rows(Arc::clone(&self.metadata))?;
+        let rows: Rows = self
+            .state
+            .lock_sync()?
+            .into_rows_sync(Arc::clone(&self.metadata))?;
         Ok(DeserializableResultset::try_into(rows)?)
     }
 
@@ -120,8 +140,8 @@ impl ResultSet {
     ///
     /// `HdbError::Usage` if the resultset contains more than a single row, or is empty.
     pub fn into_single_row(self) -> HdbResult<Row> {
-        let mut state = self.state.lock()?;
-        state.single_row()
+        let mut state = self.state.lock_sync()?;
+        state.single_row_sync()
     }
 
     /// Access to metadata.
@@ -159,7 +179,9 @@ impl ResultSet {
     ///
     /// Several variants of `HdbError` are possible.
     pub fn total_number_of_rows(&self) -> HdbResult<usize> {
-        self.state.lock()?.total_number_of_rows(&self.metadata)
+        self.state
+            .lock_sync()?
+            .total_number_of_rows_sync(&self.metadata)
     }
 
     /// Removes the next row and returns it, or None if the `ResultSet` is empty.
@@ -171,7 +193,7 @@ impl ResultSet {
     ///
     /// Several variants of `HdbError` are possible.
     pub fn next_row(&mut self) -> HdbResult<Option<Row>> {
-        self.state.lock()?.next_row(&self.metadata)
+        self.state.lock_sync()?.next_row_sync(&self.metadata)
     }
 
     /// Fetches all not yet transported result lines from the server.
@@ -186,37 +208,7 @@ impl ResultSet {
     ///
     /// Several variants of `HdbError` are possible.
     pub fn fetch_all(&self) -> HdbResult<()> {
-        self.state.lock()?.fetch_all(&self.metadata)
-    }
-
-    pub(crate) fn new(
-        am_conn_core: &AmConnCore,
-        attrs: PartAttributes,
-        rs_id: u64,
-        a_rsmd: Arc<ResultSetMetadata>,
-        o_stmt_ctx: Option<StatementContext>,
-    ) -> Self {
-        let mut server_usage: ServerUsage = ServerUsage::default();
-
-        if let Some(stmt_ctx) = o_stmt_ctx {
-            server_usage.update(
-                stmt_ctx.server_processing_time(),
-                stmt_ctx.server_cpu_time(),
-                stmt_ctx.server_memory_usage(),
-            );
-        }
-
-        Self {
-            metadata: a_rsmd,
-            state: Arc::new(std::sync::Mutex::new(SyncRsState {
-                o_am_rscore: Some(Arc::new(MRsCore::Sync(std::sync::Mutex::new(
-                    SyncResultSetCore::new(am_conn_core, attrs, rs_id),
-                )))),
-                next_rows: Vec::<Row>::new(),
-                row_iter: Vec::<Row>::new().into_iter(),
-                server_usage,
-            })),
-        }
+        self.state.lock_sync()?.fetch_all_sync(&self.metadata)
     }
 
     // resultsets can be part of the response in three cases which differ
@@ -235,102 +227,83 @@ impl ResultSet {
     // For first resultset packets, we create and return a new ResultSet object.
     // We then expect the previous three parts to be
     // a matching ResultSetMetadata, a ResultSetId, and a StatementContext.
-    pub(crate) fn parse(
-        no_of_rows: usize,
-        attributes: PartAttributes,
-        parts: &mut Parts,
-        am_conn_core: &AmConnCore,
-        o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
-        o_rs: &mut Option<&mut SyncRsState>,
-        rdr: &mut dyn std::io::Read,
-    ) -> HdbResult<Option<Self>> {
-        match *o_rs {
-            None => {
-                // case a) or b)
-                let o_stmt_ctx = match parts.pop_if_kind(PartKind::StatementContext) {
-                    Some(Part::StatementContext(stmt_ctx)) => Some(stmt_ctx),
-                    None => None,
-                    Some(_) => return Err(HdbError::Impl("Inconsistent StatementContext")),
-                };
+    // pub(crate) fn parse(
+    //     no_of_rows: usize,
+    //     attributes: PartAttributes,
+    //     parts: &mut Parts,
+    //     am_conn_core: &AmConnCore,
+    //     o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
+    //     o_rs: &mut Option<&mut RsState>,
+    //     rdr: &mut dyn std::io::Read,
+    // ) -> HdbResult<Option<Self>> {
+    //     match o_rs {
+    //         None => {
+    //             // case a) or b)
+    //             let o_stmt_ctx = match parts.pop_if_kind(PartKind::StatementContext) {
+    //                 Some(Part::StatementContext(stmt_ctx)) => Some(stmt_ctx),
+    //                 None => None,
+    //                 Some(_) => return Err(HdbError::Impl("Inconsistent StatementContext")),
+    //             };
 
-                let Some(Part::ResultSetId(rs_id)) = parts.pop() else {
-                    return Err(HdbError::Impl("ResultSetId missing"));
-                };
+    //             let Some(Part::ResultSetId(rs_id)) = parts.pop() else {
+    //                 return Err(HdbError::Impl("ResultSetId missing"));
+    //             };
 
-                let a_rsmd = match parts.pop_if_kind(PartKind::ResultSetMetadata) {
-                    Some(Part::ResultSetMetadata(rsmd)) => Arc::new(rsmd),
-                    None => match o_a_rsmd {
-                        Some(a_rsmd) => Arc::clone(a_rsmd),
-                        None => return Err(HdbError::Impl("No metadata provided for ResultSet")),
-                    },
-                    Some(_) => {
-                        return Err(HdbError::Impl(
-                            "Inconsistent metadata part found for ResultSet",
-                        ));
-                    }
-                };
+    //             let a_rsmd = match parts.pop_if_kind(PartKind::ResultSetMetadata) {
+    //                 Some(Part::ResultSetMetadata(rsmd)) => Arc::new(rsmd),
+    //                 None => match o_a_rsmd {
+    //                     Some(a_rsmd) => Arc::clone(a_rsmd),
+    //                     None => return Err(HdbError::Impl("No metadata provided for ResultSet")),
+    //                 },
+    //                 Some(_) => {
+    //                     return Err(HdbError::Impl(
+    //                         "Inconsistent metadata part found for ResultSet",
+    //                     ));
+    //                 }
+    //             };
 
-                let rs = Self::new(am_conn_core, attributes, rs_id, a_rsmd, o_stmt_ctx);
-                rs.parse_rows(no_of_rows, rdr)?;
-                Ok(Some(rs))
-            }
+    //             let rs = Self::new(am_conn_core, attributes, rs_id, a_rsmd, o_stmt_ctx);
+    //             rs.parse_rows(no_of_rows, rdr)?;
+    //             Ok(Some(rs))
+    //         }
 
-            Some(ref mut fetching_state) => {
-                match parts.pop_if_kind(PartKind::StatementContext) {
-                    Some(Part::StatementContext(stmt_ctx)) => {
-                        fetching_state.server_usage.update(
-                            stmt_ctx.server_processing_time(),
-                            stmt_ctx.server_cpu_time(),
-                            stmt_ctx.server_memory_usage(),
-                        );
-                    }
-                    None => {}
-                    Some(_) => {
-                        return Err(HdbError::Impl(
-                            "Inconsistent StatementContext part found for ResultSet",
-                        ));
-                    }
-                };
+    //         Some(fetching_state) => {
+    //             match parts.pop_if_kind(PartKind::StatementContext) {
+    //                 Some(Part::StatementContext(stmt_ctx)) => {
+    //                     fetching_state.update_server_usage(stmt_ctx);
+    //                 }
+    //                 None => {}
+    //                 Some(_) => {
+    //                     return Err(HdbError::Impl(
+    //                         "Inconsistent StatementContext part found for ResultSet",
+    //                     ));
+    //                 }
+    //             };
 
-                if let Some(ref mut am_rscore) = fetching_state.o_am_rscore {
-                    let mut rscore = am_rscore
-                        .sync_lock()
-                        .map_err(|e| HdbError::ImplDetailed(e.to_string()))?;
-                    rscore.attributes = attributes;
-                }
-                let a_rsmd = if let Some(a_rsmd) = o_a_rsmd {
-                    Arc::clone(a_rsmd)
-                } else {
-                    return Err(HdbError::Impl("RsState provided without RsMetadata"));
-                };
-                fetching_state.parse_rows(no_of_rows, &a_rsmd, rdr)?;
-                Ok(None)
-            }
-        }
-    }
+    //             fetching_state.set_attributes_sync(attributes).ok();
+
+    //             let a_rsmd = if let Some(a_rsmd) = o_a_rsmd {
+    //                 Arc::clone(a_rsmd)
+    //             } else {
+    //                 return Err(HdbError::Impl("RsState provided without RsMetadata"));
+    //             };
+    //             fetching_state.parse_rows_sync(no_of_rows, &a_rsmd, rdr)?;
+    //             Ok(None)
+    //         }
+    //     }
+    // }
 
     /// Provides information about the the server-side resource consumption that
     /// is related to this `ResultSet` object.
-    pub fn server_usage(&self) -> ServerUsage {
-        self.state
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .server_usage
+    pub fn server_usage(&self) -> HdbResult<ServerUsage> {
+        Ok(self.state.lock_sync()?.server_usage().clone())
     }
 
-    fn parse_rows(&self, no_of_rows: usize, rdr: &mut dyn std::io::Read) -> HdbResult<()> {
-        self.state
-            .lock()
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?
-            .parse_rows(no_of_rows, &self.metadata, rdr)
-    }
-
-    pub(crate) fn inject_statement_id(&mut self, am_ps_core: SyncAmPsCore) -> HdbResult<()> {
-        if let Some(rs_core) = &(self.state.lock()?).o_am_rscore {
-            rs_core.sync_lock()?.inject_statement_id(am_ps_core);
-        }
-        Ok(())
-    }
+    // fn parse_rows(&self, no_of_rows: usize, rdr: &mut dyn std::io::Read) -> HdbResult<()> {
+    //     self.state
+    //         .lock_sync()?
+    //         .parse_rows_sync(no_of_rows, &self.metadata, rdr)
+    // }
 }
 
 impl std::fmt::Display for ResultSet {
@@ -338,16 +311,13 @@ impl std::fmt::Display for ResultSet {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         writeln!(fmt, "{}\n", &self.metadata)?;
 
-        let state = self
-            .state
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        for row in state.row_iter.as_slice() {
-            writeln!(fmt, "{}\n", &row)?;
-        }
-        for row in &state.next_rows {
-            writeln!(fmt, "{}\n", &row)?;
-        }
+        writeln!(
+            fmt,
+            "{}",
+            self.state
+                .lock_sync()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+        )?;
         Ok(())
     }
 }

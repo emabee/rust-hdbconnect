@@ -1,3 +1,5 @@
+// FIXME rename this into ../protocol.rs
+
 mod message_type;
 mod part;
 mod part_attributes;
@@ -33,3 +35,5 @@ const SEGMENT_HEADER_SIZE: u32 = 24;
 // when being used, its size will be expanded if necessary to whatever is needed,
 // but after each use its size will be reduced to this value
 const MAX_BUFFER_SIZE: usize = 100 * 1024;
+
+pub(crate) const MIN_BUFFER_SIZE: usize = 1024;

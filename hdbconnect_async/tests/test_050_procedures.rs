@@ -140,7 +140,7 @@ async fn procedure_with_secret_resultsets(
             HdbReturnValue::OutputParameters(output_parameters) => {
                 debug!("Got output_parameters: {output_parameters:?}",)
             }
-            #[cfg(feature = "dist_tx")]
+            // #[cfg(feature = "dist_tx")]
             HdbReturnValue::XaTransactionIds(ids) => {
                 debug!("Got XA transaction Ids: {ids:?}")
             }

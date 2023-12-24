@@ -1,6 +1,7 @@
 use crate::{
+    base::{RsCore, OAM},
     conn::AmConnCore,
-    protocol::{parts::AmRsCore, ServerUsage},
+    protocol::ServerUsage,
     types_impl::lob::BLobHandle,
     HdbResult,
 };
@@ -22,7 +23,7 @@ pub struct BLob(Box<BLobHandle>);
 impl BLob {
     pub(crate) fn new(
         am_conn_core: &AmConnCore,
-        o_am_rscore: &Option<AmRsCore>,
+        o_am_rscore: &OAM<RsCore>,
         is_data_complete: bool,
         total_byte_length: u64,
         locator_id: u64,

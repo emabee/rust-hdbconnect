@@ -135,8 +135,10 @@ impl HdbResponse {
 
     fn resultset(int_return_values: Vec<InternalReturnValue>) -> HdbResult<Self> {
         match single(int_return_values)? {
-            InternalReturnValue::AsyncResultSet(rs) => Ok(Self {
-                return_values: vec![HdbReturnValue::ResultSet(rs)],
+            InternalReturnValue::RsState((rs_state, a_rsmd)) => Ok(Self {
+                return_values: vec![HdbReturnValue::ResultSet(ResultSet::new_1(
+                    a_rsmd, rs_state,
+                ))],
             }),
             _ => Err(HdbError::Impl(
                 "Wrong InternalReturnValue, a single ResultSet was expected",
@@ -226,17 +228,15 @@ impl HdbResponse {
                     return_values.push(HdbReturnValue::OutputParameters(op));
                 }
                 InternalReturnValue::ParameterMetadata(_pm) => {}
-                InternalReturnValue::AsyncResultSet(rs) => {
-                    return_values.push(HdbReturnValue::ResultSet(rs));
+                InternalReturnValue::RsState((rs_state, a_rsmd)) => {
+                    return_values.push(HdbReturnValue::ResultSet(ResultSet::new_1(
+                        a_rsmd, rs_state,
+                    )));
                 }
                 InternalReturnValue::WriteLobReply(_) => {
                     return Err(HdbError::Impl(
                         "found WriteLobReply in multiple_return_values()",
                     ));
-                }
-                #[cfg(feature = "sync")]
-                InternalReturnValue::SyncResultSet(_) => {
-                    debug!("SyncResultSet cannot happen");
                 }
             }
         }

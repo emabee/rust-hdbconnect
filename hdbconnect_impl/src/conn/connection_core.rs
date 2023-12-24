@@ -1,7 +1,4 @@
-#[cfg(feature = "async")]
-use crate::a_sync::AsyncRsState;
-#[cfg(feature = "sync")]
-use crate::sync::SyncRsState;
+use crate::base::RsState;
 
 use crate::{
     conn::{
@@ -13,7 +10,7 @@ use crate::{
             ClientInfo, ConnectOptions, DbConnectInfo, ParameterDescriptors, ResultSetMetadata,
             ServerError, StatementContext, Topology, TransactionFlags,
         },
-        MessageType, Part, Reply, ReplyType, Request, ServerUsage,
+        MessageType, Part, Reply, ReplyType, Request, ServerUsage, MIN_BUFFER_SIZE,
     },
     HdbError, HdbResult,
 };
@@ -170,7 +167,7 @@ impl<'a> ConnectionCore {
             topology: None,
             warnings: Vec::<ServerError>::new(),
             tcp_client,
-            io_buffer: Cursor::default(),
+            io_buffer: Cursor::new(Vec::<u8>::with_capacity(MIN_BUFFER_SIZE)),
         })
     }
 
@@ -197,7 +194,7 @@ impl<'a> ConnectionCore {
             topology: None,
             warnings: Vec::<ServerError>::new(),
             tcp_client,
-            io_buffer: Default::default(),
+            io_buffer: Cursor::new(Vec::<u8>::with_capacity(MIN_BUFFER_SIZE)),
         })
     }
 
@@ -452,7 +449,7 @@ impl<'a> ConnectionCore {
         o_am_conn_core: Option<&AmConnCore>,
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
-        o_rs: &mut Option<&mut SyncRsState>,
+        o_rs: &mut Option<&mut RsState>,
     ) -> HdbResult<Reply> {
         let (session_id, nsn, default_error_handling) =
             if let MessageType::Authenticate = request.message_type() {
@@ -509,7 +506,7 @@ impl<'a> ConnectionCore {
         o_am_conn_core: Option<&AmConnCore>,
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
-        o_rs: &mut Option<&mut AsyncRsState>,
+        o_rs: &mut Option<&mut RsState>,
     ) -> HdbResult<Reply> {
         let (session_id, nsn, default_error_handling) =
             if let MessageType::Authenticate = request.message_type() {
@@ -529,6 +526,7 @@ impl<'a> ConnectionCore {
                         auto_commit,
                         compress,
                         o_a_descriptors,
+                        &mut self.io_buffer,
                         cl.writer(),
                     )
                     .await
@@ -541,6 +539,7 @@ impl<'a> ConnectionCore {
                         auto_commit,
                         compress,
                         o_a_descriptors,
+                        &mut self.io_buffer,
                         cl.writer(),
                     )
                     .await
@@ -552,12 +551,26 @@ impl<'a> ConnectionCore {
 
         let mut reply = match self.tcp_client {
             TcpClient::AsyncPlain(ref mut cl) => {
-                Reply::parse_async(o_a_rsmd, o_a_descriptors, o_rs, o_am_conn_core, cl.reader())
-                    .await
+                Reply::parse_async(
+                    o_a_rsmd,
+                    o_a_descriptors,
+                    o_rs,
+                    o_am_conn_core,
+                    &mut self.io_buffer,
+                    cl.reader(),
+                )
+                .await
             }
             TcpClient::AsyncTls(ref mut cl) => {
-                Reply::parse_async(o_a_rsmd, o_a_descriptors, o_rs, o_am_conn_core, cl.reader())
-                    .await
+                Reply::parse_async(
+                    o_a_rsmd,
+                    o_a_descriptors,
+                    o_rs,
+                    o_am_conn_core,
+                    &mut self.io_buffer,
+                    cl.reader(),
+                )
+                .await
             }
             #[cfg(feature = "sync")]
             TcpClient::Dead => unreachable!("Dead connection not supported here"),
@@ -575,6 +588,7 @@ impl Drop for ConnectionCore {
     // try to send a disconnect to the database, ignore all errors
     fn drop(&mut self) {
         debug!("Drop of ConnectionCore, session_id = {}", self.session_id);
+        #[cfg(any(feature = "sync", feature = "async"))]
         if self.authenticated {
             let request = Request::new_for_disconnect();
             let session_id = self.session_id();
@@ -599,19 +613,35 @@ impl Drop for ConnectionCore {
             {
                 let mut tcp_client = TcpClient::Dead;
                 std::mem::swap(&mut tcp_client, &mut self.tcp_client);
-
+                let mut io_buffer = Cursor::new(Vec::<u8>::with_capacity(200));
                 // see https://www.reddit.com/r/rust/comments/vckd9h/async_drop/
                 tokio::spawn(async move {
                     match tcp_client {
                         TcpClient::AsyncPlain(ref mut cl) => {
                             request
-                                .emit_async(session_id, nsn, false, false, None, cl.writer())
+                                .emit_async(
+                                    session_id,
+                                    nsn,
+                                    false,
+                                    false,
+                                    None,
+                                    &mut io_buffer,
+                                    cl.writer(),
+                                )
                                 .await
                                 .ok();
                         }
                         TcpClient::AsyncTls(ref mut cl) => {
                             request
-                                .emit_async(session_id, nsn, false, false, None, cl.writer())
+                                .emit_async(
+                                    session_id,
+                                    nsn,
+                                    false,
+                                    false,
+                                    None,
+                                    &mut io_buffer,
+                                    cl.writer(),
+                                )
                                 .await
                                 .ok();
                         }

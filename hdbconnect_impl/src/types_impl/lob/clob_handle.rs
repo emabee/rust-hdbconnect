@@ -10,8 +10,9 @@ use std::io::Write;
 
 use super::CharLobSlice;
 use crate::{
+    base::{RsCore, OAM},
     conn::AmConnCore,
-    protocol::{parts::AmRsCore, util},
+    protocol::util,
     {HdbError, HdbResult, ServerUsage},
 };
 use std::collections::VecDeque;
@@ -25,7 +26,7 @@ use std::collections::VecDeque;
 #[derive(Clone, Debug)]
 pub(crate) struct CLobHandle {
     pub(crate) am_conn_core: AmConnCore,
-    o_am_rscore: Option<AmRsCore>,
+    o_am_rscore: OAM<RsCore>,
     is_data_complete: bool,
     total_char_length: u64,
     total_byte_length: u64,
@@ -38,7 +39,7 @@ pub(crate) struct CLobHandle {
 impl CLobHandle {
     pub(crate) fn new(
         am_conn_core: &AmConnCore,
-        o_am_rscore: &Option<AmRsCore>,
+        o_am_rscore: &OAM<RsCore>,
         is_data_complete: bool,
         total_char_length: u64,
         total_byte_length: u64,

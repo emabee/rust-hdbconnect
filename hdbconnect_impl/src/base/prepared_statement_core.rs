@@ -1,11 +1,7 @@
-use std::sync::{Arc, Mutex};
-
 use crate::{
     conn::AmConnCore,
     protocol::{MessageType, Part, PartKind, Request},
 };
-
-pub type SyncAmPsCore = Arc<Mutex<PreparedStatementCore>>;
 
 // Needs connection for its Drop implementation
 #[derive(Debug)]

@@ -1,10 +1,10 @@
 use crate::protocol::util;
-#[cfg(feature = "async")]
-use crate::protocol::util_async;
-#[cfg(feature = "sync")]
+// #[cfg(feature = "async")]
+// use crate::protocol::util_async;
+// #[cfg(feature = "sync")]
 use crate::protocol::util_sync;
 use crate::{HdbError, HdbResult};
-#[cfg(feature = "sync")]
+// #[cfg(feature = "sync")]
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 #[allow(clippy::upper_case_acronyms, non_camel_case_types)]
@@ -82,7 +82,7 @@ impl OptionValue {
     //     }
     // }
 
-    #[cfg(feature = "sync")]
+    // #[cfg(feature = "sync")]
     pub fn sync_emit(&self, w: &mut dyn std::io::Write) -> HdbResult<()> {
         w.write_u8(self.type_id())?; // I1
         match *self {
@@ -97,23 +97,23 @@ impl OptionValue {
         Ok(())
     }
 
-    #[cfg(feature = "async")]
-    pub async fn async_emit<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
-        &self,
-        w: &mut W,
-    ) -> HdbResult<()> {
-        w.write_u8(self.type_id()).await?; // I1
-        match *self {
-            // variable
-            Self::INT(i) => w.write_i32_le(i).await?,
-            Self::BIGINT(i) => w.write_i64_le(i).await?,
-            Self::DOUBLE(f) => w.write_f64_le(f).await?,
-            Self::BOOLEAN(b) => w.write_u8(u8::from(b)).await?,
-            Self::STRING(ref s) => async_emit_length_and_string(s, w).await?,
-            Self::BSTRING(ref v) => async_emit_length_and_bytes(v, w).await?,
-        }
-        Ok(())
-    }
+    // #[cfg(feature = "async")]
+    // pub async fn async_emit<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
+    //     &self,
+    //     w: &mut W,
+    // ) -> HdbResult<()> {
+    //     w.write_u8(self.type_id()).await?; // I1
+    //     match *self {
+    //         // variable
+    //         Self::INT(i) => w.write_i32_le(i).await?,
+    //         Self::BIGINT(i) => w.write_i64_le(i).await?,
+    //         Self::DOUBLE(f) => w.write_f64_le(f).await?,
+    //         Self::BOOLEAN(b) => w.write_u8(u8::from(b)).await?,
+    //         Self::STRING(ref s) => async_emit_length_and_string(s, w).await?,
+    //         Self::BSTRING(ref v) => async_emit_length_and_bytes(v, w).await?,
+    //     }
+    //     Ok(())
+    // }
 
     pub fn size(&self) -> usize {
         1 + match *self {
@@ -136,21 +136,21 @@ impl OptionValue {
         }
     }
 
-    #[cfg(feature = "sync")]
+    // #[cfg(feature = "sync")]
     pub fn parse_sync(rdr: &mut dyn std::io::Read) -> HdbResult<Self> {
         let value_type = rdr.read_u8()?; // U1
         Self::parse_value_sync(value_type, rdr)
     }
 
-    #[cfg(feature = "async")]
-    pub async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
-        rdr: &mut R,
-    ) -> HdbResult<Self> {
-        let value_type = rdr.read_u8().await?; // U1
-        Self::parse_value_async(value_type, rdr).await
-    }
+    // #[cfg(feature = "async")]
+    // pub async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
+    //     rdr: &mut R,
+    // ) -> HdbResult<Self> {
+    //     let value_type = rdr.read_u8().await?; // U1
+    //     Self::parse_value_async(value_type, rdr).await
+    // }
 
-    #[cfg(feature = "sync")]
+    // #[cfg(feature = "sync")]
     fn parse_value_sync(typecode: u8, rdr: &mut dyn std::io::Read) -> HdbResult<Self> {
         match typecode {
             3 => Ok(Self::INT(rdr.read_i32::<LittleEndian>()?)), // I4
@@ -165,31 +165,31 @@ impl OptionValue {
         }
     }
 
-    #[cfg(feature = "async")]
-    async fn parse_value_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
-        typecode: u8,
-        rdr: &mut R,
-    ) -> HdbResult<Self> {
-        match typecode {
-            3 => Ok(Self::INT(rdr.read_i32_le().await?)),      // I4
-            4 => Ok(Self::BIGINT(rdr.read_i64_le().await?)),   // I8
-            7 => Ok(Self::DOUBLE(rdr.read_f64_le().await?)),   // F8
-            28 => Ok(Self::BOOLEAN(rdr.read_u8().await? > 0)), // B1
-            29 => Ok(Self::STRING(parse_length_and_string_async(rdr).await?)),
-            33 => Ok(Self::BSTRING(parse_length_and_binary_async(rdr).await?)),
-            _ => Err(HdbError::ImplDetailed(format!(
-                "OptionValue::parse_value() not implemented for type code {typecode}",
-            ))),
-        }
-    }
+    // #[cfg(feature = "async")]
+    // async fn parse_value_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
+    //     typecode: u8,
+    //     rdr: &mut R,
+    // ) -> HdbResult<Self> {
+    //     match typecode {
+    //         3 => Ok(Self::INT(rdr.read_i32_le().await?)),      // I4
+    //         4 => Ok(Self::BIGINT(rdr.read_i64_le().await?)),   // I8
+    //         7 => Ok(Self::DOUBLE(rdr.read_f64_le().await?)),   // F8
+    //         28 => Ok(Self::BOOLEAN(rdr.read_u8().await? > 0)), // B1
+    //         29 => Ok(Self::STRING(parse_length_and_string_async(rdr).await?)),
+    //         33 => Ok(Self::BSTRING(parse_length_and_binary_async(rdr).await?)),
+    //         _ => Err(HdbError::ImplDetailed(format!(
+    //             "OptionValue::parse_value() not implemented for type code {typecode}",
+    //         ))),
+    //     }
+    // }
 }
 
-#[cfg(feature = "sync")]
+// #[cfg(feature = "sync")]
 fn emit_length_and_string_sync(s: &str, w: &mut dyn std::io::Write) -> HdbResult<()> {
     emit_length_and_bytes_sync(&cesu8::to_cesu8(s), w)
 }
 
-#[cfg(feature = "sync")]
+// #[cfg(feature = "sync")]
 #[allow(clippy::cast_possible_truncation)]
 #[allow(clippy::cast_possible_wrap)]
 fn emit_length_and_bytes_sync(v: &[u8], w: &mut dyn std::io::Write) -> HdbResult<()> {
@@ -198,53 +198,53 @@ fn emit_length_and_bytes_sync(v: &[u8], w: &mut dyn std::io::Write) -> HdbResult
     Ok(())
 }
 
-#[cfg(feature = "async")]
-async fn async_emit_length_and_string<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
-    s: &str,
-    w: &mut W,
-) -> HdbResult<()> {
-    async_emit_length_and_bytes(&cesu8::to_cesu8(s), w).await
-}
+// #[cfg(feature = "async")]
+// async fn async_emit_length_and_string<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
+//     s: &str,
+//     w: &mut W,
+// ) -> HdbResult<()> {
+//     async_emit_length_and_bytes(&cesu8::to_cesu8(s), w).await
+// }
 
-#[cfg(feature = "async")]
-#[allow(clippy::cast_possible_truncation)]
-#[allow(clippy::cast_possible_wrap)]
-async fn async_emit_length_and_bytes<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
-    v: &[u8],
-    w: &mut W,
-) -> HdbResult<()> {
-    w.write_i16_le(v.len() as i16).await?; // I2: length of value
-    w.write_all(v).await?; // B (varying)
-    Ok(())
-}
+// #[cfg(feature = "async")]
+// #[allow(clippy::cast_possible_truncation)]
+// #[allow(clippy::cast_possible_wrap)]
+// async fn async_emit_length_and_bytes<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
+//     v: &[u8],
+//     w: &mut W,
+// ) -> HdbResult<()> {
+//     w.write_i16_le(v.len() as i16).await?; // I2: length of value
+//     w.write_all(v).await?; // B (varying)
+//     Ok(())
+// }
 
-#[cfg(feature = "sync")]
+// #[cfg(feature = "sync")]
 fn parse_length_and_string_sync(rdr: &mut dyn std::io::Read) -> HdbResult<String> {
     util::string_from_cesu8(parse_length_and_binary_sync(rdr)?)
 }
 
-#[cfg(feature = "async")]
-async fn parse_length_and_string_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
-    rdr: &mut R,
-) -> HdbResult<String> {
-    util::string_from_cesu8(parse_length_and_binary_async(rdr).await?)
-}
+// #[cfg(feature = "async")]
+// async fn parse_length_and_string_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
+//     rdr: &mut R,
+// ) -> HdbResult<String> {
+//     util::string_from_cesu8(parse_length_and_binary_async(rdr).await?)
+// }
 
-#[cfg(feature = "sync")]
+// #[cfg(feature = "sync")]
 #[allow(clippy::cast_sign_loss)]
 fn parse_length_and_binary_sync(rdr: &mut dyn std::io::Read) -> HdbResult<Vec<u8>> {
     let len = rdr.read_i16::<LittleEndian>()? as usize; // I2: length of value
     util_sync::parse_bytes(len, rdr) // B (varying)
 }
 
-#[cfg(feature = "async")]
-#[allow(clippy::cast_sign_loss)]
-async fn parse_length_and_binary_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
-    rdr: &mut R,
-) -> HdbResult<Vec<u8>> {
-    let len = rdr.read_i16_le().await? as usize; // I2: length of value
-    util_async::parse_bytes(len, rdr).await // B (varying)
-}
+// #[cfg(feature = "async")]
+// #[allow(clippy::cast_sign_loss)]
+// async fn parse_length_and_binary_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
+//     rdr: &mut R,
+// ) -> HdbResult<Vec<u8>> {
+//     let len = rdr.read_i16_le().await? as usize; // I2: length of value
+//     util_async::parse_bytes(len, rdr).await // B (varying)
+// }
 
 impl std::fmt::Display for OptionValue {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {

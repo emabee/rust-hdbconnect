@@ -1,19 +1,19 @@
 use crate::{
-    protocol::{parts::AmRsCore, ServerUsage},
+    base::{RsCore, XMutexed, OAM},
+    conn::AmConnCore,
+    protocol::ServerUsage,
     HdbError, HdbResult,
 };
-use std::collections::VecDeque;
+use std::{collections::VecDeque, sync::Arc};
 
 #[cfg(feature = "async")]
 use super::fetch::async_fetch_a_lob_chunk;
-use crate::conn::AmConnCore;
-#[cfg(feature = "async")]
-use tokio::io::ReadBuf;
-
 #[cfg(feature = "sync")]
 use super::fetch::sync_fetch_a_lob_chunk;
 #[cfg(feature = "sync")]
 use std::io::Write;
+#[cfg(feature = "async")]
+use tokio::io::ReadBuf;
 
 // `BLobHandle` is used for blobs that we receive from the database.
 // The data are often not transferred completely, so we carry internally
@@ -22,7 +22,7 @@ use std::io::Write;
 #[derive(Clone, Debug)]
 pub(crate) struct BLobHandle {
     pub(crate) am_conn_core: AmConnCore,
-    o_am_rscore: Option<AmRsCore>,
+    o_am_rscore: Option<Arc<XMutexed<RsCore>>>,
     is_data_complete: bool,
     total_byte_length: u64,
     locator_id: u64,
@@ -33,7 +33,7 @@ pub(crate) struct BLobHandle {
 impl BLobHandle {
     pub(crate) fn new(
         am_conn_core: &AmConnCore,
-        o_am_rscore: &Option<AmRsCore>,
+        o_am_rscore: &OAM<RsCore>,
         is_data_complete: bool,
         total_byte_length: u64,
         locator_id: u64,
@@ -89,7 +89,7 @@ impl BLobHandle {
 
     #[allow(clippy::cast_possible_truncation)]
     #[cfg(feature = "sync")]
-    fn fetch_next_chunk(&mut self) -> HdbResult<()> {
+    fn fetch_next_chunk_sync(&mut self) -> HdbResult<()> {
         if self.is_data_complete {
             return Err(HdbError::Impl("fetch_next_chunk(): already complete"));
         }
@@ -127,7 +127,7 @@ impl BLobHandle {
 
     #[allow(clippy::cast_possible_truncation)]
     #[cfg(feature = "async")]
-    async fn async_fetch_next_chunk(&mut self) -> HdbResult<()> {
+    async fn fetch_next_chunk_async(&mut self) -> HdbResult<()> {
         if self.is_data_complete {
             return Err(HdbError::Impl("fetch_next_chunk(): already complete"));
         }
@@ -169,7 +169,7 @@ impl BLobHandle {
     pub(crate) fn sync_load_complete(&mut self) -> HdbResult<()> {
         trace!("load_complete()");
         while !self.is_data_complete {
-            self.fetch_next_chunk()?;
+            self.fetch_next_chunk_sync()?;
         }
         Ok(())
     }
@@ -178,7 +178,7 @@ impl BLobHandle {
     pub(crate) async fn async_load_complete(&mut self) -> HdbResult<()> {
         trace!("load_complete()");
         while !self.is_data_complete {
-            self.async_fetch_next_chunk().await?;
+            self.fetch_next_chunk_async().await?;
         }
         Ok(())
     }
@@ -213,7 +213,7 @@ impl std::io::Read for BLobHandle {
         trace!("BLobHandle::read() with buf of len {}", buf_len);
 
         while !self.is_data_complete && (buf_len > self.data.len()) {
-            self.fetch_next_chunk().map_err(|e| {
+            self.fetch_next_chunk_sync().map_err(|e| {
                 std::io::Error::new(std::io::ErrorKind::UnexpectedEof, e.to_string())
             })?;
         }
@@ -242,7 +242,7 @@ impl<'a> BLobHandle {
         trace!("BLobHandle::read() with buf of len {}", buf_len);
 
         while !self.is_data_complete && (self.data.len() < buf_len) {
-            self.async_fetch_next_chunk().await?;
+            self.fetch_next_chunk_async().await?;
         }
 
         let count = std::cmp::min(self.data.len(), buf_len);

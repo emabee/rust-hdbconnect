@@ -53,7 +53,7 @@ impl OutputParameters {
     pub(crate) fn parse_sync(
         o_am_conn_core: Option<&AmConnCore>,
         parameter_descriptors: &ParameterDescriptors,
-        rdr: &mut dyn std::io::Read,
+        rdr: &mut std::io::Cursor<Vec<u8>>,
     ) -> HdbResult<Self> {
         trace!("OutputParameters::parse()");
         let am_conn_core = o_am_conn_core
@@ -84,10 +84,10 @@ impl OutputParameters {
     }
 
     #[cfg(feature = "async")]
-    pub(crate) async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
+    pub(crate) async fn parse_async(
         o_am_conn_core: Option<&AmConnCore>,
         parameter_descriptors: &ParameterDescriptors,
-        rdr: &mut R,
+        rdr: &mut std::io::Cursor<Vec<u8>>,
     ) -> HdbResult<Self> {
         trace!("OutputParameters::parse()");
         let am_conn_core = o_am_conn_core

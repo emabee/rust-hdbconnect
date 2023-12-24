@@ -100,6 +100,8 @@ impl TcpClient {
             Self::AsyncTls(_) => "Async TLS TCP",
             #[cfg(feature = "async")]
             Self::Dead => unreachable!(),
+            #[cfg(not(any(feature = "sync", feature = "async")))]
+            _ => todo!(),
         }
     }
 
@@ -115,6 +117,8 @@ impl TcpClient {
             Self::AsyncTls(cl) => cl.connect_params(),
             #[cfg(feature = "async")]
             Self::Dead => unreachable!(),
+            #[cfg(not(any(feature = "sync", feature = "async")))]
+            _ => todo!(),
         }
     }
 }

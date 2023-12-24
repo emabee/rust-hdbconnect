@@ -1,5 +1,6 @@
-use super::{HdbResponse, PreparedStatementCore};
 use crate::{
+    a_sync::HdbResponse,
+    base::{new_am_async, PreparedStatementCore, AM},
     conn::AmConnCore,
     internal_returnvalue::InternalReturnValue,
     protocol::parts::{
@@ -10,7 +11,7 @@ use crate::{
     HdbError, HdbResult,
 };
 use std::sync::Arc;
-use tokio::sync::Mutex;
+// use tokio::sync::Mutex;
 
 /// Allows injection-safe SQL execution and repeated calls of the same statement
 /// with different parameters with as few roundtrips as possible.
@@ -72,7 +73,7 @@ use tokio::sync::Mutex;
 /// `HdbValue::INT(1088)`.
 #[derive(Debug)]
 pub struct PreparedStatement {
-    am_ps_core: Arc<Mutex<PreparedStatementCore>>,
+    am_ps_core: AM<PreparedStatementCore>,
     server_usage: ServerUsage,
     a_descriptors: Arc<ParameterDescriptors>,
     o_a_rsmd: Option<Arc<ResultSetMetadata>>,
@@ -188,7 +189,7 @@ impl<'a> PreparedStatement {
         hdb_values: Vec<HdbValue<'a>>,
     ) -> HdbResult<HdbResponse> {
         if self.a_descriptors.has_in() {
-            let ps_core_guard = self.am_ps_core.lock().await;
+            let ps_core_guard = self.am_ps_core.lock_async().await;
 
             let mut request = Request::new(MessageType::Execute, HOLD_CURSORS_OVER_COMMIT);
 
@@ -280,8 +281,10 @@ impl<'a> PreparedStatement {
 
             // inject statement id
             for rv in &mut internal_return_values {
-                if let InternalReturnValue::AsyncResultSet(rs) = rv {
-                    rs.inject_statement_id(Arc::clone(&self.am_ps_core)).await?;
+                if let InternalReturnValue::RsState((rs_state, _a_rsmd)) = rv {
+                    rs_state
+                        .inject_ps_core_async(Arc::clone(&self.am_ps_core))
+                        .await?;
                 }
             }
             HdbResponse::try_new(internal_return_values, replytype)
@@ -359,7 +362,7 @@ impl<'a> PreparedStatement {
     ) -> HdbResult<HdbResponse> {
         trace!("PreparedStatement::execute_parameter_rows()");
 
-        let ps_core_guard = self.am_ps_core.lock().await;
+        let ps_core_guard = self.am_ps_core.lock_async().await;
         let mut request = Request::new(MessageType::Execute, HOLD_CURSORS_OVER_COMMIT);
         request.push(Part::StatementId(ps_core_guard.statement_id));
         if let Some(rows) = o_rows {
@@ -380,8 +383,10 @@ impl<'a> PreparedStatement {
 
         // inject statement id
         for rv in &mut internal_return_values {
-            if let InternalReturnValue::AsyncResultSet(rs) = rv {
-                rs.inject_statement_id(Arc::clone(&self.am_ps_core)).await?;
+            if let InternalReturnValue::RsState((rs_state, _a_rsmd)) = rv {
+                rs_state
+                    .inject_ps_core_async(Arc::clone(&self.am_ps_core))
+                    .await?;
             }
         }
 
@@ -442,10 +447,10 @@ impl<'a> PreparedStatement {
         }
 
         let statement_id = o_stmt_id.ok_or_else(|| HdbError::Impl("No StatementId received"))?;
-        let am_ps_core = Arc::new(Mutex::new(PreparedStatementCore {
+        let am_ps_core = new_am_async(PreparedStatementCore {
             am_conn_core,
             statement_id,
-        }));
+        });
         debug!(
             "PreparedStatement created with parameter descriptors = {:?}",
             a_descriptors

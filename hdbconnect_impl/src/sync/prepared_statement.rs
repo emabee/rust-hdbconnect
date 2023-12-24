@@ -1,16 +1,16 @@
-use super::{HdbResponse, PreparedStatementCore};
-use crate::conn::AmConnCore;
-use crate::internal_returnvalue::InternalReturnValue;
-use crate::protocol::parts::{
-    HdbValue, LobFlags, ParameterDescriptors, ParameterRows, ResultSetMetadata, TypeId,
+use crate::{
+    base::{new_am_sync, PreparedStatementCore, AM},
+    conn::AmConnCore,
+    internal_returnvalue::InternalReturnValue,
+    protocol::parts::{
+        HdbValue, LobFlags, ParameterDescriptors, ParameterRows, ResultSetMetadata, TypeId,
+    },
+    protocol::{MessageType, Part, PartKind, Request, ServerUsage, HOLD_CURSORS_OVER_COMMIT},
+    sync::HdbResponse,
+    types_impl::lob::LobWriter,
+    {HdbError, HdbResult},
 };
-use crate::protocol::{
-    MessageType, Part, PartKind, Request, ServerUsage, HOLD_CURSORS_OVER_COMMIT,
-};
-use crate::types_impl::lob::LobWriter;
-use crate::{HdbError, HdbResult};
-use std::io::Write;
-use std::sync::{Arc, Mutex};
+use std::{io::Write, sync::Arc};
 
 /// Allows injection-safe SQL execution and repeated calls of the same statement
 /// with different parameters with as few roundtrips as possible.
@@ -72,7 +72,7 @@ use std::sync::{Arc, Mutex};
 /// `HdbValue::INT(1088)`.
 #[derive(Debug)]
 pub struct PreparedStatement {
-    am_ps_core: Arc<Mutex<PreparedStatementCore>>,
+    am_ps_core: AM<PreparedStatementCore>,
     server_usage: ServerUsage,
     a_descriptors: Arc<ParameterDescriptors>,
     o_a_rsmd: Option<Arc<ResultSetMetadata>>,
@@ -188,7 +188,7 @@ impl<'a> PreparedStatement {
     /// Several variants of `HdbError` can occur.
     pub fn execute_row(&'a mut self, hdb_values: Vec<HdbValue<'a>>) -> HdbResult<HdbResponse> {
         if self.a_descriptors.has_in() {
-            let ps_core_guard = self.am_ps_core.lock()?;
+            let ps_core_guard = self.am_ps_core.lock_sync()?;
 
             let mut request = Request::new(MessageType::Execute, HOLD_CURSORS_OVER_COMMIT);
 
@@ -280,8 +280,8 @@ impl<'a> PreparedStatement {
 
             // inject statement id
             for rv in &mut internal_return_values {
-                if let InternalReturnValue::SyncResultSet(rs) = rv {
-                    rs.inject_statement_id(Arc::clone(&self.am_ps_core))?;
+                if let InternalReturnValue::RsState((rs_state, _a_rsmd)) = rv {
+                    rs_state.inject_ps_core_sync(Arc::clone(&self.am_ps_core))?;
                 }
             }
             HdbResponse::try_new(internal_return_values, replytype)
@@ -356,7 +356,7 @@ impl<'a> PreparedStatement {
     fn execute_parameter_rows(&mut self, o_rows: Option<ParameterRows>) -> HdbResult<HdbResponse> {
         trace!("PreparedStatement::execute_parameter_rows()");
 
-        let ps_core_guard = self.am_ps_core.lock()?;
+        let ps_core_guard = self.am_ps_core.lock_sync()?;
         let mut request = Request::new(MessageType::Execute, HOLD_CURSORS_OVER_COMMIT);
         request.push(Part::StatementId(ps_core_guard.statement_id));
         if let Some(rows) = o_rows {
@@ -375,8 +375,8 @@ impl<'a> PreparedStatement {
 
         // inject statement id
         for rv in &mut internal_return_values {
-            if let InternalReturnValue::SyncResultSet(rs) = rv {
-                rs.inject_statement_id(Arc::clone(&self.am_ps_core))?;
+            if let InternalReturnValue::RsState((rs_state, _a_rsmd)) = rv {
+                rs_state.inject_ps_core_sync(Arc::clone(&self.am_ps_core))?;
             }
         }
 
@@ -437,10 +437,10 @@ impl<'a> PreparedStatement {
         }
 
         let statement_id = o_stmt_id.ok_or_else(|| HdbError::Impl("No StatementId received"))?;
-        let am_ps_core = Arc::new(Mutex::new(PreparedStatementCore {
+        let am_ps_core = new_am_sync(PreparedStatementCore {
             am_conn_core,
             statement_id,
-        }));
+        });
         debug!(
             "PreparedStatement created with parameter descriptors = {:?}",
             a_descriptors

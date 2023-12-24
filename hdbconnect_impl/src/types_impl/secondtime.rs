@@ -1,5 +1,5 @@
 use crate::{HdbError, HdbResult, HdbValue};
-#[cfg(feature = "sync")]
+// #[cfg(feature = "sync")]
 use byteorder::{LittleEndian, ReadBytesExt};
 
 const NULL_REPRESENTATION: i32 = 86_402;
@@ -55,7 +55,7 @@ impl SecondTime {
     }
 }
 
-#[cfg(feature = "sync")]
+// #[cfg(feature = "sync")]
 pub(crate) fn parse_secondtime_sync(
     nullable: bool,
     rdr: &mut dyn std::io::Read,
@@ -74,21 +74,21 @@ pub(crate) fn parse_secondtime_sync(
     }
 }
 
-#[cfg(feature = "async")]
-pub(crate) async fn parse_secondtime_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
-    nullable: bool,
-    rdr: &mut R,
-) -> HdbResult<HdbValue<'static>> {
-    let i = rdr.read_i32_le().await?;
-    if i == NULL_REPRESENTATION {
-        if nullable {
-            Ok(HdbValue::NULL)
-        } else {
-            Err(HdbError::Impl(
-                "found NULL value for NOT NULL SECONDTIME column",
-            ))
-        }
-    } else {
-        Ok(HdbValue::SECONDTIME(SecondTime::new(i)))
-    }
-}
+// #[cfg(feature = "async")]
+// pub(crate) async fn parse_secondtime_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
+//     nullable: bool,
+//     rdr: &mut R,
+// ) -> HdbResult<HdbValue<'static>> {
+//     let i = rdr.read_i32_le().await?;
+//     if i == NULL_REPRESENTATION {
+//         if nullable {
+//             Ok(HdbValue::NULL)
+//         } else {
+//             Err(HdbError::Impl(
+//                 "found NULL value for NOT NULL SECONDTIME column",
+//             ))
+//         }
+//     } else {
+//         Ok(HdbValue::SECONDTIME(SecondTime::new(i)))
+//     }
+// }

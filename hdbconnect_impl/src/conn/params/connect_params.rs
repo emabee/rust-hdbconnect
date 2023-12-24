@@ -168,7 +168,12 @@ impl ConnectParams {
     }
 
     pub(crate) fn compression(&self) -> Compression {
-        self.compression
+        // FIXME
+        if cfg!(feature = "async") {
+            Compression::Off
+        } else {
+            self.compression
+        }
     }
 
     /// The name of the (MDC) database.

@@ -1,5 +1,5 @@
 use crate::HdbResult;
-#[cfg(feature = "sync")]
+// #[cfg(feature = "sync")]
 use byteorder::{LittleEndian, WriteBytesExt};
 
 #[derive(Debug)]
@@ -17,7 +17,7 @@ impl ReadLobRequest {
             length,
         }
     }
-    #[cfg(feature = "sync")]
+    // #[cfg(feature = "sync")]
     pub fn sync_emit(&self, w: &mut dyn std::io::Write) -> HdbResult<()> {
         trace!("read_lob_request::emit() {:?}", self);
         w.write_u64::<LittleEndian>(self.locator_id)?;
@@ -26,18 +26,18 @@ impl ReadLobRequest {
         w.write_u32::<LittleEndian>(0_u32)?; // FILLER
         Ok(())
     }
-    #[cfg(feature = "async")]
-    pub async fn async_emit<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
-        &self,
-        w: &mut W,
-    ) -> HdbResult<()> {
-        trace!("read_lob_request::emit() {:?}", self);
-        w.write_u64_le(self.locator_id).await?;
-        w.write_u64_le(self.offset).await?;
-        w.write_u32_le(self.length).await?;
-        w.write_u32_le(0).await?; // FILLER
-        Ok(())
-    }
+    // #[cfg(feature = "async")]
+    // pub async fn async_emit<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
+    //     &self,
+    //     w: &mut W,
+    // ) -> HdbResult<()> {
+    //     trace!("read_lob_request::emit() {:?}", self);
+    //     w.write_u64_le(self.locator_id).await?;
+    //     w.write_u64_le(self.offset).await?;
+    //     w.write_u32_le(self.length).await?;
+    //     w.write_u32_le(0).await?; // FILLER
+    //     Ok(())
+    // }
     pub fn size() -> usize {
         24
     }

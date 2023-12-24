@@ -37,7 +37,6 @@ mod xat_options;
 #[cfg(feature = "dist_tx")]
 pub(crate) use self::xat_options::XatOptions;
 pub(crate) use self::{
-    am_rs_core::{AmRsCore, MRsCore},
     authfields::AuthFields,
     client_context::{ClientContext, ClientContextId},
     client_info::ClientInfo,
@@ -72,9 +71,10 @@ pub use self::{
 };
 
 use crate::{
+    base::RsState,
     conn::AmConnCore,
     internal_returnvalue::InternalReturnValue,
-    protocol::{Part, PartAttributes, PartKind, ServerUsage},
+    protocol::{part_attributes::FIRST_PACKET, Part, PartAttributes, PartKind, ServerUsage},
     HdbError, HdbResult,
 };
 use std::{iter::IntoIterator, sync::Arc};
@@ -174,19 +174,18 @@ impl Parts<'static> {
                 Part::ParameterMetadata(pm) => {
                     int_return_values.push(InternalReturnValue::ParameterMetadata(Arc::new(pm)));
                 }
-                Part::ResultSet(Some(rs)) => {
-                    int_return_values.push(InternalReturnValue::SyncResultSet(rs));
+                Part::RsState(Some(rs_state_and_a_rsmd)) => {
+                    int_return_values.push(InternalReturnValue::RsState(rs_state_and_a_rsmd));
                 }
                 Part::ResultSetMetadata(rsmd) => {
                     if let Some(Part::ResultSetId(rs_id)) = parts.next() {
-                        let rs = crate::sync::ResultSet::new(
-                            am_conn_core,
-                            PartAttributes::new(0b_0000_0100),
-                            rs_id,
-                            Arc::new(rsmd),
+                        let rs = RsState::new_sync(
                             None,
+                            am_conn_core,
+                            PartAttributes::new(FIRST_PACKET),
+                            rs_id,
                         );
-                        int_return_values.push(InternalReturnValue::SyncResultSet(rs));
+                        int_return_values.push(InternalReturnValue::RsState((rs, Arc::new(rsmd))));
                     } else {
                         return Err(HdbError::Impl("Missing required part ResultSetID"));
                     }
@@ -212,6 +211,7 @@ impl Parts<'static> {
         mut o_additional_server_usage: Option<&mut ServerUsage>,
     ) -> HdbResult<Vec<InternalReturnValue>> {
         let mut conn_core = am_conn_core.async_lock().await;
+        // FIXME factor the below out in a single method that can be used in sync and async context
         let mut int_return_values = Vec::<InternalReturnValue>::new();
         let mut parts = self.into_iter();
         while let Some(part) = parts.next() {
@@ -237,24 +237,18 @@ impl Parts<'static> {
                 Part::ParameterMetadata(pm) => {
                     int_return_values.push(InternalReturnValue::ParameterMetadata(Arc::new(pm)));
                 }
-                #[cfg(feature = "sync")]
-                Part::ResultSet(Some(rs)) => {
-                    int_return_values.push(InternalReturnValue::SyncResultSet(rs));
-                }
-                #[cfg(feature = "async")]
-                Part::AResultSet(Some(rs)) => {
-                    int_return_values.push(InternalReturnValue::AsyncResultSet(rs));
+                Part::RsState(Some(rs_state_and_a_rsmd)) => {
+                    int_return_values.push(InternalReturnValue::RsState(rs_state_and_a_rsmd));
                 }
                 Part::ResultSetMetadata(rsmd) => {
                     if let Some(Part::ResultSetId(rs_id)) = parts.next() {
-                        let rs = crate::a_sync::ResultSet::new(
-                            am_conn_core,
-                            PartAttributes::new(0b_0000_0100),
-                            rs_id,
-                            Arc::new(rsmd),
+                        let rs = RsState::new_async(
                             None,
+                            am_conn_core,
+                            PartAttributes::new(FIRST_PACKET),
+                            rs_id,
                         );
-                        int_return_values.push(InternalReturnValue::AsyncResultSet(rs));
+                        int_return_values.push(InternalReturnValue::RsState((rs, Arc::new(rsmd))));
                     } else {
                         return Err(HdbError::Impl("Missing required part ResultSetID"));
                     }

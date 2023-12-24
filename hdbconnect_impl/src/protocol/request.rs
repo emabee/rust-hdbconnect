@@ -202,62 +202,81 @@ impl<'a> Request<'a> {
     }
 
     #[cfg(feature = "async")]
-    #[allow(clippy::cast_possible_truncation)]
-    #[allow(clippy::cast_possible_wrap)]
+    #[allow(clippy::too_many_arguments)]
     pub async fn emit_async<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
         &self,
         session_id: i64,
-        seq_number: i32,
+        packet_seq_number: i32,
         auto_commit: bool,
-        _compress: bool,
+        compress: bool,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
+        io_buffer: &mut Cursor<Vec<u8>>,
         w: &mut W,
     ) -> HdbResult<()> {
-        let number_of_parts = self.parts.len() as i16;
-        let parts_size = self.parts.size(o_a_descriptors) as u32;
+        io_buffer.get_mut().clear();
+        let uncompressed_parts_size = self.parts.size(o_a_descriptors);
 
-        debug!(
-            "Request::sync_emit() of type {:?} for session_id = {session_id}, \
-             seq_number = {seq_number}, parts_size = {parts_size}",
-            self.message_type,
-        );
-
-        // FIXME make use of compress!!!
-
-        // MESSAGE HEADER
-        w.write_i64_le(session_id).await?; // I8 <LittleEndian>
-        w.write_i32_le(seq_number).await?; // I4
-        w.write_u32_le(parts_size + SEGMENT_HEADER_SIZE).await?; // UI4
-        w.write_u32_le(parts_size + SEGMENT_HEADER_SIZE).await?; // UI4
-        w.write_i16_le(1).await?; // I2    Number of segments
-        for _ in 0..10_u8 {
-            w.write_u8(0).await?;
-        } // I1+ B[9]  unused
-
-        // SEGMENT HEADER
-        w.write_u32_le(parts_size + SEGMENT_HEADER_SIZE).await?; // I4  Length including the header
-        w.write_i32_le(0).await?; // I4 Offset within the message buffer
-        w.write_i16_le(number_of_parts).await?; // I2 Number of contained parts
-        w.write_i16_le(1).await?; // I2 Number of this segment, starting with 1
-        w.write_i8(1).await?; // I1 Segment kind: always 1 = Request
-        w.write_i8(self.message_type as i8).await?; // I1 "Message type"
-        w.write_i8(auto_commit.into()).await?; // I1 auto_commit on/off
-        w.write_u8(self.command_options).await?; // I1 Bit set for options
-        for _ in 0..8_u8 {
-            w.write_u8(0).await?;
-        } // [B;8] Reserved, do not use
-
-        trace!("Headers are written");
-
-        // PARTS
-        let mut remaining_bufsize = parts_size;
+        //  write uncompressed parts to buffer, and leave space for the packet header
+        let capa = io_buffer.get_ref().capacity();
+        if capa < MESSAGE_AND_SEGMENT_HEADER_SIZE + uncompressed_parts_size {
+            io_buffer
+                .get_mut()
+                .reserve(MESSAGE_AND_SEGMENT_HEADER_SIZE + uncompressed_parts_size - capa);
+        }
+        io_buffer.set_position(MESSAGE_AND_SEGMENT_HEADER_SIZE as u64);
+        let mut remaining_bufsize = u32::try_from(uncompressed_parts_size).unwrap(/*OK*/);
         for part in self.parts.ref_inner() {
-            remaining_bufsize = part
-                .async_emit(remaining_bufsize, o_a_descriptors, w)
+            remaining_bufsize = part.sync_emit(remaining_bufsize, o_a_descriptors, io_buffer)?;
+        }
+
+        // decide if parts should be sent in compressed form, and compress if necessary
+        let o_compressed_parts = if compress && uncompressed_parts_size > MIN_COMPRESSION_SIZE {
+            io_buffer.set_position(MESSAGE_AND_SEGMENT_HEADER_SIZE as u64);
+            let compressed_parts =
+                lz4_flex::block::compress(&io_buffer.get_ref()[MESSAGE_AND_SEGMENT_HEADER_SIZE..]);
+
+            if shrunk_by_at_least_five_percent(compressed_parts.len(), uncompressed_parts_size) {
+                Some(compressed_parts)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        // write header to beginning of buffer
+        io_buffer.set_position(0);
+        self.write_packet_header(
+            session_id,
+            packet_seq_number,
+            auto_commit,
+            u32::try_from(uncompressed_parts_size).expect("uncompressed parts too big"),
+            o_compressed_parts.as_ref().map(|data| {
+                trace!("sending compressed request");
+                u32::try_from(data.len()).expect("compressed parts too big")
+            }),
+            io_buffer,
+        )?;
+
+        // serialize request to stream
+        if let Some(compressed_parts) = o_compressed_parts {
+            // serialize header to stream
+            io_buffer.set_position(0);
+            w.write_all(&io_buffer.get_ref()[0..MESSAGE_AND_SEGMENT_HEADER_SIZE])
                 .await?;
+
+            // serialize compressed parts to stream
+            w.write_all(&compressed_parts).await?;
+        } else {
+            // serialize header and uncompressed parts to stream
+            io_buffer.set_position(0);
+            w.write_all(io_buffer.get_ref()).await?;
         }
         w.flush().await?;
         trace!("Parts are written");
+
+        io_buffer.get_mut().clear();
+        io_buffer.get_mut().shrink_to(MAX_BUFFER_SIZE);
         Ok(())
     }
 }

@@ -1,6 +1,6 @@
 use crate::{
+    base::{RsCore, OAM},
     conn::AmConnCore,
-    protocol::parts::AmRsCore,
     types::CharLobSlice,
     types_impl::lob::NCLobHandle,
     {HdbResult, ServerUsage},
@@ -26,7 +26,7 @@ pub struct NCLob(Box<NCLobHandle>);
 impl NCLob {
     pub(crate) fn new(
         am_conn_core: &AmConnCore,
-        o_am_rscore: &Option<AmRsCore>,
+        o_am_rscore: &OAM<RsCore>,
         is_data_complete: bool,
         total_char_length: u64,
         total_byte_length: u64,

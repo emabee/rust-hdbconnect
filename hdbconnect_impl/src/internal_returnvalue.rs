@@ -1,15 +1,14 @@
 use std::sync::Arc;
 
 use crate::{
-    protocol::parts::WriteLobReply, ExecutionResult, OutputParameters, ParameterDescriptors,
+    base::RsState, protocol::parts::WriteLobReply, ExecutionResult, OutputParameters,
+    ParameterDescriptors, ResultSetMetadata,
 };
 
+// FIXME move into base
 #[derive(Debug)]
 pub enum InternalReturnValue {
-    #[cfg(feature = "sync")]
-    SyncResultSet(crate::sync::ResultSet),
-    #[cfg(feature = "async")]
-    AsyncResultSet(crate::a_sync::ResultSet),
+    RsState((RsState, Arc<ResultSetMetadata>)),
     ExecutionResults(Vec<ExecutionResult>),
     OutputParameters(OutputParameters),
     ParameterMetadata(Arc<ParameterDescriptors>),
