@@ -1,11 +1,12 @@
-use super::{crypto_util, Authenticator};
-use crate::protocol::parts::AuthFields;
-use crate::{HdbError, HdbResult};
+use crate::{
+    conn::authentication::{crypto_util, Authenticator},
+    protocol::parts::AuthFields,
+    HdbError, HdbResult,
+};
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt, WriteBytesExt};
 use rand::{thread_rng, RngCore};
 use secstr::SecUtf8;
-use std::io::Write;
-use std::time::Instant;
+use std::{io::Write, time::Instant};
 
 const CLIENT_PROOF_SIZE: u8 = 32;
 
@@ -70,7 +71,7 @@ impl Authenticator for ScramPbkdf2Sha256 {
     }
 
     fn verify_server(&self, server_data: &[u8]) -> HdbResult<()> {
-        let srv_proof = AuthFields::parse_sync(&mut std::io::Cursor::new(server_data))?
+        let srv_proof = AuthFields::parse(&mut std::io::Cursor::new(server_data))?
             .pop()
             .ok_or_else(|| HdbError::Impl("expected non-empty list of auth fields"))?;
 
@@ -88,7 +89,7 @@ impl Authenticator for ScramPbkdf2Sha256 {
 
 // `server_data` is again an AuthFields, contains salt, server_nonce, iterations
 fn parse_first_server_data(server_data: &[u8]) -> HdbResult<(Vec<u8>, Vec<u8>, u32)> {
-    let mut af = AuthFields::parse_sync(&mut std::io::Cursor::new(server_data))?;
+    let mut af = AuthFields::parse(&mut std::io::Cursor::new(server_data))?;
 
     match (af.pop(), af.pop(), af.pop(), af.pop()) {
         (Some(it_bytes), Some(server_nonce), Some(salt), None) => {

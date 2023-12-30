@@ -1,11 +1,5 @@
-// #[cfg(feature = "async")]
-// use crate::protocol::util_async;
-// #[cfg(feature = "sync")]
-use crate::protocol::util_sync;
-// #[cfg(feature = "sync")]
+use crate::{protocol::util_sync, HdbError, HdbResult};
 use byteorder::{LittleEndian, ReadBytesExt};
-
-use crate::{HdbError, HdbResult};
 
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -71,8 +65,7 @@ pub struct Partitions {
 }
 
 impl PartitionInformation {
-    // #[cfg(feature = "sync")]
-    pub fn parse_sync(rdr: &mut dyn std::io::Read) -> HdbResult<Self> {
+    pub fn parse(rdr: &mut dyn std::io::Read) -> HdbResult<Self> {
         let partition_method = PartitionMethod::from_i8(rdr.read_i8()?)?; // I1
         util_sync::skip_bytes(7, rdr)?;
         let num_parameters = rdr.read_i32::<LittleEndian>()?;
@@ -107,43 +100,4 @@ impl PartitionInformation {
             partitions,
         })
     }
-
-    // #[cfg(feature = "async")]
-    // pub async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
-    //     rdr: &mut R,
-    // ) -> HdbResult<Self> {
-    //     let partition_method = PartitionMethod::from_i8(rdr.read_i8().await?)?; // I1
-    //     util_async::skip_bytes(7, rdr).await?;
-    //     let num_parameters = rdr.read_i32_le().await?;
-    //     let num_partitions = rdr.read_i32_le().await?;
-    //     let mut parameter_descriptor = vec![];
-    //     for _ in 0..num_parameters {
-    //         let desc = ParameterDescriptor {
-    //             parameter_index: rdr.read_i32_le().await?,
-    //             parameter_function: ParameterFunction::from_i8(rdr.read_i8().await?)?,
-    //             attribute_type: rdr.read_i8().await?,
-    //         };
-    //         util_async::skip_bytes(2, rdr).await?;
-    //         parameter_descriptor.push(desc);
-    //     }
-
-    //     let mut partitions = vec![];
-
-    //     // Missing in documentation, but it is 8 byte per partition
-    //     // https://help.sap.com/viewer/7e4aba181371442d9e4395e7ff71b777/2.0.03/en-US/a6b5b33a790245efa06c67a781f80d15.html#loioeed44c1df1fc4f139079f36031b42ef1
-    //     for _ in 0..num_partitions {
-    //         partitions.push({
-    //             Partitions {
-    //                 val1: rdr.read_i32_le().await?,
-    //                 val2: rdr.read_i32_le().await?,
-    //             }
-    //         });
-    //     }
-
-    //     Ok(Self {
-    //         partition_method,
-    //         parameter_descriptor,
-    //         partitions,
-    //     })
-    // }
 }

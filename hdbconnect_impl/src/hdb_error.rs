@@ -104,11 +104,6 @@ pub enum HdbError {
     SessionClosingTransactionError,
 
     /// Error occured in communication with the database.
-    // #[error(
-    //     "Error occured in communication with the database; \
-    //          if this happens during setup, then a frequent cause is that TLS \
-    //          was attempted but is not supported by the database instance"
-    // )]
     #[error(transparent)]
     Io {
         /// The causing Error.

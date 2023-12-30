@@ -1,8 +1,7 @@
+use hmac::{Hmac, Mac};
 use pbkdf2::pbkdf2;
 use secstr::SecUtf8;
 use sha2::{Digest, Sha256};
-
-use hmac::{Hmac, Mac};
 
 pub fn scram_sha256(
     salt: &[u8],

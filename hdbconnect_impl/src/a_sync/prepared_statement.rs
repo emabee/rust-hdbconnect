@@ -1,8 +1,7 @@
 use crate::{
     a_sync::HdbResponse,
-    base::{new_am_async, PreparedStatementCore, AM},
+    base::{new_am_async, InternalReturnValue, PreparedStatementCore, AM},
     conn::AmConnCore,
-    internal_returnvalue::InternalReturnValue,
     protocol::parts::{
         HdbValue, LobFlags, ParameterDescriptors, ParameterRows, ResultSetMetadata, TypeId,
     },
@@ -11,7 +10,6 @@ use crate::{
     HdbError, HdbResult,
 };
 use std::sync::Arc;
-// use tokio::sync::Mutex;
 
 /// Allows injection-safe SQL execution and repeated calls of the same statement
 /// with different parameters with as few roundtrips as possible.
@@ -226,7 +224,7 @@ impl<'a> PreparedStatement {
 
             let mut main_reply = ps_core_guard
                 .am_conn_core
-                .async_full_send(
+                .full_send_async(
                     request,
                     self.o_a_rsmd.as_ref(),
                     Some(&self.a_descriptors),
@@ -245,7 +243,7 @@ impl<'a> PreparedStatement {
             let (mut internal_return_values, replytype) = (
                 main_reply
                     .parts
-                    .async_into_internal_return_values(&ps_core_guard.am_conn_core, None)
+                    .into_internal_return_values_async(&ps_core_guard.am_conn_core, None)
                     .await?,
                 main_reply.replytype,
             );
@@ -371,14 +369,14 @@ impl<'a> PreparedStatement {
 
         let (mut internal_return_values, replytype) = ps_core_guard
             .am_conn_core
-            .async_full_send(
+            .full_send_async(
                 request,
                 self.o_a_rsmd.as_ref(),
                 Some(&self.a_descriptors),
                 &mut None,
             )
             .await?
-            .async_into_internal_return_values(&ps_core_guard.am_conn_core, None)
+            .into_internal_return_values_async(&ps_core_guard.am_conn_core, None)
             .await?;
 
         // inject statement id
@@ -405,7 +403,7 @@ impl<'a> PreparedStatement {
         let mut request = Request::new(MessageType::Prepare, HOLD_CURSORS_OVER_COMMIT);
         request.push(Part::Command(stmt));
 
-        let reply = am_conn_core.async_send(request).await?;
+        let reply = am_conn_core.send_async(request).await?;
 
         let mut o_table_location: Option<Vec<i32>> = None;
         let mut o_stmt_id: Option<u64> = None;

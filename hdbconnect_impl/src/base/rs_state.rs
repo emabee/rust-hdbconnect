@@ -10,9 +10,9 @@ use crate::{
 use std::sync::Arc;
 
 #[cfg(feature = "async")]
-use super::new_oam_async;
+use super::new_am_async;
 #[cfg(feature = "sync")]
-use super::new_oam_sync;
+use super::new_am_sync;
 
 // the references to the connection (core) and the prepared statement (core)
 // ensure that these are not dropped before all missing content is fetched
@@ -36,7 +36,7 @@ impl RsState {
             next_rows: Vec::<Row>::new(),
             row_iter: Vec::<Row>::new().into_iter(),
             server_usage: ServerUsage::default(),
-            o_am_rscore: new_oam_sync(RsCore::new(am_conn_core, attrs, rs_id)),
+            o_am_rscore: Some(new_am_sync(RsCore::new(am_conn_core, attrs, rs_id))),
         };
         if let Some(stmt_ctx) = o_stmt_ctx {
             new_instance.server_usage.update(
@@ -59,7 +59,7 @@ impl RsState {
             next_rows: Vec::<Row>::new(),
             row_iter: Vec::<Row>::new().into_iter(),
             server_usage: ServerUsage::default(),
-            o_am_rscore: new_oam_async(RsCore::new(am_conn_core, attrs, rs_id)),
+            o_am_rscore: Some(new_am_async(RsCore::new(am_conn_core, attrs, rs_id))),
         };
         if let Some(stmt_ctx) = o_stmt_ctx {
             new_instance.server_usage.update(
@@ -102,7 +102,7 @@ impl RsState {
         Ok(())
     }
 
-    pub(crate) fn update_server_usage(&mut self, stmt_ctx: StatementContext) {
+    pub(crate) fn update_server_usage(&mut self, stmt_ctx: &StatementContext) {
         self.server_usage.update(
             stmt_ctx.server_processing_time(),
             stmt_ctx.server_cpu_time(),
@@ -117,7 +117,7 @@ impl RsState {
     #[cfg(feature = "sync")]
     pub(crate) fn inject_ps_core_sync(
         &mut self,
-        am_ps_core: Arc<XMutexed<PreparedStatementCore>>, // FIXME take only PsCore
+        am_ps_core: Arc<XMutexed<PreparedStatementCore>>,
     ) -> HdbResult<()> {
         if let Some(ref am_rs_core) = self.o_am_rscore {
             am_rs_core.lock_sync()?.inject_ps_core(am_ps_core);
@@ -126,13 +126,12 @@ impl RsState {
     }
 
     #[cfg(feature = "sync")]
-    #[allow(clippy::wrong_self_convention)] // FIXME
-    pub(crate) fn into_rows_sync(&mut self, a_rsmd: Arc<ResultSetMetadata>) -> HdbResult<Rows> {
+    pub(crate) fn as_rows_sync(&mut self, a_rsmd: Arc<ResultSetMetadata>) -> HdbResult<Rows> {
         let mut rows = Vec::<Row>::new();
         while let Some(row) = self.next_row_sync(&a_rsmd)? {
             rows.push(row);
         }
-        Rows::sync_new(a_rsmd, rows)
+        Rows::new_sync(a_rsmd, rows)
     }
 
     #[cfg(feature = "sync")]
@@ -226,7 +225,7 @@ impl RsState {
         request.push(Part::ResultSetId(resultset_id));
         request.push(Part::FetchSize(fetch_size));
         let mut reply =
-            am_conn_core.sync_full_send(request, Some(a_rsmd), None, &mut Some(self))?;
+            am_conn_core.full_send_sync(request, Some(a_rsmd), None, &mut Some(self))?;
         reply.assert_expected_reply_type(ReplyType::Fetch)?;
         reply.parts.pop_if_kind(PartKind::ResultSet);
 
@@ -318,7 +317,7 @@ impl RsState {
 
             Some(fetching_state) => {
                 match parts.pop_if_kind(PartKind::StatementContext) {
-                    Some(Part::StatementContext(stmt_ctx)) => {
+                    Some(Part::StatementContext(ref stmt_ctx)) => {
                         fetching_state.update_server_usage(stmt_ctx);
                     }
                     None => {}
@@ -385,7 +384,7 @@ impl RsState {
 
             Some(fetching_state) => {
                 match parts.pop_if_kind(PartKind::StatementContext) {
-                    Some(Part::StatementContext(stmt_ctx)) => {
+                    Some(Part::StatementContext(ref stmt_ctx)) => {
                         fetching_state.update_server_usage(stmt_ctx);
                     }
                     None => {}
@@ -476,7 +475,7 @@ impl std::fmt::Display for RsState {
 impl RsState {
     pub(crate) async fn inject_ps_core_async(
         &mut self,
-        am_ps_core: Arc<XMutexed<PreparedStatementCore>>, // FIXME take only PsCore
+        am_ps_core: Arc<XMutexed<PreparedStatementCore>>,
     ) -> HdbResult<()> {
         if let Some(ref am_rs_core) = self.o_am_rscore {
             am_rs_core.lock_async().await.inject_ps_core(am_ps_core);
@@ -484,8 +483,7 @@ impl RsState {
         Ok(())
     }
 
-    #[allow(clippy::wrong_self_convention)]
-    pub(crate) async fn into_rows_async(
+    pub(crate) async fn as_rows_async(
         &mut self,
         a_rsmd: Arc<ResultSetMetadata>,
     ) -> HdbResult<Rows> {
@@ -493,7 +491,7 @@ impl RsState {
         while let Some(row) = self.next_row(&a_rsmd).await? {
             rows.push(row);
         }
-        Rows::async_new(a_rsmd, rows).await
+        Rows::new_async(a_rsmd, rows).await
     }
 
     pub async fn fetch_all(&mut self, a_rsmd: &Arc<ResultSetMetadata>) -> HdbResult<()> {
@@ -510,20 +508,6 @@ impl RsState {
         self.fetch_all(a_rsmd).await?;
         Ok(self.len())
     }
-
-    // pub fn next_row_no_fetch(&mut self) -> Option<Row> {
-    //     if let Some(r) = self.row_iter.next() {
-    //         Some(r)
-    //     } else {
-    //         if self.next_rows.is_empty() {
-    //             return None;
-    //         }
-    //         let mut tmp_vec = Vec::<Row>::new();
-    //         std::mem::swap(&mut tmp_vec, &mut self.next_rows);
-    //         self.row_iter = tmp_vec.into_iter();
-    //         self.row_iter.next()
-    //     }
-    // }
 
     pub async fn single_row(&mut self) -> HdbResult<Row> {
         if self.has_multiple_rows().await {
@@ -579,7 +563,7 @@ impl RsState {
         request.push(Part::FetchSize(fetch_size));
 
         let mut reply = conn_core
-            .async_full_send(request, Some(a_rsmd), None, &mut Some(self))
+            .full_send_async(request, Some(a_rsmd), None, &mut Some(self))
             .await?;
         reply.assert_expected_reply_type(ReplyType::Fetch)?;
         reply.parts.pop_if_kind(PartKind::ResultSet);
@@ -611,72 +595,4 @@ impl RsState {
             Ok(true)
         }
     }
-
-    // pub async fn parse_rows<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
-    //     &mut self,
-    //     no_of_rows: usize,
-    //     metadata: &Arc<ResultSetMetadata>,
-    //     rdr: &mut R,
-    // ) -> HdbResult<()> {
-    //     self.next_rows.reserve(no_of_rows);
-    //     let no_of_cols = metadata.len();
-    //     debug!("parse_rows(): {} lines, {} columns", no_of_rows, no_of_cols);
-
-    //     if let Some(ref mut am_rscore) = self.o_am_rscore {
-    //         let rscore = am_rscore.async_lock().await;
-    //         let am_conn_core: &AmConnCore = &rscore.am_conn_core;
-    //         let o_am_rscore = Some(am_rscore.clone());
-    //         for i in 0..no_of_rows {
-    //             let row =
-    //                 Row::parse_async(Arc::clone(metadata), &o_am_rscore, am_conn_core, rdr).await?;
-    //             trace!("parse_rows(): Found row #{}: {}", i, row);
-    //             self.next_rows.push(row);
-    //         }
-    //     }
-    //     Ok(())
-    // }
 }
-
-// #[derive(Debug)]
-// pub(crate) struct AsyncResultSetCore {
-//     am_conn_core: AmConnCore,
-//     o_am_pscore: Option<AsyncAmPsCore>,
-//     pub attributes: PartAttributes,
-//     resultset_id: u64,
-// }
-
-// #[cfg(feature = "async")]
-// impl AsyncResultSetCore {
-//     pub fn new(am_conn_core: &AmConnCore, attributes: PartAttributes, resultset_id: u64) -> Self {
-//         Self {
-//             am_conn_core: am_conn_core.clone(),
-//             o_am_pscore: None,
-//             attributes,
-//             resultset_id,
-//         }
-//     }
-
-//     pub fn inject_statement_id(&mut self, am_ps_core: AsyncAmPsCore) {
-//         self.o_am_pscore = Some(am_ps_core);
-//     }
-// }
-
-// #[cfg(feature = "async")]
-// impl Drop for AsyncResultSetCore {
-//     // inform the server in case the resultset is not yet closed, ignore all errors
-//     fn drop(&mut self) {
-//         let rs_id = self.resultset_id;
-//         trace!("ResultSetCore::drop(), resultset_id {}", rs_id);
-//         if !self.attributes.resultset_is_closed() {
-//             let mut request = Request::new(MessageType::CloseResultSet, 0);
-//             request.push(Part::ResultSetId(rs_id));
-
-//             let am_conn_core = self.am_conn_core.clone();
-//             tokio::task::spawn(async move {
-//                 if let Ok(mut reply) = am_conn_core.async_send(request).await {
-//                     reply.parts.pop_if_kind(PartKind::StatementContext);
-//                 }
-//             });
-//         }
-//     }
-// }

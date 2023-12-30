@@ -1,10 +1,10 @@
 #[cfg(feature = "async")]
-use super::fetch::async_fetch_a_lob_chunk;
+use super::fetch::fetch_a_lob_chunk_async;
 #[cfg(feature = "async")]
 use tokio::io::ReadBuf;
 
 #[cfg(feature = "sync")]
-use super::fetch::sync_fetch_a_lob_chunk;
+use super::fetch::fetch_a_lob_chunk_sync;
 #[cfg(feature = "sync")]
 use std::io::Write;
 
@@ -81,8 +81,8 @@ impl NCLobHandle {
     }
 
     #[cfg(feature = "sync")]
-    pub(crate) fn sync_read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
-        let (reply_data, _reply_is_last_data) = sync_fetch_a_lob_chunk(
+    pub(crate) fn read_slice_sync(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
+        let (reply_data, _reply_is_last_data) = fetch_a_lob_chunk_sync(
             &self.am_conn_core,
             self.locator_id,
             offset,
@@ -94,12 +94,12 @@ impl NCLobHandle {
     }
 
     #[cfg(feature = "async")]
-    pub(crate) async fn async_read_slice(
+    pub(crate) async fn read_slice_async(
         &mut self,
         offset: u64,
         length: u32,
     ) -> HdbResult<CharLobSlice> {
-        let (reply_data, _reply_is_last_data) = async_fetch_a_lob_chunk(
+        let (reply_data, _reply_is_last_data) = fetch_a_lob_chunk_async(
             &self.am_conn_core,
             self.locator_id,
             offset,
@@ -125,7 +125,7 @@ impl NCLobHandle {
 
     #[cfg(feature = "sync")]
     #[allow(clippy::cast_possible_truncation)]
-    fn fetch_next_chunk(&mut self) -> HdbResult<()> {
+    fn fetch_next_chunk_sync(&mut self) -> HdbResult<()> {
         if self.is_data_complete {
             return Err(HdbError::Impl("already complete"));
         }
@@ -135,7 +135,7 @@ impl NCLobHandle {
             (self.total_char_length - self.acc_char_length as u64) as u32,
         );
 
-        let (reply_data, reply_is_last_data) = sync_fetch_a_lob_chunk(
+        let (reply_data, reply_is_last_data) = fetch_a_lob_chunk_sync(
             &self.am_conn_core,
             self.locator_id,
             self.acc_char_length as u64,
@@ -167,7 +167,7 @@ impl NCLobHandle {
 
     #[cfg(feature = "async")]
     #[allow(clippy::cast_possible_truncation)]
-    async fn async_fetch_next_chunk(&mut self) -> HdbResult<()> {
+    async fn fetch_next_chunk_async(&mut self) -> HdbResult<()> {
         if self.is_data_complete {
             return Err(HdbError::Impl("already complete"));
         }
@@ -177,7 +177,7 @@ impl NCLobHandle {
             (self.total_char_length - self.acc_char_length as u64) as u32,
         );
 
-        let (reply_data, reply_is_last_data) = async_fetch_a_lob_chunk(
+        let (reply_data, reply_is_last_data) = fetch_a_lob_chunk_async(
             &self.am_conn_core,
             self.locator_id,
             self.acc_char_length as u64,
@@ -209,19 +209,19 @@ impl NCLobHandle {
     }
 
     #[cfg(feature = "sync")]
-    pub(crate) fn sync_load_complete(&mut self) -> HdbResult<()> {
+    pub(crate) fn load_complete_sync(&mut self) -> HdbResult<()> {
         trace!("NCLobHandle::load_complete()");
         while !self.is_data_complete {
-            self.fetch_next_chunk()?;
+            self.fetch_next_chunk_sync()?;
         }
         Ok(())
     }
 
     #[cfg(feature = "async")]
-    pub(crate) async fn async_load_complete(&mut self) -> HdbResult<()> {
+    pub(crate) async fn load_complete_async(&mut self) -> HdbResult<()> {
         trace!("NCLobHandle::load_complete()");
         while !self.is_data_complete {
-            self.async_fetch_next_chunk().await?;
+            self.fetch_next_chunk_async().await?;
         }
         Ok(())
     }
@@ -246,7 +246,7 @@ impl std::io::Read for NCLobHandle {
         trace!("read() with buf of len {}", buf.len());
 
         while !self.is_data_complete && (buf.len() > self.cesu8.len() - self.cesu8_tail_len) {
-            self.fetch_next_chunk()
+            self.fetch_next_chunk_sync()
                 .map_err(|e| util::io_error(e.to_string()))?;
         }
 
@@ -271,14 +271,14 @@ impl std::io::Read for NCLobHandle {
 
 #[cfg(feature = "async")]
 impl NCLobHandle {
-    pub(crate) async fn async_read(&mut self, buf: &mut [u8]) -> HdbResult<usize> {
+    pub(crate) async fn read_async(&mut self, buf: &mut [u8]) -> HdbResult<usize> {
         let mut buf = ReadBuf::new(buf);
         let buf_len = buf.capacity();
         debug_assert!(buf.filled().is_empty());
         trace!("read() with buf of len {}", buf_len);
 
         while !self.is_data_complete && (buf_len > self.cesu8.len() - self.cesu8_tail_len) {
-            self.async_fetch_next_chunk().await?;
+            self.fetch_next_chunk_async().await?;
         }
 
         // we want to write only clean UTF-8 into buf, so we cut off at good places only;

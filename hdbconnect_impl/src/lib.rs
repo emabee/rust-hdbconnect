@@ -27,7 +27,6 @@ extern crate serde;
 mod base;
 mod conn;
 mod hdb_error;
-mod internal_returnvalue;
 mod protocol;
 mod row;
 mod rows;
@@ -41,8 +40,6 @@ mod xa_impl;
 pub mod a_sync;
 #[cfg(feature = "sync")]
 pub mod sync;
-
-pub(crate) use internal_returnvalue::InternalReturnValue;
 
 pub use crate::{
     conn::{

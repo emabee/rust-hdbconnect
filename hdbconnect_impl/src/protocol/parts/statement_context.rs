@@ -1,7 +1,8 @@
-use crate::protocol::parts::option_part::{OptionId, OptionPart};
-use crate::protocol::parts::option_value::OptionValue;
-use std::convert::TryInto;
-use std::time::Duration;
+use crate::protocol::parts::{
+    option_part::{OptionId, OptionPart},
+    option_value::OptionValue,
+};
+use std::{convert::TryInto, time::Duration};
 
 // An options part that is populated from previously received statement context
 // information. The binary option content is opaque to the client.

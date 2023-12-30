@@ -73,8 +73,8 @@ impl BLob {
     /// Several variants of `HdbError` can occur.
     pub async fn into_bytes(mut self) -> HdbResult<Vec<u8>> {
         trace!("BLob::into_bytes()");
-        self.0.async_load_complete().await?;
-        self.0.into_bytes_if_complete()
+        self.0.load_complete_async().await?;
+        self.0.into_bytes_if_complete_async()
     }
 
     /// Writes the content into the given writer.
@@ -92,7 +92,7 @@ impl BLob {
         let mut buf = vec![0_u8; lob_read_length].into_boxed_slice();
 
         loop {
-            let read = self.0.async_read(&mut buf).await?;
+            let read = self.0.read_async(&mut buf).await?;
             if read == 0 {
                 break;
             }
@@ -104,11 +104,11 @@ impl BLob {
 
     pub(crate) fn into_bytes_if_complete(self) -> HdbResult<Vec<u8>> {
         trace!("BLob::into_bytes_if_complete()");
-        self.0.into_bytes_if_complete()
+        self.0.into_bytes_if_complete_async()
     }
 
     pub(crate) async fn load_complete(&mut self) -> HdbResult<()> {
-        self.0.async_load_complete().await
+        self.0.load_complete_async().await
     }
 
     /// Reads from given offset and the given length, in bytes.
@@ -117,7 +117,7 @@ impl BLob {
     ///
     /// Several variants of `HdbError` can occur.
     pub async fn read_slice(&mut self, offset: u64, length: u32) -> HdbResult<Vec<u8>> {
-        self.0.read_slice(offset, length).await
+        self.0.read_slice_async(offset, length).await
     }
 
     /// Total length of data, in bytes.

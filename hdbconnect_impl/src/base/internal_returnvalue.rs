@@ -5,7 +5,6 @@ use crate::{
     ParameterDescriptors, ResultSetMetadata,
 };
 
-// FIXME move into base
 #[derive(Debug)]
 pub enum InternalReturnValue {
     RsState((RsState, Arc<ResultSetMetadata>)),

@@ -1,5 +1,4 @@
 use crate::HdbResult;
-// #[cfg(feature = "sync")]
 use byteorder::{LittleEndian, WriteBytesExt};
 
 #[derive(Debug)]
@@ -27,8 +26,7 @@ impl<'a> WriteLobRequest<'a> {
         21 + self.buf.len()
     }
 
-    // #[cfg(feature = "sync")]
-    pub fn sync_emit(&self, w: &mut dyn std::io::Write) -> HdbResult<()> {
+    pub fn emit(&self, w: &mut dyn std::io::Write) -> HdbResult<()> {
         // 1: NULL (not used here), 2: DATA_INCLUDED, 4: LASTDATA
         let options = if self.last_data { 6 } else { 2 };
         w.write_u64::<LittleEndian>(self.locator_id)?;
@@ -41,22 +39,4 @@ impl<'a> WriteLobRequest<'a> {
 
         Ok(())
     }
-
-    // #[cfg(feature = "async")]
-    // pub async fn async_emit<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
-    //     &self,
-    //     w: &mut W,
-    // ) -> HdbResult<()> {
-    //     // 1: NULL (not used here), 2: DATA_INCLUDED, 4: LASTDATA
-    //     let options = if self.last_data { 6 } else { 2 };
-    //     w.write_u64_le(self.locator_id).await?;
-    //     w.write_u8(options).await?;
-    //     w.write_i64_le(self.offset).await?;
-
-    //     #[allow(clippy::cast_possible_truncation)]
-    //     w.write_u32_le(self.buf.len() as u32).await?;
-    //     w.write_all(self.buf).await?;
-
-    //     Ok(())
-    // }
 }

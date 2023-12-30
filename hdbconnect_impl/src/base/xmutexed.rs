@@ -45,6 +45,7 @@ impl<T> XMutexed<T> {
 }
 
 pub(crate) type AM<T> = std::sync::Arc<XMutexed<T>>;
+#[allow(clippy::upper_case_acronyms)]
 pub(crate) type OAM<T> = Option<AM<T>>;
 
 #[cfg(feature = "sync")]
@@ -52,44 +53,7 @@ pub(crate) fn new_am_sync<T>(t: T) -> AM<T> {
     std::sync::Arc::new(XMutexed::new_sync(t))
 }
 
-#[cfg(feature = "sync")]
-pub(crate) fn new_oam_sync<T>(t: T) -> OAM<T> {
-    Option::Some(new_am_sync(t))
-}
-
 #[cfg(feature = "async")]
 pub(crate) fn new_am_async<T>(t: T) -> AM<T> {
     std::sync::Arc::new(XMutexed::new_async(t))
 }
-
-#[cfg(feature = "async")]
-pub(crate) fn new_oam_async<T>(t: T) -> OAM<T> {
-    Option::Some(new_am_async(t))
-}
-
-// struct sync::ResultSet {
-//     metadata: Arc<ResultSetMetadata>,
-//     state: RsState,
-// }
-
-// mod base {
-//     struct RsState {
-//         next_rows: Vec<Row>,
-//         row_iter: <Vec<Row> as IntoIterator>::IntoIter,
-//         server_usage: ServerUsage,
-//         o_am_rscore: Option<Arc<Mutexed<ResultSetCore>>>,
-//     }
-
-//     struct RsCore {
-//         am_conn_core: AmConnCore,
-//         o_am_pscore: Option<Arc<Mutexed<PreparedStatementCore>>>,
-//         attributes: PartAttributes,
-//         resultset_id: u64,
-//     }
-
-//     pub struct PreparedStatementCore {
-//         am_conn_core: AmConnCore,
-//         statement_id: u64,
-//     }
-
-// }

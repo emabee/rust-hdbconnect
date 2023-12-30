@@ -1,9 +1,7 @@
 use crate::{HdbError, HdbResult, HdbValue};
-// #[cfg(feature = "sync")]
 use byteorder::{LittleEndian, ReadBytesExt};
 
 const NULL_REPRESENTATION: i64 = 3_155_380_704_000_000_001;
-
 const SECOND_FACTOR: i64 = 10_000_000;
 const MINUTE_FACTOR: i64 = 600_000_000; // 10_000_000 * 60;
 const HOUR_FACTOR: i64 = 36_000_000_000; // 10_000_000 * 60 * 60;
@@ -95,8 +93,7 @@ impl LongDate {
     }
 }
 
-// #[cfg(feature = "sync")]
-pub(crate) fn parse_longdate_sync(
+pub(crate) fn parse_longdate(
     nullable: bool,
     rdr: &mut dyn std::io::Read,
 ) -> HdbResult<HdbValue<'static>> {
@@ -113,22 +110,3 @@ pub(crate) fn parse_longdate_sync(
         Ok(HdbValue::LONGDATE(LongDate::new(i)))
     }
 }
-
-// #[cfg(feature = "async")]
-// pub(crate) async fn parse_longdate_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
-//     nullable: bool,
-//     rdr: &mut R,
-// ) -> HdbResult<HdbValue<'static>> {
-//     let i = rdr.read_i64_le().await?;
-//     if i == NULL_REPRESENTATION {
-//         if nullable {
-//             Ok(HdbValue::NULL)
-//         } else {
-//             Err(HdbError::Impl(
-//                 "found NULL value for NOT NULL LONGDATE column",
-//             ))
-//         }
-//     } else {
-//         Ok(HdbValue::LONGDATE(LongDate::new(i)))
-//     }
-// }

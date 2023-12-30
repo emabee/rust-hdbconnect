@@ -1,13 +1,12 @@
 use crate::{
-    base::{new_am_sync, PreparedStatementCore, AM},
+    base::{new_am_sync, InternalReturnValue, PreparedStatementCore, AM},
     conn::AmConnCore,
-    internal_returnvalue::InternalReturnValue,
     protocol::parts::{
         HdbValue, LobFlags, ParameterDescriptors, ParameterRows, ResultSetMetadata, TypeId,
     },
     protocol::{MessageType, Part, PartKind, Request, ServerUsage, HOLD_CURSORS_OVER_COMMIT},
     sync::HdbResponse,
-    types_impl::lob::LobWriter,
+    types_impl::lob::SyncLobWriter,
     {HdbError, HdbResult},
 };
 use std::{io::Write, sync::Arc};
@@ -222,7 +221,7 @@ impl<'a> PreparedStatement {
                 request.push(Part::LobFlags(LobFlags::for_implicit_streaming()));
             }
 
-            let mut main_reply = ps_core_guard.am_conn_core.sync_full_send(
+            let mut main_reply = ps_core_guard.am_conn_core.full_send_sync(
                 request,
                 self.o_a_rsmd.as_ref(),
                 Some(&self.a_descriptors),
@@ -240,7 +239,7 @@ impl<'a> PreparedStatement {
             let (mut internal_return_values, replytype) = (
                 main_reply
                     .parts
-                    .sync_into_internal_return_values(&ps_core_guard.am_conn_core, None)?,
+                    .into_internal_return_values_sync(&ps_core_guard.am_conn_core, None)?,
                 main_reply.replytype,
             );
 
@@ -258,7 +257,7 @@ impl<'a> PreparedStatement {
                     debug!("writing content to locator with id {:?}", locator_id);
                     if let HdbValue::SYNC_LOBSTREAM(Some(reader)) = reader {
                         let mut reader = reader.lock()?;
-                        let mut writer = LobWriter::new(
+                        let mut writer = SyncLobWriter::new(
                             locator_id,
                             type_id,
                             ps_core_guard.am_conn_core.clone(),
@@ -365,13 +364,13 @@ impl<'a> PreparedStatement {
 
         let (mut internal_return_values, replytype) = ps_core_guard
             .am_conn_core
-            .sync_full_send(
+            .full_send_sync(
                 request,
                 self.o_a_rsmd.as_ref(),
                 Some(&self.a_descriptors),
                 &mut None,
             )?
-            .sync_into_internal_return_values(&ps_core_guard.am_conn_core, None)?;
+            .into_internal_return_values_sync(&ps_core_guard.am_conn_core, None)?;
 
         // inject statement id
         for rv in &mut internal_return_values {
@@ -395,7 +394,7 @@ impl<'a> PreparedStatement {
         let mut request = Request::new(MessageType::Prepare, HOLD_CURSORS_OVER_COMMIT);
         request.push(Part::Command(stmt));
 
-        let reply = am_conn_core.sync_send(request)?;
+        let reply = am_conn_core.send_sync(request)?;
 
         let mut o_table_location: Option<Vec<i32>> = None;
         let mut o_stmt_id: Option<u64> = None;

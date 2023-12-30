@@ -9,9 +9,9 @@ use crate::HdbError;
 use dist_tx::{ErrorCode, RmError};
 
 #[cfg(feature = "async")]
-pub use self::async_c_resource_manager::async_new_resource_manager;
+pub use self::async_c_resource_manager::new_resource_manager;
 #[cfg(feature = "sync")]
-pub use self::sync_c_resource_manager::sync_new_resource_manager;
+pub use self::sync_c_resource_manager::new_resource_manager_sync;
 
 impl From<HdbError> for RmError {
     fn from(error: HdbError) -> Self {

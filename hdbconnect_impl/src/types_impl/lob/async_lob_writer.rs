@@ -1,6 +1,6 @@
 use crate::{
+    base::InternalReturnValue,
     conn::AmConnCore,
-    internal_returnvalue::InternalReturnValue,
     protocol::parts::{ParameterDescriptors, ResultSetMetadata, TypeId, WriteLobRequest},
     protocol::{util, MessageType, Part, PartKind, Reply, ReplyType, Request},
     types_impl::lob::lob_writer_util::{get_utf8_tail_len, LobWriteMode},
@@ -144,7 +144,7 @@ async fn write_a_lob_chunk<'a>(
 
         // last response of last IN parameter
         ReplyType::DbProcedureCall => {
-            async_evaluate_dbprocedure_call_reply(
+            evaluate_dbprocedure_call_reply(
                 am_conn_core,
                 reply,
                 server_usage,
@@ -196,7 +196,7 @@ fn evaluate_write_lob_reply(reply: Reply, server_usage: &mut ServerUsage) -> Hdb
     result.ok_or_else(|| HdbError::Impl("No WriteLobReply part found"))
 }
 
-async fn async_evaluate_dbprocedure_call_reply(
+async fn evaluate_dbprocedure_call_reply(
     am_conn_core: &AmConnCore,
     mut reply: Reply,
     server_usage: &mut ServerUsage,
@@ -205,7 +205,7 @@ async fn async_evaluate_dbprocedure_call_reply(
     let locator_ids = evaluate_dbprocedure_call_reply1(&mut reply, server_usage)?;
     let mut proc_result = reply
         .parts
-        .async_into_internal_return_values(am_conn_core, Some(server_usage))
+        .into_internal_return_values_async(am_conn_core, Some(server_usage))
         .await?;
 
     internal_return_values.append(&mut proc_result);

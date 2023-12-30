@@ -76,7 +76,7 @@ impl<'a> ConnectionCore {
 
         // here we can encounter an additional implicit redirect, triggered by HANA itself
         loop {
-            match authentication::sync_authenticate(&mut conn_core, false)? {
+            match authentication::authenticate_sync(&mut conn_core, false)? {
                 AuthenticationResult::Ok => return Ok(conn_core),
                 AuthenticationResult::Redirect(db_connect_info) => {
                     trace!("Redirect initiated by HANA");
@@ -130,7 +130,7 @@ impl<'a> ConnectionCore {
 
         // here we can encounter an additional implicit redirect, triggered by HANA itself
         loop {
-            match authentication::async_authenticate(&mut conn_core, false).await? {
+            match authentication::authenticate_async(&mut conn_core, false).await? {
                 AuthenticationResult::Ok => return Ok(conn_core),
                 AuthenticationResult::Redirect(db_connect_info) => {
                     trace!("Redirect initiated by HANA");
@@ -149,7 +149,7 @@ impl<'a> ConnectionCore {
         let connect_options =
             ConnectOptions::new(params.clientlocale(), &get_os_user(), params.compression());
         let mut tcp_client = TcpClient::try_new_sync(params)?;
-        initial_request::sync_send_and_receive(&mut tcp_client)?;
+        initial_request::send_and_receive_sync(&mut tcp_client)?;
         Ok(Self {
             authenticated: false,
             session_id: 0,
@@ -176,7 +176,7 @@ impl<'a> ConnectionCore {
         let connect_options =
             ConnectOptions::new(params.clientlocale(), &get_os_user(), params.compression());
         let mut tcp_client = TcpClient::try_new_async(params).await?;
-        initial_request::async_send_and_receive(&mut tcp_client).await?;
+        initial_request::send_and_receive_async(&mut tcp_client).await?;
         Ok(Self {
             authenticated: false,
             session_id: 0,
@@ -199,19 +199,19 @@ impl<'a> ConnectionCore {
     }
 
     #[cfg(feature = "sync")]
-    pub fn sync_reconnect(&mut self) -> HdbResult<()> {
+    pub fn reconnect_sync(&mut self) -> HdbResult<()> {
         warn!("Trying to reconnect");
         let mut conn_params = self.tcp_client.connect_params().clone();
         loop {
             let mut tcp_conn = TcpClient::try_new_sync(conn_params.clone())?;
-            initial_request::sync_send_and_receive(&mut tcp_conn)?;
+            initial_request::send_and_receive_sync(&mut tcp_conn)?;
             self.tcp_client = tcp_conn;
             self.authenticated = false;
             self.session_id = 0;
             // fetch_size, lob_read_length, lob_write_length are considered automatically
 
             debug!("Reconnected, not yet authenticated");
-            match authentication::sync_authenticate(self, true)? {
+            match authentication::authenticate_sync(self, true)? {
                 AuthenticationResult::Ok => {
                     debug!("Re-authenticated");
                     return Ok(());
@@ -228,19 +228,19 @@ impl<'a> ConnectionCore {
     }
 
     #[cfg(feature = "async")]
-    pub async fn async_reconnect(&mut self) -> HdbResult<()> {
+    pub async fn reconnect_async(&mut self) -> HdbResult<()> {
         debug!("Trying to reconnect");
         let mut conn_params = self.tcp_client.connect_params().clone();
         loop {
             let mut tcp_client = TcpClient::try_new_async(conn_params.clone()).await?;
-            initial_request::async_send_and_receive(&mut tcp_client).await?;
+            initial_request::send_and_receive_async(&mut tcp_client).await?;
             self.tcp_client = tcp_client;
             self.authenticated = false;
             self.session_id = 0;
             // fetch_size, lob_read_length, lob_write_length are considered automatically
 
             debug!("Reconnected, not yet authenticated");
-            match authentication::async_authenticate(self, true).await? {
+            match authentication::authenticate_async(self, true).await? {
                 AuthenticationResult::Ok => {
                     debug!("Re-authenticated");
                     return Ok(());

@@ -124,12 +124,12 @@ impl NCLob {
 
     // Converts a NCLobHandle into a String containing its data.
     pub(crate) fn into_string_if_complete(mut self) -> HdbResult<String> {
-        self.0.sync_load_complete()?;
+        self.0.load_complete_sync()?;
         self.0.into_string_if_complete()
     }
 
     pub(crate) fn load_complete(&mut self) -> HdbResult<()> {
-        self.0.sync_load_complete()
+        self.0.load_complete_sync()
     }
 
     /// Reads from given offset and the given length, in number of unicode characters.
@@ -141,7 +141,7 @@ impl NCLob {
     ///
     /// Several variants of `HdbError` can occur.
     pub fn read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
-        self.0.sync_read_slice(offset, length)
+        self.0.read_slice_sync(offset, length)
     }
 
     /// Total length of data, in bytes.

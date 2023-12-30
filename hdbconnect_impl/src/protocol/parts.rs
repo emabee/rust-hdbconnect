@@ -21,7 +21,6 @@ mod partition_information;
 mod read_lob_reply;
 mod read_lob_request;
 
-pub(crate) mod am_rs_core;
 mod resultset_metadata;
 mod server_error;
 mod session_context;
@@ -71,9 +70,8 @@ pub use self::{
 };
 
 use crate::{
-    base::RsState,
+    base::{InternalReturnValue, RsState},
     conn::AmConnCore,
-    internal_returnvalue::InternalReturnValue,
     protocol::{part_attributes::FIRST_PACKET, Part, PartAttributes, PartKind, ServerUsage},
     HdbError, HdbResult,
 };
@@ -143,7 +141,7 @@ impl IntoIterator for Parts<'static> {
 impl Parts<'static> {
     // digest parts, collect InternalReturnValues
     #[cfg(feature = "sync")]
-    pub fn sync_into_internal_return_values(
+    pub fn into_internal_return_values_sync(
         self,
         am_conn_core: &AmConnCore,
         mut o_additional_server_usage: Option<&mut ServerUsage>,
@@ -205,13 +203,12 @@ impl Parts<'static> {
         Ok(int_return_values)
     }
     #[cfg(feature = "async")]
-    pub async fn async_into_internal_return_values(
+    pub async fn into_internal_return_values_async(
         self,
         am_conn_core: &AmConnCore,
         mut o_additional_server_usage: Option<&mut ServerUsage>,
     ) -> HdbResult<Vec<InternalReturnValue>> {
         let mut conn_core = am_conn_core.async_lock().await;
-        // FIXME factor the below out in a single method that can be used in sync and async context
         let mut int_return_values = Vec::<InternalReturnValue>::new();
         let mut parts = self.into_iter();
         while let Some(part) = parts.next() {

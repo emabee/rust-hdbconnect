@@ -7,7 +7,6 @@ pub(crate) fn parse_bytes(len: usize, rdr: &mut dyn std::io::Read) -> HdbResult<
     Ok(buf)
 }
 
-// #[cfg(feature = "sync")] // is necessary
 pub(crate) fn skip_bytes(n: usize, rdr: &mut dyn std::io::Read) -> HdbResult<()> {
     const MAXBUFLEN: usize = 16;
     if n > MAXBUFLEN {

@@ -1,8 +1,7 @@
-use super::{MAX_BUFFER_SIZE, MESSAGE_AND_SEGMENT_HEADER_SIZE, SEGMENT_HEADER_SIZE};
 use crate::{
     protocol::{
         parts::{ParameterDescriptors, Parts, StatementContext},
-        MessageType, Part,
+        MessageType, Part, MAX_BUFFER_SIZE, MESSAGE_AND_SEGMENT_HEADER_SIZE, SEGMENT_HEADER_SIZE,
     },
     HdbResult,
 };
@@ -86,7 +85,7 @@ impl<'a> Request<'a> {
         io_buffer.set_position(MESSAGE_AND_SEGMENT_HEADER_SIZE as u64);
         let mut remaining_bufsize = u32::try_from(uncompressed_parts_size).unwrap(/*OK*/);
         for part in self.parts.ref_inner() {
-            remaining_bufsize = part.sync_emit(remaining_bufsize, o_a_descriptors, io_buffer)?;
+            remaining_bufsize = part.emit(remaining_bufsize, o_a_descriptors, io_buffer)?;
         }
 
         // decide if parts should be sent in compressed form, and compress if necessary
@@ -106,7 +105,7 @@ impl<'a> Request<'a> {
 
         // write header to beginning of buffer
         io_buffer.set_position(0);
-        self.write_packet_header(
+        self.emit_packet_header(
             session_id,
             packet_seq_number,
             auto_commit,
@@ -139,7 +138,7 @@ impl<'a> Request<'a> {
         Ok(())
     }
 
-    fn write_packet_header(
+    fn emit_packet_header(
         &self,
         session_id: i64,
         packet_seq_number: i32,
@@ -226,7 +225,7 @@ impl<'a> Request<'a> {
         io_buffer.set_position(MESSAGE_AND_SEGMENT_HEADER_SIZE as u64);
         let mut remaining_bufsize = u32::try_from(uncompressed_parts_size).unwrap(/*OK*/);
         for part in self.parts.ref_inner() {
-            remaining_bufsize = part.sync_emit(remaining_bufsize, o_a_descriptors, io_buffer)?;
+            remaining_bufsize = part.emit(remaining_bufsize, o_a_descriptors, io_buffer)?;
         }
 
         // decide if parts should be sent in compressed form, and compress if necessary
@@ -246,7 +245,7 @@ impl<'a> Request<'a> {
 
         // write header to beginning of buffer
         io_buffer.set_position(0);
-        self.write_packet_header(
+        self.emit_packet_header(
             session_id,
             packet_seq_number,
             auto_commit,

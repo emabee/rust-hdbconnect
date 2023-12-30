@@ -1,13 +1,7 @@
 #[cfg(feature = "async")]
-use super::fetch::async_fetch_a_lob_chunk;
-#[cfg(feature = "async")]
-use tokio::io::ReadBuf;
-
+use super::fetch::fetch_a_lob_chunk_async;
 #[cfg(feature = "sync")]
-use super::fetch::sync_fetch_a_lob_chunk;
-#[cfg(feature = "sync")]
-use std::io::Write;
-
+use super::fetch::fetch_a_lob_chunk_sync;
 use super::CharLobSlice;
 use crate::{
     base::{RsCore, OAM},
@@ -16,6 +10,10 @@ use crate::{
     {HdbError, HdbResult, ServerUsage},
 };
 use std::collections::VecDeque;
+#[cfg(feature = "sync")]
+use std::io::Write;
+#[cfg(feature = "async")]
+use tokio::io::ReadBuf;
 
 // `CLobHandle` is used for CLOBs that we receive from the database.
 // The data are often not transferred completely, so we carry internally
@@ -77,8 +75,8 @@ impl CLobHandle {
     }
 
     #[cfg(feature = "sync")]
-    pub(crate) fn sync_read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
-        let (reply_data, _reply_is_last_data) = sync_fetch_a_lob_chunk(
+    pub(crate) fn read_slice_sync(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
+        let (reply_data, _reply_is_last_data) = fetch_a_lob_chunk_sync(
             &self.am_conn_core,
             self.locator_id,
             offset,
@@ -90,8 +88,12 @@ impl CLobHandle {
     }
 
     #[cfg(feature = "async")]
-    pub(crate) async fn read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
-        let (reply_data, _reply_is_last_data) = async_fetch_a_lob_chunk(
+    pub(crate) async fn read_slice_async(
+        &mut self,
+        offset: u64,
+        length: u32,
+    ) -> HdbResult<CharLobSlice> {
+        let (reply_data, _reply_is_last_data) = fetch_a_lob_chunk_async(
             &self.am_conn_core,
             self.locator_id,
             offset,
@@ -113,7 +115,7 @@ impl CLobHandle {
 
     #[cfg(feature = "sync")]
     #[allow(clippy::cast_possible_truncation)]
-    fn sync_fetch_next_chunk(&mut self) -> HdbResult<()> {
+    fn fetch_next_chunk_sync(&mut self) -> HdbResult<()> {
         if self.is_data_complete {
             return Err(HdbError::Impl("fetch_next_chunk(): already complete"));
         }
@@ -123,7 +125,7 @@ impl CLobHandle {
             (self.total_byte_length - self.acc_byte_length as u64) as u32,
         );
 
-        let (reply_data, reply_is_last_data) = sync_fetch_a_lob_chunk(
+        let (reply_data, reply_is_last_data) = fetch_a_lob_chunk_sync(
             &self.am_conn_core,
             self.locator_id,
             self.acc_byte_length as u64,
@@ -155,7 +157,7 @@ impl CLobHandle {
 
     #[cfg(feature = "async")]
     #[allow(clippy::cast_possible_truncation)]
-    pub async fn async_fetch_next_chunk(&mut self) -> HdbResult<()> {
+    pub async fn fetch_next_chunk_async(&mut self) -> HdbResult<()> {
         if self.is_data_complete {
             return Err(HdbError::Impl("fetch_next_chunk(): already complete"));
         }
@@ -165,7 +167,7 @@ impl CLobHandle {
             (self.total_byte_length - self.acc_byte_length as u64) as u32,
         );
 
-        let (reply_data, reply_is_last_data) = async_fetch_a_lob_chunk(
+        let (reply_data, reply_is_last_data) = fetch_a_lob_chunk_async(
             &self.am_conn_core,
             self.locator_id,
             self.acc_byte_length as u64,
@@ -197,19 +199,19 @@ impl CLobHandle {
     }
 
     #[cfg(feature = "sync")]
-    pub fn sync_load_complete(&mut self) -> HdbResult<()> {
+    pub fn load_complete_sync(&mut self) -> HdbResult<()> {
         trace!("load_complete()");
         while !self.is_data_complete {
-            self.sync_fetch_next_chunk()?;
+            self.fetch_next_chunk_sync()?;
         }
         Ok(())
     }
 
     #[cfg(feature = "async")]
-    pub async fn async_load_complete(&mut self) -> HdbResult<()> {
+    pub async fn load_complete_async(&mut self) -> HdbResult<()> {
         trace!("load_complete()");
         while !self.is_data_complete {
-            self.async_fetch_next_chunk().await?;
+            self.fetch_next_chunk_async().await?;
         }
         Ok(())
     }
@@ -234,7 +236,7 @@ impl std::io::Read for CLobHandle {
         trace!("CLobHandle::read() with buf of len {}", buf.len());
 
         while !self.is_data_complete && (buf.len() > self.cesu8.len() - self.cesu8_tail_len) {
-            self.sync_fetch_next_chunk()
+            self.fetch_next_chunk_sync()
                 .map_err(|e| util::io_error(e.to_string()))?;
         }
 
@@ -259,14 +261,14 @@ impl std::io::Read for CLobHandle {
 
 #[cfg(feature = "async")]
 impl CLobHandle {
-    pub(crate) async fn async_read(&mut self, buf: &mut [u8]) -> HdbResult<usize> {
+    pub(crate) async fn read_async(&mut self, buf: &mut [u8]) -> HdbResult<usize> {
         let mut buf = ReadBuf::new(buf);
         let buf_len = buf.capacity();
         debug_assert!(buf.filled().is_empty());
         trace!("CLobHandle::read() with buf of len {}", buf_len);
 
         while !self.is_data_complete && (buf_len > self.cesu8.len() - self.cesu8_tail_len) {
-            self.async_fetch_next_chunk().await?;
+            self.fetch_next_chunk_async().await?;
         }
 
         // we want to write only clean UTF-8 into buf, so we cut off at good places only;

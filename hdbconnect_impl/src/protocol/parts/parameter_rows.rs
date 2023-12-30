@@ -26,29 +26,16 @@ impl<'a> ParameterRows<'a> {
         Ok(())
     }
 
-    // #[cfg(feature = "sync")]
-    pub(crate) fn sync_emit(
+    pub(crate) fn emit(
         &self,
         descriptors: &ParameterDescriptors,
         w: &mut dyn std::io::Write,
     ) -> HdbResult<()> {
         for row in &self.0 {
-            row.sync_emit(descriptors, w)?;
+            row.emit(descriptors, w)?;
         }
         Ok(())
     }
-
-    // #[cfg(feature = "async")]
-    // pub(crate) async fn async_emit<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
-    //     &self,
-    //     descriptors: &ParameterDescriptors,
-    //     w: &mut W,
-    // ) -> HdbResult<()> {
-    //     for row in &self.0 {
-    //         row.async_emit(descriptors, w).await?;
-    //     }
-    //     Ok(())
-    // }
 
     pub fn count(&self) -> usize {
         self.0.len()
@@ -116,8 +103,7 @@ impl<'a> ParameterRow<'a> {
         Ok(size)
     }
 
-    // #[cfg(feature = "sync")]
-    fn sync_emit(
+    fn emit(
         &self,
         descriptors: &ParameterDescriptors,
         w: &mut dyn std::io::Write,
@@ -127,30 +113,11 @@ impl<'a> ParameterRow<'a> {
         for value in &(self.0) {
             // emit the value
             if let Some(descriptor) = in_descriptors.next() {
-                value.sync_emit(&mut data_pos, descriptor, w)?;
+                value.emit(&mut data_pos, descriptor, w)?;
             } else {
                 return Err(HdbError::Impl("ParameterRow::emit(): Not enough metadata"));
             }
         }
         Ok(())
     }
-
-    // #[cfg(feature = "async")]
-    // async fn async_emit<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
-    //     &self,
-    //     descriptors: &ParameterDescriptors,
-    //     w: &mut W,
-    // ) -> HdbResult<()> {
-    //     let mut data_pos = 0_i32;
-    //     let mut in_descriptors = descriptors.iter_in();
-    //     for value in &(self.0) {
-    //         // emit the value
-    //         if let Some(descriptor) = in_descriptors.next() {
-    //             value.async_emit(&mut data_pos, descriptor, w).await?;
-    //         } else {
-    //             return Err(HdbError::Impl("ParameterRow::emit(): Not enough metadata"));
-    //         }
-    //     }
-    //     Ok(())
-    // }
 }

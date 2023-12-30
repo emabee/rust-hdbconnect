@@ -1,12 +1,9 @@
-// #[cfg(feature = "async")]
-// use crate::protocol::util_async;
-// #[cfg(feature = "sync")]
-use crate::protocol::util_sync;
-
-use crate::{protocol::util, HdbError, HdbResult, HdbValue, TypeId};
-
-// #[cfg(feature = "sync")]
+use crate::{
+    protocol::{util, util_sync},
+    HdbError, HdbResult, HdbValue, TypeId,
+};
 use byteorder::{LittleEndian, ReadBytesExt};
+
 /// Describes a set of IN, INOUT, and OUT parameters. Can be empty.
 #[derive(Debug, Default)]
 pub struct ParameterDescriptors(Vec<ParameterDescriptor>);
@@ -39,8 +36,7 @@ impl ParameterDescriptors {
         self.0.is_empty()
     }
 
-    // #[cfg(feature = "sync")]
-    pub(crate) fn parse_sync(count: usize, rdr: &mut dyn std::io::Read) -> HdbResult<Self> {
+    pub(crate) fn parse(count: usize, rdr: &mut dyn std::io::Read) -> HdbResult<Self> {
         let mut vec_pd = Vec::<ParameterDescriptor>::new();
         let mut name_offsets = Vec::<u32>::new();
         for _ in 0..count {
@@ -67,40 +63,6 @@ impl ParameterDescriptors {
         }
         Ok(Self(vec_pd))
     }
-
-    //     #[cfg(feature = "async")]
-    //     pub(crate) async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
-    //         count: usize,
-    //         rdr: &mut R,
-    //     ) -> HdbResult<Self> {
-    //         let mut vec_pd = Vec::<ParameterDescriptor>::new();
-    //         let mut name_offsets = Vec::<u32>::new();
-    //         for _ in 0..count {
-    //             // 16 byte each
-    //             let option = rdr.read_u8().await?;
-    //             let value_type = rdr.read_u8().await?;
-    //             let mode = ParameterDescriptor::direction_from_u8(rdr.read_u8().await?)?;
-    //             rdr.read_u8().await?;
-    //             name_offsets.push(rdr.read_u32_le().await?);
-    //             let length = rdr.read_i16_le().await?;
-    //             let fraction = rdr.read_i16_le().await?;
-    //             rdr.read_u32_le().await?;
-    //             vec_pd.push(ParameterDescriptor::try_new(
-    //                 option, value_type, mode, length, fraction,
-    //             )?);
-    //         }
-    //         // read the parameter names
-    //         for (descriptor, name_offset) in vec_pd.iter_mut().zip(name_offsets.iter()) {
-    //             if name_offset != &u32::max_value() {
-    //                 let length = rdr.read_u8().await?;
-    //                 let name =
-    //                     util::string_from_cesu8(util_async::parse_bytes(length as usize, rdr).await?)
-    //                         .map_err(util::io_error)?;
-    //                 descriptor.set_name(name);
-    //             }
-    //         }
-    //         Ok(Self(vec_pd))
-    //     }
 }
 
 impl std::ops::Index<usize> for ParameterDescriptors {
@@ -176,13 +138,6 @@ impl ParameterDescriptor {
     /// Returns the type id of the parameter.
     pub fn type_id(&self) -> TypeId {
         self.type_id
-    }
-
-    /// Tells if the parameter can be NULL.
-    ///
-    #[deprecated(since = "0.22.1", note = "use ParameterDescriptor::is_nullable()")]
-    pub fn nullable(&self) -> bool {
-        self.is_nullable()
     }
 
     /// Scale.

@@ -1,6 +1,8 @@
-use super::{crypto_util, Authenticator};
-use crate::protocol::parts::AuthFields;
-use crate::{HdbError, HdbResult};
+use crate::{
+    conn::authentication::{crypto_util, Authenticator},
+    protocol::parts::AuthFields,
+    HdbError, HdbResult,
+};
 use byteorder::{LittleEndian, WriteBytesExt};
 use rand::{thread_rng, RngCore};
 use secstr::SecUtf8;
@@ -70,7 +72,7 @@ impl Authenticator for ScramSha256 {
 
 // `server_data` is again an AuthFields; contains salt, and server_nonce
 fn parse_first_server_data(server_data: &[u8]) -> HdbResult<(Vec<u8>, Vec<u8>)> {
-    let mut af = AuthFields::parse_sync(&mut std::io::Cursor::new(server_data))?;
+    let mut af = AuthFields::parse(&mut std::io::Cursor::new(server_data))?;
 
     match (af.pop(), af.pop(), af.pop()) {
         (Some(server_nonce), Some(salt), None) => Ok((salt, server_nonce)),

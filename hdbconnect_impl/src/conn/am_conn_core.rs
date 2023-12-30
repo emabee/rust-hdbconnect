@@ -1,6 +1,5 @@
-use crate::base::RsState;
-
 use crate::{
+    base::{RsState, AM},
     conn::ConnectionCore,
     protocol::{
         parts::ResultSetMetadata,
@@ -11,18 +10,7 @@ use crate::{
 use std::{sync::Arc, time::Instant};
 
 #[derive(Clone, Debug)]
-pub struct AmConnCore(Arc<MConnCore>);
-
-// FIXME use XMutexed
-#[derive(Debug)]
-pub enum MConnCore {
-    #[cfg(feature = "sync")]
-    Sync(std::sync::Mutex<ConnectionCore>),
-    #[cfg(feature = "async")]
-    Async(tokio::sync::Mutex<ConnectionCore>),
-}
-
-// An encapsulation of the ConnectionCore.
+pub struct AmConnCore(AM<ConnectionCore>);
 impl AmConnCore {
     #[cfg(feature = "sync")]
     pub fn try_new_sync(conn_params: ConnectParams) -> HdbResult<Self> {
@@ -39,9 +27,7 @@ impl AmConnCore {
                 conn_core.connect_options().get_full_version_string()
             );
         }
-        Ok(Self(Arc::new(MConnCore::Sync(std::sync::Mutex::new(
-            conn_core,
-        )))))
+        Ok(Self(crate::base::new_am_sync(conn_core)))
     }
 
     #[cfg(feature = "async")]
@@ -58,45 +44,31 @@ impl AmConnCore {
             conn_core.connect_options().get_system_id(),
             conn_core.connect_options().get_full_version_string()
         );
-        Ok(Self(Arc::new(MConnCore::Async(tokio::sync::Mutex::new(
-            conn_core,
-        )))))
+        Ok(Self(crate::base::new_am_async(conn_core)))
     }
 
     #[cfg(feature = "sync")]
     pub fn sync_lock(&self) -> std::sync::LockResult<std::sync::MutexGuard<ConnectionCore>> {
-        match *self.0 {
-            MConnCore::Sync(ref m_conn_core) => m_conn_core.lock(),
-            #[cfg(feature = "async")]
-            _ => {
-                unreachable!("async not supported here");
-            }
-        }
+        self.0.lock_sync()
     }
 
     #[cfg(feature = "async")]
     pub async fn async_lock(&self) -> tokio::sync::MutexGuard<ConnectionCore> {
-        match *self.0 {
-            MConnCore::Async(ref m_conn_core) => m_conn_core.lock().await,
-            #[cfg(feature = "sync")]
-            _ => {
-                unreachable!("sync not supported here");
-            }
-        }
+        self.0.lock_async().await
     }
 
     #[cfg(feature = "sync")]
-    pub fn sync_send(&self, request: Request) -> HdbResult<Reply> {
-        self.sync_full_send(request, None, None, &mut None)
+    pub fn send_sync(&self, request: Request) -> HdbResult<Reply> {
+        self.full_send_sync(request, None, None, &mut None)
     }
 
     #[cfg(feature = "async")]
-    pub async fn async_send(&self, request: Request<'_>) -> HdbResult<Reply> {
-        self.async_full_send(request, None, None, &mut None).await
+    pub async fn send_async(&self, request: Request<'_>) -> HdbResult<Reply> {
+        self.full_send_async(request, None, None, &mut None).await
     }
 
     #[cfg(feature = "sync")]
-    pub(crate) fn sync_full_send(
+    pub(crate) fn full_send_sync(
         &self,
         mut request: Request,
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
@@ -124,7 +96,7 @@ impl AmConnCore {
                 if std::io::ErrorKind::ConnectionReset == source.kind() =>
             {
                 warn!("full_send_sync(): reconnecting after error of kind ConnectionReset ...");
-                conn_core.sync_reconnect()?;
+                conn_core.reconnect_sync()?;
                 warn!("full_send_sync(): repeating request after reconnect...");
                 conn_core.roundtrip_sync(&request, Some(self), o_a_rsmd, o_a_descriptors, o_rs)
             }
@@ -133,7 +105,7 @@ impl AmConnCore {
     }
 
     #[cfg(feature = "async")]
-    pub(crate) async fn async_full_send(
+    pub(crate) async fn full_send_async(
         &self,
         mut request: Request<'_>,
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
@@ -163,7 +135,7 @@ impl AmConnCore {
                 if std::io::ErrorKind::ConnectionReset == source.kind() =>
             {
                 debug!("full_send_sync(): reconnecting after ConnectionReset error...");
-                conn_core.async_reconnect().await?;
+                conn_core.reconnect_async().await?;
                 debug!("full_send_sync(): repeating request after reconnect...");
                 conn_core
                     .roundtrip_async(&request, Some(self), o_a_rsmd, o_a_descriptors, o_rs)
@@ -173,15 +145,3 @@ impl AmConnCore {
         }
     }
 }
-
-// impl Clone for SyncAmConnCore {
-//     fn clone(&self) -> Self {
-//         Self(self.0.clone())
-//     }
-// }
-
-// impl Clone for AsyncAmConnCore {
-//     fn clone(&self) -> Self {
-//         Self(self.0.clone())
-//     }
-// }

@@ -18,7 +18,7 @@ pub(crate) use self::clob_handle::CLobHandle;
 pub(crate) use self::nclob_handle::NCLobHandle;
 
 #[cfg(feature = "sync")]
-pub use self::sync_lob_writer::LobWriter;
+pub use self::sync_lob_writer::SyncLobWriter;
 
 pub(crate) use self::wire::emit_lob_header;
 #[cfg(feature = "async")]

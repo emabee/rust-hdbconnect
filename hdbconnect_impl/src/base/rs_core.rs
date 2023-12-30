@@ -57,7 +57,7 @@ impl Drop for RsCore {
             {
                 let mut request = Request::new(MessageType::CloseResultSet, 0);
                 request.push(Part::ResultSetId(rs_id));
-                if let Ok(mut reply) = self.am_conn_core.sync_send(request) {
+                if let Ok(mut reply) = self.am_conn_core.send_sync(request) {
                     reply.parts.pop_if_kind(PartKind::StatementContext);
                 }
             }
@@ -67,7 +67,7 @@ impl Drop for RsCore {
                 request.push(Part::ResultSetId(rs_id));
                 let am_conn_core = self.am_conn_core.clone();
                 tokio::task::spawn(async move {
-                    if let Ok(mut reply) = am_conn_core.async_send(request).await {
+                    if let Ok(mut reply) = am_conn_core.send_async(request).await {
                         reply.parts.pop_if_kind(PartKind::StatementContext);
                     }
                 });

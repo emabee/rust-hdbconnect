@@ -1,7 +1,7 @@
 use super::lob_writer_util::{get_utf8_tail_len, LobWriteMode};
 use crate::{
+    base::InternalReturnValue,
     conn::AmConnCore,
-    internal_returnvalue::InternalReturnValue,
     protocol::parts::{ParameterDescriptors, ResultSetMetadata, TypeId, WriteLobRequest},
     protocol::{util, MessageType, Part, PartKind, Reply, ReplyType, Request},
     {HdbError, HdbResult, ServerUsage},
@@ -9,7 +9,7 @@ use crate::{
 use std::{io::Write, sync::Arc};
 
 #[derive(Debug)]
-pub struct LobWriter<'a> {
+pub struct SyncLobWriter<'a> {
     locator_id: u64,
     type_id: TypeId,
     am_conn_core: AmConnCore,
@@ -20,17 +20,17 @@ pub struct LobWriter<'a> {
     lob_write_length: usize,
     proc_result: Option<Vec<InternalReturnValue>>,
 }
-impl<'a> LobWriter<'a> {
+impl<'a> SyncLobWriter<'a> {
     pub fn new(
         locator_id: u64,
         type_id: TypeId,
         am_conn_core: AmConnCore,
         o_a_rsmd: Option<&'a Arc<ResultSetMetadata>>,
         o_a_descriptors: Option<&'a Arc<ParameterDescriptors>>,
-    ) -> HdbResult<LobWriter<'a>> {
+    ) -> HdbResult<SyncLobWriter<'a>> {
         if let TypeId::BLOB | TypeId::CLOB | TypeId::NCLOB = type_id {
             let lob_write_length = am_conn_core.sync_lock()?.get_lob_write_length();
-            Ok(LobWriter {
+            Ok(SyncLobWriter {
                 locator_id,
                 type_id,
                 am_conn_core,
@@ -54,7 +54,7 @@ impl<'a> LobWriter<'a> {
 
     // Note that requested_length and offset count either bytes (for BLOB, CLOB),
     // or 1-2-3-chars (for NCLOB)
-    fn sync_write_a_lob_chunk(
+    fn write_a_lob_chunk(
         &mut self,
         buf: &[u8],
         locator_id: u64,
@@ -74,7 +74,7 @@ impl<'a> LobWriter<'a> {
         //     WriteLobRequest::new(locator_id, offset /* or offset + 1? */, buf, true),
         request.push(Part::WriteLobRequest(write_lob_request));
 
-        let reply = self.am_conn_core.sync_full_send(
+        let reply = self.am_conn_core.full_send_sync(
             request,
             self.o_a_rsmd,
             self.o_a_descriptors,
@@ -86,7 +86,7 @@ impl<'a> LobWriter<'a> {
             ReplyType::WriteLob => self.evaluate_write_lob_reply(reply),
 
             // last response of last IN parameter
-            ReplyType::DbProcedureCall => self.sync_evaluate_dbprocedure_call_reply(reply),
+            ReplyType::DbProcedureCall => self.evaluate_dbprocedure_call_reply(reply),
 
             _ => Err(HdbError::ImplDetailed(format!(
                 "LobWriter::write_a_lob_chunk got a reply of type {:?}",
@@ -131,11 +131,11 @@ impl<'a> LobWriter<'a> {
         result.ok_or_else(|| HdbError::Impl("No WriteLobReply part found"))
     }
 
-    fn sync_evaluate_dbprocedure_call_reply(&mut self, mut reply: Reply) -> HdbResult<Vec<u64>> {
+    fn evaluate_dbprocedure_call_reply(&mut self, mut reply: Reply) -> HdbResult<Vec<u64>> {
         let locator_ids = self.evaluate_dbprocedure_call_reply1(&mut reply)?;
         let internal_return_values = reply
             .parts
-            .sync_into_internal_return_values(&self.am_conn_core, Some(&mut self.server_usage))?;
+            .into_internal_return_values_sync(&self.am_conn_core, Some(&mut self.server_usage))?;
 
         self.proc_result = Some(internal_return_values);
         Ok(locator_ids)
@@ -177,7 +177,7 @@ impl<'a> LobWriter<'a> {
     }
 }
 
-impl<'a> Write for LobWriter<'a> {
+impl<'a> Write for SyncLobWriter<'a> {
     // Either buffers (in self.buffer) or writes buffer + input to the db
     fn write(&mut self, input: &[u8]) -> std::io::Result<usize> {
         trace!("write() with input of len {}", input.len());
@@ -204,7 +204,7 @@ impl<'a> Write for LobWriter<'a> {
                 payload_raw
             };
 
-            self.sync_write_a_lob_chunk(&payload, self.locator_id, &LobWriteMode::Append)
+            self.write_a_lob_chunk(&payload, self.locator_id, &LobWriteMode::Append)
                 .map(|_locator_ids| ())
                 .map_err(|e| util::io_error(e.to_string()))?;
         }
@@ -226,7 +226,7 @@ impl<'a> Write for LobWriter<'a> {
             payload_raw
         };
 
-        self.sync_write_a_lob_chunk(&payload, self.locator_id, &LobWriteMode::Last)
+        self.write_a_lob_chunk(&payload, self.locator_id, &LobWriteMode::Last)
             .map(|_locator_ids| ())
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
         Ok(())

@@ -6,9 +6,7 @@ use crate::{
 
 use serde_db::de::DeserializableResultset;
 use std::sync::Arc;
-// use tokio::sync::Mutex;
 
-// FIXME compare to sync
 /// The result of a database query.
 ///
 /// This behaves essentially like a set of `Row`s, and each `Row` is a set of `HdbValue`s.
@@ -34,21 +32,7 @@ pub struct ResultSet {
 }
 
 impl ResultSet {
-    // pub(crate) fn new(
-    //     am_conn_core: &AmConnCore,
-    //     attrs: PartAttributes,
-    //     rs_id: u64,
-    //     a_rsmd: Arc<ResultSetMetadata>,
-    //     o_stmt_ctx: Option<StatementContext>,
-    // ) -> Self {
-    //     Self::new_1(
-    //         a_rsmd,
-    //         RsState::new_sync(o_stmt_ctx, am_conn_core, attrs, rs_id),
-    //     )
-    // }
-
-    // FIXME rename
-    pub(crate) fn new_1(a_rsmd: Arc<ResultSetMetadata>, rs_state: RsState) -> Self {
+    pub(crate) fn new(a_rsmd: Arc<ResultSetMetadata>, rs_state: RsState) -> Self {
         Self {
             metadata: a_rsmd,
             state: Arc::new(XMutexed::new_async(rs_state)),
@@ -125,7 +109,7 @@ impl ResultSet {
         self.state
             .lock_async()
             .await
-            .into_rows_async(Arc::clone(&self.metadata))
+            .as_rows_async(Arc::clone(&self.metadata))
             .await
     }
 
@@ -229,133 +213,11 @@ impl ResultSet {
             .await
     }
 
-    // pub(crate) fn new(
-    //     am_conn_core: &AmConnCore,
-    //     attrs: PartAttributes,
-    //     rs_id: u64,
-    //     a_rsmd: Arc<ResultSetMetadata>,
-    //     o_stmt_ctx: Option<StatementContext>,
-    // ) -> Self {
-    //     let mut server_usage: ServerUsage = ServerUsage::default();
-
-    //     if let Some(stmt_ctx) = o_stmt_ctx {
-    //         server_usage.update(
-    //             stmt_ctx.server_processing_time(),
-    //             stmt_ctx.server_cpu_time(),
-    //             stmt_ctx.server_memory_usage(),
-    //         );
-    //     }
-
-    //     Self {
-    //         metadata: a_rsmd,
-    //         state: Arc::new(Mutex::new(AsyncRsState {
-    //             o_am_rscore: Some(Arc::new(MRsCore::Async(Mutex::new(
-    //                 AsyncResultSetCore::new(am_conn_core, attrs, rs_id),
-    //             )))),
-
-    //             next_rows: Vec::<Row>::new(),
-    //             row_iter: Vec::<Row>::new().into_iter(),
-    //             server_usage,
-    //         })),
-    //     }
-    // }
-
-    // pub(crate) async fn parse<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
-    //     no_of_rows: usize,
-    //     attributes: PartAttributes,
-    //     parts: &mut Parts<'static>,
-    //     am_conn_core: &AmConnCore,
-    //     o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
-    //     o_rs: &mut Option<&mut AsyncRsState>,
-    //     rdr: &mut R,
-    // ) -> HdbResult<Option<Self>> {
-    //     match *o_rs {
-    //         None => {
-    //             // case a) or b)
-    //             let o_stmt_ctx = match parts.pop_if_kind(PartKind::StatementContext) {
-    //                 Some(Part::StatementContext(stmt_ctx)) => Some(stmt_ctx),
-    //                 None => None,
-    //                 Some(_) => return Err(HdbError::Impl("Inconsistent StatementContext")),
-    //             };
-
-    //             let Some(Part::ResultSetId(rs_id)) = parts.pop() else {
-    //                 return Err(HdbError::Impl("ResultSetId missing"));
-    //             };
-
-    //             let a_rsmd = match parts.pop_if_kind(PartKind::ResultSetMetadata) {
-    //                 Some(Part::ResultSetMetadata(rsmd)) => Arc::new(rsmd),
-    //                 None => match o_a_rsmd {
-    //                     Some(a_rsmd) => Arc::clone(a_rsmd),
-    //                     None => return Err(HdbError::Impl("No metadata provided for ResultSet")),
-    //                 },
-    //                 Some(_) => {
-    //                     return Err(HdbError::Impl(
-    //                         "Inconsistent metadata part found for ResultSet",
-    //                     ));
-    //                 }
-    //             };
-
-    //             let rs = Self::new(am_conn_core, attributes, rs_id, a_rsmd, o_stmt_ctx);
-    //             rs.parse_rows(no_of_rows, rdr).await?;
-    //             Ok(Some(rs))
-    //         }
-
-    //         Some(ref mut fetching_state) => {
-    //             match parts.pop_if_kind(PartKind::StatementContext) {
-    //                 Some(Part::StatementContext(stmt_ctx)) => {
-    //                     fetching_state.server_usage.update(
-    //                         stmt_ctx.server_processing_time(),
-    //                         stmt_ctx.server_cpu_time(),
-    //                         stmt_ctx.server_memory_usage(),
-    //                     );
-    //                 }
-    //                 None => {}
-    //                 Some(_) => {
-    //                     return Err(HdbError::Impl(
-    //                         "Inconsistent StatementContext part found for ResultSet",
-    //                     ));
-    //                 }
-    //             };
-
-    //             if let Some(ref mut am_rscore) = fetching_state.o_am_rscore {
-    //                 let mut rscore = am_rscore.async_lock().await;
-    //                 rscore.attributes = attributes;
-    //             }
-    //             let a_rsmd = if let Some(a_rsmd) = o_a_rsmd {
-    //                 Arc::clone(a_rsmd)
-    //             } else {
-    //                 return Err(HdbError::Impl("RsState provided without RsMetadata"));
-    //             };
-    //             fetching_state.parse_rows(no_of_rows, &a_rsmd, rdr).await?;
-    //             Ok(None)
-    //         }
-    //     }
-    // }
-
     /// Provides information about the the server-side resource consumption that
     /// is related to this `ResultSet` object.
     pub async fn server_usage(&self) -> ServerUsage {
-        self.state.lock_async().await.server_usage().clone()
+        *self.state.lock_async().await.server_usage()
     }
-
-    // async fn parse_rows<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
-    //     &self,
-    //     no_of_rows: usize,
-    //     rdr: &mut R,
-    // ) -> HdbResult<()> {
-    //     self.state
-    //         .lock_async()
-    //         .await
-    //         .parse_rows_async(no_of_rows, &self.metadata, rdr)
-    //         .await
-    // }
-
-    // pub(crate) async fn inject_statement_id(&mut self, am_ps_core: AsyncAmPsCore) -> HdbResult<()> {
-    //     if let Some(rs_core) = &(self.state.lock().await).o_am_rscore {
-    //         rs_core.async_lock().await.inject_statement_id(am_ps_core);
-    //     }
-    //     Ok(())
-    // }
 }
 
 impl std::fmt::Display for ResultSet {

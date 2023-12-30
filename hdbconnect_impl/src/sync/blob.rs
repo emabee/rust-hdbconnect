@@ -73,7 +73,7 @@ impl BLob {
     /// Several variants of `HdbError` can occur.
     pub fn into_bytes(self) -> HdbResult<Vec<u8>> {
         trace!("BLob::into_bytes()");
-        self.0.sync_into_bytes()
+        self.0.into_bytes_sync()
     }
 
     /// Writes the content into the given writer.
@@ -99,11 +99,11 @@ impl BLob {
 
     pub(crate) fn into_bytes_if_complete(self) -> HdbResult<Vec<u8>> {
         trace!("BLob::into_bytes_if_complete()");
-        self.0.sync_into_bytes()
+        self.0.into_bytes_sync()
     }
 
     pub(crate) fn load_complete(&mut self) -> HdbResult<()> {
-        self.0.sync_load_complete()
+        self.0.load_complete_sync()
     }
 
     /// Reads from given offset and the given length, in bytes.
@@ -112,7 +112,7 @@ impl BLob {
     ///
     /// Several variants of `HdbError` can occur.
     pub fn read_slice(&mut self, offset: u64, length: u32) -> HdbResult<Vec<u8>> {
-        self.0.sync_read_slice(offset, length)
+        self.0.read_slice_sync(offset, length)
     }
 
     /// Total length of data, in bytes.

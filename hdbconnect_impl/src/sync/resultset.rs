@@ -44,21 +44,7 @@ pub struct ResultSet {
 }
 
 impl ResultSet {
-    // pub(crate) fn new(
-    //     am_conn_core: &AmConnCore,
-    //     attrs: PartAttributes,
-    //     rs_id: u64,
-    //     a_rsmd: Arc<ResultSetMetadata>,
-    //     o_stmt_ctx: Option<StatementContext>,
-    // ) -> Self {
-    //     Self::new_1(
-    //         a_rsmd,
-    //         RsState::new_sync(o_stmt_ctx, am_conn_core, attrs, rs_id),
-    //     )
-    // }
-
-    // FIXME rename
-    pub(crate) fn new_1(a_rsmd: Arc<ResultSetMetadata>, rs_state: RsState) -> Self {
+    pub(crate) fn new(a_rsmd: Arc<ResultSetMetadata>, rs_state: RsState) -> Self {
         Self {
             metadata: a_rsmd,
             state: Arc::new(XMutexed::new_sync(rs_state)),
@@ -130,7 +116,7 @@ impl ResultSet {
         let rows: Rows = self
             .state
             .lock_sync()?
-            .into_rows_sync(Arc::clone(&self.metadata))?;
+            .as_rows_sync(Arc::clone(&self.metadata))?;
         Ok(DeserializableResultset::try_into(rows)?)
     }
 
@@ -211,99 +197,11 @@ impl ResultSet {
         self.state.lock_sync()?.fetch_all_sync(&self.metadata)
     }
 
-    // resultsets can be part of the response in three cases which differ
-    // in regard to metadata handling:
-    //
-    // a) a response to a plain "execute" will contain the metadata in one of the
-    //    other parts; the metadata parameter will thus have the variant None
-    //
-    // b) a response to an "execute prepared" will only contain data;
-    //    the metadata had beeen returned already to the "prepare" call, and are
-    //    provided with parameter metadata
-    //
-    // c) a response to a "fetch more lines" is triggered from an older resultset
-    //    which already has its metadata
-    //
-    // For first resultset packets, we create and return a new ResultSet object.
-    // We then expect the previous three parts to be
-    // a matching ResultSetMetadata, a ResultSetId, and a StatementContext.
-    // pub(crate) fn parse(
-    //     no_of_rows: usize,
-    //     attributes: PartAttributes,
-    //     parts: &mut Parts,
-    //     am_conn_core: &AmConnCore,
-    //     o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
-    //     o_rs: &mut Option<&mut RsState>,
-    //     rdr: &mut dyn std::io::Read,
-    // ) -> HdbResult<Option<Self>> {
-    //     match o_rs {
-    //         None => {
-    //             // case a) or b)
-    //             let o_stmt_ctx = match parts.pop_if_kind(PartKind::StatementContext) {
-    //                 Some(Part::StatementContext(stmt_ctx)) => Some(stmt_ctx),
-    //                 None => None,
-    //                 Some(_) => return Err(HdbError::Impl("Inconsistent StatementContext")),
-    //             };
-
-    //             let Some(Part::ResultSetId(rs_id)) = parts.pop() else {
-    //                 return Err(HdbError::Impl("ResultSetId missing"));
-    //             };
-
-    //             let a_rsmd = match parts.pop_if_kind(PartKind::ResultSetMetadata) {
-    //                 Some(Part::ResultSetMetadata(rsmd)) => Arc::new(rsmd),
-    //                 None => match o_a_rsmd {
-    //                     Some(a_rsmd) => Arc::clone(a_rsmd),
-    //                     None => return Err(HdbError::Impl("No metadata provided for ResultSet")),
-    //                 },
-    //                 Some(_) => {
-    //                     return Err(HdbError::Impl(
-    //                         "Inconsistent metadata part found for ResultSet",
-    //                     ));
-    //                 }
-    //             };
-
-    //             let rs = Self::new(am_conn_core, attributes, rs_id, a_rsmd, o_stmt_ctx);
-    //             rs.parse_rows(no_of_rows, rdr)?;
-    //             Ok(Some(rs))
-    //         }
-
-    //         Some(fetching_state) => {
-    //             match parts.pop_if_kind(PartKind::StatementContext) {
-    //                 Some(Part::StatementContext(stmt_ctx)) => {
-    //                     fetching_state.update_server_usage(stmt_ctx);
-    //                 }
-    //                 None => {}
-    //                 Some(_) => {
-    //                     return Err(HdbError::Impl(
-    //                         "Inconsistent StatementContext part found for ResultSet",
-    //                     ));
-    //                 }
-    //             };
-
-    //             fetching_state.set_attributes_sync(attributes).ok();
-
-    //             let a_rsmd = if let Some(a_rsmd) = o_a_rsmd {
-    //                 Arc::clone(a_rsmd)
-    //             } else {
-    //                 return Err(HdbError::Impl("RsState provided without RsMetadata"));
-    //             };
-    //             fetching_state.parse_rows_sync(no_of_rows, &a_rsmd, rdr)?;
-    //             Ok(None)
-    //         }
-    //     }
-    // }
-
     /// Provides information about the the server-side resource consumption that
     /// is related to this `ResultSet` object.
     pub fn server_usage(&self) -> HdbResult<ServerUsage> {
-        Ok(self.state.lock_sync()?.server_usage().clone())
+        Ok(*self.state.lock_sync()?.server_usage())
     }
-
-    // fn parse_rows(&self, no_of_rows: usize, rdr: &mut dyn std::io::Read) -> HdbResult<()> {
-    //     self.state
-    //         .lock_sync()?
-    //         .parse_rows_sync(no_of_rows, &self.metadata, rdr)
-    // }
 }
 
 impl std::fmt::Display for ResultSet {

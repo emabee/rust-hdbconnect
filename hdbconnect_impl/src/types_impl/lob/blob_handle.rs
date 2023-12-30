@@ -1,17 +1,17 @@
+#[cfg(feature = "async")]
+use super::fetch::fetch_a_lob_chunk_async;
+#[cfg(feature = "sync")]
+use super::fetch::fetch_a_lob_chunk_sync;
 use crate::{
     base::{RsCore, XMutexed, OAM},
     conn::AmConnCore,
     protocol::ServerUsage,
     HdbError, HdbResult,
 };
-use std::{collections::VecDeque, sync::Arc};
 
-#[cfg(feature = "async")]
-use super::fetch::async_fetch_a_lob_chunk;
-#[cfg(feature = "sync")]
-use super::fetch::sync_fetch_a_lob_chunk;
 #[cfg(feature = "sync")]
 use std::io::Write;
+use std::{collections::VecDeque, sync::Arc};
 #[cfg(feature = "async")]
 use tokio::io::ReadBuf;
 
@@ -53,8 +53,8 @@ impl BLobHandle {
     }
 
     #[cfg(feature = "sync")]
-    pub(crate) fn sync_read_slice(&mut self, offset: u64, length: u32) -> HdbResult<Vec<u8>> {
-        let (reply_data, _reply_is_last_data) = sync_fetch_a_lob_chunk(
+    pub(crate) fn read_slice_sync(&mut self, offset: u64, length: u32) -> HdbResult<Vec<u8>> {
+        let (reply_data, _reply_is_last_data) = fetch_a_lob_chunk_sync(
             &self.am_conn_core,
             self.locator_id,
             offset,
@@ -66,8 +66,12 @@ impl BLobHandle {
     }
 
     #[cfg(feature = "async")]
-    pub(crate) async fn read_slice(&mut self, offset: u64, length: u32) -> HdbResult<Vec<u8>> {
-        let (reply_data, _reply_is_last_data) = async_fetch_a_lob_chunk(
+    pub(crate) async fn read_slice_async(
+        &mut self,
+        offset: u64,
+        length: u32,
+    ) -> HdbResult<Vec<u8>> {
+        let (reply_data, _reply_is_last_data) = fetch_a_lob_chunk_async(
             &self.am_conn_core,
             self.locator_id,
             offset,
@@ -99,7 +103,7 @@ impl BLobHandle {
             (self.total_byte_length - self.acc_byte_length as u64) as u32,
         );
 
-        let (reply_data, reply_is_last_data) = sync_fetch_a_lob_chunk(
+        let (reply_data, reply_is_last_data) = fetch_a_lob_chunk_sync(
             &self.am_conn_core,
             self.locator_id,
             self.acc_byte_length as u64,
@@ -137,7 +141,7 @@ impl BLobHandle {
             (self.total_byte_length - self.acc_byte_length as u64) as u32,
         );
 
-        let (reply_data, reply_is_last_data) = async_fetch_a_lob_chunk(
+        let (reply_data, reply_is_last_data) = fetch_a_lob_chunk_async(
             &self.am_conn_core,
             self.locator_id,
             self.acc_byte_length as u64,
@@ -166,7 +170,7 @@ impl BLobHandle {
     }
 
     #[cfg(feature = "sync")]
-    pub(crate) fn sync_load_complete(&mut self) -> HdbResult<()> {
+    pub(crate) fn load_complete_sync(&mut self) -> HdbResult<()> {
         trace!("load_complete()");
         while !self.is_data_complete {
             self.fetch_next_chunk_sync()?;
@@ -175,7 +179,7 @@ impl BLobHandle {
     }
 
     #[cfg(feature = "async")]
-    pub(crate) async fn async_load_complete(&mut self) -> HdbResult<()> {
+    pub(crate) async fn load_complete_async(&mut self) -> HdbResult<()> {
         trace!("load_complete()");
         while !self.is_data_complete {
             self.fetch_next_chunk_async().await?;
@@ -185,15 +189,15 @@ impl BLobHandle {
 
     // Converts a BLobHandle into a Vec<u8> containing its data.
     #[cfg(feature = "sync")]
-    pub(crate) fn sync_into_bytes(mut self) -> HdbResult<Vec<u8>> {
+    pub(crate) fn into_bytes_sync(mut self) -> HdbResult<Vec<u8>> {
         trace!("into_bytes()");
-        self.sync_load_complete()?;
+        self.load_complete_sync()?;
         Ok(Vec::from(self.data))
     }
 
     // Converts a BLobHandle into a Vec<u8> containing its data.
     #[cfg(feature = "async")]
-    pub(crate) fn into_bytes_if_complete(self) -> HdbResult<Vec<u8>> {
+    pub(crate) fn into_bytes_if_complete_async(self) -> HdbResult<Vec<u8>> {
         trace!("into_bytes_if_complete()");
         if self.is_data_complete {
             Ok(Vec::from(self.data))
@@ -235,7 +239,7 @@ impl std::io::Read for BLobHandle {
 
 #[cfg(feature = "async")]
 impl<'a> BLobHandle {
-    pub(crate) async fn async_read(&mut self, buf: &'a mut [u8]) -> HdbResult<usize> {
+    pub(crate) async fn read_async(&mut self, buf: &'a mut [u8]) -> HdbResult<usize> {
         let mut buf = ReadBuf::new(buf);
         let buf_len = buf.capacity();
         debug_assert!(buf.filled().is_empty());

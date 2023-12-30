@@ -1,11 +1,16 @@
 #[cfg(feature = "async")]
-use super::{async_first_auth_request, async_second_auth_request};
+use super::{first_auth_request_async, second_auth_request_async};
 #[cfg(feature = "sync")]
-use super::{sync_first_auth_request, sync_second_auth_request};
-use super::{Authenticator, FirstAuthResponse, ScramPbkdf2Sha256, ScramSha256};
-use crate::conn::ConnectionCore;
-use crate::hdb_error::{HdbError, HdbResult};
-use crate::protocol::parts::DbConnectInfo;
+use super::{first_auth_request_sync, second_auth_request_sync};
+
+use crate::{
+    conn::{
+        authentication::{Authenticator, FirstAuthResponse, ScramPbkdf2Sha256, ScramSha256},
+        ConnectionCore,
+    },
+    protocol::parts::DbConnectInfo,
+    HdbError, HdbResult,
+};
 
 #[must_use]
 pub(crate) enum AuthenticationResult {
@@ -20,7 +25,7 @@ pub(crate) enum AuthenticationResult {
 // become optional; if then the password is not given, the pw-related
 // authenticators mut not be added to the list.
 #[cfg(feature = "sync")]
-pub(crate) fn sync_authenticate(
+pub(crate) fn authenticate_sync(
     conn_core: &mut ConnectionCore,
     reconnect: bool,
 ) -> HdbResult<AuthenticationResult> {
@@ -33,7 +38,7 @@ pub(crate) fn sync_authenticate(
     ];
 
     // ...with the first request.
-    match sync_first_auth_request(conn_core, &authenticators)? {
+    match first_auth_request_sync(conn_core, &authenticators)? {
         FirstAuthResponse::AuthenticatorAndChallenge(selected, server_challenge) => {
             // Find the selected authenticator ...
             let mut authenticator: Box<dyn Authenticator + Send + Sync> = authenticators
@@ -43,7 +48,7 @@ pub(crate) fn sync_authenticate(
                     HdbError::Impl("None of the available authenticators was accepted")
                 })?;
             // ...and use it for the second request
-            sync_second_auth_request(conn_core, &mut *authenticator, &server_challenge, reconnect)?;
+            second_auth_request_sync(conn_core, &mut *authenticator, &server_challenge, reconnect)?;
             conn_core.set_authenticated();
             trace!("session_id: {}", conn_core.session_id());
             Ok(AuthenticationResult::Ok)
@@ -55,7 +60,7 @@ pub(crate) fn sync_authenticate(
 }
 
 #[cfg(feature = "async")]
-pub(crate) async fn async_authenticate(
+pub(crate) async fn authenticate_async(
     conn_core: &mut ConnectionCore,
     reconnect: bool,
 ) -> HdbResult<AuthenticationResult> {
@@ -68,7 +73,7 @@ pub(crate) async fn async_authenticate(
     ];
 
     // ...with the first request.
-    match async_first_auth_request(conn_core, &authenticators).await? {
+    match first_auth_request_async(conn_core, &authenticators).await? {
         FirstAuthResponse::AuthenticatorAndChallenge(selected, server_challenge) => {
             // Find the selected authenticator ...
             let mut authenticator: Box<dyn Authenticator + Send + Sync> = authenticators
@@ -78,7 +83,7 @@ pub(crate) async fn async_authenticate(
                     HdbError::Impl("None of the available authenticators was accepted")
                 })?;
             // ...and use it for the second request
-            async_second_auth_request(conn_core, &mut *authenticator, &server_challenge, reconnect)
+            second_auth_request_async(conn_core, &mut *authenticator, &server_challenge, reconnect)
                 .await?;
             conn_core.set_authenticated();
             trace!("session_id: {}", conn_core.session_id());

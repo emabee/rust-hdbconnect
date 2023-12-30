@@ -1,6 +1,4 @@
-use crate::protocol::parts::OutputParameters;
-use crate::{HdbError, HdbResult};
-
+use crate::{protocol::parts::OutputParameters, HdbError, HdbResult};
 #[cfg(feature = "dist_tx")]
 use dist_tx::XaTransactionId;
 

@@ -1,7 +1,8 @@
-use crate::conn::AmConnCore;
-use crate::protocol::parts::XatOptions;
-use crate::protocol::{MessageType, Part, PartKind, Reply, Request};
-use crate::{HdbError, HdbResult};
+use crate::{
+    conn::AmConnCore,
+    protocol::{parts::XatOptions, MessageType, Part, PartKind, Reply, Request},
+    HdbError, HdbResult,
+};
 use dist_tx::{
     sync::rm::{CResourceManager, CRmWrapper},
     ErrorCode, Flags, ReturnCode, RmError, XaTransactionId,
@@ -18,7 +19,7 @@ pub struct HdbCResourceManager {
     am_conn_core: AmConnCore,
 }
 
-pub fn sync_new_resource_manager(am_conn_core: AmConnCore) -> CRmWrapper<HdbCResourceManager> {
+pub fn new_resource_manager_sync(am_conn_core: AmConnCore) -> CRmWrapper<HdbCResourceManager> {
     CRmWrapper(HdbCResourceManager { am_conn_core })
 }
 
@@ -83,7 +84,7 @@ impl CResourceManager for HdbCResourceManager {
         xat_options.set_flags(flags);
         request.push(Part::XatOptions(xat_options));
 
-        let mut reply: Reply = self.am_conn_core.sync_send(request)?;
+        let mut reply: Reply = self.am_conn_core.send_sync(request)?;
         while !reply.parts.is_empty() {
             reply.parts.drop_parts_of_kind(PartKind::StatementContext);
             match reply.parts.pop() {
@@ -129,7 +130,7 @@ impl HdbCResourceManager {
         id: &XaTransactionId,
         flag: Flags,
     ) -> Result<ReturnCode, RmError> {
-        self.sync_xa_send_receive_impl(request_type, id, flag)
+        self.xa_send_receive_impl(request_type, id, flag)
             .map(|opt| opt.unwrap_or(ReturnCode::Ok))
             .map_err(|hdb_error| {
                 if let Some(server_error) = hdb_error.server_error() {
@@ -147,7 +148,7 @@ impl HdbCResourceManager {
             })
     }
 
-    fn sync_xa_send_receive_impl(
+    fn xa_send_receive_impl(
         &mut self,
         request_type: MessageType,
         id: &XaTransactionId,
@@ -168,7 +169,7 @@ impl HdbCResourceManager {
         let mut request = Request::new(request_type, 0);
         request.push(Part::XatOptions(xat_options));
 
-        let mut reply = self.am_conn_core.sync_send(request)?;
+        let mut reply = self.am_conn_core.send_sync(request)?;
 
         reply.parts.drop_parts_of_kind(PartKind::StatementContext);
         if let Some(Part::XatOptions(xat_options)) = reply.parts.pop_if_kind(PartKind::XatOptions) {

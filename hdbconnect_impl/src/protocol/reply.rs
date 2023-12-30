@@ -1,23 +1,13 @@
-use crate::base::RsState;
-
-// #[cfg(feature = "async")]
-// use crate::protocol::util_async;
-
-// #[cfg(feature = "sync")]
-use crate::protocol::util_sync;
-
-// #[cfg(feature = "sync")]
-use byteorder::{LittleEndian, ReadBytesExt};
-
 use crate::{
+    base::{InternalReturnValue, RsState},
     conn::{AmConnCore, ConnectionCore},
-    internal_returnvalue::InternalReturnValue,
     protocol::parts::{
         ExecutionResult, ParameterDescriptors, Parts, ResultSetMetadata, ServerError, Severity,
     },
-    protocol::{Part, PartKind, ReplyType, ServerUsage},
+    protocol::{util_sync, Part, PartKind, ReplyType, ServerUsage},
     HdbError, HdbResult,
 };
+use byteorder::{LittleEndian, ReadBytesExt};
 use std::{io::Cursor, sync::Arc};
 
 use super::{MAX_BUFFER_SIZE, MESSAGE_AND_SEGMENT_HEADER_SIZE, SEGMENT_HEADER_SIZE};
@@ -60,7 +50,7 @@ impl Reply {
         trace!("Reply::parse_sync()");
         let packet_header = {
             read_into_buffer_sync(MESSAGE_AND_SEGMENT_HEADER_SIZE, io_buffer, rdr)?;
-            parse_packet_header_sync(io_buffer)?
+            parse_packet_header(io_buffer)?
         };
 
         // read rest of reply into buffer and decompress if necessary
@@ -92,13 +82,13 @@ impl Reply {
         Ok(reply)
     }
 
-    #[cfg(feature = "async")]
     // Parse a reply from the stream, building a Reply object.
     //
     // * `ResultSetMetadata` need to be injected in case of execute calls of
     //    prepared statements
     // * `ResultSet` needs to be injected (and is extended and returned)
     //    in case of fetch requests
+    #[cfg(feature = "async")]
     pub(crate) async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
@@ -110,7 +100,7 @@ impl Reply {
         trace!("Reply::parse_async()");
         let packet_header = {
             read_into_buffer_async(MESSAGE_AND_SEGMENT_HEADER_SIZE, io_buffer, rdr).await?;
-            parse_packet_header_sync(io_buffer)?
+            parse_packet_header(io_buffer)?
         };
 
         // read rest of reply into buffer and decompress if necessary
@@ -160,27 +150,27 @@ impl Reply {
 
     // digest parts, collect InternalReturnValues
     #[cfg(feature = "sync")]
-    pub fn sync_into_internal_return_values(
+    pub fn into_internal_return_values_sync(
         self,
         am_conn_core: &AmConnCore,
         o_additional_server_usage: Option<&mut ServerUsage>,
     ) -> HdbResult<(Vec<InternalReturnValue>, ReplyType)> {
         Ok((
             self.parts
-                .sync_into_internal_return_values(am_conn_core, o_additional_server_usage)?,
+                .into_internal_return_values_sync(am_conn_core, o_additional_server_usage)?,
             self.replytype,
         ))
     }
 
     #[cfg(feature = "async")]
-    pub async fn async_into_internal_return_values(
+    pub async fn into_internal_return_values_async(
         self,
         am_conn_core: &AmConnCore,
         o_additional_server_usage: Option<&mut ServerUsage>,
     ) -> HdbResult<(Vec<InternalReturnValue>, ReplyType)> {
         Ok((
             self.parts
-                .async_into_internal_return_values(am_conn_core, o_additional_server_usage)
+                .into_internal_return_values_async(am_conn_core, o_additional_server_usage)
                 .await?,
             self.replytype,
         ))
@@ -264,8 +254,7 @@ impl Reply {
     }
 }
 
-// #[cfg(feature = "sync")]
-fn parse_packet_header_sync(rdr: &mut dyn std::io::Read) -> HdbResult<ReplyPacketHeader> {
+fn parse_packet_header(rdr: &mut dyn std::io::Read) -> HdbResult<ReplyPacketHeader> {
     // TODO validate session_id against ConnectionCore::session_id
     // TODO session_id and packet_count must be 0 for exactly the first roundtrip
     // TODO validate assumptions about seg_size, seg_offset, seg_number being always = (varpart_size, 0, 1)
@@ -348,59 +337,6 @@ fn parse_packet_header_sync(rdr: &mut dyn std::io::Read) -> HdbResult<ReplyPacke
         }
     }
 }
-
-// #[cfg(feature = "async")]
-// async fn parse_packet_header_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
-//     rdr: &mut R,
-// ) -> HdbResult<(i16, Reply)> {
-//     // MESSAGE HEADER: 32 bytes
-//     let session_id: i64 = rdr.read_i64_le().await?; // I8
-//     let packet_seq_number: i32 = rdr.read_i32_le().await?; // I4
-//     let varpart_size: u32 = rdr.read_u32_le().await?; // UI4  not needed?
-//     let remaining_bufsize: u32 = rdr.read_u32_le().await?; // UI4  not needed?
-//     let no_of_segs = rdr.read_i16_le().await?; // I2
-//     if no_of_segs == 0 {
-//         return Err(HdbError::Impl("empty response (is ok for drop connection)"));
-//     }
-
-//     if no_of_segs > 1 {
-//         return Err(HdbError::ImplDetailed(format!(
-//             "no_of_segs = {no_of_segs} > 1"
-//         )));
-//     }
-
-//     util_async::skip_bytes(10, rdr).await?; // (I1 + B[9])
-
-//     // SEGMENT HEADER: 24 bytes
-//     rdr.read_i32_le().await?; // I4 seg_size
-//     rdr.read_i32_le().await?; // I4 seg_offset
-//     let no_of_parts: i16 = rdr.read_i16_le().await?; // I2
-//     rdr.read_i16_le().await?; // I2 seg_number
-//     let seg_kind = Kind::from_i8(rdr.read_i8().await?)?; // I1
-
-//     trace!(
-//         "message and segment header: {{ packet_seq_number = {}, varpart_size = {}, \
-//          remaining_bufsize = {}, no_of_parts = {} }}",
-//         packet_seq_number,
-//         varpart_size,
-//         remaining_bufsize,
-//         no_of_parts
-//     );
-
-//     match seg_kind {
-//         Kind::Request => Err(HdbError::Impl("Cannot _parse_ a request")),
-//         Kind::Reply | Kind::Error => {
-//             util_async::skip_bytes(1, rdr).await?; // I1 reserved2
-//             let reply_type = ReplyType::from_i16(rdr.read_i16_le().await?)?; // I2
-//             util_async::skip_bytes(8, rdr).await?; // B[8] reserved3
-//             debug!(
-//                 "Reply::parse(): got reply of type {:?} and seg_kind {:?} for session_id {}",
-//                 reply_type, seg_kind, session_id
-//             );
-//             Ok((no_of_parts, Reply::new(session_id, reply_type)))
-//         }
-//     }
-// }
 
 /// Specifies the layout of the remaining segment header structure
 #[derive(Debug)]

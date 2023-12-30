@@ -1,11 +1,8 @@
-// #[cfg(feature = "async")]
-// use crate::protocol::util_async;
-// #[cfg(feature = "sync")]
-use crate::protocol::util_sync;
-// #[cfg(feature = "sync")]
+use crate::{
+    protocol::{util, util_sync},
+    HdbResult,
+};
 use byteorder::{LittleEndian, ReadBytesExt};
-
-use crate::{protocol::util, HdbResult};
 use std::error::Error;
 
 /// Severity of a server message
@@ -102,9 +99,8 @@ impl ServerError {
         }
     }
 
-    // #[cfg(feature = "sync")]
     #[allow(clippy::cast_sign_loss)]
-    pub(crate) fn parse_sync(
+    pub(crate) fn parse(
         no_of_args: usize,
         rdr: &mut std::io::Cursor<Vec<u8>>,
     ) -> HdbResult<Vec<Self>> {
@@ -127,32 +123,6 @@ impl ServerError {
 
         Ok(server_errors)
     }
-
-    // #[cfg(feature = "async")]
-    // #[allow(clippy::cast_sign_loss)]
-    // pub(crate) async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
-    //     no_of_args: usize,
-    //     rdr: &mut R,
-    // ) -> HdbResult<Vec<Self>> {
-    //     let mut server_errors = Vec::<Self>::new();
-    //     for _i in 0..no_of_args {
-    //         let code = rdr.read_i32_le().await?; // I4
-    //         let position = rdr.read_i32_le().await?; // I4
-    //         let text_length = rdr.read_i32_le().await?; // I4
-    //         let severity = Severity::from_i8(rdr.read_i8().await?); // I1
-    //         let sqlstate = util_async::parse_bytes(5_usize, rdr).await?; // B5
-    //         let bytes = util_async::parse_bytes(text_length as usize, rdr).await?; // B[text_length]
-    //         let text = util::string_from_cesu8(bytes).map_err(util::io_error)?;
-    //         let pad = 8 - (BASE_SIZE + text_length) % 8;
-    //         util_async::skip_bytes(pad as usize, rdr).await?;
-
-    //         let server_error = Self::new(code, position, severity, sqlstate, text);
-    //         debug!("ServerError::parse(): found server error {}", server_error);
-    //         server_errors.push(server_error);
-    //     }
-
-    //     Ok(server_errors)
-    // }
 }
 
 impl Error for ServerError {}

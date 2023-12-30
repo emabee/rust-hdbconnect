@@ -1,10 +1,7 @@
-// #[cfg(feature = "async")]
-// use crate::protocol::parts::hdb_value::emit_length_and_string_async;
-// #[cfg(feature = "sync")]
-use crate::protocol::parts::hdb_value::emit_length_and_string_sync;
-
-use crate::{protocol::parts::hdb_value::string_length, HdbResult};
-
+use crate::{
+    protocol::parts::hdb_value::{emit_length_and_string, string_length},
+    HdbResult,
+};
 use std::collections::HashMap;
 use std::env;
 use std::path::Path;
@@ -61,26 +58,13 @@ impl ClientInfo {
         self.set(ClientInfoKey::DriverVersion, driver_version);
     }
 
-    // #[cfg(feature = "sync")]
-    pub fn sync_emit(&self, w: &mut dyn std::io::Write) -> HdbResult<()> {
+    pub fn emit(&self, w: &mut dyn std::io::Write) -> HdbResult<()> {
         for (key, value) in &self.0 {
-            emit_length_and_string_sync(key, w)?;
-            emit_length_and_string_sync(value, w)?;
+            emit_length_and_string(key, w)?;
+            emit_length_and_string(value, w)?;
         }
         Ok(())
     }
-
-    // #[cfg(feature = "async")]
-    // pub async fn async_emit<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
-    //     &self,
-    //     w: &mut W,
-    // ) -> HdbResult<()> {
-    //     for (key, value) in &self.0 {
-    //         emit_length_and_string_async(key, w).await?;
-    //         emit_length_and_string_async(value, w).await?;
-    //     }
-    //     Ok(())
-    // }
 
     pub fn size(&self) -> usize {
         let mut len = 0;

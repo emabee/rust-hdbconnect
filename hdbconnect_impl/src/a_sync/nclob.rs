@@ -115,7 +115,7 @@ impl NCLob {
         let mut buf = vec![0_u8; lob_read_length].into_boxed_slice();
 
         loop {
-            let read = self.0.async_read(&mut buf).await?;
+            let read = self.0.read_async(&mut buf).await?;
             if read == 0 {
                 break;
             }
@@ -131,7 +131,7 @@ impl NCLob {
     }
 
     pub(crate) async fn load_complete(&mut self) -> HdbResult<()> {
-        self.0.async_load_complete().await
+        self.0.load_complete_async().await
     }
 
     /// Reads from given offset and the given length, in number of unicode characters.
@@ -143,7 +143,7 @@ impl NCLob {
     ///
     /// Several variants of `HdbError` can occur.
     pub async fn read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
-        self.0.async_read_slice(offset, length).await
+        self.0.read_slice_async(offset, length).await
     }
 
     /// Total length of data, in bytes.

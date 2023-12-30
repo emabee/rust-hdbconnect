@@ -1,7 +1,8 @@
-use crate::conn::AmConnCore;
-use crate::protocol::parts::XatOptions;
-use crate::protocol::{MessageType, Part, PartKind, Reply, Request};
-use crate::{HdbError, HdbResult};
+use crate::{
+    conn::AmConnCore,
+    protocol::{parts::XatOptions, MessageType, Part, PartKind, Reply, Request},
+    HdbError, HdbResult,
+};
 use async_trait::async_trait;
 #[cfg(feature = "dist_tx")]
 use dist_tx::{
@@ -20,7 +21,7 @@ pub struct HdbCResourceManager {
     am_conn_core: AmConnCore,
 }
 
-pub fn async_new_resource_manager(am_conn_core: AmConnCore) -> CRmWrapper<HdbCResourceManager> {
+pub fn new_resource_manager(am_conn_core: AmConnCore) -> CRmWrapper<HdbCResourceManager> {
     CRmWrapper(HdbCResourceManager { am_conn_core })
 }
 
@@ -89,7 +90,7 @@ impl CResourceManager for HdbCResourceManager {
         xat_options.set_flags(flags);
         request.push(Part::XatOptions(xat_options));
 
-        let mut reply: Reply = self.am_conn_core.async_send(request).await?;
+        let mut reply: Reply = self.am_conn_core.send_async(request).await?;
         while !reply.parts.is_empty() {
             reply.parts.drop_parts_of_kind(PartKind::StatementContext);
             match reply.parts.pop() {
@@ -175,7 +176,7 @@ impl HdbCResourceManager {
         let mut request = Request::new(request_type, 0);
         request.push(Part::XatOptions(xat_options));
 
-        let mut reply = self.am_conn_core.async_send(request).await?;
+        let mut reply = self.am_conn_core.send_async(request).await?;
 
         reply.parts.drop_parts_of_kind(PartKind::StatementContext);
         if let Some(Part::XatOptions(xat_options)) = reply.parts.pop_if_kind(PartKind::XatOptions) {

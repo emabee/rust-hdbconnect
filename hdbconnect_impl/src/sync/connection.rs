@@ -1,12 +1,15 @@
-use super::{HdbResponse, PreparedStatement, ResultSet};
-use crate::conn::AmConnCore;
-use crate::protocol::parts::{
-    ClientContext, ClientContextId, CommandInfo, ConnOptId, OptionValue, ServerError,
+use crate::{
+    conn::AmConnCore,
+    protocol::{
+        parts::{ClientContext, ClientContextId, CommandInfo, ConnOptId, OptionValue, ServerError},
+        MessageType, Part, Request, ServerUsage, HOLD_CURSORS_OVER_COMMIT,
+    },
+    sync::{HdbResponse, PreparedStatement, ResultSet},
+    {HdbError, HdbResult, IntoConnectParams},
 };
-use crate::protocol::{MessageType, Part, Request, ServerUsage, HOLD_CURSORS_OVER_COMMIT};
+
 #[cfg(feature = "dist_tx")]
-use crate::xa_impl::sync_new_resource_manager;
-use crate::{HdbError, HdbResult, IntoConnectParams};
+use crate::xa_impl::new_resource_manager_sync;
 #[cfg(feature = "dist_tx")]
 use dist_tx::sync::rm::ResourceManager;
 
@@ -476,7 +479,7 @@ impl Connection {
     #[cfg(feature = "dist_tx")]
     #[must_use]
     pub fn get_resource_manager(&self) -> Box<dyn ResourceManager> {
-        Box::new(sync_new_resource_manager(self.am_conn_core.clone()))
+        Box::new(new_resource_manager_sync(self.am_conn_core.clone()))
     }
 
     /// Tools like debuggers can provide additional information while stepping through a source.
@@ -602,8 +605,8 @@ impl Connection {
         }
         let (internal_return_values, replytype) = self
             .am_conn_core
-            .sync_send(request)?
-            .sync_into_internal_return_values(&self.am_conn_core, None)?;
+            .send_sync(request)?
+            .into_internal_return_values_sync(&self.am_conn_core, None)?;
         HdbResponse::try_new(internal_return_values, replytype)
     }
 }

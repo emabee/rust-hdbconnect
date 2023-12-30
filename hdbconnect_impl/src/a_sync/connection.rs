@@ -1,6 +1,6 @@
 use super::{prepared_statement::PreparedStatement, resultset::ResultSet, HdbResponse};
 #[cfg(feature = "dist_tx")]
-use crate::xa_impl::async_new_resource_manager;
+use crate::xa_impl::new_resource_manager;
 use crate::{
     conn::AmConnCore,
     protocol::parts::{
@@ -486,7 +486,7 @@ impl Connection {
     #[must_use]
     #[cfg(feature = "dist_tx")]
     pub fn get_resource_manager(&self) -> Box<dyn ResourceManager> {
-        Box::new(async_new_resource_manager(self.am_conn_core.clone()))
+        Box::new(new_resource_manager(self.am_conn_core.clone()))
     }
 
     /// Tools like debuggers can provide additional information while stepping through a source.
@@ -597,9 +597,9 @@ impl Connection {
         }
         let (internal_return_values, replytype) = self
             .am_conn_core
-            .async_send(request)
+            .send_async(request)
             .await?
-            .async_into_internal_return_values(&self.am_conn_core, None)
+            .into_internal_return_values_async(&self.am_conn_core, None)
             .await?;
         HdbResponse::try_new(internal_return_values, replytype)
     }

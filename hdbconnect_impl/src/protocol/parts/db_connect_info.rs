@@ -6,7 +6,7 @@ use crate::{
     {HdbError, HdbResult},
 };
 
-// Part of redirect response to authentiation request
+// Part of redirect response to authentication request
 pub type DbConnectInfo = OptionPart<DbConnectInfoId>;
 
 #[derive(Debug, Eq, PartialEq, Hash)]

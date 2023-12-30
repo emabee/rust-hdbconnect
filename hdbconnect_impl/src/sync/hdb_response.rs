@@ -1,10 +1,11 @@
 use crate::{
+    base::InternalReturnValue,
     protocol::{
         parts::{ExecutionResult, OutputParameters},
         ReplyType,
     },
     sync::{HdbReturnValue, ResultSet},
-    HdbError, HdbResult, InternalReturnValue,
+    HdbError, HdbResult,
 };
 
 /// Represents all possible non-error responses to a database command.
@@ -136,9 +137,7 @@ impl HdbResponse {
     fn resultset(int_return_values: Vec<InternalReturnValue>) -> HdbResult<Self> {
         match single(int_return_values)? {
             InternalReturnValue::RsState((rs_state, a_rsmd)) => Ok(Self {
-                return_values: vec![HdbReturnValue::ResultSet(ResultSet::new_1(
-                    a_rsmd, rs_state,
-                ))],
+                return_values: vec![HdbReturnValue::ResultSet(ResultSet::new(a_rsmd, rs_state))],
             }),
             _ => Err(HdbError::Impl(
                 "Wrong InternalReturnValue, a single ResultSet was expected",
@@ -229,9 +228,7 @@ impl HdbResponse {
                 }
                 InternalReturnValue::ParameterMetadata(_pm) => {}
                 InternalReturnValue::RsState((rs_state, a_rsmd)) => {
-                    return_values.push(HdbReturnValue::ResultSet(ResultSet::new_1(
-                        a_rsmd, rs_state,
-                    )));
+                    return_values.push(HdbReturnValue::ResultSet(ResultSet::new(a_rsmd, rs_state)));
                 }
                 InternalReturnValue::WriteLobReply(_) => {
                     return Err(HdbError::Impl(

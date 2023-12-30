@@ -1,5 +1,7 @@
-use crate::protocol::parts::option_part::{OptionId, OptionPart};
-use crate::protocol::parts::option_value::OptionValue;
+use crate::protocol::parts::{
+    option_part::{OptionId, OptionPart},
+    option_value::OptionValue,
+};
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 

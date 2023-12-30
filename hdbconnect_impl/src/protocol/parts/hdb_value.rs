@@ -3,35 +3,17 @@ use crate::{
     conn::AmConnCore,
     protocol::{
         parts::{length_indicator, ParameterDescriptor, TypeId},
-        util,
+        util, util_sync,
     },
     types::{DayDate, LongDate, SecondDate, SecondTime},
-    types_impl::{decimal, lob},
+    types_impl::{
+        daydate::parse_daydate, decimal, lob, longdate::parse_longdate,
+        seconddate::parse_seconddate, secondtime::parse_secondtime,
+    },
     HdbError, HdbResult,
 };
-
-// #[cfg(feature = "async")]
-// use crate::{
-//     protocol::util_async,
-//     types_impl::{
-//         daydate::parse_daydate_async, longdate::parse_longdate_async,
-//         seconddate::parse_seconddate_async, secondtime::parse_secondtime_async,
-//     },
-// };
-
-// #[cfg(feature = "sync")]
-use crate::{
-    protocol::util_sync,
-    types_impl::{
-        daydate::parse_daydate_sync, longdate::parse_longdate_sync,
-        seconddate::parse_seconddate_sync, secondtime::parse_secondtime_sync,
-    },
-};
-
 use bigdecimal::BigDecimal;
-// #[cfg(feature = "sync")]
-use byteorder::WriteBytesExt;
-use byteorder::{LittleEndian, ReadBytesExt};
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use serde_db::de::DeserializationError;
 
 const ALPHANUM_PURELY_NUMERIC: u8 = 0b_1000_0000_u8;
@@ -184,14 +166,13 @@ impl<'a> HdbValue<'a> {
         matches!(*self, HdbValue::NULL)
     }
 
-    // #[cfg(feature = "sync")]
-    pub(crate) fn sync_emit(
+    pub(crate) fn emit(
         &self,
         data_pos: &mut i32,
         descriptor: &ParameterDescriptor,
         w: &mut dyn std::io::Write,
     ) -> HdbResult<()> {
-        if !self.emit_type_id_sync(descriptor.type_id(), w)? {
+        if !self.emit_type_id(descriptor.type_id(), w)? {
             match *self {
                 HdbValue::NULL => {}
                 HdbValue::TINYINT(u) => w.write_u8(u)?,
@@ -199,11 +180,11 @@ impl<'a> HdbValue<'a> {
                 HdbValue::INT(i) => w.write_i32::<LittleEndian>(i)?,
                 HdbValue::BIGINT(i) => w.write_i64::<LittleEndian>(i)?,
                 HdbValue::DECIMAL(ref bigdec) => {
-                    decimal::sync_emit(bigdec, descriptor.type_id(), descriptor.scale(), w)?;
+                    decimal::emit(bigdec, descriptor.type_id(), descriptor.scale(), w)?;
                 }
                 HdbValue::REAL(f) => w.write_f32::<LittleEndian>(f)?,
                 HdbValue::DOUBLE(f) => w.write_f64::<LittleEndian>(f)?,
-                HdbValue::BOOLEAN(b) => emit_bool_sync(b, w)?,
+                HdbValue::BOOLEAN(b) => emit_bool(b, w)?,
                 HdbValue::LONGDATE(ref ld) => w.write_i64::<LittleEndian>(*ld.ref_raw())?,
                 HdbValue::SECONDDATE(ref sd) => w.write_i64::<LittleEndian>(*sd.ref_raw())?,
                 HdbValue::DAYDATE(ref dd) => w.write_i32::<LittleEndian>(*dd.ref_raw())?,
@@ -217,10 +198,10 @@ impl<'a> HdbValue<'a> {
                     lob::emit_lob_header(0, data_pos, w)?;
                 }
 
-                HdbValue::STR(s) => emit_length_and_string_sync(s, w)?,
-                HdbValue::STRING(ref s) => emit_length_and_string_sync(s, w)?,
+                HdbValue::STR(s) => emit_length_and_string(s, w)?,
+                HdbValue::STRING(ref s) => emit_length_and_string(s, w)?,
                 HdbValue::BINARY(ref v) | HdbValue::GEOMETRY(ref v) | HdbValue::POINT(ref v) => {
-                    emit_length_and_bytes_sync(v, w)?;
+                    emit_length_and_bytes(v, w)?;
                 }
                 _ => {
                     return Err(HdbError::ImplDetailed(format!(
@@ -232,53 +213,8 @@ impl<'a> HdbValue<'a> {
         Ok(())
     }
 
-    // #[cfg(feature = "async")]
-    // pub(crate) async fn async_emit<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
-    //     &self,
-    //     data_pos: &mut i32,
-    //     descriptor: &ParameterDescriptor,
-    //     w: &mut W,
-    // ) -> HdbResult<()> {
-    //     if !self.emit_type_id_async(descriptor.type_id(), w).await? {
-    //         match *self {
-    //             HdbValue::NULL => {}
-    //             HdbValue::TINYINT(u) => w.write_u8(u).await?,
-    //             HdbValue::SMALLINT(i) => w.write_i16_le(i).await?,
-    //             HdbValue::INT(i) => w.write_i32_le(i).await?,
-    //             HdbValue::BIGINT(i) => w.write_i64_le(i).await?,
-    //             HdbValue::DECIMAL(ref bigdec) => {
-    //                 decimal::async_emit(bigdec, descriptor.type_id(), descriptor.scale(), w)
-    //                     .await?;
-    //             }
-    //             HdbValue::REAL(f) => w.write_f32_le(f).await?,
-    //             HdbValue::DOUBLE(f) => w.write_f64_le(f).await?,
-    //             HdbValue::BOOLEAN(b) => emit_bool_async(b, w).await?,
-    //             HdbValue::LONGDATE(ref ld) => w.write_i64_le(*ld.ref_raw()).await?,
-    //             HdbValue::SECONDDATE(ref sd) => w.write_i64_le(*sd.ref_raw()).await?,
-    //             HdbValue::DAYDATE(ref dd) => w.write_i32_le(*dd.ref_raw()).await?,
-    //             HdbValue::SECONDTIME(ref st) => w.write_u32_le(*st.ref_raw()).await?,
-
-    //             HdbValue::ASYNC_LOBSTREAM(None) => {
-    //                 lob::emit_lob_header_async(0, data_pos, w).await?;
-    //             }
-    //             HdbValue::STR(s) => emit_length_and_string_async(s, w).await?,
-    //             HdbValue::STRING(ref s) => emit_length_and_string_async(s, w).await?,
-    //             HdbValue::BINARY(ref v) | HdbValue::GEOMETRY(ref v) | HdbValue::POINT(ref v) => {
-    //                 emit_length_and_bytes_async(v, w).await?;
-    //             }
-    //             _ => {
-    //                 return Err(HdbError::ImplDetailed(format!(
-    //                     "HdbValue::{self} cannot be sent to the database",
-    //                 )));
-    //             }
-    //         }
-    //     }
-    //     Ok(())
-    // }
-
-    // sync_emits the type-id; returns true if the value is a null value, false otherwise
-    // #[cfg(feature = "sync")]
-    fn emit_type_id_sync(
+    // emits the type-id; returns true if the value is a null value, false otherwise
+    fn emit_type_id(
         &self,
         requested_type_id: TypeId,
         w: &mut dyn std::io::Write,
@@ -292,22 +228,7 @@ impl<'a> HdbValue<'a> {
         Ok(is_null)
     }
 
-    // #[cfg(feature = "async")]
-    // async fn emit_type_id_async<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
-    //     &self,
-    //     requested_type_id: TypeId,
-    //     w: &mut W,
-    // ) -> HdbResult<bool> {
-    //     let is_null = self.is_null();
-    //     let type_code = self
-    //         .type_id_for_emit(requested_type_id)
-    //         .map_err(|e| HdbError::ImplDetailed(e.to_string()))?
-    //         .type_code(is_null);
-    //     w.write_u8(type_code).await?;
-    //     Ok(is_null)
-    // }
-
-    // is used to calculate the part size (in sync_emit)
+    // is used to calculate the part size (in emit())
     pub(crate) fn size(&self, type_id: TypeId) -> HdbResult<usize> {
         Ok(1 + match self {
             HdbValue::NULL => 0,
@@ -500,7 +421,7 @@ impl HdbValue<'static> {
         let t = type_id;
         if array_type {
             let l8 = rdr.read_u8()?;
-            let _bytelen = length_indicator::parse_sync(l8, rdr)?;
+            let _bytelen = length_indicator::parse(l8, rdr)?;
             let mut values = vec![];
             for _i in 0..rdr.read_i32::<LittleEndian>()? {
                 let value = HdbValue::parse_sync(
@@ -517,17 +438,17 @@ impl HdbValue<'static> {
             Ok(HdbValue::ARRAY(values))
         } else {
             match t {
-                TypeId::TINYINT => Ok(parse_tinyint_sync(nullable, rdr)?),
-                TypeId::SMALLINT => Ok(parse_smallint_sync(nullable, rdr)?),
-                TypeId::INT => Ok(parse_int_sync(nullable, rdr)?),
-                TypeId::BIGINT => Ok(parse_bigint_sync(nullable, rdr)?),
-                TypeId::REAL => Ok(parse_real_sync(nullable, rdr)?),
-                TypeId::DOUBLE => Ok(parse_double_sync(nullable, rdr)?),
+                TypeId::TINYINT => Ok(parse_tinyint(nullable, rdr)?),
+                TypeId::SMALLINT => Ok(parse_smallint(nullable, rdr)?),
+                TypeId::INT => Ok(parse_int(nullable, rdr)?),
+                TypeId::BIGINT => Ok(parse_bigint(nullable, rdr)?),
+                TypeId::REAL => Ok(parse_real(nullable, rdr)?),
+                TypeId::DOUBLE => Ok(parse_double(nullable, rdr)?),
 
-                TypeId::BOOLEAN => Ok(parse_bool_sync(nullable, rdr)?),
+                TypeId::BOOLEAN => Ok(parse_bool(nullable, rdr)?),
 
                 TypeId::DECIMAL | TypeId::FIXED8 | TypeId::FIXED12 | TypeId::FIXED16 => {
-                    Ok(decimal::parse_sync(nullable, t, scale, rdr)?)
+                    Ok(decimal::parse(nullable, t, scale, rdr)?)
                 }
 
                 TypeId::CHAR
@@ -536,10 +457,10 @@ impl HdbValue<'static> {
                 | TypeId::NVARCHAR
                 | TypeId::STRING
                 | TypeId::NSTRING
-                | TypeId::SHORTTEXT => Ok(parse_string_sync(nullable, t, rdr)?),
+                | TypeId::SHORTTEXT => Ok(parse_string(nullable, t, rdr)?),
 
                 TypeId::ALPHANUM => {
-                    let res = parse_alphanum_sync(nullable, rdr)?;
+                    let res = parse_alphanum(nullable, rdr)?;
                     Ok(res)
                 }
 
@@ -547,7 +468,7 @@ impl HdbValue<'static> {
                 | TypeId::VARBINARY
                 | TypeId::BSTRING
                 | TypeId::GEOMETRY
-                | TypeId::POINT => Ok(parse_binary_sync(nullable, t, rdr)?),
+                | TypeId::POINT => Ok(parse_binary(nullable, t, rdr)?),
 
                 TypeId::BLOCATOR => Err(HdbError::Impl("parsing BLOCATOR not implemented")),
                 TypeId::BLOB | TypeId::BINTEXT => Ok(lob::parse_blob_sync(
@@ -570,10 +491,10 @@ impl HdbValue<'static> {
                     rdr,
                 )?),
 
-                TypeId::LONGDATE => Ok(parse_longdate_sync(nullable, rdr)?),
-                TypeId::SECONDDATE => Ok(parse_seconddate_sync(nullable, rdr)?),
-                TypeId::DAYDATE => Ok(parse_daydate_sync(nullable, rdr)?),
-                TypeId::SECONDTIME => Ok(parse_secondtime_sync(nullable, rdr)?),
+                TypeId::LONGDATE => Ok(parse_longdate(nullable, rdr)?),
+                TypeId::SECONDDATE => Ok(parse_seconddate(nullable, rdr)?),
+                TypeId::DAYDATE => Ok(parse_daydate(nullable, rdr)?),
+                TypeId::SECONDTIME => Ok(parse_secondtime(nullable, rdr)?),
             }
         }
     }
@@ -591,7 +512,7 @@ impl HdbValue<'static> {
         let t = type_id;
         if array_type {
             let l8 = rdr.read_u8()?;
-            let _bytelen = length_indicator::parse_sync(l8, rdr)?;
+            let _bytelen = length_indicator::parse(l8, rdr)?;
             let mut values = vec![];
             for _i in 0..rdr.read_i32::<LittleEndian>()? {
                 let value = HdbValue::parse_value_async(
@@ -622,17 +543,17 @@ impl HdbValue<'static> {
     ) -> HdbResult<HdbValue<'static>> {
         let t = type_id;
         match t {
-            TypeId::TINYINT => Ok(parse_tinyint_sync(nullable, rdr)?),
-            TypeId::SMALLINT => Ok(parse_smallint_sync(nullable, rdr)?),
-            TypeId::INT => Ok(parse_int_sync(nullable, rdr)?),
-            TypeId::BIGINT => Ok(parse_bigint_sync(nullable, rdr)?),
-            TypeId::REAL => Ok(parse_real_sync(nullable, rdr)?),
-            TypeId::DOUBLE => Ok(parse_double_sync(nullable, rdr)?),
+            TypeId::TINYINT => Ok(parse_tinyint(nullable, rdr)?),
+            TypeId::SMALLINT => Ok(parse_smallint(nullable, rdr)?),
+            TypeId::INT => Ok(parse_int(nullable, rdr)?),
+            TypeId::BIGINT => Ok(parse_bigint(nullable, rdr)?),
+            TypeId::REAL => Ok(parse_real(nullable, rdr)?),
+            TypeId::DOUBLE => Ok(parse_double(nullable, rdr)?),
 
-            TypeId::BOOLEAN => Ok(parse_bool_sync(nullable, rdr)?),
+            TypeId::BOOLEAN => Ok(parse_bool(nullable, rdr)?),
 
             TypeId::DECIMAL | TypeId::FIXED8 | TypeId::FIXED12 | TypeId::FIXED16 => {
-                Ok(decimal::parse_sync(nullable, t, scale, rdr)?)
+                Ok(decimal::parse(nullable, t, scale, rdr)?)
             }
 
             TypeId::CHAR
@@ -641,10 +562,10 @@ impl HdbValue<'static> {
             | TypeId::NVARCHAR
             | TypeId::STRING
             | TypeId::NSTRING
-            | TypeId::SHORTTEXT => Ok(parse_string_sync(nullable, t, rdr)?),
+            | TypeId::SHORTTEXT => Ok(parse_string(nullable, t, rdr)?),
 
             TypeId::ALPHANUM => {
-                let res = parse_alphanum_sync(nullable, rdr)?;
+                let res = parse_alphanum(nullable, rdr)?;
                 Ok(res)
             }
 
@@ -652,7 +573,7 @@ impl HdbValue<'static> {
             | TypeId::VARBINARY
             | TypeId::BSTRING
             | TypeId::GEOMETRY
-            | TypeId::POINT => Ok(parse_binary_sync(nullable, t, rdr)?),
+            | TypeId::POINT => Ok(parse_binary(nullable, t, rdr)?),
 
             TypeId::BLOCATOR => Err(HdbError::Impl("parsing BLOCATOR not implemented")),
             TypeId::BLOB | TypeId::BINTEXT => {
@@ -665,111 +586,15 @@ impl HdbValue<'static> {
                 Ok(lob::parse_nclob_async(am_conn_core, o_am_rscore, nullable, t, rdr).await?)
             }
 
-            TypeId::LONGDATE => Ok(parse_longdate_sync(nullable, rdr)?),
-            TypeId::SECONDDATE => Ok(parse_seconddate_sync(nullable, rdr)?),
-            TypeId::DAYDATE => Ok(parse_daydate_sync(nullable, rdr)?),
-            TypeId::SECONDTIME => Ok(parse_secondtime_sync(nullable, rdr)?),
+            TypeId::LONGDATE => Ok(parse_longdate(nullable, rdr)?),
+            TypeId::SECONDDATE => Ok(parse_seconddate(nullable, rdr)?),
+            TypeId::DAYDATE => Ok(parse_daydate(nullable, rdr)?),
+            TypeId::SECONDTIME => Ok(parse_secondtime(nullable, rdr)?),
         }
     }
 }
 
-// #[cfg(feature = "async")]
-// pub(crate) async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
-//     type_id: TypeId,
-//     array_type: bool,
-//     scale: i16,
-//     nullable: bool,
-//     am_conn_core: &AmConnCore,
-//     o_am_rscore: &OAM<RsCore>,
-//     rdr: &mut R,
-// ) -> HdbResult<HdbValue<'static>> {
-//     let t = type_id;
-//     if array_type {
-//         let l8 = rdr.read_u8().await?;
-//         let _bytelen = length_indicator::parse_async(l8, rdr).await?;
-//         let mut values = vec![];
-//         for _i in 0..rdr.read_i32_le().await? {
-//             let value = HdbValue::parse_value_async(
-//                 type_id,
-//                 scale,
-//                 true, // nullable,
-//                 am_conn_core,
-//                 o_am_rscore,
-//                 rdr,
-//             )
-//             .await?;
-//             values.push(value);
-//         }
-//         Ok(HdbValue::ARRAY(values))
-//     } else {
-//         HdbValue::parse_value_async(t, scale, nullable, am_conn_core, o_am_rscore, rdr).await
-//     }
-// }
-
-//     #[cfg(feature = "async")]
-//     async fn parse_value_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
-//         type_id: TypeId,
-//         scale: i16,
-//         nullable: bool,
-//         am_conn_core: &AmConnCore,
-//         o_am_rscore: &OAM<RsCore>,
-//         rdr: &mut R,
-//     ) -> HdbResult<HdbValue<'static>> {
-//         let t = type_id;
-//         match t {
-//             TypeId::TINYINT => Ok(parse_tinyint_async(nullable, rdr).await?),
-//             TypeId::SMALLINT => Ok(parse_smallint_async(nullable, rdr).await?),
-//             TypeId::INT => Ok(parse_int_async(nullable, rdr).await?),
-//             TypeId::BIGINT => Ok(parse_bigint_async(nullable, rdr).await?),
-//             TypeId::REAL => Ok(parse_real_async(nullable, rdr).await?),
-//             TypeId::DOUBLE => Ok(parse_double_async(nullable, rdr).await?),
-
-//             TypeId::BOOLEAN => Ok(parse_bool_async(nullable, rdr).await?),
-
-//             TypeId::DECIMAL | TypeId::FIXED8 | TypeId::FIXED12 | TypeId::FIXED16 => {
-//                 Ok(decimal::parse_async(nullable, t, scale, rdr).await?)
-//             }
-
-//             TypeId::CHAR
-//             | TypeId::VARCHAR
-//             | TypeId::NCHAR
-//             | TypeId::NVARCHAR
-//             | TypeId::STRING
-//             | TypeId::NSTRING
-//             | TypeId::SHORTTEXT => Ok(parse_string_async(nullable, t, rdr).await?),
-
-//             TypeId::ALPHANUM => {
-//                 let res = parse_alphanum_async(nullable, rdr).await?;
-//                 Ok(res)
-//             }
-
-//             TypeId::BINARY
-//             | TypeId::VARBINARY
-//             | TypeId::BSTRING
-//             | TypeId::GEOMETRY
-//             | TypeId::POINT => Ok(parse_binary_async(nullable, t, rdr).await?),
-
-//             TypeId::BLOCATOR => Err(HdbError::Impl("parsing BLOCATOR not implemented")),
-//             TypeId::BLOB | TypeId::BINTEXT => {
-//                 Ok(lob::parse_blob_async(am_conn_core, o_am_rscore, nullable, rdr).await?)
-//             }
-//             TypeId::CLOB => {
-//                 Ok(lob::parse_clob_async(am_conn_core, o_am_rscore, nullable, rdr).await?)
-//             }
-//             TypeId::NCLOB | TypeId::TEXT => {
-//                 Ok(lob::parse_nclob_async(am_conn_core, o_am_rscore, nullable, t, rdr).await?)
-//             }
-
-//             TypeId::LONGDATE => Ok(parse_longdate_async(nullable, rdr).await?),
-//             TypeId::SECONDDATE => Ok(parse_seconddate_async(nullable, rdr).await?),
-//             TypeId::DAYDATE => Ok(parse_daydate_async(nullable, rdr).await?),
-//             TypeId::SECONDTIME => Ok(parse_secondtime_async(nullable, rdr).await?),
-//         }
-//     }
-// }
-
-// #[cfg(feature = "sync")]
-fn emit_bool_sync(b: bool, w: &mut dyn std::io::Write) -> HdbResult<()> {
+fn emit_bool(b: bool, w: &mut dyn std::io::Write) -> HdbResult<()> {
     // this is the version that works with dataformat_version2 = 4
     // w.write_u8(b as u8)?;
 
@@ -778,20 +603,6 @@ fn emit_bool_sync(b: bool, w: &mut dyn std::io::Write) -> HdbResult<()> {
     Ok(())
 }
 
-// #[cfg(feature = "async")]
-// async fn emit_bool_async<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
-//     b: bool,
-//     w: &mut W,
-// ) -> HdbResult<()> {
-//     // this is the version that works with dataformat_version2 = 4
-//     // w.write_u8(b as u8).await?;
-
-//     // as of dataformat_version2 = 8
-//     w.write_u8(2 * u8::from(b)).await?;
-//     Ok(())
-// }
-
-// #[cfg(feature = "sync")]
 // Reads the NULL indicator and
 // - returns Ok(true) if the value is NULL
 // - returns Ok(false) if a normal value is to be expected
@@ -805,25 +616,7 @@ fn parse_null_sync(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<boo
     }
 }
 
-// // Reads the NULL indicator and
-// // - returns Ok(true) if the value is NULL
-// // - returns Ok(false) if a normal value is to be expected
-// // - throws an error if NULL is found but nullable is false
-// #[cfg(feature = "async")]
-// async fn parse_null_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
-//     nullable: bool,
-//     rdr: &mut R,
-// ) -> HdbResult<bool> {
-//     let is_null = rdr.read_u8().await? == 0;
-//     if is_null && !nullable {
-//         Err(HdbError::Impl("found null value for not-null column"))
-//     } else {
-//         Ok(is_null)
-//     }
-// }
-
-// #[cfg(feature = "sync")]
-fn parse_tinyint_sync(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<HdbValue<'static>> {
+fn parse_tinyint(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<HdbValue<'static>> {
     Ok(if parse_null_sync(nullable, rdr)? {
         HdbValue::NULL
     } else {
@@ -831,23 +624,7 @@ fn parse_tinyint_sync(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<
     })
 }
 
-// #[cfg(feature = "async")]
-// async fn parse_tinyint_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
-//     nullable: bool,
-//     rdr: &mut R,
-// ) -> HdbResult<HdbValue<'static>> {
-//     Ok(if parse_null_async(nullable, rdr).await? {
-//         HdbValue::NULL
-//     } else {
-//         HdbValue::TINYINT(rdr.read_u8().await?)
-//     })
-// }
-
-// #[cfg(feature = "sync")]
-fn parse_smallint_sync(
-    nullable: bool,
-    rdr: &mut dyn std::io::Read,
-) -> HdbResult<HdbValue<'static>> {
+fn parse_smallint(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<HdbValue<'static>> {
     Ok(if parse_null_sync(nullable, rdr)? {
         HdbValue::NULL
     } else {
@@ -855,20 +632,7 @@ fn parse_smallint_sync(
     })
 }
 
-// #[cfg(feature = "async")]
-// async fn parse_smallint_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
-//     nullable: bool,
-//     rdr: &mut R,
-// ) -> HdbResult<HdbValue<'static>> {
-//     Ok(if parse_null_async(nullable, rdr).await? {
-//         HdbValue::NULL
-//     } else {
-//         HdbValue::SMALLINT(rdr.read_i16_le().await?)
-//     })
-// }
-
-// #[cfg(feature = "sync")]
-fn parse_int_sync(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<HdbValue<'static>> {
+fn parse_int(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<HdbValue<'static>> {
     Ok(if parse_null_sync(nullable, rdr)? {
         HdbValue::NULL
     } else {
@@ -876,20 +640,7 @@ fn parse_int_sync(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<HdbV
     })
 }
 
-// #[cfg(feature = "async")]
-// async fn parse_int_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
-//     nullable: bool,
-//     rdr: &mut R,
-// ) -> HdbResult<HdbValue<'static>> {
-//     Ok(if parse_null_async(nullable, rdr).await? {
-//         HdbValue::NULL
-//     } else {
-//         HdbValue::INT(rdr.read_i32_le().await?)
-//     })
-// }
-
-// #[cfg(feature = "sync")]
-fn parse_bigint_sync(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<HdbValue<'static>> {
+fn parse_bigint(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<HdbValue<'static>> {
     Ok(if parse_null_sync(nullable, rdr)? {
         HdbValue::NULL
     } else {
@@ -897,20 +648,7 @@ fn parse_bigint_sync(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<H
     })
 }
 
-// #[cfg(feature = "async")]
-// async fn parse_bigint_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
-//     nullable: bool,
-//     rdr: &mut R,
-// ) -> HdbResult<HdbValue<'static>> {
-//     Ok(if parse_null_async(nullable, rdr).await? {
-//         HdbValue::NULL
-//     } else {
-//         HdbValue::BIGINT(rdr.read_i64_le().await?)
-//     })
-// }
-
-// #[cfg(feature = "sync")]
-fn parse_real_sync(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<HdbValue<'static>> {
+fn parse_real(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<HdbValue<'static>> {
     let mut vec: Vec<u8> = std::iter::repeat(0_u8).take(4).collect();
     rdr.read_exact(&mut vec[..])?;
     let mut cursor = std::io::Cursor::new(&vec);
@@ -929,31 +667,7 @@ fn parse_real_sync(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<Hdb
     }
 }
 
-// #[cfg(feature = "async")]
-// async fn parse_real_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
-//     nullable: bool,
-//     rdr: &mut R,
-// ) -> HdbResult<HdbValue<'static>> {
-//     let mut vec: Vec<u8> = std::iter::repeat(0_u8).take(4).collect();
-//     rdr.read_exact(&mut vec[..]).await?;
-//     let mut cursor = std::io::Cursor::new(&vec);
-//     let tmp = cursor.read_u32::<LittleEndian>()?;
-//     let is_null = tmp == u32::max_value();
-
-//     if is_null {
-//         if nullable {
-//             Ok(HdbValue::NULL)
-//         } else {
-//             Err(HdbError::Impl("found NULL value for NOT NULL column"))
-//         }
-//     } else {
-//         cursor.set_position(0);
-//         Ok(HdbValue::REAL(cursor.read_f32::<LittleEndian>()?))
-//     }
-// }
-
-// #[cfg(feature = "sync")]
-fn parse_double_sync(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<HdbValue<'static>> {
+fn parse_double(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<HdbValue<'static>> {
     let mut vec: Vec<u8> = std::iter::repeat(0_u8).take(8).collect();
     rdr.read_exact(&mut vec[..])?;
     let mut cursor = std::io::Cursor::new(&vec);
@@ -972,31 +686,7 @@ fn parse_double_sync(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<H
     }
 }
 
-// #[cfg(feature = "async")]
-// async fn parse_double_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
-//     nullable: bool,
-//     rdr: &mut R,
-// ) -> HdbResult<HdbValue<'static>> {
-//     let mut vec: Vec<u8> = std::iter::repeat(0_u8).take(8).collect();
-//     rdr.read_exact(&mut vec[..]).await?;
-//     let mut cursor = std::io::Cursor::new(&vec);
-//     let tmp = cursor.read_u64::<LittleEndian>()?;
-//     let is_null = tmp == u64::max_value();
-
-//     if is_null {
-//         if nullable {
-//             Ok(HdbValue::NULL)
-//         } else {
-//             Err(HdbError::Impl("found NULL value for NOT NULL column"))
-//         }
-//     } else {
-//         cursor.set_position(0);
-//         Ok(HdbValue::DOUBLE(cursor.read_f64::<LittleEndian>()?))
-//     }
-// }
-
-// #[cfg(feature = "sync")]
-fn parse_bool_sync(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<HdbValue<'static>> {
+fn parse_bool(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<HdbValue<'static>> {
     //(0x00 = FALSE, 0x01 = NULL, 0x02 = TRUE)
     match rdr.read_u8()? {
         0 => Ok(HdbValue::BOOLEAN(false)),
@@ -1014,33 +704,7 @@ fn parse_bool_sync(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<Hdb
     }
 }
 
-// #[cfg(feature = "async")]
-// async fn parse_bool_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
-//     nullable: bool,
-//     rdr: &mut R,
-// ) -> HdbResult<HdbValue<'static>> {
-//     //(0x00 = FALSE, 0x01 = NULL, 0x02 = TRUE)
-//     match rdr.read_u8().await? {
-//         0 => Ok(HdbValue::BOOLEAN(false)),
-//         2 => Ok(HdbValue::BOOLEAN(true)),
-//         1 => {
-//             if nullable {
-//                 Ok(HdbValue::NULL)
-//             } else {
-//                 Err(HdbError::Impl("parse_bool_sync: got null value"))
-//             }
-//         }
-//         i => Err(HdbError::ImplDetailed(format!(
-//             "parse_bool_sync: got bad value {i}",
-//         ))),
-//     }
-// }
-
-// #[cfg(feature = "sync")]
-fn parse_alphanum_sync(
-    nullable: bool,
-    rdr: &mut dyn std::io::Read,
-) -> HdbResult<HdbValue<'static>> {
+fn parse_alphanum(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<HdbValue<'static>> {
     let indicator1 = rdr.read_u8()?;
     if indicator1 == length_indicator::LENGTH_INDICATOR_NULL {
         // value is null
@@ -1073,45 +737,7 @@ fn parse_alphanum_sync(
     }
 }
 
-// #[cfg(feature = "async")]
-// async fn parse_alphanum_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
-//     nullable: bool,
-//     rdr: &mut R,
-// ) -> HdbResult<HdbValue<'static>> {
-//     let indicator1 = rdr.read_u8().await?;
-//     if indicator1 == length_indicator::LENGTH_INDICATOR_NULL {
-//         // value is null
-//         if nullable {
-//             Ok(HdbValue::NULL)
-//         } else {
-//             Err(HdbError::Impl(
-//                 "found NULL value for NOT NULL ALPHANUM column",
-//             ))
-//         }
-//     } else {
-//         let data_length = indicator1 - 1; // why?!?
-
-//         let indicator2 = rdr.read_u8().await?;
-//         let mut value = util_async::parse_bytes(data_length as usize, rdr).await?;
-
-//         let s = util::string_from_cesu8(if indicator2 & ALPHANUM_PURELY_NUMERIC == 0 {
-//             // no prefix
-//             value
-//         } else {
-//             // purely numeric -> prefix with leading zeros
-//             let field_length = indicator2 & ALPHANUM_LENGTH_MASK;
-//             let mut prefix: Vec<u8> = std::iter::repeat(48) // '0'
-//                 .take((field_length - data_length) as usize)
-//                 .collect();
-//             prefix.append(&mut value);
-//             prefix
-//         })?;
-//         Ok(HdbValue::STRING(s))
-//     }
-// }
-
-// #[cfg(feature = "sync")]
-fn parse_string_sync(
+fn parse_string(
     nullable: bool,
     type_id: TypeId,
     rdr: &mut dyn std::io::Read,
@@ -1140,7 +766,7 @@ fn parse_string_sync(
                 // In few cases, like e.g. in M_TRACEFILES, this is not guaranteed;
                 // thus, if cesu8-decoding fails, we try utf8-"decoding", and if that fails too,
                 // make the original bytes acessible
-                match util::try_string_from_cesu8(parse_length_and_bytes_sync(l8, rdr)?) {
+                match util::try_string_from_cesu8(parse_length_and_bytes(l8, rdr)?) {
                     Ok(s) => HdbValue::STRING(s),
                     Err(v) => match String::from_utf8(v) {
                         Ok(s) => HdbValue::STRING(s),
@@ -1153,48 +779,7 @@ fn parse_string_sync(
     }
 }
 
-// #[cfg(feature = "async")]
-// async fn parse_string_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
-//     nullable: bool,
-//     type_id: TypeId,
-//     rdr: &mut R,
-// ) -> HdbResult<HdbValue<'static>> {
-//     let l8 = rdr.read_u8().await?; // B1
-//     let is_null = l8 == length_indicator::LENGTH_INDICATOR_NULL;
-
-//     if is_null {
-//         if nullable {
-//             Ok(HdbValue::NULL)
-//         } else {
-//             Err(HdbError::Impl(
-//                 "found NULL value for NOT NULL string column",
-//             ))
-//         }
-//     } else {
-//         Ok(match type_id {
-//             TypeId::CHAR
-//             | TypeId::VARCHAR
-//             | TypeId::NCHAR
-//             | TypeId::NVARCHAR
-//             | TypeId::NSTRING
-//             | TypeId::SHORTTEXT
-//             | TypeId::STRING => {
-//                 let v = parse_length_and_bytes_async(l8, rdr).await?;
-//                 match util::try_string_from_cesu8(v) {
-//                     Ok(s) => HdbValue::STRING(s),
-//                     Err(v) => match String::from_utf8(v) {
-//                         Ok(s) => HdbValue::STRING(s),
-//                         Err(e) => HdbValue::DBSTRING(e.into_bytes()),
-//                     },
-//                 }
-//             }
-//             _ => return Err(HdbError::Impl("unexpected type id for string")),
-//         })
-//     }
-// }
-
-// #[cfg(feature = "sync")]
-fn parse_binary_sync(
+fn parse_binary(
     nullable: bool,
     type_id: TypeId,
     rdr: &mut dyn std::io::Read,
@@ -1211,7 +796,7 @@ fn parse_binary_sync(
             ))
         }
     } else {
-        let bytes = parse_length_and_bytes_sync(l8, rdr)?;
+        let bytes = parse_length_and_bytes(l8, rdr)?;
         Ok(match type_id {
             TypeId::BSTRING | TypeId::VARBINARY | TypeId::BINARY => HdbValue::BINARY(bytes),
             TypeId::GEOMETRY => HdbValue::GEOMETRY(bytes),
@@ -1221,49 +806,10 @@ fn parse_binary_sync(
     }
 }
 
-// #[cfg(feature = "async")]
-// async fn parse_binary_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
-//     nullable: bool,
-//     type_id: TypeId,
-//     rdr: &mut R,
-// ) -> HdbResult<HdbValue<'static>> {
-//     let l8 = rdr.read_u8().await?; // B1
-//     let is_null = l8 == length_indicator::LENGTH_INDICATOR_NULL;
-
-//     if is_null {
-//         if nullable {
-//             Ok(HdbValue::NULL)
-//         } else {
-//             Err(HdbError::Impl(
-//                 "found NULL value for NOT NULL binary column",
-//             ))
-//         }
-//     } else {
-//         let bytes = parse_length_and_bytes_async(l8, rdr).await?;
-//         Ok(match type_id {
-//             TypeId::BSTRING | TypeId::VARBINARY | TypeId::BINARY => HdbValue::BINARY(bytes),
-//             TypeId::GEOMETRY => HdbValue::GEOMETRY(bytes),
-//             TypeId::POINT => HdbValue::POINT(bytes),
-//             _ => return Err(HdbError::Impl("unexpected type id for binary")),
-//         })
-//     }
-// }
-
-// #[cfg(feature = "sync")]
-fn parse_length_and_bytes_sync(l8: u8, rdr: &mut dyn std::io::Read) -> HdbResult<Vec<u8>> {
-    let len = length_indicator::parse_sync(l8, rdr)?;
+fn parse_length_and_bytes(l8: u8, rdr: &mut dyn std::io::Read) -> HdbResult<Vec<u8>> {
+    let len = length_indicator::parse(l8, rdr)?;
     util_sync::parse_bytes(len, rdr)
 }
-
-// #[cfg(feature = "async")]
-// #[allow(clippy::cast_sign_loss)]
-// async fn parse_length_and_bytes_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
-//     l8: u8,
-//     rdr: &mut R,
-// ) -> HdbResult<Vec<u8>> {
-//     let len = length_indicator::parse_async(l8, rdr).await?;
-//     util_async::parse_bytes(len, rdr).await
-// }
 
 pub(crate) fn string_length<S: AsRef<str>>(s: S) -> usize {
     binary_length(util::cesu8_length(s.as_ref()))
@@ -1277,45 +823,18 @@ pub(crate) fn binary_length(l: usize) -> usize {
     }
 }
 
-// #[cfg(feature = "sync")]
-pub(crate) fn emit_length_and_string_sync<S: AsRef<str>>(
+pub(crate) fn emit_length_and_string<S: AsRef<str>>(
     s: S,
     w: &mut dyn std::io::Write,
 ) -> HdbResult<()> {
-    emit_length_and_bytes_sync(&cesu8::to_cesu8(s.as_ref()), w)
+    emit_length_and_bytes(&cesu8::to_cesu8(s.as_ref()), w)
 }
 
-// #[cfg(feature = "async")]
-// pub(crate) async fn emit_length_and_string_async<
-//     S: AsRef<str>,
-//     W: std::marker::Unpin + tokio::io::AsyncWriteExt,
-// >(
-//     s: S,
-//     w: &mut W,
-// ) -> HdbResult<()> {
-//     emit_length_and_bytes_async(&cesu8::to_cesu8(s.as_ref()), w).await
-// }
-
-#[allow(clippy::cast_possible_truncation)]
-#[allow(clippy::cast_possible_wrap)]
-// #[cfg(feature = "sync")]
-fn emit_length_and_bytes_sync(v: &[u8], w: &mut dyn std::io::Write) -> HdbResult<()> {
-    length_indicator::sync_emit(v.len(), w)?;
+fn emit_length_and_bytes(v: &[u8], w: &mut dyn std::io::Write) -> HdbResult<()> {
+    length_indicator::emit(v.len(), w)?;
     w.write_all(v)?;
     Ok(())
 }
-
-// #[cfg(feature = "async")]
-// #[allow(clippy::cast_possible_truncation)]
-// #[allow(clippy::cast_possible_wrap)]
-// async fn emit_length_and_bytes_async<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
-//     v: &[u8],
-//     w: &mut W,
-// ) -> HdbResult<()> {
-//     length_indicator::async_emit(v.len(), w).await?;
-//     w.write_all(v).await?;
-//     Ok(())
-// }
 
 impl<'a> std::fmt::Display for HdbValue<'a> {
     #[cfg_attr(tarpaulin, skip)]

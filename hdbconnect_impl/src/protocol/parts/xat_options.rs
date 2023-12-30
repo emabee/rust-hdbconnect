@@ -1,5 +1,7 @@
-use crate::protocol::parts::option_part::{OptionId, OptionPart};
-use crate::protocol::parts::option_value::OptionValue;
+use crate::protocol::parts::{
+    option_part::{OptionId, OptionPart},
+    option_value::OptionValue,
+};
 use dist_tx::{Flags, ReturnCode, XaTransactionId};
 
 // An Options part that is used in XA related requests and responses.

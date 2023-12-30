@@ -1,5 +1,3 @@
-// FIXME rename this into ../protocol.rs
-
 mod message_type;
 mod part;
 mod part_attributes;

@@ -1,10 +1,15 @@
-use crate::conn::AmConnCore;
-use crate::protocol::parts::hdb_value::HdbValue;
-use crate::protocol::parts::parameter_descriptor::ParameterDescriptor;
-use crate::protocol::parts::parameter_descriptor::ParameterDescriptors;
-use crate::protocol::util;
-use crate::serde_db_impl::de::DeserializableOutputParameters;
-use crate::HdbResult;
+use crate::{
+    conn::AmConnCore,
+    protocol::{
+        parts::{
+            hdb_value::HdbValue,
+            parameter_descriptor::{ParameterDescriptor, ParameterDescriptors},
+        },
+        util,
+    },
+    serde_db_impl::de::DeserializableOutputParameters,
+    HdbResult,
+};
 use serde_db::de::DeserializableRow;
 
 /// A set of output parameters, as they can be returned by procedure calls.

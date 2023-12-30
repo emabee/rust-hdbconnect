@@ -13,7 +13,7 @@ pub struct Rows {
 }
 impl Rows {
     #[cfg(feature = "sync")]
-    pub(crate) fn sync_new(
+    pub(crate) fn new_sync(
         metadata: Arc<ResultSetMetadata>,
         mut rows: Vec<Row>,
     ) -> HdbResult<Rows> {
@@ -44,7 +44,7 @@ impl Rows {
     }
 
     #[cfg(feature = "async")]
-    pub(crate) async fn async_new(
+    pub(crate) async fn new_async(
         metadata: Arc<ResultSetMetadata>,
         mut rows: Vec<Row>,
     ) -> HdbResult<Rows> {

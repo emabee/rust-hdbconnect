@@ -1,10 +1,11 @@
-use super::Authenticator;
-use crate::conn::ConnectionCore;
-use crate::protocol::parts::{
-    AuthFields, ClientContext, ConnOptId, ConnectOptionsPart, DbConnectInfo,
+use crate::{
+    conn::{authentication::Authenticator, ConnectionCore},
+    protocol::{
+        parts::{AuthFields, ClientContext, ConnOptId, ConnectOptionsPart, DbConnectInfo},
+        MessageType, Part, Reply, ReplyType, Request,
+    },
+    {HdbError, HdbResult},
 };
-use crate::protocol::{MessageType, Part, Reply, ReplyType, Request};
-use crate::{HdbError, HdbResult};
 use secstr::SecUtf8;
 
 pub(crate) enum FirstAuthResponse {
@@ -72,7 +73,7 @@ fn evaluate_first_response(reply: Reply) -> HdbResult<FirstAuthResponse> {
 }
 
 #[cfg(feature = "sync")]
-pub(crate) fn sync_first_auth_request(
+pub(crate) fn first_auth_request_sync(
     conn_core: &mut ConnectionCore,
     authenticators: &[Box<dyn Authenticator + Send + Sync>],
 ) -> HdbResult<FirstAuthResponse> {
@@ -84,7 +85,7 @@ pub(crate) fn sync_first_auth_request(
 }
 
 #[cfg(feature = "async")]
-pub(crate) async fn async_first_auth_request(
+pub(crate) async fn first_auth_request_async(
     conn_core: &mut ConnectionCore,
     authenticators: &[Box<dyn Authenticator + Send + Sync>],
 ) -> HdbResult<FirstAuthResponse> {
@@ -160,7 +161,7 @@ fn evaluate_second_response(
 }
 
 #[cfg(feature = "sync")]
-pub(crate) fn sync_second_auth_request(
+pub(crate) fn second_auth_request_sync(
     conn_core: &mut ConnectionCore,
     chosen_authenticator: &mut (dyn Authenticator + Send + Sync),
     server_challenge_data: &[u8],
@@ -180,7 +181,7 @@ pub(crate) fn sync_second_auth_request(
 }
 
 #[cfg(feature = "async")]
-pub(crate) async fn async_second_auth_request(
+pub(crate) async fn second_auth_request_async(
     conn_core: &mut ConnectionCore,
     chosen_authenticator: &mut (dyn Authenticator + Send + Sync),
     server_challenge_data: &[u8],

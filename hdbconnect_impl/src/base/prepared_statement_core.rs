@@ -17,7 +17,7 @@ impl Drop for PreparedStatementCore {
         {
             let mut request = Request::new(MessageType::DropStatementId, 0);
             request.push(Part::StatementId(self.statement_id));
-            if let Ok(mut reply) = self.am_conn_core.sync_send(request) {
+            if let Ok(mut reply) = self.am_conn_core.send_sync(request) {
                 reply.parts.pop_if_kind(PartKind::StatementContext);
             }
         }
@@ -28,7 +28,7 @@ impl Drop for PreparedStatementCore {
             request.push(Part::StatementId(self.statement_id));
             let am_conn_core = self.am_conn_core.clone();
             tokio::task::spawn(async move {
-                if let Ok(mut reply) = am_conn_core.async_send(request).await {
+                if let Ok(mut reply) = am_conn_core.send_async(request).await {
                     reply.parts.pop_if_kind(PartKind::StatementContext);
                 }
             });

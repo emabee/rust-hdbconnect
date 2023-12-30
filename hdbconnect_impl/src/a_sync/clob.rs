@@ -72,7 +72,7 @@ impl CLob {
     /// Several variants of `HdbError` can occur.
     pub async fn into_string(mut self) -> HdbResult<String> {
         trace!("CLob::into_string()");
-        self.0.async_load_complete().await?;
+        self.0.load_complete_async().await?;
         self.0.into_string_if_complete()
     }
 
@@ -91,7 +91,7 @@ impl CLob {
         let mut buf = vec![0_u8; lob_read_length].into_boxed_slice();
 
         loop {
-            let read = self.0.async_read(&mut buf).await?;
+            let read = self.0.read_async(&mut buf).await?;
             if read == 0 {
                 break;
             }
@@ -105,13 +105,13 @@ impl CLob {
     pub(crate) fn into_string_if_complete(mut self) -> HdbResult<String> {
         #[cfg(feature = "sync")]
         {
-            self.0.sync_load_complete()?;
+            self.0.load_complete_sync()?;
         }
         self.0.into_string_if_complete()
     }
 
     pub(crate) async fn load_complete(&mut self) -> HdbResult<()> {
-        self.0.async_load_complete().await
+        self.0.load_complete_async().await
     }
 
     /// Reads from given offset and the given length, in bytes.
@@ -120,7 +120,7 @@ impl CLob {
     ///
     /// Several variants of `HdbError` can occur.
     pub async fn read_slice(&mut self, offset: u64, length: u32) -> HdbResult<CharLobSlice> {
-        self.0.read_slice(offset, length).await
+        self.0.read_slice_async(offset, length).await
     }
 
     /// Total length of data, in bytes.
