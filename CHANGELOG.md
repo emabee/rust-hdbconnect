@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.27.0] 2023-12-31
+
+### New capability
+
+`hdbconnect` and `hdbconnect_async` now support and use by default the **compression capability** of
+the HANA SQL protocol for large requests and responses.
+
+### API changes
+
+Various API methods in `hdbconnect_async` now return `T` rather than `Result<T>`.
+
 ## [0.26.0] 2023-02-16
 
 ### API changes

@@ -31,7 +31,7 @@ dist_tx = ["hdbconnect_impl/dist_tx_sync"]
 [dependencies]
 
 [dependencies.hdbconnect_impl]
-version = "0.26.0"
+version = "0.27.0"
 path = "../hdbconnect_impl"
 default-features = false
 features = ["sync"]

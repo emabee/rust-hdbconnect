@@ -26,6 +26,7 @@
 //! - `client_locale_from_env` (no value) lets the driver read the client's locale from the
 //!   environment variabe LANG
 //! - `<networkgroup>` = a network group
+//! - `no_compression` disables the support for compression
 //! - the [TLS](https://en.wikipedia.org/wiki/Transport_Layer_Security) options
 //!
 //!
@@ -100,5 +101,5 @@ pub const DATABASE: &str = "db";
 /// Option-key for denoting a network group.
 pub const NETWORK_GROUP: &str = "network_group";
 
-/// Option-key for controlling compression
+/// Option-key for switching off compression
 pub const NO_COMPRESSION: &str = "no_compression";
