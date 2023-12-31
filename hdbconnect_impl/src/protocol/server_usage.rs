@@ -56,17 +56,17 @@ impl ServerUsage {
         }
     }
 
-    /// FIXME
+    /// Server processing time
     pub fn proc_time(&self) -> &Duration {
         &self.proc_time
     }
 
-    /// FIXME
+    /// Accumulated server processing time
     pub fn accum_proc_time(&self) -> &Duration {
         &self.accum_proc_time
     }
 
-    /// FIXME
+    /// Server memory usage
     pub fn server_memory_usage(&self) -> &u64 {
         &self.server_memory_usage
     }

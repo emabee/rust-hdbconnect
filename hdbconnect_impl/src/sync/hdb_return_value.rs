@@ -15,7 +15,6 @@ pub enum HdbReturnValue {
     OutputParameters(OutputParameters),
     /// Indication that a db call was successful.
     Success,
-    #[cfg(feature = "dist_tx")]
     /// A list of `XaTransactionId`s.
     #[cfg(feature = "dist_tx")]
     XaTransactionIds(Vec<XaTransactionId>),
