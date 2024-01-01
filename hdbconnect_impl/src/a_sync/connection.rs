@@ -39,7 +39,7 @@ impl Connection {
     /// Several variants of `HdbError` can occur.
     pub async fn new<P: IntoConnectParams>(p: P) -> HdbResult<Self> {
         Ok(Self {
-            am_conn_core: AmConnCore::async_try_new(p.into_connect_params()?).await?,
+            am_conn_core: AmConnCore::try_new_async(p.into_connect_params()?).await?,
         })
     }
 
@@ -217,7 +217,7 @@ impl Connection {
     ///
     /// Several variants of `HdbError` can occur.
     pub async fn spawn(&self) -> HdbResult<Self> {
-        let am_conn_core = self.am_conn_core.async_lock().await;
+        let am_conn_core = self.am_conn_core.lock_async().await;
         let other = Self::new(am_conn_core.connect_params()).await?;
         other.set_auto_commit(am_conn_core.is_auto_commit()).await?;
         other.set_fetch_size(am_conn_core.get_fetch_size()).await?;
@@ -264,7 +264,7 @@ impl Connection {
     ///
     /// Only `HdbError::Poison` can occur.
     pub async fn pop_warnings(&self) -> HdbResult<Option<Vec<ServerError>>> {
-        Ok(self.am_conn_core.async_lock().await.pop_warnings())
+        Ok(self.am_conn_core.lock_async().await.pop_warnings())
     }
 
     /// Sets the connection's auto-commit behavior for future calls.
@@ -273,7 +273,7 @@ impl Connection {
     ///
     /// Only `HdbError::Poison` can occur.
     pub async fn set_auto_commit(&self, ac: bool) -> HdbResult<()> {
-        self.am_conn_core.async_lock().await.set_auto_commit(ac);
+        self.am_conn_core.lock_async().await.set_auto_commit(ac);
         Ok(())
     }
 
@@ -283,7 +283,7 @@ impl Connection {
     ///
     /// Only `HdbError::POóison` can occur.
     pub async fn is_auto_commit(&self) -> HdbResult<bool> {
-        Ok(self.am_conn_core.async_lock().await.is_auto_commit())
+        Ok(self.am_conn_core.lock_async().await.is_auto_commit())
     }
 
     /// Configures the connection's fetch size for future calls.
@@ -293,7 +293,7 @@ impl Connection {
     /// Only `HdbError::Poison` can occur.
     pub async fn set_fetch_size(&self, fetch_size: u32) -> HdbResult<()> {
         self.am_conn_core
-            .async_lock()
+            .lock_async()
             .await
             .set_fetch_size(fetch_size);
         Ok(())
@@ -304,7 +304,7 @@ impl Connection {
     ///
     /// Only `HdbError::Poison` can occur.
     pub async fn lob_read_length(&self) -> HdbResult<u32> {
-        Ok(self.am_conn_core.async_lock().await.lob_read_length())
+        Ok(self.am_conn_core.lock_async().await.lob_read_length())
     }
     /// Configures the connection's lob read length for future calls.
     ///
@@ -312,7 +312,7 @@ impl Connection {
     ///
     /// Only `HdbError::Poison` can occur.
     pub async fn set_lob_read_length(&self, l: u32) -> HdbResult<()> {
-        self.am_conn_core.async_lock().await.set_lob_read_length(l);
+        self.am_conn_core.lock_async().await.set_lob_read_length(l);
         Ok(())
     }
 
@@ -328,7 +328,7 @@ impl Connection {
     ///
     /// Only `HdbError::Poison` can occur.
     pub async fn get_lob_write_length(&self) -> HdbResult<usize> {
-        Ok(self.am_conn_core.async_lock().await.get_lob_write_length())
+        Ok(self.am_conn_core.lock_async().await.get_lob_write_length())
     }
     /// Configures the connection's lob write length for future calls.
     ///
@@ -336,7 +336,7 @@ impl Connection {
     ///
     /// Only `HdbError::Poison` can occur.
     pub async fn set_lob_write_length(&self, l: usize) -> HdbResult<()> {
-        self.am_conn_core.async_lock().await.set_lob_write_length(l);
+        self.am_conn_core.lock_async().await.set_lob_write_length(l);
         Ok(())
     }
 
@@ -345,7 +345,7 @@ impl Connection {
     /// The ID is set by the server. Can be handy for logging.
     pub async fn id(&self) -> u32 {
         self.am_conn_core
-            .async_lock()
+            .lock_async()
             .await
             .connect_options()
             .get_connection_id()
@@ -358,13 +358,13 @@ impl Connection {
     ///
     /// Only `HdbError::Poison` can occur.
     pub async fn server_usage(&self) -> HdbResult<ServerUsage> {
-        Ok(self.am_conn_core.async_lock().await.server_usage())
+        Ok(self.am_conn_core.lock_async().await.server_usage())
     }
 
     #[doc(hidden)]
     pub async fn data_format_version_2(&self) -> u8 {
         self.am_conn_core
-            .async_lock()
+            .lock_async()
             .await
             .connect_options()
             .get_dataformat_version2()
@@ -372,11 +372,11 @@ impl Connection {
 
     #[doc(hidden)]
     pub async fn dump_connect_options(&self) -> HdbResult<String> {
-        Ok(self.am_conn_core.async_lock().await.dump_connect_options())
+        Ok(self.am_conn_core.lock_async().await.dump_connect_options())
     }
     #[doc(hidden)]
     pub async fn dump_client_info(&self) -> HdbResult<String> {
-        Ok(self.am_conn_core.async_lock().await.dump_client_info())
+        Ok(self.am_conn_core.lock_async().await.dump_client_info())
     }
 
     /// Returns the number of roundtrips to the database that
@@ -386,7 +386,7 @@ impl Connection {
     ///
     /// Only `HdbError::Poison` can occur.
     pub async fn get_call_count(&self) -> HdbResult<i32> {
-        Ok(self.am_conn_core.async_lock().await.last_seq_number())
+        Ok(self.am_conn_core.lock_async().await.last_seq_number())
     }
 
     /// Sets client information into a session variable on the server.
@@ -406,7 +406,7 @@ impl Connection {
     /// Only `HdbError::Poison` can occur.
     pub async fn set_application<S: AsRef<str>>(&self, application: S) -> HdbResult<()> {
         self.am_conn_core
-            .async_lock()
+            .lock_async()
             .await
             .set_application(application);
         Ok(())
@@ -429,7 +429,7 @@ impl Connection {
     /// Only `HdbError::Poison` can occur.
     pub async fn set_application_user<S: AsRef<str>>(&self, appl_user: S) -> HdbResult<()> {
         self.am_conn_core
-            .async_lock()
+            .lock_async()
             .await
             .set_application_user(appl_user.as_ref());
         Ok(())
@@ -452,7 +452,7 @@ impl Connection {
     /// Only `HdbError::Poison` can occur.
     pub async fn set_application_version<S: AsRef<str>>(&self, version: S) -> HdbResult<()> {
         self.am_conn_core
-            .async_lock()
+            .lock_async()
             .await
             .set_application_version(version.as_ref());
         Ok(())
@@ -475,7 +475,7 @@ impl Connection {
     /// Only `HdbError::Poison` can occur.
     pub async fn set_application_source<S: AsRef<str>>(&self, source: S) -> HdbResult<()> {
         self.am_conn_core
-            .async_lock()
+            .lock_async()
             .await
             .set_application_source(source.as_ref());
         Ok(())
@@ -507,7 +507,7 @@ impl Connection {
     /// (MDC) Database name.
     pub async fn get_database_name(&self) -> String {
         self.am_conn_core
-            .async_lock()
+            .lock_async()
             .await
             .connect_options()
             .get_database_name()
@@ -517,7 +517,7 @@ impl Connection {
     /// connected instance (for tracing and supportability purposes).
     pub async fn get_system_id(&self) -> String {
         self.am_conn_core
-            .async_lock()
+            .lock_async()
             .await
             .connect_options()
             .get_system_id()
@@ -537,7 +537,7 @@ impl Connection {
             }
         }
 
-        let conn_core = self.am_conn_core.async_lock().await;
+        let conn_core = self.am_conn_core.lock_async().await;
         let conn_opts = conn_core.connect_options();
         result.push((format!("{:?}", ConnOptId::OSUser), conn_opts.get_os_user()));
         result.push((
@@ -550,7 +550,7 @@ impl Connection {
     /// Returns a connect url (excluding the password) that reflects the options that were
     /// used to establish this connection.
     pub async fn connect_string(&self) -> String {
-        self.am_conn_core.async_lock().await.connect_string()
+        self.am_conn_core.lock_async().await.connect_string()
     }
 
     /// HANA Full version string.
@@ -563,7 +563,7 @@ impl Connection {
     /// - `HdbError::Poison` if the shared mutex of the inner connection object is poisened.
     pub async fn get_full_version_string(&self) -> String {
         self.am_conn_core
-            .async_lock()
+            .lock_async()
             .await
             .connect_options()
             .get_full_version_string()
@@ -580,14 +580,14 @@ impl Connection {
         debug!(
             "connection[{:?}]::execute()",
             self.am_conn_core
-                .async_lock()
+                .lock_async()
                 .await
                 .connect_options()
                 .get_connection_id()
         );
         let mut request = Request::new(MessageType::ExecuteDirect, HOLD_CURSORS_OVER_COMMIT);
         {
-            let conn_core = self.am_conn_core.async_lock().await;
+            let conn_core = self.am_conn_core.lock_async().await;
             let fetch_size = conn_core.get_fetch_size();
             request.push(Part::FetchSize(fetch_size));
             if let Some(command_info) = o_command_info {

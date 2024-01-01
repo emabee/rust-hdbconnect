@@ -154,7 +154,7 @@ impl HdbCResourceManager {
         id: &XaTransactionId,
         flags: Flags,
     ) -> HdbResult<Option<ReturnCode>> {
-        if self.am_conn_core.sync_lock()?.is_auto_commit() {
+        if self.am_conn_core.lock_sync()?.is_auto_commit() {
             return Err(HdbError::Usage(
                 "xa_*() not possible, connection is set to auto_commit",
             ));

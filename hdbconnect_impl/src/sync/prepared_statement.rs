@@ -214,7 +214,7 @@ impl<'a> PreparedStatement {
 
             if ps_core_guard
                 .am_conn_core
-                .sync_lock()?
+                .lock_sync()?
                 .connect_options()
                 .get_implicit_lob_streaming()
             {
@@ -412,7 +412,7 @@ impl<'a> PreparedStatement {
                     o_stmt_id = Some(id);
                 }
                 Part::TransactionFlags(ta_flags) => {
-                    let mut guard = am_conn_core.sync_lock()?;
+                    let mut guard = am_conn_core.lock_sync()?;
                     (*guard).evaluate_ta_flags(ta_flags)?;
                 }
                 Part::TableLocation(vec_i) => {
@@ -423,7 +423,7 @@ impl<'a> PreparedStatement {
                 }
 
                 Part::StatementContext(ref stmt_ctx) => {
-                    let mut guard = am_conn_core.sync_lock()?;
+                    let mut guard = am_conn_core.lock_sync()?;
                     (*guard).evaluate_statement_context(stmt_ctx);
                     server_usage.update(
                         stmt_ctx.server_processing_time(),

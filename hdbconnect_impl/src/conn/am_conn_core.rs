@@ -31,7 +31,7 @@ impl AmConnCore {
     }
 
     #[cfg(feature = "async")]
-    pub async fn async_try_new(conn_params: ConnectParams) -> HdbResult<Self> {
+    pub async fn try_new_async(conn_params: ConnectParams) -> HdbResult<Self> {
         trace!("trying to connect to {}", conn_params);
         let start = Instant::now();
         let conn_core = ConnectionCore::try_new_async(conn_params).await?;
@@ -48,12 +48,12 @@ impl AmConnCore {
     }
 
     #[cfg(feature = "sync")]
-    pub fn sync_lock(&self) -> std::sync::LockResult<std::sync::MutexGuard<ConnectionCore>> {
+    pub fn lock_sync(&self) -> std::sync::LockResult<std::sync::MutexGuard<ConnectionCore>> {
         self.0.lock_sync()
     }
 
     #[cfg(feature = "async")]
-    pub async fn async_lock(&self) -> tokio::sync::MutexGuard<ConnectionCore> {
+    pub async fn lock_async(&self) -> tokio::sync::MutexGuard<ConnectionCore> {
         self.0.lock_async().await
     }
 
@@ -80,7 +80,7 @@ impl AmConnCore {
             request.message_type(),
         );
         let start = Instant::now();
-        let mut conn_core = self.sync_lock()?;
+        let mut conn_core = self.lock_sync()?;
         conn_core.augment_request(&mut request);
 
         let reply = conn_core.roundtrip_sync(&request, Some(self), o_a_rsmd, o_a_descriptors, o_rs);
@@ -117,7 +117,7 @@ impl AmConnCore {
             request.message_type(),
         );
         let start = Instant::now();
-        let mut conn_core = self.async_lock().await;
+        let mut conn_core = self.lock_async().await;
         conn_core.augment_request(&mut request);
 
         let reply = conn_core

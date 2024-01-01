@@ -26,13 +26,9 @@ extern crate serde;
 
 mod base;
 mod conn;
-mod hdb_error;
 mod protocol;
-mod row;
-mod rows;
 mod serde_db_impl;
 mod types_impl;
-pub mod url;
 #[cfg(feature = "dist_tx")]
 mod xa_impl;
 
@@ -42,19 +38,17 @@ pub mod a_sync;
 pub mod sync;
 
 pub use crate::{
+    base::{HdbError, HdbResult, Row, Rows},
     conn::{
-        ConnectParams, ConnectParamsBuilder, IntoConnectParams, IntoConnectParamsBuilder,
+        url, ConnectParams, ConnectParamsBuilder, IntoConnectParams, IntoConnectParamsBuilder,
         ServerCerts, Tls,
     },
-    hdb_error::{HdbError, HdbResult},
     protocol::parts::{
         ExecutionResult, FieldMetadata, HdbValue, OutputParameters, ParameterBinding,
         ParameterDescriptor, ParameterDescriptors, ParameterDirection, ResultSetMetadata,
         ServerError, Severity, TypeId,
     },
     protocol::ServerUsage,
-    row::Row,
-    rows::Rows,
     serde_db_impl::{time, ToHana},
 };
 

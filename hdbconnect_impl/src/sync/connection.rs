@@ -217,7 +217,7 @@ impl Connection {
     ///
     /// Several variants of `HdbError` can occur.
     pub fn spawn(&self) -> HdbResult<Self> {
-        let am_conn_core = self.am_conn_core.sync_lock()?;
+        let am_conn_core = self.am_conn_core.lock_sync()?;
         let other = Self::new(am_conn_core.connect_params())?;
         other.set_auto_commit(am_conn_core.is_auto_commit())?;
         other.set_fetch_size(am_conn_core.get_fetch_size())?;
@@ -262,7 +262,7 @@ impl Connection {
     ///
     /// Only `HdbError::Poison` can occur.
     pub fn pop_warnings(&self) -> HdbResult<Option<Vec<ServerError>>> {
-        Ok(self.am_conn_core.sync_lock()?.pop_warnings())
+        Ok(self.am_conn_core.lock_sync()?.pop_warnings())
     }
 
     /// Sets the connection's auto-commit behavior for future calls.
@@ -271,7 +271,7 @@ impl Connection {
     ///
     /// Only `HdbError::Poison` can occur.
     pub fn set_auto_commit(&self, ac: bool) -> HdbResult<()> {
-        self.am_conn_core.sync_lock()?.set_auto_commit(ac);
+        self.am_conn_core.lock_sync()?.set_auto_commit(ac);
         Ok(())
     }
 
@@ -281,7 +281,7 @@ impl Connection {
     ///
     /// Only `HdbError::POóison` can occur.
     pub fn is_auto_commit(&self) -> HdbResult<bool> {
-        Ok(self.am_conn_core.sync_lock()?.is_auto_commit())
+        Ok(self.am_conn_core.lock_sync()?.is_auto_commit())
     }
 
     /// Configures the connection's fetch size for future calls.
@@ -290,7 +290,7 @@ impl Connection {
     ///
     /// Only `HdbError::Poison` can occur.
     pub fn set_fetch_size(&self, fetch_size: u32) -> HdbResult<()> {
-        self.am_conn_core.sync_lock()?.set_fetch_size(fetch_size);
+        self.am_conn_core.lock_sync()?.set_fetch_size(fetch_size);
         Ok(())
     }
     /// Returns the connection's lob read length.
@@ -299,7 +299,7 @@ impl Connection {
     ///
     /// Only `HdbError::Poison` can occur.
     pub fn lob_read_length(&self) -> HdbResult<u32> {
-        Ok(self.am_conn_core.sync_lock()?.lob_read_length())
+        Ok(self.am_conn_core.lock_sync()?.lob_read_length())
     }
     /// Configures the connection's lob read length for future calls.
     ///
@@ -307,7 +307,7 @@ impl Connection {
     ///
     /// Only `HdbError::Poison` can occur.
     pub fn set_lob_read_length(&self, l: u32) -> HdbResult<()> {
-        self.am_conn_core.sync_lock()?.set_lob_read_length(l);
+        self.am_conn_core.lock_sync()?.set_lob_read_length(l);
         Ok(())
     }
 
@@ -323,7 +323,7 @@ impl Connection {
     ///
     /// Only `HdbError::Poison` can occur.
     pub fn get_lob_write_length(&self) -> HdbResult<usize> {
-        Ok(self.am_conn_core.sync_lock()?.get_lob_write_length())
+        Ok(self.am_conn_core.lock_sync()?.get_lob_write_length())
     }
     /// Configures the connection's lob write length for future calls.
     ///
@@ -331,7 +331,7 @@ impl Connection {
     ///
     /// Only `HdbError::Poison` can occur.
     pub fn set_lob_write_length(&self, l: usize) -> HdbResult<()> {
-        self.am_conn_core.sync_lock()?.set_lob_write_length(l);
+        self.am_conn_core.lock_sync()?.set_lob_write_length(l);
         Ok(())
     }
 
@@ -345,7 +345,7 @@ impl Connection {
     pub fn id(&self) -> HdbResult<u32> {
         Ok(self
             .am_conn_core
-            .sync_lock()?
+            .lock_sync()?
             .connect_options()
             .get_connection_id())
     }
@@ -357,25 +357,25 @@ impl Connection {
     ///
     /// Only `HdbError::Poison` can occur.
     pub fn server_usage(&self) -> HdbResult<ServerUsage> {
-        Ok(self.am_conn_core.sync_lock()?.server_usage())
+        Ok(self.am_conn_core.lock_sync()?.server_usage())
     }
 
     #[doc(hidden)]
     pub fn data_format_version_2(&self) -> HdbResult<u8> {
         Ok(self
             .am_conn_core
-            .sync_lock()?
+            .lock_sync()?
             .connect_options()
             .get_dataformat_version2())
     }
 
     #[doc(hidden)]
     pub fn dump_connect_options(&self) -> HdbResult<String> {
-        Ok(self.am_conn_core.sync_lock()?.dump_connect_options())
+        Ok(self.am_conn_core.lock_sync()?.dump_connect_options())
     }
     #[doc(hidden)]
     pub fn dump_client_info(&self) -> HdbResult<String> {
-        Ok(self.am_conn_core.sync_lock()?.dump_client_info())
+        Ok(self.am_conn_core.lock_sync()?.dump_client_info())
     }
 
     /// Returns the number of roundtrips to the database that
@@ -385,7 +385,7 @@ impl Connection {
     ///
     /// Only `HdbError::Poison` can occur.
     pub fn get_call_count(&self) -> HdbResult<i32> {
-        Ok(self.am_conn_core.sync_lock()?.last_seq_number())
+        Ok(self.am_conn_core.lock_sync()?.last_seq_number())
     }
 
     /// Sets client information into a session variable on the server.
@@ -404,7 +404,7 @@ impl Connection {
     ///
     /// Only `HdbError::Poison` can occur.
     pub fn set_application<S: AsRef<str>>(&self, application: S) -> HdbResult<()> {
-        self.am_conn_core.sync_lock()?.set_application(application);
+        self.am_conn_core.lock_sync()?.set_application(application);
         Ok(())
     }
 
@@ -425,7 +425,7 @@ impl Connection {
     /// Only `HdbError::Poison` can occur.
     pub fn set_application_user<S: AsRef<str>>(&self, appl_user: S) -> HdbResult<()> {
         self.am_conn_core
-            .sync_lock()?
+            .lock_sync()?
             .set_application_user(appl_user.as_ref());
         Ok(())
     }
@@ -447,7 +447,7 @@ impl Connection {
     /// Only `HdbError::Poison` can occur.
     pub fn set_application_version<S: AsRef<str>>(&self, version: S) -> HdbResult<()> {
         self.am_conn_core
-            .sync_lock()?
+            .lock_sync()?
             .set_application_version(version.as_ref());
         Ok(())
     }
@@ -469,7 +469,7 @@ impl Connection {
     /// Only `HdbError::Poison` can occur.
     pub fn set_application_source<S: AsRef<str>>(&self, source: S) -> HdbResult<()> {
         self.am_conn_core
-            .sync_lock()?
+            .lock_sync()?
             .set_application_source(source.as_ref());
         Ok(())
     }
@@ -507,7 +507,7 @@ impl Connection {
     pub fn get_database_name(&self) -> HdbResult<String> {
         Ok(self
             .am_conn_core
-            .sync_lock()?
+            .lock_sync()?
             .connect_options()
             .get_database_name())
     }
@@ -524,7 +524,7 @@ impl Connection {
     pub fn get_system_id(&self) -> HdbResult<String> {
         Ok(self
             .am_conn_core
-            .sync_lock()?
+            .lock_sync()?
             .connect_options()
             .get_system_id())
     }
@@ -546,7 +546,7 @@ impl Connection {
             }
         }
 
-        let conn_core = self.am_conn_core.sync_lock()?;
+        let conn_core = self.am_conn_core.lock_sync()?;
         let conn_opts = conn_core.connect_options();
         result.push((format!("{:?}", ConnOptId::OSUser), conn_opts.get_os_user()));
         result.push((
@@ -563,7 +563,7 @@ impl Connection {
     ///
     /// Only `HdbError::Poison` can occur.
     pub fn connect_string(&self) -> HdbResult<String> {
-        Ok(self.am_conn_core.sync_lock()?.connect_string())
+        Ok(self.am_conn_core.lock_sync()?.connect_string())
     }
 
     /// HANA Full version string.
@@ -577,7 +577,7 @@ impl Connection {
     pub fn get_full_version_string(&self) -> HdbResult<String> {
         Ok(self
             .am_conn_core
-            .sync_lock()?
+            .lock_sync()?
             .connect_options()
             .get_full_version_string())
     }
@@ -589,13 +589,13 @@ impl Connection {
         debug!(
             "connection[{:?}]::execute()",
             self.am_conn_core
-                .sync_lock()?
+                .lock_sync()?
                 .connect_options()
                 .get_connection_id()
         );
         let mut request = Request::new(MessageType::ExecuteDirect, HOLD_CURSORS_OVER_COMMIT);
         {
-            let conn_core = self.am_conn_core.sync_lock()?;
+            let conn_core = self.am_conn_core.lock_sync()?;
             let fetch_size = conn_core.get_fetch_size();
             request.push(Part::FetchSize(fetch_size));
             if let Some(command_info) = o_command_info {

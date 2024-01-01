@@ -120,7 +120,7 @@ impl ResultSet {
     /// `HdbError::Usage` if the resultset contains more than a single row, or is empty.
     pub async fn into_single_row(self) -> HdbResult<Row> {
         let mut state = self.state.lock_async().await;
-        state.single_row().await
+        state.single_row_async().await
     }
 
     /// Access to metadata.
@@ -191,7 +191,11 @@ impl ResultSet {
     ///
     /// Several variants of `HdbError` are possible.
     pub async fn next_row(&mut self) -> HdbResult<Option<Row>> {
-        self.state.lock_async().await.next_row(&self.metadata).await
+        self.state
+            .lock_async()
+            .await
+            .next_row_async(&self.metadata)
+            .await
     }
 
     /// Fetches all not yet transported result lines from the server.
@@ -209,7 +213,7 @@ impl ResultSet {
         self.state
             .lock_async()
             .await
-            .fetch_all(&self.metadata)
+            .fetch_all_async(&self.metadata)
             .await
     }
 

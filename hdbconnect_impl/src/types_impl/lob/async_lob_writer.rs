@@ -29,7 +29,7 @@ where
             )))
         }
     }
-    let lob_write_length = am_conn_core.async_lock().await.get_lob_write_length();
+    let lob_write_length = am_conn_core.lock_async().await.get_lob_write_length();
     let mut server_usage = ServerUsage::default();
     let mut read_done: bool = false;
     let mut buf = vec![0; lob_write_length].into_boxed_slice();
@@ -127,7 +127,7 @@ async fn write_a_lob_chunk<'a>(
     request.push(Part::WriteLobRequest(write_lob_request));
 
     let reply = am_conn_core
-        .async_lock()
+        .lock_async()
         .await
         .roundtrip_async(
             &request,

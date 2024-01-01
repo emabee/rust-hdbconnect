@@ -111,7 +111,7 @@ impl NCLob {
         writer: &mut W,
     ) -> HdbResult<()> {
         let lob_read_length: usize =
-            self.0.am_conn_core.async_lock().await.lob_read_length() as usize;
+            self.0.am_conn_core.lock_async().await.lob_read_length() as usize;
         let mut buf = vec![0_u8; lob_read_length].into_boxed_slice();
 
         loop {

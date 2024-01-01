@@ -146,7 +146,7 @@ impl Parts<'static> {
         am_conn_core: &AmConnCore,
         mut o_additional_server_usage: Option<&mut ServerUsage>,
     ) -> HdbResult<Vec<InternalReturnValue>> {
-        let mut conn_core = am_conn_core.sync_lock()?;
+        let mut conn_core = am_conn_core.lock_sync()?;
         let mut int_return_values = Vec::<InternalReturnValue>::new();
         let mut parts = self.into_iter();
         while let Some(part) = parts.next() {
@@ -208,7 +208,7 @@ impl Parts<'static> {
         am_conn_core: &AmConnCore,
         mut o_additional_server_usage: Option<&mut ServerUsage>,
     ) -> HdbResult<Vec<InternalReturnValue>> {
-        let mut conn_core = am_conn_core.async_lock().await;
+        let mut conn_core = am_conn_core.lock_async().await;
         let mut int_return_values = Vec::<InternalReturnValue>::new();
         let mut parts = self.into_iter();
         while let Some(part) = parts.next() {

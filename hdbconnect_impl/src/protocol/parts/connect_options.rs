@@ -1,10 +1,10 @@
 use crate::{
     conn::Compression,
-    hdb_error::HdbResult,
     protocol::parts::{
         option_part::{OptionId, OptionPart},
         option_value::OptionValue,
     },
+    HdbResult,
 };
 
 //const USE_COMPRESSION_REMOTE: u32 = 0x0000_0300; // LZ4Supported (100) & LZ4Enabled (200)

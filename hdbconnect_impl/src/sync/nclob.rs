@@ -108,7 +108,7 @@ impl NCLob {
     /// and writes them immediately into the writer,
     /// thus avoiding that all data are materialized within this `NCLob`.
     pub fn write_into(mut self, writer: &mut dyn std::io::Write) -> HdbResult<()> {
-        let lob_read_length: usize = self.0.am_conn_core.sync_lock()?.lob_read_length() as usize;
+        let lob_read_length: usize = self.0.am_conn_core.lock_sync()?.lob_read_length() as usize;
         let mut buf = vec![0_u8; lob_read_length].into_boxed_slice();
 
         loop {
