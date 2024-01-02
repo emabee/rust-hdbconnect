@@ -14,7 +14,7 @@ pub struct AmConnCore(AM<ConnectionCore>);
 impl AmConnCore {
     #[cfg(feature = "sync")]
     pub fn try_new_sync(conn_params: ConnectParams) -> HdbResult<Self> {
-        trace!("trying to connect to {}", conn_params);
+        trace!("trying to connect to {conn_params}");
         let start = Instant::now();
         let conn_core = ConnectionCore::try_new_sync(conn_params)?;
         {
@@ -29,10 +29,9 @@ impl AmConnCore {
         }
         Ok(Self(crate::base::new_am_sync(conn_core)))
     }
-
     #[cfg(feature = "async")]
     pub async fn try_new_async(conn_params: ConnectParams) -> HdbResult<Self> {
-        trace!("trying to connect to {}", conn_params);
+        trace!("trying to connect to {conn_params}");
         let start = Instant::now();
         let conn_core = ConnectionCore::try_new_async(conn_params).await?;
 
@@ -51,7 +50,6 @@ impl AmConnCore {
     pub fn lock_sync(&self) -> std::sync::LockResult<std::sync::MutexGuard<ConnectionCore>> {
         self.0.lock_sync()
     }
-
     #[cfg(feature = "async")]
     pub async fn lock_async(&self) -> tokio::sync::MutexGuard<ConnectionCore> {
         self.0.lock_async().await
@@ -61,7 +59,6 @@ impl AmConnCore {
     pub fn send_sync(&self, request: Request) -> HdbResult<Reply> {
         self.full_send_sync(request, None, None, &mut None)
     }
-
     #[cfg(feature = "async")]
     pub async fn send_async(&self, request: Request<'_>) -> HdbResult<Reply> {
         self.full_send_async(request, None, None, &mut None).await
@@ -103,7 +100,6 @@ impl AmConnCore {
             Err(e) => Err(e),
         }
     }
-
     #[cfg(feature = "async")]
     pub(crate) async fn full_send_async(
         &self,

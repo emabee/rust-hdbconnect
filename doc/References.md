@@ -1,63 +1,81 @@
-# Test
+# References and Lifetimes within `hdbconnect` and `hdbconnect_async`
 
 ```mermaid
 
     flowchart
 
-    subgraph All[Main objects in hdbconnect and how they reference each other]
-        direction TB
-
-        Public
-        Intern
-    end
-
-    subgraph Public
-        direction TB
-
         Connection
+        ConnectionCore>ConnectionCore]
+
+        PreparedStatement
+
         ResultSet
         ResultSetMetadata
+        RsState[RsState]
         Row
-        PreparedStatement
         Lob[B/C/NC-Lob]
-    end
+        RsCore>RsCore]
 
-    subgraph Intern
-        direction TB
-        RsState[RsState\nServerUsage\nRows]
-        PsCore>PsCore, Drop]
-        ConnectionCore>ConnectionCore, Drop]
-        RsCore>RsCore, Drop]
         LobHandle[B/C/NC-LobHandle]
-        ParameterDescriptors
-        ParameterRows
-    end
 
-    PsCore -- ArcMutex --> ConnectionCore
+            ParameterDescriptors
+            ParameterRows
+            PreparedStatementCore>PreparedStatementCore]
+
+    PreparedStatementCore -- ArcMutex --> ConnectionCore
     Connection -- ArcMutex --> ConnectionCore
     ConnectionCore -. produces .->  PreparedStatement
     ConnectionCore -. produces .->  ResultSet
     ResultSet -- ArcMutex --> RsState
     ResultSet -- Arc --> ResultSetMetadata
-    PreparedStatement -- ArcMutex --> PsCore
-    PreparedStatement -- optional ArcMutex --> ResultSetMetadata
+    PreparedStatement -- ArcMutex --> PreparedStatementCore
+    PreparedStatement -- optional Arc --> ResultSetMetadata
     PreparedStatement --> ParameterDescriptors
-    PreparedStatement --> ParameterRows
+    PreparedStatement -- batch--> ParameterRows
     Row -- Arc --> ResultSetMetadata
     RsState -- holds/loads --> Row
     RsState -- optional ArcMutex --> RsCore
     RsCore -- ArcMutex --> ConnectionCore
-    RsCore -- optional ArcMutex --> PsCore
+    RsCore -- optional ArcMutex --> PreparedStatementCore
     Row -- value-iterator --> Lob
     Lob -- holds --> LobHandle
     LobHandle -- ArcMutex --> ConnectionCore
     LobHandle -- optional ArcMutex --> RsCore
+
+classDef Public fill:#1af,stroke:#333,stroke-width:4px;
+class Connection,ResultSet,Row,ResultSetMetadata,PreparedStatement,ParameterDescriptors,Lob Public;
 ```
 
-Objects with Drop implementation (ConnectionCore, ResultSetCore, PreparedStatementCore)
-release the corresponding server-side ressource when they are dropped themselves.
+Legend:
 
-The hard ref chain from LobHandle to ConnCore ia needed for `read_slice`,
-which is supposed to work independently from the streaming-like content loading.
+```mermaid
+flowchart
 
-TODO: don't we then also need the RsCore, which is thrown away once the content was loaded completely?
+    Public
+    Drop>Object with corresponding Server-side object]
+
+    classDef Public fill:#1af,stroke:#333,stroke-width:4px;
+    class Public Public;
+```
+
+<br>
+
+## Sharing objects
+
+A `ResultSetMetadata` object e.g. can be used by a `ResultSet`, its `Row`s and a `PreparedStatement`.
+
+## Lifetimes
+
+The lifetimes of the public objects are controlled by the application.
+
+By using the depicted Core objects and the internal references to them,
+we ensure that each public object remains usable for its entire own lifetime,
+without forcing the application to keep other objects alive.
+
+The Core objects have a Drop implementation that releases the corresponding server-side ressource
+when they are dropped themselves.
+
+A `ResultSet` object e.g. will be able to fetch outstanding rows from the server
+even if the application already dropped the conection object,
+because it keeps the `RsCore` and the `ConnectionCore` objects alive until all data
+are loaded.
