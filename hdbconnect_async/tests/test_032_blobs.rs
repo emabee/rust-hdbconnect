@@ -52,7 +52,7 @@ async fn test_blobs(
     fingerprint: &[u8],
 ) -> HdbResult<()> {
     info!("create a 5MB BLOB in the database, and read it in various ways");
-    connection.set_lob_read_length(1_000_000).await?;
+    connection.set_lob_read_length(1_000_000).await;
 
     connection
         .multiple_statements_ignore_err(vec!["drop table TEST_BLOBS"])
@@ -94,14 +94,14 @@ async fn test_blobs(
     );
 
     // and read it back
-    let before = connection.get_call_count().await?;
+    let before = connection.statistics().await.call_count();
     let query = "select desc, bindata as BL1, bindata as BL2 , bindata_NN as BL3 from TEST_BLOBS";
     let resultset = connection.query(query).await?;
     let mydata: MyData = resultset.try_into().await?;
     info!(
         "reading 2x5MB BLOB with lob-read-length {} required {} roundtrips",
-        connection.lob_read_length().await?,
-        connection.get_call_count().await? - before
+        connection.lob_read_length().await,
+        connection.statistics().await.call_count() - before
     );
 
     // verify we get the same bytes back
@@ -120,21 +120,21 @@ async fn test_blobs(
     assert_eq!(fingerprint, fingerprint2.as_slice());
 
     // try again with small lob-read-length
-    connection.set_lob_read_length(10_000).await?;
-    let before = connection.get_call_count().await?;
+    connection.set_lob_read_length(10_000).await;
+    let before = connection.statistics().await.call_count();
     let resultset = connection.query(query).await?;
     let second: MyData = resultset.try_into().await?;
     info!(
         "reading 2x5MB BLOB with lob-read-length {} required {} roundtrips",
-        connection.lob_read_length().await?,
-        connection.get_call_count().await? - before
+        connection.lob_read_length().await,
+        connection.statistics().await.call_count() - before
     );
     assert_eq!(mydata, second);
 
     // stream a blob from the database into a sink
     info!("read big blob in streaming fashion");
 
-    connection.set_lob_read_length(500_000).await?;
+    connection.set_lob_read_length(500_000).await;
 
     let query = "select bindata as BL1, bindata as BL2, bindata_NN as BL3 from TEST_BLOBS";
     let mut row = connection.query(query).await?.into_single_row().await?;
@@ -179,7 +179,7 @@ async fn test_streaming(
 ) -> HdbResult<()> {
     info!("write and read big blob in streaming fashion");
 
-    connection.set_auto_commit(true).await?;
+    connection.set_auto_commit(true).await;
     connection.dml("delete from TEST_BLOBS").await?;
 
     debug!("write big blob in streaming fashion");
@@ -189,7 +189,7 @@ async fn test_streaming(
         .await?;
 
     // old style lob streaming: autocommit off before, explicit commit after:
-    connection.set_auto_commit(false).await?;
+    connection.set_auto_commit(false).await;
     let reader = std::sync::Arc::new(tokio::sync::Mutex::new(std::io::Cursor::new(
         random_bytes.clone(),
     )));
@@ -211,7 +211,7 @@ async fn test_streaming(
     );
 
     // new style lob streaming: with autocommit
-    connection.set_auto_commit(true).await?;
+    connection.set_auto_commit(true).await;
     let reader = std::sync::Arc::new(tokio::sync::Mutex::new(std::io::Cursor::new(
         random_bytes.clone(),
     )));
@@ -222,7 +222,7 @@ async fn test_streaming(
     .await?;
 
     debug!("read big blob in streaming fashion");
-    connection.set_lob_read_length(200_000).await?;
+    connection.set_lob_read_length(200_000).await;
 
     let blob = connection
         .query("select bindata_NN from TEST_BLOBS where desc = 'streaming2'")
@@ -240,6 +240,6 @@ async fn test_streaming(
     let fingerprint4 = hasher.finalize().to_vec();
     assert_eq!(fingerprint, fingerprint4.as_slice());
 
-    connection.set_auto_commit(true).await?;
+    connection.set_auto_commit(true).await;
     Ok(())
 }

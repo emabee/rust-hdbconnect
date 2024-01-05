@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.28.0] 2024-01-09
+
+### New capability
+
+`ConnectionConfiguration` can be used to finetune hdbconnect.
+
+`ConnectionStatistics` provides some statistics about the use of a concrete connection.
+
+### API changes
+
+The async variant uses tokio's mutex, which has no issue with poisoning.
+Many methods of the async variant thus do not need to wrap
+their return value into a Result. Those wrappings are now removed.
+
 ## [0.27.0] 2023-12-31
 
 ### New capability

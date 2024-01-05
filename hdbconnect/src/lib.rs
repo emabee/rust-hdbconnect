@@ -30,13 +30,32 @@
 #![deny(clippy::all)]
 #![deny(clippy::pedantic)]
 
+/// Provides some statistics about the use of a concrete connection.
+///
+/// A snapshot of the statistics can be obtained from [`Connection::statistics`].
+/// It is possible to reset the statistics using [`Connection::reset_statistics`].
+pub use hdbconnect_impl::ConnectionStatistics;
+
+/// Combines a couple of settings that influence the runtime behavior of a connection.
+///
+/// # Example
+///
+/// ```rust,no_run
+/// # use hdbconnect::{Connection, ConnectionConfiguration};
+/// # let db_url = "hdbsql://my_user:my_passwd@the_host:30815";
+/// let config = ConnectionConfiguration::default()
+///     .with_lob_read_length(1_000_000)
+///     .with_max_buffer_size(1_000_000);
+/// let connection = Connection::with_configuration(db_url, &config).unwrap();
+/// ````
+pub use hdbconnect_impl::ConnectionConfiguration;
+
 pub use hdbconnect_impl::{
     time, url, ConnectParams, ConnectParamsBuilder, DeserializationError, ExecutionResult,
     FieldMetadata, HdbError, HdbResult, HdbValue, IntoConnectParams, IntoConnectParamsBuilder,
     OutputParameters, ParameterBinding, ParameterDescriptor, ParameterDescriptors,
     ParameterDirection, ResultSetMetadata, Row, SerializationError, ServerCerts, ServerError,
-    ServerUsage, Severity, Tls, ToHana, TypeId, DEFAULT_FETCH_SIZE, DEFAULT_LOB_READ_LENGTH,
-    DEFAULT_LOB_WRITE_LENGTH,
+    ServerUsage, Severity, Tls, ToHana, TypeId,
 };
 
 pub use hdbconnect_impl::sync::{

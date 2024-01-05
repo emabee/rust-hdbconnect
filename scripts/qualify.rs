@@ -58,10 +58,13 @@ fn main() {
     run_command!("cargo +nightly test --doc --all-features --package hdbconnect_async");
 
     // Run tests in important variants
+    let start = std::time::Instant::now();
     run_command!("cargo test --package hdbconnect --release --all-features");
     run_command!("cargo test --package hdbconnect_async --release --all-features");
     run_command!("cargo test --package hdbconnect");
     run_command!("cargo test --package hdbconnect_async");
+
+    println!("Four test runs together took {:?}", std::time::Instant::now().duration_since(start));
 
     // check version consistency
     run_command!("cargo run --package hdbconnect --example version_numbers");

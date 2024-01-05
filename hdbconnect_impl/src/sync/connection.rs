@@ -1,5 +1,5 @@
 use crate::{
-    conn::AmConnCore,
+    conn::{AmConnCore, ConnectionConfiguration, ConnectionStatistics},
     protocol::{
         parts::{ClientContext, ClientContextId, CommandInfo, ConnOptId, OptionValue, ServerError},
         MessageType, Part, Request, ServerUsage, HOLD_CURSORS_OVER_COMMIT,
@@ -14,7 +14,7 @@ use crate::xa_impl::new_resource_manager_sync;
 use dist_tx::sync::rm::ResourceManager;
 
 /// A synchronous connection to the database.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Connection {
     am_conn_core: AmConnCore,
 }
@@ -33,8 +33,20 @@ impl Connection {
     ///
     /// Several variants of `HdbError` can occur.
     pub fn new<P: IntoConnectParams>(p: P) -> HdbResult<Self> {
+        Self::with_configuration(p, &ConnectionConfiguration::default())
+    }
+
+    /// Factory method for authenticated connections with given configuration.
+    ///
+    /// # Errors
+    ///
+    /// Several variants of `HdbError` can occur.
+    pub fn with_configuration<P: IntoConnectParams>(
+        p: P,
+        config: &ConnectionConfiguration,
+    ) -> HdbResult<Self> {
         Ok(Self {
-            am_conn_core: AmConnCore::try_new_sync(p.into_connect_params()?)?,
+            am_conn_core: AmConnCore::try_new_sync(p.into_connect_params()?, config)?,
         })
     }
 
@@ -218,11 +230,12 @@ impl Connection {
     /// Several variants of `HdbError` can occur.
     pub fn spawn(&self) -> HdbResult<Self> {
         let am_conn_core = self.am_conn_core.lock_sync()?;
-        let other = Self::new(am_conn_core.connect_params())?;
-        other.set_auto_commit(am_conn_core.is_auto_commit())?;
-        other.set_fetch_size(am_conn_core.get_fetch_size())?;
-        other.set_lob_read_length(am_conn_core.lob_read_length())?;
-        Ok(other)
+        Ok(Self {
+            am_conn_core: AmConnCore::try_new_sync(
+                am_conn_core.connect_params().clone(),
+                am_conn_core.configuration(),
+            )?,
+        })
     }
 
     /// Utility method to fire a couple of statements, ignoring errors and
@@ -265,13 +278,16 @@ impl Connection {
         Ok(self.am_conn_core.lock_sync()?.pop_warnings())
     }
 
-    /// Sets the connection's auto-commit behavior for future calls.
+    /// Sets the connection's auto-commit behavior.
     ///
     /// # Errors
     ///
     /// Only `HdbError::Poison` can occur.
     pub fn set_auto_commit(&self, ac: bool) -> HdbResult<()> {
-        self.am_conn_core.lock_sync()?.set_auto_commit(ac);
+        self.am_conn_core
+            .lock_sync()?
+            .configuration_mut()
+            .set_auto_commit(ac);
         Ok(())
     }
 
@@ -279,39 +295,76 @@ impl Connection {
     ///
     /// # Errors
     ///
-    /// Only `HdbError::POóison` can occur.
+    /// Only `HdbError::Poison` can occur.
     pub fn is_auto_commit(&self) -> HdbResult<bool> {
-        Ok(self.am_conn_core.lock_sync()?.is_auto_commit())
+        Ok(self
+            .am_conn_core
+            .lock_sync()?
+            .configuration()
+            .is_auto_commit())
     }
 
-    /// Configures the connection's fetch size for future calls.
+    /// Returns the connection's fetch size.
+    ///
+    /// The default value is [`ConnectionConfiguration::DEFAULT_FETCH_SIZE`].
+    ///
+    /// # Errors
+    ///
+    /// Only `HdbError::Poison` can occur.
+    pub fn fetch_size(&self) -> HdbResult<u32> {
+        Ok(self.am_conn_core.lock_sync()?.configuration().fetch_size())
+    }
+    /// Sets the connection's fetch size.
     ///
     /// # Errors
     ///
     /// Only `HdbError::Poison` can occur.
     pub fn set_fetch_size(&self, fetch_size: u32) -> HdbResult<()> {
-        self.am_conn_core.lock_sync()?.set_fetch_size(fetch_size);
+        self.am_conn_core
+            .lock_sync()?
+            .configuration_mut()
+            .set_fetch_size(fetch_size);
         Ok(())
     }
+
     /// Returns the connection's lob read length.
     ///
     /// # Errors
     ///
     /// Only `HdbError::Poison` can occur.
     pub fn lob_read_length(&self) -> HdbResult<u32> {
-        Ok(self.am_conn_core.lock_sync()?.lob_read_length())
+        Ok(self
+            .am_conn_core
+            .lock_sync()?
+            .configuration()
+            .lob_read_length())
     }
-    /// Configures the connection's lob read length for future calls.
+    /// Sets the connection's lob read length.
     ///
     /// # Errors
     ///
     /// Only `HdbError::Poison` can occur.
     pub fn set_lob_read_length(&self, l: u32) -> HdbResult<()> {
-        self.am_conn_core.lock_sync()?.set_lob_read_length(l);
+        self.am_conn_core
+            .lock_sync()?
+            .configuration_mut()
+            .set_lob_read_length(l);
         Ok(())
     }
 
-    /// Configures the connection's lob write length for future calls.
+    /// Returns the connection's lob write length.
+    ///
+    /// # Errors
+    ///
+    /// Only `HdbError::Poison` can occur.
+    pub fn lob_write_length(&self) -> HdbResult<u32> {
+        Ok(self
+            .am_conn_core
+            .lock_sync()?
+            .configuration()
+            .lob_write_length())
+    }
+    /// Sets the connection's lob write length.
     ///
     /// The intention of the parameter is to allow reducing the number of roundtrips
     /// to the database.
@@ -322,16 +375,26 @@ impl Connection {
     /// # Errors
     ///
     /// Only `HdbError::Poison` can occur.
-    pub fn get_lob_write_length(&self) -> HdbResult<usize> {
-        Ok(self.am_conn_core.lock_sync()?.get_lob_write_length())
+    pub fn set_lob_write_length(&self, l: u32) -> HdbResult<()> {
+        self.am_conn_core
+            .lock_sync()?
+            .configuration_mut()
+            .set_lob_write_length(l);
+        Ok(())
     }
-    /// Configures the connection's lob write length for future calls.
+
+    /// Sets the connection's maximum buffer size.
+    ///
+    /// See also [`ConnectionConfiguration::set_max_buffer_size`].
     ///
     /// # Errors
     ///
     /// Only `HdbError::Poison` can occur.
-    pub fn set_lob_write_length(&self, l: usize) -> HdbResult<()> {
-        self.am_conn_core.lock_sync()?.set_lob_write_length(l);
+    pub fn set_max_buffer_size(&mut self, max_buffer_size: usize) -> HdbResult<()> {
+        self.am_conn_core
+            .lock_sync()?
+            .configuration_mut()
+            .set_max_buffer_size(max_buffer_size);
         Ok(())
     }
 
@@ -378,14 +441,19 @@ impl Connection {
         Ok(self.am_conn_core.lock_sync()?.dump_client_info())
     }
 
-    /// Returns the number of roundtrips to the database that
-    /// have been done through this connection.
+    /// Returns some statistics snapshot about what was done with this connection so far.
     ///
     /// # Errors
     ///
     /// Only `HdbError::Poison` can occur.
-    pub fn get_call_count(&self) -> HdbResult<i32> {
-        Ok(self.am_conn_core.lock_sync()?.last_seq_number())
+    pub fn statistics(&self) -> HdbResult<ConnectionStatistics> {
+        Ok(self.am_conn_core.lock_sync()?.statistics().clone())
+    }
+
+    /// Reset the counters in the Connection's statistic object.
+    pub fn reset_statistics(&self) -> HdbResult<()> {
+        self.am_conn_core.lock_sync()?.reset_statistics();
+        Ok(())
     }
 
     /// Sets client information into a session variable on the server.
@@ -596,7 +664,7 @@ impl Connection {
         let mut request = Request::new(MessageType::ExecuteDirect, HOLD_CURSORS_OVER_COMMIT);
         {
             let conn_core = self.am_conn_core.lock_sync()?;
-            let fetch_size = conn_core.get_fetch_size();
+            let fetch_size = conn_core.configuration().fetch_size();
             request.push(Part::FetchSize(fetch_size));
             if let Some(command_info) = o_command_info {
                 request.push(Part::CommandInfo(command_info));

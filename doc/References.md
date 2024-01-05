@@ -51,14 +51,12 @@ Legend:
 ```mermaid
 flowchart
 
-    Public
+    Public[Part of public API]
     Drop>Object with corresponding Server-side object]
 
     classDef Public fill:#1af,stroke:#333,stroke-width:4px;
     class Public Public;
 ```
-
-<br>
 
 ## Sharing objects
 

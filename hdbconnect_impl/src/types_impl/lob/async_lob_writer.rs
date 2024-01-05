@@ -29,7 +29,11 @@ where
             )))
         }
     }
-    let lob_write_length = am_conn_core.lock_async().await.get_lob_write_length();
+    let lob_write_length = am_conn_core
+        .lock_async()
+        .await
+        .configuration()
+        .lob_write_length() as usize;
     let mut server_usage = ServerUsage::default();
     let mut read_done: bool = false;
     let mut buf = vec![0; lob_write_length].into_boxed_slice();

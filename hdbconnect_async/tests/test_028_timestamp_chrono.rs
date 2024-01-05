@@ -21,7 +21,7 @@ async fn test_028_timestamp() -> HdbResult<()> {
 // Test the conversion of timestamps
 // - during serialization (input to prepared_statements)
 // - during deserialization (result)
-async fn test_timestamp(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbResult<i32> {
+async fn test_timestamp(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbResult<u32> {
     info!("verify that NaiveDateTime values match the expected string representation");
 
     debug!("prepare the test data");
@@ -149,5 +149,5 @@ async fn test_timestamp(_log_handle: &mut LoggerHandle, connection: &Connection)
         assert_eq!(date, None);
     }
 
-    connection.get_call_count().await
+    Ok(connection.statistics().await.call_count())
 }

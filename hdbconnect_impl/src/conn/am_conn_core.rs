@@ -1,6 +1,6 @@
 use crate::{
     base::{RsState, AM},
-    conn::ConnectionCore,
+    conn::{ConnectionConfiguration, ConnectionCore},
     protocol::{
         parts::ResultSetMetadata,
         {Reply, Request},
@@ -13,10 +13,13 @@ use std::{sync::Arc, time::Instant};
 pub struct AmConnCore(AM<ConnectionCore>);
 impl AmConnCore {
     #[cfg(feature = "sync")]
-    pub fn try_new_sync(conn_params: ConnectParams) -> HdbResult<Self> {
+    pub fn try_new_sync(
+        conn_params: ConnectParams,
+        configuration: &ConnectionConfiguration,
+    ) -> HdbResult<Self> {
         trace!("trying to connect to {conn_params}");
         let start = Instant::now();
-        let conn_core = ConnectionCore::try_new_sync(conn_params)?;
+        let conn_core = ConnectionCore::try_new_sync(conn_params, configuration)?;
         {
             debug!(
                 "user \"{}\" successfully logged on ({} µs) to {:?} of {:?} (HANA version: {:?})",
@@ -30,10 +33,13 @@ impl AmConnCore {
         Ok(Self(crate::base::new_am_sync(conn_core)))
     }
     #[cfg(feature = "async")]
-    pub async fn try_new_async(conn_params: ConnectParams) -> HdbResult<Self> {
+    pub async fn try_new_async(
+        conn_params: ConnectParams,
+        configuration: &ConnectionConfiguration,
+    ) -> HdbResult<Self> {
         trace!("trying to connect to {conn_params}");
         let start = Instant::now();
-        let conn_core = ConnectionCore::try_new_async(conn_params).await?;
+        let conn_core = ConnectionCore::try_new_async(conn_params, configuration).await?;
 
         debug!(
             "user \"{}\" successfully logged on ({} µs) to {:?} of {:?} (HANA version: {:?})",

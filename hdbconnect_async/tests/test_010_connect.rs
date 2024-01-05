@@ -53,7 +53,7 @@ async fn connect_options(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
 
     debug!(
         "Connection options:\n{}",
-        connection.dump_connect_options().await?
+        connection.dump_connect_options().await
     );
     Ok(())
 }
@@ -90,10 +90,10 @@ async fn client_info(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
     check_session_context(true, &result);
 
     debug!("overwrite the client info, check that it appears in session context");
-    connection.set_application("TEST 1 - 2 - 3").await?;
-    connection.set_application_user("OTTO").await?;
-    connection.set_application_version("0.8.15").await?;
-    connection.set_application_source("dummy.rs").await?;
+    connection.set_application("TEST 1 - 2 - 3").await;
+    connection.set_application_user("OTTO").await;
+    connection.set_application_version("0.8.15").await;
+    connection.set_application_source("dummy.rs").await;
 
     let result: Vec<SessCtx> = prep_stmt
         .execute(&connection_id)

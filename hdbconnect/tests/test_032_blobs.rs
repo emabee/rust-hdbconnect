@@ -74,14 +74,14 @@ fn test_blobs(
     insert_stmt.execute_batch()?;
 
     // and read it back
-    let before = connection.get_call_count()?;
+    let before = connection.statistics()?.call_count();
     let query = "select desc, bindata as BL1, bindata as BL2 , bindata_NN as BL3 from TEST_BLOBS";
     let resultset = connection.query(query)?;
     let mydata: MyData = resultset.try_into()?;
     info!(
         "reading 2x5MB BLOB with lob-read-length {} required {} roundtrips",
         connection.lob_read_length()?,
-        connection.get_call_count()? - before
+        connection.statistics()?.call_count() - before
     );
 
     // verify we get the same bytes back
@@ -101,13 +101,13 @@ fn test_blobs(
 
     // try again with small lob-read-length
     connection.set_lob_read_length(10_000)?;
-    let before = connection.get_call_count()?;
+    let before = connection.statistics()?.call_count();
     let resultset = connection.query(query)?;
     let second: MyData = resultset.try_into()?;
     info!(
         "reading 2x5MB BLOB with lob-read-length {} required {} roundtrips",
         connection.lob_read_length()?,
-        connection.get_call_count()? - before
+        connection.statistics()?.call_count() - before
     );
     assert_eq!(mydata, second);
 

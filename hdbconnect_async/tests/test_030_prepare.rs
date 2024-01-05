@@ -67,8 +67,8 @@ async fn prepare_insert_statement(
         "prepare & execute on first connection with auto_commit off, \
          rollback, do it again and commit"
     );
-    connection.set_auto_commit(false).await?;
-    let count = connection.get_call_count().await?;
+    connection.set_auto_commit(false).await;
+    let count = connection.statistics().await.call_count();
     let mut insert_stmt = connection.prepare(insert_stmt_str).await?;
     insert_stmt.add_batch(&("conn1-rollback1", 45_i32))?;
     insert_stmt.add_batch(&("conn1-rollback2", 46_i32))?;
@@ -80,9 +80,9 @@ async fn prepare_insert_statement(
     debug!(
         "affected rows: {:?}, callcount: {}",
         affrows,
-        connection.get_call_count().await? - count
+        connection.statistics().await.call_count() - count
     );
-    assert_eq!(connection.get_call_count().await? - count, 2);
+    assert_eq!(connection.statistics().await.call_count() - count, 2);
     connection.rollback().await?;
 
     insert_stmt.add_batch(&("conn1-commit1", 45_i32))?;
@@ -128,13 +128,13 @@ async fn prepare_statement_use_parameter_row(
 
     debug!("prepare & execute with rust types");
     let mut insert_stmt = connection.prepare(insert_stmt_str).await?;
-    debug!("connection: {}", connection.server_usage().await?);
+    debug!("connection: {}", connection.server_usage().await);
     debug!("insert_stmt: {}", insert_stmt.server_usage());
 
     insert_stmt.add_batch(&("conn1-auto1", 45_i32))?;
     insert_stmt.add_batch(&("conn1-auto2", 46_i32))?;
     insert_stmt.execute_batch().await?;
-    debug!("connection: {}", connection.server_usage().await?);
+    debug!("connection: {}", connection.server_usage().await);
     debug!("insert_stmt: {}", insert_stmt.server_usage());
 
     let typed_result: i32 = connection
@@ -167,7 +167,7 @@ async fn prepare_statement_use_parameter_row(
 
     debug!("execute...");
     insert_stmt.execute_batch().await?;
-    debug!("connection: {}", connection.server_usage().await?);
+    debug!("connection: {}", connection.server_usage().await);
     debug!("insert_stmt: {}", insert_stmt.server_usage());
 
     connection.commit().await?;
@@ -192,7 +192,7 @@ async fn prepare_multiple_errors(
     let stmts = vec!["create table TEST_PREPARE (F1_S NVARCHAR(20) primary key, F2_I INT)"];
     connection.multiple_statements(stmts).await?;
 
-    connection.set_auto_commit(true).await?;
+    connection.set_auto_commit(true).await;
     let insert_stmt_str = "insert into TEST_PREPARE (F1_S, F2_I) values(?, ?)";
     let mut insert_stmt = connection.prepare(insert_stmt_str).await?;
 

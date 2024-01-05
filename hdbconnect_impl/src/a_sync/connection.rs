@@ -2,7 +2,7 @@ use super::{prepared_statement::PreparedStatement, resultset::ResultSet, HdbResp
 #[cfg(feature = "dist_tx")]
 use crate::xa_impl::new_resource_manager;
 use crate::{
-    conn::AmConnCore,
+    conn::{AmConnCore, ConnectionConfiguration, ConnectionStatistics},
     protocol::parts::{
         ClientContext, ClientContextId, CommandInfo, ConnOptId, OptionValue, ServerError,
     },
@@ -13,7 +13,7 @@ use crate::{
 use dist_tx::a_sync::rm::ResourceManager;
 
 /// An asynchronous connection to the database.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Connection {
     am_conn_core: AmConnCore,
 }
@@ -38,8 +38,20 @@ impl Connection {
     ///
     /// Several variants of `HdbError` can occur.
     pub async fn new<P: IntoConnectParams>(p: P) -> HdbResult<Self> {
+        Self::with_configuration(p, &ConnectionConfiguration::default()).await
+    }
+
+    /// Factory method for authenticated connections with given configuration.
+    ///
+    /// # Errors
+    ///
+    /// Several variants of `HdbError` can occur.
+    pub async fn with_configuration<P: IntoConnectParams>(
+        p: P,
+        config: &ConnectionConfiguration,
+    ) -> HdbResult<Self> {
         Ok(Self {
-            am_conn_core: AmConnCore::try_new_async(p.into_connect_params()?).await?,
+            am_conn_core: AmConnCore::try_new_async(p.into_connect_params()?, config).await?,
         })
     }
 
@@ -218,13 +230,13 @@ impl Connection {
     /// Several variants of `HdbError` can occur.
     pub async fn spawn(&self) -> HdbResult<Self> {
         let am_conn_core = self.am_conn_core.lock_async().await;
-        let other = Self::new(am_conn_core.connect_params()).await?;
-        other.set_auto_commit(am_conn_core.is_auto_commit()).await?;
-        other.set_fetch_size(am_conn_core.get_fetch_size()).await?;
-        other
-            .set_lob_read_length(am_conn_core.lob_read_length())
-            .await?;
-        Ok(other)
+        Ok(Self {
+            am_conn_core: AmConnCore::try_new_async(
+                am_conn_core.connect_params().clone(),
+                am_conn_core.configuration(),
+            )
+            .await?,
+        })
     }
 
     /// Utility method to fire a couple of statements, ignoring errors and
@@ -259,85 +271,98 @@ impl Connection {
 
     /// Returns warnings that were returned from the server since the last call
     /// to this method.
-    ///
-    /// # Errors
-    ///
-    /// Only `HdbError::Poison` can occur.
-    pub async fn pop_warnings(&self) -> HdbResult<Option<Vec<ServerError>>> {
-        Ok(self.am_conn_core.lock_async().await.pop_warnings())
+    pub async fn pop_warnings(&self) -> Option<Vec<ServerError>> {
+        self.am_conn_core.lock_async().await.pop_warnings()
     }
 
-    /// Sets the connection's auto-commit behavior for future calls.
-    ///
-    /// # Errors
-    ///
-    /// Only `HdbError::Poison` can occur.
-    pub async fn set_auto_commit(&self, ac: bool) -> HdbResult<()> {
-        self.am_conn_core.lock_async().await.set_auto_commit(ac);
-        Ok(())
-    }
-
-    /// Returns the connection's auto-commit behavior.
-    ///
-    /// # Errors
-    ///
-    /// Only `HdbError::POóison` can occur.
-    pub async fn is_auto_commit(&self) -> HdbResult<bool> {
-        Ok(self.am_conn_core.lock_async().await.is_auto_commit())
-    }
-
-    /// Configures the connection's fetch size for future calls.
-    ///
-    /// # Errors
-    ///
-    /// Only `HdbError::Poison` can occur.
-    pub async fn set_fetch_size(&self, fetch_size: u32) -> HdbResult<()> {
+    /// Sets the connection's auto-commit behavior.
+    pub async fn set_auto_commit(&self, ac: bool) {
         self.am_conn_core
             .lock_async()
             .await
-            .set_fetch_size(fetch_size);
-        Ok(())
-    }
-    /// Returns the connection's lob read length.
-    ///
-    /// # Errors
-    ///
-    /// Only `HdbError::Poison` can occur.
-    pub async fn lob_read_length(&self) -> HdbResult<u32> {
-        Ok(self.am_conn_core.lock_async().await.lob_read_length())
-    }
-    /// Configures the connection's lob read length for future calls.
-    ///
-    /// # Errors
-    ///
-    /// Only `HdbError::Poison` can occur.
-    pub async fn set_lob_read_length(&self, l: u32) -> HdbResult<()> {
-        self.am_conn_core.lock_async().await.set_lob_read_length(l);
-        Ok(())
+            .configuration_mut()
+            .set_auto_commit(ac);
     }
 
-    /// Configures the connection's lob write length for future calls.
+    /// Returns the connection's auto-commit behavior.
+    pub async fn is_auto_commit(&self) -> bool {
+        self.am_conn_core
+            .lock_async()
+            .await
+            .configuration()
+            .is_auto_commit()
+    }
+
+    /// Returns the connection's fetch size.
+    pub async fn fetch_size(&self) -> u32 {
+        self.am_conn_core
+            .lock_async()
+            .await
+            .configuration()
+            .fetch_size()
+    }
+    /// Configures the connection's fetch size.
+    pub async fn set_fetch_size(&self, fetch_size: u32) {
+        self.am_conn_core
+            .lock_async()
+            .await
+            .configuration_mut()
+            .set_fetch_size(fetch_size);
+    }
+
+    /// Returns the connection's lob read length.
+    pub async fn lob_read_length(&self) -> u32 {
+        self.am_conn_core
+            .lock_async()
+            .await
+            .configuration()
+            .lob_read_length()
+    }
+    /// Configures the connection's lob read length.
+    ///
+    /// # Errors
+    ///
+    /// Only `HdbError::Poison` can occur.
+    pub async fn set_lob_read_length(&self, l: u32) {
+        self.am_conn_core
+            .lock_async()
+            .await
+            .configuration_mut()
+            .set_lob_read_length(l);
+    }
+
+    /// Returns the connection's lob write length.
+    pub async fn lob_write_length(&self) -> u32 {
+        self.am_conn_core
+            .lock_async()
+            .await
+            .configuration()
+            .lob_write_length()
+    }
+    /// Sets the connection's lob write length.
     ///
     /// The intention of the parameter is to allow reducing the number of roundtrips
     /// to the database.
     /// Values smaller than rust's buffer size (8k) will have little effect, since
     /// each read() call to the Read impl in a `HdbValue::LOBSTREAM` will cause at most one
     /// write roundtrip to the database.
-    ///
-    /// # Errors
-    ///
-    /// Only `HdbError::Poison` can occur.
-    pub async fn get_lob_write_length(&self) -> HdbResult<usize> {
-        Ok(self.am_conn_core.lock_async().await.get_lob_write_length())
+    pub async fn set_lob_write_length(&self, l: u32) {
+        self.am_conn_core
+            .lock_async()
+            .await
+            .configuration_mut()
+            .set_lob_write_length(l);
     }
-    /// Configures the connection's lob write length for future calls.
+
+    /// Sets the connection's maximum buffer size.
     ///
-    /// # Errors
-    ///
-    /// Only `HdbError::Poison` can occur.
-    pub async fn set_lob_write_length(&self, l: usize) -> HdbResult<()> {
-        self.am_conn_core.lock_async().await.set_lob_write_length(l);
-        Ok(())
+    /// See also [`ConnectionConfiguration::set_max_buffer_size`].
+    pub async fn set_max_buffer_size(&mut self, max_buffer_size: usize) {
+        self.am_conn_core
+            .lock_async()
+            .await
+            .configuration_mut()
+            .set_max_buffer_size(max_buffer_size);
     }
 
     /// Returns the ID of the connection.
@@ -353,12 +378,8 @@ impl Connection {
 
     /// Provides information about the the server-side resource consumption that
     /// is related to this Connection object.
-    ///
-    /// # Errors
-    ///
-    /// Only `HdbError::Poison` can occur.
-    pub async fn server_usage(&self) -> HdbResult<ServerUsage> {
-        Ok(self.am_conn_core.lock_async().await.server_usage())
+    pub async fn server_usage(&self) -> ServerUsage {
+        self.am_conn_core.lock_async().await.server_usage()
     }
 
     #[doc(hidden)]
@@ -371,22 +392,22 @@ impl Connection {
     }
 
     #[doc(hidden)]
-    pub async fn dump_connect_options(&self) -> HdbResult<String> {
-        Ok(self.am_conn_core.lock_async().await.dump_connect_options())
+    pub async fn dump_connect_options(&self) -> String {
+        self.am_conn_core.lock_async().await.dump_connect_options()
     }
     #[doc(hidden)]
-    pub async fn dump_client_info(&self) -> HdbResult<String> {
-        Ok(self.am_conn_core.lock_async().await.dump_client_info())
+    pub async fn dump_client_info(&self) -> String {
+        self.am_conn_core.lock_async().await.dump_client_info()
     }
 
-    /// Returns the number of roundtrips to the database that
-    /// have been done through this connection.
-    ///
-    /// # Errors
-    ///
-    /// Only `HdbError::Poison` can occur.
-    pub async fn get_call_count(&self) -> HdbResult<i32> {
-        Ok(self.am_conn_core.lock_async().await.last_seq_number())
+    /// Returns some statistics snapshot about what was done with this connection so far.
+    pub async fn statistics(&self) -> ConnectionStatistics {
+        self.am_conn_core.lock_async().await.statistics().clone()
+    }
+
+    /// Reset the counters in the Connection's statistic object.
+    pub async fn reset_statistics(&self) {
+        self.am_conn_core.lock_async().await.reset_statistics();
     }
 
     /// Sets client information into a session variable on the server.
@@ -397,19 +418,14 @@ impl Connection {
     /// # tokio_test::block_on(async {
     /// # use hdbconnect_async::{Connection,HdbResult};
     /// # let mut connection = Connection::new("hdbsql://my_user:my_passwd@the_host:2222").await.unwrap();
-    /// connection.set_application("MyApp, built in rust").await.unwrap();
+    /// connection.set_application("MyApp, built in rust").await;
     /// # })
     /// ```
-    ///
-    /// # Errors
-    ///
-    /// Only `HdbError::Poison` can occur.
-    pub async fn set_application<S: AsRef<str>>(&self, application: S) -> HdbResult<()> {
+    pub async fn set_application<S: AsRef<str>>(&self, application: S) {
         self.am_conn_core
             .lock_async()
             .await
             .set_application(application);
-        Ok(())
     }
 
     /// Sets client information into a session variable on the server.
@@ -420,19 +436,14 @@ impl Connection {
     /// # tokio_test::block_on(async {
     /// # use hdbconnect_async::{Connection,HdbResult};
     /// # let mut connection = Connection::new("hdbsql://my_user:my_passwd@the_host:2222").await.unwrap();
-    /// connection.set_application_user("K2209657").await.unwrap();
+    /// connection.set_application_user("K2209657").await;
     /// # })
     /// ```
-    ///
-    /// # Errors
-    ///
-    /// Only `HdbError::Poison` can occur.
-    pub async fn set_application_user<S: AsRef<str>>(&self, appl_user: S) -> HdbResult<()> {
+    pub async fn set_application_user<S: AsRef<str>>(&self, appl_user: S) {
         self.am_conn_core
             .lock_async()
             .await
             .set_application_user(appl_user.as_ref());
-        Ok(())
     }
 
     /// Sets client information into a session variable on the server.
@@ -446,16 +457,11 @@ impl Connection {
     /// connection.set_application_version("5.3.23").await.unwrap();
     /// # })
     /// ```
-    ///
-    /// # Errors
-    ///
-    /// Only `HdbError::Poison` can occur.
-    pub async fn set_application_version<S: AsRef<str>>(&self, version: S) -> HdbResult<()> {
+    pub async fn set_application_version<S: AsRef<str>>(&self, version: S) {
         self.am_conn_core
             .lock_async()
             .await
             .set_application_version(version.as_ref());
-        Ok(())
     }
 
     /// Sets client information into a session variable on the server.
@@ -469,16 +475,11 @@ impl Connection {
     /// connection.set_application_source("update_customer.rs").await.unwrap();
     /// # })
     /// ```
-    ///
-    /// # Errors
-    ///
-    /// Only `HdbError::Poison` can occur.
-    pub async fn set_application_source<S: AsRef<str>>(&self, source: S) -> HdbResult<()> {
+    pub async fn set_application_source<S: AsRef<str>>(&self, source: S) {
         self.am_conn_core
             .lock_async()
             .await
             .set_application_source(source.as_ref());
-        Ok(())
     }
 
     /// Returns an implementation of `dist_tx_async::rm::ResourceManager` that is
@@ -588,7 +589,7 @@ impl Connection {
         let mut request = Request::new(MessageType::ExecuteDirect, HOLD_CURSORS_OVER_COMMIT);
         {
             let conn_core = self.am_conn_core.lock_async().await;
-            let fetch_size = conn_core.get_fetch_size();
+            let fetch_size = conn_core.configuration().fetch_size();
             request.push(Part::FetchSize(fetch_size));
             if let Some(command_info) = o_command_info {
                 request.push(Part::CommandInfo(command_info));

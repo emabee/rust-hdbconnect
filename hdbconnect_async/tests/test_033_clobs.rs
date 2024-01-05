@@ -76,7 +76,7 @@ async fn test_clobs(
 ) -> HdbResult<()> {
     info!("create a big CLOB in the database, and read it in various ways");
     debug!("setup...");
-    connection.set_lob_read_length(1_000_000).await?;
+    connection.set_lob_read_length(1_000_000).await;
 
     #[derive(Serialize, Deserialize, Debug, PartialEq)]
     struct MyData {
@@ -106,7 +106,7 @@ async fn test_clobs(
     );
 
     debug!("and read it back");
-    let before = connection.get_call_count().await?;
+    let before = connection.statistics().await.call_count();
     let query = "select desc, chardata as CL1, chardata as CL2 from TEST_CLOBS";
     let resultset = connection.query(query).await?;
     debug!("and convert it into a rust struct");
@@ -114,8 +114,8 @@ async fn test_clobs(
     let mydata: MyData = resultset.try_into().await?;
     debug!(
         "reading two big CLOB with lob-read-length {} required {} roundtrips",
-        connection.lob_read_length().await?,
-        connection.get_call_count().await? - before
+        connection.lob_read_length().await,
+        connection.statistics().await.call_count() - before
     );
 
     // verify we get in both cases the same blabla back
@@ -132,21 +132,21 @@ async fn test_clobs(
     assert_eq!(fingerprint, fingerprint3.as_slice());
 
     // try again with smaller lob-read-length
-    connection.set_lob_read_length(10_000).await?;
-    let before = connection.get_call_count().await?;
+    connection.set_lob_read_length(10_000).await;
+    let before = connection.statistics().await.call_count();
     let resultset = connection.query(query).await?;
     let second: MyData = resultset.try_into().await?;
     debug!(
         "reading two big CLOB with lob-read-length {} required {} roundtrips",
-        connection.lob_read_length().await?,
-        connection.get_call_count().await? - before
+        connection.lob_read_length().await,
+        connection.statistics().await.call_count() - before
     );
     assert_eq!(mydata, second);
 
     // stream a clob from the database into a sink
     debug!("read big clob in streaming fashion");
 
-    connection.set_lob_read_length(200_000).await?;
+    connection.set_lob_read_length(200_000).await;
 
     let query = "select desc, chardata as CL1, chardata as CL2 from TEST_CLOBS";
     let mut row = connection.query(query).await?.into_single_row().await?;
@@ -185,11 +185,11 @@ async fn test_streaming(
 ) -> HdbResult<()> {
     info!("write and read big clob in streaming fashion");
 
-    connection.set_auto_commit(true).await?;
+    connection.set_auto_commit(true).await;
     connection.dml("delete from TEST_CLOBS").await?;
 
     debug!("write big clob in streaming fashion");
-    connection.set_auto_commit(false).await?;
+    connection.set_auto_commit(false).await;
 
     let mut stmt = connection
         .prepare("insert into TEST_CLOBS values(?, ?)")
@@ -206,7 +206,7 @@ async fn test_streaming(
     connection.commit().await?;
 
     debug!("read big clob in streaming fashion");
-    connection.set_lob_read_length(200_000).await?;
+    connection.set_lob_read_length(200_000).await;
 
     let clob = connection
         .query("select chardata from TEST_CLOBS")
@@ -224,7 +224,7 @@ async fn test_streaming(
     let fingerprint4 = hasher.finalize().to_vec();
     assert_eq!(fingerprint, fingerprint4.as_slice());
 
-    connection.set_auto_commit(true).await?;
+    connection.set_auto_commit(true).await;
     Ok(())
 }
 

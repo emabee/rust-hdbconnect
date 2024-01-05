@@ -173,7 +173,7 @@ async fn verify_row_ordering(
 
     for fetch_size in [10, 100, 1000, 2000].iter() {
         debug!("verify_row_ordering with fetch_size {}", *fetch_size);
-        connection.set_fetch_size(*fetch_size).await.unwrap();
+        connection.set_fetch_size(*fetch_size).await;
 
         debug!("pass 1: query");
         for (index, row) in connection

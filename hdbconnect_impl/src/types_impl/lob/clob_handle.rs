@@ -121,7 +121,10 @@ impl CLobHandle {
         }
 
         let read_length = std::cmp::min(
-            self.am_conn_core.lock_sync()?.lob_read_length(),
+            self.am_conn_core
+                .lock_sync()?
+                .configuration()
+                .lob_read_length(),
             (self.total_byte_length - self.acc_byte_length as u64) as u32,
         );
 
@@ -163,7 +166,11 @@ impl CLobHandle {
         }
 
         let read_length = std::cmp::min(
-            self.am_conn_core.lock_async().await.lob_read_length(),
+            self.am_conn_core
+                .lock_async()
+                .await
+                .configuration()
+                .lob_read_length(),
             (self.total_byte_length - self.acc_byte_length as u64) as u32,
         );
 

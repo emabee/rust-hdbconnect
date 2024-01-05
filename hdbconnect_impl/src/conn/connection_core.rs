@@ -1,16 +1,15 @@
-use crate::base::RsState;
-
 use crate::{
+    base::RsState,
     conn::{
         authentication, initial_request, AmConnCore, AuthenticationResult, ConnectParams,
-        SessionState, TcpClient,
+        ConnectionConfiguration, ConnectionStatistics, SessionState, TcpClient,
     },
     protocol::{
         parts::{
             ClientInfo, ConnectOptions, DbConnectInfo, ParameterDescriptors, ResultSetMetadata,
             ServerError, StatementContext, Topology, TransactionFlags,
         },
-        MessageType, Part, Reply, ReplyType, Request, ServerUsage, MIN_BUFFER_SIZE,
+        MessageType, Part, Reply, ReplyType, Request, ServerUsage,
     },
     HdbError, HdbResult,
 };
@@ -23,27 +22,27 @@ pub struct ConnectionCore {
     session_id: i64,
     client_info: ClientInfo,
     client_info_touched: bool,
-    seq_number: i32,
-    auto_commit: bool,
+    statistics: ConnectionStatistics,
     server_usage: ServerUsage,
-    fetch_size: u32,
-    lob_read_length: u32,
-    lob_write_length: usize,
+    configuration: ConnectionConfiguration,
     session_state: SessionState,
     statement_sequence: Option<i64>, // statement sequence within the transaction
     connect_options: ConnectOptions,
     topology: Option<Topology>,
-    pub warnings: Vec<ServerError>,
+    pub(crate) warnings: Vec<ServerError>,
     tcp_client: TcpClient,
     io_buffer: Cursor<Vec<u8>>,
 }
 
 impl<'a> ConnectionCore {
     #[cfg(feature = "sync")]
-    pub fn try_new_sync(params: ConnectParams) -> HdbResult<Self> {
+    pub(crate) fn try_new_sync(
+        params: ConnectParams,
+        configuration: &ConnectionConfiguration,
+    ) -> HdbResult<Self> {
         let o_dbname = params.dbname().map(ToString::to_string);
         let network_group = params.network_group().unwrap_or_default().to_string();
-        let mut conn_core = ConnectionCore::try_new_initialized_sync(params)?;
+        let mut conn_core = ConnectionCore::try_new_initialized_sync(params, configuration)?;
         if let Some(dbname) = o_dbname {
             // since a dbname is specified, we ask explicitly for a redirect
             trace!("Redirect to {dbname} initiated by client");
@@ -65,7 +64,10 @@ impl<'a> ConnectionCore {
                             .connect_params()
                             .redirect(db_connect_info.host()?, db_connect_info.port()?);
                         debug!("Redirected (1) to {}", redirect_params);
-                        conn_core = ConnectionCore::try_new_initialized_sync(redirect_params)?;
+                        conn_core = ConnectionCore::try_new_initialized_sync(
+                            redirect_params,
+                            configuration,
+                        )?;
                     }
                 }
                 o_part => {
@@ -84,17 +86,22 @@ impl<'a> ConnectionCore {
                         .connect_params()
                         .redirect(db_connect_info.host()?, db_connect_info.port()?);
                     debug!("Redirected (2) to {}", redirect_params);
-                    conn_core = ConnectionCore::try_new_initialized_sync(redirect_params)?;
+                    conn_core =
+                        ConnectionCore::try_new_initialized_sync(redirect_params, configuration)?;
                 }
             }
         }
     }
 
     #[cfg(feature = "async")]
-    pub async fn try_new_async(params: ConnectParams) -> HdbResult<Self> {
+    pub(crate) async fn try_new_async(
+        params: ConnectParams,
+        configuration: &ConnectionConfiguration,
+    ) -> HdbResult<Self> {
         let o_dbname = params.dbname().map(ToString::to_string);
         let network_group = params.network_group().unwrap_or_default().to_string();
-        let mut conn_core = ConnectionCore::try_new_initialized_async(params).await?;
+        let mut conn_core =
+            ConnectionCore::try_new_initialized_async(params, configuration).await?;
         if let Some(dbname) = o_dbname {
             // since a dbname is specified, we ask explicitly for a redirect
             trace!("Redirect to {dbname} initiated by client");
@@ -118,8 +125,11 @@ impl<'a> ConnectionCore {
                             .connect_params()
                             .redirect(db_connect_info.host()?, db_connect_info.port()?);
                         debug!("Redirected (1) to {}", redirect_params);
-                        conn_core =
-                            ConnectionCore::try_new_initialized_async(redirect_params).await?;
+                        conn_core = ConnectionCore::try_new_initialized_async(
+                            redirect_params,
+                            configuration,
+                        )
+                        .await?;
                     }
                 }
                 o_part => {
@@ -138,14 +148,19 @@ impl<'a> ConnectionCore {
                         .connect_params()
                         .redirect(db_connect_info.host()?, db_connect_info.port()?);
                     debug!("Redirected (2) to {}", redirect_params);
-                    conn_core = ConnectionCore::try_new_initialized_async(redirect_params).await?;
+                    conn_core =
+                        ConnectionCore::try_new_initialized_async(redirect_params, configuration)
+                            .await?;
                 }
             }
         }
     }
 
     #[cfg(feature = "sync")]
-    fn try_new_initialized_sync(params: ConnectParams) -> HdbResult<Self> {
+    fn try_new_initialized_sync(
+        params: ConnectParams,
+        configuration: &ConnectionConfiguration,
+    ) -> HdbResult<Self> {
         let connect_options =
             ConnectOptions::new(params.clientlocale(), &get_os_user(), params.compression());
         let mut tcp_client = TcpClient::try_new_sync(params)?;
@@ -153,12 +168,12 @@ impl<'a> ConnectionCore {
         Ok(Self {
             authenticated: false,
             session_id: 0,
-            seq_number: 0,
-            auto_commit: true,
+            statistics: ConnectionStatistics::new(),
             server_usage: ServerUsage::default(),
-            fetch_size: crate::DEFAULT_FETCH_SIZE,
-            lob_read_length: crate::DEFAULT_LOB_READ_LENGTH,
-            lob_write_length: crate::DEFAULT_LOB_WRITE_LENGTH,
+            io_buffer: Cursor::new(Vec::<u8>::with_capacity(
+                ConnectionConfiguration::MIN_BUFFER_SIZE,
+            )),
+            configuration: configuration.clone(),
             client_info: ClientInfo::default(),
             client_info_touched: true,
             session_state: SessionState::default(),
@@ -167,12 +182,14 @@ impl<'a> ConnectionCore {
             topology: None,
             warnings: Vec::<ServerError>::new(),
             tcp_client,
-            io_buffer: Cursor::new(Vec::<u8>::with_capacity(MIN_BUFFER_SIZE)),
         })
     }
 
     #[cfg(feature = "async")]
-    async fn try_new_initialized_async(params: ConnectParams) -> HdbResult<Self> {
+    async fn try_new_initialized_async(
+        params: ConnectParams,
+        configuration: &ConnectionConfiguration,
+    ) -> HdbResult<Self> {
         let connect_options =
             ConnectOptions::new(params.clientlocale(), &get_os_user(), params.compression());
         let mut tcp_client = TcpClient::try_new_async(params).await?;
@@ -180,12 +197,12 @@ impl<'a> ConnectionCore {
         Ok(Self {
             authenticated: false,
             session_id: 0,
-            seq_number: 0,
-            auto_commit: true,
+            statistics: ConnectionStatistics::new(),
             server_usage: ServerUsage::default(),
-            fetch_size: crate::DEFAULT_FETCH_SIZE,
-            lob_read_length: crate::DEFAULT_LOB_READ_LENGTH,
-            lob_write_length: crate::DEFAULT_LOB_WRITE_LENGTH,
+            io_buffer: Cursor::new(Vec::<u8>::with_capacity(
+                ConnectionConfiguration::MIN_BUFFER_SIZE,
+            )),
+            configuration: configuration.clone(),
             client_info: ClientInfo::default(),
             client_info_touched: true,
             session_state: SessionState::default(),
@@ -194,12 +211,11 @@ impl<'a> ConnectionCore {
             topology: None,
             warnings: Vec::<ServerError>::new(),
             tcp_client,
-            io_buffer: Cursor::new(Vec::<u8>::with_capacity(MIN_BUFFER_SIZE)),
         })
     }
 
     #[cfg(feature = "sync")]
-    pub fn reconnect_sync(&mut self) -> HdbResult<()> {
+    pub(crate) fn reconnect_sync(&mut self) -> HdbResult<()> {
         warn!("Trying to reconnect");
         let mut conn_params = self.tcp_client.connect_params().clone();
         loop {
@@ -228,7 +244,7 @@ impl<'a> ConnectionCore {
     }
 
     #[cfg(feature = "async")]
-    pub async fn reconnect_async(&mut self) -> HdbResult<()> {
+    pub(crate) async fn reconnect_async(&mut self) -> HdbResult<()> {
         debug!("Trying to reconnect");
         let mut conn_params = self.tcp_client.connect_params().clone();
         loop {
@@ -256,7 +272,7 @@ impl<'a> ConnectionCore {
         }
     }
 
-    pub fn connect_params(&self) -> &ConnectParams {
+    pub(crate) fn connect_params(&self) -> &ConnectParams {
         match self.tcp_client {
             #[cfg(feature = "sync")]
             TcpClient::SyncPlain(ref cl) => cl.connect_params(),
@@ -271,40 +287,40 @@ impl<'a> ConnectionCore {
         }
     }
 
-    pub fn connect_string(&self) -> String {
+    pub(crate) fn connect_string(&self) -> String {
         format!("{}", self.connect_params())
     }
 
-    pub fn set_application<S: AsRef<str>>(&mut self, application: S) {
+    pub(crate) fn set_application<S: AsRef<str>>(&mut self, application: S) {
         self.client_info.set_application(application);
         self.client_info_touched = true;
     }
 
-    pub fn set_application_version(&mut self, version: &str) {
+    pub(crate) fn set_application_version(&mut self, version: &str) {
         self.client_info.set_application_version(version);
         self.client_info_touched = true;
     }
 
-    pub fn set_application_source(&mut self, source: &str) {
+    pub(crate) fn set_application_source(&mut self, source: &str) {
         self.client_info.set_application_source(source);
         self.client_info_touched = true;
     }
 
-    pub fn set_application_user(&mut self, application_user: &str) {
+    pub(crate) fn set_application_user(&mut self, application_user: &str) {
         self.client_info.set_application_user(application_user);
         self.client_info_touched = true;
     }
 
-    pub fn is_client_info_touched(&self) -> bool {
+    pub(crate) fn is_client_info_touched(&self) -> bool {
         self.client_info_touched
     }
-    pub fn get_client_info_for_sending(&mut self) -> ClientInfo {
+    pub(crate) fn get_client_info_for_sending(&mut self) -> ClientInfo {
         debug!("cloning client info for sending");
         self.client_info_touched = false;
         self.client_info.clone()
     }
 
-    pub fn evaluate_statement_context(&mut self, stmt_ctx: &StatementContext) {
+    pub(crate) fn evaluate_statement_context(&mut self, stmt_ctx: &StatementContext) {
         trace!(
             "Received StatementContext with sequence_info = {:?}",
             stmt_ctx.statement_sequence_info()
@@ -322,43 +338,19 @@ impl<'a> ConnectionCore {
         // StatementContextId::ClientReconnectionWaitTimeout => 6,
     }
 
-    pub fn set_auto_commit(&mut self, ac: bool) {
-        self.auto_commit = ac;
-    }
-
-    pub fn is_auto_commit(&self) -> bool {
-        self.auto_commit
-    }
-
-    pub fn server_usage(&self) -> ServerUsage {
+    pub(crate) fn server_usage(&self) -> ServerUsage {
         self.server_usage
     }
 
-    pub fn get_fetch_size(&self) -> u32 {
-        self.fetch_size
+    pub(crate) fn configuration(&self) -> &ConnectionConfiguration {
+        &self.configuration
     }
 
-    pub fn set_fetch_size(&mut self, fetch_size: u32) {
-        self.fetch_size = fetch_size;
+    pub(crate) fn configuration_mut(&mut self) -> &mut ConnectionConfiguration {
+        &mut self.configuration
     }
 
-    pub fn lob_read_length(&self) -> u32 {
-        self.lob_read_length
-    }
-
-    pub fn set_lob_read_length(&mut self, lob_read_length: u32) {
-        self.lob_read_length = lob_read_length;
-    }
-
-    pub fn get_lob_write_length(&self) -> usize {
-        self.lob_write_length
-    }
-
-    pub fn set_lob_write_length(&mut self, lob_write_length: usize) {
-        self.lob_write_length = lob_write_length;
-    }
-
-    pub fn set_session_id(&mut self, session_id: i64) {
+    pub(crate) fn set_session_id(&mut self, session_id: i64) {
         if session_id != self.session_id {
             debug!(
                 "ConnectionCore: setting session_id from {} to {}",
@@ -368,23 +360,23 @@ impl<'a> ConnectionCore {
         }
     }
 
-    pub fn set_topology(&mut self, topology: Topology) {
+    pub(crate) fn set_topology(&mut self, topology: Topology) {
         self.topology = Some(topology);
     }
 
-    pub fn dump_client_info(&self) -> String {
+    pub(crate) fn dump_client_info(&self) -> String {
         self.client_info.to_string()
     }
 
-    pub fn dump_connect_options(&self) -> String {
+    pub(crate) fn dump_connect_options(&self) -> String {
         format!("{:?}", self.connect_options)
     }
 
-    pub fn set_authenticated(&mut self) {
+    pub(crate) fn set_authenticated(&mut self) {
         self.authenticated = true;
     }
 
-    pub fn statement_sequence(&self) -> &Option<i64> {
+    pub(crate) fn statement_sequence(&self) -> &Option<i64> {
         &self.statement_sequence
     }
 
@@ -392,19 +384,21 @@ impl<'a> ConnectionCore {
         self.statement_sequence = statement_sequence;
     }
 
-    pub fn session_id(&self) -> i64 {
+    pub(crate) fn session_id(&self) -> i64 {
         self.session_id
     }
 
-    pub fn next_seq_number(&mut self) -> i32 {
-        self.seq_number += 1;
-        self.seq_number
+    pub(crate) fn next_sequence_number(&mut self) -> u32 {
+        self.statistics.next_sequence_number()
     }
-    pub fn last_seq_number(&self) -> i32 {
-        self.seq_number
+    pub(crate) fn statistics(&self) -> &ConnectionStatistics {
+        &self.statistics
+    }
+    pub(crate) fn reset_statistics(&mut self) {
+        self.statistics.reset();
     }
 
-    pub fn evaluate_ta_flags(&mut self, ta_flags: TransactionFlags) -> HdbResult<()> {
+    pub(crate) fn evaluate_ta_flags(&mut self, ta_flags: TransactionFlags) -> HdbResult<()> {
         self.session_state.update(ta_flags);
         if self.session_state.dead {
             Err(HdbError::SessionClosingTransactionError)
@@ -413,7 +407,7 @@ impl<'a> ConnectionCore {
         }
     }
 
-    pub fn pop_warnings(&mut self) -> Option<Vec<ServerError>> {
+    pub(crate) fn pop_warnings(&mut self) -> Option<Vec<ServerError>> {
         if self.warnings.is_empty() {
             None
         } else {
@@ -431,7 +425,7 @@ impl<'a> ConnectionCore {
         &mut self.connect_options
     }
 
-    pub fn augment_request(&mut self, request: &mut Request<'a>) {
+    pub(crate) fn augment_request(&mut self, request: &mut Request<'a>) {
         if self.authenticated {
             if let Some(ssi_value) = self.statement_sequence() {
                 request.add_statement_context(*ssi_value);
@@ -455,9 +449,8 @@ impl<'a> ConnectionCore {
             if let MessageType::Authenticate = request.message_type() {
                 (0, 1, false)
             } else {
-                (self.session_id(), self.next_seq_number(), true)
+                (self.session_id, self.next_sequence_number(), true)
             };
-        let auto_commit = self.is_auto_commit();
 
         let compress = self.connect_options().use_compression();
 
@@ -468,12 +461,13 @@ impl<'a> ConnectionCore {
             _ => unreachable!("Async connections not supported here"),
         };
 
-        request.emit_sync(
+        let start = request.emit_sync(
             session_id,
             nsn,
-            auto_commit,
+            &self.configuration,
             compress,
             o_a_descriptors,
+            &mut self.statistics,
             &mut self.io_buffer,
             w,
         )?;
@@ -489,9 +483,16 @@ impl<'a> ConnectionCore {
             o_a_descriptors,
             o_rs,
             o_am_conn_core,
+            &mut self.statistics,
+            start,
             &mut self.io_buffer,
             rdr,
         )?;
+
+        if self.io_buffer.get_ref().capacity() > self.configuration.max_buffer_size() {
+            *(self.io_buffer.get_mut()) = Vec::with_capacity(self.configuration.max_buffer_size());
+            self.statistics.add_buffer_shrinking();
+        }
 
         if default_error_handling {
             reply.handle_db_error(self)?;
@@ -512,20 +513,20 @@ impl<'a> ConnectionCore {
             if let MessageType::Authenticate = request.message_type() {
                 (0, 1, false)
             } else {
-                (self.session_id(), self.next_seq_number(), true)
+                (self.session_id(), self.next_sequence_number(), true)
             };
-        let auto_commit = self.is_auto_commit();
         let compress = self.connect_options().use_compression();
 
-        match self.tcp_client {
+        let start = match self.tcp_client {
             TcpClient::AsyncPlain(ref mut cl) => {
                 request
                     .emit_async(
                         session_id,
                         nsn,
-                        auto_commit,
+                        &self.configuration,
                         compress,
                         o_a_descriptors,
+                        &mut self.statistics,
                         &mut self.io_buffer,
                         cl.writer(),
                     )
@@ -536,9 +537,10 @@ impl<'a> ConnectionCore {
                     .emit_async(
                         session_id,
                         nsn,
-                        auto_commit,
+                        &self.configuration,
                         compress,
                         o_a_descriptors,
+                        &mut self.statistics,
                         &mut self.io_buffer,
                         cl.writer(),
                     )
@@ -556,6 +558,8 @@ impl<'a> ConnectionCore {
                     o_a_descriptors,
                     o_rs,
                     o_am_conn_core,
+                    start,
+                    &mut self.statistics,
                     &mut self.io_buffer,
                     cl.reader(),
                 )
@@ -567,6 +571,8 @@ impl<'a> ConnectionCore {
                     o_a_descriptors,
                     o_rs,
                     o_am_conn_core,
+                    start,
+                    &mut self.statistics,
                     &mut self.io_buffer,
                     cl.reader(),
                 )
@@ -576,6 +582,11 @@ impl<'a> ConnectionCore {
             TcpClient::Dead => unreachable!("Dead connection not supported here"),
             _ => unreachable!("Sync connections not supported here"),
         }?;
+
+        if self.io_buffer.get_ref().capacity() > self.configuration.max_buffer_size() {
+            *(self.io_buffer.get_mut()) = Vec::with_capacity(self.configuration.max_buffer_size());
+            self.statistics.add_buffer_shrinking();
+        }
 
         if default_error_handling {
             reply.handle_db_error(self)?;
@@ -592,7 +603,7 @@ impl Drop for ConnectionCore {
         if self.authenticated {
             let request = Request::new_for_disconnect();
             let session_id = self.session_id();
-            let nsn = self.next_seq_number();
+            let nsn = self.next_sequence_number();
             #[cfg(feature = "sync")]
             {
                 let w: &mut dyn std::io::Write = match self.tcp_client {
@@ -602,7 +613,16 @@ impl Drop for ConnectionCore {
                     _ => unreachable!("Async connections not supported here"),
                 };
                 request
-                    .emit_sync(session_id, nsn, false, false, None, &mut self.io_buffer, w)
+                    .emit_sync(
+                        session_id,
+                        nsn,
+                        &self.configuration,
+                        false,
+                        None,
+                        &mut self.statistics,
+                        &mut self.io_buffer,
+                        w,
+                    )
                     .map_err(|e| {
                         warn!("Disconnect request failed with {:?}", e);
                         e
@@ -614,6 +634,7 @@ impl Drop for ConnectionCore {
                 let mut tcp_client = TcpClient::Dead;
                 std::mem::swap(&mut tcp_client, &mut self.tcp_client);
                 let mut io_buffer = Cursor::new(Vec::<u8>::with_capacity(200));
+                let config = self.configuration().clone();
                 // see https://www.reddit.com/r/rust/comments/vckd9h/async_drop/
                 tokio::spawn(async move {
                     match tcp_client {
@@ -622,9 +643,10 @@ impl Drop for ConnectionCore {
                                 .emit_async(
                                     session_id,
                                     nsn,
-                                    false,
+                                    &config,
                                     false,
                                     None,
+                                    &mut ConnectionStatistics::new(),
                                     &mut io_buffer,
                                     cl.writer(),
                                 )
@@ -636,9 +658,10 @@ impl Drop for ConnectionCore {
                                 .emit_async(
                                     session_id,
                                     nsn,
-                                    false,
+                                    &config,
                                     false,
                                     None,
+                                    &mut ConnectionStatistics::new(),
                                     &mut io_buffer,
                                     cl.writer(),
                                 )

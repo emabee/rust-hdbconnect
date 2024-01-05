@@ -40,8 +40,8 @@ pub mod sync;
 pub use crate::{
     base::{HdbError, HdbResult, Row, Rows},
     conn::{
-        url, ConnectParams, ConnectParamsBuilder, IntoConnectParams, IntoConnectParamsBuilder,
-        ServerCerts, Tls,
+        url, ConnectParams, ConnectParamsBuilder, ConnectionConfiguration, ConnectionStatistics,
+        IntoConnectParams, IntoConnectParamsBuilder, ServerCerts, Tls,
     },
     protocol::parts::{
         ExecutionResult, FieldMetadata, HdbValue, OutputParameters, ParameterBinding,
@@ -65,22 +65,3 @@ pub mod types {
         secondtime::SecondTime,
     };
 }
-
-/// Default value for the number of resultset lines that are fetched with a single FETCH roundtrip.
-///
-/// The value used at runtime can be changed with
-/// [`Connection::set_fetch_size()`](crate::Connection::set_fetch_size).
-pub const DEFAULT_FETCH_SIZE: u32 = 100_000;
-
-/// Number of bytes (for BLOBS and CLOBS) or 1-2-3-byte sequences (for NCLOBS)
-/// that are fetched in a single LOB READ roundtrip.
-///
-/// The value used at runtime can be changed with
-/// [`Connection::set_lob_read_length()`](crate::Connection::set_lob_read_length).
-pub const DEFAULT_LOB_READ_LENGTH: u32 = 16_000_000;
-
-/// Number of bytes that are written in a single LOB WRITE roundtrip.
-///
-/// The value used at runtime can be changed with
-/// [`Connection::set_lob_write_length()`](crate::Connection::set_lob_write_length).
-pub const DEFAULT_LOB_WRITE_LENGTH: usize = 16_000_000;

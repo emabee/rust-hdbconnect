@@ -34,7 +34,7 @@ async fn prepare_test(connection: &Connection) -> bool {
 async fn test_text(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
     info!("create a TEXT in the database, and read it");
     debug!("setup...");
-    connection.set_lob_read_length(1_000_000).await?;
+    connection.set_lob_read_length(1_000_000).await;
 
     let test_text = "blablaいっぱいおでぶ𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀cesu-8𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀";
 

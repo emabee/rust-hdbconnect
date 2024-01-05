@@ -54,7 +54,7 @@ async fn produce_conflicts(
     connection: &Connection,
 ) -> HdbResult<()> {
     log::info!("verify that locking with 'select for update' works");
-    connection.set_auto_commit(false).await?;
+    connection.set_auto_commit(false).await;
 
     log::debug!("get two more connections");
     let connection2 = connection.spawn().await?;

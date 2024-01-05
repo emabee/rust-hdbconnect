@@ -33,7 +33,10 @@ pub fn main() {
 fn run() -> HdbResult<()> {
     let connection = get_authenticated_connection()?;
     deserialize_strings_to_bytes(&connection)?;
-    info!("{} calls to DB were executed", connection.get_call_count()?);
+    info!(
+        "{} calls to DB were executed",
+        connection.statistics()?.call_count()
+    );
     Ok(())
 }
 

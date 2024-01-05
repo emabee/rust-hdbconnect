@@ -89,7 +89,7 @@ fn test_clobs(
     insert_stmt.execute_batch()?;
 
     debug!("and read it back");
-    let before = connection.get_call_count()?;
+    let before = connection.statistics()?.call_count();
     let query = "select desc, chardata as CL1, chardata as CL2 from TEST_CLOBS";
     let resultset = connection.query(query)?;
     debug!("and convert it into a rust struct");
@@ -98,7 +98,7 @@ fn test_clobs(
     debug!(
         "reading two big CLOB with lob-read-length {} required {} roundtrips",
         connection.lob_read_length()?,
-        connection.get_call_count()? - before
+        connection.statistics()?.call_count() - before
     );
 
     // verify we get in both cases the same blabla back
@@ -116,13 +116,13 @@ fn test_clobs(
 
     // try again with smaller lob-read-length
     connection.set_lob_read_length(200_000)?;
-    let before = connection.get_call_count()?;
+    let before = connection.statistics()?.call_count();
     let resultset = connection.query(query)?;
     let second: MyData = resultset.try_into()?;
     debug!(
         "reading two big CLOB with lob-read-length {} required {} roundtrips",
         connection.lob_read_length()?,
-        connection.get_call_count()? - before
+        connection.statistics()?.call_count() - before
     );
     assert_eq!(mydata, second);
 

@@ -28,10 +28,3 @@ pub use self::server_usage::ServerUsage;
 
 const MESSAGE_AND_SEGMENT_HEADER_SIZE: usize = 32 + 24;
 const SEGMENT_HEADER_SIZE: u32 = 24;
-
-// each connection has a buffer;
-// when being used, its size will be expanded if necessary to whatever is needed,
-// but after each use its size will be reduced to this value
-const MAX_BUFFER_SIZE: usize = 100 * 1024;
-
-pub(crate) const MIN_BUFFER_SIZE: usize = 1024;

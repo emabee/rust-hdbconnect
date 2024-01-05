@@ -1,14 +1,14 @@
 use crate::{
+    conn::{ConnectionConfiguration, ConnectionStatistics},
     protocol::{
         parts::{ParameterDescriptors, Parts, StatementContext},
-        MessageType, Part, MAX_BUFFER_SIZE, MESSAGE_AND_SEGMENT_HEADER_SIZE, SEGMENT_HEADER_SIZE,
+        MessageType, Part, MESSAGE_AND_SEGMENT_HEADER_SIZE, SEGMENT_HEADER_SIZE,
     },
     HdbResult,
 };
 use byteorder::{LittleEndian, WriteBytesExt};
 use std::{io::Cursor, sync::Arc};
 
-const MIN_COMPRESSION_SIZE: usize = 10 * 1024;
 const ONE_AS_NUMBER_OF_SEGMENTS: i16 = 1;
 const ONE_AS_ORDINAL_OF_THIS_SEGMENT: i16 = 1;
 const ZERO_AS_OFFSET: i32 = 0;
@@ -65,13 +65,14 @@ impl<'a> Request<'a> {
     pub fn emit_sync(
         &self,
         session_id: i64,
-        packet_seq_number: i32,
-        auto_commit: bool,
+        packet_seq_number: u32,
+        config: &ConnectionConfiguration,
         compress: bool,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
+        statistics: &mut ConnectionStatistics,
         io_buffer: &mut Cursor<Vec<u8>>,
         w: &mut dyn std::io::Write,
-    ) -> HdbResult<()> {
+    ) -> HdbResult<std::time::Instant> {
         io_buffer.get_mut().clear();
         let uncompressed_parts_size = self.parts.size(o_a_descriptors);
 
@@ -89,7 +90,9 @@ impl<'a> Request<'a> {
         }
 
         // decide if parts should be sent in compressed form, and compress if necessary
-        let o_compressed_parts = if compress && uncompressed_parts_size > MIN_COMPRESSION_SIZE {
+        let o_compressed_parts = if compress
+            && uncompressed_parts_size > config.min_compression_size()
+        {
             io_buffer.set_position(MESSAGE_AND_SEGMENT_HEADER_SIZE as u64);
             let compressed_parts =
                 lz4_flex::block::compress(&io_buffer.get_ref()[MESSAGE_AND_SEGMENT_HEADER_SIZE..]);
@@ -108,7 +111,7 @@ impl<'a> Request<'a> {
         self.emit_packet_header(
             session_id,
             packet_seq_number,
-            auto_commit,
+            config.is_auto_commit(),
             u32::try_from(uncompressed_parts_size).expect("uncompressed parts too big"),
             o_compressed_parts.as_ref().map(|data| {
                 trace!("sending compressed request");
@@ -118,6 +121,7 @@ impl<'a> Request<'a> {
         )?;
 
         // serialize request to stream
+        let start = std::time::Instant::now();
         if let Some(compressed_parts) = o_compressed_parts {
             // serialize header to stream
             io_buffer.set_position(0);
@@ -125,6 +129,7 @@ impl<'a> Request<'a> {
 
             // serialize compressed parts to stream
             w.write_all(&compressed_parts)?;
+            statistics.add_compressed_request(compressed_parts.len(), uncompressed_parts_size);
         } else {
             // serialize header and uncompressed parts to stream
             io_buffer.set_position(0);
@@ -134,14 +139,13 @@ impl<'a> Request<'a> {
         trace!("Parts are written");
 
         io_buffer.get_mut().clear();
-        io_buffer.get_mut().shrink_to(MAX_BUFFER_SIZE);
-        Ok(())
+        Ok(start)
     }
 
     fn emit_packet_header(
         &self,
         session_id: i64,
-        packet_seq_number: i32,
+        packet_sequence_number: u32,
         auto_commit: bool,
         uncompressed_size: u32,
         o_compressed_size: Option<u32>,
@@ -155,7 +159,7 @@ impl<'a> Request<'a> {
         trace!(
             "REQUEST, message and segment header: {{\
                 \n  session_id = {session_id}, \
-                \n  packet_seq_number = {packet_seq_number}, \
+                \n  packet_seq_number = {packet_sequence_number}, \
                 \n  compressed = {compressed_size}, \
                 \n  uncompressed = {uncompressed_size}, \
             }}"
@@ -163,7 +167,7 @@ impl<'a> Request<'a> {
 
         // MESSAGE HEADER
         w.write_i64::<LittleEndian>(session_id)?; // I8
-        w.write_i32::<LittleEndian>(packet_seq_number)?; // I4
+        w.write_u32::<LittleEndian>(packet_sequence_number)?; // I4
 
         w.write_u32::<LittleEndian>(
             if compress {
@@ -205,13 +209,14 @@ impl<'a> Request<'a> {
     pub async fn emit_async<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
         &self,
         session_id: i64,
-        packet_seq_number: i32,
-        auto_commit: bool,
+        packet_sequence_number: u32,
+        config: &ConnectionConfiguration,
         compress: bool,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
+        statistics: &mut ConnectionStatistics,
         io_buffer: &mut Cursor<Vec<u8>>,
         w: &mut W,
-    ) -> HdbResult<()> {
+    ) -> HdbResult<std::time::Instant> {
         io_buffer.get_mut().clear();
         let uncompressed_parts_size = self.parts.size(o_a_descriptors);
 
@@ -229,7 +234,9 @@ impl<'a> Request<'a> {
         }
 
         // decide if parts should be sent in compressed form, and compress if necessary
-        let o_compressed_parts = if compress && uncompressed_parts_size > MIN_COMPRESSION_SIZE {
+        let o_compressed_parts = if compress
+            && uncompressed_parts_size > config.min_compression_size()
+        {
             io_buffer.set_position(MESSAGE_AND_SEGMENT_HEADER_SIZE as u64);
             let compressed_parts =
                 lz4_flex::block::compress(&io_buffer.get_ref()[MESSAGE_AND_SEGMENT_HEADER_SIZE..]);
@@ -247,8 +254,8 @@ impl<'a> Request<'a> {
         io_buffer.set_position(0);
         self.emit_packet_header(
             session_id,
-            packet_seq_number,
-            auto_commit,
+            packet_sequence_number,
+            config.is_auto_commit(),
             u32::try_from(uncompressed_parts_size).expect("uncompressed parts too big"),
             o_compressed_parts.as_ref().map(|data| {
                 trace!("sending compressed request");
@@ -258,6 +265,7 @@ impl<'a> Request<'a> {
         )?;
 
         // serialize request to stream
+        let start = std::time::Instant::now();
         if let Some(compressed_parts) = o_compressed_parts {
             // serialize header to stream
             io_buffer.set_position(0);
@@ -266,6 +274,7 @@ impl<'a> Request<'a> {
 
             // serialize compressed parts to stream
             w.write_all(&compressed_parts).await?;
+            statistics.add_compressed_request(compressed_parts.len(), uncompressed_parts_size);
         } else {
             // serialize header and uncompressed parts to stream
             io_buffer.set_position(0);
@@ -275,8 +284,7 @@ impl<'a> Request<'a> {
         trace!("Parts are written");
 
         io_buffer.get_mut().clear();
-        io_buffer.get_mut().shrink_to(MAX_BUFFER_SIZE);
-        Ok(())
+        Ok(start)
     }
 }
 

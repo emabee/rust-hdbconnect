@@ -29,7 +29,8 @@ impl<'a> SyncLobWriter<'a> {
         o_a_descriptors: Option<&'a Arc<ParameterDescriptors>>,
     ) -> HdbResult<SyncLobWriter<'a>> {
         if let TypeId::BLOB | TypeId::CLOB | TypeId::NCLOB = type_id {
-            let lob_write_length = am_conn_core.lock_sync()?.get_lob_write_length();
+            let lob_write_length =
+                am_conn_core.lock_sync()?.configuration().lob_write_length() as usize;
             Ok(SyncLobWriter {
                 locator_id,
                 type_id,

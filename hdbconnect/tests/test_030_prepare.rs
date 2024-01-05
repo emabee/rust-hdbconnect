@@ -66,7 +66,7 @@ fn prepare_insert_statement(
          rollback, do it again and commit"
     );
     connection.set_auto_commit(false)?;
-    let count = connection.get_call_count()?;
+    let count = connection.statistics()?.call_count();
     let mut insert_stmt = connection.prepare(insert_stmt_str)?;
     insert_stmt.add_batch(&("conn1-rollback1", 45_i32))?;
     insert_stmt.add_batch(&("conn1-rollback2", 46_i32))?;
@@ -78,9 +78,9 @@ fn prepare_insert_statement(
     debug!(
         "affected rows: {:?}, callcount: {}",
         affrows,
-        connection.get_call_count()? - count
+        connection.statistics()?.call_count() - count
     );
-    assert_eq!(connection.get_call_count()? - count, 2);
+    assert_eq!(connection.statistics()?.call_count() - count, 2);
     connection.rollback()?;
 
     insert_stmt.add_batch(&("conn1-commit1", 45_i32))?;
@@ -99,12 +99,13 @@ fn prepare_insert_statement(
 
     let typed_result: Vec<TestStruct> =
         connection.query("select * from TEST_PREPARE")?.try_into()?;
-    assert_eq!(typed_result.len(), 6);
-    for ts in typed_result {
+    for ts in &typed_result {
+        info!("{ts:?}");
         let s = ts.f1_s.as_ref().unwrap();
         assert!(!s.contains("rollback"));
         assert!(s.contains("comm") || s.contains("auto"));
     }
+    assert_eq!(typed_result.len(), 6);
     Ok(())
 }
 

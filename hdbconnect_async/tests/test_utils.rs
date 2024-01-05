@@ -3,6 +3,7 @@
 
 use flexi_logger::{opt_format, Logger, LoggerHandle};
 use hdbconnect_async::{ConnectParamsBuilder, Connection, HdbError, HdbResult, ServerCerts};
+use hdbconnect_impl::ConnectionConfiguration;
 
 // Returns a logger that prints out all info, warn and error messages.
 //
@@ -22,18 +23,27 @@ pub fn init_logger() -> LoggerHandle {
 
 pub async fn closing_info(connection: Connection, start: std::time::Instant) -> HdbResult<()> {
     log::info!(
-        "{} calls to DB were executed; \
-         elapsed time: {:?}, \
-         accumulated server processing time: {:?}",
-        connection.get_call_count().await?,
+        "{}\
+            Total elapsed time:          {:?}, \n\
+            Accumulated server CPU time: {:?}",
+        connection.statistics().await,
         std::time::Instant::now().duration_since(start),
-        connection.server_usage().await?.accum_proc_time
+        connection.server_usage().await.accum_proc_time
     );
     Ok(())
 }
 
 pub async fn get_authenticated_connection() -> HdbResult<Connection> {
     let connection = Connection::new(get_std_cp_builder()?).await?;
+    log::info!("TESTING WITH {}", connection.connect_string().await);
+    Ok(connection)
+}
+
+pub async fn get_authenticated_connection_with_configuration() -> HdbResult<Connection> {
+    let config = ConnectionConfiguration::default()
+        .with_lob_read_length(1_000_000)
+        .with_max_buffer_size(1_000_000);
+    let connection = Connection::with_configuration(get_std_cp_builder()?, &config).await?;
     log::info!("TESTING WITH {}", connection.connect_string().await);
     Ok(connection)
 }

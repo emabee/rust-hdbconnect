@@ -18,7 +18,7 @@ async fn test_034_nclobs() -> HdbResult<()> {
     let connection = test_utils::get_authenticated_connection().await?;
 
     debug!("setup...");
-    connection.set_lob_read_length(1_000_000).await?;
+    connection.set_lob_read_length(1_000_000).await;
 
     connection
         .multiple_statements_ignore_err(vec!["drop table TEST_NCLOBS"])
@@ -80,7 +80,7 @@ async fn test_nclobs(
     insert_stmt.execute_batch().await?;
 
     debug!("and read it back");
-    let before = connection.get_call_count().await?;
+    let before = connection.statistics().await.call_count();
     let query = "select desc, chardata as CL1, chardata as CL2 from TEST_NCLOBS";
     let resultset = connection.query(query).await?;
     debug!("and convert it into a rust struct");
@@ -88,8 +88,8 @@ async fn test_nclobs(
     let mydata: MyData = resultset.try_into().await?;
     debug!(
         "reading two big NCLOB with lob-read-length {} required {} roundtrips",
-        connection.lob_read_length().await?,
-        connection.get_call_count().await? - before
+        connection.lob_read_length().await,
+        connection.statistics().await.call_count() - before
     );
 
     // verify we get in both cases the same blabla back
@@ -106,14 +106,14 @@ async fn test_nclobs(
     assert_eq!(fingerprint, fingerprint3.as_slice());
 
     // try again with smaller lob-read-length
-    connection.set_lob_read_length(5_000).await?;
-    let before = connection.get_call_count().await?;
+    connection.set_lob_read_length(5_000).await;
+    let before = connection.statistics().await.call_count();
     let resultset = connection.query(query).await?;
     let second: MyData = resultset.try_into().await?;
     debug!(
         "reading two big NCLOB with lob-read-length {} required {} roundtrips",
-        connection.lob_read_length().await?,
-        connection.get_call_count().await? - before
+        connection.lob_read_length().await,
+        connection.statistics().await.call_count() - before
     );
     assert_eq!(mydata, second);
 
@@ -146,11 +146,11 @@ async fn test_streaming(
     trace!("utf8 char count: {}", utf8_char_count);
     trace!("cesu8 byte length: {}", cesu8_byte_len);
 
-    connection.set_auto_commit(true).await?;
+    connection.set_auto_commit(true).await;
     connection.dml("delete from TEST_NCLOBS").await?;
 
     debug!("write big nclob in streaming fashion");
-    connection.set_auto_commit(false).await?;
+    connection.set_auto_commit(false).await;
 
     let mut stmt = connection
         .prepare("insert into TEST_NCLOBS values(?, ?)")
@@ -174,7 +174,7 @@ async fn test_streaming(
 
     debug!("read big nclob in streaming fashion");
     // Note: Connection.set_lob_read_length() affects NCLobs in chars (1, 2, or 3 bytes),
-    connection.set_lob_read_length(200_000).await?;
+    connection.set_lob_read_length(200_000).await;
 
     let nclob = connection
         .query("select chardata from TEST_NCLOBS")
@@ -204,7 +204,7 @@ async fn test_streaming(
     let fingerprint4 = hasher.finalize().to_vec();
     assert_eq!(fingerprint, fingerprint4.as_slice());
 
-    connection.set_auto_commit(true).await?;
+    connection.set_auto_commit(true).await;
     Ok(())
 }
 

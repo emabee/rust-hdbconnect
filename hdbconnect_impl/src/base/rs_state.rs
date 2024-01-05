@@ -287,7 +287,7 @@ impl RsState {
             let am_conn_core = rs_core.am_conn_core().clone();
             (am_conn_core, rs_core.resultset_id())
         };
-        let fetch_size = { am_conn_core.lock_sync()?.get_fetch_size() };
+        let fetch_size = { am_conn_core.lock_sync()?.configuration().fetch_size() };
 
         // build the request, provide resultset-id and fetch-size
         debug!("ResultSet::fetch_next() with fetch_size = {}", fetch_size);
@@ -316,7 +316,7 @@ impl RsState {
             if let Some(ref am_rscore) = self.o_am_rscore {
                 let rs_core = am_rscore.lock_async().await;
                 let am_conn_core = rs_core.am_conn_core().clone();
-                let fetch_size = { am_conn_core.lock_async().await.get_fetch_size() };
+                let fetch_size = { am_conn_core.lock_async().await.configuration().fetch_size() };
                 (am_conn_core, rs_core.resultset_id(), fetch_size)
             } else {
                 return Err(HdbError::Impl("Fetch no more possible"));

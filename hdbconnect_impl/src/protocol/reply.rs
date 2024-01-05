@@ -1,6 +1,6 @@
 use crate::{
     base::{InternalReturnValue, RsState},
-    conn::{AmConnCore, ConnectionCore},
+    conn::{AmConnCore, ConnectionCore, ConnectionStatistics},
     protocol::parts::{
         ExecutionResult, ParameterDescriptors, Parts, ResultSetMetadata, ServerError, Severity,
     },
@@ -8,9 +8,9 @@ use crate::{
     HdbError, HdbResult,
 };
 use byteorder::{LittleEndian, ReadBytesExt};
-use std::{io::Cursor, sync::Arc};
+use std::{io::Cursor, sync::Arc, time::Instant};
 
-use super::{MAX_BUFFER_SIZE, MESSAGE_AND_SEGMENT_HEADER_SIZE, SEGMENT_HEADER_SIZE};
+use super::{MESSAGE_AND_SEGMENT_HEADER_SIZE, SEGMENT_HEADER_SIZE};
 
 // Since there is obviously no usecase for multiple segments in one request,
 // we model message and segment together.
@@ -39,17 +39,21 @@ impl Reply {
     // * `ResultSetMetadata` needs to be injected for execute calls of prepared statements
     // * `ResultSet` needs to be injected (and is extended and returned) for fetch requests
     #[cfg(feature = "sync")]
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn parse_sync(
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
         o_rs: &mut Option<&mut RsState>,
         o_am_conn_core: Option<&AmConnCore>,
+        statistics: &mut ConnectionStatistics,
+        start: std::time::Instant,
         io_buffer: &mut Cursor<Vec<u8>>,
         rdr: &mut dyn std::io::Read,
     ) -> HdbResult<Self> {
         trace!("Reply::parse_sync()");
         let packet_header = {
             read_into_buffer_sync(MESSAGE_AND_SEGMENT_HEADER_SIZE, io_buffer, rdr)?;
+            statistics.add_wait_time(Instant::now().duration_since(start));
             parse_packet_header(io_buffer)?
         };
 
@@ -59,6 +63,7 @@ impl Reply {
             .o_uncompressed_size
             .map(|uncompressed_size| {
                 trace!("received compressed reply");
+                statistics.add_compressed_reply(packet_header.part_buffer_size, uncompressed_size);
                 lz4_flex::block::decompress(io_buffer.get_ref(), uncompressed_size)
             })
             .transpose()?
@@ -78,7 +83,6 @@ impl Reply {
             )?;
             reply.push(part);
         }
-        io_buffer.get_mut().truncate(MAX_BUFFER_SIZE);
         Ok(reply)
     }
 
@@ -89,17 +93,21 @@ impl Reply {
     // * `ResultSet` needs to be injected (and is extended and returned)
     //    in case of fetch requests
     #[cfg(feature = "async")]
+    #[allow(clippy::too_many_arguments)]
     pub(crate) async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
         o_rs: &mut Option<&mut RsState>,
         o_am_conn_core: Option<&AmConnCore>,
+        start: std::time::Instant,
+        statistics: &mut ConnectionStatistics,
         io_buffer: &mut Cursor<Vec<u8>>,
         rdr: &mut R,
     ) -> HdbResult<Self> {
         trace!("Reply::parse_async()");
         let packet_header = {
             read_into_buffer_async(MESSAGE_AND_SEGMENT_HEADER_SIZE, io_buffer, rdr).await?;
+            statistics.add_wait_time(Instant::now().duration_since(start));
             parse_packet_header(io_buffer)?
         };
 
@@ -109,6 +117,7 @@ impl Reply {
             .o_uncompressed_size
             .map(|uncompressed_size| {
                 trace!("received compressed reply");
+                statistics.add_compressed_reply(packet_header.part_buffer_size, uncompressed_size);
                 lz4_flex::block::decompress(io_buffer.get_ref(), uncompressed_size)
             })
             .transpose()?
@@ -129,7 +138,6 @@ impl Reply {
             .await?;
             reply.push(part);
         }
-        io_buffer.get_mut().truncate(MAX_BUFFER_SIZE);
         Ok(reply)
     }
 

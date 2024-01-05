@@ -22,7 +22,7 @@ pub async fn test_031_transactions() -> HdbResult<()> {
     let start = std::time::Instant::now();
 
     let connection = test_utils::get_authenticated_connection().await?;
-    connection.set_auto_commit(false).await?;
+    connection.set_auto_commit(false).await;
     if let Some(server_error) = write1_read2(&mut log_handle, &connection, "READ UNCOMMITTED")
         .await
         .err()

@@ -45,10 +45,10 @@ mod a {
 
         // open two connections, auto_commit off
         let conn_a = conn.spawn().await?;
-        conn_a.set_auto_commit(false).await?;
+        conn_a.set_auto_commit(false).await;
         let conn_b = conn_a.spawn().await?;
-        assert!(!conn_a.is_auto_commit().await?);
-        assert!(!conn_b.is_auto_commit().await?);
+        assert!(!conn_a.is_auto_commit().await);
+        assert!(!conn_b.is_auto_commit().await);
 
         // instantiate a SimpleTransactionManager and register Resource Managers for
         // the two connections
@@ -91,10 +91,10 @@ mod a {
 
         // open two connections, auto_commit off
         let conn_a = conn.spawn().await?;
-        conn_a.set_auto_commit(false).await?;
+        conn_a.set_auto_commit(false).await;
         let conn_b = conn_a.spawn().await?;
-        assert!(!conn_a.is_auto_commit().await?);
-        assert!(!conn_b.is_auto_commit().await?);
+        assert!(!conn_a.is_auto_commit().await);
+        assert!(!conn_b.is_auto_commit().await);
         let conn_c = conn.spawn().await?;
 
         conn_a
@@ -161,10 +161,10 @@ mod a {
 
         // open two connections, auto_commit off
         let conn_a = conn.spawn().await?;
-        conn_a.set_auto_commit(false).await?;
+        conn_a.set_auto_commit(false).await;
         let conn_b = conn_a.spawn().await?;
-        assert!(!conn_a.is_auto_commit().await?);
-        assert!(!conn_b.is_auto_commit().await?);
+        assert!(!conn_a.is_auto_commit().await);
+        assert!(!conn_b.is_auto_commit().await);
 
         conn_a
             .exec("SET TRANSACTION LOCK WAIT TIMEOUT 3000")
@@ -237,10 +237,10 @@ mod a {
 
         // open two connections, auto_commit off
         let conn_a = conn.spawn().await?;
-        conn_a.set_auto_commit(false).await?;
+        conn_a.set_auto_commit(false).await;
         let conn_b = conn_a.spawn().await?;
-        assert!(!conn_a.is_auto_commit().await?);
-        assert!(!conn_b.is_auto_commit().await?);
+        assert!(!conn_a.is_auto_commit().await);
+        assert!(!conn_b.is_auto_commit().await);
 
         conn_a
             .exec("SET TRANSACTION LOCK WAIT TIMEOUT 3000")

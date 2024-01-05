@@ -161,7 +161,13 @@ impl HdbCResourceManager {
         id: XaTransactionId,
         flags: Flags,
     ) -> HdbResult<Option<ReturnCode>> {
-        if self.am_conn_core.lock_async().await.is_auto_commit() {
+        if self
+            .am_conn_core
+            .lock_async()
+            .await
+            .configuration()
+            .is_auto_commit()
+        {
             return Err(HdbError::Usage(
                 "xa_*() not possible, connection is set to auto_commit",
             ));
