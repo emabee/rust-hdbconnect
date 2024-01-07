@@ -2,17 +2,24 @@
 
 Establish authenticated connections to the database server.
 See [`ConnectParams`], [`ConnectParamsBuilder`](crate::ConnectParamsBuilder),
-and [`url`](crate::url) for a full description of the possibilities.
+[`ConnectionConfiguration`](crate::ConnectionConfiguration), and [`url`](crate::url)
+for a full description of the possibilities.
 
 ```rust,no_run
-use hdbconnect_async::{Connection, IntoConnectParams};
+use hdbconnect_async::{Connection, ConnectionConfiguration, IntoConnectParams};
 # use hdbconnect_async::HdbResult;
 # async fn foo() -> HdbResult<()> {
 // connect without TLS to a database:
 let mut connection1 = Connection::new("hdbsql://my_user:my_passwd@the_host:30815").await?;
 
+// like above, but with some non-default configuration:
+let mut connection2 = Connection::with_configuration(
+  "hdbsql://my_user:my_passwd@the_host:30815",
+  &ConnectionConfiguration::default()
+    .with_fetch_size(ConnectionConfiguration::DEFAULT_FETCH_SIZE * 2)).await?;
+
 // connect with TLS to the port of the system db and get redirected to the specified database:
-let mut connection2 = Connection::new(
+let mut connection3 = Connection::new(
     "hdbsqls://my_user:my_passwd@the_host:30813?db=MEI&insecure_omit_server_certificate_check"
 ).await?;
 # Ok(())
@@ -331,8 +338,8 @@ If necessary, you can easily avoid materializing the complete "Large Object",
 and stream it e.g. into a writer. For doing so, you convert the value into one of
 `hdbconnect::{BLob, CLob, NCLob}`.
 
-In this example the [`NCLob`] will, while being read by `std::io::copy()`,
-continuously fetch more data from the database until it is completely transferred:
+In this example the [`NCLob`] will continuously fetch more data from the database
+until it is completely transferred into the writer:
 
 ```rust, no_run
 use hdbconnect_async::{Connection, HdbResult, IntoConnectParams, ResultSet};
@@ -342,7 +349,10 @@ use hdbconnect_async::types::NCLob;
 # let mut connection = Connection::new("...").await?;
 # let mut resultset: ResultSet = connection.query(query).await?;
 # let mut writer: Vec<u8> = vec![];
-let mut nclob: NCLob = resultset.into_single_row().await?.into_single_value()?.try_into_async_nclob()?;
+let mut nclob: NCLob = resultset
+                          .into_single_row().await?
+                          .into_single_value()?
+                          .try_into_async_nclob()?;
 nclob.write_into(&mut writer).await?;
 # Ok(())
 # }
