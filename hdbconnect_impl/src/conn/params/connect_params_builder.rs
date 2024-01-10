@@ -222,33 +222,33 @@ impl ConnectParamsBuilder {
         Ok(self.to_string())
     }
 
-    #[cfg(test)]
-    pub(crate) fn get_hostname(&self) -> Option<&str> {
+    /// Returns the configured hostname.
+    pub fn get_hostname(&self) -> Option<&str> {
         self.hostname.as_deref()
     }
 
-    #[cfg(test)]
-    pub(crate) fn get_dbuser(&self) -> Option<&str> {
+    /// Returns the configured database user.
+    pub fn get_dbuser(&self) -> Option<&str> {
         self.dbuser.as_deref()
     }
 
-    #[cfg(test)]
-    pub(crate) fn get_password(&self) -> Option<&SecUtf8> {
+    /// Returns the configured password.
+    pub fn get_password(&self) -> Option<&SecUtf8> {
         self.password.as_ref()
     }
 
-    #[cfg(test)]
-    pub(crate) fn get_port(&self) -> Option<u16> {
+    /// Returns the configured port number.
+    pub fn get_port(&self) -> Option<u16> {
         self.port
     }
 
-    #[cfg(test)]
-    pub(crate) fn get_clientlocale(&self) -> Option<&str> {
+    /// Returns the configured client locale.
+    pub fn get_clientlocale(&self) -> Option<&str> {
         self.clientlocale.as_deref()
     }
 
-    #[cfg(test)]
-    pub(crate) fn get_server_certs(&self) -> Option<&Vec<ServerCerts>> {
+    /// Returns the configured server certificates.
+    pub fn get_server_certs(&self) -> Option<&Vec<ServerCerts>> {
         match self.tls {
             Tls::Secure(ref sc) => Some(sc),
             _ => None,

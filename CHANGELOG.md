@@ -1,10 +1,14 @@
 # Changelog
 
-## [0.28.0] 2024-01-09
+## [0.28.1] 2024-01-10
+
+Re-introduce some getter methods on `ConnectParamsBuilder`.
+
+## [0.28.0] 2024-01-05
 
 ### New capability
 
-`ConnectionConfiguration` can be used to finetune hdbconnect.
+`ConnectionConfiguration` can be used to finetune `hdbconnect`.
 
 `ConnectionStatistics` provides some statistics about the use of a concrete connection.
 

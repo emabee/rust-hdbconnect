@@ -6,7 +6,7 @@ See [`ConnectParams`], [`ConnectParamsBuilder`](crate::ConnectParamsBuilder),
 for a full description of the possibilities.
 
 ```rust,no_run
-use hdbconnect::{Connection, IntoConnectParams};
+use hdbconnect::{Connection, IntoConnectParams, ConnectionConfiguration};
 # use hdbconnect::HdbResult;
 # fn foo() -> HdbResult<()> {
 // connect without TLS to a database:
@@ -16,7 +16,7 @@ let mut connection1 = Connection::new("hdbsql://my_user:my_passwd@the_host:30815
 let mut connection2 = Connection::with_configuration(
   "hdbsql://my_user:my_passwd@the_host:30815",
   &ConnectionConfiguration::default()
-    .with_fetch_size(ConnectionConfiguration::DEFAULT_FETCH_SIZE * 2)).await?;
+    .with_fetch_size(ConnectionConfiguration::DEFAULT_FETCH_SIZE * 2))?;
 
 // connect with TLS to the port of the system db and get redirected to the specified database:
 let mut connection2 = Connection::new(

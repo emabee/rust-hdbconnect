@@ -28,10 +28,8 @@ default = []
 r2d2_pool = ["hdbconnect_impl/r2d2_pool"]
 dist_tx = ["hdbconnect_impl/dist_tx_sync"]
 
-[dependencies]
-
 [dependencies.hdbconnect_impl]
-version = "0.28.0"
+version = "0.28.1"
 path = "../hdbconnect_impl"
 default-features = false
 features = ["sync"]
