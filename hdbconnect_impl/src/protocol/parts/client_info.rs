@@ -19,9 +19,16 @@ impl Default for ClientInfo {
                 ci.set_application(s.to_string_lossy());
             }
         }
-        ci.set_driver(env!("CARGO_PKG_NAME"));
-        ci.set_driver_version(env!("CARGO_PKG_VERSION"));
-        ci.set_driver_info("https://crates.io/crates/hdbconnect");
+        if cfg!(feature = "async") {
+            ci.set_driver("hdbconnect_async");
+            ci.set_driver_version(&format!("hdbconnect_impl = {}", env!("CARGO_PKG_VERSION")));
+            ci.set_driver_info("https://crates.io/crates/hdbconnect_async");
+        } else {
+            ci.set_driver("hdbconnect");
+            ci.set_driver_version(&format!("hdbconnect_impl = {}", env!("CARGO_PKG_VERSION")));
+            ci.set_driver_info("https://crates.io/crates/hdbconnect");
+        }
+
         ci
     }
 }

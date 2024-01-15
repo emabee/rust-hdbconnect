@@ -136,7 +136,7 @@ impl TypeId {
             // 34 - 46: docu unclear, likely unused
             // 47 => SMALLDECIMAL not needed on client-side
             // 48, 49: ABAP only?
-            // ARRAY: 50  TODO not yet implemented
+            // ARRAY: 50  unclear, not yet implemented
             51 => Self::TEXT,
             52 => Self::SHORTTEXT,
             53 => Self::BINTEXT,
@@ -162,7 +162,7 @@ impl TypeId {
             // TypeCode_RECORD_COLUMN_STORE      = 79,  // TODO
             81 => Self::FIXED8,
             82 => Self::FIXED12,
-            // TypeCode_CIPHERTEXT               = 90,  // TODO
+            // TypeCode_CIPHERTEXT               = 90,  // TODO only for client-side encryption?
             tc => return Err(HdbError::ImplDetailed(format!("Illegal type code {tc}"))),
         })
     }

@@ -4,7 +4,7 @@ use crate::protocol::util_async;
 #[cfg(feature = "sync")]
 use crate::protocol::util_sync;
 
-use crate::{conn::TcpClient, HdbResult};
+use crate::{conn::TcpClient, HdbError, HdbResult};
 use byteorder::{BigEndian, WriteBytesExt};
 use std::{io::Write, sync::OnceLock};
 
@@ -16,7 +16,7 @@ pub(crate) fn send_and_receive_sync(sync_tcp_connection: &mut TcpClient) -> HdbR
             emit_initial_request_sync(pc.writer())?;
         }
         TcpClient::SyncTls(ref mut tc) => {
-            emit_initial_request_sync(tc.writer())?;
+            emit_initial_request_sync(tc.writer()).map_err(|e| HdbError::TlsInit { source: e })?;
         }
         #[cfg(feature = "async")]
         _ => unreachable!("Async connections not supported here"),
@@ -45,12 +45,14 @@ pub(crate) fn send_and_receive_sync(sync_tcp_connection: &mut TcpClient) -> HdbR
 pub(crate) async fn send_and_receive_async(tcp_client: &mut TcpClient) -> HdbResult<()> {
     trace!("send_and_receive(): send");
     match tcp_client {
-        TcpClient::AsyncPlain(ref mut pa) => emit_initial_request_async(pa.writer()).await,
-        TcpClient::AsyncTls(ref mut ta) => emit_initial_request_async(ta.writer()).await,
+        TcpClient::AsyncPlain(ref mut pa) => emit_initial_request_async(pa.writer()).await?,
+        TcpClient::AsyncTls(ref mut ta) => emit_initial_request_async(ta.writer())
+            .await
+            .map_err(|e| HdbError::TlsInit { source: e })?,
         TcpClient::Dead => unreachable!(),
         #[cfg(feature = "sync")]
         _ => unreachable!("Sync connections not supported here"),
-    }?;
+    };
 
     trace!("send_and_receive(): receive");
     // ignore the response content
@@ -67,17 +69,17 @@ pub(crate) async fn send_and_receive_async(tcp_client: &mut TcpClient) -> HdbRes
 }
 
 #[cfg(feature = "sync")]
-fn emit_initial_request_sync(w: &mut dyn std::io::Write) -> HdbResult<()> {
+fn emit_initial_request_sync(w: &mut dyn std::io::Write) -> std::io::Result<()> {
     w.write_all(initial_request())?;
-    Ok(w.flush()?)
+    w.flush()
 }
 
 #[cfg(feature = "async")]
 async fn emit_initial_request_async<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
     w: &mut W,
-) -> HdbResult<()> {
+) -> std::io::Result<()> {
     w.write_all(initial_request()).await?;
-    Ok(w.flush().await?)
+    w.flush().await
 }
 
 fn initial_request() -> &'static [u8] {

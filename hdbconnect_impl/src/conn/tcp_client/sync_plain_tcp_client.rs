@@ -1,21 +1,18 @@
-use crate::ConnectParams;
+use crate::{ConnectParams, HdbResult};
 use std::net::TcpStream;
 
 #[derive(Debug)]
 pub struct SyncPlainTcpClient {
     params: ConnectParams,
-    reader: TcpStream,
-    writer: TcpStream,
+    tcp_stream: TcpStream,
 }
 
 impl SyncPlainTcpClient {
     // Returns an initialized plain tcp connection
-    pub fn try_new(params: ConnectParams) -> std::io::Result<Self> {
-        let tcpstream = TcpStream::connect(params.addr())?;
+    pub fn try_new(params: ConnectParams) -> HdbResult<Self> {
         Ok(Self {
+            tcp_stream: TcpStream::connect(params.addr())?,
             params,
-            writer: tcpstream.try_clone()?,
-            reader: tcpstream,
         })
     }
 
@@ -24,10 +21,10 @@ impl SyncPlainTcpClient {
     }
 
     pub fn writer(&mut self) -> &mut TcpStream {
-        &mut self.writer
+        &mut self.tcp_stream
     }
 
     pub fn reader(&mut self) -> &mut TcpStream {
-        &mut self.reader
+        &mut self.tcp_stream
     }
 }

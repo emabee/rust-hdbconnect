@@ -12,7 +12,7 @@ impl XatOptions {
         self.insert(XatOptionId::NumberOfXid, OptionValue::BIGINT(1));
         self.insert(
             XatOptionId::XidList,
-            OptionValue::BSTRING(xat_id.as_bytes(true).unwrap(/* TODO */)),
+            OptionValue::BSTRING(xat_id.as_bytes(true)),
         );
     }
 

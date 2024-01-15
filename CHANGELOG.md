@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.28.2] unpublished FIXME
+
+Add two HdbError variants to better handle connection failures.
+
 ## [0.28.1] 2024-01-10
 
 Re-introduce some getter methods on `ConnectParamsBuilder`.

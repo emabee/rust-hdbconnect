@@ -1,6 +1,6 @@
 //! Connection parameters
 use super::{cp_url::format_as_url, Compression};
-use crate::{protocol::util, ConnectParamsBuilder, HdbError, HdbResult, IntoConnectParams};
+use crate::{ConnectParamsBuilder, HdbError, HdbResult, IntoConnectParams};
 use rustls::{
     client::{ServerCertVerified, ServerCertVerifier, ServerName},
     Certificate,
@@ -182,9 +182,9 @@ impl ConnectParams {
     }
 
     #[allow(clippy::too_many_lines)]
-    pub(crate) fn rustls_clientconfig(&self) -> std::io::Result<ClientConfig> {
+    pub(crate) fn rustls_clientconfig(&self) -> HdbResult<ClientConfig> {
         match self.tls {
-            Tls::Off => Err(util::io_error(
+            Tls::Off => Err(HdbError::Impl(
                 "rustls_clientconfig called with Tls::Off - \
                     this should have been prevented earlier",
             )),
@@ -226,12 +226,9 @@ impl ConnectParams {
                                     }
                                 }
                                 Err(e) => {
-                                    return Err(std::io::Error::new(
-                                        std::io::ErrorKind::InvalidInput,
-                                        format!(
-                                            "Environment variable {env_var} not found, reason: {e}"
-                                        ),
-                                    ));
+                                    return Err(HdbError::ImplDetailed(format!(
+                                        "Environment variable {env_var} not found, reason: {e}"
+                                    )));
                                 }
                             }
                         }

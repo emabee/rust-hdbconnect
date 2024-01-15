@@ -176,7 +176,11 @@ pub(crate) fn second_auth_request_sync(
         reconnect,
     )?;
 
-    let reply = conn_core.roundtrip_sync(&second_request, None, None, None, &mut None)?;
+    let reply = conn_core
+        .roundtrip_sync(&second_request, None, None, None, &mut None)
+        .map_err(|e| HdbError::Authentication {
+            source: Box::new(e),
+        })?;
     evaluate_second_response(reply, chosen_authenticator, conn_core)
 }
 
@@ -198,6 +202,9 @@ pub(crate) async fn second_auth_request_async(
 
     let reply = conn_core
         .roundtrip_async(&second_request, None, None, None, &mut None)
-        .await?;
+        .await
+        .map_err(|e| HdbError::Authentication {
+            source: Box::new(e),
+        })?;
     evaluate_second_response(reply, chosen_authenticator, conn_core)
 }

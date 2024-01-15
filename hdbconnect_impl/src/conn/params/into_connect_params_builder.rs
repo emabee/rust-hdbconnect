@@ -116,7 +116,7 @@ impl IntoConnectParamsBuilder for Url {
             if insecure_option {
                 if !server_certs.is_empty() {
                     return Err(HdbError::Usage(
-                        "Use the url-options 'tls_certificate_dir', 'tls_certificate_env', \
+                        "Use either the url-options 'tls_certificate_dir', 'tls_certificate_env', \
                         'tls_certificate_direct' and 'use_mozillas_root_certificates' \
                         to specify the access to the server certificate,\
                         or use 'insecure_omit_server_certificate_check' to not verify the server's \

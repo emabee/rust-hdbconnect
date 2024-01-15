@@ -1,11 +1,10 @@
-use crate::{protocol::util, ConnectParams, HdbError};
+use crate::{protocol::util, ConnectParams, HdbResult};
 use std::sync::{Arc, Mutex};
 use tokio_rustls::rustls::{ClientConnection, ServerName};
 
 pub(crate) struct SyncTlsTcpClient {
     params: ConnectParams,
-    reader: Stream,
-    writer: Stream,
+    tls_stream: TlsStream,
 }
 impl std::fmt::Debug for SyncTlsTcpClient {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
@@ -13,12 +12,10 @@ impl std::fmt::Debug for SyncTlsTcpClient {
     }
 }
 impl SyncTlsTcpClient {
-    pub fn try_new(params: ConnectParams) -> std::io::Result<Self> {
-        let stream = Stream::try_new(&params)?;
+    pub fn try_new(params: ConnectParams) -> HdbResult<Self> {
         Ok(Self {
+            tls_stream: TlsStream::try_new(&params)?,
             params,
-            reader: stream.try_clone()?,
-            writer: stream,
         })
     }
 
@@ -27,34 +24,31 @@ impl SyncTlsTcpClient {
     }
 
     pub(crate) fn writer(&mut self) -> &mut dyn std::io::Write {
-        &mut self.writer
+        &mut self.tls_stream
     }
 
     pub(crate) fn reader(&mut self) -> &mut dyn std::io::Read {
-        &mut self.reader
+        &mut self.tls_stream
     }
 }
 
-struct Stream {
+struct TlsStream {
     is_handshaking: bool,
     tcpstream: std::net::TcpStream,
     am_client_session: Arc<Mutex<ClientConnection>>,
 }
-impl Stream {
-    pub fn try_new(params: &ConnectParams) -> std::io::Result<Self> {
+impl TlsStream {
+    fn try_new(params: &ConnectParams) -> HdbResult<Self> {
         debug!("Connecting to {:?}", params.addr());
         let tcpstream = std::net::TcpStream::connect(params.addr())?;
         trace!("tcpstream working");
 
         let a_client_config = Arc::new(params.rustls_clientconfig()?);
-        let server_name = ServerName::try_from(params.host())
-            .map_err(|_| HdbError::TlsServerName)
-            .map_err(util::io_error)?;
-        let am_client_session = Arc::new(Mutex::new(
-            ClientConnection::new(a_client_config, server_name)
-                .map_err(|e| HdbError::TlsProtocol { source: e })
-                .map_err(util::io_error)?,
-        ));
+        let server_name = ServerName::try_from(params.host())?;
+        let am_client_session = Arc::new(Mutex::new(ClientConnection::new(
+            a_client_config,
+            server_name,
+        )?));
 
         Ok(Self {
             is_handshaking: true,
@@ -62,17 +56,9 @@ impl Stream {
             am_client_session,
         })
     }
-
-    pub fn try_clone(&self) -> std::io::Result<Self> {
-        Ok(Self {
-            is_handshaking: false,
-            tcpstream: self.tcpstream.try_clone()?,
-            am_client_session: Arc::clone(&self.am_client_session),
-        })
-    }
 }
 
-impl std::io::Write for Stream {
+impl std::io::Write for TlsStream {
     fn write(&mut self, request: &[u8]) -> std::io::Result<usize> {
         trace!(
             "std::io::Write::write() with request size {}",
@@ -129,7 +115,7 @@ impl std::io::Write for Stream {
     }
 }
 
-impl std::io::Read for Stream {
+impl std::io::Read for TlsStream {
     fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
         trace!("std::io::Read::read() with buf size {}", buffer.len());
         let mut client_session = self.am_client_session.lock().unwrap();

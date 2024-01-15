@@ -82,8 +82,7 @@ impl ResultSetMetadata {
         let mut offset = 0;
         for _ in 0..names.len() {
             let nl = rdr.read_u8()?;
-            let name = util::string_from_cesu8(util_sync::parse_bytes(nl as usize, rdr)?)
-                .map_err(util::io_error)?;
+            let name = util::string_from_cesu8(util_sync::parse_bytes(nl as usize, rdr)?)?;
             trace!("offset = {offset}, name = {name}");
             names.insert(offset as usize, name);
             offset += u32::from(nl) + 1;

@@ -2,7 +2,7 @@ extern crate serde;
 
 mod test_utils;
 
-use hdbconnect_async::{ConnectParams, Connection, IntoConnectParams};
+use hdbconnect_async::Connection;
 use log::{debug, info};
 
 // cargo test --test test_011_invalid_password -- --nocapture
@@ -42,22 +42,22 @@ async fn test_011_invalid_password() {
         .unwrap();
     assert_eq!(force_first_password_change, "true");
 
+    let cp_builder = test_utils::get_std_cp_builder().unwrap();
+
     // we use names with different lengths to provoke error messages with different lengths
     // to verify we can parse them all correctly from the wire
-    for i in 0..9 {
-        let user = match i {
-            0 => "DOEDEL",
-            1 => "DOEDEL1",
-            2 => "DOEDEL22",
-            3 => "DOEDEL333",
-            4 => "DOEDEL4444",
-            5 => "DOEDEL55555",
-            6 => "DOEDEL666666",
-            7 => "DOEDEL7777777",
-            8 => "DOEDEL88888888",
-            _ => "DOEDEL999999999",
-        };
-
+    for user in [
+        "DOEDEL",
+        "DOEDEL1",
+        "DOEDEL22",
+        "DOEDEL333",
+        "DOEDEL4444",
+        "DOEDEL55555",
+        "DOEDEL666666",
+        "DOEDEL7777777",
+        "DOEDEL88888888",
+        "DOEDEL999999999",
+    ] {
         sys_conn
             .multiple_statements_ignore_err(vec![
                 &format!("drop user {user}"),
@@ -66,27 +66,26 @@ async fn test_011_invalid_password() {
             .await;
 
         debug!("logon as {}", user);
-        let mut cp_builder = test_utils::get_std_cp_builder().unwrap();
+        let mut cp_builder = cp_builder.clone();
         cp_builder.dbuser(user).password("Doebcd1234");
-        let conn_params: ConnectParams = cp_builder.into_connect_params().unwrap();
-        assert_eq!(conn_params.dbuser(), user);
-        assert_eq!(conn_params.password().unsecure(), "Doebcd1234");
-
-        let doedel_conn = Connection::new(conn_params).await.unwrap();
+        assert_eq!(cp_builder.get_dbuser().unwrap(), user);
+        assert_eq!(cp_builder.get_password().unwrap().unsecure(), "Doebcd1234");
+        let doedel_conn = Connection::new(cp_builder).await.unwrap();
         debug!("{} is connected", user);
 
         debug!("select from dummy -> ensure getting the right error");
         let result = doedel_conn.query("select 1 from dummy").await;
-        if let Some(ref server_error) = result.err().unwrap().server_error() {
-            debug!("Got this server error: {:?}", server_error);
-            assert_eq!(
-                server_error.code(),
-                414,
-                "Expected 414 = ERR_SQL_ALTER_PASSWORD_NEEDED"
-            );
-        } else {
-            panic!("We did not get SqlError 414 = ERR_SQL_ALTER_PASSWORD_NEEDED");
-        }
+        let server_error = result
+            .expect_err("We did not get SqlError 414 = ERR_SQL_ALTER_PASSWORD_NEEDED")
+            .server_error()
+            .cloned()
+            .unwrap();
+        debug!("Got this server error: {:?}", server_error);
+        assert_eq!(
+            server_error.code(),
+            414,
+            "Expected 414 = ERR_SQL_ALTER_PASSWORD_NEEDED"
+        );
 
         debug!("reset the password");
         doedel_conn

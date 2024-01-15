@@ -1,4 +1,4 @@
-use crate::ConnectParams;
+use crate::{ConnectParams, HdbResult};
 use tokio::net::TcpStream;
 
 // A plain async tcp connection
@@ -9,7 +9,7 @@ pub struct AsyncPlainTcpClient {
 }
 
 impl AsyncPlainTcpClient {
-    pub async fn try_new(params: ConnectParams) -> std::io::Result<Self> {
+    pub async fn try_new(params: ConnectParams) -> HdbResult<Self> {
         let tcp_stream = TcpStream::connect(params.addr()).await?;
         Ok(Self { params, tcp_stream })
     }

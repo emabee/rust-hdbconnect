@@ -7,6 +7,15 @@ use thiserror::Error;
 #[derive(Error, Debug)] //Copy, Clone, Eq, PartialEq,
 #[non_exhaustive]
 pub enum HdbError {
+    /// Authentication failed.
+    #[error("Authentication failed")]
+    Authentication {
+        /// The causing Error.
+        #[from]
+        source: Box<HdbError>,
+        // backtrace: Backtrace,
+    },
+
     /// Deserialization of a `ResultSet`, a `Row`, a single `HdbValue`,
     /// or an `OutputParameter` failed (methods `try_into()`).
     #[error("Error occured in deserialization")]
@@ -66,7 +75,18 @@ pub enum HdbError {
 
     /// TLS set up failed because the server name was not valid.
     #[error("TLS setup failed because the server name was not valid")]
-    TlsServerName,
+    TlsInvalidDnsName {
+        /// The causing Error.
+        #[from]
+        source: rustls::client::InvalidDnsNameError,
+    },
+
+    /// TLS initialization error
+    #[error("Connection setup failed due to bad TLS configuration")]
+    TlsInit {
+        /// The causing Error.
+        source: std::io::Error,
+    },
 
     /// TLS protocol error.
     #[error(
@@ -162,10 +182,14 @@ impl HdbError {
     /// Reveal the inner error
     pub fn inner(&self) -> Option<&dyn std::error::Error> {
         match self {
+            Self::Authentication { source } => Some(source),
             Self::Deserialization { source } => Some(source),
             Self::Serialization { source } => Some(source),
             Self::ConnParams { source } => Some(&**source),
             Self::DbError { source } => Some(source),
+            Self::Decompression { source } => Some(source),
+            Self::TlsInvalidDnsName { source } => Some(source),
+            Self::TlsInit { source } => Some(source),
             Self::TlsProtocol { source } => Some(source),
             Self::Io { source } => Some(source),
             _ => None,
@@ -181,6 +205,14 @@ impl HdbError {
 
     pub(crate) fn conn_params(error: Box<dyn std::error::Error + Send + Sync + 'static>) -> Self {
         Self::ConnParams { source: error }
+    }
+
+    /// Returns a decently formed and hopefully helpful error description.
+    pub fn display_with_inner(&self) -> String {
+        match self.inner() {
+            Some(e) => format!("{}, caused by {:?}", &self, e),
+            None => format!("{}", &self),
+        }
     }
 }
 

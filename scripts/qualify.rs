@@ -109,10 +109,12 @@ fn main() {
             std::process::exit(-1);
         }
 
-        println!("\n> all done 😀  Looks like you're ready to \n\
-           cargo publish hdbconnect_impl\n\
-           cargo publish hdbconnect\n\
-           cargo publish hdbconnect_async\n\
-           "?");
+        println!(
+            "\n> all done 😀  Looks like you're ready to \n\
+           cargo publish --package hdbconnect_impl\n\
+           cargo publish --package hdbconnect\n\
+           cargo publish --package hdbconnect_async\n\
+           ?"
+        );
     }
 }

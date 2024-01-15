@@ -29,7 +29,7 @@ r2d2_pool = ["hdbconnect_impl/r2d2_pool"]
 dist_tx = ["hdbconnect_impl/dist_tx_sync"]
 
 [dependencies.hdbconnect_impl]
-version = "0.28.1"
+version = "0.28.2-unpublished"
 path = "../hdbconnect_impl"
 default-features = false
 features = ["sync"]
@@ -38,8 +38,8 @@ features = ["sync"]
 bigdecimal = { version = "0.4", features = ["serde"] }
 cesu8 = "1.1"
 chrono = { version = "0.4", features = ["serde"] }
-# dist_tx = { version = "0.4", features = ["sync"], path = "../../dist_tx" }
-dist_tx = { version = "0.4", features = ["sync"] }
+# dist_tx = { features = ["sync"], path = "../../dist_tx" }
+dist_tx = { version = "0.5", features = ["sync"] }
 flexi_logger = "0.27"
 log = "0.4"
 num = "0.4"
@@ -49,7 +49,7 @@ r2d2 = "0.8"
 serde = { version = "1.0", features = ["derive"] }
 serde_bytes = "0.11"
 serde_json = "1.0"
-sha2 = "0.10.0"
+sha2 = "0.10.8"
 time = { version = "0.3", features = [
     "formatting",
     "macros",

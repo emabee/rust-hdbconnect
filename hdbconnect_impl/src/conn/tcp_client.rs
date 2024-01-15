@@ -18,7 +18,7 @@ use async_plain_tcp_client::AsyncPlainTcpClient;
 #[cfg(feature = "async")]
 use async_tls_tcp_client::AsyncTlsTcpClient;
 
-use crate::ConnectParams;
+use crate::{ConnectParams, HdbResult};
 use std::time::Instant;
 
 // A buffered tcp connection, synchronous or asynchronoues, with or without TLS.
@@ -48,7 +48,7 @@ impl TcpClient {
     // Constructs a buffered tcp connection, with or without TLS,
     // depending on the given connect parameters.
     #[cfg(feature = "sync")]
-    pub fn try_new_sync(params: ConnectParams) -> std::io::Result<Self> {
+    pub fn try_new_sync(params: ConnectParams) -> HdbResult<Self> {
         let start = Instant::now();
         trace!("TcpClient: Connecting to {:?})", params.addr());
 
@@ -69,7 +69,7 @@ impl TcpClient {
     // Constructs a buffered tcp connection, with or without TLS,
     // depending on the given connection parameters.
     #[cfg(feature = "async")]
-    pub async fn try_new_async(params: ConnectParams) -> std::io::Result<Self> {
+    pub async fn try_new_async(params: ConnectParams) -> HdbResult<Self> {
         let start = Instant::now();
         trace!("TcpClient: Connecting to {:?})", params.addr());
 
