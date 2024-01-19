@@ -2,7 +2,7 @@
 // Is documented as Message Type.
 // Irrelevant RequestTypes (abap related, "reserved" stuff) are omitted.
 #[derive(Copy, Clone, Debug)]
-pub enum MessageType {
+pub(crate) enum MessageType {
     ExecuteDirect = 2,    // Directly execute SQL statement
     Prepare = 3,          // Prepare an SQL statement
     Execute = 13,         // Execute a previously prepared SQL statement

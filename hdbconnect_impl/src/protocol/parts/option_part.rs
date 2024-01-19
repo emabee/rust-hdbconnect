@@ -9,14 +9,16 @@ use std::{
     hash::Hash,
 };
 
-pub trait OptionId<T: OptionId<T>> {
+pub(crate) trait OptionId<T: OptionId<T>> {
     fn from_u8(i: u8) -> T;
     fn to_u8(&self) -> u8;
     fn part_type(&self) -> &'static str;
 }
 
 #[derive(Clone, Debug)]
-pub struct OptionPart<T: OptionId<T> + Debug + Eq + PartialEq + Hash>(HashMap<T, OptionValue>);
+pub(crate) struct OptionPart<T: OptionId<T> + Debug + Eq + PartialEq + Hash>(
+    HashMap<T, OptionValue>,
+);
 
 impl<T: OptionId<T> + Debug + Eq + PartialEq + Hash> Default for OptionPart<T> {
     fn default() -> Self {

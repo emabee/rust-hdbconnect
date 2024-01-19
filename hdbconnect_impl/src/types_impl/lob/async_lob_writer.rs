@@ -9,7 +9,7 @@ use crate::{
 use std::sync::Arc;
 use tokio::io::{AsyncRead, AsyncReadExt};
 
-pub async fn copy<'a, R>(
+pub(crate) async fn copy<'a, R>(
     reader: &'a mut R,
     am_conn_core: AmConnCore,
     locator_id: u64,

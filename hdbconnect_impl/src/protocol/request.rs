@@ -25,7 +25,7 @@ pub const HOLD_CURSORS_OVER_COMMIT: u8 = 8;
 
 // Packets having the same sequence number belong to one request/response pair.
 #[derive(Debug)]
-pub struct Request<'a> {
+pub(crate) struct Request<'a> {
     message_type: MessageType,
     command_options: u8,
     parts: Parts<'a>,

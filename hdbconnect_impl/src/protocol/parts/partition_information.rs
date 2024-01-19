@@ -3,7 +3,7 @@ use byteorder::{LittleEndian, ReadBytesExt};
 
 #[derive(Debug)]
 #[allow(dead_code)]
-pub struct PartitionInformation {
+pub(crate) struct PartitionInformation {
     partition_method: PartitionMethod,
     parameter_descriptor: Vec<ParameterDescriptor>,
     partitions: Vec<Partitions>,

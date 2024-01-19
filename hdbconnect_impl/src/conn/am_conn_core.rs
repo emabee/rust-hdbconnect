@@ -10,7 +10,7 @@ use crate::{
 use std::{sync::Arc, time::Instant};
 
 #[derive(Clone, Debug)]
-pub struct AmConnCore(AM<ConnectionCore>);
+pub(crate) struct AmConnCore(AM<ConnectionCore>);
 impl AmConnCore {
     #[cfg(feature = "sync")]
     pub fn try_new_sync(

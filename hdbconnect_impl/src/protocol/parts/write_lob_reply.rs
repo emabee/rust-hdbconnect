@@ -2,7 +2,7 @@ use crate::HdbResult;
 use byteorder::{LittleEndian, ReadBytesExt};
 
 #[derive(Debug)]
-pub struct WriteLobReply {
+pub(crate) struct WriteLobReply {
     locator_ids: Vec<u64>,
 }
 impl WriteLobReply {

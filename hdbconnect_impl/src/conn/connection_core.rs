@@ -18,7 +18,7 @@ use std::{io::Cursor, mem, sync::Arc};
 
 #[doc(hidden)]
 #[derive(Debug)]
-pub struct ConnectionCore {
+pub(crate) struct ConnectionCore {
     authenticated: bool,
     session_id: i64,
     client_info: ClientInfo,

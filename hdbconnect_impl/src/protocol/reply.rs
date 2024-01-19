@@ -16,7 +16,7 @@ use super::{MESSAGE_AND_SEGMENT_HEADER_SIZE, SEGMENT_HEADER_SIZE};
 // we model message and segment together.
 // But we differentiate explicitly between request messages and reply messages.
 #[derive(Debug)]
-pub struct Reply {
+pub(crate) struct Reply {
     session_id: i64,
     pub replytype: ReplyType,
     pub parts: Parts<'static>,

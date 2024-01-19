@@ -2,7 +2,7 @@ use crate::HdbResult;
 use byteorder::{LittleEndian, WriteBytesExt};
 
 #[derive(Debug)]
-pub struct ReadLobRequest {
+pub(crate) struct ReadLobRequest {
     locator_id: u64,
     offset: u64,
     length: u32,

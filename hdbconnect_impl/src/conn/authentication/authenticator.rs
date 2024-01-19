@@ -1,7 +1,7 @@
 use crate::{HdbError, HdbResult};
 use secstr::SecUtf8;
 
-pub trait Authenticator {
+pub(crate) trait Authenticator {
     fn name(&self) -> &str;
 
     fn name_as_bytes(&self) -> Vec<u8>;

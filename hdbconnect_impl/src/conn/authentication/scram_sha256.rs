@@ -10,7 +10,7 @@ use std::io::Write;
 
 const CLIENT_PROOF_SIZE: u8 = 32;
 
-pub struct ScramSha256 {
+pub(crate) struct ScramSha256 {
     client_challenge: Vec<u8>,
     server_proof: Option<Vec<u8>>,
 }

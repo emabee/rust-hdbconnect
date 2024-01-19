@@ -5,7 +5,7 @@ use crate::{
 
 // Needs connection for its Drop implementation
 #[derive(Debug)]
-pub struct PreparedStatementCore {
+pub(crate) struct PreparedStatementCore {
     pub am_conn_core: AmConnCore,
     pub statement_id: u64,
 }

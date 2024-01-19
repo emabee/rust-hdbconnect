@@ -12,11 +12,9 @@ mod tcp_client;
 
 pub mod url;
 
-pub(crate) use params::Compression;
+pub(crate) use {am_conn_core::AmConnCore, connection_core::ConnectionCore, params::Compression};
 pub use {
-    am_conn_core::AmConnCore,
     connection_configuration::ConnectionConfiguration,
-    connection_core::ConnectionCore,
     connection_statistics::ConnectionStatistics,
     params::{
         connect_params::{ConnectParams, ServerCerts, Tls},

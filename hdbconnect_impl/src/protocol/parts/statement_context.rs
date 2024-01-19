@@ -6,7 +6,7 @@ use std::{convert::TryInto, time::Duration};
 
 // An options part that is populated from previously received statement context
 // information. The binary option content is opaque to the client.
-pub type StatementContext = OptionPart<StatementContextId>;
+pub(crate) type StatementContext = OptionPart<StatementContextId>;
 
 impl StatementContext {
     pub fn statement_sequence_info(&self) -> Option<i64> {

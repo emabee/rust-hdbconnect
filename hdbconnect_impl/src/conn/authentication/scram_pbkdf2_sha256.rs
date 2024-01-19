@@ -10,7 +10,7 @@ use std::{io::Write, time::Instant};
 
 const CLIENT_PROOF_SIZE: u8 = 32;
 
-pub struct ScramPbkdf2Sha256 {
+pub(crate) struct ScramPbkdf2Sha256 {
     client_challenge: Vec<u8>,
     server_proof: Option<Vec<u8>>,
 }

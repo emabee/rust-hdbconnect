@@ -3,7 +3,7 @@ use pbkdf2::pbkdf2;
 use secstr::SecUtf8;
 use sha2::{Digest, Sha256};
 
-pub fn scram_sha256(
+pub(crate) fn scram_sha256(
     salt: &[u8],
     server_key: &[u8],
     client_challenge: &[u8],

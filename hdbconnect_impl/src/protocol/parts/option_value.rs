@@ -6,7 +6,7 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 #[allow(clippy::upper_case_acronyms, non_camel_case_types)]
 #[derive(Clone, Debug, PartialEq)]
-pub enum OptionValue {
+pub(crate) enum OptionValue {
     INT(i32),         // INTEGER
     BIGINT(i64),      // BIGINT
     DOUBLE(f64),      // DOUBLE

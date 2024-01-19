@@ -7,7 +7,7 @@ use tokio_rustls::{
 };
 
 #[derive(Debug)]
-pub struct AsyncTlsTcpClient {
+pub(in crate::conn) struct AsyncTlsTcpClient {
     params: ConnectParams,
     tls_stream: TlsStream<TcpStream>,
 }

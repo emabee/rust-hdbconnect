@@ -2,10 +2,10 @@ use crate::protocol::parts::option_part::{OptionId, OptionPart};
 
 // An Options part that is used to differentiate between primary and secondary
 // connections.
-pub type SessionContext = OptionPart<SessionContextId>;
+pub(crate) type SessionContext = OptionPart<SessionContextId>;
 
 #[derive(Debug, Eq, PartialEq, Hash)]
-pub enum SessionContextId {
+pub(crate) enum SessionContextId {
     PrimaryConnectionID,   // 1 // INT     // ID of primary connection
     PrimaryHostname,       // 2 // STRING  // Host name of primary connection host
     PrimaryHostPortNumber, // 3 // INT     // Number of SQL port for primary con­nection

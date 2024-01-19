@@ -9,7 +9,7 @@ use crate::{
 use std::{io::Write, sync::Arc};
 
 #[derive(Debug)]
-pub struct SyncLobWriter<'a> {
+pub(crate) struct SyncLobWriter<'a> {
     locator_id: u64,
     type_id: TypeId,
     am_conn_core: AmConnCore,

@@ -8,10 +8,10 @@ use crate::protocol::parts::option_part::{OptionId, OptionPart};
 // (transaction isolation level has changed, DDL statements are
 // automatically committed or not, it has become impossible to continue
 // processing the session)
-pub type TransactionFlags = OptionPart<TaFlagId>;
+pub(crate) type TransactionFlags = OptionPart<TaFlagId>;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
-pub enum TaFlagId {
+pub(crate) enum TaFlagId {
     RolledBack,            // 0 // BOOL    // The transaction is rolled back
     Committed,             // 1 // BOOL    // The transaction is committed
     NewIsolationlevel,     // 2 // INT     // The transaction isolation level has changed

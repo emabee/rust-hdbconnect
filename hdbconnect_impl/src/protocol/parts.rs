@@ -55,6 +55,7 @@ pub(crate) use self::{
     write_lob_request::WriteLobRequest,
 };
 
+pub(crate) use self::partition_information::PartitionInformation;
 pub use self::{
     execution_result::ExecutionResult,
     field_metadata::FieldMetadata,
@@ -63,7 +64,6 @@ pub use self::{
     parameter_descriptor::{
         ParameterBinding, ParameterDescriptor, ParameterDescriptors, ParameterDirection,
     },
-    partition_information::PartitionInformation,
     resultset_metadata::ResultSetMetadata,
     server_error::{ServerError, Severity},
     type_id::TypeId,

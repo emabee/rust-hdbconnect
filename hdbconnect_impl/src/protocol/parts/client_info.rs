@@ -7,7 +7,7 @@ use std::env;
 use std::path::Path;
 
 #[derive(Clone, Debug)]
-pub struct ClientInfo(HashMap<ClientInfoKey, String>);
+pub(crate) struct ClientInfo(HashMap<ClientInfoKey, String>);
 
 impl Default for ClientInfo {
     fn default() -> Self {

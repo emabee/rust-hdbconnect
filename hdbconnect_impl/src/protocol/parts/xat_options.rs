@@ -5,7 +5,7 @@ use crate::protocol::parts::{
 use dist_tx::{Flags, ReturnCode, XaTransactionId};
 
 // An Options part that is used in XA related requests and responses.
-pub type XatOptions = OptionPart<XatOptionId>;
+pub(crate) type XatOptions = OptionPart<XatOptionId>;
 
 impl XatOptions {
     pub(crate) fn set_xatid(&mut self, xat_id: &XaTransactionId) {

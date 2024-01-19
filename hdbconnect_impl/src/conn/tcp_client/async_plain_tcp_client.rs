@@ -3,7 +3,7 @@ use tokio::net::TcpStream;
 
 // A plain async tcp connection
 #[derive(Debug)]
-pub struct AsyncPlainTcpClient {
+pub(in crate::conn) struct AsyncPlainTcpClient {
     params: ConnectParams,
     tcp_stream: TcpStream,
 }

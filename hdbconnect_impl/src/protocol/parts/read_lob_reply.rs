@@ -2,7 +2,7 @@ use crate::{protocol::util_sync, HdbResult};
 use byteorder::{LittleEndian, ReadBytesExt};
 
 #[derive(Debug)]
-pub struct ReadLobReply {
+pub(crate) struct ReadLobReply {
     locator_id: u64,
     is_last_data: bool,
     data: Vec<u8>,

@@ -6,7 +6,9 @@ use byteorder::{LittleEndian, ReadBytesExt};
 use std::{fmt::Debug, hash::Hash};
 
 #[derive(Debug)]
-pub struct MultilineOptionPart<T: OptionId<T> + Debug + Eq + PartialEq + Hash>(Vec<OptionPart<T>>);
+pub(crate) struct MultilineOptionPart<T: OptionId<T> + Debug + Eq + PartialEq + Hash>(
+    Vec<OptionPart<T>>,
+);
 
 impl<T: OptionId<T> + Debug + Eq + PartialEq + Hash> MultilineOptionPart<T> {
     pub fn parse(no_of_lines: usize, rdr: &mut dyn std::io::Read) -> HdbResult<Self> {

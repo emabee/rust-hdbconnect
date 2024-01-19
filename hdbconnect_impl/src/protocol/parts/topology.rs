@@ -3,7 +3,7 @@ use crate::protocol::parts::{multiline_option_part::MultilineOptionPart, option_
 pub type Topology = MultilineOptionPart<TopologyAttrId>;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
-pub enum TopologyAttrId {
+pub(crate) enum TopologyAttrId {
     HostName,         //  1 // host name
     HostPortNumber,   //  2 // port number
     TenantName,       //  3 // tenant name

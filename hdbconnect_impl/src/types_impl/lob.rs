@@ -20,7 +20,7 @@ use lob_buf::LobBuf;
 const UTF_BUFFER_SIZE: usize = 8 * 1024;
 
 #[cfg(feature = "sync")]
-pub use self::sync_lob_writer::SyncLobWriter;
+pub(crate) use self::sync_lob_writer::SyncLobWriter;
 
 pub(crate) use self::wire::emit_lob_header;
 #[cfg(feature = "async")]

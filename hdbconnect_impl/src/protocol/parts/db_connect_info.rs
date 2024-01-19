@@ -10,7 +10,7 @@ use crate::{
 pub type DbConnectInfo = OptionPart<DbConnectInfoId>;
 
 #[derive(Debug, Eq, PartialEq, Hash)]
-pub enum DbConnectInfoId {
+pub(crate) enum DbConnectInfoId {
     DatabaseName,      // 1 // STRING
     Host,              // 2 // STRING
     Port,              // 3 // INT
