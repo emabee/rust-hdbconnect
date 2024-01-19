@@ -7,7 +7,7 @@ use crate::{
 };
 
 // Part of redirect response to authentication request
-pub type DbConnectInfo = OptionPart<DbConnectInfoId>;
+pub(crate) type DbConnectInfo = OptionPart<DbConnectInfoId>;
 
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub(crate) enum DbConnectInfoId {

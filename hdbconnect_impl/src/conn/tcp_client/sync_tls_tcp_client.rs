@@ -2,7 +2,7 @@ use crate::{protocol::util, ConnectParams, HdbResult};
 use std::sync::{Arc, Mutex};
 use tokio_rustls::rustls::{ClientConnection, ServerName};
 
-pub(in crate::conn) struct SyncTlsTcpClient {
+pub(crate) struct SyncTlsTcpClient {
     params: ConnectParams,
     tls_stream: TlsStream,
 }

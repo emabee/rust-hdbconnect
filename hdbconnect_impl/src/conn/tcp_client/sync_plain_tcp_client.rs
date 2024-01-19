@@ -2,7 +2,7 @@ use crate::{ConnectParams, HdbResult};
 use std::net::TcpStream;
 
 #[derive(Debug)]
-pub(in crate::conn) struct SyncPlainTcpClient {
+pub(crate) struct SyncPlainTcpClient {
     params: ConnectParams,
     tcp_stream: TcpStream,
 }
