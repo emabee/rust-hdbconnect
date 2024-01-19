@@ -21,7 +21,7 @@ use std::{cmp::max, convert::TryFrom, i16, i32, io::Write, sync::Arc};
 const PART_HEADER_SIZE: usize = 16;
 
 #[derive(Debug)]
-pub enum Part<'a> {
+pub(crate) enum Part<'a> {
     Auth(AuthFields),
     ClientContext(ClientContext),
     ClientInfo(ClientInfo),

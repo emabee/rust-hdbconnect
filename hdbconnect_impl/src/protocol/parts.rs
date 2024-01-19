@@ -78,7 +78,7 @@ use crate::{
 use std::{iter::IntoIterator, sync::Arc};
 
 #[derive(Debug, Default)]
-pub struct Parts<'a>(Vec<Part<'a>>);
+pub(crate) struct Parts<'a>(Vec<Part<'a>>);
 
 impl<'a> Parts<'a> {
     #[cfg(feature = "dist_tx")]

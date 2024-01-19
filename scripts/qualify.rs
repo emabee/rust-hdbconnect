@@ -8,6 +8,16 @@ use std::{process::Command, time::Instant};
 
 fn main() {
     let mut simulate = false;
+    let mut run_tests = true;
+
+    for arg in std::env::args() {
+        if &arg == "--simulate" {
+            simulate = true;
+        }
+        if &arg == "--no-test" {
+            run_tests = false;
+        }
+    }
 
     macro_rules! run_command {
         ($cmd:expr) => {
@@ -38,12 +48,6 @@ fn main() {
             }
             command
         }};
-    }
-
-    for arg in std::env::args() {
-        if &arg == "--simulate" {
-            simulate = true;
-        }
     }
 
     if simulate {
@@ -77,44 +81,47 @@ fn main() {
     // doc
     run_command!("cargo +nightly doc --package hdbconnect --all-features --no-deps --open");
     run_command!("cargo +nightly doc --package hdbconnect_async --all-features --no-deps --open");
-    // doc-tests
-    run_command!("cargo +nightly test --doc --all-features --package hdbconnect");
-    run_command!("cargo +nightly test --doc --all-features --package hdbconnect_async");
 
-    // Run tests in important variants
-    let start = Instant::now();
-    run_command!("cargo test --package hdbconnect --release --all-features");
-    run_command!("cargo test --package hdbconnect_async --release --all-features");
-    run_command!("cargo test --package hdbconnect");
-    run_command!("cargo test --package hdbconnect_async");
+    if run_tests {
+        // doc-tests
+        run_command!("cargo +nightly test --doc --all-features --package hdbconnect");
+        run_command!("cargo +nightly test --doc --all-features --package hdbconnect_async");
 
-    if !simulate {
-        println!(
-            "Four test runs together took {:?}",
-            Instant::now().duration_since(start)
-        );
-    }
+        // Run tests in important variants
+        let start = Instant::now();
+        run_command!("cargo test --package hdbconnect --release --all-features");
+        run_command!("cargo test --package hdbconnect_async --release --all-features");
+        run_command!("cargo test --package hdbconnect");
+        run_command!("cargo test --package hdbconnect_async");
 
-    // check version consistency
-    run_command!("cargo run --package hdbconnect --example version_numbers");
-    run_command!("cargo run --package hdbconnect_async --example version_numbers");
-
-    // check git status
-    if !simulate {
-        let mut cmd = command!("git status -s");
-        let child = cmd.stdout(std::process::Stdio::piped()).spawn().unwrap();
-        let output = child.wait_with_output().unwrap();
-        if output.stdout.len() > 0 {
-            print!("> {}", yansi::Paint::red("there are unsubmitted files"));
-            std::process::exit(-1);
+        if !simulate {
+            println!(
+                "Four test runs together took {:?}",
+                Instant::now().duration_since(start)
+            );
         }
 
-        println!(
-            "\n> all done 😀  Looks like you're ready to \n\
-           cargo publish --package hdbconnect_impl\n\
-           cargo publish --package hdbconnect\n\
-           cargo publish --package hdbconnect_async\n\
-           ?"
-        );
+        // check version consistency
+        run_command!("cargo run --package hdbconnect --example version_numbers");
+        run_command!("cargo run --package hdbconnect_async --example version_numbers");
+
+        // check git status
+        if !simulate {
+            let mut cmd = command!("git status -s");
+            let child = cmd.stdout(std::process::Stdio::piped()).spawn().unwrap();
+            let output = child.wait_with_output().unwrap();
+            if output.stdout.len() > 0 {
+                print!("> {}", yansi::Paint::red("there are unsubmitted files"));
+                std::process::exit(-1);
+            }
+
+            println!(
+                "\n> all done 😀  Looks like you're ready to \n\
+               cargo publish --package hdbconnect_impl\n\
+               cargo publish --package hdbconnect\n\
+               cargo publish --package hdbconnect_async\n\
+               ?"
+            );
+        }
     }
 }
