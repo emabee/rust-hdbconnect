@@ -189,9 +189,8 @@ impl HdbError {
             Self::DbError { source } => Some(source),
             Self::Decompression { source } => Some(source),
             Self::TlsInvalidDnsName { source } => Some(source),
-            Self::TlsInit { source } => Some(source),
+            Self::TlsInit { source } | Self::Io { source } => Some(source),
             Self::TlsProtocol { source } => Some(source),
-            Self::Io { source } => Some(source),
             _ => None,
         }
     }
@@ -209,9 +208,10 @@ impl HdbError {
 
     /// Returns a decently formed and hopefully helpful error description.
     pub fn display_with_inner(&self) -> String {
-        match self.inner() {
-            Some(e) => format!("{}, caused by {:?}", &self, e),
-            None => format!("{}", &self),
+        if let Some(e) = self.inner() {
+            format!("{}, caused by {:?}", &self, e)
+        } else {
+            format!("{}", &self)
         }
     }
 }

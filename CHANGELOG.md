@@ -1,8 +1,12 @@
 # Changelog
 
-## [0.28.2] unpublished FIXME
+## [0.28.2] Fix issue in CLob
+
+Revise lob reading and buffering.
 
 Add two HdbError variants to better handle connection failures.
+
+Improve code examples.
 
 ## [0.28.1] 2024-01-10
 

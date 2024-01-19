@@ -47,7 +47,7 @@ pub(crate) fn cesu8_length(s: &str) -> usize {
 // consistent cesu-8 that can be converted into utf-8
 pub(crate) fn get_cesu8_tail_len<T>(bytes: &T, len: usize) -> std::io::Result<usize>
 where
-    T: std::fmt::Debug + std::ops::Index<usize, Output = u8>,
+    T: std::ops::Index<usize, Output = u8>,
 {
     if len == 0 {
         return Ok(0);

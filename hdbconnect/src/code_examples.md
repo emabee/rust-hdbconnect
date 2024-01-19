@@ -1,4 +1,26 @@
-## 1. Database connections
+## Contents
+
+- [Database connections](#database-connections)
+- [Queries and other database calls](#queries-and-other-database-calls)
+  - [Generic method: `Connection::statement()` and `HdbResponse`](#generic-method-connectionstatement-and-hdbresponse)
+  - [More specific methods with more convenient return values](#more-specific-methods-with-more-convenient-return-values)
+  - [Prepared statements](#prepared-statements)
+- [Result set evaluation](#result-set-evaluation)
+  - [Iterating over rows](#iterating-over-rows)
+  - [Explicitly evaluating a single row](#explicitly-evaluating-a-single-row)
+  - [Direct conversion of entire rows](#direct-conversion-of-entire-rows)
+  - [Direct conversion of entire result sets](#direct-conversion-of-entire-result-sets)
+    - [Matrix-structured result sets](#matrix-structured-result-sets)
+    - [Single-line result sets](#single-line-result-sets)
+    - [Single-column result sets](#single-column-result-sets)
+    - [Single-value result sets](#single-value-result-sets)
+- [Deserialization of field values](#deserialization-of-field-values)
+- [Binary Values](#binary-values)
+- [LOBs](#lobs)
+  - [Streaming LOBs to the database](#streaming-lobs-to-the-database)
+  - [Streaming LOBs from the database](#streaming-lobs-from-the-database)
+
+## Database connections
 
 Establish authenticated connections to the database server.
 See [`ConnectParams`], [`ConnectParamsBuilder`](crate::ConnectParamsBuilder),
@@ -26,9 +48,9 @@ let mut connection2 = Connection::new(
 # }
 ```
 
-## 2. Queries and other database calls
+## Queries and other database calls
 
-### 2.1 Generic method: `Connection::statement()` and `HdbResponse`
+### Generic method: `Connection::statement()` and `HdbResponse`
 
 The most generic way to fire SQL statements without preparation is using
 [`Connection`]`::`[`statement()`].
@@ -68,14 +90,14 @@ let resultset = response.into_resultset()?; // ResultSet
 You can do the same of course with [`HdbResponse`]s obtained from the execution
 of prepared statements.
 
-### 2.2 More specific methods with tailored return values
+### More specific methods with more convenient return values
 
 In many cases it will be more appropriate and convenient to send your database command
 with one of the more specialized methods
 
-* [`Connection`]`::`[`query()`]`// HdbResult<ResultSet>`
-* [`Connection`]`::`[`dml()`]`// HdbResult<usize>`
-* [`Connection`]`::`[`exec()`]`// HdbResult<()>`
+- [`Connection`]`::`[`query()`]`// HdbResult<ResultSet>`
+- [`Connection`]`::`[`dml()`]`// HdbResult<usize>`
+- [`Connection`]`::`[`exec()`]`// HdbResult<()>`
 
 which convert the database response directly into a simpler result type:
 
@@ -89,7 +111,7 @@ let resultset = connection.query(qry)?; // ResultSet
 # }
 ```
 
-### 2.3 Prepared statements
+### Prepared statements
 
 With prepared statements you can use parameters in a database statement, and provide one or
 more sets of these parameters in separate API calls before executing the statement.
@@ -134,14 +156,15 @@ let resultset = stmt.execute_batch()?.into_resultset()?;
 # }
 ```
 
-## 3. Result set evaluation
+## Result set evaluation
 
-Some of the following examples use the method `try_into()`, on an individual [`HdbValue`],
+The examples below use the method `try_into()` on an individual [`HdbValue`],
 a [`Row`], or a [`ResultSet`].
 These methods are based on the deserialization part of `serde` and use return type polymorphism,
-which means that you need to specify explicitly the desired type of the return value.
+which means that you specify explicitly the desired type of the return value, and serde will do
+its best to get your data filled in.
 
-## 3.1 Iterating over rows
+## Iterating over rows
 
 Evaluating a result set by iterating over the rows explicitly is possible, of course.
 Note that the row iterator returns `HdbResult<Row>`, not `Row`,
@@ -169,7 +192,7 @@ makes it easy to write complex evaluations in an efficient and scalable manner.
 let key_figure = resultset.map(|r|{r.unwrap()}).map(...).fold(...).collect(...);
 ```
 
-## 3.2 Explicitly evaluating a single row
+## Explicitly evaluating a single row
 
 You _can_ retrieve the field values of a row individually, one after the other:
 
@@ -194,7 +217,7 @@ for row in resultset {
 # }
 ```
 
-## 3.3 Direct conversion of entire rows
+## Direct conversion of entire rows
 
 A usually more convenient way is to convert the complete row into a normal rust value
 or tuple or struct:
@@ -216,13 +239,13 @@ for row in connection.query(qry)? {
 # }
 ```
 
-## 3.4 Direct conversion of entire result sets
+## Direct conversion of entire result sets
 
 Even more convenient is the option to convert the complete result set in a single step.
 Depending on the concrete numbers of rows and columns, this option supports
 a variety of target data structures.
 
-## 3.4.1 Matrix-structured result sets
+## Matrix-structured result sets
 
 You can always, and __most often want to__, use a `Vec` of a struct or
 tuple that matches the fields of the result set.
@@ -242,7 +265,7 @@ let result: Vec<MyRow> = connection.query(qry)?.try_into()?;
 # }
 ```
 
-## 3.4.2 Single-line result sets
+## Single-line result sets
 
 If the result set contains only a single line (e.g. because you specified
 TOP 1 in your select, or you qualified the full primary key),
@@ -261,7 +284,7 @@ then you can also deserialize directly into a plain `MyRow`.
   # }
   ```
 
-## 3.4.3 Single-column result sets
+## Single-column result sets
 
 If the result set contains only a single column, then you can choose to
 deserialize into a `Vec<field>`,
@@ -277,7 +300,7 @@ where `field` is a type that matches the field of the result set.
 # }
   ```
 
-## 3.4.4 Single-value result sets
+## Single-value result sets
 
 If the result set contains only a single value (one row with one column),
 then you can also deserialize into a plain `field`:
@@ -292,25 +315,22 @@ then you can also deserialize into a plain `field`:
 # }
   ```
 
-## 4. Deserialization of field values
+## Deserialization of field values
 
 The deserialization of individual values provides flexibility without data loss:
 
-* You can e.g. convert values from a nullable column into a plain field,
+- You can e.g. convert values from a nullable column into a plain field,
   provided that no NULL values are given in the result set.
 
-* Vice versa, you can use an `Option<field>` as target structure,
+- Vice versa, you can use an `Option<field>` as target structure,
   even if the column is marked as NOT NULL.
 
-* Source and target integer types can differ from each other,
+- Source and target integer types can differ from each other,
   as long as the concrete values can be assigned without loss.
 
-* You can convert numeric values on-the-fly into default String representations.
+- You can convert numeric values on-the-fly into default String representations.
 
-You should use this flexibility with some care though, or you will face errors
-when the data violates the boundaries of the target values.
-
-## 5. Binary Values
+## Binary Values
 
 So far, specialization support is not yet in rust stable. Without that, you  have to use
 [`serde_bytes::Bytes`] and [`serde_bytes::ByteBuf`]
@@ -334,15 +354,43 @@ let first_byte = bindata[0];
 # }
 ```
 
-## 6. LOBs
+## LOBs
 
-Binary and Character LOBs can be treated like "normal" binary and String data, i.e.
-you can convert them with the methods described above into [`serde_bytes::ByteBuf`]
-or String values (see [`serde_bytes`] for serde's specialties regarding bytes).
+Character and binary LOBs can be treated like "normal" String and binary data, i.e.
+you can convert them with the methods described above into String or [`serde_bytes::ByteBuf`] values
+(see [`serde_bytes`] for serde's specialties regarding bytes).
 
-If necessary, you can easily avoid materializing the complete "Large Object",
-and stream it e.g. into a writer. For doing so, you convert the value into one of
-`hdbconnect::{BLob, CLob, NCLob}`.
+### Streaming LOBs to the database
+
+Avoid materializing the complete "Large Object" by handing over a reader that provides the data.
+An internal buffer will be filled by reading from the reader.
+If the internal buffer has reached the value of the connection's lob write size,
+data are sent to the database and the buffer can be filled anew.
+
+```rust, no_run
+  use std::sync::{Arc, Mutex};
+  # use hdbconnect::HdbValue;
+  # struct DummyReader;
+  # impl std::io::Read for DummyReader{
+  #     fn read(&mut self, _: &mut [u8]) -> Result<usize, std::io::Error> { todo!() }
+  # }
+  # let reader: DummyReader = todo!();
+  # let insert_stmt: hdbconnect::PreparedStatement = todo!();
+  let am_reader = Arc::new(Mutex::new(reader));
+  insert_stmt.execute_row(vec![
+      HdbValue::STR("streaming2"),
+      HdbValue::SYNC_LOBSTREAM(Some(am_reader)),
+  ]).unwrap();
+
+```
+
+### Streaming LOBs from the database
+
+Avoid materializing the complete "Large Object" by converting the `HdbValue`
+into the corresponding Lob object (one of `hdbconnect::{BLob, CLob, NCLob}`)
+and reading from it incrementally.
+When the internal buffer is empty, new data will be read from the database
+in chunks of the connection's lob read size.
 
 In this example the [`NCLob`] will, while being read by `std::io::copy()`,
 continuously fetch more data from the database until it is completely transferred:
@@ -355,7 +403,7 @@ use hdbconnect::types::NCLob;
 # let mut connection = Connection::new("...")?;
 # let mut resultset: ResultSet = connection.query(query)?;
 # let mut writer: Vec<u8> = vec![];
-let mut nclob: NCLob = resultset.into_single_row()?.into_single_value()?.try_into_nclob()?;
+let mut nclob: NCLob = resultset.into_single_value()?.try_into_nclob()?;
 std::io::copy(&mut nclob, &mut writer)?;
 # Ok(())
 # }

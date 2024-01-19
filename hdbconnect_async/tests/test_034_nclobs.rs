@@ -1,5 +1,4 @@
 extern crate serde;
-
 mod test_utils;
 
 use hdbconnect_async::{Connection, HdbResult, HdbValue};
@@ -7,10 +6,8 @@ use log::{debug, info, trace};
 use serde::{Deserialize, Serialize};
 use serde_bytes::Bytes;
 use sha2::{Digest, Sha256};
-use std::fs::File;
-use std::io::Read;
+use std::{fs::File, io::Read};
 
-// cargo test test_034_nclobs -- --nocapture
 #[tokio::test]
 async fn test_034_nclobs() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
@@ -18,13 +15,15 @@ async fn test_034_nclobs() -> HdbResult<()> {
     let connection = test_utils::get_authenticated_connection().await?;
 
     debug!("setup...");
-    connection.set_lob_read_length(1_000_000).await;
-
     connection
         .multiple_statements_ignore_err(vec!["drop table TEST_NCLOBS"])
         .await;
-    let stmts = vec!["create table TEST_NCLOBS (desc NVARCHAR(20) not null, chardata NCLOB)"];
-    connection.multiple_statements(stmts).await?;
+    connection
+        .multiple_statements(vec![
+            "create table TEST_NCLOBS (desc NVARCHAR(20) not null, chardata NCLOB)",
+        ])
+        .await?;
+    connection.set_lob_read_length(1_000_000).await;
 
     let (blabla, fingerprint) = get_blabla();
     test_nclobs(&mut log_handle, &connection, &blabla, &fingerprint).await?;
@@ -49,19 +48,23 @@ fn get_blabla() -> (String, Vec<u8>) {
         }
     }
 
+    let fingerprint = fingerprint(fifty_times_smp_blabla.as_bytes());
+    (fifty_times_smp_blabla, fingerprint)
+}
+
+fn fingerprint(data: &[u8]) -> Vec<u8> {
     let mut hasher = Sha256::default();
-    hasher.update(fifty_times_smp_blabla.as_bytes());
-    (fifty_times_smp_blabla, hasher.finalize().to_vec())
+    hasher.update(data);
+    hasher.finalize().to_vec()
 }
 
 async fn test_nclobs(
     _log_handle: &mut flexi_logger::LoggerHandle,
     connection: &Connection,
     fifty_times_smp_blabla: &str,
-    fingerprint: &[u8],
+    fingerprint0: &[u8],
 ) -> HdbResult<()> {
     info!("create a big NCLOB in the database, and read it in various ways");
-
     #[derive(Serialize, Deserialize, Debug, PartialEq)]
     struct MyData {
         #[serde(rename = "DESC")]
@@ -80,7 +83,7 @@ async fn test_nclobs(
     insert_stmt.execute_batch().await?;
 
     debug!("and read it back");
-    let before = connection.statistics().await.call_count();
+    connection.reset_statistics().await;
     let query = "select desc, chardata as CL1, chardata as CL2 from TEST_NCLOBS";
     let resultset = connection.query(query).await?;
     debug!("and convert it into a rust struct");
@@ -89,31 +92,26 @@ async fn test_nclobs(
     debug!(
         "reading two big NCLOB with lob-read-length {} required {} roundtrips",
         connection.lob_read_length().await,
-        connection.statistics().await.call_count() - before
+        connection.statistics().await.call_count()
     );
 
     // verify we get in both cases the same blabla back
     assert_eq!(fifty_times_smp_blabla.len(), mydata.s.len());
-
-    let mut hasher = Sha256::default();
-    hasher.update(mydata.s.as_bytes());
-    let fingerprint2 = hasher.finalize().to_vec();
-    assert_eq!(fingerprint, fingerprint2.as_slice());
-
-    let mut hasher = Sha256::default();
-    hasher.update(mydata.o_s.as_ref().unwrap().as_bytes());
-    let fingerprint3 = hasher.finalize().to_vec();
-    assert_eq!(fingerprint, fingerprint3.as_slice());
+    assert_eq!(fingerprint0, fingerprint(mydata.s.as_bytes()));
+    assert_eq!(
+        fingerprint0,
+        fingerprint(mydata.o_s.as_ref().unwrap().as_bytes())
+    );
 
     // try again with smaller lob-read-length
-    connection.set_lob_read_length(5_000).await;
-    let before = connection.statistics().await.call_count();
+    connection.set_lob_read_length(77_000).await;
+    connection.reset_statistics().await;
     let resultset = connection.query(query).await?;
     let second: MyData = resultset.try_into().await?;
     debug!(
         "reading two big NCLOB with lob-read-length {} required {} roundtrips",
         connection.lob_read_length().await,
-        connection.statistics().await.call_count() - before
+        connection.statistics().await.call_count()
     );
     assert_eq!(mydata, second);
 
@@ -135,7 +133,7 @@ async fn test_streaming(
     _log_handle: &mut flexi_logger::LoggerHandle,
     connection: &Connection,
     fifty_times_smp_blabla: String,
-    fingerprint: &[u8],
+    fingerprint0: &[u8],
 ) -> HdbResult<()> {
     info!("write and read big nclob in streaming fashion");
 
@@ -199,10 +197,7 @@ async fn test_streaming(
 
     assert_eq!(fifty_times_smp_blabla.len(), buffer.len());
     assert_eq!(fifty_times_smp_blabla.as_bytes(), buffer.as_slice());
-    let mut hasher = Sha256::default();
-    hasher.update(&buffer);
-    let fingerprint4 = hasher.finalize().to_vec();
-    assert_eq!(fingerprint, fingerprint4.as_slice());
+    assert_eq!(fingerprint0, fingerprint(&buffer));
 
     connection.set_auto_commit(true).await;
     Ok(())

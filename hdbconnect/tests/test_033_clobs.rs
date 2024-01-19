@@ -30,8 +30,9 @@ fn test_033_clobs() -> HdbResult<()> {
 
 fn prepare_test(connection: &Connection) -> HdbResult<bool> {
     connection.multiple_statements_ignore_err(vec!["drop table TEST_CLOBS"]);
-    let stmts = vec!["create table TEST_CLOBS (desc NVARCHAR(10) not null, chardata CLOB)"];
-    connection.multiple_statements(stmts)?;
+    connection.multiple_statements(vec![
+        "create table TEST_CLOBS (desc NVARCHAR(10) not null, chardata CLOB)",
+    ])?;
 
     // stop gracefully if chardata is not a CLOB
     let coltype: String = connection
@@ -57,16 +58,21 @@ fn get_blabla() -> (String, Vec<u8>) {
         }
     }
 
+    let fingerprint = fingerprint(fifty_times_smp_blabla.as_bytes());
+    (fifty_times_smp_blabla, fingerprint)
+}
+
+fn fingerprint(data: &[u8]) -> Vec<u8> {
     let mut hasher = Sha256::default();
-    hasher.update(fifty_times_smp_blabla.as_bytes());
-    (fifty_times_smp_blabla, hasher.finalize().to_vec())
+    hasher.update(data);
+    hasher.finalize().to_vec()
 }
 
 fn test_clobs(
     _log_handle: &mut LoggerHandle,
     connection: &Connection,
     fifty_times_smp_blabla: &str,
-    fingerprint: &[u8],
+    fingerprint0: &[u8],
 ) -> HdbResult<()> {
     info!("create a big CLOB in the database, and read it in various ways");
     debug!("setup...");
@@ -85,64 +91,41 @@ fn test_clobs(
     debug!("insert it into HANA");
     let mut insert_stmt =
         connection.prepare("insert into TEST_CLOBS (desc, chardata) values (?,?)")?;
-    insert_stmt.add_batch(&("3x blabla", &fifty_times_smp_blabla))?;
+    insert_stmt.add_batch(&("50x blabla", &fifty_times_smp_blabla))?;
     insert_stmt.execute_batch()?;
 
     debug!("and read it back");
-    let before = connection.statistics()?.call_count();
+    connection.reset_statistics()?;
     let query = "select desc, chardata as CL1, chardata as CL2 from TEST_CLOBS";
     let resultset = connection.query(query)?;
-    debug!("and convert it into a rust struct");
 
+    debug!("and convert it into a rust struct");
     let mydata: MyData = resultset.try_into()?;
     debug!(
         "reading two big CLOB with lob-read-length {} required {} roundtrips",
         connection.lob_read_length()?,
-        connection.statistics()?.call_count() - before
+        connection.statistics()?.call_count()
     );
 
     // verify we get in both cases the same blabla back
     assert_eq!(fifty_times_smp_blabla.len(), mydata.s.len());
-
-    let mut hasher = Sha256::default();
-    hasher.update(mydata.s.as_bytes());
-    let fingerprint2 = hasher.finalize().to_vec();
-    assert_eq!(fingerprint, fingerprint2.as_slice());
-
-    let mut hasher = Sha256::default();
-    hasher.update(mydata.o_s.as_ref().unwrap().as_bytes());
-    let fingerprint3 = hasher.finalize().to_vec();
-    assert_eq!(fingerprint, fingerprint3.as_slice());
+    assert_eq!(fingerprint0, fingerprint(mydata.s.as_bytes()));
+    assert_eq!(
+        fingerprint0,
+        fingerprint(mydata.o_s.as_ref().unwrap().as_bytes())
+    );
 
     // try again with smaller lob-read-length
-    connection.set_lob_read_length(200_000)?;
-    let before = connection.statistics()?.call_count();
+    connection.set_lob_read_length(120_000)?;
+    connection.reset_statistics()?;
     let resultset = connection.query(query)?;
     let second: MyData = resultset.try_into()?;
     debug!(
         "reading two big CLOB with lob-read-length {} required {} roundtrips",
         connection.lob_read_length()?,
-        connection.statistics()?.call_count() - before
+        connection.statistics()?.call_count()
     );
     assert_eq!(mydata, second);
-
-    // stream a clob from the database into a sink
-    debug!("read big clob in streaming fashion");
-
-    connection.set_lob_read_length(200_000)?;
-
-    let query = "select desc, chardata as CL1, chardata as CL2 from TEST_CLOBS";
-    let mut row = connection.query(query)?.into_single_row()?;
-    row.next_value().unwrap();
-    let mut clob: CLob = row.next_value().unwrap().try_into_clob()?;
-    let mut streamed = Vec::<u8>::new();
-    std::io::copy(&mut clob, &mut streamed).unwrap();
-
-    assert_eq!(fifty_times_smp_blabla.len(), streamed.len());
-    let mut hasher = Sha256::default();
-    hasher.update(&streamed);
-    let fingerprint4 = hasher.finalize().to_vec();
-    assert_eq!(fingerprint, fingerprint4.as_slice());
 
     info!("read from somewhere within");
     let mut clob: CLob = connection
@@ -161,32 +144,39 @@ fn test_streaming(
     _log_handle: &mut flexi_logger::LoggerHandle,
     connection: &Connection,
     fifty_times_smp_blabla: String,
-    fingerprint: &[u8],
+    fingerprint0: &[u8],
 ) -> HdbResult<()> {
     info!("write and read big clob in streaming fashion");
 
     connection.set_auto_commit(true)?;
     connection.dml("delete from TEST_CLOBS")?;
+    let mut insert_stmt = connection.prepare("insert into TEST_CLOBS values(?, ?)")?;
 
-    debug!("write big clob in streaming fashion");
+    debug!("old style lob streaming: autocommit off before, explicit commit after");
     connection.set_auto_commit(false)?;
-
-    let mut stmt = connection.prepare("insert into TEST_CLOBS values(?, ?)")?;
     let reader = std::sync::Arc::new(std::sync::Mutex::new(std::io::Cursor::new(
         fifty_times_smp_blabla.clone(),
     )));
-
-    stmt.execute_row(vec![
-        HdbValue::STRING("lsadksaldk".to_string()),
+    insert_stmt.execute_row(vec![
+        HdbValue::STRING("streaming1".to_string()),
         HdbValue::SYNC_LOBSTREAM(Some(reader)),
     ])?;
-    connection.commit()?;
+    connection.commit().unwrap();
+
+    debug!("new style lob streaming: with autocommit");
+    connection.set_auto_commit(true)?;
+    let reader = std::sync::Arc::new(std::sync::Mutex::new(std::io::Cursor::new(
+        fifty_times_smp_blabla.clone(),
+    )));
+    insert_stmt.execute_row(vec![
+        HdbValue::STRING("streaming2".to_string()),
+        HdbValue::SYNC_LOBSTREAM(Some(reader)),
+    ])?;
 
     debug!("read big clob in streaming fashion");
     connection.set_lob_read_length(200_000)?;
-
     let mut clob = connection
-        .query("select chardata from TEST_CLOBS")?
+        .query("select chardata from TEST_CLOBS where desc = 'streaming2'")?
         .into_single_row()?
         .into_single_value()?
         .try_into_clob()?;
@@ -194,10 +184,7 @@ fn test_streaming(
     std::io::copy(&mut clob, &mut buffer).unwrap();
 
     assert_eq!(fifty_times_smp_blabla.len(), buffer.len());
-    let mut hasher = Sha256::default();
-    hasher.update(&buffer);
-    let fingerprint4 = hasher.finalize().to_vec();
-    assert_eq!(fingerprint, fingerprint4.as_slice());
+    assert_eq!(fingerprint0, &fingerprint(&buffer));
 
     connection.set_auto_commit(true)?;
     Ok(())

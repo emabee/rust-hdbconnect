@@ -30,8 +30,8 @@ impl CLob {
         total_byte_length: u64,
         locator_id: u64,
         data: Vec<u8>,
-    ) -> HdbResult<Self> {
-        Ok(Self(Box::new(CLobHandle::new(
+    ) -> Self {
+        Self(Box::new(CLobHandle::new(
             am_conn_core,
             o_am_rscore,
             is_data_complete,
@@ -39,7 +39,7 @@ impl CLob {
             total_byte_length,
             locator_id,
             data,
-        )?)))
+        )))
     }
 
     /// Converts the `CLob` into the contained String.

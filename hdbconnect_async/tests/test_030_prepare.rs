@@ -68,7 +68,7 @@ async fn prepare_insert_statement(
          rollback, do it again and commit"
     );
     connection.set_auto_commit(false).await;
-    let count = connection.statistics().await.call_count();
+    connection.reset_statistics().await;
     let mut insert_stmt = connection.prepare(insert_stmt_str).await?;
     insert_stmt.add_batch(&("conn1-rollback1", 45_i32))?;
     insert_stmt.add_batch(&("conn1-rollback2", 46_i32))?;
@@ -80,9 +80,9 @@ async fn prepare_insert_statement(
     debug!(
         "affected rows: {:?}, callcount: {}",
         affrows,
-        connection.statistics().await.call_count() - count
+        connection.statistics().await.call_count()
     );
-    assert_eq!(connection.statistics().await.call_count() - count, 2);
+    assert_eq!(connection.statistics().await.call_count(), 2);
     connection.rollback().await?;
 
     insert_stmt.add_batch(&("conn1-commit1", 45_i32))?;

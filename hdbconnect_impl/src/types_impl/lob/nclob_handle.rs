@@ -1,21 +1,18 @@
 #[cfg(feature = "async")]
 use super::fetch::fetch_a_lob_chunk_async;
-#[cfg(feature = "async")]
-use tokio::io::ReadBuf;
 
 #[cfg(feature = "sync")]
 use super::fetch::fetch_a_lob_chunk_sync;
-#[cfg(feature = "sync")]
-use std::io::Write;
 
+use super::{CharLobSlice, LobBuf, UTF_BUFFER_SIZE};
 use crate::{
     base::{RsCore, OAM},
     conn::AmConnCore,
     protocol::util,
-    types::CharLobSlice,
     {HdbError, HdbResult, ServerUsage},
 };
-use std::collections::VecDeque;
+use debug_ignore::DebugIgnore;
+use std::io::{Cursor, Write};
 
 // `NCLobHandle` is used for NCLOBs that we receive from the database.
 // The data are often not transferred completely, so we carry internally
@@ -31,8 +28,8 @@ pub(crate) struct NCLobHandle {
     total_char_length: u64,
     total_byte_length: u64,
     locator_id: u64,
-    cesu8: VecDeque<u8>,
-    cesu8_tail_len: usize,
+    cesu8: DebugIgnore<LobBuf>,
+    utf8: DebugIgnore<LobBuf>,
     acc_byte_length: usize,
     acc_char_length: usize,
     pub(crate) server_usage: ServerUsage,
@@ -46,12 +43,9 @@ impl NCLobHandle {
         total_byte_length: u64,
         locator_id: u64,
         cesu8: Vec<u8>,
-    ) -> HdbResult<Self> {
+    ) -> Self {
         let acc_char_length = count_1_2_3_sequence_starts(&cesu8);
-        let cesu8 = VecDeque::from(cesu8);
         let acc_byte_length = cesu8.len();
-
-        let cesu8_tail_len = util::get_cesu8_tail_len(&cesu8, cesu8.len())?;
 
         let nclob_handle = Self {
             am_conn_core: am_conn_core.clone(),
@@ -60,8 +54,8 @@ impl NCLobHandle {
             total_byte_length,
             is_data_complete,
             locator_id,
-            cesu8,
-            cesu8_tail_len,
+            cesu8: DebugIgnore::from(LobBuf::with_initial_content(cesu8)),
+            utf8: DebugIgnore::from(LobBuf::with_capacity(UTF_BUFFER_SIZE)),
             acc_byte_length,
             acc_char_length,
             server_usage: ServerUsage::default(),
@@ -69,15 +63,14 @@ impl NCLobHandle {
 
         trace!(
             "new() with: is_data_complete = {}, total_char_length = {}, total_byte_length = {}, \
-             locator_id = {}, cesu8_tail_len = {:?}, cesu8.len() = {}",
+             locator_id = {}, cesu8.len() = {}",
             nclob_handle.is_data_complete,
             nclob_handle.total_char_length,
             nclob_handle.total_byte_length,
             nclob_handle.locator_id,
-            nclob_handle.cesu8_tail_len,
             nclob_handle.cesu8.len()
         );
-        Ok(nclob_handle)
+        nclob_handle
     }
 
     #[cfg(feature = "sync")]
@@ -127,7 +120,7 @@ impl NCLobHandle {
     #[allow(clippy::cast_possible_truncation)]
     fn fetch_next_chunk_sync(&mut self) -> HdbResult<()> {
         if self.is_data_complete {
-            return Err(HdbError::Impl("already complete"));
+            return Err(HdbError::Impl("fetch_next_chunk_sync: already complete"));
         }
 
         let read_length = std::cmp::min(
@@ -148,9 +141,8 @@ impl NCLobHandle {
 
         self.acc_byte_length += reply_data.len();
         self.acc_char_length += count_1_2_3_sequence_starts(&reply_data);
+        self.cesu8.append(&reply_data);
 
-        self.cesu8.append(&mut VecDeque::from(reply_data));
-        self.cesu8_tail_len = util::get_cesu8_tail_len(&self.cesu8, self.cesu8.len())?;
         if reply_is_last_data {
             self.is_data_complete = true;
             self.o_am_rscore = None;
@@ -161,7 +153,7 @@ impl NCLobHandle {
             self.total_byte_length == self.acc_byte_length as u64
         );
         trace!(
-            "fetch_next_chunk: is_data_complete = {}, cesu8.len() = {}",
+            "fetch_next_chunk_sync: is_data_complete = {}, cesu8.len() = {}",
             self.is_data_complete,
             self.cesu8.len()
         );
@@ -172,7 +164,7 @@ impl NCLobHandle {
     #[allow(clippy::cast_possible_truncation)]
     async fn fetch_next_chunk_async(&mut self) -> HdbResult<()> {
         if self.is_data_complete {
-            return Err(HdbError::Impl("already complete"));
+            return Err(HdbError::Impl("fetch_next_chunk_async(): already complete"));
         }
 
         let read_length = std::cmp::min(
@@ -195,9 +187,8 @@ impl NCLobHandle {
 
         self.acc_byte_length += reply_data.len();
         self.acc_char_length += count_1_2_3_sequence_starts(&reply_data);
+        self.cesu8.append(&reply_data);
 
-        self.cesu8.append(&mut VecDeque::from(reply_data));
-        self.cesu8_tail_len = util::get_cesu8_tail_len(&self.cesu8, self.cesu8.len())?;
         if reply_is_last_data {
             self.is_data_complete = true;
             self.o_am_rscore = None;
@@ -208,7 +199,7 @@ impl NCLobHandle {
             self.total_byte_length == self.acc_byte_length as u64
         );
         trace!(
-            "fetch_next_chunk: is_data_complete = {}, cesu8.len() = {}",
+            "fetch_next_chunk_async(): is_data_complete = {}, cesu8.len() = {}",
             self.is_data_complete,
             self.cesu8.len()
         );
@@ -237,74 +228,105 @@ impl NCLobHandle {
     pub(crate) fn into_string_if_complete(self) -> HdbResult<String> {
         trace!("NCLobHandle::into_string()");
         if self.is_data_complete {
-            Ok(util::string_from_cesu8(Vec::from(self.cesu8))?)
+            Ok(util::string_from_cesu8(self.cesu8.0.into_inner())?)
         } else {
             Err(HdbError::Usage(
                 "NCLob must be loaded completely before 'into_string' can be called",
             ))
         }
     }
-}
 
-#[cfg(feature = "sync")]
-// Support for NCLOB streaming
-impl std::io::Read for NCLobHandle {
-    fn read(&mut self, mut buf: &mut [u8]) -> std::io::Result<usize> {
-        trace!("read() with buf of len {}", buf.len());
-
-        while !self.is_data_complete && (buf.len() > self.cesu8.len() - self.cesu8_tail_len) {
+    // assumption: utf8 is empty
+    // fills utf8 buffer from cesu8: drain 8k from cesu8, convert, store as utf8
+    #[cfg(feature = "sync")]
+    fn fill_utf8_buffer_sync(&mut self) -> std::io::Result<()> {
+        // refill cesu8 if necessary
+        if self.cesu8.len() < UTF_BUFFER_SIZE && !self.is_data_complete {
             self.fetch_next_chunk_sync()
                 .map_err(|e| util::io_error(e.to_string()))?;
         }
 
-        // we want to write only clean UTF-8 into buf, so we cut off at good places only;
-        // utf8 is equally long as cesu8, or shorter (6->4 bytes for BMP1)
-        // so we cut of at the latest char start before buf-len
-        let drain_len = std::cmp::min(buf.len(), self.cesu8.len());
-        let cesu8_buf: Vec<u8> = self.cesu8.drain(0..drain_len).collect();
-        let cut_off_position =
-            cesu8_buf.len() - util::get_cesu8_tail_len(&cesu8_buf, cesu8_buf.len())?;
-
-        // convert the valid part to utf-8 and push the tail back
-        let utf8 = cesu8::from_cesu8(&cesu8_buf[0..cut_off_position]).map_err(util::io_error)?;
-        for i in (cut_off_position..cesu8_buf.len()).rev() {
-            self.cesu8.push_front(cesu8_buf[i]);
+        // now refill utf8
+        let mut chunk_size = std::cmp::min(UTF_BUFFER_SIZE, self.cesu8.len());
+        chunk_size -= util::get_cesu8_tail_len(&*self.cesu8, chunk_size)?;
+        self.utf8.append(
+            cesu8::from_cesu8(self.cesu8.drain(chunk_size)?)
+                .map_err(util::io_error)?
+                .as_bytes(),
+        );
+        Ok(())
+    }
+    #[cfg(feature = "async")]
+    async fn fill_utf8_buffer_async(&mut self) -> std::io::Result<()> {
+        // refill cesu8 if necessary
+        if self.cesu8.len() < UTF_BUFFER_SIZE && !self.is_data_complete {
+            self.fetch_next_chunk_async()
+                .await
+                .map_err(|e| util::io_error(e.to_string()))?;
         }
 
-        buf.write_all(utf8.as_bytes())?;
-        Ok(utf8.len())
+        // now refill utf8
+        let mut chunk_size = std::cmp::min(UTF_BUFFER_SIZE, self.cesu8.len());
+        chunk_size -= util::get_cesu8_tail_len(&*self.cesu8, chunk_size)?;
+        self.utf8.append(
+            cesu8::from_cesu8(self.cesu8.drain(chunk_size)?)
+                .map_err(util::io_error)?
+                .as_bytes(),
+        );
+        Ok(())
+    }
+}
+
+// Read from the DB chunks of lob_read_size into self.cesu8,
+// then drain from there chunks of 8k (shortened if necessary to make the chunk valid cesu8)
+// convert each into utf8 and store it as self.utf8,
+// and drain utf8 into the external buffer.
+#[cfg(feature = "sync")]
+// Support for NCLOB streaming
+impl std::io::Read for NCLobHandle {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let buf_len = buf.len();
+        trace!("NCLobHandle::read() called with buffer of size {buf_len}");
+        let mut cursor = Cursor::new(buf);
+        let mut written = 0;
+
+        while written < buf_len {
+            if self.utf8.is_empty() {
+                self.fill_utf8_buffer_sync()?;
+                if self.utf8.is_empty() {
+                    break;
+                }
+            }
+
+            let chunk_size = std::cmp::min(buf_len - written, self.utf8.len());
+            cursor.write_all(self.utf8.drain(chunk_size)?)?;
+            written += chunk_size;
+        }
+        Ok(written)
     }
 }
 
 #[cfg(feature = "async")]
 impl NCLobHandle {
     pub(crate) async fn read_async(&mut self, buf: &mut [u8]) -> HdbResult<usize> {
-        let mut buf = ReadBuf::new(buf);
-        let buf_len = buf.capacity();
-        debug_assert!(buf.filled().is_empty());
-        trace!("read() with buf of len {}", buf_len);
+        let buf_len = buf.len();
+        trace!("CLobHandle::read called with buffer of size {buf_len}");
+        let mut cursor = Cursor::new(buf);
+        let mut written = 0;
 
-        while !self.is_data_complete && (buf_len > self.cesu8.len() - self.cesu8_tail_len) {
-            self.fetch_next_chunk_async().await?;
+        while written < buf_len {
+            if self.utf8.is_empty() {
+                self.fill_utf8_buffer_async().await?;
+                if self.utf8.is_empty() {
+                    break;
+                }
+            }
+
+            let chunk_size = std::cmp::min(buf_len - written, self.utf8.len());
+            cursor.write_all(self.utf8.drain(chunk_size)?)?;
+            written += chunk_size;
         }
-
-        // we want to write only clean UTF-8 into buf, so we cut off at good places only;
-        // utf8 is equally long as cesu8, or shorter (6->4 bytes for BMP1)
-        // so we cut of at the latest char start before buf-len
-        let drain_len = std::cmp::min(buf_len, self.cesu8.len());
-        let cesu8_buf: Vec<u8> = self.cesu8.drain(0..drain_len).collect();
-        let cut_off_position =
-            cesu8_buf.len() - util::get_cesu8_tail_len(&cesu8_buf, cesu8_buf.len())?;
-
-        // convert the valid part to utf-8 and push the tail back
-        let utf8 =
-            cesu8::from_cesu8(&cesu8_buf[0..cut_off_position]).map_err(|_| HdbError::Cesu8)?;
-        for i in (cut_off_position..cesu8_buf.len()).rev() {
-            self.cesu8.push_front(cesu8_buf[i]);
-        }
-
-        buf.put_slice(utf8.as_bytes());
-        Ok(utf8.len())
+        Ok(written)
     }
 }
 

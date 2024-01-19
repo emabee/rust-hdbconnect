@@ -84,7 +84,7 @@ pub(crate) fn parse_clob_sync(
             byte_length,
             locator_id,
             data,
-        )?))
+        )))
     }
 }
 
@@ -112,7 +112,7 @@ pub(crate) async fn parse_clob_async(
             byte_length,
             locator_id,
             data,
-        )?))
+        )))
     }
 }
 
@@ -142,7 +142,7 @@ pub(crate) fn parse_nclob_sync(
                 byte_length,
                 locator_id,
                 data,
-            )?),
+            )),
             _ => return Err(HdbError::Impl("unexpected type id for nclob")),
         })
     }
@@ -174,7 +174,7 @@ pub(crate) async fn parse_nclob_async(
                 byte_length,
                 locator_id,
                 data,
-            )?),
+            )),
             _ => return Err(HdbError::Impl("unexpected type id for nclob")),
         })
     }

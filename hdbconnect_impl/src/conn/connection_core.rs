@@ -13,6 +13,7 @@ use crate::{
     },
     HdbError, HdbResult,
 };
+use debug_ignore::DebugIgnore;
 use std::{io::Cursor, mem, sync::Arc};
 
 #[doc(hidden)]
@@ -31,7 +32,7 @@ pub struct ConnectionCore {
     topology: Option<Topology>,
     pub(crate) warnings: Vec<ServerError>,
     tcp_client: TcpClient,
-    io_buffer: Cursor<Vec<u8>>,
+    io_buffer: DebugIgnore<Cursor<Vec<u8>>>,
 }
 
 impl<'a> ConnectionCore {
@@ -170,9 +171,9 @@ impl<'a> ConnectionCore {
             session_id: 0,
             statistics: ConnectionStatistics::new(),
             server_usage: ServerUsage::default(),
-            io_buffer: Cursor::new(Vec::<u8>::with_capacity(
+            io_buffer: DebugIgnore::from(Cursor::new(Vec::<u8>::with_capacity(
                 ConnectionConfiguration::MIN_BUFFER_SIZE,
-            )),
+            ))),
             configuration: configuration.clone(),
             client_info: ClientInfo::default(),
             client_info_touched: true,
@@ -199,9 +200,9 @@ impl<'a> ConnectionCore {
             session_id: 0,
             statistics: ConnectionStatistics::new(),
             server_usage: ServerUsage::default(),
-            io_buffer: Cursor::new(Vec::<u8>::with_capacity(
+            io_buffer: DebugIgnore::from(Cursor::new(Vec::<u8>::with_capacity(
                 ConnectionConfiguration::MIN_BUFFER_SIZE,
-            )),
+            ))),
             configuration: configuration.clone(),
             client_info: ClientInfo::default(),
             client_info_touched: true,

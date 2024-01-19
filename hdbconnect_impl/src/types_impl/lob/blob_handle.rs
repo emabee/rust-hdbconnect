@@ -2,18 +2,18 @@
 use super::fetch::fetch_a_lob_chunk_async;
 #[cfg(feature = "sync")]
 use super::fetch::fetch_a_lob_chunk_sync;
+use super::LobBuf;
 use crate::{
     base::{RsCore, XMutexed, OAM},
     conn::AmConnCore,
-    protocol::ServerUsage,
+    protocol::{util, ServerUsage},
     HdbError, HdbResult,
 };
-
-#[cfg(feature = "sync")]
-use std::io::Write;
-use std::{collections::VecDeque, sync::Arc};
-#[cfg(feature = "async")]
-use tokio::io::ReadBuf;
+use debug_ignore::DebugIgnore;
+use std::{
+    io::{Cursor, Write},
+    sync::Arc,
+};
 
 // `BLobHandle` is used for blobs that we receive from the database.
 // The data are often not transferred completely, so we carry internally
@@ -26,7 +26,7 @@ pub(crate) struct BLobHandle {
     is_data_complete: bool,
     total_byte_length: u64,
     locator_id: u64,
-    data: VecDeque<u8>,
+    data: DebugIgnore<LobBuf>,
     acc_byte_length: usize,
     pub(crate) server_usage: ServerUsage,
 }
@@ -39,7 +39,7 @@ impl BLobHandle {
         locator_id: u64,
         data: Vec<u8>,
     ) -> Self {
-        let data = VecDeque::from(data);
+        let data = DebugIgnore::from(LobBuf::with_initial_content(data));
         Self {
             am_conn_core: am_conn_core.clone(),
             o_am_rscore: o_am_rscore.as_ref().cloned(),
@@ -93,7 +93,7 @@ impl BLobHandle {
 
     #[allow(clippy::cast_possible_truncation)]
     #[cfg(feature = "sync")]
-    fn fetch_next_chunk_sync(&mut self) -> HdbResult<()> {
+    fn fetch_next_chunk_sync(&mut self) -> HdbResult<usize> {
         if self.is_data_complete {
             return Err(HdbError::Impl("fetch_next_chunk(): already complete"));
         }
@@ -113,9 +113,10 @@ impl BLobHandle {
             read_length,
             &mut self.server_usage,
         )?;
+        let reply_len = reply_data.len();
+        self.acc_byte_length += reply_len;
 
-        self.acc_byte_length += reply_data.len();
-        self.data.append(&mut VecDeque::from(reply_data));
+        self.data.append(&reply_data);
         if reply_is_last_data {
             self.is_data_complete = true;
             self.o_am_rscore = None;
@@ -129,7 +130,7 @@ impl BLobHandle {
             self.is_data_complete,
             self.data.len()
         );
-        Ok(())
+        Ok(reply_len)
     }
 
     #[allow(clippy::cast_possible_truncation)]
@@ -158,7 +159,7 @@ impl BLobHandle {
         .await?;
 
         self.acc_byte_length += reply_data.len();
-        self.data.append(&mut VecDeque::from(reply_data));
+        self.data.append(&reply_data);
         if reply_is_last_data {
             self.is_data_complete = true;
             self.o_am_rscore = None;
@@ -199,7 +200,7 @@ impl BLobHandle {
     pub(crate) fn into_bytes_sync(mut self) -> HdbResult<Vec<u8>> {
         trace!("into_bytes()");
         self.load_complete_sync()?;
-        Ok(Vec::from(self.data))
+        Ok(self.data.0.into_inner())
     }
 
     // Converts a BLobHandle into a Vec<u8> containing its data.
@@ -207,7 +208,7 @@ impl BLobHandle {
     pub(crate) fn into_bytes_if_complete_async(self) -> HdbResult<Vec<u8>> {
         trace!("into_bytes_if_complete()");
         if self.is_data_complete {
-            Ok(Vec::from(self.data))
+            Ok(self.data.0.into_inner())
         } else {
             Err(HdbError::Usage(
                 "Can't convert BLob that is not not completely loaded",
@@ -216,57 +217,58 @@ impl BLobHandle {
     }
 }
 
-// Support for streaming
+// Read from the DB chunks of lob_read_size into self.data,
+// and drain data into the external buffer.
 #[cfg(feature = "sync")]
+// Support for streaming
 impl std::io::Read for BLobHandle {
-    fn read(&mut self, mut buf: &mut [u8]) -> std::io::Result<usize> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         let buf_len = buf.len();
-        trace!("BLobHandle::read() with buf of len {}", buf_len);
+        trace!("BLobHandle::read() with buffer of size {buf_len}");
+        let mut cursor = Cursor::new(buf);
+        let mut written = 0;
 
-        while !self.is_data_complete && (buf_len > self.data.len()) {
-            self.fetch_next_chunk_sync().map_err(|e| {
-                std::io::Error::new(std::io::ErrorKind::UnexpectedEof, e.to_string())
-            })?;
-        }
+        while written < buf_len {
+            if self.data.is_empty() {
+                if !self.is_data_complete {
+                    self.fetch_next_chunk_sync().map_err(util::io_error)?;
+                }
+                if self.data.is_empty() {
+                    break;
+                }
+            }
 
-        let count = std::cmp::min(self.data.len(), buf_len);
-        let (s1, s2) = self.data.as_slices();
-        if count <= s1.len() {
-            // write count bytes from s1
-            buf.write_all(&s1[0..count])?;
-        } else {
-            // write s1 completely, then take the rest from s2
-            buf.write_all(s1)?;
-            buf.write_all(&s2[0..(count - s1.len())])?;
+            let chunk_size = std::cmp::min(buf_len - written, self.data.len());
+            cursor.write_all(self.data.drain(chunk_size)?)?;
+            written += chunk_size;
         }
-        self.data.drain(0..count);
-        Ok(count)
+        Ok(written)
     }
 }
-
 #[cfg(feature = "async")]
 impl<'a> BLobHandle {
     pub(crate) async fn read_async(&mut self, buf: &'a mut [u8]) -> HdbResult<usize> {
-        let mut buf = ReadBuf::new(buf);
-        let buf_len = buf.capacity();
-        debug_assert!(buf.filled().is_empty());
-        trace!("BLobHandle::read() with buf of len {}", buf_len);
+        let buf_len = buf.len();
+        trace!("BLobHandle::read() with buffer of size {buf_len}");
+        let mut cursor = Cursor::new(buf);
+        let mut written = 0;
 
-        while !self.is_data_complete && (self.data.len() < buf_len) {
-            self.fetch_next_chunk_async().await?;
-        }
+        while written < buf_len {
+            if self.data.is_empty() {
+                if !self.is_data_complete {
+                    self.fetch_next_chunk_async()
+                        .await
+                        .map_err(util::io_error)?;
+                }
+                if self.data.is_empty() {
+                    break;
+                }
+            }
 
-        let count = std::cmp::min(self.data.len(), buf_len);
-        let (s1, s2) = self.data.as_slices();
-        if count <= s1.len() {
-            // write count bytes from s1
-            buf.put_slice(&s1[0..count]);
-        } else {
-            // write s1 completely, then take the rest from s2
-            buf.put_slice(s1);
-            buf.put_slice(&s2[0..(count - s1.len())]);
+            let chunk_size = std::cmp::min(buf_len - written, self.data.len());
+            cursor.write_all(self.data.drain(chunk_size)?)?;
+            written += chunk_size;
         }
-        self.data.drain(0..count);
-        Ok(count)
+        Ok(written)
     }
 }

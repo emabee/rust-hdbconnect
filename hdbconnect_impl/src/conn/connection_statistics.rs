@@ -37,7 +37,6 @@ impl ConnectionStatistics {
     pub(crate) fn new() -> Self {
         Self::default()
     }
-
     pub(crate) fn reset(&mut self) {
         *self = Self {
             created_at: self.created_at,
@@ -127,8 +126,8 @@ impl std::fmt::Display for ConnectionStatistics {
     #[allow(clippy::cast_precision_loss)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "Connection statistics")?;
-        writeln!(f, "Created at:               {}", self.created_at)?;
-        writeln!(f, "Last reset at:            {}", self.last_reset_at)?;
+        writeln!(f, "Created at:     {}", self.created_at)?;
+        writeln!(f, "Last reset at:  {}", self.last_reset_at)?;
         writeln!(f, "Total number of requests: {}", self.sequence_number)?;
         writeln!(f, "Total wait time:          {:?}", self.wait_time)?;
         writeln!(
@@ -165,5 +164,26 @@ impl std::fmt::Display for ConnectionStatistics {
             )?;
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::ConnectionStatistics;
+
+    #[test]
+    fn test_statistics() {
+        let mut stat = ConnectionStatistics::default();
+        println!("{stat}");
+
+        stat.add_buffer_shrinking();
+        stat.add_compressed_reply(100, 800);
+        stat.add_compressed_request(200, 777);
+        println!("{stat}");
+
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        stat.reset();
+        println!("{stat}");
+        assert_ne!(stat.created_at, stat.last_reset_at);
     }
 }

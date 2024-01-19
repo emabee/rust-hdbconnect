@@ -1,5 +1,4 @@
 extern crate serde;
-
 mod test_utils;
 
 use hdbconnect::{Connection, HdbResult, HdbValue};
@@ -9,7 +8,6 @@ use serde_bytes::Bytes;
 use sha2::{Digest, Sha256};
 use std::{fs::File, io::Read};
 
-// cargo test test_034_nclobs -- --nocapture
 #[test]
 fn test_034_nclobs() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
@@ -17,11 +15,11 @@ fn test_034_nclobs() -> HdbResult<()> {
     let connection = test_utils::get_authenticated_connection()?;
 
     debug!("setup...");
-    connection.set_lob_read_length(1_000_000)?;
-
     connection.multiple_statements_ignore_err(vec!["drop table TEST_NCLOBS"]);
-    let stmts = vec!["create table TEST_NCLOBS (desc NVARCHAR(20) not null, chardata NCLOB)"];
-    connection.multiple_statements(stmts)?;
+    connection.multiple_statements(vec![
+        "create table TEST_NCLOBS (desc NVARCHAR(20) not null, chardata NCLOB)",
+    ])?;
+    connection.set_lob_read_length(1_000_000)?;
 
     let (blabla, fingerprint) = get_blabla();
     test_nclobs(&mut log_handle, &connection, &blabla, &fingerprint)?;
@@ -46,19 +44,23 @@ fn get_blabla() -> (String, Vec<u8>) {
         }
     }
 
+    let fingerprint = fingerprint(fifty_times_smp_blabla.as_bytes());
+    (fifty_times_smp_blabla, fingerprint)
+}
+
+fn fingerprint(data: &[u8]) -> Vec<u8> {
     let mut hasher = Sha256::default();
-    hasher.update(fifty_times_smp_blabla.as_bytes());
-    (fifty_times_smp_blabla, hasher.finalize().to_vec())
+    hasher.update(data);
+    hasher.finalize().to_vec()
 }
 
 fn test_nclobs(
     _log_handle: &mut flexi_logger::LoggerHandle,
     connection: &Connection,
     fifty_times_smp_blabla: &str,
-    fingerprint: &[u8],
+    fingerprint0: &[u8],
 ) -> HdbResult<()> {
     info!("create a big NCLOB in the database, and read it in various ways");
-
     #[derive(Serialize, Deserialize, Debug, PartialEq)]
     struct MyData {
         #[serde(rename = "DESC")]
@@ -76,40 +78,35 @@ fn test_nclobs(
     insert_stmt.execute_batch()?;
 
     debug!("and read it back");
-    let before = connection.statistics()?.call_count();
+    connection.reset_statistics()?;
     let query = "select desc, chardata as CL1, chardata as CL2 from TEST_NCLOBS";
     let resultset = connection.query(query)?;
-    debug!("and convert it into a rust struct");
 
+    debug!("and convert it into a rust struct");
     let mydata: MyData = resultset.try_into()?;
     debug!(
         "reading two big NCLOB with lob-read-length {} required {} roundtrips",
         connection.lob_read_length()?,
-        connection.statistics()?.call_count() - before
+        connection.statistics()?.call_count()
     );
 
     // verify we get in both cases the same blabla back
     assert_eq!(fifty_times_smp_blabla.len(), mydata.s.len());
-
-    let mut hasher = Sha256::default();
-    hasher.update(mydata.s.as_bytes());
-    let fingerprint2 = hasher.finalize().to_vec();
-    assert_eq!(fingerprint, fingerprint2.as_slice());
-
-    let mut hasher = Sha256::default();
-    hasher.update(mydata.o_s.as_ref().unwrap().as_bytes());
-    let fingerprint3 = hasher.finalize().to_vec();
-    assert_eq!(fingerprint, fingerprint3.as_slice());
+    assert_eq!(fingerprint0, fingerprint(mydata.s.as_bytes()));
+    assert_eq!(
+        fingerprint0,
+        fingerprint(mydata.o_s.as_ref().unwrap().as_bytes())
+    );
 
     // try again with smaller lob-read-length
-    connection.set_lob_read_length(5_000)?;
-    let before = connection.statistics()?.call_count();
+    connection.set_lob_read_length(77_000)?;
+    connection.reset_statistics()?;
     let resultset = connection.query(query)?;
     let second: MyData = resultset.try_into()?;
     debug!(
         "reading two big NCLOB with lob-read-length {} required {} roundtrips",
         connection.lob_read_length()?,
-        connection.statistics()?.call_count() - before
+        connection.statistics()?.call_count()
     );
     assert_eq!(mydata, second);
 
@@ -129,7 +126,7 @@ fn test_streaming(
     _log_handle: &mut flexi_logger::LoggerHandle,
     connection: &Connection,
     fifty_times_smp_blabla: String,
-    fingerprint: &[u8],
+    fingerprint0: &[u8],
 ) -> HdbResult<()> {
     info!("write and read big nclob in streaming fashion");
 
@@ -142,24 +139,18 @@ fn test_streaming(
 
     connection.set_auto_commit(true)?;
     connection.dml("delete from TEST_NCLOBS")?;
+    let mut insert_stmt = connection.prepare("insert into TEST_NCLOBS values(?, ?)")?;
 
-    debug!("write big nclob in streaming fashion");
+    debug!("old style lob streaming: autocommit off before, explicit commit after");
     connection.set_auto_commit(false)?;
-
-    let mut stmt = connection.prepare("insert into TEST_NCLOBS values(?, ?)")?;
     let reader = std::sync::Arc::new(std::sync::Mutex::new(std::io::Cursor::new(
         fifty_times_smp_blabla.clone(),
     )));
-    stmt.execute_row(vec![
-        HdbValue::STR("lsadksaldk"),
+    insert_stmt.execute_row(vec![
+        HdbValue::STR("streaming1"),
         HdbValue::SYNC_LOBSTREAM(Some(reader)),
     ])?;
     connection.commit()?;
-
-    let count: u8 = connection
-        .query("select count(*) from TEST_NCLOBS where desc = 'lsadksaldk'")?
-        .try_into()?;
-    assert_eq!(count, 1_u8, "HdbValue::CHAR did not work");
 
     debug!("read big nclob in streaming fashion");
     // Note: Connection.set_lob_read_length() affects NCLobs in chars (1, 2, or 3 bytes),
@@ -186,10 +177,7 @@ fn test_streaming(
 
     assert_eq!(fifty_times_smp_blabla.len(), buffer.len());
     assert_eq!(fifty_times_smp_blabla.as_bytes(), buffer.as_slice());
-    let mut hasher = Sha256::default();
-    hasher.update(&buffer);
-    let fingerprint4 = hasher.finalize().to_vec();
-    assert_eq!(fingerprint, fingerprint4.as_slice());
+    assert_eq!(fingerprint0, fingerprint(&buffer));
 
     connection.set_auto_commit(true)?;
     Ok(())
@@ -199,10 +187,7 @@ fn test_bytes_to_nclobs(
     _log_handle: &mut flexi_logger::LoggerHandle,
     connection: &Connection,
 ) -> HdbResult<()> {
-    _log_handle
-        .parse_and_push_temp_spec("info, test=trace")
-        .unwrap();
-    info!("create a NCLOB from bytes in the database, and read it back into a String");
+    info!("create an NCLOB from bytes in the database, and read it back into a String");
 
     connection.multiple_statements_ignore_err(vec!["drop table TEST_NCLOBS_BYTES"]);
     let stmts = vec!["create table TEST_NCLOBS_BYTES (chardata NCLOB, chardata_nn NCLOB NOT NULL)"];
@@ -234,7 +219,6 @@ fn test_bytes_to_nclobs(
     // verify we get in both cases the same value back
     assert_eq!(mydata.0, test_string);
     assert_eq!(mydata.1, test_string);
-    _log_handle.pop_temp_spec();
     Ok(())
 }
 

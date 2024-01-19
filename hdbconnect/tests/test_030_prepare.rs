@@ -66,7 +66,7 @@ fn prepare_insert_statement(
          rollback, do it again and commit"
     );
     connection.set_auto_commit(false)?;
-    let count = connection.statistics()?.call_count();
+    connection.reset_statistics()?;
     let mut insert_stmt = connection.prepare(insert_stmt_str)?;
     insert_stmt.add_batch(&("conn1-rollback1", 45_i32))?;
     insert_stmt.add_batch(&("conn1-rollback2", 46_i32))?;
@@ -76,11 +76,10 @@ fn prepare_insert_statement(
     insert_stmt.add_batch(&("conn1-rollback6", 50_i32))?;
     let affrows = insert_stmt.execute_batch()?.into_affected_rows();
     debug!(
-        "affected rows: {:?}, callcount: {}",
-        affrows,
-        connection.statistics()?.call_count() - count
+        "affected rows: {affrows:?}, callcount: {}",
+        connection.statistics()?.call_count()
     );
-    assert_eq!(connection.statistics()?.call_count() - count, 2);
+    assert_eq!(connection.statistics()?.call_count(), 2);
     connection.rollback()?;
 
     insert_stmt.add_batch(&("conn1-commit1", 45_i32))?;
