@@ -1,6 +1,6 @@
 use crate::protocol::parts::{multiline_option_part::MultilineOptionPart, option_part::OptionId};
 
-pub type Topology = MultilineOptionPart<TopologyAttrId>;
+pub(crate) type Topology = MultilineOptionPart<TopologyAttrId>;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub(crate) enum TopologyAttrId {

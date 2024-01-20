@@ -363,7 +363,7 @@ fn panic_not_final() -> ! {
 
 // An Options part that is used for describing the connection's capabilities on the wire.
 // It is used during authentication only, both in requests and replies.
-pub type ConnectOptionsPart = OptionPart<ConnOptId>;
+pub(crate) type ConnectOptionsPart = OptionPart<ConnOptId>;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum ConnOptId {
