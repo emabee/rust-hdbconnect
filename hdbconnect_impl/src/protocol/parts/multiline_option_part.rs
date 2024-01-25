@@ -7,6 +7,7 @@ use std::{fmt::Debug, hash::Hash};
 
 #[derive(Debug)]
 pub(crate) struct MultilineOptionPart<T: OptionId<T> + Debug + Eq + PartialEq + Hash>(
+    #[allow(dead_code)] // TODO so far only used in the not yet really implemented Topology
     Vec<OptionPart<T>>,
 );
 

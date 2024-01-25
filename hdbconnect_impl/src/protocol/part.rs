@@ -48,6 +48,7 @@ pub(crate) enum Part<'a> {
     SessionContext(SessionContext),
     StatementContext(StatementContext),
     StatementId(u64),
+    #[allow(dead_code)] // TODO what are we supposed to do with this?
     PartitionInformation(PartitionInformation),
     TableLocation(Vec<i32>),
     TopologyInformation(Topology),

@@ -11,5 +11,6 @@ pub(crate) enum InternalReturnValue {
     ExecutionResults(Vec<ExecutionResult>),
     OutputParameters(OutputParameters),
     ParameterMetadata(Arc<ParameterDescriptors>),
+    #[allow(dead_code)] // TODO what are we supposed to do with this?
     WriteLobReply(WriteLobReply),
 }

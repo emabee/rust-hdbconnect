@@ -58,6 +58,7 @@ fn deserialize_strings_to_bytes(connection: &Connection) -> HdbResult<()> {
 
     // wahrscheinlich das gleiche, nur handgemacht:
     #[derive(Debug, Deserialize)]
+    #[allow(dead_code)]
     struct VData(#[serde(with = "serde_bytes")] Vec<u8>);
     let result: VData = connection.query(query)?.try_into()?;
     info!("{:?}", result);

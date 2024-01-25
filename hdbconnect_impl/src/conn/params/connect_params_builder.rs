@@ -180,8 +180,7 @@ impl ConnectParamsBuilder {
     pub fn build(&self) -> HdbResult<ConnectParams> {
         let host = self
             .hostname
-            .as_ref()
-            .cloned()
+            .clone()
             .ok_or_else(|| HdbError::Usage("hostname is missing"))?;
 
         let port = self
@@ -190,14 +189,12 @@ impl ConnectParamsBuilder {
 
         let dbuser: String = self
             .dbuser
-            .as_ref()
-            .cloned()
+            .clone()
             .ok_or_else(|| HdbError::Usage("dbuser is missing"))?;
 
         let password = self
             .password
-            .as_ref()
-            .cloned()
+            .clone()
             .ok_or_else(|| HdbError::Usage("password is missing"))?;
 
         Ok(ConnectParams::new(

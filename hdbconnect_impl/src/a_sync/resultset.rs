@@ -1,7 +1,7 @@
 use crate::{
     base::{RsState, XMutexed},
     protocol::{parts::ResultSetMetadata, ServerUsage},
-    HdbResult, Row, Rows,
+    HdbResult, HdbValue, Row, Rows,
 };
 
 use serde_db::de::DeserializableResultset;
@@ -121,6 +121,16 @@ impl ResultSet {
     pub async fn into_single_row(self) -> HdbResult<Row> {
         let mut state = self.state.lock_async().await;
         state.single_row_async().await
+    }
+
+    /// Converts the resultset into a single value.
+    ///
+    /// # Errors
+    ///
+    /// `HdbError::Usage` if the resultset contains more than a single value, or is empty.
+    pub async fn into_single_value(self) -> HdbResult<HdbValue<'static>> {
+        let mut state = self.state.lock_async().await;
+        state.single_row_async().await?.into_single_value()
     }
 
     /// Access to metadata.

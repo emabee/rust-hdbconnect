@@ -44,7 +44,7 @@ impl CLobHandle {
         let acc_byte_length = cesu8.len();
         let clob_handle = Self {
             am_conn_core: am_conn_core.clone(),
-            o_am_rscore: o_am_rscore.as_ref().cloned(),
+            o_am_rscore: o_am_rscore.clone(),
             total_char_length,
             total_byte_length,
             is_data_complete,

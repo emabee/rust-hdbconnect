@@ -42,7 +42,7 @@ impl BLobHandle {
         let data = DebugIgnore::from(LobBuf::with_initial_content(data));
         Self {
             am_conn_core: am_conn_core.clone(),
-            o_am_rscore: o_am_rscore.as_ref().cloned(),
+            o_am_rscore: o_am_rscore.clone(),
             total_byte_length,
             is_data_complete,
             locator_id,

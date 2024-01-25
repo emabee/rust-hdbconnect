@@ -3,6 +3,7 @@ use byteorder::{LittleEndian, ReadBytesExt};
 
 #[derive(Debug)]
 pub(crate) struct WriteLobReply {
+    #[allow(dead_code)] // TODO what are we supposed to do with this?
     locator_ids: Vec<u64>,
 }
 impl WriteLobReply {
