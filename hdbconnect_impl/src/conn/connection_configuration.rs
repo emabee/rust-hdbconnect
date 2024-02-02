@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 // docu is written at re-exports of frontend crates (hdbconnect/lib.rs, hdbconnect_async/lib.rs)
 #[derive(Debug, Clone)]
 pub struct ConnectionConfiguration {
@@ -7,6 +9,7 @@ pub struct ConnectionConfiguration {
     lob_write_length: u32,
     max_buffer_size: usize,
     min_compression_size: usize,
+    read_timeout: Option<Duration>,
 }
 
 impl Default for ConnectionConfiguration {
@@ -18,6 +21,7 @@ impl Default for ConnectionConfiguration {
             lob_write_length: Self::DEFAULT_LOB_WRITE_LENGTH,
             max_buffer_size: Self::DEFAULT_MAX_BUFFER_SIZE,
             min_compression_size: Self::DEFAULT_MIN_COMPRESSION_SIZE,
+            read_timeout: Some(Self::DEFAULT_READ_TIMEOUT),
         }
     }
 }
@@ -59,6 +63,9 @@ impl ConnectionConfiguration {
 
     /// Default value for the threshold size above which requests will be compressed.
     pub const DEFAULT_MIN_COMPRESSION_SIZE: usize = 5 * 1024;
+
+    /// Default read timeout.
+    pub const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300);
 
     /// Returns whether the connection uses auto-commit.
     pub fn is_auto_commit(&self) -> bool {
@@ -162,6 +169,21 @@ impl ConnectionConfiguration {
     #[must_use]
     pub fn with_min_compression_size(mut self, min_compression_size: usize) -> Self {
         self.min_compression_size = min_compression_size;
+        self
+    }
+
+    /// Returns the connection's read timeout.
+    pub fn read_timeout(&self) -> Option<Duration> {
+        self.read_timeout
+    }
+    /// Sets the connection's read timeout.
+    pub fn set_read_timeout(&mut self, read_timeout: Option<Duration>) {
+        self.read_timeout = read_timeout;
+    }
+    /// Builder-method for setting the connection's client-side time-out.
+    #[must_use]
+    pub fn with_read_timeout(mut self, read_timeout: Option<Duration>) -> Self {
+        self.read_timeout = read_timeout;
         self
     }
 }

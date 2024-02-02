@@ -12,7 +12,10 @@ mod tcp_client;
 
 pub mod url;
 
-pub(crate) use {am_conn_core::AmConnCore, connection_core::ConnectionCore, params::Compression};
+pub(crate) use {
+    am_conn_core::AmConnCore, connection_core::ConnectionCore, params::Compression,
+    tcp_client::TcpClient,
+};
 pub use {
     connection_configuration::ConnectionConfiguration,
     connection_statistics::ConnectionStatistics,
@@ -26,4 +29,3 @@ pub use {
 
 use authentication::AuthenticationResult;
 use session_state::SessionState;
-use tcp_client::TcpClient;

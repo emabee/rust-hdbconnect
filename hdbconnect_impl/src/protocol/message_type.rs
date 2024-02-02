@@ -39,3 +39,13 @@ pub(crate) enum MessageType {
     // FetchFirst = 74,      // Moves the cursor to the first row and fetches the data
     // FetchLast = 75,       // Moves the cursor to the last row and fetches the data
 }
+impl MessageType {
+    // requests that depend on a resultset id, or connection id, or prepared statement id
+    // are not repeatable; others like Authenticate or Dis/Connect should also not be repeated
+    pub(crate) fn is_repeatable(self) -> bool {
+        matches!(
+            self,
+            Self::ExecuteDirect | Self::Prepare | Self::DbConnectInfo
+        )
+    }
+}

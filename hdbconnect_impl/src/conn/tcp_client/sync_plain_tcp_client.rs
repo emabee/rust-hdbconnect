@@ -1,5 +1,5 @@
 use crate::{ConnectParams, HdbResult};
-use std::net::TcpStream;
+use std::{net::TcpStream, time::Duration};
 
 #[derive(Debug)]
 pub(crate) struct SyncPlainTcpClient {
@@ -18,6 +18,10 @@ impl SyncPlainTcpClient {
 
     pub fn connect_params(&self) -> &ConnectParams {
         &self.params
+    }
+
+    pub(crate) fn set_read_timeout(&mut self, o_duration: Option<Duration>) -> std::io::Result<()> {
+        self.tcp_stream.set_read_timeout(o_duration)
     }
 
     pub fn writer(&mut self) -> &mut TcpStream {

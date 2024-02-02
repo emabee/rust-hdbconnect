@@ -5,6 +5,7 @@ pub(crate) fn io_error<E>(error: E) -> std::io::Error
 where
     E: Into<Box<dyn std::error::Error + Send + Sync>>,
 {
+    // todo: get rid of this method and switch to std::io::error::other(error) which requires 1.74.0
     std::io::Error::new(std::io::ErrorKind::Other, error)
 }
 

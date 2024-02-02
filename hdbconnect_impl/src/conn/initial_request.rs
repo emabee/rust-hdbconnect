@@ -10,7 +10,7 @@ use std::{io::Write, sync::OnceLock};
 
 #[cfg(feature = "sync")]
 pub(crate) fn send_and_receive_sync(sync_tcp_connection: &mut TcpClient) -> HdbResult<()> {
-    trace!("send_and_receive(): send");
+    trace!("send_and_receive_sync(): send");
     match sync_tcp_connection {
         TcpClient::SyncPlain(ref mut pc) => {
             emit_initial_request_sync(pc.writer())?;
@@ -18,6 +18,7 @@ pub(crate) fn send_and_receive_sync(sync_tcp_connection: &mut TcpClient) -> HdbR
         TcpClient::SyncTls(ref mut tc) => {
             emit_initial_request_sync(tc.writer()).map_err(|e| HdbError::TlsInit { source: e })?;
         }
+        TcpClient::Dead { .. } => unreachable!(),
         #[cfg(feature = "async")]
         _ => unreachable!("Async connections not supported here"),
     }
@@ -30,6 +31,7 @@ pub(crate) fn send_and_receive_sync(sync_tcp_connection: &mut TcpClient) -> HdbR
         TcpClient::SyncTls(ref mut tc) => {
             util_sync::skip_bytes(8, tc.reader()) // ignore the response content
         }
+        TcpClient::Dead { .. } => unreachable!(),
         #[cfg(feature = "async")]
         _ => unreachable!("Async connections not supported here"),
     }
@@ -43,23 +45,23 @@ pub(crate) fn send_and_receive_sync(sync_tcp_connection: &mut TcpClient) -> HdbR
 
 #[cfg(feature = "async")]
 pub(crate) async fn send_and_receive_async(tcp_client: &mut TcpClient) -> HdbResult<()> {
-    trace!("send_and_receive(): send");
+    trace!("send_and_receive_async(): send");
     match tcp_client {
         TcpClient::AsyncPlain(ref mut pa) => emit_initial_request_async(pa.writer()).await?,
         TcpClient::AsyncTls(ref mut ta) => emit_initial_request_async(ta.writer())
             .await
             .map_err(|e| HdbError::TlsInit { source: e })?,
-        TcpClient::Dead => unreachable!(),
+        TcpClient::Dead { .. } => unreachable!(),
         #[cfg(feature = "sync")]
         _ => unreachable!("Sync connections not supported here"),
     };
 
-    trace!("send_and_receive(): receive");
+    trace!("send_and_receive_async(): receive");
     // ignore the response content
     match tcp_client {
         TcpClient::AsyncPlain(tc) => util_async::skip_bytes(8, tc.reader()).await,
         TcpClient::AsyncTls(ta) => util_async::skip_bytes(8, ta.reader()).await,
-        TcpClient::Dead => unreachable!(),
+        TcpClient::Dead { .. } => unreachable!(),
         #[cfg(feature = "sync")]
         _ => unreachable!("Sync connections not supported here"),
     }?;

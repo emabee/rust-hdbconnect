@@ -1,6 +1,22 @@
 # Changelog
 
-## [0.28.2] Fix issue in CLob
+## [0.28.4] 2024-02-02
+
+### New capabilities
+
+Introduce a configurable read timeout.
+
+Safely disable further use of a connection after an error during a roundtrip.
+
+## [0.28.3] 2024-01-25
+
+Code maintenance
+
+## [0.28.2] 2024-01-19
+
+### Improvements
+
+Fix issue in CLob.
 
 Revise lob reading and buffering.
 

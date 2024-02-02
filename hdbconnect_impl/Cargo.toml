@@ -65,6 +65,7 @@ tokio = { optional = true, version = "1.23", features = [
     "io-util",
     "net",
     "rt",
+    "time",
     "sync",
 ] }
 tokio-rustls = "0.24"

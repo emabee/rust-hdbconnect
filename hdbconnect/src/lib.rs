@@ -36,7 +36,9 @@
 /// It is possible to reset the statistics using [`Connection::reset_statistics`].
 pub use hdbconnect_impl::ConnectionStatistics;
 
-/// Combines a couple of settings that influence the runtime behavior of a connection.
+/// A collection of settings that influence the runtime behavior of a connection.
+///
+/// To create a connection with non-default settings, use [`Connection::with_configuration`].
 ///
 /// # Example
 ///

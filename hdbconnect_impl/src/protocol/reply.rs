@@ -1,3 +1,5 @@
+#[cfg(feature = "async")]
+use crate::conn::TcpClient;
 use crate::{
     base::{InternalReturnValue, RsState},
     conn::{AmConnCore, ConnectionCore, ConnectionStatistics},
@@ -94,7 +96,52 @@ impl Reply {
     //    in case of fetch requests
     #[cfg(feature = "async")]
     #[allow(clippy::too_many_arguments)]
-    pub(crate) async fn parse_async<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
+    pub(crate) async fn parse_async(
+        o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
+        o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
+        o_rs: &mut Option<&mut RsState>,
+        o_am_conn_core: Option<&AmConnCore>,
+        start: std::time::Instant,
+        statistics: &mut ConnectionStatistics,
+        io_buffer: &mut Cursor<Vec<u8>>,
+        tcp_client: &mut TcpClient,
+    ) -> HdbResult<Self> {
+        match tcp_client {
+            TcpClient::AsyncPlain(ref mut cl) => {
+                Reply::parse_async_impl(
+                    o_a_rsmd,
+                    o_a_descriptors,
+                    o_rs,
+                    o_am_conn_core,
+                    start,
+                    statistics,
+                    io_buffer,
+                    cl.reader(),
+                )
+                .await
+            }
+            TcpClient::AsyncTls(ref mut cl) => {
+                Reply::parse_async_impl(
+                    o_a_rsmd,
+                    o_a_descriptors,
+                    o_rs,
+                    o_am_conn_core,
+                    start,
+                    statistics,
+                    io_buffer,
+                    cl.reader(),
+                )
+                .await
+            }
+            TcpClient::Dead { .. } => Err(HdbError::ConnectionBroken { source: None }),
+            #[cfg(feature = "sync")]
+            _ => unreachable!("Sync connections not supported here"),
+        }
+    }
+
+    #[cfg(feature = "async")]
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) async fn parse_async_impl<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
         o_a_rsmd: Option<&Arc<ResultSetMetadata>>,
         o_a_descriptors: Option<&Arc<ParameterDescriptors>>,
         o_rs: &mut Option<&mut RsState>,

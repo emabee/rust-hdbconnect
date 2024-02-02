@@ -1,25 +1,26 @@
+#[cfg(feature = "async")]
+mod async_plain_tcp_client;
+#[cfg(feature = "async")]
+mod async_tls_tcp_client;
 #[cfg(feature = "sync")]
 mod sync_plain_tcp_client;
 #[cfg(feature = "sync")]
 mod sync_tls_tcp_client;
 
 #[cfg(feature = "sync")]
-use sync_plain_tcp_client::SyncPlainTcpClient;
-#[cfg(feature = "sync")]
-use sync_tls_tcp_client::SyncTlsTcpClient;
-
-#[cfg(feature = "async")]
-mod async_plain_tcp_client;
-#[cfg(feature = "async")]
-mod async_tls_tcp_client;
-
+use crate::HdbError;
+use crate::{ConnectParams, HdbResult};
 #[cfg(feature = "async")]
 use async_plain_tcp_client::AsyncPlainTcpClient;
 #[cfg(feature = "async")]
 use async_tls_tcp_client::AsyncTlsTcpClient;
-
-use crate::{ConnectParams, HdbResult};
+#[cfg(feature = "sync")]
+use std::time::Duration;
 use std::time::Instant;
+#[cfg(feature = "sync")]
+use sync_plain_tcp_client::SyncPlainTcpClient;
+#[cfg(feature = "sync")]
+use sync_tls_tcp_client::SyncTlsTcpClient;
 
 // A buffered tcp connection, synchronous or asynchronoues, with or without TLS.
 #[derive(Debug)]
@@ -40,24 +41,29 @@ pub(crate) enum TcpClient {
     #[cfg(feature = "async")]
     AsyncTls(AsyncTlsTcpClient),
 
-    // Needed for being able to send the Drop asynchronously
-    #[cfg(feature = "async")]
-    Dead,
+    // Needed if communication issues made the Stream unusable
+    // (and for being able to send the Drop asynchronously).
+    Dead {
+        params: ConnectParams,
+    },
 }
 impl TcpClient {
     // Constructs a buffered tcp connection, with or without TLS,
     // depending on the given connect parameters.
     #[cfg(feature = "sync")]
-    pub fn try_new_sync(params: ConnectParams) -> HdbResult<Self> {
+    pub fn try_new_sync(
+        params: ConnectParams,
+        o_timeout: Option<std::time::Duration>,
+    ) -> HdbResult<Self> {
         let start = Instant::now();
         trace!("TcpClient: Connecting to {:?})", params.addr());
 
-        let tcp_conn = if params.is_tls() {
+        let mut tcp_conn = if params.is_tls() {
             Self::SyncTls(SyncTlsTcpClient::try_new(params)?)
         } else {
             Self::SyncPlain(SyncPlainTcpClient::try_new(params)?)
         };
-
+        tcp_conn.set_read_timeout_sync(o_timeout)?;
         trace!(
             "Connection of type {} is initialized ({} µs)",
             tcp_conn.s_type(),
@@ -98,10 +104,7 @@ impl TcpClient {
             Self::AsyncPlain(_) => "Async Plain TCP",
             #[cfg(feature = "async")]
             Self::AsyncTls(_) => "Async TLS TCP",
-            #[cfg(feature = "async")]
-            Self::Dead => unreachable!(),
-            #[cfg(not(any(feature = "sync", feature = "async")))]
-            _ => todo!(),
+            Self::Dead { .. } => "Physical connection lost",
         }
     }
 
@@ -115,11 +118,28 @@ impl TcpClient {
             Self::AsyncPlain(cl) => cl.connect_params(),
             #[cfg(feature = "async")]
             Self::AsyncTls(cl) => cl.connect_params(),
-            #[cfg(feature = "async")]
-            Self::Dead => unreachable!(),
-            #[cfg(not(any(feature = "sync", feature = "async")))]
-            _ => todo!(),
+            Self::Dead { params } => params,
         }
+    }
+
+    #[cfg(feature = "sync")]
+    pub(crate) fn set_read_timeout_sync(
+        &mut self,
+        client_timeout: Option<Duration>,
+    ) -> HdbResult<()> {
+        match self {
+            Self::SyncPlain(cl) => Ok(cl.set_read_timeout(client_timeout)?),
+            Self::SyncTls(cl) => Ok(cl.set_read_timeout(client_timeout)?),
+            Self::Dead { .. } => Err(HdbError::ConnectionBroken { source: None }),
+            #[cfg(feature = "async")]
+            _ => unimplemented!(),
+        }
+    }
+
+    pub(crate) fn die(&mut self) {
+        *self = Self::Dead {
+            params: self.connect_params().clone(),
+        };
     }
 }
 

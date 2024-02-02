@@ -12,6 +12,7 @@ use std::sync::Arc;
 pub(crate) struct RsCore {
     am_conn_core: AmConnCore,
     o_am_pscore: OAM<PreparedStatementCore>,
+    // todo: move attributes into RsState to reduce locking
     attributes: PartAttributes,
     resultset_id: u64,
 }

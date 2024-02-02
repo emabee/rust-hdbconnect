@@ -3,7 +3,7 @@
         "level": 1
     },
     "MD024": {
-        "allow_different_nesting": true
+        "siblings_only": true
     },
     "MD013": {
         "line_length": 100

@@ -132,6 +132,13 @@ pub enum HdbError {
         // backtrace: Backtrace,
     },
 
+    /// Error occured
+    #[error("Error occured with a command that was repeated after a reconnect")]
+    ErrorAfterReconnect {
+        source: std::io::Error,
+        second: Box<HdbError>,
+    },
+
     /// Error caused by wrong usage.
     #[error("Wrong usage: {}", _0)]
     Usage(&'static str),
@@ -139,6 +146,10 @@ pub enum HdbError {
     /// Error caused by wrong usage.
     #[error("Wrong usage: {}", _0)]
     UsageDetailed(String),
+
+    /// Connection is dead
+    #[error("Connection is broken")]
+    ConnectionBroken { source: Option<Box<HdbError>> },
 }
 
 /// Abbreviation of `Result<T, HdbError>`.

@@ -1,5 +1,8 @@
 use crate::{protocol::util, ConnectParams, HdbResult};
-use std::sync::{Arc, Mutex};
+use std::{
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 use tokio_rustls::rustls::{ClientConnection, ServerName};
 
 pub(crate) struct SyncTlsTcpClient {
@@ -21,6 +24,10 @@ impl SyncTlsTcpClient {
 
     pub fn connect_params(&self) -> &ConnectParams {
         &self.params
+    }
+
+    pub(crate) fn set_read_timeout(&mut self, o_duration: Option<Duration>) -> std::io::Result<()> {
+        self.tls_stream.set_read_timeout(o_duration)
     }
 
     pub(crate) fn writer(&mut self) -> &mut dyn std::io::Write {
@@ -55,6 +62,9 @@ impl TlsStream {
             tcpstream,
             am_client_session,
         })
+    }
+    fn set_read_timeout(&mut self, o_duration: Option<Duration>) -> std::io::Result<()> {
+        self.tcpstream.set_read_timeout(o_duration)
     }
 }
 

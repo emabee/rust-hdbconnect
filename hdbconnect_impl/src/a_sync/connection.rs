@@ -11,6 +11,7 @@ use crate::{
 };
 #[cfg(feature = "dist_tx")]
 use dist_tx::a_sync::rm::ResourceManager;
+use std::time::Duration;
 
 /// An asynchronous connection to the database.
 #[derive(Debug)]
@@ -310,6 +311,25 @@ impl Connection {
             .set_fetch_size(fetch_size);
     }
 
+    /// Returns the connection's read timeout.
+    pub async fn read_timeout(&self) -> HdbResult<Option<Duration>> {
+        Ok(self
+            .am_conn_core
+            .lock_async()
+            .await
+            .configuration()
+            .read_timeout())
+    }
+    /// Sets the connection's read timeout.
+    pub async fn set_read_timeout(&self, read_timeout: Option<Duration>) -> HdbResult<()> {
+        self.am_conn_core
+            .lock_async()
+            .await
+            .configuration_mut()
+            .set_read_timeout(read_timeout);
+        Ok(())
+    }
+
     /// Returns the connection's lob read length.
     pub async fn lob_read_length(&self) -> u32 {
         self.am_conn_core
@@ -343,9 +363,6 @@ impl Connection {
     ///
     /// The intention of the parameter is to allow reducing the number of roundtrips
     /// to the database.
-    /// Values smaller than rust's buffer size (8k) will have little effect, since
-    /// each read() call to the Read impl in a `HdbValue::LOBSTREAM` will cause at most one
-    /// write roundtrip to the database.
     pub async fn set_lob_write_length(&self, l: u32) {
         self.am_conn_core
             .lock_async()

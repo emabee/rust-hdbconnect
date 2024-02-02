@@ -7,6 +7,7 @@ use crate::{
     sync::{HdbResponse, PreparedStatement, ResultSet},
     {HdbError, HdbResult, IntoConnectParams},
 };
+use std::time::Duration;
 
 #[cfg(feature = "dist_tx")]
 use crate::xa_impl::new_resource_manager_sync;
@@ -327,6 +328,30 @@ impl Connection {
         Ok(())
     }
 
+    /// Returns the connection's read timeout.
+    ///
+    /// # Errors
+    ///
+    /// Only `HdbError::Poison` can occur.
+    pub fn read_timeout(&self) -> HdbResult<Option<Duration>> {
+        Ok(self
+            .am_conn_core
+            .lock_sync()?
+            .configuration()
+            .read_timeout())
+    }
+    /// Sets the connection's read timeout.
+    ///
+    /// # Errors
+    ///
+    /// Only `HdbError::Poison` can occur.
+    pub fn set_read_timeout(&self, read_timeout: Option<Duration>) -> HdbResult<()> {
+        let mut coco = self.am_conn_core.lock_sync()?;
+        coco.configuration_mut().set_read_timeout(read_timeout);
+        coco.set_read_timeout_sync(read_timeout)?;
+        Ok(())
+    }
+
     /// Returns the connection's lob read length.
     ///
     /// # Errors
@@ -368,9 +393,6 @@ impl Connection {
     ///
     /// The intention of the parameter is to allow reducing the number of roundtrips
     /// to the database.
-    /// Values smaller than rust's buffer size (8k) will have little effect, since
-    /// each read() call to the Read impl in a `HdbValue::LOBSTREAM` will cause at most one
-    /// write roundtrip to the database.
     ///
     /// # Errors
     ///

@@ -14,7 +14,9 @@ use crate::{
     HdbError, HdbResult,
 };
 use debug_ignore::DebugIgnore;
-use std::{io::Cursor, mem, sync::Arc};
+#[cfg(feature = "sync")]
+use std::time::Duration;
+use std::{io::Cursor, io::ErrorKind, mem, sync::Arc};
 
 #[doc(hidden)]
 #[derive(Debug)]
@@ -164,7 +166,7 @@ impl<'a> ConnectionCore {
     ) -> HdbResult<Self> {
         let connect_options =
             ConnectOptions::new(params.clientlocale(), &get_os_user(), params.compression());
-        let mut tcp_client = TcpClient::try_new_sync(params)?;
+        let mut tcp_client = TcpClient::try_new_sync(params, configuration.read_timeout())?;
         initial_request::send_and_receive_sync(&mut tcp_client)?;
         Ok(Self {
             authenticated: false,
@@ -220,7 +222,8 @@ impl<'a> ConnectionCore {
         warn!("Trying to reconnect");
         let mut conn_params = self.tcp_client.connect_params().clone();
         loop {
-            let mut tcp_conn = TcpClient::try_new_sync(conn_params.clone())?;
+            let mut tcp_conn =
+                TcpClient::try_new_sync(conn_params.clone(), self.configuration.read_timeout())?;
             initial_request::send_and_receive_sync(&mut tcp_conn)?;
             self.tcp_client = tcp_conn;
             self.authenticated = false;
@@ -283,9 +286,16 @@ impl<'a> ConnectionCore {
             TcpClient::AsyncPlain(ref cl) => cl.connect_params(),
             #[cfg(feature = "async")]
             TcpClient::AsyncTls(ref cl) => cl.connect_params(),
-            #[cfg(feature = "async")]
-            TcpClient::Dead => unreachable!(),
+            TcpClient::Dead { ref params } => params,
         }
+    }
+
+    #[cfg(feature = "sync")]
+    pub(crate) fn set_read_timeout_sync(
+        &mut self,
+        client_timeout: Option<Duration>,
+    ) -> HdbResult<()> {
+        self.tcp_client.set_read_timeout_sync(client_timeout)
     }
 
     pub(crate) fn connect_string(&self) -> String {
@@ -452,34 +462,45 @@ impl<'a> ConnectionCore {
             } else {
                 (self.session_id, self.next_sequence_number(), true)
             };
-
         let compress = self.connect_options().use_compression();
 
         let w: &mut dyn std::io::Write = match self.tcp_client {
             TcpClient::SyncPlain(ref mut cl) => cl.writer(),
             TcpClient::SyncTls(ref mut cl) => cl.writer(),
+            TcpClient::Dead { .. } => return Err(HdbError::ConnectionBroken { source: None }),
             #[cfg(feature = "async")]
             _ => unreachable!("Async connections not supported here"),
         };
 
-        let start = request.emit_sync(
-            session_id,
-            nsn,
-            &self.configuration,
-            compress,
-            o_a_descriptors,
-            &mut self.statistics,
-            &mut self.io_buffer,
-            w,
-        )?;
+        let start = request
+            .emit_sync(
+                session_id,
+                nsn,
+                &self.configuration,
+                compress,
+                o_a_descriptors,
+                &mut self.statistics,
+                &mut self.io_buffer,
+                w,
+            )
+            .map_err(|e| {
+                info!(
+                    "roundtrip_sync(): TCP connection discarded because write failed with \"{e}\""
+                );
+                self.tcp_client.die();
+                HdbError::ConnectionBroken {
+                    source: Some(Box::new(e)),
+                }
+            })?;
 
         let rdr: &mut dyn std::io::Read = match self.tcp_client {
             TcpClient::SyncPlain(ref mut cl) => cl.reader(),
             TcpClient::SyncTls(ref mut cl) => cl.reader(),
+            TcpClient::Dead { .. } => return Err(HdbError::ConnectionBroken { source: None }),
             #[cfg(feature = "async")]
             _ => unreachable!("Async connections not supported here"),
         };
-        let mut reply = Reply::parse_sync(
+        let mut reply = match Reply::parse_sync(
             o_a_rsmd,
             o_a_descriptors,
             o_rs,
@@ -488,7 +509,14 @@ impl<'a> ConnectionCore {
             start,
             &mut self.io_buffer,
             rdr,
-        )?;
+        ) {
+            Ok(reply) => reply,
+            Err(e) => {
+                info!("roundtrip_sync(): TCP connection discarded after \"{e}\"");
+                self.tcp_client.die();
+                return Err(connection_broken(e, &self.configuration.read_timeout()));
+            }
+        };
 
         if self.io_buffer.get_ref().capacity() > self.configuration.max_buffer_size() {
             *(self.io_buffer.get_mut()) = Vec::with_capacity(self.configuration.max_buffer_size());
@@ -547,13 +575,21 @@ impl<'a> ConnectionCore {
                     )
                     .await
             }
+            TcpClient::Dead { .. } => return Err(HdbError::ConnectionBroken { source: None }),
             #[cfg(feature = "sync")]
-            TcpClient::Dead => unreachable!("Dead connection not supported here"),
             _ => unreachable!("Sync connections not supported here"),
-        }?;
+        }
+        .map_err(|e| {
+            info!("roundtrip_async(): TCP connection discarded because write failed with \"{e}\"");
+            self.tcp_client.die();
+            HdbError::ConnectionBroken {
+                source: Some(Box::new(e)),
+            }
+        })?;
 
-        let mut reply = match self.tcp_client {
-            TcpClient::AsyncPlain(ref mut cl) => {
+        let mut reply = if let Some(timeout) = self.configuration.read_timeout() {
+            match tokio::time::timeout(
+                timeout,
                 Reply::parse_async(
                     o_a_rsmd,
                     o_a_descriptors,
@@ -562,27 +598,36 @@ impl<'a> ConnectionCore {
                     start,
                     &mut self.statistics,
                     &mut self.io_buffer,
-                    cl.reader(),
-                )
-                .await
+                    &mut self.tcp_client,
+                ),
+            )
+            .await
+            {
+                Ok(res) => res,
+                Err(_e) => Err(HdbError::Io {
+                    source: std::io::Error::new(
+                        std::io::ErrorKind::TimedOut,
+                        format!("connection is broken (connection's read timeout was set to {timeout:?})"),
+                    ),
+                }),
             }
-            TcpClient::AsyncTls(ref mut cl) => {
-                Reply::parse_async(
-                    o_a_rsmd,
-                    o_a_descriptors,
-                    o_rs,
-                    o_am_conn_core,
-                    start,
-                    &mut self.statistics,
-                    &mut self.io_buffer,
-                    cl.reader(),
-                )
-                .await
-            }
-            #[cfg(feature = "sync")]
-            TcpClient::Dead => unreachable!("Dead connection not supported here"),
-            _ => unreachable!("Sync connections not supported here"),
-        }?;
+        } else {
+            Reply::parse_async(
+                o_a_rsmd,
+                o_a_descriptors,
+                o_rs,
+                o_am_conn_core,
+                start,
+                &mut self.statistics,
+                &mut self.io_buffer,
+                &mut self.tcp_client,
+            )
+            .await
+        }.map_err(|e|{
+            info!("roundtrip_async(): TCP connection discarded after \"{e}\"");
+            self.tcp_client.die();
+            connection_broken(e, &self.configuration.read_timeout())
+        })?;
 
         if self.io_buffer.get_ref().capacity() > self.configuration.max_buffer_size() {
             *(self.io_buffer.get_mut()) = Vec::with_capacity(self.configuration.max_buffer_size());
@@ -610,6 +655,7 @@ impl Drop for ConnectionCore {
                 let w: &mut dyn std::io::Write = match self.tcp_client {
                     TcpClient::SyncPlain(ref mut cl) => cl.writer() as &mut dyn std::io::Write,
                     TcpClient::SyncTls(ref mut cl) => cl.writer() as &mut dyn std::io::Write,
+                    TcpClient::Dead { .. } => return,
                     #[cfg(feature = "async")]
                     _ => unreachable!("Async connections not supported here"),
                 };
@@ -632,7 +678,9 @@ impl Drop for ConnectionCore {
             }
             #[cfg(feature = "async")]
             {
-                let mut tcp_client = TcpClient::Dead;
+                let mut tcp_client = TcpClient::Dead {
+                    params: self.tcp_client.connect_params().clone(),
+                };
                 std::mem::swap(&mut tcp_client, &mut self.tcp_client);
                 let mut io_buffer = Cursor::new(Vec::<u8>::with_capacity(200));
                 let config = self.configuration().clone();
@@ -669,7 +717,7 @@ impl Drop for ConnectionCore {
                                 .await
                                 .ok();
                         }
-                        TcpClient::Dead => unreachable!("Dead connection not supported here"),
+                        TcpClient::Dead { .. } => {}
                         #[cfg(feature = "sync")]
                         _ => unreachable!("Sync connections not supported here"),
                     }
@@ -684,4 +732,29 @@ fn get_os_user() -> String {
     let os_user = username::get_user_name().unwrap_or_default();
     trace!("OS user: {}", os_user);
     os_user
+}
+
+fn connection_broken(mut e: HdbError, o_timeout: &Option<std::time::Duration>) -> HdbError {
+    if let HdbError::Io {
+        source: ref mut io_error,
+    } = e
+    {
+        // timeout in linux: WouldBlock, timeout in windows: TimedOut
+        if matches!(io_error.kind(), ErrorKind::WouldBlock | ErrorKind::TimedOut) {
+            *io_error = std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                if let Some(timeout) = o_timeout {
+                    format!(
+                        "connection is broken (connection's read timeout had value {timeout:?})"
+                    )
+                } else {
+                    "connection is broken (connection had no read timeout)".to_string()
+                },
+            );
+        }
+    }
+
+    HdbError::ConnectionBroken {
+        source: Some(Box::new(e)),
+    }
 }

@@ -79,7 +79,7 @@ impl AmConnCore {
         o_rs: &mut Option<&mut RsState>,
     ) -> HdbResult<Reply> {
         trace!(
-            "AmConnCore::full_send() with requestType = {:?}",
+            "AmConnCore::full_send_sync() with requestType = {:?}",
             request.message_type(),
         );
         let start = Instant::now();
@@ -96,12 +96,26 @@ impl AmConnCore {
                 Ok(reply)
             }
             Err(HdbError::Io { source })
-                if std::io::ErrorKind::ConnectionReset == source.kind() =>
+                if request.message_type().is_repeatable()
+                    && !conn_core.configuration().is_auto_commit() =>
             {
-                warn!("full_send_sync(): reconnecting after error of kind ConnectionReset ...");
+                warn!(
+                    "full_send_sync(): reconnecting after error of kind {} {}...",
+                    source.kind(),
+                    if can_be_timeout(source.kind()) {
+                        "which can be caused by a read timeout"
+                    } else {
+                        ""
+                    }
+                );
                 conn_core.reconnect_sync()?;
                 warn!("full_send_sync(): repeating request after reconnect...");
-                conn_core.roundtrip_sync(&request, Some(self), o_a_rsmd, o_a_descriptors, o_rs)
+                conn_core
+                    .roundtrip_sync(&request, Some(self), o_a_rsmd, o_a_descriptors, o_rs)
+                    .map_err(|e2| HdbError::ErrorAfterReconnect {
+                        source,
+                        second: Box::new(e2),
+                    })
             }
             Err(e) => Err(e),
         }
@@ -115,7 +129,7 @@ impl AmConnCore {
         o_rs: &mut Option<&mut RsState>,
     ) -> HdbResult<Reply> {
         trace!(
-            "AmConnCore::full_send() with requestType = {:?}",
+            "AmConnCore::full_send_async() with requestType = {:?}",
             request.message_type(),
         );
         let start = Instant::now();
@@ -128,22 +142,44 @@ impl AmConnCore {
         match reply {
             Ok(reply) => {
                 trace!(
-                    "full_send_sync() took {} ms",
+                    "full_send_async() took {} ms",
                     Instant::now().duration_since(start).as_millis(),
                 );
                 Ok(reply)
             }
             Err(HdbError::Io { source })
-                if std::io::ErrorKind::ConnectionReset == source.kind() =>
+                if request.message_type().is_repeatable()
+                    && !conn_core.configuration().is_auto_commit() =>
             {
-                debug!("full_send_sync(): reconnecting after ConnectionReset error...");
+                warn!(
+                    "full_send_async(): reconnecting after error of kind {} {}...",
+                    source.kind(),
+                    if can_be_timeout(source.kind()) {
+                        "which can be caused by a read timeout"
+                    } else {
+                        ""
+                    }
+                );
                 conn_core.reconnect_async().await?;
-                debug!("full_send_sync(): repeating request after reconnect...");
+                warn!("full_send_sync(): repeating request after reconnect...");
                 conn_core
                     .roundtrip_async(&request, Some(self), o_a_rsmd, o_a_descriptors, o_rs)
                     .await
+                    .map_err(|e2| HdbError::ErrorAfterReconnect {
+                        source,
+                        second: Box::new(e2),
+                    })
             }
             Err(e) => Err(e),
         }
     }
+}
+
+fn can_be_timeout(kind: std::io::ErrorKind) -> bool {
+    matches!(
+        kind,
+        std::io::ErrorKind::ConnectionReset
+            | std::io::ErrorKind::WouldBlock // typical read timeout on linux
+            | std::io::ErrorKind::TimedOut // typical read timeout on windows
+    )
 }
