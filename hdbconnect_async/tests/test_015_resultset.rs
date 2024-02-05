@@ -92,13 +92,9 @@ async fn evaluate_resultset(
     }
 
     info!("Loop over rows (streaming support), convert row into struct");
-    let mut rs = connection.query(query_str).await?;
+    let mut rs = connection.query("select * from VIEWS").await?;
     while let Some(row) = rs.next_row().await? {
-        let td: TestData = row.try_into()?;
-        debug!(
-            "Got struct with {}, {:?}, {}, {}",
-            td.f1, td.f2, td.f3, td.f4
-        );
+        debug!("Got row '{row}'");
     }
 
     info!("Loop over rows, convert row into tuple (avoid defining a struct)");

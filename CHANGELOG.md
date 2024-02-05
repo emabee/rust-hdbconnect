@@ -1,10 +1,11 @@
 # Changelog
 
-## [0.28.4] 2024-02-02
+## [0.28.4] 2024-02-05
 
 ### New capabilities
 
-Introduce a configurable read timeout.
+Introduce a configurable read timeout. A set timeout prevents that the driver waits
+indefinitely on a response from HANA.
 
 Safely disable further use of a connection after an error during a roundtrip.
 

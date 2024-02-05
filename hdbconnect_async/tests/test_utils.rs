@@ -39,11 +39,10 @@ pub async fn get_authenticated_connection() -> HdbResult<Connection> {
     Ok(connection)
 }
 
-pub async fn get_authenticated_connection_with_configuration() -> HdbResult<Connection> {
-    let config = ConnectionConfiguration::default()
-        .with_lob_read_length(1_000_000)
-        .with_max_buffer_size(1_000_000);
-    let connection = Connection::with_configuration(get_std_cp_builder()?, &config).await?;
+pub async fn get_authenticated_connection_with_configuration(
+    config: &ConnectionConfiguration,
+) -> HdbResult<Connection> {
+    let connection = Connection::with_configuration(get_std_cp_builder()?, config).await?;
     log::info!("TESTING WITH {}", connection.connect_string().await);
     Ok(connection)
 }

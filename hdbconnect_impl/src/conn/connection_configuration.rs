@@ -21,7 +21,7 @@ impl Default for ConnectionConfiguration {
             lob_write_length: Self::DEFAULT_LOB_WRITE_LENGTH,
             max_buffer_size: Self::DEFAULT_MAX_BUFFER_SIZE,
             min_compression_size: Self::DEFAULT_MIN_COMPRESSION_SIZE,
-            read_timeout: Some(Self::DEFAULT_READ_TIMEOUT),
+            read_timeout: Self::DEFAULT_READ_TIMEOUT,
         }
     }
 }
@@ -64,8 +64,14 @@ impl ConnectionConfiguration {
     /// Default value for the threshold size above which requests will be compressed.
     pub const DEFAULT_MIN_COMPRESSION_SIZE: usize = 5 * 1024;
 
-    /// Default read timeout.
-    pub const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300);
+    /// By default, no read timeout is applied.
+    ///
+    /// A read timeout can be used to ensure that the client does not wait indefinitely on
+    /// a response from HANA.
+    ///
+    /// Note that if the read timeout kicks in, the physical connection to HANA will be dropped
+    /// and a new connection will be needed to continue working.
+    pub const DEFAULT_READ_TIMEOUT: Option<std::time::Duration> = None;
 
     /// Returns whether the connection uses auto-commit.
     pub fn is_auto_commit(&self) -> bool {
@@ -177,10 +183,12 @@ impl ConnectionConfiguration {
         self.read_timeout
     }
     /// Sets the connection's read timeout.
+    ///
+    /// See [`ConnectionConfiguration::DEFAULT_READ_TIMEOUT`].
     pub fn set_read_timeout(&mut self, read_timeout: Option<Duration>) {
         self.read_timeout = read_timeout;
     }
-    /// Builder-method for setting the connection's client-side time-out.
+    /// Builder-method for setting the connection's read timeout.
     #[must_use]
     pub fn with_read_timeout(mut self, read_timeout: Option<Duration>) -> Self {
         self.read_timeout = read_timeout;

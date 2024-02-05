@@ -25,7 +25,7 @@
 Establish authenticated connections to the database server.
 See [`ConnectParams`], [`ConnectParamsBuilder`](crate::ConnectParamsBuilder),
 [`ConnectionConfiguration`](crate::ConnectionConfiguration), and [`url`](crate::url)
-for a full description of the possibilities.
+for a full description of the possibilities, including TLS.
 
 ```rust,no_run
 use hdbconnect_async::{Connection, ConnectionConfiguration, IntoConnectParams};
@@ -36,9 +36,11 @@ let mut connection1 = Connection::new("hdbsql://my_user:my_passwd@the_host:30815
 
 // like above, but with some non-default configuration:
 let mut connection2 = Connection::with_configuration(
-  "hdbsql://my_user:my_passwd@the_host:30815",
-  &ConnectionConfiguration::default()
-    .with_fetch_size(ConnectionConfiguration::DEFAULT_FETCH_SIZE * 2)).await?;
+    "hdbsql://my_user:my_passwd@the_host:30815",
+    &ConnectionConfiguration::default()
+        .with_read_timeout(Some(std::time::Duration::from_secs(300)))
+        .with_fetch_size(ConnectionConfiguration::DEFAULT_FETCH_SIZE * 2),
+).await?;
 
 // connect with TLS to the port of the system db and get redirected to the specified database:
 let mut connection3 = Connection::new(

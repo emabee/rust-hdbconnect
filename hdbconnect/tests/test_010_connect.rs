@@ -14,7 +14,7 @@ fn test_010_connect() -> HdbResult<()> {
     let mut log_handle = test_utils::init_logger();
     let start = Instant::now();
     connect_successfully(&mut log_handle).unwrap();
-    reconnect(&mut log_handle).unwrap();
+    redirect(&mut log_handle).unwrap();
     connect_options(&mut log_handle).unwrap();
     client_info(&mut log_handle).unwrap();
     connect_wrong_credentials(&mut log_handle);
@@ -31,8 +31,8 @@ fn connect_successfully(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
     Ok(())
 }
 
-fn reconnect(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
-    info!("test reconnect");
+fn redirect(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
+    info!("test redirect");
     _log_handle
         .parse_and_push_temp_spec("info, hdbconnect::conn= debug, test=debug")
         .unwrap();

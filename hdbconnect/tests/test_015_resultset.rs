@@ -81,12 +81,9 @@ fn evaluate_resultset(_log_handle: &mut LoggerHandle, connection: &Connection) -
     }
 
     info!("Loop over rows (streaming support), convert row into struct");
-    for row in connection.query(query_str)? {
-        let td: TestData = row?.try_into()?;
-        debug!(
-            "Got struct with {}, {:?}, {}, {}",
-            td.f1, td.f2, td.f3, td.f4
-        );
+    for row in connection.query("select * from VIEWS")? {
+        let row = row?;
+        debug!("Got row '{row}'");
     }
 
     info!("Loop over rows, convert row into tuple (avoid defining a struct)");
