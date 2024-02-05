@@ -67,6 +67,11 @@ fn evaluate_resultset(_log_handle: &mut LoggerHandle, connection: &Connection) -
     info!("Loop over rows, loop over values, evaluate each individually");
     let rs = connection.query(query_str)?;
     let metadata = rs.metadata();
+
+    for field_md in &**metadata {
+        debug!("{}", field_md.tablename());
+    }
+
     let tablename = metadata[0].tablename();
     for row in rs {
         let mut row = row?;

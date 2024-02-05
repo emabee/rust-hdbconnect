@@ -15,15 +15,17 @@ use vec_map::VecMap;
 /// ```rust
 /// use hdbconnect::ResultSet;
 /// let resultset: ResultSet;
-/// let metadata = resultset.metadata();  // ResultSetMetadata
+/// let metadata = resultset.metadata();  // Arc<ResultSetMetadata>
 ///
-/// // direct access to field properties
+/// // direct access to properties of the zeroth field:
 /// let scale_0 = metadata[0].scale();
 /// let type_id_0 = metadata[0].type_id();
+/// let precision_0 = metadata[0].precision();
 ///
-/// // all metadata of a single fields
-/// let field_1 = metadata[1]; // FieldMetadata
-/// let precision_1 = metadata[1].precision();
+/// // loop over all fields (ResultSetMetadata deref's to a Vec<FieldMetadata>):
+/// for field_md in &**metadata {
+///     println!("{}", field_md.tablename());
+/// }
 /// ```
 #[derive(Debug)]
 pub struct ResultSetMetadata(Vec<FieldMetadata>);

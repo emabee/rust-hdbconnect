@@ -73,6 +73,11 @@ async fn evaluate_resultset(
     info!("Loop over rows, loop over values, evaluate each individually");
     let rs = connection.query(query_str).await?;
     let metadata = rs.metadata();
+
+    for field_md in &**metadata {
+        debug!("{}", field_md.tablename());
+    }
+
     let tablename = metadata[0].tablename();
     for mut row in rs.into_rows().await? {
         let f1: String = row.next_try_into()?;
