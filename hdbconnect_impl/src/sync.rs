@@ -7,13 +7,6 @@ mod nclob;
 mod prepared_statement;
 mod resultset;
 
-#[cfg(feature = "r2d2_pool")]
-mod connection_manager;
-
-#[cfg_attr(docsrs, doc(cfg(feature = "r2d2_pool")))]
-#[cfg(feature = "r2d2_pool")]
-pub use connection_manager::ConnectionManager;
-
 pub use blob::BLob;
 pub use clob::CLob;
 pub use connection::Connection;

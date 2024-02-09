@@ -141,6 +141,10 @@ impl TcpClient {
             params: self.connect_params().clone(),
         };
     }
+
+    pub(crate) fn has_died(&self) -> bool {
+        matches!(*self, Self::Dead { .. })
+    }
 }
 
 impl Drop for TcpClient {

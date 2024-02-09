@@ -14,12 +14,12 @@ pub(crate) struct AmConnCore(AM<ConnectionCore>);
 impl AmConnCore {
     #[cfg(feature = "sync")]
     pub fn try_new_sync(
-        conn_params: ConnectParams,
-        configuration: &ConnectionConfiguration,
+        params: ConnectParams,
+        config: &ConnectionConfiguration,
     ) -> HdbResult<Self> {
-        trace!("trying to connect to {conn_params}");
+        trace!("trying to connect to {params}");
         let start = Instant::now();
-        let conn_core = ConnectionCore::try_new_sync(conn_params, configuration)?;
+        let conn_core = ConnectionCore::try_new_sync(params, config)?;
         {
             debug!(
                 "user \"{}\" successfully logged on ({} µs) to {:?} of {:?} (HANA version: {:?})",
@@ -34,12 +34,12 @@ impl AmConnCore {
     }
     #[cfg(feature = "async")]
     pub async fn try_new_async(
-        conn_params: ConnectParams,
-        configuration: &ConnectionConfiguration,
+        params: ConnectParams,
+        config: &ConnectionConfiguration,
     ) -> HdbResult<Self> {
-        trace!("trying to connect to {conn_params}");
+        trace!("trying to connect to {params}");
         let start = Instant::now();
-        let conn_core = ConnectionCore::try_new_async(conn_params, configuration).await?;
+        let conn_core = ConnectionCore::try_new_async(params, config).await?;
 
         debug!(
             "user \"{}\" successfully logged on ({} µs) to {:?} of {:?} (HANA version: {:?})",

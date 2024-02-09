@@ -57,6 +57,11 @@ impl ConnectParamsBuilder {
         Self::default()
     }
 
+    /// Creates a new builder based on the given URL.
+    pub fn from(url: &str) -> HdbResult<Self> {
+        url.into_connect_params_builder()
+    }
+
     /// Sets the hostname.
     pub fn hostname<H: AsRef<str>>(&mut self, hostname: H) -> &mut Self {
         self.hostname = Some(hostname.as_ref().to_owned());
@@ -75,8 +80,22 @@ impl ConnectParamsBuilder {
         self
     }
 
+    /// Sets the database user.
+    #[must_use]
+    pub fn with_dbuser<D: AsRef<str>>(mut self, dbuser: D) -> Self {
+        self.dbuser = Some(dbuser.as_ref().to_owned());
+        self
+    }
+
     /// Sets the password.
     pub fn password<P: AsRef<str>>(&mut self, pw: P) -> &mut Self {
+        self.password = Some(SecUtf8::from(pw.as_ref()));
+        self
+    }
+
+    /// Sets the password.
+    #[must_use]
+    pub fn with_password<P: AsRef<str>>(mut self, pw: P) -> Self {
         self.password = Some(SecUtf8::from(pw.as_ref()));
         self
     }
@@ -344,7 +363,7 @@ mod test {
             assert_eq!(Some("de_DE"), params.clientlocale());
             assert_eq!(
                 ServerCerts::Directory("TCD".to_string()),
-                *params.server_certs().unwrap().get(0).unwrap()
+                *params.server_certs().unwrap().first().unwrap()
             );
             assert_eq!(
                 ServerCerts::RootCertificates,

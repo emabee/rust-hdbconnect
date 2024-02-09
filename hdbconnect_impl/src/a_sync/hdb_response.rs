@@ -120,7 +120,7 @@ impl HdbResponse {
                 // TODO: 2 ReplyTypes that occur only in not yet implemented calls:
                 ReplyType::FindLob |
 
-                // TODO: 4 ReplyTypes where it is unclear when they occur and what to return:
+                // 4 ReplyTypes where it is unclear when they occur and what to return:
                 ReplyType::XaStart |
                 ReplyType::XaJoin |
                 ReplyType::XAPrepare => {

@@ -30,6 +30,9 @@
 #![deny(clippy::all)]
 #![deny(clippy::pedantic)]
 
+#[cfg(feature = "r2d2_pool")]
+mod r2d2;
+
 /// Provides some statistics about the use of a concrete connection.
 ///
 /// A snapshot of the statistics can be obtained from [`Connection::statistics`].
@@ -66,7 +69,7 @@ pub use hdbconnect_impl::sync::{
 
 #[cfg_attr(docsrs, doc(cfg(feature = "r2d2_pool")))]
 #[cfg(feature = "r2d2_pool")]
-pub use hdbconnect_impl::sync::ConnectionManager;
+pub use r2d2::ConnectionManager;
 
 pub mod code_examples;
 

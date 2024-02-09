@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.28.5] 2024-02-09
+
+Add bb8 pool for `hdbconnect_async`.
+
+Add `ConectParamsBuilder::from(url)`.
+
 ## [0.28.4] 2024-02-05
 
 ### New capabilities

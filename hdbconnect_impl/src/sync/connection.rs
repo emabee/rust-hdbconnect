@@ -33,8 +33,8 @@ impl Connection {
     /// # Errors
     ///
     /// Several variants of `HdbError` can occur.
-    pub fn new<P: IntoConnectParams>(p: P) -> HdbResult<Self> {
-        Self::with_configuration(p, &ConnectionConfiguration::default())
+    pub fn new<P: IntoConnectParams>(params: P) -> HdbResult<Self> {
+        Self::with_configuration(params, &ConnectionConfiguration::default())
     }
 
     /// Factory method for authenticated connections with given configuration.
@@ -43,11 +43,11 @@ impl Connection {
     ///
     /// Several variants of `HdbError` can occur.
     pub fn with_configuration<P: IntoConnectParams>(
-        p: P,
+        params: P,
         config: &ConnectionConfiguration,
     ) -> HdbResult<Self> {
         Ok(Self {
-            am_conn_core: AmConnCore::try_new_sync(p.into_connect_params()?, config)?,
+            am_conn_core: AmConnCore::try_new_sync(params.into_connect_params()?, config)?,
         })
     }
 
@@ -698,5 +698,10 @@ impl Connection {
             .send_sync(request)?
             .into_internal_return_values_sync(&self.am_conn_core, None)?;
         HdbResponse::try_new(internal_return_values, replytype)
+    }
+
+    /// Returns true if the connection object losts its TCP connection.
+    pub fn is_broken(&self) -> HdbResult<bool> {
+        Ok(self.am_conn_core.lock_sync()?.is_broken())
     }
 }

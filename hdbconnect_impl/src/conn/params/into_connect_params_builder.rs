@@ -1,9 +1,7 @@
-use super::connect_params::ServerCerts;
-use super::connect_params_builder::ConnectParamsBuilder;
 use super::cp_url::UrlOpt;
 use crate::{
     url::{HDBSQL, HDBSQLS},
-    HdbError, HdbResult,
+    ConnectParamsBuilder, HdbError, HdbResult, ServerCerts,
 };
 use url::Url;
 
@@ -50,14 +48,14 @@ impl IntoConnectParamsBuilder for String {
 impl IntoConnectParamsBuilder for Url {
     fn into_connect_params_builder(self) -> HdbResult<ConnectParamsBuilder> {
         let mut builder = ConnectParamsBuilder::new();
-        self.host_str().as_ref().map(|host| builder.hostname(host));
-        self.port().as_ref().map(|port| builder.port(*port));
+        self.host_str().map(|host| builder.hostname(host));
+        self.port().map(|port| builder.port(port));
 
         let dbuser = self.username();
         if !dbuser.is_empty() {
             builder.dbuser(dbuser);
         }
-        self.password().as_ref().map(|pw| builder.password(pw));
+        self.password().map(|pw| builder.password(pw));
 
         // authoritative switch between protocols:
         let use_tls = match self.scheme() {

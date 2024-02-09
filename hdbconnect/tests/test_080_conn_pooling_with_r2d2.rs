@@ -13,8 +13,12 @@ mod a {
     fn test_080_conn_pooling_with_r2d2() -> HdbResult<()> {
         //let mut log_handle = test_utils::init_logger();
 
-        let manager = ConnectionManager::new(super::test_utils::get_std_cp_builder()?)?;
-        let pool = r2d2::Pool::builder().max_size(15).build(manager).unwrap();
+        let pool = r2d2::Pool::builder()
+            .max_size(15)
+            .build(ConnectionManager::new(
+                super::test_utils::get_std_cp_builder()?,
+            )?)
+            .unwrap();
 
         let no_of_workers: usize = 20;
         let mut worker_handles: Vec<JoinHandle<u8>> = Default::default();

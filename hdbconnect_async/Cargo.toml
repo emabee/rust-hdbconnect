@@ -25,14 +25,23 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = []
-rocket_pool = ["hdbconnect_impl/rocket_pool"]
+bb8_pool = ["async-trait", "bb8", "log", "tokio"]
+rocket_pool = ["rocket_db_pools", "rocket"]
 dist_tx = ["hdbconnect_impl/dist_tx_async"]
 
 [dependencies.hdbconnect_impl]
-version = "0.28.4"
+version = "0.28.5"
 path = "../hdbconnect_impl"
 default-features = false
 features = ["async"]
+
+[dependencies]
+async-trait = { version = "0.1", optional = true }
+bb8 = { version = "0.8", optional = true }
+log = { version = "0.4", optional = true }
+rocket_db_pools = { version = "0.1", optional = true }
+rocket = { version = "0.5.0", optional = true }
+tokio = { version = "1.23", features = ["rt"], optional = true }
 
 [dev-dependencies]
 bigdecimal = { version = "0.4", features = ["serde"] }
@@ -45,8 +54,6 @@ log = "0.4"
 num = "0.4"
 num-bigint = "0.4.0"
 rand = "0.8"
-rocket_db_pools = "0.1.0-rc.2"
-rocket = "0.5.0-rc.2"
 serde = { version = "1.0", features = ["derive"] }
 serde_bytes = "0.11"
 serde_json = "1.0"
@@ -57,6 +64,12 @@ time = { version = "0.3", features = [
     "parsing",
     "serde",
 ] }
-tokio = { version = "1.23", features = ["io-util", "sync", "rt", "macros"] }
+tokio = { version = "1.23", features = [
+    "io-util",
+    "sync",
+    "rt",
+    "macros",
+    "rt-multi-thread",
+] }
 tokio-test = "0.4"
 version-sync = "0.9"

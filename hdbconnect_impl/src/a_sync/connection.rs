@@ -38,8 +38,8 @@ impl Connection {
     /// # Errors
     ///
     /// Several variants of `HdbError` can occur.
-    pub async fn new<P: IntoConnectParams>(p: P) -> HdbResult<Self> {
-        Self::with_configuration(p, &ConnectionConfiguration::default()).await
+    pub async fn new<P: IntoConnectParams>(params: P) -> HdbResult<Self> {
+        Self::with_configuration(params, &ConnectionConfiguration::default()).await
     }
 
     /// Factory method for authenticated connections with given configuration.
@@ -48,11 +48,11 @@ impl Connection {
     ///
     /// Several variants of `HdbError` can occur.
     pub async fn with_configuration<P: IntoConnectParams>(
-        p: P,
+        params: P,
         config: &ConnectionConfiguration,
     ) -> HdbResult<Self> {
         Ok(Self {
-            am_conn_core: AmConnCore::try_new_async(p.into_connect_params()?, config).await?,
+            am_conn_core: AmConnCore::try_new_async(params.into_connect_params()?, config).await?,
         })
     }
 
@@ -620,5 +620,10 @@ impl Connection {
             .into_internal_return_values_async(&self.am_conn_core, None)
             .await?;
         HdbResponse::try_new(internal_return_values, replytype)
+    }
+
+    /// Returns true if the connection object losts its TCP connection.
+    pub async fn is_broken(&self) -> bool {
+        self.am_conn_core.lock_async().await.is_broken()
     }
 }

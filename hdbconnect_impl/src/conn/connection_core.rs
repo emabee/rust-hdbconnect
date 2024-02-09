@@ -27,7 +27,7 @@ pub(crate) struct ConnectionCore {
     client_info_touched: bool,
     statistics: ConnectionStatistics,
     server_usage: ServerUsage,
-    configuration: ConnectionConfiguration,
+    config: ConnectionConfiguration,
     session_state: SessionState,
     statement_sequence: Option<i64>, // statement sequence within the transaction
     connect_options: ConnectOptions,
@@ -41,11 +41,11 @@ impl<'a> ConnectionCore {
     #[cfg(feature = "sync")]
     pub(crate) fn try_new_sync(
         params: ConnectParams,
-        configuration: &ConnectionConfiguration,
+        config: &ConnectionConfiguration,
     ) -> HdbResult<Self> {
         let o_dbname = params.dbname().map(ToString::to_string);
         let network_group = params.network_group().unwrap_or_default().to_string();
-        let mut conn_core = ConnectionCore::try_new_initialized_sync(params, configuration)?;
+        let mut conn_core = ConnectionCore::try_new_initialized_sync(params, config)?;
         if let Some(dbname) = o_dbname {
             // since a dbname is specified, we ask explicitly for a redirect
             trace!("Redirect to {dbname} initiated by client");
@@ -67,10 +67,8 @@ impl<'a> ConnectionCore {
                             .connect_params()
                             .redirect(db_connect_info.host()?, db_connect_info.port()?);
                         debug!("Redirected (1) to {}", redirect_params);
-                        conn_core = ConnectionCore::try_new_initialized_sync(
-                            redirect_params,
-                            configuration,
-                        )?;
+                        conn_core =
+                            ConnectionCore::try_new_initialized_sync(redirect_params, config)?;
                     }
                 }
                 o_part => {
@@ -89,8 +87,7 @@ impl<'a> ConnectionCore {
                         .connect_params()
                         .redirect(db_connect_info.host()?, db_connect_info.port()?);
                     debug!("Redirected (2) to {}", redirect_params);
-                    conn_core =
-                        ConnectionCore::try_new_initialized_sync(redirect_params, configuration)?;
+                    conn_core = ConnectionCore::try_new_initialized_sync(redirect_params, config)?;
                 }
             }
         }
@@ -99,12 +96,11 @@ impl<'a> ConnectionCore {
     #[cfg(feature = "async")]
     pub(crate) async fn try_new_async(
         params: ConnectParams,
-        configuration: &ConnectionConfiguration,
+        config: &ConnectionConfiguration,
     ) -> HdbResult<Self> {
         let o_dbname = params.dbname().map(ToString::to_string);
         let network_group = params.network_group().unwrap_or_default().to_string();
-        let mut conn_core =
-            ConnectionCore::try_new_initialized_async(params, configuration).await?;
+        let mut conn_core = ConnectionCore::try_new_initialized_async(params, config).await?;
         if let Some(dbname) = o_dbname {
             // since a dbname is specified, we ask explicitly for a redirect
             trace!("Redirect to {dbname} initiated by client");
@@ -128,11 +124,9 @@ impl<'a> ConnectionCore {
                             .connect_params()
                             .redirect(db_connect_info.host()?, db_connect_info.port()?);
                         debug!("Redirected (1) to {}", redirect_params);
-                        conn_core = ConnectionCore::try_new_initialized_async(
-                            redirect_params,
-                            configuration,
-                        )
-                        .await?;
+                        conn_core =
+                            ConnectionCore::try_new_initialized_async(redirect_params, config)
+                                .await?;
                     }
                 }
                 o_part => {
@@ -152,8 +146,7 @@ impl<'a> ConnectionCore {
                         .redirect(db_connect_info.host()?, db_connect_info.port()?);
                     debug!("Redirected (2) to {}", redirect_params);
                     conn_core =
-                        ConnectionCore::try_new_initialized_async(redirect_params, configuration)
-                            .await?;
+                        ConnectionCore::try_new_initialized_async(redirect_params, config).await?;
                 }
             }
         }
@@ -162,11 +155,11 @@ impl<'a> ConnectionCore {
     #[cfg(feature = "sync")]
     fn try_new_initialized_sync(
         params: ConnectParams,
-        configuration: &ConnectionConfiguration,
+        config: &ConnectionConfiguration,
     ) -> HdbResult<Self> {
         let connect_options =
             ConnectOptions::new(params.clientlocale(), &get_os_user(), params.compression());
-        let mut tcp_client = TcpClient::try_new_sync(params, configuration.read_timeout())?;
+        let mut tcp_client = TcpClient::try_new_sync(params, config.read_timeout())?;
         initial_request::send_and_receive_sync(&mut tcp_client)?;
         Ok(Self {
             authenticated: false,
@@ -176,7 +169,7 @@ impl<'a> ConnectionCore {
             io_buffer: DebugIgnore::from(Cursor::new(Vec::<u8>::with_capacity(
                 ConnectionConfiguration::MIN_BUFFER_SIZE,
             ))),
-            configuration: configuration.clone(),
+            config: config.clone(),
             client_info: ClientInfo::default(),
             client_info_touched: true,
             session_state: SessionState::default(),
@@ -191,7 +184,7 @@ impl<'a> ConnectionCore {
     #[cfg(feature = "async")]
     async fn try_new_initialized_async(
         params: ConnectParams,
-        configuration: &ConnectionConfiguration,
+        config: &ConnectionConfiguration,
     ) -> HdbResult<Self> {
         let connect_options =
             ConnectOptions::new(params.clientlocale(), &get_os_user(), params.compression());
@@ -205,7 +198,7 @@ impl<'a> ConnectionCore {
             io_buffer: DebugIgnore::from(Cursor::new(Vec::<u8>::with_capacity(
                 ConnectionConfiguration::MIN_BUFFER_SIZE,
             ))),
-            configuration: configuration.clone(),
+            config: config.clone(),
             client_info: ClientInfo::default(),
             client_info_touched: true,
             session_state: SessionState::default(),
@@ -223,7 +216,7 @@ impl<'a> ConnectionCore {
         let mut conn_params = self.tcp_client.connect_params().clone();
         loop {
             let mut tcp_conn =
-                TcpClient::try_new_sync(conn_params.clone(), self.configuration.read_timeout())?;
+                TcpClient::try_new_sync(conn_params.clone(), self.config.read_timeout())?;
             initial_request::send_and_receive_sync(&mut tcp_conn)?;
             self.tcp_client = tcp_conn;
             self.authenticated = false;
@@ -354,11 +347,11 @@ impl<'a> ConnectionCore {
     }
 
     pub(crate) fn configuration(&self) -> &ConnectionConfiguration {
-        &self.configuration
+        &self.config
     }
 
     pub(crate) fn configuration_mut(&mut self) -> &mut ConnectionConfiguration {
-        &mut self.configuration
+        &mut self.config
     }
 
     pub(crate) fn set_session_id(&mut self, session_id: i64) {
@@ -476,7 +469,7 @@ impl<'a> ConnectionCore {
             .emit_sync(
                 session_id,
                 nsn,
-                &self.configuration,
+                &self.config,
                 compress,
                 o_a_descriptors,
                 &mut self.statistics,
@@ -514,12 +507,12 @@ impl<'a> ConnectionCore {
             Err(e) => {
                 info!("roundtrip_sync(): TCP connection discarded after \"{e}\"");
                 self.tcp_client.die();
-                return Err(connection_broken(e, &self.configuration.read_timeout()));
+                return Err(connection_broken(e, &self.config.read_timeout()));
             }
         };
 
-        if self.io_buffer.get_ref().capacity() > self.configuration.max_buffer_size() {
-            *(self.io_buffer.get_mut()) = Vec::with_capacity(self.configuration.max_buffer_size());
+        if self.io_buffer.get_ref().capacity() > self.config.max_buffer_size() {
+            *(self.io_buffer.get_mut()) = Vec::with_capacity(self.config.max_buffer_size());
             self.statistics.add_buffer_shrinking();
         }
 
@@ -552,7 +545,7 @@ impl<'a> ConnectionCore {
                     .emit_async(
                         session_id,
                         nsn,
-                        &self.configuration,
+                        &self.config,
                         compress,
                         o_a_descriptors,
                         &mut self.statistics,
@@ -566,7 +559,7 @@ impl<'a> ConnectionCore {
                     .emit_async(
                         session_id,
                         nsn,
-                        &self.configuration,
+                        &self.config,
                         compress,
                         o_a_descriptors,
                         &mut self.statistics,
@@ -587,7 +580,7 @@ impl<'a> ConnectionCore {
             }
         })?;
 
-        let mut reply = if let Some(timeout) = self.configuration.read_timeout() {
+        let mut reply = if let Some(timeout) = self.config.read_timeout() {
             match tokio::time::timeout(
                 timeout,
                 Reply::parse_async(
@@ -626,11 +619,11 @@ impl<'a> ConnectionCore {
         }.map_err(|e|{
             info!("roundtrip_async(): TCP connection discarded after \"{e}\"");
             self.tcp_client.die();
-            connection_broken(e, &self.configuration.read_timeout())
+            connection_broken(e, &self.config.read_timeout())
         })?;
 
-        if self.io_buffer.get_ref().capacity() > self.configuration.max_buffer_size() {
-            *(self.io_buffer.get_mut()) = Vec::with_capacity(self.configuration.max_buffer_size());
+        if self.io_buffer.get_ref().capacity() > self.config.max_buffer_size() {
+            *(self.io_buffer.get_mut()) = Vec::with_capacity(self.config.max_buffer_size());
             self.statistics.add_buffer_shrinking();
         }
 
@@ -638,6 +631,10 @@ impl<'a> ConnectionCore {
             reply.handle_db_error(self)?;
         }
         Ok(reply)
+    }
+
+    pub(crate) fn is_broken(&self) -> bool {
+        self.tcp_client.has_died()
     }
 }
 
@@ -663,7 +660,7 @@ impl Drop for ConnectionCore {
                     .emit_sync(
                         session_id,
                         nsn,
-                        &self.configuration,
+                        &self.config,
                         false,
                         None,
                         &mut self.statistics,

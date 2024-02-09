@@ -426,7 +426,7 @@ mod tests {
             assert_eq!(Some("CL1".to_string()), params.clientlocale);
             assert_eq!(
                 ServerCerts::Directory("TCD".to_string()),
-                *params.server_certs().unwrap().get(0).unwrap()
+                *params.server_certs().unwrap().first().unwrap()
             );
             assert_eq!(
                 ServerCerts::RootCertificates,

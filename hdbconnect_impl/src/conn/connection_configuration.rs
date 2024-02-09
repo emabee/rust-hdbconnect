@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 // docu is written at re-exports of frontend crates (hdbconnect/lib.rs, hdbconnect_async/lib.rs)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct ConnectionConfiguration {
     auto_commit: bool,
     fetch_size: u32,

@@ -1,6 +1,7 @@
 .private
 .vscode
 hdbconnect_impl/examples/_*.rs
+hdbconnect/examples/_*.rs
 test_logs*/*
 target
 Z_TMP

@@ -166,9 +166,10 @@ mod tests {
         big_2_hdb_2_big(&bigdec);
     }
 
+    #[allow(clippy::cast_possible_truncation)]
     fn big_2_hdb_2_big(bigdec: &BigDecimal) {
         let raw = big_decimal_to_wire_decimal(bigdec).unwrap();
-        let (_neg, _mant, exp) = into_elements(raw.clone());
+        let (_neg, _mant, exp) = into_elements(raw);
         let bigdec2: BigDecimal = wire_decimal_to_hdbvalue(raw, false, -exp as i16)
             .unwrap()
             .try_into()

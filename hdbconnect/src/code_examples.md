@@ -5,8 +5,8 @@
   - [Generic method: `Connection::statement()` and `HdbResponse`](#generic-method-connectionstatement-and-hdbresponse)
   - [More specific methods with more convenient return values](#more-specific-methods-with-more-convenient-return-values)
   - [Prepared statements](#prepared-statements)
-- [Result set evaluation](#result-set-evaluation)
-  - [Iterating over rows](#iterating-over-rows)
+- [Iterating over rows](#iterating-over-rows)
+- [Result set evaluation with `try_into()`](#result-set-evaluation-with-try_into)
   - [Explicitly evaluating a single row](#explicitly-evaluating-a-single-row)
   - [Direct conversion of entire rows](#direct-conversion-of-entire-rows)
   - [Direct conversion of entire result sets](#direct-conversion-of-entire-result-sets)
@@ -22,30 +22,40 @@
 
 ## Database connections
 
-Establish authenticated connections to the database server.
+To establish an authenticated connection to a HANA database server, you need to provide
+connection parameters ([`ConnectParams`]) and
+optionally some connection configuration [`ConnectionConfiguration`](crate::ConnectionConfiguration).
 
-See [`ConnectParams`], [`ConnectParamsBuilder`](crate::ConnectParamsBuilder),
-[`ConnectionConfiguration`](crate::ConnectionConfiguration), and [`url`](crate::url)
-for a full description of the possibilities, including TLS.
+The connection parameters define how to establish an authenticated connection (TCP or TLS) to a server.
+The second parameter allows influencing the behavior and some performance characteristics of the connection.
+
+[`Connection::new`](../struct.Connection.html#method.new) and
+[`Connection::with_configuration`](../struct.Connection.html#method.with_configuration)
+take as first parameter an object that implements
+[`IntoConnectParams`](../trait.IntoConnectParams.html).
+
+A frequent pattern starts with a URL
+(see [`url`](crate::url) for a full description of supported URLs)
+and adds user and password programmatically:
 
 ```rust,no_run
-use hdbconnect::{Connection, IntoConnectParams, ConnectionConfiguration};
+use hdbconnect::{Connection, ConnectionConfiguration, ConnectParamsBuilder};
 # use hdbconnect::HdbResult;
 # fn foo() -> HdbResult<()> {
-// connect without TLS to a database:
-let mut connection1 = Connection::new("hdbsql://my_user:my_passwd@the_host:30815")?;
-
-// like above, but with some non-default configuration:
-let mut connection2 = Connection::with_configuration(
-    "hdbsql://my_user:my_passwd@the_host:30815",
-    &ConnectionConfiguration::default()
-        .with_read_timeout(Some(std::time::Duration::from_secs(300)))
-        .with_fetch_size(ConnectionConfiguration::DEFAULT_FETCH_SIZE * 2),
+let connection1 = Connection::new(
+    ConnectParamsBuilder::from("hdbsqls://myhdb:30715?use_mozillas_root_certificates")?
+        .with_dbuser("myName")
+        .with_password("mySecret")
 )?;
 
-// connect with TLS to the port of the system db and get redirected to the specified database:
-let mut connection2 = Connection::new(
-    "hdbsqls://my_user:my_passwd@the_host:30813?db=MEI&insecure_omit_server_certificate_check"
+// with non-default configuration:
+let connection2 = Connection::with_configuration(
+    ConnectParamsBuilder::from("hdbsqls://myhdb:30715?use_mozillas_root_certificates")?
+        .with_dbuser("myName")
+        .with_password("mySecret"),
+    &ConnectionConfiguration::default()
+        .with_auto_commit(false)
+        .with_read_timeout(Some(std::time::Duration::from_secs(300)))
 )?;
 # Ok(())
 # }
@@ -73,10 +83,9 @@ let response = connection.statement(query)?; // HdbResponse
 ```
 
 [`HdbResponse`] covers all possible
-return values we can get from the database.
-You thus have to analyze it to get to the
-concrete response to your call. Or you use the respective short-cut method that
-fits to your statement.
+return values you can get from the database. You thus have to analyze it to understand the
+concrete response to your call. (Or you use the respective short-cut method that
+fits to your statement, see below).
 
 ```rust,no_run
 # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
@@ -159,19 +168,9 @@ let resultset = stmt.execute_batch()?.into_resultset()?;
 # }
 ```
 
-## Result set evaluation
-
-The examples below use the method `try_into()` on an individual [`HdbValue`],
-a [`Row`], or a [`ResultSet`].
-These methods are based on the deserialization part of `serde` and use return type polymorphism,
-which means that you specify explicitly the desired type of the return value, and serde will do
-its best to get your data filled in.
-
 ## Iterating over rows
 
-Evaluating a result set by iterating over the rows explicitly is possible, of course.
-Note that the row iterator returns `HdbResult<Row>`, not `Row`,
-because the result set might need to fetch more rows lazily from the database, which can fail.
+When iterating over the rows, the result set will implicitly fetch all outstanding rows from the server.
 
 ```rust,no_run
 # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
@@ -188,14 +187,26 @@ for row in resultset {
 ```
 
 Such a streaming-like behavior is especially appropriate for large result sets.
-Iterating over the rows, while they are fetched on-demand from the server in smaller portions,
-makes it easy to write complex evaluations in an efficient and scalable manner.
+
+Iterating over the rows allows writing complex evaluations in an efficient and scalable manner.
 
 ```ignore
 let key_figure = resultset.map(|r|{r.unwrap()}).map(...).fold(...).collect(...);
 ```
 
-## Explicitly evaluating a single row
+## Result set evaluation with `try_into()`
+
+While it is possible to iterate over the rows of a resultset and then retrieve each value
+in each row individually, this driver offers a much more convenient way -
+the method `try_into()` allows assigning the resultset directly to some appropriate rust data type
+of your choice!
+
+`try_into()` is available on [`HdbValue`], [`Row`], and [`ResultSet`],
+and is based on the deserialization part of `serde`. It uses return type polymorphism,
+which means that you specify explicitly the desired type of the return value, and serde will do
+its best to get your data filled in.
+
+### Explicitly evaluating a single row
 
 You _can_ retrieve the field values of a row individually, one after the other:
 
@@ -220,10 +231,9 @@ for row in resultset {
 # }
 ```
 
-## Direct conversion of entire rows
+### Direct conversion of entire rows
 
-A usually more convenient way is to convert the complete row into a normal rust value
-or tuple or struct:
+Convert the complete row into a normal rust value or tuple or struct with reasonably matching fields:
 
 ```rust,no_run
 # use serde::Deserialize;
@@ -242,13 +252,13 @@ for row in connection.query(qry)? {
 # }
 ```
 
-## Direct conversion of entire result sets
+### Direct conversion of entire result sets
 
 Even more convenient is the option to convert the complete result set in a single step.
 Depending on the concrete numbers of rows and columns, this option supports
 a variety of target data structures.
 
-## Matrix-structured result sets
+### Matrix-structured result sets
 
 You can always, and __most often want to__, use a `Vec` of a struct or
 tuple that matches the fields of the result set.
@@ -280,14 +290,14 @@ then you can also deserialize directly into a plain `MyRow`.
   # fn foo() -> HdbResult<()> {
   # let mut connection = Connection::new("hdbsql://my_user:my_passwd@the_host:2222")?;
   # let qry = "SELECT foo FROM bar";
-  # #[derive(Deserialize)]
-  # struct MyRow {/* ...*/}
+  #[derive(Deserialize)]
+  struct MyRow {/* ...*/}
   let result: MyRow = connection.query(qry)?.try_into()?;
   # Ok(())
   # }
   ```
 
-## Single-column result sets
+### Single-column result sets
 
 If the result set contains only a single column, then you can choose to
 deserialize into a `Vec<field>`,
@@ -303,7 +313,7 @@ where `field` is a type that matches the field of the result set.
 # }
   ```
 
-## Single-value result sets
+### Single-value result sets
 
 If the result set contains only a single value (one row with one column),
 then you can also deserialize into a plain `field`:
@@ -375,10 +385,10 @@ data are sent to the database and the buffer can be filled anew.
   # use hdbconnect::HdbValue;
   # struct DummyReader;
   # impl std::io::Read for DummyReader{
-  #     fn read(&mut self, _: &mut [u8]) -> Result<usize, std::io::Error> { todo!() }
+  #     fn read(&mut self, _: &mut [u8]) -> Result<usize, std::io::Error> { unimplemented!() }
   # }
-  # let reader: DummyReader = todo!();
-  # let insert_stmt: hdbconnect::PreparedStatement = todo!();
+  # let reader: DummyReader = unimplemented!();
+  # let insert_stmt: hdbconnect::PreparedStatement = unimplemented!();
   let am_reader = Arc::new(Mutex::new(reader));
   insert_stmt.execute_row(vec![
       HdbValue::STR("streaming2"),
@@ -395,7 +405,7 @@ and reading from it incrementally.
 When the internal buffer is empty, new data will be read from the database
 in chunks of the connection's lob read size.
 
-In this example the [`NCLob`] will, while being read by `std::io::copy()`,
+In this example the [`NCLob`] will, while being read,
 continuously fetch more data from the database until it is completely transferred:
 
 ```rust, no_run

@@ -36,6 +36,12 @@
 #![deny(clippy::all)]
 #![deny(clippy::pedantic)]
 
+#[cfg(feature = "rocket_pool")]
+mod rocket_pool;
+
+#[cfg(feature = "bb8_pool")]
+mod bb8;
+
 /// Provides some statistics about the use of a concrete connection.
 ///
 /// A snapshot of the statistics can be obtained from [`Connection::statistics`].
@@ -85,6 +91,10 @@ pub mod types {
 
 #[cfg_attr(docsrs, doc(cfg(feature = "rocket_pool")))]
 #[cfg(feature = "rocket_pool")]
-pub use hdbconnect_impl::a_sync::HanaPoolForRocket;
+pub use rocket_pool::HanaPoolForRocket;
+
+#[cfg_attr(docsrs, doc(cfg(feature = "bb8_pool")))]
+#[cfg(feature = "bb8_pool")]
+pub use bb8::ConnectionManager;
 
 pub mod code_examples;

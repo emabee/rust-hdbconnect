@@ -1,10 +1,9 @@
 //! Constants for use in connection URLs.
 //!
-//! Database connections are configured with an instance of [`ConnectParams`](crate::ConnectParams).
+//! Database connections are initialized with an instance of [`ConnectParams`](crate::ConnectParams).
 //! Instances of [`ConnectParams`](crate::ConnectParams)
 //! can be created using a [`ConnectParamsBuilder`](crate::ConnectParamsBuilder), or from a URL.
-//!
-//! Also [`ConnectParamsBuilder`](crate::ConnectParamsBuilder)s can be created from a URL.
+//! (Also [`ConnectParamsBuilder`](crate::ConnectParamsBuilder)s can be created from a URL.)
 //!  
 //! Such a URL is supposed to have the form
 //!
@@ -12,7 +11,7 @@
 //! <scheme>://<username>:<password>@<host>:<port>[<options>]
 //! ```
 //! where
-//! > `<scheme>` = `hdbsql` | `hdbsqls`  
+//! > `<scheme>` = `hdbsql` | `hdbsqls`  // for TCP or TLS connections, respectively  
 //! > `<username>` = the name of the DB user to log on  
 //! > `<password>` = the password of the DB user  
 //! > `<host>` = the host where HANA can be found  
@@ -27,18 +26,15 @@
 //!   environment variabe LANG
 //! - `<networkgroup>` = a network group
 //! - `no_compression` disables the support for compression
-//! - the [TLS](https://en.wikipedia.org/wiki/Transport_Layer_Security) options
-//!
-//!
-//! __The [TLS](https://en.wikipedia.org/wiki/Transport_Layer_Security) options are:__
-//! - `tls_certificate_dir=<value>`: points to a folder with pem files that contain
-//!   certificates; all pem files in that folder are evaluated  
-//! - `tls_certificate_env=<value>`: denotes an environment variable that contains
-//!   certificates  
-//! - `use_mozillas_root_certificates` (no value): use the root certificates from
-//!   [`https://mkcert.org/`](https://mkcert.org/)  
-//! - `insecure_omit_server_certificate_check` (no value): lets the driver omit the validation of
-//!   the server's identity. Don't use this option in productive setups!  
+//! - the [TLS](https://en.wikipedia.org/wiki/Transport_Layer_Security) options:
+//!   - `tls_certificate_dir=<value>` points to a folder with pem files that contain
+//!     certificates; all pem files in that folder are evaluated  
+//!   - `tls_certificate_env=<value>` denotes an environment variable that contains
+//!     certificates  
+//!   - `use_mozillas_root_certificates` (no value) lets the driver use the root certificates from
+//!     [`https://mkcert.org/`](https://mkcert.org/)  
+//!   - `insecure_omit_server_certificate_check` (no value) lets the driver omit the validation of
+//!     the server's identity. Don't use this option in productive setups!  
 //!
 //! __To configure TLS__, use the scheme `hdbsqls` and at least one of the TLS options.
 //!
@@ -55,17 +51,15 @@
 //!     .unwrap();
 //! ```
 //!
-//! `ConnectParamsBuilder` allows modifications, before being converted into a `ConnectParams`:
+//! `ConnectParamsBuilder` allows modifications before being converted into a `ConnectParams`:
 //!
 //! ```rust
-//! use hdbconnect::IntoConnectParamsBuilder;
-//!
-//! let mut copabu = "hdbsql://my_user@the_host:2222"
-//!     .into_connect_params_builder()
+//! use hdbconnect::ConnectParamsBuilder;
+//! let conn_params = ConnectParamsBuilder::from("hdbsql://my_user@the_host:2222")
+//!     .unwrap()
+//!     .with_password("no-secrets-in-urls")
+//!     .build()
 //!     .unwrap();
-//!
-//! copabu.password("no-secrets-in-urls");
-//! let conn_params = copabu.build().unwrap(); // ConnectParams
 //! ```
 
 /// Protocol without TLS
