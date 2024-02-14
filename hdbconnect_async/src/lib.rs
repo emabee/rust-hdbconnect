@@ -67,6 +67,9 @@ pub use hdbconnect_impl::ConnectionStatistics;
 /// ````
 pub use hdbconnect_impl::ConnectionConfiguration;
 
+/// FIXME
+pub use hdbconnect_impl::CursorHoldability;
+
 pub use hdbconnect_impl::{
     time, url, ConnectParams, ConnectParamsBuilder, DeserializationError, ExecutionResult,
     FieldMetadata, HdbError, HdbResult, HdbValue, IntoConnectParams, IntoConnectParamsBuilder,

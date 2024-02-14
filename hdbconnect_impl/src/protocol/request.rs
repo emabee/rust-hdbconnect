@@ -1,5 +1,5 @@
 use crate::{
-    conn::{ConnectionConfiguration, ConnectionStatistics},
+    conn::{CommandOptions, ConnectionConfiguration, ConnectionStatistics},
     protocol::{
         parts::{ParameterDescriptors, Parts, StatementContext},
         MessageType, Part, MESSAGE_AND_SEGMENT_HEADER_SIZE, SEGMENT_HEADER_SIZE,
@@ -21,27 +21,25 @@ const FILLER_4: u32 = 0;
 const FILLER_8: u64 = 0;
 const FILLER_10: [u8; 10] = [0; 10];
 
-pub const HOLD_CURSORS_OVER_COMMIT: u8 = 8;
-
 // Packets having the same sequence number belong to one request/response pair.
 #[derive(Debug)]
 pub(crate) struct Request<'a> {
     message_type: MessageType,
-    command_options: u8,
+    command_options: CommandOptions,
     parts: Parts<'a>,
 }
 // Methods for defining a request
 impl<'a> Request<'a> {
-    pub fn new(request_type: MessageType, command_options: u8) -> Request<'a> {
+    pub fn new(message_type: MessageType, command_options: CommandOptions) -> Request<'a> {
         Request {
-            message_type: request_type,
+            message_type,
             command_options,
             parts: Parts::default(),
         }
     }
 
     pub fn new_for_disconnect() -> Request<'a> {
-        Request::new(MessageType::Disconnect, 0)
+        Request::new(MessageType::Disconnect, CommandOptions::EMPTY)
     }
     pub fn message_type(&self) -> MessageType {
         self.message_type
@@ -197,7 +195,7 @@ impl<'a> Request<'a> {
         w.write_i8(SEGMENT_KIND_REQUEST)?; // I1
         w.write_i8(self.message_type as i8)?; // I1
         w.write_i8(auto_commit.into())?; // I1
-        w.write_u8(self.command_options)?; // I1
+        w.write_u8(self.command_options.as_u8())?; // I1
         w.write_u64::<LittleEndian>(FILLER_8)?; // [B;8]
 
         trace!("Headers are written");

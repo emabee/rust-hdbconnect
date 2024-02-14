@@ -1,5 +1,5 @@
 use crate::{
-    conn::AmConnCore,
+    conn::{AmConnCore, CommandOptions},
     protocol::{parts::XatOptions, MessageType, Part, PartKind, Reply, Request},
     HdbError, HdbResult,
 };
@@ -84,7 +84,7 @@ impl CResourceManager for HdbCResourceManager {
             return Err(usage_error("recover", flags));
         }
 
-        let mut request = Request::new(MessageType::XARecover, 0);
+        let mut request = Request::new(MessageType::XARecover, CommandOptions::EMPTY);
 
         let mut xat_options = XatOptions::default();
         xat_options.set_flags(flags);
@@ -179,7 +179,7 @@ impl HdbCResourceManager {
             xat_options.set_flags(flags);
         }
 
-        let mut request = Request::new(request_type, 0);
+        let mut request = Request::new(request_type, CommandOptions::EMPTY);
         request.push(Part::XatOptions(xat_options));
 
         let mut reply = self.am_conn_core.send_async(request).await?;

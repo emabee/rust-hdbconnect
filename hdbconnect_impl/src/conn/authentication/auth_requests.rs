@@ -1,10 +1,10 @@
 use crate::{
-    conn::{authentication::Authenticator, ConnectionCore},
+    conn::{authentication::Authenticator, CommandOptions, ConnectionCore},
     protocol::{
         parts::{AuthFields, ClientContext, ConnOptId, ConnectOptionsPart, DbConnectInfo},
         MessageType, Part, Reply, ReplyType, Request,
     },
-    {HdbError, HdbResult},
+    HdbError, HdbResult,
 };
 use secstr::SecUtf8;
 
@@ -17,7 +17,7 @@ fn first_request(
     db_user: &str,
     authenticators: &[Box<dyn Authenticator + Send + Sync>],
 ) -> Request<'static> {
-    let mut request1 = Request::new(MessageType::Authenticate, 0);
+    let mut request1 = Request::new(MessageType::Authenticate, CommandOptions::EMPTY);
     request1.push(Part::ClientContext(ClientContext::new()));
 
     let mut auth_fields_out = AuthFields::with_capacity(3);
@@ -106,7 +106,7 @@ fn second_request(
     server_challenge_data: &[u8],
     reconnect: bool,
 ) -> HdbResult<Request<'static>> {
-    let mut request2 = Request::new(MessageType::Connect, 0);
+    let mut request2 = Request::new(MessageType::Connect, CommandOptions::EMPTY);
 
     debug!("authenticating with {}", chosen_authenticator.name());
 

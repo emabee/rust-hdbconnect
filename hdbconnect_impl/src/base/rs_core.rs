@@ -1,6 +1,6 @@
 use crate::{
     base::{PreparedStatementCore, XMutexed, OAM},
-    conn::AmConnCore,
+    conn::{AmConnCore, CommandOptions},
     protocol::{MessageType, Part, PartAttributes, PartKind, Request},
 };
 use std::sync::Arc;
@@ -56,7 +56,7 @@ impl Drop for RsCore {
         if !self.attributes.resultset_is_closed() {
             #[cfg(feature = "sync")]
             {
-                let mut request = Request::new(MessageType::CloseResultSet, 0);
+                let mut request = Request::new(MessageType::CloseResultSet, CommandOptions::EMPTY);
                 request.push(Part::ResultSetId(rs_id));
                 if let Ok(mut reply) = self.am_conn_core.send_sync(request) {
                     reply.parts.pop_if_kind(PartKind::StatementContext);
@@ -64,7 +64,7 @@ impl Drop for RsCore {
             }
             #[cfg(feature = "async")]
             {
-                let mut request = Request::new(MessageType::CloseResultSet, 0);
+                let mut request = Request::new(MessageType::CloseResultSet, CommandOptions::EMPTY);
                 request.push(Part::ResultSetId(rs_id));
                 let am_conn_core = self.am_conn_core.clone();
                 tokio::task::spawn(async move {

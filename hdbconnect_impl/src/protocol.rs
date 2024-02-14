@@ -21,7 +21,7 @@ pub(crate) mod util_sync;
 
 pub(crate) use self::{
     message_type::MessageType, part::Part, part_attributes::PartAttributes, partkind::PartKind,
-    reply::Reply, reply_type::ReplyType, request::Request, request::HOLD_CURSORS_OVER_COMMIT,
+    reply::Reply, reply_type::ReplyType, request::Request,
 };
 
 pub use self::server_usage::ServerUsage;

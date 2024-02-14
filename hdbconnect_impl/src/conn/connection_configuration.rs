@@ -1,9 +1,11 @@
+use super::command_options::{CommandOptions, CursorHoldability};
 use std::time::Duration;
 
 // docu is written at re-exports of frontend crates (hdbconnect/lib.rs, hdbconnect_async/lib.rs)
 #[derive(Debug, Clone, Deserialize)]
 pub struct ConnectionConfiguration {
     auto_commit: bool,
+    command_options: CommandOptions,
     fetch_size: u32,
     lob_read_length: u32,
     lob_write_length: u32,
@@ -13,9 +15,12 @@ pub struct ConnectionConfiguration {
 }
 
 impl Default for ConnectionConfiguration {
+    /// Auto-commit is on, `HOLD_CURSORS_OVER_COMMIT` is on, `HOLD_CURSORS_OVER_ROLLBACK` is off,
+    /// the other config parameters have the default value defined by the respective constant.
     fn default() -> Self {
         Self {
             auto_commit: true,
+            command_options: CommandOptions::default(),
             fetch_size: Self::DEFAULT_FETCH_SIZE,
             lob_read_length: Self::DEFAULT_LOB_READ_LENGTH,
             lob_write_length: Self::DEFAULT_LOB_WRITE_LENGTH,
@@ -86,6 +91,24 @@ impl ConnectionConfiguration {
     pub fn with_auto_commit(mut self, ac: bool) -> Self {
         self.auto_commit = ac;
         self
+    }
+
+    /// Returns the configured cursor holdability.
+    pub fn cursor_holdability(&self) -> CursorHoldability {
+        self.command_options.into()
+    }
+    /// Sets the cursor holdability.
+    pub fn set_cursor_holdability(&mut self, holdability: CursorHoldability) {
+        self.command_options = holdability.into();
+    }
+    /// Builder method for setting the cursor holdability.
+    #[must_use]
+    pub fn with_cursor_holdability(mut self, holdability: CursorHoldability) -> Self {
+        self.command_options = holdability.into();
+        self
+    }
+    pub(crate) fn command_options(&self) -> CommandOptions {
+        self.command_options
     }
 
     /// Returns the connection's fetch size.

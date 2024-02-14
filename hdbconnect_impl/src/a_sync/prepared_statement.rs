@@ -1,13 +1,15 @@
 use crate::{
     a_sync::HdbResponse,
     base::{new_am_async, InternalReturnValue, PreparedStatementCore, AM},
-    conn::AmConnCore,
-    protocol::parts::{
-        HdbValue, LobFlags, ParameterDescriptors, ParameterRows, ResultSetMetadata, TypeId,
+    conn::{AmConnCore, CursorHoldability},
+    protocol::{
+        parts::{
+            HdbValue, LobFlags, ParameterDescriptors, ParameterRows, ResultSetMetadata, TypeId,
+        },
+        MessageType, Part, PartKind, Request, ServerUsage,
     },
-    protocol::{MessageType, Part, PartKind, Request, ServerUsage, HOLD_CURSORS_OVER_COMMIT},
     types_impl::lob::async_lob_writer,
-    HdbError, HdbResult,
+    ConnectionConfiguration, HdbError, HdbResult,
 };
 use std::sync::Arc;
 
@@ -72,6 +74,7 @@ use std::sync::Arc;
 #[derive(Debug)]
 pub struct PreparedStatement {
     am_ps_core: AM<PreparedStatementCore>,
+    config: ConnectionConfiguration,
     server_usage: ServerUsage,
     a_descriptors: Arc<ParameterDescriptors>,
     o_a_rsmd: Option<Arc<ResultSetMetadata>>,
@@ -188,8 +191,7 @@ impl<'a> PreparedStatement {
     ) -> HdbResult<HdbResponse> {
         if self.a_descriptors.has_in() {
             let ps_core_guard = self.am_ps_core.lock_async().await;
-
-            let mut request = Request::new(MessageType::Execute, HOLD_CURSORS_OVER_COMMIT);
+            let mut request = Request::new(MessageType::Execute, self.config.command_options());
 
             request.push(Part::StatementId(ps_core_guard.statement_id));
 
@@ -361,7 +363,7 @@ impl<'a> PreparedStatement {
         trace!("PreparedStatement::execute_parameter_rows()");
 
         let ps_core_guard = self.am_ps_core.lock_async().await;
-        let mut request = Request::new(MessageType::Execute, HOLD_CURSORS_OVER_COMMIT);
+        let mut request = Request::new(MessageType::Execute, self.config.command_options());
         request.push(Part::StatementId(ps_core_guard.statement_id));
         if let Some(rows) = o_rows {
             request.push(Part::ParameterRows(rows));
@@ -391,6 +393,24 @@ impl<'a> PreparedStatement {
         HdbResponse::try_new(internal_return_values, replytype)
     }
 
+    /// Sets the statement's cursor holdability.
+    ///
+    /// # Errors
+    ///
+    /// Only `HdbError::Poison` can occur.
+    pub fn set_cursor_holdability(&mut self, holdability: CursorHoldability) -> HdbResult<()> {
+        self.config.set_cursor_holdability(holdability);
+        Ok(())
+    }
+    /// Returns the statement's cursor holdability.
+    ///
+    /// # Errors
+    ///
+    /// Only `HdbError::Poison` can occur.
+    pub fn cursor_holdability(&self) -> HdbResult<CursorHoldability> {
+        Ok(self.config.cursor_holdability())
+    }
+
     /// Provides information about the the server-side resource consumption that
     /// is related to this `PreparedStatement` object.
     #[must_use]
@@ -400,7 +420,8 @@ impl<'a> PreparedStatement {
 
     // Prepare a statement.
     pub(crate) async fn try_new(am_conn_core: AmConnCore, stmt: &str) -> HdbResult<Self> {
-        let mut request = Request::new(MessageType::Prepare, HOLD_CURSORS_OVER_COMMIT);
+        let config = am_conn_core.lock_async().await.configuration().clone();
+        let mut request = Request::new(MessageType::Prepare, config.command_options());
         request.push(Part::Command(stmt));
 
         let reply = am_conn_core.send_async(request).await?;
@@ -455,6 +476,7 @@ impl<'a> PreparedStatement {
         );
         Ok(Self {
             am_ps_core,
+            config,
             server_usage,
             batch: ParameterRows::new(),
             a_descriptors,

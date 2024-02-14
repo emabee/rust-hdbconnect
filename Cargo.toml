@@ -10,7 +10,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.28.5"
+version = "0.28.6-unpublished"
 authors = [
     "emabee <meinolf.block@sap.com>",
     "Pascal Seitz <pascal.seitz@gmail.com>",

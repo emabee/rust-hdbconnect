@@ -1,10 +1,12 @@
 use crate::{
     base::InternalReturnValue,
-    conn::AmConnCore,
-    protocol::parts::{ParameterDescriptors, ResultSetMetadata, TypeId, WriteLobRequest},
-    protocol::{util, MessageType, Part, PartKind, Reply, ReplyType, Request},
+    conn::{AmConnCore, CommandOptions},
+    protocol::{
+        parts::{ParameterDescriptors, ResultSetMetadata, TypeId, WriteLobRequest},
+        util, MessageType, Part, PartKind, Reply, ReplyType, Request,
+    },
     types_impl::lob::lob_writer_util::{get_utf8_tail_len, LobWriteMode},
-    {HdbError, HdbResult, ServerUsage},
+    HdbError, HdbResult, ServerUsage,
 };
 use std::sync::Arc;
 use tokio::io::{AsyncRead, AsyncReadExt};
@@ -116,7 +118,7 @@ async fn write_a_lob_chunk<'a>(
     server_usage: &mut ServerUsage,
     internal_return_values: &mut Vec<InternalReturnValue>,
 ) -> HdbResult<Vec<u64>> {
-    let mut request = Request::new(MessageType::WriteLob, 0);
+    let mut request = Request::new(MessageType::WriteLob, CommandOptions::EMPTY);
     let write_lob_request = WriteLobRequest::new(
         locator_id,
         -1_i64,

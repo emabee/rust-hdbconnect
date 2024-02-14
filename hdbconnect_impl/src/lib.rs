@@ -41,7 +41,7 @@ pub use crate::{
     base::{HdbError, HdbResult, Row, Rows},
     conn::{
         url, ConnectParams, ConnectParamsBuilder, ConnectionConfiguration, ConnectionStatistics,
-        IntoConnectParams, IntoConnectParamsBuilder, ServerCerts, Tls,
+        CursorHoldability, IntoConnectParams, IntoConnectParamsBuilder, ServerCerts, Tls,
     },
     protocol::parts::{
         ExecutionResult, FieldMetadata, HdbValue, OutputParameters, ParameterBinding,

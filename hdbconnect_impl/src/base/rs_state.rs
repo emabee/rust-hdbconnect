@@ -1,6 +1,6 @@
 use crate::{
     base::{PreparedStatementCore, RsCore, XMutexed, OAM},
-    conn::AmConnCore,
+    conn::{AmConnCore, CommandOptions},
     protocol::{
         parts::{Parts, StatementContext},
         MessageType, Part, PartAttributes, PartKind, ReplyType, Request,
@@ -291,7 +291,7 @@ impl RsState {
 
         // build the request, provide resultset-id and fetch-size
         debug!("ResultSet::fetch_next() with fetch_size = {}", fetch_size);
-        let mut request = Request::new(MessageType::FetchNext, 0);
+        let mut request = Request::new(MessageType::FetchNext, CommandOptions::EMPTY);
         request.push(Part::ResultSetId(resultset_id));
         request.push(Part::FetchSize(fetch_size));
         let mut reply =
@@ -325,7 +325,7 @@ impl RsState {
 
         // build the request, provide resultset-id and fetch-size
         debug!("ResultSet::fetch_next() with fetch_size = {}", fetch_size);
-        let mut request = Request::new(MessageType::FetchNext, 0);
+        let mut request = Request::new(MessageType::FetchNext, CommandOptions::EMPTY);
         request.push(Part::ResultSetId(resultset_id));
         request.push(Part::FetchSize(fetch_size));
 

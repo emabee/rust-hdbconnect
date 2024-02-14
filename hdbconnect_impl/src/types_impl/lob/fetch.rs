@@ -1,5 +1,5 @@
 use crate::{
-    conn::AmConnCore,
+    conn::{AmConnCore, CommandOptions},
     protocol::{
         parts::{ReadLobReply, ReadLobRequest},
         MessageType, Part, ReplyType, Request, ServerUsage,
@@ -16,7 +16,7 @@ pub(crate) fn fetch_a_lob_chunk_sync(
     length: u32,
     server_usage: &mut ServerUsage,
 ) -> HdbResult<(Vec<u8>, bool)> {
-    let mut request = Request::new(MessageType::ReadLob, 0);
+    let mut request = Request::new(MessageType::ReadLob, CommandOptions::EMPTY);
     let offset = offset + 1;
     request.push(Part::ReadLobRequest(ReadLobRequest::new(
         locator_id, offset, length,
@@ -61,7 +61,7 @@ pub(crate) async fn fetch_a_lob_chunk_async(
     length: u32,
     server_usage: &mut ServerUsage,
 ) -> HdbResult<(Vec<u8>, bool)> {
-    let mut request = Request::new(MessageType::ReadLob, 0);
+    let mut request = Request::new(MessageType::ReadLob, CommandOptions::EMPTY);
     let offset = offset + 1;
     request.push(Part::ReadLobRequest(ReadLobRequest::new(
         locator_id, offset, length,

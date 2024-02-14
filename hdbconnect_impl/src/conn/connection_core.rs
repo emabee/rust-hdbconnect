@@ -1,8 +1,8 @@
 use crate::{
     base::RsState,
     conn::{
-        authentication, initial_request, AmConnCore, AuthenticationResult, ConnectParams,
-        ConnectionConfiguration, ConnectionStatistics, SessionState, TcpClient,
+        authentication, initial_request, AmConnCore, AuthenticationResult, CommandOptions,
+        ConnectParams, ConnectionConfiguration, ConnectionStatistics, SessionState, TcpClient,
     },
     protocol::{
         parts::{
@@ -49,7 +49,7 @@ impl<'a> ConnectionCore {
         if let Some(dbname) = o_dbname {
             // since a dbname is specified, we ask explicitly for a redirect
             trace!("Redirect to {dbname} initiated by client");
-            let mut request = Request::new(MessageType::DbConnectInfo, 0);
+            let mut request = Request::new(MessageType::DbConnectInfo, CommandOptions::EMPTY);
             request.push(Part::DbConnectInfo(DbConnectInfo::new(
                 dbname,
                 network_group,
@@ -104,7 +104,7 @@ impl<'a> ConnectionCore {
         if let Some(dbname) = o_dbname {
             // since a dbname is specified, we ask explicitly for a redirect
             trace!("Redirect to {dbname} initiated by client");
-            let mut request = Request::new(MessageType::DbConnectInfo, 0);
+            let mut request = Request::new(MessageType::DbConnectInfo, CommandOptions::EMPTY);
             request.push(Part::DbConnectInfo(DbConnectInfo::new(
                 dbname,
                 network_group,

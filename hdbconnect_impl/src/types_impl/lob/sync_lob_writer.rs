@@ -1,10 +1,12 @@
 use super::lob_writer_util::{get_utf8_tail_len, LobWriteMode};
 use crate::{
     base::InternalReturnValue,
-    conn::AmConnCore,
-    protocol::parts::{ParameterDescriptors, ResultSetMetadata, TypeId, WriteLobRequest},
-    protocol::{util, MessageType, Part, PartKind, Reply, ReplyType, Request},
-    {HdbError, HdbResult, ServerUsage},
+    conn::{AmConnCore, CommandOptions},
+    protocol::{
+        parts::{ParameterDescriptors, ResultSetMetadata, TypeId, WriteLobRequest},
+        util, MessageType, Part, PartKind, Reply, ReplyType, Request,
+    },
+    HdbError, HdbResult, ServerUsage,
 };
 use std::{io::Write, sync::Arc};
 
@@ -61,7 +63,7 @@ impl<'a> SyncLobWriter<'a> {
         locator_id: u64,
         lob_write_mode: &LobWriteMode,
     ) -> HdbResult<Vec<u64>> {
-        let mut request = Request::new(MessageType::WriteLob, 0);
+        let mut request = Request::new(MessageType::WriteLob, CommandOptions::EMPTY);
         let write_lob_request = WriteLobRequest::new(
             locator_id,
             -1_i64,

@@ -1,13 +1,15 @@
 use crate::{
     base::{new_am_sync, InternalReturnValue, PreparedStatementCore, AM},
     conn::AmConnCore,
-    protocol::parts::{
-        HdbValue, LobFlags, ParameterDescriptors, ParameterRows, ResultSetMetadata, TypeId,
+    protocol::{
+        parts::{
+            HdbValue, LobFlags, ParameterDescriptors, ParameterRows, ResultSetMetadata, TypeId,
+        },
+        MessageType, Part, PartKind, Request, ServerUsage,
     },
-    protocol::{MessageType, Part, PartKind, Request, ServerUsage, HOLD_CURSORS_OVER_COMMIT},
     sync::HdbResponse,
     types_impl::lob::SyncLobWriter,
-    {HdbError, HdbResult},
+    ConnectionConfiguration, HdbError, HdbResult,
 };
 use std::{io::Write, sync::Arc};
 
@@ -72,6 +74,7 @@ use std::{io::Write, sync::Arc};
 #[derive(Debug)]
 pub struct PreparedStatement {
     am_ps_core: AM<PreparedStatementCore>,
+    config: ConnectionConfiguration,
     server_usage: ServerUsage,
     a_descriptors: Arc<ParameterDescriptors>,
     o_a_rsmd: Option<Arc<ResultSetMetadata>>,
@@ -188,8 +191,7 @@ impl<'a> PreparedStatement {
     pub fn execute_row(&'a mut self, hdb_values: Vec<HdbValue<'a>>) -> HdbResult<HdbResponse> {
         if self.a_descriptors.has_in() {
             let ps_core_guard = self.am_ps_core.lock_sync()?;
-
-            let mut request = Request::new(MessageType::Execute, HOLD_CURSORS_OVER_COMMIT);
+            let mut request = Request::new(MessageType::Execute, self.config.command_options());
 
             request.push(Part::StatementId(ps_core_guard.statement_id));
 
@@ -356,7 +358,7 @@ impl<'a> PreparedStatement {
         trace!("PreparedStatement::execute_parameter_rows()");
 
         let ps_core_guard = self.am_ps_core.lock_sync()?;
-        let mut request = Request::new(MessageType::Execute, HOLD_CURSORS_OVER_COMMIT);
+        let mut request = Request::new(MessageType::Execute, self.config.command_options());
         request.push(Part::StatementId(ps_core_guard.statement_id));
         if let Some(rows) = o_rows {
             request.push(Part::ParameterRows(rows));
@@ -391,7 +393,8 @@ impl<'a> PreparedStatement {
 
     // Prepare a statement.
     pub(crate) fn try_new(am_conn_core: AmConnCore, stmt: &str) -> HdbResult<Self> {
-        let mut request = Request::new(MessageType::Prepare, HOLD_CURSORS_OVER_COMMIT);
+        let config = am_conn_core.lock_sync()?.configuration().clone();
+        let mut request = Request::new(MessageType::Prepare, config.command_options());
         request.push(Part::Command(stmt));
 
         let reply = am_conn_core.send_sync(request)?;
@@ -446,6 +449,7 @@ impl<'a> PreparedStatement {
         );
         Ok(Self {
             am_ps_core,
+            config,
             server_usage,
             batch: ParameterRows::new(),
             a_descriptors,

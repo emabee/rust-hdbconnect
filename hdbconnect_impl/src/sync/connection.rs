@@ -1,8 +1,8 @@
 use crate::{
-    conn::{AmConnCore, ConnectionConfiguration, ConnectionStatistics},
+    conn::{AmConnCore, ConnectionConfiguration, ConnectionStatistics, CursorHoldability},
     protocol::{
         parts::{ClientContext, ClientContextId, CommandInfo, ConnOptId, OptionValue, ServerError},
-        MessageType, Part, Request, ServerUsage, HOLD_CURSORS_OVER_COMMIT,
+        MessageType, Part, Request, ServerUsage,
     },
     sync::{HdbResponse, PreparedStatement, ResultSet},
     {HdbError, HdbResult, IntoConnectParams},
@@ -291,7 +291,6 @@ impl Connection {
             .set_auto_commit(ac);
         Ok(())
     }
-
     /// Returns the connection's auto-commit behavior.
     ///
     /// # Errors
@@ -303,6 +302,31 @@ impl Connection {
             .lock_sync()?
             .configuration()
             .is_auto_commit())
+    }
+
+    /// Sets the connection's cursor holdability.
+    ///
+    /// # Errors
+    ///
+    /// Only `HdbError::Poison` can occur.
+    pub fn set_cursor_holdability(&self, holdability: CursorHoldability) -> HdbResult<()> {
+        self.am_conn_core
+            .lock_sync()?
+            .configuration_mut()
+            .set_cursor_holdability(holdability);
+        Ok(())
+    }
+    /// Returns the connection's cursor holdability.
+    ///
+    /// # Errors
+    ///
+    /// Only `HdbError::Poison` can occur.
+    pub fn cursor_holdability(&self) -> HdbResult<CursorHoldability> {
+        Ok(self
+            .am_conn_core
+            .lock_sync()?
+            .configuration()
+            .cursor_holdability())
     }
 
     /// Returns the connection's fetch size.
@@ -346,9 +370,9 @@ impl Connection {
     ///
     /// Only `HdbError::Poison` can occur.
     pub fn set_read_timeout(&self, read_timeout: Option<Duration>) -> HdbResult<()> {
-        let mut coco = self.am_conn_core.lock_sync()?;
-        coco.configuration_mut().set_read_timeout(read_timeout);
-        coco.set_read_timeout_sync(read_timeout)?;
+        let mut conn_core = self.am_conn_core.lock_sync()?;
+        conn_core.configuration_mut().set_read_timeout(read_timeout);
+        conn_core.set_read_timeout_sync(read_timeout)?;
         Ok(())
     }
 
@@ -683,16 +707,18 @@ impl Connection {
                 .connect_options()
                 .get_connection_id()
         );
-        let mut request = Request::new(MessageType::ExecuteDirect, HOLD_CURSORS_OVER_COMMIT);
-        {
+        let request = {
             let conn_core = self.am_conn_core.lock_sync()?;
+            let command_options = conn_core.configuration().command_options();
+            let mut request = Request::new(MessageType::ExecuteDirect, command_options);
             let fetch_size = conn_core.configuration().fetch_size();
             request.push(Part::FetchSize(fetch_size));
             if let Some(command_info) = o_command_info {
                 request.push(Part::CommandInfo(command_info));
             }
             request.push(Part::Command(stmt.as_ref()));
-        }
+            request
+        };
         let (internal_return_values, replytype) = self
             .am_conn_core
             .send_sync(request)?
@@ -700,7 +726,7 @@ impl Connection {
         HdbResponse::try_new(internal_return_values, replytype)
     }
 
-    /// Returns true if the connection object losts its TCP connection.
+    /// Returns true if the connection object lost its TCP connection.
     pub fn is_broken(&self) -> HdbResult<bool> {
         Ok(self.am_conn_core.lock_sync()?.is_broken())
     }

@@ -2,12 +2,12 @@ use super::{prepared_statement::PreparedStatement, resultset::ResultSet, HdbResp
 #[cfg(feature = "dist_tx")]
 use crate::xa_impl::new_resource_manager;
 use crate::{
-    conn::{AmConnCore, ConnectionConfiguration, ConnectionStatistics},
-    protocol::parts::{
-        ClientContext, ClientContextId, CommandInfo, ConnOptId, OptionValue, ServerError,
+    conn::{AmConnCore, ConnectionConfiguration, ConnectionStatistics, CursorHoldability},
+    protocol::{
+        parts::{ClientContext, ClientContextId, CommandInfo, ConnOptId, OptionValue, ServerError},
+        MessageType, Part, Request, ServerUsage,
     },
-    protocol::{MessageType, Part, Request, ServerUsage, HOLD_CURSORS_OVER_COMMIT},
-    {HdbError, HdbResult, IntoConnectParams},
+    HdbError, HdbResult, IntoConnectParams,
 };
 #[cfg(feature = "dist_tx")]
 use dist_tx::a_sync::rm::ResourceManager;
@@ -292,6 +292,33 @@ impl Connection {
             .await
             .configuration()
             .is_auto_commit()
+    }
+
+    /// Sets the connection's cursor holdability.
+    ///
+    /// # Errors
+    ///
+    /// Only `HdbError::Poison` can occur.
+    pub async fn set_cursor_holdability(&self, holdability: CursorHoldability) -> HdbResult<()> {
+        self.am_conn_core
+            .lock_async()
+            .await
+            .configuration_mut()
+            .set_cursor_holdability(holdability);
+        Ok(())
+    }
+    /// Returns the connection's cursor holdability.
+    ///
+    /// # Errors
+    ///
+    /// Only `HdbError::Poison` can occur.
+    pub async fn cursor_holdability(&self) -> HdbResult<CursorHoldability> {
+        Ok(self
+            .am_conn_core
+            .lock_async()
+            .await
+            .configuration()
+            .cursor_holdability())
     }
 
     /// Returns the connection's fetch size.
@@ -603,16 +630,20 @@ impl Connection {
                 .connect_options()
                 .get_connection_id()
         );
-        let mut request = Request::new(MessageType::ExecuteDirect, HOLD_CURSORS_OVER_COMMIT);
-        {
+        let request = {
             let conn_core = self.am_conn_core.lock_async().await;
+            let mut request = Request::new(
+                MessageType::ExecuteDirect,
+                conn_core.configuration().command_options(),
+            );
             let fetch_size = conn_core.configuration().fetch_size();
             request.push(Part::FetchSize(fetch_size));
             if let Some(command_info) = o_command_info {
                 request.push(Part::CommandInfo(command_info));
             }
             request.push(Part::Command(stmt.as_ref()));
-        }
+            request
+        };
         let (internal_return_values, replytype) = self
             .am_conn_core
             .send_async(request)
@@ -622,7 +653,7 @@ impl Connection {
         HdbResponse::try_new(internal_return_values, replytype)
     }
 
-    /// Returns true if the connection object losts its TCP connection.
+    /// Returns true if the connection object lost its TCP connection.
     pub async fn is_broken(&self) -> bool {
         self.am_conn_core.lock_async().await.is_broken()
     }

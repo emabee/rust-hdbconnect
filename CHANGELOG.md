@@ -1,10 +1,14 @@
 # Changelog
 
+## [0.28.6] unpublished
+
+Allow configuring the cursor holdability.
+
 ## [0.28.5] 2024-02-09
 
-Add bb8 pool for `hdbconnect_async`.
+Add `bb8` pool for `hdbconnect_async`.
 
-Add `ConectParamsBuilder::from(url)`.
+Add `ConnectParamsBuilder::from(url)`.
 
 ## [0.28.4] 2024-02-05
 
