@@ -8,7 +8,7 @@ pub enum ExecutionResult {
     RowsAffected(usize),
     /// Command was successful.
     SuccessNoInfo, // -2
-    /// Execution failed with given ServerError.
+    /// Execution failed with given `ServerError`.
     Failure(Option<ServerError>), // -3
 }
 impl ExecutionResult {

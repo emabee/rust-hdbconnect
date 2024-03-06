@@ -16,7 +16,7 @@ use crate::{
     HdbError, HdbResult,
 };
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use std::{cmp::max, convert::TryFrom, i16, i32, io::Write, sync::Arc};
+use std::{cmp::max, i16, i32, io::Write, sync::Arc};
 
 const PART_HEADER_SIZE: usize = 16;
 

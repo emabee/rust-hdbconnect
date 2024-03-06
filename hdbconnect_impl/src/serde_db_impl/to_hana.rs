@@ -14,6 +14,6 @@
 /// let response = connection.prepare_and_execute(stmt, &(ts.to_hana())).unwrap();
 /// ```
 pub trait ToHana<T> {
-    ///
+    /// Convert Self to T.
     fn to_hana(self) -> T;
 }

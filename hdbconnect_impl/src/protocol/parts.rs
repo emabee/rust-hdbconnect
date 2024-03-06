@@ -75,7 +75,7 @@ use crate::{
     protocol::{part_attributes::FIRST_PACKET, Part, PartAttributes, PartKind, ServerUsage},
     HdbError, HdbResult,
 };
-use std::{iter::IntoIterator, sync::Arc};
+use std::sync::Arc;
 
 #[derive(Debug, Default)]
 pub(crate) struct Parts<'a>(Vec<Part<'a>>);

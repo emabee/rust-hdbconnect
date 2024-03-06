@@ -5,7 +5,7 @@ use crate::{
     types_impl::lob::BLobHandle,
     HdbResult,
 };
-use std::{boxed::Box, io::Read};
+use std::io::Read;
 
 /// LOB implementation for binary values.
 ///

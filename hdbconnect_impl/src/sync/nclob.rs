@@ -6,7 +6,7 @@ use crate::{
     {HdbResult, ServerUsage},
 };
 
-use std::{boxed::Box, io::Read};
+use std::io::Read;
 
 /// LOB implementation for unicode Strings.
 ///

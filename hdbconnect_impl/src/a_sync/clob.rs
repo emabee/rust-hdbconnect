@@ -5,7 +5,6 @@ use crate::{
     types_impl::lob::CLobHandle,
     {HdbResult, ServerUsage},
 };
-use std::boxed::Box;
 
 /// LOB implementation for unicode Strings (deprecated).
 ///
