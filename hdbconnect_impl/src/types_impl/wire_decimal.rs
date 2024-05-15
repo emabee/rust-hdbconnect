@@ -42,7 +42,7 @@ pub(crate) fn wire_decimal_to_hdbvalue(
             BigDecimal::new(mantissa, -exponent)
         };
 
-        if scale < i16::max_value() {
+        if scale < i16::MAX {
             big_decimal = big_decimal.with_scale(i64::from(scale));
         }
         Ok(HdbValue::DECIMAL(big_decimal))

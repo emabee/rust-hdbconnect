@@ -16,7 +16,7 @@ use crate::{
     HdbError, HdbResult,
 };
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use std::{cmp::max, i16, i32, io::Write, sync::Arc};
+use std::{cmp::max, io::Write, sync::Arc};
 
 const PART_HEADER_SIZE: usize = 16;
 
@@ -188,11 +188,11 @@ impl<'a> Part<'a> {
         w.write_i8(self.kind() as i8)?;
         w.write_u8(0)?; // U1 Attributes not used in requests
         match self.count()? {
-            i if i < i16::max_value() as usize => {
+            i if i < i16::MAX as usize => {
                 w.write_i16::<LittleEndian>(i as i16)?;
                 w.write_i32::<LittleEndian>(0)?;
             }
-            // i if i <= i32::max_value() as usize => {
+            // i if i <= i32::MAX as usize => {
             i if i32::try_from(i).is_ok() => {
                 w.write_i16::<LittleEndian>(-1)?;
                 w.write_i32::<LittleEndian>(i as i32)?;

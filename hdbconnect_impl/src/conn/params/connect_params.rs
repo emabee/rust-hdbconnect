@@ -2,8 +2,8 @@
 use super::{cp_url::format_as_url, Compression};
 use crate::{ConnectParamsBuilder, HdbError, HdbResult, IntoConnectParams};
 use rustls::{
-    client::{ServerCertVerified, ServerCertVerifier, ServerName},
-    Certificate,
+    client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier},
+    ClientConfig, RootCertStore,
 };
 use secstr::SecUtf8;
 use serde::de::Deserialize;
@@ -12,7 +12,6 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-use tokio_rustls::rustls::{ClientConfig, OwnedTrustAnchor, RootCertStore};
 
 /// An immutable struct with all information necessary to open a new connection
 /// to a HANA database.
@@ -181,109 +180,164 @@ impl ConnectParams {
         self.network_group.as_deref()
     }
 
+    /// Provide detailed insight into acceptance of configured certificates
+    pub fn precheck_certificates(&self) -> HdbResult<Vec<String>> {
+        if matches!(self.tls, Tls::Off | Tls::Insecure) {
+            Ok(Vec::new())
+        } else {
+            self.rustls_clientconfig().map(|tuple| tuple.1)
+        }
+    }
+
     #[allow(clippy::too_many_lines)]
-    pub(crate) fn rustls_clientconfig(&self) -> HdbResult<ClientConfig> {
+    pub(crate) fn rustls_clientconfig(&self) -> HdbResult<(ClientConfig, Vec<String>)> {
         match self.tls {
             Tls::Off => Err(HdbError::Impl(
                 "rustls_clientconfig called with Tls::Off - \
                     this should have been prevented earlier",
             )),
+            Tls::Insecure => {
+                let config = rustls::client::ClientConfig::builder()
+                    .dangerous()
+                    .with_custom_certificate_verifier(Arc::new(NoCertificateVerification {}))
+                    .with_no_client_auth();
+                Ok((config, Vec::new()))
+            }
             Tls::Secure(ref server_certs) => {
                 let mut root_store = RootCertStore::empty();
+                let cert_errors = std::cell::RefCell::new(Vec::<String>::new());
+
                 for server_cert in server_certs {
                     match server_cert {
                         ServerCerts::RootCertificates => {
-                            root_store.add_trust_anchors(
-                                webpki_roots::TLS_SERVER_ROOTS.iter().map(|ta| {
-                                    OwnedTrustAnchor::from_subject_spki_name_constraints(
-                                        ta.subject,
-                                        ta.spki,
-                                        ta.name_constraints,
-                                    )
-                                }),
-                            );
+                            root_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
                         }
-                        ServerCerts::Direct(ref pem) => {
-                            let (n_ok, n_err) =
-                                root_store.add_parsable_certificates(&[pem.clone().into_bytes()]);
+                        ServerCerts::Direct(ref cert_string) => {
+                            let (n_ok, n_err) = root_store.add_parsable_certificates([cert_string
+                                .clone()
+                                .into_bytes()
+                                .into()]);
                             if n_ok == 0 {
-                                info!("None of the directly provided server certificates was accepted");
+                                cert_errors.borrow_mut().push(
+                                    "None of the directly provided certificates was accepted"
+                                        .to_string(),
+                                );
                             } else if n_err > 0 {
-                                info!(
-                                    "Not all directly provided server certificates were accepted"
+                                cert_errors.borrow_mut().push(
+                                    "Not all directly provided certificates were accepted"
+                                        .to_string(),
                                 );
                             }
                         }
-                        ServerCerts::Environment(env_var) => {
-                            match std::env::var(env_var) {
-                                Ok(value) => {
-                                    let (n_ok, n_err) =
-                                        root_store.add_parsable_certificates(&[value.into_bytes()]);
-                                    if n_ok == 0 {
-                                        info!("None of the env-provided server certificates was accepted");
-                                    } else if n_err > 0 {
-                                        info!("Not all env-provided server certificates were accepted");
-                                    }
-                                }
-                                Err(e) => {
-                                    return Err(HdbError::ImplDetailed(format!(
-                                        "Environment variable {env_var} not found, reason: {e}"
-                                    )));
+                        ServerCerts::Environment(env_var) => match std::env::var(env_var) {
+                            Ok(value) => {
+                                let (n_ok, n_err) = root_store
+                                    .add_parsable_certificates([value.into_bytes().into()]);
+                                if n_ok == 0 {
+                                    cert_errors.borrow_mut().push(
+                                        "None of the env-provided certificates was accepted"
+                                            .to_string(),
+                                    );
+                                } else if n_err > 0 {
+                                    cert_errors.borrow_mut().push(
+                                        "Not all env-provided certificates were accepted"
+                                            .to_string(),
+                                    );
                                 }
                             }
-                        }
+                            Err(e) => {
+                                return Err(HdbError::ImplDetailed(format!(
+                                    "Environment variable {env_var} not found, reason: {e}"
+                                )));
+                            }
+                        },
                         ServerCerts::Directory(trust_anchor_dir) => {
-                            let trust_anchor_files: Vec<PathBuf> =
-                                std::fs::read_dir(trust_anchor_dir)?
-                                    .filter_map(Result::ok)
-                                    .filter(|dir_entry| {
-                                        dir_entry.file_type().is_ok()
-                                            && dir_entry.file_type().unwrap().is_file()
-                                    })
-                                    .filter(|dir_entry| {
-                                        let path = dir_entry.path();
-                                        let ext = path.extension();
-                                        Some(AsRef::<std::ffi::OsStr>::as_ref("pem")) == ext
-                                    })
-                                    .map(|dir_entry| dir_entry.path())
-                                    .collect();
-
-                            let mut t_ok = 0;
-                            let mut t_err = 0;
-                            for trust_anchor_file in trust_anchor_files {
-                                trace!("Trying trust anchor file {:?}", trust_anchor_file);
-                                let mut buf = Vec::<u8>::new();
-                                std::fs::File::open(trust_anchor_file)?.read_to_end(&mut buf)?;
-                                #[allow(clippy::map_err_ignore)]
-                                let (n_ok, n_err) = root_store.add_parsable_certificates(&[buf]);
-                                t_ok += n_ok;
-                                t_err += n_err;
-                            }
-                            if t_ok == 0 {
-                                warn!(
-                                    "None of the server certificates in the directory was accepted"
-                                );
-                            } else if t_err > 0 {
-                                warn!("Not all server certificates in the directory were accepted");
-                            }
+                            evaluate_certificate_directory(
+                                trust_anchor_dir,
+                                &mut root_store,
+                                &cert_errors,
+                            )?;
                         }
                     }
                 }
-                let config = ClientConfig::builder()
-                    .with_safe_defaults()
+                if root_store.is_empty() {
+                    Err(HdbError::ImplDetailed(
+                        cert_errors
+                            .into_inner()
+                            .iter()
+                            .fold(String::new(), |mut acc, x| {
+                                acc.push_str(x);
+                                acc.push('\n');
+                                acc
+                            }),
+                    ))
+                } else {
+                    let config = ClientConfig::builder()
                     .with_root_certificates(root_store)
-                    .with_no_client_auth();
-                Ok(config)
-            }
-            Tls::Insecure => {
-                let config = rustls::client::ClientConfig::builder()
-                    .with_safe_defaults()
-                    .with_custom_certificate_verifier(Arc::new(NoCertificateVerification {}))
-                    .with_no_client_auth();
-                Ok(config)
+                    // .with_safe_default_protocol_versions()
+                        .with_no_client_auth();
+                    Ok((config, cert_errors.into_inner()))
+                }
             }
         }
     }
+}
+
+fn evaluate_certificate_directory(
+    trust_anchor_dir: &String,
+    root_store: &mut RootCertStore,
+    cert_errors: &std::cell::RefCell<Vec<String>>,
+) -> Result<(), HdbError> {
+    let trust_anchor_files: Vec<PathBuf> = std::fs::read_dir(trust_anchor_dir)?
+        .map(|r| {
+            r.map_err(|e| {
+                cert_errors
+                    .borrow_mut()
+                    .push(format!("Error in parsing the directory: {e}\n"));
+                e
+            })
+        })
+        .filter_map(Result::ok)
+        .filter(|dir_entry| match dir_entry.file_type() {
+            Err(e) => {
+                cert_errors
+                    .borrow_mut()
+                    .push(format!("Error with dir entry: {e}\n"));
+                false
+            }
+            Ok(file_type) => file_type.is_file(),
+        })
+        .filter(|dir_entry| {
+            let path = dir_entry.path();
+            let o_ext = path.extension().and_then(|ext| ext.to_str());
+            let accept = o_ext.is_some() && ["cer", "crt", "pem"].binary_search(&o_ext.unwrap()).is_ok();
+            if !accept {
+                cert_errors
+                    .borrow_mut()
+                    .push(format!("{path:?} has wrong file suffix; only files with suffix 'cer', 'crt', or 'pem' are considered\n"));
+            }
+            accept
+        })
+        .map(|dir_entry| dir_entry.path())
+        .collect();
+
+    for trust_anchor_file in trust_anchor_files {
+        let mut buf = Vec::<u8>::new();
+        std::fs::File::open(trust_anchor_file.clone())?.read_to_end(&mut buf)?;
+        let (n_ok, n_err) = root_store.add_parsable_certificates([(*buf).into()]);
+        if n_err > 0 {
+            if n_ok > 0 {
+                cert_errors
+                .borrow_mut()
+                .push(format!("{trust_anchor_file:?} is not completely accepted: ({n_ok} parts good, {n_err} parts bad)\n"));
+            } else {
+                cert_errors
+                    .borrow_mut()
+                    .push(format!("{trust_anchor_file:?} is not accepted\n"));
+            }
+        }
+    }
+    Ok(())
 }
 
 impl std::fmt::Display for ConnectParams {
@@ -315,18 +369,40 @@ pub enum ServerCerts {
     RootCertificates,
 }
 
+#[derive(Debug)]
 struct NoCertificateVerification {}
 impl ServerCertVerifier for NoCertificateVerification {
+    fn verify_tls12_signature(
+        &self,
+        _message: &[u8],
+        _cert: &rustls::pki_types::CertificateDer<'_>,
+        _dss: &rustls::DigitallySignedStruct,
+    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+        Ok(HandshakeSignatureValid::assertion())
+    }
+
+    fn verify_tls13_signature(
+        &self,
+        _message: &[u8],
+        _cert: &rustls::pki_types::CertificateDer<'_>,
+        _dss: &rustls::DigitallySignedStruct,
+    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+        Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
+    }
+
+    fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
+        Vec::new() // FIXME: is this sufficient?
+    }
+
     fn verify_server_cert(
         &self,
-        _end_entity: &Certificate,
-        _intermediates: &[Certificate],
-        _server_name: &ServerName,
-        _scts: &mut dyn Iterator<Item = &[u8]>,
+        _end_entity: &rustls::pki_types::CertificateDer<'_>,
+        _intermediates: &[rustls::pki_types::CertificateDer<'_>],
+        _server_name: &rustls::pki_types::ServerName<'_>,
         _ocsp_response: &[u8],
-        _now: std::time::SystemTime,
+        _now: rustls::pki_types::UnixTime,
     ) -> Result<ServerCertVerified, rustls::Error> {
-        Ok(ServerCertVerified::assertion())
+        Ok(rustls::client::danger::ServerCertVerified::assertion())
     }
 }
 

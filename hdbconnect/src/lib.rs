@@ -29,6 +29,7 @@
 #![deny(missing_debug_implementations)]
 #![deny(clippy::all)]
 #![deny(clippy::pedantic)]
+#![forbid(unsafe_code)]
 
 #[cfg(feature = "r2d2_pool")]
 mod r2d2;
@@ -55,7 +56,7 @@ pub use hdbconnect_impl::ConnectionStatistics;
 /// ````
 pub use hdbconnect_impl::ConnectionConfiguration;
 
-/// FIXME
+/// Holdability of cursors in the database.
 pub use hdbconnect_impl::CursorHoldability;
 
 pub use hdbconnect_impl::{

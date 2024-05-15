@@ -43,7 +43,11 @@ num = "0.4"
 num-bigint = "0.4.0"
 pbkdf2 = { version = "0.12", default-features = false }
 rand = "0.8"
-rustls = { version = "0.21", features = ["dangerous_configuration"] }
+# rustls = { version = "0.23", default-features = false, features = ["ring"] }
+rustls = { version = "0.23", default-features = false, features = [
+    "ring",
+    "std",
+] }
 secstr = "0.5"
 serde = { version = "1.0", features = ["derive"] }
 # serde_db = { path = "../../serde_db" }
@@ -64,16 +68,16 @@ tokio = { optional = true, version = "1.23", features = [
     "time",
     "sync",
 ] }
-tokio-rustls = "0.24"
+tokio-rustls = "0.26"
 url = "2.1"
 username = "0.2"
 vec_map = "0.8"
 webpki = "0.22"
-webpki-roots = "0.25"
+webpki-roots = "0.26"
 
 [dev-dependencies]
 chrono = { version = "0.4", features = ["serde"] }
-flexi_logger = "0.27"
+flexi_logger = "0.28"
 serde_bytes = "0.11"
 version-sync = "0.9"
 # geo = "0.12"

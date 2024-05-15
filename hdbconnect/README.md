@@ -3,6 +3,7 @@
 [![Latest version](https://img.shields.io/crates/v/hdbconnect.svg)](https://crates.io/crates/hdbconnect)
 [![Documentation](https://docs.rs/hdbconnect/badge.svg)](https://docs.rs/hdbconnect)
 [![License](https://img.shields.io/crates/l/hdbconnect.svg)](https://github.com/emabee/hdbconnect)
+[![unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/rust-secure-code/safety-dance/)
 
 A synchronous pure rust SQL driver for SAP HANA(TM).
 

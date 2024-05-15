@@ -653,7 +653,7 @@ fn parse_real(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<HdbValue
     rdr.read_exact(&mut vec[..])?;
     let mut cursor = std::io::Cursor::new(&vec);
     let tmp = cursor.read_u32::<LittleEndian>()?;
-    let is_null = tmp == u32::max_value();
+    let is_null = tmp == u32::MAX;
 
     if is_null {
         if nullable {
@@ -672,7 +672,7 @@ fn parse_double(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<HdbVal
     rdr.read_exact(&mut vec[..])?;
     let mut cursor = std::io::Cursor::new(&vec);
     let tmp = cursor.read_u64::<LittleEndian>()?;
-    let is_null = tmp == u64::max_value();
+    let is_null = tmp == u64::MAX;
 
     if is_null {
         if nullable {
@@ -837,7 +837,6 @@ fn emit_length_and_bytes(v: &[u8], w: &mut dyn std::io::Write) -> HdbResult<()> 
 }
 
 impl<'a> std::fmt::Display for HdbValue<'a> {
-    #[cfg_attr(tarpaulin, skip)]
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         match *self {
             HdbValue::NULL => write!(fmt, "<NULL>"),

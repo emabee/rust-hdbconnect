@@ -8,7 +8,7 @@ repository.workspace = true
 readme = "README.md"
 description = "An asynchronous pure rust database driver for SAP HANA(TM)"
 documentation = "https://docs.rs/hdbconnect_async/"
-keywords.workspace = true
+keywords = ["asynchronous", "relational", "database", "driver", "serde", "HANA"]
 categories.workspace = true
 include = ["src/**/*", "LICENSE-*", "README.md", "CHANGELOG.md"]
 
@@ -49,7 +49,7 @@ cesu8 = "1.1"
 chrono = { version = "0.4", features = ["serde"] }
 # dist_tx = { features = ["async"], path = "../../dist_tx" }
 dist_tx = { version = "0.5", features = ["async"] }
-flexi_logger = "0.27"
+flexi_logger = "0.28"
 log = "0.4"
 num = "0.4"
 num-bigint = "0.4.0"

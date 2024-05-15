@@ -5,7 +5,6 @@ use serde_db::ser::{parse_error, DbvFactory, SerializationError};
 use std::num::ParseFloatError;
 use std::num::ParseIntError;
 use std::str::FromStr;
-use std::{i16, i32, i64, i8, u16, u32, u8};
 
 impl DbvFactory for &ParameterDescriptor {
     type DBV = HdbValue<'static>;
@@ -245,7 +244,7 @@ impl DbvFactory for &ParameterDescriptor {
                 HdbValue::DECIMAL(
                     BigDecimal::from_f32(value)
                         .ok_or_else(|| decimal_range(input_type))?
-                        .with_scale(i64::from(std::f32::DIGITS)),
+                        .with_scale(i64::from(f32::DIGITS)),
                 )
             }
             TypeId::VARCHAR | TypeId::NVARCHAR | TypeId::TEXT | TypeId::SHORTTEXT => {
@@ -265,7 +264,7 @@ impl DbvFactory for &ParameterDescriptor {
                 HdbValue::DECIMAL(
                     BigDecimal::from_f64(value)
                         .ok_or_else(|| decimal_range(input_type))?
-                        .with_scale(i64::from(std::f64::DIGITS)),
+                        .with_scale(i64::from(f64::DIGITS)),
                 )
             }
             TypeId::VARCHAR | TypeId::NVARCHAR | TypeId::TEXT | TypeId::SHORTTEXT => {

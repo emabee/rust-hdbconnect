@@ -263,7 +263,17 @@ impl ConnectParamsBuilder {
         self.clientlocale.as_deref()
     }
 
-    /// Returns the configured server certificates.
+    /// Returns the configured database name.
+    pub fn get_dbname(&self) -> Option<&str> {
+        self.dbname.as_deref()
+    }
+
+    /// Returns the configured network group.
+    pub fn get_networkgroup(&self) -> Option<&str> {
+        self.network_group.as_deref()
+    }
+
+    /// Returns the configured variants for validating the server certificate.
     pub fn get_server_certs(&self) -> Option<&Vec<ServerCerts>> {
         match self.tls {
             Tls::Secure(ref sc) => Some(sc),

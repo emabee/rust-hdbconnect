@@ -4,7 +4,7 @@ use thiserror::Error;
 
 /// A list specifying categories of [`HdbError`](crate::HdbError).
 ///
-#[derive(Error, Debug)] //Copy, Clone, Eq, PartialEq,
+#[derive(Error, Debug)] //
 #[non_exhaustive]
 pub enum HdbError {
     /// Authentication failed.
@@ -78,7 +78,7 @@ pub enum HdbError {
     TlsInvalidDnsName {
         /// The causing Error.
         #[from]
-        source: rustls::client::InvalidDnsNameError,
+        source: rustls::pki_types::InvalidDnsNameError,
     },
 
     /// TLS initialization error
@@ -115,7 +115,7 @@ pub enum HdbError {
     ImplDetailed(String),
 
     /// Error occured in thread synchronization.
-    #[cfg(feature = "sync")]
+    // #[cfg(feature = "sync")]
     #[error("Error occured in thread synchronization")]
     Poison,
 

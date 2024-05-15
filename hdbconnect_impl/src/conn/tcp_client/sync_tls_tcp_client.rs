@@ -1,9 +1,10 @@
 use crate::{protocol::util, ConnectParams, HdbResult};
+use rustls::pki_types::ServerName;
 use std::{
     sync::{Arc, Mutex},
     time::Duration,
 };
-use tokio_rustls::rustls::{ClientConnection, ServerName};
+use tokio_rustls::rustls::ClientConnection;
 
 pub(crate) struct SyncTlsTcpClient {
     params: ConnectParams,
@@ -50,8 +51,8 @@ impl TlsStream {
         let tcpstream = std::net::TcpStream::connect(params.addr())?;
         trace!("tcpstream working");
 
-        let a_client_config = Arc::new(params.rustls_clientconfig()?);
-        let server_name = ServerName::try_from(params.host())?;
+        let a_client_config = Arc::new(params.rustls_clientconfig()?.0);
+        let server_name = ServerName::try_from(params.host().to_owned())?;
         let am_client_session = Arc::new(Mutex::new(ClientConnection::new(
             a_client_config,
             server_name,

@@ -67,7 +67,7 @@ pub use hdbconnect_impl::ConnectionStatistics;
 /// ````
 pub use hdbconnect_impl::ConnectionConfiguration;
 
-/// FIXME
+/// Holdability of cursors in the database.
 pub use hdbconnect_impl::CursorHoldability;
 
 pub use hdbconnect_impl::{

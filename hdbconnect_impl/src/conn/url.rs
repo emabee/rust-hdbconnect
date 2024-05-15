@@ -27,6 +27,7 @@
 //! - `<networkgroup>` = a network group
 //! - `no_compression` disables the support for compression
 //! - the [TLS](https://en.wikipedia.org/wiki/Transport_Layer_Security) options:
+// FIXME not only pem files!!
 //!   - `tls_certificate_dir=<value>` points to a folder with pem files that contain
 //!     certificates; all pem files in that folder are evaluated  
 //!   - `tls_certificate_env=<value>` denotes an environment variable that contains

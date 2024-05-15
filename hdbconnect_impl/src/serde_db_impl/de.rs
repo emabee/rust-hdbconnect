@@ -4,8 +4,10 @@ use serde_db::de::{
     ConversionError, DbValue, DbValueInto, DeserializableResultset, DeserializableRow,
     DeserializationError, DeserializationResult,
 };
-use std::num::{ParseFloatError, ParseIntError};
-use std::{fmt, i16, i32, i64, i8, u16, u32, u8};
+use std::{
+    fmt,
+    num::{ParseFloatError, ParseIntError},
+};
 
 impl DeserializableResultset for Rows {
     type ROW = Row;
@@ -266,6 +268,7 @@ impl DbValueInto<String> for HdbValue<'static> {
     fn try_into(self) -> Result<String, ConversionError> {
         trace!("try_into -> String");
         match self {
+            HdbValue::NULL => Ok(String::from("<NULL>")),
             HdbValue::TINYINT(i) => Ok(format!("{i}")),
             HdbValue::SMALLINT(i) => Ok(format!("{i}")),
             HdbValue::INT(i) => Ok(format!("{i}")),

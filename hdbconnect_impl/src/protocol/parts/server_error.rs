@@ -41,10 +41,10 @@ impl Severity {
 impl std::fmt::Display for Severity {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match *self {
-            Self::Warning => write!(f, "warning")?,
-            Self::Error => write!(f, "error")?,
-            Self::Fatal => write!(f, "fatal error")?,
-            Self::__UNKNOWN__(i) => write!(f, "message of unknown severity ({i})")?,
+            Self::Warning => write!(f, "Warning")?,
+            Self::Error => write!(f, "Error")?,
+            Self::Fatal => write!(f, "Fatal error")?,
+            Self::__UNKNOWN__(i) => write!(f, "Message of unknown severity ({i})")?,
         }
         Ok(())
     }
@@ -131,7 +131,7 @@ impl std::fmt::Display for ServerError {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             fmt,
-            r#"{} [code: {}, sql state: {}] at position: {}: "{}""#,
+            r#"{}[code: {}, sql state: {}] at position {}: "{}""#,
             self.severity,
             self.code,
             String::from_utf8_lossy(&self.sqlstate),

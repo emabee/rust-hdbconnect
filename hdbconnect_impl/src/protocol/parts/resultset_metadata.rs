@@ -102,7 +102,7 @@ impl ResultSetMetadata {
 }
 
 fn add_to_names(names: &mut VecMap<String>, offset: u32) {
-    if offset != u32::max_value() {
+    if offset != u32::MAX {
         let offset = offset as usize;
         if !names.contains_key(offset) {
             names.insert(offset, String::new());
