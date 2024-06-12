@@ -8,7 +8,7 @@ repository.workspace = true
 readme = "README.md"
 description = "An asynchronous pure rust database driver for SAP HANA(TM)"
 documentation = "https://docs.rs/hdbconnect_async/"
-keywords = ["asynchronous", "relational", "database", "driver", "serde", "HANA"]
+keywords = ["asynchronous", "relational", "database", "driver", "HANA"]
 categories.workspace = true
 include = ["src/**/*", "LICENSE-*", "README.md", "CHANGELOG.md"]
 
