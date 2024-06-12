@@ -14,7 +14,6 @@ use std::sync::Arc;
 ///
 /// You also can access individual values with `row[idx]`, or iterate over the values (with
 /// `row.iter()` or `for value in row {...}`).
-#[derive(Debug)]
 pub struct Row {
     metadata: Arc<ResultSetMetadata>,
     value_iter: <Vec<HdbValue<'static>> as IntoIterator>::IntoIter,
@@ -179,6 +178,15 @@ impl std::fmt::Display for Row {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         for v in self.value_iter.as_slice() {
             write!(fmt, "{v}, ")?;
+        }
+        Ok(())
+    }
+}
+
+impl std::fmt::Debug for Row {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        for (v, md) in self.value_iter.as_slice().iter().zip(self.metadata.iter()) {
+            write!(fmt, "{v:?}:[{}], ", md.type_id())?;
         }
         Ok(())
     }

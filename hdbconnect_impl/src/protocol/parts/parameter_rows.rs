@@ -5,7 +5,7 @@ use serde_db::ser::to_params;
 //
 // Contains rows of input parameters.
 // The argument count of the part defines how many rows of parameters are included.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 #[allow(clippy::new_without_default)]
 pub(crate) struct ParameterRows<'a>(Vec<ParameterRow<'a>>);
 impl<'a> ParameterRows<'a> {
@@ -65,7 +65,7 @@ impl ParameterRows<'static> {
 }
 
 // A single row of parameters.
-#[derive(Default, Debug)]
+#[derive(Clone, Default, Debug)]
 pub struct ParameterRow<'a>(Vec<HdbValue<'a>>);
 
 impl<'a> ParameterRow<'a> {

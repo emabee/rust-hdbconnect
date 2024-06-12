@@ -232,80 +232,101 @@ fn deser_singlevalue_into_plain(
 
 #[allow(clippy::cognitive_complexity)]
 fn deser_all_to_string(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
-    // NULL to not Option
-    assert!(connection
-        .query("SELECT TO_BIGINT(NULL) FROM DUMMY")?
-        .try_into::<String>()
-        .is_err());
-    assert!(connection
-        .query("SELECT TO_BINARY(NULL) FROM DUMMY")?
-        .try_into::<String>()
-        .is_err());
-    assert!(connection
-        .query("SELECT TO_BLOB(NULL) FROM DUMMY")?
-        .try_into::<String>()
-        .is_err());
-    assert!(connection
-        .query("SELECT TO_CLOB(NULL) FROM DUMMY")?
-        .try_into::<String>()
-        .is_err());
-    assert!(connection
-        .query("SELECT TO_DATE(NULL) FROM DUMMY")?
-        .try_into::<String>()
-        .is_err());
-    // assert_eq!(connection.query("SELECT TO_DATS(NULL) FROM DUMMY")?.try_into::<String>().is_err(), true); // TO_DATS returns 00000
-    assert!(connection
-        .query("SELECT TO_DECIMAL(NULL) FROM DUMMY")?
-        .try_into::<String>()
-        .is_err());
-    assert!(connection
-        .query("SELECT TO_DOUBLE(NULL) FROM DUMMY")?
-        .try_into::<String>()
-        .is_err());
-    assert!(connection
-        .query("SELECT TO_INT(NULL) FROM DUMMY")?
-        .try_into::<String>()
-        .is_err());
-    assert!(connection
-        .query("SELECT TO_INTEGER(NULL) FROM DUMMY")?
-        .try_into::<String>()
-        .is_err());
-    assert!(connection
-        .query("SELECT TO_NCLOB(NULL) FROM DUMMY")?
-        .try_into::<String>()
-        .is_err());
-    assert!(connection
-        .query("SELECT TO_NVARCHAR(NULL) FROM DUMMY")?
-        .try_into::<String>()
-        .is_err());
-    assert!(connection
-        .query("SELECT TO_REAL(NULL) FROM DUMMY")?
-        .try_into::<String>()
-        .is_err());
-    assert!(connection
-        .query("SELECT TO_SECONDDATE(NULL) FROM DUMMY")?
-        .try_into::<String>()
-        .is_err());
-    assert!(connection
-        .query("SELECT TO_SMALLDECIMAL(NULL) FROM DUMMY")?
-        .try_into::<String>()
-        .is_err());
-    assert!(connection
-        .query("SELECT TO_SMALLINT(NULL) FROM DUMMY")?
-        .try_into::<String>()
-        .is_err());
-    assert!(connection
-        .query("SELECT TO_TIME(NULL) FROM DUMMY")?
-        .try_into::<String>()
-        .is_err());
-    assert!(connection
-        .query("SELECT TO_TIMESTAMP(NULL) FROM DUMMY")?
-        .try_into::<String>()
-        .is_err());
-    assert!(connection
-        .query("SELECT TO_TINYINT(NULL) FROM DUMMY")?
-        .try_into::<String>()
-        .is_err());
+    // NULL to String
+    let rs = connection.query("SELECT TO_BIGINT(NULL) FROM DUMMY")?;
+    assert_eq!(rs.metadata()[0].type_id().to_string(), "BIGINT".to_string());
+    assert_eq!(rs.try_into::<String>().unwrap(), "<NULL>".to_string());
+
+    let rs = connection.query("SELECT TO_BINARY(NULL) FROM DUMMY")?;
+    assert_eq!(
+        rs.metadata()[0].type_id().to_string(),
+        "VARBINARY".to_string()
+    );
+
+    let rs = connection.query("SELECT TO_BLOB(NULL) FROM DUMMY")?;
+    assert_eq!(rs.metadata()[0].type_id().to_string(), "BLOB".to_string());
+
+    let rs = connection.query("SELECT TO_DATE(NULL) FROM DUMMY")?;
+    assert_eq!(
+        rs.metadata()[0].type_id().to_string(),
+        "DAYDATE".to_string()
+    );
+    assert_eq!(rs.try_into::<String>().unwrap(), "<NULL>".to_string());
+
+    let rs = connection.query("SELECT TO_DECIMAL(NULL) FROM DUMMY")?;
+    assert_eq!(
+        rs.metadata()[0].type_id().to_string(),
+        "DECIMAL".to_string()
+    );
+    assert_eq!(rs.try_into::<String>().unwrap(), "<NULL>".to_string());
+
+    let rs = connection.query("SELECT TO_DOUBLE(NULL) FROM DUMMY")?;
+    assert_eq!(rs.metadata()[0].type_id().to_string(), "DOUBLE".to_string());
+    assert_eq!(rs.try_into::<String>().unwrap(), "<NULL>".to_string());
+
+    let rs = connection.query("SELECT TO_INT(NULL) FROM DUMMY")?;
+    assert_eq!(rs.metadata()[0].type_id().to_string(), "INT".to_string());
+    assert_eq!(rs.try_into::<String>().unwrap(), "<NULL>".to_string());
+
+    let rs = connection.query("SELECT TO_INTEGER(NULL) FROM DUMMY")?;
+    assert_eq!(rs.metadata()[0].type_id().to_string(), "INT".to_string());
+    assert_eq!(rs.try_into::<String>().unwrap(), "<NULL>".to_string());
+
+    let rs = connection.query("SELECT TO_NCLOB(NULL) FROM DUMMY")?;
+    assert_eq!(rs.metadata()[0].type_id().to_string(), "NCLOB".to_string());
+    assert_eq!(rs.try_into::<String>().unwrap(), "<NULL>".to_string());
+
+    let rs = connection.query("SELECT TO_NVARCHAR(NULL) FROM DUMMY")?;
+    assert_eq!(
+        rs.metadata()[0].type_id().to_string(),
+        "NVARCHAR".to_string()
+    );
+    assert_eq!(rs.try_into::<String>().unwrap(), "<NULL>".to_string());
+
+    let rs = connection.query("SELECT TO_REAL(NULL) FROM DUMMY")?;
+    assert_eq!(rs.metadata()[0].type_id().to_string(), "REAL".to_string());
+    assert_eq!(rs.try_into::<String>().unwrap(), "<NULL>".to_string());
+
+    let rs = connection.query("SELECT TO_SECONDDATE(NULL) FROM DUMMY")?;
+    assert_eq!(
+        rs.metadata()[0].type_id().to_string(),
+        "SECONDDATE".to_string()
+    );
+    assert_eq!(rs.try_into::<String>().unwrap(), "<NULL>".to_string());
+
+    let rs = connection.query("SELECT TO_SMALLDECIMAL(NULL) FROM DUMMY")?;
+    assert_eq!(
+        rs.metadata()[0].type_id().to_string(),
+        "DECIMAL".to_string()
+    );
+    assert_eq!(rs.try_into::<String>().unwrap(), "<NULL>".to_string());
+
+    let rs = connection.query("SELECT TO_SMALLINT(NULL) FROM DUMMY")?;
+    assert_eq!(
+        rs.metadata()[0].type_id().to_string(),
+        "SMALLINT".to_string()
+    );
+    assert_eq!(rs.try_into::<String>().unwrap(), "<NULL>".to_string());
+
+    let rs = connection.query("SELECT TO_TIME(NULL) FROM DUMMY")?;
+    assert_eq!(
+        rs.metadata()[0].type_id().to_string(),
+        "SECONDTIME".to_string()
+    );
+    assert_eq!(rs.try_into::<String>().unwrap(), "<NULL>".to_string());
+
+    let rs = connection.query("SELECT TO_TIMESTAMP(NULL) FROM DUMMY")?;
+    assert_eq!(
+        rs.metadata()[0].type_id().to_string(),
+        "LONGDATE".to_string()
+    );
+
+    let rs = connection.query("SELECT TO_TINYINT(NULL) FROM DUMMY")?;
+    assert_eq!(
+        rs.metadata()[0].type_id().to_string(),
+        "TINYINT".to_string()
+    );
+    assert_eq!(rs.try_into::<String>().unwrap(), "<NULL>".to_string());
 
     // NULL to Option
     connection
@@ -397,7 +418,7 @@ fn deser_all_to_string(_log_handle: &mut LoggerHandle, connection: &Connection) 
         connection
             .query("SELECT TO_DECIMAL('10') FROM DUMMY")?
             .try_into::<Option<String>>()?,
-        Some("10".to_string())
+        Some("1E+1".to_string())
     );
     assert_eq!(
         connection
@@ -445,7 +466,7 @@ fn deser_all_to_string(_log_handle: &mut LoggerHandle, connection: &Connection) 
         connection
             .query("SELECT TO_SMALLDECIMAL('10') FROM DUMMY")?
             .try_into::<Option<String>>()?,
-        Some("10".to_string())
+        Some("1E+1".to_string())
     );
     assert_eq!(
         connection
@@ -503,7 +524,7 @@ fn deser_all_to_string(_log_handle: &mut LoggerHandle, connection: &Connection) 
         connection
             .query("SELECT TO_DECIMAL('10') FROM DUMMY")?
             .try_into::<String>()?,
-        "10".to_string()
+        "1E+1".to_string()
     );
     assert_eq!(
         connection
@@ -551,7 +572,7 @@ fn deser_all_to_string(_log_handle: &mut LoggerHandle, connection: &Connection) 
         connection
             .query("SELECT TO_SMALLDECIMAL('10') FROM DUMMY")?
             .try_into::<String>()?,
-        "10".to_string()
+        "1E+1".to_string()
     );
     assert_eq!(
         connection

@@ -7,7 +7,7 @@
   - [Prepared statements](#prepared-statements)
 - [Iterating over rows](#iterating-over-rows)
 - [Result set evaluation with `try_into()`](#result-set-evaluation-with-try_into)
-  - [Explicitly evaluating a single row](#explicitly-evaluating-a-single-row)
+  - [Explicitly evaluating rows](#explicitly-evaluating-rows)
   - [Direct conversion of entire rows](#direct-conversion-of-entire-rows)
   - [Direct conversion of entire result sets](#direct-conversion-of-entire-result-sets)
     - [Matrix-structured result sets](#matrix-structured-result-sets)
@@ -206,7 +206,7 @@ and is based on the deserialization part of `serde`. It uses return type polymor
 which means that you specify explicitly the desired type of the return value, and serde will do
 its best to get your data filled in.
 
-### Explicitly evaluating a single row
+### Explicitly evaluating rows
 
 You _can_ retrieve the field values of a row individually, one after the other:
 
@@ -233,20 +233,28 @@ for row in resultset {
 
 ### Direct conversion of entire rows
 
-Convert the complete row into a normal rust value or tuple or struct with reasonably matching fields:
+With the help of serde you can convert the complete row into a normal rust value, or a tuple,
+or a struct with reasonably matching fields.
+
+Since SQL names are often upper-case, while rust field names are usually lower-case,
+you'll likely want to use `#[serde(rename = "SQLNAME")]` on structure fields
+to bridge this clash of naming conventions, or to map otherwise deviating names:
 
 ```rust,no_run
 # use serde::Deserialize;
 # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
 # fn foo() -> HdbResult<()> {
 # let mut connection = Connection::new("...")?;
-# let qry = "";
-# let resultset = connection.query(qry)?;
 #[derive(Deserialize)]
-struct TestData {/* ...*/};
-let qry = "select * from TEST_RESULTSET";
-for row in connection.query(qry)? {
-    let td: TestData = row?.try_into()?;
+struct Data {
+  #[serde(rename = "NUMBER")]
+  number: usize,
+  #[serde(rename = "TITLE")]
+  description: String,
+};
+
+for row in connection.query("SELECT NUMBER,TITLE FROM TABLE_FOO")? {
+    let data: Data = row?.try_into()?;
 }
 # Ok(())
 # }
@@ -268,11 +276,10 @@ tuple that matches the fields of the result set.
 # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
 # fn foo() -> HdbResult<()> {
 # let mut connection = Connection::new("...")?;
-# let qry = "";
-#[derive(Deserialize)]
-struct MyRow {/* ...*/}
-
+# #[derive(Deserialize)]
+# struct MyRow {}
 # #[allow(unused_variables)]
+# let qry = "...";
 let result: Vec<MyRow> = connection.query(qry)?.try_into()?;
 # Ok(())
 # }
@@ -289,10 +296,10 @@ then you can also deserialize directly into a plain `MyRow`.
   # use hdbconnect::{Connection, HdbResult, IntoConnectParams};
   # fn foo() -> HdbResult<()> {
   # let mut connection = Connection::new("hdbsql://my_user:my_passwd@the_host:2222")?;
-  # let qry = "SELECT foo FROM bar";
-  #[derive(Deserialize)]
-  struct MyRow {/* ...*/}
-  let result: MyRow = connection.query(qry)?.try_into()?;
+  # let qry1 = "SELECT TOP 1 foo FROM bar";
+  # #[derive(Deserialize)]
+  # struct MyRow {/* ...*/}
+  let result: MyRow = connection.query(qry1)?.try_into()?;
   # Ok(())
   # }
   ```

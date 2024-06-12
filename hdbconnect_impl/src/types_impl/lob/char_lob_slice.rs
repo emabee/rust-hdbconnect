@@ -16,7 +16,7 @@
 ///   * a unicode codepoint in BMP-0 (which is represented as 1, 2, or 3 bytes) counts as 1
 ///
 ///   * a unicode codepoint in BMP-1 (which is represented as a pair of two surrogates,
-///    each of which is a 3-byte sequence) counts as 2.
+///     each of which is a 3-byte sequence) counts as 2.
 ///
 ///   If the specified boundaries of the slice do not coincide with the
 ///   begin or end of a unicode-codepoint, i.e. if the slice begins with a second surrogate or ends

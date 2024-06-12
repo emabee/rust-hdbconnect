@@ -17,22 +17,17 @@ fn test_025_decimals() -> HdbResult<()> {
     let connection = test_utils::get_authenticated_connection()?;
 
     if connection.data_format_version_2()? > 7 {
-        info!("=== run test for FIXED8 ===");
         test_025_decimals_impl(TS::Fixed8, &mut log_handle, &connection)?;
-
-        info!("=== run test for FIXED12 ===");
         test_025_decimals_impl(TS::Fixed12, &mut log_handle, &connection)?;
-
-        info!("=== run test for FIXED16 ===");
         test_025_decimals_impl(TS::Fixed16, &mut log_handle, &connection)?;
     } else {
-        info!("=== run test for old wire DECIMAL ===");
         test_025_decimals_impl(TS::Decimal, &mut log_handle, &connection)?;
     }
 
     test_utils::closing_info(connection, start)
 }
 
+#[derive(Debug)]
 enum TS {
     Fixed8,
     Fixed12,
@@ -45,7 +40,8 @@ fn test_025_decimals_impl(
     _log_handle: &mut LoggerHandle,
     connection: &Connection,
 ) -> HdbResult<()> {
-    info!("setup ...");
+    info!("=== run test for {ts:?} ===");
+    // we create a table with a STRING s, a and two decimals d1 and d2.
     connection.multiple_statements_ignore_err(vec!["drop table TEST_DECIMALS"]);
     let stmts = vec![
         match ts {
@@ -58,6 +54,7 @@ fn test_025_decimals_impl(
             TS::Fixed16 =>
         "create table TEST_DECIMALS (s NVARCHAR(100) primary key, d1 DECIMAL(38,5), d2 DECIMAL(38,5), dummy integer)",
         },
+        // the complete statement is sent to the server as is, so all conversions are done on the server
         "insert into TEST_DECIMALS (s, d1, d2) values('0.00000', '0.00000', 0.000)",
         "insert into TEST_DECIMALS (s, d1, d2) values('0.00100', '0.00100', 0.001)",
         "insert into TEST_DECIMALS (s, d1, d2) values('-0.00100', '-0.00100', -0.001)",
@@ -83,15 +80,11 @@ fn test_025_decimals_impl(
 
     info!("prepare & execute");
     let mut insert_stmt = connection.prepare(insert_stmt_str)?;
-    insert_stmt.add_batch(&(
-        "75.53500",
-        "75.53500",
-        BigDecimal::from_f32(75.535).unwrap(),
-    ))?;
 
-    // had to change the next two lines when moving from bigdecimal 0.3 to 0.4
-    // insert_stmt.add_batch(&("87.65432", "87.65432", 87.654_32_f32))?;
-    // insert_stmt.add_batch(&("0.00500", "0.00500", 0.005_f32))?;
+    // with batch statements the parameter conversion is done client-side
+    // here we test providing values from various rust types, incl BigDecimal without precision being specified
+    #[rustfmt::skip]
+    insert_stmt.add_batch(&("75.53500","75.53500",BigDecimal::from_f32(75.535).unwrap()))?;
     #[allow(clippy::excessive_precision)]
     insert_stmt.add_batch(&("87.65432", "87.65432", 87.654_325_f32))?;
     insert_stmt.add_batch(&("0.00500", "0.00500", 0.005001_f32))?;
@@ -103,8 +96,8 @@ fn test_025_decimals_impl(
     insert_stmt.add_batch(&("22.00000", "22.00000", 22_i64))?;
     insert_stmt.execute_batch()?;
 
-    insert_stmt.add_batch(&("-0.05600", "-0.05600", "-0.05600"))?;
-    insert_stmt.add_batch(&("-8.65432", "-8.65432", "-8.65432"))?;
+    insert_stmt.add_batch(&("-0.05600", "-0.05600", -0.05600))?;
+    insert_stmt.add_batch(&("-8.65432", "-8.65432", -8.65432))?;
     insert_stmt.execute_batch()?;
 
     info!("Read and verify decimals");
@@ -120,22 +113,21 @@ fn test_025_decimals_impl(
 
     info!("Read and verify decimals to struct");
     let resultset = connection.query("select s, d1, d2 from TEST_DECIMALS order by d1")?;
-    let scale = resultset.metadata()[1].scale() as usize;
     let result: Vec<TestData> = resultset.try_into()?;
     for td in result {
-        debug!("{:?}, {:?}, {:?}", td.s, td.d1, td.d2);
-        assert_eq!(td.s, format!("{0:.1$}", td.d1, scale));
-        assert_eq!(td.s, format!("{0:.1$}", td.d2, scale));
+        debug!("TestData: {:?}, {:?}, {:?}", td.s, td.d1, td.d2);
+        assert_eq!(td.s, td.d1.to_string());
+        assert_eq!(td.s, td.d2.to_string());
     }
 
     info!("Read and verify decimals to tuple");
     let result: Vec<(String, String, String)> = connection
         .query("select * from TEST_DECIMALS")?
         .try_into()?;
-    for row in result {
-        debug!("{}, {}, {}", row.0, row.1, row.2);
-        assert_eq!(row.0, row.1);
-        assert_eq!(row.0, row.2);
+    for tuple in result {
+        debug!("Tuple: ({}, {}, {})", tuple.0, tuple.1, tuple.2);
+        assert_eq!(tuple.0, tuple.1);
+        assert_eq!(tuple.0, tuple.2);
     }
 
     info!("Read and verify decimal to single value");

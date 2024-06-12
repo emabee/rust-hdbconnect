@@ -54,6 +54,13 @@ impl OutputParameters {
         (self.descriptors, self.values)
     }
 
+    /// Exposes a vec of the parameter descriptors and a vec of the contained values.
+    pub fn as_descriptors_and_values(
+        &self,
+    ) -> (&Vec<ParameterDescriptor>, &Vec<HdbValue<'static>>) {
+        (&self.descriptors, &self.values)
+    }
+
     #[cfg(feature = "sync")]
     pub(crate) fn parse_sync(
         o_am_conn_core: Option<&AmConnCore>,

@@ -15,7 +15,7 @@ use crate::xa_impl::new_resource_manager_sync;
 use dist_tx::sync::rm::ResourceManager;
 
 /// A synchronous connection to the database.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Connection {
     am_conn_core: AmConnCore,
 }

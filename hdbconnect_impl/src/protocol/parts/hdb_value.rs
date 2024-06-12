@@ -21,6 +21,7 @@ const ALPHANUM_LENGTH_MASK: u8 = 0b_0111_1111_u8;
 
 /// Enum for all supported database value types.
 #[allow(non_camel_case_types)]
+#[derive(Clone)]
 pub enum HdbValue<'a> {
     /// Representation of a database NULL value.
     NULL,
@@ -925,7 +926,88 @@ impl<'a> std::fmt::Display for HdbValue<'a> {
 
 impl<'a> std::fmt::Debug for HdbValue<'a> {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-        std::fmt::Display::fmt(&self, fmt)
+        match *self {
+            HdbValue::NULL => write!(fmt, "<NULL>"),
+            HdbValue::TINYINT(value) => write!(fmt, "{value}:TINYINT"),
+            HdbValue::SMALLINT(value) => write!(fmt, "{value}:SMALLINT"),
+            HdbValue::INT(value) => write!(fmt, "{value}:INT"),
+            HdbValue::BIGINT(value) => write!(fmt, "{value}:BIGINT"),
+
+            HdbValue::DECIMAL(ref value) => write!(fmt, "{value}:DECIMAL"),
+
+            HdbValue::REAL(value) => write!(fmt, "{value}:REAL"),
+            HdbValue::DOUBLE(value) => write!(fmt, "{value}:DOUBLE"),
+            HdbValue::STR(value) => {
+                if value.len() < 10_000 {
+                    write!(fmt, "{value}:STR")
+                } else {
+                    write!(fmt, "<STR length = {}>", value.len())
+                }
+            }
+            HdbValue::DBSTRING(ref bytes) => {
+                if bytes.len() < 5_000 {
+                    write!(fmt, "{bytes:?}:DBSTRING")
+                } else {
+                    write!(fmt, "<DBSTRING length = {}>", bytes.len())
+                }
+            }
+            HdbValue::STRING(ref value) => {
+                if value.len() < 10_000 {
+                    write!(fmt, "{value}:STRING")
+                } else {
+                    write!(fmt, "<STRING length = {}>", value.len())
+                }
+            }
+            HdbValue::BINARY(ref vec) => write!(fmt, "<BINARY length = {}>", vec.len()),
+
+            #[cfg(feature = "sync")]
+            HdbValue::SYNC_CLOB(ref clob) => {
+                write!(fmt, "<CLOB length = {}>", clob.total_byte_length())
+            }
+            #[cfg(feature = "async")]
+            HdbValue::ASYNC_CLOB(ref clob) => {
+                write!(fmt, "<CLOB length = {}>", clob.total_byte_length())
+            }
+
+            #[cfg(feature = "sync")]
+            HdbValue::SYNC_NCLOB(ref nclob) => {
+                write!(fmt, "<NCLOB length = {}>", nclob.total_byte_length())
+            }
+            #[cfg(feature = "async")]
+            HdbValue::ASYNC_NCLOB(ref nclob) => {
+                write!(fmt, "<NCLOB length = {}>", nclob.total_byte_length())
+            }
+
+            #[cfg(feature = "sync")]
+            HdbValue::SYNC_BLOB(ref blob) => {
+                write!(fmt, "<BLOB length = {}>", blob.total_byte_length())
+            }
+            #[cfg(feature = "async")]
+            HdbValue::ASYNC_BLOB(ref blob) => {
+                write!(fmt, "<BLOB length = {}>", blob.total_byte_length())
+            }
+            #[cfg(feature = "sync")]
+            HdbValue::SYNC_LOBSTREAM(_) => write!(fmt, "<LOBSTREAM>"),
+            #[cfg(feature = "async")]
+            HdbValue::ASYNC_LOBSTREAM(_) => write!(fmt, "<LOBSTREAM>"),
+            HdbValue::BOOLEAN(value) => write!(fmt, "{value}:BOOLEAN"),
+            HdbValue::LONGDATE(ref value) => write!(fmt, "{value}:LONGDATE"),
+            HdbValue::SECONDDATE(ref value) => write!(fmt, "{value}:SECONDDATE"),
+            HdbValue::DAYDATE(ref value) => write!(fmt, "{value}:DAYDATE"),
+            HdbValue::SECONDTIME(ref value) => write!(fmt, "{value}:SECONDTIME"),
+            HdbValue::GEOMETRY(ref vec) => write!(fmt, "<GEOMETRY length = {}>", vec.len()),
+            HdbValue::POINT(ref vec) => write!(fmt, "<POINT length = {}>", vec.len()),
+            HdbValue::ARRAY(ref vec) => {
+                write!(fmt, "[")?;
+                for (val, i) in vec.iter().zip((0..vec.len()).rev()) {
+                    std::fmt::Display::fmt(val, fmt)?;
+                    if i > 0 {
+                        write!(fmt, ", ")?;
+                    }
+                }
+                write!(fmt, "]")
+            }
+        }
     }
 }
 

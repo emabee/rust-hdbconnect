@@ -71,7 +71,7 @@ use std::{io::Write, sync::Arc};
 /// If the database e.g. requests an INT, you can also send a String representation of the
 /// number, by using `HdbValue::STRING("1088")`, instead of the binary INT representation
 /// `HdbValue::INT(1088)`.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct PreparedStatement {
     am_ps_core: AM<PreparedStatementCore>,
     config: ConnectionConfiguration,
@@ -298,8 +298,8 @@ impl<'a> PreparedStatement {
     ///
     /// Several variants of `HdbError` can occur.
     pub fn add_batch<T: serde::ser::Serialize>(&mut self, input: &T) -> HdbResult<()> {
-        trace!("PreparedStatement::add_batch()");
         if self.a_descriptors.has_in() {
+            trace!("PreparedStatement::add_batch()");
             self.batch.push(input, &self.a_descriptors)?;
             return Ok(());
         }

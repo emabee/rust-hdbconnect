@@ -196,11 +196,11 @@ mod a {
             tm.start_transaction().await.unwrap();
 
             debug!("conn_a inserts {}", j);
-            conn_a.dml(&insert_stmt(j + 1, "a")).await?;
-            conn_a.dml(&insert_stmt(j + 2, "a")).await?;
+            conn_a.dml(insert_stmt(j + 1, "a")).await?;
+            conn_a.dml(insert_stmt(j + 2, "a")).await?;
             debug!("conn_b inserts {}", j);
-            conn_b.dml(&insert_stmt(j + 3, "b")).await?;
-            conn_b.dml(&insert_stmt(j + 4, "b")).await?;
+            conn_b.dml(insert_stmt(j + 3, "b")).await?;
+            conn_b.dml(insert_stmt(j + 4, "b")).await?;
 
             // verify with neutral conn that nothing is visible (count)
             let count: u32 = conn.query(&count_query).await?.try_into().await?;
@@ -211,11 +211,11 @@ mod a {
 
             tm.start_transaction().await.unwrap();
             debug!("conn_a inserts {}", j);
-            conn_a.dml(&insert_stmt(j + 1, "a")).await?;
-            conn_a.dml(&insert_stmt(j + 2, "a")).await?;
+            conn_a.dml(insert_stmt(j + 1, "a")).await?;
+            conn_a.dml(insert_stmt(j + 2, "a")).await?;
             debug!("conn_b inserts");
-            conn_b.dml(&insert_stmt(j + 3, "b")).await?;
-            conn_b.dml(&insert_stmt(j + 4, "b")).await?;
+            conn_b.dml(insert_stmt(j + 3, "b")).await?;
+            conn_b.dml(insert_stmt(j + 4, "b")).await?;
 
             // verify with neutral conn that nothing is visible (count)
             let count: u32 = conn.query(&count_query).await?.try_into().await?;

@@ -30,7 +30,7 @@ rocket_pool = ["rocket_db_pools", "rocket"]
 dist_tx = ["hdbconnect_impl/dist_tx_async"]
 
 [dependencies.hdbconnect_impl]
-version = "0.28.6-unpublished"
+version = "0.28.6"
 path = "../hdbconnect_impl"
 default-features = false
 features = ["async"]
@@ -39,7 +39,7 @@ features = ["async"]
 async-trait = { version = "0.1", optional = true }
 bb8 = { version = "0.8", optional = true }
 log = { version = "0.4", optional = true }
-rocket_db_pools = { version = "0.1", optional = true }
+rocket_db_pools = { version = "0.2", optional = true }
 rocket = { version = "0.5.0", optional = true }
 tokio = { version = "1.23", features = ["rt"], optional = true }
 

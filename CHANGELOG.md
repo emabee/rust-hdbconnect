@@ -1,8 +1,14 @@
 # Changelog
 
-## [0.28.6] unpublished
+## [0.28.6] 2024-06-12
+
+Allow `HdbValue::NULL` to deserialize into String (as `"<NULL>"`).
+
+Add some Clone implementations.
 
 Allow configuring the cursor holdability.
+
+Further minor improvements.
 
 ## [0.28.5] 2024-02-09
 

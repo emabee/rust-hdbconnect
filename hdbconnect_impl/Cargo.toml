@@ -35,7 +35,6 @@ async-trait = { version = "0.1", optional = true }
 debug-ignore = "1.0"
 dist_tx = { version = "0.5", optional = true }
 # dist_tx = { path = "../../dist_tx", optional = true }
-hex = "0.4"
 hmac = "0.12"
 log = "0.4"
 lz4_flex = "0.11"
@@ -44,15 +43,12 @@ num-bigint = "0.4.0"
 pbkdf2 = { version = "0.12", default-features = false }
 rand = "0.8"
 # rustls = { version = "0.23", default-features = false, features = ["ring"] }
-rustls = { version = "0.23", default-features = false, features = [
-    "ring",
-    "std",
-] }
+# rustls = { version = "0.23", default-features = false, features = ["std"] }
+rustls = { version = "0.23" }
 secstr = "0.5"
 serde = { version = "1.0", features = ["derive"] }
 # serde_db = { path = "../../serde_db" }
 serde_db = "0.11"
-serde_json = "1.0"
 sha2 = "0.10.8"
 thiserror = "1.0"
 time = { version = "0.3", features = [
@@ -79,6 +75,7 @@ webpki-roots = "0.26"
 chrono = { version = "0.4", features = ["serde"] }
 flexi_logger = "0.28"
 serde_bytes = "0.11"
+serde_json = "1.0"
 version-sync = "0.9"
 # geo = "0.12"
 # geo-types = "0.4.1"

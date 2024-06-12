@@ -391,7 +391,7 @@ impl ServerCertVerifier for NoCertificateVerification {
     }
 
     fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
-        Vec::new() // FIXME: is this sufficient?
+        Vec::new() // TODO: is this sufficient?
     }
 
     fn verify_server_cert(

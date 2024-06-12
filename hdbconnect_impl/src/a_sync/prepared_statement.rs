@@ -71,7 +71,7 @@ use std::sync::Arc;
 /// If the database e.g. requests an INT, you can also send a String representation of the
 /// number, by using `HdbValue::STRING("1088")`, instead of the binary INT representation
 /// `HdbValue::INT(1088)`.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct PreparedStatement {
     am_ps_core: AM<PreparedStatementCore>,
     config: ConnectionConfiguration,

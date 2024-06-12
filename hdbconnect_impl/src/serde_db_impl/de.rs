@@ -268,7 +268,7 @@ impl DbValueInto<String> for HdbValue<'static> {
     fn try_into(self) -> Result<String, ConversionError> {
         trace!("try_into -> String");
         match self {
-            HdbValue::NULL => Ok(String::from("<NULL>")),
+            HdbValue::NULL => Ok(String::from("<NULL>")), // FIXME intentionally NOT implemented!?
             HdbValue::TINYINT(i) => Ok(format!("{i}")),
             HdbValue::SMALLINT(i) => Ok(format!("{i}")),
             HdbValue::INT(i) => Ok(format!("{i}")),

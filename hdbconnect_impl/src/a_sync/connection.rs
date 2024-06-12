@@ -14,7 +14,7 @@ use dist_tx::a_sync::rm::ResourceManager;
 use std::time::Duration;
 
 /// An asynchronous connection to the database.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Connection {
     am_conn_core: AmConnCore,
 }

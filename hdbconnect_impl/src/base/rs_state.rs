@@ -550,7 +550,7 @@ impl RsState {
             let o_am_rscore = Some(am_rscore.clone());
             for i in 0..no_of_rows {
                 let row = Row::parse_sync(Arc::clone(metadata), &o_am_rscore, am_conn_core, rdr)?;
-                trace!("parse_rows(): Found row #{}: {}", i, row);
+                trace!("parse_rows(): Found row #{i}: {row:?}");
                 self.next_rows.push(row);
             }
         }

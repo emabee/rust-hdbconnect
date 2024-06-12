@@ -55,32 +55,32 @@ impl ResultSet {
     /// structure   you can choose for deserialization:
     ///
     /// * You can always use a `Vec<line_struct>`, if the elements of
-    /// `line_struct` match the field list of the resultset.
+    ///   `line_struct` match the field list of the resultset.
     ///
     /// * If the resultset contains only a single line (e.g. because you
-    /// specified `TOP 1` in your select clause),
-    /// then you can optionally choose to deserialize directly into a plain
-    /// `line_struct`.
+    ///   specified `TOP 1` in your select clause),
+    ///   then you can optionally choose to deserialize directly into a plain
+    ///    `line_struct`.
     ///
     /// * If the resultset contains only a single column, then you can
-    /// optionally choose to deserialize directly into a
-    /// `Vec<plain_field>`.
+    ///   optionally choose to deserialize directly into a
+    ///   `Vec<plain_field>`.
     ///
     /// * If the resultset contains only a single value (one row with one
-    /// column), then you can optionally choose to deserialize into a
-    /// plain `line_struct`, or a `Vec<plain_field>`, or a `plain_field`.
+    ///   column), then you can optionally choose to deserialize into a
+    ///   plain `line_struct`, or a `Vec<plain_field>`, or a `plain_field`.
     ///
     /// Also the translation of the individual field values provides flexibility.
     ///
     /// * You can e.g. convert values from a nullable column
-    /// into a plain field, provided that no NULL values are given in the
-    /// resultset.
+    ///   into a plain field, provided that no NULL values are given in the
+    ///   resultset.
     ///
     /// * Vice versa, you can use an `Option<plain_field>`, even if the column is
-    /// marked as NOT NULL.
+    ///   marked as NOT NULL.
     ///
     /// * Similarly, integer types can differ, as long as the concrete values
-    /// can   be assigned without loss.
+    ///   can be assigned without loss.
     ///
     /// As usual with serde deserialization, you need to specify the type of your target variable
     /// explicitly, so that `try_into()` can derive the type it needs to instantiate:
