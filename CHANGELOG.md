@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.28.7] 2024-10-09
+
+Fix implementation of url-option "insecure_omit_server_certificate_check".
+
 ## [0.28.6] 2024-06-12
 
 Allow `HdbValue::NULL` to deserialize into String (as `"<NULL>"`).

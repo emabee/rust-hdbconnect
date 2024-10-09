@@ -33,7 +33,7 @@ r2d2 = { version = "0.8", optional = true }
 log = { version = "0.4", optional = true }
 
 [dependencies.hdbconnect_impl]
-version = "0.28.6"
+version = "0.28.7"
 path = "../hdbconnect_impl"
 default-features = false
 features = ["sync"]
@@ -44,7 +44,7 @@ cesu8 = "1.1"
 chrono = { version = "0.4", features = ["serde"] }
 # dist_tx = { features = ["sync"], path = "../../dist_tx" }
 dist_tx = { version = "0.5", features = ["sync"] }
-flexi_logger = "0.28"
+flexi_logger = "0.29"
 log = "0.4"
 num = "0.4"
 num-bigint = "0.4.0"
