@@ -104,7 +104,11 @@ impl ResultSet {
         Ok(DeserializableResultset::try_into(self.into_rows().await?)?)
     }
 
-    // fetches all rows and all data of contained LOBs
+    /// Fetches all rows and all data of contained LOBs
+    ///
+    /// # Errors
+    ///
+    /// Various errors can occur.
     pub async fn into_rows(self) -> HdbResult<Rows> {
         self.state
             .lock_async()

@@ -105,6 +105,10 @@ impl NCLob {
     /// [`Connection::lob_read_length`](../struct.Connection.html#method.lob_read_length) from the database
     /// and writes them immediately into the writer,
     /// thus avoiding that all data are materialized within this `NCLob`.
+    ///
+    /// # Errors
+    ///
+    /// Various errors can occur.
     pub async fn write_into<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
         mut self,
         writer: &mut W,

@@ -1,10 +1,7 @@
 //! Connection parameters
 use super::{cp_url::format_as_url, Compression};
 use crate::{ConnectParamsBuilder, HdbError, HdbResult, IntoConnectParams};
-use rustls::{
-    client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier},
-    ClientConfig, RootCertStore,
-};
+use rustls::{ClientConfig, RootCertStore};
 use secstr::SecUtf8;
 use serde::de::Deserialize;
 use std::{
@@ -181,6 +178,10 @@ impl ConnectParams {
     }
 
     /// Provide detailed insight into acceptance of configured certificates
+    ///
+    /// # Errors
+    ///
+    /// Various errors with certificate handling can occur.
     pub fn precheck_certificates(&self) -> HdbResult<Vec<String>> {
         if matches!(self.tls, Tls::Off | Tls::Insecure) {
             Ok(Vec::new())
@@ -199,7 +200,9 @@ impl ConnectParams {
             Tls::Insecure => {
                 let config = rustls::client::ClientConfig::builder()
                     .dangerous()
-                    .with_custom_certificate_verifier(Arc::new(NoCertificateVerification {}))
+                    .with_custom_certificate_verifier(Arc::new(
+                        insecure::NoCertificateVerification::new(),
+                    ))
                     .with_no_client_auth();
                 Ok((config, Vec::new()))
             }
@@ -345,10 +348,10 @@ impl std::fmt::Display for ConnectParams {
         format_as_url(
             &self.addr,
             &self.dbuser,
-            &self.dbname,
-            &self.network_group,
+            self.dbname.as_deref(),
+            self.network_group.as_deref(),
             &self.tls,
-            &self.clientlocale,
+            self.clientlocale.as_deref(),
             self.compression,
             f,
         )
@@ -367,43 +370,6 @@ pub enum ServerCerts {
     /// Defines that the server roots from <https://mkcert.org/> should be added to the
     /// trust store for TLS.
     RootCertificates,
-}
-
-#[derive(Debug)]
-struct NoCertificateVerification {}
-impl ServerCertVerifier for NoCertificateVerification {
-    fn verify_tls12_signature(
-        &self,
-        _message: &[u8],
-        _cert: &rustls::pki_types::CertificateDer<'_>,
-        _dss: &rustls::DigitallySignedStruct,
-    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
-        Ok(HandshakeSignatureValid::assertion())
-    }
-
-    fn verify_tls13_signature(
-        &self,
-        _message: &[u8],
-        _cert: &rustls::pki_types::CertificateDer<'_>,
-        _dss: &rustls::DigitallySignedStruct,
-    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
-        Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
-    }
-
-    fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
-        Vec::new() // TODO: is this sufficient?
-    }
-
-    fn verify_server_cert(
-        &self,
-        _end_entity: &rustls::pki_types::CertificateDer<'_>,
-        _intermediates: &[rustls::pki_types::CertificateDer<'_>],
-        _server_name: &rustls::pki_types::ServerName<'_>,
-        _ocsp_response: &[u8],
-        _now: rustls::pki_types::UnixTime,
-    ) -> Result<ServerCertVerified, rustls::Error> {
-        Ok(rustls::client::danger::ServerCertVerified::assertion())
-    }
 }
 
 #[allow(clippy::missing_errors_doc)]
@@ -445,6 +411,68 @@ impl<'de> Deserialize<'de> for ConnectParams {
         // Default implementation just delegates to `deserialize` impl.
         *place = Deserialize::deserialize(deserializer)?;
         Ok(())
+    }
+}
+
+mod insecure {
+    use rustls::{
+        client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier},
+        crypto::{verify_tls12_signature, verify_tls13_signature, CryptoProvider},
+        pki_types::{CertificateDer, ServerName, UnixTime},
+        DigitallySignedStruct,
+    };
+
+    #[derive(Debug)]
+    pub struct NoCertificateVerification(CryptoProvider);
+
+    impl NoCertificateVerification {
+        pub fn new() -> Self {
+            Self(rustls::crypto::aws_lc_rs::default_provider())
+        }
+    }
+
+    impl ServerCertVerifier for NoCertificateVerification {
+        fn verify_tls12_signature(
+            &self,
+            message: &[u8],
+            cert: &CertificateDer<'_>,
+            dss: &DigitallySignedStruct,
+        ) -> Result<HandshakeSignatureValid, rustls::Error> {
+            verify_tls12_signature(
+                message,
+                cert,
+                dss,
+                &self.0.signature_verification_algorithms,
+            )
+        }
+
+        fn verify_tls13_signature(
+            &self,
+            message: &[u8],
+            cert: &CertificateDer<'_>,
+            dss: &DigitallySignedStruct,
+        ) -> Result<HandshakeSignatureValid, rustls::Error> {
+            verify_tls13_signature(
+                message,
+                cert,
+                dss,
+                &self.0.signature_verification_algorithms,
+            )
+        }
+
+        fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
+            self.0.signature_verification_algorithms.supported_schemes()
+        }
+        fn verify_server_cert(
+            &self,
+            _end_entity: &CertificateDer<'_>,
+            _intermediates: &[CertificateDer<'_>],
+            _server_name: &ServerName<'_>,
+            _ocsp: &[u8],
+            _now: UnixTime,
+        ) -> Result<ServerCertVerified, rustls::Error> {
+            Ok(ServerCertVerified::assertion())
+        }
     }
 }
 

@@ -339,6 +339,10 @@ impl Connection {
     }
 
     /// Returns the connection's read timeout.
+    ///
+    /// # Errors
+    ///
+    /// Various errors can occur.
     pub async fn read_timeout(&self) -> HdbResult<Option<Duration>> {
         Ok(self
             .am_conn_core
@@ -347,7 +351,12 @@ impl Connection {
             .configuration()
             .read_timeout())
     }
+
     /// Sets the connection's read timeout.
+    ///
+    /// # Errors
+    ///
+    /// Various errors can occur.
     pub async fn set_read_timeout(&self, read_timeout: Option<Duration>) -> HdbResult<()> {
         self.am_conn_core
             .lock_async()
