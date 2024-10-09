@@ -497,6 +497,10 @@ impl Connection {
     }
 
     /// Reset the counters in the Connection's statistic object.
+    ///
+    /// # Errors
+    ///
+    /// Only lock poisoning can occur.
     pub fn reset_statistics(&self) -> HdbResult<()> {
         self.am_conn_core.lock_sync()?.reset_statistics();
         Ok(())
@@ -727,6 +731,10 @@ impl Connection {
     }
 
     /// Returns true if the connection object lost its TCP connection.
+    ///
+    /// # Errors
+    ///
+    /// Only lock poisoning can occur.
     pub fn is_broken(&self) -> HdbResult<bool> {
         Ok(self.am_conn_core.lock_sync()?.is_broken())
     }

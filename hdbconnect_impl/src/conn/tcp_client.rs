@@ -23,6 +23,7 @@ use sync_plain_tcp_client::SyncPlainTcpClient;
 use sync_tls_tcp_client::SyncTlsTcpClient;
 
 // A buffered tcp connection, synchronous or asynchronoues, with or without TLS.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
 pub(crate) enum TcpClient {
     // A buffered blocking tcp connection without TLS.

@@ -69,7 +69,6 @@ use crate::{
 /// # Ok(())
 /// # }
 ///   ```
-
 ///
 #[derive(Debug)]
 pub struct HdbResponse {

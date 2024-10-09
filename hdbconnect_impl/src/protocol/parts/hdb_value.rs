@@ -117,7 +117,7 @@ pub enum HdbValue<'a> {
     ARRAY(Vec<HdbValue<'a>>),
 }
 
-impl<'a> HdbValue<'a> {
+impl HdbValue<'_> {
     pub(crate) fn type_id_for_emit(&self, requested_type_id: TypeId) -> HdbResult<TypeId> {
         Ok(match *self {
             HdbValue::NULL => match requested_type_id {
@@ -837,7 +837,7 @@ fn emit_length_and_bytes(v: &[u8], w: &mut dyn std::io::Write) -> HdbResult<()> 
     Ok(())
 }
 
-impl<'a> std::fmt::Display for HdbValue<'a> {
+impl std::fmt::Display for HdbValue<'_> {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         match *self {
             HdbValue::NULL => write!(fmt, "<NULL>"),
@@ -924,7 +924,7 @@ impl<'a> std::fmt::Display for HdbValue<'a> {
     }
 }
 
-impl<'a> std::fmt::Debug for HdbValue<'a> {
+impl std::fmt::Debug for HdbValue<'_> {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         match *self {
             HdbValue::NULL => write!(fmt, "<NULL>"),
@@ -1012,7 +1012,7 @@ impl<'a> std::fmt::Debug for HdbValue<'a> {
 }
 
 // TODO implement more of these...
-impl<'a> std::cmp::PartialEq<i32> for HdbValue<'a> {
+impl std::cmp::PartialEq<i32> for HdbValue<'_> {
     fn eq(&self, rhs: &i32) -> bool {
         match self {
             HdbValue::TINYINT(i) => i32::from(*i) == *rhs,
@@ -1023,7 +1023,7 @@ impl<'a> std::cmp::PartialEq<i32> for HdbValue<'a> {
         }
     }
 }
-impl<'a> std::cmp::PartialEq<&str> for HdbValue<'a> {
+impl std::cmp::PartialEq<&str> for HdbValue<'_> {
     fn eq(&self, rhs: &&str) -> bool {
         match self {
             HdbValue::STRING(ref s) => s == rhs,

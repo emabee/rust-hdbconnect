@@ -68,7 +68,7 @@ impl FromStr for HanaDate {
 }
 
 pub(in crate::serde_db_impl) struct HanaTimeVisitor;
-impl<'de> serde::de::Visitor<'de> for HanaTimeVisitor {
+impl serde::de::Visitor<'_> for HanaTimeVisitor {
     type Value = HanaDate;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {

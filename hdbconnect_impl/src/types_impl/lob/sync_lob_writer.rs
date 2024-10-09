@@ -180,7 +180,7 @@ impl<'a> SyncLobWriter<'a> {
     }
 }
 
-impl<'a> Write for SyncLobWriter<'a> {
+impl Write for SyncLobWriter<'_> {
     // Either buffers (in self.buffer) or writes buffer + input to the db
     fn write(&mut self, input: &[u8]) -> std::io::Result<usize> {
         trace!("write() with input of len {}", input.len());

@@ -31,7 +31,7 @@ impl IntoConnectParamsBuilder for ConnectParamsBuilder {
     }
 }
 
-impl<'a> IntoConnectParamsBuilder for &'a str {
+impl IntoConnectParamsBuilder for &str {
     fn into_connect_params_builder(self) -> HdbResult<ConnectParamsBuilder> {
         Url::parse(self)
             .map_err(|e| HdbError::conn_params(Box::new(e)))?

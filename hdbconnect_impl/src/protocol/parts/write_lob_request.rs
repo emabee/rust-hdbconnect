@@ -8,7 +8,7 @@ pub(crate) struct WriteLobRequest<'a> {
     buf: &'a [u8],
     last_data: bool,
 }
-impl<'a> WriteLobRequest<'a> {
+impl WriteLobRequest<'_> {
     pub fn new(locator_id: u64, offset: i64, buf: &[u8], last_data: bool) -> WriteLobRequest {
         trace!(
             "Offset = {offset}, buffer length = {}, last_data: {last_data}",

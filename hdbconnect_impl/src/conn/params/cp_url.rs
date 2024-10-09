@@ -8,10 +8,10 @@ use crate::{
 pub(crate) fn format_as_url(
     addr: &str,
     dbuser: &str,
-    database: &Option<String>,
-    network_group: &Option<String>,
+    database: Option<&str>,
+    network_group: Option<&str>,
     tls: &Tls,
-    clientlocale: &Option<String>,
+    clientlocale: Option<&str>,
     compression: Compression,
     f: &mut std::fmt::Formatter,
 ) -> std::fmt::Result {

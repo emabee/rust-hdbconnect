@@ -62,7 +62,7 @@ impl<'de> serde::de::Deserialize<'de> for HanaOffsetDateTime {
 }
 
 struct HanaOffsetDateTimeVisitor;
-impl<'de> serde::de::Visitor<'de> for HanaOffsetDateTimeVisitor {
+impl serde::de::Visitor<'_> for HanaOffsetDateTimeVisitor {
     type Value = HanaOffsetDateTime;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {

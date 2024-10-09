@@ -209,6 +209,10 @@ impl ResultSet {
 
     /// Provides information about the the server-side resource consumption that
     /// is related to this `ResultSet` object.
+    ///
+    /// # Errors
+    ///
+    /// Only lock poisoning can occur.
     pub fn server_usage(&self) -> HdbResult<ServerUsage> {
         Ok(*self.state.lock_sync()?.server_usage())
     }

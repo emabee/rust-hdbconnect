@@ -58,6 +58,10 @@ impl ConnectParamsBuilder {
     }
 
     /// Creates a new builder based on the given URL.
+    ///
+    /// # Errors
+    ///
+    /// `HdbError::Usage` when parsing or evaluating the url failed.
     pub fn from(url: &str) -> HdbResult<Self> {
         url.into_connect_params_builder()
     }
@@ -293,7 +297,7 @@ impl<'de> serde::de::Deserialize<'de> for ConnectParamsBuilder {
 }
 
 struct Visitor();
-impl<'de> serde::de::Visitor<'de> for Visitor {
+impl serde::de::Visitor<'_> for Visitor {
     type Value = ConnectParamsBuilder;
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter.write_str("a String in the form of a url")
@@ -323,10 +327,10 @@ impl std::fmt::Display for ConnectParamsBuilder {
                 self.port.unwrap_or_default()
             ),
             self.dbuser.as_deref().unwrap_or(""),
-            &self.dbname,
-            &self.network_group,
+            self.dbname.as_deref(),
+            self.network_group.as_deref(),
             &self.tls,
-            &self.clientlocale,
+            self.clientlocale.as_deref(),
             self.compression,
             f,
         )
