@@ -79,6 +79,7 @@ impl ConnectionConfiguration {
     pub const DEFAULT_READ_TIMEOUT: Option<std::time::Duration> = None;
 
     /// Returns whether the connection uses auto-commit.
+    #[must_use]
     pub fn is_auto_commit(&self) -> bool {
         self.auto_commit
     }
@@ -94,6 +95,7 @@ impl ConnectionConfiguration {
     }
 
     /// Returns the configured cursor holdability.
+    #[must_use]
     pub fn cursor_holdability(&self) -> CursorHoldability {
         self.command_options.into()
     }
@@ -112,6 +114,7 @@ impl ConnectionConfiguration {
     }
 
     /// Returns the connection's fetch size.
+    #[must_use]
     pub fn fetch_size(&self) -> u32 {
         self.fetch_size
     }
@@ -127,6 +130,7 @@ impl ConnectionConfiguration {
     }
 
     /// Returns the connection's lob read length.
+    #[must_use]
     pub fn lob_read_length(&self) -> u32 {
         self.lob_read_length
     }
@@ -142,6 +146,7 @@ impl ConnectionConfiguration {
     }
 
     /// Returns the connection's lob write length.
+    #[must_use]
     pub fn lob_write_length(&self) -> u32 {
         self.lob_write_length
     }
@@ -160,6 +165,7 @@ impl ConnectionConfiguration {
     ///
     /// See also [`ConnectionConfiguration::DEFAULT_MIN_BUFFER_SIZE`] and
     /// [`ConnectionConfiguration::DEFAULT_MAX_BUFFER_SIZE`].
+    #[must_use]
     pub fn max_buffer_size(&self) -> usize {
         self.max_buffer_size
     }
@@ -183,6 +189,7 @@ impl ConnectionConfiguration {
     /// Returns the connection's min compression size.
     ///
     /// See [`ConnectionConfiguration::DEFAULT_MIN_COMPRESSION_SIZE`].
+    #[must_use]
     pub fn min_compression_size(&self) -> usize {
         self.min_compression_size
     }
@@ -202,6 +209,7 @@ impl ConnectionConfiguration {
     }
 
     /// Returns the connection's read timeout.
+    #[must_use]
     pub fn read_timeout(&self) -> Option<Duration> {
         self.read_timeout
     }

@@ -29,6 +29,7 @@ impl Severity {
         }
     }
     /// Returns the number encoding of the severity.
+    #[must_use]
     pub fn to_i8(&self) -> i8 {
         match *self {
             Self::Warning => 0,
@@ -63,22 +64,27 @@ const BASE_SIZE: i32 = 4 + 4 + 4 + 1 + 5;
 
 impl ServerError {
     /// Returns the error code.
+    #[must_use]
     pub fn code(&self) -> i32 {
         self.code
     }
     /// Returns the position in the line where the error occured.
+    #[must_use]
     pub fn position(&self) -> i32 {
         self.position
     }
     /// Returns the Severity of the error.
+    #[must_use]
     pub fn severity(&self) -> &Severity {
         &self.severity
     }
     /// Returns the SQL state of the error.
+    #[must_use]
     pub fn sqlstate(&self) -> &[u8] {
         &self.sqlstate
     }
     /// Returns the description of the error.
+    #[must_use]
     pub fn text(&self) -> &str {
         &self.text
     }

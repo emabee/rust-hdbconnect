@@ -132,22 +132,26 @@ impl CLob {
     }
 
     /// Total length of data, in bytes.
+    #[must_use]
     pub fn total_byte_length(&self) -> u64 {
         self.0.total_byte_length()
     }
 
     /// Returns true if the `CLob` does not contain data.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.total_byte_length() == 0
     }
 
     /// Current size of the internal buffer, in bytes.
+    #[must_use]
     pub fn cur_buf_len(&self) -> usize {
         self.0.cur_buf_len()
     }
 
     /// Provides information about the the server-side resource consumption that
     /// is related to this `CBLob` object.
+    #[must_use]
     pub fn server_usage(&self) -> ServerUsage {
         self.0.server_usage
     }

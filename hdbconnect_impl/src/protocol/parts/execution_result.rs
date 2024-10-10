@@ -26,10 +26,12 @@ impl ExecutionResult {
     }
 
     /// True if it is an instance of `Self::Failure`.
+    #[must_use]
     pub fn is_failure(&self) -> bool {
         matches!(self, Self::Failure(_))
     }
     /// True if it is an instance of `Self::RowsAffected`.
+    #[must_use]
     pub fn is_rows_affected(&self) -> bool {
         matches!(self, Self::RowsAffected(_))
     }

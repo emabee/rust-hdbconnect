@@ -53,6 +53,7 @@ pub struct ConnectParamsBuilder {
 
 impl ConnectParamsBuilder {
     /// Creates a new builder.
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -111,6 +112,7 @@ impl ConnectParamsBuilder {
     }
 
     /// Whether TLS or a plain TCP connection is to be used.
+    #[must_use]
     pub fn is_tls(&self) -> bool {
         !matches!(self.tls, Tls::Off)
     }
@@ -243,41 +245,49 @@ impl ConnectParamsBuilder {
     }
 
     /// Returns the configured hostname.
+    #[must_use]
     pub fn get_hostname(&self) -> Option<&str> {
         self.hostname.as_deref()
     }
 
     /// Returns the configured database user.
+    #[must_use]
     pub fn get_dbuser(&self) -> Option<&str> {
         self.dbuser.as_deref()
     }
 
     /// Returns the configured password.
+    #[must_use]
     pub fn get_password(&self) -> Option<&SecUtf8> {
         self.password.as_ref()
     }
 
     /// Returns the configured port number.
+    #[must_use]
     pub fn get_port(&self) -> Option<u16> {
         self.port
     }
 
     /// Returns the configured client locale.
+    #[must_use]
     pub fn get_clientlocale(&self) -> Option<&str> {
         self.clientlocale.as_deref()
     }
 
     /// Returns the configured database name.
+    #[must_use]
     pub fn get_dbname(&self) -> Option<&str> {
         self.dbname.as_deref()
     }
 
     /// Returns the configured network group.
+    #[must_use]
     pub fn get_networkgroup(&self) -> Option<&str> {
         self.network_group.as_deref()
     }
 
     /// Returns the configured variants for validating the server certificate.
+    #[must_use]
     pub fn get_server_certs(&self) -> Option<&Vec<ServerCerts>> {
         match self.tls {
             Tls::Secure(ref sc) => Some(sc),

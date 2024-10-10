@@ -13,8 +13,6 @@
 #![deny(clippy::all)]
 #![deny(clippy::pedantic)]
 #![allow(clippy::module_name_repetitions)]
-#![allow(clippy::must_use_candidate)]
-#![allow(clippy::ref_option)]
 #![cfg_attr(not(any(feature = "sync", feature = "async")), allow(unused_imports))]
 #![cfg_attr(not(any(feature = "sync", feature = "async")), allow(dead_code))]
 

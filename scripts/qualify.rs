@@ -68,13 +68,13 @@ fn main() {
     run_command!("cargo build --package hdbconnect --all-features --release");
     run_command!("cargo build --package hdbconnect_async --all-features --release");
 
-    // Clippy in important variants
+    // Clippy in important variants (+nightly removed due to errors in clippy)
     run_command!(
-        "cargo +nightly clippy --all-targets --package hdbconnect \
+        "cargo clippy --all-targets --package hdbconnect \
                   --all-features -- -D warnings"
     );
     run_command!(
-        "cargo +nightly clippy --all-targets --package hdbconnect_async \
+        "cargo clippy --all-targets --package hdbconnect_async \
                   --all-features -- -D warnings"
     );
 

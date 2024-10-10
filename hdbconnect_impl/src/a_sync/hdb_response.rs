@@ -239,6 +239,7 @@ impl HdbResponse {
     }
 
     /// Returns the number of return values.
+    #[must_use]
     pub fn count(&self) -> usize {
         self.return_values.len()
     }

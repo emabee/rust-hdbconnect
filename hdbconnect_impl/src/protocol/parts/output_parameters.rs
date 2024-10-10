@@ -40,21 +40,25 @@ impl OutputParameters {
     }
 
     /// Returns the descriptors.
+    #[must_use]
     pub fn descriptors(&self) -> &Vec<ParameterDescriptor> {
         &(self.descriptors)
     }
 
     /// Converts into an iterator of the contained values.
+    #[must_use]
     pub fn into_values(self) -> Vec<HdbValue<'static>> {
         self.values
     }
 
     /// Converts into a vec of the parameter descriptors and a vec of the contained values.
+    #[must_use]
     pub fn into_descriptors_and_values(self) -> (Vec<ParameterDescriptor>, Vec<HdbValue<'static>>) {
         (self.descriptors, self.values)
     }
 
     /// Exposes a vec of the parameter descriptors and a vec of the contained values.
+    #[must_use]
     pub fn as_descriptors_and_values(
         &self,
     ) -> (&Vec<ParameterDescriptor>, &Vec<HdbValue<'static>>) {

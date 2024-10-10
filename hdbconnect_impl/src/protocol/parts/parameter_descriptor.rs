@@ -22,16 +22,19 @@ impl ParameterDescriptors {
     }
 
     /// Returns true if at least one IN or INOUT parameter is contained.
+    #[must_use]
     pub fn has_in(&self) -> bool {
         self.iter_in().next().is_some()
     }
 
     /// Returns number of contained descriptors.
+    #[must_use]
     pub fn len(&self) -> usize {
         self.0.len()
     }
 
     /// Returns true exactly if the lsit is empty.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
@@ -107,6 +110,7 @@ impl ParameterDescriptor {
     }
 
     /// Describes whether a parameter can be NULL or not, or if it has a default value.
+    #[must_use]
     pub fn binding(&self) -> ParameterBinding {
         self.binding
     }
@@ -114,6 +118,7 @@ impl ParameterDescriptor {
     /// Returns true if the column can contain NULL values.
     ///
     /// Is a shortcut for matching against the parameter binding.
+    #[must_use]
     pub fn is_nullable(&self) -> bool {
         matches!(self.binding, ParameterBinding::Optional)
     }
@@ -121,39 +126,47 @@ impl ParameterDescriptor {
     /// Returns true if the column has a default value.
     ///
     /// Is a shortcut for matching against the parameter binding.
+    #[must_use]
     pub fn has_default(&self) -> bool {
         matches!(self.binding, ParameterBinding::HasDefault)
     }
 
     /// Returns true if the column is auto-incremented.
+    #[must_use]
     pub fn is_auto_incremented(&self) -> bool {
         self.auto_incremented
     }
     // 6 = ArrayType
     /// Returns true if the parameter is of array type
+    #[must_use]
     pub fn is_array_type(&self) -> bool {
         self.array_type
     }
 
     /// Returns the type id of the parameter.
+    #[must_use]
     pub fn type_id(&self) -> TypeId {
         self.type_id
     }
 
     /// Scale.
+    #[must_use]
     pub fn scale(&self) -> i16 {
         self.scale
     }
     /// Precision.
+    #[must_use]
     pub fn precision(&self) -> i16 {
         self.precision
     }
     /// Describes whether a parameter is used for input, output, or both.
+    #[must_use]
     pub fn direction(&self) -> ParameterDirection {
         self.direction.clone()
     }
 
     /// Returns the name of the parameter.
+    #[must_use]
     pub fn name(&self) -> Option<&str> {
         self.name.as_deref()
     }

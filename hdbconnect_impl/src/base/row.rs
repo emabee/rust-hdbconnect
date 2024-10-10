@@ -63,12 +63,14 @@ impl Row {
     }
 
     /// Returns the length of the row.
+    #[must_use]
     pub fn len(&self) -> usize {
         trace!("Row::len()");
         self.value_iter.len()
     }
 
     /// Returns true if the row contains no value.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.value_iter.as_slice().is_empty()
     }
@@ -89,6 +91,7 @@ impl Row {
     }
 
     /// Returns the metadata.
+    #[must_use]
     pub fn metadata(&self) -> &ResultSetMetadata {
         trace!("Row::metadata()");
         &(self.metadata)

@@ -163,6 +163,7 @@ impl HdbValue<'_> {
     }
 
     /// Returns true if the value is a NULL value.
+    #[must_use]
     pub fn is_null(&self) -> bool {
         matches!(*self, HdbValue::NULL)
     }

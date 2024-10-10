@@ -80,6 +80,7 @@ impl ConnectionStatistics {
 
     /// Returns the number of roundtrips to the database that were done through this connection
     /// since the last reset.
+    #[must_use]
     pub fn call_count(&self) -> u32 {
         self.sequence_number - self.reset_base
     }
@@ -87,36 +88,43 @@ impl ConnectionStatistics {
     /// Returns the total wait time, from start of serializing a request until receiving a reply,
     /// for all roundtrips to the database that were done through this connection
     /// since the last reset.
+    #[must_use]
     pub fn accumulated_wait_time(&self) -> std::time::Duration {
         self.wait_time
     }
 
     /// Returns the number of outgoing requests that were compressed.
+    #[must_use]
     pub fn compressed_requests_count(&self) -> u32 {
         self.compressed_requests_count
     }
 
     /// Returns the accumulated size of compressed requests (without message and segment header).
+    #[must_use]
     pub fn compressed_requests_compressed_size(&self) -> u64 {
         self.compressed_requests_compressed_size
     }
 
     /// Returns the accumulated uncompressed size (without message and segment header) of compressed requests.
+    #[must_use]
     pub fn compressed_requests_uncompressed_size(&self) -> u64 {
         self.compressed_requests_uncompressed_size
     }
 
     /// Returns the number of incoming replies that were compressed.
+    #[must_use]
     pub fn compressed_replies_count(&self) -> u32 {
         self.compressed_replies_count
     }
 
     /// Returns the accumulated size of compressed replies (without message and segment header).
+    #[must_use]
     pub fn compressed_replies_compressed_size(&self) -> u64 {
         self.compressed_replies_compressed_size
     }
 
     /// Returns the accumulated uncompressed size (without message and segment header) of compressed replies.
+    #[must_use]
     pub fn compressed_replies_uncompressed_size(&self) -> u64 {
         self.compressed_replies_uncompressed_size
     }

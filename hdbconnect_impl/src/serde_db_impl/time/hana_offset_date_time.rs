@@ -38,6 +38,7 @@ use time::{format_description::FormatItem, macros::format_description, OffsetDat
 pub struct HanaOffsetDateTime(OffsetDateTime);
 impl HanaOffsetDateTime {
     /// Consumes the `HanaOffsetDateTime`, returning the wrapped `OffsetDateTime`.
+    #[must_use]
     pub fn into_inner(self) -> OffsetDateTime {
         self.0
     }

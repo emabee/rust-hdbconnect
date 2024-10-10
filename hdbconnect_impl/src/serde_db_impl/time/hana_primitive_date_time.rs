@@ -33,6 +33,7 @@ use time::{format_description::FormatItem, macros::format_description, Primitive
 pub struct HanaPrimitiveDateTime(pub PrimitiveDateTime);
 impl HanaPrimitiveDateTime {
     /// Consumes the `HanaPrimitiveDateTime`, returning the wrapped `PrimitiveDateTime`.
+    #[must_use]
     pub fn into_inner(self) -> PrimitiveDateTime {
         self.0
     }

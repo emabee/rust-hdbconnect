@@ -160,6 +160,7 @@ impl ResultSet {
     ///     // evaluate metadata of a field
     /// }
     /// ```
+    #[must_use]
     pub fn metadata(&self) -> Arc<ResultSetMetadata> {
         Arc::clone(&self.metadata)
     }

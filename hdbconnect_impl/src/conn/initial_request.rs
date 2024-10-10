@@ -66,7 +66,7 @@ pub(crate) async fn send_and_receive_async(tcp_client: &mut TcpClient) -> HdbRes
                 .await
                 .map_err(|e| HdbError::TlsInit {
                     source: Box::new(e),
-                })?
+                })?;
         }
         TcpClient::Dead { .. } => unreachable!(),
         #[cfg(feature = "sync")]

@@ -101,6 +101,7 @@ impl ConnectParams {
     }
 
     /// Returns a new builder for `ConnectParams`.
+    #[must_use]
     pub fn builder() -> ConnectParamsBuilder {
         ConnectParamsBuilder::new()
     }
@@ -126,6 +127,7 @@ impl ConnectParams {
     }
 
     /// The `ServerCerts`.
+    #[must_use]
     pub fn server_certs(&self) -> Option<&Vec<ServerCerts>> {
         match self.tls {
             Tls::Secure(ref certs) => Some(certs),
@@ -134,45 +136,54 @@ impl ConnectParams {
     }
 
     /// The host.
+    #[must_use]
     pub fn host(&self) -> &str {
         &self.host
     }
 
     /// The socket address.
+    #[must_use]
     pub fn addr(&self) -> &str {
         &self.addr
     }
 
     /// Whether TLS or a plain TCP connection is to be used.
+    #[must_use]
     pub fn is_tls(&self) -> bool {
         !matches!(self.tls, Tls::Off)
     }
 
     /// The database user.
+    #[must_use]
     pub fn dbuser(&self) -> &str {
         self.dbuser.as_str()
     }
 
     /// The password.
+    #[must_use]
     pub fn password(&self) -> &SecUtf8 {
         &self.password
     }
 
     /// The client locale.
+    #[must_use]
     pub fn clientlocale(&self) -> Option<&str> {
         self.clientlocale.as_deref()
     }
 
+    #[must_use]
     pub(crate) fn compression(&self) -> Compression {
         self.compression
     }
 
     /// The name of the (MDC) database.
+    #[must_use]
     pub fn dbname(&self) -> Option<&str> {
         self.dbname.as_deref()
     }
 
     /// The name of a network group.
+    #[must_use]
     pub fn network_group(&self) -> Option<&str> {
         self.network_group.as_deref()
     }

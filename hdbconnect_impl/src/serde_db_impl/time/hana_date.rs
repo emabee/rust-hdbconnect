@@ -35,6 +35,7 @@ use time::{format_description::FormatItem, macros::format_description, Date};
 pub struct HanaDate(pub Date);
 impl HanaDate {
     /// Consumes the `HanaDate`, returning the wrapped `Date`.
+    #[must_use]
     pub fn into_inner(self) -> Date {
         self.0
     }

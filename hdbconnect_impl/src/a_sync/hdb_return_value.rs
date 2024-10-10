@@ -82,6 +82,7 @@ impl HdbReturnValue {
     }
 
     /// Returns true if the statement had returned successfully.
+    #[must_use]
     pub fn is_success(&self) -> bool {
         match *self {
             Self::Success => true,

@@ -57,16 +57,19 @@ impl ServerUsage {
     }
 
     /// Server processing time
+    #[must_use]
     pub fn proc_time(&self) -> &Duration {
         &self.proc_time
     }
 
     /// Accumulated server processing time
+    #[must_use]
     pub fn accum_proc_time(&self) -> &Duration {
         &self.accum_proc_time
     }
 
     /// Server memory usage
+    #[must_use]
     pub fn server_memory_usage(&self) -> &u64 {
         &self.server_memory_usage
     }

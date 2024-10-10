@@ -189,6 +189,7 @@ impl HdbError {
     ///     # Ok(())
     /// # }
     /// ```
+    #[must_use]
     pub fn server_error(&self) -> Option<&ServerError> {
         match self {
             Self::DbError {
@@ -199,16 +200,16 @@ impl HdbError {
     }
 
     /// Reveal the inner error
+    #[must_use]
     pub fn inner(&self) -> Option<&dyn std::error::Error> {
         match self {
             Self::Authentication { source } => Some(source),
             Self::Deserialization { source } => Some(source),
             Self::Serialization { source } => Some(source),
-            Self::ConnParams { source } => Some(&**source),
+            Self::ConnParams { source } | Self::TlsInit { source } => Some(&**source),
             Self::DbError { source } => Some(source),
             Self::Decompression { source } => Some(source),
             Self::TlsInvalidDnsName { source } => Some(source),
-            Self::TlsInit { source } => Some(&**source),
             Self::Io { source } => Some(source),
             Self::TlsProtocol { source } => Some(source),
             _ => None,
@@ -227,6 +228,7 @@ impl HdbError {
     }
 
     /// Returns a decently formed and hopefully helpful error description.
+    #[must_use]
     pub fn display_with_inner(&self) -> String {
         if let Some(e) = self.inner() {
             format!("{}, caused by {:?}", &self, e)

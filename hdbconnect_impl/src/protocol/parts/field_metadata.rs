@@ -94,6 +94,7 @@ impl FieldMetadata {
     }
 
     /// Returns the id of the value type.
+    #[must_use]
     pub fn type_id(&self) -> TypeId {
         self.inner.type_id
     }
@@ -107,6 +108,7 @@ impl FieldMetadata {
     }
 
     /// True if column can contain NULL values.
+    #[must_use]
     pub fn is_nullable(&self) -> bool {
         (self.inner.column_options & 0b_0000_0010_u8) != 0
     }
@@ -114,6 +116,7 @@ impl FieldMetadata {
     /// The length or the precision of the value.
     ///
     /// Is `-1` for LOB types.
+    #[must_use]
     pub fn precision(&self) -> i16 {
         self.inner.precision
     }
@@ -121,26 +124,31 @@ impl FieldMetadata {
     /// The scale of the value.
     ///
     /// Is `0` for all types where a scale does not make sense.
+    #[must_use]
     pub fn scale(&self) -> i16 {
         self.inner.scale
     }
 
     /// Returns true if the column has a default value.
+    #[must_use]
     pub fn has_default(&self) -> bool {
         (self.inner.column_options & 0b_0000_0100_u8) != 0
     }
 
     ///  Returns true if the column is read-only.
+    #[must_use]
     pub fn is_read_only(&self) -> bool {
         (self.inner.column_options & 0b_0100_0000_u8) != 0
     }
 
     /// Returns true if the column is auto-incremented.
+    #[must_use]
     pub fn is_auto_incremented(&self) -> bool {
         (self.inner.column_options & 0b_0010_0000_u8) != 0
     }
 
     /// Returns true if the column is of array type.
+    #[must_use]
     pub fn is_array_type(&self) -> bool {
         (self.inner.column_options & 0b_0100_0000_u8) != 0
     }
