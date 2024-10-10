@@ -7,6 +7,14 @@ use thiserror::Error;
 #[derive(Error, Debug)] //
 #[non_exhaustive]
 pub enum HdbError {
+    /// Initialization without TLS failed.
+    #[error("Initialization without TLS failed")]
+    Initialization {
+        /// The causing Error.
+        source: Box<dyn std::error::Error + Send + Sync>,
+        // backtrace: Backtrace,
+    },
+
     /// Authentication failed.
     #[error("Authentication failed")]
     Authentication {
@@ -82,10 +90,10 @@ pub enum HdbError {
     },
 
     /// TLS initialization error
-    #[error("Connection setup failed due to bad TLS configuration")]
+    #[error("Connection setup failed due to failing TLS initialization")]
     TlsInit {
         /// The causing Error.
-        source: std::io::Error,
+        source: Box<dyn std::error::Error + Send + Sync>,
     },
 
     /// TLS protocol error.
@@ -200,7 +208,8 @@ impl HdbError {
             Self::DbError { source } => Some(source),
             Self::Decompression { source } => Some(source),
             Self::TlsInvalidDnsName { source } => Some(source),
-            Self::TlsInit { source } | Self::Io { source } => Some(source),
+            Self::TlsInit { source } => Some(&**source),
+            Self::Io { source } => Some(source),
             Self::TlsProtocol { source } => Some(source),
             _ => None,
         }

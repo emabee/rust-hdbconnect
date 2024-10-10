@@ -21,7 +21,9 @@ impl AsyncTlsTcpClient {
         let tls_stream = tls_connector
             .connect(server_name, tcp_stream)
             .await
-            .map_err(|e| HdbError::TlsInit { source: e })?;
+            .map_err(|e| HdbError::TlsInit {
+                source: Box::new(e),
+            })?;
         Ok(AsyncTlsTcpClient { params, tls_stream })
     }
 

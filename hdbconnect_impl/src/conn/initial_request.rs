@@ -13,10 +13,14 @@ pub(crate) fn send_and_receive_sync(sync_tcp_connection: &mut TcpClient) -> HdbR
     trace!("send_and_receive_sync(): send");
     match sync_tcp_connection {
         TcpClient::SyncPlain(ref mut pc) => {
-            emit_initial_request_sync(pc.writer())?;
+            emit_initial_request_sync(pc.writer()).map_err(|e| HdbError::Initialization {
+                source: Box::new(e),
+            })?;
         }
         TcpClient::SyncTls(ref mut tc) => {
-            emit_initial_request_sync(tc.writer()).map_err(|e| HdbError::TlsInit { source: e })?;
+            emit_initial_request_sync(tc.writer()).map_err(|e| HdbError::TlsInit {
+                source: Box::new(e),
+            })?;
         }
         TcpClient::Dead { .. } => unreachable!(),
         #[cfg(feature = "async")]
@@ -24,12 +28,17 @@ pub(crate) fn send_and_receive_sync(sync_tcp_connection: &mut TcpClient) -> HdbR
     }
 
     trace!("send_and_receive(): receive");
+    // ignore the response content
     match sync_tcp_connection {
         TcpClient::SyncPlain(ref mut pc) => {
-            util_sync::skip_bytes(8, pc.reader()) // ignore the response content
+            util_sync::skip_bytes(8, pc.reader()).map_err(|e| HdbError::Initialization {
+                source: Box::new(e),
+            })
         }
         TcpClient::SyncTls(ref mut tc) => {
-            util_sync::skip_bytes(8, tc.reader()) // ignore the response content
+            util_sync::skip_bytes(8, tc.reader()).map_err(|e| HdbError::TlsInit {
+                source: Box::new(e),
+            })
         }
         TcpClient::Dead { .. } => unreachable!(),
         #[cfg(feature = "async")]
@@ -47,10 +56,18 @@ pub(crate) fn send_and_receive_sync(sync_tcp_connection: &mut TcpClient) -> HdbR
 pub(crate) async fn send_and_receive_async(tcp_client: &mut TcpClient) -> HdbResult<()> {
     trace!("send_and_receive_async(): send");
     match tcp_client {
-        TcpClient::AsyncPlain(ref mut pa) => emit_initial_request_async(pa.writer()).await?,
-        TcpClient::AsyncTls(ref mut ta) => emit_initial_request_async(ta.writer())
+        TcpClient::AsyncPlain(ref mut pa) => emit_initial_request_async(pa.writer())
             .await
-            .map_err(|e| HdbError::TlsInit { source: e })?,
+            .map_err(|e| HdbError::Initialization {
+                source: Box::new(e),
+            })?,
+        TcpClient::AsyncTls(ref mut ta) => {
+            emit_initial_request_async(ta.writer())
+                .await
+                .map_err(|e| HdbError::TlsInit {
+                    source: Box::new(e),
+                })?
+        }
         TcpClient::Dead { .. } => unreachable!(),
         #[cfg(feature = "sync")]
         _ => unreachable!("Sync connections not supported here"),
@@ -59,8 +76,20 @@ pub(crate) async fn send_and_receive_async(tcp_client: &mut TcpClient) -> HdbRes
     trace!("send_and_receive_async(): receive");
     // ignore the response content
     match tcp_client {
-        TcpClient::AsyncPlain(tc) => util_async::skip_bytes(8, tc.reader()).await,
-        TcpClient::AsyncTls(ta) => util_async::skip_bytes(8, ta.reader()).await,
+        TcpClient::AsyncPlain(tc) => {
+            util_async::skip_bytes(8, tc.reader())
+                .await
+                .map_err(|e| HdbError::Initialization {
+                    source: Box::new(e),
+                })
+        }
+        TcpClient::AsyncTls(ta) => {
+            util_async::skip_bytes(8, ta.reader())
+                .await
+                .map_err(|e| HdbError::TlsInit {
+                    source: Box::new(e),
+                })
+        }
         TcpClient::Dead { .. } => unreachable!(),
         #[cfg(feature = "sync")]
         _ => unreachable!("Sync connections not supported here"),
