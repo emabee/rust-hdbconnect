@@ -84,7 +84,7 @@ impl Connection {
 
     /// Executes a statement and expects a single `ResultSet`.
     ///
-    /// Should be used for query statements (like "SELECT ...") which return a single resultset.
+    /// Should be used for query statements (like "SELECT ...") which return a single result set.
     ///
     /// # Example
     ///
@@ -105,7 +105,7 @@ impl Connection {
     ///
     /// Several variants of `HdbError` can occur.
     pub fn query<S: AsRef<str>>(&self, stmt: S) -> HdbResult<ResultSet> {
-        self.statement(stmt)?.into_resultset()
+        self.statement(stmt)?.into_result_set()
     }
 
     /// Executes a statement and expects a single number of affected rows.

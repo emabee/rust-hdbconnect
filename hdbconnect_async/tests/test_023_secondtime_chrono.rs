@@ -73,7 +73,7 @@ async fn test_secondtime(_loghandle: &mut LoggerHandle, connection: &Connection)
         let typed_result: i32 = prep_stmt
             .execute_batch()
             .await?
-            .into_resultset()?
+            .into_result_set()?
             .try_into()
             .await?;
         assert_eq!(typed_result, 31);

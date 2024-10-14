@@ -200,9 +200,9 @@ async fn read(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbRes
     {
         info!("read non-null values and evaluate directly");
         let q = "select * from TEST_TYPES_A where id = 1";
-        let mut resultset = connection.query(q).await?;
-        debug!("resultset: {:?}", resultset);
-        let row = resultset.next_row().await?.unwrap();
+        let mut result_set = connection.query(q).await?;
+        debug!("result set: {:?}", result_set);
+        let row = result_set.next_row().await?.unwrap();
         for value in row {
             assert!(!value.is_null());
         }

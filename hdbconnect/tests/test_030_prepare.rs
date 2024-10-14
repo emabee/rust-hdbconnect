@@ -8,7 +8,7 @@ use log::{debug, info};
 use serde::Deserialize;
 
 // Test prepared statements, transactional correctness,
-// incl. parameter serialization (and resultset deserialization)
+// incl. parameter serialization (and result set deserialization)
 
 #[test] // cargo test --test test_030_prepare -- --nocapture
 pub fn test_030_prepare() -> HdbResult<()> {
@@ -221,7 +221,7 @@ fn prepare_select_with_pars(
             "select sum(F2_I) from TEST_PREPARE where F2_I > ?",
             &(45_i32),
         )?
-        .into_resultset()?
+        .into_result_set()?
         .try_into()?;
     assert_eq!(sum_of_big_values, 286_i64);
     Ok(())
@@ -236,12 +236,12 @@ fn prepare_select_without_pars(
     let mut stmt = connection.prepare(stmt_str)?;
 
     // two ways to do the same
-    let resultset = stmt.execute(&())?.into_resultset()?;
-    let sum_of_big_values: i64 = resultset.try_into()?;
+    let result_set = stmt.execute(&())?.into_result_set()?;
+    let sum_of_big_values: i64 = result_set.try_into()?;
     assert_eq!(sum_of_big_values, 501_i64);
 
-    let resultset = stmt.execute_batch()?.into_resultset()?;
-    let sum_of_big_values: i64 = resultset.try_into()?;
+    let result_set = stmt.execute_batch()?.into_result_set()?;
+    let sum_of_big_values: i64 = result_set.try_into()?;
     assert_eq!(sum_of_big_values, 501_i64);
 
     Ok(())
@@ -255,7 +255,7 @@ fn prepare_and_execute_with_fetch(
 
     let rs = connection
         .prepare_and_execute("select * from M_TABLES", &())?
-        .into_resultset()?;
+        .into_result_set()?;
     //force fetch
     for row in rs {
         let _row = row?;

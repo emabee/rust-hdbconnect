@@ -47,9 +47,9 @@ fn test_tiny_int(_log_handle: &mut LoggerHandle, connection: &Connection) -> Hdb
     insert_stmt.execute(&(1i64))?;
 
     debug!("query...");
-    let resultset = connection.query(QUERY)?;
+    let result_set = connection.query(QUERY)?;
     debug!("deserialize...");
-    let rows: Vec<usize> = resultset.try_into()?;
+    let rows: Vec<usize> = result_set.try_into()?;
     assert_eq!(rows, vec![1, 1, 1, 1, 1, 1, 1, 1]);
 
     assert_eq!(
@@ -165,9 +165,9 @@ fn test_small_int(_log_handle: &mut LoggerHandle, connection: &Connection) -> Hd
 
     debug!("query...");
     let query = QUERY;
-    let resultset = connection.query(query)?;
+    let result_set = connection.query(query)?;
     debug!("deserialize...");
-    let rows: Vec<usize> = resultset.try_into()?;
+    let rows: Vec<usize> = result_set.try_into()?;
     assert_eq!(rows, vec![1, 1, 1, 1, 1, 1, 1, 1]);
 
     assert_eq!(
@@ -291,9 +291,9 @@ fn test_integer(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbR
 
     debug!("query...");
     let query = QUERY;
-    let resultset = connection.query(query)?;
+    let result_set = connection.query(query)?;
     debug!("deserialize...");
-    let rows: Vec<usize> = resultset.try_into()?;
+    let rows: Vec<usize> = result_set.try_into()?;
     assert_eq!(rows, vec![1, 1, 1, 1, 1, 1, 1, 1]);
 
     assert_eq!(
@@ -410,9 +410,9 @@ fn test_big_int(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbR
 
     debug!("query...");
     let query = QUERY;
-    let resultset = connection.query(query)?;
+    let result_set = connection.query(query)?;
     debug!("deserialize...");
-    let rows: Vec<usize> = resultset.try_into()?;
+    let rows: Vec<usize> = result_set.try_into()?;
     assert_eq!(rows, vec![1, 1, 1, 1, 1, 1, 1, 1]);
 
     assert_eq!(
@@ -535,9 +535,9 @@ fn test_decimal(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbR
     insert_stmt.execute(&(1i64))?;
 
     debug!("query...");
-    let resultset = connection.query(QUERY)?;
+    let result_set = connection.query(QUERY)?;
     debug!("deserialize...");
-    let rows: Vec<usize> = resultset.try_into()?;
+    let rows: Vec<usize> = result_set.try_into()?;
     assert_eq!(rows, vec![1, 1, 1, 1, 1, 1, 1, 1]);
 
     assert_eq!(

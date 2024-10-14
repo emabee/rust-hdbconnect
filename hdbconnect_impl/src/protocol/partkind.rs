@@ -5,12 +5,12 @@ use crate::{HdbError, HdbResult};
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub(crate) enum PartKind {
     Command = 3,                // SQL Command Data
-    ResultSet = 5,              // Tabular resultset data
+    ResultSet = 5,              // Tabular result set data
     Error = 6,                  // Error information
     StatementId = 10,           // Prepared statement identifier
     TransactionId = 11,         // Transaction identifier
     ExecutionResult = 12,       // Number of affected rows of dml statement
-    ResultSetId = 13,           // Identifier of resultset
+    ResultSetId = 13,           // Identifier of result set
     TopologyInformation = 15,   // Topology information
     TableLocation = 16,         // Location of table data
     ReadLobRequest = 17,        // Request data of READLOB message
@@ -37,7 +37,7 @@ pub(crate) enum PartKind {
     TransactionFlags = 64,      // Transaction handling flags
     DbConnectInfo = 67,         // Part of redirect response
     LobFlags = 68,              // LOB flags
-    ResultsetOptions = 69,      // Additional context data for result sets
+    ResultSetOptions = 69,      // Additional context data for result sets
     XatOptions = 70,            // XA transaction information (XA transaction ID)
     SessionVariable = 71,       // undocumented
     WorkloadReplayContext = 72, // undocumented
@@ -80,7 +80,7 @@ impl PartKind {
             64 => Ok(Self::TransactionFlags),
             67 => Ok(Self::DbConnectInfo),
             68 => Ok(Self::LobFlags),
-            69 => Ok(Self::ResultsetOptions),
+            69 => Ok(Self::ResultSetOptions),
             70 => Ok(Self::XatOptions),
             71 => Ok(Self::SessionVariable),
             72 => Ok(Self::WorkloadReplayContext),

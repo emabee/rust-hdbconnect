@@ -1,7 +1,7 @@
 use crate::{HdbError, HdbValue, OutputParameters, ParameterDescriptor, Row, Rows};
 use bigdecimal::ToPrimitive;
 use serde_db::de::{
-    ConversionError, DbValue, DbValueInto, DeserializableResultset, DeserializableRow,
+    ConversionError, DbValue, DbValueInto, DeserializableResultSet, DeserializableRow,
     DeserializationError, DeserializationResult,
 };
 use std::{
@@ -9,9 +9,9 @@ use std::{
     num::{ParseFloatError, ParseIntError},
 };
 
-impl DeserializableResultset for Rows {
-    type ROW = Row;
-    type E = DeserializationError;
+impl DeserializableResultSet for Rows {
+    type Row = Row;
+    type Error = DeserializationError;
 
     fn has_multiple_rows(&mut self) -> Result<bool, DeserializationError> {
         Ok(self.number_of_rows > 1)
@@ -25,14 +25,14 @@ impl DeserializableResultset for Rows {
         self.metadata.len()
     }
 
-    fn fieldname(&self, i: usize) -> Option<&str> {
+    fn field_name(&self, i: usize) -> Option<&str> {
         Some(self.metadata[i].displayname())
     }
 }
 
 impl DeserializableRow for Row {
-    type V = HdbValue<'static>;
-    type E = DeserializationError;
+    type Value = HdbValue<'static>;
+    type Error = DeserializationError;
 
     fn len(&self) -> usize {
         self.len()
@@ -46,7 +46,7 @@ impl DeserializableRow for Row {
         self.metadata().len()
     }
 
-    fn fieldname(&self, field_idx: usize) -> Option<&str> {
+    fn field_name(&self, field_idx: usize) -> Option<&str> {
         Some(self.metadata()[field_idx].displayname())
     }
 }
@@ -66,8 +66,8 @@ impl DeserializableOutputParameters {
 }
 
 impl DeserializableRow for DeserializableOutputParameters {
-    type V = HdbValue<'static>;
-    type E = DeserializationError;
+    type Value = HdbValue<'static>;
+    type Error = DeserializationError;
 
     fn len(&self) -> usize {
         self.value_iter.len()
@@ -81,7 +81,7 @@ impl DeserializableRow for DeserializableOutputParameters {
         self.descriptors.len()
     }
 
-    fn fieldname(&self, field_idx: usize) -> Option<&str> {
+    fn field_name(&self, field_idx: usize) -> Option<&str> {
         self.descriptors
             .get(field_idx)
             .and_then(ParameterDescriptor::name)

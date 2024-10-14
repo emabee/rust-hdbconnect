@@ -248,32 +248,32 @@ impl RsState {
     #[cfg(feature = "sync")]
     pub(crate) fn single_row_sync(&mut self) -> HdbResult<Row> {
         if self.has_multiple_rows_sync() {
-            Err(HdbError::Usage("Resultset has more than one row"))
+            Err(HdbError::Usage("result set has more than one row"))
         } else {
             Ok(self
                 .next_row_no_fetch()
-                .ok_or_else(|| HdbError::Usage("Resultset is empty"))?)
+                .ok_or_else(|| HdbError::Usage("result set is empty"))?)
         }
     }
     #[cfg(feature = "async")]
     pub async fn single_row_async(&mut self) -> HdbResult<Row> {
         if self.has_multiple_rows_async().await {
-            Err(HdbError::Usage("Resultset has more than one row"))
+            Err(HdbError::Usage("result set has more than one row"))
         } else {
             Ok(self
                 .next_row_no_fetch()
-                .ok_or_else(|| HdbError::Usage("Resultset is empty"))?)
+                .ok_or_else(|| HdbError::Usage("result set is empty"))?)
         }
     }
 
-    // Returns true if the resultset contains more than one row.
+    // Returns true if the result set contains more than one row.
     #[cfg(feature = "sync")]
     pub(crate) fn has_multiple_rows_sync(&self) -> bool {
         let is_complete = self.is_complete_sync().unwrap_or(false);
         !is_complete || (self.next_rows.len() + self.row_iter.len() > 1)
     }
     #[cfg(feature = "async")]
-    // Returns true if the resultset contains more than one row.
+    // Returns true if the result set contains more than one row.
     pub async fn has_multiple_rows_async(&self) -> bool {
         let is_complete = self.is_complete_async().await.unwrap_or(false);
         !is_complete || (self.next_rows.len() + self.row_iter.len() > 1)
@@ -282,17 +282,17 @@ impl RsState {
     #[cfg(feature = "sync")]
     fn fetch_next_sync(&mut self, a_rsmd: &Arc<ResultSetMetadata>) -> HdbResult<()> {
         trace!("ResultSet::fetch_next()");
-        let (am_conn_core, resultset_id) = {
+        let (am_conn_core, result_set_id) = {
             let rs_core = self.rs_core_sync()?;
             let am_conn_core = rs_core.am_conn_core().clone();
-            (am_conn_core, rs_core.resultset_id())
+            (am_conn_core, rs_core.result_set_id())
         };
         let fetch_size = { am_conn_core.lock_sync()?.configuration().fetch_size() };
 
-        // build the request, provide resultset-id and fetch-size
+        // build the request, provide result set id and fetch-size
         debug!("ResultSet::fetch_next() with fetch_size = {}", fetch_size);
         let mut request = Request::new(MessageType::FetchNext, CommandOptions::EMPTY);
-        request.push(Part::ResultSetId(resultset_id));
+        request.push(Part::ResultSetId(result_set_id));
         request.push(Part::FetchSize(fetch_size));
         let mut reply =
             am_conn_core.full_send_sync(request, Some(a_rsmd), None, &mut Some(self))?;
@@ -311,22 +311,22 @@ impl RsState {
     #[cfg(feature = "async")]
     pub async fn fetch_next_async(&mut self, a_rsmd: &Arc<ResultSetMetadata>) -> HdbResult<()> {
         trace!("ResultSet::fetch_next()");
-        let (conn_core, resultset_id, fetch_size) = {
+        let (conn_core, result_set_id, fetch_size) = {
             // scope the borrow
             if let Some(ref am_rscore) = self.o_am_rscore {
                 let rs_core = am_rscore.lock_async().await;
                 let am_conn_core = rs_core.am_conn_core().clone();
                 let fetch_size = { am_conn_core.lock_async().await.configuration().fetch_size() };
-                (am_conn_core, rs_core.resultset_id(), fetch_size)
+                (am_conn_core, rs_core.result_set_id(), fetch_size)
             } else {
                 return Err(HdbError::Impl("Fetch no more possible"));
             }
         };
 
-        // build the request, provide resultset-id and fetch-size
+        // build the request, provide result set id and fetch-size
         debug!("ResultSet::fetch_next() with fetch_size = {}", fetch_size);
         let mut request = Request::new(MessageType::FetchNext, CommandOptions::EMPTY);
-        request.push(Part::ResultSetId(resultset_id));
+        request.push(Part::ResultSetId(result_set_id));
         request.push(Part::FetchSize(fetch_size));
 
         let mut reply = conn_core
@@ -351,7 +351,7 @@ impl RsState {
             let rs_core = am_rscore.lock_sync()?;
             let attributes = rs_core.attributes();
             if (!attributes.is_last_packet())
-                && (attributes.row_not_found() || attributes.resultset_is_closed())
+                && (attributes.row_not_found() || attributes.result_set_is_closed())
             {
                 Err(HdbError::Impl(
                     "ResultSet attributes inconsistent: incomplete, but already closed on server",
@@ -369,7 +369,7 @@ impl RsState {
             let rs_core = am_rscore.lock_async().await;
             if (!rs_core.attributes().is_last_packet())
                 && (rs_core.attributes().row_not_found()
-                    || rs_core.attributes().resultset_is_closed())
+                    || rs_core.attributes().result_set_is_closed())
             {
                 Err(HdbError::Impl(
                     "ResultSet attributes inconsistent: incomplete, but already closed on server",
@@ -382,7 +382,7 @@ impl RsState {
         }
     }
 
-    // resultsets can be part of the response in three cases which differ
+    // result sets can be part of the response in three cases which differ
     // in regard to metadata handling:
     //
     // a) a response to a plain "execute" will contain the metadata in one of the
@@ -392,10 +392,10 @@ impl RsState {
     //    the metadata had beeen returned already to the "prepare" call, and are
     //    provided with parameter metadata
     //
-    // c) a response to a "fetch more lines" is triggered from an older resultset
+    // c) a response to a "fetch more lines" is triggered from an older result set
     //    which already has its metadata
     //
-    // For first resultset packets, we create and return a new ResultSet object.
+    // For first result set packets, we create and return a new ResultSet object.
     // We then expect the previous three parts to be
     // a matching ResultSetMetadata, a ResultSetId, and a StatementContext.
     #[cfg(feature = "sync")]

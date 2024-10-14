@@ -7,7 +7,7 @@ use dist_tx::XaTransactionId;
 /// An enum that describes a single database return value.
 #[derive(Debug)]
 pub enum HdbReturnValue {
-    /// A resultset of a query.
+    /// A result set of a query.
     ResultSet(crate::sync::ResultSet),
     /// A list of numbers of affected rows.
     AffectedRows(Vec<usize>),
@@ -20,12 +20,12 @@ pub enum HdbReturnValue {
     XaTransactionIds(Vec<XaTransactionId>),
 }
 impl HdbReturnValue {
-    /// Turns itself into a single resultset.
+    /// Turns itself into a single result set.
     ///
     /// # Errors
     ///
     /// `HdbError::Evaluation` for other variants than `HdbReturnValue::ResultSet`.
-    pub fn into_resultset(self) -> HdbResult<crate::sync::ResultSet> {
+    pub fn into_result_set(self) -> HdbResult<crate::sync::ResultSet> {
         match self {
             Self::ResultSet(rs) => Ok(rs),
             _ => Err(HdbError::Evaluation("Not a HdbReturnValue::ResultSet")),

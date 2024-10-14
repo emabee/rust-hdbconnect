@@ -76,7 +76,7 @@ async fn test_daydate(_loghandle: &mut LoggerHandle, connection: &Connection) ->
         trace!("calling execute_batch()");
         let response = prep_stmt.execute_batch().await?;
 
-        let typed_result: i32 = response.into_resultset()?.try_into().await?;
+        let typed_result: i32 = response.into_result_set()?.try_into().await?;
         assert_eq!(typed_result, 31);
     }
 

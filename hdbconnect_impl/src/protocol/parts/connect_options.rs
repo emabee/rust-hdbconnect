@@ -393,7 +393,7 @@ pub enum ConnOptId {
     ItabParameter,                // 24 // bool option to signal abap itab parameter support
     DescribeTableOutputParameter, // 25 // overrides in this session "omit table output parameter"
     ColumnarResultSet,            // 26 // column wise result passing
-    ScrollableResultSet,          // 27 // scrollable resultset
+    ScrollableResultSet,          // 27 // scrollable result set
     ClientInfoNullValueOK,        // 28 // can handle null values in client info
     AssociatedConnectionID,       // 29 // associated connection id
     NonTransactionalPrepare,      // 30 // can handle and uses non-transactional prepare

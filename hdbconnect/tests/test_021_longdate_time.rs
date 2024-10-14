@@ -136,7 +136,7 @@ fn test_longdate(_loghandle: &mut LoggerHandle, connection: &Connection) -> HdbR
             primitive_datetime_values[2].to_hana(),
             offset_datetime_values[3].to_hana(),
         ))?;
-        assert_eq!(response.into_resultset()?.try_into::<i32>()?, 31);
+        assert_eq!(response.into_result_set()?.try_into::<i32>()?, 31);
     }
 
     {

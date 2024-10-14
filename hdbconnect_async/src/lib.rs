@@ -11,8 +11,8 @@
 //!
 //! `hdbconnect_async` interoperates elegantly with all data types that implement the standard
 //! `serde::Serialize` and/or `serde::Deserialize` traits, for input and output respectively.
-//! So, instead of iterating over a resultset by rows and columns, you can
-//! assign the complete resultset directly to any rust structure that fits the data
+//! So, instead of iterating over a result set by rows and columns, you can
+//! assign the complete result set directly to any rust structure that fits the data
 //! semantics.
 //!
 //! `hdbconnect_async` implements this with the help of [`serde_db`](https://docs.rs/serde_db),

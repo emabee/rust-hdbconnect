@@ -80,10 +80,10 @@ fn test_nclobs(
     debug!("and read it back");
     connection.reset_statistics()?;
     let query = "select desc, chardata as CL1, chardata as CL2 from TEST_NCLOBS";
-    let resultset = connection.query(query)?;
+    let result_set = connection.query(query)?;
 
     debug!("and convert it into a rust struct");
-    let mydata: MyData = resultset.try_into()?;
+    let mydata: MyData = result_set.try_into()?;
     debug!(
         "reading two big NCLOB with lob-read-length {} required {} roundtrips",
         connection.lob_read_length()?,
@@ -101,8 +101,8 @@ fn test_nclobs(
     // try again with smaller lob-read-length
     connection.set_lob_read_length(77_000)?;
     connection.reset_statistics()?;
-    let resultset = connection.query(query)?;
-    let second: MyData = resultset.try_into()?;
+    let result_set = connection.query(query)?;
+    let second: MyData = result_set.try_into()?;
     debug!(
         "reading two big NCLOB with lob-read-length {} required {} roundtrips",
         connection.lob_read_length()?,
@@ -211,10 +211,10 @@ fn test_bytes_to_nclobs(
 
     debug!("and read it back");
     let query = "select chardata, chardata from TEST_NCLOBS_BYTES";
-    let resultset = connection.query(query)?;
+    let result_set = connection.query(query)?;
     debug!("and convert it into a rust string");
 
-    let mydata: (String, String) = resultset.try_into()?;
+    let mydata: (String, String) = result_set.try_into()?;
 
     // verify we get in both cases the same value back
     assert_eq!(mydata.0, test_string);
@@ -249,11 +249,11 @@ fn test_loblifecycle(
     let lobs: Vec<hdbconnect::HdbValue> = {
         let mut read_stmt =
             connection.prepare("select chardata from TEST_NCLOBS2 where desc like ?")?;
-        let rs = read_stmt.execute(&"blabla %")?.into_resultset()?;
+        let rs = read_stmt.execute(&"blabla %")?.into_result_set()?;
         rs.map(|r| r.unwrap().next_value().unwrap()).collect()
     };
 
-    debug!("Statements and Resultset are dropped");
+    debug!("Statements and result set are dropped");
 
     for value in lobs.into_iter() {
         debug!("fetching a lob");

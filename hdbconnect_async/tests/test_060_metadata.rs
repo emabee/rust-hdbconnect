@@ -72,7 +72,7 @@ async fn test_procedure_metadata(
     assert_eq!(pd1.precision(), 40);
     assert_eq!(pd1.direction(), ParameterDirection::OUT);
 
-    let mut rs: ResultSet = response.get_resultset()?;
+    let mut rs: ResultSet = response.get_result_set()?;
     let row: Row = rs.next_row().await?.unwrap();
     assert_eq!(row[0], 42_i32);
     assert_eq!(row[1], "is between 41 and 43");

@@ -45,4 +45,4 @@ pub fn main() -> HdbResult<()> {
     Ok(())
 }
 // readability AND safety:
-// no boilerplate for error handling, API safety, direct assignment of resultset
+// no boilerplate for error handling, API safety, direct assignment of result set

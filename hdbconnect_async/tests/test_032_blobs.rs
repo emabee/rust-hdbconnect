@@ -92,8 +92,8 @@ async fn test_blobs(
     // and read it back
     connection.reset_statistics().await;
     let query = "select desc, bindata as BL1, bindata as BL2 , bindata_NN as BL3 from TEST_BLOBS";
-    let resultset = connection.query(query).await?;
-    let mydata: MyData = resultset.try_into().await?;
+    let result_set = connection.query(query).await?;
+    let mydata: MyData = result_set.try_into().await?;
     info!(
         "reading 2x5MB BLOB with lob-read-length {} required {} roundtrips",
         connection.lob_read_length().await,
@@ -109,8 +109,8 @@ async fn test_blobs(
     // try again with small lob-read-length
     connection.set_lob_read_length(10_000).await;
     connection.reset_statistics().await;
-    let resultset = connection.query(query).await?;
-    let second: MyData = resultset.try_into().await?;
+    let result_set = connection.query(query).await?;
+    let second: MyData = result_set.try_into().await?;
     info!(
         "reading 2x5MB BLOB with lob-read-length {} required {} roundtrips",
         connection.lob_read_length().await,

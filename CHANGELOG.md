@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.29.0] 2024-10-13
+
+Switch to `serde_db` `0.12` and adopt its improved naming.
+
 ## [0.28.7] 2024-10-09
 
 Fix implementation of url-option "insecure_omit_server_certificate_check".
@@ -511,7 +515,7 @@ Added missing docu for new methods that were introduced in 0.4.1
 
 ## [0.4.1] 2017-11-28
 
-Correct and extend the evaluation of ColumnOptions in resultset metadata and
+Correct and extend the evaluation of ColumnOptions in result set metadata and
 ParameterOptions in parameter metadata
 
 ## [0.4.0] 2017-11-26

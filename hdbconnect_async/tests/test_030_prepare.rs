@@ -8,7 +8,7 @@ use log::{debug, info};
 use serde::Deserialize;
 
 // Test prepared statements, transactional correctness,
-// incl. parameter serialization (and resultset deserialization)
+// incl. parameter serialization (and result set deserialization)
 
 #[tokio::test] // cargo test --test test_030_prepare -- --nocapture
 pub async fn test_030_prepare() -> HdbResult<()> {
@@ -235,7 +235,7 @@ async fn prepare_select_with_pars(
             &(45_i32),
         )
         .await?
-        .into_resultset()?
+        .into_result_set()?
         .try_into()
         .await?;
     assert_eq!(sum_of_big_values, 286_i64);
@@ -251,12 +251,12 @@ async fn prepare_select_without_pars(
     let mut stmt = connection.prepare(stmt_str).await?;
 
     // two ways to do the same
-    let resultset = stmt.execute(&()).await?.into_resultset()?;
-    let sum_of_big_values: i64 = resultset.try_into().await?;
+    let result_set = stmt.execute(&()).await?.into_result_set()?;
+    let sum_of_big_values: i64 = result_set.try_into().await?;
     assert_eq!(sum_of_big_values, 501_i64);
 
-    let resultset = stmt.execute_batch().await?.into_resultset()?;
-    let sum_of_big_values: i64 = resultset.try_into().await?;
+    let result_set = stmt.execute_batch().await?.into_result_set()?;
+    let sum_of_big_values: i64 = result_set.try_into().await?;
     assert_eq!(sum_of_big_values, 501_i64);
 
     Ok(())
@@ -271,7 +271,7 @@ async fn prepare_and_execute_with_fetch(
     let _rs = connection
         .prepare_and_execute("select * from M_TABLES", &())
         .await?
-        .into_resultset()?
+        .into_result_set()?
         .into_rows()
         .await?;
     Ok(())

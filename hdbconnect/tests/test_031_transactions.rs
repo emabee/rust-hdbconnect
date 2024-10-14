@@ -75,10 +75,10 @@ fn write1_read2(
     connection1.commit()?;
 
     let get_checksum = |conn: &mut Connection| {
-        let resultset = conn
+        let result_set = conn
             .query("select sum(nmbr) from TEST_TRANSACTIONS")
             .unwrap();
-        let checksum: usize = resultset.try_into().unwrap();
+        let checksum: usize = result_set.try_into().unwrap();
         checksum
     };
 

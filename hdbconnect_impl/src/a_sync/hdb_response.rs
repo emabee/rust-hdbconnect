@@ -14,7 +14,7 @@ use crate::{
 /// ([`HdbReturnValue`](crate::HdbReturnValue)), each of which
 /// can be
 ///
-/// * a resultset of a query
+/// * a result set of a query
 /// * a list of numbers of affected rows
 /// * output parameters of a procedure call
 /// * just an indication that a db call was successful
@@ -33,14 +33,14 @@ use crate::{
 /// # let query_string = "";
 ///   let response: HdbResponse = connection.statement(query_string).await?;
 ///
-///   // We know that our simple query can only return a single resultset
-///   let rs = response.into_resultset()?;  // ResultSet
+///   // We know that our simple query can only return a single result set
+///   let rs = response.into_result_set()?;  // ResultSet
 /// # Ok(())
 /// # }
 ///   ```
 ///
 /// Procedure calls e.g. can yield complex database responses.
-/// Such an `HdbResponse` can consist e.g. of multiple resultsets and some output parameters.
+/// Such an `HdbResponse` can consist e.g. of multiple result sets and some output parameters.
 /// It is then necessary to evaluate the `HdbResponse` in an appropriate way,
 /// e.g. by iterating over the database response values.
 ///
@@ -55,7 +55,7 @@ use crate::{
 ///
 ///   for ret_val in response {
 ///       match ret_val {
-///           HdbReturnValue::ResultSet(rs) => println!("Got a resultset: {:?}", rs),
+///           HdbReturnValue::ResultSet(rs) => println!("Got a result set: {:?}", rs),
 ///           HdbReturnValue::AffectedRows(affected_rows) => {
 ///               println!("Got some affected rows counters: {:?}", affected_rows)
 ///           }
@@ -91,7 +91,7 @@ impl HdbResponse {
         );
         match replytype {
                 ReplyType::Select |
-                ReplyType::SelectForUpdate => Self::resultset(int_return_values),
+                ReplyType::SelectForUpdate => Self::result_set(int_return_values),
 
                 ReplyType::Connect |
                 ReplyType::Ddl |
@@ -132,7 +132,7 @@ impl HdbResponse {
             }
     }
 
-    fn resultset(int_return_values: Vec<InternalReturnValue>) -> HdbResult<Self> {
+    fn result_set(int_return_values: Vec<InternalReturnValue>) -> HdbResult<Self> {
         match single(int_return_values)? {
             InternalReturnValue::RsState((rs_state, a_rsmd)) => Ok(Self {
                 return_values: vec![HdbReturnValue::ResultSet(ResultSet::new(a_rsmd, rs_state))],
@@ -244,13 +244,13 @@ impl HdbResponse {
         self.return_values.len()
     }
 
-    /// Turns itself into a single resultset.
+    /// Turns itself into a single result set.
     ///
     /// # Errors
     ///
     /// `HdbError::Evaluation` if information would get lost.
-    pub fn into_resultset(self) -> HdbResult<ResultSet> {
-        self.into_single_retval()?.into_resultset()
+    pub fn into_result_set(self) -> HdbResult<ResultSet> {
+        self.into_single_retval()?.into_result_set()
     }
 
     /// Turns itself into a Vector of numbers (each number representing a
@@ -322,15 +322,15 @@ impl HdbResponse {
     /// # Errors
     ///
     /// `HdbError` if there is no further `ResultSet`.
-    pub fn get_resultset(&mut self) -> HdbResult<ResultSet> {
-        if let Some(i) = self.find_resultset() {
-            self.return_values.remove(i).into_resultset()
+    pub fn get_result_set(&mut self) -> HdbResult<ResultSet> {
+        if let Some(i) = self.find_result_set() {
+            self.return_values.remove(i).into_result_set()
         } else {
-            Err(self.get_err("resultset"))
+            Err(self.get_err("result set"))
         }
     }
 
-    fn find_resultset(&self) -> Option<usize> {
+    fn find_result_set(&self) -> Option<usize> {
         for (i, rt) in self.return_values.iter().enumerate().rev() {
             if let HdbReturnValue::ResultSet(_) = *rt {
                 return Some(i);
@@ -412,11 +412,11 @@ fn single(int_return_values: Vec<InternalReturnValue>) -> HdbResult<InternalRetu
 
     match int_return_values.len() {
         0 => Err(HdbError::Impl(
-            "Nothing found, but a single Resultset was expected",
+            "Nothing found, but a single ResultSet was expected",
         )),
         1 => Ok(int_return_values.pop().unwrap(/*cannot fail*/)),
         _ => Err(HdbError::ImplDetailed(format!(
-            "resultset(): Too many InternalReturnValue(s) received: {int_return_values:?}",
+            "single(): Too many InternalReturnValue(s) received: {int_return_values:?}",
         ))),
     }
 }

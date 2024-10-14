@@ -84,7 +84,7 @@ async fn client_info(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
     let result: Vec<SessCtx> = prep_stmt
         .execute(&connection_id)
         .await?
-        .into_resultset()?
+        .into_result_set()?
         .try_into()
         .await?;
     check_session_context(true, &result);
@@ -98,7 +98,7 @@ async fn client_info(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
     let result: Vec<SessCtx> = prep_stmt
         .execute(&connection_id)
         .await?
-        .into_resultset()?
+        .into_result_set()?
         .try_into()
         .await?;
     check_session_context(false, &result);
@@ -107,20 +107,20 @@ async fn client_info(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
     let _result: Vec<SessCtx> = prep_stmt
         .execute(&connection_id)
         .await?
-        .into_resultset()?
+        .into_result_set()?
         .try_into()
         .await?;
 
     let _result: Vec<SessCtx> = prep_stmt
         .execute(&connection_id)
         .await?
-        .into_resultset()?
+        .into_result_set()?
         .try_into()
         .await?;
     let result: Vec<SessCtx> = prep_stmt
         .execute(&connection_id)
         .await?
-        .into_resultset()?
+        .into_result_set()?
         .try_into()
         .await?;
     check_session_context(false, &result);
@@ -199,8 +199,8 @@ async fn select_version_and_user(connection: &Connection) -> HdbResult<()> {
 
     let stmt = r#"SELECT VERSION as "version", CURRENT_USER as "current_user" FROM SYS.M_DATABASE"#;
     debug!("calling connection.query(SELECT VERSION as ...)");
-    let resultset = connection.query(stmt).await?;
-    let version_and_user: VersionAndUser = resultset.try_into().await?;
+    let result_set = connection.query(stmt).await?;
+    let version_and_user: VersionAndUser = result_set.try_into().await?;
     let conn_params: ConnectParams = test_utils::get_std_cp_builder()?.into_connect_params()?;
     assert_eq!(
         version_and_user.current_user,
@@ -235,7 +235,7 @@ async fn command_info(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
     let _result: Vec<SessCtx> = connection
         .execute_with_debuginfo(stmt, "BLABLA", 4711)
         .await?
-        .into_resultset()?
+        .into_result_set()?
         .try_into()
         .await?;
 

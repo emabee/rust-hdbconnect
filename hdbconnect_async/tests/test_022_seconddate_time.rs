@@ -149,7 +149,7 @@ async fn test_seconddate(_loghandle: &mut LoggerHandle, connection: &Connection)
                 offset_datetime_values[3].to_hana(),
             ))
             .await?;
-        assert_eq!(response.into_resultset()?.try_into::<i32>().await?, 31);
+        assert_eq!(response.into_result_set()?.try_into::<i32>().await?, 31);
     }
 
     {

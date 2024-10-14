@@ -84,7 +84,7 @@ fn test_timestamp(_log_handle: &mut LoggerHandle, connection: &Connection) -> Hd
         // Enforce that NaiveDateTime values are converted in the client (with serde) to the DB type:
         prep_stmt.add_batch(&(naive_datetime_values[2], naive_datetime_values[3]))?;
         let response = prep_stmt.execute_batch()?;
-        let typed_result: i32 = response.into_resultset()?.try_into()?;
+        let typed_result: i32 = response.into_result_set()?.try_into()?;
         assert_eq!(typed_result, 31);
 
         info!("test the conversion DateTime<Utc> -> DB");
@@ -93,7 +93,7 @@ fn test_timestamp(_log_handle: &mut LoggerHandle, connection: &Connection) -> Hd
 
         // Enforce that UTC timestamps values are converted here in the client to the DB type:
         prep_stmt.add_batch(&(utc2, utc3))?;
-        let typed_result: i32 = prep_stmt.execute_batch()?.into_resultset()?.try_into()?;
+        let typed_result: i32 = prep_stmt.execute_batch()?.into_result_set()?.try_into()?;
         assert_eq!(typed_result, 31_i32);
     }
 

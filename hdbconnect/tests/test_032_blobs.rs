@@ -84,8 +84,8 @@ fn test_blobs(
     // and read it back
     connection.reset_statistics()?;
     let query = "select desc, bindata as BL1, bindata as BL2 , bindata_NN as BL3 from TEST_BLOBS";
-    let resultset = connection.query(query)?;
-    let mydata: MyData = resultset.try_into()?;
+    let result_set = connection.query(query)?;
+    let mydata: MyData = result_set.try_into()?;
     info!(
         "reading 2x5MB BLOB with lob-read-length {} required {} roundtrips",
         connection.lob_read_length()?,
@@ -101,8 +101,8 @@ fn test_blobs(
     // try again with small lob-read-length
     connection.set_lob_read_length(10_000)?;
     connection.reset_statistics()?;
-    let resultset = connection.query(query)?;
-    let second: MyData = resultset.try_into()?;
+    let result_set = connection.query(query)?;
+    let second: MyData = result_set.try_into()?;
     info!(
         "reading 2x5MB BLOB with lob-read-length {} required {} roundtrips",
         connection.lob_read_length()?,

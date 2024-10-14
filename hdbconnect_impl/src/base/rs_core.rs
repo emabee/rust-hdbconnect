@@ -7,35 +7,35 @@ use std::sync::Arc;
 
 // Keeps the connection core and eventually a prepared statement core alive.
 // (Note: if either of these is dropped, then the respective server representation will be dropped,
-// which would break the owning resultset if it is not yet fully fetched)
+// which would break the owning result set if it is not yet fully fetched)
 #[derive(Debug)]
 pub(crate) struct RsCore {
     am_conn_core: AmConnCore,
     o_am_pscore: OAM<PreparedStatementCore>,
     // todo: move attributes into RsState to reduce locking
     attributes: PartAttributes,
-    resultset_id: u64,
+    result_set_id: u64,
 }
 
 impl RsCore {
     pub(super) fn new(
         am_conn_core: &AmConnCore,
         attributes: PartAttributes,
-        resultset_id: u64,
+        result_set_id: u64,
     ) -> Self {
         Self {
             am_conn_core: am_conn_core.clone(),
             o_am_pscore: None,
             attributes,
-            resultset_id,
+            result_set_id,
         }
     }
 
     pub(super) fn am_conn_core(&self) -> &AmConnCore {
         &self.am_conn_core
     }
-    pub(super) fn resultset_id(&self) -> u64 {
-        self.resultset_id
+    pub(super) fn result_set_id(&self) -> u64 {
+        self.result_set_id
     }
     pub(super) fn inject_ps_core(&mut self, am_ps_core: Arc<XMutexed<PreparedStatementCore>>) {
         self.o_am_pscore = Some(am_ps_core);
@@ -49,11 +49,11 @@ impl RsCore {
 }
 
 impl Drop for RsCore {
-    // inform the server in case the resultset is not yet closed, ignore all errors
+    // inform the server in case the result set is not yet closed, ignore all errors
     fn drop(&mut self) {
-        let rs_id = self.resultset_id;
-        trace!("RsCore::drop(), resultset_id {}", rs_id);
-        if !self.attributes.resultset_is_closed() {
+        let rs_id = self.result_set_id;
+        trace!("RsCore::drop(), result_set_id {}", rs_id);
+        if !self.attributes.result_set_is_closed() {
             #[cfg(feature = "sync")]
             {
                 let mut request = Request::new(MessageType::CloseResultSet, CommandOptions::EMPTY);

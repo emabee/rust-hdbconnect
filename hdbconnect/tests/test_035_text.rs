@@ -43,9 +43,9 @@ fn test_text(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbResu
     insert_stmt.execute(&(test_text, test_text))?;
 
     debug!("query...");
-    let resultset = connection.query("select chardata, chardata_nn FROM TEST_TEXT")?;
+    let result_set = connection.query("select chardata, chardata_nn FROM TEST_TEXT")?;
     debug!("deserialize...");
-    let ret_text: (Option<String>, String) = resultset.try_into()?;
+    let ret_text: (Option<String>, String) = result_set.try_into()?;
     assert_eq!(test_text, ret_text.0.expect("expected string but got None"));
     assert_eq!(test_text, ret_text.1);
 

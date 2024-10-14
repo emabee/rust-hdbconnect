@@ -61,8 +61,8 @@ impl NCLob {
     /// # let params = "".into_connect_params()?;
     /// # let mut connection = Connection::new(params)?;
     /// # let query = "";
-    ///  let mut resultset = connection.query(query)?;
-    ///  let mut nclob = resultset.into_single_row()?.into_single_value()?.try_into_nclob()?;
+    ///  let mut result_set = connection.query(query)?;
+    ///  let mut nclob = result_set.into_single_row()?.into_single_value()?.try_into_nclob()?;
     ///  let s = nclob.into_string(); // String, can be huge
     /// # Ok(())
     /// # }
@@ -85,8 +85,8 @@ impl NCLob {
     ///  # writer = Vec::<u8>::new();
     ///
     ///  # let query = "";
-    ///  # let mut resultset = connection.query(query)?;
-    ///  # let mut nclob = resultset.into_single_row()?.into_single_value()?.try_into_nclob()?;
+    ///  # let mut result_set = connection.query(query)?;
+    ///  # let mut nclob = result_set.into_single_row()?.into_single_value()?.try_into_nclob()?;
     ///  std::io::copy(&mut nclob, &mut writer)?;
     /// # Ok(())
     /// # }

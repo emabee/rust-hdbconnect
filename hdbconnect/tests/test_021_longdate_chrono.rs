@@ -95,7 +95,7 @@ fn test_longdate(_loghandle: &mut LoggerHandle, connection: &Connection) -> HdbR
         // debug!("2nd Parameter Descriptor: {:?}", pds[1]);
         // assert_eq!(pds.len(), 2);
 
-        let typed_result: i32 = response.into_resultset()?.try_into()?;
+        let typed_result: i32 = response.into_result_set()?.try_into()?;
         assert_eq!(typed_result, 31);
 
         info!("test the conversion DateTime<Utc> -> LongDate -> wire -> DB");
@@ -105,7 +105,7 @@ fn test_longdate(_loghandle: &mut LoggerHandle, connection: &Connection) -> HdbR
         // Enforce that UTC timestamps values are converted here in the client to the DB type:
         let typed_result: i32 = prep_stmt
             .execute(&(utc2, utc3))?
-            .into_resultset()?
+            .into_result_set()?
             .try_into()?;
         assert_eq!(typed_result, 31_i32);
     }

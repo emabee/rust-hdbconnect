@@ -21,7 +21,7 @@ mod partition_information;
 mod read_lob_reply;
 mod read_lob_request;
 
-mod resultset_metadata;
+mod result_set_metadata;
 mod server_error;
 mod session_context;
 mod statement_context;
@@ -64,7 +64,7 @@ pub use self::{
     parameter_descriptor::{
         ParameterBinding, ParameterDescriptor, ParameterDescriptors, ParameterDirection,
     },
-    resultset_metadata::ResultSetMetadata,
+    result_set_metadata::ResultSetMetadata,
     server_error::{ServerError, Severity},
     type_id::TypeId,
 };

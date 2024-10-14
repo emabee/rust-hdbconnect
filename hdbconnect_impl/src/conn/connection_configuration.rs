@@ -31,7 +31,7 @@ impl Default for ConnectionConfiguration {
     }
 }
 impl ConnectionConfiguration {
-    /// Default value for the number of resultset lines that are fetched with a single FETCH roundtrip.
+    /// Default value for the number of result set lines that are fetched with a single FETCH roundtrip.
     ///
     /// The value can be changed at runtime with `Connection::set_fetch_size()`.
     pub const DEFAULT_FETCH_SIZE: u32 = 10_000u32;

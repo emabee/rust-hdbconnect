@@ -94,7 +94,7 @@ fits to your statement, see below).
 # let query = "SELECT foo FROM bar";
 let response = connection.statement(query).await?; // HdbResponse
 # #[allow(unused_variables)]
-let resultset: ResultSet = response.into_resultset()?; // ResultSet
+let result_set: ResultSet = response.into_result_set()?; // ResultSet
 # Ok(())
 # }
 ```
@@ -118,7 +118,7 @@ which convert the database response directly into a simpler result type:
 # async fn foo() -> HdbResult<()> {
 # let mut connection = Connection::new("...").await?;
 let qry = "SELECT foo FROM bar";
-let resultset = connection.query(qry).await?; // ResultSet
+let result_set = connection.query(qry).await?; // ResultSet
 # Ok(())
 # }
 ```
@@ -167,7 +167,7 @@ let mut stmt = connection
     .prepare("select NAME, CITY from PEOPLE where iq > ? and age > ?")
     .await?;
 stmt.add_batch(&(100_u8, 45_i32))?;
-let resultset: ResultSet = stmt.execute_batch().await?.into_resultset()?;
+let result_set: ResultSet = stmt.execute_batch().await?.into_result_set()?;
 # Ok(())
 # }
 ```
@@ -181,8 +181,8 @@ When iterating over the rows, the result set will implicitly fetch all outstandi
 # async fn foo() -> HdbResult<()> {
 # let mut connection = Connection::new("...").await?;
 # let qry = "";
-# let mut resultset = connection.query(qry).await?;
-while let Some(row) = resultset.next_row().await? {
+# let mut result_set = connection.query(qry).await?;
+while let Some(row) = result_set.next_row().await? {
     println!("First field: {:?}", row[0]);
 }
 # Ok(())
@@ -193,9 +193,9 @@ Such a streaming-like behavior is especially appropriate for large result sets.
 
 ## Result set evaluation with `try_into()`
 
-While it is possible to iterate over the rows of a resultset and then retrieve each value
+While it is possible to iterate over the rows of a result set and then retrieve each value
 in each row individually, this driver offers a much more convenient way -
-the method `try_into()` allows assigning the resultset directly to some appropriate rust data type
+the method `try_into()` allows assigning the resul tset directly to some appropriate rust data type
 of your choice!
 
 `try_into()` is available on [`HdbValue`], [`Row`], and [`ResultSet`],
@@ -212,8 +212,8 @@ You _can_ retrieve the field values of a row individually, one after the other:
 # async fn foo() -> HdbResult<()> {
 # let mut connection = Connection::new("...").await?;
 # let qry = "";
-# let resultset = connection.query(qry).await?;
-for mut row in resultset.into_rows().await? {
+# let result_set = connection.query(qry).await?;
+for mut row in result_set.into_rows().await? {
 # #[allow(unused_variables)]
     let f1: String = row.next_try_into()?;
 # #[allow(unused_variables)]
@@ -366,8 +366,8 @@ insert_stmt.add_batch(&(Bytes::new(&*raw_data)))?;
 # async fn foo() -> HdbResult<()> {
 # let qry = "";
 # let mut connection = Connection::new("...").await?;
-# let resultset: ResultSet = connection.query(qry).await?;
-let bindata: serde_bytes::ByteBuf = resultset.try_into().await?; // single binary field
+# let result_set: ResultSet = connection.query(qry).await?;
+let bindata: serde_bytes::ByteBuf = result_set.try_into().await?; // single binary field
 let first_byte = bindata[0];
 # Ok(())
 # }
@@ -425,9 +425,9 @@ use hdbconnect_async::types::NCLob;
 # async fn foo() -> HdbResult<()> {
 # let query = "";
 # let mut connection = Connection::new("...").await?;
-# let mut resultset: ResultSet = connection.query(query).await?;
+# let mut result_set: ResultSet = connection.query(query).await?;
 # let mut writer: Vec<u8> = vec![];
-let mut nclob: NCLob = resultset
+let mut nclob: NCLob = result_set
                           .into_single_row().await?
                           .into_single_value()?
                           .try_into_async_nclob()?;

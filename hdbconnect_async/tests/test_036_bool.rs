@@ -45,10 +45,10 @@ async fn test_text(_logger_handle: &mut LoggerHandle, connection: &Connection) -
     insert_stmt.execute_batch().await?;
 
     debug!("trying query");
-    let resultset = connection.query("select * FROM TEST_BOOL").await?;
-    debug!("trying deserialize result set: {:?}", resultset);
+    let result_set = connection.query("select * FROM TEST_BOOL").await?;
+    debug!("trying deserialize result set: {:?}", result_set);
     let tuple: (Option<bool>, Option<bool>, Option<bool>, bool, bool) =
-        resultset.try_into().await?;
+        result_set.try_into().await?;
     assert_eq!(Some(true), tuple.0);
     assert_eq!(Some(false), tuple.1);
     assert_eq!(None, tuple.2);

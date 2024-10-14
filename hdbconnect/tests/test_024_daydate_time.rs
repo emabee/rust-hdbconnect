@@ -71,7 +71,7 @@ fn test_daydate(_loghandle: &mut LoggerHandle, connection: &Connection) -> HdbRe
         trace!("calling execute_batch()");
         let response = prep_stmt.execute_batch()?;
 
-        let typed_result: i32 = response.into_resultset()?.try_into()?;
+        let typed_result: i32 = response.into_result_set()?.try_into()?;
         assert_eq!(typed_result, 31);
     }
 

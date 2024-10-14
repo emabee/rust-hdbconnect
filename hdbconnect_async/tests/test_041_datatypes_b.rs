@@ -200,9 +200,9 @@ async fn read(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbRes
     {
         info!("read non-null values and evaluate via serde_db");
         let q = "select * from TEST_TYPES_B where id = 1";
-        let resultset = connection.query(q).await?;
-        debug!("resultset: {}", resultset);
-        let data: Data = resultset.try_into().await?;
+        let result_set = connection.query(q).await?;
+        debug!("result set: {}", result_set);
+        let data: Data = result_set.try_into().await?;
         trace!("data: {:?}", data);
     }
     {
@@ -214,9 +214,9 @@ async fn read(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbRes
     {
         info!("read non-null values and evaluate directly");
         let q = "select * from TEST_TYPES_B where id = 1";
-        let mut resultset = connection.query(q).await?;
-        debug!("resultset: {}", resultset);
-        let row = resultset.next_row().await?.unwrap();
+        let mut result_set = connection.query(q).await?;
+        debug!("result set: {}", result_set);
+        let row = result_set.next_row().await?.unwrap();
         for value in row {
             assert!(!value.is_null());
         }

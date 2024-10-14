@@ -42,9 +42,9 @@ fn test_text(_logger_handle: &mut LoggerHandle, connection: &Connection) -> HdbR
     insert_stmt.execute_batch()?;
 
     debug!("trying query");
-    let resultset = connection.query("select * FROM TEST_BOOL")?;
-    debug!("trying deserialize result set: {:?}", resultset);
-    let tuple: (Option<bool>, Option<bool>, Option<bool>, bool, bool) = resultset.try_into()?;
+    let result_set = connection.query("select * FROM TEST_BOOL")?;
+    debug!("trying deserialize result set: {:?}", result_set);
+    let tuple: (Option<bool>, Option<bool>, Option<bool>, bool, bool) = result_set.try_into()?;
     assert_eq!(Some(true), tuple.0);
     assert_eq!(Some(false), tuple.1);
     assert_eq!(None, tuple.2);

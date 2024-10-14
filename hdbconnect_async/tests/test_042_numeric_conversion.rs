@@ -51,9 +51,9 @@ async fn test_tiny_int(_log_handle: &mut LoggerHandle, connection: &Connection) 
     insert_stmt.execute(&(1i64)).await?;
 
     debug!("query...");
-    let resultset = connection.query(QUERY).await?;
+    let result_set = connection.query(QUERY).await?;
     debug!("deserialize...");
-    let rows: Vec<usize> = resultset.try_into().await?;
+    let rows: Vec<usize> = result_set.try_into().await?;
     assert_eq!(rows, vec![1, 1, 1, 1, 1, 1, 1, 1]);
 
     assert_eq!(
@@ -293,9 +293,9 @@ async fn test_small_int(_log_handle: &mut LoggerHandle, connection: &Connection)
 
     debug!("query...");
     let query = QUERY;
-    let resultset = connection.query(query).await?;
+    let result_set = connection.query(query).await?;
     debug!("deserialize...");
-    let rows: Vec<usize> = resultset.try_into().await?;
+    let rows: Vec<usize> = result_set.try_into().await?;
     assert_eq!(rows, vec![1, 1, 1, 1, 1, 1, 1, 1]);
 
     assert_eq!(
@@ -543,9 +543,9 @@ async fn test_integer(_log_handle: &mut LoggerHandle, connection: &Connection) -
 
     debug!("query...");
     let query = QUERY;
-    let resultset = connection.query(query).await?;
+    let result_set = connection.query(query).await?;
     debug!("deserialize...");
-    let rows: Vec<usize> = resultset.try_into().await?;
+    let rows: Vec<usize> = result_set.try_into().await?;
     assert_eq!(rows, vec![1, 1, 1, 1, 1, 1, 1, 1]);
 
     assert_eq!(
@@ -786,9 +786,9 @@ async fn test_big_int(_log_handle: &mut LoggerHandle, connection: &Connection) -
 
     debug!("query...");
     let query = QUERY;
-    let resultset = connection.query(query).await?;
+    let result_set = connection.query(query).await?;
     debug!("deserialize...");
-    let rows: Vec<usize> = resultset.try_into().await?;
+    let rows: Vec<usize> = result_set.try_into().await?;
     assert_eq!(rows, vec![1, 1, 1, 1, 1, 1, 1, 1]);
 
     assert_eq!(
@@ -1083,9 +1083,9 @@ async fn test_decimal(_log_handle: &mut LoggerHandle, connection: &Connection) -
     insert_stmt.execute(&(1i64)).await?;
 
     debug!("query...");
-    let resultset = connection.query(QUERY).await?;
+    let result_set = connection.query(QUERY).await?;
     debug!("deserialize...");
-    let rows: Vec<usize> = resultset.try_into().await?;
+    let rows: Vec<usize> = result_set.try_into().await?;
     assert_eq!(rows, vec![1, 1, 1, 1, 1, 1, 1, 1]);
 
     assert_eq!(

@@ -46,11 +46,11 @@ async fn test_text(_log_handle: &mut LoggerHandle, connection: &Connection) -> H
     insert_stmt.execute(&(test_text, test_text)).await?;
 
     debug!("query...");
-    let resultset = connection
+    let result_set = connection
         .query("select chardata, chardata_nn FROM TEST_TEXT")
         .await?;
     debug!("deserialize...");
-    let ret_text: (Option<String>, String) = resultset.try_into().await?;
+    let ret_text: (Option<String>, String) = result_set.try_into().await?;
     assert_eq!(test_text, ret_text.0.expect("expected string but got None"));
     assert_eq!(test_text, ret_text.1);
 

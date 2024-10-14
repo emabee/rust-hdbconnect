@@ -65,7 +65,7 @@ fn test_secondtime(_loghandle: &mut LoggerHandle, connection: &Connection) -> Hd
         trace!("calling add_batch()");
         prep_stmt.add_batch(&(naive_time_values[2], naive_time_values[3]))?;
         trace!("calling execute_batch()");
-        let typed_result: i32 = prep_stmt.execute_batch()?.into_resultset()?.try_into()?;
+        let typed_result: i32 = prep_stmt.execute_batch()?.into_result_set()?.try_into()?;
         assert_eq!(typed_result, 31);
     }
 

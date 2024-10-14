@@ -58,7 +58,7 @@ fn test_secondtime(_loghandle: &mut LoggerHandle, connection: &Connection) -> Hd
         let mut prep_stmt = connection
             .prepare("select sum(number) from TEST_SECONDTIME where mytime = ? or mytime = ?")?;
         prep_stmt.add_batch(&(time_values[2].to_hana(), time_values[3].to_hana()))?;
-        let typed_result: i32 = prep_stmt.execute_batch()?.into_resultset()?.try_into()?;
+        let typed_result: i32 = prep_stmt.execute_batch()?.into_result_set()?.try_into()?;
         assert_eq!(typed_result, 31);
     }
 

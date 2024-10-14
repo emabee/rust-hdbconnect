@@ -4,27 +4,39 @@ use crate::{
     HdbResult, HdbValue, Row, Rows,
 };
 
-use serde_db::de::DeserializableResultset;
+use serde_db::de::DeserializableResultSet;
 use std::sync::Arc;
 
 /// The result of a database query.
 ///
-/// This behaves essentially like a set of `Row`s, and each `Row` is a set of `HdbValue`s.
-///
-/// In fact, resultsets with a larger number of rows are not returned from the database
-/// in a single roundtrip. `ResultSet` automatically fetches outstanding data
-/// as soon as they are required.
+/// This is essentially a set of `Row`s, and each `Row` is a set of `HdbValue`s.
 ///
 /// The method [`try_into`](#method.try_into) converts the data from this generic format
 /// in a singe step into your application specific format.
 ///
-/// Due to the chunk-wise data transfer, which has to happen asynchronously,
-/// `ResultSet` cannot implement the synchronous trait `std::iter::Iterator`.
-/// Use method [`next_row()`](#method.next_row) as a replacement.
+/// `ResultSet` implements `std::iter::Iterator`, so you can
+/// directly iterate over the rows of a resultset.
+/// While iterating, the not yet transported rows are fetched "silently" on demand, which can fail.
+/// The Iterator-Item is thus not `Row`, but `HdbResult<Row>`.
+///
+/// ```rust, no_run
+/// # use hdbconnect::{Connection,ConnectParams,HdbResult};
+/// # use serde::Deserialize;
+/// # fn main() -> HdbResult<()> {
+/// # #[derive(Debug, Deserialize)]
+/// # struct Entity();
+/// # let mut connection = Connection::new(ConnectParams::builder().build()?)?;
+/// # let query_string = "";
+/// for row in connection.query(query_string)? {
+///     // handle fetch errors and convert each line individually:
+///     let entity: Entity = row?.try_into()?;
+///     println!("Got entity: {:?}", entity);
+/// }
+/// # Ok(())
+/// # }
 ///
 /// ```
 ///
-// (see also <https://rust-lang.github.io/rfcs/2996-async-iterator.html>)
 #[derive(Debug)]
 pub struct ResultSet {
     metadata: Arc<ResultSetMetadata>,
@@ -35,7 +47,7 @@ impl ResultSet {
     pub(crate) fn new(a_rsmd: Arc<ResultSetMetadata>, rs_state: RsState) -> Self {
         Self {
             metadata: a_rsmd,
-            state: Arc::new(XMutexed::new_async(rs_state)),
+            state: Arc::new(XMutexed::new_sync(rs_state)),
         }
     }
 
@@ -60,7 +72,7 @@ impl ResultSet {
     /// * If the resultset contains only a single line (e.g. because you
     ///   specified `TOP 1` in your select clause),
     ///   then you can optionally choose to deserialize directly into a plain
-    ///    `line_struct`.
+    ///   `line_struct`.
     ///
     /// * If the resultset contains only a single column, then you can
     ///   optionally choose to deserialize directly into a
@@ -96,25 +108,16 @@ impl ResultSet {
     /// # Errors
     ///
     /// `HdbError::Deserialization` if the deserialization into the target type is not possible.
-    pub async fn try_into<'de, T>(self) -> HdbResult<T>
+    pub fn try_into<'de, T>(self) -> HdbResult<T>
     where
         T: serde::de::Deserialize<'de>,
     {
         trace!("Resultset::try_into()");
-        Ok(DeserializableResultset::try_into(self.into_rows().await?)?)
-    }
-
-    /// Fetches all rows and all data of contained LOBs
-    ///
-    /// # Errors
-    ///
-    /// Various errors can occur.
-    pub async fn into_rows(self) -> HdbResult<Rows> {
-        self.state
-            .lock_async()
-            .await
-            .as_rows_async(Arc::clone(&self.metadata))
-            .await
+        let rows: Rows = self
+            .state
+            .lock_sync()?
+            .as_rows_sync(Arc::clone(&self.metadata))?;
+        Ok(DeserializableResultSet::try_into(rows)?)
     }
 
     /// Converts the resultset into a single row.
@@ -122,9 +125,9 @@ impl ResultSet {
     /// # Errors
     ///
     /// `HdbError::Usage` if the resultset contains more than a single row, or is empty.
-    pub async fn into_single_row(self) -> HdbResult<Row> {
-        let mut state = self.state.lock_async().await;
-        state.single_row_async().await
+    pub fn into_single_row(self) -> HdbResult<Row> {
+        let mut state = self.state.lock_sync()?;
+        state.single_row_sync()
     }
 
     /// Converts the resultset into a single value.
@@ -132,9 +135,9 @@ impl ResultSet {
     /// # Errors
     ///
     /// `HdbError::Usage` if the resultset contains more than a single value, or is empty.
-    pub async fn into_single_value(self) -> HdbResult<HdbValue<'static>> {
-        let mut state = self.state.lock_async().await;
-        state.single_row_async().await?.into_single_value()
+    pub fn into_single_value(self) -> HdbResult<HdbValue<'static>> {
+        let mut state = self.state.lock_sync()?;
+        state.single_row_sync()?.into_single_value()
     }
 
     /// Access to metadata.
@@ -172,45 +175,22 @@ impl ResultSet {
     /// # Errors
     ///
     /// Several variants of `HdbError` are possible.
-    pub async fn total_number_of_rows(&self) -> HdbResult<usize> {
+    pub fn total_number_of_rows(&self) -> HdbResult<usize> {
         self.state
-            .lock_async()
-            .await
-            .total_number_of_rows_async(&self.metadata)
-            .await
+            .lock_sync()?
+            .total_number_of_rows_sync(&self.metadata)
     }
 
-    /// Removes the next row and returns it, or `Ok(None)` if the `ResultSet` is empty.
+    /// Removes the next row and returns it, or None if the `ResultSet` is empty.
     ///
     /// Consequently, the `ResultSet` has one row less after the call.
     /// May need to fetch further rows from the database, which can fail.
     ///
-    /// ```rust, no_run
-    /// # use hdbconnect::{Connection,ConnectParams,HdbResult};
-    /// # use serde::Deserialize;
-    /// # fn main() -> HdbResult<()> {
-    /// # #[derive(Debug, Deserialize)]
-    /// # struct Entity();
-    /// # let mut connection = Connection::new(ConnectParams::builder().build()?)?;
-    /// # let query_str = "";
-    /// let mut rs = connection.query(query_str).await?;
-    /// while let Some(row) = rs.next_row().await? {
-    ///     let entity: Entity = row.try_into()?;
-    ///     println!("Got entity: {:?}", entity);
-    /// }
-    /// # Ok(())
-    /// # }
-    /// ```
-    ///
     /// # Errors
     ///
     /// Several variants of `HdbError` are possible.
-    pub async fn next_row(&mut self) -> HdbResult<Option<Row>> {
-        self.state
-            .lock_async()
-            .await
-            .next_row_async(&self.metadata)
-            .await
+    pub fn next_row(&mut self) -> HdbResult<Option<Row>> {
+        self.state.lock_sync()?.next_row_sync(&self.metadata)
     }
 
     /// Fetches all not yet transported result lines from the server.
@@ -224,18 +204,18 @@ impl ResultSet {
     /// # Errors
     ///
     /// Several variants of `HdbError` are possible.
-    pub async fn fetch_all(&self) -> HdbResult<()> {
-        self.state
-            .lock_async()
-            .await
-            .fetch_all_async(&self.metadata)
-            .await
+    pub fn fetch_all(&self) -> HdbResult<()> {
+        self.state.lock_sync()?.fetch_all_sync(&self.metadata)
     }
 
     /// Provides information about the the server-side resource consumption that
     /// is related to this `ResultSet` object.
-    pub async fn server_usage(&self) -> ServerUsage {
-        *self.state.lock_async().await.server_usage()
+    ///
+    /// # Errors
+    ///
+    /// Only lock poisoning can occur.
+    pub fn server_usage(&self) -> HdbResult<ServerUsage> {
+        Ok(*self.state.lock_sync()?.server_usage())
     }
 }
 
@@ -243,9 +223,25 @@ impl std::fmt::Display for ResultSet {
     // Writes a header and then the data
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         writeln!(fmt, "{}\n", &self.metadata)?;
-        // hard to do, because of the async lock we'd need to acquire
-        writeln!(fmt, "Display not implemented for async resultset\n")?;
 
+        writeln!(
+            fmt,
+            "{}",
+            self.state
+                .lock_sync()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+        )?;
         Ok(())
+    }
+}
+
+impl Iterator for ResultSet {
+    type Item = HdbResult<Row>;
+    fn next(&mut self) -> Option<HdbResult<Row>> {
+        match self.next_row() {
+            Ok(Some(row)) => Some(Ok(row)),
+            Ok(None) => None,
+            Err(e) => Some(Err(e)),
+        }
     }
 }

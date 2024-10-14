@@ -54,8 +54,8 @@ impl CLob {
     /// # let params = "".into_connect_params()?;
     /// # let mut connection = Connection::new(params)?;
     /// # let query = "";
-    ///  let mut resultset = connection.query(query)?;
-    ///  let mut clob = resultset.into_single_row().await?.into_single_value()?.try_into_clob()?;
+    ///  let mut result_set = connection.query(query)?;
+    ///  let mut clob = result_set.into_single_row().await?.into_single_value()?.try_into_clob()?;
     ///  let s = clob.into_string(); // String, can be huge
     /// # Ok(())
     /// # }

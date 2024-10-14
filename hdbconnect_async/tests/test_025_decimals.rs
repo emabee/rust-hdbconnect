@@ -103,10 +103,10 @@ async fn test_025_decimals_impl(
     insert_stmt.execute_batch().await?;
 
     info!("Read and verify decimals");
-    let resultset = connection
+    let result_set = connection
         .query("select s, d1, d2 from TEST_DECIMALS order by d1")
         .await?;
-    for row in resultset.into_rows().await? {
+    for row in result_set.into_rows().await? {
         if let HdbValue::DECIMAL(ref bd) = &row[1] {
             assert_eq!(format!("{}", &row[0]), format!("{bd}"));
         } else {
@@ -115,10 +115,10 @@ async fn test_025_decimals_impl(
     }
 
     info!("Read and verify decimals to struct");
-    let resultset = connection
+    let result_set = connection
         .query("select s, d1, d2 from TEST_DECIMALS order by d1")
         .await?;
-    let result: Vec<TestData> = resultset.try_into().await?;
+    let result: Vec<TestData> = result_set.try_into().await?;
     for td in result {
         debug!("TestData: {:?}, {:?}, {:?}", td.s, td.d1, td.d2);
         assert_eq!(td.s, td.d1.to_string());
@@ -138,10 +138,10 @@ async fn test_025_decimals_impl(
     }
 
     info!("Read and verify decimal to single value");
-    let resultset = connection
+    let result_set = connection
         .query("select AVG(dummy) from TEST_DECIMALS")
         .await?;
-    let mydata: Option<BigDecimal> = resultset.try_into().await?;
+    let mydata: Option<BigDecimal> = result_set.try_into().await?;
     assert_eq!(mydata, None);
 
     let mydata: Option<i64> = connection

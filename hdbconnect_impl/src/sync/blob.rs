@@ -55,8 +55,8 @@ impl BLob {
     /// # let params = "".into_connect_params()?;
     /// # let mut connection = Connection::new(params)?;
     /// # let query = "";
-    ///  let mut resultset = connection.query(query)?;
-    ///  let mut blob = resultset.into_single_row()?.into_single_value()?.try_into_blob()?;
+    ///  let mut result_set = connection.query(query)?;
+    ///  let mut blob = result_set.into_single_row()?.into_single_value()?.try_into_blob()?;
     ///
     ///  let b = blob.into_bytes()?; // Vec<u8>, can be huge
     /// # Ok(())

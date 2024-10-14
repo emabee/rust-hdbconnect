@@ -102,10 +102,10 @@ async fn test_clobs(
     debug!("and read it back");
     connection.reset_statistics().await;
     let query = "select desc, chardata as CL1, chardata as CL2 from TEST_CLOBS";
-    let resultset = connection.query(query).await?;
+    let result_set = connection.query(query).await?;
 
     debug!("and convert it into a rust struct");
-    let mydata: MyData = resultset.try_into().await?;
+    let mydata: MyData = result_set.try_into().await?;
     debug!(
         "reading two big CLOB with lob-read-length {} required {} roundtrips",
         connection.lob_read_length().await,
@@ -123,8 +123,8 @@ async fn test_clobs(
     // try again with smaller lob-read-length
     connection.set_lob_read_length(120_000).await;
     connection.reset_statistics().await;
-    let resultset = connection.query(query).await?;
-    let second: MyData = resultset.try_into().await?;
+    let result_set = connection.query(query).await?;
+    let second: MyData = result_set.try_into().await?;
     debug!(
         "reading two big CLOB with lob-read-length {} required {} roundtrips",
         connection.lob_read_length().await,

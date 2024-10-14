@@ -101,8 +101,8 @@ fn test_025_decimals_impl(
     insert_stmt.execute_batch()?;
 
     info!("Read and verify decimals");
-    let resultset = connection.query("select s, d1, d2 from TEST_DECIMALS order by d1")?;
-    for row in resultset {
+    let result_set = connection.query("select s, d1, d2 from TEST_DECIMALS order by d1")?;
+    for row in result_set {
         let row = row?;
         if let HdbValue::DECIMAL(ref bd) = &row[1] {
             assert_eq!(format!("{}", &row[0]), format!("{bd}"));
@@ -112,8 +112,8 @@ fn test_025_decimals_impl(
     }
 
     info!("Read and verify decimals to struct");
-    let resultset = connection.query("select s, d1, d2 from TEST_DECIMALS order by d1")?;
-    let result: Vec<TestData> = resultset.try_into()?;
+    let result_set = connection.query("select s, d1, d2 from TEST_DECIMALS order by d1")?;
+    let result: Vec<TestData> = result_set.try_into()?;
     for td in result {
         debug!("TestData: {:?}, {:?}, {:?}", td.s, td.d1, td.d2);
         assert_eq!(td.s, td.d1.to_string());
@@ -131,8 +131,8 @@ fn test_025_decimals_impl(
     }
 
     info!("Read and verify decimal to single value");
-    let resultset = connection.query("select AVG(dummy) from TEST_DECIMALS")?;
-    let mydata: Option<BigDecimal> = resultset.try_into()?;
+    let result_set = connection.query("select AVG(dummy) from TEST_DECIMALS")?;
+    let mydata: Option<BigDecimal> = result_set.try_into()?;
     assert_eq!(mydata, None);
 
     let mydata: Option<i64> = connection

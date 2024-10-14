@@ -98,7 +98,7 @@ fn test_timestamp(_log_handle: &mut LoggerHandle, connection: &Connection) -> Hd
             primitive_datetime_values[3].to_hana(),
         ))?;
         let response = prep_stmt.execute_batch()?;
-        let typed_result: i32 = response.into_resultset()?.try_into()?;
+        let typed_result: i32 = response.into_result_set()?.try_into()?;
         assert_eq!(typed_result, 31);
     }
 

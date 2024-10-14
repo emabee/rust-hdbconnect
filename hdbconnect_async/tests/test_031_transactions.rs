@@ -142,10 +142,10 @@ async fn write1_read2(
 }
 
 async fn get_checksum(conn: &Connection) -> usize {
-    let resultset = conn
+    let result_set = conn
         .query("select sum(nmbr) from TEST_TRANSACTIONS")
         .await
         .unwrap();
-    let checksum: usize = resultset.try_into().await.unwrap();
+    let checksum: usize = result_set.try_into().await.unwrap();
     checksum
 }

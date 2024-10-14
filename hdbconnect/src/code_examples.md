@@ -94,7 +94,7 @@ fits to your statement, see below).
 # let query = "SELECT foo FROM bar";
 let response = connection.statement(query)?; // HdbResponse
 # #[allow(unused_variables)]
-let resultset = response.into_resultset()?; // ResultSet
+let result_set = response.into_result_set()?; // ResultSet
 # Ok(())
 # }
 ```
@@ -118,7 +118,7 @@ which convert the database response directly into a simpler result type:
 # fn foo() -> HdbResult<()> {
 # let mut connection = Connection::new("...")?;
 let qry = "SELECT foo FROM bar";
-let resultset = connection.query(qry)?; // ResultSet
+let result_set = connection.query(qry)?; // ResultSet
 # Ok(())
 # }
 ```
@@ -163,7 +163,7 @@ Or like this:
 # let mut connection = Connection::new("...")?;
 let mut stmt = connection.prepare("select NAME, CITY from PEOPLE where iq > ? and age > ?")?;
 stmt.add_batch(&(100_u8, 45_i32))?;
-let resultset = stmt.execute_batch()?.into_resultset()?;
+let result_set = stmt.execute_batch()?.into_result_set()?;
 # Ok(())
 # }
 ```
@@ -177,8 +177,8 @@ When iterating over the rows, the result set will implicitly fetch all outstandi
 # fn foo() -> HdbResult<()> {
 # let mut connection = Connection::new("...")?;
 # let qry = "";
-# let resultset = connection.query(qry)?;
-for row in resultset {
+# let result_set = connection.query(qry)?;
+for row in result_set {
     let row = row?;
     // now you have a real row
 }
@@ -191,14 +191,14 @@ Such a streaming-like behavior is especially appropriate for large result sets.
 Iterating over the rows allows writing complex evaluations in an efficient and scalable manner.
 
 ```ignore
-let key_figure = resultset.map(|r|{r.unwrap()}).map(...).fold(...).collect(...);
+let key_figure = result_set.map(|r|{r.unwrap()}).map(...).fold(...).collect(...);
 ```
 
 ## Result set evaluation with `try_into()`
 
-While it is possible to iterate over the rows of a resultset and then retrieve each value
+While it is possible to iterate over the rows of a result set and then retrieve each value
 in each row individually, this driver offers a much more convenient way -
-the method `try_into()` allows assigning the resultset directly to some appropriate rust data type
+the method `try_into()` allows assigning the result set directly to some appropriate rust data type
 of your choice!
 
 `try_into()` is available on [`HdbValue`], [`Row`], and [`ResultSet`],
@@ -215,8 +215,8 @@ You _can_ retrieve the field values of a row individually, one after the other:
 # fn foo() -> HdbResult<()> {
 # let mut connection = Connection::new("...")?;
 # let qry = "";
-# let resultset = connection.query(qry)?;
-for row in resultset {
+# let result_set = connection.query(qry)?;
+for row in result_set {
     let mut row:Row = row?;
 # #[allow(unused_variables)]
     let f1: String = row.next_try_into()?;
@@ -367,8 +367,8 @@ insert_stmt.add_batch(&(Bytes::new(&*raw_data)))?;
 # fn foo() -> HdbResult<()> {
 # let qry = "";
 # let mut connection = Connection::new("...")?;
-# let resultset: ResultSet = connection.query(qry)?;
-let bindata: serde_bytes::ByteBuf = resultset.try_into()?; // single binary field
+# let result_set: ResultSet = connection.query(qry)?;
+let bindata: serde_bytes::ByteBuf = result_set.try_into()?; // single binary field
 let first_byte = bindata[0];
 # Ok(())
 # }
@@ -421,9 +421,9 @@ use hdbconnect::types::NCLob;
 # fn foo() -> HdbResult<()> {
 # let query = "";
 # let mut connection = Connection::new("...")?;
-# let mut resultset: ResultSet = connection.query(query)?;
+# let mut result_set: ResultSet = connection.query(query)?;
 # let mut writer: Vec<u8> = vec![];
-let mut nclob: NCLob = resultset.into_single_value()?.try_into_nclob()?;
+let mut nclob: NCLob = result_set.into_single_value()?.try_into_nclob()?;
 std::io::copy(&mut nclob, &mut writer)?;
 # Ok(())
 # }

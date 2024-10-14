@@ -60,8 +60,8 @@ async fn deser_option_into_option(
 
     type TestStruct = TS<Option<String>, Option<i32>, Option<NaiveDateTime>>;
 
-    let resultset = connection.query("select * from TEST_DESER_OPT_OPT").await?;
-    let typed_result: Vec<TestStruct> = resultset.try_into().await?;
+    let result_set = connection.query("select * from TEST_DESER_OPT_OPT").await?;
+    let typed_result: Vec<TestStruct> = result_set.try_into().await?;
 
     assert_eq!(typed_result.len(), 3);
     Ok(())
@@ -86,10 +86,10 @@ async fn deser_plain_into_plain(
 
     type TestStruct = TS<String, i32, NaiveDateTime>;
 
-    let resultset = connection
+    let result_set = connection
         .query("select * from TEST_DESER_PLAIN_PLAIN")
         .await?;
-    let typed_result: Vec<TestStruct> = resultset.try_into().await?;
+    let typed_result: Vec<TestStruct> = result_set.try_into().await?;
 
     assert_eq!(typed_result.len(), 3);
     Ok(())
@@ -114,10 +114,10 @@ async fn deser_plain_into_option(
 
     type TestStruct = TS<Option<String>, Option<i32>, Option<NaiveDateTime>>;
 
-    let resultset = connection
+    let result_set = connection
         .query("select * from TEST_DESER_PLAIN_OPT")
         .await?;
-    let typed_result: Vec<TestStruct> = resultset.try_into().await?;
+    let typed_result: Vec<TestStruct> = result_set.try_into().await?;
 
     assert_eq!(typed_result.len(), 3);
     Ok(())
@@ -150,20 +150,20 @@ async fn deser_option_into_plain(
     ];
     connection.multiple_statements(stmts).await?;
 
-    let resultset = connection
+    let result_set = connection
         .query("select * from TEST_DESER_OPT_PLAIN")
         .await?;
-    let typed_result: Vec<TestStruct> = resultset.try_into().await?;
+    let typed_result: Vec<TestStruct> = result_set.try_into().await?;
     assert_eq!(typed_result.len(), 3);
 
     // second part: with null values, deserialization must fail
     let stmts = vec!["insert into TEST_DESER_OPT_PLAIN (F2_I) values(17)"];
     connection.multiple_statements(stmts).await?;
 
-    let resultset = connection
+    let result_set = connection
         .query("select * from TEST_DESER_OPT_PLAIN")
         .await?;
-    let typed_result: HdbResult<Vec<TestStruct>> = resultset.try_into().await;
+    let typed_result: HdbResult<Vec<TestStruct>> = result_set.try_into().await;
     if typed_result.is_ok() {
         panic!("deserialization of null values to plain data fields did not fail")
     }
@@ -175,8 +175,8 @@ async fn deser_singleline_into_struct(
     connection: &Connection,
 ) -> HdbResult<()> {
     info!(
-        "deserialize a single-line resultset into a struct; test that this is not possible with \
-         multi-line resultsets"
+        "deserialize a single-line result set into a struct; test that this is not possible with \
+         multi-line result sets"
     );
     connection
         .multiple_statements_ignore_err(vec!["drop table TEST_DESER_SINGLE_LINE"])
@@ -193,19 +193,19 @@ async fn deser_singleline_into_struct(
     type TestStruct = TS<Option<String>, Option<i32>, Option<NaiveDateTime>>;
 
     // single line works
-    let resultset = connection
+    let result_set = connection
         .query("select * from TEST_DESER_SINGLE_LINE where F2_I = 17")
         .await?;
-    let typed_result: TestStruct = resultset.try_into().await?;
+    let typed_result: TestStruct = result_set.try_into().await?;
     assert_eq!(typed_result.f2_i, Some(17));
 
     // multi-line fails
-    let resultset = connection
+    let result_set = connection
         .query("select * from TEST_DESER_SINGLE_LINE")
         .await?;
-    let typed_result: HdbResult<TestStruct> = resultset.try_into().await;
+    let typed_result: HdbResult<TestStruct> = result_set.try_into().await;
     if typed_result.is_ok() {
-        panic!("deserialization of a multiline resultset to a plain struct did not fail")
+        panic!("deserialization of a multiline result_set to a plain struct did not fail")
     }
 
     Ok(())
@@ -216,8 +216,8 @@ async fn deser_singlevalue_into_plain(
     connection: &Connection,
 ) -> HdbResult<()> {
     info!(
-        "deserialize a single-value resultset into a plain field; test that this is not possible \
-         with multi-line or multi-column resultsets"
+        "deserialize a single-value result set into a plain field; test that this is not possible \
+         with multi-line or multi-column result sets"
     );
     connection
         .multiple_statements_ignore_err(vec!["drop table TEST_DESER_SINGLE_VALUE"])
@@ -232,27 +232,27 @@ async fn deser_singlevalue_into_plain(
     connection.multiple_statements(stmts).await?;
 
     // single value works
-    let resultset = connection
+    let result_set = connection
         .query("select F2_I from TEST_DESER_SINGLE_VALUE where F2_I = 17")
         .await?;
-    let _typed_result: i64 = resultset.try_into().await?;
+    let _typed_result: i64 = result_set.try_into().await?;
 
     // multi-col fails
-    let resultset = connection
+    let result_set = connection
         .query("select F2_I, F2_I from TEST_DESER_SINGLE_VALUE where F2_I = 17")
         .await?;
-    let typed_result: HdbResult<i64> = resultset.try_into().await;
+    let typed_result: HdbResult<i64> = result_set.try_into().await;
     if typed_result.is_ok() {
-        panic!("deserialization of a multi-column resultset into a plain field did not fail")
+        panic!("deserialization of a multi-column result set into a plain field did not fail")
     }
 
     // multi-row fails
-    let resultset = connection
+    let result_set = connection
         .query("select F2_I from TEST_DESER_SINGLE_VALUE")
         .await?;
-    let typed_result: HdbResult<i64> = resultset.try_into().await;
+    let typed_result: HdbResult<i64> = result_set.try_into().await;
     if typed_result.is_ok() {
-        panic!("deserialization of a multi-row resultset into a plain field did not fail")
+        panic!("deserialization of a multi-row result set into a plain field did not fail")
     }
 
     Ok(())
@@ -519,7 +519,7 @@ async fn deser_all_to_string(
             .await?
             .try_into::<Option<String>>()
             .await?,
-        Some("1E+1".to_string())
+        Some("10".to_string())
     );
     assert_eq!(
         connection
@@ -583,7 +583,7 @@ async fn deser_all_to_string(
             .await?
             .try_into::<Option<String>>()
             .await?,
-        Some("1E+1".to_string())
+        Some("10".to_string())
     );
     assert_eq!(
         connection
@@ -659,7 +659,7 @@ async fn deser_all_to_string(
             .await?
             .try_into::<String>()
             .await?,
-        "1E+1".to_string()
+        "10".to_string()
     );
     assert_eq!(
         connection
@@ -723,7 +723,7 @@ async fn deser_all_to_string(
             .await?
             .try_into::<String>()
             .await?,
-        "1E+1".to_string()
+        "10".to_string()
     );
     assert_eq!(
         connection
@@ -766,8 +766,8 @@ async fn deser_singlecolumn_into_vec(
     connection: &Connection,
 ) -> HdbResult<()> {
     info!(
-        "deserialize a single-column resultset into a Vec of plain fields; test that multi-column \
-         resultsets fail"
+        "deserialize a single-column result set into a Vec of plain fields; test that multi-column \
+         result sets fail"
     );
 
     connection
@@ -784,19 +784,19 @@ async fn deser_singlecolumn_into_vec(
     connection.multiple_statements(stmts).await?;
 
     // single-column works
-    let resultset = connection
+    let result_set = connection
         .query("select F1_S from TEST_DESER_SINGLE_COL order by F2_I asc")
         .await?;
-    let typed_result: Vec<String> = resultset.try_into().await?;
+    let typed_result: Vec<String> = result_set.try_into().await?;
     assert_eq!(typed_result.len(), 5);
 
     // multi-column fails
-    let resultset = connection
+    let result_set = connection
         .query("select F1_S, F1_S from TEST_DESER_SINGLE_COL order by F2_I asc")
         .await?;
-    let typed_result: HdbResult<Vec<String>> = resultset.try_into().await;
+    let typed_result: HdbResult<Vec<String>> = result_set.try_into().await;
     if typed_result.is_ok() {
-        panic!("deserialization of a multi-column resultset into a Vec<plain field> did not fail");
+        panic!("deserialization of a multi-column result_set into a Vec<plain field> did not fail");
     }
 
     Ok(())

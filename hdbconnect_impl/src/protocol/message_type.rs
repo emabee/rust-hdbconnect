@@ -10,9 +10,9 @@ pub(crate) enum MessageType {
     WriteLob = 17,        // Writes large object data
     Authenticate = 65,    // Sends authentication data
     Connect = 66,         // Connects to the database
-    CloseResultSet = 69,  // Closes resultset
+    CloseResultSet = 69,  // Closes result set
     DropStatementId = 70, // Drops prepared statement identifier
-    FetchNext = 71,       // Fetches next data from resultset
+    FetchNext = 71,       // Fetches next data from result set
     Disconnect = 77,      // Disconnects session
     DbConnectInfo = 82,   // Request/receive database connect information
     #[cfg(feature = "dist_tx")]
@@ -40,7 +40,7 @@ pub(crate) enum MessageType {
     // FetchLast = 75,       // Moves the cursor to the last row and fetches the data
 }
 impl MessageType {
-    // requests that depend on a resultset id, or connection id, or prepared statement id
+    // requests that depend on a result set id, or connection id, or prepared statement id
     // are not repeatable; others like Authenticate or Dis/Connect should also not be repeated
     pub(crate) fn is_repeatable(self) -> bool {
         matches!(

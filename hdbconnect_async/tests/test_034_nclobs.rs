@@ -85,10 +85,10 @@ async fn test_nclobs(
     debug!("and read it back");
     connection.reset_statistics().await;
     let query = "select desc, chardata as CL1, chardata as CL2 from TEST_NCLOBS";
-    let resultset = connection.query(query).await?;
+    let result_set = connection.query(query).await?;
     debug!("and convert it into a rust struct");
 
-    let mydata: MyData = resultset.try_into().await?;
+    let mydata: MyData = result_set.try_into().await?;
     debug!(
         "reading two big NCLOB with lob-read-length {} required {} roundtrips",
         connection.lob_read_length().await,
@@ -106,8 +106,8 @@ async fn test_nclobs(
     // try again with smaller lob-read-length
     connection.set_lob_read_length(77_000).await;
     connection.reset_statistics().await;
-    let resultset = connection.query(query).await?;
-    let second: MyData = resultset.try_into().await?;
+    let result_set = connection.query(query).await?;
+    let second: MyData = result_set.try_into().await?;
     debug!(
         "reading two big NCLOB with lob-read-length {} required {} roundtrips",
         connection.lob_read_length().await,
@@ -234,10 +234,10 @@ async fn test_bytes_to_nclobs(
 
     debug!("and read it back");
     let query = "select chardata, chardata from TEST_NCLOBS_BYTES";
-    let resultset = connection.query(query).await?;
+    let result_set = connection.query(query).await?;
     debug!("and convert it into a rust string");
 
-    let mydata: (String, String) = resultset.try_into().await?;
+    let mydata: (String, String) = result_set.try_into().await?;
 
     // verify we get in both cases the same value back
     assert_eq!(mydata.0, test_string);
@@ -277,14 +277,14 @@ async fn test_loblifecycle(
         let mut read_stmt = connection
             .prepare("select chardata from TEST_NCLOBS2 where desc like ?")
             .await?;
-        let rs = read_stmt.execute(&"blabla %").await?.into_resultset()?;
+        let rs = read_stmt.execute(&"blabla %").await?.into_result_set()?;
         rs.into_rows()
             .await?
             .map(|mut r| r.next_value().unwrap())
             .collect()
     };
 
-    debug!("Statements and Resultset are dropped");
+    debug!("Statements and result set are dropped");
 
     for value in lobs.into_iter() {
         debug!("fetching a lob");

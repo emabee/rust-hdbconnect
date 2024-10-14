@@ -70,13 +70,13 @@ async fn test_small_decimals(
     insert_stmt.execute_batch().await?;
 
     info!("Read and verify decimals");
-    let mut resultset = connection
+    let mut result_set = connection
         .query("select s, sdec from TEST_SMALL_DECIMALS order by sdec")
         .await?;
-    let precision = resultset.metadata()[1].precision();
-    debug!("metadata: {:?}", resultset.metadata());
+    let precision = result_set.metadata()[1].precision();
+    debug!("metadata: {:?}", result_set.metadata());
     let scale = 5;
-    while let Some(mut row) = resultset.next_row().await? {
+    while let Some(mut row) = result_set.next_row().await? {
         let s: String = row.next_try_into()?;
         let bd1: BigDecimal = row.next_try_into()?;
         debug!("precision = {}, scale = {}", precision, scale);
@@ -84,20 +84,20 @@ async fn test_small_decimals(
     }
 
     info!("Read and verify small decimals to struct");
-    let resultset = connection
+    let result_set = connection
         .query("select s, sdec from TEST_SMALL_DECIMALS order by sdec")
         .await?;
     let scale = 5;
-    let result: Vec<TestData> = resultset.try_into().await?;
+    let result: Vec<TestData> = result_set.try_into().await?;
     for td in result {
         assert_eq!(td.s, format!("{}", td.sdec.with_scale(scale)));
     }
 
     info!("Read and verify small decimal to single value");
-    let resultset = connection
+    let result_set = connection
         .query("select AVG(SDEC) from TEST_SMALL_DECIMALS")
         .await?;
-    let _mybigdec: BigDecimal = resultset.try_into().await?;
+    let _mybigdec: BigDecimal = result_set.try_into().await?;
 
     let myi64: i64 = connection
         .query("select AVG(sdec) from TEST_SMALL_DECIMALS where sdec = '65.53500'")
