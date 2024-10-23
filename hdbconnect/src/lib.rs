@@ -64,7 +64,7 @@ pub use hdbconnect_impl::{
     FieldMetadata, HdbError, HdbResult, HdbValue, IntoConnectParams, IntoConnectParamsBuilder,
     OutputParameters, ParameterBinding, ParameterDescriptor, ParameterDescriptors,
     ParameterDirection, ResultSetMetadata, Row, SerializationError, ServerCerts, ServerError,
-    ServerUsage, Severity, Tls, ToHana, TypeId,
+    ServerUsage, Severity, ToHana, TypeId,
 };
 
 pub use hdbconnect_impl::sync::{
@@ -86,3 +86,5 @@ pub mod types {
     pub use hdbconnect_impl::sync::{BLob, CLob, NCLob};
     pub use hdbconnect_impl::types::*;
 }
+
+pub use hdbconnect_impl::initialize_crypto;

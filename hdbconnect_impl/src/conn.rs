@@ -22,7 +22,7 @@ pub use {
     connection_configuration::ConnectionConfiguration,
     connection_statistics::ConnectionStatistics,
     params::{
-        connect_params::{ConnectParams, ServerCerts, Tls},
+        connect_params::{ConnectParams, ServerCerts},
         connect_params_builder::ConnectParamsBuilder,
         into_connect_params::IntoConnectParams,
         into_connect_params_builder::IntoConnectParamsBuilder,

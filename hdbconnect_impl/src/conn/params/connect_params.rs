@@ -1,5 +1,5 @@
 //! Connection parameters
-use super::{cp_url::format_as_url, Compression};
+use super::{cp_url::format_as_url, tls::Tls, Compression};
 use crate::{ConnectParamsBuilder, HdbError, HdbResult, IntoConnectParams};
 use rustls::{ClientConfig, RootCertStore};
 use secstr::SecUtf8;
@@ -60,18 +60,6 @@ pub struct ConnectParams {
     clientlocale: Option<String>,
     tls: Tls,
     compression: Compression,
-}
-
-/// Describes whether and how TLS is to be used.
-#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
-pub enum Tls {
-    /// Plain TCP connection
-    #[default]
-    Off,
-    /// TLS without server validation - dangerous!
-    Insecure,
-    /// TLS with server validation
-    Secure(Vec<ServerCerts>),
 }
 
 impl ConnectParams {

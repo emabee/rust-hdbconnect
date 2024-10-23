@@ -6,6 +6,9 @@
 
 An asynchronous pure rust SQL driver for SAP HANA(TM).
 
+Use [`hdbconnect`](https://crates.io/crates/hdbconnect)
+if you want a synchronous driver for SAP HANA.
+
 ## Usage
 
 Add `hdbconnect_async` to the dependencies section in your project's `Cargo.toml`:
@@ -70,8 +73,11 @@ There you find also more code examples, especially in the description of module 
 
 ## TLS
 
-See [HANA in SCP](https://github.com/emabee/rust-hdbconnect/blob/master/HANA_in_SCP.md)
-for instructions how to obtain the necessary server certificate from a HANA in SAP Cloud Platform.
+The TLS implementation is based on `rustls`.
+
+`rustls`'s flexibility to use non-default crypto providers is currently not (yet) exposed by `hdbconnect`.
+Nevertheless, the need of `rustls` to initialize crypto shines through.
+We thus recommend calling `hdbconnect::initialize_crypto` early in your main.
 
 ## Features
 

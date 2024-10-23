@@ -47,7 +47,7 @@ async fn test_arrays(log_handle: &LoggerHandle, connection: &Connection) -> HdbR
         .await
         .unwrap();
 
-    log::info!("Metadata: {:?}", *stmt.parameter_descriptors());
+    log::debug!("Metadata: {:?}", *stmt.parameter_descriptors());
 
     let mut s = String::with_capacity(31_000);
     s.push_str("INSERT INTO TEST_INTEGER_ARRAYS VALUES (3, ARRAY(26214, 10, 0, 2147483647");

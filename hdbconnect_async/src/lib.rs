@@ -75,7 +75,7 @@ pub use hdbconnect_impl::{
     FieldMetadata, HdbError, HdbResult, HdbValue, IntoConnectParams, IntoConnectParamsBuilder,
     OutputParameters, ParameterBinding, ParameterDescriptor, ParameterDescriptors,
     ParameterDirection, ResultSetMetadata, Row, SerializationError, ServerCerts, ServerError,
-    ServerUsage, Severity, Tls, ToHana, TypeId,
+    ServerUsage, Severity, ToHana, TypeId,
 };
 
 pub use hdbconnect_impl::a_sync::{
@@ -101,3 +101,5 @@ pub use rocket_pool::HanaPoolForRocket;
 pub use bb8::ConnectionManager;
 
 pub mod code_examples;
+
+pub use hdbconnect_impl::initialize_crypto;

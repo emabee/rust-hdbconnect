@@ -38,7 +38,7 @@ pub use crate::{
     base::{HdbError, HdbResult, Row, Rows},
     conn::{
         url, ConnectParams, ConnectParamsBuilder, ConnectionConfiguration, ConnectionStatistics,
-        CursorHoldability, IntoConnectParams, IntoConnectParamsBuilder, ServerCerts, Tls,
+        CursorHoldability, IntoConnectParams, IntoConnectParamsBuilder, ServerCerts,
     },
     protocol::parts::{
         ExecutionResult, FieldMetadata, HdbValue, OutputParameters, ParameterBinding,
@@ -61,4 +61,16 @@ pub mod types {
         daydate::DayDate, lob::CharLobSlice, longdate::LongDate, seconddate::SecondDate,
         secondtime::SecondTime,
     };
+}
+
+/// Call this once early in your application to ensure a correct initialization of
+/// `rustls`, the TLS library being used.
+///
+/// This version of the HANA driver uses the `aws_lc_rs` crate as crypto provider for `rustls`,
+/// which is the default of `rustls`.
+/// Future versions might allow a more flexible configuration.
+pub fn initialize_crypto() {
+    rustls::crypto::aws_lc_rs::default_provider()
+        .install_default()
+        .ok();
 }

@@ -1,7 +1,6 @@
-use super::cp_url::format_as_url;
+use super::{cp_url::format_as_url, tls::Tls};
 use crate::{
     conn::Compression, ConnectParams, HdbError, HdbResult, IntoConnectParamsBuilder, ServerCerts,
-    Tls,
 };
 use secstr::SecUtf8;
 

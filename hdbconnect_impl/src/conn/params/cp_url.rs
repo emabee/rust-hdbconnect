@@ -1,7 +1,7 @@
-use super::Compression;
+use super::{tls::Tls, Compression};
 use crate::{
     url::{self, HDBSQL, HDBSQLS},
-    ServerCerts, Tls,
+    ServerCerts,
 };
 
 #[allow(clippy::too_many_arguments)]

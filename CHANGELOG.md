@@ -1,8 +1,13 @@
 # Changelog
 
-## [0.29.0] 2024-10-13
+## [0.29.0] 2024-10-23
 
-Switch to `serde_db` `0.12` and adopt its improved naming.
+Add `hdbconnect(_async)::initialize_crypto()` to allow reliable rustls initialization without
+direct dependency to `rustls`.
+
+Switch to `serde_db` `0.12` and adopt its improved naming (-> version bump).
+
+Remove Tls from public API, as it is not needed there.
 
 ## [0.28.7] 2024-10-09
 

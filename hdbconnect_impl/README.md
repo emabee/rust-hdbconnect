@@ -8,8 +8,8 @@ Major part of the implementation of both `hdbconnect` and `hdbconnect_async`.
 
 ## Direct use not recommended
 
-If you want a synchronous rust driver for HANA,
-use [`hdbconnect`](https://crates.io/crates/hdbconnect).
+Use [`hdbconnect`](https://crates.io/crates/hdbconnect)
+if you want a synchronous rust driver for HANA.
 
-If you want an asynchronous rust driver for HANA,
-use [`hdbconnect_async`](https://crates.io/crates/hdbconnect_async).
+Use [`hdbconnect_async`](https://crates.io/crates/hdbconnect_async)
+if you want an asynchronous rust driver for HANA.
