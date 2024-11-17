@@ -239,8 +239,18 @@ impl ConnectParamsBuilder {
     /// # Errors
     ///
     /// `HdbError::Usage` if the builder was not yet configured to build a correct url
+    #[deprecated(
+        since = "0.29.1",
+        note = "to_url_without_password() has clearer name and returns the String directly"
+    )]
     pub fn to_url(&self) -> HdbResult<String> {
         Ok(self.to_string())
+    }
+
+    /// Returns the url for this connection, without the password.
+    #[must_use]
+    pub fn to_url_without_password(&self) -> String {
+        self.to_string()
     }
 
     /// Returns the configured hostname.

@@ -22,25 +22,26 @@
             ParameterRows
             PreparedStatementCore>PreparedStatementCore]
 
-    PreparedStatementCore -- ArcMutex --> ConnectionCore
-    Connection -- ArcMutex --> ConnectionCore
+    PreparedStatement  -. produces .->  ResultSet
+    PreparedStatementCore -- ArcXMtx --> ConnectionCore
+    Connection -- ArcXMtx --> ConnectionCore
     ConnectionCore -. produces .->  PreparedStatement
     ConnectionCore -. produces .->  ResultSet
-    ResultSet -- ArcMutex --> RsState
+    ResultSet -- ArcXMtx --> RsState
     ResultSet -- Arc --> ResultSetMetadata
-    PreparedStatement -- ArcMutex --> PreparedStatementCore
+    PreparedStatement -- ArcXMtx --> PreparedStatementCore
     PreparedStatement -- optional Arc --> ResultSetMetadata
     PreparedStatement --> ParameterDescriptors
     PreparedStatement -- batch--> ParameterRows
     Row -- Arc --> ResultSetMetadata
     RsState -- holds/loads --> Row
-    RsState -- optional ArcMutex --> RsCore
-    RsCore -- ArcMutex --> ConnectionCore
-    RsCore -- optional ArcMutex --> PreparedStatementCore
+    RsState -- optional ArcXMtx --> RsCore
+    RsCore -- ArcXMtx --> ConnectionCore
+    RsCore -- optional ArcXMtx --> PreparedStatementCore
     Row -- value-iterator --> Lob
     Lob -- holds --> LobHandle
-    LobHandle -- ArcMutex --> ConnectionCore
-    LobHandle -- optional ArcMutex --> RsCore
+    LobHandle -- ArcXMtx --> ConnectionCore
+    LobHandle -- optional ArcXMtx --> RsCore
 
 classDef Public fill:#1af,stroke:#333,stroke-width:4px;
 class Connection,ResultSet,Row,ResultSetMetadata,PreparedStatement,ParameterDescriptors,Lob Public;
@@ -58,11 +59,13 @@ flowchart
     class Public Public;
 ```
 
+`ArcXMtx` is either an `Arc<std::sync::Mutex>` or an `Arc<tokio::sync::Mutex>.`
+
 ## Sharing objects
 
-A `ResultSetMetadata` object e.g. can be used by a `ResultSet`, its `Row`s and a `PreparedStatement`.
+Example: a `ResultSetMetadata` object e.g. can be used by a `ResultSet`, its `Row`s and a `PreparedStatement`.
 
-## Lifetimes
+## Rust Lifetimes control drop of server-side resources
 
 The lifetimes of the public objects are controlled by the application.
 

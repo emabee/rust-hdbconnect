@@ -51,9 +51,14 @@ impl Connection {
         params: P,
         config: &ConnectionConfiguration,
     ) -> HdbResult<Self> {
-        Ok(Self {
-            am_conn_core: AmConnCore::try_new_async(params.into_connect_params()?, config).await?,
-        })
+        let params = params.into_connect_params()?;
+        if params.password().unsecure().is_empty() {
+            Err(HdbError::Usage("Empty password is not allowed"))
+        } else {
+            Ok(Self {
+                am_conn_core: AmConnCore::try_new_async(params, config).await?,
+            })
+        }
     }
 
     /// Executes a statement on the database.

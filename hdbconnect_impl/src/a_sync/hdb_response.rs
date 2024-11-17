@@ -11,7 +11,7 @@ use crate::{
 /// Represents all possible non-error responses to a database command.
 ///
 /// Technically, it is essentially a list of single database response values
-/// ([`HdbReturnValue`](crate::HdbReturnValue)), each of which
+/// ([`HdbReturnValue`]), each of which
 /// can be
 ///
 /// * a result set of a query

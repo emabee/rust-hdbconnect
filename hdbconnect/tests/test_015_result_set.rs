@@ -108,9 +108,9 @@ fn evaluate_result_set(_log_handle: &mut LoggerHandle, connection: &Connection) 
     result_set.fetch_all()?; // ensures that all rows are Ok
     assert_eq!(
         result_set
-            .map(|res_row| res_row.unwrap(/*now save*/))
+            .map(|res_row| res_row.unwrap(/*Ok*/))
             .filter_map(|row| {
-                let td = row.try_into::<TestData>().unwrap();
+                let td = row.try_into::<TestData>().unwrap(/*Ok*/);
                 if td.f1.ends_with('0') {
                     Some(td)
                 } else {

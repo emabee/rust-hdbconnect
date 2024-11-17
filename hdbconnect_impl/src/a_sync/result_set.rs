@@ -3,7 +3,6 @@ use crate::{
     protocol::{parts::ResultSetMetadata, ServerUsage},
     HdbResult, HdbValue, Row, Rows,
 };
-
 use serde_db::de::DeserializableResultSet;
 use std::sync::Arc;
 

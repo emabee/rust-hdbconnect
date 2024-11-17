@@ -41,7 +41,7 @@ async fn redirect(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
         .parse_and_push_temp_spec("info, hdbconnect::conn= debug, test=debug")
         .unwrap();
     let cpb = test_utils::get_std_redirect_cp_builder()?;
-    debug!("Attempting connect to {}", cpb.to_url()?);
+    debug!("Attempting connect to {}", cpb.to_url_without_password());
     let _conn = Connection::new(cpb).await?;
     _log_handle.pop_temp_spec();
     Ok(())

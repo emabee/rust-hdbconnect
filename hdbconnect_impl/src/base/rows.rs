@@ -35,11 +35,10 @@ impl Rows {
             }
         }
 
-        let row_iter = rows.into_iter();
         Ok(Rows {
             metadata,
             number_of_rows,
-            row_iter,
+            row_iter: rows.into_iter(),
         })
     }
 
@@ -65,11 +64,10 @@ impl Rows {
             }
         }
 
-        let row_iter = rows.into_iter();
         Ok(Rows {
             metadata,
             number_of_rows,
-            row_iter,
+            row_iter: rows.into_iter(),
         })
     }
 }

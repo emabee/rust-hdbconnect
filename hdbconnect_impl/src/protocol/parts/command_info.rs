@@ -1,6 +1,7 @@
-use crate::protocol::parts::option_part::OptionId;
-use crate::protocol::parts::option_part::OptionPart;
-use crate::protocol::parts::option_value::OptionValue;
+use crate::protocol::parts::{
+    option_part::{OptionId, OptionPart},
+    option_value::OptionValue,
+};
 
 // An Options part that provides source and line information.
 pub(crate) type CommandInfo = OptionPart<CommandInfoId>;
