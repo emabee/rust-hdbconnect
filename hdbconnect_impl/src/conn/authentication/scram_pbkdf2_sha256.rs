@@ -26,7 +26,7 @@ impl ScramPbkdf2Sha256 {
     }
 }
 impl Authenticator for ScramPbkdf2Sha256 {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "SCRAMPBKDF2SHA256"
     }
 

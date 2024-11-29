@@ -20,6 +20,7 @@ use crate::{
 pub struct BLob(Box<BLobHandle>);
 
 impl BLob {
+    #[allow(clippy::ref_option)]
     pub(crate) fn new(
         am_conn_core: &AmConnCore,
         o_am_rscore: &OAM<RsCore>,

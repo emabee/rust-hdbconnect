@@ -31,6 +31,7 @@ pub(crate) struct BLobHandle {
     pub(crate) server_usage: ServerUsage,
 }
 impl BLobHandle {
+    #[allow(clippy::ref_option)]
     pub(crate) fn new(
         am_conn_core: &AmConnCore,
         o_am_rscore: &OAM<RsCore>,
@@ -215,6 +216,32 @@ impl BLobHandle {
             ))
         }
     }
+
+    #[cfg(feature = "async")]
+    pub(crate) async fn read_async(&mut self, buf: &mut [u8]) -> HdbResult<usize> {
+        let buf_len = buf.len();
+        trace!("BLobHandle::read() with buffer of size {buf_len}");
+        let mut cursor = Cursor::new(buf);
+        let mut written = 0;
+
+        while written < buf_len {
+            if self.data.is_empty() {
+                if !self.is_data_complete {
+                    self.fetch_next_chunk_async()
+                        .await
+                        .map_err(util::io_error)?;
+                }
+                if self.data.is_empty() {
+                    break;
+                }
+            }
+
+            let chunk_size = std::cmp::min(buf_len - written, self.data.len());
+            cursor.write_all(self.data.drain(chunk_size)?)?;
+            written += chunk_size;
+        }
+        Ok(written)
+    }
 }
 
 // Read from the DB chunks of lob_read_size into self.data,
@@ -232,33 +259,6 @@ impl std::io::Read for BLobHandle {
             if self.data.is_empty() {
                 if !self.is_data_complete {
                     self.fetch_next_chunk_sync().map_err(util::io_error)?;
-                }
-                if self.data.is_empty() {
-                    break;
-                }
-            }
-
-            let chunk_size = std::cmp::min(buf_len - written, self.data.len());
-            cursor.write_all(self.data.drain(chunk_size)?)?;
-            written += chunk_size;
-        }
-        Ok(written)
-    }
-}
-#[cfg(feature = "async")]
-impl<'a> BLobHandle {
-    pub(crate) async fn read_async(&mut self, buf: &'a mut [u8]) -> HdbResult<usize> {
-        let buf_len = buf.len();
-        trace!("BLobHandle::read() with buffer of size {buf_len}");
-        let mut cursor = Cursor::new(buf);
-        let mut written = 0;
-
-        while written < buf_len {
-            if self.data.is_empty() {
-                if !self.is_data_complete {
-                    self.fetch_next_chunk_async()
-                        .await
-                        .map_err(util::io_error)?;
                 }
                 if self.data.is_empty() {
                     break;

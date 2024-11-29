@@ -97,6 +97,7 @@ impl Row {
         &(self.metadata)
     }
 
+    #[allow(clippy::ref_option)]
     #[cfg(feature = "sync")]
     pub(crate) fn parse_sync(
         md: Arc<ResultSetMetadata>,
@@ -125,6 +126,7 @@ impl Row {
         Ok(row)
     }
 
+    #[allow(clippy::ref_option)]
     #[cfg(feature = "async")]
     pub(crate) async fn parse_async(
         md: Arc<ResultSetMetadata>,

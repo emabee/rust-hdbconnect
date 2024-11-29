@@ -41,9 +41,9 @@ pub use crate::{
         CursorHoldability, IntoConnectParams, IntoConnectParamsBuilder, ServerCerts,
     },
     protocol::parts::{
-        ExecutionResult, FieldMetadata, HdbValue, OutputParameters, ParameterBinding,
-        ParameterDescriptor, ParameterDescriptors, ParameterDirection, ResultSetMetadata,
-        ServerError, Severity, TypeId,
+        ExecutionResult, ExecutionResults, FieldMetadata, HdbValue, OutputParameters,
+        ParameterBinding, ParameterDescriptor, ParameterDescriptors, ParameterDirection,
+        ResultSetMetadata, ServerError, Severity, TypeId,
     },
     protocol::ServerUsage,
     serde_db_impl::{time, ToHana},

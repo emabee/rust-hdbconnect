@@ -114,10 +114,7 @@ fn procedure_with_secret_result_sets(
     let l2 = response.get_result_set()?.total_number_of_rows()?;
     assert_eq!(2 * l1, l2);
 
-    let mut response: hdbconnect::HdbResponse =
-        connection.statement("call GET_PROCEDURES_SECRETLY()")?;
-    response.reverse();
-    for ret_val in response {
+    for ret_val in connection.statement("call GET_PROCEDURES_SECRETLY()")? {
         match ret_val {
             HdbReturnValue::ResultSet(rs) => debug!("Got a result set: {:?}", rs),
             HdbReturnValue::AffectedRows(affected_rows) => {

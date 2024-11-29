@@ -25,6 +25,7 @@ use std::io::Read;
 pub struct NCLob(Box<NCLobHandle>);
 
 impl NCLob {
+    #[allow(clippy::ref_option)]
     pub(crate) fn new(
         am_conn_core: &AmConnCore,
         o_am_rscore: &OAM<RsCore>,

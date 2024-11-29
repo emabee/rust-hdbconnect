@@ -380,8 +380,8 @@ impl<'a> ConnectionCore {
         self.authenticated = true;
     }
 
-    pub(crate) fn statement_sequence(&self) -> &Option<i64> {
-        &self.statement_sequence
+    pub(crate) fn statement_sequence(&self) -> Option<&i64> {
+        self.statement_sequence.as_ref()
     }
 
     fn set_statement_sequence(&mut self, statement_sequence: Option<i64>) {
@@ -507,7 +507,7 @@ impl<'a> ConnectionCore {
             Err(e) => {
                 info!("roundtrip_sync(): TCP connection discarded after \"{e}\"");
                 self.tcp_client.die();
-                return Err(connection_broken(e, &self.config.read_timeout()));
+                return Err(connection_broken(e, self.config.read_timeout()));
             }
         };
 
@@ -619,7 +619,7 @@ impl<'a> ConnectionCore {
         }.map_err(|e|{
             info!("roundtrip_async(): TCP connection discarded after \"{e}\"");
             self.tcp_client.die();
-            connection_broken(e, &self.config.read_timeout())
+            connection_broken(e, self.config.read_timeout())
         })?;
 
         if self.io_buffer.get_ref().capacity() > self.config.max_buffer_size() {
@@ -731,7 +731,7 @@ fn get_os_user() -> String {
     os_user
 }
 
-fn connection_broken(mut e: HdbError, o_timeout: &Option<std::time::Duration>) -> HdbError {
+fn connection_broken(mut e: HdbError, o_timeout: Option<std::time::Duration>) -> HdbError {
     if let HdbError::Io {
         source: ref mut io_error,
     } = e

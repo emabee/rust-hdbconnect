@@ -22,6 +22,7 @@ use std::io::Read;
 pub struct CLob(Box<CLobHandle>);
 
 impl CLob {
+    #[allow(clippy::ref_option)]
     pub(crate) fn new(
         am_conn_core: &AmConnCore,
         o_am_rscore: &OAM<RsCore>,

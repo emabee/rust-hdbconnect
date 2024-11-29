@@ -9,7 +9,7 @@ pub(crate) enum PartKind {
     Error = 6,                  // Error information
     StatementId = 10,           // Prepared statement identifier
     TransactionId = 11,         // Transaction identifier
-    ExecutionResult = 12,       // Number of affected rows of dml statement
+    ExecutionResults = 12,      // Number of affected rows of dml statement
     ResultSetId = 13,           // Identifier of result set
     TopologyInformation = 15,   // Topology information
     TableLocation = 16,         // Location of table data
@@ -52,7 +52,7 @@ impl PartKind {
             6 => Ok(Self::Error),
             10 => Ok(Self::StatementId),
             11 => Ok(Self::TransactionId),
-            12 => Ok(Self::ExecutionResult),
+            12 => Ok(Self::ExecutionResults),
             13 => Ok(Self::ResultSetId),
             15 => Ok(Self::TopologyInformation),
             16 => Ok(Self::TableLocation),

@@ -32,6 +32,7 @@ pub(crate) struct CLobHandle {
     pub(crate) server_usage: ServerUsage,
 }
 impl CLobHandle {
+    #[allow(clippy::ref_option)]
     pub(crate) fn new(
         am_conn_core: &AmConnCore,
         o_am_rscore: &OAM<RsCore>,
@@ -261,6 +262,28 @@ impl CLobHandle {
         );
         Ok(())
     }
+
+    #[cfg(feature = "async")]
+    pub(crate) async fn read_async(&mut self, buf: &mut [u8]) -> HdbResult<usize> {
+        let buf_len = buf.len();
+        trace!("CLobHandle::read called with buffer of size {buf_len}");
+        let mut cursor = Cursor::new(buf);
+        let mut written = 0;
+
+        while written < buf_len {
+            if self.utf8.is_empty() {
+                self.fill_utf8_buffer_async().await?;
+                if self.utf8.is_empty() {
+                    break;
+                }
+            }
+
+            let chunk_size = std::cmp::min(buf_len - written, self.utf8.len());
+            cursor.write_all(self.utf8.drain(chunk_size)?)?;
+            written += chunk_size;
+        }
+        Ok(written)
+    }
 }
 
 // Read from the DB chunks of lob_read_size into self.cesu8,
@@ -279,30 +302,6 @@ impl std::io::Read for CLobHandle {
         while written < buf_len {
             if self.utf8.is_empty() {
                 self.fill_utf8_buffer_sync()?;
-                if self.utf8.is_empty() {
-                    break;
-                }
-            }
-
-            let chunk_size = std::cmp::min(buf_len - written, self.utf8.len());
-            cursor.write_all(self.utf8.drain(chunk_size)?)?;
-            written += chunk_size;
-        }
-        Ok(written)
-    }
-}
-
-impl CLobHandle {
-    #[cfg(feature = "async")]
-    pub(crate) async fn read_async(&mut self, buf: &mut [u8]) -> HdbResult<usize> {
-        let buf_len = buf.len();
-        trace!("CLobHandle::read called with buffer of size {buf_len}");
-        let mut cursor = Cursor::new(buf);
-        let mut written = 0;
-
-        while written < buf_len {
-            if self.utf8.is_empty() {
-                self.fill_utf8_buffer_async().await?;
                 if self.utf8.is_empty() {
                     break;
                 }

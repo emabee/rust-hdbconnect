@@ -70,11 +70,11 @@ fn main() {
 
     // Clippy in important variants (+nightly removed due to errors in clippy)
     run_command!(
-        "cargo clippy --all-targets --package hdbconnect \
+        "cargo +nightly clippy --all-targets --package hdbconnect \
                   --all-features -- -D warnings"
     );
     run_command!(
-        "cargo clippy --all-targets --package hdbconnect_async \
+        "cargo +nightly clippy --all-targets --package hdbconnect_async \
                   --all-features -- -D warnings"
     );
 

@@ -6,14 +6,13 @@ use crate::{
     protocol::{
         parts::{
             AuthFields, ClientContext, ClientInfo, CommandInfo, ConnectOptionsPart, DbConnectInfo,
-            ExecutionResult, LobFlags, OutputParameters, ParameterDescriptors, ParameterRows,
-            PartitionInformation, Parts, ReadLobReply, ReadLobRequest, ResultSetMetadata,
-            ServerError, SessionContext, StatementContext, Topology, TransactionFlags,
-            WriteLobReply, WriteLobRequest,
+            LobFlags, OutputParameters, ParameterDescriptors, ParameterRows, PartitionInformation,
+            Parts, ReadLobReply, ReadLobRequest, ResultSetMetadata, ServerError, SessionContext,
+            StatementContext, Topology, TransactionFlags, WriteLobReply, WriteLobRequest,
         },
         util, util_sync, PartAttributes, PartKind,
     },
-    HdbError, HdbResult,
+    ExecutionResults, HdbError, HdbResult,
 };
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::{cmp::max, io::Write, sync::Arc};
@@ -44,7 +43,7 @@ pub(crate) enum Part<'a> {
     RsState(Option<(RsState, Arc<ResultSetMetadata>)>),
     ResultSetId(u64),
     ResultSetMetadata(ResultSetMetadata),
-    ExecutionResult(Vec<ExecutionResult>),
+    ExecutionResults(ExecutionResults),
     SessionContext(SessionContext),
     StatementContext(StatementContext),
     StatementId(u64),
@@ -80,7 +79,7 @@ impl<'a> Part<'a> {
             Self::RsState(_) => PartKind::ResultSet,
             Self::ResultSetId(_) => PartKind::ResultSetId,
             Self::ResultSetMetadata(_) => PartKind::ResultSetMetadata,
-            Self::ExecutionResult(_) => PartKind::ExecutionResult,
+            Self::ExecutionResults(_) => PartKind::ExecutionResults,
             Self::SessionContext(_) => PartKind::SessionContext,
             Self::StatementContext(_) => PartKind::StatementContext,
             Self::StatementId(_) => PartKind::StatementId,
@@ -394,8 +393,8 @@ impl<'a> Part<'a> {
             PartKind::ResultSetMetadata => {
                 Part::ResultSetMetadata(ResultSetMetadata::parse(no_of_args, rdr)?)
             }
-            PartKind::ExecutionResult => {
-                Part::ExecutionResult(ExecutionResult::parse(no_of_args, rdr)?)
+            PartKind::ExecutionResults => {
+                Part::ExecutionResults(ExecutionResults::parse(no_of_args, rdr)?)
             }
             PartKind::StatementContext => {
                 Part::StatementContext(StatementContext::parse(no_of_args, rdr)?)
@@ -487,8 +486,8 @@ impl<'a> Part<'a> {
             PartKind::ResultSetMetadata => {
                 Part::ResultSetMetadata(ResultSetMetadata::parse(no_of_args, rdr)?)
             }
-            PartKind::ExecutionResult => {
-                Part::ExecutionResult(ExecutionResult::parse(no_of_args, rdr)?)
+            PartKind::ExecutionResults => {
+                Part::ExecutionResults(ExecutionResults::parse(no_of_args, rdr)?)
             }
             PartKind::StatementContext => {
                 Part::StatementContext(StatementContext::parse(no_of_args, rdr)?)

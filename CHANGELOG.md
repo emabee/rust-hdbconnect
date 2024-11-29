@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.30.0] 2024-11-29
+
+Improve handling of `ExecutionResults`.
+
+Fix wrong sequence of entries in HdbResponse.
+
+Remove `ConnectParamsBuilder::to_url()` (use `ConnectParamsBuilder::to_url_without_password()`
+instead).
+
+## [0.29.1] 2024-11-20
+
+Add `ConnectParamsBuilder::to_url_without_password()`.
+Deprecate `ConnectParamsBuilder::to_url()`.
+
 ## [0.29.0] 2024-10-23
 
 Add `hdbconnect(_async)::initialize_crypto()` to allow reliable rustls initialization without

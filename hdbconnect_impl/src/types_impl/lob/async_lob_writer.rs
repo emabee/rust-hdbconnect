@@ -185,7 +185,7 @@ fn evaluate_write_lob_reply(reply: Reply, server_usage: &mut ServerUsage) -> Hdb
                     trace!("is not committed");
                 }
             }
-            Part::ExecutionResult(_) => {
+            Part::ExecutionResults(_) => {
                 //todo can we do better than just ignore this?
             }
             Part::WriteLobReply(write_lob_reply) => {

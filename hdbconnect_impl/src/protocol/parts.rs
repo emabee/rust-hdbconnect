@@ -57,7 +57,7 @@ pub(crate) use self::{
 
 pub(crate) use self::partition_information::PartitionInformation;
 pub use self::{
-    execution_result::ExecutionResult,
+    execution_result::{ExecutionResult, ExecutionResults},
     field_metadata::FieldMetadata,
     hdb_value::HdbValue,
     output_parameters::OutputParameters,
@@ -188,8 +188,9 @@ impl Parts<'static> {
                         return Err(HdbError::Impl("Missing required part ResultSetID"));
                     }
                 }
-                Part::ExecutionResult(vec_er) => {
-                    int_return_values.push(InternalReturnValue::ExecutionResults(vec_er));
+                Part::ExecutionResults(execution_results) => {
+                    int_return_values
+                        .push(InternalReturnValue::ExecutionResults(execution_results));
                 }
                 Part::WriteLobReply(wlr) => {
                     int_return_values.push(InternalReturnValue::WriteLobReply(wlr));
@@ -250,8 +251,9 @@ impl Parts<'static> {
                         return Err(HdbError::Impl("Missing required part ResultSetID"));
                     }
                 }
-                Part::ExecutionResult(vec_er) => {
-                    int_return_values.push(InternalReturnValue::ExecutionResults(vec_er));
+                Part::ExecutionResults(execution_results) => {
+                    int_return_values
+                        .push(InternalReturnValue::ExecutionResults(execution_results));
                 }
                 Part::WriteLobReply(wlr) => {
                     int_return_values.push(InternalReturnValue::WriteLobReply(wlr));

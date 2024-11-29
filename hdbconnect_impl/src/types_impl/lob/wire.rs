@@ -7,6 +7,7 @@ use crate::{
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 #[cfg(feature = "sync")]
+#[allow(clippy::ref_option)]
 pub(crate) fn parse_blob_sync(
     am_conn_core: &AmConnCore,
     o_am_rscore: &OAM<RsCore>,
@@ -34,6 +35,7 @@ pub(crate) fn parse_blob_sync(
 }
 
 #[cfg(feature = "async")]
+#[allow(clippy::ref_option)]
 pub(crate) async fn parse_blob_async(
     am_conn_core: &AmConnCore,
     o_am_rscore: &OAM<RsCore>,
@@ -61,6 +63,7 @@ pub(crate) async fn parse_blob_async(
 }
 
 #[cfg(feature = "sync")]
+#[allow(clippy::ref_option)]
 pub(crate) fn parse_clob_sync(
     am_conn_core: &AmConnCore,
     o_am_rscore: &OAM<RsCore>,
@@ -89,6 +92,7 @@ pub(crate) fn parse_clob_sync(
 }
 
 #[cfg(feature = "async")]
+#[allow(clippy::ref_option)]
 pub(crate) async fn parse_clob_async(
     am_conn_core: &AmConnCore,
     o_am_rscore: &OAM<RsCore>,
@@ -117,6 +121,7 @@ pub(crate) async fn parse_clob_async(
 }
 
 #[cfg(feature = "sync")]
+#[allow(clippy::ref_option)]
 pub(crate) fn parse_nclob_sync(
     am_conn_core: &AmConnCore,
     o_am_rscore: &OAM<RsCore>,
@@ -149,6 +154,7 @@ pub(crate) fn parse_nclob_sync(
 }
 
 #[cfg(feature = "async")]
+#[allow(clippy::ref_option)]
 pub(crate) async fn parse_nclob_async(
     am_conn_core: &AmConnCore,
     o_am_rscore: &OAM<RsCore>,

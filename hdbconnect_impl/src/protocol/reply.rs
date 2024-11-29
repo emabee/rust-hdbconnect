@@ -3,10 +3,10 @@ use crate::conn::TcpClient;
 use crate::{
     base::{InternalReturnValue, RsState},
     conn::{AmConnCore, ConnectionCore, ConnectionStatistics},
-    protocol::parts::{
-        ExecutionResult, ParameterDescriptors, Parts, ResultSetMetadata, ServerError, Severity,
+    protocol::{
+        parts::{ParameterDescriptors, Parts, ResultSetMetadata, ServerError, Severity},
+        util_sync, Part, PartKind, ReplyType, ServerUsage,
     },
-    protocol::{util_sync, Part, PartKind, ReplyType, ServerUsage},
     HdbError, HdbResult,
 };
 use byteorder::{LittleEndian, ReadBytesExt};
@@ -268,8 +268,8 @@ impl Reply {
                 Part::TransactionFlags(ta_flags) => {
                     conn_core.evaluate_ta_flags(ta_flags)?;
                 }
-                Part::ExecutionResult(vec) => {
-                    o_execution_results = Some(vec);
+                Part::ExecutionResults(execution_results) => {
+                    o_execution_results = Some(execution_results);
                 }
                 part => warn!(
                     "Reply::handle_db_error(): ignoring unexpected part of kind {:?}",
@@ -279,23 +279,8 @@ impl Reply {
         }
 
         match o_execution_results {
-            Some(execution_results) => {
-                // mix server_errors into execution results
-                let mut err_iter = server_errors.into_iter();
-                let mut execution_results = execution_results
-                    .into_iter()
-                    .map(|er| match er {
-                        ExecutionResult::Failure(_) => ExecutionResult::Failure(err_iter.next()),
-                        _ => er,
-                    })
-                    .collect::<Vec<ExecutionResult>>();
-                for e in err_iter {
-                    warn!(
-                        "Reply::handle_db_error(): \
-                         found more server_errors than instances of ExecutionResult::Failure"
-                    );
-                    execution_results.push(ExecutionResult::Failure(Some(e)));
-                }
+            Some(mut execution_results) => {
+                execution_results.mix_in_server_errors(server_errors.into_iter());
                 Err(HdbError::ExecutionResults(execution_results))
             }
             None => {

@@ -1,4 +1,4 @@
-use crate::protocol::parts::{ExecutionResult, ServerError};
+use crate::protocol::parts::{ExecutionResults, ServerError};
 // use std::backtrace::Backtrace;
 use thiserror::Error;
 
@@ -111,8 +111,8 @@ pub enum HdbError {
     Evaluation(&'static str),
 
     /// Database server responded with at least one error.
-    #[error("Database server responded with at least one error")]
-    ExecutionResults(Vec<ExecutionResult>),
+    #[error("Database server responded with at least one error: \n{0}")]
+    ExecutionResults(ExecutionResults),
 
     /// Implementation error.
     #[error("Implementation error: {}", _0)]

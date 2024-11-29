@@ -117,7 +117,7 @@ impl<'a> SyncLobWriter<'a> {
                         trace!("is not committed");
                     }
                 }
-                Part::ExecutionResult(_) => {
+                Part::ExecutionResults(_) => {
                     //todo can we do better than just ignore this?
                 }
                 Part::WriteLobReply(write_lob_reply) => {

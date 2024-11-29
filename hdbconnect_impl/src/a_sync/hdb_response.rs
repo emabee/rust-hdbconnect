@@ -51,7 +51,6 @@ use crate::{
 /// # let mut connection = Connection::new(params)?;
 /// # let query_string = "";
 ///   let mut response = connection.statement("call GET_PROCEDURES_SECRETLY()")?; // HdbResponse
-///   response.reverse(); // works because HdbResponse deref's into a Vec<HdbReturnValue>.
 ///
 ///   for ret_val in response {
 ///       match ret_val {
@@ -145,9 +144,9 @@ impl HdbResponse {
 
     fn rows_affected(int_return_values: Vec<InternalReturnValue>) -> HdbResult<Self> {
         match single(int_return_values)? {
-            InternalReturnValue::ExecutionResults(vec_er) => {
+            InternalReturnValue::ExecutionResults(execution_results) => {
                 let mut vec_i = Vec::<usize>::new();
-                for er in vec_er {
+                for er in execution_results {
                     match er {
                         ExecutionResult::RowsAffected(i) => vec_i.push(i),
                         ExecutionResult::SuccessNoInfo => vec_i.push(0),
@@ -156,6 +155,7 @@ impl HdbResponse {
                                 "Found unexpected ExecutionResult::Failure",
                             ));
                         }
+                        ExecutionResult::ExtraFailure(_) => unreachable!("not produced by server"),
                     }
                 }
                 Ok(Self {
@@ -163,52 +163,54 @@ impl HdbResponse {
                 })
             }
             _ => Err(HdbError::Impl(
-                "Wrong InternalReturnValue, a single ResultSet was expected",
+                "Wrong InternalReturnValue, a single set of execution results was expected",
             )),
         }
     }
 
     fn success(int_return_values: Vec<InternalReturnValue>) -> HdbResult<Self> {
         match single(int_return_values)? {
-            InternalReturnValue::ExecutionResults(mut vec_er) => match (vec_er.pop(), vec_er.pop())
-            {
-                (Some(er), None) => match er {
-                    ExecutionResult::RowsAffected(i) => {
-                        if i > 0 {
-                            Err(HdbError::Impl(
-                                "found an affected-row-count > 0, expected a single Success",
-                            ))
-                        } else {
-                            Ok(Self {
-                                return_values: vec![HdbReturnValue::Success],
-                            })
+            InternalReturnValue::ExecutionResults(execution_results) => {
+                let mut iter = execution_results.into_iter();
+                match (iter.next(), iter.next()) {
+                    (Some(er), None) => match er {
+                        ExecutionResult::RowsAffected(i) => {
+                            if i > 0 {
+                                Err(HdbError::Impl(
+                                    "found an affected-row-count > 0, expected a single Success",
+                                ))
+                            } else {
+                                Ok(Self {
+                                    return_values: vec![HdbReturnValue::Success],
+                                })
+                            }
                         }
-                    }
-                    ExecutionResult::SuccessNoInfo => Ok(Self {
-                        return_values: vec![HdbReturnValue::Success],
-                    }),
-                    ExecutionResult::Failure(_) => Err(HdbError::Impl(
-                        "Found unexpected returnvalue ExecutionFailed",
+                        ExecutionResult::SuccessNoInfo => Ok(Self {
+                            return_values: vec![HdbReturnValue::Success],
+                        }),
+                        ExecutionResult::Failure(_) => Err(HdbError::Impl(
+                            "Found unexpected returnvalue ExecutionFailed",
+                        )),
+                        ExecutionResult::ExtraFailure(_) => unreachable!("not produced by server"),
+                    },
+                    (_, _) => Err(HdbError::Impl(
+                        "Expected a single Execution Result, found none or multiple ones",
                     )),
-                },
-                (_, _) => Err(HdbError::Impl(
-                    "Expected a single Execution Result, found none or multiple ones",
-                )),
-            },
+                }
+            }
             _ => Err(HdbError::Impl(
                 "Wrong InternalReturnValue, a single Execution Result was expected",
             )),
         }
     }
 
-    fn multiple_return_values(mut int_return_values: Vec<InternalReturnValue>) -> HdbResult<Self> {
+    fn multiple_return_values(int_return_values: Vec<InternalReturnValue>) -> HdbResult<Self> {
         let mut return_values = Vec::<HdbReturnValue>::new();
-        int_return_values.reverse();
         for irv in int_return_values {
             match irv {
-                InternalReturnValue::ExecutionResults(vec_er) => {
+                InternalReturnValue::ExecutionResults(execution_results) => {
                     let mut vec_i = Vec::<usize>::new();
-                    for er in vec_er {
+                    for er in execution_results {
                         match er {
                             ExecutionResult::RowsAffected(i) => vec_i.push(i),
                             ExecutionResult::SuccessNoInfo => vec_i.push(0),
@@ -216,6 +218,9 @@ impl HdbResponse {
                                 return Err(HdbError::Impl(
                                     "Found unexpected returnvalue 'ExecutionFailed'",
                                 ));
+                            }
+                            ExecutionResult::ExtraFailure(_) => {
+                                unreachable!("not produced by server")
                             }
                         }
                     }
@@ -309,7 +314,7 @@ impl HdbResponse {
             .map_or_else(|| Err(self.get_err("success")), |x| x)
     }
     fn find_success(&self) -> Option<usize> {
-        for (i, rt) in self.return_values.iter().enumerate().rev() {
+        for (i, rt) in self.return_values.iter().enumerate() {
             if rt.is_success() {
                 return Some(i);
             }
@@ -331,7 +336,7 @@ impl HdbResponse {
     }
 
     fn find_result_set(&self) -> Option<usize> {
-        for (i, rt) in self.return_values.iter().enumerate().rev() {
+        for (i, rt) in self.return_values.iter().enumerate() {
             if let HdbReturnValue::ResultSet(_) = *rt {
                 return Some(i);
             }
@@ -352,7 +357,7 @@ impl HdbResponse {
         }
     }
     fn find_affected_rows(&self) -> Option<usize> {
-        for (i, rt) in self.return_values.iter().enumerate().rev() {
+        for (i, rt) in self.return_values.iter().enumerate() {
             if let HdbReturnValue::AffectedRows(_) = *rt {
                 return Some(i);
             }
@@ -373,7 +378,7 @@ impl HdbResponse {
         }
     }
     fn find_output_parameters(&self) -> Option<usize> {
-        for (i, rt) in self.return_values.iter().enumerate().rev() {
+        for (i, rt) in self.return_values.iter().enumerate() {
             if let HdbReturnValue::OutputParameters(_) = *rt {
                 return Some(i);
             }
@@ -403,7 +408,7 @@ impl HdbResponse {
 }
 
 // Drop redundant ParameterMetadata (those that we need were consumed before),
-// then ensure its exactly one
+// then ensure its exactly one InternalReturnValue
 fn single(int_return_values: Vec<InternalReturnValue>) -> HdbResult<InternalReturnValue> {
     let mut int_return_values: Vec<InternalReturnValue> = int_return_values
         .into_iter()
@@ -412,7 +417,7 @@ fn single(int_return_values: Vec<InternalReturnValue>) -> HdbResult<InternalRetu
 
     match int_return_values.len() {
         0 => Err(HdbError::Impl(
-            "Nothing found, but a single ResultSet was expected",
+            "Nothing found, but a single internal return value was expected",
         )),
         1 => Ok(int_return_values.pop().unwrap(/*cannot fail*/)),
         _ => Err(HdbError::ImplDetailed(format!(

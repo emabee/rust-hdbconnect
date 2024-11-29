@@ -4,8 +4,8 @@ mod test_utils;
 
 use flexi_logger::LoggerHandle;
 use hdbconnect_async::{
-    Connection, HdbResponse, HdbResult, HdbReturnValue, HdbValue, ParameterBinding,
-    ParameterDirection, ResultSet, Row, TypeId,
+    Connection, HdbResult, HdbReturnValue, HdbValue, ParameterBinding, ParameterDirection,
+    ResultSet, Row, TypeId,
 };
 
 use log::{debug, info};
@@ -128,11 +128,10 @@ async fn procedure_with_secret_result_sets(
     let l2 = response.get_result_set()?.total_number_of_rows().await?;
     assert_eq!(2 * l1, l2);
 
-    let mut response: HdbResponse = connection
+    for ret_val in connection
         .statement("call GET_PROCEDURES_SECRETLY()")
-        .await?;
-    response.reverse();
-    for ret_val in response {
+        .await?
+    {
         match ret_val {
             HdbReturnValue::ResultSet(rs) => debug!("Got a result set: {:?}", rs),
             HdbReturnValue::AffectedRows(affected_rows) => {

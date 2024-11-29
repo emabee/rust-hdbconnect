@@ -330,6 +330,13 @@ impl<'a> PreparedStatement {
         ))
     }
 
+    /// Returns the number of parameter rows that were already added to the batch.
+    #[must_use]
+    pub fn current_batch_size(&self) -> usize {
+        trace!("PreparedStatement::current_batch_size()");
+        self.batch.count()
+    }
+
     /// Executes the statement with the collected batch, and clears the batch.
     ///
     /// Does nothing and returns with an error, if the statement needs input and no batch exists.
@@ -343,9 +350,13 @@ impl<'a> PreparedStatement {
         if self.batch.is_empty() && self.a_descriptors.has_in() {
             return Err(HdbError::Usage("Empty batch cannot be executed"));
         }
-        let mut rows2 = ParameterRows::new();
-        std::mem::swap(&mut self.batch, &mut rows2);
-        self.execute_parameter_rows(Some(rows2))
+        let mut batch2 = ParameterRows::new();
+        trace!(
+            "Prepared_statement::execute_batch: batch contains {} rows",
+            self.batch.count()
+        );
+        std::mem::swap(&mut self.batch, &mut batch2);
+        self.execute_parameter_rows(Some(batch2))
     }
 
     /// Descriptors of all parameters of the prepared statement (in, out, inout).

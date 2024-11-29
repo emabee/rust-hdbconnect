@@ -411,6 +411,7 @@ impl HdbValue<'static> {
     }
 
     #[cfg(feature = "sync")]
+    #[allow(clippy::ref_option)]
     pub(crate) fn parse_sync(
         type_id: TypeId,
         array_type: bool,
@@ -502,6 +503,7 @@ impl HdbValue<'static> {
     }
 
     #[cfg(feature = "async")]
+    #[allow(clippy::ref_option)]
     pub(crate) async fn parse_async(
         type_id: TypeId,
         array_type: bool,
@@ -535,6 +537,7 @@ impl HdbValue<'static> {
     }
 
     #[cfg(feature = "async")]
+    #[allow(clippy::ref_option)]
     async fn parse_value_async(
         type_id: TypeId,
         scale: i16,
