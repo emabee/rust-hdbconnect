@@ -344,15 +344,18 @@ fn evaluate_certificate_directory(
 
 impl std::fmt::Display for ConnectParams {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        format_as_url(
-            &self.addr,
-            &self.dbuser,
-            self.dbname.as_deref(),
-            self.network_group.as_deref(),
-            &self.tls,
-            self.clientlocale.as_deref(),
-            self.compression,
+        write!(
             f,
+            "{}",
+            format_as_url(
+                &self.addr,
+                &self.dbuser,
+                self.dbname.as_deref(),
+                self.network_group.as_deref(),
+                &self.tls,
+                self.clientlocale.as_deref(),
+                self.compression,
+            )
         )
     }
 }

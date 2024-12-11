@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.30.1] 2024-12-11
+
+Add method `ConnectParamsBuilder::to_url_with_password()`.
+
 ## [0.30.0] 2024-11-29
 
 Improve handling of `ExecutionResults`.

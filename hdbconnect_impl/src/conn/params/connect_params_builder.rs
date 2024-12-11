@@ -240,11 +240,32 @@ impl ConnectParamsBuilder {
         self.to_string()
     }
 
-    // TODO /// Returns the url for this connection _with_ the password.
-    // #[must_use]
-    // pub fn to_url_with_password(&self) -> String {
-    //     unimplemented!()
-    // }
+    /// Returns the url for this connection _with_ the password.
+    #[must_use]
+    pub fn to_url_with_password(&self) -> String {
+        let user_string = if let Some(pw) = self.get_password() {
+            format!(
+                "{}:{}",
+                self.dbuser.as_deref().unwrap_or("<user_not_given>"),
+                pw.unsecure()
+            )
+        } else {
+            self.dbuser.as_deref().unwrap_or("").to_string()
+        };
+        format_as_url(
+            &format!(
+                "{}:{}",
+                self.hostname.as_deref().unwrap_or(""),
+                self.port.unwrap_or_default()
+            ),
+            &user_string,
+            self.dbname.as_deref(),
+            self.network_group.as_deref(),
+            &self.tls,
+            self.clientlocale.as_deref(),
+            self.compression,
+        )
+    }
 
     /// Returns the configured hostname.
     #[must_use]
@@ -332,19 +353,22 @@ impl From<ConnectParamsBuilder> for String {
 
 impl std::fmt::Display for ConnectParamsBuilder {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        format_as_url(
-            &format!(
-                "{}:{}",
-                self.hostname.as_deref().unwrap_or(""),
-                self.port.unwrap_or_default()
-            ),
-            self.dbuser.as_deref().unwrap_or(""),
-            self.dbname.as_deref(),
-            self.network_group.as_deref(),
-            &self.tls,
-            self.clientlocale.as_deref(),
-            self.compression,
+        write!(
             f,
+            "{}",
+            format_as_url(
+                &format!(
+                    "{}:{}",
+                    self.hostname.as_deref().unwrap_or(""),
+                    self.port.unwrap_or_default()
+                ),
+                self.dbuser.as_deref().unwrap_or(""),
+                self.dbname.as_deref(),
+                self.network_group.as_deref(),
+                &self.tls,
+                self.clientlocale.as_deref(),
+                self.compression,
+            )
         )
     }
 }
