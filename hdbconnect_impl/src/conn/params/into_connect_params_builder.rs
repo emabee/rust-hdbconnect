@@ -62,6 +62,7 @@ impl IntoConnectParamsBuilder for Url {
             HDBSQL => false,
             HDBSQLS => true,
             _ => {
+                error!("unknown scheme: {}, from {}", self.scheme(), self);
                 return Err(HdbError::Usage(
                     "Unknown protocol, only 'hdbsql' and 'hdbsqls' are supported",
                 ));
