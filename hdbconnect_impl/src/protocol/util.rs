@@ -1,5 +1,5 @@
 use crate::types_impl::lob::CharLobSlice;
-use crate::{HdbError, HdbResult};
+use crate::{impl_err, HdbError, HdbResult};
 
 pub(crate) fn io_error<E>(error: E) -> std::io::Error
 where
@@ -90,7 +90,7 @@ pub(crate) fn split_off_orphaned_surrogates(cesu8: Vec<u8>) -> HdbResult<CharLob
             cesu8[3..].to_vec(),
         ),
         Cesu8CharType::NotAStart | Cesu8CharType::TooShort => {
-            return Err(HdbError::Impl("Unexpected value for NCLob"));
+            return Err(impl_err!("Unexpected value for NCLob"));
         }
     };
     let (data, postfix) = cesu8_to_string_and_surrogate(cesu8)?;
@@ -151,9 +151,7 @@ fn cesu8_to_string_and_surrogate(cesu8: Vec<u8>) -> HdbResult<(String, Option<Ve
                 Some(vec![buffer_cesu8[0], buffer_cesu8[1], buffer_cesu8[2]]),
             ))
         }
-        _ => Err(HdbError::ImplDetailed(format!(
-            "Unexpected buffer_cesu8 = {buffer_cesu8:?}",
-        ))),
+        _ => Err(impl_err!("Unexpected buffer_cesu8 = {buffer_cesu8:?}",)),
     }
 }
 

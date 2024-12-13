@@ -1,4 +1,4 @@
-use crate::{HdbError, HdbResult};
+use crate::{impl_err, HdbResult};
 
 /// ID of the value type of a database column or a parameter.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
@@ -163,7 +163,7 @@ impl TypeId {
             81 => Self::FIXED8,
             82 => Self::FIXED12,
             // TypeCode_CIPHERTEXT               = 90,  // TODO only for client-side encryption?
-            tc => return Err(HdbError::ImplDetailed(format!("Illegal type code {tc}"))),
+            tc => return Err(impl_err!("Illegal type code {tc}")),
         })
     }
 
@@ -196,9 +196,9 @@ impl TypeId {
             _ => {}
         }
 
-        Err(HdbError::ImplDetailed(format!(
+        Err(impl_err!(
             "value type id {value_type:?} does not match metadata {self:?}",
-        )))
+        ))
     }
 }
 

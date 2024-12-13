@@ -3,6 +3,7 @@ use crate::conn::TcpClient;
 use crate::{
     base::{InternalReturnValue, RsState},
     conn::{AmConnCore, ConnectionCore, ConnectionStatistics},
+    impl_err,
     protocol::{
         parts::{ParameterDescriptors, Parts, ResultSetMetadata, ServerError, Severity},
         util_sync, Part, PartKind, ReplyType, ServerUsage,
@@ -192,10 +193,11 @@ impl Reply {
         if self.replytype == expected_reply_type {
             Ok(())
         } else {
-            Err(HdbError::ImplDetailed(format!(
+            Err(impl_err!(
                 "Expected reply type {:?}, got {:?}",
-                expected_reply_type, self.replytype,
-            )))
+                expected_reply_type,
+                self.replytype,
+            ))
         }
     }
 
@@ -307,11 +309,11 @@ fn parse_packet_header(rdr: &mut dyn std::io::Read) -> HdbResult<ReplyPacketHead
     let no_of_segs = rdr.read_i16::<LittleEndian>()?; // I2
     match no_of_segs {
         1 => {}
-        0 => return Err(HdbError::Impl("empty response (is ok for drop connection)")),
+        0 => return Err(impl_err!("empty response (is ok for drop connection)")),
         _ => {
-            return Err(HdbError::ImplDetailed(format!(
+            return Err(impl_err!(
                 "hdbconnect is not prepared for no_of_segs = {no_of_segs} > 1"
-            )))
+            ))
         }
     }
 
@@ -319,9 +321,7 @@ fn parse_packet_header(rdr: &mut dyn std::io::Read) -> HdbResult<ReplyPacketHead
         0 => false,
         2 => true,
         v => {
-            return Err(HdbError::ImplDetailed(format!(
-                "unexpected value for compression control: {v}"
-            )));
+            return Err(impl_err!("unexpected value for compression control: {v}"));
         }
     };
     util_sync::skip_bytes(1, rdr)?; // filler1byte
@@ -353,7 +353,7 @@ fn parse_packet_header(rdr: &mut dyn std::io::Read) -> HdbResult<ReplyPacketHead
     );
 
     match seg_kind {
-        Kind::Request => Err(HdbError::Impl("Cannot _parse_ a request")),
+        Kind::Request => Err(impl_err!("Cannot _parse_ a request")),
         Kind::Reply | Kind::Error => {
             util_sync::skip_bytes(1, rdr)?; // I1
             let reply_type = ReplyType::from_i16(rdr.read_i16::<LittleEndian>()?)?; // I2
@@ -391,9 +391,7 @@ impl Kind {
             1 => Ok(Self::Request),
             2 => Ok(Self::Reply),
             5 => Ok(Self::Error),
-            _ => Err(HdbError::ImplDetailed(format!(
-                "reply::Kind {val} not implemented",
-            ))),
+            _ => Err(impl_err!("reply::Kind {val} not implemented",)),
         }
     }
 }

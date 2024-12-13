@@ -1,6 +1,6 @@
 use super::{cp_url::format_as_url, tls::Tls};
 use crate::{
-    conn::Compression, ConnectParams, HdbError, HdbResult, IntoConnectParamsBuilder, ServerCerts,
+    conn::Compression, usage_err, ConnectParams, HdbResult, IntoConnectParamsBuilder, ServerCerts,
 };
 use secstr::SecUtf8;
 
@@ -205,21 +205,19 @@ impl ConnectParamsBuilder {
         let host = self
             .hostname
             .clone()
-            .ok_or_else(|| HdbError::Usage("hostname is missing"))?;
+            .ok_or_else(|| usage_err!("hostname is missing"))?;
 
-        let port = self
-            .port
-            .ok_or_else(|| HdbError::Usage("port is missing"))?;
+        let port = self.port.ok_or_else(|| usage_err!("port is missing"))?;
 
         let dbuser: String = self
             .dbuser
             .clone()
-            .ok_or_else(|| HdbError::Usage("dbuser is missing"))?;
+            .ok_or_else(|| usage_err!("dbuser is missing"))?;
 
         let password = self
             .password
             .clone()
-            .ok_or_else(|| HdbError::Usage("password is missing"))?;
+            .ok_or_else(|| usage_err!("password is missing"))?;
 
         Ok(ConnectParams::new(
             host,
