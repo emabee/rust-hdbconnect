@@ -1,7 +1,8 @@
 use crate::{
     conn::authentication::{crypto_util, Authenticator},
+    impl_err,
     protocol::parts::AuthFields,
-    HdbError, HdbResult,
+    usage_err, HdbResult,
 };
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt, WriteBytesExt};
 use rand::{thread_rng, RngCore};
@@ -50,7 +51,7 @@ impl Authenticator for ScramPbkdf2Sha256 {
             password,
             iterations,
         )
-        .map_err(|_| HdbError::Impl("crypto_common::InvalidLength"))?;
+        .map_err(|_| impl_err!("crypto_common::InvalidLength"))?;
         debug!(
             "pbkdf2 took {} µs",
             Instant::now().duration_since(start).as_micros(),
@@ -61,11 +62,11 @@ impl Authenticator for ScramPbkdf2Sha256 {
 
         let mut buf = Vec::<u8>::with_capacity(3 + (CLIENT_PROOF_SIZE as usize));
         buf.write_u16::<LittleEndian>(1_u16)
-            .map_err(|_e| HdbError::Impl(CONTEXT_CLIENT_PROOF))?;
+            .map_err(|_e| impl_err!("{}", CONTEXT_CLIENT_PROOF))?;
         buf.write_u8(CLIENT_PROOF_SIZE)
-            .map_err(|_e| HdbError::Impl(CONTEXT_CLIENT_PROOF))?;
+            .map_err(|_e| impl_err!("{}", CONTEXT_CLIENT_PROOF))?;
         buf.write_all(&client_proof)
-            .map_err(|_e| HdbError::Impl(CONTEXT_CLIENT_PROOF))?;
+            .map_err(|_e| impl_err!("{}", CONTEXT_CLIENT_PROOF))?;
 
         Ok(buf)
     }
@@ -73,7 +74,7 @@ impl Authenticator for ScramPbkdf2Sha256 {
     fn verify_server(&self, server_data: &[u8]) -> HdbResult<()> {
         let srv_proof = AuthFields::parse(&mut std::io::Cursor::new(server_data))?
             .pop()
-            .ok_or_else(|| HdbError::Impl("expected non-empty list of auth fields"))?;
+            .ok_or_else(|| impl_err!("expected non-empty list of auth fields"))?;
 
         if let Some(ref s_p) = self.server_proof {
             if s_p as &[u8] == &srv_proof as &[u8] {
@@ -83,7 +84,7 @@ impl Authenticator for ScramPbkdf2Sha256 {
         let msg = "PBKDF2: Server proof failed - \
                    this indicates a severe security issue with the server's identity!";
         warn!("{}", msg);
-        Err(HdbError::Usage(msg))
+        Err(usage_err!("{}", msg))
     }
 }
 
@@ -95,18 +96,13 @@ fn parse_first_server_data(server_data: &[u8]) -> HdbResult<(Vec<u8>, Vec<u8>, u
         (Some(it_bytes), Some(server_nonce), Some(salt), None) => {
             let iterations = std::io::Cursor::new(it_bytes).read_u32::<BigEndian>()?;
             if iterations < 15_000 {
-                Err(HdbError::ImplDetailed(format!(
-                    "not enough iterations: {iterations}",
-                )))
+                Err(impl_err!("not enough iterations: {iterations}"))
             } else if salt.len() < 16 {
-                Err(HdbError::ImplDetailed(format!(
-                    "too little salt: {}",
-                    salt.len()
-                )))
+                Err(impl_err!("too little salt: {}", salt.len()))
             } else {
                 Ok((salt, server_nonce, iterations))
             }
         }
-        (_, _, _, _) => Err(HdbError::Impl("expected 3 auth fields")),
+        (_, _, _, _) => Err(impl_err!("expected 3 auth fields")),
     }
 }

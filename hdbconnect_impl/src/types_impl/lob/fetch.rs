@@ -1,10 +1,11 @@
 use crate::{
     conn::{AmConnCore, CommandOptions},
+    impl_err,
     protocol::{
         parts::{ReadLobReply, ReadLobRequest},
         MessageType, Part, ReplyType, Request, ServerUsage,
     },
-    HdbError, HdbResult,
+    HdbResult,
 };
 
 // Note that requested_length and offset count either bytes (BLOB, CLOB), or 1-2-3-chars (NCLOB)
@@ -30,7 +31,7 @@ pub(crate) fn fetch_a_lob_chunk_sync(
         match part {
             Part::ReadLobReply(read_lob_reply) => {
                 if *read_lob_reply.locator_id() != locator_id {
-                    return Err(HdbError::Impl("locator ids do not match"));
+                    return Err(impl_err!("locator ids do not match"));
                 }
                 o_read_lob_reply = Some(read_lob_reply);
             }
@@ -49,7 +50,7 @@ pub(crate) fn fetch_a_lob_chunk_sync(
 
     o_read_lob_reply
         .map(ReadLobReply::into_data_and_last)
-        .ok_or_else(|| HdbError::Impl("fetching a lob chunk failed"))
+        .ok_or_else(|| impl_err!("fetching a lob chunk failed"))
 }
 
 // Note that requested_length and offset count either bytes (BLOB, CLOB), or 1-2-3-chars (NCLOB)
@@ -75,7 +76,7 @@ pub(crate) async fn fetch_a_lob_chunk_async(
         match part {
             Part::ReadLobReply(read_lob_reply) => {
                 if *read_lob_reply.locator_id() != locator_id {
-                    return Err(HdbError::Impl("locator ids do not match"));
+                    return Err(impl_err!("locator ids do not match"));
                 }
                 o_read_lob_reply = Some(read_lob_reply);
             }
@@ -94,5 +95,5 @@ pub(crate) async fn fetch_a_lob_chunk_async(
 
     o_read_lob_reply
         .map(ReadLobReply::into_data_and_last)
-        .ok_or_else(|| HdbError::Impl("fetching a lob chunk failed"))
+        .ok_or_else(|| impl_err!("fetching a lob chunk failed"))
 }

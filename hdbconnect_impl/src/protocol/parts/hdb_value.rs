@@ -1,6 +1,7 @@
 use crate::{
     base::{RsCore, OAM},
     conn::AmConnCore,
+    impl_err,
     protocol::{
         parts::{length_indicator, ParameterDescriptor, TypeId},
         util, util_sync,
@@ -10,7 +11,7 @@ use crate::{
         daydate::parse_daydate, decimal, lob, longdate::parse_longdate,
         seconddate::parse_seconddate, secondtime::parse_secondtime,
     },
-    HdbError, HdbResult,
+    usage_err, HdbError, HdbResult,
 };
 use bigdecimal::BigDecimal;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -135,9 +136,9 @@ impl HdbValue<'_> {
                     requested_type_id
                 }
                 _ => {
-                    return Err( HdbError::ImplDetailed(format!(
+                    return Err( impl_err!(
                         "Can't send DECIMAL for requested type {requested_type_id:?}"
-                    )));
+                    ));
                 }
             },
             HdbValue::REAL(_) => TypeId::REAL,
@@ -206,9 +207,7 @@ impl HdbValue<'_> {
                     emit_length_and_bytes(v, w)?;
                 }
                 _ => {
-                    return Err(HdbError::ImplDetailed(format!(
-                        "HdbValue::{self} cannot be sent to the database",
-                    )));
+                    return Err(impl_err!("HdbValue::{self} cannot be sent to the database",));
                 }
             }
         }
@@ -224,7 +223,7 @@ impl HdbValue<'_> {
         let is_null = self.is_null();
         let type_code = self
             .type_id_for_emit(requested_type_id)
-            .map_err(|e| HdbError::ImplDetailed(e.to_string()))?
+            .map_err(|e| impl_err!("{}", e))?
             .type_code(is_null);
         w.write_u8(type_code)?;
         Ok(is_null)
@@ -241,9 +240,7 @@ impl HdbValue<'_> {
                 TypeId::FIXED12 => 12,
                 TypeId::FIXED16 | TypeId::DECIMAL => 16,
                 tid => {
-                    return Err(HdbError::ImplDetailed(format!(
-                        "invalid TypeId {tid:?} for DECIMAL",
-                    )));
+                    return Err(impl_err!("invalid TypeId {tid:?} for DECIMAL"));
                 }
             },
 
@@ -274,18 +271,18 @@ impl HdbValue<'_> {
             | HdbValue::SYNC_CLOB(_)
             | HdbValue::SYNC_NCLOB(_)
             | HdbValue::SYNC_LOBSTREAM(Some(_)) => {
-                return Err(HdbError::ImplDetailed(format!(
+                return Err(impl_err!(
                     "size(): can't send {self:?} directly to the database",
-                )));
+                ));
             }
             #[cfg(feature = "async")]
             HdbValue::ASYNC_BLOB(_)
             | HdbValue::ASYNC_CLOB(_)
             | HdbValue::ASYNC_NCLOB(_)
             | HdbValue::ASYNC_LOBSTREAM(Some(_)) => {
-                return Err(HdbError::ImplDetailed(format!(
+                return Err(impl_err!(
                     "size(): can't send {self:?} directly to the database",
-                )));
+                ));
             }
 
             HdbValue::DBSTRING(_) | HdbValue::ARRAY(_) => {
@@ -324,14 +321,14 @@ impl HdbValue<'static> {
     ///
     /// # Errors
     ///
-    /// `HdbError::UsageDetailed` if this is not a `HdbValue::BLOB`.
+    /// `HdbError::Usage` if this is not a `HdbValue::BLOB`.
     #[cfg(feature = "sync")]
     pub fn try_into_blob(self) -> HdbResult<crate::sync::BLob> {
         match self {
             HdbValue::SYNC_BLOB(blob) => Ok(blob),
-            v => Err(HdbError::UsageDetailed(format!(
+            v => Err(usage_err!(
                 "The value {v:?} cannot be converted into a BLOB",
-            ))),
+            )),
         }
     }
 
@@ -339,14 +336,14 @@ impl HdbValue<'static> {
     ///
     /// # Errors
     ///
-    /// `HdbError::UsageDetailed` if this is not a `HdbValue::BLOB`.
+    /// `HdbError::Usage` if this is not a `HdbValue::BLOB`.
     #[cfg(feature = "async")]
     pub fn try_into_async_blob(self) -> HdbResult<crate::a_sync::BLob> {
         match self {
             HdbValue::ASYNC_BLOB(blob) => Ok(blob),
-            v => Err(HdbError::UsageDetailed(format!(
+            v => Err(usage_err!(
                 "The value {v:?} cannot be converted into a BLOB",
-            ))),
+            )),
         }
     }
 
@@ -354,14 +351,14 @@ impl HdbValue<'static> {
     ///
     /// # Errors
     ///
-    /// `HdbError::UsageDetailed` if this is not a `HdbValue::CLOB`.
+    /// `HdbError::Usage` if this is not a `HdbValue::CLOB`.
     #[cfg(feature = "sync")]
     pub fn try_into_clob(self) -> HdbResult<crate::sync::CLob> {
         match self {
             HdbValue::SYNC_CLOB(clob) => Ok(clob),
-            v => Err(HdbError::UsageDetailed(format!(
+            v => Err(usage_err!(
                 "The value {v:?} cannot be converted into a CLOB",
-            ))),
+            )),
         }
     }
 
@@ -369,14 +366,14 @@ impl HdbValue<'static> {
     ///
     /// # Errors
     ///
-    /// `HdbError::UsageDetailed` if this is not a `HdbValue::CLOB`.
+    /// `HdbError::Usage` if this is not a `HdbValue::CLOB`.
     #[cfg(feature = "async")]
     pub fn try_into_async_clob(self) -> HdbResult<crate::a_sync::CLob> {
         match self {
             HdbValue::ASYNC_CLOB(clob) => Ok(clob),
-            v => Err(HdbError::UsageDetailed(format!(
+            v => Err(usage_err!(
                 "The value {v:?} cannot be converted into a CLOB",
-            ))),
+            )),
         }
     }
 
@@ -384,14 +381,14 @@ impl HdbValue<'static> {
     ///
     /// # Errors
     ///
-    /// `HdbError::UsageDetailed` if this is not a `HdbValue::NCLOB`.
+    /// `HdbError::Usage` if this is not a `HdbValue::NCLOB`.
     #[cfg(feature = "sync")]
     pub fn try_into_nclob(self) -> HdbResult<crate::sync::NCLob> {
         match self {
             HdbValue::SYNC_NCLOB(nclob) => Ok(nclob),
-            v => Err(HdbError::UsageDetailed(format!(
+            v => Err(usage_err!(
                 "The database value {v:?} cannot be converted into a NCLob",
-            ))),
+            )),
         }
     }
 
@@ -399,14 +396,14 @@ impl HdbValue<'static> {
     ///
     /// # Errors
     ///
-    /// `HdbError::UsageDetailed` if this is not a `HdbValue::NCLOB`.
+    /// `HdbError::Usage` if this is not a `HdbValue::NCLOB`.
     #[cfg(feature = "async")]
     pub fn try_into_async_nclob(self) -> HdbResult<crate::a_sync::NCLob> {
         match self {
             HdbValue::ASYNC_NCLOB(nclob) => Ok(nclob),
-            v => Err(HdbError::UsageDetailed(format!(
+            v => Err(usage_err!(
                 "The database value {v:?} cannot be converted into a NCLob",
-            ))),
+            )),
         }
     }
 
@@ -473,7 +470,7 @@ impl HdbValue<'static> {
                 | TypeId::GEOMETRY
                 | TypeId::POINT => Ok(parse_binary(nullable, t, rdr)?),
 
-                TypeId::BLOCATOR => Err(HdbError::Impl("parsing BLOCATOR not implemented")),
+                TypeId::BLOCATOR => Err(impl_err!("parsing BLOCATOR not implemented")),
                 TypeId::BLOB | TypeId::BINTEXT => Ok(lob::parse_blob_sync(
                     am_conn_core,
                     o_am_rscore,
@@ -580,7 +577,7 @@ impl HdbValue<'static> {
             | TypeId::GEOMETRY
             | TypeId::POINT => Ok(parse_binary(nullable, t, rdr)?),
 
-            TypeId::BLOCATOR => Err(HdbError::Impl("parsing BLOCATOR not implemented")),
+            TypeId::BLOCATOR => Err(impl_err!("parsing BLOCATOR not implemented")),
             TypeId::BLOB | TypeId::BINTEXT => {
                 Ok(lob::parse_blob_async(am_conn_core, o_am_rscore, nullable, rdr).await?)
             }
@@ -615,7 +612,7 @@ fn emit_bool(b: bool, w: &mut dyn std::io::Write) -> HdbResult<()> {
 fn parse_null_sync(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<bool> {
     let is_null = rdr.read_u8()? == 0;
     if is_null && !nullable {
-        Err(HdbError::Impl("found null value for not-null column"))
+        Err(impl_err!("found null value for not-null column"))
     } else {
         Ok(is_null)
     }
@@ -664,7 +661,7 @@ fn parse_real(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<HdbValue
         if nullable {
             Ok(HdbValue::NULL)
         } else {
-            Err(HdbError::Impl("found NULL value for NOT NULL column"))
+            Err(impl_err!("found NULL value for NOT NULL column"))
         }
     } else {
         cursor.set_position(0);
@@ -683,7 +680,7 @@ fn parse_double(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<HdbVal
         if nullable {
             Ok(HdbValue::NULL)
         } else {
-            Err(HdbError::Impl("found NULL value for NOT NULL column"))
+            Err(impl_err!("found NULL value for NOT NULL column"))
         }
     } else {
         cursor.set_position(0);
@@ -700,12 +697,10 @@ fn parse_bool(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<HdbValue
             if nullable {
                 Ok(HdbValue::NULL)
             } else {
-                Err(HdbError::Impl("parse_bool_sync: got null value"))
+                Err(impl_err!("parse_bool_sync: got null value"))
             }
         }
-        i => Err(HdbError::ImplDetailed(format!(
-            "parse_bool: got bad value {i}"
-        ))),
+        i => Err(impl_err!("parse_bool: got bad value {i}")),
     }
 }
 
@@ -716,9 +711,7 @@ fn parse_alphanum(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<HdbV
         if nullable {
             Ok(HdbValue::NULL)
         } else {
-            Err(HdbError::Impl(
-                "found NULL value for NOT NULL ALPHANUM column",
-            ))
+            Err(impl_err!("found NULL value for NOT NULL ALPHANUM column",))
         }
     } else {
         let data_length = indicator1 - 1; // why?!?
@@ -754,9 +747,7 @@ fn parse_string(
         if nullable {
             Ok(HdbValue::NULL)
         } else {
-            Err(HdbError::Impl(
-                "found NULL value for NOT NULL string column",
-            ))
+            Err(impl_err!("found NULL value for NOT NULL string column",))
         }
     } else {
         Ok(match type_id {
@@ -779,7 +770,7 @@ fn parse_string(
                     },
                 }
             }
-            _ => return Err(HdbError::Impl("unexpected type id for string")),
+            _ => return Err(impl_err!("unexpected type id for string")),
         })
     }
 }
@@ -796,9 +787,7 @@ fn parse_binary(
         if nullable {
             Ok(HdbValue::NULL)
         } else {
-            Err(HdbError::Impl(
-                "found NULL value for NOT NULL binary column",
-            ))
+            Err(impl_err!("found NULL value for NOT NULL binary column",))
         }
     } else {
         let bytes = parse_length_and_bytes(l8, rdr)?;
@@ -806,7 +795,7 @@ fn parse_binary(
             TypeId::BSTRING | TypeId::VARBINARY | TypeId::BINARY => HdbValue::BINARY(bytes),
             TypeId::GEOMETRY => HdbValue::GEOMETRY(bytes),
             TypeId::POINT => HdbValue::POINT(bytes),
-            _ => return Err(HdbError::Impl("unexpected type id for binary")),
+            _ => return Err(impl_err!("unexpected type id for binary")),
         })
     }
 }

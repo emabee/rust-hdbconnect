@@ -1,6 +1,7 @@
 use crate::{
+    impl_err,
     protocol::{util, util_sync},
-    HdbError, HdbResult,
+    HdbResult,
 };
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
@@ -20,14 +21,14 @@ impl OptionValue {
         if let Self::INT(i) = self {
             Ok(*i)
         } else {
-            Err(HdbError::Impl("Not a INT-typed OptionValue"))
+            Err(impl_err!("Not a INT-typed OptionValue"))
         }
     }
     pub fn get_int_as_u32(&self) -> HdbResult<u32> {
         if let Self::INT(i) = self {
             Ok(u32::try_from(*i).unwrap(/*OK*/))
         } else {
-            Err(HdbError::Impl("Not a INT-typed OptionValue"))
+            Err(impl_err!("Not a INT-typed OptionValue"))
         }
     }
 
@@ -35,7 +36,7 @@ impl OptionValue {
     //     if let Self::BIGINT(i) = self {
     //         Ok(*i)
     //     } else {
-    //         Err(HdbError::Impl("Not a BIGINT-typed OptionValue"))
+    //         Err(impl_err!("Not a BIGINT-typed OptionValue"))
     //     }
     // }
 
@@ -43,7 +44,7 @@ impl OptionValue {
     //     if let Self::DOUBLE(d) = self {
     //         Ok(*d)
     //     } else {
-    //         Err(HdbError::Impl("Not a DOUBLE-typed OptionValue"))
+    //         Err(impl_err!("Not a DOUBLE-typed OptionValue"))
     //     }
     // }
 
@@ -51,7 +52,7 @@ impl OptionValue {
         if let Self::BOOLEAN(b) = self {
             Ok(*b)
         } else {
-            Err(HdbError::Impl("Not a BOOLEAN-typed OptionValue"))
+            Err(impl_err!("Not a BOOLEAN-typed OptionValue"))
         }
     }
 
@@ -59,7 +60,7 @@ impl OptionValue {
         if let Self::STRING(ref s) = self {
             Ok(s)
         } else {
-            Err(HdbError::Impl("Not a STRING-typed OptionValue"))
+            Err(impl_err!("Not a STRING-typed OptionValue"))
         }
     }
 
@@ -67,7 +68,7 @@ impl OptionValue {
         if let Self::STRING(s) = self {
             Ok(s)
         } else {
-            Err(HdbError::Impl("Not a STRING-typed OptionValue"))
+            Err(impl_err!("Not a STRING-typed OptionValue"))
         }
     }
 
@@ -75,7 +76,7 @@ impl OptionValue {
     //     if let Self::BSTRING(ref s) = self {
     //         Ok(s)
     //     } else {
-    //         Err(HdbError::Impl("Not a BSTRING-typed OptionValue"))
+    //         Err(impl_err!("Not a BSTRING-typed OptionValue"))
     //     }
     // }
 
@@ -127,9 +128,9 @@ impl OptionValue {
             28 => Ok(Self::BOOLEAN(rdr.read_u8()? > 0)),         // B1
             29 => Ok(Self::STRING(parse_length_and_string(rdr)?)),
             33 => Ok(Self::BSTRING(parse_length_and_binary(rdr)?)),
-            _ => Err(HdbError::ImplDetailed(format!(
+            _ => Err(impl_err!(
                 "OptionValue::parse_value() not implemented for type code {typecode}",
-            ))),
+            )),
         }
     }
 }

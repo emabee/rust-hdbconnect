@@ -7,7 +7,7 @@ use crate::{
         parts::{ClientContext, ClientContextId, CommandInfo, ConnOptId, OptionValue, ServerError},
         MessageType, Part, Request, ServerUsage,
     },
-    HdbError, HdbResult, IntoConnectParams,
+    usage_err, HdbResult, IntoConnectParams,
 };
 #[cfg(feature = "dist_tx")]
 use dist_tx::a_sync::rm::ResourceManager;
@@ -53,7 +53,7 @@ impl Connection {
     ) -> HdbResult<Self> {
         let params = params.into_connect_params()?;
         if params.password().unsecure().is_empty() {
-            Err(HdbError::Usage("Empty password is not allowed"))
+            Err(usage_err!("Empty password is not allowed"))
         } else {
             Ok(Self {
                 am_conn_core: AmConnCore::try_new_async(params, config).await?,
@@ -141,7 +141,7 @@ impl Connection {
         let vec = &(self.statement(stmt).await?.into_affected_rows()?);
         match vec.len() {
             1 => Ok(vec[0]),
-            _ => Err(HdbError::Usage("number of affected-rows-counts <> 1")),
+            _ => Err(usage_err!("number of affected-rows-counts <> 1")),
         }
     }
 
@@ -618,7 +618,7 @@ impl Connection {
     ///
     /// Errors are unlikely to occur.
     ///
-    /// - `HdbError::ImplDetailed` if the version string was not provided by the database server.
+    /// - `HdbErr::Impl` if the version string was not provided by the database server.
     /// - `HdbError::Poison` if the shared mutex of the inner connection object is poisened.
     pub async fn get_full_version_string(&self) -> String {
         self.am_conn_core

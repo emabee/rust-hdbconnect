@@ -1,7 +1,7 @@
 use super::cp_url::UrlOpt;
 use crate::{
     url::{HDBSQL, HDBSQLS},
-    ConnectParamsBuilder, HdbError, HdbResult, ServerCerts,
+    usage_err, ConnectParamsBuilder, HdbError, HdbResult, ServerCerts,
 };
 use url::Url;
 
@@ -62,8 +62,9 @@ impl IntoConnectParamsBuilder for Url {
             HDBSQL => false,
             HDBSQLS => true,
             _ => {
-                return Err(HdbError::Usage(
-                    "Unknown protocol, only 'hdbsql' and 'hdbsqls' are supported",
+                return Err(usage_err!(
+                    "Unknown protocol '{}', only 'hdbsql' and 'hdbsqls' are supported",
+                    self.scheme()
                 ));
             }
         };
@@ -103,9 +104,7 @@ impl IntoConnectParamsBuilder for Url {
                     builder.always_uncompressed(true);
                 }
                 None => {
-                    return Err(HdbError::UsageDetailed(format!(
-                        "option '{name}' not supported",
-                    )));
+                    return Err(usage_err!("option '{name}' not supported"));
                 }
             }
         }
@@ -113,7 +112,7 @@ impl IntoConnectParamsBuilder for Url {
         if use_tls {
             if insecure_option {
                 if !server_certs.is_empty() {
-                    return Err(HdbError::Usage(
+                    return Err(usage_err!(
                         "Use either the url-options 'tls_certificate_dir', 'tls_certificate_env', \
                         'tls_certificate_direct' and 'use_mozillas_root_certificates' \
                         to specify the access to the server certificate,\
@@ -124,7 +123,7 @@ impl IntoConnectParamsBuilder for Url {
                 builder.tls_without_server_verification();
             } else {
                 if server_certs.is_empty() {
-                    return Err(HdbError::Usage(
+                    return Err(usage_err!(
                         "Using 'hdbsqls' requires at least one of the url-options \
                         'tls_certificate_dir', 'tls_certificate_env', 'tls_certificate_direct', \
                         'use_mozillas_root_certificates', or 'insecure_omit_server_certificate_check'",
@@ -135,7 +134,7 @@ impl IntoConnectParamsBuilder for Url {
                 }
             }
         } else if insecure_option || !server_certs.is_empty() {
-            return Err(HdbError::Usage(
+            return Err(usage_err!(
                 "Using 'hdbsql' is not possible with any of the url-options \
                     'tls_certificate_dir', 'tls_certificate_env', 'tls_certificate_direct', \
                     'use_mozillas_root_certificates', or 'insecure_omit_server_certificate_check'; \

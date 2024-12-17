@@ -1,5 +1,6 @@
 use crate::{
     conn::{authentication::Authenticator, CommandOptions, ConnectionCore},
+    impl_err,
     protocol::{
         parts::{AuthFields, ClientContext, ConnOptId, ConnectOptionsPart, DbConnectInfo},
         MessageType, Part, Reply, ReplyType, Request,
@@ -47,7 +48,7 @@ fn evaluate_first_response(reply: Reply) -> HdbResult<FirstAuthResponse> {
                         server_challenge_data,
                     ))
                 }
-                (_, _, _) => return Err(HdbError::Impl("expected 2 auth_fields")),
+                (_, _, _) => return Err(impl_err!("expected 2 auth_fields")),
             }
         }
         (Some(Part::Error(_vec_server_error)), Some(Part::DbConnectInfo(db_connect_info))) => {
@@ -57,9 +58,9 @@ fn evaluate_first_response(reply: Reply) -> HdbResult<FirstAuthResponse> {
         (Some(Part::Error(mut server_errors)), None) => {
             Err(HdbError::from(server_errors.remove(0)))
         }
-        (p1, p2) => Err(HdbError::ImplDetailed(format!(
-            "Unexpected db response with parts: {p1:?}, {p2:?}",
-        ))),
+        (p1, p2) => Err(impl_err!(
+            "Unexpected db response with parts: {p1:?}, {p2:?}"
+        )),
     };
 
     for part in parts_iter {
@@ -152,7 +153,7 @@ fn evaluate_second_response(
                 (Some(server_proof), Some(method), None) => {
                     chosen_authenticator.evaluate_second_response(&method, &server_proof)?;
                 }
-                (_, _, _) => return Err(HdbError::Impl("Expected 2 authfields")),
+                (_, _, _) => return Err(impl_err!("Expected 2 authfields")),
             },
             _ => warn!("second_auth_request: ignoring unexpected part = {:?}", part),
         }

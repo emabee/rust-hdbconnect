@@ -2,11 +2,12 @@ use super::lob_writer_util::{get_utf8_tail_len, LobWriteMode};
 use crate::{
     base::InternalReturnValue,
     conn::{AmConnCore, CommandOptions},
+    impl_err,
     protocol::{
         parts::{ParameterDescriptors, ResultSetMetadata, TypeId, WriteLobRequest},
         util, MessageType, Part, PartKind, Reply, ReplyType, Request,
     },
-    HdbError, HdbResult, ServerUsage,
+    HdbResult, ServerUsage,
 };
 use std::{io::Write, sync::Arc};
 
@@ -45,9 +46,7 @@ impl<'a> SyncLobWriter<'a> {
                 proc_result: None,
             })
         } else {
-            Err(HdbError::ImplDetailed(format!(
-                "Unsupported type-id {type_id:?}"
-            )))
+            Err(impl_err!("Unsupported type-id {type_id:?}"))
         }
     }
 
@@ -91,10 +90,10 @@ impl<'a> SyncLobWriter<'a> {
             // last response of last IN parameter
             ReplyType::DbProcedureCall => self.evaluate_dbprocedure_call_reply(reply),
 
-            _ => Err(HdbError::ImplDetailed(format!(
+            _ => Err(impl_err!(
                 "LobWriter::write_a_lob_chunk got a reply of type {:?}",
                 reply.replytype,
-            ))),
+            )),
         }
     }
 
@@ -131,7 +130,7 @@ impl<'a> SyncLobWriter<'a> {
             }
         }
 
-        result.ok_or_else(|| HdbError::Impl("No WriteLobReply part found"))
+        result.ok_or_else(|| impl_err!("No WriteLobReply part found"))
     }
 
     fn evaluate_dbprocedure_call_reply(&mut self, mut reply: Reply) -> HdbResult<Vec<u64>> {
@@ -154,7 +153,7 @@ impl<'a> SyncLobWriter<'a> {
                 ),
                 None => (None, None, None),
                 Some(_) => {
-                    return Err(HdbError::Impl("Inconsistent StatementContext found"));
+                    return Err(impl_err!("Inconsistent StatementContext found"));
                 }
             };
         self.server_usage

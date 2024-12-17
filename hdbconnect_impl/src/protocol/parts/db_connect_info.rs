@@ -1,9 +1,10 @@
 use crate::{
+    impl_err,
     protocol::parts::{
         option_part::{OptionId, OptionPart},
         option_value::OptionValue,
     },
-    {HdbError, HdbResult},
+    HdbResult,
 };
 
 // Part of redirect response to authentication request
@@ -32,11 +33,8 @@ impl DbConnectInfo {
         self.get(&DbConnectInfoId::Host)?.get_string()
     }
     pub fn port(&self) -> HdbResult<u16> {
-        u16::try_from(self.get(&DbConnectInfoId::Port)?.get_int_as_u32()?).map_err(|e| {
-            HdbError::ImplDetailed(format!(
-                "Invalid port number received, can't convert to u16: {e}",
-            ))
-        })
+        u16::try_from(self.get(&DbConnectInfoId::Port)?.get_int_as_u32()?)
+            .map_err(|e| impl_err!("Invalid port number received, can't convert to u16: {e}",))
     }
     pub fn on_correct_database(&self) -> HdbResult<bool> {
         self.get(&DbConnectInfoId::OnCorrectDatabase)?.get_bool()

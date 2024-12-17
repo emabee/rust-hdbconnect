@@ -19,9 +19,9 @@ async fn test_081_conn_pooling_for_bb8() -> HdbResult<()> {
 #[cfg(feature = "bb8_pool")]
 mod inner {
     extern crate serde;
-
     use hdbconnect_async::{ConnectionConfiguration, ConnectionManager, HdbError, HdbResult};
     use log::trace;
+    use std::borrow::Cow;
     use tokio::task::JoinHandle;
 
     const NO_OF_WORKERS: usize = 20;
@@ -51,9 +51,9 @@ mod inner {
                 0_u8,
                 worker_handle
                     .await
-                    .map_err(|e| HdbError::UsageDetailed(format!(
+                    .map_err(|e| HdbError::Usage(Cow::from(format!(
                         "Joining worker thread failed: {e:?}"
-                    )))?
+                    ))))?
             );
         }
 

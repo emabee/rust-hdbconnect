@@ -5,7 +5,7 @@ use crate::{
         MessageType, Part, Request, ServerUsage,
     },
     sync::{HdbResponse, PreparedStatement, ResultSet},
-    {HdbError, HdbResult, IntoConnectParams},
+    usage_err, HdbResult, IntoConnectParams,
 };
 use std::time::Duration;
 
@@ -48,7 +48,7 @@ impl Connection {
     ) -> HdbResult<Self> {
         let params = params.into_connect_params()?;
         if params.password().unsecure().is_empty() {
-            Err(HdbError::Usage("Empty password is not allowed"))
+            Err(usage_err!("Empty password is not allowed"))
         } else {
             Ok(Self {
                 am_conn_core: AmConnCore::try_new_sync(params, config)?,
@@ -139,7 +139,7 @@ impl Connection {
         let vec = &(self.statement(stmt)?.into_affected_rows()?);
         match vec.len() {
             1 => Ok(vec[0]),
-            _ => Err(HdbError::Usage("number of affected-rows-counts <> 1")),
+            _ => Err(usage_err!("number of affected-rows-counts <> 1")),
         }
     }
 
@@ -625,7 +625,7 @@ impl Connection {
     ///
     /// Errors are unlikely to occur.
     ///
-    /// - `HdbError::ImplDetailed` if the database name was not provided by the database server.
+    /// - `HdbError::Impl` if the database name was not provided by the database server.
     /// - `HdbError::Poison` if the shared mutex of the inner connection object is poisened.
     pub fn get_database_name(&self) -> HdbResult<String> {
         Ok(self
@@ -642,7 +642,7 @@ impl Connection {
     ///
     /// Errors are unlikely to occur.
     ///
-    /// - `HdbError::ImplDetailed` if the system id was not provided by the database server.
+    /// - `HdbError::Impl` if the system id was not provided by the database server.
     /// - `HdbError::Poison` if the shared mutex of the inner connection object is poisened.
     pub fn get_system_id(&self) -> HdbResult<String> {
         Ok(self
@@ -695,7 +695,7 @@ impl Connection {
     ///
     /// Errors are unlikely to occur.
     ///
-    /// - `HdbError::ImplDetailed` if the version string was not provided by the database server.
+    /// - `HdbError::Impl` if the version string was not provided by the database server.
     /// - `HdbError::Poison` if the shared mutex of the inner connection object is poisened.
     pub fn get_full_version_string(&self) -> HdbResult<String> {
         Ok(self

@@ -1,4 +1,4 @@
-use crate::{HdbError, HdbResult, HdbValue};
+use crate::{impl_err, HdbResult, HdbValue};
 use byteorder::{LittleEndian, ReadBytesExt};
 
 const NULL_REPRESENTATION: i32 = 86_402;
@@ -63,9 +63,7 @@ pub(crate) fn parse_secondtime(
         if nullable {
             Ok(HdbValue::NULL)
         } else {
-            Err(HdbError::Impl(
-                "found NULL value for NOT NULL SECONDTIME column",
-            ))
+            Err(impl_err!("found NULL value for NOT NULL SECONDTIME column",))
         }
     } else {
         Ok(HdbValue::SECONDTIME(SecondTime::new(i)))

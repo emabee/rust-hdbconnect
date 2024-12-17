@@ -1,6 +1,7 @@
 use crate::{
     base::{new_am_sync, InternalReturnValue, PreparedStatementCore, AM},
     conn::AmConnCore,
+    impl_err,
     protocol::{
         parts::{
             HdbValue, LobFlags, ParameterDescriptors, ParameterRows, ResultSetMetadata, TypeId,
@@ -9,7 +10,7 @@ use crate::{
     },
     sync::HdbResponse,
     types_impl::lob::SyncLobWriter,
-    ConnectionConfiguration, HdbError, HdbResult,
+    usage_err, ConnectionConfiguration, HdbResult,
 };
 use std::{io::Write, sync::Arc};
 
@@ -248,12 +249,12 @@ impl<'a> PreparedStatement {
             if let Some(Part::WriteLobReply(wlr)) = write_lob_reply {
                 let locator_ids = wlr.into_locator_ids();
                 if locator_ids.len() != readers.len() {
-                    return Err(HdbError::UsageDetailed(format!(
+                    return Err(usage_err!(
                         "The number of provided readers ({}) does not match \
                          the number of required readers ({})",
                         readers.len(),
                         locator_ids.len()
-                    )));
+                    ));
                 }
                 for (locator_id, (reader, type_id)) in locator_ids.into_iter().zip(readers) {
                     debug!("writing content to locator with id {:?}", locator_id);
@@ -303,7 +304,7 @@ impl<'a> PreparedStatement {
             self.batch.push(input, &self.a_descriptors)?;
             return Ok(());
         }
-        Err(HdbError::Usage(
+        Err(usage_err!(
             "Batch not usable for PreparedStatements without input parameter",
         ))
     }
@@ -325,7 +326,7 @@ impl<'a> PreparedStatement {
                 .push_hdb_values(hdb_values, &self.a_descriptors)?;
             return Ok(());
         }
-        Err(HdbError::Usage(
+        Err(usage_err!(
             "Batch not possible, PreparedStatement has no input parameter",
         ))
     }
@@ -348,7 +349,7 @@ impl<'a> PreparedStatement {
     /// Several variants of `HdbError` can occur.
     pub fn execute_batch(&mut self) -> HdbResult<HdbResponse> {
         if self.batch.is_empty() && self.a_descriptors.has_in() {
-            return Err(HdbError::Usage("Empty batch cannot be executed"));
+            return Err(usage_err!("Empty batch cannot be executed"));
         }
         let mut batch2 = ParameterRows::new();
         trace!(
@@ -449,7 +450,7 @@ impl<'a> PreparedStatement {
             }
         }
 
-        let statement_id = o_stmt_id.ok_or_else(|| HdbError::Impl("No StatementId received"))?;
+        let statement_id = o_stmt_id.ok_or_else(|| impl_err!("No StatementId received"))?;
         let am_ps_core = new_am_sync(PreparedStatementCore {
             am_conn_core,
             statement_id,

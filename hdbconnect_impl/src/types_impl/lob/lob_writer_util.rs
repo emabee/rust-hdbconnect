@@ -1,4 +1,5 @@
-use crate::{HdbError, HdbResult};
+use crate::{impl_err, HdbResult};
+
 pub(crate) enum LobWriteMode {
     //Offset(i64),
     Append,
@@ -28,7 +29,7 @@ pub(crate) fn get_utf8_tail_len(bytes: &[u8]) -> HdbResult<usize> {
                     });
                 }
             }
-            Err(HdbError::Impl("no valid utf8 cutoff point found!"))
+            Err(impl_err!("no valid utf8 cutoff point found!"))
         }
     }
 }

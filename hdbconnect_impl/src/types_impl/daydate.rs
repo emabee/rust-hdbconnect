@@ -1,4 +1,4 @@
-use crate::{HdbError, HdbResult, HdbValue};
+use crate::{impl_err, HdbResult, HdbValue};
 use byteorder::{LittleEndian, ReadBytesExt};
 
 const NULL_REPRESENTATION: i32 = 3_652_062;
@@ -85,9 +85,7 @@ pub(crate) fn parse_daydate(
         if nullable {
             Ok(HdbValue::NULL)
         } else {
-            Err(HdbError::Impl(
-                "found NULL value for NOT NULL DAYDATE column",
-            ))
+            Err(impl_err!("found NULL value for NOT NULL DAYDATE column",))
         }
     } else {
         Ok(HdbValue::DAYDATE(DayDate::new(i)))

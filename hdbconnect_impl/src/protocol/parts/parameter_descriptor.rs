@@ -1,6 +1,7 @@
 use crate::{
+    impl_err,
     protocol::{util, util_sync},
-    HdbError, HdbResult, HdbValue, TypeId,
+    HdbResult, HdbValue, TypeId,
 };
 use byteorder::{LittleEndian, ReadBytesExt};
 
@@ -183,9 +184,7 @@ impl ParameterDescriptor {
             1 => Ok(ParameterDirection::IN),
             2 => Ok(ParameterDirection::INOUT),
             4 => Ok(ParameterDirection::OUT),
-            _ => Err(HdbError::ImplDetailed(format!(
-                "invalid value for ParameterDirection: {v}"
-            ))),
+            _ => Err(impl_err!("invalid value for ParameterDirection: {v}")),
         }
     }
 

@@ -8,8 +8,9 @@ use super::{CharLobSlice, LobBuf, UTF_BUFFER_SIZE};
 use crate::{
     base::{RsCore, OAM},
     conn::AmConnCore,
+    impl_err,
     protocol::util,
-    {HdbError, HdbResult, ServerUsage},
+    usage_err, HdbResult, ServerUsage,
 };
 use debug_ignore::DebugIgnore;
 use std::io::{Cursor, Write};
@@ -121,7 +122,7 @@ impl NCLobHandle {
     #[allow(clippy::cast_possible_truncation)]
     fn fetch_next_chunk_sync(&mut self) -> HdbResult<()> {
         if self.is_data_complete {
-            return Err(HdbError::Impl("fetch_next_chunk_sync: already complete"));
+            return Err(impl_err!("fetch_next_chunk_sync: already complete"));
         }
 
         let read_length = std::cmp::min(
@@ -165,7 +166,7 @@ impl NCLobHandle {
     #[allow(clippy::cast_possible_truncation)]
     async fn fetch_next_chunk_async(&mut self) -> HdbResult<()> {
         if self.is_data_complete {
-            return Err(HdbError::Impl("fetch_next_chunk_async(): already complete"));
+            return Err(impl_err!("fetch_next_chunk_async(): already complete"));
         }
 
         let read_length = std::cmp::min(
@@ -231,7 +232,7 @@ impl NCLobHandle {
         if self.is_data_complete {
             Ok(util::string_from_cesu8(self.cesu8.0.into_inner())?)
         } else {
-            Err(HdbError::Usage(
+            Err(usage_err!(
                 "NCLob must be loaded completely before 'into_string' can be called",
             ))
         }

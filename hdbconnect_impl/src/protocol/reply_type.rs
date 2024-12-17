@@ -1,4 +1,4 @@
-use crate::{HdbError, HdbResult};
+use crate::{impl_err, HdbResult};
 
 // Identifies the nature of the statement or functionality that has been
 // prepared or executed. Is documented as Function Code.
@@ -57,9 +57,7 @@ impl ReplyType {
             25 => Ok(Self::XAControl),
             26 => Ok(Self::XAPrepare),
             27 => Ok(Self::XARecover),
-            _ => Err(HdbError::ImplDetailed(format!(
-                "found unexpected value {val} for ReplyType",
-            ))),
+            _ => Err(impl_err!("found unexpected value {val} for ReplyType")),
         }
     }
 }

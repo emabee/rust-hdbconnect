@@ -2,7 +2,7 @@ use crate::{
     base::{RsCore, OAM},
     conn::AmConnCore,
     protocol::parts::{HdbValue, ResultSetMetadata},
-    HdbError, HdbResult,
+    usage_err, HdbResult,
 };
 use serde_db::de::DeserializableRow;
 use std::sync::Arc;
@@ -58,7 +58,7 @@ impl Row {
         T: serde::de::Deserialize<'de>,
     {
         self.next_value()
-            .ok_or_else(|| HdbError::Usage("no more value"))?
+            .ok_or_else(|| usage_err!("no more value"))?
             .try_into()
     }
 
@@ -82,11 +82,11 @@ impl Row {
     /// `HdbError::Usage` if the row is empty or has more than one value.
     pub fn into_single_value(mut self) -> HdbResult<HdbValue<'static>> {
         if self.len() > 1 {
-            Err(HdbError::Usage("Row has more than one field"))
+            Err(usage_err!("Row has more than one field"))
         } else {
             Ok(self
                 .next_value()
-                .ok_or_else(|| HdbError::Usage("Row is empty"))?)
+                .ok_or_else(|| usage_err!("Row is empty"))?)
         }
     }
 

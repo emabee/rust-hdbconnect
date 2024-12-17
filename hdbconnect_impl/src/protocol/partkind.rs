@@ -1,4 +1,4 @@
-use crate::{HdbError, HdbResult};
+use crate::{impl_err, HdbResult};
 
 // Here we list all those parts that are or should be implemented by this
 // driver. ABAP related stuff and "reserved" numbers is omitted.
@@ -87,9 +87,7 @@ impl PartKind {
             73 => Ok(Self::SQLReplyOptions),
             74 => Ok(Self::PrintOptions),
 
-            _ => Err(HdbError::ImplDetailed(format!(
-                "PartKind {val} not implemented"
-            ))),
+            _ => Err(impl_err!("PartKind {val} not implemented")),
         }
     }
 }

@@ -1,6 +1,7 @@
 use crate::{
+    impl_err,
     types_impl::wire_decimal::{big_decimal_to_wire_decimal, wire_decimal_to_hdbvalue},
-    HdbError, HdbResult, HdbValue, TypeId,
+    HdbResult, HdbValue, TypeId,
 };
 use bigdecimal::BigDecimal;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -27,8 +28,8 @@ pub fn parse(
                 HdbValue::NULL
             } else {
                 let i = rdr.read_i64::<LittleEndian>()?;
-                let bigint = BigInt::from_i64(i)
-                    .ok_or_else(|| HdbError::Impl("invalid value of type FIXED8"))?;
+                let bigint =
+                    BigInt::from_i64(i).ok_or_else(|| impl_err!("invalid value of type FIXED8"))?;
                 let bd = BigDecimal::new(bigint, i64::from(scale));
                 HdbValue::DECIMAL(bd)
             }
@@ -53,19 +54,19 @@ pub fn parse(
             } else {
                 let i = rdr.read_i128::<LittleEndian>()?;
                 let bi = BigInt::from_i128(i)
-                    .ok_or_else(|| HdbError::Impl("invalid value of type FIXED16"))?;
+                    .ok_or_else(|| impl_err!("invalid value of type FIXED16"))?;
                 let bd = BigDecimal::new(bi, i64::from(scale));
                 HdbValue::DECIMAL(bd)
             }
         }),
-        _ => Err(HdbError::Impl("unexpected type id for decimal")),
+        _ => Err(impl_err!("unexpected type id for decimal")),
     }
 }
 
 fn parse_null(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<bool> {
     let is_null = rdr.read_u8()? == 0;
     if is_null && !nullable {
-        Err(HdbError::Impl("found null value for not-null column"))
+        Err(impl_err!("found null value for not-null column"))
     } else {
         Ok(is_null)
     }
@@ -80,8 +81,7 @@ pub(crate) fn emit(
     match type_id {
         TypeId::DECIMAL => {
             trace!("emit DECIMAL");
-            let buffer = big_decimal_to_wire_decimal(big_decimal)
-                .map_err(|e| HdbError::ImplDetailed(e.to_string()))?;
+            let buffer = big_decimal_to_wire_decimal(big_decimal).map_err(|e| impl_err!("{e}"))?;
             w.write_all(&buffer)?;
         }
         TypeId::FIXED8 => {
@@ -91,7 +91,7 @@ pub(crate) fn emit(
             w.write_i64::<LittleEndian>(
                 bigint
                     .to_i64()
-                    .ok_or_else(|| HdbError::Impl("conversion to FIXED8 fails"))?,
+                    .ok_or_else(|| impl_err!("conversion to FIXED8 fails"))?,
             )?;
         }
         TypeId::FIXED12 => {
@@ -122,10 +122,10 @@ pub(crate) fn emit(
             w.write_i128::<LittleEndian>(
                 bigint
                     .to_i128()
-                    .ok_or_else(|| HdbError::Impl("conversion to FIXED16 fails"))?,
+                    .ok_or_else(|| impl_err!("conversion to FIXED16 fails"))?,
             )?;
         }
-        _ => return Err(HdbError::Impl("unexpected type id for decimal")),
+        _ => return Err(impl_err!("unexpected type id for decimal")),
     }
     Ok(())
 }

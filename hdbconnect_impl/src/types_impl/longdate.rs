@@ -1,4 +1,4 @@
-use crate::{HdbError, HdbResult, HdbValue};
+use crate::{impl_err, HdbResult, HdbValue};
 use byteorder::{LittleEndian, ReadBytesExt};
 
 const NULL_REPRESENTATION: i64 = 3_155_380_704_000_000_001;
@@ -102,9 +102,7 @@ pub(crate) fn parse_longdate(
         if nullable {
             Ok(HdbValue::NULL)
         } else {
-            Err(HdbError::Impl(
-                "found NULL value for NOT NULL LONGDATE column",
-            ))
+            Err(impl_err!("found NULL value for NOT NULL LONGDATE column",))
         }
     } else {
         Ok(HdbValue::LONGDATE(LongDate::new(i)))

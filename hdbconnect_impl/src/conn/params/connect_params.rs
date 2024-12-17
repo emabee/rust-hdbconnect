@@ -1,6 +1,6 @@
 //! Connection parameters
 use super::{cp_url::format_as_url, tls::Tls, Compression};
-use crate::{ConnectParamsBuilder, HdbError, HdbResult, IntoConnectParams};
+use crate::{impl_err, ConnectParamsBuilder, HdbError, HdbResult, IntoConnectParams};
 use rustls::{ClientConfig, RootCertStore};
 use secstr::SecUtf8;
 use serde::de::Deserialize;
@@ -192,7 +192,7 @@ impl ConnectParams {
     #[allow(clippy::too_many_lines)]
     pub(crate) fn rustls_clientconfig(&self) -> HdbResult<(ClientConfig, Vec<String>)> {
         match self.tls {
-            Tls::Off => Err(HdbError::Impl(
+            Tls::Off => Err(impl_err!(
                 "rustls_clientconfig called with Tls::Off - \
                     this should have been prevented earlier",
             )),
@@ -248,9 +248,9 @@ impl ConnectParams {
                                 }
                             }
                             Err(e) => {
-                                return Err(HdbError::ImplDetailed(format!(
+                                return Err(impl_err!(
                                     "Environment variable {env_var} not found, reason: {e}"
-                                )));
+                                ));
                             }
                         },
                         ServerCerts::Directory(trust_anchor_dir) => {
@@ -263,7 +263,8 @@ impl ConnectParams {
                     }
                 }
                 if root_store.is_empty() {
-                    Err(HdbError::ImplDetailed(
+                    Err(impl_err!(
+                        "{}",
                         cert_errors
                             .into_inner()
                             .iter()
@@ -271,7 +272,7 @@ impl ConnectParams {
                                 acc.push_str(x);
                                 acc.push('\n');
                                 acc
-                            }),
+                            },)
                     ))
                 } else {
                     let config = ClientConfig::builder()
