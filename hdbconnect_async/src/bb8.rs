@@ -3,9 +3,14 @@
 use crate::{
     ConnectParams, Connection, ConnectionConfiguration, HdbError, HdbResult, IntoConnectParams,
 };
-use async_trait::async_trait;
 use bb8::ManageConnection;
 use log::trace;
+use std::{
+    future::Future,
+    pin::{pin, Pin},
+    task::{Context, Poll},
+};
+
 /// Implementation of
 /// [`bb8::ManageConnection`](https://docs.rs/bb8/latest/bb8/trait.ManageConnection.html#).
 ///
@@ -70,28 +75,46 @@ impl ConnectionManager {
     }
 }
 
-#[async_trait]
 impl ManageConnection for ConnectionManager {
     type Connection = Connection;
     type Error = HdbError;
 
     #[doc = r" Attempts to create a new connection."]
-    async fn connect(&self) -> Result<Self::Connection, Self::Error> {
+    fn connect(
+        &self,
+    ) -> impl std::future::Future<Output = Result<Self::Connection, Self::Error>> + Send {
         trace!("ConnectionManager::connect()");
-        Connection::with_configuration(&self.connect_params, &self.connect_config).await
+        Connection::with_configuration(&self.connect_params, &self.connect_config)
     }
 
     #[doc = r" Determines if the connection is still connected to the database."]
-    async fn is_valid(&self, conn: &mut Self::Connection) -> Result<(), Self::Error> {
+    fn is_valid(
+        &self,
+        conn: &mut Self::Connection,
+    ) -> impl Future<Output = Result<(), Self::Error>> + Send {
         trace!("ConnectionManager::is_valid()");
-        if conn.is_broken().await {
-            Err(HdbError::ConnectionBroken { source: None })
-        } else {
-            Ok(())
-        }
+        ValidityChecker(conn.clone())
     }
 
     fn has_broken(&self, _conn: &mut Self::Connection) -> bool {
         false
+    }
+}
+
+struct ValidityChecker(Connection);
+impl Future for ValidityChecker {
+    type Output = Result<(), HdbError>;
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let pinned_fut = pin!(self.0.is_broken());
+        match pinned_fut.poll(cx) {
+            Poll::Pending => Poll::Pending,
+            Poll::Ready(b) => {
+                if b {
+                    Poll::Ready(Ok(()))
+                } else {
+                    Poll::Ready(Err(HdbError::ConnectionBroken { source: None }))
+                }
+            }
+        }
     }
 }
