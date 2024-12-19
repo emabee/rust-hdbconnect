@@ -108,11 +108,11 @@ impl Future for ValidityChecker {
         let pinned_fut = pin!(self.0.is_broken());
         match pinned_fut.poll(cx) {
             Poll::Pending => Poll::Pending,
-            Poll::Ready(b) => {
-                if b {
-                    Poll::Ready(Ok(()))
-                } else {
+            Poll::Ready(is_broken) => {
+                if is_broken {
                     Poll::Ready(Err(HdbError::ConnectionBroken { source: None }))
+                } else {
+                    Poll::Ready(Ok(()))
                 }
             }
         }
