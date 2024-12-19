@@ -10,6 +10,7 @@ description = "Common implementation of hdbconnect and hdbconnect_async; not for
 keywords.workspace = true
 categories.workspace = true
 include = ["src/**/*", "LICENSE-*", "README.md", "CHANGELOG.md"]
+rust-version = "1.78.0"
 
 [lib]
 doctest = false

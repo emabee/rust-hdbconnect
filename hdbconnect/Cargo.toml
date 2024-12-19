@@ -11,6 +11,7 @@ documentation = "https://docs.rs/hdbconnect/"
 keywords.workspace = true
 categories.workspace = true
 include = ["src/**/*", "LICENSE-*", "README.md", "CHANGELOG.md"]
+rust-version = "1.78.0"
 
 [lib]
 doctest = false
