@@ -1,7 +1,7 @@
 use crate::{
     conn::{AmConnCore, CommandOptions},
     protocol::{parts::XatOptions, MessageType, Part, PartKind, Reply, Request},
-    HdbError, HdbResult,
+    usage_err, HdbError, HdbResult,
 };
 use async_trait::async_trait;
 #[cfg(feature = "dist_tx")]
@@ -168,7 +168,7 @@ impl HdbCResourceManager {
             .configuration()
             .is_auto_commit()
         {
-            return Err(HdbError::Usage(
+            return Err(usage_err!(
                 "xa_*() not possible, connection is set to auto_commit",
             ));
         }

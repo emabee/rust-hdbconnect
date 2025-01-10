@@ -1,4 +1,4 @@
-use crate::{protocol::parts::ParameterDescriptors, HdbError, HdbResult, HdbValue};
+use crate::{impl_err, protocol::parts::ParameterDescriptors, HdbResult, HdbValue};
 use serde_db::ser::to_params;
 
 // Implementation of the PARAMETERS part.
@@ -83,7 +83,7 @@ impl<'a> ParameterRow<'a> {
                         .matches_value_type(hdb_value.type_id_for_emit(descriptor.type_id())?)?;
                 }
             } else {
-                return Err(HdbError::Impl("ParameterRow::new(): Not enough metadata"));
+                return Err(impl_err!("ParameterRow::new(): Not enough metadata"));
             }
         }
         Ok(ParameterRow(hdb_parameters))
@@ -96,7 +96,7 @@ impl<'a> ParameterRow<'a> {
             if let Some(descriptor) = in_descriptors.next() {
                 size += value.size(descriptor.type_id())?;
             } else {
-                return Err(HdbError::Impl("ParameterRow::size(): Not enough metadata"));
+                return Err(impl_err!("ParameterRow::size(): Not enough metadata"));
             }
         }
 
@@ -115,7 +115,7 @@ impl<'a> ParameterRow<'a> {
             if let Some(descriptor) = in_descriptors.next() {
                 value.emit(&mut data_pos, descriptor, w)?;
             } else {
-                return Err(HdbError::Impl("ParameterRow::emit(): Not enough metadata"));
+                return Err(impl_err!("ParameterRow::emit(): Not enough metadata"));
             }
         }
         Ok(())

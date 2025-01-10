@@ -1,12 +1,13 @@
 use crate::{
     base::InternalReturnValue,
     conn::{AmConnCore, CommandOptions},
+    impl_err,
     protocol::{
         parts::{ParameterDescriptors, ResultSetMetadata, TypeId, WriteLobRequest},
         util, MessageType, Part, PartKind, Reply, ReplyType, Request,
     },
     types_impl::lob::lob_writer_util::{get_utf8_tail_len, LobWriteMode},
-    HdbError, HdbResult, ServerUsage,
+    HdbResult, ServerUsage,
 };
 use std::sync::Arc;
 use tokio::io::{AsyncRead, AsyncReadExt};
@@ -25,11 +26,7 @@ where
 {
     match type_id {
         TypeId::BLOB | TypeId::CLOB | TypeId::NCLOB => {}
-        _ => {
-            return Err(HdbError::ImplDetailed(format!(
-                "Unsupported type-id {type_id:?}"
-            )))
-        }
+        _ => return Err(impl_err!("Unsupported type-id {type_id:?}")),
     }
     let lob_write_length = am_conn_core
         .lock_async()
@@ -159,10 +156,10 @@ async fn write_a_lob_chunk<'a>(
             .await
         }
 
-        _ => Err(HdbError::ImplDetailed(format!(
+        _ => Err(impl_err!(
             "LobCopier::write_a_lob_chunk got a reply of type {:?}",
             reply.replytype,
-        ))),
+        )),
     }
 }
 
@@ -199,7 +196,7 @@ fn evaluate_write_lob_reply(reply: Reply, server_usage: &mut ServerUsage) -> Hdb
         }
     }
 
-    result.ok_or_else(|| HdbError::Impl("No WriteLobReply part found"))
+    result.ok_or_else(|| impl_err!("No WriteLobReply part found"))
 }
 
 async fn evaluate_dbprocedure_call_reply(
@@ -231,7 +228,7 @@ fn evaluate_dbprocedure_call_reply1(
             ),
             None => (None, None, None),
             Some(_) => {
-                return Err(HdbError::Impl("Inconsistent StatementContext found"));
+                return Err(impl_err!("Inconsistent StatementContext found"));
             }
         };
     server_usage.update(server_proc_time, server_cpu_time, server_memory_usage);

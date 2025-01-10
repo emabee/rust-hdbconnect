@@ -1,4 +1,4 @@
-use crate::{HdbError, HdbResult};
+use crate::{impl_err, HdbResult};
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt, WriteBytesExt};
 
 pub(crate) const MAX_1_BYTE_LENGTH: u8 = 245;
@@ -20,7 +20,7 @@ pub(crate) fn emit(l: usize, w: &mut dyn std::io::Write) -> HdbResult<()> {
             w.write_u32::<LittleEndian>(l as u32)?;
         }
         l => {
-            return Err(HdbError::ImplDetailed(format!("Value too big: {l}")));
+            return Err(impl_err!("Value too big: {l}"));
         }
     }
     Ok(())
@@ -32,8 +32,6 @@ pub(crate) fn parse(l8: u8, rdr: &mut dyn std::io::Read) -> HdbResult<usize> {
         LENGTH_INDICATOR_2BYTE => Ok(rdr.read_u16::<LittleEndian>()? as usize),
         LENGTH_INDICATOR_4BYTE => Ok(rdr.read_u32::<LittleEndian>()? as usize),
         LENGTH_INDICATOR_NULL => Ok(rdr.read_u16::<BigEndian>()? as usize),
-        _ => Err(HdbError::ImplDetailed(format!(
-            "Unknown length indicator for AuthField: {l8}",
-        ))),
+        _ => Err(impl_err!("Unknown length indicator for AuthField: {l8}",)),
     }
 }

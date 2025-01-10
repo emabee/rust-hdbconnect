@@ -3,6 +3,7 @@ use crate::protocol::parts::XatOptions;
 use crate::{
     base::RsState,
     conn::AmConnCore,
+    impl_err,
     protocol::{
         parts::{
             AuthFields, ClientContext, ClientInfo, CommandInfo, ConnectOptionsPart, DbConnectInfo,
@@ -12,7 +13,7 @@ use crate::{
         },
         util, util_sync, PartAttributes, PartKind,
     },
-    ExecutionResults, HdbError, HdbResult,
+    ExecutionResults, HdbResult,
 };
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::{cmp::max, io::Write, sync::Arc};
@@ -118,7 +119,7 @@ impl<'a> Part<'a> {
             #[cfg(feature = "dist_tx")]
             Part::XatOptions(ref xat) => xat.len(),
             ref a => {
-                return Err(HdbError::ImplDetailed(format!("count() called on {a:?}")));
+                return Err(impl_err!("count() called on {a:?}"));
             }
         })
     }
@@ -150,7 +151,7 @@ impl<'a> Part<'a> {
             Part::LobFlags(ref opts) => size += opts.size(),
             Part::ParameterRows(ref par_rows) => {
                 size += o_a_descriptors
-                    .ok_or_else(|| HdbError::Impl("Part::body_size(): No parameter descriptors"))
+                    .ok_or_else(|| impl_err!("Part::body_size(): No parameter descriptors"))
                     .and_then(|descriptors| par_rows.size(descriptors))?;
             }
             Part::ReadLobRequest(_) => size += ReadLobRequest::size(),
@@ -164,7 +165,7 @@ impl<'a> Part<'a> {
             Part::XatOptions(ref xat) => size += xat.size(),
 
             ref arg => {
-                return Err(HdbError::ImplDetailed(format!("size() called on {arg:?}")));
+                return Err(impl_err!("size() called on {arg:?}"));
             }
         }
         if with_padding {
@@ -197,7 +198,7 @@ impl<'a> Part<'a> {
                 w.write_i32::<LittleEndian>(i as i32)?;
             }
             _ => {
-                return Err(HdbError::Impl("part count bigger than i32::MAX"));
+                return Err(impl_err!("part count bigger than i32::MAX"));
             }
         }
         w.write_i32::<LittleEndian>(self.body_size(false, o_a_descriptors)? as i32)?;
@@ -222,7 +223,7 @@ impl<'a> Part<'a> {
             Part::LobFlags(ref opts) => opts.emit(w)?,
             Part::ParameterRows(ref parameters) => {
                 o_a_descriptors
-                    .ok_or_else(|| HdbError::Impl("Part::Parameters::emit(): No metadata"))
+                    .ok_or_else(|| impl_err!("Part::Parameters::emit(): No metadata"))
                     .and_then(|descriptors| parameters.emit(descriptors, w))?;
             }
             Part::ReadLobRequest(ref r) => r.emit(w)?,
@@ -239,7 +240,7 @@ impl<'a> Part<'a> {
             #[cfg(feature = "dist_tx")]
             Part::XatOptions(ref xatid) => xatid.emit(w)?,
             ref a => {
-                return Err(HdbError::ImplDetailed(format!("emit() called on {a:?}")));
+                return Err(impl_err!("emit() called on {a:?}"));
             }
         }
 
@@ -366,7 +367,7 @@ impl<'a> Part<'a> {
             PartKind::DbConnectInfo => Part::DbConnectInfo(DbConnectInfo::parse(no_of_args, rdr)?),
             PartKind::Error => Part::Error(ServerError::parse(no_of_args, rdr)?),
             PartKind::OutputParameters => o_a_descriptors
-                .ok_or_else(|| HdbError::Impl("Parsing output parameters needs metadata"))
+                .ok_or_else(|| impl_err!("Parsing output parameters needs metadata"))
                 .and_then(|descriptors| {
                     OutputParameters::parse_sync(o_am_conn_core, descriptors, rdr)
                 })
@@ -382,7 +383,7 @@ impl<'a> Part<'a> {
                     attributes,
                     parts,
                     o_am_conn_core
-                        .ok_or_else(|| HdbError::Impl("ResultSet parsing requires a conn_core"))?,
+                        .ok_or_else(|| impl_err!("ResultSet parsing requires a conn_core"))?,
                     o_a_rsmd,
                     o_rs,
                     rdr,
@@ -422,9 +423,9 @@ impl<'a> Part<'a> {
             #[cfg(feature = "dist_tx")]
             PartKind::XatOptions => Part::XatOptions(XatOptions::parse(no_of_args, rdr)?),
             _ => {
-                return Err(HdbError::ImplDetailed(format!(
+                return Err(impl_err!(
                     "No handling implemented for received partkind {kind:?}",
-                )));
+                ));
             }
         };
 
@@ -460,7 +461,7 @@ impl<'a> Part<'a> {
                         OutputParameters::parse_async(o_am_conn_core, a_descriptors, rdr).await?,
                     )
                 } else {
-                    return Err(HdbError::Impl("Parsing output parameters needs metadata"));
+                    return Err(impl_err!("Parsing output parameters needs metadata"));
                 }
             }
             PartKind::ParameterMetadata => {
@@ -474,7 +475,7 @@ impl<'a> Part<'a> {
                     attributes,
                     parts,
                     o_am_conn_core
-                        .ok_or_else(|| HdbError::Impl("ResultSet parsing requires a conn_core"))?,
+                        .ok_or_else(|| impl_err!("ResultSet parsing requires a conn_core"))?,
                     o_a_rsmd,
                     o_rs,
                     rdr,
@@ -515,9 +516,9 @@ impl<'a> Part<'a> {
             #[cfg(feature = "dist_tx")]
             PartKind::XatOptions => Part::XatOptions(XatOptions::parse(no_of_args, rdr)?),
             _ => {
-                return Err(HdbError::ImplDetailed(format!(
+                return Err(impl_err!(
                     "No handling implemented for received partkind {kind:?}",
-                )));
+                ));
             }
         };
 

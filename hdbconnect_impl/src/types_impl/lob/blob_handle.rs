@@ -1,4 +1,7 @@
 #[cfg(feature = "async")]
+use crate::usage_err;
+
+#[cfg(feature = "async")]
 use super::fetch::fetch_a_lob_chunk_async;
 #[cfg(feature = "sync")]
 use super::fetch::fetch_a_lob_chunk_sync;
@@ -6,8 +9,9 @@ use super::LobBuf;
 use crate::{
     base::{RsCore, XMutexed, OAM},
     conn::AmConnCore,
+    impl_err,
     protocol::{util, ServerUsage},
-    HdbError, HdbResult,
+    HdbResult,
 };
 use debug_ignore::DebugIgnore;
 use std::{
@@ -96,7 +100,7 @@ impl BLobHandle {
     #[cfg(feature = "sync")]
     fn fetch_next_chunk_sync(&mut self) -> HdbResult<usize> {
         if self.is_data_complete {
-            return Err(HdbError::Impl("fetch_next_chunk(): already complete"));
+            return Err(impl_err!("fetch_next_chunk(): already complete"));
         }
 
         let read_length = std::cmp::min(
@@ -138,7 +142,7 @@ impl BLobHandle {
     #[cfg(feature = "async")]
     async fn fetch_next_chunk_async(&mut self) -> HdbResult<()> {
         if self.is_data_complete {
-            return Err(HdbError::Impl("fetch_next_chunk(): already complete"));
+            return Err(impl_err!("fetch_next_chunk(): already complete"));
         }
 
         let read_length = std::cmp::min(
@@ -211,8 +215,8 @@ impl BLobHandle {
         if self.is_data_complete {
             Ok(self.data.0.into_inner())
         } else {
-            Err(HdbError::Usage(
-                "Can't convert BLob that is not not completely loaded",
+            Err(usage_err!(
+                "Can't convert BLob that is not not completely loaded"
             ))
         }
     }
