@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.30.2-unpublished]
+
+Merge `HdbError` variants `Usage` and `UsageDetailed`, as well as `Impl` and `ImplDetailed`, 
+new variants `Usage` and `Impl` are based on `Cow`.
+
 ## [0.30.1] 2024-12-11
 
 Add method `ConnectParamsBuilder::to_url_with_password()`.

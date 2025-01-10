@@ -10,9 +10,36 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.30.1"
+# New version policy
+# version is specified explicitly in three Cargo.toml files: here, in hdbconnect and in hdbconnect_async
+# (not sure if this can be simplified).
+# As long as it is like this, we should explicitly ensure that all three versions are kept in sync.
+# 
+# - When a new version is to be published on crates.io, we should create a publishing change where
+#   we set the version value to the appropriate semver value, like "0.x.y"
+#
+# - when not-yet-to-be-published breaking changes are done, we should ensure that the version is
+#   set to "0.X.0-unpublished" (where X=x+1)
+#
+# - when not-yet-to-be-published non-breaking changes are done, we should ensure that the version 
+#   is set to "0.x.y1-unpublished" (where y1=y+1) 
+#   or leave it at "0.x1.0-unpublished" (where x1=x+1) if that is already set:
+#
+#  "0.x.y" (published)    -- non-breaking -->   "0.x.y1-unpublished"
+#  "0.x.y" (published)    -- breaking -->       "0.x1.0-unpublished"
+#
+#  "0.x.y1-unpublished"   -- non-breaking -->   "0.x.y1-unpublished"  
+#  "0.x.y1-unpublished"   -- breaking -->       "0.x1.0-unpublished"  
+# 
+#  "0.x1.0-unpublished"   -- non-breaking -->   "0.x1.0-unpublished"
+#  "0.x1.0-unpublished"   -- breaking -->       "0.x1.0-unpublished"
+#
+#  "0.a.b-unpublished"    -- publishing -->     "0.a.b"
+version = "0.30.2-unpublished"
+
 authors = [
-    "emabee <meinolf.block@sap.com>",
+    "emabee <meinolf.block-hd@t-online.de>",
+    "dleifeld",
     "Pascal Seitz <pascal.seitz@gmail.com>",
 ]
 edition = "2021"
