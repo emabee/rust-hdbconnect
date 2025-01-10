@@ -62,15 +62,3 @@ pub mod types {
         secondtime::SecondTime,
     };
 }
-
-/// Call this once early in your application to ensure a correct initialization of
-/// `rustls`, the TLS library being used.
-///
-/// This version of the HANA driver uses the `aws_lc_rs` crate as crypto provider for `rustls`,
-/// which is the default of `rustls`.
-/// Future versions might allow a more flexible configuration.
-pub fn initialize_crypto() {
-    rustls::crypto::aws_lc_rs::default_provider()
-        .install_default()
-        .ok();
-}
