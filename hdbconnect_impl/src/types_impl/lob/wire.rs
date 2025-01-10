@@ -1,8 +1,9 @@
 use crate::{
     base::{RsCore, OAM},
     conn::AmConnCore,
+    impl_err,
     protocol::{parts::TypeId, util_sync},
-    HdbError, HdbResult, HdbValue,
+    HdbResult, HdbValue,
 };
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
@@ -19,7 +20,7 @@ pub(crate) fn parse_blob_sync(
         if nullable {
             Ok(HdbValue::NULL)
         } else {
-            Err(HdbError::Impl("found null value for not-null BLOB column"))
+            Err(impl_err!("found null value for not-null BLOB column"))
         }
     } else {
         let (_, length, locator_id, data) = parse_lob_2(rdr, is_data_included)?;
@@ -47,7 +48,7 @@ pub(crate) async fn parse_blob_async(
         if nullable {
             Ok(HdbValue::NULL)
         } else {
-            Err(HdbError::Impl("found null value for not-null BLOB column"))
+            Err(impl_err!("found null value for not-null BLOB column"))
         }
     } else {
         let (_, length, locator_id, data) = parse_lob_2(rdr, is_data_included)?;
@@ -75,7 +76,7 @@ pub(crate) fn parse_clob_sync(
         if nullable {
             Ok(HdbValue::NULL)
         } else {
-            Err(HdbError::Impl("found null value for not-null CLOB column"))
+            Err(impl_err!("found null value for not-null CLOB column"))
         }
     } else {
         let (char_length, byte_length, locator_id, data) = parse_lob_2(rdr, is_data_included)?;
@@ -104,7 +105,7 @@ pub(crate) async fn parse_clob_async(
         if nullable {
             Ok(HdbValue::NULL)
         } else {
-            Err(HdbError::Impl("found null value for not-null CLOB column"))
+            Err(impl_err!("found null value for not-null CLOB column"))
         }
     } else {
         let (char_length, byte_length, locator_id, data) = parse_lob_2(rdr, is_data_included)?;
@@ -134,7 +135,7 @@ pub(crate) fn parse_nclob_sync(
         if nullable {
             Ok(HdbValue::NULL)
         } else {
-            Err(HdbError::Impl("found null value for not-null NCLOB column"))
+            Err(impl_err!("found null value for not-null NCLOB column"))
         }
     } else {
         let (char_length, byte_length, locator_id, data) = parse_lob_2(rdr, is_data_included)?;
@@ -148,7 +149,7 @@ pub(crate) fn parse_nclob_sync(
                 locator_id,
                 data,
             )),
-            _ => return Err(HdbError::Impl("unexpected type id for nclob")),
+            _ => return Err(impl_err!("unexpected type id for nclob")),
         })
     }
 }
@@ -167,7 +168,7 @@ pub(crate) async fn parse_nclob_async(
         if nullable {
             Ok(HdbValue::NULL)
         } else {
-            Err(HdbError::Impl("found null value for not-null NCLOB column"))
+            Err(impl_err!("found null value for not-null NCLOB column"))
         }
     } else {
         let (char_length, byte_length, locator_id, data) = parse_lob_2(rdr, is_data_included)?;
@@ -181,7 +182,7 @@ pub(crate) async fn parse_nclob_async(
                 locator_id,
                 data,
             )),
-            _ => return Err(HdbError::Impl("unexpected type id for nclob")),
+            _ => return Err(impl_err!("unexpected type id for nclob")),
         })
     }
 }

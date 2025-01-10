@@ -1,11 +1,12 @@
 use crate::{
     base::{PreparedStatementCore, RsCore, XMutexed, OAM},
     conn::{AmConnCore, CommandOptions},
+    impl_err,
     protocol::{
         parts::{Parts, StatementContext},
         MessageType, Part, PartAttributes, PartKind, ReplyType, Request,
     },
-    HdbError, HdbResult, ResultSetMetadata, Row, Rows, ServerUsage,
+    usage_err, HdbResult, ResultSetMetadata, Row, Rows, ServerUsage,
 };
 use std::sync::Arc;
 
@@ -75,14 +76,14 @@ impl RsState {
     fn rs_core_sync(&self) -> HdbResult<std::sync::MutexGuard<'_, RsCore>> {
         match self.o_am_rscore {
             Some(ref am_rs_core) => Ok(am_rs_core.lock_sync()?),
-            None => Err(HdbError::Impl("RsCore is already dropped")),
+            None => Err(impl_err!("RsCore is already dropped")),
         }
     }
     #[cfg(feature = "async")]
     async fn rs_core_async(&self) -> HdbResult<tokio::sync::MutexGuard<'_, RsCore>> {
         match self.o_am_rscore {
             Some(ref am_rs_core) => Ok(am_rs_core.lock_async().await),
-            None => Err(HdbError::Impl("RsCore is already dropped")),
+            None => Err(impl_err!("RsCore is already dropped")),
         }
     }
 
@@ -248,21 +249,21 @@ impl RsState {
     #[cfg(feature = "sync")]
     pub(crate) fn single_row_sync(&mut self) -> HdbResult<Row> {
         if self.has_multiple_rows_sync() {
-            Err(HdbError::Usage("result set has more than one row"))
+            Err(usage_err!("result set has more than one row"))
         } else {
             Ok(self
                 .next_row_no_fetch()
-                .ok_or_else(|| HdbError::Usage("result set is empty"))?)
+                .ok_or_else(|| usage_err!("result set is empty"))?)
         }
     }
     #[cfg(feature = "async")]
     pub async fn single_row_async(&mut self) -> HdbResult<Row> {
         if self.has_multiple_rows_async().await {
-            Err(HdbError::Usage("result set has more than one row"))
+            Err(usage_err!("result set has more than one row"))
         } else {
             Ok(self
                 .next_row_no_fetch()
-                .ok_or_else(|| HdbError::Usage("result set is empty"))?)
+                .ok_or_else(|| usage_err!("result set is empty"))?)
         }
     }
 
@@ -319,7 +320,7 @@ impl RsState {
                 let fetch_size = { am_conn_core.lock_async().await.configuration().fetch_size() };
                 (am_conn_core, rs_core.result_set_id(), fetch_size)
             } else {
-                return Err(HdbError::Impl("Fetch no more possible"));
+                return Err(impl_err!("Fetch no more possible"));
             }
         };
 
@@ -353,7 +354,7 @@ impl RsState {
             if (!attributes.is_last_packet())
                 && (attributes.row_not_found() || attributes.result_set_is_closed())
             {
-                Err(HdbError::Impl(
+                Err(impl_err!(
                     "ResultSet attributes inconsistent: incomplete, but already closed on server",
                 ))
             } else {
@@ -371,7 +372,7 @@ impl RsState {
                 && (rs_core.attributes().row_not_found()
                     || rs_core.attributes().result_set_is_closed())
             {
-                Err(HdbError::Impl(
+                Err(impl_err!(
                     "ResultSet attributes inconsistent: incomplete, but already closed on server",
                 ))
             } else {
@@ -414,23 +415,21 @@ impl RsState {
                 let o_stmt_ctx = match parts.pop_if_kind(PartKind::StatementContext) {
                     Some(Part::StatementContext(stmt_ctx)) => Some(stmt_ctx),
                     None => None,
-                    Some(_) => return Err(HdbError::Impl("Inconsistent StatementContext")),
+                    Some(_) => return Err(impl_err!("Inconsistent StatementContext")),
                 };
 
                 let Some(Part::ResultSetId(rs_id)) = parts.pop() else {
-                    return Err(HdbError::Impl("ResultSetId missing"));
+                    return Err(impl_err!("ResultSetId missing"));
                 };
 
                 let a_rsmd = match parts.pop_if_kind(PartKind::ResultSetMetadata) {
                     Some(Part::ResultSetMetadata(rsmd)) => Arc::new(rsmd),
                     None => match o_a_rsmd {
                         Some(a_rsmd) => Arc::clone(a_rsmd),
-                        None => return Err(HdbError::Impl("No metadata provided for ResultSet")),
+                        None => return Err(impl_err!("No metadata provided for ResultSet")),
                     },
                     Some(_) => {
-                        return Err(HdbError::Impl(
-                            "Inconsistent metadata part found for ResultSet",
-                        ));
+                        return Err(impl_err!("Inconsistent metadata part found for ResultSet",));
                     }
                 };
 
@@ -446,7 +445,7 @@ impl RsState {
                     }
                     None => {}
                     Some(_) => {
-                        return Err(HdbError::Impl(
+                        return Err(impl_err!(
                             "Inconsistent StatementContext part found for ResultSet",
                         ));
                     }
@@ -457,7 +456,7 @@ impl RsState {
                 let a_rsmd = if let Some(a_rsmd) = o_a_rsmd {
                     Arc::clone(a_rsmd)
                 } else {
-                    return Err(HdbError::Impl("RsState provided without RsMetadata"));
+                    return Err(impl_err!("RsState provided without RsMetadata"));
                 };
                 fetching_state.parse_rows_sync(no_of_rows, &a_rsmd, rdr)?;
                 Ok(None)
@@ -480,23 +479,21 @@ impl RsState {
                 let o_stmt_ctx = match parts.pop_if_kind(PartKind::StatementContext) {
                     Some(Part::StatementContext(stmt_ctx)) => Some(stmt_ctx),
                     None => None,
-                    Some(_) => return Err(HdbError::Impl("Inconsistent StatementContext")),
+                    Some(_) => return Err(impl_err!("Inconsistent StatementContext")),
                 };
 
                 let Some(Part::ResultSetId(rs_id)) = parts.pop() else {
-                    return Err(HdbError::Impl("ResultSetId missing"));
+                    return Err(impl_err!("ResultSetId missing"));
                 };
 
                 let a_rsmd = match parts.pop_if_kind(PartKind::ResultSetMetadata) {
                     Some(Part::ResultSetMetadata(rsmd)) => Arc::new(rsmd),
                     None => match o_a_rsmd {
                         Some(a_rsmd) => Arc::clone(a_rsmd),
-                        None => return Err(HdbError::Impl("No metadata provided for ResultSet")),
+                        None => return Err(impl_err!("No metadata provided for ResultSet")),
                     },
                     Some(_) => {
-                        return Err(HdbError::Impl(
-                            "Inconsistent metadata part found for ResultSet",
-                        ));
+                        return Err(impl_err!("Inconsistent metadata part found for ResultSet",));
                     }
                 };
 
@@ -512,7 +509,7 @@ impl RsState {
                     }
                     None => {}
                     Some(_) => {
-                        return Err(HdbError::Impl(
+                        return Err(impl_err!(
                             "Inconsistent StatementContext part found for ResultSet",
                         ));
                     }
@@ -523,7 +520,7 @@ impl RsState {
                 let a_rsmd = if let Some(a_rsmd) = o_a_rsmd {
                     Arc::clone(a_rsmd)
                 } else {
-                    return Err(HdbError::Impl("RsState provided without RsMetadata"));
+                    return Err(impl_err!("RsState provided without RsMetadata"));
                 };
                 fetching_state
                     .parse_rows_async(no_of_rows, &a_rsmd, rdr)

@@ -1,5 +1,5 @@
 use crate::protocol::parts::option_value::OptionValue;
-use crate::{HdbError, HdbResult};
+use crate::{impl_err, HdbResult};
 use byteorder::{ReadBytesExt, WriteBytesExt};
 #[cfg(feature = "dist_tx")]
 use std::collections::hash_map::Iter;
@@ -32,9 +32,9 @@ impl<T: OptionId<T> + Debug + Eq + PartialEq + Hash> OptionPart<T> {
     }
 
     pub fn get(&self, id: &T) -> HdbResult<&OptionValue> {
-        self.0.get(id).ok_or_else(|| {
-            HdbError::ImplDetailed(format!("{id:?} not provided in {}", id.part_type()))
-        })
+        self.0
+            .get(id)
+            .ok_or_else(|| impl_err!("{id:?} not provided in {}", id.part_type()))
     }
 
     pub fn len(&self) -> usize {

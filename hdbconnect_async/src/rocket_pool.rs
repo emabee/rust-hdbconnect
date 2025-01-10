@@ -76,9 +76,9 @@ impl Pool for HanaPoolForRocket {
                 .map_err(|e| HdbError::ConnParams {
                     source: Box::new(e),
                 })?;
-        let connect_config = figment
-            .extract::<ConnectionConfiguration>()
-            .map_err(|_| HdbError::Usage("Incorrect ConnectionConfiguration"))?;
+        let connect_config = figment.extract::<ConnectionConfiguration>().map_err(|_| {
+            HdbError::Usage(std::borrow::Cow::from("Incorrect ConnectionConfiguration"))
+        })?;
         let pool = Self {
             connect_params,
             connect_config,

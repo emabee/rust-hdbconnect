@@ -20,6 +20,8 @@ async fn test_080_conn_pooling_for_rocket() -> HdbResult<()> {
 mod inner {
     extern crate serde;
 
+    use std::borrow::Cow;
+
     use hdbconnect_async::{HanaPoolForRocket, HdbError, HdbResult};
     use log::trace;
     use rocket_db_pools::Pool;
@@ -46,9 +48,9 @@ mod inner {
                 0_u8,
                 worker_handle
                     .await
-                    .map_err(|e| HdbError::UsageDetailed(format!(
+                    .map_err(|e| HdbError::Usage(Cow::from(format!(
                         "Joining worker thread failed: {e:?}"
-                    )))?
+                    ))))?
             );
         }
 

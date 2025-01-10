@@ -1,4 +1,4 @@
-use crate::{HdbError, HdbResult, HdbValue};
+use crate::{impl_err, HdbResult, HdbValue};
 use bigdecimal::{BigDecimal, Zero};
 use byteorder::{ByteOrder, LittleEndian};
 use num_bigint::{BigInt, Sign};
@@ -27,7 +27,7 @@ pub(crate) fn wire_decimal_to_hdbvalue(
         if nullable {
             Ok(HdbValue::NULL)
         } else {
-            Err(HdbError::Impl("received null value for not-null column"))
+            Err(impl_err!("received null value for not-null column"))
         }
     } else {
         let is_negative = (raw[15] & 0b_1000_0000_u8) != 0;

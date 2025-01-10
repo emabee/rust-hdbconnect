@@ -1,4 +1,4 @@
-use crate::{protocol::util_sync, HdbError, HdbResult};
+use crate::{impl_err, protocol::util_sync, HdbResult};
 use byteorder::{LittleEndian, ReadBytesExt};
 
 #[derive(Debug)]
@@ -22,9 +22,7 @@ impl PartitionMethod {
             0 => Ok(Self::Invalid),
             1 => Ok(Self::RoundRobin),
             2 => Ok(Self::Hash),
-            _ => Err(HdbError::ImplDetailed(format!(
-                "PartitionMethod {val} not implemented",
-            ))),
+            _ => Err(impl_err!("PartitionMethod {val} not implemented",)),
         }
     }
 }
@@ -42,9 +40,7 @@ impl ParameterFunction {
             0 => Ok(Self::Invalid),
             1 => Ok(Self::Year),
             2 => Ok(Self::Month),
-            _ => Err(HdbError::ImplDetailed(format!(
-                "ParameterFunction {val} not implemented",
-            ))),
+            _ => Err(impl_err!("ParameterFunction {val} not implemented",)),
         }
     }
 }
