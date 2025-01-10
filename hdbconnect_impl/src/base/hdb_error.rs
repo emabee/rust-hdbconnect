@@ -240,12 +240,12 @@ impl<G> From<std::sync::PoisonError<G>> for HdbError {
 #[macro_export]
 macro_rules! usage_err {
     ($($arg:tt)*) => {{
-        crate::HdbError::Usage(std::borrow::Cow::from(format!($($arg)*)))
+        $crate::HdbError::Usage(std::borrow::Cow::from(format!($($arg)*)))
     }};
 }
 #[macro_export]
 macro_rules! impl_err {
     ($($arg:tt)*) => {{
-        crate::HdbError::Impl(std::borrow::Cow::from(format!($($arg)*)))
+        $crate::HdbError::Impl(std::borrow::Cow::from(format!($($arg)*)))
     }};
 }

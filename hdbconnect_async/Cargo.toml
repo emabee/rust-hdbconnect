@@ -11,7 +11,7 @@ documentation = "https://docs.rs/hdbconnect_async/"
 keywords = ["asynchronous", "relational", "database", "driver", "HANA"]
 categories.workspace = true
 include = ["src/**/*", "LICENSE-*", "README.md", "CHANGELOG.md"]
-rust-version = "1.78.0"
+rust-version = "1.80.0"
 
 [lib]
 doctest = false
@@ -31,7 +31,7 @@ rocket_pool = ["rocket_db_pools", "rocket"]
 dist_tx = ["hdbconnect_impl/dist_tx_async"]
 
 [dependencies.hdbconnect_impl]
-version = "0.30.2-unpublished"
+version = "0.31.0-unpublished"
 path = "../hdbconnect_impl"
 default-features = false
 features = ["async"]

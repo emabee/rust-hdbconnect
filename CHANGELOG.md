@@ -1,9 +1,11 @@
 # Changelog
 
-## [0.30.2-unpublished]
+## [0.31.0-unpublished]
 
 Merge `HdbError` variants `Usage` and `UsageDetailed`, as well as `Impl` and `ImplDetailed`, 
 new variants `Usage` and `Impl` are based on `Cow`.
+
+Increase MSRV to 1.80, due to update of `bb8`; version bump.
 
 ## [0.30.1] 2024-12-11
 
