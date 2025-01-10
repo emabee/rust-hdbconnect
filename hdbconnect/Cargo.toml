@@ -18,9 +18,9 @@ doctest = false
 
 [package.metadata.docs.rs]
 all-features = true
-# To make use of this globally, do: 
-#    export RUSTDOCFLAGS="--cfg docsrs" 
-# before calling 
+# To make use of this globally, do:
+#    export RUSTDOCFLAGS="--cfg docsrs"
+# before calling
 #    cargo +nightly doc --package hdbconnect --all-features --no-deps
 rustdoc-args = ["--cfg", "docsrs"]
 
@@ -34,7 +34,7 @@ r2d2 = { version = "0.8", optional = true }
 log = { version = "0.4", optional = true }
 
 [dependencies.hdbconnect_impl]
-version = "0.30.1"
+version = "0.31.0"
 path = "../hdbconnect_impl"
 default-features = false
 features = ["sync"]
