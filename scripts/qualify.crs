@@ -64,18 +64,18 @@ fn main() {
     // -- default debug builds
     run_command!("cargo build --package hdbconnect");
     run_command!("cargo build --package hdbconnect_async");
-    
+
     // -- all-features debug builds
     run_command!("cargo build --package hdbconnect --all-features");
     run_command!("cargo build --package hdbconnect_async --all-features");
-    
+
     // -- all-features release builds
     run_command!("cargo build --package hdbconnect --release --all-features");
     run_command!("cargo build --package hdbconnect_async --release --all-features");
-    
+
     // -- all-features debug builds with oldest supported rust version
-    run_command!("cargo +1.78.0 build --package hdbconnect --all-features");
-    run_command!("cargo +1.78.0 build --package hdbconnect_async --all-features");
+    run_command!("cargo +1.78 build --package hdbconnect --all-features");
+    run_command!("cargo +1.78 build --package hdbconnect_async --all-features");
 
 
     // Clippy in important variants (+nightly removed due to errors in clippy)
