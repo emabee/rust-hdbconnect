@@ -72,8 +72,9 @@ pub use self::{
 use crate::{
     base::{InternalReturnValue, RsState},
     conn::AmConnCore,
+    impl_err,
     protocol::{part_attributes::FIRST_PACKET, Part, PartAttributes, PartKind, ServerUsage},
-    HdbError, HdbResult,
+    HdbResult,
 };
 use std::sync::Arc;
 
@@ -185,7 +186,7 @@ impl Parts<'static> {
                         );
                         int_return_values.push(InternalReturnValue::RsState((rs, Arc::new(rsmd))));
                     } else {
-                        return Err(HdbError::Impl("Missing required part ResultSetID"));
+                        return Err(impl_err!("Missing required part ResultSetID"));
                     }
                 }
                 Part::ExecutionResults(execution_results) => {
@@ -248,7 +249,7 @@ impl Parts<'static> {
                         );
                         int_return_values.push(InternalReturnValue::RsState((rs, Arc::new(rsmd))));
                     } else {
-                        return Err(HdbError::Impl("Missing required part ResultSetID"));
+                        return Err(impl_err!("Missing required part ResultSetID"));
                     }
                 }
                 Part::ExecutionResults(execution_results) => {

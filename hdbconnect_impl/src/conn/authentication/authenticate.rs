@@ -8,8 +8,9 @@ use crate::{
         authentication::{Authenticator, FirstAuthResponse, ScramPbkdf2Sha256, ScramSha256},
         ConnectionCore,
     },
+    impl_err,
     protocol::parts::DbConnectInfo,
-    HdbError, HdbResult,
+    HdbResult,
 };
 
 #[must_use]
@@ -44,9 +45,7 @@ pub(crate) fn authenticate_sync(
             let mut authenticator: Box<dyn Authenticator + Send + Sync> = authenticators
                 .into_iter()
                 .find(|authenticator| authenticator.name() == selected)
-                .ok_or_else(|| {
-                    HdbError::Impl("None of the available authenticators was accepted")
-                })?;
+                .ok_or_else(|| impl_err!("None of the available authenticators was accepted"))?;
             // ...and use it for the second request
             second_auth_request_sync(conn_core, &mut *authenticator, &server_challenge, reconnect)?;
             conn_core.set_authenticated();
@@ -79,9 +78,7 @@ pub(crate) async fn authenticate_async(
             let mut authenticator: Box<dyn Authenticator + Send + Sync> = authenticators
                 .into_iter()
                 .find(|authenticator| authenticator.name() == selected)
-                .ok_or_else(|| {
-                    HdbError::Impl("None of the available authenticators was accepted")
-                })?;
+                .ok_or_else(|| impl_err!("None of the available authenticators was accepted"))?;
             // ...and use it for the second request
             second_auth_request_async(conn_core, &mut *authenticator, &server_challenge, reconnect)
                 .await?;

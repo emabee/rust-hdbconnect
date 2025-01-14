@@ -1,4 +1,4 @@
-use crate::{HdbError, HdbResult};
+use crate::{impl_err, HdbResult};
 use secstr::SecUtf8;
 
 pub(crate) trait Authenticator {
@@ -19,10 +19,10 @@ pub(crate) trait Authenticator {
         if method == self.name().as_bytes() {
             self.verify_server(server_proof)
         } else {
-            Err(HdbError::ImplDetailed(format!(
+            Err(impl_err!(
                 "Wrong method name detected: {}",
                 String::from_utf8_lossy(method)
-            )))
+            ))
         }
     }
 }

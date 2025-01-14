@@ -1,7 +1,8 @@
 use crate::{
     conn::authentication::{crypto_util, Authenticator},
+    impl_err,
     protocol::parts::AuthFields,
-    HdbError, HdbResult,
+    HdbResult,
 };
 use byteorder::{LittleEndian, WriteBytesExt};
 use rand::{thread_rng, RngCore};
@@ -44,18 +45,18 @@ impl Authenticator for ScramSha256 {
 
         let (client_proof, server_proof) =
             crypto_util::scram_sha256(&salt, &server_nonce, &self.client_challenge, password)
-                .map_err(|_| HdbError::Impl("crypto_common::InvalidLength"))?;
+                .map_err(|_| impl_err!("crypto_common::InvalidLength"))?;
 
         self.client_challenge.clear();
         self.server_proof = Some(server_proof);
 
         let mut buf = Vec::<u8>::with_capacity(3 + CLIENT_PROOF_SIZE as usize);
         buf.write_u16::<LittleEndian>(1_u16)
-            .map_err(|_e| HdbError::Impl(CONTEXT_CLIENT_PROOF))?;
+            .map_err(|_e| impl_err!("{}", CONTEXT_CLIENT_PROOF))?;
         buf.write_u8(CLIENT_PROOF_SIZE)
-            .map_err(|_e| HdbError::Impl(CONTEXT_CLIENT_PROOF))?;
+            .map_err(|_e| impl_err!("{}", CONTEXT_CLIENT_PROOF))?;
         buf.write_all(&client_proof)
-            .map_err(|_e| HdbError::Impl(CONTEXT_CLIENT_PROOF))?;
+            .map_err(|_e| impl_err!("{}", CONTEXT_CLIENT_PROOF))?;
         Ok(buf)
     }
 
@@ -63,9 +64,9 @@ impl Authenticator for ScramSha256 {
         if server_proof.is_empty() {
             Ok(())
         } else {
-            Err(HdbError::ImplDetailed(format!(
+            Err(impl_err!(
                 "verify_server(): non-empty server_proof: {server_proof:?}",
-            )))
+            ))
         }
     }
 }
@@ -76,7 +77,7 @@ fn parse_first_server_data(server_data: &[u8]) -> HdbResult<(Vec<u8>, Vec<u8>)> 
 
     match (af.pop(), af.pop(), af.pop()) {
         (Some(server_nonce), Some(salt), None) => Ok((salt, server_nonce)),
-        (_, _, _) => Err(HdbError::Impl("expected 2 auth fields")),
+        (_, _, _) => Err(impl_err!("expected 2 auth fields")),
     }
 }
 

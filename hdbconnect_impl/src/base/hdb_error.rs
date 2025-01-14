@@ -116,11 +116,7 @@ pub enum HdbError {
 
     /// Implementation error.
     #[error("Implementation error: {}", _0)]
-    Impl(&'static str),
-
-    /// Implementation error.
-    #[error("Implementation error: {}", _0)]
-    ImplDetailed(String),
+    Impl(std::borrow::Cow<'static, str>),
 
     /// Error occured in thread synchronization.
     // #[cfg(feature = "sync")]
@@ -149,11 +145,7 @@ pub enum HdbError {
 
     /// Error caused by wrong usage.
     #[error("Wrong usage: {}", _0)]
-    Usage(&'static str),
-
-    /// Error caused by wrong usage.
-    #[error("Wrong usage: {}", _0)]
-    UsageDetailed(String),
+    Usage(std::borrow::Cow<'static, str>),
 
     /// Connection is dead
     #[error("Connection is broken")]
@@ -243,4 +235,17 @@ impl<G> From<std::sync::PoisonError<G>> for HdbError {
     fn from(_error: std::sync::PoisonError<G>) -> Self {
         Self::Poison
     }
+}
+
+#[macro_export]
+macro_rules! usage_err {
+    ($($arg:tt)*) => {{
+        $crate::HdbError::Usage(std::borrow::Cow::from(format!($($arg)*)))
+    }};
+}
+#[macro_export]
+macro_rules! impl_err {
+    ($($arg:tt)*) => {{
+        $crate::HdbError::Impl(std::borrow::Cow::from(format!($($arg)*)))
+    }};
 }

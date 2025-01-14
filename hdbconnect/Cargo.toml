@@ -11,7 +11,7 @@ documentation = "https://docs.rs/hdbconnect/"
 keywords.workspace = true
 categories.workspace = true
 include = ["src/**/*", "LICENSE-*", "README.md", "CHANGELOG.md"]
-rust-version = "1.78.0"
+rust-version = "1.80.0"
 
 [lib]
 doctest = false
@@ -34,7 +34,7 @@ r2d2 = { version = "0.8", optional = true }
 log = { version = "0.4", optional = true }
 
 [dependencies.hdbconnect_impl]
-version = "0.31.0"
+version = "0.31.0-unpublished"
 path = "../hdbconnect_impl"
 default-features = false
 features = ["sync"]

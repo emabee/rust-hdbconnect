@@ -59,7 +59,6 @@ fn main() {
     // Format
     run_command!("cargo fmt");
 
-
     // Build in important variants
     // -- default debug builds
     run_command!("cargo build --package hdbconnect");
@@ -74,9 +73,8 @@ fn main() {
     run_command!("cargo build --package hdbconnect_async --release --all-features");
 
     // -- all-features debug builds with oldest supported rust version
-    run_command!("cargo +1.78 build --package hdbconnect --all-features");
-    run_command!("cargo +1.78 build --package hdbconnect_async --all-features");
-
+    run_command!("cargo +1.80 build --package hdbconnect --all-features");
+    run_command!("cargo +1.80 build --package hdbconnect_async --all-features");
 
     // Clippy in important variants (+nightly removed due to errors in clippy)
     run_command!(
@@ -88,11 +86,9 @@ fn main() {
                   --all-features -- -D warnings"
     );
 
-
     // doc
     run_command!("cargo +nightly doc --package hdbconnect --all-features --no-deps --open");
     run_command!("cargo +nightly doc --package hdbconnect_async --all-features --no-deps --open");
-
 
     if run_tests {
         // doc-tests
@@ -116,7 +112,6 @@ fn main() {
         // check version consistency
         run_command!("cargo run --package hdbconnect --example version_numbers");
         run_command!("cargo run --package hdbconnect_async --example version_numbers");
-
 
         // check git status
         if !simulate {
