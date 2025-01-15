@@ -234,7 +234,7 @@ fn parse_hex(hex_asm: &str) -> Vec<u8> {
 
     let mut bytes = Vec::new();
     while let (Some(h), Some(l)) = (hex_bytes.next(), hex_bytes.next()) {
-        bytes.push(h << 4 | l)
+        bytes.push((h << 4) | l)
     }
     bytes
 }
