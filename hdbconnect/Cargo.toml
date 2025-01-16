@@ -18,9 +18,9 @@ doctest = false
 
 [package.metadata.docs.rs]
 all-features = true
-# To make use of this globally, do: 
-#    export RUSTDOCFLAGS="--cfg docsrs" 
-# before calling 
+# To make use of this globally, do:
+#    export RUSTDOCFLAGS="--cfg docsrs"
+# before calling
 #    cargo +nightly doc --package hdbconnect --all-features --no-deps
 rustdoc-args = ["--cfg", "docsrs"]
 
