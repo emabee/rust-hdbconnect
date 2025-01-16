@@ -86,5 +86,3 @@ pub mod types {
     pub use hdbconnect_impl::sync::{BLob, CLob, NCLob};
     pub use hdbconnect_impl::types::*;
 }
-
-pub use hdbconnect_impl::initialize_crypto;

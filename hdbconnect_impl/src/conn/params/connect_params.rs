@@ -30,7 +30,7 @@ use std::{
 ///    .build()
 ///    .unwrap();
 /// ```
-///  
+///
 /// # Instantiating a `ConnectParams` from a URL
 ///
 /// See module [`url`](crate::url) for details about the supported URLs.
@@ -420,17 +420,17 @@ impl<'de> Deserialize<'de> for ConnectParams {
 mod insecure {
     use rustls::{
         client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier},
-        crypto::{verify_tls12_signature, verify_tls13_signature, CryptoProvider},
+        crypto::{verify_tls12_signature, verify_tls13_signature},
         pki_types::{CertificateDer, ServerName, UnixTime},
         DigitallySignedStruct,
     };
 
     #[derive(Debug)]
-    pub struct NoCertificateVerification(CryptoProvider);
+    pub struct NoCertificateVerification();
 
     impl NoCertificateVerification {
         pub fn new() -> Self {
-            Self(rustls::crypto::aws_lc_rs::default_provider())
+            Self()
         }
     }
 
@@ -441,11 +441,13 @@ mod insecure {
             cert: &CertificateDer<'_>,
             dss: &DigitallySignedStruct,
         ) -> Result<HandshakeSignatureValid, rustls::Error> {
+            let provider =
+                rustls::crypto::CryptoProvider::get_default().expect("No default provider");
             verify_tls12_signature(
                 message,
                 cert,
                 dss,
-                &self.0.signature_verification_algorithms,
+                &provider.signature_verification_algorithms,
             )
         }
 
@@ -455,16 +457,22 @@ mod insecure {
             cert: &CertificateDer<'_>,
             dss: &DigitallySignedStruct,
         ) -> Result<HandshakeSignatureValid, rustls::Error> {
+            let provider =
+                rustls::crypto::CryptoProvider::get_default().expect("No default provider");
             verify_tls13_signature(
                 message,
                 cert,
                 dss,
-                &self.0.signature_verification_algorithms,
+                &provider.signature_verification_algorithms,
             )
         }
 
         fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
-            self.0.signature_verification_algorithms.supported_schemes()
+            let provider =
+                rustls::crypto::CryptoProvider::get_default().expect("No default provider");
+            provider
+                .signature_verification_algorithms
+                .supported_schemes()
         }
         fn verify_server_cert(
             &self,

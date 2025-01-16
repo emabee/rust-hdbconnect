@@ -101,5 +101,3 @@ pub use rocket_pool::HanaPoolForRocket;
 pub use bb8::ConnectionManager;
 
 pub mod code_examples;
-
-pub use hdbconnect_impl::initialize_crypto;
