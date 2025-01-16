@@ -6,7 +6,7 @@ version.workspace = true
 license.workspace = true
 repository.workspace = true
 readme = "README.md"
-description = "Common implementation of hdbconnect and hdbconnect_async; not for direct use"
+description = "Common implementation core of hdbconnect and hdbconnect_async; not for direct use"
 keywords.workspace = true
 categories.workspace = true
 include = ["src/**/*", "LICENSE-*", "README.md", "CHANGELOG.md"]
@@ -43,7 +43,12 @@ num = "0.4"
 num-bigint = "0.4.0"
 pbkdf2 = { version = "0.12", default-features = false }
 rand = "0.8"
-rustls = { version = "0.23", default-features = false, features = ["logging", "std", "tls12", "ring"] }
+rustls = { version = "0.23", default-features = false, features = [
+    "logging",
+    "std",
+    "tls12",
+    "ring",
+] }
 secstr = "0.5"
 serde = { version = "1.0", features = ["derive"] }
 # serde_db = { path = "../../serde_db" }
@@ -63,7 +68,9 @@ tokio = { optional = true, version = "1.23", features = [
     "time",
     "sync",
 ] }
-tokio-rustls = { version= "0.26", default-features = false, features = ["ring"]}
+tokio-rustls = { version = "0.26", default-features = false, features = [
+    "ring",
+] }
 url = "2.1"
 username = "0.2"
 vec_map = "0.8"

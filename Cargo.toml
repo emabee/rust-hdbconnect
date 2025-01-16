@@ -38,9 +38,7 @@ resolver = "2"
 version = "0.31.0-unpublished"
 
 authors = [
-    "emabee <meinolf.block-hd@t-online.de>",
-    "dleifeld",
-    "Pascal Seitz <pascal.seitz@gmail.com>",
+    "emabee <meinolf.block-hd(at)t-online.de>",
     "Dirk Leifeld <dirk.leifeld(at)sap.com>",
 ]
 edition = "2021"
