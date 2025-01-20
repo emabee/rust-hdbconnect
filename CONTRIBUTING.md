@@ -12,7 +12,7 @@ Install
 
 ### cargo-script
 
-Install [cargo-script](https://github.com/DanielKeep/cargo-script). You need this for running the qualification script `./scripts/qualify.crs` before submitting.
+Install [cargo-script](https://github.com/DanielKeep/cargo-script). You need this for running the qualification script `./scripts/qualify.rs` before submitting.
 
 ### cargo-outdated
 
@@ -72,9 +72,11 @@ environment variable `HDBCONNECT_TEST_DB`, e.g. use
 
 Do changes locally and use a dedicated topic branch.
 
+Follow the versioning rules described in [version policy](./doc/version_policy.md).
+
 Extend `CHANGELOG.md`.
 
-- collect changes in an `[unpublished]` section.
+- collect changes in an `[a.b.c-unpublished]` section.
 - **New version?** Update homogeneously the version entries in 
   - `./Cargo.toml`
   - `./hdbconnect/Cargo.toml`
@@ -95,12 +97,12 @@ Update the respective version value in
 - ./hdbconnect/Cargo.toml
 - ./hdbconnect_async/Cargo.toml
 - ./hdbconnect_impl/Cargo.toml
-- qualify.crs
+- ./scripts/qualify.rs
 - README.md
 
 ### Qualify
 
-Run `./scripts/qualify.crs` and make sure that all checks pass. Do not submit if this is not given!
+Run `./scripts/qualify.rs` and make sure that all checks pass. Do not submit if this is not given!
 
 Ideally, do it twice with two different database backends (HANA2 and HANA Cloud).
 
@@ -108,6 +110,11 @@ Ideally, do it twice with two different database backends (HANA2 and HANA Cloud)
 
 Check in and push.
 
-Create a pull request.
+Create a pull request and get it merged.
 
-Cargo publish!
+If it is a publishing change:
+```cmd
+cargo publish --package hdbconnect_impl
+cargo publish --package hdbconnect
+cargo publish --package hdbconnect_async
+```
