@@ -22,6 +22,7 @@ fn main() {
     macro_rules! run_command {
         ($cmd:expr) => {
             let mut command = command!($cmd);
+            command.env_remove("CARGO"); // fixes https://github.com/rust-lang/rust-clippy/issues/14045
             if simulate {
             } else {
                 let mut child = command.spawn().unwrap();
