@@ -150,7 +150,7 @@ impl HdbCResourceManager {
                         ErrorCode::RmError,
                         "HdbError::ExecutionResults".to_string(),
                     );
-                };
+                }
                 From::<HdbError>::from(hdb_error)
             })
     }

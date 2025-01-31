@@ -75,7 +75,7 @@ impl<'a> ConnectionCore {
                     warn!("Did not find a DbConnectInfo; got {:?}", o_part);
                 }
             }
-        };
+        }
 
         // here we can encounter an additional implicit redirect, triggered by HANA itself
         loop {
@@ -133,7 +133,7 @@ impl<'a> ConnectionCore {
                     warn!("Did not find a DbConnectInfo; got {:?}", o_part);
                 }
             }
-        };
+        }
 
         // here we can encounter an additional implicit redirect, triggered by HANA itself
         loop {

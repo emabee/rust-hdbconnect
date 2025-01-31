@@ -81,7 +81,7 @@ impl ExecutionResults {
         for execution_result in &mut self.0 {
             if let ExecutionResult::Failure(_) = *execution_result {
                 *execution_result = ExecutionResult::Failure(err_iter.next());
-            };
+            }
         }
         for e in err_iter {
             warn!(

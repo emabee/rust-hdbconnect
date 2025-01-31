@@ -48,23 +48,23 @@ impl std::fmt::Debug for PartAttributes {
             if self.is_last_packet() {
                 b = true;
                 write!(f, "IS_LAST_PACKET")?;
-            };
+            }
             if self.has_next_packet() {
                 b = w_and(b, f)?;
                 write!(f, "HAS_NEXT_PACKET")?;
-            };
+            }
             if self.is_first_packet() {
                 b = w_and(b, f)?;
                 write!(f, "IS_FIRST_PACKET_IN_A_SEQUENCE")?;
-            };
+            }
             if self.row_not_found() {
                 b = w_and(b, f)?;
                 write!(f, "ROW_NOT_FOUND")?;
-            };
+            }
             if self.result_set_is_closed() {
                 w_and(b, f)?;
                 write!(f, "RESULTSET_CLOSED")?;
-            };
+            }
             write!(f, ")")
         }
     }

@@ -71,7 +71,7 @@ pub(crate) async fn send_and_receive_async(tcp_client: &mut TcpClient) -> HdbRes
         TcpClient::Dead { .. } => unreachable!(),
         #[cfg(feature = "sync")]
         _ => unreachable!("Sync connections not supported here"),
-    };
+    }
 
     trace!("send_and_receive_async(): receive");
     // ignore the response content

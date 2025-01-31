@@ -303,7 +303,7 @@ impl RsState {
         let mut drop_rs_core = false;
         if let Some(ref am_rscore) = self.o_am_rscore {
             drop_rs_core = am_rscore.lock_sync()?.attributes().is_last_packet();
-        };
+        }
         if drop_rs_core {
             self.o_am_rscore = None;
         }
@@ -339,7 +339,7 @@ impl RsState {
         let mut drop_rs_core = false;
         if let Some(ref am_rscore) = self.o_am_rscore {
             drop_rs_core = am_rscore.lock_async().await.attributes().is_last_packet();
-        };
+        }
         if drop_rs_core {
             self.o_am_rscore = None;
         }
@@ -449,7 +449,7 @@ impl RsState {
                             "Inconsistent StatementContext part found for ResultSet",
                         ));
                     }
-                };
+                }
 
                 fetching_state.set_attributes_sync(attributes).ok();
 
@@ -513,7 +513,7 @@ impl RsState {
                             "Inconsistent StatementContext part found for ResultSet",
                         ));
                     }
-                };
+                }
 
                 fetching_state.set_attributes_async(attributes).await.ok();
 
