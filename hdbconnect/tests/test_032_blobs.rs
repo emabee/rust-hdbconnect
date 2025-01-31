@@ -5,7 +5,7 @@ mod test_utils;
 use flexi_logger::LoggerHandle;
 use hdbconnect::{types::BLob, Connection, HdbResult, HdbValue};
 use log::{debug, info};
-use rand::{thread_rng, RngCore};
+use rand::{rng, RngCore};
 use serde::{Deserialize, Serialize};
 use serde_bytes::{ByteBuf, Bytes};
 use sha2::{Digest, Sha256};
@@ -32,7 +32,7 @@ fn get_random_bytes() -> (Vec<u8>, Vec<u8>) {
     // create random byte data
     let mut pattern = vec![0; PATTERN_SIZE];
     pattern.resize(PATTERN_SIZE, 0_u8);
-    thread_rng().fill_bytes(&mut pattern);
+    rng().fill_bytes(&mut pattern);
     assert_eq!(pattern.len(), PATTERN_SIZE);
 
     let raw_data = pattern.repeat(REPETITION);

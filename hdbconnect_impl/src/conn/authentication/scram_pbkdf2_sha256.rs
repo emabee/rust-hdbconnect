@@ -5,7 +5,7 @@ use crate::{
     usage_err, HdbResult,
 };
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt, WriteBytesExt};
-use rand::{thread_rng, RngCore};
+use rand::{rng, RngCore};
 use secstr::SecUtf8;
 use std::{io::Write, time::Instant};
 
@@ -18,8 +18,7 @@ pub(crate) struct ScramPbkdf2Sha256 {
 impl ScramPbkdf2Sha256 {
     pub fn boxed_authenticator() -> Box<dyn Authenticator + Send + Sync> {
         let mut client_challenge = [0_u8; 64];
-        let mut rng = thread_rng();
-        rng.fill_bytes(&mut client_challenge);
+        rng().fill_bytes(&mut client_challenge);
         Box::new(Self {
             client_challenge: client_challenge.to_vec(),
             server_proof: None,
