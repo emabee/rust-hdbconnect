@@ -1,8 +1,11 @@
-#!/usr/bin/env run-cargo-script
-//! ```cargo
-//! [dependencies]
-//! yansi = "1.0"
-//! ```
+#!/usr/bin/env -S cargo +nightly -Zscript
+
+---
+package.edition = "2024"
+[dependencies]
+yansi = "1.0"
+---
+
 extern crate yansi;
 use std::{process::Command, time::Instant};
 
