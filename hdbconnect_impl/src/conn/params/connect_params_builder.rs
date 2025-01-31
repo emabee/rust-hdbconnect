@@ -139,10 +139,7 @@ impl ConnectParamsBuilder {
 
     /// Sets the client locale from the value of the environment variable LANG
     pub fn clientlocale_from_env_lang(&mut self) -> &mut Self {
-        self.clientlocale = match std::env::var("LANG") {
-            Ok(l) => Some(l),
-            Err(_) => None,
-        };
+        self.clientlocale = std::env::var("LANG").ok();
         self
     }
 

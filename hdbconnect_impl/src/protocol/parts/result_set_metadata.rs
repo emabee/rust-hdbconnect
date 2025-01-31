@@ -106,6 +106,6 @@ fn add_to_names(names: &mut VecMap<String>, offset: u32) {
         let offset = offset as usize;
         if !names.contains_key(offset) {
             names.insert(offset, String::new());
-        };
+        }
     }
 }

@@ -245,7 +245,7 @@ impl ConnectOptions {
                 k => {
                     warn!("Unexpected ConnectOption coming from server ({:?})", k);
                 }
-            };
+            }
         }
 
         *self = ConnectOptions::Final {

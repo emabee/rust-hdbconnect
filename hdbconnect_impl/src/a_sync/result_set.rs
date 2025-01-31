@@ -59,7 +59,7 @@ impl ResultSet {
     /// * If the result set contains only a single line (e.g. because you
     ///   specified `TOP 1` in your select clause),
     ///   then you can optionally choose to deserialize directly into a plain
-    ///    `line_struct`.
+    ///   `line_struct`.
     ///
     /// * If the result set contains only a single column, then you can
     ///   optionally choose to deserialize directly into a
