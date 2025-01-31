@@ -2,9 +2,11 @@
 
 ## [0.31.0-unpublished]
 
-Remove ``initialize_crypto``. We use rustls as is. You can configure a non-default behavior of `rustls` with [install_default](https://docs.rs/rustls/latest/rustls/crypto/struct.CryptoProvider.html#method.install_default) (1).
+Remove ``initialize_crypto``. We use rustls as is. You can configure a non-default behavior of
+`rustls` with
+[install_default](https://docs.rs/rustls/latest/rustls/crypto/struct.CryptoProvider.html#method.install_default) (1).
 
-Merge `HdbError` variants `Usage` and `UsageDetailed`, as well as `Impl` and `ImplDetailed`, 
+Merge `HdbError` variants `Usage` and `UsageDetailed`, as well as `Impl` and `ImplDetailed`,
 new variants `Usage` and `Impl` are based on `Cow`.
 
 Increase MSRV to 1.80, due to update of `bb8` (2).
