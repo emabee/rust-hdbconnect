@@ -11,7 +11,7 @@ resolver = "2"
 
 [workspace.package]
 # see ./doc/version_policy.md
-version = "0.31.0-unpublished"
+version = "0.31.0"
 
 authors = [
     "emabee <meinolf.block-hd(at)t-online.de>",

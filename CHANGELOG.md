@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.31.0-unpublished]
+## [0.31.0] 2025-02-19
 
 Remove ``initialize_crypto``. We use rustls as is. You can configure a non-default behavior of
 `rustls` with
