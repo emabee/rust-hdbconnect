@@ -8,6 +8,7 @@ members = [
     "hdbconnect_impl",
 ]
 resolver = "2"
+exclude = ["scripts"]
 
 [workspace.package]
 # see ./doc/version_policy.md
