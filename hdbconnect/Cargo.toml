@@ -30,17 +30,15 @@ r2d2_pool = ["r2d2", "log"]
 dist_tx = ["hdbconnect_impl/dist_tx_sync"]
 
 [dependencies]
+hdbconnect_impl = { workspace = true, features = ["sync"] }
+
 r2d2 = { version = "0.8", optional = true }
 log = { version = "0.4", optional = true }
 
-[dependencies.hdbconnect_impl]
-# see ./doc/version_policy.md
-version = "0.31.0"
-path = "../hdbconnect_impl"
-default-features = false
-features = ["sync"]
 
 [dev-dependencies]
+rustls = { workspace = true, features = ["ring"] }
+
 bigdecimal = { version = "0.4", features = ["serde"] }
 cesu8 = "1.1"
 chrono = { version = "0.4", features = ["serde"] }
