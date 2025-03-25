@@ -1,15 +1,9 @@
 # Version policy
 
-The semver version of the libraries is currently specified explicitly in three Cargo.toml files:
+The semver version of the libraries is currently specified twice in the main Cargo.toml:
 
-- `./Cargo.toml`
-- `./hdbconnect/Cargo.toml`
-- `./hdbconnect_async/Cargo.toml`
-
-`./hdbconnect_impl/Cargo.toml` just refers to the version in the workspacer file (the first file);
-this didn't work for the other two, dependency resolution had problems).
-As long as it is like this, we must ensure "manually" that all three versions are kept in sync,
-to simplify our own life.
+- `[workspace.package]`
+- `[workspace.dependencies]`
 
 The following process should help to ensure a proper semver versioning with multiple code
 contributors.

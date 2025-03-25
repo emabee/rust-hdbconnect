@@ -30,14 +30,10 @@ bb8_pool = ["async-trait", "bb8", "log", "tokio"]
 rocket_pool = ["rocket_db_pools", "rocket"]
 dist_tx = ["hdbconnect_impl/dist_tx_async"]
 
-[dependencies.hdbconnect_impl]
-# see ./doc/version_policy.md
-version = "0.31.0"
-path = "../hdbconnect_impl"
-default-features = false
-features = ["async"]
 
 [dependencies]
+hdbconnect_impl = { workspace = true, features = ["async"] }
+
 async-trait = { version = "0.1", optional = true }
 bb8 = { version = "0.9", optional = true }
 log = { version = "0.4", optional = true }
@@ -46,6 +42,8 @@ rocket = { version = "0.5.0", optional = true }
 tokio = { version = "1.23", features = ["rt"], optional = true }
 
 [dev-dependencies]
+rustls = { workspace = true, features = ["ring"] }
+
 bigdecimal = { version = "0.4", features = ["serde"] }
 cesu8 = "1.1"
 chrono = { version = "0.4", features = ["serde"] }

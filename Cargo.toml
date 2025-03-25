@@ -11,7 +11,7 @@ resolver = "2"
 
 [workspace.package]
 # see ./doc/version_policy.md
-version = "0.31.0"
+version = "0.32.0-unreleased"
 
 authors = [
     "emabee <meinolf.block-hd(at)t-online.de>",
@@ -24,3 +24,12 @@ repository = "https://github.com/emabee/rust-hdbconnect"
 keywords = ["relational", "database", "driver", "HANA"]
 categories = ["database"]
 include = ["LICENSE-*", "README.md", "CHANGELOG.md"]
+
+
+[workspace.dependencies]
+hdbconnect_impl = { path = "hdbconnect_impl", version = "0.32.0-unreleased", default-features = false }
+rustls = { version = "0.23", default-features = false, features = [
+    "logging",
+    "std",
+    "tls12",
+] }
