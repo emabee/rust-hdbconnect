@@ -11,7 +11,7 @@ documentation = "https://docs.rs/hdbconnect_async/"
 keywords = ["asynchronous", "relational", "database", "driver", "HANA"]
 categories.workspace = true
 include = ["src/**/*", "LICENSE-*", "README.md", "CHANGELOG.md"]
-rust-version = "1.80.0"
+rust-version = "1.82.0"
 
 [lib]
 doctest = false

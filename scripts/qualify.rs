@@ -77,8 +77,8 @@ fn main() {
     run_command!("cargo build --package hdbconnect_async --release --all-features");
 
     // -- all-features debug builds with oldest supported rust version
-    run_command!("cargo +1.80 build --package hdbconnect --all-features");
-    run_command!("cargo +1.80 build --package hdbconnect_async --all-features");
+    run_command!("cargo +1.82 build --package hdbconnect --all-features");
+    run_command!("cargo +1.82 build --package hdbconnect_async --all-features");
 
     // Clippy in important variants (+nightly removed due to errors in clippy)
     run_command!(
