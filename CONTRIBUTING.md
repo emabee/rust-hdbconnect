@@ -4,19 +4,15 @@
 
 ### Rust versions
 
-Install 
+Install
 
-- the **latest rust stable** (for normal compilation), 
+- the **latest rust stable** (for normal compilation),
 - the **latest rust nightly** (for clippy, doc creation and doc tests),
   and the **minimal supported rust version**.
 
-### cargo-script
-
-Install [cargo-script](https://github.com/DanielKeep/cargo-script). You need this for running the qualification script `./scripts/qualify.rs` before submitting.
-
 ### cargo-outdated
 
-Install [cargo-outdated](https://github.com/kbknapp/cargo-outdated). 
+Install [cargo-outdated](https://github.com/kbknapp/cargo-outdated).
 See also [installation and usage](https://github.com/kbknapp/cargo-outdated/blob/master/README.md#installation-and-usage).
 
 ### Mermaid support
@@ -54,16 +50,16 @@ where
 - the placeholders with angular brackets must be replaced with correct values
 - the direct URL will be used for most of the tests,
 - the redirect URL can/should point to the same database, but via the redirect-syntax; it is used only in test_010_connect
-- the std-user will be used for most of the tests, 
+- the std-user will be used for most of the tests,
 - the um-user for user-management activities (tests 11, 12, 13).
 
 See https://docs.rs/hdbconnect/latest/hdbconnect/url/index.html for details of the URL format.
 
 ### Announce the chosen test configuration using the environment
 
-Announce the test configuration you want to use for the test runs by using the 
+Announce the test configuration you want to use for the test runs by using the
 environment variable `HDBCONNECT_TEST_DB`, e.g. use
-`export HDBCONNECT_TEST_DB='cloud'` to test with the database you configured in 
+`export HDBCONNECT_TEST_DB='cloud'` to test with the database you configured in
 `.private/test_cloud.db`.
 
 ## Dev Process
@@ -77,7 +73,7 @@ Follow the versioning rules described in [version policy](./doc/version_policy.m
 Extend `CHANGELOG.md`.
 
 - collect changes in an `[a.b.c-unpublished]` section.
-- **New version?** Update homogeneously the version entries in 
+- **New version?** Update homogeneously the version entries in
   - `./Cargo.toml`
   - `./hdbconnect/Cargo.toml`
   - `./hdbconnect_async/Cargo.toml`
@@ -92,7 +88,7 @@ Ideally done with reasonable frequency and not together with development increme
 
 Should only be done when needed, and to the smallest possible value, in most cases after a update of the dependencies.
 
-Update the respective version value in 
+Update the respective version value in
 
 - ./hdbconnect/Cargo.toml
 - ./hdbconnect_async/Cargo.toml
