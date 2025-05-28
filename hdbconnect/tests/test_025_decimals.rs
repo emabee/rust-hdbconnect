@@ -55,7 +55,7 @@ fn test_025_decimals_impl(
         "create table TEST_DECIMALS (s NVARCHAR(100) primary key, d1 DECIMAL(38,5), d2 DECIMAL(38,5), dummy integer)",
         },
         // the complete statement is sent to the server as is, so all conversions are done on the server
-        "insert into TEST_DECIMALS (s, d1, d2) values('0.00000', '0.00000', 0.000)",
+        "insert into TEST_DECIMALS (s, d1, d2) values('0', '0.00000', 0.000)",
         "insert into TEST_DECIMALS (s, d1, d2) values('0.00100', '0.00100', 0.001)",
         "insert into TEST_DECIMALS (s, d1, d2) values('-0.00100', '-0.00100', -0.001)",
         "insert into TEST_DECIMALS (s, d1, d2) values('0.00300', '0.00300', 0.003)",
