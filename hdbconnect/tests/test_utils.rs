@@ -5,6 +5,13 @@ use flexi_logger::{opt_format, Logger, LoggerHandle};
 use hdbconnect::{
     ConnectParamsBuilder, Connection, ConnectionConfiguration, HdbError, HdbResult, ServerCerts,
 };
+use rustls;
+
+pub fn initialize_crypto() {
+    rustls::crypto::ring::default_provider()
+        .install_default()
+        .ok();
+}
 
 // Returns a logger that prints out all info, warn and error messages.
 //
@@ -35,6 +42,7 @@ pub fn closing_info(connection: Connection, start: std::time::Instant) -> HdbRes
 }
 
 pub fn get_authenticated_connection() -> HdbResult<Connection> {
+    initialize_crypto();
     let connection = Connection::new(get_std_cp_builder()?)?;
     log::info!("TESTING WITH {}", connection.connect_string().unwrap());
     Ok(connection)
@@ -100,7 +108,7 @@ Consider creating the file with content like
 where
 - the direct URL will be used for most of the tests,
 - the redirect URL can/should point to the same database, but via the redirect-syntax.
-- the std-user will be used for most of the tests, 
+- the std-user will be used for most of the tests,
 - the um-user for user-management activities.
 
 See https://docs.rs/hdbconnect/latest/hdbconnect/url/index.html for details of the URL format.
