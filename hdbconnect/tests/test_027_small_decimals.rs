@@ -27,7 +27,7 @@ fn test_small_decimals(_log_handle: &mut LoggerHandle, connection: &Connection) 
 
     let stmts = vec![
         "create table TEST_SMALL_DECIMALS (s NVARCHAR(100) primary key, sdec SMALLDECIMAL)",
-        "insert into TEST_SMALL_DECIMALS (s, sdec) values('0.00000', 0.000)",
+        "insert into TEST_SMALL_DECIMALS (s, sdec) values('0', 0.000)",
         "insert into TEST_SMALL_DECIMALS (s, sdec) values('0.00100', 0.001)",
         "insert into TEST_SMALL_DECIMALS (s, sdec) values('-0.00100', -0.001)",
         "insert into TEST_SMALL_DECIMALS (s, sdec) values('0.00300', 0.003)",

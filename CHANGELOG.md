@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.32.0] 2025-05-28
+Remove dependency on Ring completely.
+
+Increase MSRV to 1.82 for several dependencies.
+
+
 ## [0.31.0] 2025-02-19
 
 Remove ``initialize_crypto``. We use rustls as is. You can configure a non-default behavior of
