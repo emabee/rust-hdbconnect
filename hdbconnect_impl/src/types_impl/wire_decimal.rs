@@ -1,4 +1,4 @@
-use crate::{impl_err, HdbResult, HdbValue};
+use crate::{HdbResult, HdbValue, impl_err};
 use bigdecimal::{BigDecimal, Zero};
 use byteorder::{ByteOrder, LittleEndian};
 use num_bigint::{BigInt, Sign};
@@ -155,13 +155,13 @@ mod tests {
     }
 
     fn str_2_big_2_hdb_2_big(input: &str) {
-        debug!("input:  {}", input);
+        debug!("input:  {input}");
         let bigdec = BigDecimal::from_str(input).unwrap();
         big_2_hdb_2_big(&bigdec);
     }
 
     fn me_2_big_2_hdb_2_big(mantissa: BigInt, exponent: i64) {
-        debug!("mantissa: {}, exponent: {}", mantissa, exponent);
+        debug!("mantissa: {mantissa}, exponent: {exponent}");
         let bigdec = BigDecimal::new(mantissa, -exponent);
         big_2_hdb_2_big(&bigdec);
     }
@@ -175,8 +175,8 @@ mod tests {
             .try_into()
             .unwrap();
 
-        debug!("bigdec:  {:?}", bigdec);
-        debug!("bigdec2: {:?}\n", bigdec2);
+        debug!("bigdec:  {bigdec:?}");
+        debug!("bigdec2: {bigdec2:?}\n");
         assert_eq!(*bigdec, bigdec2, "start != end");
     }
 

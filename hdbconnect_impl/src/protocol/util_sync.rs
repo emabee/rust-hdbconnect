@@ -1,4 +1,4 @@
-use crate::{impl_err, HdbResult};
+use crate::{HdbResult, impl_err};
 
 // Read n bytes, return as Vec<u8>
 pub(crate) fn parse_bytes(len: usize, rdr: &mut dyn std::io::Read) -> HdbResult<Vec<u8>> {

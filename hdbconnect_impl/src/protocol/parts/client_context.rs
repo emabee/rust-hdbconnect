@@ -65,7 +65,7 @@ impl OptionId<ClientContextId> for ClientContextId {
             2 => Self::ClientType,
             3 => Self::ClientApplicationProgramm,
             val => {
-                warn!("Unsupported value for ClientContextId received: {}", val);
+                warn!("Unsupported value for ClientContextId received: {val}");
                 Self::__Unexpected__(val)
             }
         }

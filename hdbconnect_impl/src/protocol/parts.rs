@@ -70,11 +70,11 @@ pub use self::{
 };
 
 use crate::{
+    HdbResult,
     base::{InternalReturnValue, RsState},
     conn::AmConnCore,
     impl_err,
-    protocol::{part_attributes::FIRST_PACKET, Part, PartAttributes, PartKind, ServerUsage},
-    HdbResult,
+    protocol::{Part, PartAttributes, PartKind, ServerUsage, part_attributes::FIRST_PACKET},
 };
 use std::sync::Arc;
 
@@ -196,10 +196,7 @@ impl Parts<'static> {
                 Part::WriteLobReply(wlr) => {
                     int_return_values.push(InternalReturnValue::WriteLobReply(wlr));
                 }
-                _ => warn!(
-                    "into_internal_return_values(): ignoring unexpected part = {:?}",
-                    part
-                ),
+                _ => warn!("into_internal_return_values(): ignoring unexpected part = {part:?}"),
             }
         }
         Ok(int_return_values)
@@ -259,10 +256,7 @@ impl Parts<'static> {
                 Part::WriteLobReply(wlr) => {
                     int_return_values.push(InternalReturnValue::WriteLobReply(wlr));
                 }
-                _ => warn!(
-                    "into_internal_return_values(): ignoring unexpected part = {:?}",
-                    part
-                ),
+                _ => warn!("into_internal_return_values(): ignoring unexpected part = {part:?}"),
             }
         }
         Ok(int_return_values)

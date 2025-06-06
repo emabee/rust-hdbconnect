@@ -1,4 +1,4 @@
-use crate::{protocol::util_sync, HdbResult};
+use crate::{HdbResult, protocol::util_sync};
 use byteorder::{LittleEndian, ReadBytesExt};
 
 #[derive(Debug)]

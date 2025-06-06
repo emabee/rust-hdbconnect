@@ -26,7 +26,7 @@ impl OptionId<LobFlagsId> for LobFlagsId {
         match val {
             0 => Self::ImplicitStreaming,
             val => {
-                warn!("Unsupported value for LobFlagsId received: {}", val);
+                warn!("Unsupported value for LobFlagsId received: {val}");
                 Self::__Unexpected__(val)
             }
         }

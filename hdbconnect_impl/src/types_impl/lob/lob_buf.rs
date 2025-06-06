@@ -55,7 +55,7 @@ impl LobBuf {
         let start = self.start();
         let end = self.end();
         if n > end - start {
-            return Err(crate::protocol::util::io_error("not enough data"));
+            return Err(std::io::Error::other("not enough data"));
         }
         self.set_start(start + n);
         Ok(&self.data[start..start + n])

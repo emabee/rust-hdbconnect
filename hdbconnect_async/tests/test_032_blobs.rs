@@ -6,7 +6,7 @@ use flexi_logger::LoggerHandle;
 use hdbconnect_async::types::BLob;
 use hdbconnect_async::{Connection, HdbResult, HdbValue};
 use log::{debug, info};
-use rand::{rng, RngCore};
+use rand::{RngCore, rng};
 use serde::{Deserialize, Serialize};
 use serde_bytes::{ByteBuf, Bytes};
 use sha2::{Digest, Sha256};

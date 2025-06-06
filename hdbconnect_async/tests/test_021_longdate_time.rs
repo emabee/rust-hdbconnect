@@ -4,14 +4,14 @@ mod test_utils;
 
 use flexi_logger::LoggerHandle;
 use hdbconnect_async::{
-    time::{HanaOffsetDateTime, HanaPrimitiveDateTime},
     Connection, HdbResult, ToHana, TypeId,
+    time::{HanaOffsetDateTime, HanaPrimitiveDateTime},
 };
 use log::{debug, info};
 use serde::Deserialize;
 use time::{
-    format_description::FormatItem, macros::format_description, Date, Month, OffsetDateTime,
-    PrimitiveDateTime, Time,
+    Date, Month, OffsetDateTime, PrimitiveDateTime, Time, format_description::FormatItem,
+    macros::format_description,
 };
 
 #[tokio::test] // cargo test --test test_021_longdate

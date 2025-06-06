@@ -2,7 +2,7 @@
 name = "hdbconnect_async"
 authors.workspace = true
 version.workspace = true
-edition = "2021"
+edition = "2024"
 license.workspace = true
 repository.workspace = true
 readme = "README.md"
@@ -11,7 +11,7 @@ documentation = "https://docs.rs/hdbconnect_async/"
 keywords = ["asynchronous", "relational", "database", "driver", "HANA"]
 categories.workspace = true
 include = ["src/**/*", "LICENSE-*", "README.md", "CHANGELOG.md"]
-rust-version = "1.80.0"
+rust-version = "1.85.0"
 
 [lib]
 doctest = false

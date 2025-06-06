@@ -1,6 +1,6 @@
 use super::{cp_url::format_as_url, tls::Tls};
 use crate::{
-    conn::Compression, usage_err, ConnectParams, HdbResult, IntoConnectParamsBuilder, ServerCerts,
+    ConnectParams, HdbResult, IntoConnectParamsBuilder, ServerCerts, conn::Compression, usage_err,
 };
 use secstr::SecUtf8;
 
@@ -72,8 +72,22 @@ impl ConnectParamsBuilder {
         self
     }
 
+    /// Sets the hostname.
+    #[must_use]
+    pub fn with_hostname<H: AsRef<str>>(mut self, hostname: H) -> Self {
+        self.hostname = Some(hostname.as_ref().to_owned());
+        self
+    }
+
     /// Sets the port.
     pub fn port(&mut self, port: u16) -> &mut Self {
+        self.port = Some(port);
+        self
+    }
+
+    /// Sets the port.
+    #[must_use]
+    pub fn with_port(mut self, port: u16) -> Self {
         self.port = Some(port);
         self
     }
@@ -125,6 +139,16 @@ impl ConnectParamsBuilder {
         self
     }
 
+    /// Sets the database name.
+    ///
+    /// This allows specifying host and port of the system DB
+    /// and getting automatically redirected and connected to the specified tenant database.
+    #[must_use]
+    pub fn with_dbname<D: AsRef<str>>(mut self, dbname: D) -> Self {
+        self.dbname = Some(dbname.as_ref().to_owned());
+        self
+    }
+
     /// Sets the network group.
     pub fn network_group<D: AsRef<str>>(&mut self, network_group: D) -> &mut Self {
         self.network_group = Some(network_group.as_ref().to_owned());
@@ -161,6 +185,25 @@ impl ConnectParamsBuilder {
     /// enum variants of [`ServerCerts`](crate::ServerCerts).
     ///
     /// If needed, you can call this function multiple times with different `ServerCert` variants.
+    pub fn tls_with(&mut self, server_certs: ServerCerts) -> &mut Self {
+        match self.tls {
+            Tls::Off | Tls::Insecure => {
+                self.tls = Tls::Secure(vec![]);
+            }
+            Tls::Secure(_) => {}
+        }
+        if let Tls::Secure(ref mut v) = self.tls {
+            v.push(server_certs);
+        }
+        self
+    }
+
+    /// Makes the driver use TLS for the connection to the database.
+    ///
+    /// Requires that the server's certificate is provided with one of the
+    /// enum variants of [`ServerCerts`](crate::ServerCerts).
+    ///
+    /// If needed, you can call this function multiple times with different `ServerCert` variants.
     ///
     /// Example:
     ///
@@ -169,10 +212,11 @@ impl ConnectParamsBuilder {
     /// # let string_with_certificate = String::new();
     /// let mut conn_params = ConnectParams::builder()
     ///    // ...more settings required...
-    ///    .tls_with(ServerCerts::Direct(string_with_certificate))
+    ///    .with_tls_with(ServerCerts::Direct(string_with_certificate))
     ///    .build();
     /// ```
-    pub fn tls_with(&mut self, server_certs: ServerCerts) -> &mut Self {
+    #[must_use]
+    pub fn with_tls_with(mut self, server_certs: ServerCerts) -> Self {
         match self.tls {
             Tls::Off | Tls::Insecure => {
                 self.tls = Tls::Secure(vec![]);
@@ -190,6 +234,15 @@ impl ConnectParamsBuilder {
     /// Erases all already configured server certs.
     pub fn tls_without_server_verification(&mut self) -> &mut Self {
         self.tls = Tls::Insecure;
+        self
+    }
+
+    /// Decides whether the driver use TLS for the connection to the database, or not.
+    /// If yes, it chooses the hazardous option without verifying the server's certificate.
+    /// Erases all already configured server certs.
+    #[must_use]
+    pub fn with_tls_without_server_verification(mut self, with_tls: bool) -> Self {
+        self.tls = if with_tls { Tls::Insecure } else { Tls::Off };
         self
     }
 

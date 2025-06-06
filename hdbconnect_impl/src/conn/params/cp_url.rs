@@ -1,9 +1,9 @@
 use std::io::{Cursor, Write};
 
-use super::{tls::Tls, Compression};
+use super::{Compression, tls::Tls};
 use crate::{
-    url::{self, HDBSQL, HDBSQLS},
     ServerCerts,
+    url::{self, HDBSQL, HDBSQLS},
 };
 
 #[allow(clippy::too_many_arguments)]

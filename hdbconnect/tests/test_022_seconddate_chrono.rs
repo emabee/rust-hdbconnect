@@ -22,7 +22,9 @@ pub fn test_022_seconddate() -> HdbResult<()> {
 // - during serialization (input to prepared_statements)
 // - during deserialization (result)
 fn test_seconddate(_loghandle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
-    info!("test_seconddate: verify that NaiveDateTime values match the expected string representation");
+    info!(
+        "test_seconddate: verify that NaiveDateTime values match the expected string representation"
+    );
 
     debug!("test_seconddate: prepare the test data");
     let naive_datetime_values: Vec<NaiveDateTime> = vec![

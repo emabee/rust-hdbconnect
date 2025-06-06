@@ -1,7 +1,8 @@
 use super::cp_url::UrlOpt;
 use crate::{
+    ConnectParamsBuilder, HdbError, HdbResult, ServerCerts,
     url::{HDBSQL, HDBSQLS},
-    usage_err, ConnectParamsBuilder, HdbError, HdbResult, ServerCerts,
+    usage_err,
 };
 use url::Url;
 

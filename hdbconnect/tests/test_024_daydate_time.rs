@@ -3,9 +3,9 @@ extern crate serde;
 mod test_utils;
 
 use flexi_logger::LoggerHandle;
-use hdbconnect::{time::HanaDate, Connection, HdbResult, ToHana};
+use hdbconnect::{Connection, HdbResult, ToHana, time::HanaDate};
 use log::{debug, info, trace};
-use time::{format_description::FormatItem, macros::format_description, Date, Month};
+use time::{Date, Month, format_description::FormatItem, macros::format_description};
 
 #[test] // cargo test --test test_024_daydate
 pub fn test_024_daydate() -> HdbResult<()> {
@@ -79,9 +79,9 @@ fn test_daydate(_loghandle: &mut LoggerHandle, connection: &Connection) -> HdbRe
         info!("test the conversion DB -> Date");
         let s = "select mydate from TEST_DAYDATE order by number asc";
         let rs = connection.query(s)?;
-        trace!("rs = {:?}", rs);
+        trace!("rs = {rs:?}");
         let times: Vec<HanaDate> = rs.try_into()?;
-        trace!("times = {:?}", times);
+        trace!("times = {times:?}");
         for (time, ntv) in times.iter().zip(date_values.iter()) {
             debug!("{}, {}", **time, ntv);
             assert_eq!(**time, *ntv);
@@ -91,7 +91,7 @@ fn test_daydate(_loghandle: &mut LoggerHandle, connection: &Connection) -> HdbRe
     {
         info!("prove that '' is the same as '0001:01:01'");
         let rows_affected = connection.dml(insert_stmt(77, ""))?;
-        trace!("rows_affected = {}", rows_affected);
+        trace!("rows_affected = {rows_affected}");
         assert_eq!(rows_affected, 1);
 
         let dates: Vec<HanaDate> = connection
@@ -109,7 +109,7 @@ fn test_daydate(_loghandle: &mut LoggerHandle, connection: &Connection) -> HdbRe
         let q = "insert into TEST_DAYDATE (number) values(2350)";
 
         let rows_affected = connection.dml(q)?;
-        trace!("rows_affected = {}", rows_affected);
+        trace!("rows_affected = {rows_affected}");
         assert_eq!(rows_affected, 1);
 
         let date: Option<Date> = connection

@@ -1,16 +1,17 @@
 use crate::{
-    base::{new_am_sync, InternalReturnValue, PreparedStatementCore, AM},
+    ConnectionConfiguration, HdbResult,
+    base::{AM, InternalReturnValue, PreparedStatementCore, new_am_sync},
     conn::AmConnCore,
     impl_err,
     protocol::{
+        MessageType, Part, PartKind, Request, ServerUsage,
         parts::{
             HdbValue, LobFlags, ParameterDescriptors, ParameterRows, ResultSetMetadata, TypeId,
         },
-        MessageType, Part, PartKind, Request, ServerUsage,
     },
     sync::HdbResponse,
     types_impl::lob::SyncLobWriter,
-    usage_err, ConnectionConfiguration, HdbResult,
+    usage_err,
 };
 use std::{io::Write, sync::Arc};
 
@@ -257,7 +258,7 @@ impl<'a> PreparedStatement {
                     ));
                 }
                 for (locator_id, (reader, type_id)) in locator_ids.into_iter().zip(readers) {
-                    debug!("writing content to locator with id {:?}", locator_id);
+                    debug!("writing content to locator with id {locator_id:?}");
                     if let HdbValue::SYNC_LOBSTREAM(Some(reader)) = reader {
                         let mut reader = reader.lock()?;
                         let mut writer = SyncLobWriter::new(
@@ -267,12 +268,8 @@ impl<'a> PreparedStatement {
                             self.o_a_rsmd.as_ref(),
                             Some(&self.a_descriptors),
                         )?;
-                        std::io::copy(&mut *reader, &mut writer).map_err(|e| {
-                            std::io::Error::new(std::io::ErrorKind::Other, e.to_string())
-                        })?;
-                        writer.flush().map_err(|e| {
-                            std::io::Error::new(std::io::ErrorKind::Other, e.to_string())
-                        })?;
+                        std::io::copy(&mut *reader, &mut writer).map_err(std::io::Error::other)?;
+                        writer.flush().map_err(std::io::Error::other)?;
                         if let Some(mut irvs) = writer.into_internal_return_values() {
                             internal_return_values.append(&mut irvs);
                         }
@@ -446,7 +443,7 @@ impl<'a> PreparedStatement {
                         stmt_ctx.server_memory_usage(),
                     );
                 }
-                x => warn!("try_new(): Unexpected reply part found {:?}", x),
+                x => warn!("try_new(): Unexpected reply part found {x:?}"),
             }
         }
 
@@ -455,10 +452,7 @@ impl<'a> PreparedStatement {
             am_conn_core,
             statement_id,
         });
-        debug!(
-            "PreparedStatement created with parameter descriptors = {:?}",
-            a_descriptors
-        );
+        debug!("PreparedStatement created with parameter descriptors = {a_descriptors:?}");
         Ok(Self {
             am_ps_core,
             config,

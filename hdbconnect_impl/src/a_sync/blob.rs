@@ -1,9 +1,9 @@
 use crate::{
-    base::{RsCore, OAM},
+    HdbResult,
+    base::{OAM, RsCore},
     conn::AmConnCore,
     protocol::ServerUsage,
     types_impl::lob::BLobHandle,
-    HdbResult,
 };
 
 /// LOB implementation for binary values.

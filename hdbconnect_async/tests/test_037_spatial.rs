@@ -54,7 +54,7 @@ async fn test_geometries(_loghandle: &mut LoggerHandle, connection: &Connection)
     debug!("select and deserialize (use serde)");
     let result_set = connection.query("select shape from SpatialShapes").await?;
     assert_eq!(result_set.metadata()[0].type_id(), TypeId::GEOMETRY);
-    debug!("Result set = {}", result_set);
+    debug!("Result set = {result_set}");
     let shapes: Vec<ByteBuf> = result_set.try_into().await?;
 
     debug!("insert via parameters (use serde)");

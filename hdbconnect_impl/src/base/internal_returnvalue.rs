@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::{
-    base::RsState, protocol::parts::WriteLobReply, ExecutionResults, OutputParameters,
-    ParameterDescriptors, ResultSetMetadata,
+    ExecutionResults, OutputParameters, ParameterDescriptors, ResultSetMetadata, base::RsState,
+    protocol::parts::WriteLobReply,
 };
 
 #[derive(Debug)]

@@ -1,4 +1,4 @@
-use crate::{impl_err, HdbResult};
+use crate::{HdbResult, impl_err};
 
 pub(crate) async fn skip_bytes<R: std::marker::Unpin + tokio::io::AsyncReadExt>(
     n: usize,

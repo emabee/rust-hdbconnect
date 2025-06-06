@@ -140,9 +140,9 @@ async fn test_streaming(
     let utf8_byte_len = fifty_times_smp_blabla.len();
     let utf8_char_count = fifty_times_smp_blabla.chars().count();
     let cesu8_byte_len = cesu8::to_cesu8(&fifty_times_smp_blabla).len();
-    trace!("utf8 byte length: {}", utf8_byte_len);
-    trace!("utf8 char count: {}", utf8_char_count);
-    trace!("cesu8 byte length: {}", cesu8_byte_len);
+    trace!("utf8 byte length: {utf8_byte_len}");
+    trace!("utf8 char count: {utf8_char_count}");
+    trace!("cesu8 byte length: {cesu8_byte_len}");
 
     connection.set_auto_commit(true).await;
     connection.dml("delete from TEST_NCLOBS").await?;

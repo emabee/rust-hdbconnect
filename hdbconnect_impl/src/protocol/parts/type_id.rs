@@ -1,4 +1,4 @@
-use crate::{impl_err, HdbResult};
+use crate::{HdbResult, impl_err};
 
 /// ID of the value type of a database column or a parameter.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
@@ -180,7 +180,7 @@ impl TypeId {
         #[allow(clippy::match_same_arms)]
         match (value_type, self) {
             (Self::BOOLEAN, Self::TINYINT | Self::SMALLINT | Self::INT | Self::BIGINT) => {
-                return Ok(())
+                return Ok(());
             }
 
             // no clear strategy for GEO stuff yet, so be restrictive

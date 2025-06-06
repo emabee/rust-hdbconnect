@@ -5,11 +5,11 @@ mod test_utils;
 
 use flexi_logger::LoggerHandle;
 use hdbconnect_async::{
-    time::{HanaOffsetDateTime, HanaPrimitiveDateTime},
     Connection, HdbResult, ToHana, TypeId,
+    time::{HanaOffsetDateTime, HanaPrimitiveDateTime},
 };
 use log::{debug, info};
-use time::{macros::format_description, Date, Month, OffsetDateTime, PrimitiveDateTime, Time};
+use time::{Date, Month, OffsetDateTime, PrimitiveDateTime, Time, macros::format_description};
 
 #[tokio::test] // cargo test --test test_022_seconddate
 pub async fn test_022_seconddate() -> HdbResult<()> {

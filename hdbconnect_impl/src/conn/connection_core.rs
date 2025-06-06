@@ -1,17 +1,17 @@
 use crate::{
+    HdbError, HdbResult,
     base::RsState,
     conn::{
-        authentication, initial_request, AmConnCore, AuthenticationResult, CommandOptions,
-        ConnectParams, ConnectionConfiguration, ConnectionStatistics, SessionState, TcpClient,
+        AmConnCore, AuthenticationResult, CommandOptions, ConnectParams, ConnectionConfiguration,
+        ConnectionStatistics, SessionState, TcpClient, authentication, initial_request,
     },
     protocol::{
+        MessageType, Part, Reply, ReplyType, Request, ServerUsage,
         parts::{
             ClientInfo, ConnectOptions, DbConnectInfo, ParameterDescriptors, ResultSetMetadata,
             ServerError, StatementContext, Topology, TransactionFlags,
         },
-        MessageType, Part, Reply, ReplyType, Request, ServerUsage,
     },
-    HdbError, HdbResult,
 };
 use debug_ignore::DebugIgnore;
 #[cfg(feature = "sync")]
@@ -66,13 +66,13 @@ impl<'a> ConnectionCore {
                         let redirect_params = conn_core
                             .connect_params()
                             .redirect(db_connect_info.host()?, db_connect_info.port()?);
-                        debug!("Redirected (1) to {}", redirect_params);
+                        debug!("Redirected (1) to {redirect_params}");
                         conn_core =
                             ConnectionCore::try_new_initialized_sync(redirect_params, config)?;
                     }
                 }
                 o_part => {
-                    warn!("Did not find a DbConnectInfo; got {:?}", o_part);
+                    warn!("Did not find a DbConnectInfo; got {o_part:?}");
                 }
             }
         }
@@ -86,7 +86,7 @@ impl<'a> ConnectionCore {
                     let redirect_params = conn_core
                         .connect_params()
                         .redirect(db_connect_info.host()?, db_connect_info.port()?);
-                    debug!("Redirected (2) to {}", redirect_params);
+                    debug!("Redirected (2) to {redirect_params}");
                     conn_core = ConnectionCore::try_new_initialized_sync(redirect_params, config)?;
                 }
             }
@@ -123,14 +123,14 @@ impl<'a> ConnectionCore {
                         let redirect_params = conn_core
                             .connect_params()
                             .redirect(db_connect_info.host()?, db_connect_info.port()?);
-                        debug!("Redirected (1) to {}", redirect_params);
+                        debug!("Redirected (1) to {redirect_params}");
                         conn_core =
                             ConnectionCore::try_new_initialized_async(redirect_params, config)
                                 .await?;
                     }
                 }
                 o_part => {
-                    warn!("Did not find a DbConnectInfo; got {:?}", o_part);
+                    warn!("Did not find a DbConnectInfo; got {o_part:?}");
                 }
             }
         }
@@ -144,7 +144,7 @@ impl<'a> ConnectionCore {
                     let redirect_params = conn_core
                         .connect_params()
                         .redirect(db_connect_info.host()?, db_connect_info.port()?);
-                    debug!("Redirected (2) to {}", redirect_params);
+                    debug!("Redirected (2) to {redirect_params}");
                     conn_core =
                         ConnectionCore::try_new_initialized_async(redirect_params, config).await?;
                 }
@@ -668,7 +668,7 @@ impl Drop for ConnectionCore {
                         w,
                     )
                     .map_err(|e| {
-                        warn!("Disconnect request failed with {:?}", e);
+                        warn!("Disconnect request failed with {e:?}");
                         e
                     })
                     .ok();
@@ -727,7 +727,7 @@ impl Drop for ConnectionCore {
 
 fn get_os_user() -> String {
     let os_user = username::get_user_name().unwrap_or_default();
-    trace!("OS user: {}", os_user);
+    trace!("OS user: {os_user}");
     os_user
 }
 

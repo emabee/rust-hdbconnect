@@ -138,7 +138,7 @@ fn test_longdate(_loghandle: &mut LoggerHandle, connection: &Connection) -> HdbR
         let q = "insert into TEST_LONGDATE (number) values(2350)";
 
         let rows_affected = connection.dml(q)?;
-        trace!("rows_affected = {}", rows_affected);
+        trace!("rows_affected = {rows_affected}");
         assert_eq!(rows_affected, 1);
 
         let date: Option<NaiveDateTime> = connection

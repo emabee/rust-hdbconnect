@@ -7,7 +7,7 @@ use bb8::ManageConnection;
 use log::trace;
 use std::{
     future::Future,
-    pin::{pin, Pin},
+    pin::{Pin, pin},
     task::{Context, Poll},
 };
 

@@ -1,11 +1,12 @@
 use crate::{
+    HdbResult, IntoConnectParams,
     conn::{AmConnCore, ConnectionConfiguration, ConnectionStatistics, CursorHoldability},
     protocol::{
-        parts::{ClientContext, ClientContextId, CommandInfo, ConnOptId, OptionValue, ServerError},
         MessageType, Part, Request, ServerUsage,
+        parts::{ClientContext, ClientContextId, CommandInfo, ConnOptId, OptionValue, ServerError},
     },
     sync::{HdbResponse, PreparedStatement, ResultSet},
-    usage_err, HdbResult, IntoConnectParams,
+    usage_err,
 };
 use std::time::Duration;
 
@@ -256,7 +257,7 @@ impl Connection {
             let result = self.statement(s);
             match result {
                 Ok(_) => {}
-                Err(e) => debug!("Error intentionally ignored: {:?}", e),
+                Err(e) => debug!("Error intentionally ignored: {e:?}"),
             }
         }
     }

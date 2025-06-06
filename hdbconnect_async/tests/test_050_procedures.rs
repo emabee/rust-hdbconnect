@@ -133,9 +133,9 @@ async fn procedure_with_secret_result_sets(
         .await?
     {
         match ret_val {
-            HdbReturnValue::ResultSet(rs) => debug!("Got a result set: {:?}", rs),
+            HdbReturnValue::ResultSet(rs) => debug!("Got a result set: {rs:?}"),
             HdbReturnValue::AffectedRows(affected_rows) => {
-                debug!("Got affected_rows: {:?}", affected_rows)
+                debug!("Got affected_rows: {affected_rows:?}")
             }
             HdbReturnValue::Success => debug!("Got success"),
             HdbReturnValue::OutputParameters(output_parameters) => {
@@ -226,7 +226,7 @@ async fn procedure_with_in_and_out_parameters(
         assert_eq!(par_desc.direction(), ParameterDirection::OUT);
         assert_eq!(par_desc.name(), Some("OUT_STRING"));
     }
-    info!("output_parameters: {:?}", output_parameters);
+    info!("output_parameters: {output_parameters:?}");
     let (_inout_ts, out_s): (String, String) = output_parameters.try_into()?;
     assert_eq!(out_s, "some output string");
 

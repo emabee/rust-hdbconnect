@@ -14,7 +14,7 @@ impl WriteLobReply {
 
 impl WriteLobReply {
     pub fn parse(count: usize, rdr: &mut dyn std::io::Read) -> HdbResult<Self> {
-        debug!("called with count = {}", count);
+        debug!("called with count = {count}");
         let mut locator_ids = Vec::<u64>::default();
         for _ in 0..count {
             let locator_id = rdr.read_u64::<LittleEndian>()?; // I8

@@ -116,13 +116,13 @@ fn procedure_with_secret_result_sets(
 
     for ret_val in connection.statement("call GET_PROCEDURES_SECRETLY()")? {
         match ret_val {
-            HdbReturnValue::ResultSet(rs) => debug!("Got a result set: {:?}", rs),
+            HdbReturnValue::ResultSet(rs) => debug!("Got a result set: {rs:?}"),
             HdbReturnValue::AffectedRows(affected_rows) => {
-                debug!("Got affected_rows: {:?}", affected_rows)
+                debug!("Got affected_rows: {affected_rows:?}")
             }
             HdbReturnValue::Success => debug!("Got success"),
             HdbReturnValue::OutputParameters(output_parameters) => {
-                debug!("Got output_parameters: {:?}", output_parameters)
+                debug!("Got output_parameters: {output_parameters:?}")
             }
             #[cfg(feature = "dist_tx")]
             HdbReturnValue::XaTransactionIds(ids) => {
@@ -203,7 +203,7 @@ fn procedure_with_in_and_out_parameters(
         assert_eq!(par_desc.direction(), ParameterDirection::OUT);
         assert_eq!(par_desc.name(), Some("OUT_STRING"));
     }
-    info!("output_parameters: {:?}", output_parameters);
+    info!("output_parameters: {output_parameters:?}");
     let (_inout_ts, out_s): (String, String) = output_parameters.try_into()?;
     assert_eq!(out_s, "some output string");
 
@@ -243,7 +243,7 @@ fn procedure_with_in_nclob_non_consuming(
     Ok(())
 }
 
-use hdbconnect::{types::NCLob, HdbValue};
+use hdbconnect::{HdbValue, types::NCLob};
 
 fn procedure_with_in_nclob_and_out_nclob(
     _log_handle: &mut LoggerHandle,

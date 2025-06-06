@@ -65,7 +65,7 @@ async fn evaluate_resultset(
 
     {
         let resultset = connection.query(query_str).await?;
-        debug!("resultset: {:?}", resultset);
+        debug!("resultset: {resultset:?}");
         debug!("After query");
     }
     debug!("After drop of resultset");
@@ -116,7 +116,7 @@ async fn evaluate_resultset(
         .await?
     {
         let f1: String = row.try_into()?;
-        debug!("Got single value: {}", f1);
+        debug!("Got single value: {f1}");
     }
 
     info!("Iterate over rows, filter_map, collect");
@@ -125,11 +125,7 @@ async fn evaluate_resultset(
     assert_eq!(
         rows.filter_map(|row| {
             let td = row.try_into::<TestData>().unwrap();
-            if td.f1.ends_with('0') {
-                Some(td)
-            } else {
-                None
-            }
+            if td.f1.ends_with('0') { Some(td) } else { None }
         })
         .count(),
         10
@@ -186,7 +182,7 @@ async fn verify_row_ordering(
         {
             let (f1, f2): (usize, usize) = row.try_into()?;
             if index % 100 == 0 {
-                debug!("pass 1: convert rows individually, {}", index);
+                debug!("pass 1: convert rows individually, {index}");
             };
             assert_eq!(index, f1);
             assert_eq!(index, f2);
@@ -202,7 +198,7 @@ async fn verify_row_ordering(
         {
             let mut row = row;
             if index % 100 == 0 {
-                debug!("pass 2: convert fields individually, {}", index);
+                debug!("pass 2: convert fields individually, {index}");
             }
             assert_eq!(index, row.next_value().unwrap().try_into::<usize>()?);
             assert_eq!(index, row.next_value().unwrap().try_into::<usize>()?);
@@ -212,7 +208,7 @@ async fn verify_row_ordering(
         let result: Vec<(usize, usize)> = connection.query(query_str).await?.try_into().await?;
         for (index, (f1, f2)) in result.into_iter().enumerate() {
             if index % 100 == 0 {
-                debug!("pass 3: loop over the resultset, {}", index);
+                debug!("pass 3: loop over the resultset, {index}");
             }
             assert_eq!(index, f1);
             assert_eq!(index, f2);

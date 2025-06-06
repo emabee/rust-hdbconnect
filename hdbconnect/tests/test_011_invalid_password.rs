@@ -57,13 +57,13 @@ fn test_011_invalid_password() {
             format!("create user {user} password \"Doebcd1234\"",),
         ]);
 
-        debug!("logon as {}", user);
+        debug!("logon as {user}");
         let mut cp_builder = cp_builder.clone();
         cp_builder.dbuser(user).password("Doebcd1234");
         assert_eq!(cp_builder.get_dbuser().unwrap(), user);
         assert_eq!(cp_builder.get_password().unwrap().unsecure(), "Doebcd1234");
         let doedel_conn = Connection::new(cp_builder).unwrap();
-        debug!("{} is connected", user);
+        debug!("{user} is connected");
 
         debug!("select from dummy -> ensure getting the right error");
         let result = doedel_conn.query("select 1 from dummy");
@@ -72,7 +72,7 @@ fn test_011_invalid_password() {
             .server_error()
             .cloned()
             .unwrap();
-        debug!("Got this server error: {:?}", server_error);
+        debug!("Got this server error: {server_error:?}");
         assert_eq!(
             server_error.code(),
             414,

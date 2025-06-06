@@ -1,6 +1,6 @@
 use crate::{
-    protocol::parts::hdb_value::{emit_length_and_string, string_length},
     HdbResult,
+    protocol::parts::hdb_value::{emit_length_and_string, string_length},
 };
 use std::collections::HashMap;
 use std::env;

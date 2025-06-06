@@ -59,7 +59,7 @@ fn prepare_insert_statement(
     insert_stmt2.add_batch(&("conn2-auto1", 45_i32))?;
     insert_stmt2.add_batch(&("conn2-auto2", 46_i32))?;
     let affrows = insert_stmt2.execute_batch()?.into_affected_rows();
-    debug!("affected rows: {:?}", affrows);
+    debug!("affected rows: {affrows:?}");
 
     debug!(
         "prepare & execute on first connection with auto_commit off, \

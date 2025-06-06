@@ -1,12 +1,13 @@
 use crate::{
-    base::{PreparedStatementCore, RsCore, XMutexed, OAM},
+    HdbResult, ResultSetMetadata, Row, Rows, ServerUsage,
+    base::{OAM, PreparedStatementCore, RsCore, XMutexed},
     conn::{AmConnCore, CommandOptions},
     impl_err,
     protocol::{
-        parts::{Parts, StatementContext},
         MessageType, Part, PartAttributes, PartKind, ReplyType, Request,
+        parts::{Parts, StatementContext},
     },
-    usage_err, HdbResult, ResultSetMetadata, Row, Rows, ServerUsage,
+    usage_err,
 };
 use std::sync::Arc;
 
@@ -291,7 +292,7 @@ impl RsState {
         let fetch_size = { am_conn_core.lock_sync()?.configuration().fetch_size() };
 
         // build the request, provide result set id and fetch-size
-        debug!("ResultSet::fetch_next() with fetch_size = {}", fetch_size);
+        debug!("ResultSet::fetch_next() with fetch_size = {fetch_size}");
         let mut request = Request::new(MessageType::FetchNext, CommandOptions::EMPTY);
         request.push(Part::ResultSetId(result_set_id));
         request.push(Part::FetchSize(fetch_size));
@@ -325,7 +326,7 @@ impl RsState {
         };
 
         // build the request, provide result set id and fetch-size
-        debug!("ResultSet::fetch_next() with fetch_size = {}", fetch_size);
+        debug!("ResultSet::fetch_next() with fetch_size = {fetch_size}");
         let mut request = Request::new(MessageType::FetchNext, CommandOptions::EMPTY);
         request.push(Part::ResultSetId(result_set_id));
         request.push(Part::FetchSize(fetch_size));
@@ -539,7 +540,7 @@ impl RsState {
     ) -> HdbResult<()> {
         self.next_rows.reserve(no_of_rows);
         let no_of_cols = metadata.len();
-        debug!("parse_rows(): {} lines, {} columns", no_of_rows, no_of_cols);
+        debug!("parse_rows(): {no_of_rows} lines, {no_of_cols} columns");
 
         if let Some(ref mut am_rscore) = self.o_am_rscore {
             let rs_core = am_rscore.lock_sync()?;
@@ -562,7 +563,7 @@ impl RsState {
     ) -> HdbResult<()> {
         self.next_rows.reserve(no_of_rows);
         let no_of_cols = metadata.len();
-        debug!("parse_rows(): {} lines, {} columns", no_of_rows, no_of_cols);
+        debug!("parse_rows(): {no_of_rows} lines, {no_of_cols} columns");
 
         if let Some(ref mut am_rscore) = self.o_am_rscore {
             let rs_core = am_rscore.lock_async().await;
@@ -571,7 +572,7 @@ impl RsState {
             for i in 0..no_of_rows {
                 let row =
                     Row::parse_async(Arc::clone(metadata), &o_am_rscore, am_conn_core, rdr).await?;
-                trace!("parse_rows(): Found row #{}: {}", i, row);
+                trace!("parse_rows(): Found row #{i}: {row}");
                 self.next_rows.push(row);
             }
         }

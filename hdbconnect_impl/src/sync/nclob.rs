@@ -1,5 +1,5 @@
 use crate::{
-    base::{RsCore, OAM},
+    base::{OAM, RsCore},
     conn::AmConnCore,
     types::CharLobSlice,
     types_impl::lob::NCLobHandle,

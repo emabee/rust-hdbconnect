@@ -1,8 +1,9 @@
 use crate::{
-    base::{RsCore, OAM},
+    HdbResult,
+    base::{OAM, RsCore},
     conn::AmConnCore,
     protocol::parts::{HdbValue, ResultSetMetadata},
-    usage_err, HdbResult,
+    usage_err,
 };
 use serde_db::de::DeserializableRow;
 use std::sync::Arc;

@@ -1,11 +1,11 @@
 use crate::{
-    base::{RsState, AM},
+    ConnectParams, HdbError, HdbResult, ParameterDescriptors,
+    base::{AM, RsState},
     conn::{ConnectionConfiguration, ConnectionCore},
     protocol::{
         parts::ResultSetMetadata,
         {Reply, Request},
     },
-    ConnectParams, HdbError, HdbResult, ParameterDescriptors,
 };
 use std::{sync::Arc, time::Instant};
 
@@ -53,11 +53,11 @@ impl AmConnCore {
     }
 
     #[cfg(feature = "sync")]
-    pub fn lock_sync(&self) -> std::sync::LockResult<std::sync::MutexGuard<ConnectionCore>> {
+    pub fn lock_sync(&self) -> std::sync::LockResult<std::sync::MutexGuard<'_, ConnectionCore>> {
         self.0.lock_sync()
     }
     #[cfg(feature = "async")]
-    pub async fn lock_async(&self) -> tokio::sync::MutexGuard<ConnectionCore> {
+    pub async fn lock_async(&self) -> tokio::sync::MutexGuard<'_, ConnectionCore> {
         self.0.lock_async().await
     }
 

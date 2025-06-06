@@ -59,7 +59,7 @@ fn evaluate_result_set(_log_handle: &mut LoggerHandle, connection: &Connection) 
 
     {
         let result_set = connection.query(query_str)?;
-        debug!("result set: {:?}", result_set);
+        debug!("result set: {result_set:?}");
         debug!("After query");
     }
     debug!("After drop of result set");
@@ -79,10 +79,7 @@ fn evaluate_result_set(_log_handle: &mut LoggerHandle, connection: &Connection) 
         let f2: Option<i32> = row.next_try_into()?;
         let f3: i32 = row.next_try_into()?;
         let f4: NaiveDateTime = row.next_try_into()?;
-        debug!(
-            "From {}, got line {}, {:?}, {}, {}",
-            tablename, f1, f2, f3, f4
-        );
+        debug!("From {tablename}, got line {f1}, {f2:?}, {f3}, {f4}",);
     }
 
     info!("Loop over rows (streaming support), convert row into struct");
@@ -94,13 +91,13 @@ fn evaluate_result_set(_log_handle: &mut LoggerHandle, connection: &Connection) 
     info!("Loop over rows, convert row into tuple (avoid defining a struct)");
     for row in connection.query(query_str)? {
         let (one, two, three, four): (String, Option<i32>, i32, NaiveDateTime) = row?.try_into()?;
-        debug!("Got tuple with {}, {:?}, {}, {}", one, two, three, four);
+        debug!("Got tuple with {one}, {two:?}, {three}, {four}");
     }
 
     info!("Loop over rows (streaming support), convert row into single value");
     for row in connection.query("select F1_S from TEST_RESULTSET")? {
         let f1: String = row?.try_into()?;
-        debug!("Got single value: {}", f1);
+        debug!("Got single value: {f1}");
     }
 
     info!("Iterate over rows, filter_map, collect");
@@ -111,11 +108,7 @@ fn evaluate_result_set(_log_handle: &mut LoggerHandle, connection: &Connection) 
             .map(|res_row| res_row.unwrap(/*Ok*/))
             .filter_map(|row| {
                 let td = row.try_into::<TestData>().unwrap(/*Ok*/);
-                if td.f1.ends_with('0') {
-                    Some(td)
-                } else {
-                    None
-                }
+                if td.f1.ends_with('0') { Some(td) } else { None }
             })
             .count(),
         10
@@ -156,7 +149,7 @@ fn verify_row_ordering(_log_handle: &mut LoggerHandle, connection: &Connection) 
         for (index, row) in connection.query(query_str)?.enumerate() {
             let (f1, f2): (usize, usize) = row?.try_into()?;
             if index % 100 == 0 {
-                debug!("pass 1: convert rows individually, {}", index);
+                debug!("pass 1: convert rows individually, {index}");
             };
             assert_eq!(index, f1);
             assert_eq!(index, f2);
@@ -165,7 +158,7 @@ fn verify_row_ordering(_log_handle: &mut LoggerHandle, connection: &Connection) 
         debug!("pass 2: query");
         for (index, row) in connection.query(query_str)?.enumerate() {
             if index % 100 == 0 {
-                debug!("pass 2: convert fields individually, {}", index);
+                debug!("pass 2: convert fields individually, {index}");
             }
             let mut row = row?;
             assert_eq!(index, row.next_value().unwrap().try_into::<usize>()?);
@@ -176,7 +169,7 @@ fn verify_row_ordering(_log_handle: &mut LoggerHandle, connection: &Connection) 
         let result: Vec<(usize, usize)> = connection.query(query_str)?.try_into()?;
         for (index, (f1, f2)) in result.into_iter().enumerate() {
             if index % 100 == 0 {
-                debug!("pass 3: loop over the result set, {}", index);
+                debug!("pass 3: loop over the result set, {index}");
             }
             assert_eq!(index, f1);
             assert_eq!(index, f2);

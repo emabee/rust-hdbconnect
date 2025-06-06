@@ -8,7 +8,7 @@ use std::sync::Arc;
 #[derive(Debug)]
 pub struct Rows {
     pub(crate) metadata: Arc<ResultSetMetadata>,
-    pub(crate) number_of_rows: usize,
+    pub(crate) len: usize,
     pub(crate) row_iter: <Vec<Row> as IntoIterator>::IntoIter,
 }
 impl Rows {
@@ -37,7 +37,7 @@ impl Rows {
 
         Ok(Rows {
             metadata,
-            number_of_rows,
+            len: number_of_rows,
             row_iter: rows.into_iter(),
         })
     }
@@ -66,7 +66,7 @@ impl Rows {
 
         Ok(Rows {
             metadata,
-            number_of_rows,
+            len: number_of_rows,
             row_iter: rows.into_iter(),
         })
     }

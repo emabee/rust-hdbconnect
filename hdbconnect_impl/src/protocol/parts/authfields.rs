@@ -1,6 +1,6 @@
 use crate::{
-    protocol::{parts::length_indicator, util_sync},
     HdbResult,
+    protocol::{parts::length_indicator, util_sync},
 };
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 

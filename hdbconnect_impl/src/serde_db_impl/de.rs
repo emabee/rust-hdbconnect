@@ -14,7 +14,7 @@ impl DeserializableResultSet for Rows {
     type Error = DeserializationError;
 
     fn has_multiple_rows(&mut self) -> Result<bool, DeserializationError> {
-        Ok(self.number_of_rows > 1)
+        Ok(self.len > 1)
     }
 
     fn next(&mut self) -> DeserializationResult<Option<Row>> {

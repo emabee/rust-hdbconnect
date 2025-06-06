@@ -1,14 +1,15 @@
 #[cfg(feature = "async")]
 use crate::conn::TcpClient;
 use crate::{
+    HdbError, HdbResult,
     base::{InternalReturnValue, RsState},
     conn::{AmConnCore, ConnectionCore, ConnectionStatistics},
     impl_err,
     protocol::{
+        Part, PartKind, ReplyType, ServerUsage,
         parts::{ParameterDescriptors, Parts, ResultSetMetadata, ServerError, Severity},
-        util_sync, Part, PartKind, ReplyType, ServerUsage,
+        util_sync,
     },
-    HdbError, HdbResult,
 };
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::{io::Cursor, sync::Arc, time::Instant};
@@ -108,7 +109,7 @@ impl Reply {
         tcp_client: &mut TcpClient,
     ) -> HdbResult<Self> {
         match tcp_client {
-            TcpClient::AsyncPlain(ref mut cl) => {
+            TcpClient::AsyncPlain(cl) => {
                 Reply::parse_async_impl(
                     o_a_rsmd,
                     o_a_descriptors,
@@ -121,7 +122,7 @@ impl Reply {
                 )
                 .await
             }
-            TcpClient::AsyncTls(ref mut cl) => {
+            TcpClient::AsyncTls(cl) => {
                 Reply::parse_async_impl(
                     o_a_rsmd,
                     o_a_descriptors,
@@ -313,7 +314,7 @@ fn parse_packet_header(rdr: &mut dyn std::io::Read) -> HdbResult<ReplyPacketHead
         _ => {
             return Err(impl_err!(
                 "hdbconnect is not prepared for no_of_segs = {no_of_segs} > 1"
-            ))
+            ));
         }
     }
 
@@ -360,8 +361,8 @@ fn parse_packet_header(rdr: &mut dyn std::io::Read) -> HdbResult<ReplyPacketHead
             util_sync::skip_bytes(8, rdr)?; // B[8]
 
             debug!(
-                "Reply::parse(): got reply of type {:?} and seg_kind {:?} for session_id {}",
-                reply_type, seg_kind, session_id
+                "Reply::parse(): got reply of type {reply_type:?} \
+                and seg_kind {seg_kind:?} for session_id {session_id}"
             );
             Ok(ReplyPacketHeader {
                 no_of_parts,

@@ -1,10 +1,10 @@
 use crate::{
+    HdbResult,
     conn::Compression,
     protocol::parts::{
         option_part::{OptionId, OptionPart},
         option_value::OptionValue,
     },
-    HdbResult,
 };
 
 //const USE_COMPRESSION_REMOTE: u32 = 0x0000_0300; // LZ4Supported (100) & LZ4Enabled (200)
@@ -75,15 +75,15 @@ impl ConnectOptions {
         // read user input from initial state
         let (o_client_locale, os_user, compression, o_connection_id) = match self {
             ConnectOptions::Initial {
-                ref o_client_locale,
-                ref os_user,
-                ref compression,
+                o_client_locale,
+                os_user,
+                compression,
             } => (o_client_locale, os_user, compression, None),
             ConnectOptions::Final {
-                ref o_client_locale,
-                ref os_user,
-                ref compression,
-                ref connection_id,
+                o_client_locale,
+                os_user,
+                compression,
+                connection_id,
                 ..
             } => (o_client_locale, os_user, compression, Some(connection_id)),
         };
@@ -91,7 +91,7 @@ impl ConnectOptions {
         let mut connopts_part = ConnectOptionsPart::default();
         // local helper function
         let mut set_opt = |id: ConnOptId, value: OptionValue| {
-            debug!("Sending ConnectionOption to server: {:?} = {:?}", id, value);
+            debug!("Sending ConnectionOption to server: {id:?} = {value:?}");
             connopts_part.insert(id, value);
         };
 
@@ -239,11 +239,12 @@ impl ConnectOptions {
                 | ConnOptId::ItabParameter
                 | ConnOptId::ClientDistributionMode
                 | ConnOptId::ClientInfoNullValueOK
-                | ConnOptId::FlagSet1 => {
-                    debug!("Got from server ConnectionOption: {:?} = {:?}", k, v);
+                | ConnOptId::FlagSet1
+                | ConnOptId::FixmeToBeClarified => {
+                    debug!("Got from server ConnectionOption: {k:?} = {v:?}");
                 }
                 k => {
-                    warn!("Unexpected ConnectOption coming from server ({:?})", k);
+                    warn!("Unexpected ConnectOption coming from server ({k:?})");
                 }
             }
         }
@@ -366,16 +367,17 @@ fn panic_not_final() -> ! {
 pub(crate) type ConnectOptionsPart = OptionPart<ConnOptId>;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
+#[rustfmt::skip]
 pub enum ConnOptId {
-    ConnectionID,                 // 1 //
-    CompleteArrayExecution,       // 2 // @deprecated Array execution semantics, always true.
-    ClientLocale,                 // 3 // Is used within the calculation engine.
-    SupportsLargeBulkOperations,  // 4 // Bulk operations >32K are supported.
-    DistributionEnabled,          // 5 // @deprecated Distribution enabled (topology+call-routing)
-    PrimaryConnectionId,          // 6 // @deprecated Id of primary connection (unused)
-    PrimaryConnectionHost,        // 7 // @deprecated Primary connection host name (unused)
-    PrimaryConnectionPort,        // 8 // @deprecated Primary connection port (unused)
-    CompleteDatatypeSupport,      // 9 // @deprecated All data types supported (always on)
+    ConnectionID,                 //  1 //
+    CompleteArrayExecution,       //  2 // @deprecated Array execution semantics, always true.
+    ClientLocale,                 //  3 // Is used within the calculation engine.
+    SupportsLargeBulkOperations,  //  4 // Bulk operations >32K are supported.
+    DistributionEnabled,          //  5 // @deprecated Distribution enabled (topology+call-routing)
+    PrimaryConnectionId,          //  6 // @deprecated Id of primary connection (unused)
+    PrimaryConnectionHost,        //  7 // @deprecated Primary connection host name (unused)
+    PrimaryConnectionPort,        //  8 // @deprecated Primary connection port (unused)
+    CompleteDatatypeSupport,      //  9 // @deprecated All data types supported (always on)
     LargeNumberOfParametersOK,    // 10 // Number of parameters >32K is supported.
     SystemID,                     // 11 // SID of SAP HANA Database system (output only).
     DataFormatVersion,            // 12 // Version of data format used in communication:
@@ -414,15 +416,24 @@ pub enum ConnOptId {
     DatabaseName,                 // 45 //
     BuildPlatform,                // 46 //
     ImplicitXASessionOK,          // 47 //
-
-    ClientSideColumnEncryptionVersion, // 48 // Version of clientside column encryption
-    CompressionLevelAndFlags,          // 49 // Network compression level and flags (hana2sp02)
-    ClientSideReExecutionSupported,    // 50 // Support csre for clientside encryption (hana2sp03)
-    ClientReconnectWaitTimeout,        // 51 // Client reconnection wait timeout
-    OriginalAnchorConnectionID,        // 52 // ... to notify client's reconnect
-    FlagSet1,                          // 53 // Flags for aggregating several options
-    TopologyNetworkGroup,              // 54 // Sent by client to choose topology mapping
-    IPAddress,                         // 55 // IP Address of the sender
+    ClientSideColumnEncryptionVersion,  // 48 // Version of clientside column encryption
+    CompressionLevelAndFlags,           // 49 // Network compression level and flags (hana2sp02)
+    ClientSideReExecutionSupported,     // 50 // Support csre for clientside encryption (hana2sp03)
+    ClientReconnectWaitTimeout,         // 51 // Client reconnection wait timeout
+    OriginalAnchorConnectionID,   // 52 // ... to notify client's reconnect
+    FlagSet1,                     // 53 // Flags for aggregating several options
+    TopologyNetworkGroup,         // 54 // Sent by client to choose topology mapping
+    IPAddress,                    // 55 // IP Address of the sender
+    LRRPingTime,                  // 56 // Long running request ping time
+    RedirectionType,              // 57 // Type of HANA Cloud redirection
+    RedirectedHost,               // 58 // Cloud redirected hostname, if redirected
+    RedirectedPort,               // 59 // Cloud redirected port, if redirected
+    EndPointHost,                 // 60 // Original hostname from user, before redirection
+    EndPointPort,                 // 61 // Original port from user, before redirection
+    EndPointList,                 // 62 // Original host:port;host:port list (including scale-out) from user
+    ClientLocalPort,              // 63 // Communication port number of the client
+    ConnDiagMetricFlagSet1,       // 64 // Flags for aggregating several options related to recording connection diagnostic and metrics
+    FixmeToBeClarified,           // 65 // FIXME: This is not documented, but it is used in the protocol.
     __Unexpected__(u8),
 }
 
@@ -486,6 +497,17 @@ impl OptionId<ConnOptId> for ConnOptId {
             Self::TopologyNetworkGroup => 54,
             Self::IPAddress => 55,
 
+            Self::LRRPingTime => 56,
+            Self::RedirectionType => 57,
+            Self::RedirectedHost => 58,
+            Self::RedirectedPort => 59,
+            Self::EndPointHost => 60,
+            Self::EndPointPort => 61,
+            Self::EndPointList => 62,
+            Self::ClientLocalPort => 63,
+            Self::ConnDiagMetricFlagSet1 => 64,
+            Self::FixmeToBeClarified => 65,
+
             Self::__Unexpected__(n) => n,
         }
     }
@@ -548,8 +570,20 @@ impl OptionId<ConnOptId> for ConnOptId {
             53 => Self::FlagSet1,
             54 => Self::TopologyNetworkGroup,
             55 => Self::IPAddress,
+
+            56 => Self::LRRPingTime,
+            57 => Self::RedirectionType,
+            58 => Self::RedirectedHost,
+            59 => Self::RedirectedPort,
+            60 => Self::EndPointHost,
+            61 => Self::EndPointPort,
+            62 => Self::EndPointList,
+            63 => Self::ClientLocalPort,
+            64 => Self::ConnDiagMetricFlagSet1,
+            65 => Self::FixmeToBeClarified,
+
             val => {
-                warn!("Unsupported value for ConnOptId received: {}", val);
+                warn!("Unsupported value for ConnOptId received: {val}");
                 Self::__Unexpected__(val)
             }
         }

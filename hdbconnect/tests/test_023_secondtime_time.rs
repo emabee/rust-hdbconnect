@@ -3,9 +3,9 @@ extern crate serde;
 mod test_utils;
 
 use flexi_logger::LoggerHandle;
-use hdbconnect::{time::HanaTime, Connection, HdbResult, ToHana};
+use hdbconnect::{Connection, HdbResult, ToHana, time::HanaTime};
 use log::{debug, info};
-use time::{format_description::FormatItem, macros::format_description, Time};
+use time::{Time, format_description::FormatItem, macros::format_description};
 
 #[test] // cargo test --test test_023_secondtime
 pub fn test_023_secondtime() -> HdbResult<()> {

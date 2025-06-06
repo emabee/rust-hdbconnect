@@ -1,13 +1,14 @@
-use super::{prepared_statement::PreparedStatement, result_set::ResultSet, HdbResponse};
+use super::{HdbResponse, prepared_statement::PreparedStatement, result_set::ResultSet};
 #[cfg(feature = "dist_tx")]
 use crate::xa_impl::new_resource_manager;
 use crate::{
+    HdbResult, IntoConnectParams,
     conn::{AmConnCore, ConnectionConfiguration, ConnectionStatistics, CursorHoldability},
     protocol::{
-        parts::{ClientContext, ClientContextId, CommandInfo, ConnOptId, OptionValue, ServerError},
         MessageType, Part, Request, ServerUsage,
+        parts::{ClientContext, ClientContextId, CommandInfo, ConnOptId, OptionValue, ServerError},
     },
-    usage_err, HdbResult, IntoConnectParams,
+    usage_err,
 };
 #[cfg(feature = "dist_tx")]
 use dist_tx::a_sync::rm::ResourceManager;
@@ -257,7 +258,7 @@ impl Connection {
             let result = self.statement(s).await;
             match result {
                 Ok(_) => {}
-                Err(e) => debug!("Error intentionally ignored: {:?}", e),
+                Err(e) => debug!("Error intentionally ignored: {e:?}"),
             }
         }
     }

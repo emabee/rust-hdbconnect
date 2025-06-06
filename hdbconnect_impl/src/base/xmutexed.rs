@@ -25,7 +25,7 @@ impl<T> XMutexed<T> {
     {
         match self {
             #[cfg(feature = "sync")]
-            Self::Sync(ref m) => m.lock(),
+            Self::Sync(m) => m.lock(),
             #[cfg(feature = "async")]
             Self::Async(_) => unimplemented!("asdad"),
             #[cfg(not(any(feature = "sync", feature = "async")))]
@@ -39,7 +39,7 @@ impl<T> XMutexed<T> {
             #[cfg(feature = "sync")]
             Self::Sync(_) => unimplemented!("ertetr"),
             #[cfg(feature = "async")]
-            Self::Async(ref m) => m.lock().await,
+            Self::Async(m) => m.lock().await,
         }
     }
 }

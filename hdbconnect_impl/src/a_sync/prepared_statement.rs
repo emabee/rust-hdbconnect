@@ -1,16 +1,17 @@
 use crate::{
+    ConnectionConfiguration, HdbResult,
     a_sync::HdbResponse,
-    base::{new_am_async, InternalReturnValue, PreparedStatementCore, AM},
+    base::{AM, InternalReturnValue, PreparedStatementCore, new_am_async},
     conn::{AmConnCore, CursorHoldability},
     impl_err,
     protocol::{
+        MessageType, Part, PartKind, Request, ServerUsage,
         parts::{
             HdbValue, LobFlags, ParameterDescriptors, ParameterRows, ResultSetMetadata, TypeId,
         },
-        MessageType, Part, PartKind, Request, ServerUsage,
     },
     types_impl::lob::async_lob_writer,
-    usage_err, ConnectionConfiguration, HdbResult,
+    usage_err,
 };
 use std::sync::Arc;
 
@@ -262,7 +263,7 @@ impl<'a> PreparedStatement {
                 }
 
                 for (locator_id, (reader, type_id)) in locator_ids.into_iter().zip(readers) {
-                    debug!("writing content to locator with id {:?}", locator_id);
+                    debug!("writing content to locator with id {locator_id:?}");
                     if let HdbValue::ASYNC_LOBSTREAM(Some(reader)) = reader {
                         let mut reader = reader.lock().await;
 
@@ -473,7 +474,7 @@ impl<'a> PreparedStatement {
                         stmt_ctx.server_memory_usage(),
                     );
                 }
-                x => warn!("try_new(): Unexpected reply part found {:?}", x),
+                x => warn!("try_new(): Unexpected reply part found {x:?}"),
             }
         }
 
@@ -482,10 +483,7 @@ impl<'a> PreparedStatement {
             am_conn_core,
             statement_id,
         });
-        debug!(
-            "PreparedStatement created with parameter descriptors = {:?}",
-            a_descriptors
-        );
+        debug!("PreparedStatement created with parameter descriptors = {a_descriptors:?}");
         Ok(Self {
             am_ps_core,
             config,

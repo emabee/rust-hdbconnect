@@ -1,5 +1,5 @@
 use crate::{ConnectParams, HdbResult};
-use rustls::{pki_types::ServerName, ClientConnection, StreamOwned};
+use rustls::{ClientConnection, StreamOwned, pki_types::ServerName};
 use std::{sync::Arc, time::Duration};
 
 pub(crate) struct SyncTlsTcpClient {

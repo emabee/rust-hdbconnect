@@ -1,7 +1,6 @@
 use crate::{
-    impl_err,
+    HdbResult, HdbValue, TypeId, impl_err,
     protocol::{util, util_sync},
-    HdbResult, HdbValue, TypeId,
 };
 use byteorder::{LittleEndian, ReadBytesExt};
 

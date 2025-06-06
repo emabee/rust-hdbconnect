@@ -1,4 +1,4 @@
-use crate::{impl_err, HdbResult};
+use crate::{HdbResult, impl_err};
 
 // Here we list all those parts that are or should be implemented by this
 // driver. ABAP related stuff and "reserved" numbers is omitted.

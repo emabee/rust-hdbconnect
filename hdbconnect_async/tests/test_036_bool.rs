@@ -46,7 +46,7 @@ async fn test_text(_logger_handle: &mut LoggerHandle, connection: &Connection) -
 
     debug!("trying query");
     let result_set = connection.query("select * FROM TEST_BOOL").await?;
-    debug!("trying deserialize result set: {:?}", result_set);
+    debug!("trying deserialize result set: {result_set:?}");
     let tuple: (Option<bool>, Option<bool>, Option<bool>, bool, bool) =
         result_set.try_into().await?;
     assert_eq!(Some(true), tuple.0);

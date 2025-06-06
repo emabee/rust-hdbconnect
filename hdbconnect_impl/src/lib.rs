@@ -37,16 +37,16 @@ pub mod sync;
 pub use crate::{
     base::{HdbError, HdbResult, Row, Rows},
     conn::{
-        url, ConnectParams, ConnectParamsBuilder, ConnectionConfiguration, ConnectionStatistics,
-        CursorHoldability, IntoConnectParams, IntoConnectParamsBuilder, ServerCerts,
+        ConnectParams, ConnectParamsBuilder, ConnectionConfiguration, ConnectionStatistics,
+        CursorHoldability, IntoConnectParams, IntoConnectParamsBuilder, ServerCerts, url,
     },
+    protocol::ServerUsage,
     protocol::parts::{
         ExecutionResult, ExecutionResults, FieldMetadata, HdbValue, OutputParameters,
         ParameterBinding, ParameterDescriptor, ParameterDescriptors, ParameterDirection,
         ResultSetMetadata, ServerError, Severity, TypeId,
     },
-    protocol::ServerUsage,
-    serde_db_impl::{time, ToHana},
+    serde_db_impl::{ToHana, time},
 };
 
 pub use serde_db::{de::DeserializationError, ser::SerializationError};

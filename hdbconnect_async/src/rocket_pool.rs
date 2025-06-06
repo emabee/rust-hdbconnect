@@ -1,7 +1,7 @@
 use crate::{
     ConnectParams, Connection, ConnectionConfiguration, HdbError, HdbResult, IntoConnectParams,
 };
-use rocket_db_pools::{figment::Figment, Pool};
+use rocket_db_pools::{Pool, figment::Figment};
 
 /// An implementation of rocket's
 /// [`Pool`](https://docs.rs/rocket_db_pools/0.1.0/rocket_db_pools/trait.Pool.html) trait.

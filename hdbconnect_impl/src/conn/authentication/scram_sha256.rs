@@ -1,11 +1,11 @@
 use crate::{
-    conn::authentication::{crypto_util, Authenticator},
+    HdbResult,
+    conn::authentication::{Authenticator, crypto_util},
     impl_err,
     protocol::parts::AuthFields,
-    HdbResult,
 };
 use byteorder::{LittleEndian, WriteBytesExt};
-use rand::{rng, RngCore};
+use rand::{RngCore, rng};
 use secstr::SecUtf8;
 use std::io::Write;
 

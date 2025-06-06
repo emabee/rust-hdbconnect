@@ -73,11 +73,11 @@ fn test_secondtime(_loghandle: &mut LoggerHandle, connection: &Connection) -> Hd
         info!("test the conversion DB -> NaiveTime");
         let s = "select mytime from TEST_SECONDTIME order by number asc";
         let rs = connection.query(s)?;
-        trace!("rs = {:?}", rs);
+        trace!("rs = {rs:?}");
         let times: Vec<NaiveTime> = rs.try_into()?;
-        trace!("times = {:?}", times);
+        trace!("times = {times:?}");
         for (time, ntv) in times.iter().zip(naive_time_values.iter()) {
-            debug!("{}, {}", time, ntv);
+            debug!("{time}, {ntv}");
             assert_eq!(time, ntv);
         }
     }
@@ -85,10 +85,7 @@ fn test_secondtime(_loghandle: &mut LoggerHandle, connection: &Connection) -> Hd
     {
         info!("prove that '' is the same as '00:00:00'");
         let rows_affected = connection.dml(insert_stmt(77, ""))?;
-        trace!(
-            "dml is sent successfully, rows_affected = {}",
-            rows_affected
-        );
+        trace!("dml is sent successfully, rows_affected = {rows_affected}");
         assert_eq!(rows_affected, 1);
 
         let dates: Vec<NaiveTime> = connection
@@ -106,7 +103,7 @@ fn test_secondtime(_loghandle: &mut LoggerHandle, connection: &Connection) -> Hd
         let q = "insert into TEST_SECONDTIME (number) values(2350)";
 
         let rows_affected = connection.dml(q)?;
-        trace!("rows_affected = {}", rows_affected);
+        trace!("rows_affected = {rows_affected}");
         assert_eq!(rows_affected, 1);
 
         let date: Option<NaiveTime> = connection

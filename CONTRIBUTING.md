@@ -17,7 +17,8 @@ See also [installation and usage](https://github.com/kbknapp/cargo-outdated/blob
 
 ### Mermaid support
 
-Install a mermaid previewer for your ID, e.g. "Markdown Preview Mermaid Support" from Matt Bierner for Visual Studio Code.
+Install a mermaid previewer for your ID, e.g. "Markdown Preview Mermaid Support" from Matt Bierner
+for Visual Studio Code.
 
 The doc folder contains one and in future maybe more such diagrams.
 
@@ -28,6 +29,14 @@ The doc folder contains one and in future maybe more such diagrams.
 The tests should run ideally against a new HANA Cloud and a reasonably new HANA 2.
 
 ### Provide test configurations
+
+#### The easy way
+
+Run 'cargo run --package hdbconnect --example setup_db_for_tests'.
+The program asks for all necessary information and creates the config file and tells you
+how to inform the tests about this config file.
+
+#### The manual way
 
 Test configurations are expected in folder `./private`. This folder is git-ignored.
 
@@ -47,13 +56,15 @@ The file content should be a json document with the structure
 ```
 
 where
+
 - the placeholders with angular brackets must be replaced with correct values
 - the direct URL will be used for most of the tests,
-- the redirect URL can/should point to the same database, but via the redirect-syntax; it is used only in test_010_connect
+- the redirect URL can/should point to the same database, but via the redirect-syntax;
+  it is used only in test_010_connect
 - the std-user will be used for most of the tests,
 - the um-user for user-management activities (tests 11, 12, 13).
 
-See https://docs.rs/hdbconnect/latest/hdbconnect/url/index.html for details of the URL format.
+See <https://docs.rs/hdbconnect/latest/hdbconnect/url/index.html> for details of the URL format.
 
 ### Announce the chosen test configuration using the environment
 
@@ -86,7 +97,8 @@ Ideally done with reasonable frequency and not together with development increme
 
 ### Update MSVR
 
-Should only be done when needed, and to the smallest possible value, in most cases after a update of the dependencies.
+Should only be done when needed, and to the smallest possible value,
+in most cases after an update of the dependencies.
 
 Update the respective version value in
 
@@ -109,6 +121,7 @@ Check in and push.
 Create a pull request and get it merged.
 
 If it is a publishing change:
+
 ```cmd
 cargo publish --package hdbconnect_impl
 cargo publish --package hdbconnect

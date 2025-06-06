@@ -1,4 +1,4 @@
-use crate::{impl_err, HdbResult};
+use crate::{HdbResult, impl_err};
 use secstr::SecUtf8;
 
 pub(crate) trait Authenticator {

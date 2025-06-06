@@ -1,19 +1,20 @@
 #[cfg(feature = "dist_tx")]
 use crate::protocol::parts::XatOptions;
 use crate::{
+    ExecutionResults, HdbResult,
     base::RsState,
     conn::AmConnCore,
     impl_err,
     protocol::{
+        PartAttributes, PartKind,
         parts::{
             AuthFields, ClientContext, ClientInfo, CommandInfo, ConnectOptionsPart, DbConnectInfo,
             LobFlags, OutputParameters, ParameterDescriptors, ParameterRows, PartitionInformation,
             Parts, ReadLobReply, ReadLobRequest, ResultSetMetadata, ServerError, SessionContext,
             StatementContext, Topology, TransactionFlags, WriteLobReply, WriteLobRequest,
         },
-        util, util_sync, PartAttributes, PartKind,
+        util, util_sync,
     },
-    ExecutionResults, HdbResult,
 };
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::{cmp::max, io::Write, sync::Arc};
@@ -171,7 +172,7 @@ impl<'a> Part<'a> {
         if with_padding {
             size += padsize(size);
         }
-        trace!("Part_buffer_size = {}", size);
+        trace!("Part_buffer_size = {size}");
         Ok(size)
     }
 
@@ -250,12 +251,7 @@ impl<'a> Part<'a> {
             w.write_u8(0)?;
         }
 
-        trace!(
-            "remaining_bufsize: {}, size: {}, padsize: {}",
-            remaining_bufsize,
-            size,
-            padsize
-        );
+        trace!("remaining_bufsize: {remaining_bufsize}, size: {size}, padsize: {padsize}");
         #[allow(clippy::cast_possible_truncation)]
         Ok(remaining_bufsize - size as u32 - padsize as u32)
     }
@@ -273,8 +269,8 @@ impl<'a> Part<'a> {
         trace!("parse()");
         let (kind, attributes, arg_size, no_of_args) = parse_header(rdr)?;
         debug!(
-            "parse() found part of kind {:?} with attributes {:?}, arg_size {} and no_of_args {}",
-            kind, attributes, arg_size, no_of_args
+            "parse() found part of kind {kind:?} with attributes {attributes:?}, \
+            arg_size {arg_size} and no_of_args {no_of_args}",
         );
         let arg = Part::parse_body_sync(
             kind,
@@ -314,8 +310,8 @@ impl<'a> Part<'a> {
         trace!("parse()");
         let (kind, attributes, arg_size, no_of_args) = parse_header(rdr)?;
         debug!(
-            "parse() found part of kind {:?} with attributes {:?}, arg_size {} and no_of_args {}",
-            kind, attributes, arg_size, no_of_args
+            "parse() found part of kind {kind:?} with attributes {attributes:?}, \
+            arg_size {arg_size} and no_of_args {no_of_args}",
         );
         let arg = Part::parse_body_async(
             kind,
@@ -356,7 +352,7 @@ impl<'a> Part<'a> {
         o_rs: &mut Option<&mut RsState>,
         rdr: &mut std::io::Cursor<Vec<u8>>,
     ) -> HdbResult<Part<'a>> {
-        trace!("parse(no_of_args={}, kind={:?})", no_of_args, kind);
+        trace!("parse(no_of_args={no_of_args}, kind={kind:?})");
 
         let arg = match kind {
             PartKind::Authentication => Part::Auth(AuthFields::parse(rdr)?),
@@ -445,7 +441,7 @@ impl<'a> Part<'a> {
         o_rs: &mut Option<&mut RsState>,
         rdr: &mut std::io::Cursor<Vec<u8>>,
     ) -> HdbResult<Part<'a>> {
-        trace!("parse(no_of_args={}, kind={:?})", no_of_args, kind);
+        trace!("parse(no_of_args={no_of_args}, kind={kind:?})");
 
         let arg = match kind {
             PartKind::Authentication => Part::Auth(AuthFields::parse(rdr)?),

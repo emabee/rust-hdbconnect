@@ -1,9 +1,10 @@
 use crate::{
-    base::{RsCore, OAM},
+    HdbError, HdbResult,
+    base::{OAM, RsCore},
     conn::AmConnCore,
     impl_err,
     protocol::{
-        parts::{length_indicator, ParameterDescriptor, TypeId},
+        parts::{ParameterDescriptor, TypeId, length_indicator},
         util, util_sync,
     },
     types::{DayDate, LongDate, SecondDate, SecondTime},
@@ -11,7 +12,7 @@ use crate::{
         daydate::parse_daydate, decimal, lob, longdate::parse_longdate,
         seconddate::parse_seconddate, secondtime::parse_secondtime,
     },
-    usage_err, HdbError, HdbResult,
+    usage_err,
 };
 use bigdecimal::BigDecimal;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -260,9 +261,9 @@ impl HdbValue<'_> {
             HdbValue::ASYNC_LOBSTREAM(None) => 9,
 
             HdbValue::STR(s) => binary_length(util::cesu8_length(s)),
-            HdbValue::STRING(ref s) => binary_length(util::cesu8_length(s)),
+            HdbValue::STRING(s) => binary_length(util::cesu8_length(s)),
 
-            HdbValue::BINARY(ref v) | HdbValue::GEOMETRY(ref v) | HdbValue::POINT(ref v) => {
+            HdbValue::BINARY(v) | HdbValue::GEOMETRY(v) | HdbValue::POINT(v) => {
                 binary_length(v.len())
             }
 
@@ -651,7 +652,7 @@ fn parse_bigint(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<HdbVal
 }
 
 fn parse_real(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<HdbValue<'static>> {
-    let mut vec: Vec<u8> = std::iter::repeat(0_u8).take(4).collect();
+    let mut vec: Vec<u8> = std::iter::repeat_n(0_u8, 4).collect();
     rdr.read_exact(&mut vec[..])?;
     let mut cursor = std::io::Cursor::new(&vec);
     let tmp = cursor.read_u32::<LittleEndian>()?;
@@ -670,7 +671,7 @@ fn parse_real(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<HdbValue
 }
 
 fn parse_double(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<HdbValue<'static>> {
-    let mut vec: Vec<u8> = std::iter::repeat(0_u8).take(8).collect();
+    let mut vec: Vec<u8> = std::iter::repeat_n(0_u8, 8).collect();
     rdr.read_exact(&mut vec[..])?;
     let mut cursor = std::io::Cursor::new(&vec);
     let tmp = cursor.read_u64::<LittleEndian>()?;
@@ -725,9 +726,8 @@ fn parse_alphanum(nullable: bool, rdr: &mut dyn std::io::Read) -> HdbResult<HdbV
         } else {
             // purely numeric -> prefix with leading zeros
             let field_length = indicator2 & ALPHANUM_LENGTH_MASK;
-            let mut prefix: Vec<u8> = std::iter::repeat(48) // '0'
-                .take((field_length - data_length) as usize)
-                .collect();
+            let mut prefix: Vec<u8> =
+                std::iter::repeat_n(48, (field_length - data_length) as usize).collect();
             prefix.append(&mut value);
             prefix
         })?;
@@ -1019,7 +1019,7 @@ impl std::cmp::PartialEq<i32> for HdbValue<'_> {
 impl std::cmp::PartialEq<&str> for HdbValue<'_> {
     fn eq(&self, rhs: &&str) -> bool {
         match self {
-            HdbValue::STRING(ref s) => s == rhs,
+            HdbValue::STRING(s) => s == rhs,
             _ => false,
         }
     }
@@ -1027,11 +1027,11 @@ impl std::cmp::PartialEq<&str> for HdbValue<'_> {
 
 #[cfg(test)]
 mod test {
-    use crate::types::{DayDate, LongDate, SecondDate, SecondTime};
     use crate::HdbValue;
+    use crate::types::{DayDate, LongDate, SecondDate, SecondTime};
     use bigdecimal::BigDecimal;
-    use num::bigint::BigInt;
     use num::FromPrimitive;
+    use num::bigint::BigInt;
 
     #[test]
     fn test_display() {

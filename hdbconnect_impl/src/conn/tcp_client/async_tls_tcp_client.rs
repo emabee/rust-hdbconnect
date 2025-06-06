@@ -2,7 +2,7 @@ use crate::{ConnectParams, HdbError, HdbResult};
 use rustls::pki_types::ServerName;
 use std::sync::Arc;
 use tokio::net::TcpStream;
-use tokio_rustls::{client::TlsStream, TlsConnector};
+use tokio_rustls::{TlsConnector, client::TlsStream};
 
 #[derive(Debug)]
 pub(crate) struct AsyncTlsTcpClient {

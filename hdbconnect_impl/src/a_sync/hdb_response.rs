@@ -1,12 +1,13 @@
 use crate::{
+    HdbError, HdbResult,
     a_sync::{HdbReturnValue, ResultSet},
     base::InternalReturnValue,
     impl_err,
     protocol::{
-        parts::{ExecutionResult, OutputParameters},
         ReplyType,
+        parts::{ExecutionResult, OutputParameters},
     },
-    usage_err, HdbError, HdbResult,
+    usage_err,
 };
 
 /// Represents all possible non-error responses to a database command.
@@ -81,14 +82,8 @@ impl HdbResponse {
         int_return_values: Vec<InternalReturnValue>,
         replytype: ReplyType,
     ) -> HdbResult<Self> {
-        trace!(
-            "HdbResponse::try_new(): building HdbResponse for a reply of type {:?}",
-            replytype
-        );
-        trace!(
-            "The found InternalReturnValues are: {:?}",
-            int_return_values
-        );
+        trace!("HdbResponse::try_new(): building HdbResponse for a reply of type {replytype:?}");
+        trace!("The found InternalReturnValues are: {int_return_values:?}");
         match replytype {
                 ReplyType::Select |
                 ReplyType::SelectForUpdate => Self::result_set(int_return_values),
@@ -126,8 +121,8 @@ impl HdbResponse {
                         "unexpected reply type {replytype:?} in HdbResponse::try_new(), \
                          with these internal return values: {int_return_values:?}"
                         );
-                    error!("{}",s);
-                    Err( impl_err!("{}",s))
+                    error!("{s}");
+                    Err( impl_err!("{s}"))
                 },
             }
     }
@@ -399,8 +394,8 @@ impl HdbResponse {
             });
         }
         errmsg.push(']');
-        error!("{}", errmsg);
-        usage_err!("{}", errmsg)
+        error!("{errmsg}");
+        usage_err!("{errmsg}")
     }
 }
 

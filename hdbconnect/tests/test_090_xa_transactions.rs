@@ -182,10 +182,10 @@ mod a {
 
             tm.start_transaction().unwrap();
 
-            debug!("conn_a inserts {}", j);
+            debug!("conn_a inserts {j}");
             conn_a.dml(insert_stmt(j + 1, "a"))?;
             conn_a.dml(insert_stmt(j + 2, "a"))?;
-            debug!("conn_b inserts {}", j);
+            debug!("conn_b inserts {j}");
             conn_b.dml(insert_stmt(j + 3, "b"))?;
             conn_b.dml(insert_stmt(j + 4, "b"))?;
 
@@ -197,7 +197,7 @@ mod a {
             tm.rollback_transaction().unwrap();
 
             tm.start_transaction().unwrap();
-            debug!("conn_a inserts {}", j);
+            debug!("conn_a inserts {j}");
             conn_a.dml(insert_stmt(j + 1, "a"))?;
             conn_a.dml(insert_stmt(j + 2, "a"))?;
             debug!("conn_b inserts");

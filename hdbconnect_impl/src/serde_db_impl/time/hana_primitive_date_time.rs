@@ -1,7 +1,7 @@
 use crate::ToHana;
 use serde::ser::Error as _;
 use std::str::FromStr;
-use time::{format_description::FormatItem, macros::format_description, PrimitiveDateTime};
+use time::{PrimitiveDateTime, format_description::FormatItem, macros::format_description};
 
 /// Wraps a `time::PrimitiveDateTime`, helps with serializing from and deserializing
 /// into `time::PrimitiveDateTime`.

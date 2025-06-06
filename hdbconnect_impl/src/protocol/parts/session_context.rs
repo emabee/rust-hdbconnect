@@ -37,7 +37,7 @@ impl OptionId<SessionContextId> for SessionContextId {
             5 => Self::MasterHostname,
             6 => Self::MasterHostPortNumber,
             val => {
-                warn!("Unsupported value for SessionContextId received: {}", val);
+                warn!("Unsupported value for SessionContextId received: {val}");
                 Self::__Unexpected__(val)
             }
         }

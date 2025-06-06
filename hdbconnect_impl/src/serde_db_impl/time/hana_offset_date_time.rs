@@ -1,7 +1,7 @@
 use super::hana_primitive_date_time::HanaPrimitiveDateTimeVisitor;
 use crate::ToHana;
 use serde::ser::Error as _;
-use time::{format_description::FormatItem, macros::format_description, OffsetDateTime};
+use time::{OffsetDateTime, format_description::FormatItem, macros::format_description};
 
 /// Wraps a `time::OffsetDateTime`, helps with serializing from and deserializing
 /// into `time::OffsetDateTime`.

@@ -1,14 +1,11 @@
 use crate::{
+    HdbResult,
     conn::AmConnCore,
-    protocol::{
-        parts::{
-            hdb_value::HdbValue,
-            parameter_descriptor::{ParameterDescriptor, ParameterDescriptors},
-        },
-        util,
+    protocol::parts::{
+        hdb_value::HdbValue,
+        parameter_descriptor::{ParameterDescriptor, ParameterDescriptors},
     },
     serde_db_impl::de::DeserializableOutputParameters,
-    HdbResult,
 };
 use serde_db::de::DeserializableRow;
 
@@ -72,14 +69,15 @@ impl OutputParameters {
         rdr: &mut std::io::Cursor<Vec<u8>>,
     ) -> HdbResult<Self> {
         trace!("OutputParameters::parse()");
-        let am_conn_core = o_am_conn_core
-            .ok_or_else(|| util::io_error("Cannot parse output parameters without am_conn_core"))?;
+        let am_conn_core = o_am_conn_core.ok_or_else(|| {
+            std::io::Error::other("Cannot parse output parameters without am_conn_core")
+        })?;
 
         let mut descriptors = Vec::<ParameterDescriptor>::new();
         let mut values = Vec::<HdbValue<'static>>::new();
 
         for descriptor in parameter_descriptors.iter_out() {
-            trace!("Parsing value with descriptor {}", descriptor);
+            trace!("Parsing value with descriptor {descriptor}");
             let value = HdbValue::parse_sync(
                 descriptor.type_id(),
                 descriptor.is_array_type(),
@@ -89,7 +87,7 @@ impl OutputParameters {
                 &None,
                 rdr,
             )?;
-            trace!("Found value {:?}", value);
+            trace!("Found value {value:?}");
             descriptors.push(descriptor.clone());
             values.push(value);
         }
@@ -106,14 +104,15 @@ impl OutputParameters {
         rdr: &mut std::io::Cursor<Vec<u8>>,
     ) -> HdbResult<Self> {
         trace!("OutputParameters::parse()");
-        let am_conn_core = o_am_conn_core
-            .ok_or_else(|| util::io_error("Cannot parse output parameters without am_conn_core"))?;
+        let am_conn_core = o_am_conn_core.ok_or_else(|| {
+            std::io::Error::other("Cannot parse output parameters without am_conn_core")
+        })?;
 
         let mut descriptors = Vec::<ParameterDescriptor>::new();
         let mut values = Vec::<HdbValue<'static>>::new();
 
         for descriptor in parameter_descriptors.iter_out() {
-            trace!("Parsing value with descriptor {}", descriptor);
+            trace!("Parsing value with descriptor {descriptor}");
             let value = HdbValue::parse_async(
                 descriptor.type_id(),
                 descriptor.is_array_type(),
@@ -124,7 +123,7 @@ impl OutputParameters {
                 rdr,
             )
             .await?;
-            trace!("Found value {:?}", value);
+            trace!("Found value {value:?}");
             descriptors.push(descriptor.clone());
             values.push(value);
         }

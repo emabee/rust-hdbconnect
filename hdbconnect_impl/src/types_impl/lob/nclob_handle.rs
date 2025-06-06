@@ -6,11 +6,12 @@ use super::fetch::fetch_a_lob_chunk_sync;
 
 use super::{CharLobSlice, LobBuf, UTF_BUFFER_SIZE};
 use crate::{
-    base::{RsCore, OAM},
+    HdbResult, ServerUsage,
+    base::{OAM, RsCore},
     conn::AmConnCore,
     impl_err,
     protocol::util,
-    usage_err, HdbResult, ServerUsage,
+    usage_err,
 };
 use debug_ignore::DebugIgnore;
 use std::io::{Cursor, Write};
@@ -245,7 +246,7 @@ impl NCLobHandle {
         // refill cesu8 if necessary
         if self.cesu8.len() < UTF_BUFFER_SIZE && !self.is_data_complete {
             self.fetch_next_chunk_sync()
-                .map_err(|e| util::io_error(e.to_string()))?;
+                .map_err(|e| std::io::Error::other(e.to_string()))?;
         }
 
         // now refill utf8
@@ -253,7 +254,7 @@ impl NCLobHandle {
         chunk_size -= util::get_cesu8_tail_len(&*self.cesu8, chunk_size)?;
         self.utf8.append(
             cesu8::from_cesu8(self.cesu8.drain(chunk_size)?)
-                .map_err(util::io_error)?
+                .map_err(std::io::Error::other)?
                 .as_bytes(),
         );
         Ok(())
@@ -264,7 +265,7 @@ impl NCLobHandle {
         if self.cesu8.len() < UTF_BUFFER_SIZE && !self.is_data_complete {
             self.fetch_next_chunk_async()
                 .await
-                .map_err(|e| util::io_error(e.to_string()))?;
+                .map_err(|e| std::io::Error::other(e.to_string()))?;
         }
 
         // now refill utf8
@@ -272,7 +273,7 @@ impl NCLobHandle {
         chunk_size -= util::get_cesu8_tail_len(&*self.cesu8, chunk_size)?;
         self.utf8.append(
             cesu8::from_cesu8(self.cesu8.drain(chunk_size)?)
-                .map_err(util::io_error)?
+                .map_err(std::io::Error::other)?
                 .as_bytes(),
         );
         Ok(())

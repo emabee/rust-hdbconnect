@@ -11,11 +11,11 @@
 //! <scheme>://<username>:<password>@<host>:<port>[<options>]
 //! ```
 //! where
-//! > `<scheme>` = `hdbsql` | `hdbsqls`  // for TCP or TLS connections, respectively  
-//! > `<username>` = the name of the DB user to log on  
-//! > `<password>` = the password of the DB user  
-//! > `<host>` = the host where HANA can be found  
-//! > `<port>` = the port at which HANA can be found on `<host>`  
+//! > `<scheme>` = `hdbsql` | `hdbsqls`  // for TCP or TLS connections, respectively\
+//! > `<username>` = the name of the DB user to log on\
+//! > `<password>` = the password of the DB user\
+//! > `<host>` = the host where HANA can be found\
+//! > `<port>` = the port at which HANA can be found on `<host>`\
 //! > `<options>` = `?<key>[=<value>][{&<key>[=<value>]}]`  
 //!
 //! __Supported options are:__

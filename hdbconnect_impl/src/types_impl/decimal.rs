@@ -1,7 +1,6 @@
 use crate::{
-    impl_err,
+    HdbResult, HdbValue, TypeId, impl_err,
     types_impl::wire_decimal::{big_decimal_to_wire_decimal, wire_decimal_to_hdbvalue},
-    HdbResult, HdbValue, TypeId,
 };
 use bigdecimal::BigDecimal;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};

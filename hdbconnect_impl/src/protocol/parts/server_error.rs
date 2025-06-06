@@ -1,6 +1,6 @@
 use crate::{
-    protocol::{util, util_sync},
     HdbResult,
+    protocol::{util, util_sync},
 };
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::error::Error;
@@ -123,7 +123,7 @@ impl ServerError {
             util_sync::skip_bytes(pad as usize, rdr)?;
 
             let server_error = Self::new(code, position, severity, sqlstate, text);
-            debug!("ServerError::parse(): found server error {}", server_error);
+            debug!("ServerError::parse(): found server error {server_error}");
             server_errors.push(server_error);
         }
 

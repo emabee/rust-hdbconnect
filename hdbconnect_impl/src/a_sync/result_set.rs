@@ -1,7 +1,7 @@
 use crate::{
-    base::{RsState, XMutexed},
-    protocol::{parts::ResultSetMetadata, ServerUsage},
     HdbResult, HdbValue, Row, Rows,
+    base::{RsState, XMutexed},
+    protocol::{ServerUsage, parts::ResultSetMetadata},
 };
 use serde_db::de::DeserializableResultSet;
 use std::sync::Arc;

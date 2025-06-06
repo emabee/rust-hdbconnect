@@ -1,13 +1,14 @@
 use crate::{
+    HdbError, HdbResult,
     conn::{AmConnCore, CommandOptions},
-    protocol::{parts::XatOptions, MessageType, Part, PartKind, Reply, Request},
-    usage_err, HdbError, HdbResult,
+    protocol::{MessageType, Part, PartKind, Reply, Request, parts::XatOptions},
+    usage_err,
 };
 use async_trait::async_trait;
 #[cfg(feature = "dist_tx")]
 use dist_tx::{
-    a_sync::rm::{CResourceManager, CRmWrapper},
     ErrorCode, Flags, ReturnCode, RmError, XaTransactionId,
+    a_sync::rm::{CResourceManager, CRmWrapper},
 };
 
 /// Handle for dealing with distributed transactions that is to be used by a
@@ -97,7 +98,7 @@ impl CResourceManager for HdbCResourceManager {
                 Some(Part::XatOptions(xat_options)) => {
                     return Ok(xat_options.get_transactions());
                 }
-                Some(part) => warn!("recover: found unexpected part {:?}", part),
+                Some(part) => warn!("recover: found unexpected part {part:?}"),
                 None => warn!("recover: did not find next part"),
             }
         }
@@ -186,7 +187,7 @@ impl HdbCResourceManager {
 
         reply.parts.drop_parts_of_kind(PartKind::StatementContext);
         if let Some(Part::XatOptions(xat_options)) = reply.parts.pop_if_kind(PartKind::XatOptions) {
-            debug!("received xat_options: {:?}", xat_options);
+            debug!("received xat_options: {xat_options:?}");
             return Ok(xat_options.get_returncode());
         }
         Ok(None)

@@ -32,7 +32,8 @@ async fn test_small_decimals(
 
     let stmts = vec![
         "create table TEST_SMALL_DECIMALS (s NVARCHAR(100) primary key, sdec SMALLDECIMAL)",
-        "insert into TEST_SMALL_DECIMALS (s, sdec) values('0.00000', 0.000)",
+        // BigDecimal has changed its string representation, zero displays now as "0" instead of "0.00000"
+        "insert into TEST_SMALL_DECIMALS (s, sdec) values('0', 0.000)",
         "insert into TEST_SMALL_DECIMALS (s, sdec) values('0.00100', 0.001)",
         "insert into TEST_SMALL_DECIMALS (s, sdec) values('-0.00100', -0.001)",
         "insert into TEST_SMALL_DECIMALS (s, sdec) values('0.00300', 0.003)",
@@ -79,8 +80,8 @@ async fn test_small_decimals(
     while let Some(mut row) = result_set.next_row().await? {
         let s: String = row.next_try_into()?;
         let bd1: BigDecimal = row.next_try_into()?;
-        debug!("precision = {}, scale = {}", precision, scale);
-        assert_eq!(format!("{}", s), format!("{}", bd1.with_scale(scale)));
+        debug!("precision = {precision}, scale = {scale}");
+        assert_eq!(format!("{s}"), format!("{}", bd1.with_scale(scale)));
     }
 
     info!("Read and verify small decimals to struct");

@@ -1,6 +1,6 @@
 use crate::{
-    protocol::parts::option_part::{OptionId, OptionPart},
     HdbResult,
+    protocol::parts::option_part::{OptionId, OptionPart},
 };
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::{fmt::Debug, hash::Hash};

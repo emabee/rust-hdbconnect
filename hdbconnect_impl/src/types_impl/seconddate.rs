@@ -1,4 +1,4 @@
-use crate::{impl_err, HdbResult, HdbValue};
+use crate::{HdbResult, HdbValue, impl_err};
 use byteorder::{LittleEndian, ReadBytesExt};
 
 const NULL_REPRESENTATION: i64 = 315_538_070_401;

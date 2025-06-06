@@ -45,17 +45,26 @@ fn test_025_decimals_impl(
     connection.multiple_statements_ignore_err(vec!["drop table TEST_DECIMALS"]);
     let stmts = vec![
         match ts {
-            TS::Decimal =>
-        "create table TEST_DECIMALS (s NVARCHAR(100) primary key, d1 DECIMAL(7,5), d2 DECIMAL(7,5), dummy integer)",
-            TS::Fixed8 =>
-        "create table TEST_DECIMALS (s NVARCHAR(100) primary key, d1 DECIMAL(7,5), d2 DECIMAL(7,5), dummy integer)",
-            TS::Fixed12 =>
-        "create table TEST_DECIMALS (s NVARCHAR(100) primary key, d1 DECIMAL(28,5), d2 DECIMAL(28,5), dummy integer)",
-            TS::Fixed16 =>
-        "create table TEST_DECIMALS (s NVARCHAR(100) primary key, d1 DECIMAL(38,5), d2 DECIMAL(38,5), dummy integer)",
+            TS::Decimal => {
+                "create table TEST_DECIMALS \
+                (s NVARCHAR(100) primary key, d1 DECIMAL(7,5), d2 DECIMAL(7,5), dummy integer)"
+            }
+            TS::Fixed8 => {
+                "create table TEST_DECIMALS \
+                (s NVARCHAR(100) primary key, d1 DECIMAL(7,5), d2 DECIMAL(7,5), dummy integer)"
+            }
+            TS::Fixed12 => {
+                "create table TEST_DECIMALS \
+                (s NVARCHAR(100) primary key, d1 DECIMAL(28,5), d2 DECIMAL(28,5), dummy integer)"
+            }
+            TS::Fixed16 => {
+                "create table TEST_DECIMALS \
+                (s NVARCHAR(100) primary key, d1 DECIMAL(38,5), d2 DECIMAL(38,5), dummy integer)"
+            }
         },
         // the complete statement is sent to the server as is, so all conversions are done on the server
-        "insert into TEST_DECIMALS (s, d1, d2) values('0.00000', '0.00000', 0.000)",
+        // BigDecimal has changed its string representation, zero displays now as "0" instead of "0.00000"
+        "insert into TEST_DECIMALS (s, d1, d2) values('0', '0.00000', 0.000)",
         "insert into TEST_DECIMALS (s, d1, d2) values('0.00100', '0.00100', 0.001)",
         "insert into TEST_DECIMALS (s, d1, d2) values('-0.00100', '-0.00100', -0.001)",
         "insert into TEST_DECIMALS (s, d1, d2) values('0.00300', '0.00300', 0.003)",
@@ -104,7 +113,7 @@ fn test_025_decimals_impl(
     let result_set = connection.query("select s, d1, d2 from TEST_DECIMALS order by d1")?;
     for row in result_set {
         let row = row?;
-        if let HdbValue::DECIMAL(ref bd) = &row[1] {
+        if let HdbValue::DECIMAL(bd) = &row[1] {
             assert_eq!(format!("{}", &row[0]), format!("{bd}"));
         } else {
             panic!("Unexpected value type");

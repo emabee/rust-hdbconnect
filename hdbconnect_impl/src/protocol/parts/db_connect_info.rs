@@ -1,10 +1,9 @@
 use crate::{
-    impl_err,
+    HdbResult, impl_err,
     protocol::parts::{
         option_part::{OptionId, OptionPart},
         option_value::OptionValue,
     },
-    HdbResult,
 };
 
 // Part of redirect response to authentication request
@@ -61,7 +60,7 @@ impl OptionId<DbConnectInfoId> for DbConnectInfoId {
             4 => Self::OnCorrectDatabase,
             5 => Self::NetworkGroup,
             val => {
-                warn!("Unsupported value for DbConnectInfoId received: {}", val);
+                warn!("Unsupported value for DbConnectInfoId received: {val}");
                 Self::__Unexpected__(val)
             }
         }

@@ -22,5 +22,5 @@ pub(crate) use {
     prepared_statement_core::PreparedStatementCore,
     rs_core::RsCore,
     rs_state::RsState,
-    xmutexed::{XMutexed, AM, OAM},
+    xmutexed::{AM, OAM, XMutexed},
 };

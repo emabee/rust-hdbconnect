@@ -88,7 +88,7 @@ impl OptionId<XatOptionId> for XatOptionId {
             4 => Self::NumberOfXid,
             5 => Self::XidList,
             val => {
-                warn!("Unsupported value for XatOptionId received: {}", val);
+                warn!("Unsupported value for XatOptionId received: {val}");
                 Self::__Unexpected__(val)
             }
         }

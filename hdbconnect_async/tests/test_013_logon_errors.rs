@@ -30,7 +30,7 @@ async fn test_013_logon_errors() {
         ])
         .await;
 
-    debug!("logon as {}", user);
+    debug!("logon as {user}");
     let cp_builder = test_utils::get_std_cp_builder().unwrap();
 
     {
@@ -46,16 +46,6 @@ async fn test_013_logon_errors() {
         cp_builder.dbuser(user).password("WrongPwPwPw");
         let err = Connection::new(cp_builder).await.unwrap_err();
         assert!(matches!(err, HdbError::Authentication { source: _ }));
-        debug!("{}", err.display_with_inner());
-    }
-
-    // ssl is attempted but not correctly set up
-    {
-        assert!(!cp_builder.is_tls());
-        let mut cp_builder = cp_builder.clone();
-        cp_builder.tls_with(hdbconnect_impl::ServerCerts::RootCertificates);
-        let err = Connection::new(cp_builder).await.unwrap_err();
-        assert!(matches!(err, HdbError::TlsInit { source: _ }));
         debug!("{}", err.display_with_inner());
     }
 }

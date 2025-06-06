@@ -1,13 +1,13 @@
-use super::lob_writer_util::{get_utf8_tail_len, LobWriteMode};
+use super::lob_writer_util::{LobWriteMode, get_utf8_tail_len};
 use crate::{
+    HdbResult, ServerUsage,
     base::InternalReturnValue,
     conn::{AmConnCore, CommandOptions},
     impl_err,
     protocol::{
+        MessageType, Part, PartKind, Reply, ReplyType, Request,
         parts::{ParameterDescriptors, ResultSetMetadata, TypeId, WriteLobRequest},
-        util, MessageType, Part, PartKind, Reply, ReplyType, Request,
     },
-    HdbResult, ServerUsage,
 };
 use std::{io::Write, sync::Arc};
 
@@ -208,7 +208,7 @@ impl Write for SyncLobWriter<'_> {
 
             self.write_a_lob_chunk(&payload, self.locator_id, &LobWriteMode::Append)
                 .map(|_locator_ids| ())
-                .map_err(|e| util::io_error(e.to_string()))?;
+                .map_err(|e| std::io::Error::other(e.to_string()))?;
         }
         Ok(input.len())
     }
@@ -219,9 +219,9 @@ impl Write for SyncLobWriter<'_> {
         std::mem::swap(&mut payload_raw, &mut self.buffer);
         let payload = if let TypeId::CLOB | TypeId::NCLOB = self.type_id {
             let (cesu8, utf8_tail) = utf8_to_cesu8_and_utf8_tail(payload_raw)
-                .map_err(|e| util::io_error(e.to_string()))?;
+                .map_err(|e| std::io::Error::other(e.to_string()))?;
             if !utf8_tail.is_empty() {
-                return Err(util::io_error("stream ending with invalid utf-8"));
+                return Err(std::io::Error::other("stream ending with invalid utf-8"));
             }
             cesu8
         } else {
@@ -230,16 +230,16 @@ impl Write for SyncLobWriter<'_> {
 
         self.write_a_lob_chunk(&payload, self.locator_id, &LobWriteMode::Last)
             .map(|_locator_ids| ())
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+            .map_err(std::io::Error::other)?;
         Ok(())
     }
 }
 
 fn utf8_to_cesu8_and_utf8_tail(mut utf8: Vec<u8>) -> std::io::Result<(Vec<u8>, Vec<u8>)> {
-    let tail_len = get_utf8_tail_len(&utf8).map_err(util::io_error)?;
+    let tail_len = get_utf8_tail_len(&utf8).map_err(std::io::Error::other)?;
     let tail = utf8.split_off(utf8.len() - tail_len);
     Ok((
-        cesu8::to_cesu8(&String::from_utf8(utf8).map_err(util::io_error)?).to_vec(),
+        cesu8::to_cesu8(&String::from_utf8(utf8).map_err(std::io::Error::other)?).to_vec(),
         tail,
     ))
 }

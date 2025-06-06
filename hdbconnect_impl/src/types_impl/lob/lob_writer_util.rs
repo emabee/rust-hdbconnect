@@ -1,4 +1,4 @@
-use crate::{impl_err, HdbResult};
+use crate::{HdbResult, impl_err};
 
 pub(crate) enum LobWriteMode {
     //Offset(i64),

@@ -35,7 +35,7 @@ pub fn test_031_transactions() -> HdbResult<()> {
             .try_into()?;
         assert_eq!(error_info.0, 7);
         assert_eq!(error_info.1, "ERR_FEATURE_NOT_SUPPORTED");
-        log::info!("error_info: {:?}", error_info);
+        log::info!("error_info: {error_info:?}");
     } else {
         panic!("did not receive ServerError");
     }
@@ -57,7 +57,7 @@ fn write1_read2(
     connection1: &mut Connection,
     isolation: &str,
 ) -> HdbResult<()> {
-    log::info!("Test isolation level {}", isolation);
+    log::info!("Test isolation level {isolation}");
     connection1.exec(format!("SET TRANSACTION ISOLATION LEVEL {isolation}",))?;
 
     log::info!(

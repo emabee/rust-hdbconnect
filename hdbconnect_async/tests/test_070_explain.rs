@@ -23,7 +23,7 @@ async fn test_explain(_log_handle: &mut LoggerHandle, connection: &Connection) -
     let result = connection
         .dml("DELETE FROM explain_plan_table WHERE statement_name = 'test_explain'")
         .await?;
-    debug!("cleanup (deletion result = {:?})", result);
+    debug!("cleanup (deletion result = {result:?})");
 
     let count: usize = connection
         .query("select count(*) from EXPLAIN_PLAN_TABLE")
@@ -42,7 +42,7 @@ async fn test_explain(_log_handle: &mut LoggerHandle, connection: &Connection) -
         .await?
         .try_into()
         .await?;
-    debug!("read the plan size (no of lines = {})", count);
+    debug!("read the plan size (no of lines = {count})");
     assert!(count > 0);
 
     let result: Vec<(String, String)> = connection
@@ -54,7 +54,7 @@ async fn test_explain(_log_handle: &mut LoggerHandle, connection: &Connection) -
         .await?
         .try_into()
         .await?;
-    debug!("obtain the plan: {:?}", result);
+    debug!("obtain the plan: {result:?}");
 
     Ok(())
 }

@@ -1,9 +1,12 @@
 // advisable because not all test modules use all functions of this module:
 #![allow(dead_code)]
 
-use flexi_logger::{opt_format, Logger, LoggerHandle};
-use hdbconnect_async::{ConnectParamsBuilder, Connection, HdbError, HdbResult, ServerCerts};
-use hdbconnect_impl::ConnectionConfiguration;
+use flexi_logger::{Logger, LoggerHandle, opt_format};
+use hdbconnect_async::{
+    ConnectParamsBuilder, Connection, ConnectionConfiguration, HdbError, HdbResult, ServerCerts,
+};
+use hdbconnect_impl::usage_err;
+use std::{fs::read_to_string, path::PathBuf, str::FromStr};
 
 // Returns a logger that prints out all info, warn and error messages.
 //
@@ -67,48 +70,76 @@ pub fn get_um_cp_builder() -> HdbResult<ConnectParamsBuilder> {
 }
 
 fn cp_builder_from_file(purpose: &str) -> HdbResult<(ConnectParamsBuilder, ConnectParamsBuilder)> {
-    const TEMPLATE: &str = r#"
-{
-    "direct_url":"hdbsql://host_url:34015",
-    "redirect_url":"hdbsql://host_url:34013?db=ABC",
-    "std":{"name":"USER1","pw":"user1_pw"},
-    "um":{"name":"USER2","pw":"user1_pw"}
-}
-"#;
-
-    const ENV_VAR: &str = "HDBCONNECT_TEST_DB";
     const FOLDERS: [&str; 2] = ["./../.private/", "./.private/"];
-    use std::str::FromStr;
-    let discr = std::env::var(ENV_VAR).unwrap_or("".to_string());
-    let filename = format!("test_{}.db", discr);
+    const FILE_CREATION_RECIPE: &str = "\
+        A convenient way of creating such a file is provided with `examples/setup_db_for_tests.rs`.\n\
+        Run the program with `cargo run --package hdbconnect --example setup_db_for_tests`, \n\
+        it asks for host and port and the credentials of a user with user-management privileges,\n\
+        and creates two database users for the tests and a corresponding config file.";
 
-    let mut db_path = std::path::PathBuf::from_str(FOLDERS[0]).unwrap();
-    db_path.push(filename.clone());
-    if !db_path.exists() {
-        db_path = std::path::PathBuf::from_str(FOLDERS[1]).unwrap();
-        db_path.push(filename.clone());
+    let nick_name = {
+        const ENV_VAR: &str = "HDBCONNECT_TEST_DB";
+        const ENV_ERROR: &str = "Environment variable HDBCONNECT_TEST_DB not set.";
+        const ENV_RECIPE: &str = "\
+        Set HDBCONNECT_TEST_DB to the nickname of the test database, e.g.\
+        'export HDBCONNECT_TEST_DB=abc' to use '.private/test_abc.db'.";
+
+        std::env::var(ENV_VAR).map_err(|_e| {
+            println!(
+                "ERROR: {ENV_ERROR}\n\n\
+                {ENV_RECIPE}\n\n\
+                {FILE_CREATION_RECIPE}'."
+            );
+            usage_err!("{ENV_ERROR}")
+        })?
+    };
+    let filename = format!("test_{nick_name}.db");
+
+    let filepath0 = {
+        let mut p = PathBuf::from_str(FOLDERS[0]).unwrap();
+        p.push(filename.clone());
+        p
+    };
+    let filepath1 = {
+        let mut p = PathBuf::from_str(FOLDERS[1]).unwrap();
+        p.push(filename.clone());
+        p
+    };
+    let filepath = if filepath0.exists() {
+        filepath0.clone()
+    } else {
+        filepath1.clone()
+    };
+
+    {
+        const FILE_STRUCTURE: &str = r#"
+The file can be created manually as well. Its json content must look like this:
+    {
+        "direct_url":"hdbsql://host_url:34015",
+        "redirect_url":"hdbsql://host_url:34013?db=H00",
+        "std":{"name":"USER1","pw":"user1_pw"},
+        "um":{"name":"USER2","pw":"user1_pw"}
     }
-
-    assert!(
-        db_path.exists(),
-        r"
-config file with the db connection not found: {filename}.
-
-Consider creating the file with content like
-{TEMPLATE}
 where
 - the direct URL will be used for most of the tests,
 - the redirect URL can/should point to the same database, but via the redirect-syntax.
-- the std-user will be used for most of the tests, 
-- the um-user for user-management activities.
+- the std-user will be used for most of the tests,
+- the um-user for few user-management activities.
 
 See https://docs.rs/hdbconnect/latest/hdbconnect/url/index.html for details of the URL format.
+"#;
 
-You can point to a different file by using e.g. 'export {ENV_VAR}='['cloud'|'onprem']'.
-",
-    );
+        assert!(
+            filepath.exists(),
+            "\nERROR: config file with the db connect info not found: {} or {}.\n\n\
+            {FILE_CREATION_RECIPE}\n\
+            {FILE_STRUCTURE}\n",
+            filepath0.display(),
+            filepath1.display()
+        );
+    }
 
-    let content = std::fs::read_to_string(db_path.clone()).map_err(|e| HdbError::ConnParams {
+    let content = read_to_string(filepath.clone()).map_err(|e| HdbError::ConnParams {
         source: Box::new(e),
     })?;
 
@@ -128,7 +159,7 @@ You can point to a different file by using e.g. 'export {ENV_VAR}='['cloud'|'onp
     }
 
     let db: Db = serde_json::from_str(&content)
-        .map_err(|e| format!("Cannot parse config file {db_path:?}: {e}"))
+        .map_err(|e| format!("Cannot parse config file {filepath:?}: {e}"))
         .unwrap();
 
     let (mut cp_builder, mut redirect_cp_builder, std, um) =

@@ -4,7 +4,7 @@ use crate::protocol::util_async;
 #[cfg(feature = "sync")]
 use crate::protocol::util_sync;
 
-use crate::{conn::TcpClient, HdbError, HdbResult};
+use crate::{HdbError, HdbResult, conn::TcpClient};
 use byteorder::{BigEndian, WriteBytesExt};
 use std::{io::Write, sync::OnceLock};
 
@@ -12,12 +12,12 @@ use std::{io::Write, sync::OnceLock};
 pub(crate) fn send_and_receive_sync(sync_tcp_connection: &mut TcpClient) -> HdbResult<()> {
     trace!("send_and_receive_sync(): send");
     match sync_tcp_connection {
-        TcpClient::SyncPlain(ref mut pc) => {
+        TcpClient::SyncPlain(pc) => {
             emit_initial_request_sync(pc.writer()).map_err(|e| HdbError::Initialization {
                 source: Box::new(e),
             })?;
         }
-        TcpClient::SyncTls(ref mut tc) => {
+        TcpClient::SyncTls(tc) => {
             emit_initial_request_sync(tc.writer()).map_err(|e| HdbError::TlsInit {
                 source: Box::new(e),
             })?;
@@ -30,12 +30,12 @@ pub(crate) fn send_and_receive_sync(sync_tcp_connection: &mut TcpClient) -> HdbR
     trace!("send_and_receive(): receive");
     // ignore the response content
     match sync_tcp_connection {
-        TcpClient::SyncPlain(ref mut pc) => {
+        TcpClient::SyncPlain(pc) => {
             util_sync::skip_bytes(8, pc.reader()).map_err(|e| HdbError::Initialization {
                 source: Box::new(e),
             })
         }
-        TcpClient::SyncTls(ref mut tc) => {
+        TcpClient::SyncTls(tc) => {
             util_sync::skip_bytes(8, tc.reader()).map_err(|e| HdbError::TlsInit {
                 source: Box::new(e),
             })
@@ -45,7 +45,7 @@ pub(crate) fn send_and_receive_sync(sync_tcp_connection: &mut TcpClient) -> HdbR
         _ => unreachable!("Async connections not supported here"),
     }
     .map_err(|e| {
-        trace!("Skipping over empty initial response failed with {:?}", e);
+        trace!("Skipping over empty initial response failed with {e:?}");
         e
     })?;
     debug!("Successfully initialized");
@@ -56,12 +56,14 @@ pub(crate) fn send_and_receive_sync(sync_tcp_connection: &mut TcpClient) -> HdbR
 pub(crate) async fn send_and_receive_async(tcp_client: &mut TcpClient) -> HdbResult<()> {
     trace!("send_and_receive_async(): send");
     match tcp_client {
-        TcpClient::AsyncPlain(ref mut pa) => emit_initial_request_async(pa.writer())
-            .await
-            .map_err(|e| HdbError::Initialization {
-                source: Box::new(e),
-            })?,
-        TcpClient::AsyncTls(ref mut ta) => {
+        TcpClient::AsyncPlain(pa) => {
+            emit_initial_request_async(pa.writer()).await.map_err(|e| {
+                HdbError::Initialization {
+                    source: Box::new(e),
+                }
+            })?;
+        }
+        TcpClient::AsyncTls(ta) => {
             emit_initial_request_async(ta.writer())
                 .await
                 .map_err(|e| HdbError::TlsInit {
@@ -115,7 +117,7 @@ async fn emit_initial_request_async<W: std::marker::Unpin + tokio::io::AsyncWrit
 
 fn initial_request() -> &'static [u8] {
     static INITIAL_REQUEST: OnceLock<Box<[u8]>> = OnceLock::new();
-    let result = INITIAL_REQUEST.get_or_init(|| {
+    INITIAL_REQUEST.get_or_init(|| {
         const FILLER: i32 = -1;
         const MAJOR_PRODUCT_VERSION: i8 = 4;
         const MINOR_PRODUCT_VERSION: i16 = 20;
@@ -140,6 +142,5 @@ fn initial_request() -> &'static [u8] {
         let res = w.into_inner().into_boxed_slice();
         assert_eq!(res.len(), 14);
         res
-    });
-    result
+    })
 }

@@ -1,10 +1,10 @@
 use crate::protocol::parts::option_value::OptionValue;
-use crate::{impl_err, HdbResult};
+use crate::{HdbResult, impl_err};
 use byteorder::{ReadBytesExt, WriteBytesExt};
 #[cfg(feature = "dist_tx")]
 use std::collections::hash_map::Iter;
 use std::{
-    collections::{hash_map::IntoIter, HashMap},
+    collections::{HashMap, hash_map::IntoIter},
     fmt::Debug,
     hash::Hash,
 };
@@ -50,7 +50,7 @@ impl<T: OptionId<T> + Debug + Eq + PartialEq + Hash> OptionPart<T> {
     }
 
     #[cfg(feature = "dist_tx")]
-    pub fn iter(&self) -> Iter<T, OptionValue> {
+    pub fn iter(&self) -> Iter<'_, T, OptionValue> {
         self.0.iter()
     }
 

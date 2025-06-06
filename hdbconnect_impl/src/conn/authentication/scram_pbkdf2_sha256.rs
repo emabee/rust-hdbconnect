@@ -1,11 +1,12 @@
 use crate::{
-    conn::authentication::{crypto_util, Authenticator},
+    HdbResult,
+    conn::authentication::{Authenticator, crypto_util},
     impl_err,
     protocol::parts::AuthFields,
-    usage_err, HdbResult,
+    usage_err,
 };
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt, WriteBytesExt};
-use rand::{rng, RngCore};
+use rand::{RngCore, rng};
 use secstr::SecUtf8;
 use std::{io::Write, time::Instant};
 
@@ -82,8 +83,8 @@ impl Authenticator for ScramPbkdf2Sha256 {
         }
         let msg = "PBKDF2: Server proof failed - \
                    this indicates a severe security issue with the server's identity!";
-        warn!("{}", msg);
-        Err(usage_err!("{}", msg))
+        warn!("{msg}");
+        Err(usage_err!("{msg}"))
     }
 }
 

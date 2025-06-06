@@ -127,7 +127,7 @@ fn write(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbResult<(
     )?;
 
     info!("insert nulls via prep-statement");
-    stmt.execute(&std::iter::repeat(()).take(14).collect::<Vec<_>>())?;
+    stmt.execute(&std::iter::repeat_n((), 14).collect::<Vec<_>>())?;
 
     info!("insert nulls via prep-statement, using HdbValue::NULL");
     stmt.execute_row(vec![
@@ -175,19 +175,19 @@ fn read(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()
         info!("read non-null values and evaluate via serde_db");
         let q = "select * from TEST_TYPES_A where id = 1";
         let data: Data = connection.query(q)?.try_into()?;
-        debug!("data: {:?}", data);
+        debug!("data: {data:?}");
     }
     {
         info!("read null values and evaluate via serde_db");
         let q = "select * from TEST_TYPES_A where id = 3";
         let data: Data = connection.query(q)?.try_into()?;
-        debug!("data: {:?}", data);
+        debug!("data: {data:?}");
     }
     {
         info!("read non-null values and evaluate directly");
         let q = "select * from TEST_TYPES_A where id = 1";
         let mut result_set = connection.query(q)?;
-        debug!("result set: {:?}", result_set);
+        debug!("result set: {result_set:?}");
         let row = result_set.next_row()?.unwrap();
         for value in row {
             assert!(!value.is_null());

@@ -1,17 +1,17 @@
 #[cfg(feature = "async")]
 use crate::usage_err;
 
+use super::LobBuf;
 #[cfg(feature = "async")]
 use super::fetch::fetch_a_lob_chunk_async;
 #[cfg(feature = "sync")]
 use super::fetch::fetch_a_lob_chunk_sync;
-use super::LobBuf;
 use crate::{
-    base::{RsCore, XMutexed, OAM},
+    HdbResult,
+    base::{OAM, RsCore, XMutexed},
     conn::AmConnCore,
     impl_err,
-    protocol::{util, ServerUsage},
-    HdbResult,
+    protocol::ServerUsage,
 };
 use debug_ignore::DebugIgnore;
 use std::{
@@ -233,7 +233,7 @@ impl BLobHandle {
                 if !self.is_data_complete {
                     self.fetch_next_chunk_async()
                         .await
-                        .map_err(util::io_error)?;
+                        .map_err(std::io::Error::other)?;
                 }
                 if self.data.is_empty() {
                     break;
@@ -262,7 +262,8 @@ impl std::io::Read for BLobHandle {
         while written < buf_len {
             if self.data.is_empty() {
                 if !self.is_data_complete {
-                    self.fetch_next_chunk_sync().map_err(util::io_error)?;
+                    self.fetch_next_chunk_sync()
+                        .map_err(std::io::Error::other)?;
                 }
                 if self.data.is_empty() {
                     break;

@@ -60,11 +60,11 @@ pub use hdbconnect_impl::ConnectionConfiguration;
 pub use hdbconnect_impl::CursorHoldability;
 
 pub use hdbconnect_impl::{
-    time, url, ConnectParams, ConnectParamsBuilder, DeserializationError, ExecutionResult,
-    FieldMetadata, HdbError, HdbResult, HdbValue, IntoConnectParams, IntoConnectParamsBuilder,
-    OutputParameters, ParameterBinding, ParameterDescriptor, ParameterDescriptors,
-    ParameterDirection, ResultSetMetadata, Row, SerializationError, ServerCerts, ServerError,
-    ServerUsage, Severity, ToHana, TypeId,
+    ConnectParams, ConnectParamsBuilder, DeserializationError, ExecutionResult, FieldMetadata,
+    HdbError, HdbResult, HdbValue, IntoConnectParams, IntoConnectParamsBuilder, OutputParameters,
+    ParameterBinding, ParameterDescriptor, ParameterDescriptors, ParameterDirection,
+    ResultSetMetadata, Row, SerializationError, ServerCerts, ServerError, ServerUsage, Severity,
+    ToHana, TypeId, time, url,
 };
 
 pub use hdbconnect_impl::sync::{

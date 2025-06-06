@@ -1,6 +1,6 @@
 use crate::{
-    protocol::{parts::field_metadata::InnerFieldMetadata, util, util_sync},
     FieldMetadata, HdbResult, TypeId,
+    protocol::{parts::field_metadata::InnerFieldMetadata, util, util_sync},
 };
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::{ops::Deref, sync::Arc};

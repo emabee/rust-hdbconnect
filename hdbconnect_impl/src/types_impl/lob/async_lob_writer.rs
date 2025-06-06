@@ -1,13 +1,13 @@
 use crate::{
+    HdbResult, ServerUsage,
     base::InternalReturnValue,
     conn::{AmConnCore, CommandOptions},
     impl_err,
     protocol::{
+        MessageType, Part, PartKind, Reply, ReplyType, Request,
         parts::{ParameterDescriptors, ResultSetMetadata, TypeId, WriteLobRequest},
-        util, MessageType, Part, PartKind, Reply, ReplyType, Request,
     },
-    types_impl::lob::lob_writer_util::{get_utf8_tail_len, LobWriteMode},
-    HdbResult, ServerUsage,
+    types_impl::lob::lob_writer_util::{LobWriteMode, get_utf8_tail_len},
 };
 use std::sync::Arc;
 use tokio::io::{AsyncRead, AsyncReadExt};
@@ -74,7 +74,7 @@ where
                 }
                 len -= tail_len;
             }
-            cesu8::to_cesu8(std::str::from_utf8(&buf[0..len]).map_err(util::io_error)?)
+            cesu8::to_cesu8(std::str::from_utf8(&buf[0..len]).map_err(std::io::Error::other)?)
         } else {
             std::borrow::Cow::Borrowed(&buf[0..len])
         };

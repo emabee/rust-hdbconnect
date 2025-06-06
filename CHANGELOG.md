@@ -1,10 +1,23 @@
 # Changelog
 
+## [0.32.0-unreleased] 2025-06-??
+
+Remove dependency on `ring` completely.
+
+Add some convenience methods to `ConnectParamsBuilder`.
+
+Add `examples/setup_db_for_tests.rs` to set up a test configuration.
+
+Add some code to `connect_options.rs` to avoid ugly warnings (a left-over FIXME is also added).
+
+Update to edition 2024 and to rust-version to 1.85.
+
 ## [0.31.0] 2025-02-19
 
 Remove ``initialize_crypto``. We use rustls as is. You can configure a non-default behavior of
 `rustls` with
-[install_default](https://docs.rs/rustls/latest/rustls/crypto/struct.CryptoProvider.html#method.install_default) (1).
+[install_default](https://docs.rs/rustls/latest/rustls/crypto/struct.CryptoProvider.html#method.install_default)
+(1).
 
 Merge `HdbError` variants `Usage` and `UsageDetailed`, as well as `Impl` and `ImplDetailed`,
 new variants `Usage` and `Impl` are based on `Cow`.

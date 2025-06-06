@@ -1,11 +1,11 @@
 use crate::{
-    conn::{authentication::Authenticator, CommandOptions, ConnectionCore},
+    HdbError, HdbResult,
+    conn::{CommandOptions, ConnectionCore, authentication::Authenticator},
     impl_err,
     protocol::{
-        parts::{AuthFields, ClientContext, ConnOptId, ConnectOptionsPart, DbConnectInfo},
         MessageType, Part, Reply, ReplyType, Request,
+        parts::{AuthFields, ClientContext, ConnOptId, ConnectOptionsPart, DbConnectInfo},
     },
-    HdbError, HdbResult,
 };
 use secstr::SecUtf8;
 
@@ -38,7 +38,7 @@ fn evaluate_first_response(reply: Reply) -> HdbResult<FirstAuthResponse> {
     let result = match (parts_iter.next(), parts_iter.next()) {
         (Some(Part::Auth(mut auth_fields)), p2) => {
             if let Some(part) = p2 {
-                warn!("first_auth_request: ignoring unexpected part = {:?}", part);
+                warn!("first_auth_request: ignoring unexpected part = {part:?}");
             }
             match (auth_fields.pop(), auth_fields.pop(), auth_fields.pop()) {
                 (Some(server_challenge_data), Some(raw_name), None) => {
@@ -64,10 +64,7 @@ fn evaluate_first_response(reply: Reply) -> HdbResult<FirstAuthResponse> {
     };
 
     for part in parts_iter {
-        warn!(
-            "first_auth_request(): ignoring unexpected part = {:?}",
-            part
-        );
+        warn!("first_auth_request(): ignoring unexpected part = {part:?}",);
     }
 
     result
@@ -155,7 +152,7 @@ fn evaluate_second_response(
                 }
                 (_, _, _) => return Err(impl_err!("Expected 2 authfields")),
             },
-            _ => warn!("second_auth_request: ignoring unexpected part = {:?}", part),
+            _ => warn!("second_auth_request: ignoring unexpected part = {part:?}"),
         }
     }
     Ok(())

@@ -177,7 +177,9 @@ async fn connect_and_select_with_clientlocale_from_env(
 ) -> HdbResult<()> {
     info!("connect and do some simple select with clientlocale from env");
     if env::var("LANG").is_err() {
-        env::set_var("LANG", "en_US.UTF-8");
+        unsafe {
+            env::set_var("LANG", "en_US.UTF-8");
+        }
     }
 
     let mut cp_builder = test_utils::get_std_cp_builder()?;
@@ -207,7 +209,7 @@ async fn select_version_and_user(connection: &Connection) -> HdbResult<()> {
         conn_params.dbuser().to_uppercase()
     );
 
-    debug!("VersionAndUser: {:?}", version_and_user);
+    debug!("VersionAndUser: {version_and_user:?}");
     Ok(())
 }
 
@@ -241,10 +243,12 @@ async fn command_info(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
 
     let stmt = r#"SELECT KEY, NONSENSE FROM M_SESSION_CONTEXT ORDER BY KEY"#;
 
-    assert!(connection
-        .execute_with_debuginfo(stmt, "BLABLA", 4711)
-        .await
-        .is_err());
+    assert!(
+        connection
+            .execute_with_debuginfo(stmt, "BLABLA", 4711)
+            .await
+            .is_err()
+    );
 
     Ok(())
 }

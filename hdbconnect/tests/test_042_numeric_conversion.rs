@@ -483,14 +483,18 @@ fn test_big_int(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbR
     assert!(insert_stmt.execute(&(9_223_372_036_854_775_807i64)).is_ok());
 
     //out of range
-    assert!(insert_stmt
-        .execute(&(9_223_372_036_854_775_808u64))
-        .is_err());
+    assert!(
+        insert_stmt
+            .execute(&(9_223_372_036_854_775_808u64))
+            .is_err()
+    );
 
     //in range
-    assert!(insert_stmt
-        .execute(&(-9_223_372_036_854_775_808i64))
-        .is_ok());
+    assert!(
+        insert_stmt
+            .execute(&(-9_223_372_036_854_775_808i64))
+            .is_ok()
+    );
 
     assert!(connection.query(query)?.try_into::<Vec<u8>>().is_err());
     assert!(connection.query(query)?.try_into::<Vec<u16>>().is_err());
@@ -590,9 +594,11 @@ fn test_decimal(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbR
 
     assert!(insert_stmt.execute(&(9_223_372_036_854_775_807u64)).is_ok());
     assert!(insert_stmt.execute(&(9_223_372_036_854_775_807i64)).is_ok());
-    assert!(insert_stmt
-        .execute(&(-9_223_372_036_854_775_808i64))
-        .is_ok());
+    assert!(
+        insert_stmt
+            .execute(&(-9_223_372_036_854_775_808i64))
+            .is_ok()
+    );
 
     assert!(connection.query(QUERY)?.try_into::<Vec<u8>>().is_err());
     assert!(connection.query(QUERY)?.try_into::<Vec<u16>>().is_err());

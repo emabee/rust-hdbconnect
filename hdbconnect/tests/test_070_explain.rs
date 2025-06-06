@@ -22,7 +22,7 @@ fn test_explain(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbR
 
     let result =
         connection.dml("DELETE FROM explain_plan_table WHERE statement_name = 'test_explain'")?;
-    debug!("cleanup (deletion result = {:?})", result);
+    debug!("cleanup (deletion result = {result:?})");
 
     let count: usize = connection
         .query("select count(*) from EXPLAIN_PLAN_TABLE")?
@@ -36,7 +36,7 @@ fn test_explain(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbR
     let count: u32 = connection
         .query("select count(*) from EXPLAIN_PLAN_TABLE")?
         .try_into()?;
-    debug!("read the plan size (no of lines = {})", count);
+    debug!("read the plan size (no of lines = {count})");
     assert!(count > 0);
 
     let result: Vec<(String, String)> = connection
@@ -46,7 +46,7 @@ fn test_explain(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbR
              WHERE statement_name = 'test_explain';",
         )?
         .try_into()?;
-    debug!("obtain the plan: {:?}", result);
+    debug!("obtain the plan: {result:?}");
 
     Ok(())
 }

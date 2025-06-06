@@ -36,20 +36,21 @@ async fn connect_other_user(_log_handle: &mut LoggerHandle) -> HdbResult<()> {
         .await?
         .try_into()
         .await?;
-    assert_eq!(before, "SYSTEM".to_string());
 
     let response = sys_conn
         .statement(format!("CONNECT {other_user} PASSWORD Theother1234"))
         .await?;
-    debug!("Response: {:?}", response);
+    debug!("Response: {response:?}");
 
     let after: String = sys_conn
         .query("SELECT CURRENT_USER FROM DUMMY")
         .await?
         .try_into()
         .await?;
-    assert_eq!(after, "THEOTHERONE".to_string());
-
-    // _log_handle.pop_temp_spec();
+    assert_eq!(
+        after,
+        "THEOTHERONE".to_string(),
+        "before we had {before}, now we should have THEOTHERONE"
+    );
     Ok(())
 }

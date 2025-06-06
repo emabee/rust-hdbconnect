@@ -23,7 +23,7 @@ pub fn main() {
 
     match run() {
         Err(e) => {
-            error!("run() failed with {:?}", e);
+            error!("run() failed with {e:?}");
             std::process::exit(-1);
         }
         Ok(_) => debug!("run() ended successful"),
@@ -51,17 +51,17 @@ fn deserialize_strings_to_bytes(connection: &Connection) -> HdbResult<()> {
     let query = "select f1 || f2 || f3 from TEST_STRINGS";
 
     let result: String = connection.query(query)?.try_into()?;
-    info!("String: {:?}", result);
+    info!("String: {result:?}");
 
     let result: ByteBuf = connection.query(query)?.try_into()?;
-    info!("ByteBuf: {:?}", result);
+    info!("ByteBuf: {result:?}");
 
     // wahrscheinlich das gleiche, nur handgemacht:
     #[derive(Debug, Deserialize)]
     #[allow(dead_code)]
     struct VData(#[serde(with = "serde_bytes")] Vec<u8>);
     let result: VData = connection.query(query)?.try_into()?;
-    info!("{:?}", result);
+    info!("{result:?}");
 
     Ok(())
 }

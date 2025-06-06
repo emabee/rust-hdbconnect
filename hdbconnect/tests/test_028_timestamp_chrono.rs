@@ -125,7 +125,7 @@ fn test_timestamp(_log_handle: &mut LoggerHandle, connection: &Connection) -> Hd
         let q = "insert into TEST_TIMESTAMP (number) values(2350)";
 
         let rows_affected = connection.dml(q)?;
-        trace!("rows_affected = {}", rows_affected);
+        trace!("rows_affected = {rows_affected}");
         assert_eq!(rows_affected, 1);
 
         let date: Option<NaiveDateTime> = connection

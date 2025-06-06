@@ -1,13 +1,5 @@
 use crate::types_impl::lob::CharLobSlice;
-use crate::{impl_err, HdbError, HdbResult};
-
-pub(crate) fn io_error<E>(error: E) -> std::io::Error
-where
-    E: Into<Box<dyn std::error::Error + Send + Sync>>,
-{
-    // todo: get rid of this method and switch to std::io::error::other(error) which requires 1.74.0
-    std::io::Error::new(std::io::ErrorKind::Other, error)
-}
+use crate::{HdbError, HdbResult, impl_err};
 
 // --- CESU8 Stuff --- //
 
@@ -74,7 +66,7 @@ where
                     });
                 }
             }
-            Err(io_error("no valid cesu8 cutoff point found"))
+            Err(std::io::Error::other("no valid cesu8 cutoff point found"))
         }
     }
 }
@@ -210,8 +202,7 @@ enum Cesu8CharType {
 mod tests {
     #[test]
     fn check_tail_detection() {
-        let s_utf8 =
-            "¡Este código es editable y ejecutable! Ce code est modifiable et exécutable ! \
+        let s_utf8 = "¡Este código es editable y ejecutable! Ce code est modifiable et exécutable ! \
 			Quest💩o codice è modificabile ed eseguibile! このコードは編集して実行出来ます！ \
             여기에서 코드를 수정하고 실행할 수 있습니다! Ten kod można edytować ora💩z uruchomić! \
             Este código é editável e execu💩💩t💩ável! Этот код можно отредактировать и запустить! \

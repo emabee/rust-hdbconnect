@@ -1,6 +1,6 @@
 //! Connection parameters
-use super::{cp_url::format_as_url, tls::Tls, Compression};
-use crate::{impl_err, ConnectParamsBuilder, HdbError, HdbResult, IntoConnectParams};
+use super::{Compression, cp_url::format_as_url, tls::Tls};
+use crate::{ConnectParamsBuilder, HdbError, HdbResult, IntoConnectParams, impl_err};
 use rustls::{ClientConfig, RootCertStore};
 use secstr::SecUtf8;
 use serde::de::Deserialize;
@@ -214,7 +214,7 @@ impl ConnectParams {
                         ServerCerts::RootCertificates => {
                             root_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
                         }
-                        ServerCerts::Direct(ref cert_string) => {
+                        ServerCerts::Direct(cert_string) => {
                             let (n_ok, n_err) = root_store.add_parsable_certificates([cert_string
                                 .clone()
                                 .into_bytes()
@@ -313,11 +313,14 @@ fn evaluate_certificate_directory(
         .filter(|dir_entry| {
             let path = dir_entry.path();
             let o_ext = path.extension().and_then(|ext| ext.to_str());
-            let accept = o_ext.is_some() && ["cer", "crt", "pem"].binary_search(&o_ext.unwrap()).is_ok();
+            let accept =
+                o_ext.is_some() && ["cer", "crt", "pem"].binary_search(&o_ext.unwrap()).is_ok();
             if !accept {
-                cert_errors
-                    .borrow_mut()
-                    .push(format!("{path:?} has wrong file suffix; only files with suffix 'cer', 'crt', or 'pem' are considered\n"));
+                cert_errors.borrow_mut().push(format!(
+                    "{} has wrong file suffix; \
+                     only files with suffix 'cer', 'crt', or 'pem' are considered\n",
+                    path.display()
+                ));
             }
             accept
         })
@@ -330,13 +333,14 @@ fn evaluate_certificate_directory(
         let (n_ok, n_err) = root_store.add_parsable_certificates([(*buf).into()]);
         if n_err > 0 {
             if n_ok > 0 {
-                cert_errors
-                .borrow_mut()
-                .push(format!("{trust_anchor_file:?} is not completely accepted: ({n_ok} parts good, {n_err} parts bad)\n"));
+                cert_errors.borrow_mut().push(format!(
+                    "{} is not completely accepted: ({n_ok} parts good, {n_err} parts bad)\n",
+                    trust_anchor_file.display()
+                ));
             } else {
                 cert_errors
                     .borrow_mut()
-                    .push(format!("{trust_anchor_file:?} is not accepted\n"));
+                    .push(format!("{} is not accepted\n", trust_anchor_file.display()));
             }
         }
     }
@@ -419,10 +423,10 @@ impl<'de> Deserialize<'de> for ConnectParams {
 
 mod insecure {
     use rustls::{
+        DigitallySignedStruct,
         client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier},
         crypto::{verify_tls12_signature, verify_tls13_signature},
         pki_types::{CertificateDer, ServerName, UnixTime},
-        DigitallySignedStruct,
     };
 
     #[derive(Debug)]
@@ -574,13 +578,17 @@ mod tests {
 
     #[test]
     fn test_errors() {
-        assert!("hdbsql://schLau@abcd123:2222"
-            .into_connect_params()
-            .is_err());
+        assert!(
+            "hdbsql://schLau@abcd123:2222"
+                .into_connect_params()
+                .is_err()
+        );
         assert!("hdbsql://meier@abcd123:2222".into_connect_params().is_err());
         assert!("hdbsql://meier:schLau@:2222".into_connect_params().is_err());
-        assert!("hdbsql://meier:schLau@abcd123"
-            .into_connect_params()
-            .is_err());
+        assert!(
+            "hdbsql://meier:schLau@abcd123"
+                .into_connect_params()
+                .is_err()
+        );
     }
 }

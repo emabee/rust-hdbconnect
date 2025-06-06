@@ -1,10 +1,10 @@
 use crate::{
+    HdbResult,
     conn::{CommandOptions, ConnectionConfiguration, ConnectionStatistics},
     protocol::{
+        MESSAGE_AND_SEGMENT_HEADER_SIZE, MessageType, Part, SEGMENT_HEADER_SIZE,
         parts::{ParameterDescriptors, Parts, StatementContext},
-        MessageType, Part, MESSAGE_AND_SEGMENT_HEADER_SIZE, SEGMENT_HEADER_SIZE,
     },
-    HdbResult,
 };
 use byteorder::{LittleEndian, WriteBytesExt};
 use std::{io::Cursor, sync::Arc};
@@ -51,10 +51,7 @@ impl<'a> Request<'a> {
     pub fn add_statement_context(&mut self, ssi_value: i64) {
         let mut stmt_ctx = StatementContext::default();
         stmt_ctx.set_statement_sequence_info(ssi_value);
-        trace!(
-            "Sending StatementContext with sequence_info = {:?}",
-            ssi_value
-        );
+        trace!("Sending StatementContext with sequence_info = {ssi_value:?}");
         self.push(Part::StatementContext(stmt_ctx));
     }
 

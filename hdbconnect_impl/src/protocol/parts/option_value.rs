@@ -1,7 +1,6 @@
 use crate::{
-    impl_err,
+    HdbResult, impl_err,
     protocol::{util, util_sync},
-    HdbResult,
 };
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
@@ -57,7 +56,7 @@ impl OptionValue {
     }
 
     pub fn get_string(&self) -> HdbResult<&String> {
-        if let Self::STRING(ref s) = self {
+        if let Self::STRING(s) = self {
             Ok(s)
         } else {
             Err(impl_err!("Not a STRING-typed OptionValue"))

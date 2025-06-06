@@ -4,13 +4,13 @@ use super::{first_auth_request_async, second_auth_request_async};
 use super::{first_auth_request_sync, second_auth_request_sync};
 
 use crate::{
+    HdbResult,
     conn::{
-        authentication::{Authenticator, FirstAuthResponse, ScramPbkdf2Sha256, ScramSha256},
         ConnectionCore,
+        authentication::{Authenticator, FirstAuthResponse, ScramPbkdf2Sha256, ScramSha256},
     },
     impl_err,
     protocol::parts::DbConnectInfo,
-    HdbResult,
 };
 
 #[must_use]

@@ -1,9 +1,9 @@
 use crate::{
-    base::{RsCore, OAM},
+    HdbResult, HdbValue,
+    base::{OAM, RsCore},
     conn::AmConnCore,
     impl_err,
     protocol::{parts::TypeId, util_sync},
-    HdbResult, HdbValue,
 };
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 

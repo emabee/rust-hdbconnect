@@ -49,7 +49,7 @@ fn test_procedure_metadata(
     let output_parameters = response.get_output_parameters()?;
     let pd0 = &output_parameters.descriptors()[0];
     let pd1 = &output_parameters.descriptors()[1];
-    debug!("op-md: {:?}", pd0);
+    debug!("op-md: {pd0:?}");
     assert_eq!(pd0.binding(), ParameterBinding::Optional);
     assert_eq!(pd0.name().unwrap(), "INOUT_DECIMAL");
     // behavior depends on DB version:
@@ -58,7 +58,7 @@ fn test_procedure_metadata(
     assert_eq!(pd0.precision(), 10);
     assert_eq!(pd0.direction(), ParameterDirection::INOUT);
 
-    debug!("op-md: {:?}", pd1);
+    debug!("op-md: {pd1:?}");
     assert_eq!(pd1.binding(), ParameterBinding::Optional);
     assert_eq!(pd1.name().unwrap(), "OUT_STRING");
     assert_eq!(pd1.type_id(), TypeId::NVARCHAR);

@@ -51,10 +51,7 @@ impl SessionState {
                     self.read_only_mode = b;
                 }
                 (id, value) => {
-                    warn!(
-                        "unexpected transaction flag ignored: {:?} = {:?}",
-                        id, value
-                    );
+                    warn!("unexpected transaction flag ignored: {id:?} = {value:?}");
                 }
             }
         }

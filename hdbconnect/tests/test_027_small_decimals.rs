@@ -27,7 +27,8 @@ fn test_small_decimals(_log_handle: &mut LoggerHandle, connection: &Connection) 
 
     let stmts = vec![
         "create table TEST_SMALL_DECIMALS (s NVARCHAR(100) primary key, sdec SMALLDECIMAL)",
-        "insert into TEST_SMALL_DECIMALS (s, sdec) values('0.00000', 0.000)",
+        // BigDecimal has changed its string representation, zero displays now as "0" instead of "0.00000"
+        "insert into TEST_SMALL_DECIMALS (s, sdec) values('0', 0.000)",
         "insert into TEST_SMALL_DECIMALS (s, sdec) values('0.00100', 0.001)",
         "insert into TEST_SMALL_DECIMALS (s, sdec) values('-0.00100', -0.001)",
         "insert into TEST_SMALL_DECIMALS (s, sdec) values('0.00300', 0.003)",
@@ -73,8 +74,8 @@ fn test_small_decimals(_log_handle: &mut LoggerHandle, connection: &Connection) 
         let mut row = row?;
         let s: String = row.next_try_into()?;
         let bd1 = row.next_try_into::<BigDecimal>()?.with_scale(scale);
-        debug!("precision = {}, scale = {}", precision, scale);
-        assert_eq!(format!("{}", s), format!("{bd1}"));
+        debug!("precision = {precision}, scale = {scale}");
+        assert_eq!(format!("{s}"), format!("{bd1}"));
     }
 
     info!("Read and verify small decimals to struct");

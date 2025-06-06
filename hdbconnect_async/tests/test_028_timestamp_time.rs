@@ -4,11 +4,11 @@ mod test_utils;
 
 // use chrono::{DateTime, NaiveDate, PrimitiveDateTime, Utc};
 use flexi_logger::LoggerHandle;
-use hdbconnect_async::{time::HanaPrimitiveDateTime, Connection, HdbResult, ToHana, TypeId};
+use hdbconnect_async::{Connection, HdbResult, ToHana, TypeId, time::HanaPrimitiveDateTime};
 use log::{debug, info, trace};
 use time::{
-    format_description::FormatItem, macros::format_description, Date, Month, PrimitiveDateTime,
-    Time,
+    Date, Month, PrimitiveDateTime, Time, format_description::FormatItem,
+    macros::format_description,
 };
 
 #[tokio::test]
@@ -137,7 +137,7 @@ async fn test_timestamp(_log_handle: &mut LoggerHandle, connection: &Connection)
         let q = "insert into TEST_TIMESTAMP (number) values(2350)";
 
         let rows_affected = connection.dml(q).await?;
-        trace!("rows_affected = {}", rows_affected);
+        trace!("rows_affected = {rows_affected}");
         assert_eq!(rows_affected, 1);
 
         let date: Option<PrimitiveDateTime> = connection

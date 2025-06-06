@@ -1,5 +1,5 @@
 use crate::{
-    base::{PreparedStatementCore, XMutexed, OAM},
+    base::{OAM, PreparedStatementCore, XMutexed},
     conn::{AmConnCore, CommandOptions},
     protocol::{MessageType, Part, PartAttributes, PartKind, Request},
 };
@@ -52,7 +52,7 @@ impl Drop for RsCore {
     // inform the server in case the result set is not yet closed, ignore all errors
     fn drop(&mut self) {
         let rs_id = self.result_set_id;
-        trace!("RsCore::drop(), result_set_id {}", rs_id);
+        trace!("RsCore::drop(), result_set_id {rs_id}");
         if !self.attributes.result_set_is_closed() {
             #[cfg(feature = "sync")]
             {

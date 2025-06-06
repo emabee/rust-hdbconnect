@@ -1,11 +1,11 @@
 use crate::{
+    HdbResult,
     conn::{AmConnCore, CommandOptions},
     impl_err,
     protocol::{
-        parts::{ReadLobReply, ReadLobRequest},
         MessageType, Part, ReplyType, Request, ServerUsage,
+        parts::{ReadLobReply, ReadLobRequest},
     },
-    HdbResult,
 };
 
 // Note that requested_length and offset count either bytes (BLOB, CLOB), or 1-2-3-chars (NCLOB)
