@@ -703,7 +703,24 @@ impl Connection {
             .am_conn_core
             .lock_sync()?
             .connect_options()
-            .get_full_version_string())
+            .get_full_version_string()
+            .to_string())
+    }
+
+    /// HANA Cloud version string.
+    ///
+    /// Can be empty if the server does not provide this information.
+    ///
+    /// # Errors
+    ///
+    /// - `HdbError::Poison` if the shared mutex of the inner connection object is poisened.
+    pub fn get_cloud_version_string(&self) -> HdbResult<String> {
+        Ok(self
+            .am_conn_core
+            .lock_sync()?
+            .connect_options()
+            .get_cloud_version_string()
+            .to_string())
     }
 
     fn execute<S>(&self, stmt: S, o_command_info: Option<CommandInfo>) -> HdbResult<HdbResponse>

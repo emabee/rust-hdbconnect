@@ -42,6 +42,7 @@ pub(crate) enum ConnectOptions {
         system_id: String,
         database_name: String,
         full_version: String,
+        cloud_version: String,
         implicit_lob_streaming: bool,
     },
 }
@@ -154,6 +155,7 @@ impl ConnectOptions {
         connopts_part
     }
 
+    #[allow(clippy::too_many_lines)]
     pub(crate) fn digest_server_connect_options(
         &mut self,
         incoming: ConnectOptionsPart,
@@ -185,6 +187,7 @@ impl ConnectOptions {
         let mut system_id = String::default();
         let mut database_name = String::default();
         let mut full_version = String::default();
+        let mut cloud_version = String::default();
         let mut implicit_lob_streaming = false;
 
         for (k, v) in incoming {
@@ -209,6 +212,9 @@ impl ConnectOptions {
                 }
                 ConnOptId::FullVersionString => {
                     full_version = v.into_string()?;
+                }
+                ConnOptId::HanaCloudVersion => {
+                    cloud_version = v.into_string()?;
                 }
                 ConnOptId::ImplicitLobStreaming => {
                     implicit_lob_streaming = v.get_bool()?;
@@ -239,8 +245,7 @@ impl ConnectOptions {
                 | ConnOptId::ItabParameter
                 | ConnOptId::ClientDistributionMode
                 | ConnOptId::ClientInfoNullValueOK
-                | ConnOptId::FlagSet1
-                | ConnOptId::FixmeToBeClarified => {
+                | ConnOptId::FlagSet1 => {
                     debug!("Got from server ConnectionOption: {k:?} = {v:?}");
                 }
                 k => {
@@ -262,6 +267,7 @@ impl ConnectOptions {
             system_id,
             database_name,
             full_version,
+            cloud_version,
             implicit_lob_streaming,
         };
         Ok(())
@@ -302,10 +308,17 @@ impl ConnectOptions {
     }
 
     // Full version string.
-    pub(crate) fn get_full_version_string(&self) -> String {
+    pub(crate) fn get_full_version_string(&self) -> &str {
         match &self {
             ConnectOptions::Initial { .. } => panic_not_final(),
-            ConnectOptions::Final { full_version, .. } => full_version.clone(),
+            ConnectOptions::Final { full_version, .. } => full_version.as_str(),
+        }
+    }
+    // Cloud version string.
+    pub(crate) fn get_cloud_version_string(&self) -> &str {
+        match &self {
+            ConnectOptions::Initial { .. } => panic_not_final(),
+            ConnectOptions::Final { cloud_version, .. } => cloud_version.as_str(),
         }
     }
     // DataFormatVersion2.
@@ -433,7 +446,7 @@ pub enum ConnOptId {
     EndPointList,                 // 62 // Original host:port;host:port list (including scale-out) from user
     ClientLocalPort,              // 63 // Communication port number of the client
     ConnDiagMetricFlagSet1,       // 64 // Flags for aggregating several options related to recording connection diagnostic and metrics
-    FixmeToBeClarified,           // 65 // FIXME: This is not documented, but it is used in the protocol.
+    HanaCloudVersion,             // 65 // HANA Cloud version string
     __Unexpected__(u8),
 }
 
@@ -506,7 +519,7 @@ impl OptionId<ConnOptId> for ConnOptId {
             Self::EndPointList => 62,
             Self::ClientLocalPort => 63,
             Self::ConnDiagMetricFlagSet1 => 64,
-            Self::FixmeToBeClarified => 65,
+            Self::HanaCloudVersion => 65,
 
             Self::__Unexpected__(n) => n,
         }
@@ -580,7 +593,7 @@ impl OptionId<ConnOptId> for ConnOptId {
             62 => Self::EndPointList,
             63 => Self::ClientLocalPort,
             64 => Self::ConnDiagMetricFlagSet1,
-            65 => Self::FixmeToBeClarified,
+            65 => Self::HanaCloudVersion,
 
             val => {
                 warn!("Unsupported value for ConnOptId received: {val}");

@@ -1,10 +1,14 @@
 # Changelog
 
-## [0.32.0-unreleased] 2025-06-??
+## [0.32.0] 2025-06-06
+
+Add
 
 Remove dependency on `ring` completely.
 
 Add some convenience methods to `ConnectParamsBuilder`.
+
+Add Connection::get_cloud_version_string() (sync and async).
 
 Add `examples/setup_db_for_tests.rs` to set up a test configuration.
 

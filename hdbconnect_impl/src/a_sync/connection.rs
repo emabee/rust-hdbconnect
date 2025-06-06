@@ -627,6 +627,24 @@ impl Connection {
             .await
             .connect_options()
             .get_full_version_string()
+            .to_string()
+    }
+
+    /// HANA Cloud version string.
+    ///
+    /// Can be empty if the server does not provide this information.
+    ///
+    /// # Errors
+    ///
+    /// Errors are unlikely to occur.
+    ///
+    pub async fn get_cloud_version_string(&self) -> String {
+        self.am_conn_core
+            .lock_async()
+            .await
+            .connect_options()
+            .get_cloud_version_string()
+            .to_string()
     }
 
     async fn execute<S>(
