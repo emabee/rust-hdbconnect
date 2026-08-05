@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.32.1] 2026-08-05
+
+Fix bug #60 (error when inserting big data in text datatype); kudos to
+[james9203](https://github.com/james9203).
+
+Fix some newer clippies.
+
 ## [0.32.0] 2025-06-06
 
 Add
