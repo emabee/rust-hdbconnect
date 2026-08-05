@@ -301,6 +301,8 @@ impl HdbResponse {
     ///
     /// `HdbError` if information would get lost.
     pub fn get_success(&mut self) -> HdbResult<()> {
+        // otherwise borrow checker will cause error with proposed alternative
+        #[allow(clippy::unnecessary_option_map_or_else)]
         self.find_success()
             .map(|i| self.return_values.remove(i).into_success())
             .map_or_else(|| Err(self.get_err("success")), |x| x)

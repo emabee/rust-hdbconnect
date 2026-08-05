@@ -301,9 +301,10 @@ impl HdbResponse {
     ///
     /// `HdbError` if information would get lost.
     pub fn get_success(&mut self) -> HdbResult<()> {
+        #[allow(clippy::map_unwrap_or)]
         self.find_success()
             .map(|i| self.return_values.remove(i).into_success())
-            .map_or_else(|| Err(self.get_err("success")), |x| x)
+            .unwrap_or_else(|| Err(self.get_err("success")))
     }
     fn find_success(&self) -> Option<usize> {
         for (i, rt) in self.return_values.iter().enumerate() {

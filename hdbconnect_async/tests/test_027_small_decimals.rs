@@ -81,7 +81,7 @@ async fn test_small_decimals(
         let s: String = row.next_try_into()?;
         let bd1: BigDecimal = row.next_try_into()?;
         debug!("precision = {precision}, scale = {scale}");
-        assert_eq!(format!("{s}"), format!("{}", bd1.with_scale(scale)));
+        assert_eq!(s.to_string(), format!("{}", bd1.with_scale(scale)));
     }
 
     info!("Read and verify small decimals to struct");

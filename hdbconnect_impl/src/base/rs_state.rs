@@ -583,10 +583,10 @@ impl RsState {
 impl std::fmt::Display for RsState {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         for row in self.row_iter.as_slice() {
-            writeln!(fmt, "{}\n", &row)?;
+            writeln!(fmt, "{row}\n")?;
         }
         for row in &self.next_rows {
-            writeln!(fmt, "{}\n", &row)?;
+            writeln!(fmt, "{row}\n")?;
         }
         Ok(())
     }

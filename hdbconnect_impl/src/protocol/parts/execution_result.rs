@@ -45,7 +45,7 @@ impl std::fmt::Display for ExecutionResult {
                 "Execution of statement or processing of row has failed"
             )?,
             Self::ExtraFailure(ref server_error) => {
-                writeln!(fmt, "Extra server error was reported: {server_error:?}",)?;
+                writeln!(fmt, "Extra server error was reported: {server_error:?}")?;
             }
         }
         Ok(())
