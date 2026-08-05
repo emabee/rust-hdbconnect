@@ -17,7 +17,7 @@ enum PartitionMethod {
 }
 
 impl PartitionMethod {
-    pub fn from_i8(val: i8) -> HdbResult<Self> {
+    pub fn from_u8(val: u8) -> HdbResult<Self> {
         match val {
             0 => Ok(Self::Invalid),
             1 => Ok(Self::RoundRobin),
@@ -35,7 +35,7 @@ enum ParameterFunction {
 }
 
 impl ParameterFunction {
-    pub fn from_i8(val: i8) -> HdbResult<Self> {
+    pub fn from_u8(val: u8) -> HdbResult<Self> {
         match val {
             0 => Ok(Self::Invalid),
             1 => Ok(Self::Year),
@@ -50,7 +50,7 @@ impl ParameterFunction {
 pub struct ParameterDescriptor {
     parameter_index: i32,
     parameter_function: ParameterFunction,
-    attribute_type: i8,
+    attribute_type: u8,
 }
 
 #[allow(dead_code)]
@@ -62,7 +62,7 @@ pub struct Partitions {
 
 impl PartitionInformation {
     pub fn parse(rdr: &mut dyn std::io::Read) -> HdbResult<Self> {
-        let partition_method = PartitionMethod::from_i8(rdr.read_i8()?)?; // I1
+        let partition_method = PartitionMethod::from_u8(rdr.read_u8()?)?; // I1
         util_sync::skip_bytes(7, rdr)?;
         let num_parameters = rdr.read_i32::<LittleEndian>()?;
         let num_partitions = rdr.read_i32::<LittleEndian>()?;
@@ -70,8 +70,8 @@ impl PartitionInformation {
         for _ in 0..num_parameters {
             let desc = ParameterDescriptor {
                 parameter_index: rdr.read_i32::<LittleEndian>()?,
-                parameter_function: ParameterFunction::from_i8(rdr.read_i8()?)?,
-                attribute_type: rdr.read_i8()?,
+                parameter_function: ParameterFunction::from_u8(rdr.read_u8()?)?,
+                attribute_type: rdr.read_u8()?,
             };
             util_sync::skip_bytes(2, rdr)?;
             parameter_descriptor.push(desc);

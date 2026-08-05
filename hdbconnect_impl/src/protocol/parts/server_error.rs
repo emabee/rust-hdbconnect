@@ -17,10 +17,10 @@ pub enum Severity {
     Fatal,
 
     /// The request sent to the server could not be answered, for an unknown reason.
-    __UNKNOWN__(i8),
+    __UNKNOWN__(u8),
 }
 impl Severity {
-    pub(crate) fn from_i8(i: i8) -> Self {
+    pub(crate) fn from_u8(i: u8) -> Self {
         match i {
             0 => Self::Warning,
             1 => Self::Error,
@@ -30,7 +30,7 @@ impl Severity {
     }
     /// Returns the number encoding of the severity.
     #[must_use]
-    pub fn to_i8(&self) -> i8 {
+    pub fn to_u8(&self) -> u8 {
         match *self {
             Self::Warning => 0,
             Self::Error => 1,
@@ -115,7 +115,7 @@ impl ServerError {
             let code = rdr.read_i32::<LittleEndian>()?; // I4
             let position = rdr.read_i32::<LittleEndian>()?; // I4
             let text_length = rdr.read_i32::<LittleEndian>()?; // I4
-            let severity = Severity::from_i8(rdr.read_i8()?); // I1
+            let severity = Severity::from_u8(rdr.read_u8()?); // I1
             let sqlstate = util_sync::parse_bytes(5_usize, rdr)?; // B5
             let bytes = util_sync::parse_bytes(text_length as usize, rdr)?; // B[text_length]
             let text = util::string_from_cesu8(bytes)?;

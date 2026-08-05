@@ -6,3 +6,4 @@ test_logs*/*
 target
 Z_TMP
 Cargo.lock
+/**/.DS_Store

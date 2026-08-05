@@ -186,7 +186,7 @@ impl<'a> Part<'a> {
     ) -> HdbResult<u32> {
         debug!("Serializing part of kind {:?}", self.kind());
         // PART HEADER 16 bytes
-        w.write_i8(self.kind() as i8)?;
+        w.write_u8(self.kind() as u8)?;
         w.write_u8(0)?; // U1 Attributes not used in requests
         match self.count()? {
             i if i < i16::MAX as usize => {
@@ -527,14 +527,14 @@ fn parse_header(
     rdr: &mut dyn std::io::Read,
 ) -> HdbResult<(PartKind, PartAttributes, usize, usize)> {
     // PART HEADER: 16 bytes
-    let kind = PartKind::from_i8(rdr.read_i8()?)?; // I1
+    let kind = PartKind::from_u8(rdr.read_u8()?)?; // I1
     let attributes = PartAttributes::new(rdr.read_u8()?); // U1 (documented as I1)
-    let no_of_argsi16 = rdr.read_i16::<LittleEndian>()?; // I2
-    let no_of_argsi32 = rdr.read_i32::<LittleEndian>()?; // I4
+    let no_of_argsu16 = rdr.read_u16::<LittleEndian>()?; // I2
+    let no_of_argsu32 = rdr.read_u32::<LittleEndian>()?; // I4
     let arg_size = rdr.read_i32::<LittleEndian>()?; // I4
     rdr.read_i32::<LittleEndian>()?; // I4 remaining_packet_size
 
-    let no_of_args = max(i32::from(no_of_argsi16), no_of_argsi32);
+    let no_of_args = max(u32::from(no_of_argsu16), no_of_argsu32);
     Ok((kind, attributes, arg_size as usize, no_of_args as usize))
 }
 

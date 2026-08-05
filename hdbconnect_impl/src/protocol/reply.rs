@@ -21,12 +21,12 @@ use super::{MESSAGE_AND_SEGMENT_HEADER_SIZE, SEGMENT_HEADER_SIZE};
 // But we differentiate explicitly between request messages and reply messages.
 #[derive(Debug)]
 pub(crate) struct Reply {
-    session_id: i64,
+    session_id: u64,
     pub replytype: ReplyType,
     pub parts: Parts<'static>,
 }
 impl Reply {
-    fn new(session_id: i64, replytype: ReplyType) -> Self {
+    fn new(session_id: u64, replytype: ReplyType) -> Self {
         Self {
             session_id,
             replytype,
@@ -34,7 +34,7 @@ impl Reply {
         }
     }
 
-    pub fn session_id(&self) -> i64 {
+    pub fn session_id(&self) -> u64 {
         self.session_id
     }
 
@@ -303,11 +303,11 @@ fn parse_packet_header(rdr: &mut dyn std::io::Read) -> HdbResult<ReplyPacketHead
     // TODO validate assumptions about seg_size, seg_offset, seg_number being always = (varpart_size, 0, 1)
 
     // MESSAGE HEADER: 32 bytes
-    let session_id: i64 = rdr.read_i64::<LittleEndian>()?; // I8
-    let packet_seq_number: i32 = rdr.read_i32::<LittleEndian>()?; // I4
+    let session_id: u64 = rdr.read_u64::<LittleEndian>()?; // I8
+    let packet_seq_number: u32 = rdr.read_u32::<LittleEndian>()?; // I4
     let parts_and_segment_header_size: u32 = rdr.read_u32::<LittleEndian>()?; // UI4
     let remaining_bufsize: u32 = rdr.read_u32::<LittleEndian>()?; // UI4
-    let no_of_segs = rdr.read_i16::<LittleEndian>()?; // I2
+    let no_of_segs = rdr.read_u16::<LittleEndian>()?; // I2
     match no_of_segs {
         1 => {}
         0 => return Err(impl_err!("empty response (is ok for drop connection)")),
@@ -330,11 +330,11 @@ fn parse_packet_header(rdr: &mut dyn std::io::Read) -> HdbResult<ReplyPacketHead
     util_sync::skip_bytes(4, rdr)?; // m_filler4byte
 
     // SEGMENT HEADER: 24 bytes
-    let seg_size = rdr.read_i32::<LittleEndian>()?; // I4 seg_size
-    let seg_offset = rdr.read_i32::<LittleEndian>()?; // I4 seg_offset
-    let no_of_parts: i16 = rdr.read_i16::<LittleEndian>()?; // I2
-    let seg_number = rdr.read_i16::<LittleEndian>()?; // I2 seg_number
-    let seg_kind = Kind::from_i8(rdr.read_i8()?)?; // I1
+    let seg_size = rdr.read_u32::<LittleEndian>()?; // I4 seg_size
+    let seg_offset = rdr.read_u32::<LittleEndian>()?; // I4 seg_offset
+    let no_of_parts = rdr.read_u16::<LittleEndian>()?; // I2
+    let seg_number = rdr.read_u16::<LittleEndian>()?; // I2 seg_number
+    let seg_kind = Kind::from_u8(rdr.read_u8()?)?; // I1
 
     trace!(
         "REPLY, message and segment header: {{\
@@ -387,7 +387,7 @@ enum Kind {
     Error,
 }
 impl Kind {
-    fn from_i8(val: i8) -> HdbResult<Self> {
+    fn from_u8(val: u8) -> HdbResult<Self> {
         match val {
             1 => Ok(Self::Request),
             2 => Ok(Self::Reply),
@@ -399,10 +399,10 @@ impl Kind {
 
 struct ReplyPacketHeader {
     reply_type: ReplyType,
-    session_id: i64,
+    session_id: u64,
     o_uncompressed_size: Option<usize>,
     part_buffer_size: usize,
-    no_of_parts: i16,
+    no_of_parts: u16,
 }
 
 #[cfg(feature = "sync")]

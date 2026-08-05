@@ -109,7 +109,7 @@ impl<'a> Parts<'a> {
     }
     pub fn pop_if_kind(&mut self, kind: PartKind) -> Option<Part<'a>> {
         match self.0.last() {
-            Some(part) if (part.kind() as i8) == (kind as i8) => self.0.pop(),
+            Some(part) if (part.kind() as u8) == (kind as u8) => self.0.pop(),
             _ => None,
         }
     }
@@ -123,7 +123,7 @@ impl<'a> Parts<'a> {
 
     #[cfg(feature = "dist_tx")]
     pub fn drop_parts_of_kind(&mut self, kind: PartKind) {
-        self.0.retain(|part| (part.kind() as i8) != (kind as i8));
+        self.0.retain(|part| (part.kind() as u8) != (kind as u8));
     }
 
     pub fn ref_inner(&self) -> &Vec<Part<'a>> {

@@ -45,7 +45,7 @@ pub(crate) enum PartKind {
     PrintOptions = 74,          // undocumented
 }
 impl PartKind {
-    pub fn from_i8(val: i8) -> HdbResult<Self> {
+    pub fn from_u8(val: u8) -> HdbResult<Self> {
         match val {
             3 => Ok(Self::Command),
             5 => Ok(Self::ResultSet),

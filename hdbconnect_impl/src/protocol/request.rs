@@ -9,10 +9,10 @@ use crate::{
 use byteorder::{LittleEndian, WriteBytesExt};
 use std::{io::Cursor, sync::Arc};
 
-const ONE_AS_NUMBER_OF_SEGMENTS: i16 = 1;
-const ONE_AS_ORDINAL_OF_THIS_SEGMENT: i16 = 1;
-const ZERO_AS_OFFSET: i32 = 0;
-const SEGMENT_KIND_REQUEST: i8 = 1;
+const ONE_AS_NUMBER_OF_SEGMENTS: u16 = 1;
+const ONE_AS_ORDINAL_OF_THIS_SEGMENT: u16 = 1;
+const ZERO_AS_OFFSET: u32 = 0;
+const SEGMENT_KIND_REQUEST: u8 = 1;
 
 const PACKET_OPTION_COMPRESS: u8 = 2;
 
@@ -59,7 +59,7 @@ impl<'a> Request<'a> {
     #[allow(clippy::too_many_arguments)]
     pub fn emit_sync(
         &self,
-        session_id: i64,
+        session_id: u64,
         packet_seq_number: u32,
         config: &ConnectionConfiguration,
         compress: bool,
@@ -139,7 +139,7 @@ impl<'a> Request<'a> {
 
     fn emit_packet_header(
         &self,
-        session_id: i64,
+        session_id: u64,
         packet_sequence_number: u32,
         auto_commit: bool,
         uncompressed_size: u32,
@@ -161,7 +161,7 @@ impl<'a> Request<'a> {
         );
 
         // MESSAGE HEADER
-        w.write_i64::<LittleEndian>(session_id)?; // I8
+        w.write_u64::<LittleEndian>(session_id)?; // I8
         w.write_u32::<LittleEndian>(packet_sequence_number)?; // I4
 
         w.write_u32::<LittleEndian>(
@@ -173,7 +173,7 @@ impl<'a> Request<'a> {
         )?; // UI4
 
         w.write_u32::<LittleEndian>(uncompressed_size + SEGMENT_HEADER_SIZE)?; // UI4
-        w.write_i16::<LittleEndian>(ONE_AS_NUMBER_OF_SEGMENTS)?; // I2
+        w.write_u16::<LittleEndian>(ONE_AS_NUMBER_OF_SEGMENTS)?; // I2
 
         if compress {
             w.write_u8(PACKET_OPTION_COMPRESS)?; // I1
@@ -186,12 +186,12 @@ impl<'a> Request<'a> {
 
         // (first and only) SEGMENT HEADER
         w.write_u32::<LittleEndian>(uncompressed_size + SEGMENT_HEADER_SIZE)?; // I4
-        w.write_i32::<LittleEndian>(ZERO_AS_OFFSET)?; // I4
+        w.write_u32::<LittleEndian>(ZERO_AS_OFFSET)?; // I4
         w.write_u16::<LittleEndian>(u16::try_from(self.parts.len()).unwrap(/*OK*/))?; // I2 Number of contained parts
-        w.write_i16::<LittleEndian>(ONE_AS_ORDINAL_OF_THIS_SEGMENT)?; // I2
-        w.write_i8(SEGMENT_KIND_REQUEST)?; // I1
-        w.write_i8(self.message_type as i8)?; // I1
-        w.write_i8(auto_commit.into())?; // I1
+        w.write_u16::<LittleEndian>(ONE_AS_ORDINAL_OF_THIS_SEGMENT)?; // I2
+        w.write_u8(SEGMENT_KIND_REQUEST)?; // I1
+        w.write_u8(self.message_type as u8)?; // I1
+        w.write_u8(auto_commit.into())?; // I1
         w.write_u8(self.command_options.as_u8())?; // I1
         w.write_u64::<LittleEndian>(FILLER_8)?; // [B;8]
 
@@ -203,7 +203,7 @@ impl<'a> Request<'a> {
     #[allow(clippy::too_many_arguments)]
     pub async fn emit_async<W: std::marker::Unpin + tokio::io::AsyncWriteExt>(
         &self,
-        session_id: i64,
+        session_id: u64,
         packet_sequence_number: u32,
         config: &ConnectionConfiguration,
         compress: bool,

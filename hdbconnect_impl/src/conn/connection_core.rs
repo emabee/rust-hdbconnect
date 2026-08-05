@@ -22,7 +22,7 @@ use std::{io::Cursor, io::ErrorKind, mem, sync::Arc};
 #[derive(Debug)]
 pub(crate) struct ConnectionCore {
     authenticated: bool,
-    session_id: i64,
+    session_id: u64,
     client_info: ClientInfo,
     client_info_touched: bool,
     statistics: ConnectionStatistics,
@@ -354,7 +354,7 @@ impl<'a> ConnectionCore {
         &mut self.config
     }
 
-    pub(crate) fn set_session_id(&mut self, session_id: i64) {
+    pub(crate) fn set_session_id(&mut self, session_id: u64) {
         if session_id != self.session_id {
             debug!(
                 "ConnectionCore: setting session_id from {} to {}",
@@ -388,7 +388,7 @@ impl<'a> ConnectionCore {
         self.statement_sequence = statement_sequence;
     }
 
-    pub(crate) fn session_id(&self) -> i64 {
+    pub(crate) fn session_id(&self) -> u64 {
         self.session_id
     }
 
