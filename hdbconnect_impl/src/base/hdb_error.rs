@@ -223,9 +223,9 @@ impl HdbError {
     #[must_use]
     pub fn display_with_inner(&self) -> String {
         if let Some(e) = self.inner() {
-            format!("{}, caused by {:?}", &self, e)
+            format!("{self}, caused by {e:?}")
         } else {
-            format!("{}", &self)
+            format!("{self}")
         }
     }
 }

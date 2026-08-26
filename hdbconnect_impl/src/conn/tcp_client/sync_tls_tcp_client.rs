@@ -8,7 +8,7 @@ pub(crate) struct SyncTlsTcpClient {
 }
 impl std::fmt::Debug for SyncTlsTcpClient {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
-        write!(f, "TlsTcpClient {{params: {:?}, ... }}", &self.params)
+        write!(f, "TlsTcpClient {{params: {:?}, ... }}", self.params)
     }
 }
 impl SyncTlsTcpClient {

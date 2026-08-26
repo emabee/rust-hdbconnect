@@ -62,7 +62,6 @@ impl OptionId<TaFlagId> for TaFlagId {
 impl TransactionFlags {
     pub fn is_committed(&self) -> bool {
         self.get(&TaFlagId::Committed)
-            .map(|bv| bv.get_bool().unwrap_or(false))
-            .unwrap_or(false)
+            .is_ok_and(|bv| bv.get_bool().unwrap_or(false))
     }
 }

@@ -11,13 +11,13 @@ impl ParameterDescriptors {
     /// Produces an iterator that returns the IN and INOUT parameters.
     pub fn iter_in(&self) -> impl std::iter::Iterator<Item = &ParameterDescriptor> {
         self.0.iter().filter(|ms| {
-            (ms.direction == ParameterDirection::IN) | (ms.direction == ParameterDirection::INOUT)
+            (ms.direction == ParameterDirection::IN) || (ms.direction == ParameterDirection::INOUT)
         })
     }
     /// Produces an iterator that returns the INOUT and OUT parameters.
     pub fn iter_out(&self) -> impl std::iter::Iterator<Item = &ParameterDescriptor> {
         self.0.iter().filter(|ms| {
-            (ms.direction == ParameterDirection::OUT) | (ms.direction == ParameterDirection::INOUT)
+            (ms.direction == ParameterDirection::OUT) || (ms.direction == ParameterDirection::INOUT)
         })
     }
 

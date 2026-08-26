@@ -1,7 +1,7 @@
 use anyhow::Context;
 use hdbconnect::{ConnectParamsBuilder, Connection};
 use log::debug;
-use rand::{Rng, RngExt};
+use rand::RngExt;
 use std::{
     fmt::Display,
     io::{self, Write},

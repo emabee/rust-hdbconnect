@@ -143,7 +143,7 @@ impl std::fmt::Display for ConnectionStatistics {
             "Buffer was shrinked:      {:?}",
             self.shrinked_oversized_buffer_count
         )?;
-        writeln!(f, "Compressed requests",)?;
+        writeln!(f, "Compressed requests")?;
         writeln!(
             f,
             "  - count:                {}",
@@ -157,7 +157,7 @@ impl std::fmt::Display for ConnectionStatistics {
                     / self.compressed_requests_compressed_size as f64
             )?;
         }
-        writeln!(f, "Compressed replies",)?;
+        writeln!(f, "Compressed replies")?;
         writeln!(
             f,
             "  - count:                {}",

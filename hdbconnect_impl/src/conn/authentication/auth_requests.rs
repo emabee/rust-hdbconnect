@@ -64,7 +64,7 @@ fn evaluate_first_response(reply: Reply) -> HdbResult<FirstAuthResponse> {
     };
 
     for part in parts_iter {
-        warn!("first_auth_request(): ignoring unexpected part = {part:?}",);
+        warn!("first_auth_request(): ignoring unexpected part = {part:?}");
     }
 
     result
