@@ -1,8 +1,11 @@
 # Changelog
 
-## [0.32.0] 2025-06-06
+## [0.33.0]
 
-Add
+Bugfix for #60
+
+
+## [0.32.0] 2025-06-06
 
 Remove dependency on `ring` completely.
 

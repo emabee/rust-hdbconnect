@@ -5,7 +5,7 @@ use crate::{
     protocol::parts::AuthFields,
 };
 use byteorder::{LittleEndian, WriteBytesExt};
-use rand::{RngCore, rng};
+use rand::{Rng, rng};
 use secstr::SecUtf8;
 use std::io::Write;
 

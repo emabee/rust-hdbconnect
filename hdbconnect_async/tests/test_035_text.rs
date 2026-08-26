@@ -69,8 +69,10 @@ async fn test_text(_log_handle: &mut LoggerHandle, connection: &Connection) -> H
     Ok(())
 }
 
-
-async fn test_text_bug_issue_60(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
+async fn test_text_bug_issue_60(
+    _log_handle: &mut LoggerHandle,
+    connection: &Connection,
+) -> HdbResult<()> {
     info!("test_text_bug_issue_60");
     /*this bytes length is 33000 is larger than the default 32768,i16:MAX. currently the function  binary_length
     in hdb_value.rs file will add 5 to calculate the length, so the length will be 33005, that is wrong.it will happen an
@@ -82,11 +84,11 @@ async fn test_text_bug_issue_60(_log_handle: &mut LoggerHandle, connection: &Con
     // info!("large_text: {}", large_text.len());
     let test_text = large_text.as_str();
     debug!("prepare...");
-    let mut insert_stmt =
-        connection.prepare("insert into TEST_TEXT (chardata, chardata_nn) values (?,?)").await?;
+    let mut insert_stmt = connection
+        .prepare("insert into TEST_TEXT (chardata, chardata_nn) values (?,?)")
+        .await?;
     debug!("execute...");
     insert_stmt.execute(&(test_text, test_text)).await?;
-    
+
     Ok(())
 }
-

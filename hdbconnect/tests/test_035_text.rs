@@ -62,7 +62,10 @@ fn test_text(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbResu
     Ok(())
 }
 
-fn test_text_bug_issue_60(_log_handle: &mut LoggerHandle, connection: &Connection) -> HdbResult<()> {
+fn test_text_bug_issue_60(
+    _log_handle: &mut LoggerHandle,
+    connection: &Connection,
+) -> HdbResult<()> {
     info!("test_text_bug_issue_60");
     /*this bytes length is 33000 is larger than the default 32768,i16:MAX. currently the function  binary_length
     in hdb_value.rs file will add 5 to calculate the length, so the length will be 33005, that is wrong.it will happen an
@@ -78,8 +81,6 @@ fn test_text_bug_issue_60(_log_handle: &mut LoggerHandle, connection: &Connectio
         connection.prepare("insert into TEST_TEXT (chardata, chardata_nn) values (?,?)")?;
     debug!("execute...");
     insert_stmt.execute(&(test_text, test_text))?;
-    
+
     Ok(())
 }
-
-

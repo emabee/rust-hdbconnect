@@ -6,7 +6,7 @@ use crate::{
     usage_err,
 };
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt, WriteBytesExt};
-use rand::{RngCore, rng};
+use rand::{Rng, rng};
 use secstr::SecUtf8;
 use std::{io::Write, time::Instant};
 
