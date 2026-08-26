@@ -117,7 +117,7 @@ async fn test_025_decimals_impl(
         .await?;
     for row in result_set.into_rows().await? {
         if let HdbValue::DECIMAL(bd) = &row[1] {
-            assert_eq!(format!("{}", &row[0]), format!("{bd}"));
+            assert_eq!(format!("{}", row[0]), format!("{bd}"));
         } else {
             panic!("Unexpected value type");
         }

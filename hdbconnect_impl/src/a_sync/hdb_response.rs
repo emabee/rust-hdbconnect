@@ -301,9 +301,11 @@ impl HdbResponse {
     ///
     /// `HdbError` if information would get lost.
     pub fn get_success(&mut self) -> HdbResult<()> {
-        self.find_success()
-            .map(|i| self.return_values.remove(i).into_success())
-            .map_or_else(|| Err(self.get_err("success")), |x| x)
+        if let Some(i) = self.find_success() {
+            self.return_values.remove(i).into_success()
+        } else {
+            Err(self.get_err("success"))
+        }
     }
     fn find_success(&self) -> Option<usize> {
         for (i, rt) in self.return_values.iter().enumerate() {

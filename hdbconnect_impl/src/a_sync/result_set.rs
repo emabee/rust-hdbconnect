@@ -241,7 +241,7 @@ impl ResultSet {
 impl std::fmt::Display for ResultSet {
     // Writes a header and then the data
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-        writeln!(fmt, "{}\n", &self.metadata)?;
+        writeln!(fmt, "{}\n", self.metadata)?;
         // hard to do, because of the async lock we'd need to acquire
         writeln!(fmt, "Display not implemented for async result set\n")?;
 

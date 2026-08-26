@@ -41,11 +41,11 @@ async fn test_130_timeout() -> HdbResult<()> {
         info!("thread_2: start");
         let result = conn2.query(QUERY).await;
         info!("thread_2: query returned with {result:?}");
-        if let Err(HdbError::ConnectionBroken { source }) = result {
-            if let HdbError::Io { source: io_error } = source.as_deref().unwrap() {
-                assert_eq!(io_error.kind(), ErrorKind::TimedOut);
-                return 0;
-            }
+        if let Err(HdbError::ConnectionBroken { source }) = result
+            && let HdbError::Io { source: io_error } = source.as_deref().unwrap()
+        {
+            assert_eq!(io_error.kind(), ErrorKind::TimedOut);
+            return 0;
         }
         -1
     });
