@@ -195,7 +195,7 @@ impl Write for SyncLobWriter<'_> {
                 payload_raw.extend_from_slice(input);
                 payload_raw
             };
-            debug_assert!(self.buffer.is_empty());
+            debug_assert_eq!(self.buffer, [] as [u8; 0]);
 
             // if necessary, cut off new tail and convert to cesu8
             let payload = if let TypeId::CLOB | TypeId::NCLOB = self.type_id {

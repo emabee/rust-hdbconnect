@@ -34,10 +34,10 @@ impl XatOptions {
 
     pub(crate) fn get_returncode(&self) -> Option<ReturnCode> {
         for (id, value) in self.iter() {
-            if let XatOptionId::Returncode = *id {
-                if let OptionValue::INT(ref number) = *value {
-                    return Some(ReturnCode::from_i32(*number));
-                }
+            if let XatOptionId::Returncode = *id
+                && let OptionValue::INT(ref number) = *value
+            {
+                return Some(ReturnCode::from_i32(*number));
             }
         }
         None
@@ -47,19 +47,19 @@ impl XatOptions {
     pub(crate) fn get_transactions(&self) -> Vec<XaTransactionId> {
         let mut xid_count = 0;
         for (id, value) in self.iter() {
-            if let XatOptionId::NumberOfXid = *id {
-                if let OptionValue::BIGINT(ref number) = *value {
-                    xid_count = *number as u64;
-                }
+            if let XatOptionId::NumberOfXid = *id
+                && let OptionValue::BIGINT(ref number) = *value
+            {
+                xid_count = *number as u64;
             }
         }
 
         if xid_count > 0 {
             for (id, value) in self.iter() {
-                if let XatOptionId::XidList = *id {
-                    if let OptionValue::BSTRING(ref bytes) = *value {
-                        return XaTransactionId::parse(bytes, xid_count, true).unwrap(/*TODO*/);
-                    }
+                if let XatOptionId::XidList = *id
+                    && let OptionValue::BSTRING(ref bytes) = *value
+                {
+                    return XaTransactionId::parse(bytes, xid_count, true).unwrap(/*TODO*/);
                 }
             }
         }

@@ -1,4 +1,4 @@
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use pbkdf2::pbkdf2;
 use secstr::SecUtf8;
 use sha2::{Digest, Sha256};

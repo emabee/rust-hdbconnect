@@ -5,7 +5,7 @@ mod test_utils;
 use flexi_logger::LoggerHandle;
 use hdbconnect::{Connection, HdbResult, HdbValue, types::BLob};
 use log::{debug, info};
-use rand::{RngCore, rng};
+use rand::{Rng, rng};
 use serde::{Deserialize, Serialize};
 use serde_bytes::{ByteBuf, Bytes};
 use sha2::{Digest, Sha256};

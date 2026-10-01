@@ -6,7 +6,7 @@ use crate::{
     usage_err,
 };
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt, WriteBytesExt};
-use rand::{RngCore, rng};
+use rand::{Rng, rng};
 use secstr::SecUtf8;
 use std::{io::Write, time::Instant};
 
@@ -76,10 +76,10 @@ impl Authenticator for ScramPbkdf2Sha256 {
             .pop()
             .ok_or_else(|| impl_err!("expected non-empty list of auth fields"))?;
 
-        if let Some(ref s_p) = self.server_proof {
-            if s_p as &[u8] == &srv_proof as &[u8] {
-                return Ok(());
-            }
+        if let Some(ref s_p) = self.server_proof
+            && s_p as &[u8] == &srv_proof as &[u8]
+        {
+            return Ok(());
         }
         let msg = "PBKDF2: Server proof failed - \
                    this indicates a severe security issue with the server's identity!";

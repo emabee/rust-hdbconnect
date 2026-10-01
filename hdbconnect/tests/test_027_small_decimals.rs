@@ -75,7 +75,7 @@ fn test_small_decimals(_log_handle: &mut LoggerHandle, connection: &Connection) 
         let s: String = row.next_try_into()?;
         let bd1 = row.next_try_into::<BigDecimal>()?.with_scale(scale);
         debug!("precision = {precision}, scale = {scale}");
-        assert_eq!(format!("{s}"), format!("{bd1}"));
+        assert_eq!(s.to_string(), format!("{bd1}"));
     }
 
     info!("Read and verify small decimals to struct");
