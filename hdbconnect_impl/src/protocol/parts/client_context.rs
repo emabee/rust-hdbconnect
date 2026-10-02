@@ -19,9 +19,9 @@ impl ClientContext {
         );
 
         let client_type = if cfg!(feature = "async") {
-            "hdbconnect_async (rust native HANA driver, https://crates.io/crates/hdbconnect_async)"
+            "rust-hdb-async"
         } else {
-            "hdbconnect (rust native HANA driver, https://crates.io/crates/hdbconnect)"
+            "rust-hdb"
         }
         .to_string();
         cc.insert(
