@@ -15,7 +15,7 @@ Add `hdbconnect_async` to the dependencies section in your project's `Cargo.toml
 
 ```toml
 [dependencies]
-hdbconnect_async = "0.32"
+hdbconnect_async = "0.33"
 ```
 
 Assuming you have

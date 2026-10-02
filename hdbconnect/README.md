@@ -16,7 +16,7 @@ Add `hdbconnect` to the dependencies section in your project's `Cargo.toml`:
 
 ```toml
 [dependencies]
-hdbconnect = "0.32"
+hdbconnect = "0.33"
 ```
 
 Assuming you have
