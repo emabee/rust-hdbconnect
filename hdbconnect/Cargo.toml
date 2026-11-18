@@ -2,10 +2,10 @@
 name = "hdbconnect"
 authors.workspace = true
 version.workspace = true
-edition = "2024"
+edition.workspace = true
 license.workspace = true
 repository.workspace = true
-readme = "README.md"
+readme.workspace = true
 description = "A synchronous pure rust database driver for SAP HANA(TM)"
 documentation = "https://docs.rs/hdbconnect/"
 keywords.workspace = true
@@ -46,7 +46,7 @@ dist_tx = { version = "0.5", features = ["sync"] }
 flexi_logger = "0.31"
 log = "0.4"
 num = "0.4"
-num-bigint = "0.4.0"
+num-bigint = "0.4"
 rand = "0.10"
 r2d2 = "0.8"
 rustls = { workspace = true, features = ["ring"] }
