@@ -276,8 +276,8 @@ impl ConnectParams {
                     ))
                 } else {
                     let config = ClientConfig::builder()
-                    .with_root_certificates(root_store)
-                    // .with_safe_default_protocol_versions()
+                        .with_root_certificates(root_store)
+                        // .with_safe_default_protocol_versions()
                         .with_no_client_auth();
                     Ok((config, cert_errors.into_inner()))
                 }
