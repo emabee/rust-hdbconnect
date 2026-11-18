@@ -1,5 +1,9 @@
 # Changelog
 
+## [unreleased]
+
+Remove rocket feature and associated code due to lack of maintenance
+
 ## [0.33.0]
 
 Bugfix for #60

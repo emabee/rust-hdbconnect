@@ -36,9 +36,6 @@
 #![deny(clippy::all)]
 #![deny(clippy::pedantic)]
 
-#[cfg(feature = "rocket_pool")]
-mod rocket_pool;
-
 #[cfg(feature = "bb8_pool")]
 mod bb8;
 
@@ -91,10 +88,6 @@ pub mod types {
     pub use hdbconnect_impl::a_sync::{BLob, CLob, NCLob};
     pub use hdbconnect_impl::types::*;
 }
-
-#[cfg_attr(docsrs, doc(cfg(feature = "rocket_pool")))]
-#[cfg(feature = "rocket_pool")]
-pub use rocket_pool::HanaPoolForRocket;
 
 #[cfg_attr(docsrs, doc(cfg(feature = "bb8_pool")))]
 #[cfg(feature = "bb8_pool")]
