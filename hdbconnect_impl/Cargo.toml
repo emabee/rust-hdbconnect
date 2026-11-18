@@ -1,6 +1,6 @@
 [package]
 name = "hdbconnect_impl"
-edition = "2024"
+edition.workspace = true
 authors.workspace = true
 version.workspace = true
 license.workspace = true
@@ -42,7 +42,7 @@ hmac = "0.13"
 log = "0.4"
 lz4_flex = "0.14"
 num = "0.4"
-num-bigint = "0.4.0"
+num-bigint = "0.4"
 pbkdf2 = { version = "0.13", default-features = false }
 rand = "0.10"
 secstr = "0.5"

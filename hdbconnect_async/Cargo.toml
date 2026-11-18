@@ -2,10 +2,10 @@
 name = "hdbconnect_async"
 authors.workspace = true
 version.workspace = true
-edition = "2024"
+edition.workspace = true
 license.workspace = true
 repository.workspace = true
-readme = "README.md"
+readme.workspace = true
 description = "An asynchronous pure rust database driver for SAP HANA(TM)"
 documentation = "https://docs.rs/hdbconnect_async/"
 keywords = ["asynchronous", "relational", "database", "driver", "HANA"]
@@ -49,7 +49,7 @@ dist_tx = { version = "0.5", features = ["async"] }
 flexi_logger = "0.31"
 log = "0.4"
 num = "0.4"
-num-bigint = "0.4.0"
+num-bigint = "0.4"
 rand = "0.10"
 serde = { version = "1.0", features = ["derive"] }
 serde_bytes = "0.11"

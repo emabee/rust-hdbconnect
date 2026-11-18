@@ -107,7 +107,7 @@ async fn test_arrays(log_handle: &LoggerHandle, connection: &Connection) -> HdbR
             .into_iter()
             .map(|hdbval| hdbval.try_into().unwrap())
             .collect();
-        assert_eq!(vec.as_slice().concat(), "Hello world, this is not the end!");
+        assert_eq!(vec.concat(), "Hello world, this is not the end!");
     } else {
         panic!("not an array");
     }
