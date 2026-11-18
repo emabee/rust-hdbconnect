@@ -76,8 +76,9 @@ fn main() {
     run_command!("cargo build --package hdbconnect --release --all-features");
     run_command!("cargo build --package hdbconnect_async --release --all-features");
 
+    // -- not building r2d2 because it requires newer Rust versions
+    run_command!("cargo +1.88 build --package hdbconnect --features dist_tx");
     // -- all-features debug builds with oldest supported rust version
-    run_command!("cargo +1.88 build --package hdbconnect --all-features");
     run_command!("cargo +1.88 build --package hdbconnect_async --all-features");
 
     // Clippy in important variants (+nightly removed due to errors in clippy)
