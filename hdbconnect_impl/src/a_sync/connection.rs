@@ -12,12 +12,25 @@ use crate::{
 };
 #[cfg(feature = "dist_tx")]
 use dist_tx::a_sync::rm::ResourceManager;
-use std::time::Duration;
+use std::{
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+    time::Duration,
+};
 
 /// An asynchronous connection to the database.
 #[derive(Clone, Debug)]
 pub struct Connection {
     am_conn_core: AmConnCore,
+
+    // In order to be able to determine if the client is dead without calling an async method
+    // (bb8's `ManageConnection::has_broken` is synchronous), we keep a shared handle to the flag
+    // owned by `ConnectionCore`. All clones of a `Connection` share the same flag, so a break
+    // caused by any request on any clone is visible here. The value is only updated from within
+    // `ConnectionCore`.
+    a_client_dead: Arc<AtomicBool>,
 }
 
 impl Connection {
@@ -56,8 +69,10 @@ impl Connection {
         if params.password().unsecure().is_empty() {
             Err(usage_err!("Empty password is not allowed"))
         } else {
+            let (am_conn_core, a_client_dead) = AmConnCore::try_new_async(params, config).await?;
             Ok(Self {
-                am_conn_core: AmConnCore::try_new_async(params, config).await?,
+                am_conn_core,
+                a_client_dead,
             })
         }
     }
@@ -237,12 +252,14 @@ impl Connection {
     /// Several variants of `HdbError` can occur.
     pub async fn spawn(&self) -> HdbResult<Self> {
         let am_conn_core = self.am_conn_core.lock_async().await;
+        let (am_conn_core, a_client_dead) = AmConnCore::try_new_async(
+            am_conn_core.connect_params().clone(),
+            am_conn_core.configuration(),
+        )
+        .await?;
         Ok(Self {
-            am_conn_core: AmConnCore::try_new_async(
-                am_conn_core.connect_params().clone(),
-                am_conn_core.configuration(),
-            )
-            .await?,
+            am_conn_core,
+            a_client_dead,
         })
     }
 
@@ -686,8 +703,28 @@ impl Connection {
         HdbResponse::try_new(internal_return_values, replytype)
     }
 
-    /// Returns true if the connection object lost its TCP connection.
-    pub async fn is_broken(&self) -> bool {
-        self.am_conn_core.lock_async().await.is_broken()
+    /// Returns `Ok(())` if the connection is still connected to the database.
+    ///
+    /// Uses an extra roundtrip to ensure we have current information; this is the reliable
+    /// check used by the bb8 connection pool on checkout.
+    ///
+    /// # Errors
+    ///
+    /// As the statement that is used in the roundtrip is trivial,
+    /// only an `HdbError::ConnectionBroken` should be possible.
+    pub async fn is_valid(&self) -> HdbResult<()> {
+        self.query("select 1 from dummy").await.map(|_| ())
+    }
+
+    /// Returns `true` if the connection is known to have lost its TCP connection.
+    ///
+    /// This is a cheap, synchronous check (no roundtrip): it reports a break that was already
+    /// detected by an earlier request or validation, and may therefore be too optimistic for a
+    /// connection that has silently died since it was last used. It is the synchronous probe
+    /// required by [`bb8::ManageConnection::has_broken`]; use [`Connection::is_valid`] when you
+    /// need a definitive, up-to-date answer.
+    #[must_use]
+    pub fn has_broken(&self) -> bool {
+        self.a_client_dead.load(Ordering::Relaxed)
     }
 }

@@ -7,6 +7,8 @@ use crate::{
         {Reply, Request},
     },
 };
+#[cfg(feature = "async")]
+use std::sync::atomic::AtomicBool;
 use std::{sync::Arc, time::Instant};
 
 #[derive(Clone, Debug)]
@@ -36,10 +38,10 @@ impl AmConnCore {
     pub async fn try_new_async(
         params: ConnectParams,
         config: &ConnectionConfiguration,
-    ) -> HdbResult<Self> {
+    ) -> HdbResult<(Self, Arc<AtomicBool>)> {
         trace!("trying to connect to {params}");
         let start = Instant::now();
-        let conn_core = ConnectionCore::try_new_async(params, config).await?;
+        let (conn_core, a_client_dead) = ConnectionCore::try_new_async(params, config).await?;
 
         debug!(
             "user \"{}\" successfully logged on ({} µs) to {:?} of {:?} (HANA version: {:?})",
@@ -49,7 +51,7 @@ impl AmConnCore {
             conn_core.connect_options().get_system_id(),
             conn_core.connect_options().get_full_version_string()
         );
-        Ok(Self(crate::base::new_am_async(conn_core)))
+        Ok((Self(crate::base::new_am_async(conn_core)), a_client_dead))
     }
 
     #[cfg(feature = "sync")]
