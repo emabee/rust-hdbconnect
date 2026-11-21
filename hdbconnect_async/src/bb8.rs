@@ -5,11 +5,7 @@ use crate::{
 };
 use bb8::ManageConnection;
 use log::trace;
-use std::{
-    future::Future,
-    pin::{Pin, pin},
-    task::{Context, Poll},
-};
+use std::future::Future;
 
 /// Implementation of
 /// [`bb8::ManageConnection`](https://docs.rs/bb8/latest/bb8/trait.ManageConnection.html#).
@@ -93,28 +89,11 @@ impl ManageConnection for ConnectionManager {
         conn: &mut Self::Connection,
     ) -> impl Future<Output = Result<(), Self::Error>> + Send {
         trace!("ConnectionManager::is_valid()");
-        ValidityChecker(conn.clone())
+        conn.is_valid()
     }
 
-    fn has_broken(&self, _conn: &mut Self::Connection) -> bool {
-        false
-    }
-}
-
-struct ValidityChecker(Connection);
-impl Future for ValidityChecker {
-    type Output = Result<(), HdbError>;
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let pinned_fut = pin!(self.0.is_broken());
-        match pinned_fut.poll(cx) {
-            Poll::Pending => Poll::Pending,
-            Poll::Ready(is_broken) => {
-                if is_broken {
-                    Poll::Ready(Err(HdbError::ConnectionBroken { source: None }))
-                } else {
-                    Poll::Ready(Ok(()))
-                }
-            }
-        }
+    fn has_broken(&self, conn: &mut Self::Connection) -> bool {
+        trace!("ConnectionManager::has_broken()");
+        conn.has_broken()
     }
 }

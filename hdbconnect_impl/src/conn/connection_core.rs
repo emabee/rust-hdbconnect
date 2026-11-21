@@ -14,6 +14,8 @@ use crate::{
     },
 };
 use debug_ignore::DebugIgnore;
+#[cfg(feature = "async")]
+use std::sync::atomic::{AtomicBool, Ordering};
 #[cfg(feature = "sync")]
 use std::time::Duration;
 use std::{io::Cursor, io::ErrorKind, mem, sync::Arc};
@@ -35,6 +37,14 @@ pub(crate) struct ConnectionCore {
     pub(crate) warnings: Vec<ServerError>,
     tcp_client: TcpClient,
     io_buffer: DebugIgnore<Cursor<Vec<u8>>>,
+
+    // In order to be able to determine if the client is dead without calling an async method
+    // (which bb8's `ManageConnection::has_broken` cannot do), we track the info here and hand
+    // out a shared handle to the outer layers. The value is only ever updated from within
+    // `ConnectionCore::die()`, so all clones of the owning `Connection` observe a break
+    // caused by any request, not only by an explicit validation roundtrip.
+    #[cfg(feature = "async")]
+    a_client_dead: Arc<AtomicBool>,
 }
 
 impl<'a> ConnectionCore {
@@ -97,7 +107,7 @@ impl<'a> ConnectionCore {
     pub(crate) async fn try_new_async(
         params: ConnectParams,
         config: &ConnectionConfiguration,
-    ) -> HdbResult<Self> {
+    ) -> HdbResult<(Self, Arc<AtomicBool>)> {
         let o_dbname = params.dbname().map(ToString::to_string);
         let network_group = params.network_group().unwrap_or_default().to_string();
         let mut conn_core = ConnectionCore::try_new_initialized_async(params, config).await?;
@@ -138,7 +148,10 @@ impl<'a> ConnectionCore {
         // here we can encounter an additional implicit redirect, triggered by HANA itself
         loop {
             match authentication::authenticate_async(&mut conn_core, false).await? {
-                AuthenticationResult::Ok => return Ok(conn_core),
+                AuthenticationResult::Ok => {
+                    let a_client_dead = conn_core.a_client_dead.clone();
+                    return Ok((conn_core, a_client_dead));
+                }
                 AuthenticationResult::Redirect(db_connect_info) => {
                     trace!("Redirect initiated by HANA");
                     let redirect_params = conn_core
@@ -178,6 +191,8 @@ impl<'a> ConnectionCore {
             topology: None,
             warnings: Vec::<ServerError>::new(),
             tcp_client,
+            #[cfg(feature = "async")]
+            a_client_dead: Arc::new(AtomicBool::new(false)),
         })
     }
 
@@ -207,6 +222,8 @@ impl<'a> ConnectionCore {
             topology: None,
             warnings: Vec::<ServerError>::new(),
             tcp_client,
+            #[cfg(feature = "async")]
+            a_client_dead: Arc::new(AtomicBool::new(false)),
         })
     }
 
@@ -480,7 +497,7 @@ impl<'a> ConnectionCore {
                 info!(
                     "roundtrip_sync(): TCP connection discarded because write failed with \"{e}\""
                 );
-                self.tcp_client.die();
+                self.die();
                 HdbError::ConnectionBroken {
                     source: Some(Box::new(e)),
                 }
@@ -506,7 +523,7 @@ impl<'a> ConnectionCore {
             Ok(reply) => reply,
             Err(e) => {
                 info!("roundtrip_sync(): TCP connection discarded after \"{e}\"");
-                self.tcp_client.die();
+                self.die();
                 return Err(connection_broken(e, self.config.read_timeout()));
             }
         };
@@ -574,7 +591,7 @@ impl<'a> ConnectionCore {
         }
         .map_err(|e| {
             info!("roundtrip_async(): TCP connection discarded because write failed with \"{e}\"");
-            self.tcp_client.die();
+            self.die();
             HdbError::ConnectionBroken {
                 source: Some(Box::new(e)),
             }
@@ -618,7 +635,7 @@ impl<'a> ConnectionCore {
             .await
         }.map_err(|e|{
             info!("roundtrip_async(): TCP connection discarded after \"{e}\"");
-            self.tcp_client.die();
+            self.die();
             connection_broken(e, self.config.read_timeout())
         })?;
 
@@ -633,6 +650,19 @@ impl<'a> ConnectionCore {
         Ok(reply)
     }
 
+    /// Marks the connection as dead.
+    ///
+    /// In addition to tearing down the `TcpClient`, the async build flips the shared
+    /// `a_client_dead` flag so that `Connection::has_broken()` (used by bb8) can report a
+    /// break synchronously, even for breaks that happened during a normal roundtrip rather
+    /// than during an explicit validation.
+    fn die(&mut self) {
+        self.tcp_client.die();
+        #[cfg(feature = "async")]
+        self.a_client_dead.store(true, Ordering::Relaxed);
+    }
+
+    #[cfg(feature = "sync")]
     pub(crate) fn is_broken(&self) -> bool {
         self.tcp_client.has_died()
     }

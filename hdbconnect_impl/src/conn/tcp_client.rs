@@ -143,6 +143,7 @@ impl TcpClient {
         };
     }
 
+    #[cfg(feature = "sync")]
     pub(crate) fn has_died(&self) -> bool {
         matches!(*self, Self::Dead { .. })
     }

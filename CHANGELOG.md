@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.34.0-unpublished]
+
+Bugfix for #65: the bb8 checkout validation could stall for up to the full `connection_timeout`
+(≈30 s) when a checkout overlapped with the asynchronous connection cleanup. The custom
+`ValidityChecker` future rebuilt its inner `is_broken()` future on every `poll()`, so while that
+future was waiting for the connection mutex it kept dropping and re-registering its waker and was
+never woken when cleanup released the lock.
+
+Breaking change: the async `Connection::is_broken() -> bool` is replaced by
+
+- `Connection::is_valid() -> HdbResult<()>`, a plain `async fn` that performs a
+  `select 1 from dummy` roundtrip (so its wait for the connection mutex stays registered across
+  polls), and
+- `Connection::has_broken() -> bool`, a cheap synchronous check backed by a shared flag that is
+  now set whenever the connection dies during any request (not only during validation).
+
+The bb8 `ConnectionManager` now delegates to these two methods, matching the idiomatic
+`bb8::ManageConnection` shape. Note that, as bb8 enables `test_on_check_out` by default, each
+checkout now costs one validation roundtrip; users who disable it still get correct behavior
+because `has_broken()` reports breaks from normal requests.
+
 ## [0.33.0]
 
 Bugfix for #60
